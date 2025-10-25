@@ -37,33 +37,61 @@
 - clippy configured (complexity threshold 30)
 - Zero warnings, 49 tests passing total
 
+✅ **Parser Strategy Decision** (ADR-0002) - Complete
+- Evaluated 5 options: pest, lalrpop, nom, chumsky, hand-written
+- **Decision**: Hand-written recursive descent + Pratt parser
+- Rationale: Perfect TDD fit, SQL:1999 FULL compliance, proven approach (sqlparser-rs)
+- 500+ line comprehensive ADR with decision matrix
+- Implementation strategy defined
+
 ## What's Next: Immediate Priorities
 
-### Priority 1: Parser Strategy Decision (ADR-0002)
+### Priority 1: Build Lexer/Tokenizer (parser crate)
 
-**Task**: Choose SQL parser generator/library
+**Task**: Implement lexer following hand-written approach (from ADR-0002)
 
-**Options to Evaluate**:
-1. **pest** - PEG parser, good for complex grammars
-2. **lalrpop** - LR parser generator, more traditional
-3. **nom** - Parser combinators, very flexible
+**What to Build** (TDD approach):
+```rust
+// Token types
+pub enum Token {
+    Keyword(Keyword),
+    Identifier(String),
+    Number(String),
+    String(String),
+    Symbol(char),
+    // ... all SQL tokens
+}
 
-**Decision Criteria**:
-- SQL:1999 grammar complexity handling
-- Error message quality
-- Development speed
-- Community support and examples
-- Integration with our AST types
+// Lexer
+pub struct Lexer {
+    input: String,
+    position: usize,
+}
 
-**Deliverable**: `docs/decisions/0002-parser-strategy.md`
+impl Lexer {
+    pub fn tokenize(&mut self) -> Result<Vec<Token>> { ... }
+}
+```
 
-**Time Estimate**: 2-4 hours (research + decision doc)
+**TDD Steps**:
+1. Write test for keywords (SELECT, FROM, WHERE)
+2. Implement keyword recognition
+3. Write test for identifiers (table names, column names)
+4. Implement identifier tokenization
+5. Write test for numbers (42, 3.14)
+6. Implement number tokenization
+7. Write test for strings ('hello', "world")
+8. Implement string tokenization
+
+**Deliverable**: Working lexer with comprehensive tests
+
+**Time Estimate**: 4-6 hours
 
 ---
 
 ### Priority 2: Build Basic Parser (parser crate)
 
-**Task**: Implement SQL parser using chosen generator (from ADR-0002)
+**Task**: Implement recursive descent parser for simple SELECT
 
 **What to Build** (Incremental):
 
@@ -103,14 +131,15 @@ SELECT COUNT(*) FROM users;
 ## Phase 1 Roadmap (4-6 weeks estimated)
 
 ### Week 1: Foundation (IN PROGRESS ✅)
-- [x] ADR-0002: Choose parser strategy (NEXT UP)
+- [x] ADR-0002: Choose parser strategy - **Hand-written** ✅
 - [x] Implement types crate (basic types) - 27 tests passing ✅
 - [x] Implement ast crate (core structures) - 22 tests passing ✅
-- [ ] Set up parser with chosen tool
-- [ ] Parse simple SELECT statements
+- [ ] Build lexer/tokenizer with TDD (parser crate)
+- [ ] Parse simple SELECT statements (`SELECT 42;`)
 
-**Progress**: 2 of 5 tasks complete, TDD approach proven successful!
+**Progress**: 3 of 5 tasks complete! TDD approach and parser strategy proven successful!
 
+**Current Task**: Lexer/tokenizer implementation
 **Next Milestone**: `SELECT 42;` parses to AST
 
 ### Week 2-3: Core SQL Parsing
@@ -274,6 +303,7 @@ SELECT COUNT(*) FROM users;
 - ✅ Planning and research
 - ✅ Requirements clarification
 - ✅ Language choice (Rust - ADR-0001)
+- ✅ Parser strategy choice (Hand-written - ADR-0002)
 - ✅ Project structure initialized (Cargo workspace, 7 crates)
 - ✅ Documentation infrastructure
 - ✅ Types crate implementation (27 tests) 🦀
@@ -281,10 +311,9 @@ SELECT COUNT(*) FROM users;
 - ✅ Development tooling (rustfmt, clippy)
 
 **In Progress**:
-- 🚧 Parser strategy decision (ADR-0002 - next task)
+- 🚧 Parser crate implementation (Lexer/Tokenizer - TDD Cycle 3)
 
 **Not Started**:
-- ⏳ Parser crate implementation
 - ⏳ Catalog crate (schema metadata)
 - ⏳ Storage crate (in-memory tables)
 - ⏳ Executor crate (query execution)
@@ -292,29 +321,29 @@ SELECT COUNT(*) FROM users;
 
 **Confidence Level**: Very High! 🚀
 
-TDD approach is working brilliantly! We have 49 passing tests, zero warnings, and a solid foundation. The type system and AST are complete and well-tested. Ready to build the parser!
+TDD approach is working brilliantly! We have 49 passing tests, zero warnings, and a solid foundation. Two major architectural decisions complete (Rust + Hand-written parser). Ready to build the lexer and parser!
 
 ---
 
 ## Next Steps (Immediate)
 
-1. **Right Now**: Review this work plan, adjust if needed
+1. **Right Now**: Begin TDD Cycle 3 - Lexer/Tokenizer
 2. **Next Session**:
-   - Research parser options (pest, lalrpop, nom)
-   - Make decision (ADR-0002)
-   - Start types crate
+   - Write lexer tests (keywords, identifiers, numbers, strings)
+   - Implement lexer to make tests pass
+   - Verify lexer tokenizes `SELECT 42;` correctly
 3. **This Week**:
-   - Complete ADR-0002
-   - Types crate with basic types working
-   - AST crate with core structures
-   - Parser crate initialized with chosen tool
+   - Complete lexer with comprehensive tests
+   - Start parser implementation
+   - Parse `SELECT 42;` to AST
+   - Milestone: First SQL query parses! 🎉
 
-**Let's start building!** 🦀
+**Let's continue building with TDD!** 🦀
 
 ---
 
-**Questions for Discussion**:
-1. Does this work plan make sense?
-2. Should we do ADR-0002 first, or start types crate in parallel?
-3. Any adjustments to priorities or timeline?
-4. Ready to begin Phase 1?
+**Status Update** (2024-10-25):
+✅ TDD Cycles 1 & 2 Complete (types + ast)
+✅ ADR-0001 & ADR-0002 Complete (Rust + Hand-written parser)
+🚧 Ready to start TDD Cycle 3 (Lexer/Tokenizer)
+📈 Confidence: Very High - proven TDD approach, clear strategy
