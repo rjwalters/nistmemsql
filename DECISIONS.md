@@ -21,7 +21,7 @@ See `docs/templates/ADR_TEMPLATE.md` for the full template.
 | ID | Title | Status | Date | Summary |
 |----|-------|--------|------|---------|
 | 0001 | **Language Choice: Rust** | ✅ **Accepted** | 2024-10-25 | **Rust chosen** for type safety, pattern matching, compiler feedback, and correctness focus |
-| 0002 | [Pending] Parser Strategy | Proposed | TBD | Choose parsing approach (pest vs. lalrpop vs. nom) |
+| 0002 | **Parser Strategy: Hand-Written** | ✅ **Accepted** | 2024-10-25 | **Hand-written recursive descent + Pratt parser** chosen for full control, TDD alignment, and SQL:1999 flexibility |
 | 0003 | [Pending] Storage Architecture | Proposed | TBD | Design in-memory storage engine structure (HashMap-based) |
 | 0004 | [Pending] Testing Framework | Proposed | TBD | sqltest integration approach |
 | 0005 | [Pending] ODBC Implementation | Proposed | TBD | Approach for ODBC driver (odbc-rs) |
@@ -31,7 +31,7 @@ See `docs/templates/ADR_TEMPLATE.md` for the full template.
 
 ### Core Technology Stack
 - [ADR-0001](docs/decisions/0001-language-choice.md) - **Language Choice: Rust** ✅ (Accepted 2024-10-25)
-- [ADR-0002](docs/decisions/0002-parser-strategy.md) - Parser Strategy (Proposed)
+- [ADR-0002](docs/decisions/0002-parser-strategy.md) - **Parser Strategy: Hand-Written** ✅ (Accepted 2024-10-25)
 
 ### Architecture
 - [ADR-0003](docs/decisions/0003-storage-architecture.md) - Storage Architecture (Proposed)
@@ -73,9 +73,9 @@ Create an ADR when:
 
 ### Recently Accepted
 - **ADR-0001**: Language Choice - Rust (2024-10-25)
+- **ADR-0002**: Parser Strategy - Hand-Written Recursive Descent (2024-10-25)
 
 ### Pending Review
-- ADR-0002: Parser Strategy (pest vs. lalrpop vs. nom)
 - ADR-0003: Storage Architecture
 - ADR-0004: Testing Framework
 - ADR-0005: ODBC Implementation
@@ -103,5 +103,5 @@ When making architectural decisions:
 ---
 
 **Last Updated**: 2024-10-25
-**Total ADRs**: 1 accepted, 5 pending
-**Status**: Implementation beginning - language chosen!
+**Total ADRs**: 2 accepted, 4 pending
+**Status**: Foundation building - language and parser strategy chosen!

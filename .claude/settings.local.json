@@ -17,7 +17,8 @@
       "Bash(cargo build:*)",
       "Bash(cargo test:*)",
       "Bash(cargo clippy:*)",
-      "Bash(cargo fmt:*)"
+      "Bash(cargo fmt:*)",
+      "WebFetch(domain:lakesail.com)"
     ],
     "deny": [],
     "ask": []
