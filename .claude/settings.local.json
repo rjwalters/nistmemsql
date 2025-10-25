@@ -14,7 +14,8 @@
       "Bash(find:*)",
       "WebFetch(domain:github.com)",
       "Bash(cargo init:*)",
-      "Bash(cargo build:*)"
+      "Bash(cargo build:*)",
+      "Bash(cargo test:*)"
     ],
     "deny": [],
     "ask": []
