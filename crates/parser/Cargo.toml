@@ -4,5 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+ast = { path = "../ast" }
+types = { path = "../types" }
 
 [dev-dependencies]
