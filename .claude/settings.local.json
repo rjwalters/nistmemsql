@@ -12,7 +12,9 @@
       "Bash(git push)",
       "Bash(git commit:*)",
       "Bash(find:*)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(cargo init:*)",
+      "Bash(cargo build:*)"
     ],
     "deny": [],
     "ask": []

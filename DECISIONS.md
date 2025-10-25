@@ -20,17 +20,17 @@ See `docs/templates/ADR_TEMPLATE.md` for the full template.
 
 | ID | Title | Status | Date | Summary |
 |----|-------|--------|------|---------|
-| 0001 | [Pending] Language Choice | Proposed | TBD | Choose implementation language (Rust recommended) |
-| 0002 | [Pending] Parser Strategy | Proposed | TBD | Choose parsing approach (ANTLR vs. hand-written vs. parser combinators) |
-| 0003 | [Pending] Storage Architecture | Proposed | TBD | Design in-memory storage engine structure |
-| 0004 | [Pending] Testing Framework | Proposed | TBD | Select test frameworks (sqllogictest + custom) |
-| 0005 | [Pending] ODBC Implementation | Proposed | TBD | Approach for ODBC driver implementation |
-| 0006 | [Pending] JDBC Implementation | Proposed | TBD | Approach for JDBC driver implementation |
+| 0001 | **Language Choice: Rust** | ✅ **Accepted** | 2024-10-25 | **Rust chosen** for type safety, pattern matching, compiler feedback, and correctness focus |
+| 0002 | [Pending] Parser Strategy | Proposed | TBD | Choose parsing approach (pest vs. lalrpop vs. nom) |
+| 0003 | [Pending] Storage Architecture | Proposed | TBD | Design in-memory storage engine structure (HashMap-based) |
+| 0004 | [Pending] Testing Framework | Proposed | TBD | sqltest integration approach |
+| 0005 | [Pending] ODBC Implementation | Proposed | TBD | Approach for ODBC driver (odbc-rs) |
+| 0006 | [Pending] JDBC Implementation | Proposed | TBD | Approach for JDBC driver (jni-rs) |
 
 ## Decisions by Category
 
 ### Core Technology Stack
-- [ADR-0001](docs/decisions/0001-language-choice.md) - Language Choice (Proposed)
+- [ADR-0001](docs/decisions/0001-language-choice.md) - **Language Choice: Rust** ✅ (Accepted 2024-10-25)
 - [ADR-0002](docs/decisions/0002-parser-strategy.md) - Parser Strategy (Proposed)
 
 ### Architecture
@@ -72,10 +72,14 @@ Create an ADR when:
 ## Quick Reference
 
 ### Recently Accepted
-[None yet - project in planning phase]
+- **ADR-0001**: Language Choice - Rust (2024-10-25)
 
 ### Pending Review
-- All initial decisions (0001-0006) pending as we start implementation
+- ADR-0002: Parser Strategy (pest vs. lalrpop vs. nom)
+- ADR-0003: Storage Architecture
+- ADR-0004: Testing Framework
+- ADR-0005: ODBC Implementation
+- ADR-0006: JDBC Implementation
 
 ### Superseded/Deprecated
 [None yet]
@@ -99,5 +103,5 @@ When making architectural decisions:
 ---
 
 **Last Updated**: 2024-10-25
-**Total ADRs**: 0 (6 planned)
-**Status**: Planning phase
+**Total ADRs**: 1 accepted, 5 pending
+**Status**: Implementation beginning - language chosen!

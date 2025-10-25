@@ -109,10 +109,10 @@ We maintain detailed documentation to track decisions, capture learning, and ena
 - ✅ Documentation infrastructure
 
 **Next Steps**:
-1. Architecture design for core components
-2. Language and tooling selection (ADR-0001, ADR-0002)
-3. Project scaffolding
-4. Phase 1: Core SQL Parser implementation
+1. ✅ Language selection (Rust chosen - ADR-0001)
+2. Parser strategy (ADR-0002) - pest vs lalrpop vs nom
+3. Begin Phase 1: Core SQL Parser implementation
+4. Integrate sqltest for continuous testing
 
 ## Key Findings
 

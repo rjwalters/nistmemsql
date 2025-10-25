@@ -1,0 +1,8 @@
+[package]
+name = "ast"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+
+[dev-dependencies]

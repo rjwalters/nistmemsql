@@ -1,0 +1,23 @@
+[workspace]
+members = [
+    "crates/parser",
+    "crates/types",
+    "crates/ast",
+    "crates/catalog",
+    "crates/storage",
+    "crates/executor",
+    "crates/transaction",
+    # "crates/odbc-driver",  # Will add when implementing
+    # "crates/jdbc-driver",  # Will add when implementing
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["nistmemsql contributors"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/rjwalters/nistmemsql"
+
+[workspace.dependencies]
+# Will add dependencies as needed for each phase
