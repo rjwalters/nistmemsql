@@ -4,30 +4,70 @@
 
 This document outlines the testing approach for achieving NIST SQL:1999 compliance, including test suite selection, execution strategy, and GitHub Actions integration.
 
-## Key Findings from Research
+## OFFICIAL TEST SUITE IDENTIFIED! ✅
 
-### NIST SQL Test Suite Status
+**UPDATE**: Upstream maintainer has provided the official test suite to use!
 
-**Critical Discovery**: The official NIST SQL Test Suite only covers SQL-92, NOT SQL:1999.
+**Test Suite**: [sqltest by Elliot Chance](https://github.com/elliotchance/sqltest)
+- **Coverage**: SQL:1992, SQL:1999, SQL:2003, SQL:2011, SQL:2016
+- **Organization**: Feature-based tests (E011-02, etc.)
+- **Generation**: BNF-driven test generation from SQL standard syntax
+- **Status**: Active, open source
+- **Test Count**: Hundreds of tests auto-generated from BNF rules
+- **Results**: Published at https://elliotchance.github.io/sqltest/
 
-- **Coverage**: Entry SQL, Transitional SQL, and Intermediate SQL (all SQL-92 levels)
-- **Version**: 6.0 (last maintained version)
-- **Status**: OBSOLETE - NIST SQL Testing Service has been terminated
-- **Standard**: FIPS PUB 127-2 adopting ANSI X3.135-1992 (SQL-92)
-- **Availability**: Was available free from https://www.itl.nist.gov/div897/ctg/sql_form.htm
-  - **Current Status**: URL now redirects to generic NIST ITL page
-  - Test suite may no longer be actively distributed
+### How sqltest Works
 
-### Implications
+1. **BNF Extraction**: Extracts Backus-Naur Form syntax rules from SQL standard documents
+2. **Test Generation**: Uses `bnf.py` tool to reverse-engineer valid SQL statements from BNF
+3. **Expansion**: Small template tests expand into hundreds of actual test cases
+4. **Automation**: Scripts (`run.sh`, `generate_tests.py`) handle execution
+5. **Reporting**: Generates HTML compliance reports
 
-The requirement to pass "NIST compatibility tests" for SQL:1999 presents a problem:
-- **No official NIST test suite exists for SQL:1999**
-- NIST stopped SQL testing development before SQL:1999 was published
-- Must develop alternative testing strategy
+**Example**: 3 base templates for feature E011-02 → 70 individual test cases
 
-## Testing Approach
+## Primary Testing Strategy: sqltest Suite
 
-### Strategy 1: Use SQL-92 NIST Tests as Baseline
+**DECISION**: Use [sqltest](https://github.com/elliotchance/sqltest) as our primary conformance test suite, as directed by upstream maintainer.
+
+### Why sqltest?
+
+1. **Official Recommendation**: Upstream maintainer explicitly provided this suite
+2. **Comprehensive Coverage**: Includes SQL:1999 tests (our target) plus SQL:92, 2003, 2011, 2016
+3. **BNF-Driven**: Automatically generates tests from SQL standard BNF grammar
+4. **Active Project**: Maintained and used by the SQL community
+5. **Well-Organized**: Feature-based structure (E011, F031, etc.) matches standard taxonomy
+6. **Proven**: Used for testing multiple database implementations
+
+### Integration Plan
+
+1. **Clone sqltest repository** as submodule or vendored dependency
+2. **Focus on SQL:1999 tests** (standards/1999/ directory if exists, or filter from 2016)
+3. **Adapt test runner** to work with ODBC and JDBC drivers
+4. **Generate compliance reports** showing feature-by-feature status
+5. **Automate in GitHub Actions** for CI/CD
+
+### Test Execution Flow
+
+```
+sqltest Repository
+      ↓
+Extract SQL:1999 Tests
+      ↓
+   Test Runner (our code)
+   ↙         ↘
+ODBC Driver   JDBC Driver
+   ↓            ↓
+Our Database Engine
+   ↓            ↓
+Compare Results
+   ↓
+Compliance Report
+```
+
+## Supplementary Testing Approaches
+
+### Approach 1: Use SQL-92 NIST Tests as Baseline (Optional)
 **Rationale**: SQL:1999 is a superset of SQL-92; compliance with SQL-92 is necessary but not sufficient.
 
 **Approach**:

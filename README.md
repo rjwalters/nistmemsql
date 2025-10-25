@@ -8,7 +8,9 @@ Build a **FULL** NIST-compatible SQL:1999 parser and in-memory database implemen
 - **Compliance Level**: FULL compliance (all mandatory and optional features)
 - **Protocol Support**: NIST compatibility tests must run through both ODBC and JDBC
 - **Language**: No preference (implementation choice is ours)
-- **Test Suite**: Must pass NIST compatibility tests via GitHub Actions
+- **Test Suite**: [sqltest](https://github.com/elliotchance/sqltest) - comprehensive SQL conformance tests
+- **Performance**: Not required - single-threaded is acceptable
+- **Persistence**: None - purely in-memory, no WAL, ephemeral only
 
 ## High-Level Architecture
 
@@ -73,10 +75,11 @@ Build a **FULL** NIST-compatible SQL:1999 parser and in-memory database implemen
 
 Comprehensive documentation tracking our journey:
 
+- **[MAJOR_SIMPLIFICATIONS.md](MAJOR_SIMPLIFICATIONS.md)** - 🎉 **NEW!** Game-changing scope reductions
 - **[PROBLEM_STATEMENT.md](PROBLEM_STATEMENT.md)** - Original challenge specification
 - **[REQUIREMENTS.md](REQUIREMENTS.md)** - Detailed requirements from upstream clarifications
 - **[SQL1999_RESEARCH.md](SQL1999_RESEARCH.md)** - Deep dive into SQL:1999 standard
-- **[TESTING_STRATEGY.md](TESTING_STRATEGY.md)** - Comprehensive test approach
+- **[TESTING_STRATEGY.md](TESTING_STRATEGY.md)** - Comprehensive test approach (updated with sqltest)
 - **[RESEARCH_SUMMARY.md](RESEARCH_SUMMARY.md)** - Executive summary of findings
 - **[DECISIONS.md](DECISIONS.md)** - Architecture decision records index
 - **[LESSONS_LEARNED.md](LESSONS_LEARNED.md)** - Insights and knowledge gained
@@ -113,17 +116,33 @@ We maintain detailed documentation to track decisions, capture learning, and ena
 
 ## Key Findings
 
-### Requirements (Clarified)
-- **Standard**: SQL:1999 (not SQL-92 or later versions)
-- **Compliance**: FULL (all core + optional features) - unprecedented goal
-- **Protocols**: Both ODBC and JDBC required for test execution
-- **Testing**: Must pass "NIST compatibility tests" via GitHub Actions
+### 🎉 MAJOR SIMPLIFICATIONS! (See [MAJOR_SIMPLIFICATIONS.md](MAJOR_SIMPLIFICATIONS.md))
 
-### Critical Discovery
-⚠️ **No official NIST SQL:1999 test suite exists** - NIST Test Suite V6.0 only covers SQL-92. Solution: Hybrid approach using sqllogictest (7M+ baseline tests) + custom SQL:1999 feature tests.
+All 7 upstream issues answered with **game-changing** clarifications:
 
-### Scope Assessment
-- Estimated: 92,000-152,000 lines of code
-- Timeline: 3-5 person-years for expert developers
-- Challenge: No existing database achieves FULL SQL:1999 compliance
-- Approach: Incremental development with AI assistance
+1. **No Performance Requirements** ✅
+   - Single-threaded is fine
+   - No query optimization needed
+   - No WAL required
+   - Simple algorithms acceptable
+
+2. **No Persistence Required** ✅
+   - Purely ephemeral (in-memory only)
+   - No disk I/O
+   - No durability needed
+   - Data lost on shutdown is fine
+
+3. **Official Test Suite Identified** ✅
+   - [sqltest](https://github.com/elliotchance/sqltest) by Elliot Chance
+   - Covers SQL:92, SQL:99, SQL:2003, SQL:2011, SQL:2016
+   - BNF-driven test generation
+   - Feature-organized, comprehensive
+
+### Updated Scope Assessment
+- **Original Estimate**: 92,000-152,000 LOC, 3-5 person-years
+- **Revised Estimate**: 40,000-70,000 LOC, 1-2 person-years (**60-70% reduction!**)
+- **With AI Assistance**: 6-12 months estimated
+- **Complexity**: Massively reduced - focus on correctness only
+- **Challenge**: Still FULL SQL:1999 compliance (unprecedented)
+
+**Key Insight**: Eliminated ~60-70% of complexity by not needing performance, persistence, or test development!
