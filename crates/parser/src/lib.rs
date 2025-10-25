@@ -361,6 +361,355 @@ impl Lexer {
 }
 
 // ============================================================================
+// Parser
+// ============================================================================
+
+/// Parser error
+#[derive(Debug, Clone, PartialEq)]
+pub struct ParseError {
+    pub message: String,
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Parse error: {}", self.message)
+    }
+}
+
+/// SQL Parser - converts tokens into AST
+pub struct Parser {
+    tokens: Vec<Token>,
+    position: usize,
+}
+
+impl Parser {
+    /// Create a new parser from tokens
+    pub fn new(tokens: Vec<Token>) -> Self {
+        Parser { tokens, position: 0 }
+    }
+
+    /// Parse SQL input string into a Statement
+    pub fn parse_sql(input: &str) -> Result<ast::Statement, ParseError> {
+        let mut lexer = Lexer::new(input);
+        let tokens =
+            lexer.tokenize().map_err(|e| ParseError { message: format!("Lexer error: {}", e) })?;
+
+        let mut parser = Parser::new(tokens);
+        parser.parse_statement()
+    }
+
+    /// Parse a statement
+    pub fn parse_statement(&mut self) -> Result<ast::Statement, ParseError> {
+        match self.peek() {
+            Token::Keyword(Keyword::Select) => {
+                let select_stmt = self.parse_select_statement()?;
+                Ok(ast::Statement::Select(select_stmt))
+            }
+            _ => {
+                Err(ParseError { message: format!("Expected statement, found {:?}", self.peek()) })
+            }
+        }
+    }
+
+    /// Parse SELECT statement
+    fn parse_select_statement(&mut self) -> Result<ast::SelectStmt, ParseError> {
+        self.expect_keyword(Keyword::Select)?;
+
+        // Parse SELECT list
+        let select_list = self.parse_select_list()?;
+
+        // Parse optional FROM clause
+        let from = if self.peek_keyword(Keyword::From) {
+            self.consume_keyword(Keyword::From)?;
+            Some(self.parse_from_clause()?)
+        } else {
+            None
+        };
+
+        // Parse optional WHERE clause
+        let where_clause = if self.peek_keyword(Keyword::Where) {
+            self.consume_keyword(Keyword::Where)?;
+            Some(self.parse_expression()?)
+        } else {
+            None
+        };
+
+        // For now, skip GROUP BY, HAVING, ORDER BY
+        // TODO: Implement these clauses
+
+        // Expect semicolon or EOF
+        if matches!(self.peek(), Token::Semicolon) {
+            self.advance();
+        }
+
+        Ok(ast::SelectStmt {
+            select_list,
+            from,
+            where_clause,
+            group_by: None,
+            having: None,
+            order_by: None,
+        })
+    }
+
+    /// Parse SELECT list (items after SELECT keyword)
+    fn parse_select_list(&mut self) -> Result<Vec<ast::SelectItem>, ParseError> {
+        let mut items = Vec::new();
+
+        loop {
+            let item = self.parse_select_item()?;
+            items.push(item);
+
+            // Check if there's a comma (more items)
+            if matches!(self.peek(), Token::Comma) {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        Ok(items)
+    }
+
+    /// Parse a single SELECT item
+    fn parse_select_item(&mut self) -> Result<ast::SelectItem, ParseError> {
+        // Check for wildcard (*)
+        if matches!(self.peek(), Token::Symbol('*')) {
+            self.advance();
+            return Ok(ast::SelectItem::Wildcard);
+        }
+
+        // Parse expression
+        let expr = self.parse_expression()?;
+
+        // Check for optional AS alias
+        let alias = if self.peek_keyword(Keyword::As) {
+            self.consume_keyword(Keyword::As)?;
+            match self.peek() {
+                Token::Identifier(id) => {
+                    let alias = id.clone();
+                    self.advance();
+                    Some(alias)
+                }
+                _ => {
+                    return Err(ParseError { message: "Expected identifier after AS".to_string() })
+                }
+            }
+        } else {
+            None
+        };
+
+        Ok(ast::SelectItem::Expression { expr, alias })
+    }
+
+    /// Parse FROM clause
+    fn parse_from_clause(&mut self) -> Result<ast::FromClause, ParseError> {
+        // For now, just parse a simple table reference
+        match self.peek() {
+            Token::Identifier(table_name) => {
+                let name = table_name.clone();
+                self.advance();
+
+                // Check for optional alias
+                let alias = if self.peek_keyword(Keyword::As) {
+                    self.consume_keyword(Keyword::As)?;
+                    match self.peek() {
+                        Token::Identifier(id) => {
+                            let alias = id.clone();
+                            self.advance();
+                            Some(alias)
+                        }
+                        _ => None,
+                    }
+                } else if matches!(self.peek(), Token::Identifier(_)) {
+                    // Implicit alias (no AS keyword)
+                    match self.peek() {
+                        Token::Identifier(id) => {
+                            let alias = id.clone();
+                            self.advance();
+                            Some(alias)
+                        }
+                        _ => None,
+                    }
+                } else {
+                    None
+                };
+
+                Ok(ast::FromClause::Table { name, alias })
+            }
+            _ => Err(ParseError { message: "Expected table name in FROM clause".to_string() }),
+        }
+    }
+
+    /// Parse an expression (simplified for now - just literals and column refs)
+    fn parse_expression(&mut self) -> Result<ast::Expression, ParseError> {
+        self.parse_additive_expression()
+    }
+
+    /// Parse additive expression (handles + and -)
+    fn parse_additive_expression(&mut self) -> Result<ast::Expression, ParseError> {
+        let mut left = self.parse_multiplicative_expression()?;
+
+        while matches!(self.peek(), Token::Symbol('+') | Token::Symbol('-')) {
+            let op = match self.peek() {
+                Token::Symbol('+') => ast::BinaryOperator::Plus,
+                Token::Symbol('-') => ast::BinaryOperator::Minus,
+                _ => unreachable!(),
+            };
+            self.advance();
+
+            let right = self.parse_multiplicative_expression()?;
+            left = ast::Expression::BinaryOp { op, left: Box::new(left), right: Box::new(right) };
+        }
+
+        Ok(left)
+    }
+
+    /// Parse multiplicative expression (handles * and /)
+    fn parse_multiplicative_expression(&mut self) -> Result<ast::Expression, ParseError> {
+        let mut left = self.parse_comparison_expression()?;
+
+        while matches!(self.peek(), Token::Symbol('*') | Token::Symbol('/')) {
+            let op = match self.peek() {
+                Token::Symbol('*') => ast::BinaryOperator::Multiply,
+                Token::Symbol('/') => ast::BinaryOperator::Divide,
+                _ => unreachable!(),
+            };
+            self.advance();
+
+            let right = self.parse_comparison_expression()?;
+            left = ast::Expression::BinaryOp { op, left: Box::new(left), right: Box::new(right) };
+        }
+
+        Ok(left)
+    }
+
+    /// Parse comparison expression (handles =, <, >, etc.)
+    fn parse_comparison_expression(&mut self) -> Result<ast::Expression, ParseError> {
+        let mut left = self.parse_primary_expression()?;
+
+        if matches!(self.peek(), Token::Symbol('=') | Token::Symbol('<') | Token::Symbol('>')) {
+            let op = match self.peek() {
+                Token::Symbol('=') => ast::BinaryOperator::Equal,
+                Token::Symbol('<') => ast::BinaryOperator::LessThan,
+                Token::Symbol('>') => ast::BinaryOperator::GreaterThan,
+                _ => unreachable!(),
+            };
+            self.advance();
+
+            let right = self.parse_primary_expression()?;
+            left = ast::Expression::BinaryOp { op, left: Box::new(left), right: Box::new(right) };
+        }
+
+        Ok(left)
+    }
+
+    /// Parse primary expression (literals, identifiers, parenthesized expressions)
+    fn parse_primary_expression(&mut self) -> Result<ast::Expression, ParseError> {
+        match self.peek() {
+            Token::Number(n) => {
+                let num_str = n.clone();
+                self.advance();
+
+                // Try to parse as integer first
+                if let Ok(i) = num_str.parse::<i64>() {
+                    Ok(ast::Expression::Literal(types::SqlValue::Integer(i)))
+                } else {
+                    // For now, store as numeric string
+                    Ok(ast::Expression::Literal(types::SqlValue::Numeric(num_str)))
+                }
+            }
+            Token::String(s) => {
+                let string_val = s.clone();
+                self.advance();
+                Ok(ast::Expression::Literal(types::SqlValue::Varchar(string_val)))
+            }
+            Token::Keyword(Keyword::True) => {
+                self.advance();
+                Ok(ast::Expression::Literal(types::SqlValue::Boolean(true)))
+            }
+            Token::Keyword(Keyword::False) => {
+                self.advance();
+                Ok(ast::Expression::Literal(types::SqlValue::Boolean(false)))
+            }
+            Token::Keyword(Keyword::Null) => {
+                self.advance();
+                Ok(ast::Expression::Literal(types::SqlValue::Null))
+            }
+            Token::Identifier(id) => {
+                let column = id.clone();
+                self.advance();
+
+                // Check for qualified column reference (table.column)
+                // For now, just return simple column reference
+                Ok(ast::Expression::ColumnRef { table: None, column })
+            }
+            Token::LParen => {
+                self.advance();
+                let expr = self.parse_expression()?;
+                self.expect_token(Token::RParen)?;
+                Ok(expr)
+            }
+            _ => {
+                Err(ParseError { message: format!("Expected expression, found {:?}", self.peek()) })
+            }
+        }
+    }
+
+    // ============================================================================
+    // Helper methods
+    // ============================================================================
+
+    /// Peek at current token without consuming
+    fn peek(&self) -> &Token {
+        if self.position < self.tokens.len() {
+            &self.tokens[self.position]
+        } else {
+            &Token::Eof
+        }
+    }
+
+    /// Advance to next token
+    fn advance(&mut self) {
+        if self.position < self.tokens.len() {
+            self.position += 1;
+        }
+    }
+
+    /// Check if current token is a specific keyword
+    fn peek_keyword(&self, keyword: Keyword) -> bool {
+        matches!(self.peek(), Token::Keyword(k) if k == &keyword)
+    }
+
+    /// Expect and consume a specific keyword
+    fn expect_keyword(&mut self, keyword: Keyword) -> Result<(), ParseError> {
+        if self.peek_keyword(keyword.clone()) {
+            self.advance();
+            Ok(())
+        } else {
+            Err(ParseError {
+                message: format!("Expected keyword {:?}, found {:?}", keyword, self.peek()),
+            })
+        }
+    }
+
+    /// Consume a specific keyword
+    fn consume_keyword(&mut self, keyword: Keyword) -> Result<(), ParseError> {
+        self.expect_keyword(keyword)
+    }
+
+    /// Expect a specific token
+    fn expect_token(&mut self, expected: Token) -> Result<(), ParseError> {
+        if self.peek() == &expected {
+            self.advance();
+            Ok(())
+        } else {
+            Err(ParseError { message: format!("Expected {:?}, found {:?}", expected, self.peek()) })
+        }
+    }
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 
@@ -690,5 +1039,286 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Unexpected character"));
+    }
+
+    // ============================================================================
+    // Parser Tests - Parsing SQL into AST
+    // ============================================================================
+
+    #[test]
+    fn test_parse_select_42() {
+        let result = Parser::parse_sql("SELECT 42;");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => {
+                assert_eq!(select.select_list.len(), 1);
+                match &select.select_list[0] {
+                    ast::SelectItem::Expression { expr, alias } => {
+                        assert!(alias.is_none());
+                        match expr {
+                            ast::Expression::Literal(types::SqlValue::Integer(42)) => {} // Success
+                            _ => panic!("Expected Integer(42), got {:?}", expr),
+                        }
+                    }
+                    _ => panic!("Expected Expression select item"),
+                }
+                assert!(select.from.is_none());
+                assert!(select.where_clause.is_none());
+            }
+            _ => panic!("Expected SELECT statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_select_string() {
+        let result = Parser::parse_sql("SELECT 'hello';");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => {
+                assert_eq!(select.select_list.len(), 1);
+                match &select.select_list[0] {
+                    ast::SelectItem::Expression { expr, .. } => match expr {
+                        ast::Expression::Literal(types::SqlValue::Varchar(s)) if s == "hello" => {} // Success
+                        _ => panic!("Expected Varchar('hello'), got {:?}", expr),
+                    },
+                    _ => panic!("Expected Expression select item"),
+                }
+            }
+            _ => panic!("Expected SELECT statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_select_arithmetic() {
+        let result = Parser::parse_sql("SELECT 1 + 2;");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => {
+                assert_eq!(select.select_list.len(), 1);
+                match &select.select_list[0] {
+                    ast::SelectItem::Expression { expr, .. } => match expr {
+                        ast::Expression::BinaryOp { op, left, right } => {
+                            assert_eq!(*op, ast::BinaryOperator::Plus);
+                            match **left {
+                                ast::Expression::Literal(types::SqlValue::Integer(1)) => {}
+                                _ => panic!("Expected left = 1"),
+                            }
+                            match **right {
+                                ast::Expression::Literal(types::SqlValue::Integer(2)) => {}
+                                _ => panic!("Expected right = 2"),
+                            }
+                        }
+                        _ => panic!("Expected BinaryOp, got {:?}", expr),
+                    },
+                    _ => panic!("Expected Expression select item"),
+                }
+            }
+            _ => panic!("Expected SELECT statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_select_star() {
+        let result = Parser::parse_sql("SELECT *;");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => {
+                assert_eq!(select.select_list.len(), 1);
+                match &select.select_list[0] {
+                    ast::SelectItem::Wildcard => {} // Success
+                    _ => panic!("Expected Wildcard select item"),
+                }
+            }
+            _ => panic!("Expected SELECT statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_select_from_table() {
+        let result = Parser::parse_sql("SELECT * FROM users;");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => {
+                assert!(select.from.is_some());
+                match &select.from.as_ref().unwrap() {
+                    ast::FromClause::Table { name, alias } => {
+                        assert_eq!(name, "users");
+                        assert!(alias.is_none());
+                    }
+                    _ => panic!("Expected table in FROM clause"),
+                }
+            }
+            _ => panic!("Expected SELECT statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_select_columns() {
+        let result = Parser::parse_sql("SELECT id, name, age FROM users;");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => {
+                assert_eq!(select.select_list.len(), 3);
+
+                // Check first column (id)
+                match &select.select_list[0] {
+                    ast::SelectItem::Expression { expr, .. } => match expr {
+                        ast::Expression::ColumnRef { column, .. } if column == "id" => {}
+                        _ => panic!("Expected id column"),
+                    },
+                    _ => panic!("Expected Expression select item"),
+                }
+
+                // Check second column (name)
+                match &select.select_list[1] {
+                    ast::SelectItem::Expression { expr, .. } => match expr {
+                        ast::Expression::ColumnRef { column, .. } if column == "name" => {}
+                        _ => panic!("Expected name column"),
+                    },
+                    _ => panic!("Expected Expression select item"),
+                }
+
+                // Check third column (age)
+                match &select.select_list[2] {
+                    ast::SelectItem::Expression { expr, .. } => match expr {
+                        ast::Expression::ColumnRef { column, .. } if column == "age" => {}
+                        _ => panic!("Expected age column"),
+                    },
+                    _ => panic!("Expected Expression select item"),
+                }
+            }
+            _ => panic!("Expected SELECT statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_select_with_where() {
+        let result = Parser::parse_sql("SELECT name FROM users WHERE id = 1;");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => {
+                assert!(select.where_clause.is_some());
+                match &select.where_clause.as_ref().unwrap() {
+                    ast::Expression::BinaryOp { op, left, right } => {
+                        assert_eq!(*op, ast::BinaryOperator::Equal);
+                        match **left {
+                            ast::Expression::ColumnRef { ref column, .. } if column == "id" => {}
+                            _ => panic!("Expected id column in WHERE"),
+                        }
+                        match **right {
+                            ast::Expression::Literal(types::SqlValue::Integer(1)) => {}
+                            _ => panic!("Expected Integer(1) in WHERE"),
+                        }
+                    }
+                    _ => panic!("Expected BinaryOp in WHERE clause"),
+                }
+            }
+            _ => panic!("Expected SELECT statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_select_with_alias() {
+        let result = Parser::parse_sql("SELECT id AS user_id FROM users;");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => {
+                assert_eq!(select.select_list.len(), 1);
+                match &select.select_list[0] {
+                    ast::SelectItem::Expression { alias, .. } => {
+                        assert_eq!(alias.as_ref().unwrap(), "user_id");
+                    }
+                    _ => panic!("Expected Expression select item"),
+                }
+            }
+            _ => panic!("Expected SELECT statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_precedence() {
+        // Test that 1 + 2 * 3 parses as 1 + (2 * 3)
+        let result = Parser::parse_sql("SELECT 1 + 2 * 3;");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => {
+                match &select.select_list[0] {
+                    ast::SelectItem::Expression { expr, .. } => match expr {
+                        ast::Expression::BinaryOp { op, left, right } => {
+                            assert_eq!(*op, ast::BinaryOperator::Plus);
+                            // Left should be 1
+                            match **left {
+                                ast::Expression::Literal(types::SqlValue::Integer(1)) => {}
+                                _ => panic!("Expected left = 1"),
+                            }
+                            // Right should be 2 * 3
+                            match **right {
+                                ast::Expression::BinaryOp {
+                                    op: ast::BinaryOperator::Multiply,
+                                    ..
+                                } => {}
+                                _ => panic!("Expected right = 2 * 3"),
+                            }
+                        }
+                        _ => panic!("Expected BinaryOp"),
+                    },
+                    _ => panic!("Expected Expression"),
+                }
+            }
+            _ => panic!("Expected SELECT"),
+        }
+    }
+
+    #[test]
+    fn test_parse_parentheses() {
+        // Test that (1 + 2) * 3 parses correctly
+        let result = Parser::parse_sql("SELECT (1 + 2) * 3;");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => {
+                match &select.select_list[0] {
+                    ast::SelectItem::Expression { expr, .. } => match expr {
+                        ast::Expression::BinaryOp { op, left, right } => {
+                            assert_eq!(*op, ast::BinaryOperator::Multiply);
+                            // Left should be (1 + 2)
+                            match **left {
+                                ast::Expression::BinaryOp {
+                                    op: ast::BinaryOperator::Plus, ..
+                                } => {}
+                                _ => panic!("Expected left = 1 + 2"),
+                            }
+                            // Right should be 3
+                            match **right {
+                                ast::Expression::Literal(types::SqlValue::Integer(3)) => {}
+                                _ => panic!("Expected right = 3"),
+                            }
+                        }
+                        _ => panic!("Expected BinaryOp"),
+                    },
+                    _ => panic!("Expected Expression"),
+                }
+            }
+            _ => panic!("Expected SELECT"),
+        }
     }
 }
