@@ -71,24 +71,42 @@ Build a **FULL** NIST-compatible SQL:1999 parser and in-memory database implemen
 - Both ODBC and JDBC test execution paths
 - Compliance reporting and gap analysis
 
+## Test-Driven Development Approach
+
+We're building this database using **Test-Driven Development (TDD)**:
+
+1. **Red Phase**: Write tests first (they fail)
+2. **Green Phase**: Implement just enough to make tests pass
+3. **Refactor Phase**: Clean up code while tests stay green
+
+### TDD Benefits Observed
+- ✅ Clean, well-designed APIs
+- ✅ 100% test coverage from day one
+- ✅ Faster development (no debugging!)
+- ✅ Safe refactoring
+- ✅ Tests serve as living documentation
+
+See [docs/lessons/TDD_APPROACH.md](docs/lessons/TDD_APPROACH.md) for detailed lessons learned.
+
 ## Documentation
 
 Comprehensive documentation tracking our journey:
 
-- **[MAJOR_SIMPLIFICATIONS.md](MAJOR_SIMPLIFICATIONS.md)** - 🎉 **NEW!** Game-changing scope reductions
+- **[MAJOR_SIMPLIFICATIONS.md](MAJOR_SIMPLIFICATIONS.md)** - 🎉 Game-changing scope reductions
 - **[PROBLEM_STATEMENT.md](PROBLEM_STATEMENT.md)** - Original challenge specification
 - **[REQUIREMENTS.md](REQUIREMENTS.md)** - Detailed requirements from upstream clarifications
 - **[SQL1999_RESEARCH.md](SQL1999_RESEARCH.md)** - Deep dive into SQL:1999 standard
 - **[TESTING_STRATEGY.md](TESTING_STRATEGY.md)** - Comprehensive test approach (updated with sqltest)
 - **[RESEARCH_SUMMARY.md](RESEARCH_SUMMARY.md)** - Executive summary of findings
 - **[DECISIONS.md](DECISIONS.md)** - Architecture decision records index
+- **[WORK_PLAN.md](WORK_PLAN.md)** - 📍 **Updated!** Detailed roadmap and progress tracking
 - **[LESSONS_LEARNED.md](LESSONS_LEARNED.md)** - Insights and knowledge gained
 - **[docs/](docs/)** - Detailed documentation directory
   - [Documentation Guide](docs/README.md) - How to use and contribute to docs
+  - [TDD Approach](docs/lessons/TDD_APPROACH.md) - 🎉 **New!** Test-driven development lessons
   - [Templates](docs/templates/) - ADR, architecture, implementation, and lessons templates
-  - Architecture docs (coming soon)
-  - Implementation guides (coming soon)
-  - Research notes (coming soon)
+  - [Decisions](docs/decisions/) - Architecture Decision Records
+    - [ADR-0001: Language Choice (Rust)](docs/decisions/0001-language-choice.md)
 
 ### Documentation Standards
 
@@ -100,19 +118,37 @@ We maintain detailed documentation to track decisions, capture learning, and ena
 
 ## Development Status
 
-**Current Phase**: Phase 0 - Planning and Architecture
+**Current Phase**: Phase 1 - Foundation (TDD Implementation) 🦀
 
-**Completed**:
+**Development Approach**: Test-Driven Development (Red-Green-Refactor) ✅
+
+### Completed ✅
 - ✅ Requirements clarification (via upstream GitHub issues)
 - ✅ SQL:1999 standard research
 - ✅ Testing strategy design
 - ✅ Documentation infrastructure
+- ✅ Language selection (Rust - see [ADR-0001](docs/decisions/0001-language-choice.md))
+- ✅ Cargo workspace initialized (7 crates)
+- ✅ Development tooling (rustfmt, clippy)
+- ✅ **Types Crate** - SQL:1999 type system (27 tests passing) 🎉
+- ✅ **AST Crate** - Abstract Syntax Tree structures (22 tests passing) 🎉
 
-**Next Steps**:
-1. ✅ Language selection (Rust chosen - ADR-0001)
-2. Parser strategy (ADR-0002) - pest vs lalrpop vs nom
-3. Begin Phase 1: Core SQL Parser implementation
+### In Progress 🚧
+- 🚧 Parser strategy decision (ADR-0002) - pest vs lalrpop vs nom
+
+### Test Status
+- **Total Tests**: 49 passing ✅
+- **Compiler Warnings**: 0
+- **Clippy Warnings**: 0
+- **Test Coverage**: 100% of public APIs
+
+### Next Steps
+1. Complete ADR-0002 (parser strategy decision)
+2. Begin parser crate TDD implementation
+3. Parse simple SELECT statements (`SELECT 42;`)
 4. Integrate sqltest for continuous testing
+
+See [WORK_PLAN.md](WORK_PLAN.md) for detailed progress and roadmap.
 
 ## Key Findings
 
