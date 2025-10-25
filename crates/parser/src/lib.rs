@@ -46,6 +46,8 @@ pub enum Keyword {
     Desc,
     Limit,
     Offset,
+    Set,
+    Values,
     // Add more keywords as needed
 }
 
@@ -84,6 +86,8 @@ impl fmt::Display for Keyword {
             Keyword::Desc => "DESC",
             Keyword::Limit => "LIMIT",
             Keyword::Offset => "OFFSET",
+            Keyword::Set => "SET",
+            Keyword::Values => "VALUES",
         };
         write!(f, "{}", keyword_str)
     }
@@ -280,6 +284,8 @@ impl Lexer {
             "DESC" => Token::Keyword(Keyword::Desc),
             "LIMIT" => Token::Keyword(Keyword::Limit),
             "OFFSET" => Token::Keyword(Keyword::Offset),
+            "SET" => Token::Keyword(Keyword::Set),
+            "VALUES" => Token::Keyword(Keyword::Values),
             _ => Token::Identifier(text),
         };
 
@@ -405,6 +411,22 @@ impl Parser {
                 let select_stmt = self.parse_select_statement()?;
                 Ok(ast::Statement::Select(select_stmt))
             }
+            Token::Keyword(Keyword::Insert) => {
+                let insert_stmt = self.parse_insert_statement()?;
+                Ok(ast::Statement::Insert(insert_stmt))
+            }
+            Token::Keyword(Keyword::Update) => {
+                let update_stmt = self.parse_update_statement()?;
+                Ok(ast::Statement::Update(update_stmt))
+            }
+            Token::Keyword(Keyword::Delete) => {
+                let delete_stmt = self.parse_delete_statement()?;
+                Ok(ast::Statement::Delete(delete_stmt))
+            }
+            Token::Keyword(Keyword::Create) => {
+                let create_stmt = self.parse_create_table_statement()?;
+                Ok(ast::Statement::CreateTable(create_stmt))
+            }
             _ => {
                 Err(ParseError { message: format!("Expected statement, found {:?}", self.peek()) })
             }
@@ -450,6 +472,311 @@ impl Parser {
             having: None,
             order_by: None,
         })
+    }
+
+    /// Parse INSERT statement
+    fn parse_insert_statement(&mut self) -> Result<ast::InsertStmt, ParseError> {
+        self.expect_keyword(Keyword::Insert)?;
+        self.expect_keyword(Keyword::Into)?;
+
+        // Parse table name
+        let table_name = match self.peek() {
+            Token::Identifier(name) => {
+                let table = name.clone();
+                self.advance();
+                table
+            }
+            _ => {
+                return Err(ParseError {
+                    message: "Expected table name after INSERT INTO".to_string(),
+                })
+            }
+        };
+
+        // Parse column list (optional in SQL, but we'll require it for now)
+        let columns = if matches!(self.peek(), Token::LParen) {
+            self.advance(); // consume (
+            let mut cols = Vec::new();
+            loop {
+                match self.peek() {
+                    Token::Identifier(col) => {
+                        cols.push(col.clone());
+                        self.advance();
+                    }
+                    _ => return Err(ParseError { message: "Expected column name".to_string() }),
+                }
+
+                if matches!(self.peek(), Token::Comma) {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+            self.expect_token(Token::RParen)?;
+            cols
+        } else {
+            Vec::new() // No columns specified
+        };
+
+        // Parse VALUES
+        self.expect_keyword(Keyword::Values)?;
+
+        // Parse value lists
+        let mut values = Vec::new();
+        loop {
+            self.expect_token(Token::LParen)?;
+            let mut row = Vec::new();
+            loop {
+                let expr = self.parse_expression()?;
+                row.push(expr);
+
+                if matches!(self.peek(), Token::Comma) {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+            self.expect_token(Token::RParen)?;
+            values.push(row);
+
+            if matches!(self.peek(), Token::Comma) {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        // Expect semicolon or EOF
+        if matches!(self.peek(), Token::Semicolon) {
+            self.advance();
+        }
+
+        Ok(ast::InsertStmt { table_name, columns, values })
+    }
+
+    /// Parse UPDATE statement
+    fn parse_update_statement(&mut self) -> Result<ast::UpdateStmt, ParseError> {
+        self.expect_keyword(Keyword::Update)?;
+
+        // Parse table name
+        let table_name = match self.peek() {
+            Token::Identifier(name) => {
+                let table = name.clone();
+                self.advance();
+                table
+            }
+            _ => {
+                return Err(ParseError { message: "Expected table name after UPDATE".to_string() })
+            }
+        };
+
+        // Parse SET keyword
+        self.expect_keyword(Keyword::Set)?;
+
+        // Parse assignments
+        let mut assignments = Vec::new();
+        loop {
+            // Parse column name
+            let column = match self.peek() {
+                Token::Identifier(col) => {
+                    let c = col.clone();
+                    self.advance();
+                    c
+                }
+                _ => {
+                    return Err(ParseError {
+                        message: "Expected column name in SET clause".to_string(),
+                    })
+                }
+            };
+
+            // Expect =
+            self.expect_token(Token::Symbol('='))?;
+
+            // Parse value expression
+            let value = self.parse_expression()?;
+
+            assignments.push(ast::Assignment { column, value });
+
+            if matches!(self.peek(), Token::Comma) {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        // Parse optional WHERE clause
+        let where_clause = if self.peek_keyword(Keyword::Where) {
+            self.consume_keyword(Keyword::Where)?;
+            Some(self.parse_expression()?)
+        } else {
+            None
+        };
+
+        // Expect semicolon or EOF
+        if matches!(self.peek(), Token::Semicolon) {
+            self.advance();
+        }
+
+        Ok(ast::UpdateStmt { table_name, assignments, where_clause })
+    }
+
+    /// Parse DELETE statement
+    fn parse_delete_statement(&mut self) -> Result<ast::DeleteStmt, ParseError> {
+        self.expect_keyword(Keyword::Delete)?;
+        self.expect_keyword(Keyword::From)?;
+
+        // Parse table name
+        let table_name = match self.peek() {
+            Token::Identifier(name) => {
+                let table = name.clone();
+                self.advance();
+                table
+            }
+            _ => {
+                return Err(ParseError {
+                    message: "Expected table name after DELETE FROM".to_string(),
+                })
+            }
+        };
+
+        // Parse optional WHERE clause
+        let where_clause = if self.peek_keyword(Keyword::Where) {
+            self.consume_keyword(Keyword::Where)?;
+            Some(self.parse_expression()?)
+        } else {
+            None
+        };
+
+        // Expect semicolon or EOF
+        if matches!(self.peek(), Token::Semicolon) {
+            self.advance();
+        }
+
+        Ok(ast::DeleteStmt { table_name, where_clause })
+    }
+
+    /// Parse CREATE TABLE statement
+    fn parse_create_table_statement(&mut self) -> Result<ast::CreateTableStmt, ParseError> {
+        self.expect_keyword(Keyword::Create)?;
+        self.expect_keyword(Keyword::Table)?;
+
+        // Parse table name
+        let table_name = match self.peek() {
+            Token::Identifier(name) => {
+                let table = name.clone();
+                self.advance();
+                table
+            }
+            _ => {
+                return Err(ParseError {
+                    message: "Expected table name after CREATE TABLE".to_string(),
+                })
+            }
+        };
+
+        // Parse column definitions
+        self.expect_token(Token::LParen)?;
+        let mut columns = Vec::new();
+
+        loop {
+            // Parse column name
+            let name = match self.peek() {
+                Token::Identifier(col) => {
+                    let c = col.clone();
+                    self.advance();
+                    c
+                }
+                _ => return Err(ParseError { message: "Expected column name".to_string() }),
+            };
+
+            // Parse data type
+            let data_type = self.parse_data_type()?;
+
+            // Parse optional NOT NULL (default is nullable)
+            let nullable = if self.peek_keyword(Keyword::Not) {
+                self.consume_keyword(Keyword::Not)?;
+                self.expect_keyword(Keyword::Null)?;
+                false
+            } else {
+                true
+            };
+
+            columns.push(ast::ColumnDef { name, data_type, nullable });
+
+            if matches!(self.peek(), Token::Comma) {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        self.expect_token(Token::RParen)?;
+
+        // Expect semicolon or EOF
+        if matches!(self.peek(), Token::Semicolon) {
+            self.advance();
+        }
+
+        Ok(ast::CreateTableStmt { table_name, columns })
+    }
+
+    /// Parse data type
+    fn parse_data_type(&mut self) -> Result<types::DataType, ParseError> {
+        let type_upper = match self.peek() {
+            Token::Identifier(type_name) => type_name.to_uppercase(),
+            _ => return Err(ParseError { message: "Expected data type".to_string() }),
+        };
+        self.advance();
+
+        match type_upper.as_str() {
+            "INTEGER" | "INT" => Ok(types::DataType::Integer),
+            "SMALLINT" => Ok(types::DataType::Smallint),
+            "BIGINT" => Ok(types::DataType::Bigint),
+            "BOOLEAN" | "BOOL" => Ok(types::DataType::Boolean),
+            "DATE" => Ok(types::DataType::Date),
+            "VARCHAR" => {
+                // Parse VARCHAR(n)
+                self.expect_token(Token::LParen)?;
+                let max_length = match self.peek() {
+                    Token::Number(n) => {
+                        let len = n.parse::<usize>().map_err(|_| ParseError {
+                            message: "Invalid VARCHAR length".to_string(),
+                        })?;
+                        self.advance();
+                        len
+                    }
+                    _ => {
+                        return Err(ParseError {
+                            message: "Expected number after VARCHAR(".to_string(),
+                        })
+                    }
+                };
+                self.expect_token(Token::RParen)?;
+                Ok(types::DataType::Varchar { max_length })
+            }
+            "CHAR" | "CHARACTER" => {
+                // Parse CHAR(n)
+                self.expect_token(Token::LParen)?;
+                let length = match self.peek() {
+                    Token::Number(n) => {
+                        let len = n.parse::<usize>().map_err(|_| ParseError {
+                            message: "Invalid CHAR length".to_string(),
+                        })?;
+                        self.advance();
+                        len
+                    }
+                    _ => {
+                        return Err(ParseError {
+                            message: "Expected number after CHAR(".to_string(),
+                        })
+                    }
+                };
+                self.expect_token(Token::RParen)?;
+                Ok(types::DataType::Character { length })
+            }
+            _ => Err(ParseError { message: format!("Unknown data type: {}", type_upper) }),
+        }
     }
 
     /// Parse SELECT list (items after SELECT keyword)
@@ -541,9 +868,43 @@ impl Parser {
         }
     }
 
-    /// Parse an expression (simplified for now - just literals and column refs)
+    /// Parse an expression (entry point)
     fn parse_expression(&mut self) -> Result<ast::Expression, ParseError> {
-        self.parse_additive_expression()
+        self.parse_or_expression()
+    }
+
+    /// Parse OR expression (lowest precedence)
+    fn parse_or_expression(&mut self) -> Result<ast::Expression, ParseError> {
+        let mut left = self.parse_and_expression()?;
+
+        while self.peek_keyword(Keyword::Or) {
+            self.consume_keyword(Keyword::Or)?;
+            let right = self.parse_and_expression()?;
+            left = ast::Expression::BinaryOp {
+                op: ast::BinaryOperator::Or,
+                left: Box::new(left),
+                right: Box::new(right),
+            };
+        }
+
+        Ok(left)
+    }
+
+    /// Parse AND expression
+    fn parse_and_expression(&mut self) -> Result<ast::Expression, ParseError> {
+        let mut left = self.parse_additive_expression()?;
+
+        while self.peek_keyword(Keyword::And) {
+            self.consume_keyword(Keyword::And)?;
+            let right = self.parse_additive_expression()?;
+            left = ast::Expression::BinaryOp {
+                op: ast::BinaryOperator::And,
+                left: Box::new(left),
+                right: Box::new(right),
+            };
+        }
+
+        Ok(left)
     }
 
     /// Parse additive expression (handles + and -)
@@ -1319,6 +1680,249 @@ mod tests {
                 }
             }
             _ => panic!("Expected SELECT"),
+        }
+    }
+
+    #[test]
+    fn test_parse_and_operator() {
+        let result = Parser::parse_sql("SELECT * FROM users WHERE age > 18 AND status = 'active';");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => {
+                assert!(select.where_clause.is_some());
+                match select.where_clause.as_ref().unwrap() {
+                    ast::Expression::BinaryOp { op, .. } => {
+                        assert_eq!(*op, ast::BinaryOperator::And);
+                    }
+                    _ => panic!("Expected AND expression"),
+                }
+            }
+            _ => panic!("Expected SELECT"),
+        }
+    }
+
+    #[test]
+    fn test_parse_or_operator() {
+        let result =
+            Parser::parse_sql("SELECT * FROM users WHERE status = 'active' OR status = 'pending';");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => {
+                assert!(select.where_clause.is_some());
+                match select.where_clause.as_ref().unwrap() {
+                    ast::Expression::BinaryOp { op, .. } => {
+                        assert_eq!(*op, ast::BinaryOperator::Or);
+                    }
+                    _ => panic!("Expected OR expression"),
+                }
+            }
+            _ => panic!("Expected SELECT"),
+        }
+    }
+
+    #[test]
+    fn test_parse_complex_where() {
+        // Test: age > 18 AND (status = 'active' OR status = 'pending')
+        let result = Parser::parse_sql(
+            "SELECT * FROM users WHERE age > 18 AND (status = 'active' OR status = 'pending');",
+        );
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => {
+                assert!(select.where_clause.is_some());
+                // Outer should be AND
+                match select.where_clause.as_ref().unwrap() {
+                    ast::Expression::BinaryOp { op, right, .. } => {
+                        assert_eq!(*op, ast::BinaryOperator::And);
+                        // Right side should be OR (in parentheses)
+                        match **right {
+                            ast::Expression::BinaryOp { op: ast::BinaryOperator::Or, .. } => {} // Success
+                            _ => panic!("Expected OR in right side"),
+                        }
+                    }
+                    _ => panic!("Expected AND expression"),
+                }
+            }
+            _ => panic!("Expected SELECT"),
+        }
+    }
+
+    // ========================================================================
+    // INSERT Statement Tests
+    // ========================================================================
+
+    #[test]
+    fn test_parse_insert_basic() {
+        let result = Parser::parse_sql("INSERT INTO users (id, name) VALUES (1, 'Alice');");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Insert(insert) => {
+                assert_eq!(insert.table_name, "users");
+                assert_eq!(insert.columns.len(), 2);
+                assert_eq!(insert.columns[0], "id");
+                assert_eq!(insert.columns[1], "name");
+                assert_eq!(insert.values.len(), 1); // One row
+                assert_eq!(insert.values[0].len(), 2); // Two values
+            }
+            _ => panic!("Expected INSERT statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_insert_multiple_rows() {
+        let result =
+            Parser::parse_sql("INSERT INTO users (id, name) VALUES (1, 'Alice'), (2, 'Bob');");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Insert(insert) => {
+                assert_eq!(insert.table_name, "users");
+                assert_eq!(insert.values.len(), 2); // Two rows
+            }
+            _ => panic!("Expected INSERT statement"),
+        }
+    }
+
+    // ========================================================================
+    // UPDATE Statement Tests
+    // ========================================================================
+
+    #[test]
+    fn test_parse_update_basic() {
+        let result = Parser::parse_sql("UPDATE users SET name = 'Bob' WHERE id = 1;");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Update(update) => {
+                assert_eq!(update.table_name, "users");
+                assert_eq!(update.assignments.len(), 1);
+                assert_eq!(update.assignments[0].column, "name");
+                assert!(update.where_clause.is_some());
+            }
+            _ => panic!("Expected UPDATE statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_update_multiple_columns() {
+        let result = Parser::parse_sql("UPDATE users SET name = 'Bob', age = 30;");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Update(update) => {
+                assert_eq!(update.table_name, "users");
+                assert_eq!(update.assignments.len(), 2);
+                assert_eq!(update.assignments[0].column, "name");
+                assert_eq!(update.assignments[1].column, "age");
+            }
+            _ => panic!("Expected UPDATE statement"),
+        }
+    }
+
+    // ========================================================================
+    // DELETE Statement Tests
+    // ========================================================================
+
+    #[test]
+    fn test_parse_delete_basic() {
+        let result = Parser::parse_sql("DELETE FROM users WHERE id = 1;");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Delete(delete) => {
+                assert_eq!(delete.table_name, "users");
+                assert!(delete.where_clause.is_some());
+            }
+            _ => panic!("Expected DELETE statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_delete_no_where() {
+        let result = Parser::parse_sql("DELETE FROM users;");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Delete(delete) => {
+                assert_eq!(delete.table_name, "users");
+                assert!(delete.where_clause.is_none());
+            }
+            _ => panic!("Expected DELETE statement"),
+        }
+    }
+
+    // ========================================================================
+    // CREATE TABLE Statement Tests
+    // ========================================================================
+
+    #[test]
+    fn test_parse_create_table_basic() {
+        let result = Parser::parse_sql("CREATE TABLE users (id INTEGER, name VARCHAR(100));");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::CreateTable(create) => {
+                assert_eq!(create.table_name, "users");
+                assert_eq!(create.columns.len(), 2);
+                assert_eq!(create.columns[0].name, "id");
+                assert_eq!(create.columns[1].name, "name");
+                match create.columns[0].data_type {
+                    types::DataType::Integer => {} // Success
+                    _ => panic!("Expected Integer data type"),
+                }
+                match create.columns[1].data_type {
+                    types::DataType::Varchar { max_length: 100 } => {} // Success
+                    _ => panic!("Expected VARCHAR(100) data type"),
+                }
+            }
+            _ => panic!("Expected CREATE TABLE statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_create_table_various_types() {
+        let result = Parser::parse_sql(
+            "CREATE TABLE test (id INT, flag BOOLEAN, birth DATE, code CHAR(5));",
+        );
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::CreateTable(create) => {
+                assert_eq!(create.table_name, "test");
+                assert_eq!(create.columns.len(), 4);
+                match create.columns[0].data_type {
+                    types::DataType::Integer => {} // Success
+                    _ => panic!("Expected Integer"),
+                }
+                match create.columns[1].data_type {
+                    types::DataType::Boolean => {} // Success
+                    _ => panic!("Expected Boolean"),
+                }
+                match create.columns[2].data_type {
+                    types::DataType::Date => {} // Success
+                    _ => panic!("Expected Date"),
+                }
+                match create.columns[3].data_type {
+                    types::DataType::Character { length: 5 } => {} // Success
+                    _ => panic!("Expected CHAR(5)"),
+                }
+            }
+            _ => panic!("Expected CREATE TABLE statement"),
         }
     }
 }
