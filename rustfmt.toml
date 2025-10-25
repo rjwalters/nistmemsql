@@ -1,0 +1,26 @@
+# rustfmt configuration for nistmemsql
+# See https://rust-lang.github.io/rustfmt/
+
+# Edition
+edition = "2021"
+
+# Line width
+max_width = 100
+
+# Imports
+imports_granularity = "Crate"
+group_imports = "StdExternalCrate"
+
+# Comments
+wrap_comments = true
+comment_width = 100
+
+# Formatting
+newline_style = "Unix"
+use_small_heuristics = "Max"
+
+# Error handling
+use_try_shorthand = true
+
+# Documentation
+format_code_in_doc_comments = true

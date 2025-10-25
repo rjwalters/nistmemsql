@@ -15,7 +15,9 @@
       "WebFetch(domain:github.com)",
       "Bash(cargo init:*)",
       "Bash(cargo build:*)",
-      "Bash(cargo test:*)"
+      "Bash(cargo test:*)",
+      "Bash(cargo clippy:*)",
+      "Bash(cargo fmt:*)"
     ],
     "deny": [],
     "ask": []

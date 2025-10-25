@@ -1,0 +1,11 @@
+# Clippy configuration for nistmemsql
+
+# Cognitive complexity threshold
+cognitive-complexity-threshold = 30
+
+# Disallow certain types
+disallowed-types = []
+
+# Documentation
+# Require documentation for public items
+# (We'll enable this gradually as we document)
