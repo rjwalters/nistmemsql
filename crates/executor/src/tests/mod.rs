@@ -2,9 +2,15 @@
 //!
 //! Tests are organized by feature area:
 //! - `expression_eval`: Expression evaluator tests (literals, column refs, binary ops)
-//! - `select_executor`: SELECT statement execution tests
 //! - `limit_offset`: LIMIT/OFFSET pagination tests
+//! - `select_basic`: Basic SELECT tests (wildcards, columns, ORDER BY)
+//! - `select_where`: WHERE clause filtering tests
+//! - `aggregates`: Aggregate functions (COUNT, SUM, GROUP BY, HAVING)
+//! - `select_joins`: JOIN operation tests
 
+mod aggregates;
 mod expression_eval;
 mod limit_offset;
-mod select_executor;
+mod select_basic;
+mod select_joins;
+mod select_where;
