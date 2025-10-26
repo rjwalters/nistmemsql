@@ -465,7 +465,9 @@ fn test_group_by_with_count() {
         .into_iter()
         .map(|row| (row.values[0].clone(), row.values[1].clone()))
         .collect::<Vec<_>>();
-    results.sort_by_key(|(dept, _)| dept.clone());
+    results.sort_by(|(a_dept, _), (b_dept, _)| {
+        a_dept.partial_cmp(b_dept).unwrap_or(std::cmp::Ordering::Equal)
+    });
     assert_eq!(results[0], (types::SqlValue::Integer(1), types::SqlValue::Integer(2)));
     assert_eq!(results[1], (types::SqlValue::Integer(2), types::SqlValue::Integer(1)));
 }
