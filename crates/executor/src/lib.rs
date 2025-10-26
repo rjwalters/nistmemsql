@@ -557,7 +557,14 @@ impl<'a> SelectExecutor<'a> {
 
                 // Special handling for COUNT(*)
                 if name.to_uppercase() == "COUNT" && args.len() == 1 {
-                    if matches!(args[0], ast::Expression::Wildcard) {
+                    // Parser represents COUNT(*) as either Wildcard or ColumnRef { column: "*" }
+                    let is_count_star = matches!(args[0], ast::Expression::Wildcard)
+                        || matches!(
+                            &args[0],
+                            ast::Expression::ColumnRef { table: None, column } if column == "*"
+                        );
+
+                    if is_count_star {
                         // COUNT(*) - count all rows
                         for _ in group_rows {
                             acc.accumulate(&types::SqlValue::Integer(1));
