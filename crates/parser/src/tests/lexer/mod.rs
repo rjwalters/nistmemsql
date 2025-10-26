@@ -1,5 +1,3 @@
-use super::super::*;
-
 mod errors;
 mod identifiers;
 mod keywords;
