@@ -1,3 +1,16 @@
+[package]
+name = "nistmemsql"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+types = { path = "crates/types" }
+ast = { path = "crates/ast" }
+catalog = { path = "crates/catalog" }
+storage = { path = "crates/storage" }
+executor = { path = "crates/executor" }
+parser = { path = "crates/parser" }
+
 [workspace]
 members = [
     "crates/parser",

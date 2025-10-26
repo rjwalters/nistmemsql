@@ -111,25 +111,16 @@ impl SqlValue {
             SqlValue::Integer(_) => DataType::Integer,
             SqlValue::Smallint(_) => DataType::Smallint,
             SqlValue::Bigint(_) => DataType::Bigint,
-            SqlValue::Numeric(_) => DataType::Numeric {
-                precision: 38,
-                scale: 0,
-            }, // Default
+            SqlValue::Numeric(_) => DataType::Numeric { precision: 38, scale: 0 }, // Default
             SqlValue::Float(_) => DataType::Float,
             SqlValue::Real(_) => DataType::Real,
             SqlValue::Double(_) => DataType::DoublePrecision,
             SqlValue::Character(s) => DataType::Character { length: s.len() },
-            SqlValue::Varchar(_) => DataType::Varchar {
-                max_length: usize::MAX,
-            }, // Unknown length
+            SqlValue::Varchar(_) => DataType::Varchar { max_length: usize::MAX }, // Unknown length
             SqlValue::Boolean(_) => DataType::Boolean,
             SqlValue::Date(_) => DataType::Date,
-            SqlValue::Time(_) => DataType::Time {
-                with_timezone: false,
-            },
-            SqlValue::Timestamp(_) => DataType::Timestamp {
-                with_timezone: false,
-            },
+            SqlValue::Time(_) => DataType::Time { with_timezone: false },
+            SqlValue::Timestamp(_) => DataType::Timestamp { with_timezone: false },
             SqlValue::Null => DataType::Null,
         }
     }
@@ -186,14 +177,8 @@ mod tests {
 
     #[test]
     fn test_numeric_type_with_precision_scale() {
-        let numeric_type = DataType::Numeric {
-            precision: 10,
-            scale: 2,
-        };
-        assert_eq!(
-            format!("{:?}", numeric_type),
-            "Numeric { precision: 10, scale: 2 }"
-        );
+        let numeric_type = DataType::Numeric { precision: 10, scale: 2 };
+        assert_eq!(format!("{:?}", numeric_type), "Numeric { precision: 10, scale: 2 }");
     }
 
     #[test]
