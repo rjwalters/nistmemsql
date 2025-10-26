@@ -153,6 +153,59 @@ impl Database {
     pub fn list_tables(&self) -> Vec<String> {
         self.catalog.list_tables()
     }
+
+    /// Get debug information about database state
+    pub fn debug_info(&self) -> String {
+        let mut output = String::new();
+        output.push_str("=== Database Debug Info ===\n");
+        output.push_str(&format!("Tables: {}\n", self.list_tables().len()));
+        for table_name in self.list_tables() {
+            if let Some(table) = self.get_table(&table_name) {
+                output.push_str(&format!(
+                    "  - {} ({} rows, {} columns)\n",
+                    table_name,
+                    table.row_count(),
+                    table.schema.column_count()
+                ));
+            }
+        }
+        output
+    }
+
+    /// Dump all table contents in readable format
+    pub fn dump_tables(&self) -> String {
+        let mut output = String::new();
+        for table_name in self.list_tables() {
+            if let Ok(dump) = self.dump_table(&table_name) {
+                output.push_str(&dump);
+                output.push('\n');
+            }
+        }
+        output
+    }
+
+    /// Dump a specific table's contents
+    pub fn dump_table(&self, name: &str) -> Result<String, StorageError> {
+        let table =
+            self.get_table(name).ok_or_else(|| StorageError::TableNotFound(name.to_string()))?;
+
+        let mut output = String::new();
+        output.push_str(&format!("=== Table: {} ===\n", name));
+
+        // Column headers
+        let col_names: Vec<String> = table.schema.columns.iter().map(|c| c.name.clone()).collect();
+        output.push_str(&format!("{}\n", col_names.join(" | ")));
+        output.push_str(&format!("{}\n", "-".repeat(col_names.join(" | ").len())));
+
+        // Rows
+        for row in table.scan() {
+            let values: Vec<String> = row.values.iter().map(|v| format!("{}", v)).collect();
+            output.push_str(&format!("{}\n", values.join(" | ")));
+        }
+
+        output.push_str(&format!("({} rows)\n", table.row_count()));
+        Ok(output)
+    }
 }
 
 impl Default for Database {
@@ -383,5 +436,117 @@ mod tests {
 
         let tables = db.list_tables();
         assert_eq!(tables.len(), 2);
+    }
+
+    // ========================================================================
+    // Diagnostic Tools Tests
+    // ========================================================================
+
+    #[test]
+    fn test_debug_info() {
+        let mut db = Database::new();
+        let schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    "name".to_string(),
+                    types::DataType::Varchar { max_length: 100 },
+                    true,
+                ),
+            ],
+        );
+        db.create_table(schema).unwrap();
+        db.insert_row(
+            "users",
+            Row::new(vec![
+                types::SqlValue::Integer(1),
+                types::SqlValue::Varchar("Alice".to_string()),
+            ]),
+        )
+        .unwrap();
+
+        let debug = db.debug_info();
+        assert!(debug.contains("Database Debug Info"));
+        assert!(debug.contains("Tables: 1"));
+        assert!(debug.contains("users"));
+        assert!(debug.contains("1 rows"));
+        assert!(debug.contains("2 columns"));
+    }
+
+    #[test]
+    fn test_dump_table() {
+        let mut db = Database::new();
+        let schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    "name".to_string(),
+                    types::DataType::Varchar { max_length: 100 },
+                    true,
+                ),
+            ],
+        );
+        db.create_table(schema).unwrap();
+        db.insert_row(
+            "users",
+            Row::new(vec![
+                types::SqlValue::Integer(1),
+                types::SqlValue::Varchar("Alice".to_string()),
+            ]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            Row::new(vec![
+                types::SqlValue::Integer(2),
+                types::SqlValue::Varchar("Bob".to_string()),
+            ]),
+        )
+        .unwrap();
+
+        let dump = db.dump_table("users").unwrap();
+        assert!(dump.contains("Table: users"));
+        assert!(dump.contains("id | name"));
+        assert!(dump.contains("1 | Alice"));
+        assert!(dump.contains("2 | Bob"));
+        assert!(dump.contains("(2 rows)"));
+    }
+
+    #[test]
+    fn test_dump_table_not_found() {
+        let db = Database::new();
+        let result = db.dump_table("missing");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            StorageError::TableNotFound(name) => assert_eq!(name, "missing"),
+            _ => panic!("Expected TableNotFound error"),
+        }
+    }
+
+    #[test]
+    fn test_dump_tables() {
+        let mut db = Database::new();
+
+        // Create and populate users table
+        let users_schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
+        );
+        db.create_table(users_schema).unwrap();
+        db.insert_row("users", Row::new(vec![types::SqlValue::Integer(1)])).unwrap();
+
+        // Create and populate orders table
+        let orders_schema = catalog::TableSchema::new(
+            "orders".to_string(),
+            vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
+        );
+        db.create_table(orders_schema).unwrap();
+        db.insert_row("orders", Row::new(vec![types::SqlValue::Integer(100)])).unwrap();
+
+        let dump = db.dump_tables();
+        assert!(dump.contains("Table: users") || dump.contains("Table: orders"));
+        assert!(dump.contains("1") || dump.contains("100"));
     }
 }
