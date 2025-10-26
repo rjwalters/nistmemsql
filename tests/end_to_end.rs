@@ -131,11 +131,9 @@ fn test_e2e_group_by_count() {
     db.create_table(create_users_schema()).unwrap();
     insert_sample_users(&mut db);
 
-    let results = execute_select(
-        &db,
-        "SELECT age >= 21 AS adult, COUNT(*) FROM users GROUP BY age >= 21",
-    )
-    .unwrap();
+    let results =
+        execute_select(&db, "SELECT age >= 21 AS adult, COUNT(*) FROM users GROUP BY age >= 21")
+            .unwrap();
 
     assert_eq!(results.len(), 2);
     let mut summary = results
