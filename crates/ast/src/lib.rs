@@ -5,10 +5,11 @@
 //! preserves the semantic structure of SQL queries.
 
 mod ddl;
-
-use types::SqlValue;
+mod operators;
 
 pub use ddl::{ColumnDef, CreateTableStmt};
+pub use operators::{BinaryOperator, UnaryOperator};
+use types::SqlValue;
 
 // ============================================================================
 // Top-level SQL Statements
@@ -166,47 +167,6 @@ pub enum Expression {
     // TODO: Add CASE, CAST, subqueries, etc.
 }
 
-// ============================================================================
-// Operators
-// ============================================================================
-
-/// Binary operators
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BinaryOperator {
-    // Arithmetic
-    Plus,
-    Minus,
-    Multiply,
-    Divide,
-    Modulo,
-
-    // Comparison
-    Equal,
-    NotEqual,
-    LessThan,
-    LessThanOrEqual,
-    GreaterThan,
-    GreaterThanOrEqual,
-
-    // Logical
-    And,
-    Or,
-
-    // String
-    Concat, // ||
-
-            // TODO: Add more (LIKE, IN, etc.)
-}
-
-/// Unary operators
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum UnaryOperator {
-    Not,       // NOT
-    Minus,     // - (negation)
-    Plus,      // + (unary plus)
-    IsNull,    // IS NULL
-    IsNotNull, // IS NOT NULL
-}
 
 #[cfg(test)]
 mod tests {
