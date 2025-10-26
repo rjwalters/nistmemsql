@@ -68,7 +68,7 @@
 ✅ **Development Tooling**
 - rustfmt configured (100 char width, Unix newlines)
 - clippy configured (complexity threshold 30)
-- Zero warnings, 49 tests passing total
+- Zero warnings, 188 tests passing total
 
 ✅ **Parser Strategy Decision** (ADR-0002) - Complete
 - Evaluated 5 options: pest, lalrpop, nom, chumsky, hand-written
@@ -183,7 +183,7 @@ SELECT COUNT(*) FROM users;
 - [x] AND/OR logical operators ✅
 - [x] Operator precedence (*, /, +, -, comparison, AND, OR) ✅
 
-**Total Tests**: 55 in parser crate, 107 workspace-wide
+**Total Tests**: 104 in parser crate, 188 workspace-wide
 
 **Milestone Achieved**: Basic DML/DDL statements parse ✅
 
