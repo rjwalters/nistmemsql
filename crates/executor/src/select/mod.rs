@@ -4,139 +4,18 @@ use crate::errors::ExecutorError;
 use crate::evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator};
 use crate::schema::CombinedSchema;
 
-/// Result of executing a FROM clause
-struct FromResult {
-    schema: CombinedSchema,
-    rows: Vec<storage::Row>,
-}
+mod grouping;
+mod join;
+mod projection;
+#[allow(dead_code)]
+mod filter;
+
+use grouping::{compare_sql_values, group_rows, AggregateAccumulator};
+use join::{nested_loop_join, FromResult};
+use projection::project_row_combined;
 
 /// Row with optional sort keys for ORDER BY
 type RowWithSortKeys = (storage::Row, Option<Vec<(types::SqlValue, ast::OrderDirection)>>);
-
-/// Grouped rows: (group key values, rows in group)
-type GroupedRows = Vec<(Vec<types::SqlValue>, Vec<storage::Row>)>;
-
-/// Accumulator for aggregate functions
-#[derive(Debug, Clone)]
-enum AggregateAccumulator {
-    Count(i64),
-    Sum(i64),
-    Avg { sum: i64, count: i64 },
-    Min(Option<types::SqlValue>),
-    Max(Option<types::SqlValue>),
-}
-
-impl AggregateAccumulator {
-    fn new(function_name: &str) -> Result<Self, ExecutorError> {
-        match function_name.to_uppercase().as_str() {
-            "COUNT" => Ok(AggregateAccumulator::Count(0)),
-            "SUM" => Ok(AggregateAccumulator::Sum(0)),
-            "AVG" => Ok(AggregateAccumulator::Avg { sum: 0, count: 0 }),
-            "MIN" => Ok(AggregateAccumulator::Min(None)),
-            "MAX" => Ok(AggregateAccumulator::Max(None)),
-            _ => Err(ExecutorError::UnsupportedExpression(format!(
-                "Unknown aggregate function: {}",
-                function_name
-            ))),
-        }
-    }
-
-    fn accumulate(&mut self, value: &types::SqlValue) {
-        match (self, value) {
-            // COUNT - counts non-NULL values
-            (AggregateAccumulator::Count(_), types::SqlValue::Null) => {}
-            (AggregateAccumulator::Count(ref mut count), _) => {
-                *count += 1;
-            }
-
-            // SUM - sums integer values, ignores NULLs
-            (AggregateAccumulator::Sum(ref mut sum), types::SqlValue::Integer(val)) => {
-                *sum += val;
-            }
-            (AggregateAccumulator::Sum(_), types::SqlValue::Null) => {}
-
-            // AVG - computes average of integer values, ignores NULLs
-            (
-                AggregateAccumulator::Avg { ref mut sum, ref mut count },
-                types::SqlValue::Integer(val),
-            ) => {
-                *sum += val;
-                *count += 1;
-            }
-            (AggregateAccumulator::Avg { .. }, types::SqlValue::Null) => {}
-
-            // MIN - finds minimum value, ignores NULLs
-            (AggregateAccumulator::Min(ref mut current_min), val @ types::SqlValue::Integer(_))
-            | (AggregateAccumulator::Min(ref mut current_min), val @ types::SqlValue::Varchar(_))
-            | (AggregateAccumulator::Min(ref mut current_min), val @ types::SqlValue::Boolean(_)) => {
-                if let Some(ref current) = current_min {
-                    if compare_sql_values(val, current) == Ordering::Less {
-                        *current_min = Some(val.clone());
-                    }
-                } else {
-                    *current_min = Some(val.clone());
-                }
-            }
-            (AggregateAccumulator::Min(_), types::SqlValue::Null) => {}
-
-            // MAX - finds maximum value, ignores NULLs
-            (AggregateAccumulator::Max(ref mut current_max), val @ types::SqlValue::Integer(_))
-            | (AggregateAccumulator::Max(ref mut current_max), val @ types::SqlValue::Varchar(_))
-            | (AggregateAccumulator::Max(ref mut current_max), val @ types::SqlValue::Boolean(_)) => {
-                if let Some(ref current) = current_max {
-                    if compare_sql_values(val, current) == Ordering::Greater {
-                        *current_max = Some(val.clone());
-                    }
-                } else {
-                    *current_max = Some(val.clone());
-                }
-            }
-            (AggregateAccumulator::Max(_), types::SqlValue::Null) => {}
-
-            _ => {
-                // Type mismatch or unsupported type - ignore for now
-            }
-        }
-    }
-
-    fn finalize(&self) -> types::SqlValue {
-        match self {
-            AggregateAccumulator::Count(count) => types::SqlValue::Integer(*count),
-            AggregateAccumulator::Sum(sum) => types::SqlValue::Integer(*sum),
-            AggregateAccumulator::Avg { sum, count } => {
-                if *count == 0 {
-                    types::SqlValue::Null
-                } else {
-                    types::SqlValue::Integer(sum / count)
-                }
-            }
-            AggregateAccumulator::Min(val) => val.clone().unwrap_or(types::SqlValue::Null),
-            AggregateAccumulator::Max(val) => val.clone().unwrap_or(types::SqlValue::Null),
-        }
-    }
-}
-
-/// Compare two SqlValues for ordering purposes (SQL ORDER BY semantics)
-///
-/// Uses the PartialOrd trait implementation with SQL-specific NULL handling:
-/// - NULL values sort last (NULLS LAST - SQL:1999 default for ASC)
-/// - Incomparable values (type mismatches, NaN) default to Equal for sort stability
-fn compare_sql_values(a: &types::SqlValue, b: &types::SqlValue) -> Ordering {
-    match (a.is_null(), b.is_null()) {
-        // Both NULL - equal
-        (true, true) => Ordering::Equal,
-        // First is NULL - sorts last (greater)
-        (true, false) => Ordering::Greater,
-        // Second is NULL - first sorts first (less)
-        (false, true) => Ordering::Less,
-        // Neither NULL - use PartialOrd trait
-        (false, false) => {
-            // partial_cmp returns None for incomparable values (type mismatch, NaN)
-            // Default to Equal to maintain sort stability
-            PartialOrd::partial_cmp(a, b).unwrap_or(Ordering::Equal)
-        }
-    }
-}
 
 /// Executes SELECT queries
 pub struct SelectExecutor<'a> {
@@ -241,7 +120,7 @@ impl<'a> SelectExecutor<'a> {
 
         // Group rows
         let groups = if let Some(group_by_exprs) = &stmt.group_by {
-            self.group_rows(&filtered_rows, group_by_exprs, &evaluator)?
+            group_rows(&filtered_rows, group_by_exprs, &evaluator)?
         } else {
             // No GROUP BY - treat all rows as one group
             vec![(Vec::new(), filtered_rows)]
@@ -376,7 +255,7 @@ impl<'a> SelectExecutor<'a> {
         // Project columns from the sorted rows
         let mut final_rows = Vec::new();
         for (row, _) in result_rows {
-            let projected_row = self.project_row_combined(&row, &stmt.select_list, &evaluator)?;
+            let projected_row = project_row_combined(&row, &stmt.select_list, &evaluator)?;
             final_rows.push(projected_row);
         }
 
@@ -404,62 +283,9 @@ impl<'a> SelectExecutor<'a> {
                 let right_result = self.execute_from(right)?;
 
                 // Perform nested loop join
-                self.nested_loop_join(left_result, right_result, join_type, condition)
+                nested_loop_join(left_result, right_result, join_type, condition)
             }
         }
-    }
-
-    /// Perform nested loop join between two FROM results
-    fn nested_loop_join(
-        &self,
-        left: FromResult,
-        right: FromResult,
-        join_type: &ast::JoinType,
-        condition: &Option<ast::Expression>,
-    ) -> Result<FromResult, ExecutorError> {
-        match join_type {
-            ast::JoinType::Inner => self.nested_loop_inner_join(left, right, condition),
-            ast::JoinType::LeftOuter => self.nested_loop_left_outer_join(left, right, condition),
-            _ => Err(ExecutorError::UnsupportedFeature(format!(
-                "JOIN type {:?} not yet implemented",
-                join_type
-            ))),
-        }
-    }
-
-    /// Group rows by GROUP BY expressions
-    fn group_rows(
-        &self,
-        rows: &[storage::Row],
-        group_by_exprs: &[ast::Expression],
-        evaluator: &ExpressionEvaluator,
-    ) -> Result<GroupedRows, ExecutorError> {
-        let mut groups: GroupedRows = Vec::new();
-
-        for row in rows {
-            // Evaluate GROUP BY expressions to get the group key
-            let mut key = Vec::new();
-            for expr in group_by_exprs {
-                let value = evaluator.eval(expr, row)?;
-                key.push(value);
-            }
-
-            // Find existing group or create new one
-            let mut found = false;
-            for (existing_key, group_rows) in &mut groups {
-                if existing_key == &key {
-                    group_rows.push(row.clone());
-                    found = true;
-                    break;
-                }
-            }
-
-            if !found {
-                groups.push((key, vec![row.clone()]));
-            }
-        }
-
-        Ok(groups)
     }
 
     /// Evaluate an expression in the context of aggregation
@@ -542,171 +368,6 @@ impl<'a> SelectExecutor<'a> {
                 expr
             ))),
         }
-    }
-
-    /// Nested loop INNER JOIN implementation
-    fn nested_loop_inner_join(
-        &self,
-        left: FromResult,
-        right: FromResult,
-        condition: &Option<ast::Expression>,
-    ) -> Result<FromResult, ExecutorError> {
-        // Extract right table name (assume single table for now)
-        let right_table_name = right
-            .schema
-            .table_schemas
-            .keys()
-            .next()
-            .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
-            .clone();
-
-        let right_schema = right
-            .schema
-            .table_schemas
-            .get(&right_table_name)
-            .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
-            .1
-            .clone();
-
-        // Combine schemas
-        let combined_schema = CombinedSchema::combine(left.schema, right_table_name, right_schema);
-        let evaluator = CombinedExpressionEvaluator::new(&combined_schema);
-
-        // Nested loop join algorithm
-        let mut result_rows = Vec::new();
-        for left_row in &left.rows {
-            for right_row in &right.rows {
-                // Concatenate rows
-                let mut combined_values = left_row.values.clone();
-                combined_values.extend(right_row.values.clone());
-                let combined_row = storage::Row::new(combined_values);
-
-                // Evaluate join condition
-                let matches = if let Some(cond) = condition {
-                    match evaluator.eval(cond, &combined_row)? {
-                        types::SqlValue::Boolean(true) => true,
-                        types::SqlValue::Boolean(false) => false,
-                        types::SqlValue::Null => false,
-                        other => {
-                            return Err(ExecutorError::InvalidWhereClause(format!(
-                                "JOIN condition must evaluate to boolean, got: {:?}",
-                                other
-                            )))
-                        }
-                    }
-                } else {
-                    true // No condition = CROSS JOIN
-                };
-
-                if matches {
-                    result_rows.push(combined_row);
-                }
-            }
-        }
-
-        Ok(FromResult { schema: combined_schema, rows: result_rows })
-    }
-
-    /// Nested loop LEFT OUTER JOIN implementation
-    fn nested_loop_left_outer_join(
-        &self,
-        left: FromResult,
-        right: FromResult,
-        condition: &Option<ast::Expression>,
-    ) -> Result<FromResult, ExecutorError> {
-        // Extract right table name and schema
-        let right_table_name = right
-            .schema
-            .table_schemas
-            .keys()
-            .next()
-            .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
-            .clone();
-
-        let right_schema = right
-            .schema
-            .table_schemas
-            .get(&right_table_name)
-            .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
-            .1
-            .clone();
-
-        let right_column_count = right_schema.columns.len();
-
-        // Combine schemas
-        let combined_schema = CombinedSchema::combine(left.schema, right_table_name, right_schema);
-        let evaluator = CombinedExpressionEvaluator::new(&combined_schema);
-
-        // Nested loop LEFT OUTER JOIN algorithm
-        let mut result_rows = Vec::new();
-        for left_row in &left.rows {
-            let mut matched = false;
-
-            for right_row in &right.rows {
-                // Concatenate rows
-                let mut combined_values = left_row.values.clone();
-                combined_values.extend(right_row.values.clone());
-                let combined_row = storage::Row::new(combined_values);
-
-                // Evaluate join condition
-                let matches = if let Some(cond) = condition {
-                    match evaluator.eval(cond, &combined_row)? {
-                        types::SqlValue::Boolean(true) => true,
-                        types::SqlValue::Boolean(false) => false,
-                        types::SqlValue::Null => false,
-                        other => {
-                            return Err(ExecutorError::InvalidWhereClause(format!(
-                                "JOIN condition must evaluate to boolean, got: {:?}",
-                                other
-                            )))
-                        }
-                    }
-                } else {
-                    true // No condition = CROSS JOIN
-                };
-
-                if matches {
-                    result_rows.push(combined_row);
-                    matched = true;
-                }
-            }
-
-            // If no match found, add left row with NULLs for right columns
-            if !matched {
-                let mut combined_values = left_row.values.clone();
-                // Add NULL values for all right table columns
-                combined_values.extend(vec![types::SqlValue::Null; right_column_count]);
-                result_rows.push(storage::Row::new(combined_values));
-            }
-        }
-
-        Ok(FromResult { schema: combined_schema, rows: result_rows })
-    }
-
-    /// Project columns from a row based on SELECT list (combined schema version)
-    fn project_row_combined(
-        &self,
-        row: &storage::Row,
-        columns: &[ast::SelectItem],
-        evaluator: &CombinedExpressionEvaluator,
-    ) -> Result<storage::Row, ExecutorError> {
-        let mut values = Vec::new();
-
-        for item in columns {
-            match item {
-                ast::SelectItem::Wildcard => {
-                    // SELECT * - include all columns
-                    values.extend(row.values.iter().cloned());
-                }
-                ast::SelectItem::Expression { expr, alias: _ } => {
-                    // Evaluate the expression
-                    let value = evaluator.eval(expr, row)?;
-                    values.push(value);
-                }
-            }
-        }
-
-        Ok(storage::Row::new(values))
     }
 }
 
