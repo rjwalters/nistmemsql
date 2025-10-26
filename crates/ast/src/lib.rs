@@ -4,7 +4,11 @@
 //! as parsed from SQL text. The AST is a tree representation that
 //! preserves the semantic structure of SQL queries.
 
+mod ddl;
+
 use types::SqlValue;
+
+pub use ddl::{ColumnDef, CreateTableStmt};
 
 // ============================================================================
 // Top-level SQL Statements
@@ -127,26 +131,6 @@ pub struct Assignment {
 pub struct DeleteStmt {
     pub table_name: String,
     pub where_clause: Option<Expression>,
-}
-
-// ============================================================================
-// CREATE TABLE Statement
-// ============================================================================
-
-/// CREATE TABLE statement
-#[derive(Debug, Clone, PartialEq)]
-pub struct CreateTableStmt {
-    pub table_name: String,
-    pub columns: Vec<ColumnDef>,
-    // TODO: Add constraints
-}
-
-/// Column definition
-#[derive(Debug, Clone, PartialEq)]
-pub struct ColumnDef {
-    pub name: String,
-    pub data_type: types::DataType,
-    pub nullable: bool,
 }
 
 // ============================================================================
