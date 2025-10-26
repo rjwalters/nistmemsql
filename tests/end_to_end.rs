@@ -835,3 +835,193 @@ fn test_e2e_three_table_join() {
     assert_eq!(results[0].values[1], SqlValue::Varchar("Widget".to_string()));
     assert_eq!(results[0].values[2], SqlValue::Integer(99));
 }
+
+// ============================================================================
+// LIMIT/OFFSET Tests (End-to-End)
+// ============================================================================
+
+#[test]
+fn test_e2e_limit_basic() {
+    // Setup database
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    // Execute: SELECT * FROM users LIMIT 2
+    let results = execute_select(&db, "SELECT * FROM users LIMIT 2").unwrap();
+
+    // Verify - should only get first 2 users
+    assert_eq!(results.len(), 2);
+    assert_eq!(results[0].values[0], SqlValue::Integer(1)); // Alice
+    assert_eq!(results[1].values[0], SqlValue::Integer(2)); // Bob
+}
+
+#[test]
+fn test_e2e_offset_basic() {
+    // Setup database
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    // Execute: SELECT * FROM users OFFSET 2
+    let results = execute_select(&db, "SELECT * FROM users OFFSET 2").unwrap();
+
+    // Verify - should skip first 2 users, get Charlie and Diana
+    assert_eq!(results.len(), 2);
+    assert_eq!(results[0].values[0], SqlValue::Integer(3)); // Charlie
+    assert_eq!(results[1].values[0], SqlValue::Integer(4)); // Diana
+}
+
+#[test]
+fn test_e2e_limit_and_offset() {
+    // Setup database
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    // Execute: SELECT * FROM users LIMIT 2 OFFSET 1
+    let results = execute_select(&db, "SELECT * FROM users LIMIT 2 OFFSET 1").unwrap();
+
+    // Verify - skip 1, take 2: should get Bob and Charlie
+    assert_eq!(results.len(), 2);
+    assert_eq!(results[0].values[0], SqlValue::Integer(2)); // Bob
+    assert_eq!(results[1].values[0], SqlValue::Integer(3)); // Charlie
+}
+
+#[test]
+fn test_e2e_limit_with_where() {
+    // Setup database
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    // Execute: SELECT * FROM users WHERE age >= 18 LIMIT 2
+    let results = execute_select(&db, "SELECT * FROM users WHERE age >= 18 LIMIT 2").unwrap();
+
+    // Verify - WHERE filters to 3 users (Alice, Charlie, Diana), LIMIT to 2
+    assert_eq!(results.len(), 2);
+
+    // All results should have age >= 18
+    for row in &results {
+        if let SqlValue::Integer(age) = row.values[2] {
+            assert!(age >= 18);
+        }
+    }
+}
+
+#[test]
+fn test_e2e_offset_beyond_result_set() {
+    // Setup database
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    // Execute: SELECT * FROM users OFFSET 10
+    let results = execute_select(&db, "SELECT * FROM users OFFSET 10").unwrap();
+
+    // Verify - offset beyond result set should return empty
+    assert_eq!(results.len(), 0);
+}
+
+#[test]
+fn test_e2e_limit_greater_than_result_set() {
+    // Setup database
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    // Execute: SELECT * FROM users LIMIT 100
+    let results = execute_select(&db, "SELECT * FROM users LIMIT 100").unwrap();
+
+    // Verify - should return all 4 users
+    assert_eq!(results.len(), 4);
+}
+
+#[test]
+fn test_e2e_limit_offset_pagination() {
+    // Setup database with more users for pagination test
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+
+    // Insert 10 users
+    for i in 1..=10 {
+        db.insert_row(
+            "users",
+            Row::new(vec![
+                SqlValue::Integer(i),
+                SqlValue::Varchar(format!("User{}", i)),
+                SqlValue::Integer(20 + i),
+            ]),
+        )
+        .unwrap();
+    }
+
+    // Test pagination: page size 3
+    // Page 1: LIMIT 3 OFFSET 0
+    let page1 = execute_select(&db, "SELECT id FROM users LIMIT 3 OFFSET 0").unwrap();
+    assert_eq!(page1.len(), 3);
+    assert_eq!(page1[0].values[0], SqlValue::Integer(1));
+    assert_eq!(page1[1].values[0], SqlValue::Integer(2));
+    assert_eq!(page1[2].values[0], SqlValue::Integer(3));
+
+    // Page 2: LIMIT 3 OFFSET 3
+    let page2 = execute_select(&db, "SELECT id FROM users LIMIT 3 OFFSET 3").unwrap();
+    assert_eq!(page2.len(), 3);
+    assert_eq!(page2[0].values[0], SqlValue::Integer(4));
+    assert_eq!(page2[1].values[0], SqlValue::Integer(5));
+    assert_eq!(page2[2].values[0], SqlValue::Integer(6));
+
+    // Page 3: LIMIT 3 OFFSET 6
+    let page3 = execute_select(&db, "SELECT id FROM users LIMIT 3 OFFSET 6").unwrap();
+    assert_eq!(page3.len(), 3);
+    assert_eq!(page3[0].values[0], SqlValue::Integer(7));
+    assert_eq!(page3[1].values[0], SqlValue::Integer(8));
+    assert_eq!(page3[2].values[0], SqlValue::Integer(9));
+
+    // Page 4: LIMIT 3 OFFSET 9 (only 1 result left)
+    let page4 = execute_select(&db, "SELECT id FROM users LIMIT 3 OFFSET 9").unwrap();
+    assert_eq!(page4.len(), 1);
+    assert_eq!(page4[0].values[0], SqlValue::Integer(10));
+}
+
+#[test]
+fn test_e2e_limit_offset_with_specific_columns() {
+    // Setup database
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    // Execute: SELECT name, age FROM users LIMIT 2 OFFSET 1
+    let results = execute_select(&db, "SELECT name, age FROM users LIMIT 2 OFFSET 1").unwrap();
+
+    // Verify
+    assert_eq!(results.len(), 2);
+    assert_eq!(results[0].values.len(), 2); // Only name and age
+    assert_eq!(results[0].values[0], SqlValue::Varchar("Bob".to_string()));
+    assert_eq!(results[0].values[1], SqlValue::Integer(17));
+    assert_eq!(results[1].values[0], SqlValue::Varchar("Charlie".to_string()));
+    assert_eq!(results[1].values[1], SqlValue::Integer(30));
+}
+
+#[test]
+fn test_e2e_limit_offset_with_join() {
+    // Setup database with users and orders
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    db.create_table(create_orders_schema()).unwrap();
+    insert_sample_users(&mut db);
+    insert_sample_orders(&mut db);
+
+    // Execute: SELECT users.name, orders.product
+    //          FROM users INNER JOIN orders ON users.id = orders.user_id
+    //          LIMIT 2
+    let results = execute_select(
+        &db,
+        "SELECT users.name, orders.product FROM users INNER JOIN orders ON users.id = orders.user_id LIMIT 2",
+    )
+    .unwrap();
+
+    // Verify - JOIN produces 3 rows, LIMIT to 2
+    assert_eq!(results.len(), 2);
+    assert_eq!(results[0].values.len(), 2);
+}

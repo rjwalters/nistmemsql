@@ -313,7 +313,23 @@ impl<'a> SelectExecutor<'a> {
 
         // TODO: Re-add ORDER BY support (removed during JOIN merge, needs to be adapted for CombinedExpressionEvaluator)
 
-        Ok(result_rows)
+        // Apply LIMIT and OFFSET
+        let start = stmt.offset.unwrap_or(0);
+        let end = if let Some(limit) = stmt.limit {
+            start + limit
+        } else {
+            result_rows.len()
+        };
+
+        // Slice the results based on OFFSET and LIMIT
+        let final_rows = if start >= result_rows.len() {
+            // Offset beyond result set
+            vec![]
+        } else {
+            result_rows[start..end.min(result_rows.len())].to_vec()
+        };
+
+        Ok(final_rows)
     }
 
     /// Execute a FROM clause (table or join) and return combined schema and rows
@@ -763,6 +779,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -815,6 +833,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -866,6 +886,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -986,6 +1008,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -1075,6 +1099,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -1189,6 +1215,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -1341,6 +1369,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -1359,5 +1389,171 @@ mod tests {
         assert_eq!(result[0].values[4], types::SqlValue::Integer(500));
         assert_eq!(result[0].values[5], types::SqlValue::Integer(500));
         assert_eq!(result[0].values[6], types::SqlValue::Varchar("Widget".to_string()));
+    }
+
+    // ========================================================================
+    // LIMIT and OFFSET Tests
+    // ========================================================================
+
+    #[test]
+    fn test_limit_basic() {
+        // Setup database with 4 users
+        let mut db = storage::Database::new();
+        let users_schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
+        );
+        db.create_table(users_schema).unwrap();
+        for i in 1..=4 {
+            db.insert_row("users", storage::Row::new(vec![types::SqlValue::Integer(i)]))
+                .unwrap();
+        }
+
+        // Execute: SELECT * FROM users LIMIT 2
+        let executor = SelectExecutor::new(&db);
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: Some(2),
+            offset: None,
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].values[0], types::SqlValue::Integer(1));
+        assert_eq!(result[1].values[0], types::SqlValue::Integer(2));
+    }
+
+    #[test]
+    fn test_offset_basic() {
+        // Setup database with 4 users
+        let mut db = storage::Database::new();
+        let users_schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
+        );
+        db.create_table(users_schema).unwrap();
+        for i in 1..=4 {
+            db.insert_row("users", storage::Row::new(vec![types::SqlValue::Integer(i)]))
+                .unwrap();
+        }
+
+        // Execute: SELECT * FROM users OFFSET 2
+        let executor = SelectExecutor::new(&db);
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: None,
+            offset: Some(2),
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].values[0], types::SqlValue::Integer(3));
+        assert_eq!(result[1].values[0], types::SqlValue::Integer(4));
+    }
+
+    #[test]
+    fn test_limit_and_offset() {
+        // Setup database with 10 users
+        let mut db = storage::Database::new();
+        let users_schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
+        );
+        db.create_table(users_schema).unwrap();
+        for i in 1..=10 {
+            db.insert_row("users", storage::Row::new(vec![types::SqlValue::Integer(i)]))
+                .unwrap();
+        }
+
+        // Execute: SELECT * FROM users LIMIT 3 OFFSET 2
+        let executor = SelectExecutor::new(&db);
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: Some(3),
+            offset: Some(2),
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0].values[0], types::SqlValue::Integer(3));
+        assert_eq!(result[1].values[0], types::SqlValue::Integer(4));
+        assert_eq!(result[2].values[0], types::SqlValue::Integer(5));
+    }
+
+    #[test]
+    fn test_offset_beyond_result_set() {
+        // Setup database with 3 users
+        let mut db = storage::Database::new();
+        let users_schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
+        );
+        db.create_table(users_schema).unwrap();
+        for i in 1..=3 {
+            db.insert_row("users", storage::Row::new(vec![types::SqlValue::Integer(i)]))
+                .unwrap();
+        }
+
+        // Execute: SELECT * FROM users OFFSET 10 (beyond result set)
+        let executor = SelectExecutor::new(&db);
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: None,
+            offset: Some(10),
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_limit_greater_than_result_set() {
+        // Setup database with 3 users
+        let mut db = storage::Database::new();
+        let users_schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
+        );
+        db.create_table(users_schema).unwrap();
+        for i in 1..=3 {
+            db.insert_row("users", storage::Row::new(vec![types::SqlValue::Integer(i)]))
+                .unwrap();
+        }
+
+        // Execute: SELECT * FROM users LIMIT 100 (greater than result set)
+        let executor = SelectExecutor::new(&db);
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: Some(100),
+            offset: None,
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 3); // Should return all 3 users
     }
 }
