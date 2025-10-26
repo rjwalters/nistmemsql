@@ -118,7 +118,7 @@ We maintain detailed documentation to track decisions, capture learning, and ena
 
 ## Development Status
 
-**Current Phase**: Phase 1 - Foundation (TDD Implementation) 🦀
+**Current Phase**: Phase 4 - SQL:1999 Specific Features 🦀
 
 **Development Approach**: Test-Driven Development (Red-Green-Refactor) ✅
 
@@ -130,23 +130,31 @@ We maintain detailed documentation to track decisions, capture learning, and ena
 - ✅ Language selection (Rust - see [ADR-0001](docs/decisions/0001-language-choice.md))
 - ✅ Cargo workspace initialized (7 crates)
 - ✅ Development tooling (rustfmt, clippy)
-- ✅ **Types Crate** - SQL:1999 type system (27 tests passing) 🎉
+- ✅ **Types Crate** - SQL:1999 type system with PartialOrd comparisons (45 tests passing) 🎉
 - ✅ **AST Crate** - Abstract Syntax Tree structures (22 tests passing) 🎉
+- ✅ **Parser Crate** - Complete SQL parser implementation (104 tests passing) 🎉
+- ✅ **Parser Strategy** - ADR-0002: Selected pest parser (grammar-based approach)
+- ✅ **JOIN Operations** - INNER, LEFT, RIGHT, FULL OUTER, CROSS joins
+- ✅ **Aggregate Functions** - COUNT, SUM, AVG, MIN, MAX with GROUP BY/HAVING
+- ✅ **Query Pagination** - LIMIT/OFFSET support
+- ✅ **Test Coverage Infrastructure** - cargo-llvm-cov integration (83.3% coverage)
+- ✅ **Development Orchestration** - Loom framework integration for AI-powered development
 
 ### In Progress 🚧
-- 🚧 Parser strategy decision (ADR-0002) - pest vs lalrpop vs nom
+- 🚧 Code organization improvements (splitting large test files into modules)
+- 🚧 Advancing SQL:1999 feature coverage
 
 ### Test Status
-- **Total Tests**: 49 passing ✅
+- **Total Tests**: 188 passing ✅
+- **Test Coverage**: 83.3% (crates: ast 80.0%, catalog 88.0%, executor 83.5%, parser 82.9%, storage 100%, types 78.9%)
 - **Compiler Warnings**: 0
 - **Clippy Warnings**: 0
-- **Test Coverage**: 100% of public APIs
 
 ### Next Steps
-1. Complete ADR-0002 (parser strategy decision)
-2. Begin parser crate TDD implementation
-3. Parse simple SELECT statements (`SELECT 42;`)
-4. Integrate sqltest for continuous testing
+1. Complete code organization refactoring (issues #12, #13, #14)
+2. Implement advanced SQL:1999 features (CASE expressions, recursive queries)
+3. Add more aggregate and window functions
+4. Improve test coverage toward 90%
 
 See [WORK_PLAN.md](WORK_PLAN.md) for detailed progress and roadmap.
 
