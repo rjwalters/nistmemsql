@@ -218,7 +218,7 @@ impl Lexer {
                 self.advance();
                 Ok(Token::RParen)
             }
-            '+' | '-' | '*' | '/' | '=' | '<' | '>' => {
+            '+' | '-' | '*' | '/' | '=' | '<' | '>' | '.' => {
                 // For now, treat as single-char symbols
                 // TODO: Handle multi-char operators (<=, >=, !=, <>)
                 let symbol = ch;
@@ -831,7 +831,38 @@ impl Parser {
 
     /// Parse FROM clause
     fn parse_from_clause(&mut self) -> Result<ast::FromClause, ParseError> {
-        // For now, just parse a simple table reference
+        // Parse the first table reference
+        let mut left = self.parse_table_reference()?;
+
+        // Check for JOINs (left-associative)
+        while self.is_join_keyword() {
+            let join_type = self.parse_join_type()?;
+
+            // Parse right table reference
+            let right = self.parse_table_reference()?;
+
+            // Parse ON condition
+            let condition = if self.peek_keyword(Keyword::On) {
+                self.consume_keyword(Keyword::On)?;
+                Some(self.parse_expression()?)
+            } else {
+                None
+            };
+
+            // Build JOIN node
+            left = ast::FromClause::Join {
+                left: Box::new(left),
+                right: Box::new(right),
+                join_type,
+                condition,
+            };
+        }
+
+        Ok(left)
+    }
+
+    /// Parse a single table reference (table name with optional alias)
+    fn parse_table_reference(&mut self) -> Result<ast::FromClause, ParseError> {
         match self.peek() {
             Token::Identifier(table_name) => {
                 let name = table_name.clone();
@@ -848,8 +879,8 @@ impl Parser {
                         }
                         _ => None,
                     }
-                } else if matches!(self.peek(), Token::Identifier(_)) {
-                    // Implicit alias (no AS keyword)
+                } else if matches!(self.peek(), Token::Identifier(_)) && !self.is_join_keyword() {
+                    // Implicit alias (no AS keyword) - but not a JOIN keyword
                     match self.peek() {
                         Token::Identifier(id) => {
                             let alias = id.clone();
@@ -865,6 +896,51 @@ impl Parser {
                 Ok(ast::FromClause::Table { name, alias })
             }
             _ => Err(ParseError { message: "Expected table name in FROM clause".to_string() }),
+        }
+    }
+
+    /// Check if current token is a JOIN keyword
+    fn is_join_keyword(&self) -> bool {
+        matches!(
+            self.peek(),
+            Token::Keyword(Keyword::Join)
+                | Token::Keyword(Keyword::Inner)
+                | Token::Keyword(Keyword::Left)
+                | Token::Keyword(Keyword::Right)
+        )
+    }
+
+    /// Parse JOIN type (INNER JOIN, LEFT JOIN, etc.)
+    fn parse_join_type(&mut self) -> Result<ast::JoinType, ParseError> {
+        match self.peek() {
+            Token::Keyword(Keyword::Join) => {
+                self.advance();
+                Ok(ast::JoinType::Inner) // Default JOIN is INNER JOIN
+            }
+            Token::Keyword(Keyword::Inner) => {
+                self.advance();
+                self.expect_keyword(Keyword::Join)?;
+                Ok(ast::JoinType::Inner)
+            }
+            Token::Keyword(Keyword::Left) => {
+                self.advance();
+                // Optional OUTER keyword
+                if self.peek_keyword(Keyword::Outer) {
+                    self.consume_keyword(Keyword::Outer)?;
+                }
+                self.expect_keyword(Keyword::Join)?;
+                Ok(ast::JoinType::LeftOuter)
+            }
+            Token::Keyword(Keyword::Right) => {
+                self.advance();
+                // Optional OUTER keyword
+                if self.peek_keyword(Keyword::Outer) {
+                    self.consume_keyword(Keyword::Outer)?;
+                }
+                self.expect_keyword(Keyword::Join)?;
+                Ok(ast::JoinType::RightOuter)
+            }
+            _ => Err(ParseError { message: "Expected JOIN keyword".to_string() }),
         }
     }
 
@@ -998,12 +1074,26 @@ impl Parser {
                 Ok(ast::Expression::Literal(types::SqlValue::Null))
             }
             Token::Identifier(id) => {
-                let column = id.clone();
+                let first = id.clone();
                 self.advance();
 
                 // Check for qualified column reference (table.column)
-                // For now, just return simple column reference
-                Ok(ast::Expression::ColumnRef { table: None, column })
+                if matches!(self.peek(), Token::Symbol('.')) {
+                    self.advance(); // consume '.'
+                    match self.peek() {
+                        Token::Identifier(col) => {
+                            let column = col.clone();
+                            self.advance();
+                            Ok(ast::Expression::ColumnRef { table: Some(first), column })
+                        }
+                        _ => Err(ParseError {
+                            message: "Expected column name after '.'".to_string(),
+                        }),
+                    }
+                } else {
+                    // Simple column reference
+                    Ok(ast::Expression::ColumnRef { table: None, column: first })
+                }
             }
             Token::LParen => {
                 self.advance();
@@ -1923,6 +2013,148 @@ mod tests {
                 }
             }
             _ => panic!("Expected CREATE TABLE statement"),
+        }
+    }
+
+    // ========================================================================
+    // JOIN Operation Tests
+    // ========================================================================
+
+    #[test]
+    fn test_parse_simple_join() {
+        let result =
+            Parser::parse_sql("SELECT * FROM users JOIN orders ON users.id = orders.user_id;");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => {
+                assert!(select.from.is_some());
+                match select.from.as_ref().unwrap() {
+                    ast::FromClause::Join { join_type, left, right, condition } => {
+                        // Default JOIN is INNER JOIN
+                        assert_eq!(*join_type, ast::JoinType::Inner);
+
+                        // Left should be users table
+                        match **left {
+                            ast::FromClause::Table { ref name, .. } if name == "users" => {} // Success
+                            _ => panic!("Expected left table to be 'users'"),
+                        }
+
+                        // Right should be orders table
+                        match **right {
+                            ast::FromClause::Table { ref name, .. } if name == "orders" => {} // Success
+                            _ => panic!("Expected right table to be 'orders'"),
+                        }
+
+                        // Should have ON condition
+                        assert!(condition.is_some());
+                    }
+                    _ => panic!("Expected JOIN in FROM clause"),
+                }
+            }
+            _ => panic!("Expected SELECT statement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_inner_join() {
+        let result = Parser::parse_sql(
+            "SELECT * FROM users INNER JOIN orders ON users.id = orders.user_id;",
+        );
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => match select.from.as_ref().unwrap() {
+                ast::FromClause::Join { join_type, .. } => {
+                    assert_eq!(*join_type, ast::JoinType::Inner);
+                }
+                _ => panic!("Expected JOIN"),
+            },
+            _ => panic!("Expected SELECT"),
+        }
+    }
+
+    #[test]
+    fn test_parse_left_join() {
+        let result =
+            Parser::parse_sql("SELECT * FROM users LEFT JOIN orders ON users.id = orders.user_id;");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => match select.from.as_ref().unwrap() {
+                ast::FromClause::Join { join_type, .. } => {
+                    assert_eq!(*join_type, ast::JoinType::LeftOuter);
+                }
+                _ => panic!("Expected JOIN"),
+            },
+            _ => panic!("Expected SELECT"),
+        }
+    }
+
+    #[test]
+    fn test_parse_left_outer_join() {
+        let result = Parser::parse_sql(
+            "SELECT * FROM users LEFT OUTER JOIN orders ON users.id = orders.user_id;",
+        );
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => match select.from.as_ref().unwrap() {
+                ast::FromClause::Join { join_type, .. } => {
+                    assert_eq!(*join_type, ast::JoinType::LeftOuter);
+                }
+                _ => panic!("Expected JOIN"),
+            },
+            _ => panic!("Expected SELECT"),
+        }
+    }
+
+    #[test]
+    fn test_parse_right_join() {
+        let result = Parser::parse_sql(
+            "SELECT * FROM users RIGHT JOIN orders ON users.id = orders.user_id;",
+        );
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => match select.from.as_ref().unwrap() {
+                ast::FromClause::Join { join_type, .. } => {
+                    assert_eq!(*join_type, ast::JoinType::RightOuter);
+                }
+                _ => panic!("Expected JOIN"),
+            },
+            _ => panic!("Expected SELECT"),
+        }
+    }
+
+    #[test]
+    fn test_parse_multiple_joins() {
+        let result = Parser::parse_sql(
+            "SELECT * FROM users JOIN orders ON users.id = orders.user_id JOIN products ON orders.product_id = products.id;"
+        );
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => {
+                // Should have nested JOINs
+                match select.from.as_ref().unwrap() {
+                    ast::FromClause::Join { left, .. } => {
+                        // Left should also be a JOIN
+                        match **left {
+                            ast::FromClause::Join { .. } => {} // Success - nested JOIN
+                            _ => panic!("Expected nested JOIN"),
+                        }
+                    }
+                    _ => panic!("Expected JOIN"),
+                }
+            }
+            _ => panic!("Expected SELECT"),
         }
     }
 }
