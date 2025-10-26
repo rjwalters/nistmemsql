@@ -1119,3 +1119,133 @@ fn test_e2e_limit_offset_with_join() {
     assert_eq!(results[0].values[0], SqlValue::Integer(3)); // 3 users >= 18 (Alice, Charlie, Diana)
     assert_eq!(results[0].values[1], SqlValue::Integer(25)); // (25 + 30 + 22) / 3 = 25.67 → 25
 }
+
+// ============================================================================
+// LIMIT/OFFSET Tests (End-to-End)
+// ============================================================================
+
+#[test]
+fn test_e2e_limit_basic() {
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    let results = execute_select(&db, "SELECT * FROM users LIMIT 2").unwrap();
+
+    assert_eq!(results.len(), 2);
+    assert_eq!(results[0].values[0], SqlValue::Integer(1));
+    assert_eq!(results[1].values[0], SqlValue::Integer(2));
+}
+
+#[test]
+fn test_e2e_offset_basic() {
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    let results = execute_select(&db, "SELECT * FROM users OFFSET 2").unwrap();
+
+    assert_eq!(results.len(), 2);
+    assert_eq!(results[0].values[0], SqlValue::Integer(3));
+    assert_eq!(results[1].values[0], SqlValue::Integer(4));
+}
+
+#[test]
+fn test_e2e_limit_and_offset() {
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    let results = execute_select(&db, "SELECT * FROM users LIMIT 2 OFFSET 1").unwrap();
+
+    assert_eq!(results.len(), 2);
+    assert_eq!(results[0].values[0], SqlValue::Integer(2));
+    assert_eq!(results[1].values[0], SqlValue::Integer(3));
+}
+
+#[test]
+fn test_e2e_limit_with_where() {
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    let results = execute_select(&db, "SELECT * FROM users WHERE age >= 18 LIMIT 2").unwrap();
+
+    assert_eq!(results.len(), 2);
+    for row in &results {
+        if let SqlValue::Integer(age) = row.values[2] {
+            assert!(age >= 18);
+        }
+    }
+}
+
+#[test]
+fn test_e2e_offset_beyond_result_set() {
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    let results = execute_select(&db, "SELECT * FROM users OFFSET 10").unwrap();
+
+    assert_eq!(results.len(), 0);
+}
+
+#[test]
+fn test_e2e_limit_greater_than_result_set() {
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    let results = execute_select(&db, "SELECT * FROM users LIMIT 100").unwrap();
+
+    assert_eq!(results.len(), 4);
+}
+
+#[test]
+fn test_e2e_limit_offset_pagination() {
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+
+    for i in 1..=10 {
+        db.insert_row(
+            "users",
+            Row::new(vec![
+                SqlValue::Integer(i),
+                SqlValue::Varchar(format!("User{}", i)),
+                SqlValue::Integer(20 + i),
+            ]),
+        )
+        .unwrap();
+    }
+
+    let page1 = execute_select(&db, "SELECT id FROM users LIMIT 3 OFFSET 0").unwrap();
+    assert_eq!(page1.len(), 3);
+    assert_eq!(page1[0].values[0], SqlValue::Integer(1));
+
+    let page2 = execute_select(&db, "SELECT id FROM users LIMIT 3 OFFSET 3").unwrap();
+    assert_eq!(page2.len(), 3);
+    assert_eq!(page2[0].values[0], SqlValue::Integer(4));
+
+    let page3 = execute_select(&db, "SELECT id FROM users LIMIT 3 OFFSET 6").unwrap();
+    assert_eq!(page3.len(), 3);
+    assert_eq!(page3[0].values[0], SqlValue::Integer(7));
+
+    let page4 = execute_select(&db, "SELECT id FROM users LIMIT 3 OFFSET 9").unwrap();
+    assert_eq!(page4.len(), 1);
+    assert_eq!(page4[0].values[0], SqlValue::Integer(10));
+}
+
+#[test]
+fn test_e2e_limit_offset_with_specific_columns() {
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    let results = execute_select(&db, "SELECT name, age FROM users LIMIT 2 OFFSET 1").unwrap();
+
+    assert_eq!(results.len(), 2);
+    assert_eq!(results[0].values[0], SqlValue::Varchar("Bob".to_string()));
+    assert_eq!(results[0].values[1], SqlValue::Integer(17));
+    assert_eq!(results[1].values[0], SqlValue::Varchar("Charlie".to_string()));
+    assert_eq!(results[1].values[1], SqlValue::Integer(30));
+}

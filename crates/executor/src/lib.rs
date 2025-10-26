@@ -658,7 +658,16 @@ impl<'a> SelectExecutor<'a> {
             final_rows.push(projected_row);
         }
 
-        Ok(final_rows)
+        // Apply OFFSET and LIMIT after projection
+        let start = stmt.offset.unwrap_or(0);
+        if start >= final_rows.len() {
+            return Ok(Vec::new());
+        }
+
+        let end =
+            stmt.limit.map(|limit| start + limit).unwrap_or(final_rows.len()).min(final_rows.len());
+
+        Ok(final_rows[start..end].to_vec())
     }
 
     /// Execute a FROM clause (table or join) and return combined schema and rows
@@ -1221,7 +1230,9 @@ mod tests {
         let executor = SelectExecutor::new(&db);
         let stmt = ast::SelectStmt {
             select_list: vec![ast::SelectItem::Wildcard],
-            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None 
+            limit: None,
+            offset: None,}),
             where_clause: None,
             group_by: None,
             having: None,
@@ -1268,7 +1279,9 @@ mod tests {
         let executor = SelectExecutor::new(&db);
         let stmt = ast::SelectStmt {
             select_list: vec![ast::SelectItem::Wildcard],
-            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None 
+            limit: None,
+            offset: None,}),
             where_clause: Some(ast::Expression::BinaryOp {
                 left: Box::new(ast::Expression::ColumnRef {
                     table: None,
@@ -1320,7 +1333,9 @@ mod tests {
         let stmt = ast::SelectStmt {
             select_list: vec![
                 ast::SelectItem::Expression {
-                    expr: ast::Expression::ColumnRef { table: None, column: "name".to_string() },
+                    expr: ast::Expression::ColumnRef { table: None, column: "name".to_string() 
+            limit: None,
+            offset: None,},
                     alias: None,
                 },
                 ast::SelectItem::Expression {
@@ -1450,7 +1465,9 @@ mod tests {
                 left: Box::new(ast::FromClause::Table {
                     name: "users".to_string(),
                     alias: None,
-                }),
+                
+            limit: None,
+            offset: None,}),
                 right: Box::new(ast::FromClause::Table {
                     name: "orders".to_string(),
                     alias: None,
@@ -1541,7 +1558,9 @@ mod tests {
                 left: Box::new(ast::FromClause::Table {
                     name: "users".to_string(),
                     alias: None,
-                }),
+                
+            limit: None,
+            offset: None,}),
                 right: Box::new(ast::FromClause::Table {
                     name: "orders".to_string(),
                     alias: None,
@@ -1592,7 +1611,9 @@ mod tests {
         let executor = SelectExecutor::new(&db);
         let stmt = ast::SelectStmt {
             select_list: vec![ast::SelectItem::Wildcard],
-            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None 
+            limit: None,
+            offset: None,}),
             where_clause: None,
             group_by: None,
             having: None,
@@ -1600,6 +1621,8 @@ mod tests {
                 expr: ast::Expression::ColumnRef { table: None, column: "age".to_string() },
                 direction: ast::OrderDirection::Asc,
             }]),
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -1640,7 +1663,9 @@ mod tests {
         let executor = SelectExecutor::new(&db);
         let stmt = ast::SelectStmt {
             select_list: vec![ast::SelectItem::Wildcard],
-            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None 
+            limit: None,
+            offset: None,}),
             where_clause: None,
             group_by: None,
             having: None,
@@ -1648,6 +1673,8 @@ mod tests {
                 expr: ast::Expression::ColumnRef { table: None, column: "age".to_string() },
                 direction: ast::OrderDirection::Desc,
             }]),
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -1743,7 +1770,9 @@ mod tests {
                 left: Box::new(ast::FromClause::Table {
                     name: "users".to_string(),
                     alias: None,
-                }),
+                
+            limit: None,
+            offset: None,}),
                 right: Box::new(ast::FromClause::Table {
                     name: "orders".to_string(),
                     alias: None,
@@ -1817,7 +1846,9 @@ mod tests {
         let executor = SelectExecutor::new(&db);
         let stmt = ast::SelectStmt {
             select_list: vec![ast::SelectItem::Wildcard],
-            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None 
+            limit: None,
+            offset: None,}),
             where_clause: None,
             group_by: None,
             having: None,
@@ -1825,6 +1856,8 @@ mod tests {
                 expr: ast::Expression::ColumnRef { table: None, column: "name".to_string() },
                 direction: ast::OrderDirection::Asc,
             }]),
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -1932,7 +1965,9 @@ mod tests {
         let executor = SelectExecutor::new(&db);
         let stmt = ast::SelectStmt {
             select_list: vec![ast::SelectItem::Wildcard],
-            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None 
+            limit: None,
+            offset: None,}),
             where_clause: None,
             group_by: None,
             having: None,
@@ -1946,6 +1981,8 @@ mod tests {
                     direction: ast::OrderDirection::Desc,
                 },
             ]),
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -1998,7 +2035,9 @@ mod tests {
         let executor = SelectExecutor::new(&db);
         let stmt = ast::SelectStmt {
             select_list: vec![ast::SelectItem::Wildcard],
-            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None 
+            limit: None,
+            offset: None,}),
             where_clause: Some(ast::Expression::BinaryOp {
                 left: Box::new(ast::Expression::ColumnRef {
                     table: None,
@@ -2013,6 +2052,8 @@ mod tests {
                 expr: ast::Expression::ColumnRef { table: None, column: "age".to_string() },
                 direction: ast::OrderDirection::Asc,
             }]),
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -2061,7 +2102,9 @@ mod tests {
                 expr: ast::Expression::Function {
                     name: "COUNT".to_string(),
                     args: vec![ast::Expression::Wildcard],
-                },
+                
+            limit: None,
+            offset: None,},
                 alias: None,
             }],
             from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
@@ -2069,6 +2112,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -2112,7 +2157,9 @@ mod tests {
                     args: vec![ast::Expression::ColumnRef {
                         table: None,
                         column: "age".to_string(),
-                    }],
+                    
+            limit: None,
+            offset: None,}],
                 },
                 alias: None,
             }],
@@ -2121,6 +2168,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -2164,7 +2213,9 @@ mod tests {
                     args: vec![ast::Expression::ColumnRef {
                         table: None,
                         column: "amount".to_string(),
-                    }],
+                    
+            limit: None,
+            offset: None,}],
                 },
                 alias: None,
             }],
@@ -2173,6 +2224,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -2216,7 +2269,9 @@ mod tests {
                     args: vec![ast::Expression::ColumnRef {
                         table: None,
                         column: "score".to_string(),
-                    }],
+                    
+            limit: None,
+            offset: None,}],
                 },
                 alias: None,
             }],
@@ -2225,6 +2280,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -2269,7 +2326,9 @@ mod tests {
                     args: vec![ast::Expression::ColumnRef {
                         table: None,
                         column: "val".to_string(),
-                    }],
+                    
+            limit: None,
+            offset: None,}],
                 },
                 alias: None,
             }],
@@ -2278,6 +2337,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -2292,7 +2353,9 @@ mod tests {
                     args: vec![ast::Expression::ColumnRef {
                         table: None,
                         column: "val".to_string(),
-                    }],
+                    
+            limit: None,
+            offset: None,}],
                 },
                 alias: None,
             }],
@@ -2301,6 +2364,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -2365,7 +2430,9 @@ mod tests {
                     left: Box::new(ast::FromClause::Table {
                         name: "users".to_string(),
                         alias: None,
-                    }),
+                    
+            limit: None,
+            offset: None,}),
                     right: Box::new(ast::FromClause::Table {
                         name: "orders".to_string(),
                         alias: None,
@@ -2448,7 +2515,9 @@ mod tests {
         let executor = SelectExecutor::new(&db);
         let stmt = ast::SelectStmt {
             select_list: vec![ast::SelectItem::Wildcard],
-            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None 
+            limit: None,
+            offset: None,}),
             where_clause: None,
             group_by: None,
             having: None,
@@ -2481,7 +2550,9 @@ mod tests {
         let executor = SelectExecutor::new(&db);
         let stmt = ast::SelectStmt {
             select_list: vec![ast::SelectItem::Wildcard],
-            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None 
+            limit: None,
+            offset: None,}),
             where_clause: None,
             group_by: None,
             having: None,
@@ -2514,7 +2585,9 @@ mod tests {
         let executor = SelectExecutor::new(&db);
         let stmt = ast::SelectStmt {
             select_list: vec![ast::SelectItem::Wildcard],
-            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None 
+            limit: None,
+            offset: None,}),
             where_clause: None,
             group_by: None,
             having: None,
@@ -2548,7 +2621,9 @@ mod tests {
         let executor = SelectExecutor::new(&db);
         let stmt = ast::SelectStmt {
             select_list: vec![ast::SelectItem::Wildcard],
-            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None 
+            limit: None,
+            offset: None,}),
             where_clause: None,
             group_by: None,
             having: None,
@@ -2579,7 +2654,9 @@ mod tests {
         let executor = SelectExecutor::new(&db);
         let stmt = ast::SelectStmt {
             select_list: vec![ast::SelectItem::Wildcard],
-            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None 
+            limit: None,
+            offset: None,}),
             where_clause: None,
             group_by: None,
             having: None,
@@ -2595,7 +2672,9 @@ mod tests {
         let stmt = ast::SelectStmt {
             select_list: vec![
                 ast::SelectItem::Expression {
-                    expr: ast::Expression::ColumnRef { table: None, column: "dept".to_string() },
+                    expr: ast::Expression::ColumnRef { table: None, column: "dept".to_string() 
+            limit: None,
+            offset: None,},
                     alias: None,
                 },
                 ast::SelectItem::Expression {
@@ -2614,6 +2693,8 @@ mod tests {
             }]),
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -2679,7 +2760,9 @@ mod tests {
         let stmt = ast::SelectStmt {
             select_list: vec![
                 ast::SelectItem::Expression {
-                    expr: ast::Expression::ColumnRef { table: None, column: "dept".to_string() },
+                    expr: ast::Expression::ColumnRef { table: None, column: "dept".to_string() 
+            limit: None,
+            offset: None,},
                     alias: None,
                 },
                 ast::SelectItem::Expression {
@@ -2701,6 +2784,8 @@ mod tests {
             }]),
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -2754,7 +2839,9 @@ mod tests {
         let stmt = ast::SelectStmt {
             select_list: vec![
                 ast::SelectItem::Expression {
-                    expr: ast::Expression::ColumnRef { table: None, column: "dept".to_string() },
+                    expr: ast::Expression::ColumnRef { table: None, column: "dept".to_string() 
+            limit: None,
+            offset: None,},
                     alias: None,
                 },
                 ast::SelectItem::Expression {
@@ -2793,6 +2880,8 @@ mod tests {
             }]),
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -2850,7 +2939,9 @@ mod tests {
         let stmt = ast::SelectStmt {
             select_list: vec![
                 ast::SelectItem::Expression {
-                    expr: ast::Expression::ColumnRef { table: None, column: "dept".to_string() },
+                    expr: ast::Expression::ColumnRef { table: None, column: "dept".to_string() 
+            limit: None,
+            offset: None,},
                     alias: None,
                 },
                 ast::SelectItem::Expression {
@@ -2882,6 +2973,8 @@ mod tests {
                 right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(100))),
             }),
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -2889,4 +2982,170 @@ mod tests {
         assert_eq!(result[0].values[0], types::SqlValue::Integer(1));
         assert_eq!(result[0].values[1], types::SqlValue::Integer(300));
     }
+}
+
+// ========================================================================
+// LIMIT and OFFSET Tests
+// ========================================================================
+
+#[test]
+fn test_limit_basic() {
+    // Setup database with 4 users
+    let mut db = storage::Database::new();
+    let users_schema = catalog::TableSchema::new(
+        "users".to_string(),
+        vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
+    );
+    db.create_table(users_schema).unwrap();
+    for i in 1..=4 {
+        db.insert_row("users", storage::Row::new(vec![types::SqlValue::Integer(i)])).unwrap();
+    }
+
+    let executor = SelectExecutor::new(&db);
+    let stmt = ast::SelectStmt {
+        select_list: vec![ast::SelectItem::Wildcard],
+        from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None 
+            limit: None,
+            offset: None,}),
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: Some(2),
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 2);
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(1));
+    assert_eq!(result[1].values[0], types::SqlValue::Integer(2));
+}
+
+#[test]
+fn test_offset_basic() {
+    // Setup database with 4 users
+    let mut db = storage::Database::new();
+    let users_schema = catalog::TableSchema::new(
+        "users".to_string(),
+        vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
+    );
+    db.create_table(users_schema).unwrap();
+    for i in 1..=4 {
+        db.insert_row("users", storage::Row::new(vec![types::SqlValue::Integer(i)])).unwrap();
+    }
+
+    let executor = SelectExecutor::new(&db);
+    let stmt = ast::SelectStmt {
+        select_list: vec![ast::SelectItem::Wildcard],
+        from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None 
+            limit: None,
+            offset: None,}),
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: Some(2),
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 2);
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(3));
+    assert_eq!(result[1].values[0], types::SqlValue::Integer(4));
+}
+
+#[test]
+fn test_limit_and_offset() {
+    // Setup database with 10 users
+    let mut db = storage::Database::new();
+    let users_schema = catalog::TableSchema::new(
+        "users".to_string(),
+        vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
+    );
+    db.create_table(users_schema).unwrap();
+    for i in 1..=10 {
+        db.insert_row("users", storage::Row::new(vec![types::SqlValue::Integer(i)])).unwrap();
+    }
+
+    let executor = SelectExecutor::new(&db);
+    let stmt = ast::SelectStmt {
+        select_list: vec![ast::SelectItem::Wildcard],
+        from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None 
+            limit: None,
+            offset: None,}),
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: Some(3),
+        offset: Some(2),
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 3);
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(3));
+    assert_eq!(result[1].values[0], types::SqlValue::Integer(4));
+    assert_eq!(result[2].values[0], types::SqlValue::Integer(5));
+}
+
+#[test]
+fn test_offset_beyond_result_set() {
+    // Setup database with 3 users
+    let mut db = storage::Database::new();
+    let users_schema = catalog::TableSchema::new(
+        "users".to_string(),
+        vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
+    );
+    db.create_table(users_schema).unwrap();
+    for i in 1..=3 {
+        db.insert_row("users", storage::Row::new(vec![types::SqlValue::Integer(i)])).unwrap();
+    }
+
+    let executor = SelectExecutor::new(&db);
+    let stmt = ast::SelectStmt {
+        select_list: vec![ast::SelectItem::Wildcard],
+        from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None 
+            limit: None,
+            offset: None,}),
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: Some(10),
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 0);
+}
+
+#[test]
+fn test_limit_greater_than_result_set() {
+    // Setup database with 3 users
+    let mut db = storage::Database::new();
+    let users_schema = catalog::TableSchema::new(
+        "users".to_string(),
+        vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
+    );
+    db.create_table(users_schema).unwrap();
+    for i in 1..=3 {
+        db.insert_row("users", storage::Row::new(vec![types::SqlValue::Integer(i)])).unwrap();
+    }
+
+    let executor = SelectExecutor::new(&db);
+    let stmt = ast::SelectStmt {
+        select_list: vec![ast::SelectItem::Wildcard],
+        from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None 
+            limit: None,
+            offset: None,}),
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: Some(100),
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 3);
 }
