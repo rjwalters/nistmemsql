@@ -1,7 +1,7 @@
 # ADR-0002: Parser Strategy for SQL:1999
 
 **Status**: Accepted
-**Date**: 2025-10-25
+**Date**: 2024-10-25
 **Deciders**: Claude Code + User
 **Technical Story**: Choose parser implementation approach for SQL:1999 FULL compliance
 
