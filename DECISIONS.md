@@ -102,6 +102,6 @@ When making architectural decisions:
 
 ---
 
-**Last Updated**: 2024-10-25
+**Last Updated**: 2025-10-26
 **Total ADRs**: 2 accepted, 4 pending
 **Status**: Foundation building - language and parser strategy chosen!
