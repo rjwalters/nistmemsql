@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::{Catalog, CatalogError, ColumnSchema, TableSchema};
 
     #[test]
     fn test_column_schema_creation() {
