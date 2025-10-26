@@ -1,0 +1,71 @@
+//! SQL:1999 Type System
+//!
+//! This crate provides the type system for SQL:1999, including:
+//! - Data type definitions (INTEGER, VARCHAR, BOOLEAN, etc.)
+//! - SQL values representation
+//! - Type compatibility and coercion rules
+//! - Type checking utilities
+
+/// SQL:1999 Data Types
+///
+/// Represents the type of a column or expression in SQL.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DataType {
+    // Exact numeric types
+    Integer,
+    Smallint,
+    Bigint,
+    Numeric { precision: u8, scale: u8 },
+    Decimal { precision: u8, scale: u8 },
+
+    // Approximate numeric types
+    Float,
+    Real,
+    DoublePrecision,
+
+    // Character string types
+    Character { length: usize },
+    Varchar { max_length: usize },
+    CharacterLargeObject, // CLOB
+
+    // Boolean type (SQL:1999)
+    Boolean,
+
+    // Date/time types
+    Date,
+    Time { with_timezone: bool },
+    Timestamp { with_timezone: bool },
+
+    // Binary types
+    BinaryLargeObject, // BLOB
+
+    // Special type for NULL
+    Null,
+}
+
+impl DataType {
+    /// Check if this type is compatible with another type for operations
+    ///
+    /// NULL is compatible with any type, and types are compatible with themselves.
+    /// Some types have special compatibility rules (e.g., different VARCHAR lengths).
+    pub fn is_compatible_with(&self, other: &DataType) -> bool {
+        // NULL is compatible with everything
+        if matches!(self, DataType::Null) || matches!(other, DataType::Null) {
+            return true;
+        }
+
+        match (self, other) {
+            // Same types are compatible
+            (DataType::Integer, DataType::Integer) => true,
+            (DataType::Boolean, DataType::Boolean) => true,
+            (DataType::Date, DataType::Date) => true,
+
+            // VARCHAR with different lengths are compatible
+            (DataType::Varchar { .. }, DataType::Varchar { .. }) => true,
+
+            // For now, different types are not compatible
+            // TODO: Add proper SQL:1999 type coercion rules
+            _ => false,
+        }
+    }
+}

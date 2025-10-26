@@ -1,0 +1,118 @@
+use super::*;
+
+impl Parser {
+    /// Parse FROM clause
+    pub(crate) fn parse_from_clause(&mut self) -> Result<ast::FromClause, ParseError> {
+        // Parse the first table reference
+        let mut left = self.parse_table_reference()?;
+
+        // Check for JOINs (left-associative)
+        while self.is_join_keyword() {
+            let join_type = self.parse_join_type()?;
+
+            // Parse right table reference
+            let right = self.parse_table_reference()?;
+
+            // Parse ON condition
+            let condition = if self.peek_keyword(Keyword::On) {
+                self.consume_keyword(Keyword::On)?;
+                Some(self.parse_expression()?)
+            } else {
+                None
+            };
+
+            // Build JOIN node
+            left = ast::FromClause::Join {
+                left: Box::new(left),
+                right: Box::new(right),
+                join_type,
+                condition,
+            };
+        }
+
+        Ok(left)
+    }
+
+    /// Parse a single table reference (table name with optional alias)
+    pub(crate) fn parse_table_reference(&mut self) -> Result<ast::FromClause, ParseError> {
+        match self.peek() {
+            Token::Identifier(table_name) => {
+                let name = table_name.clone();
+                self.advance();
+
+                // Check for optional alias
+                let alias = if self.peek_keyword(Keyword::As) {
+                    self.consume_keyword(Keyword::As)?;
+                    match self.peek() {
+                        Token::Identifier(id) => {
+                            let alias = id.clone();
+                            self.advance();
+                            Some(alias)
+                        }
+                        _ => None,
+                    }
+                } else if matches!(self.peek(), Token::Identifier(_)) && !self.is_join_keyword() {
+                    // Implicit alias (no AS keyword) - but not a JOIN keyword
+                    match self.peek() {
+                        Token::Identifier(id) => {
+                            let alias = id.clone();
+                            self.advance();
+                            Some(alias)
+                        }
+                        _ => None,
+                    }
+                } else {
+                    None
+                };
+
+                Ok(ast::FromClause::Table { name, alias })
+            }
+            _ => Err(ParseError { message: "Expected table name in FROM clause".to_string() }),
+        }
+    }
+
+    /// Check if current token is a JOIN keyword
+    pub(crate) fn is_join_keyword(&self) -> bool {
+        matches!(
+            self.peek(),
+            Token::Keyword(Keyword::Join)
+                | Token::Keyword(Keyword::Inner)
+                | Token::Keyword(Keyword::Left)
+                | Token::Keyword(Keyword::Right)
+        )
+    }
+
+    /// Parse JOIN type (INNER JOIN, LEFT JOIN, etc.)
+    pub(crate) fn parse_join_type(&mut self) -> Result<ast::JoinType, ParseError> {
+        match self.peek() {
+            Token::Keyword(Keyword::Join) => {
+                self.advance();
+                Ok(ast::JoinType::Inner) // Default JOIN is INNER JOIN
+            }
+            Token::Keyword(Keyword::Inner) => {
+                self.advance();
+                self.expect_keyword(Keyword::Join)?;
+                Ok(ast::JoinType::Inner)
+            }
+            Token::Keyword(Keyword::Left) => {
+                self.advance();
+                // Optional OUTER keyword
+                if self.peek_keyword(Keyword::Outer) {
+                    self.consume_keyword(Keyword::Outer)?;
+                }
+                self.expect_keyword(Keyword::Join)?;
+                Ok(ast::JoinType::LeftOuter)
+            }
+            Token::Keyword(Keyword::Right) => {
+                self.advance();
+                // Optional OUTER keyword
+                if self.peek_keyword(Keyword::Outer) {
+                    self.consume_keyword(Keyword::Outer)?;
+                }
+                self.expect_keyword(Keyword::Join)?;
+                Ok(ast::JoinType::RightOuter)
+            }
+            _ => Err(ParseError { message: "Expected JOIN keyword".to_string() }),
+        }
+    }
+}
