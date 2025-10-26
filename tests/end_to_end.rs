@@ -350,3 +350,167 @@ fn test_e2e_multiple_tables() {
     assert!(debug.contains("users"));
     assert!(debug.contains("products"));
 }
+
+// ============================================================================
+// Multi-Character Operator Tests
+// ============================================================================
+
+#[test]
+fn test_e2e_less_than_or_equal() {
+    // Setup database
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    // Execute: SELECT name FROM users WHERE age <= 22
+    let results = execute_select(&db, "SELECT name FROM users WHERE age <= 22").unwrap();
+
+    // Verify - should get Bob (17) and Diana (22), but NOT Alice (25) or Charlie (30)
+    assert_eq!(results.len(), 2);
+
+    let names: Vec<String> = results
+        .iter()
+        .map(|r| match &r.values[0] {
+            SqlValue::Varchar(s) => s.clone(),
+            _ => panic!("Expected varchar"),
+        })
+        .collect();
+
+    assert!(names.contains(&"Bob".to_string()));
+    assert!(names.contains(&"Diana".to_string()));
+    assert!(!names.contains(&"Alice".to_string()));
+    assert!(!names.contains(&"Charlie".to_string()));
+}
+
+#[test]
+fn test_e2e_not_equal_bang_equal() {
+    // Setup database
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    // Execute: SELECT name FROM users WHERE age != 25
+    let results = execute_select(&db, "SELECT name FROM users WHERE age != 25").unwrap();
+
+    // Verify - should get everyone EXCEPT Alice (25)
+    assert_eq!(results.len(), 3);
+
+    let names: Vec<String> = results
+        .iter()
+        .map(|r| match &r.values[0] {
+            SqlValue::Varchar(s) => s.clone(),
+            _ => panic!("Expected varchar"),
+        })
+        .collect();
+
+    assert!(names.contains(&"Bob".to_string()));
+    assert!(names.contains(&"Charlie".to_string()));
+    assert!(names.contains(&"Diana".to_string()));
+    assert!(!names.contains(&"Alice".to_string()));
+}
+
+#[test]
+fn test_e2e_not_equal_angle_brackets() {
+    // Setup database
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    // Execute: SELECT name FROM users WHERE name <> 'Bob'
+    let results = execute_select(&db, "SELECT name FROM users WHERE name <> 'Bob'").unwrap();
+
+    // Verify - should get everyone EXCEPT Bob
+    assert_eq!(results.len(), 3);
+
+    let names: Vec<String> = results
+        .iter()
+        .map(|r| match &r.values[0] {
+            SqlValue::Varchar(s) => s.clone(),
+            _ => panic!("Expected varchar"),
+        })
+        .collect();
+
+    assert!(names.contains(&"Alice".to_string()));
+    assert!(names.contains(&"Charlie".to_string()));
+    assert!(names.contains(&"Diana".to_string()));
+    assert!(!names.contains(&"Bob".to_string()));
+}
+
+#[test]
+fn test_e2e_combined_comparison_operators() {
+    // Setup database
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    // Execute: SELECT name FROM users WHERE age >= 18 AND age <= 25
+    let results = execute_select(&db, "SELECT name FROM users WHERE age >= 18 AND age <= 25").unwrap();
+
+    // Verify - should get Alice (25) and Diana (22), but NOT Bob (17) or Charlie (30)
+    assert_eq!(results.len(), 2);
+
+    let names: Vec<String> = results
+        .iter()
+        .map(|r| match &r.values[0] {
+            SqlValue::Varchar(s) => s.clone(),
+            _ => panic!("Expected varchar"),
+        })
+        .collect();
+
+    assert!(names.contains(&"Alice".to_string()));
+    assert!(names.contains(&"Diana".to_string()));
+}
+
+#[test]
+fn test_e2e_all_comparison_operators() {
+    // Setup database
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    // Test each operator individually
+    // = (equal)
+    let eq_results = execute_select(&db, "SELECT name FROM users WHERE age = 25").unwrap();
+    assert_eq!(eq_results.len(), 1);
+
+    // < (less than)
+    let lt_results = execute_select(&db, "SELECT name FROM users WHERE age < 20").unwrap();
+    assert_eq!(lt_results.len(), 1); // Bob
+
+    // > (greater than)
+    let gt_results = execute_select(&db, "SELECT name FROM users WHERE age > 25").unwrap();
+    assert_eq!(gt_results.len(), 1); // Charlie
+
+    // <= (less than or equal)
+    let lte_results = execute_select(&db, "SELECT name FROM users WHERE age <= 22").unwrap();
+    assert_eq!(lte_results.len(), 2); // Bob, Diana
+
+    // >= (greater than or equal)
+    let gte_results = execute_select(&db, "SELECT name FROM users WHERE age >= 25").unwrap();
+    assert_eq!(gte_results.len(), 2); // Alice, Charlie
+
+    // != (not equal)
+    let ne_results = execute_select(&db, "SELECT name FROM users WHERE age != 25").unwrap();
+    assert_eq!(ne_results.len(), 3); // Bob, Charlie, Diana
+}
+
+#[test]
+fn test_e2e_operators_without_spaces() {
+    // Setup database
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    // Test operators work without spaces around them
+    // age>=18 (no spaces)
+    let results1 = execute_select(&db, "SELECT name FROM users WHERE age>=18").unwrap();
+    assert_eq!(results1.len(), 3);
+
+    // age<=25 (no spaces)
+    let results2 = execute_select(&db, "SELECT name FROM users WHERE age<=25").unwrap();
+    assert_eq!(results2.len(), 3);
+
+    // age!=17 (no spaces)
+    let results3 = execute_select(&db, "SELECT name FROM users WHERE age!=17").unwrap();
+    assert_eq!(results3.len(), 3);
+}
