@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::{ExecutorError, ExpressionEvaluator, SelectExecutor};
 
     // ========================================================================
     // Expression Evaluator Tests
@@ -568,7 +568,13 @@ mod tests {
             .into_iter()
             .map(|row| (row.values[0].clone(), row.values[1].clone()))
             .collect::<Vec<_>>();
-        results.sort_by_key(|(dept, _)| dept.clone());
+        // Sort by dept (first value) - comparing integers directly
+        results.sort_by(|(a, _), (b, _)| {
+            match (a, b) {
+                (types::SqlValue::Integer(x), types::SqlValue::Integer(y)) => x.cmp(y),
+                _ => std::cmp::Ordering::Equal,
+            }
+        });
         assert_eq!(results[0], (types::SqlValue::Integer(1), types::SqlValue::Integer(2)));
         assert_eq!(results[1], (types::SqlValue::Integer(2), types::SqlValue::Integer(1)));
     }
