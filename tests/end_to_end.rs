@@ -117,8 +117,8 @@ fn test_e2e_select_with_where() {
     db.create_table(create_users_schema()).unwrap();
     insert_sample_users(&mut db);
 
-    // Execute: SELECT * FROM users WHERE age > 17
-    let results = execute_select(&db, "SELECT * FROM users WHERE age > 17").unwrap();
+    // Execute: SELECT * FROM users WHERE age >= 18
+    let results = execute_select(&db, "SELECT * FROM users WHERE age >= 18").unwrap();
 
     // Verify - should get Alice (25), Charlie (30), Diana (22), but NOT Bob (17)
     assert_eq!(results.len(), 3);
@@ -256,7 +256,7 @@ fn test_e2e_with_diagnostic_dump() {
     insert_sample_users(&mut db);
 
     // Execute query
-    let results = execute_select(&db, "SELECT * FROM users WHERE age > 17").unwrap();
+    let results = execute_select(&db, "SELECT * FROM users WHERE age >= 18").unwrap();
 
     // Use diagnostic tools to verify
     let debug_info = db.debug_info();

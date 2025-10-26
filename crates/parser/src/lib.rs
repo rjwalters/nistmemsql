@@ -218,9 +218,36 @@ impl Lexer {
                 self.advance();
                 Ok(Token::RParen)
             }
-            '+' | '-' | '*' | '/' | '=' | '<' | '>' | '.' => {
-                // For now, treat as single-char symbols
-                // TODO: Handle multi-char operators (<=, >=, !=, <>)
+            '=' | '<' | '>' | '!' => {
+                // Check for multi-character operators (<=, >=, !=, <>)
+                self.advance();
+                if !self.is_eof() {
+                    let next_ch = self.current_char();
+                    match (ch, next_ch) {
+                        ('<', '=') => {
+                            self.advance();
+                            Ok(Token::Operator("<=".to_string()))
+                        }
+                        ('>', '=') => {
+                            self.advance();
+                            Ok(Token::Operator(">=".to_string()))
+                        }
+                        ('!', '=') => {
+                            self.advance();
+                            Ok(Token::Operator("!=".to_string()))
+                        }
+                        ('<', '>') => {
+                            self.advance();
+                            Ok(Token::Operator("<>".to_string()))
+                        }
+                        _ => Ok(Token::Symbol(ch)),
+                    }
+                } else {
+                    Ok(Token::Symbol(ch))
+                }
+            }
+            '+' | '-' | '*' | '/' | '.' => {
+                // Single-character symbols
                 let symbol = ch;
                 self.advance();
                 Ok(Token::Symbol(symbol))
@@ -1077,15 +1104,32 @@ impl Parser {
         Ok(left)
     }
 
-    /// Parse comparison expression (handles =, <, >, etc.)
+    /// Parse comparison expression (handles =, <, >, <=, >=, !=, <>)
     fn parse_comparison_expression(&mut self) -> Result<ast::Expression, ParseError> {
         let mut left = self.parse_primary_expression()?;
 
-        if matches!(self.peek(), Token::Symbol('=') | Token::Symbol('<') | Token::Symbol('>')) {
+        // Check for comparison operators (both single-char and multi-char)
+        let is_comparison = matches!(
+            self.peek(),
+            Token::Symbol('=') | Token::Symbol('<') | Token::Symbol('>') | Token::Operator(_)
+        );
+
+        if is_comparison {
             let op = match self.peek() {
                 Token::Symbol('=') => ast::BinaryOperator::Equal,
                 Token::Symbol('<') => ast::BinaryOperator::LessThan,
                 Token::Symbol('>') => ast::BinaryOperator::GreaterThan,
+                Token::Operator(ref s) => match s.as_str() {
+                    "<=" => ast::BinaryOperator::LessThanOrEqual,
+                    ">=" => ast::BinaryOperator::GreaterThanOrEqual,
+                    "!=" => ast::BinaryOperator::NotEqual,
+                    "<>" => ast::BinaryOperator::NotEqual, // SQL standard
+                    _ => {
+                        return Err(ParseError {
+                            message: format!("Unexpected operator: {}", s),
+                        })
+                    }
+                },
                 _ => unreachable!(),
             };
             self.advance();
@@ -1463,6 +1507,40 @@ mod tests {
         assert_eq!(tokens[0], Token::Symbol('='));
         assert_eq!(tokens[1], Token::Symbol('<'));
         assert_eq!(tokens[2], Token::Symbol('>'));
+    }
+
+    #[test]
+    fn test_tokenize_multi_char_operators() {
+        let mut lexer = Lexer::new("<= >= != <>");
+        let tokens = lexer.tokenize().unwrap();
+        assert_eq!(tokens[0], Token::Operator("<=".to_string()));
+        assert_eq!(tokens[1], Token::Operator(">=".to_string()));
+        assert_eq!(tokens[2], Token::Operator("!=".to_string()));
+        assert_eq!(tokens[3], Token::Operator("<>".to_string()));
+    }
+
+    #[test]
+    fn test_tokenize_operators_without_spaces() {
+        // Test that >= is tokenized as one operator, not two
+        let mut lexer = Lexer::new("age>=18");
+        let tokens = lexer.tokenize().unwrap();
+        assert_eq!(tokens[0], Token::Identifier("age".to_string()));
+        assert_eq!(tokens[1], Token::Operator(">=".to_string()));
+        assert_eq!(tokens[2], Token::Number("18".to_string()));
+    }
+
+    #[test]
+    fn test_tokenize_single_vs_multi_char() {
+        // Test that > and = are separate when not adjacent
+        let mut lexer = Lexer::new("> =");
+        let tokens = lexer.tokenize().unwrap();
+        assert_eq!(tokens[0], Token::Symbol('>'));
+        assert_eq!(tokens[1], Token::Symbol('='));
+
+        // But >= is one token when adjacent
+        let mut lexer2 = Lexer::new(">=");
+        let tokens2 = lexer2.tokenize().unwrap();
+        assert_eq!(tokens2[0], Token::Operator(">=".to_string()));
     }
 
     // ============================================================================
