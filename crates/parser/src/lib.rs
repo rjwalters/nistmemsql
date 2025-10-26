@@ -554,9 +554,10 @@ impl Parser {
             self.consume_keyword(Keyword::Limit)?;
             match self.peek() {
                 Token::Number(n) => {
-                    let limit_value = n
-                        .parse::<usize>()
-                        .map_err(|_| ParseError { message: format!("Invalid LIMIT value: {}", n) })?;
+                    let limit_value = n.parse::<usize>().map_err(|_| ParseError {
+                        message: format!("Invalid LIMIT value: {}", n),
+                    })?;
+
                     self.advance();
                     Some(limit_value)
                 }
@@ -571,13 +572,16 @@ impl Parser {
             self.consume_keyword(Keyword::Offset)?;
             match self.peek() {
                 Token::Number(n) => {
-                    let offset_value = n
-                        .parse::<usize>()
-                        .map_err(|_| ParseError { message: format!("Invalid OFFSET value: {}", n) })?;
+                    let offset_value = n.parse::<usize>().map_err(|_| ParseError {
+                        message: format!("Invalid OFFSET value: {}", n),
+                    })?;
                     self.advance();
                     Some(offset_value)
                 }
-                _ => return Err(ParseError { message: "Expected number after OFFSET".to_string() }),
+                _ => {
+                    return Err(ParseError { message: "Expected number after OFFSET".to_string() })
+                }
+
             }
         } else {
             None
@@ -598,7 +602,7 @@ impl Parser {
             limit,
             offset,
         })
-        Ok(ast::SelectStmt { select_list, from, where_clause, group_by, having, order_by })
+
     }
 
     /// Parse INSERT statement
@@ -3090,5 +3094,99 @@ mod tests {
             }
             _ => panic!("Expected SELECT"),
         }
+    }
+}
+
+#[test]
+fn test_parse_limit() {
+    let result = Parser::parse_sql("SELECT * FROM users LIMIT 10;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Select(select) => {
+            assert_eq!(select.limit, Some(10));
+            assert_eq!(select.offset, None);
+        }
+        _ => panic!("Expected SELECT"),
+    }
+}
+
+#[test]
+fn test_parse_offset() {
+    let result = Parser::parse_sql("SELECT * FROM users OFFSET 5;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Select(select) => {
+            assert_eq!(select.limit, None);
+            assert_eq!(select.offset, Some(5));
+        }
+        _ => panic!("Expected SELECT"),
+    }
+}
+
+#[test]
+fn test_parse_limit_and_offset() {
+    let result = Parser::parse_sql("SELECT * FROM users LIMIT 10 OFFSET 5;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Select(select) => {
+            assert_eq!(select.limit, Some(10));
+            assert_eq!(select.offset, Some(5));
+        }
+        _ => panic!("Expected SELECT"),
+    }
+}
+
+#[test]
+fn test_parse_limit_with_where() {
+    let result = Parser::parse_sql("SELECT name FROM users WHERE age > 18 LIMIT 5;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Select(select) => {
+            assert!(select.where_clause.is_some());
+            assert_eq!(select.limit, Some(5));
+        }
+        _ => panic!("Expected SELECT"),
+    }
+}
+
+#[test]
+fn test_parse_limit_with_order_by() {
+    let result = Parser::parse_sql("SELECT * FROM users ORDER BY name ASC LIMIT 10;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Select(select) => {
+            assert!(select.order_by.is_some());
+            assert_eq!(select.limit, Some(10));
+        }
+        _ => panic!("Expected SELECT"),
+    }
+}
+
+#[test]
+fn test_parse_full_query_with_limit_offset() {
+    let result = Parser::parse_sql(
+        "SELECT name, age FROM users WHERE age >= 18 ORDER BY age DESC LIMIT 10 OFFSET 5;",
+    );
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Select(select) => {
+            assert!(select.where_clause.is_some());
+            assert!(select.order_by.is_some());
+            assert_eq!(select.limit, Some(10));
+            assert_eq!(select.offset, Some(5));
+        }
+        _ => panic!("Expected SELECT"),
     }
 }
