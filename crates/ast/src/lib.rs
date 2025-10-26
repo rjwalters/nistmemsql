@@ -5,135 +5,18 @@
 //! preserves the semantic structure of SQL queries.
 
 mod ddl;
+mod dml;
 mod expression;
 mod operators;
+mod select;
+mod statement;
 
 pub use ddl::{ColumnDef, CreateTableStmt};
+pub use dml::{Assignment, DeleteStmt, InsertStmt, UpdateStmt};
 pub use expression::Expression;
 pub use operators::{BinaryOperator, UnaryOperator};
-
-// ============================================================================
-// Top-level SQL Statements
-// ============================================================================
-
-/// A complete SQL statement
-#[derive(Debug, Clone, PartialEq)]
-pub enum Statement {
-    Select(SelectStmt),
-    Insert(InsertStmt),
-    Update(UpdateStmt),
-    Delete(DeleteStmt),
-    CreateTable(CreateTableStmt),
-    // TODO: Add more statement types (ALTER, DROP, etc.)
-}
-
-// ============================================================================
-// SELECT Statement
-// ============================================================================
-
-/// SELECT statement structure
-#[derive(Debug, Clone, PartialEq)]
-pub struct SelectStmt {
-    pub select_list: Vec<SelectItem>,
-    pub from: Option<FromClause>,
-    pub where_clause: Option<Expression>,
-    pub group_by: Option<Vec<Expression>>,
-    pub having: Option<Expression>,
-    pub order_by: Option<Vec<OrderByItem>>,
-    pub limit: Option<usize>,
-    pub offset: Option<usize>,
-}
-
-/// Item in the SELECT list
-#[derive(Debug, Clone, PartialEq)]
-pub enum SelectItem {
-    /// SELECT *
-    Wildcard,
-    /// SELECT expr [AS alias]
-    Expression { expr: Expression, alias: Option<String> },
-}
-
-/// FROM clause
-#[derive(Debug, Clone, PartialEq)]
-pub enum FromClause {
-    Table {
-        name: String,
-        alias: Option<String>,
-    },
-    Join {
-        left: Box<FromClause>,
-        right: Box<FromClause>,
-        join_type: JoinType,
-        condition: Option<Expression>,
-    },
-    // TODO: Add subqueries, etc.
-}
-
-/// JOIN types
-#[derive(Debug, Clone, PartialEq)]
-pub enum JoinType {
-    Inner,
-    LeftOuter,
-    RightOuter,
-    FullOuter,
-    Cross,
-}
-
-/// ORDER BY item
-#[derive(Debug, Clone, PartialEq)]
-pub struct OrderByItem {
-    pub expr: Expression,
-    pub direction: OrderDirection,
-}
-
-/// Sort direction
-#[derive(Debug, Clone, PartialEq)]
-pub enum OrderDirection {
-    Asc,
-    Desc,
-}
-
-// ============================================================================
-// INSERT Statement
-// ============================================================================
-
-/// INSERT statement
-#[derive(Debug, Clone, PartialEq)]
-pub struct InsertStmt {
-    pub table_name: String,
-    pub columns: Vec<String>,
-    pub values: Vec<Vec<Expression>>, // Can insert multiple rows
-}
-
-// ============================================================================
-// UPDATE Statement
-// ============================================================================
-
-/// UPDATE statement
-#[derive(Debug, Clone, PartialEq)]
-pub struct UpdateStmt {
-    pub table_name: String,
-    pub assignments: Vec<Assignment>,
-    pub where_clause: Option<Expression>,
-}
-
-/// Column assignment (column = value)
-#[derive(Debug, Clone, PartialEq)]
-pub struct Assignment {
-    pub column: String,
-    pub value: Expression,
-}
-
-// ============================================================================
-// DELETE Statement
-// ============================================================================
-
-/// DELETE statement
-#[derive(Debug, Clone, PartialEq)]
-pub struct DeleteStmt {
-    pub table_name: String,
-    pub where_clause: Option<Expression>,
-}
+pub use select::{FromClause, JoinType, OrderByItem, OrderDirection, SelectItem, SelectStmt};
+pub use statement::Statement;
 
 
 
