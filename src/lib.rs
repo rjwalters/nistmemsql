@@ -1,14 +1,10 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! NistMemSQL - SQL:1999 FULL Compliance In-Memory Database
+//!
+//! This is the root crate that re-exports all components.
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use ast;
+pub use catalog;
+pub use executor;
+pub use parser;
+pub use storage;
+pub use types;
