@@ -2,6 +2,74 @@
 //!
 //! This crate provides query execution functionality for SQL statements.
 
+use std::collections::HashMap;
+
+// ============================================================================
+// Combined Schema - for JOIN operations
+// ============================================================================
+
+/// Represents the combined schema from multiple tables (for JOINs)
+#[derive(Debug, Clone)]
+struct CombinedSchema {
+    /// Map from table name to (start_index, TableSchema)
+    /// start_index is where this table's columns begin in the combined row
+    table_schemas: HashMap<String, (usize, catalog::TableSchema)>,
+    /// Total number of columns across all tables
+    total_columns: usize,
+}
+
+impl CombinedSchema {
+    /// Create a new combined schema from a single table
+    fn from_table(table_name: String, schema: catalog::TableSchema) -> Self {
+        let total_columns = schema.columns.len();
+        let mut table_schemas = HashMap::new();
+        table_schemas.insert(table_name, (0, schema));
+        CombinedSchema { table_schemas, total_columns }
+    }
+
+    /// Combine two schemas (for JOIN operations)
+    fn combine(left: CombinedSchema, right_table: String, right_schema: catalog::TableSchema) -> Self {
+        let mut table_schemas = left.table_schemas;
+        let left_total = left.total_columns;
+        let right_columns = right_schema.columns.len();
+        table_schemas.insert(right_table, (left_total, right_schema));
+        CombinedSchema {
+            table_schemas,
+            total_columns: left_total + right_columns,
+        }
+    }
+
+    /// Look up a column by name (optionally qualified with table name)
+    fn get_column_index(&self, table: Option<&str>, column: &str) -> Option<usize> {
+        if let Some(table_name) = table {
+            // Qualified column reference (table.column)
+            if let Some((start_index, schema)) = self.table_schemas.get(table_name) {
+                schema.get_column_index(column).map(|idx| start_index + idx)
+            } else {
+                None
+            }
+        } else {
+            // Unqualified column reference - search all tables
+            for (start_index, schema) in self.table_schemas.values() {
+                if let Some(idx) = schema.get_column_index(column) {
+                    return Some(start_index + idx);
+                }
+            }
+            None
+        }
+    }
+}
+
+// ============================================================================
+// FROM Clause Result
+// ============================================================================
+
+/// Result of executing a FROM clause
+struct FromResult {
+    schema: CombinedSchema,
+    rows: Vec<storage::Row>,
+}
+
 // ============================================================================
 // Expression Evaluator
 // ============================================================================
@@ -9,6 +77,11 @@
 /// Evaluates expressions in the context of a row
 pub struct ExpressionEvaluator<'a> {
     schema: &'a catalog::TableSchema,
+}
+
+/// Evaluates expressions with combined schema (for JOINs)
+struct CombinedExpressionEvaluator<'a> {
+    schema: &'a CombinedSchema,
 }
 
 impl<'a> ExpressionEvaluator<'a> {
@@ -51,8 +124,17 @@ impl<'a> ExpressionEvaluator<'a> {
     }
 
     /// Evaluate a binary operation
-    pub fn eval_binary_op(
+    fn eval_binary_op(
         &self,
+        left: &types::SqlValue,
+        op: &ast::BinaryOperator,
+        right: &types::SqlValue,
+    ) -> Result<types::SqlValue, ExecutorError> {
+        Self::eval_binary_op_static(left, op, right)
+    }
+
+    /// Static version of eval_binary_op for shared logic
+    fn eval_binary_op_static(
         left: &types::SqlValue,
         op: &ast::BinaryOperator,
         right: &types::SqlValue,
@@ -103,6 +185,45 @@ impl<'a> ExpressionEvaluator<'a> {
 }
 
 // ============================================================================
+// Combined Expression Evaluator - for JOINs
+// ============================================================================
+
+impl<'a> CombinedExpressionEvaluator<'a> {
+    /// Create a new combined expression evaluator
+    fn new(schema: &'a CombinedSchema) -> Self {
+        CombinedExpressionEvaluator { schema }
+    }
+
+    /// Evaluate an expression in the context of a combined row
+    fn eval(
+        &self,
+        expr: &ast::Expression,
+        row: &storage::Row,
+    ) -> Result<types::SqlValue, ExecutorError> {
+        match expr {
+            // Literals - just return the value
+            ast::Expression::Literal(val) => Ok(val.clone()),
+
+            // Column reference - look up column index (with optional table qualifier)
+            ast::Expression::ColumnRef { table, column } => {
+                let col_index = self
+                    .schema
+                    .get_column_index(table.as_deref(), column)
+                    .ok_or_else(|| ExecutorError::ColumnNotFound(column.clone()))?;
+                row.get(col_index)
+                    .cloned()
+                    .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: col_index })
+            }
+
+            // Binary operations
+            ast::Expression::BinaryOp { left, op, right } => {
+                let left_val = self.eval(left, row)?;
+                let right_val = self.eval(right, row)?;
+                ExpressionEvaluator::eval_binary_op_static(&left_val, op, &right_val)
+            }
+
+            // TODO: Implement other expression types
+            _ => Err(ExecutorError::UnsupportedExpression(format!("{:?}", expr))),
 // Aggregate Functions
 // ============================================================================
 
@@ -221,6 +342,7 @@ impl AggregateAccumulator {
 // ============================================================================
 
 /// Compare two SqlValues for ordering purposes
+#[allow(dead_code)] // Will be used when ORDER BY is re-added
 fn compare_sql_values(a: &types::SqlValue, b: &types::SqlValue) -> std::cmp::Ordering {
     use types::SqlValue::*;
 
@@ -258,6 +380,9 @@ impl<'a> SelectExecutor<'a> {
 
     /// Execute a SELECT statement
     pub fn execute(&self, stmt: &ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> {
+        // Execute the FROM clause to get rows
+        let from_result = match &stmt.from {
+            Some(from_clause) => self.execute_from(from_clause)?,
         // Check if this query has aggregates or GROUP BY
         let has_aggregates = self.has_aggregates(&stmt.select_list) || stmt.having.is_some();
         let has_group_by = stmt.group_by.is_some();
@@ -431,6 +556,11 @@ impl<'a> SelectExecutor<'a> {
             }
         };
 
+        let evaluator = CombinedExpressionEvaluator::new(&from_result.schema);
+
+        // Scan all rows and filter with WHERE clause
+        let mut result_rows = Vec::new();
+        for row in &from_result.rows {
         // Get the table
         let table = self
             .database
@@ -460,6 +590,30 @@ impl<'a> SelectExecutor<'a> {
             };
 
             if include_row {
+                // Project columns
+                let projected_row =
+                    self.project_row_combined(row, &stmt.select_list, &evaluator)?;
+                result_rows.push(projected_row);
+            }
+        }
+
+        // TODO: Re-add ORDER BY support (removed during JOIN merge, needs to be adapted for CombinedExpressionEvaluator)
+
+        // Apply LIMIT and OFFSET
+        let start = stmt.offset.unwrap_or(0);
+        let end = if let Some(limit) = stmt.limit {
+            start + limit
+        } else {
+            result_rows.len()
+        };
+
+        // Slice the results based on OFFSET and LIMIT
+        let final_rows = if start >= result_rows.len() {
+            // Offset beyond result set
+            vec![]
+        } else {
+            result_rows[start..end.min(result_rows.len())].to_vec()
+        };
                 // Store original row for ORDER BY evaluation
                 result_rows.push((row.clone(), None));
             }
@@ -507,6 +661,51 @@ impl<'a> SelectExecutor<'a> {
         Ok(final_rows)
     }
 
+    /// Execute a FROM clause (table or join) and return combined schema and rows
+    fn execute_from(&self, from: &ast::FromClause) -> Result<FromResult, ExecutorError> {
+        match from {
+            ast::FromClause::Table { name, alias: _ } => {
+                // Simple table scan
+                let table = self
+                    .database
+                    .get_table(name)
+                    .ok_or_else(|| ExecutorError::TableNotFound(name.clone()))?;
+
+                let schema = CombinedSchema::from_table(name.clone(), table.schema.clone());
+                let rows = table.scan().to_vec();
+
+                Ok(FromResult { schema, rows })
+            }
+            ast::FromClause::Join {
+                left,
+                right,
+                join_type,
+                condition,
+            } => {
+                // Execute left and right sides
+                let left_result = self.execute_from(left)?;
+                let right_result = self.execute_from(right)?;
+
+                // Perform nested loop join
+                self.nested_loop_join(left_result, right_result, join_type, condition)
+            }
+        }
+    }
+
+    /// Perform nested loop join between two FROM results
+    fn nested_loop_join(
+        &self,
+        left: FromResult,
+        right: FromResult,
+        join_type: &ast::JoinType,
+        condition: &Option<ast::Expression>,
+    ) -> Result<FromResult, ExecutorError> {
+        match join_type {
+            ast::JoinType::Inner => self.nested_loop_inner_join(left, right, condition),
+            ast::JoinType::LeftOuter => self.nested_loop_left_outer_join(left, right, condition),
+            _ => Err(ExecutorError::UnsupportedFeature(format!(
+                "JOIN type {:?} not yet implemented",
+                join_type
     /// Group rows by GROUP BY expressions
     fn group_rows(
         &self,
@@ -623,6 +822,158 @@ impl<'a> SelectExecutor<'a> {
         }
     }
 
+    /// Nested loop INNER JOIN implementation
+    fn nested_loop_inner_join(
+        &self,
+        left: FromResult,
+        right: FromResult,
+        condition: &Option<ast::Expression>,
+    ) -> Result<FromResult, ExecutorError> {
+        // Extract right table name (assume single table for now)
+        let right_table_name = right
+            .schema
+            .table_schemas
+            .keys()
+            .next()
+            .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+            .clone();
+
+        let right_schema = right
+            .schema
+            .table_schemas
+            .get(&right_table_name)
+            .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+            .1
+            .clone();
+
+        // Combine schemas
+        let combined_schema = CombinedSchema::combine(left.schema, right_table_name, right_schema);
+        let evaluator = CombinedExpressionEvaluator::new(&combined_schema);
+
+        // Nested loop join algorithm
+        let mut result_rows = Vec::new();
+        for left_row in &left.rows {
+            for right_row in &right.rows {
+                // Concatenate rows
+                let mut combined_values = left_row.values.clone();
+                combined_values.extend(right_row.values.clone());
+                let combined_row = storage::Row::new(combined_values);
+
+                // Evaluate join condition
+                let matches = if let Some(cond) = condition {
+                    match evaluator.eval(cond, &combined_row)? {
+                        types::SqlValue::Boolean(true) => true,
+                        types::SqlValue::Boolean(false) => false,
+                        types::SqlValue::Null => false,
+                        other => {
+                            return Err(ExecutorError::InvalidWhereClause(format!(
+                                "JOIN condition must evaluate to boolean, got: {:?}",
+                                other
+                            )))
+                        }
+                    }
+                } else {
+                    true // No condition = CROSS JOIN
+                };
+
+                if matches {
+                    result_rows.push(combined_row);
+                }
+            }
+        }
+
+        Ok(FromResult {
+            schema: combined_schema,
+            rows: result_rows,
+        })
+    }
+
+    /// Nested loop LEFT OUTER JOIN implementation
+    fn nested_loop_left_outer_join(
+        &self,
+        left: FromResult,
+        right: FromResult,
+        condition: &Option<ast::Expression>,
+    ) -> Result<FromResult, ExecutorError> {
+        // Extract right table name and schema
+        let right_table_name = right
+            .schema
+            .table_schemas
+            .keys()
+            .next()
+            .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+            .clone();
+
+        let right_schema = right
+            .schema
+            .table_schemas
+            .get(&right_table_name)
+            .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+            .1
+            .clone();
+
+        let right_column_count = right_schema.columns.len();
+
+        // Combine schemas
+        let combined_schema =
+            CombinedSchema::combine(left.schema, right_table_name, right_schema);
+        let evaluator = CombinedExpressionEvaluator::new(&combined_schema);
+
+        // Nested loop LEFT OUTER JOIN algorithm
+        let mut result_rows = Vec::new();
+        for left_row in &left.rows {
+            let mut matched = false;
+
+            for right_row in &right.rows {
+                // Concatenate rows
+                let mut combined_values = left_row.values.clone();
+                combined_values.extend(right_row.values.clone());
+                let combined_row = storage::Row::new(combined_values);
+
+                // Evaluate join condition
+                let matches = if let Some(cond) = condition {
+                    match evaluator.eval(cond, &combined_row)? {
+                        types::SqlValue::Boolean(true) => true,
+                        types::SqlValue::Boolean(false) => false,
+                        types::SqlValue::Null => false,
+                        other => {
+                            return Err(ExecutorError::InvalidWhereClause(format!(
+                                "JOIN condition must evaluate to boolean, got: {:?}",
+                                other
+                            )))
+                        }
+                    }
+                } else {
+                    true // No condition = CROSS JOIN
+                };
+
+                if matches {
+                    result_rows.push(combined_row);
+                    matched = true;
+                }
+            }
+
+            // If no match found, add left row with NULLs for right columns
+            if !matched {
+                let mut combined_values = left_row.values.clone();
+                // Add NULL values for all right table columns
+                combined_values.extend(vec![types::SqlValue::Null; right_column_count]);
+                result_rows.push(storage::Row::new(combined_values));
+            }
+        }
+
+        Ok(FromResult {
+            schema: combined_schema,
+            rows: result_rows,
+        })
+    }
+
+    /// Project columns from a row based on SELECT list (combined schema version)
+    fn project_row_combined(
+        &self,
+        row: &storage::Row,
+        columns: &[ast::SelectItem],
+        evaluator: &CombinedExpressionEvaluator,
     /// Project columns from a row based on SELECT list
     fn project_row(
         &self,
@@ -875,6 +1226,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -927,6 +1280,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -978,6 +1333,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         let result = executor.execute(&stmt).unwrap();
@@ -988,6 +1345,33 @@ mod tests {
     }
 
     // ========================================================================
+    // JOIN Execution Tests
+    // ========================================================================
+
+    #[test]
+    fn test_inner_join_two_tables() {
+        // Setup database with two tables: users and orders
+        let mut db = storage::Database::new();
+
+        // Create users table
+        let users_schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    "name".to_string(),
+                    types::DataType::Varchar { max_length: 100 },
+                    true,
+                ),
+            ],
+        );
+        db.create_table(users_schema).unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(1),
+                types::SqlValue::Varchar("Alice".to_string()),
+            ]),
     // ORDER BY Tests
     // ========================================================================
 
@@ -1009,6 +1393,193 @@ mod tests {
         .unwrap();
         db.insert_row(
             "users",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(2),
+                types::SqlValue::Varchar("Bob".to_string()),
+            ]),
+        )
+        .unwrap();
+
+        // Create orders table
+        let orders_schema = catalog::TableSchema::new(
+            "orders".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("user_id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    "product".to_string(),
+                    types::DataType::Varchar { max_length: 100 },
+                    true,
+                ),
+            ],
+        );
+        db.create_table(orders_schema).unwrap();
+        db.insert_row(
+            "orders",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(100),
+                types::SqlValue::Integer(1),
+                types::SqlValue::Varchar("Widget".to_string()),
+            ]),
+        )
+        .unwrap();
+        db.insert_row(
+            "orders",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(101),
+                types::SqlValue::Integer(1),
+                types::SqlValue::Varchar("Gadget".to_string()),
+            ]),
+        )
+        .unwrap();
+        db.insert_row(
+            "orders",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(102),
+                types::SqlValue::Integer(2),
+                types::SqlValue::Varchar("Doohickey".to_string()),
+            ]),
+        )
+        .unwrap();
+
+        // Execute: SELECT * FROM users INNER JOIN orders ON users.id = orders.user_id
+        let executor = SelectExecutor::new(&db);
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Join {
+                left: Box::new(ast::FromClause::Table {
+                    name: "users".to_string(),
+                    alias: None,
+                }),
+                right: Box::new(ast::FromClause::Table {
+                    name: "orders".to_string(),
+                    alias: None,
+                }),
+                join_type: ast::JoinType::Inner,
+                condition: Some(ast::Expression::BinaryOp {
+                    left: Box::new(ast::Expression::ColumnRef {
+                        table: Some("users".to_string()),
+                        column: "id".to_string(),
+                    }),
+                    op: ast::BinaryOperator::Equal,
+                    right: Box::new(ast::Expression::ColumnRef {
+                        table: Some("orders".to_string()),
+                        column: "user_id".to_string(),
+                    }),
+                }),
+            }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: None,
+            offset: None,
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+
+        // Should have 3 rows (Alice has 2 orders, Bob has 1 order)
+        assert_eq!(result.len(), 3);
+
+        // Each row should have 5 columns (users.id, users.name, orders.id, orders.user_id, orders.product)
+        assert_eq!(result[0].values.len(), 5);
+
+        // First row: Alice + Widget
+        assert_eq!(result[0].values[0], types::SqlValue::Integer(1));
+        assert_eq!(result[0].values[1], types::SqlValue::Varchar("Alice".to_string()));
+        assert_eq!(result[0].values[2], types::SqlValue::Integer(100));
+        assert_eq!(result[0].values[3], types::SqlValue::Integer(1));
+        assert_eq!(result[0].values[4], types::SqlValue::Varchar("Widget".to_string()));
+
+        // Second row: Alice + Gadget
+        assert_eq!(result[1].values[0], types::SqlValue::Integer(1));
+        assert_eq!(result[1].values[1], types::SqlValue::Varchar("Alice".to_string()));
+        assert_eq!(result[1].values[2], types::SqlValue::Integer(101));
+        assert_eq!(result[1].values[3], types::SqlValue::Integer(1));
+        assert_eq!(result[1].values[4], types::SqlValue::Varchar("Gadget".to_string()));
+
+        // Third row: Bob + Doohickey
+        assert_eq!(result[2].values[0], types::SqlValue::Integer(2));
+        assert_eq!(result[2].values[1], types::SqlValue::Varchar("Bob".to_string()));
+        assert_eq!(result[2].values[2], types::SqlValue::Integer(102));
+        assert_eq!(result[2].values[3], types::SqlValue::Integer(2));
+        assert_eq!(result[2].values[4], types::SqlValue::Varchar("Doohickey".to_string()));
+    }
+
+    #[test]
+    fn test_inner_join_with_no_matches() {
+        // Setup database where join produces no results
+        let mut db = storage::Database::new();
+
+        // Create users table
+        let users_schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
+        );
+        db.create_table(users_schema).unwrap();
+        db.insert_row("users", storage::Row::new(vec![types::SqlValue::Integer(1)]))
+            .unwrap();
+
+        // Create orders table (no matching user_id)
+        let orders_schema = catalog::TableSchema::new(
+            "orders".to_string(),
+            vec![catalog::ColumnSchema::new(
+                "user_id".to_string(),
+                types::DataType::Integer,
+                false,
+            )],
+        );
+        db.create_table(orders_schema).unwrap();
+        db.insert_row("orders", storage::Row::new(vec![types::SqlValue::Integer(999)]))
+            .unwrap();
+
+        // Execute: SELECT * FROM users INNER JOIN orders ON users.id = orders.user_id
+        let executor = SelectExecutor::new(&db);
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Join {
+                left: Box::new(ast::FromClause::Table {
+                    name: "users".to_string(),
+                    alias: None,
+                }),
+                right: Box::new(ast::FromClause::Table {
+                    name: "orders".to_string(),
+                    alias: None,
+                }),
+                join_type: ast::JoinType::Inner,
+                condition: Some(ast::Expression::BinaryOp {
+                    left: Box::new(ast::Expression::ColumnRef {
+                        table: Some("users".to_string()),
+                        column: "id".to_string(),
+                    }),
+                    op: ast::BinaryOperator::Equal,
+                    right: Box::new(ast::Expression::ColumnRef {
+                        table: Some("orders".to_string()),
+                        column: "user_id".to_string(),
+                    }),
+                }),
+            }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: None,
+            offset: None,
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+
+        // Should have 0 rows (no matching records)
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_left_outer_join() {
+        // Setup database with users and orders where some users have no orders
+        let mut db = storage::Database::new();
+
+        // Create users table
+        let users_schema = catalog::TableSchema::new(
             storage::Row::new(vec![types::SqlValue::Integer(2), types::SqlValue::Integer(20)]),
         )
         .unwrap();
@@ -1101,11 +1672,13 @@ mod tests {
                 ),
             ],
         );
+        db.create_table(users_schema).unwrap();
         db.create_table(schema).unwrap();
         db.insert_row(
             "users",
             storage::Row::new(vec![
                 types::SqlValue::Integer(1),
+                types::SqlValue::Varchar("Alice".to_string()),
                 types::SqlValue::Varchar("Charlie".to_string()),
             ]),
         )
@@ -1114,6 +1687,7 @@ mod tests {
             "users",
             storage::Row::new(vec![
                 types::SqlValue::Integer(2),
+                types::SqlValue::Varchar("Bob".to_string()),
                 types::SqlValue::Varchar("Alice".to_string()),
             ]),
         )
@@ -1122,11 +1696,124 @@ mod tests {
             "users",
             storage::Row::new(vec![
                 types::SqlValue::Integer(3),
+                types::SqlValue::Varchar("Charlie".to_string()),
                 types::SqlValue::Varchar("Bob".to_string()),
             ]),
         )
         .unwrap();
 
+        // Create orders table (only Alice and Bob have orders)
+        let orders_schema = catalog::TableSchema::new(
+            "orders".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("user_id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    "product".to_string(),
+                    types::DataType::Varchar { max_length: 100 },
+                    true,
+                ),
+            ],
+        );
+        db.create_table(orders_schema).unwrap();
+        db.insert_row(
+            "orders",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(100),
+                types::SqlValue::Integer(1),
+                types::SqlValue::Varchar("Widget".to_string()),
+            ]),
+        )
+        .unwrap();
+        db.insert_row(
+            "orders",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(101),
+                types::SqlValue::Integer(2),
+                types::SqlValue::Varchar("Gadget".to_string()),
+            ]),
+        )
+        .unwrap();
+
+        // Execute: SELECT * FROM users LEFT OUTER JOIN orders ON users.id = orders.user_id
+        let executor = SelectExecutor::new(&db);
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Join {
+                left: Box::new(ast::FromClause::Table {
+                    name: "users".to_string(),
+                    alias: None,
+                }),
+                right: Box::new(ast::FromClause::Table {
+                    name: "orders".to_string(),
+                    alias: None,
+                }),
+                join_type: ast::JoinType::LeftOuter,
+                condition: Some(ast::Expression::BinaryOp {
+                    left: Box::new(ast::Expression::ColumnRef {
+                        table: Some("users".to_string()),
+                        column: "id".to_string(),
+                    }),
+                    op: ast::BinaryOperator::Equal,
+                    right: Box::new(ast::Expression::ColumnRef {
+                        table: Some("orders".to_string()),
+                        column: "user_id".to_string(),
+                    }),
+                }),
+            }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: None,
+            offset: None,
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+
+        // Should have 3 rows (Alice + order, Bob + order, Charlie + NULLs)
+        assert_eq!(result.len(), 3);
+
+        // First row: Alice + Widget
+        assert_eq!(result[0].values[0], types::SqlValue::Integer(1));
+        assert_eq!(result[0].values[1], types::SqlValue::Varchar("Alice".to_string()));
+        assert_eq!(result[0].values[2], types::SqlValue::Integer(100));
+        assert_eq!(result[0].values[3], types::SqlValue::Integer(1));
+        assert_eq!(result[0].values[4], types::SqlValue::Varchar("Widget".to_string()));
+
+        // Second row: Bob + Gadget
+        assert_eq!(result[1].values[0], types::SqlValue::Integer(2));
+        assert_eq!(result[1].values[1], types::SqlValue::Varchar("Bob".to_string()));
+        assert_eq!(result[1].values[2], types::SqlValue::Integer(101));
+        assert_eq!(result[1].values[3], types::SqlValue::Integer(2));
+        assert_eq!(result[1].values[4], types::SqlValue::Varchar("Gadget".to_string()));
+
+        // Third row: Charlie + NULLs (no matching order)
+        assert_eq!(result[2].values[0], types::SqlValue::Integer(3));
+        assert_eq!(result[2].values[1], types::SqlValue::Varchar("Charlie".to_string()));
+        assert_eq!(result[2].values[2], types::SqlValue::Null);
+        assert_eq!(result[2].values[3], types::SqlValue::Null);
+        assert_eq!(result[2].values[4], types::SqlValue::Null);
+    }
+
+    #[test]
+    fn test_three_table_join() {
+        // Setup database with users, orders, and products
+        let mut db = storage::Database::new();
+
+        // Create users table
+        let users_schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    "name".to_string(),
+                    types::DataType::Varchar { max_length: 100 },
+                    true,
+                ),
+            ],
+        );
+        db.create_table(users_schema).unwrap();
         let executor = SelectExecutor::new(&db);
         let stmt = ast::SelectStmt {
             select_list: vec![ast::SelectItem::Wildcard],
@@ -1165,6 +1852,31 @@ mod tests {
             "users",
             storage::Row::new(vec![
                 types::SqlValue::Integer(1),
+                types::SqlValue::Varchar("Alice".to_string()),
+            ]),
+        )
+        .unwrap();
+
+        // Create orders table
+        let orders_schema = catalog::TableSchema::new(
+            "orders".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("user_id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    "product_id".to_string(),
+                    types::DataType::Integer,
+                    false,
+                ),
+            ],
+        );
+        db.create_table(orders_schema).unwrap();
+        db.insert_row(
+            "orders",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(100),
+                types::SqlValue::Integer(1),
+                types::SqlValue::Integer(500),
                 types::SqlValue::Integer(1),
                 types::SqlValue::Integer(30),
             ]),
@@ -1199,6 +1911,24 @@ mod tests {
         )
         .unwrap();
 
+        // Create products table
+        let products_schema = catalog::TableSchema::new(
+            "products".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    "name".to_string(),
+                    types::DataType::Varchar { max_length: 100 },
+                    true,
+                ),
+            ],
+        );
+        db.create_table(products_schema).unwrap();
+        db.insert_row(
+            "products",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(500),
+                types::SqlValue::Varchar("Widget".to_string()),
         let executor = SelectExecutor::new(&db);
         let stmt = ast::SelectStmt {
             select_list: vec![ast::SelectItem::Wildcard],
@@ -1624,6 +2354,242 @@ mod tests {
         )
         .unwrap();
 
+        // Execute: SELECT * FROM users
+        //   INNER JOIN orders ON users.id = orders.user_id
+        //   INNER JOIN products ON orders.product_id = products.id
+        let executor = SelectExecutor::new(&db);
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Join {
+                left: Box::new(ast::FromClause::Join {
+                    left: Box::new(ast::FromClause::Table {
+                        name: "users".to_string(),
+                        alias: None,
+                    }),
+                    right: Box::new(ast::FromClause::Table {
+                        name: "orders".to_string(),
+                        alias: None,
+                    }),
+                    join_type: ast::JoinType::Inner,
+                    condition: Some(ast::Expression::BinaryOp {
+                        left: Box::new(ast::Expression::ColumnRef {
+                            table: Some("users".to_string()),
+                            column: "id".to_string(),
+                        }),
+                        op: ast::BinaryOperator::Equal,
+                        right: Box::new(ast::Expression::ColumnRef {
+                            table: Some("orders".to_string()),
+                            column: "user_id".to_string(),
+                        }),
+                    }),
+                }),
+                right: Box::new(ast::FromClause::Table {
+                    name: "products".to_string(),
+                    alias: None,
+                }),
+                join_type: ast::JoinType::Inner,
+                condition: Some(ast::Expression::BinaryOp {
+                    left: Box::new(ast::Expression::ColumnRef {
+                        table: Some("orders".to_string()),
+                        column: "product_id".to_string(),
+                    }),
+                    op: ast::BinaryOperator::Equal,
+                    right: Box::new(ast::Expression::ColumnRef {
+                        table: Some("products".to_string()),
+                        column: "id".to_string(),
+                    }),
+                }),
+            }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: None,
+            offset: None,
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+
+        // Should have 1 row (Alice + order 100 + Widget)
+        assert_eq!(result.len(), 1);
+
+        // Row should have 7 columns (users.id, users.name, orders.id, orders.user_id, orders.product_id, products.id, products.name)
+        assert_eq!(result[0].values.len(), 7);
+
+        // Verify: users.id=1, users.name="Alice", orders.id=100, orders.user_id=1, orders.product_id=500, products.id=500, products.name="Widget"
+        assert_eq!(result[0].values[0], types::SqlValue::Integer(1));
+        assert_eq!(result[0].values[1], types::SqlValue::Varchar("Alice".to_string()));
+        assert_eq!(result[0].values[2], types::SqlValue::Integer(100));
+        assert_eq!(result[0].values[3], types::SqlValue::Integer(1));
+        assert_eq!(result[0].values[4], types::SqlValue::Integer(500));
+        assert_eq!(result[0].values[5], types::SqlValue::Integer(500));
+        assert_eq!(result[0].values[6], types::SqlValue::Varchar("Widget".to_string()));
+    }
+
+    // ========================================================================
+    // LIMIT and OFFSET Tests
+    // ========================================================================
+
+    #[test]
+    fn test_limit_basic() {
+        // Setup database with 4 users
+        let mut db = storage::Database::new();
+        let users_schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
+        );
+        db.create_table(users_schema).unwrap();
+        for i in 1..=4 {
+            db.insert_row("users", storage::Row::new(vec![types::SqlValue::Integer(i)]))
+                .unwrap();
+        }
+
+        // Execute: SELECT * FROM users LIMIT 2
+        let executor = SelectExecutor::new(&db);
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: Some(2),
+            offset: None,
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].values[0], types::SqlValue::Integer(1));
+        assert_eq!(result[1].values[0], types::SqlValue::Integer(2));
+    }
+
+    #[test]
+    fn test_offset_basic() {
+        // Setup database with 4 users
+        let mut db = storage::Database::new();
+        let users_schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
+        );
+        db.create_table(users_schema).unwrap();
+        for i in 1..=4 {
+            db.insert_row("users", storage::Row::new(vec![types::SqlValue::Integer(i)]))
+                .unwrap();
+        }
+
+        // Execute: SELECT * FROM users OFFSET 2
+        let executor = SelectExecutor::new(&db);
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: None,
+            offset: Some(2),
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].values[0], types::SqlValue::Integer(3));
+        assert_eq!(result[1].values[0], types::SqlValue::Integer(4));
+    }
+
+    #[test]
+    fn test_limit_and_offset() {
+        // Setup database with 10 users
+        let mut db = storage::Database::new();
+        let users_schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
+        );
+        db.create_table(users_schema).unwrap();
+        for i in 1..=10 {
+            db.insert_row("users", storage::Row::new(vec![types::SqlValue::Integer(i)]))
+                .unwrap();
+        }
+
+        // Execute: SELECT * FROM users LIMIT 3 OFFSET 2
+        let executor = SelectExecutor::new(&db);
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: Some(3),
+            offset: Some(2),
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0].values[0], types::SqlValue::Integer(3));
+        assert_eq!(result[1].values[0], types::SqlValue::Integer(4));
+        assert_eq!(result[2].values[0], types::SqlValue::Integer(5));
+    }
+
+    #[test]
+    fn test_offset_beyond_result_set() {
+        // Setup database with 3 users
+        let mut db = storage::Database::new();
+        let users_schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
+        );
+        db.create_table(users_schema).unwrap();
+        for i in 1..=3 {
+            db.insert_row("users", storage::Row::new(vec![types::SqlValue::Integer(i)]))
+                .unwrap();
+        }
+
+        // Execute: SELECT * FROM users OFFSET 10 (beyond result set)
+        let executor = SelectExecutor::new(&db);
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: None,
+            offset: Some(10),
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_limit_greater_than_result_set() {
+        // Setup database with 3 users
+        let mut db = storage::Database::new();
+        let users_schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
+        );
+        db.create_table(users_schema).unwrap();
+        for i in 1..=3 {
+            db.insert_row("users", storage::Row::new(vec![types::SqlValue::Integer(i)]))
+                .unwrap();
+        }
+
+        // Execute: SELECT * FROM users LIMIT 100 (greater than result set)
+        let executor = SelectExecutor::new(&db);
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: Some(100),
+            offset: None,
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 3); // Should return all 3 users
         let executor = SelectExecutor::new(&db);
         // SELECT dept, COUNT(*) FROM sales GROUP BY dept
         let stmt = ast::SelectStmt {

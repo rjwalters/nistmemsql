@@ -22,6 +22,12 @@
       "Bash(awk:*)",
       "Bash(tee:*)",
       "Bash(git worktree:*)",
+      "Read(//Users/rwalters/GitHub/nistmemsql-joins/**)",
+      "Bash(git merge:*)",
+      "Read(//Users/rwalters/GitHub/nistmemsql-group-by/**)",
+      "Read(//Users/rwalters/GitHub/nistmemsql-aggregates/tests/**)",
+      "Read(//Users/rwalters/GitHub/nistmemsql-aggregates/**)",
+      "Bash(git stash:*)"
       "Read(//Users/rwalters/GitHub/nistmemsql-joins/**)"
     ],
     "deny": [],

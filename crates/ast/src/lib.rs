@@ -34,6 +34,8 @@ pub struct SelectStmt {
     pub group_by: Option<Vec<Expression>>,
     pub having: Option<Expression>,
     pub order_by: Option<Vec<OrderByItem>>,
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
 }
 
 /// Item in the SELECT list
@@ -240,6 +242,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         });
 
         match stmt {
@@ -411,6 +415,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         assert_eq!(select.select_list.len(), 1);
@@ -438,6 +444,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         assert_eq!(select.select_list.len(), 2);
@@ -455,6 +463,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         match &select.select_list[0] {
@@ -472,6 +482,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         match &select.from {
@@ -493,6 +505,8 @@ mod tests {
             group_by: None,
             having: None,
             order_by: None,
+            limit: None,
+            offset: None,
         };
 
         assert!(select.where_clause.is_some());
@@ -510,6 +524,8 @@ mod tests {
                 expr: Expression::ColumnRef { table: None, column: "name".to_string() },
                 direction: OrderDirection::Asc,
             }]),
+            limit: None,
+            offset: None,
         };
 
         assert!(select.order_by.is_some());
