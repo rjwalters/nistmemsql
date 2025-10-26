@@ -15,3 +15,7 @@ Cargo.lock
 # Testing
 *.profdata
 *.profraw
+.loom/state.json
+.loom/worktrees/
+.loom/*.log
+.loom/*.sock
