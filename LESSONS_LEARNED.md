@@ -254,6 +254,94 @@ For quick additions to this master document:
 4. Explain why it matters
 5. Provide examples if helpful
 
+## Recent Development Lessons (October 2025)
+
+### LIMIT/OFFSET Implementation (TDD Cycle)
+
+**Context**: Added pagination support to SELECT queries (PR #4, commit 88495a1)
+
+**Lessons**:
+- TDD approach allowed incremental feature building without breaking existing functionality
+- LIMIT and OFFSET are simpler than they appear - just array slicing after query execution
+- Testing edge cases (LIMIT > result set, OFFSET beyond end) caught important bugs early
+- SQL:1999 spec allows LIMIT 0 and OFFSET 0 (not errors, just return empty/full results)
+
+**Key Insights**:
+- Pagination is a post-processing step, not part of core query execution
+- Edge case tests are as important as happy path tests
+- Small, focused commits make it easier to track when bugs were introduced
+
+**Would Do Differently**: Nothing - this was a smooth implementation using established TDD patterns
+
+### Parser and Module Refactoring
+
+**Context**: Split monolithic parser.rs, catalog.rs, and executor modules (commits de9f019, and issues #12, #13, #14)
+
+**Lessons**:
+- Large files (600+ lines) become hard to navigate and maintain
+- Module organization by responsibility (lexer, AST nodes, expression types) improves code clarity
+- Rust's module system encourages good separation of concerns
+- Breaking changes across multiple files is easier when modules are well-organized
+
+**Challenges Encountered**:
+- Moving code between files requires careful attention to visibility (`pub`, `pub(crate)`)
+- Test organization needs to mirror module structure
+- Some circular dependencies emerged during refactoring (resolved with better layering)
+
+**Key Insights for Future SQL Features**:
+- Keep each module under 200-300 lines when possible
+- Group related functionality together (all SELECT parsing in one module)
+- Use directories with `mod.rs` for complex features (e.g., `executor/select/`)
+
+### Loom Orchestration Framework Integration
+
+**Context**: Integrated AI-powered development orchestration system (v0.1.0, commit 050b0c5)
+
+**Lessons**:
+- Label-based workflows enable autonomous agent coordination without direct communication
+- Curator/Builder/Judge/Architect roles create clear separation of responsibilities
+- Git worktrees allow multiple agents to work on different issues simultaneously
+- GitHub labels become the state machine for development workflow
+
+**Benefits**:
+- Issues get enhanced with technical context automatically (Curator role)
+- PRs get reviewed systematically (Judge role)
+- Architectural proposals are generated based on codebase analysis (Architect role)
+- Manual and autonomous modes provide flexibility
+
+**Challenges**:
+- Learning curve for label-based coordination initially
+- Need to trust autonomous agents to follow role definitions
+- Worktree management requires discipline (cleanup when done)
+
+**Would Do Differently**: Nothing - Loom integration went smoothly and immediately improved workflow organization
+
+### Coverage Infrastructure Setup
+
+**Context**: Added cargo-llvm-cov for code coverage tracking (PR #8, commit fbbbab3)
+
+**Lessons**:
+- Baseline coverage: **188 tests, 83.3% coverage** established
+- HTML reports (`cargo coverage`) provide visual feedback on untested code paths
+- LCOV format (`cargo coverage-lcov`) enables integration with coverage tracking services
+- Cargo aliases in `.cargo/config.toml` simplify complex commands for all contributors
+
+**Implementation Insights**:
+- `cargo-llvm-cov` is more accurate than `tarpaulin` for Rust coverage
+- Coverage commands should be part of CI/CD pipeline to catch regressions
+- Visual HTML reports help identify exactly which lines/branches are untested
+- Coverage percentage is a metric, not a goal - focus on meaningful tests
+
+**Gotchas Discovered**:
+- Coverage report path is `target/coverage/html/html/index.html` (note nested `html/` directory)
+- Need to run `cargo coverage-clean` before re-running to avoid stale instrumentation data
+- Coverage adds compilation time - not for every local test run
+
+**Future Improvements**:
+- Set coverage baseline in CI (fail if coverage drops below 80%)
+- Add coverage badges to README
+- Track coverage trends over time
+
 ## Related Documents
 
 - [Weekly Lessons](docs/lessons/WEEKLY.md) - Detailed week-by-week learnings
@@ -264,8 +352,9 @@ For quick additions to this master document:
 
 ---
 
-**Last Updated**: 2024-10-25
-**Phase**: Planning and Research
-**Next Update**: After first implementation milestone
+**Last Updated**: 2025-10-26
+**Phase**: Early Implementation (SQL:1999 Core Features)
+**Test Coverage**: 188 tests, 83.3% coverage
+**Next Update**: After completing Phase 3 of executor refactoring
 
 **Remember**: Every challenge is a learning opportunity. Document what you learn so we can all benefit!

@@ -359,7 +359,7 @@ Track feature-by-feature compliance in a structured format:
    cargo coverage
    ```
 
-   This writes the report to `target/coverage/html/index.html`.
+   This writes the report to `target/coverage/html/html/index.html`.
 
 3. Create an `lcov.info` artifact that can be uploaded to services such as Codecov:
 
