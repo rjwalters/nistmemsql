@@ -10,6 +10,12 @@ struct FromResult {
     rows: Vec<storage::Row>,
 }
 
+/// Row with optional sort keys for ORDER BY
+type RowWithSortKeys = (storage::Row, Option<Vec<(types::SqlValue, ast::OrderDirection)>>);
+
+/// Grouped rows: (group key values, rows in group)
+type GroupedRows = Vec<(Vec<types::SqlValue>, Vec<storage::Row>)>;
+
 /// Accumulator for aggregate functions
 #[derive(Debug, Clone)]
 enum AggregateAccumulator {
@@ -173,6 +179,7 @@ impl<'a> SelectExecutor<'a> {
     }
 
     /// Check if an expression contains aggregate functions
+    #[allow(clippy::only_used_in_recursion)]
     fn expression_has_aggregate(&self, expr: &ast::Expression) -> bool {
         match expr {
             ast::Expression::Function { name, .. } => {
@@ -314,10 +321,7 @@ impl<'a> SelectExecutor<'a> {
         let evaluator = CombinedExpressionEvaluator::new(&schema);
 
         // Scan all rows and filter with WHERE clause
-        let mut result_rows: Vec<(
-            storage::Row,
-            Option<Vec<(types::SqlValue, ast::OrderDirection)>>,
-        )> = Vec::new();
+        let mut result_rows: Vec<RowWithSortKeys> = Vec::new();
 
         for row in rows.into_iter() {
             // Apply WHERE filter
@@ -432,8 +436,8 @@ impl<'a> SelectExecutor<'a> {
         rows: &[storage::Row],
         group_by_exprs: &[ast::Expression],
         evaluator: &ExpressionEvaluator,
-    ) -> Result<Vec<(Vec<types::SqlValue>, Vec<storage::Row>)>, ExecutorError> {
-        let mut groups: Vec<(Vec<types::SqlValue>, Vec<storage::Row>)> = Vec::new();
+    ) -> Result<GroupedRows, ExecutorError> {
+        let mut groups: GroupedRows = Vec::new();
 
         for row in rows {
             // Evaluate GROUP BY expressions to get the group key
@@ -462,11 +466,12 @@ impl<'a> SelectExecutor<'a> {
     }
 
     /// Evaluate an expression in the context of aggregation
+    #[allow(clippy::only_used_in_recursion)]
     fn evaluate_with_aggregates(
         &self,
         expr: &ast::Expression,
         group_rows: &[storage::Row],
-        group_key: &[types::SqlValue],
+        _group_key: &[types::SqlValue],
         evaluator: &ExpressionEvaluator,
     ) -> Result<types::SqlValue, ExecutorError> {
         match expr {
@@ -521,9 +526,9 @@ impl<'a> SelectExecutor<'a> {
             // Binary operation
             ast::Expression::BinaryOp { left, op, right } => {
                 let left_val =
-                    self.evaluate_with_aggregates(left, group_rows, group_key, evaluator)?;
+                    self.evaluate_with_aggregates(left, group_rows, _group_key, evaluator)?;
                 let right_val =
-                    self.evaluate_with_aggregates(right, group_rows, group_key, evaluator)?;
+                    self.evaluate_with_aggregates(right, group_rows, _group_key, evaluator)?;
 
                 // Reuse the binary op evaluation logic from ExpressionEvaluator
                 // Create a temporary evaluator for this
