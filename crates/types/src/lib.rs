@@ -6,6 +6,7 @@
 //! - Type compatibility and coercion rules
 //! - Type checking utilities
 
+use std::cmp::Ordering;
 use std::fmt;
 
 /// SQL:1999 Data Types
@@ -122,6 +123,56 @@ impl SqlValue {
             SqlValue::Time(_) => DataType::Time { with_timezone: false },
             SqlValue::Timestamp(_) => DataType::Timestamp { with_timezone: false },
             SqlValue::Null => DataType::Null,
+        }
+    }
+}
+
+/// PartialOrd implementation for SQL value comparison
+///
+/// Implements SQL:1999 comparison semantics:
+/// - NULL comparisons return None (SQL UNKNOWN)
+/// - Type mismatches return None (incomparable)
+/// - NaN in floating point returns None (IEEE 754 semantics)
+/// - All other comparisons follow Rust's natural ordering
+impl PartialOrd for SqlValue {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        use SqlValue::*;
+        match (self, other) {
+            // NULL comparisons return None (SQL UNKNOWN semantics)
+            (Null, _) | (_, Null) => None,
+
+            // Integer types
+            (Integer(a), Integer(b)) => a.partial_cmp(b),
+            (Smallint(a), Smallint(b)) => a.partial_cmp(b),
+            (Bigint(a), Bigint(b)) => a.partial_cmp(b),
+
+            // Floating point (handles NaN properly via IEEE 754)
+            (Float(a), Float(b)) => a.partial_cmp(b),
+            (Real(a), Real(b)) => a.partial_cmp(b),
+            (Double(a), Double(b)) => a.partial_cmp(b),
+
+            // String types (lexicographic comparison)
+            (Character(a), Character(b)) => a.partial_cmp(b),
+            (Varchar(a), Varchar(b)) => a.partial_cmp(b),
+
+            // Numeric (string-based decimal, parse as f64 for now)
+            // TODO: Replace with proper decimal type for exact comparison
+            (Numeric(a), Numeric(b)) => match (a.parse::<f64>(), b.parse::<f64>()) {
+                (Ok(x), Ok(y)) => x.partial_cmp(&y),
+                _ => None, // Invalid numeric string is incomparable
+            },
+
+            // Boolean (false < true in SQL)
+            (Boolean(a), Boolean(b)) => a.partial_cmp(b),
+
+            // Date/Time (lexicographic for now)
+            // TODO: Replace with proper date/time types for correct comparison
+            (Date(a), Date(b)) => a.partial_cmp(b),
+            (Time(a), Time(b)) => a.partial_cmp(b),
+            (Timestamp(a), Timestamp(b)) => a.partial_cmp(b),
+
+            // Type mismatch - incomparable (SQL:1999 behavior)
+            _ => None,
         }
     }
 }

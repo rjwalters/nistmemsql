@@ -116,28 +116,25 @@ impl AggregateAccumulator {
     }
 }
 
-/// Compare two SqlValues for ordering purposes
+/// Compare two SqlValues for ordering purposes (SQL ORDER BY semantics)
+///
+/// Uses the PartialOrd trait implementation with SQL-specific NULL handling:
+/// - NULL values sort last (NULLS LAST - SQL:1999 default for ASC)
+/// - Incomparable values (type mismatches, NaN) default to Equal for sort stability
 fn compare_sql_values(a: &types::SqlValue, b: &types::SqlValue) -> Ordering {
-    use types::SqlValue::*;
-
-    match (a, b) {
-        // Integer comparison
-        (Integer(x), Integer(y)) => x.cmp(y),
-
-        // String comparison
-        (Varchar(x), Varchar(y)) => x.cmp(y),
-
-        // Boolean comparison
-        (Boolean(x), Boolean(y)) => x.cmp(y),
-
-        // NULL handling - NULL is considered "less than" any non-NULL value
-        (Null, Null) => Ordering::Equal,
-        (Null, _) => Ordering::Less,
-        (_, Null) => Ordering::Greater,
-
-        // Type mismatch - shouldn't happen with proper type checking
-        // Return Equal to maintain stability in sort
-        _ => Ordering::Equal,
+    match (a.is_null(), b.is_null()) {
+        // Both NULL - equal
+        (true, true) => Ordering::Equal,
+        // First is NULL - sorts last (greater)
+        (true, false) => Ordering::Greater,
+        // Second is NULL - first sorts first (less)
+        (false, true) => Ordering::Less,
+        // Neither NULL - use PartialOrd trait
+        (false, false) => {
+            // partial_cmp returns None for incomparable values (type mismatch, NaN)
+            // Default to Equal to maintain sort stability
+            PartialOrd::partial_cmp(a, b).unwrap_or(Ordering::Equal)
+        }
     }
 }
 
