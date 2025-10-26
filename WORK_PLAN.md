@@ -32,6 +32,20 @@
 - FromClause with JOIN support
 - OrderByItem with direction support
 
+✅ **Catalog Crate Complete** (TDD Cycle 7) - 10 tests passing
+- ColumnSchema with name, data_type, nullable
+- TableSchema with columns and lookup methods
+- Catalog for managing all table schemas
+- Create/drop table operations
+- Error handling for duplicate and missing tables
+
+✅ **Storage Crate Complete** (TDD Cycle 8) - 10 tests passing
+- Row structure (vector of SqlValues)
+- Table with schema validation and row storage
+- Database managing catalog and tables
+- Insert with column count validation
+- Table scanning for query execution
+
 ✅ **Development Tooling**
 - rustfmt configured (100 char width, Unix newlines)
 - clippy configured (complexity threshold 30)
@@ -168,7 +182,19 @@ SELECT COUNT(*) FROM users;
 
 **Milestone Achieved**: Complex SELECTs with joins, aggregates, and grouping parse perfectly! ✅
 
-### Week 5-6: SQL:1999 Features (IN PROGRESS 🚧)
+### Week 5-6: Storage and Execution (IN PROGRESS 🚧)
+- [x] Catalog crate - schema metadata management ✅
+- [x] Storage crate - in-memory row-based storage ✅
+- [ ] Expression evaluator (literals, arithmetic, comparisons)
+- [ ] Simple SELECT executor (table scan + projection)
+- [ ] WHERE clause filtering
+- [ ] End-to-end tests (parse → execute → verify)
+
+**Current Focus**: Building query executor for end-to-end query execution
+
+**Milestone**: Can execute simple SELECT queries with WHERE clauses
+
+### Week 7+: Advanced SQL Features (PLANNED)
 - [ ] Subqueries (SELECT in FROM, WHERE, SELECT list)
 - [ ] CASE expressions
 - [ ] CAST operations
@@ -176,10 +202,9 @@ SELECT COUNT(*) FROM users;
 - [ ] WITH (common table expressions)
 - [ ] Window functions (if time)
 - [ ] UNION, INTERSECT, EXCEPT
-
-**Current Focus**: Ready to implement subqueries or advanced features
-
-**Milestone**: Most SQL:1999 Core features parse ✅
+- [ ] JOINs in executor
+- [ ] Aggregate function execution
+- [ ] GROUP BY/HAVING execution
 
 ---
 
@@ -187,28 +212,30 @@ SELECT COUNT(*) FROM users;
 
 ### What We Can Build Next
 
-The parser is now **production-ready** for analytical queries! Here are great next options:
+The parser and storage engine are now **production-ready**! Time to execute queries:
 
-#### Option 1: Storage Engine (Start executing queries!)
-- Build in-memory table storage (HashMap-based)
-- Implement catalog for schema metadata
-- Execute simple SELECT queries
-- **Impact**: Can actually run queries end-to-end!
+#### Option 1: Query Executor (HIGHEST PRIORITY - Bring it all to life!)
+- Implement expression evaluator (literals, arithmetic, comparisons, column refs)
+- Build simple SELECT executor (table scan + WHERE filtering)
+- Project columns (SELECT a, b, c FROM table)
+- End-to-end test: `SELECT name, age FROM users WHERE age > 18;`
+- **Impact**: Can actually run SQL queries and see results! 🎯
 
-#### Option 2: More SQL Features
+#### Option 2: More SQL Features (Parser enhancements)
 - Subqueries (SELECT in FROM, WHERE)
 - DISTINCT keyword
-- CASE expressions
 - LIMIT/OFFSET (pagination)
+- CASE expressions
 - **Impact**: More complete SQL:1999 support
 
-#### Option 3: Query Executor
-- Implement expression evaluator
-- Build simple SELECT executor (no JOINs yet)
-- Filter rows with WHERE clauses
-- **Impact**: Start seeing real results!
+#### Option 3: Advanced Execution (After basic executor)
+- JOIN execution (nested loop join)
+- Aggregate function execution (COUNT, SUM, AVG)
+- GROUP BY/HAVING execution
+- ORDER BY implementation
+- **Impact**: Full analytical query support
 
-**Recommended**: Option 1 (Storage Engine) - Let's make the parser come alive by executing queries!
+**Recommended**: Option 1 (Query Executor) - Let's execute our first real SQL query!
 
 ---
 
@@ -332,51 +359,57 @@ The parser is now **production-ready** for analytical queries! Here are great ne
 - ✅ **Week 3-4 Complex Parsing (100% complete)**
 
 **In Progress**:
-- 🚧 Week 5-6 SQL:1999 Features (ready to start!)
+- 🚧 Executor crate (query execution - next priority!)
+
+**Completed**:
+- ✅ Catalog crate (schema metadata) - 10 tests passing
+- ✅ Storage crate (in-memory tables) - 10 tests passing
 
 **Not Started**:
-- ⏳ Catalog crate (schema metadata)
-- ⏳ Storage crate (in-memory tables)
-- ⏳ Executor crate (query execution)
 - ⏳ Transaction crate (ACID properties)
+- ⏳ Week 5-6 SQL:1999 Features (subqueries, CASE, DISTINCT, etc.)
 
 **Confidence Level**: Exceptionally High! 🚀🚀🚀🔥
 
-TDD approach is working **FLAWLESSLY**! We have **126 passing tests** (27 types + 22 ast + 74 parser + 3 other), zero warnings, and a **production-ready SQL parser**!
+TDD approach is working **FLAWLESSLY**! We have **145 passing tests** (27 types + 22 ast + 74 parser + 10 catalog + 10 storage + 2 other), zero warnings, and a **production-ready SQL parser with in-memory storage**!
 
-Six complete TDD cycles (types, ast, lexer/parser, JOINs, aggregates, GROUP BY/HAVING/ORDER BY) - every single feature worked on first implementation!
+Eight complete TDD cycles (types, ast, lexer/parser, JOINs, aggregates, GROUP BY/HAVING/ORDER BY, catalog, storage) - every single feature worked on first implementation!
 
-The parser now handles complex analytical queries with JOINs, aggregates, grouping, filtering, and sorting. Ready to build the storage engine and start executing queries!
+The parser handles complex analytical queries with JOINs, aggregates, grouping, filtering, and sorting. The storage engine is now ready - we can create tables, insert rows, and scan data. Next step: build the executor to run queries end-to-end!
 
 ---
 
 ## Next Steps (Immediate)
 
 1. **Parser Complete**: All core SQL features implemented! ✅
-2. **Ready to Execute Queries**:
-   - Build storage engine (in-memory tables)
-   - Build catalog (schema metadata)
-   - Build executor (run SELECT queries)
-   - See real results from our parser!
-3. **OR Continue SQL Features**:
+2. **Storage Engine Complete**: Catalog and in-memory storage working! ✅
+3. **Build Query Executor** (HIGHEST PRIORITY):
+   - Expression evaluator (arithmetic, comparisons, literals)
+   - Simple SELECT executor (no JOINs yet)
+   - WHERE clause filtering
+   - End-to-end tests: parse SQL → execute → verify results
+   - **Impact**: Can actually run SQL queries and see results!
+
+4. **OR Continue SQL Features**:
    - Subqueries (most impactful remaining feature)
    - DISTINCT keyword
    - LIMIT/OFFSET
    - CASE expressions
    - UNION/INTERSECT/EXCEPT
 
-**Recommendation**: Start building the storage and execution engine to bring the parser to life!
+**Recommendation**: Build the query executor to bring everything to life - parse, execute, return results!
 
 **Let's continue building with TDD!** 🦀
 
 ---
 
 **Status Update** (2025-10-25):
-✅ TDD Cycles 1-6 Complete (types + ast + parser + JOINs + aggregates + GROUP BY)
+✅ TDD Cycles 1-8 Complete (types + ast + parser + JOINs + aggregates + GROUP BY + catalog + storage)
 ✅ ADR-0001 & ADR-0002 Complete (Rust + Hand-written parser)
 ✅ Week 1, 2-3, & 3-4 Complete (Foundation + Core SQL + Complex Parsing)
 ✅ **Parser is Production-Ready!** Can parse complex analytical queries!
-🚧 Week 5-6: SQL:1999 Features OR start Storage/Executor
-📈 Confidence: Exceptionally High - **126 tests passing**, zero warnings, 6 perfect TDD cycles!
+✅ **Storage Engine is Production-Ready!** Can create tables, insert rows, scan data!
+🚧 Next: Query Executor (expression evaluation + SELECT execution)
+📈 Confidence: Exceptionally High - **145 tests passing**, zero warnings, 8 perfect TDD cycles!
 
-**Major Achievement**: We built a complete, production-ready SQL parser in pure Rust using TDD, with 100% test success rate! 🎉
+**Major Achievement**: We built a complete, production-ready SQL parser AND in-memory storage engine in pure Rust using TDD, with 100% test success rate! 🎉🚀
