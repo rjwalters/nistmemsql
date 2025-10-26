@@ -456,22 +456,78 @@ impl Parser {
             None
         };
 
-        // For now, skip GROUP BY, HAVING, ORDER BY
-        // TODO: Implement these clauses
+        // Parse optional GROUP BY clause
+        let group_by = if self.peek_keyword(Keyword::Group) {
+            self.consume_keyword(Keyword::Group)?;
+            self.expect_keyword(Keyword::By)?;
+
+            // Parse comma-separated list of expressions
+            let mut group_exprs = Vec::new();
+            loop {
+                let expr = self.parse_expression()?;
+                group_exprs.push(expr);
+
+                if matches!(self.peek(), Token::Comma) {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+
+            Some(group_exprs)
+        } else {
+            None
+        };
+
+        // Parse optional HAVING clause (only valid with GROUP BY)
+        let having = if self.peek_keyword(Keyword::Having) {
+            self.consume_keyword(Keyword::Having)?;
+            Some(self.parse_expression()?)
+        } else {
+            None
+        };
+
+        // Parse optional ORDER BY clause
+        let order_by = if self.peek_keyword(Keyword::Order) {
+            self.consume_keyword(Keyword::Order)?;
+            self.expect_keyword(Keyword::By)?;
+
+            // Parse comma-separated list of order items
+            let mut order_items = Vec::new();
+            loop {
+                let expr = self.parse_expression()?;
+
+                // Check for optional ASC/DESC
+                let direction = if self.peek_keyword(Keyword::Asc) {
+                    self.consume_keyword(Keyword::Asc)?;
+                    ast::OrderDirection::Asc
+                } else if self.peek_keyword(Keyword::Desc) {
+                    self.consume_keyword(Keyword::Desc)?;
+                    ast::OrderDirection::Desc
+                } else {
+                    ast::OrderDirection::Asc // Default
+                };
+
+                order_items.push(ast::OrderByItem { expr, direction });
+
+                if matches!(self.peek(), Token::Comma) {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+
+            Some(order_items)
+        } else {
+            None
+        };
 
         // Expect semicolon or EOF
         if matches!(self.peek(), Token::Semicolon) {
             self.advance();
         }
 
-        Ok(ast::SelectStmt {
-            select_list,
-            from,
-            where_clause,
-            group_by: None,
-            having: None,
-            order_by: None,
-        })
+        Ok(ast::SelectStmt { select_list, from, where_clause, group_by, having, order_by })
     }
 
     /// Parse INSERT statement
@@ -2371,6 +2427,140 @@ mod tests {
                         _ => panic!("Expected expression"),
                     }
                 }
+            }
+            _ => panic!("Expected SELECT"),
+        }
+    }
+
+    // ========================================================================
+    // GROUP BY and HAVING Tests
+    // ========================================================================
+
+    #[test]
+    fn test_parse_group_by_single_column() {
+        let result = Parser::parse_sql("SELECT name, COUNT(*) FROM users GROUP BY name;");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => {
+                assert!(select.group_by.is_some());
+                let group_by = select.group_by.unwrap();
+                assert_eq!(group_by.len(), 1);
+                match &group_by[0] {
+                    ast::Expression::ColumnRef { column, .. } if column == "name" => {}
+                    _ => panic!("Expected column reference 'name'"),
+                }
+            }
+            _ => panic!("Expected SELECT"),
+        }
+    }
+
+    #[test]
+    fn test_parse_group_by_multiple_columns() {
+        let result =
+            Parser::parse_sql("SELECT dept, role, COUNT(*) FROM users GROUP BY dept, role;");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => {
+                assert!(select.group_by.is_some());
+                let group_by = select.group_by.unwrap();
+                assert_eq!(group_by.len(), 2);
+                match &group_by[0] {
+                    ast::Expression::ColumnRef { column, .. } if column == "dept" => {}
+                    _ => panic!("Expected column reference 'dept'"),
+                }
+                match &group_by[1] {
+                    ast::Expression::ColumnRef { column, .. } if column == "role" => {}
+                    _ => panic!("Expected column reference 'role'"),
+                }
+            }
+            _ => panic!("Expected SELECT"),
+        }
+    }
+
+    #[test]
+    fn test_parse_having_clause() {
+        let result = Parser::parse_sql(
+            "SELECT name, COUNT(*) FROM users GROUP BY name HAVING COUNT(*) > 5;",
+        );
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => {
+                assert!(select.group_by.is_some());
+                assert!(select.having.is_some());
+
+                // HAVING should contain a comparison expression
+                match select.having.as_ref().unwrap() {
+                    ast::Expression::BinaryOp { op, .. } => {
+                        assert_eq!(*op, ast::BinaryOperator::GreaterThan);
+                    }
+                    _ => panic!("Expected comparison in HAVING clause"),
+                }
+            }
+            _ => panic!("Expected SELECT"),
+        }
+    }
+
+    #[test]
+    fn test_parse_group_by_with_where_and_having() {
+        let result = Parser::parse_sql(
+            "SELECT dept, COUNT(*) FROM users WHERE active = true GROUP BY dept HAVING COUNT(*) > 10;"
+        );
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => {
+                // Should have WHERE, GROUP BY, and HAVING
+                assert!(select.where_clause.is_some());
+                assert!(select.group_by.is_some());
+                assert!(select.having.is_some());
+            }
+            _ => panic!("Expected SELECT"),
+        }
+    }
+
+    #[test]
+    fn test_parse_group_by_qualified_columns() {
+        let result = Parser::parse_sql("SELECT u.dept, COUNT(*) FROM users u GROUP BY u.dept;");
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => {
+                assert!(select.group_by.is_some());
+                let group_by = select.group_by.unwrap();
+                assert_eq!(group_by.len(), 1);
+                match &group_by[0] {
+                    ast::Expression::ColumnRef { table, column } => {
+                        assert_eq!(table.as_ref().unwrap(), "u");
+                        assert_eq!(column, "dept");
+                    }
+                    _ => panic!("Expected qualified column reference"),
+                }
+            }
+            _ => panic!("Expected SELECT"),
+        }
+    }
+
+    #[test]
+    fn test_parse_group_by_with_order_by() {
+        let result = Parser::parse_sql(
+            "SELECT name, COUNT(*) as cnt FROM users GROUP BY name ORDER BY cnt DESC;",
+        );
+        assert!(result.is_ok());
+        let stmt = result.unwrap();
+
+        match stmt {
+            ast::Statement::Select(select) => {
+                // Should have both GROUP BY and ORDER BY
+                assert!(select.group_by.is_some());
+                assert!(select.order_by.is_some());
             }
             _ => panic!("Expected SELECT"),
         }
