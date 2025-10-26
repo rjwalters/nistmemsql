@@ -51,7 +51,7 @@ impl<'a> ExpressionEvaluator<'a> {
     }
 
     /// Evaluate a binary operation
-    fn eval_binary_op(
+    pub fn eval_binary_op(
         &self,
         left: &types::SqlValue,
         op: &ast::BinaryOperator,
@@ -103,6 +103,120 @@ impl<'a> ExpressionEvaluator<'a> {
 }
 
 // ============================================================================
+// Aggregate Functions
+// ============================================================================
+
+/// Accumulator for aggregate functions
+#[derive(Debug, Clone)]
+enum AggregateAccumulator {
+    Count(i64),
+    Sum(i64),
+    Avg { sum: i64, count: i64 },
+    Min(Option<types::SqlValue>),
+    Max(Option<types::SqlValue>),
+}
+
+impl AggregateAccumulator {
+    fn new(function_name: &str) -> Result<Self, ExecutorError> {
+        match function_name.to_uppercase().as_str() {
+            "COUNT" => Ok(AggregateAccumulator::Count(0)),
+            "SUM" => Ok(AggregateAccumulator::Sum(0)),
+            "AVG" => Ok(AggregateAccumulator::Avg { sum: 0, count: 0 }),
+            "MIN" => Ok(AggregateAccumulator::Min(None)),
+            "MAX" => Ok(AggregateAccumulator::Max(None)),
+            _ => Err(ExecutorError::UnsupportedExpression(format!(
+                "Unknown aggregate function: {}",
+                function_name
+            ))),
+        }
+    }
+
+    fn accumulate(&mut self, value: &types::SqlValue) {
+        match (self, value) {
+            // COUNT - counts non-NULL values
+            (AggregateAccumulator::Count(_), types::SqlValue::Null) => {
+                // Don't count NULLs
+            }
+            (AggregateAccumulator::Count(ref mut count), _) => {
+                *count += 1;
+            }
+
+            // SUM - sums integer values, ignores NULLs
+            (AggregateAccumulator::Sum(ref mut sum), types::SqlValue::Integer(val)) => {
+                *sum += val;
+            }
+            (AggregateAccumulator::Sum(_), types::SqlValue::Null) => {
+                // Ignore NULLs
+            }
+
+            // AVG - computes average of integer values, ignores NULLs
+            (
+                AggregateAccumulator::Avg { ref mut sum, ref mut count },
+                types::SqlValue::Integer(val),
+            ) => {
+                *sum += val;
+                *count += 1;
+            }
+            (AggregateAccumulator::Avg { .. }, types::SqlValue::Null) => {
+                // Ignore NULLs
+            }
+
+            // MIN - finds minimum value, ignores NULLs
+            (AggregateAccumulator::Min(ref mut current_min), val @ types::SqlValue::Integer(_))
+            | (AggregateAccumulator::Min(ref mut current_min), val @ types::SqlValue::Varchar(_))
+            | (AggregateAccumulator::Min(ref mut current_min), val @ types::SqlValue::Boolean(_)) => {
+                if let Some(ref current) = current_min {
+                    if compare_sql_values(val, current) == std::cmp::Ordering::Less {
+                        *current_min = Some(val.clone());
+                    }
+                } else {
+                    *current_min = Some(val.clone());
+                }
+            }
+            (AggregateAccumulator::Min(_), types::SqlValue::Null) => {
+                // Ignore NULLs
+            }
+
+            // MAX - finds maximum value, ignores NULLs
+            (AggregateAccumulator::Max(ref mut current_max), val @ types::SqlValue::Integer(_))
+            | (AggregateAccumulator::Max(ref mut current_max), val @ types::SqlValue::Varchar(_))
+            | (AggregateAccumulator::Max(ref mut current_max), val @ types::SqlValue::Boolean(_)) => {
+                if let Some(ref current) = current_max {
+                    if compare_sql_values(val, current) == std::cmp::Ordering::Greater {
+                        *current_max = Some(val.clone());
+                    }
+                } else {
+                    *current_max = Some(val.clone());
+                }
+            }
+            (AggregateAccumulator::Max(_), types::SqlValue::Null) => {
+                // Ignore NULLs
+            }
+
+            _ => {
+                // Type mismatch or unsupported type - ignore for now
+            }
+        }
+    }
+
+    fn finalize(&self) -> types::SqlValue {
+        match self {
+            AggregateAccumulator::Count(count) => types::SqlValue::Integer(*count),
+            AggregateAccumulator::Sum(sum) => types::SqlValue::Integer(*sum),
+            AggregateAccumulator::Avg { sum, count } => {
+                if *count == 0 {
+                    types::SqlValue::Null
+                } else {
+                    types::SqlValue::Integer(sum / count)
+                }
+            }
+            AggregateAccumulator::Min(val) => val.clone().unwrap_or(types::SqlValue::Null),
+            AggregateAccumulator::Max(val) => val.clone().unwrap_or(types::SqlValue::Null),
+        }
+    }
+}
+
+// ============================================================================
 // SELECT Executor
 // ============================================================================
 
@@ -144,6 +258,164 @@ impl<'a> SelectExecutor<'a> {
 
     /// Execute a SELECT statement
     pub fn execute(&self, stmt: &ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> {
+        // Check if this query has aggregates or GROUP BY
+        let has_aggregates = self.has_aggregates(&stmt.select_list) || stmt.having.is_some();
+        let has_group_by = stmt.group_by.is_some();
+
+        if has_aggregates || has_group_by {
+            self.execute_with_aggregation(stmt)
+        } else {
+            self.execute_without_aggregation(stmt)
+        }
+    }
+
+    /// Check if SELECT list contains aggregate functions
+    fn has_aggregates(&self, select_list: &[ast::SelectItem]) -> bool {
+        for item in select_list {
+            match item {
+                ast::SelectItem::Expression { expr, .. } => {
+                    if self.expression_has_aggregate(expr) {
+                        return true;
+                    }
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+
+    /// Check if an expression contains aggregate functions
+    fn expression_has_aggregate(&self, expr: &ast::Expression) -> bool {
+        match expr {
+            ast::Expression::Function { name, .. } => {
+                matches!(name.to_uppercase().as_str(), "COUNT" | "SUM" | "AVG" | "MIN" | "MAX")
+            }
+            ast::Expression::BinaryOp { left, right, .. } => {
+                self.expression_has_aggregate(left) || self.expression_has_aggregate(right)
+            }
+            _ => false,
+        }
+    }
+
+    /// Execute SELECT with aggregation/GROUP BY
+    fn execute_with_aggregation(
+        &self,
+        stmt: &ast::SelectStmt,
+    ) -> Result<Vec<storage::Row>, ExecutorError> {
+        // Get table
+        let table_name = match &stmt.from {
+            Some(ast::FromClause::Table { name, alias: _ }) => name,
+            _ => {
+                return Err(ExecutorError::UnsupportedFeature(
+                    "Aggregates only supported on single tables".to_string(),
+                ))
+            }
+        };
+
+        let table = self
+            .database
+            .get_table(table_name)
+            .ok_or_else(|| ExecutorError::TableNotFound(table_name.clone()))?;
+
+        let evaluator = ExpressionEvaluator::new(&table.schema);
+
+        // Scan and filter rows
+        let mut filtered_rows = Vec::new();
+        for row in table.scan() {
+            let include_row = if let Some(where_expr) = &stmt.where_clause {
+                match evaluator.eval(where_expr, row)? {
+                    types::SqlValue::Boolean(true) => true,
+                    types::SqlValue::Boolean(false) | types::SqlValue::Null => false,
+                    other => {
+                        return Err(ExecutorError::InvalidWhereClause(format!(
+                            "WHERE must evaluate to boolean, got: {:?}",
+                            other
+                        )))
+                    }
+                }
+            } else {
+                true
+            };
+
+            if include_row {
+                filtered_rows.push(row.clone());
+            }
+        }
+
+        // Group rows
+        let groups = if let Some(group_by_exprs) = &stmt.group_by {
+            self.group_rows(&filtered_rows, group_by_exprs, &evaluator)?
+        } else {
+            // No GROUP BY - treat all rows as one group
+            vec![(vec![], filtered_rows)]
+        };
+
+        // Compute aggregates for each group and apply HAVING
+        let mut result_rows = Vec::new();
+        for (group_key, group_rows) in groups {
+            // Compute aggregates for this group
+            let mut aggregate_results = Vec::new();
+            for item in &stmt.select_list {
+                match item {
+                    ast::SelectItem::Expression { expr, .. } => {
+                        let value = self.evaluate_with_aggregates(
+                            expr,
+                            &group_rows,
+                            &group_key,
+                            &evaluator,
+                        )?;
+                        aggregate_results.push(value);
+                    }
+                    ast::SelectItem::Wildcard => {
+                        return Err(ExecutorError::UnsupportedFeature(
+                            "SELECT * not supported with aggregates".to_string(),
+                        ))
+                    }
+                }
+            }
+
+            // Apply HAVING filter
+            let include_group = if let Some(having_expr) = &stmt.having {
+                let having_result = self.evaluate_with_aggregates(
+                    having_expr,
+                    &group_rows,
+                    &group_key,
+                    &evaluator,
+                )?;
+                match having_result {
+                    types::SqlValue::Boolean(true) => true,
+                    types::SqlValue::Boolean(false) | types::SqlValue::Null => false,
+                    other => {
+                        return Err(ExecutorError::InvalidWhereClause(format!(
+                            "HAVING must evaluate to boolean, got: {:?}",
+                            other
+                        )))
+                    }
+                }
+            } else {
+                true
+            };
+
+            if include_group {
+                result_rows.push(storage::Row::new(aggregate_results));
+            }
+        }
+
+        // Apply ORDER BY if present
+        if let Some(_order_by) = &stmt.order_by {
+            return Err(ExecutorError::UnsupportedFeature(
+                "ORDER BY with aggregates not yet implemented".to_string(),
+            ));
+        }
+
+        Ok(result_rows)
+    }
+
+    /// Execute SELECT without aggregation
+    fn execute_without_aggregation(
+        &self,
+        stmt: &ast::SelectStmt,
+    ) -> Result<Vec<storage::Row>, ExecutorError> {
         // For now, only support simple single-table queries
         let table_name = match &stmt.from {
             Some(ast::FromClause::Table { name, alias: _ }) => name,
@@ -233,6 +505,115 @@ impl<'a> SelectExecutor<'a> {
         }
 
         Ok(final_rows)
+    }
+
+    /// Group rows by GROUP BY expressions
+    fn group_rows(
+        &self,
+        rows: &[storage::Row],
+        group_by_exprs: &[ast::Expression],
+        evaluator: &ExpressionEvaluator,
+    ) -> Result<Vec<(Vec<types::SqlValue>, Vec<storage::Row>)>, ExecutorError> {
+        let mut groups: Vec<(Vec<types::SqlValue>, Vec<storage::Row>)> = Vec::new();
+
+        for row in rows {
+            // Evaluate GROUP BY expressions to get the group key
+            let mut key = Vec::new();
+            for expr in group_by_exprs {
+                let value = evaluator.eval(expr, row)?;
+                key.push(value);
+            }
+
+            // Find existing group or create new one
+            let mut found = false;
+            for (existing_key, group_rows) in &mut groups {
+                if existing_key == &key {
+                    group_rows.push(row.clone());
+                    found = true;
+                    break;
+                }
+            }
+
+            if !found {
+                groups.push((key, vec![row.clone()]));
+            }
+        }
+
+        Ok(groups)
+    }
+
+    /// Evaluate an expression in the context of aggregation
+    fn evaluate_with_aggregates(
+        &self,
+        expr: &ast::Expression,
+        group_rows: &[storage::Row],
+        group_key: &[types::SqlValue],
+        evaluator: &ExpressionEvaluator,
+    ) -> Result<types::SqlValue, ExecutorError> {
+        match expr {
+            // Aggregate function
+            ast::Expression::Function { name, args } => {
+                let mut acc = AggregateAccumulator::new(name)?;
+
+                // Special handling for COUNT(*)
+                if name.to_uppercase() == "COUNT" && args.len() == 1 {
+                    if matches!(args[0], ast::Expression::Wildcard) {
+                        // COUNT(*) - count all rows
+                        for _ in group_rows {
+                            acc.accumulate(&types::SqlValue::Integer(1));
+                        }
+                        return Ok(acc.finalize());
+                    }
+                }
+
+                // Regular aggregate - evaluate argument for each row
+                if args.len() != 1 {
+                    return Err(ExecutorError::UnsupportedExpression(format!(
+                        "Aggregate functions expect 1 argument, got {}",
+                        args.len()
+                    )));
+                }
+
+                for row in group_rows {
+                    let value = evaluator.eval(&args[0], row)?;
+                    acc.accumulate(&value);
+                }
+
+                Ok(acc.finalize())
+            }
+
+            // Column reference - use value from group key
+            ast::Expression::ColumnRef { .. } => {
+                // For GROUP BY columns, use the first row's value (they're all the same)
+                if let Some(first_row) = group_rows.first() {
+                    evaluator.eval(expr, first_row)
+                } else {
+                    Ok(types::SqlValue::Null)
+                }
+            }
+
+            // Binary operation
+            ast::Expression::BinaryOp { left, op, right } => {
+                let left_val =
+                    self.evaluate_with_aggregates(left, group_rows, group_key, evaluator)?;
+                let right_val =
+                    self.evaluate_with_aggregates(right, group_rows, group_key, evaluator)?;
+
+                // Reuse the binary op evaluation logic from ExpressionEvaluator
+                // Create a temporary evaluator for this
+                let temp_schema = catalog::TableSchema::new("temp".to_string(), vec![]);
+                let temp_evaluator = ExpressionEvaluator::new(&temp_schema);
+                temp_evaluator.eval_binary_op(&left_val, op, &right_val)
+            }
+
+            // Literal
+            ast::Expression::Literal(val) => Ok(val.clone()),
+
+            _ => Err(ExecutorError::UnsupportedExpression(format!(
+                "Unsupported expression in aggregate context: {:?}",
+                expr
+            ))),
+        }
     }
 
     /// Project columns from a row based on SELECT list
@@ -899,9 +1280,640 @@ mod tests {
 
         let result = executor.execute(&stmt).unwrap();
         assert_eq!(result.len(), 3); // Only age >= 18
-        // Results should be sorted by age ascending: 20, 25, 30 (15 is filtered out)
+                                     // Results should be sorted by age ascending: 20, 25, 30 (15 is filtered out)
         assert_eq!(result[0].values[1], types::SqlValue::Integer(20));
         assert_eq!(result[1].values[1], types::SqlValue::Integer(25));
         assert_eq!(result[2].values[1], types::SqlValue::Integer(30));
+    }
+
+    // ========================================================================
+    // Aggregate Function Tests
+    // ========================================================================
+
+    #[test]
+    fn test_count_star_no_group_by() {
+        let mut db = storage::Database::new();
+        let schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("age".to_string(), types::DataType::Integer, false),
+            ],
+        );
+        db.create_table(schema).unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![types::SqlValue::Integer(1), types::SqlValue::Integer(25)]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![types::SqlValue::Integer(2), types::SqlValue::Integer(30)]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![types::SqlValue::Integer(3), types::SqlValue::Integer(35)]),
+        )
+        .unwrap();
+
+        let executor = SelectExecutor::new(&db);
+        // SELECT COUNT(*) FROM users
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Expression {
+                expr: ast::Expression::Function {
+                    name: "COUNT".to_string(),
+                    args: vec![ast::Expression::Wildcard],
+                },
+                alias: None,
+            }],
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 1); // One row with the count
+        assert_eq!(result[0].values[0], types::SqlValue::Integer(3));
+    }
+
+    #[test]
+    fn test_count_column_no_group_by() {
+        let mut db = storage::Database::new();
+        let schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("age".to_string(), types::DataType::Integer, true),
+            ],
+        );
+        db.create_table(schema).unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![types::SqlValue::Integer(1), types::SqlValue::Integer(25)]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![types::SqlValue::Integer(2), types::SqlValue::Null]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![types::SqlValue::Integer(3), types::SqlValue::Integer(35)]),
+        )
+        .unwrap();
+
+        let executor = SelectExecutor::new(&db);
+        // SELECT COUNT(age) FROM users - should count non-NULL values only
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Expression {
+                expr: ast::Expression::Function {
+                    name: "COUNT".to_string(),
+                    args: vec![ast::Expression::ColumnRef {
+                        table: None,
+                        column: "age".to_string(),
+                    }],
+                },
+                alias: None,
+            }],
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].values[0], types::SqlValue::Integer(2)); // NULL not counted
+    }
+
+    #[test]
+    fn test_sum_no_group_by() {
+        let mut db = storage::Database::new();
+        let schema = catalog::TableSchema::new(
+            "sales".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("amount".to_string(), types::DataType::Integer, false),
+            ],
+        );
+        db.create_table(schema).unwrap();
+        db.insert_row(
+            "sales",
+            storage::Row::new(vec![types::SqlValue::Integer(1), types::SqlValue::Integer(100)]),
+        )
+        .unwrap();
+        db.insert_row(
+            "sales",
+            storage::Row::new(vec![types::SqlValue::Integer(2), types::SqlValue::Integer(200)]),
+        )
+        .unwrap();
+        db.insert_row(
+            "sales",
+            storage::Row::new(vec![types::SqlValue::Integer(3), types::SqlValue::Integer(150)]),
+        )
+        .unwrap();
+
+        let executor = SelectExecutor::new(&db);
+        // SELECT SUM(amount) FROM sales
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Expression {
+                expr: ast::Expression::Function {
+                    name: "SUM".to_string(),
+                    args: vec![ast::Expression::ColumnRef {
+                        table: None,
+                        column: "amount".to_string(),
+                    }],
+                },
+                alias: None,
+            }],
+            from: Some(ast::FromClause::Table { name: "sales".to_string(), alias: None }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].values[0], types::SqlValue::Integer(450));
+    }
+
+    #[test]
+    fn test_avg_no_group_by() {
+        let mut db = storage::Database::new();
+        let schema = catalog::TableSchema::new(
+            "scores".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("score".to_string(), types::DataType::Integer, false),
+            ],
+        );
+        db.create_table(schema).unwrap();
+        db.insert_row(
+            "scores",
+            storage::Row::new(vec![types::SqlValue::Integer(1), types::SqlValue::Integer(80)]),
+        )
+        .unwrap();
+        db.insert_row(
+            "scores",
+            storage::Row::new(vec![types::SqlValue::Integer(2), types::SqlValue::Integer(90)]),
+        )
+        .unwrap();
+        db.insert_row(
+            "scores",
+            storage::Row::new(vec![types::SqlValue::Integer(3), types::SqlValue::Integer(70)]),
+        )
+        .unwrap();
+
+        let executor = SelectExecutor::new(&db);
+        // SELECT AVG(score) FROM scores
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Expression {
+                expr: ast::Expression::Function {
+                    name: "AVG".to_string(),
+                    args: vec![ast::Expression::ColumnRef {
+                        table: None,
+                        column: "score".to_string(),
+                    }],
+                },
+                alias: None,
+            }],
+            from: Some(ast::FromClause::Table { name: "scores".to_string(), alias: None }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].values[0], types::SqlValue::Integer(80)); // (80+90+70)/3 = 80
+    }
+
+    #[test]
+    fn test_min_max_no_group_by() {
+        let mut db = storage::Database::new();
+        let schema = catalog::TableSchema::new(
+            "values".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("val".to_string(), types::DataType::Integer, false),
+            ],
+        );
+        db.create_table(schema).unwrap();
+        db.insert_row(
+            "values",
+            storage::Row::new(vec![types::SqlValue::Integer(1), types::SqlValue::Integer(50)]),
+        )
+        .unwrap();
+        db.insert_row(
+            "values",
+            storage::Row::new(vec![types::SqlValue::Integer(2), types::SqlValue::Integer(30)]),
+        )
+        .unwrap();
+        db.insert_row(
+            "values",
+            storage::Row::new(vec![types::SqlValue::Integer(3), types::SqlValue::Integer(80)]),
+        )
+        .unwrap();
+
+        let executor = SelectExecutor::new(&db);
+
+        // SELECT MIN(val) FROM values
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Expression {
+                expr: ast::Expression::Function {
+                    name: "MIN".to_string(),
+                    args: vec![ast::Expression::ColumnRef {
+                        table: None,
+                        column: "val".to_string(),
+                    }],
+                },
+                alias: None,
+            }],
+            from: Some(ast::FromClause::Table { name: "values".to_string(), alias: None }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].values[0], types::SqlValue::Integer(30));
+
+        // SELECT MAX(val) FROM values
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Expression {
+                expr: ast::Expression::Function {
+                    name: "MAX".to_string(),
+                    args: vec![ast::Expression::ColumnRef {
+                        table: None,
+                        column: "val".to_string(),
+                    }],
+                },
+                alias: None,
+            }],
+            from: Some(ast::FromClause::Table { name: "values".to_string(), alias: None }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].values[0], types::SqlValue::Integer(80));
+    }
+
+    // ========================================================================
+    // GROUP BY Tests
+    // ========================================================================
+
+    #[test]
+    fn test_group_by_with_count() {
+        let mut db = storage::Database::new();
+        let schema = catalog::TableSchema::new(
+            "sales".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("dept".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("amount".to_string(), types::DataType::Integer, false),
+            ],
+        );
+        db.create_table(schema).unwrap();
+        // Dept 1: 2 sales
+        db.insert_row(
+            "sales",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(1),
+                types::SqlValue::Integer(1),
+                types::SqlValue::Integer(100),
+            ]),
+        )
+        .unwrap();
+        db.insert_row(
+            "sales",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(2),
+                types::SqlValue::Integer(1),
+                types::SqlValue::Integer(200),
+            ]),
+        )
+        .unwrap();
+        // Dept 2: 1 sale
+        db.insert_row(
+            "sales",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(3),
+                types::SqlValue::Integer(2),
+                types::SqlValue::Integer(150),
+            ]),
+        )
+        .unwrap();
+
+        let executor = SelectExecutor::new(&db);
+        // SELECT dept, COUNT(*) FROM sales GROUP BY dept
+        let stmt = ast::SelectStmt {
+            select_list: vec![
+                ast::SelectItem::Expression {
+                    expr: ast::Expression::ColumnRef { table: None, column: "dept".to_string() },
+                    alias: None,
+                },
+                ast::SelectItem::Expression {
+                    expr: ast::Expression::Function {
+                        name: "COUNT".to_string(),
+                        args: vec![ast::Expression::Wildcard],
+                    },
+                    alias: None,
+                },
+            ],
+            from: Some(ast::FromClause::Table { name: "sales".to_string(), alias: None }),
+            where_clause: None,
+            group_by: Some(vec![ast::Expression::ColumnRef {
+                table: None,
+                column: "dept".to_string(),
+            }]),
+            having: None,
+            order_by: None,
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 2); // Two groups
+                                     // Dept 1 has 2 sales, Dept 2 has 1 sale
+                                     // Results may be in any order, so check both possibilities
+        if result[0].values[0] == types::SqlValue::Integer(1) {
+            assert_eq!(result[0].values[1], types::SqlValue::Integer(2));
+            assert_eq!(result[1].values[0], types::SqlValue::Integer(2));
+            assert_eq!(result[1].values[1], types::SqlValue::Integer(1));
+        } else {
+            assert_eq!(result[0].values[0], types::SqlValue::Integer(2));
+            assert_eq!(result[0].values[1], types::SqlValue::Integer(1));
+            assert_eq!(result[1].values[0], types::SqlValue::Integer(1));
+            assert_eq!(result[1].values[1], types::SqlValue::Integer(2));
+        }
+    }
+
+    #[test]
+    fn test_group_by_with_sum() {
+        let mut db = storage::Database::new();
+        let schema = catalog::TableSchema::new(
+            "sales".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("dept".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("amount".to_string(), types::DataType::Integer, false),
+            ],
+        );
+        db.create_table(schema).unwrap();
+        // Dept 1: total 300
+        db.insert_row(
+            "sales",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(1),
+                types::SqlValue::Integer(1),
+                types::SqlValue::Integer(100),
+            ]),
+        )
+        .unwrap();
+        db.insert_row(
+            "sales",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(2),
+                types::SqlValue::Integer(1),
+                types::SqlValue::Integer(200),
+            ]),
+        )
+        .unwrap();
+        // Dept 2: total 150
+        db.insert_row(
+            "sales",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(3),
+                types::SqlValue::Integer(2),
+                types::SqlValue::Integer(150),
+            ]),
+        )
+        .unwrap();
+
+        let executor = SelectExecutor::new(&db);
+        // SELECT dept, SUM(amount) FROM sales GROUP BY dept
+        let stmt = ast::SelectStmt {
+            select_list: vec![
+                ast::SelectItem::Expression {
+                    expr: ast::Expression::ColumnRef { table: None, column: "dept".to_string() },
+                    alias: None,
+                },
+                ast::SelectItem::Expression {
+                    expr: ast::Expression::Function {
+                        name: "SUM".to_string(),
+                        args: vec![ast::Expression::ColumnRef {
+                            table: None,
+                            column: "amount".to_string(),
+                        }],
+                    },
+                    alias: None,
+                },
+            ],
+            from: Some(ast::FromClause::Table { name: "sales".to_string(), alias: None }),
+            where_clause: None,
+            group_by: Some(vec![ast::Expression::ColumnRef {
+                table: None,
+                column: "dept".to_string(),
+            }]),
+            having: None,
+            order_by: None,
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 2);
+        if result[0].values[0] == types::SqlValue::Integer(1) {
+            assert_eq!(result[0].values[1], types::SqlValue::Integer(300));
+            assert_eq!(result[1].values[0], types::SqlValue::Integer(2));
+            assert_eq!(result[1].values[1], types::SqlValue::Integer(150));
+        } else {
+            assert_eq!(result[0].values[0], types::SqlValue::Integer(2));
+            assert_eq!(result[0].values[1], types::SqlValue::Integer(150));
+            assert_eq!(result[1].values[0], types::SqlValue::Integer(1));
+            assert_eq!(result[1].values[1], types::SqlValue::Integer(300));
+        }
+    }
+
+    #[test]
+    fn test_group_by_with_multiple_aggregates() {
+        let mut db = storage::Database::new();
+        let schema = catalog::TableSchema::new(
+            "sales".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("dept".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("amount".to_string(), types::DataType::Integer, false),
+            ],
+        );
+        db.create_table(schema).unwrap();
+        // Dept 1: 2 sales, total 300, avg 150
+        db.insert_row(
+            "sales",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(1),
+                types::SqlValue::Integer(1),
+                types::SqlValue::Integer(100),
+            ]),
+        )
+        .unwrap();
+        db.insert_row(
+            "sales",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(2),
+                types::SqlValue::Integer(1),
+                types::SqlValue::Integer(200),
+            ]),
+        )
+        .unwrap();
+
+        let executor = SelectExecutor::new(&db);
+        // SELECT dept, COUNT(*), SUM(amount), AVG(amount) FROM sales GROUP BY dept
+        let stmt = ast::SelectStmt {
+            select_list: vec![
+                ast::SelectItem::Expression {
+                    expr: ast::Expression::ColumnRef { table: None, column: "dept".to_string() },
+                    alias: None,
+                },
+                ast::SelectItem::Expression {
+                    expr: ast::Expression::Function {
+                        name: "COUNT".to_string(),
+                        args: vec![ast::Expression::Wildcard],
+                    },
+                    alias: None,
+                },
+                ast::SelectItem::Expression {
+                    expr: ast::Expression::Function {
+                        name: "SUM".to_string(),
+                        args: vec![ast::Expression::ColumnRef {
+                            table: None,
+                            column: "amount".to_string(),
+                        }],
+                    },
+                    alias: None,
+                },
+                ast::SelectItem::Expression {
+                    expr: ast::Expression::Function {
+                        name: "AVG".to_string(),
+                        args: vec![ast::Expression::ColumnRef {
+                            table: None,
+                            column: "amount".to_string(),
+                        }],
+                    },
+                    alias: None,
+                },
+            ],
+            from: Some(ast::FromClause::Table { name: "sales".to_string(), alias: None }),
+            where_clause: None,
+            group_by: Some(vec![ast::Expression::ColumnRef {
+                table: None,
+                column: "dept".to_string(),
+            }]),
+            having: None,
+            order_by: None,
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 1); // One group
+        assert_eq!(result[0].values[0], types::SqlValue::Integer(1)); // dept
+        assert_eq!(result[0].values[1], types::SqlValue::Integer(2)); // count
+        assert_eq!(result[0].values[2], types::SqlValue::Integer(300)); // sum
+        assert_eq!(result[0].values[3], types::SqlValue::Integer(150)); // avg
+    }
+
+    #[test]
+    fn test_having_clause() {
+        let mut db = storage::Database::new();
+        let schema = catalog::TableSchema::new(
+            "sales".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("dept".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("amount".to_string(), types::DataType::Integer, false),
+            ],
+        );
+        db.create_table(schema).unwrap();
+        // Dept 1: total 300
+        db.insert_row(
+            "sales",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(1),
+                types::SqlValue::Integer(1),
+                types::SqlValue::Integer(100),
+            ]),
+        )
+        .unwrap();
+        db.insert_row(
+            "sales",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(2),
+                types::SqlValue::Integer(1),
+                types::SqlValue::Integer(200),
+            ]),
+        )
+        .unwrap();
+        // Dept 2: total 50
+        db.insert_row(
+            "sales",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(3),
+                types::SqlValue::Integer(2),
+                types::SqlValue::Integer(50),
+            ]),
+        )
+        .unwrap();
+
+        let executor = SelectExecutor::new(&db);
+        // SELECT dept, SUM(amount) FROM sales GROUP BY dept HAVING SUM(amount) > 100
+        let stmt = ast::SelectStmt {
+            select_list: vec![
+                ast::SelectItem::Expression {
+                    expr: ast::Expression::ColumnRef { table: None, column: "dept".to_string() },
+                    alias: None,
+                },
+                ast::SelectItem::Expression {
+                    expr: ast::Expression::Function {
+                        name: "SUM".to_string(),
+                        args: vec![ast::Expression::ColumnRef {
+                            table: None,
+                            column: "amount".to_string(),
+                        }],
+                    },
+                    alias: None,
+                },
+            ],
+            from: Some(ast::FromClause::Table { name: "sales".to_string(), alias: None }),
+            where_clause: None,
+            group_by: Some(vec![ast::Expression::ColumnRef {
+                table: None,
+                column: "dept".to_string(),
+            }]),
+            having: Some(ast::Expression::BinaryOp {
+                left: Box::new(ast::Expression::Function {
+                    name: "SUM".to_string(),
+                    args: vec![ast::Expression::ColumnRef {
+                        table: None,
+                        column: "amount".to_string(),
+                    }],
+                }),
+                op: ast::BinaryOperator::GreaterThan,
+                right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(100))),
+            }),
+            order_by: None,
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 1); // Only dept 1 (total 300 > 100)
+        assert_eq!(result[0].values[0], types::SqlValue::Integer(1));
+        assert_eq!(result[0].values[1], types::SqlValue::Integer(300));
     }
 }

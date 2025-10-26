@@ -29,9 +29,7 @@ fn execute_select(db: &Database, sql: &str) -> Result<Vec<Row>, String> {
 
     // Execute
     let executor = SelectExecutor::new(db);
-    executor
-        .execute(&select_stmt)
-        .map_err(|e| format!("Execution error: {:?}", e))
+    executor.execute(&select_stmt).map_err(|e| format!("Execution error: {:?}", e))
 }
 
 /// Create a simple users table schema
@@ -176,7 +174,8 @@ fn test_e2e_select_with_complex_where() {
     insert_sample_users(&mut db);
 
     // Execute: SELECT name FROM users WHERE age > 20 AND age < 30
-    let results = execute_select(&db, "SELECT name FROM users WHERE age > 20 AND age < 30").unwrap();
+    let results =
+        execute_select(&db, "SELECT name FROM users WHERE age > 20 AND age < 30").unwrap();
 
     // Verify - should get Alice (25) and Diana (22), but NOT Bob (17) or Charlie (30)
     assert_eq!(results.len(), 2);
@@ -337,12 +336,10 @@ fn test_e2e_multiple_tables() {
     assert_eq!(user_results.len(), 3); // Alice, Charlie, Diana
 
     // Query products table
-    let product_results = execute_select(&db, "SELECT name FROM products WHERE price < 15").unwrap();
+    let product_results =
+        execute_select(&db, "SELECT name FROM products WHERE price < 15").unwrap();
     assert_eq!(product_results.len(), 1);
-    assert_eq!(
-        product_results[0].values[0],
-        SqlValue::Varchar("Widget".to_string())
-    );
+    assert_eq!(product_results[0].values[0], SqlValue::Varchar("Widget".to_string()));
 
     // Verify diagnostic info shows both tables
     let debug = db.debug_info();
@@ -423,8 +420,9 @@ fn test_e2e_order_by_with_where() {
     insert_sample_users(&mut db);
 
     // Execute: SELECT name, age FROM users WHERE age >= 20 ORDER BY age ASC
-    let results = execute_select(&db, "SELECT name, age FROM users WHERE age >= 20 ORDER BY age ASC")
-        .unwrap();
+    let results =
+        execute_select(&db, "SELECT name, age FROM users WHERE age >= 20 ORDER BY age ASC")
+            .unwrap();
 
     // Verify - should have 3 users (Diana 22, Alice 25, Charlie 30)
     assert_eq!(results.len(), 3);
@@ -526,7 +524,8 @@ fn test_e2e_combined_comparison_operators() {
     insert_sample_users(&mut db);
 
     // Execute: SELECT name FROM users WHERE age >= 18 AND age <= 25
-    let results = execute_select(&db, "SELECT name FROM users WHERE age >= 18 AND age <= 25").unwrap();
+    let results =
+        execute_select(&db, "SELECT name FROM users WHERE age >= 18 AND age <= 25").unwrap();
 
     // Verify - should get Alice (25) and Diana (22), but NOT Bob (17) or Charlie (30)
     assert_eq!(results.len(), 2);

@@ -1124,11 +1124,7 @@ impl Parser {
                     ">=" => ast::BinaryOperator::GreaterThanOrEqual,
                     "!=" => ast::BinaryOperator::NotEqual,
                     "<>" => ast::BinaryOperator::NotEqual, // SQL standard
-                    _ => {
-                        return Err(ParseError {
-                            message: format!("Unexpected operator: {}", s),
-                        })
-                    }
+                    _ => return Err(ParseError { message: format!("Unexpected operator: {}", s) }),
                 },
                 _ => unreachable!(),
             };
