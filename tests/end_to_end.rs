@@ -352,6 +352,88 @@ fn test_e2e_multiple_tables() {
 }
 
 // ============================================================================
+// ORDER BY Tests
+// ============================================================================
+
+#[test]
+fn test_e2e_order_by_asc() {
+    // Setup database
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    // Execute: SELECT name, age FROM users ORDER BY age ASC
+    let results = execute_select(&db, "SELECT name, age FROM users ORDER BY age ASC").unwrap();
+
+    // Verify - should be sorted by age ascending: 17, 22, 25, 30
+    assert_eq!(results.len(), 4);
+    assert_eq!(results[0].values[1], SqlValue::Integer(17)); // Bob
+    assert_eq!(results[1].values[1], SqlValue::Integer(22)); // Diana
+    assert_eq!(results[2].values[1], SqlValue::Integer(25)); // Alice
+    assert_eq!(results[3].values[1], SqlValue::Integer(30)); // Charlie
+
+    // Verify names are in correct order
+    assert_eq!(results[0].values[0], SqlValue::Varchar("Bob".to_string()));
+    assert_eq!(results[1].values[0], SqlValue::Varchar("Diana".to_string()));
+    assert_eq!(results[2].values[0], SqlValue::Varchar("Alice".to_string()));
+    assert_eq!(results[3].values[0], SqlValue::Varchar("Charlie".to_string()));
+}
+
+#[test]
+fn test_e2e_order_by_desc() {
+    // Setup database
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    // Execute: SELECT name, age FROM users ORDER BY age DESC
+    let results = execute_select(&db, "SELECT name, age FROM users ORDER BY age DESC").unwrap();
+
+    // Verify - should be sorted by age descending: 30, 25, 22, 17
+    assert_eq!(results.len(), 4);
+    assert_eq!(results[0].values[1], SqlValue::Integer(30)); // Charlie
+    assert_eq!(results[1].values[1], SqlValue::Integer(25)); // Alice
+    assert_eq!(results[2].values[1], SqlValue::Integer(22)); // Diana
+    assert_eq!(results[3].values[1], SqlValue::Integer(17)); // Bob
+}
+
+#[test]
+fn test_e2e_order_by_string() {
+    // Setup database
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    // Execute: SELECT name FROM users ORDER BY name ASC
+    let results = execute_select(&db, "SELECT name FROM users ORDER BY name ASC").unwrap();
+
+    // Verify - should be sorted alphabetically: Alice, Bob, Charlie, Diana
+    assert_eq!(results.len(), 4);
+    assert_eq!(results[0].values[0], SqlValue::Varchar("Alice".to_string()));
+    assert_eq!(results[1].values[0], SqlValue::Varchar("Bob".to_string()));
+    assert_eq!(results[2].values[0], SqlValue::Varchar("Charlie".to_string()));
+    assert_eq!(results[3].values[0], SqlValue::Varchar("Diana".to_string()));
+}
+
+#[test]
+fn test_e2e_order_by_with_where() {
+    // Setup database
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    // Execute: SELECT name, age FROM users WHERE age >= 20 ORDER BY age ASC
+    let results = execute_select(&db, "SELECT name, age FROM users WHERE age >= 20 ORDER BY age ASC")
+        .unwrap();
+
+    // Verify - should have 3 users (Diana 22, Alice 25, Charlie 30)
+    assert_eq!(results.len(), 3);
+    assert_eq!(results[0].values[1], SqlValue::Integer(22)); // Diana
+    assert_eq!(results[1].values[1], SqlValue::Integer(25)); // Alice
+    assert_eq!(results[2].values[1], SqlValue::Integer(30)); // Charlie
+}
+
+// ============================================================================
 // Multi-Character Operator Tests
 // ============================================================================
 

@@ -106,6 +106,31 @@ impl<'a> ExpressionEvaluator<'a> {
 // SELECT Executor
 // ============================================================================
 
+/// Compare two SqlValues for ordering purposes
+fn compare_sql_values(a: &types::SqlValue, b: &types::SqlValue) -> std::cmp::Ordering {
+    use types::SqlValue::*;
+
+    match (a, b) {
+        // Integer comparison
+        (Integer(x), Integer(y)) => x.cmp(y),
+
+        // String comparison
+        (Varchar(x), Varchar(y)) => x.cmp(y),
+
+        // Boolean comparison
+        (Boolean(x), Boolean(y)) => x.cmp(y),
+
+        // NULL handling - NULL is considered "less than" any non-NULL value
+        (Null, Null) => std::cmp::Ordering::Equal,
+        (Null, _) => std::cmp::Ordering::Less,
+        (_, Null) => std::cmp::Ordering::Greater,
+
+        // Type mismatch - shouldn't happen with proper type checking
+        // Return Equal to maintain stability in sort
+        _ => std::cmp::Ordering::Equal,
+    }
+}
+
 /// Executes SELECT queries
 pub struct SelectExecutor<'a> {
     database: &'a storage::Database,
@@ -163,13 +188,51 @@ impl<'a> SelectExecutor<'a> {
             };
 
             if include_row {
-                // Project columns
-                let projected_row = self.project_row(row, &stmt.select_list, &evaluator)?;
-                result_rows.push(projected_row);
+                // Store original row for ORDER BY evaluation
+                result_rows.push((row.clone(), None));
             }
         }
 
-        Ok(result_rows)
+        // Apply ORDER BY if present
+        if let Some(order_by) = &stmt.order_by {
+            // Evaluate ORDER BY expressions for each row
+            for (row, sort_keys) in &mut result_rows {
+                let mut keys = Vec::new();
+                for order_item in order_by {
+                    let key_value = evaluator.eval(&order_item.expr, row)?;
+                    keys.push((key_value, order_item.direction.clone()));
+                }
+                *sort_keys = Some(keys);
+            }
+
+            // Sort by the evaluated keys
+            result_rows.sort_by(|(_, keys_a), (_, keys_b)| {
+                let keys_a = keys_a.as_ref().unwrap();
+                let keys_b = keys_b.as_ref().unwrap();
+
+                for ((val_a, dir), (val_b, _)) in keys_a.iter().zip(keys_b.iter()) {
+                    let cmp = compare_sql_values(val_a, val_b);
+                    let cmp = match dir {
+                        ast::OrderDirection::Asc => cmp,
+                        ast::OrderDirection::Desc => cmp.reverse(),
+                    };
+
+                    if cmp != std::cmp::Ordering::Equal {
+                        return cmp;
+                    }
+                }
+                std::cmp::Ordering::Equal
+            });
+        }
+
+        // Project columns from the sorted rows
+        let mut final_rows = Vec::new();
+        for (row, _) in result_rows {
+            let projected_row = self.project_row(&row, &stmt.select_list, &evaluator)?;
+            final_rows.push(projected_row);
+        }
+
+        Ok(final_rows)
     }
 
     /// Project columns from a row based on SELECT list
@@ -534,5 +597,311 @@ mod tests {
         assert_eq!(result[0].values.len(), 2); // Only name and age
         assert_eq!(result[0].values[0], types::SqlValue::Varchar("Alice".to_string()));
         assert_eq!(result[0].values[1], types::SqlValue::Integer(25));
+    }
+
+    // ========================================================================
+    // ORDER BY Tests
+    // ========================================================================
+
+    #[test]
+    fn test_order_by_single_column_asc() {
+        let mut db = storage::Database::new();
+        let schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("age".to_string(), types::DataType::Integer, false),
+            ],
+        );
+        db.create_table(schema).unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![types::SqlValue::Integer(1), types::SqlValue::Integer(30)]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![types::SqlValue::Integer(2), types::SqlValue::Integer(20)]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![types::SqlValue::Integer(3), types::SqlValue::Integer(25)]),
+        )
+        .unwrap();
+
+        let executor = SelectExecutor::new(&db);
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: Some(vec![ast::OrderByItem {
+                expr: ast::Expression::ColumnRef { table: None, column: "age".to_string() },
+                direction: ast::OrderDirection::Asc,
+            }]),
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 3);
+        // Results should be sorted by age ascending: 20, 25, 30
+        assert_eq!(result[0].values[1], types::SqlValue::Integer(20));
+        assert_eq!(result[1].values[1], types::SqlValue::Integer(25));
+        assert_eq!(result[2].values[1], types::SqlValue::Integer(30));
+    }
+
+    #[test]
+    fn test_order_by_single_column_desc() {
+        let mut db = storage::Database::new();
+        let schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("age".to_string(), types::DataType::Integer, false),
+            ],
+        );
+        db.create_table(schema).unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![types::SqlValue::Integer(1), types::SqlValue::Integer(30)]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![types::SqlValue::Integer(2), types::SqlValue::Integer(20)]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![types::SqlValue::Integer(3), types::SqlValue::Integer(25)]),
+        )
+        .unwrap();
+
+        let executor = SelectExecutor::new(&db);
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: Some(vec![ast::OrderByItem {
+                expr: ast::Expression::ColumnRef { table: None, column: "age".to_string() },
+                direction: ast::OrderDirection::Desc,
+            }]),
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 3);
+        // Results should be sorted by age descending: 30, 25, 20
+        assert_eq!(result[0].values[1], types::SqlValue::Integer(30));
+        assert_eq!(result[1].values[1], types::SqlValue::Integer(25));
+        assert_eq!(result[2].values[1], types::SqlValue::Integer(20));
+    }
+
+    #[test]
+    fn test_order_by_string_column() {
+        let mut db = storage::Database::new();
+        let schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    "name".to_string(),
+                    types::DataType::Varchar { max_length: 100 },
+                    true,
+                ),
+            ],
+        );
+        db.create_table(schema).unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(1),
+                types::SqlValue::Varchar("Charlie".to_string()),
+            ]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(2),
+                types::SqlValue::Varchar("Alice".to_string()),
+            ]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(3),
+                types::SqlValue::Varchar("Bob".to_string()),
+            ]),
+        )
+        .unwrap();
+
+        let executor = SelectExecutor::new(&db);
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: Some(vec![ast::OrderByItem {
+                expr: ast::Expression::ColumnRef { table: None, column: "name".to_string() },
+                direction: ast::OrderDirection::Asc,
+            }]),
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 3);
+        // Results should be sorted alphabetically: Alice, Bob, Charlie
+        assert_eq!(result[0].values[1], types::SqlValue::Varchar("Alice".to_string()));
+        assert_eq!(result[1].values[1], types::SqlValue::Varchar("Bob".to_string()));
+        assert_eq!(result[2].values[1], types::SqlValue::Varchar("Charlie".to_string()));
+    }
+
+    #[test]
+    fn test_order_by_multiple_columns() {
+        let mut db = storage::Database::new();
+        let schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("dept".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("age".to_string(), types::DataType::Integer, false),
+            ],
+        );
+        db.create_table(schema).unwrap();
+        // Department 1: ages 30, 25
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(1),
+                types::SqlValue::Integer(1),
+                types::SqlValue::Integer(30),
+            ]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(2),
+                types::SqlValue::Integer(1),
+                types::SqlValue::Integer(25),
+            ]),
+        )
+        .unwrap();
+        // Department 2: ages 20, 35
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(3),
+                types::SqlValue::Integer(2),
+                types::SqlValue::Integer(20),
+            ]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![
+                types::SqlValue::Integer(4),
+                types::SqlValue::Integer(2),
+                types::SqlValue::Integer(35),
+            ]),
+        )
+        .unwrap();
+
+        let executor = SelectExecutor::new(&db);
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: Some(vec![
+                ast::OrderByItem {
+                    expr: ast::Expression::ColumnRef { table: None, column: "dept".to_string() },
+                    direction: ast::OrderDirection::Asc,
+                },
+                ast::OrderByItem {
+                    expr: ast::Expression::ColumnRef { table: None, column: "age".to_string() },
+                    direction: ast::OrderDirection::Desc,
+                },
+            ]),
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 4);
+        // Results should be sorted by dept ASC, then age DESC within each dept
+        // Dept 1: 30, 25
+        // Dept 2: 35, 20
+        assert_eq!(result[0].values[1], types::SqlValue::Integer(1));
+        assert_eq!(result[0].values[2], types::SqlValue::Integer(30));
+        assert_eq!(result[1].values[1], types::SqlValue::Integer(1));
+        assert_eq!(result[1].values[2], types::SqlValue::Integer(25));
+        assert_eq!(result[2].values[1], types::SqlValue::Integer(2));
+        assert_eq!(result[2].values[2], types::SqlValue::Integer(35));
+        assert_eq!(result[3].values[1], types::SqlValue::Integer(2));
+        assert_eq!(result[3].values[2], types::SqlValue::Integer(20));
+    }
+
+    #[test]
+    fn test_order_by_with_where() {
+        let mut db = storage::Database::new();
+        let schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("age".to_string(), types::DataType::Integer, false),
+            ],
+        );
+        db.create_table(schema).unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![types::SqlValue::Integer(1), types::SqlValue::Integer(30)]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![types::SqlValue::Integer(2), types::SqlValue::Integer(15)]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![types::SqlValue::Integer(3), types::SqlValue::Integer(25)]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            storage::Row::new(vec![types::SqlValue::Integer(4), types::SqlValue::Integer(20)]),
+        )
+        .unwrap();
+
+        let executor = SelectExecutor::new(&db);
+        let stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
+            where_clause: Some(ast::Expression::BinaryOp {
+                left: Box::new(ast::Expression::ColumnRef {
+                    table: None,
+                    column: "age".to_string(),
+                }),
+                op: ast::BinaryOperator::GreaterThanOrEqual,
+                right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(18))),
+            }),
+            group_by: None,
+            having: None,
+            order_by: Some(vec![ast::OrderByItem {
+                expr: ast::Expression::ColumnRef { table: None, column: "age".to_string() },
+                direction: ast::OrderDirection::Asc,
+            }]),
+        };
+
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 3); // Only age >= 18
+        // Results should be sorted by age ascending: 20, 25, 30 (15 is filtered out)
+        assert_eq!(result[0].values[1], types::SqlValue::Integer(20));
+        assert_eq!(result[1].values[1], types::SqlValue::Integer(25));
+        assert_eq!(result[2].values[1], types::SqlValue::Integer(30));
     }
 }
