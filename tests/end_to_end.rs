@@ -595,3 +595,106 @@ fn test_e2e_operators_without_spaces() {
     let results3 = execute_select(&db, "SELECT name FROM users WHERE age!=17").unwrap();
     assert_eq!(results3.len(), 3);
 }
+
+// ============================================================================
+// Aggregate Function Tests (End-to-End)
+// ============================================================================
+
+#[test]
+fn test_e2e_count_star() {
+    // Test: SELECT COUNT(*) FROM users
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    let results = execute_select(&db, "SELECT COUNT(*) FROM users").unwrap();
+    assert_eq!(results.len(), 1); // One row for aggregate
+    assert_eq!(results[0].values.len(), 1); // One column
+    assert_eq!(results[0].values[0], SqlValue::Integer(4)); // 4 users
+}
+
+#[test]
+fn test_e2e_sum_aggregate() {
+    // Test: SELECT SUM(age) FROM users
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    let results = execute_select(&db, "SELECT SUM(age) FROM users").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].values.len(), 1);
+    assert_eq!(results[0].values[0], SqlValue::Integer(94)); // 25 + 17 + 30 + 22 = 94
+}
+
+#[test]
+fn test_e2e_avg_aggregate() {
+    // Test: SELECT AVG(age) FROM users
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    let results = execute_select(&db, "SELECT AVG(age) FROM users").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].values.len(), 1);
+    assert_eq!(results[0].values[0], SqlValue::Integer(23)); // 94 / 4 = 23 (integer division)
+}
+
+#[test]
+fn test_e2e_min_aggregate() {
+    // Test: SELECT MIN(age) FROM users
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    let results = execute_select(&db, "SELECT MIN(age) FROM users").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].values.len(), 1);
+    assert_eq!(results[0].values[0], SqlValue::Integer(17)); // Bob's age
+}
+
+#[test]
+fn test_e2e_max_aggregate() {
+    // Test: SELECT MAX(age) FROM users
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    let results = execute_select(&db, "SELECT MAX(age) FROM users").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].values.len(), 1);
+    assert_eq!(results[0].values[0], SqlValue::Integer(30)); // Charlie's age
+}
+
+#[test]
+fn test_e2e_multiple_aggregates() {
+    // Test: SELECT COUNT(*), SUM(age), AVG(age), MIN(age), MAX(age) FROM users
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    let results =
+        execute_select(&db, "SELECT COUNT(*), SUM(age), AVG(age), MIN(age), MAX(age) FROM users")
+            .unwrap();
+    assert_eq!(results.len(), 1); // One row for aggregates
+    assert_eq!(results[0].values.len(), 5); // Five aggregate columns
+    assert_eq!(results[0].values[0], SqlValue::Integer(4)); // COUNT(*)
+    assert_eq!(results[0].values[1], SqlValue::Integer(94)); // SUM(age)
+    assert_eq!(results[0].values[2], SqlValue::Integer(23)); // AVG(age)
+    assert_eq!(results[0].values[3], SqlValue::Integer(17)); // MIN(age)
+    assert_eq!(results[0].values[4], SqlValue::Integer(30)); // MAX(age)
+}
+
+#[test]
+fn test_e2e_aggregate_with_where() {
+    // Test: SELECT COUNT(*), AVG(age) FROM users WHERE age >= 18
+    let mut db = Database::new();
+    db.create_table(create_users_schema()).unwrap();
+    insert_sample_users(&mut db);
+
+    let results =
+        execute_select(&db, "SELECT COUNT(*), AVG(age) FROM users WHERE age >= 18").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].values.len(), 2);
+    assert_eq!(results[0].values[0], SqlValue::Integer(3)); // 3 users >= 18 (Alice, Charlie, Diana)
+    assert_eq!(results[0].values[1], SqlValue::Integer(25)); // (25 + 30 + 22) / 3 = 25.67 → 25
+}
