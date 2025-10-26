@@ -345,6 +345,38 @@ Track feature-by-feature compliance in a structured format:
 - Per-protocol breakdown (ODBC vs JDBC)
 - Trend over time (improving/regressing)
 
+## Coverage Reporting
+
+1. Install [`cargo-llvm-cov`](https://github.com/taiki-e/cargo-llvm-cov) if it is not already available:
+
+   ```bash
+   cargo install cargo-llvm-cov
+   ```
+
+2. Generate an HTML report for the entire workspace:
+
+   ```bash
+   cargo coverage
+   ```
+
+   This writes the report to `target/coverage/html/index.html`.
+
+3. Create an `lcov.info` artifact that can be uploaded to services such as Codecov:
+
+   ```bash
+   cargo coverage-lcov
+   ```
+
+   The file is emitted at `target/coverage/lcov.info`.
+
+4. Clean cached instrumentation before re-running coverage:
+
+   ```bash
+   cargo coverage-clean
+   ```
+
+Coverage commands are defined as Cargo aliases in `.cargo/config.toml`, so the invocations above work consistently for every contributor and in automation.
+
 ## Test Development Priorities
 
 ### Phase 1: Foundation (Weeks 1-4)
