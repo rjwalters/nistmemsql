@@ -598,6 +598,312 @@ impl Parser {
             limit,
             offset,
         })
+        Ok(ast::SelectStmt { select_list, from, where_clause, group_by, having, order_by })
+    }
+
+    /// Parse INSERT statement
+    fn parse_insert_statement(&mut self) -> Result<ast::InsertStmt, ParseError> {
+        self.expect_keyword(Keyword::Insert)?;
+        self.expect_keyword(Keyword::Into)?;
+
+        // Parse table name
+        let table_name = match self.peek() {
+            Token::Identifier(name) => {
+                let table = name.clone();
+                self.advance();
+                table
+            }
+            _ => {
+                return Err(ParseError {
+                    message: "Expected table name after INSERT INTO".to_string(),
+                })
+            }
+        };
+
+        // Parse column list (optional in SQL, but we'll require it for now)
+        let columns = if matches!(self.peek(), Token::LParen) {
+            self.advance(); // consume (
+            let mut cols = Vec::new();
+            loop {
+                match self.peek() {
+                    Token::Identifier(col) => {
+                        cols.push(col.clone());
+                        self.advance();
+                    }
+                    _ => return Err(ParseError { message: "Expected column name".to_string() }),
+                }
+
+                if matches!(self.peek(), Token::Comma) {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+            self.expect_token(Token::RParen)?;
+            cols
+        } else {
+            Vec::new() // No columns specified
+        };
+
+        // Parse VALUES
+        self.expect_keyword(Keyword::Values)?;
+
+        // Parse value lists
+        let mut values = Vec::new();
+        loop {
+            self.expect_token(Token::LParen)?;
+            let mut row = Vec::new();
+            loop {
+                let expr = self.parse_expression()?;
+                row.push(expr);
+
+                if matches!(self.peek(), Token::Comma) {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+            self.expect_token(Token::RParen)?;
+            values.push(row);
+
+            if matches!(self.peek(), Token::Comma) {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        // Expect semicolon or EOF
+        if matches!(self.peek(), Token::Semicolon) {
+            self.advance();
+        }
+
+        Ok(ast::InsertStmt { table_name, columns, values })
+    }
+
+    /// Parse UPDATE statement
+    fn parse_update_statement(&mut self) -> Result<ast::UpdateStmt, ParseError> {
+        self.expect_keyword(Keyword::Update)?;
+
+        // Parse table name
+        let table_name = match self.peek() {
+            Token::Identifier(name) => {
+                let table = name.clone();
+                self.advance();
+                table
+            }
+            _ => {
+                return Err(ParseError { message: "Expected table name after UPDATE".to_string() })
+            }
+        };
+
+        // Parse SET keyword
+        self.expect_keyword(Keyword::Set)?;
+
+        // Parse assignments
+        let mut assignments = Vec::new();
+        loop {
+            // Parse column name
+            let column = match self.peek() {
+                Token::Identifier(col) => {
+                    let c = col.clone();
+                    self.advance();
+                    c
+                }
+                _ => {
+                    return Err(ParseError {
+                        message: "Expected column name in SET clause".to_string(),
+                    })
+                }
+            };
+
+            // Expect =
+            self.expect_token(Token::Symbol('='))?;
+
+            // Parse value expression
+            let value = self.parse_expression()?;
+
+            assignments.push(ast::Assignment { column, value });
+
+            if matches!(self.peek(), Token::Comma) {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        // Parse optional WHERE clause
+        let where_clause = if self.peek_keyword(Keyword::Where) {
+            self.consume_keyword(Keyword::Where)?;
+            Some(self.parse_expression()?)
+        } else {
+            None
+        };
+
+        // Expect semicolon or EOF
+        if matches!(self.peek(), Token::Semicolon) {
+            self.advance();
+        }
+
+        Ok(ast::UpdateStmt { table_name, assignments, where_clause })
+    }
+
+    /// Parse DELETE statement
+    fn parse_delete_statement(&mut self) -> Result<ast::DeleteStmt, ParseError> {
+        self.expect_keyword(Keyword::Delete)?;
+        self.expect_keyword(Keyword::From)?;
+
+        // Parse table name
+        let table_name = match self.peek() {
+            Token::Identifier(name) => {
+                let table = name.clone();
+                self.advance();
+                table
+            }
+            _ => {
+                return Err(ParseError {
+                    message: "Expected table name after DELETE FROM".to_string(),
+                })
+            }
+        };
+
+        // Parse optional WHERE clause
+        let where_clause = if self.peek_keyword(Keyword::Where) {
+            self.consume_keyword(Keyword::Where)?;
+            Some(self.parse_expression()?)
+        } else {
+            None
+        };
+
+        // Expect semicolon or EOF
+        if matches!(self.peek(), Token::Semicolon) {
+            self.advance();
+        }
+
+        Ok(ast::DeleteStmt { table_name, where_clause })
+    }
+
+    /// Parse CREATE TABLE statement
+    fn parse_create_table_statement(&mut self) -> Result<ast::CreateTableStmt, ParseError> {
+        self.expect_keyword(Keyword::Create)?;
+        self.expect_keyword(Keyword::Table)?;
+
+        // Parse table name
+        let table_name = match self.peek() {
+            Token::Identifier(name) => {
+                let table = name.clone();
+                self.advance();
+                table
+            }
+            _ => {
+                return Err(ParseError {
+                    message: "Expected table name after CREATE TABLE".to_string(),
+                })
+            }
+        };
+
+        // Parse column definitions
+        self.expect_token(Token::LParen)?;
+        let mut columns = Vec::new();
+
+        loop {
+            // Parse column name
+            let name = match self.peek() {
+                Token::Identifier(col) => {
+                    let c = col.clone();
+                    self.advance();
+                    c
+                }
+                _ => return Err(ParseError { message: "Expected column name".to_string() }),
+            };
+
+            // Parse data type
+            let data_type = self.parse_data_type()?;
+
+            // Parse optional NOT NULL (default is nullable)
+            let nullable = if self.peek_keyword(Keyword::Not) {
+                self.consume_keyword(Keyword::Not)?;
+                self.expect_keyword(Keyword::Null)?;
+                false
+            } else {
+                true
+            };
+
+            columns.push(ast::ColumnDef { name, data_type, nullable });
+
+            if matches!(self.peek(), Token::Comma) {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        self.expect_token(Token::RParen)?;
+
+        // Expect semicolon or EOF
+        if matches!(self.peek(), Token::Semicolon) {
+            self.advance();
+        }
+
+        Ok(ast::CreateTableStmt { table_name, columns })
+    }
+
+    /// Parse data type
+    fn parse_data_type(&mut self) -> Result<types::DataType, ParseError> {
+        let type_upper = match self.peek() {
+            Token::Identifier(type_name) => type_name.to_uppercase(),
+            _ => return Err(ParseError { message: "Expected data type".to_string() }),
+        };
+        self.advance();
+
+        match type_upper.as_str() {
+            "INTEGER" | "INT" => Ok(types::DataType::Integer),
+            "SMALLINT" => Ok(types::DataType::Smallint),
+            "BIGINT" => Ok(types::DataType::Bigint),
+            "BOOLEAN" | "BOOL" => Ok(types::DataType::Boolean),
+            "DATE" => Ok(types::DataType::Date),
+            "VARCHAR" => {
+                // Parse VARCHAR(n)
+                self.expect_token(Token::LParen)?;
+                let max_length = match self.peek() {
+                    Token::Number(n) => {
+                        let len = n.parse::<usize>().map_err(|_| ParseError {
+                            message: "Invalid VARCHAR length".to_string(),
+                        })?;
+                        self.advance();
+                        len
+                    }
+                    _ => {
+                        return Err(ParseError {
+                            message: "Expected number after VARCHAR(".to_string(),
+                        })
+                    }
+                };
+                self.expect_token(Token::RParen)?;
+                Ok(types::DataType::Varchar { max_length })
+            }
+            "CHAR" | "CHARACTER" => {
+                // Parse CHAR(n)
+                self.expect_token(Token::LParen)?;
+                let length = match self.peek() {
+                    Token::Number(n) => {
+                        let len = n.parse::<usize>().map_err(|_| ParseError {
+                            message: "Invalid CHAR length".to_string(),
+                        })?;
+                        self.advance();
+                        len
+                    }
+                    _ => {
+                        return Err(ParseError {
+                            message: "Expected number after CHAR(".to_string(),
+                        })
+                    }
+                };
+                self.expect_token(Token::RParen)?;
+                Ok(types::DataType::Character { length })
+            }
+            _ => Err(ParseError { message: format!("Unknown data type: {}", type_upper) }),
+        }
     }
 
     /// Parse INSERT statement
@@ -1172,6 +1478,7 @@ impl Parser {
                             message: format!("Unexpected operator: {}", s),
                         })
                     }
+                    _ => return Err(ParseError { message: format!("Unexpected operator: {}", s) }),
                 },
                 _ => unreachable!(),
             };

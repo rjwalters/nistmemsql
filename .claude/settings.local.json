@@ -28,6 +28,7 @@
       "Read(//Users/rwalters/GitHub/nistmemsql-aggregates/tests/**)",
       "Read(//Users/rwalters/GitHub/nistmemsql-aggregates/**)",
       "Bash(git stash:*)"
+      "Read(//Users/rwalters/GitHub/nistmemsql-joins/**)"
     ],
     "deny": [],
     "ask": []

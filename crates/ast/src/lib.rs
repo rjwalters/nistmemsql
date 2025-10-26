@@ -44,10 +44,7 @@ pub enum SelectItem {
     /// SELECT *
     Wildcard,
     /// SELECT expr [AS alias]
-    Expression {
-        expr: Expression,
-        alias: Option<String>,
-    },
+    Expression { expr: Expression, alias: Option<String> },
 }
 
 /// FROM clause
@@ -163,23 +160,13 @@ pub enum Expression {
     Literal(SqlValue),
 
     /// Column reference (id, users.id)
-    ColumnRef {
-        table: Option<String>,
-        column: String,
-    },
+    ColumnRef { table: Option<String>, column: String },
 
     /// Binary operation (a + b, x = y, p AND q)
-    BinaryOp {
-        op: BinaryOperator,
-        left: Box<Expression>,
-        right: Box<Expression>,
-    },
+    BinaryOp { op: BinaryOperator, left: Box<Expression>, right: Box<Expression> },
 
     /// Unary operation (NOT x, -5)
-    UnaryOp {
-        op: UnaryOperator,
-        expr: Box<Expression>,
-    },
+    UnaryOp { op: UnaryOperator, expr: Box<Expression> },
 
     /// Function call (COUNT(*), SUM(x))
     Function { name: String, args: Vec<Expression> },
@@ -270,9 +257,7 @@ mod tests {
         let stmt = Statement::Insert(InsertStmt {
             table_name: "users".to_string(),
             columns: vec!["name".to_string()],
-            values: vec![vec![Expression::Literal(SqlValue::Varchar(
-                "Alice".to_string(),
-            ))]],
+            values: vec![vec![Expression::Literal(SqlValue::Varchar("Alice".to_string()))]],
         });
 
         match stmt {
@@ -300,10 +285,8 @@ mod tests {
 
     #[test]
     fn test_create_delete_statement() {
-        let stmt = Statement::Delete(DeleteStmt {
-            table_name: "users".to_string(),
-            where_clause: None,
-        });
+        let stmt =
+            Statement::Delete(DeleteStmt { table_name: "users".to_string(), where_clause: None });
 
         match stmt {
             Statement::Delete(_) => {} // Success
@@ -335,32 +318,21 @@ mod tests {
 
     #[test]
     fn test_column_reference_expression() {
-        let expr = Expression::ColumnRef {
-            table: None,
-            column: "id".to_string(),
-        };
+        let expr = Expression::ColumnRef { table: None, column: "id".to_string() };
 
         match expr {
-            Expression::ColumnRef {
-                table: None,
-                column,
-            } if column == "id" => {} // Success
+            Expression::ColumnRef { table: None, column } if column == "id" => {} // Success
             _ => panic!("Expected column reference"),
         }
     }
 
     #[test]
     fn test_qualified_column_reference() {
-        let expr = Expression::ColumnRef {
-            table: Some("users".to_string()),
-            column: "id".to_string(),
-        };
+        let expr =
+            Expression::ColumnRef { table: Some("users".to_string()), column: "id".to_string() };
 
         match expr {
-            Expression::ColumnRef {
-                table: Some(t),
-                column: c,
-            } if t == "users" && c == "id" => {} // Success
+            Expression::ColumnRef { table: Some(t), column: c } if t == "users" && c == "id" => {} // Success
             _ => panic!("Expected qualified column reference"),
         }
     }
@@ -374,10 +346,7 @@ mod tests {
         };
 
         match expr {
-            Expression::BinaryOp {
-                op: BinaryOperator::Plus,
-                ..
-            } => {} // Success
+            Expression::BinaryOp { op: BinaryOperator::Plus, .. } => {} // Success
             _ => panic!("Expected addition operation"),
         }
     }
@@ -386,28 +355,20 @@ mod tests {
     fn test_binary_operation_equality() {
         let expr = Expression::BinaryOp {
             op: BinaryOperator::Equal,
-            left: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "id".to_string(),
-            }),
+            left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
             right: Box::new(Expression::Literal(SqlValue::Integer(1))),
         };
 
         match expr {
-            Expression::BinaryOp {
-                op: BinaryOperator::Equal,
-                ..
-            } => {} // Success
+            Expression::BinaryOp { op: BinaryOperator::Equal, .. } => {} // Success
             _ => panic!("Expected equality operation"),
         }
     }
 
     #[test]
     fn test_function_call_count_star() {
-        let expr = Expression::Function {
-            name: "COUNT".to_string(),
-            args: vec![Expression::Wildcard],
-        };
+        let expr =
+            Expression::Function { name: "COUNT".to_string(), args: vec![Expression::Wildcard] };
 
         match expr {
             Expression::Function { name, .. } if name == "COUNT" => {} // Success
@@ -418,10 +379,7 @@ mod tests {
     #[test]
     fn test_is_null_predicate() {
         let expr = Expression::IsNull {
-            expr: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "name".to_string(),
-            }),
+            expr: Box::new(Expression::ColumnRef { table: None, column: "name".to_string() }),
             negated: false,
         };
 
@@ -434,10 +392,7 @@ mod tests {
     #[test]
     fn test_is_not_null_predicate() {
         let expr = Expression::IsNull {
-            expr: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "name".to_string(),
-            }),
+            expr: Box::new(Expression::ColumnRef { table: None, column: "name".to_string() }),
             negated: true,
         };
 
@@ -476,17 +431,11 @@ mod tests {
         let select = SelectStmt {
             select_list: vec![
                 SelectItem::Expression {
-                    expr: Expression::ColumnRef {
-                        table: None,
-                        column: "id".to_string(),
-                    },
+                    expr: Expression::ColumnRef { table: None, column: "id".to_string() },
                     alias: None,
                 },
                 SelectItem::Expression {
-                    expr: Expression::ColumnRef {
-                        table: None,
-                        column: "name".to_string(),
-                    },
+                    expr: Expression::ColumnRef { table: None, column: "name".to_string() },
                     alias: None,
                 },
             ],
@@ -506,10 +455,7 @@ mod tests {
     fn test_select_with_alias() {
         let select = SelectStmt {
             select_list: vec![SelectItem::Expression {
-                expr: Expression::ColumnRef {
-                    table: None,
-                    column: "id".to_string(),
-                },
+                expr: Expression::ColumnRef { table: None, column: "id".to_string() },
                 alias: Some("user_id".to_string()),
             }],
             from: None,
@@ -531,10 +477,7 @@ mod tests {
     fn test_select_from_table() {
         let select = SelectStmt {
             select_list: vec![SelectItem::Wildcard],
-            from: Some(FromClause::Table {
-                name: "users".to_string(),
-                alias: None,
-            }),
+            from: Some(FromClause::Table { name: "users".to_string(), alias: None }),
             where_clause: None,
             group_by: None,
             having: None,
@@ -553,16 +496,10 @@ mod tests {
     fn test_select_with_where() {
         let select = SelectStmt {
             select_list: vec![SelectItem::Wildcard],
-            from: Some(FromClause::Table {
-                name: "users".to_string(),
-                alias: None,
-            }),
+            from: Some(FromClause::Table { name: "users".to_string(), alias: None }),
             where_clause: Some(Expression::BinaryOp {
                 op: BinaryOperator::Equal,
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "id".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
                 right: Box::new(Expression::Literal(SqlValue::Integer(1))),
             }),
             group_by: None,
@@ -579,18 +516,12 @@ mod tests {
     fn test_select_with_order_by() {
         let select = SelectStmt {
             select_list: vec![SelectItem::Wildcard],
-            from: Some(FromClause::Table {
-                name: "users".to_string(),
-                alias: None,
-            }),
+            from: Some(FromClause::Table { name: "users".to_string(), alias: None }),
             where_clause: None,
             group_by: None,
             having: None,
             order_by: Some(vec![OrderByItem {
-                expr: Expression::ColumnRef {
-                    table: None,
-                    column: "name".to_string(),
-                },
+                expr: Expression::ColumnRef { table: None, column: "name".to_string() },
                 direction: OrderDirection::Asc,
             }]),
             limit: None,
