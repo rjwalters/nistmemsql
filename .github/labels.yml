@@ -37,6 +37,10 @@
   description: PR ready for Judge to review
   color: "10B981"  # emerald-500
 
+- name: loom:changes-requested
+  description: PR requires changes before Judge can approve
+  color: "F59E0B"  # amber-500 - action required
+
 - name: loom:pr
   description: PR approved by Judge, ready for human to merge
   color: "3B82F6"  # blue-500
