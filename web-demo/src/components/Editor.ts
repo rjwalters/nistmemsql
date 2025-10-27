@@ -47,7 +47,7 @@ export class EditorComponent extends Component<EditorState> {
       <div class="sql-editor">
         <textarea
           id="sql-input"
-          class="w-full h-64 p-4 font-mono text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-y focus:outline-none focus:ring-2 focus:ring-primary-light"
+          class="w-full h-[50vh] p-4 font-mono text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-y focus:outline-none focus:ring-2 focus:ring-primary-light"
           placeholder="Enter SQL query here... (Ctrl+Enter or Cmd+Enter to execute)"
           aria-label="SQL Query Editor"
         >${this.escapeHtml(this.state.value)}</textarea>

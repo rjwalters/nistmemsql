@@ -69,7 +69,7 @@ export class ExamplesComponent extends Component<ExamplesState> {
           </p>
         </div>
 
-        <div class="divide-y divide-border">
+        <div class="divide-y divide-border overflow-y-auto max-h-[50vh]">
           ${exampleCategories.map(category => this.renderCategory(category, expandedCategories)).join('')}
         </div>
       </div>
