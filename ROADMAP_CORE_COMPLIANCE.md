@@ -185,13 +185,13 @@
 
 ### Phase 6: Built-in Functions
 **Duration**: 1.5-2 months
-**Status**: 10% complete
+**Status**: 40% complete
 
 **6.1 String Functions** (Core subset)
-- [ ] SUBSTRING
-- [ ] UPPER, LOWER
-- [ ] TRIM (LEADING, TRAILING, BOTH)
-- [ ] CHAR_LENGTH / CHARACTER_LENGTH
+- [x] SUBSTRING (commit 8968cf8)
+- [x] UPPER, LOWER (commit 83874e9)
+- [x] TRIM (LEADING, TRAILING, BOTH) - basic implementation (commit 7040c2b)
+- [x] CHAR_LENGTH / CHARACTER_LENGTH (commit 213010d)
 - [ ] POSITION
 - [ ] String concatenation (||)
 
