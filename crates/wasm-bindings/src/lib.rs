@@ -1,5 +1,5 @@
-use wasm_bindgen::prelude::*;
 use serde::{Deserialize, Serialize};
+use wasm_bindgen::prelude::*;
 
 /// Initializes the WASM module and sets up panic hooks
 #[wasm_bindgen(start)]
@@ -63,39 +63,33 @@ impl Database {
     /// Creates a new empty database instance
     #[wasm_bindgen(constructor)]
     pub fn new() -> Database {
-        Database {
-            db: storage::Database::new(),
-        }
+        Database { db: storage::Database::new() }
     }
 
     /// Executes a DDL or DML statement (CREATE TABLE, INSERT, UPDATE, DELETE)
     /// Returns a JSON string with the result
     pub fn execute(&mut self, sql: &str) -> Result<JsValue, JsValue> {
         // Parse the SQL
-        let stmt = parser::Parser::parse_sql(sql).map_err(|e| {
-            JsValue::from_str(&format!("Parse error: {:?}", e))
-        })?;
+        let stmt = parser::Parser::parse_sql(sql)
+            .map_err(|e| JsValue::from_str(&format!("Parse error: {:?}", e)))?;
 
         // Execute based on statement type
         match stmt {
             ast::Statement::CreateTable(create_stmt) => {
-                executor::CreateTableExecutor::execute(&create_stmt, &mut self.db).map_err(|e| {
-                    JsValue::from_str(&format!("Execution error: {:?}", e))
-                })?;
+                executor::CreateTableExecutor::execute(&create_stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult {
                     rows_affected: 0,
                     message: format!("Table '{}' created successfully", create_stmt.table_name),
                 };
 
-                serde_wasm_bindgen::to_value(&result).map_err(|e| {
-                    JsValue::from_str(&format!("Serialization error: {:?}", e))
-                })
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
             ast::Statement::Insert(insert_stmt) => {
-                executor::InsertExecutor::execute(&mut self.db, &insert_stmt).map_err(|e| {
-                    JsValue::from_str(&format!("Execution error: {:?}", e))
-                })?;
+                executor::InsertExecutor::execute(&mut self.db, &insert_stmt)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let row_count = insert_stmt.values.len();
                 let result = ExecuteResult {
@@ -107,25 +101,24 @@ impl Database {
                     ),
                 };
 
-                serde_wasm_bindgen::to_value(&result).map_err(|e| {
-                    JsValue::from_str(&format!("Serialization error: {:?}", e))
-                })
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
             ast::Statement::Select(_) => {
                 Err(JsValue::from_str("Use query() method for SELECT statements"))
             }
-            _ => {
-                Err(JsValue::from_str(&format!("Statement type not yet supported in WASM: {:?}", stmt)))
-            }
+            _ => Err(JsValue::from_str(&format!(
+                "Statement type not yet supported in WASM: {:?}",
+                stmt
+            ))),
         }
     }
 
     /// Executes a SELECT query and returns results as JSON
     pub fn query(&self, sql: &str) -> Result<JsValue, JsValue> {
         // Parse the SQL
-        let stmt = parser::Parser::parse_sql(sql).map_err(|e| {
-            JsValue::from_str(&format!("Parse error: {:?}", e))
-        })?;
+        let stmt = parser::Parser::parse_sql(sql)
+            .map_err(|e| JsValue::from_str(&format!("Parse error: {:?}", e)))?;
 
         // Ensure it's a SELECT statement
         let select_stmt = match stmt {
@@ -135,17 +128,15 @@ impl Database {
 
         // Execute the query
         let select_executor = executor::SelectExecutor::new(&self.db);
-        let rows = select_executor.execute(&select_stmt).map_err(|e| {
-            JsValue::from_str(&format!("Execution error: {:?}", e))
-        })?;
+        let rows = select_executor
+            .execute(&select_stmt)
+            .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
         // Extract column names (simplified - assumes we can derive from first row or schema)
         let columns = if !rows.is_empty() {
             // For now, use generic column names
             // In a real implementation, we'd extract from the schema
-            (0..rows[0].values.len())
-                .map(|i| format!("col{}", i))
-                .collect()
+            (0..rows[0].values.len()).map(|i| format!("col{}", i)).collect()
         } else {
             Vec::new()
         };
@@ -159,31 +150,26 @@ impl Database {
             })
             .collect();
 
-        let result = QueryResult {
-            columns,
-            rows: row_strings,
-            row_count: rows.len(),
-        };
+        let result = QueryResult { columns, rows: row_strings, row_count: rows.len() };
 
-        serde_wasm_bindgen::to_value(&result).map_err(|e| {
-            JsValue::from_str(&format!("Serialization error: {:?}", e))
-        })
+        serde_wasm_bindgen::to_value(&result)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
     }
 
     /// Lists all table names in the database
     pub fn list_tables(&self) -> Result<JsValue, JsValue> {
         let table_names: Vec<String> = self.db.list_tables();
 
-        serde_wasm_bindgen::to_value(&table_names).map_err(|e| {
-            JsValue::from_str(&format!("Serialization error: {:?}", e))
-        })
+        serde_wasm_bindgen::to_value(&table_names)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
     }
 
     /// Gets the schema for a specific table
     pub fn describe_table(&self, table_name: &str) -> Result<JsValue, JsValue> {
-        let table = self.db.get_table(table_name).ok_or_else(|| {
-            JsValue::from_str(&format!("Table '{}' not found", table_name))
-        })?;
+        let table = self
+            .db
+            .get_table(table_name)
+            .ok_or_else(|| JsValue::from_str(&format!("Table '{}' not found", table_name)))?;
 
         let schema = &table.schema;
         let columns: Vec<ColumnInfo> = schema
@@ -196,14 +182,35 @@ impl Database {
             })
             .collect();
 
-        let table_schema = TableSchema {
-            name: table_name.to_string(),
-            columns,
+        let table_schema = TableSchema { name: table_name.to_string(), columns };
+
+        serde_wasm_bindgen::to_value(&table_schema)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+    }
+
+    /// Loads the Employees example database (hierarchical org structure)
+    /// Demonstrates recursive queries with WITH RECURSIVE
+    pub fn load_employees(&mut self) -> Result<JsValue, JsValue> {
+        let sql = include_str!("../../../web-demo/examples/employees.sql");
+
+        // Execute the SQL file (contains CREATE TABLE and INSERT statements)
+        // Split by semicolons and execute each statement
+        for statement_sql in sql.split(';') {
+            let trimmed = statement_sql.trim();
+            if trimmed.is_empty() || trimmed.starts_with("--") {
+                continue; // Skip empty lines and comments
+            }
+
+            self.execute(trimmed)?;
+        }
+
+        let result = ExecuteResult {
+            rows_affected: 35, // 35 employees inserted
+            message: "Employees database loaded successfully (35 employees)".to_string(),
         };
 
-        serde_wasm_bindgen::to_value(&table_schema).map_err(|e| {
-            JsValue::from_str(&format!("Serialization error: {:?}", e))
-        })
+        serde_wasm_bindgen::to_value(&result)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
     }
 
     /// Returns the version string
