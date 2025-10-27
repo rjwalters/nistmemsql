@@ -1,9 +1,12 @@
 import { ShowcaseNav } from '../components/ShowcaseNav'
+import { DataTypesShowcase } from '../components/DataTypesShowcase'
 
 export class ShowcaseController {
   private nav: ShowcaseNav
   private container: HTMLElement
+  private contentContainer: HTMLElement
   private isVisible: boolean = false
+  private currentShowcase: DataTypesShowcase | null = null
 
   constructor(containerId: string) {
     const container = document.getElementById(containerId)
@@ -13,6 +16,12 @@ export class ShowcaseController {
 
     this.container = container
     this.nav = new ShowcaseNav()
+
+    // Create content container for showcase components
+    this.contentContainer = document.createElement('div')
+    this.contentContainer.id = 'showcase-content'
+    this.contentContainer.className = 'mt-6'
+
     this.setupListeners()
   }
 
@@ -20,16 +29,59 @@ export class ShowcaseController {
     // Listen for category selection
     this.container.addEventListener('category-selected', ((e: CustomEvent) => {
       const { categoryId } = e.detail
-      // Future: Load category-specific content
       this.loadCategory(categoryId)
+    }) as EventListener)
+
+    // Listen for example loading from showcases
+    this.container.addEventListener('load-example', ((e: CustomEvent) => {
+      const { query } = e.detail
+      this.loadExampleIntoEditor(query)
     }) as EventListener)
   }
 
   private loadCategory(categoryId: string): void {
-    // Placeholder for loading category-specific examples and content
-    // This will be implemented in subsequent issues (#146, #147)
-    // Category content loading will go here
-    void categoryId // Suppress unused variable warning
+    // Clear current showcase
+    if (this.currentShowcase) {
+      this.currentShowcase.unmount()
+      this.currentShowcase = null
+    }
+
+    // Load appropriate showcase based on category
+    switch (categoryId) {
+      case 'data-types':
+        this.currentShowcase = new DataTypesShowcase()
+        this.currentShowcase.mount(this.contentContainer)
+        break
+
+      // Future categories will be added here:
+      // case 'dml': ...
+      // case 'predicates': ...
+      // etc.
+
+      default:
+        // Display placeholder for unimplemented categories
+        this.contentContainer.innerHTML = `
+          <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6 text-center">
+            <p class="text-yellow-800 dark:text-yellow-200 font-medium mb-2">
+              Coming Soon
+            </p>
+            <p class="text-yellow-700 dark:text-yellow-300 text-sm">
+              The ${categoryId} showcase is currently being developed.
+            </p>
+          </div>
+        `
+    }
+  }
+
+  private loadExampleIntoEditor(query: string): void {
+    // Find Monaco editor and load the example query
+    const editorElement = document.querySelector('.monaco-editor')
+    if (editorElement && (window as { monaco?: { editor?: { getEditors?: () => { setValue: (v: string) => void }[] } } }).monaco) {
+      const editors = (window as { monaco: { editor: { getEditors: () => { setValue: (v: string) => void }[] } } }).monaco.editor.getEditors()
+      if (editors && editors.length > 0) {
+        editors[0].setValue(query)
+      }
+    }
   }
 
   public toggle(): void {
@@ -44,6 +96,7 @@ export class ShowcaseController {
     if (!this.isVisible) {
       this.container.classList.remove('hidden')
       this.nav.mount(this.container)
+      this.container.appendChild(this.contentContainer)
       this.isVisible = true
     }
   }
@@ -52,6 +105,10 @@ export class ShowcaseController {
     if (this.isVisible) {
       this.container.classList.add('hidden')
       this.nav.unmount()
+      if (this.currentShowcase) {
+        this.currentShowcase.unmount()
+        this.currentShowcase = null
+      }
       this.isVisible = false
     }
   }
