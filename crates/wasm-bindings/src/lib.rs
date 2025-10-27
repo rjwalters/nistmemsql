@@ -146,8 +146,43 @@ impl Database {
         let row_strings: Vec<String> = rows
             .iter()
             .map(|row| {
-                let values: Vec<String> = row.values.iter().map(|v| format!("{:?}", v)).collect();
-                format!("[{}]", values.join(","))
+                // Convert each SqlValue to a JSON-compatible representation
+                let json_values: Vec<serde_json::Value> = row
+                    .values
+                    .iter()
+                    .map(|v| match v {
+                        types::SqlValue::Integer(i) => serde_json::Value::Number((*i).into()),
+                        types::SqlValue::Smallint(i) => serde_json::Value::Number((*i).into()),
+                        types::SqlValue::Bigint(i) => serde_json::Value::Number((*i).into()),
+                        types::SqlValue::Float(f) => {
+                            serde_json::Number::from_f64(*f as f64)
+                                .map(serde_json::Value::Number)
+                                .unwrap_or(serde_json::Value::Null)
+                        }
+                        types::SqlValue::Real(f) => {
+                            serde_json::Number::from_f64(*f as f64)
+                                .map(serde_json::Value::Number)
+                                .unwrap_or(serde_json::Value::Null)
+                        }
+                        types::SqlValue::Double(f) => {
+                            serde_json::Number::from_f64(*f)
+                                .map(serde_json::Value::Number)
+                                .unwrap_or(serde_json::Value::Null)
+                        }
+                        types::SqlValue::Varchar(s) | types::SqlValue::Character(s) => {
+                            serde_json::Value::String(s.clone())
+                        }
+                        types::SqlValue::Boolean(b) => serde_json::Value::Bool(*b),
+                        types::SqlValue::Numeric(s)
+                        | types::SqlValue::Date(s)
+                        | types::SqlValue::Time(s)
+                        | types::SqlValue::Timestamp(s)
+                        | types::SqlValue::Interval(s) => serde_json::Value::String(s.clone()),
+                        types::SqlValue::Null => serde_json::Value::Null,
+                    })
+                    .collect();
+
+                serde_json::to_string(&json_values).unwrap_or_else(|_| "[]".to_string())
             })
             .collect();
 

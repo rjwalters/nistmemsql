@@ -14,3 +14,11 @@ npm-debug.log*
 
 # OS files
 .DS_Store
+
+# Debug/test scripts (local development only)
+debug-*.ts
+inspect-*.ts
+test-*.ts
+diagnose-*.ts
+find-*.ts
+debug-screenshot-*.png
