@@ -78,9 +78,45 @@ impl Parser {
         Ok(left)
     }
 
-    /// Parse comparison expression (handles =, <, >, <=, >=, !=, <>)
+    /// Parse comparison expression (handles =, <, >, <=, >=, !=, <>, IN)
     fn parse_comparison_expression(&mut self) -> Result<ast::Expression, ParseError> {
         let mut left = self.parse_primary_expression()?;
+
+        // Check for IN operator (including NOT IN)
+        if self.peek_keyword(Keyword::Not) {
+            // Peek ahead to see if it's "NOT IN"
+            let saved_pos = self.position;
+            self.advance(); // consume NOT
+
+            if self.peek_keyword(Keyword::In) {
+                // It's NOT IN
+                self.consume_keyword(Keyword::In)?;
+
+                // Expect (SELECT ...)
+                let subquery = self.parse_subquery()?;
+
+                return Ok(ast::Expression::In {
+                    expr: Box::new(left),
+                    subquery: Box::new(subquery),
+                    negated: true,
+                });
+            } else {
+                // Not "NOT IN", restore position and continue
+                self.position = saved_pos;
+            }
+        } else if self.peek_keyword(Keyword::In) {
+            // It's IN (not negated)
+            self.consume_keyword(Keyword::In)?;
+
+            // Expect (SELECT ...)
+            let subquery = self.parse_subquery()?;
+
+            return Ok(ast::Expression::In {
+                expr: Box::new(left),
+                subquery: Box::new(subquery),
+                negated: false,
+            });
+        }
 
         // Check for comparison operators (both single-char and multi-char)
         let is_comparison = matches!(
@@ -214,5 +250,20 @@ impl Parser {
                 Err(ParseError { message: format!("Expected expression, found {:?}", self.peek()) })
             }
         }
+    }
+
+    /// Parse a subquery: (SELECT ...)
+    /// Used for scalar subqueries and IN operator
+    pub(super) fn parse_subquery(&mut self) -> Result<ast::SelectStmt, ParseError> {
+        // Expect opening paren
+        self.expect_token(Token::LParen)?;
+
+        // Parse SELECT statement
+        let select_stmt = self.parse_select_statement()?;
+
+        // Expect closing paren
+        self.expect_token(Token::RParen)?;
+
+        Ok(select_stmt)
     }
 }

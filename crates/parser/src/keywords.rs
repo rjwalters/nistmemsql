@@ -38,6 +38,7 @@ pub enum Keyword {
     Offset,
     Set,
     Values,
+    In,
 }
 
 impl fmt::Display for Keyword {
@@ -78,6 +79,7 @@ impl fmt::Display for Keyword {
             Keyword::Offset => "OFFSET",
             Keyword::Set => "SET",
             Keyword::Values => "VALUES",
+            Keyword::In => "IN",
         };
         write!(f, "{}", keyword_str)
     }

@@ -82,6 +82,17 @@ impl<'a> ExpressionEvaluator<'a> {
                 else_result,
             } => self.eval_case(operand, when_clauses, else_result, row),
 
+            // IN operator with subquery
+            ast::Expression::In { expr, subquery: _, negated: _ } => {
+                // TODO: Full implementation requires database access to execute subquery
+                // This requires refactoring ExpressionEvaluator to have database reference
+                // For now, evaluate the left expression to ensure it's valid
+                let _left_val = self.eval(expr, row)?;
+                Err(ExecutorError::UnsupportedFeature(
+                    "IN with subquery requires database access - implementation pending".to_string()
+                ))
+            }
+
             // TODO: Implement other expression types
             _ => Err(ExecutorError::UnsupportedExpression(format!("{:?}", expr))),
         }
@@ -257,6 +268,17 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 when_clauses,
                 else_result,
             } => self.eval_case(operand, when_clauses, else_result, row),
+
+            // IN operator with subquery
+            ast::Expression::In { expr, subquery: _, negated: _ } => {
+                // TODO: Full implementation requires database access to execute subquery
+                // This requires refactoring CombinedExpressionEvaluator to have database reference
+                // For now, evaluate the left expression to ensure it's valid
+                let _left_val = self.eval(expr, row)?;
+                Err(ExecutorError::UnsupportedFeature(
+                    "IN with subquery requires database access - implementation pending".to_string()
+                ))
+            }
 
             // TODO: Implement other expression types
             _ => Err(ExecutorError::UnsupportedExpression(format!("{:?}", expr))),
