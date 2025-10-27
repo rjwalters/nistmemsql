@@ -55,18 +55,21 @@ const SQL_KEYWORDS = [
 
 const DEFAULT_SQL = `-- Welcome to NIST MemSQL Web Studio!
 -- Press Ctrl/Cmd + Enter to run queries
--- Sample database with 35 employees is pre-loaded
+-- Sample employees table is pre-loaded with 6 rows
 
 -- See all employees
 SELECT * FROM employees;
 
--- Find employees by department
--- SELECT * FROM employees WHERE department = 'Engineering';
+-- Try these queries too (uncomment and run):
+
+-- Find engineering employees
+-- SELECT name, salary FROM employees WHERE department = 'Engineering';
 
 -- Count employees per department
--- SELECT department, COUNT(*) as employee_count
--- FROM employees
--- GROUP BY department;
+-- SELECT department, COUNT(*) as count FROM employees GROUP BY department;
+
+-- Find high earners
+-- SELECT name, department, salary FROM employees WHERE salary > 80000;
 `
 
 type StatusVariant = 'info' | 'success' | 'error'
@@ -364,11 +367,19 @@ async function bootstrap(): Promise<void> {
   if (database) {
     try {
       // Pre-load sample database for immediate exploration
-      database.load_employees()
+      database.execute(
+        'CREATE TABLE employees (id INTEGER, name VARCHAR(50), department VARCHAR(50), salary INTEGER);'
+      )
+      database.execute("INSERT INTO employees VALUES (1, 'Alice Johnson', 'Engineering', 95000);")
+      database.execute("INSERT INTO employees VALUES (2, 'Bob Smith', 'Engineering', 87000);")
+      database.execute("INSERT INTO employees VALUES (3, 'Carol White', 'Sales', 72000);")
+      database.execute("INSERT INTO employees VALUES (4, 'David Brown', 'Sales', 68000);")
+      database.execute("INSERT INTO employees VALUES (5, 'Eve Martinez', 'HR', 65000);")
+      database.execute("INSERT INTO employees VALUES (6, 'Frank Wilson', 'Engineering', 92000);")
       console.log('📦 Loaded sample employees database')
       tableNames = database.list_tables()
     } catch (error) {
-      console.warn('Failed to fetch table metadata', error)
+      console.warn('Failed to load sample data', error)
     }
   }
 
