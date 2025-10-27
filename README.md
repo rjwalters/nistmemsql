@@ -119,13 +119,26 @@ We maintain detailed documentation to track decisions, capture learning, and ena
 - Writing standards and conventions
 - When and how to document
 
+## Live Demo
+
+🚀 **[Try the interactive SQL demo](https://rjwalters.github.io/nistmemsql/)** - Run SQL queries directly in your browser!
+
+Features:
+- **Monaco Editor** - Full SQL syntax highlighting and IntelliSense
+- **Real-time Execution** - Query results displayed instantly
+- **WASM-powered** - Rust database compiled to WebAssembly
+- **Example Queries** - Learn SQL:1999 features interactively
+- **Dark Mode** - Beautiful Tailwind CSS interface
+
 ## Development Status
 
-**Current Phase**: Phase 4 - SQL:1999 Specific Features 🦀
+**Current Phase**: Phase 4 - SQL:1999 Specific Features + Web Demo 🦀
 
 **Development Approach**: Test-Driven Development (Red-Green-Refactor) ✅
 
 ### Completed ✅
+
+#### Core Database Engine
 - ✅ Requirements clarification (via upstream GitHub issues)
 - ✅ SQL:1999 standard research
 - ✅ Testing strategy design
@@ -135,29 +148,48 @@ We maintain detailed documentation to track decisions, capture learning, and ena
 - ✅ Development tooling (rustfmt, clippy)
 - ✅ **Types Crate** - SQL:1999 type system with PartialOrd comparisons (45 tests passing) 🎉
 - ✅ **AST Crate** - Abstract Syntax Tree structures (22 tests passing) 🎉
-- ✅ **Parser Crate** - Complete SQL parser implementation (104 tests passing) 🎉
-- ✅ **Parser Strategy** - ADR-0002: Selected pest parser (grammar-based approach)
-- ✅ **JOIN Operations** - INNER, LEFT, RIGHT, FULL OUTER, CROSS joins
+- ✅ **Parser Crate** - Complete SQL parser (89 tests passing) 🎉
+- ✅ **Catalog Crate** - Schema management (10 tests passing) 🎉
+- ✅ **Storage Crate** - In-memory tables (6 tests passing) 🎉
+- ✅ **Executor Crate** - Query execution (72 tests passing) 🎉
+- ✅ **Parser Strategy** - ADR-0002: Hand-written recursive descent parser
+- ✅ **JOIN Operations** - INNER, LEFT, RIGHT, FULL OUTER, CROSS joins (parsing + execution)
+- ✅ **Subqueries** - Scalar subqueries and table subqueries (derived tables)
 - ✅ **Aggregate Functions** - COUNT, SUM, AVG, MIN, MAX with GROUP BY/HAVING
 - ✅ **Query Pagination** - LIMIT/OFFSET support
 - ✅ **Test Coverage Infrastructure** - cargo-llvm-cov integration (83.3% coverage)
 - ✅ **Development Orchestration** - Loom framework integration for AI-powered development
 
+#### Web Demo & WASM
+- ✅ **WASM Bindings** - TypeScript bindings for Rust database
+- ✅ **Vite + TypeScript** - Modern build tooling and type safety
+- ✅ **Tailwind CSS** - Utility-first styling with dark mode support
+- ✅ **Monaco Editor** - Full SQL editor with syntax highlighting and IntelliSense
+- ✅ **ESLint + Prettier** - Code quality and formatting
+- ✅ **Vitest** - Fast unit testing (15 tests passing)
+- ✅ **CI/CD Pipeline** - GitHub Actions with automated deployment
+- ✅ **GitHub Pages** - Live demo deployment
+
 ### In Progress 🚧
-- 🚧 Code organization improvements (splitting large test files into modules)
-- 🚧 Advancing SQL:1999 feature coverage
+- 🚧 Northwind example database (Issue #54)
+- 🚧 Correlated subquery support (Issue #82)
+- 🚧 SQL:1999 feature showcase (Issue #56)
+- 🚧 Web demo enhancements (Issue #105)
 
 ### Test Status
-- **Total Tests**: 188 passing ✅
+- **Total Tests**: 259 (255 passing, 4 known JOIN test failures) ✅
 - **Test Coverage**: 83.3% (crates: ast 80.0%, catalog 88.0%, executor 83.5%, parser 82.9%, storage 100%, types 78.9%)
 - **Compiler Warnings**: 0
 - **Clippy Warnings**: 0
+- **Source Files**: 82 Rust files
+- **Lines of Code**: ~11,000
 
 ### Next Steps
-1. Complete code organization refactoring (issues #12, #13, #14)
-2. Implement advanced SQL:1999 features (CASE expressions, recursive queries)
-3. Add more aggregate and window functions
-4. Improve test coverage toward 90%
+1. Fix remaining JOIN executor tests (CROSS, FULL OUTER, RIGHT OUTER)
+2. Implement correlated subquery support (Issue #82)
+3. Complete Northwind example database (Issue #54)
+4. Build SQL:1999 feature showcase (Issue #56)
+5. Improve test coverage toward 90%
 
 See [WORK_PLAN.md](WORK_PLAN.md) for detailed progress and roadmap.
 
