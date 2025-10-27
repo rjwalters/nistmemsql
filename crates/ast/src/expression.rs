@@ -1,6 +1,6 @@
 //! SQL Expression types for use in SELECT, WHERE, and other clauses
 
-use crate::{BinaryOperator, UnaryOperator};
+use crate::{BinaryOperator, SelectStmt, UnaryOperator};
 use types::SqlValue;
 
 /// SQL Expression (can appear in SELECT, WHERE, etc.)
@@ -58,5 +58,8 @@ pub enum Expression {
         /// Optional ELSE result (defaults to NULL if None)
         else_result: Option<Box<Expression>>,
     },
-    // TODO: Add CAST, subqueries, etc.
+
+    /// Scalar subquery (returns single value)
+    /// Example: WHERE salary > (SELECT AVG(salary) FROM employees)
+    ScalarSubquery(Box<SelectStmt>),
 }
