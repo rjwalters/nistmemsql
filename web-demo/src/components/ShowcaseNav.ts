@@ -6,6 +6,7 @@ export interface ShowcaseCategory {
 }
 
 const CATEGORIES: ShowcaseCategory[] = [
+  { id: 'compliance', label: 'Compliance Dashboard', status: 'implemented', progress: 100 },
   { id: 'data-types', label: 'Data Types', status: 'partial', progress: 38 },
   { id: 'dml', label: 'DML Operations', status: 'implemented', progress: 100 },
   { id: 'predicates', label: 'Predicates & Operators', status: 'implemented', progress: 85 },

@@ -1,0 +1,114 @@
+{
+  "overall": {
+    "percentage": 27,
+    "implemented": 45,
+    "total": 169,
+    "lastUpdated": "2025-10-27"
+  },
+  "categories": [
+    {
+      "name": "Data Types",
+      "percentage": 38,
+      "implemented": 5,
+      "total": 13,
+      "status": "in-progress",
+      "description": "Fundamental SQL data types (INTEGER, VARCHAR, FLOAT, etc.)"
+    },
+    {
+      "name": "DML Statements",
+      "percentage": 77,
+      "implemented": 10,
+      "total": 13,
+      "status": "advanced",
+      "description": "Data Manipulation: SELECT, INSERT, UPDATE, DELETE"
+    },
+    {
+      "name": "Predicates",
+      "percentage": 74,
+      "implemented": 14,
+      "total": 19,
+      "status": "advanced",
+      "description": "WHERE clause conditions (=, <, >, BETWEEN, IN, etc.)"
+    },
+    {
+      "name": "Operators",
+      "percentage": 70,
+      "implemented": 14,
+      "total": 20,
+      "status": "advanced",
+      "description": "Arithmetic, comparison, and logical operators"
+    },
+    {
+      "name": "JOINs",
+      "percentage": 100,
+      "implemented": 6,
+      "total": 6,
+      "status": "complete",
+      "description": "Table joins (INNER, LEFT, RIGHT, FULL, CROSS)"
+    },
+    {
+      "name": "Subqueries",
+      "percentage": 73,
+      "implemented": 8,
+      "total": 11,
+      "status": "advanced",
+      "description": "Nested SELECT statements and derived tables"
+    },
+    {
+      "name": "Aggregates",
+      "percentage": 82,
+      "implemented": 9,
+      "total": 11,
+      "status": "advanced",
+      "description": "GROUP BY, HAVING, COUNT, SUM, AVG, MIN, MAX"
+    },
+    {
+      "name": "Built-in Functions",
+      "percentage": 12,
+      "implemented": 6,
+      "total": 50,
+      "status": "early",
+      "description": "String, numeric, and date functions"
+    },
+    {
+      "name": "DDL",
+      "percentage": 10,
+      "implemented": 1,
+      "total": 10,
+      "status": "early",
+      "description": "Data Definition: CREATE, ALTER, DROP"
+    },
+    {
+      "name": "Constraints",
+      "percentage": 0,
+      "implemented": 0,
+      "total": 6,
+      "status": "not-started",
+      "description": "PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK, NOT NULL"
+    },
+    {
+      "name": "Transactions",
+      "percentage": 0,
+      "implemented": 0,
+      "total": 5,
+      "status": "not-started",
+      "description": "BEGIN, COMMIT, ROLLBACK, SAVEPOINT"
+    },
+    {
+      "name": "Views",
+      "percentage": 0,
+      "implemented": 0,
+      "total": 3,
+      "status": "not-started",
+      "description": "CREATE VIEW, DROP VIEW"
+    },
+    {
+      "name": "Common Table Expressions",
+      "percentage": 100,
+      "implemented": 2,
+      "total": 2,
+      "status": "complete",
+      "description": "WITH clause (recursive and non-recursive)"
+    }
+  ]
+}
