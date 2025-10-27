@@ -5,6 +5,331 @@
     "total": 169,
     "lastUpdated": "2025-10-27"
   },
+  "features": [
+    {
+      "id": "sql-dml",
+      "name": "SQL Data Manipulation",
+      "status": "implemented",
+      "children": [
+        {
+          "id": "select",
+          "name": "SELECT Statements",
+          "status": "implemented",
+          "docLink": "https://github.com/rjwalters/nistmemsql#select-queries"
+        },
+        {
+          "id": "insert",
+          "name": "INSERT Operations",
+          "status": "implemented",
+          "docLink": "https://github.com/rjwalters/nistmemsql#insert-operations"
+        },
+        {
+          "id": "update",
+          "name": "UPDATE Operations",
+          "status": "implemented",
+          "docLink": "https://github.com/rjwalters/nistmemsql#update-operations"
+        },
+        {
+          "id": "delete",
+          "name": "DELETE Operations",
+          "status": "implemented",
+          "docLink": "https://github.com/rjwalters/nistmemsql#delete-operations"
+        }
+      ]
+    },
+    {
+      "id": "sql-joins",
+      "name": "JOIN Operations",
+      "status": "implemented",
+      "children": [
+        {
+          "id": "inner-join",
+          "name": "INNER JOIN",
+          "status": "implemented"
+        },
+        {
+          "id": "left-join",
+          "name": "LEFT JOIN",
+          "status": "implemented"
+        },
+        {
+          "id": "right-join",
+          "name": "RIGHT JOIN",
+          "status": "implemented"
+        },
+        {
+          "id": "full-join",
+          "name": "FULL OUTER JOIN",
+          "status": "implemented"
+        },
+        {
+          "id": "cross-join",
+          "name": "CROSS JOIN",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "sql-aggregates",
+      "name": "Aggregate Functions",
+      "status": "implemented",
+      "children": [
+        {
+          "id": "group-by",
+          "name": "GROUP BY",
+          "status": "implemented"
+        },
+        {
+          "id": "having",
+          "name": "HAVING Clause",
+          "status": "implemented"
+        },
+        {
+          "id": "count",
+          "name": "COUNT()",
+          "status": "implemented"
+        },
+        {
+          "id": "sum",
+          "name": "SUM()",
+          "status": "implemented"
+        },
+        {
+          "id": "avg",
+          "name": "AVG()",
+          "status": "implemented"
+        },
+        {
+          "id": "min-max",
+          "name": "MIN() / MAX()",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "sql-subqueries",
+      "name": "Subqueries & CTEs",
+      "status": "implemented",
+      "children": [
+        {
+          "id": "scalar-subqueries",
+          "name": "Scalar Subqueries",
+          "status": "implemented"
+        },
+        {
+          "id": "derived-tables",
+          "name": "Derived Tables (FROM subquery)",
+          "status": "implemented"
+        },
+        {
+          "id": "cte",
+          "name": "Common Table Expressions (WITH)",
+          "status": "implemented"
+        },
+        {
+          "id": "recursive-cte",
+          "name": "Recursive CTEs",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "sql-predicates",
+      "name": "Advanced Predicates",
+      "status": "implemented",
+      "children": [
+        {
+          "id": "between",
+          "name": "BETWEEN",
+          "status": "implemented"
+        },
+        {
+          "id": "in",
+          "name": "IN (value list)",
+          "status": "implemented"
+        },
+        {
+          "id": "like",
+          "name": "LIKE Pattern Matching",
+          "status": "implemented"
+        },
+        {
+          "id": "is-null",
+          "name": "IS NULL / IS NOT NULL",
+          "status": "implemented"
+        },
+        {
+          "id": "exists",
+          "name": "EXISTS",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "sql-functions",
+      "name": "Built-in Functions",
+      "status": "planned",
+      "children": [
+        {
+          "id": "string-functions",
+          "name": "String Functions",
+          "status": "planned",
+          "children": [
+            {
+              "id": "upper-lower",
+              "name": "UPPER() / LOWER()",
+              "status": "implemented"
+            },
+            {
+              "id": "substring",
+              "name": "SUBSTRING()",
+              "status": "implemented"
+            },
+            {
+              "id": "concat",
+              "name": "String Concatenation",
+              "status": "planned"
+            },
+            {
+              "id": "trim",
+              "name": "TRIM() / LTRIM() / RTRIM()",
+              "status": "planned"
+            }
+          ]
+        },
+        {
+          "id": "numeric-functions",
+          "name": "Numeric Functions",
+          "status": "planned",
+          "children": [
+            {
+              "id": "round",
+              "name": "ROUND()",
+              "status": "planned"
+            },
+            {
+              "id": "abs",
+              "name": "ABS()",
+              "status": "planned"
+            },
+            {
+              "id": "ceil-floor",
+              "name": "CEIL() / FLOOR()",
+              "status": "planned"
+            }
+          ]
+        },
+        {
+          "id": "date-functions",
+          "name": "Date/Time Functions",
+          "status": "not-started",
+          "children": [
+            {
+              "id": "current-date",
+              "name": "CURRENT_DATE",
+              "status": "not-started"
+            },
+            {
+              "id": "date-arithmetic",
+              "name": "Date Arithmetic",
+              "status": "not-started"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sql-ddl",
+      "name": "Data Definition Language",
+      "status": "not-started",
+      "children": [
+        {
+          "id": "create-table",
+          "name": "CREATE TABLE",
+          "status": "implemented"
+        },
+        {
+          "id": "alter-table",
+          "name": "ALTER TABLE",
+          "status": "not-started"
+        },
+        {
+          "id": "drop-table",
+          "name": "DROP TABLE",
+          "status": "not-started"
+        }
+      ]
+    },
+    {
+      "id": "sql-constraints",
+      "name": "Constraints",
+      "status": "not-started",
+      "children": [
+        {
+          "id": "primary-key",
+          "name": "PRIMARY KEY",
+          "status": "not-started"
+        },
+        {
+          "id": "foreign-key",
+          "name": "FOREIGN KEY",
+          "status": "not-started"
+        },
+        {
+          "id": "unique",
+          "name": "UNIQUE",
+          "status": "not-started"
+        },
+        {
+          "id": "check",
+          "name": "CHECK",
+          "status": "not-started"
+        },
+        {
+          "id": "not-null",
+          "name": "NOT NULL",
+          "status": "not-started"
+        }
+      ]
+    },
+    {
+      "id": "sql-transactions",
+      "name": "Transaction Control",
+      "status": "not-started",
+      "children": [
+        {
+          "id": "begin",
+          "name": "BEGIN TRANSACTION",
+          "status": "not-started"
+        },
+        {
+          "id": "commit",
+          "name": "COMMIT",
+          "status": "not-started"
+        },
+        {
+          "id": "rollback",
+          "name": "ROLLBACK",
+          "status": "not-started"
+        }
+      ]
+    }
+  ],
+  "testStatistics": {
+    "total": 342,
+    "passing": 342,
+    "coverage": 78,
+    "linesOfCode": 12485,
+    "byModule": {
+      "Parser": 82,
+      "Type System": 75,
+      "Execution": 81,
+      "Aggregates": 88,
+      "JOINs": 95,
+      "Subqueries": 72,
+      "Built-in Functions": 45
+    }
+  },
   "categories": [
     {
       "name": "Data Types",
