@@ -68,17 +68,18 @@
 
 ### Phase 3: Complete Query Engine
 **Duration**: 2-3 months
-**Status**: 50% complete
+**Status**: 70% complete
 
-**3.1 Missing Operators and Predicates**
-- [ ] BETWEEN predicate
-- [ ] IN predicate (value lists - we have subquery version)
-- [ ] LIKE pattern matching
-- [ ] EXISTS predicate
-- [ ] Quantified comparisons (ALL, SOME, ANY)
-- [ ] CASE expressions (simple and searched)
-- [ ] COALESCE function
-- [ ] NULLIF function
+**3.1 Operators and Predicates** ✅ COMPLETE
+- [x] BETWEEN predicate (implemented)
+- [x] IN predicate with value lists (test_e2e_in_list_predicate)
+- [x] IN predicate with subqueries (implemented)
+- [x] LIKE pattern matching (test_e2e_like_pattern_matching)
+- [x] EXISTS predicate (test_e2e_exists_predicate)
+- [x] Quantified comparisons (ALL, SOME, ANY) (test_e2e_quantified_comparisons)
+- [x] CASE expressions (simple and searched) (implemented)
+- [x] COALESCE function (test_e2e_coalesce_and_nullif)
+- [x] NULLIF function (test_e2e_coalesce_and_nullif)
 
 **3.2 Complete JOIN Support**
 - [ ] Fix RIGHT OUTER JOIN executor
@@ -88,9 +89,9 @@
 - [ ] Join condition validation
 
 **3.3 Set Operations**
-- [ ] UNION [ALL]
-- [ ] INTERSECT [ALL]
-- [ ] EXCEPT [ALL]
+- [x] UNION [ALL] (test_e2e_set_operations)
+- [x] INTERSECT [ALL] (test_e2e_set_operations)
+- [x] EXCEPT [ALL] (test_e2e_set_operations)
 
 **3.4 Subqueries (Complete)**
 - [ ] Correlated subqueries (Issue #82)
