@@ -42,5 +42,21 @@ pub enum Expression {
 
     /// Wildcard (*)
     Wildcard,
-    // TODO: Add CASE, CAST, subqueries, etc.
+
+    /// CASE expression (both simple and searched forms)
+    /// Simple CASE:  CASE x WHEN 1 THEN 'a' ELSE 'b' END
+    /// Searched CASE: CASE WHEN x>0 THEN 'pos' ELSE 'neg' END
+    Case {
+        /// Operand for simple CASE (None for searched CASE)
+        operand: Option<Box<Expression>>,
+
+        /// List of WHEN clauses: (condition, result)
+        /// - Simple CASE: condition is the comparison value
+        /// - Searched CASE: condition is a boolean expression
+        when_clauses: Vec<(Expression, Expression)>,
+
+        /// Optional ELSE result (defaults to NULL if None)
+        else_result: Option<Box<Expression>>,
+    },
+    // TODO: Add CAST, subqueries, etc.
 }
