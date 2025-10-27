@@ -96,6 +96,9 @@ export class ShowcaseController {
       case 'compliance':
         this.currentShowcase = new ComplianceDashboard()
         this.currentShowcase.mount(this.contentContainer)
+        // Expose to window for inline event handlers
+        ;(window as unknown as { complianceDashboard?: ComplianceDashboard }).complianceDashboard =
+          this.currentShowcase
         break
 
       // Future categories will be added here:
