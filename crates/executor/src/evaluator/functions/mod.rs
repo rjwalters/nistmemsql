@@ -22,6 +22,7 @@ mod datetime;
 mod null_handling;
 mod numeric;
 mod string;
+mod system;
 
 /// Evaluate a scalar function on given argument values
 ///
@@ -40,6 +41,7 @@ pub(super) fn eval_scalar_function(
         "UPPER" => string::upper(args),
         "LOWER" => string::lower(args),
         "SUBSTRING" => string::substring(args),
+        "SUBSTR" => string::substring(args), // Alias for SUBSTRING
         "TRIM" => string::trim(args),
         "CHAR_LENGTH" | "CHARACTER_LENGTH" => string::char_length(args, name),
         "CONCAT" => string::concat(args),
@@ -49,6 +51,8 @@ pub(super) fn eval_scalar_function(
         "REVERSE" => string::reverse(args),
         "LEFT" => string::left(args),
         "RIGHT" => string::right(args),
+        "INSTR" => string::instr(args),
+        "LOCATE" => string::locate(args),
 
         // Numeric functions
         "ABS" => numeric::abs(args),
@@ -74,6 +78,7 @@ pub(super) fn eval_scalar_function(
         "DEGREES" => numeric::degrees(args),
         "GREATEST" => numeric::greatest(args),
         "LEAST" => numeric::least(args),
+        "FORMAT" => numeric::format(args),
 
         // Date/time functions
         "CURRENT_DATE" | "CURDATE" => datetime::current_date(args),
@@ -100,6 +105,11 @@ pub(super) fn eval_scalar_function(
         "TO_TIMESTAMP" => conversion::to_timestamp(args),
         "TO_CHAR" => conversion::to_char(args),
         "CAST" => conversion::cast(args),
+
+        // System information functions
+        "VERSION" => system::version(args),
+        "DATABASE" | "SCHEMA" => system::database(args, name),
+        "USER" | "CURRENT_USER" => system::user(args, name),
 
         // Unknown function
         _ => Err(ExecutorError::UnsupportedFeature(format!(

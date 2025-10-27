@@ -74,6 +74,125 @@ ORDER BY category_id;`,
   },
 
   {
+    id: 'string',
+    title: 'String Functions',
+    description: 'UPPER, LOWER, SUBSTRING, TRIM, CONCAT, LENGTH, and more',
+    queries: [
+      {
+        id: 'string-1',
+        title: 'Text Case Conversion',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  UPPER(product_name) AS uppercase,
+  LOWER(product_name) AS lowercase
+FROM products
+LIMIT 5;`,
+        description: 'Convert text to uppercase and lowercase',
+        sqlFeatures: ['UPPER', 'LOWER'],
+      },
+      {
+        id: 'string-2',
+        title: 'String Extraction',
+        database: 'employees',
+        sql: `SELECT
+  first_name,
+  last_name,
+  SUBSTRING(first_name, 1, 1) AS first_initial,
+  LENGTH(last_name) AS last_name_length
+FROM employees
+LIMIT 8;`,
+        description: 'Extract substrings and measure string length',
+        sqlFeatures: ['SUBSTRING', 'LENGTH'],
+      },
+      {
+        id: 'string-3',
+        title: 'Text Trimming',
+        database: 'northwind',
+        sql: `SELECT
+  '  ' || product_name || '  ' AS padded,
+  TRIM('  ' || product_name || '  ') AS trimmed,
+  LENGTH('  ' || product_name || '  ') AS padded_length,
+  LENGTH(TRIM('  ' || product_name || '  ')) AS trimmed_length
+FROM products
+LIMIT 5;`,
+        description: 'Remove leading and trailing whitespace',
+        sqlFeatures: ['TRIM', 'LENGTH', '||'],
+      },
+      {
+        id: 'string-4',
+        title: 'String Concatenation',
+        database: 'employees',
+        sql: `SELECT
+  first_name,
+  last_name,
+  first_name || ' ' || last_name AS full_name,
+  CONCAT(last_name, ', ', first_name) AS formatted_name
+FROM employees
+LIMIT 8;`,
+        description: 'Combine strings using || operator and CONCAT function',
+        sqlFeatures: ['CONCAT', '||'],
+      },
+      {
+        id: 'string-5',
+        title: 'LEFT and RIGHT Extraction',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  LEFT(product_name, 5) AS first_5_chars,
+  RIGHT(product_name, 5) AS last_5_chars
+FROM products
+WHERE LENGTH(product_name) >= 10
+LIMIT 6;`,
+        description: 'Extract characters from start and end of strings',
+        sqlFeatures: ['LEFT', 'RIGHT', 'LENGTH'],
+      },
+      {
+        id: 'string-6',
+        title: 'String Replacement',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  REPLACE(product_name, 'a', '@') AS replaced,
+  REPLACE(product_name, ' ', '_') AS underscored
+FROM products
+WHERE product_name LIKE '%a%'
+LIMIT 6;`,
+        description: 'Replace characters or substrings within text',
+        sqlFeatures: ['REPLACE', 'LIKE'],
+      },
+      {
+        id: 'string-7',
+        title: 'String Search',
+        database: 'employees',
+        sql: `SELECT
+  first_name,
+  last_name,
+  POSITION('a' IN LOWER(first_name)) AS first_a_position,
+  POSITION('e' IN LOWER(last_name)) AS first_e_position
+FROM employees
+WHERE POSITION('a' IN LOWER(first_name)) > 0
+LIMIT 8;`,
+        description: 'Find position of substring within text',
+        sqlFeatures: ['POSITION', 'LOWER'],
+      },
+      {
+        id: 'string-8',
+        title: 'Text Reversal',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  REVERSE(product_name) AS reversed,
+  UPPER(REVERSE(product_name)) AS reversed_upper
+FROM products
+LIMIT 5;`,
+        description: 'Reverse string character order',
+        sqlFeatures: ['REVERSE', 'UPPER'],
+      },
+    ],
+  },
+
+  {
     id: 'joins',
     title: 'JOIN Operations',
     description: 'INNER, LEFT, RIGHT, FULL OUTER, CROSS joins',
@@ -1017,6 +1136,164 @@ GROUP BY
 ORDER BY year DESC, quarter;`,
         description: 'Analyze hiring patterns by fiscal quarter using date functions',
         sqlFeatures: ['MONTH', 'YEAR', 'CASE', 'BETWEEN', 'GROUP BY', 'Business intelligence'],
+      },
+    ],
+  },
+
+  {
+    id: 'math',
+    title: 'Math Functions',
+    description: 'ABS, ROUND, POWER, SQRT, trigonometric, and comparison functions',
+    queries: [
+      {
+        id: 'math-1',
+        title: 'Absolute Value and Sign',
+        database: 'northwind',
+        sql: `SELECT
+  unit_price,
+  unit_price - 20 AS price_diff,
+  ABS(unit_price - 20) AS abs_diff,
+  SIGN(unit_price - 20) AS sign_indicator
+FROM products
+LIMIT 10;`,
+        description: 'Calculate absolute values and sign indicators for price differences',
+        sqlFeatures: ['ABS', 'SIGN', 'Expressions'],
+      },
+      {
+        id: 'math-2',
+        title: 'Rounding Functions',
+        database: 'northwind',
+        sql: `SELECT
+  unit_price,
+  ROUND(unit_price) AS rounded,
+  ROUND(unit_price, 1) AS one_decimal,
+  FLOOR(unit_price) AS floor_value,
+  CEIL(unit_price) AS ceiling_value
+FROM products
+WHERE unit_price IS NOT NULL
+LIMIT 10;`,
+        description: 'Demonstrate various rounding methods for numeric values',
+        sqlFeatures: ['ROUND', 'FLOOR', 'CEIL', 'WHERE'],
+      },
+      {
+        id: 'math-3',
+        title: 'Power and Square Root',
+        database: 'northwind',
+        sql: `SELECT
+  unit_price,
+  POWER(unit_price, 2) AS squared,
+  SQRT(unit_price) AS square_root,
+  ROUND(SQRT(unit_price), 2) AS sqrt_rounded
+FROM products
+WHERE unit_price > 0
+LIMIT 10;`,
+        description: 'Calculate squares, square roots, and combinations',
+        sqlFeatures: ['POWER', 'SQRT', 'ROUND', 'WHERE'],
+      },
+      {
+        id: 'math-4',
+        title: 'Modulo (Remainder)',
+        database: 'northwind',
+        sql: `SELECT
+  product_id,
+  product_name,
+  MOD(product_id, 3) AS group_number,
+  CASE
+    WHEN MOD(product_id, 3) = 0 THEN 'Group A'
+    WHEN MOD(product_id, 3) = 1 THEN 'Group B'
+    ELSE 'Group C'
+  END AS group_name
+FROM products
+ORDER BY product_id
+LIMIT 15;`,
+        description: 'Use MOD to divide products into rotating groups',
+        sqlFeatures: ['MOD', 'CASE', 'ORDER BY'],
+      },
+      {
+        id: 'math-5',
+        title: 'Logarithmic Functions',
+        database: 'northwind',
+        sql: `SELECT
+  unit_price,
+  ROUND(LN(unit_price), 2) AS natural_log,
+  ROUND(LOG10(unit_price), 2) AS log_base_10,
+  ROUND(EXP(1.0), 4) AS e_constant
+FROM products
+WHERE unit_price > 0
+LIMIT 10;`,
+        description: 'Calculate natural logarithms, base-10 logarithms, and exponentials',
+        sqlFeatures: ['LN', 'LOG10', 'EXP', 'ROUND'],
+      },
+      {
+        id: 'math-6',
+        title: 'Trigonometric Functions',
+        database: 'northwind',
+        sql: `SELECT
+  ROUND(PI(), 6) AS pi_value,
+  ROUND(SIN(PI() / 2), 4) AS sin_90_degrees,
+  ROUND(COS(PI()), 4) AS cos_180_degrees,
+  ROUND(TAN(PI() / 4), 4) AS tan_45_degrees
+FROM (SELECT * FROM products LIMIT 1) AS dummy;`,
+        description: 'Demonstrate trigonometric functions with common angles',
+        sqlFeatures: ['PI', 'SIN', 'COS', 'TAN', 'ROUND'],
+      },
+      {
+        id: 'math-7',
+        title: 'Inverse Trigonometric Functions',
+        database: 'northwind',
+        sql: `SELECT
+  ROUND(ASIN(1.0), 4) AS asin_1,
+  ROUND(ACOS(0.0), 4) AS acos_0,
+  ROUND(ATAN(1.0), 4) AS atan_1,
+  ROUND(ATAN2(1.0, 1.0), 4) AS atan2_1_1
+FROM (SELECT * FROM products LIMIT 1) AS dummy;`,
+        description: 'Calculate inverse trigonometric functions (arcsin, arccos, arctan)',
+        sqlFeatures: ['ASIN', 'ACOS', 'ATAN', 'ATAN2', 'ROUND'],
+      },
+      {
+        id: 'math-8',
+        title: 'Angle Conversions',
+        database: 'northwind',
+        sql: `SELECT
+  180 AS degrees,
+  ROUND(RADIANS(180), 4) AS radians,
+  ROUND(DEGREES(PI()), 2) AS back_to_degrees
+FROM (SELECT * FROM products LIMIT 1) AS dummy;`,
+        description: 'Convert between degrees and radians',
+        sqlFeatures: ['RADIANS', 'DEGREES', 'PI', 'ROUND'],
+      },
+      {
+        id: 'math-9',
+        title: 'GREATEST and LEAST',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  unit_price,
+  units_in_stock,
+  GREATEST(unit_price, units_in_stock) AS max_value,
+  LEAST(unit_price, units_in_stock) AS min_value
+FROM products
+WHERE unit_price IS NOT NULL AND units_in_stock IS NOT NULL
+LIMIT 10;`,
+        description: 'Find maximum and minimum values across columns',
+        sqlFeatures: ['GREATEST', 'LEAST', 'WHERE'],
+      },
+      {
+        id: 'math-10',
+        title: 'Price Calculations',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  unit_price,
+  ROUND(unit_price * 1.08, 2) AS with_tax,
+  ROUND(unit_price * 0.9, 2) AS discounted,
+  FLOOR(unit_price) || '.99' AS psychological_price
+FROM products
+WHERE unit_price > 0
+ORDER BY unit_price DESC
+LIMIT 10;`,
+        description: 'Practical business calculations: taxes, discounts, and pricing strategies',
+        sqlFeatures: ['ROUND', 'FLOOR', 'String concatenation', 'Business calculations'],
       },
     ],
   },
