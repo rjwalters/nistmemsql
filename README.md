@@ -33,6 +33,56 @@ Build a **FULL SQL:1999 compliant** database from scratch, designed for NIST con
 
 ---
 
+## 💭 Backstory: The Inflection Point Challenge
+
+### The Philosophical Debate
+
+[@rjwalters](https://github.com/rjwalters) has been arguing that we've crossed the **inflection point** for terminal-based coding agents—that AI assistants like Claude Code are now capable of implementing complex software designs end-to-end, given appropriate guidance. See [Working with AI](https://github.com/rjwalters/loom/blob/main/docs/philosophy/working-with-ai.md) and [Where Are All the Projects?](https://github.com/rjwalters/loom/blob/main/docs/philosophy/where-are-all-the-projects.md) for the full philosophy.
+
+[@posix4e](https://github.com/posix4e) was skeptical. The objections centered on **context window limitations**—the belief that current LLMs can't handle truly complex or large projects that require maintaining state across thousands of implementation decisions.
+
+### The Challenge
+
+Rather than endless debate, a challenge was proposed: **"Implement a NIST-compatible SQL database from scratch."**
+
+This isn't a toy project. A fully SQL:1999 compliant database is a **massive undertaking**:
+- LLM estimates suggest a solo human developer might need **3-5 years** for FULL spec compliance
+- No production database has achieved complete SQL:1999 compliance
+- It's complex enough to be a legitimate test of AI capabilities
+- It's tedious enough that humans typically give up
+
+**@rjwalters' Position**: Claude Code, with appropriate guidance and the [Loom orchestration framework](https://github.com/rjwalters/loom), can implement the **Core SQL:1999 spec in less than two weeks**—orders of magnitude faster and cheaper than a human expert.
+
+### The Experiment
+
+This repository is that experiment, documented in real-time:
+
+**Current Results** (3 days in):
+- ✅ 42% of Core SQL:1999 complete
+- ✅ 836 tests passing (100%)
+- ✅ Complete query engine with JOINs, subqueries, CTEs, aggregates
+- ✅ 30+ built-in functions (string, date/time, math)
+- ✅ Live web demo running in browser via WASM
+- 📈 On track for **10-12 day Core completion**
+
+**The Open Question**: Can Claude Code achieve **FULL SQL:1999 compliance**—something no database has ever accomplished? That would require months more work, implementing ~400+ features including procedural SQL, triggers, advanced types, and the information schema.
+
+**The Certain Thing**: Writing a SQL database is **incredibly tedious**. A human developer would burn out after a few weeks of implementing string padding rules and three-valued logic edge cases. Claude won't. It'll keep trying, keep testing, keep iterating—however long it takes.
+
+### Why This Matters
+
+This isn't just about databases. It's about understanding what's now possible with AI-assisted development:
+- Can LLMs handle multi-month, complex engineering projects?
+- Do context windows truly limit real-world capability?
+- What's the productivity multiplier with proper tooling (Loom)?
+- Where is the actual inflection point for AI-powered development?
+
+**We're documenting everything**—the successes, the failures, the weird edge cases where Claude hallucinates test assertions, the surprising moments where it refactors better than expected. Win or lose, the data will be public.
+
+**Follow along**: This README updates in real-time as the experiment progresses. Place your bets.
+
+---
+
 ## 📊 Current Status (October 27, 2025 - Day 3)
 
 ### Velocity-Based Progress Tracking
