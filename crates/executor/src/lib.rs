@@ -4,11 +4,13 @@
 
 pub mod errors;
 mod evaluator;
+mod insert;
 mod schema;
 mod select;
 
 pub use errors::ExecutorError;
 pub use evaluator::ExpressionEvaluator;
+pub use insert::InsertExecutor;
 pub use select::SelectExecutor;
 
 #[cfg(test)]
