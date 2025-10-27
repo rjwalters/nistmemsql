@@ -15,10 +15,10 @@ console_error_panic_hook = "0.1"
 serde = { version = "1.0", features = ["derive"] }
 serde-wasm-bindgen = "0.6"
 
-# Internal crates (will be added incrementally)
-# Commenting out initially to ensure clean build
-# types = { path = "../types" }
-# parser = { path = "../parser" }
-# executor = { path = "../executor" }
-# storage = { path = "../storage" }
-# catalog = { path = "../catalog" }
+# Internal crates
+types = { path = "../types" }
+ast = { path = "../ast" }
+parser = { path = "../parser" }
+executor = { path = "../executor" }
+storage = { path = "../storage" }
+catalog = { path = "../catalog" }
