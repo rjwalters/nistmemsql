@@ -97,9 +97,14 @@ impl Database {
                     JsValue::from_str(&format!("Execution error: {:?}", e))
                 })?;
 
+                let row_count = insert_stmt.values.len();
                 let result = ExecuteResult {
-                    rows_affected: 1,
-                    message: format!("1 row inserted into '{}'", insert_stmt.table_name),
+                    rows_affected: row_count,
+                    message: format!("{} row{} inserted into '{}'",
+                        row_count,
+                        if row_count == 1 { "" } else { "s" },
+                        insert_stmt.table_name
+                    ),
                 };
 
                 serde_wasm_bindgen::to_value(&result).map_err(|e| {
