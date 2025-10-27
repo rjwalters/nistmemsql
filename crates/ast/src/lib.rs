@@ -32,6 +32,7 @@ mod tests {
     #[test]
     fn test_create_select_statement() {
         let stmt = Statement::Select(SelectStmt {
+            distinct: false,
             select_list: vec![SelectItem::Wildcard],
             from: None,
             where_clause: None,
@@ -205,6 +206,7 @@ mod tests {
     #[test]
     fn test_select_star() {
         let select = SelectStmt {
+            distinct: false,
             select_list: vec![SelectItem::Wildcard],
             from: None,
             where_clause: None,
@@ -225,6 +227,7 @@ mod tests {
     #[test]
     fn test_select_with_columns() {
         let select = SelectStmt {
+            distinct: false,
             select_list: vec![
                 SelectItem::Expression {
                     expr: Expression::ColumnRef { table: None, column: "id".to_string() },
@@ -250,6 +253,7 @@ mod tests {
     #[test]
     fn test_select_with_alias() {
         let select = SelectStmt {
+            distinct: false,
             select_list: vec![SelectItem::Expression {
                 expr: Expression::ColumnRef { table: None, column: "id".to_string() },
                 alias: Some("user_id".to_string()),
@@ -272,6 +276,7 @@ mod tests {
     #[test]
     fn test_select_from_table() {
         let select = SelectStmt {
+            distinct: false,
             select_list: vec![SelectItem::Wildcard],
             from: Some(FromClause::Table { name: "users".to_string(), alias: None }),
             where_clause: None,
@@ -291,6 +296,7 @@ mod tests {
     #[test]
     fn test_select_with_where() {
         let select = SelectStmt {
+            distinct: false,
             select_list: vec![SelectItem::Wildcard],
             from: Some(FromClause::Table { name: "users".to_string(), alias: None }),
             where_clause: Some(Expression::BinaryOp {
@@ -311,6 +317,7 @@ mod tests {
     #[test]
     fn test_select_with_order_by() {
         let select = SelectStmt {
+            distinct: false,
             select_list: vec![SelectItem::Wildcard],
             from: Some(FromClause::Table { name: "users".to_string(), alias: None }),
             where_clause: None,
