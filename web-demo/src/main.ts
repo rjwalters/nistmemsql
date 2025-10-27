@@ -5,6 +5,10 @@ import type { Database } from './db/types'
 import { validateSql } from './editor/validation'
 import { ResultsComponent } from './components/Results'
 import { ThemeToggleComponent } from './components/ThemeToggle'
+import { ExamplesComponent } from './components/Examples'
+import type { ExampleSelectEvent } from './components/Examples'
+import { DatabaseSelectorComponent } from './components/DatabaseSelector'
+import type { DatabaseOption } from './components/DatabaseSelector'
 import { initShowcase } from './showcase'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -342,6 +346,23 @@ async function bootstrap(): Promise<void> {
   applyValidationMarkers(monaco, editor)
 
   const resultsComponent = new ResultsComponent()
+
+  // Initialize Examples sidebar
+  const examplesComponent = new ExamplesComponent()
+  examplesComponent.onSelect((event: ExampleSelectEvent) => {
+    editor.setValue(event.sql)
+    // TODO: Switch database if needed based on event.database
+  })
+
+  // Initialize Database Selector
+  const databases: DatabaseOption[] = [
+    { id: 'employees', name: 'Employees', description: 'Sample employee data' },
+    { id: 'empty', name: 'Empty', description: 'Start with empty database' },
+  ]
+  const databaseSelector = new DatabaseSelectorComponent(databases, 'employees')
+  databaseSelector.onChange((dbId: string) => {
+    console.warn(`Database switching to ${dbId} not yet implemented`)
+  })
 
   const execute = createExecutionHandler(editor, database, resultsComponent, refreshTables)
 

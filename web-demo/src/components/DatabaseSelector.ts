@@ -54,7 +54,7 @@ export class DatabaseSelectorComponent extends Component<DatabaseSelectorState> 
     const { databases, selected } = this.state
 
     if (databases.length === 0) {
-      this.element.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No databases available</p>'
+      this.element.innerHTML = '<p class="text-muted">No databases available</p>'
       return
     }
 
@@ -65,7 +65,7 @@ export class DatabaseSelectorComponent extends Component<DatabaseSelectorState> 
         <label for="db-select" class="sr-only">Select Database</label>
         <select
           id="db-select"
-          class="appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light cursor-pointer"
+          class="appearance-none bg-background border border-border rounded-lg px-4 py-2 pr-8 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark cursor-pointer"
           aria-label="Select database"
         >
           ${databases.map(db => `
@@ -74,14 +74,14 @@ export class DatabaseSelectorComponent extends Component<DatabaseSelectorState> 
             </option>
           `).join('')}
         </select>
-        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-muted">
           <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
             <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
           </svg>
         </div>
       </div>
       ${selectedDb ? `
-        <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+        <p class="text-xs text-muted mt-1">
           ${this.escapeHtml(selectedDb.description)}
         </p>
       ` : ''}

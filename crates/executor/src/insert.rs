@@ -852,4 +852,304 @@ mod tests {
             other => panic!("Expected ConstraintViolation, got {:?}", other),
         }
     }
+
+    #[test]
+    fn test_insert_check_constraint_passes() {
+        let mut db = storage::Database::new();
+
+        // CREATE TABLE products (id INT, price INT CHECK (price >= 0))
+        let schema = catalog::TableSchema::with_all_constraint_types(
+            "products".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("price".to_string(), types::DataType::Integer, false),
+            ],
+            None,
+            Vec::new(),
+            vec![(
+                "price_positive".to_string(),
+                ast::Expression::BinaryOp {
+                    left: Box::new(ast::Expression::ColumnRef {
+                        table: None,
+                        column: "price".to_string(),
+                    }),
+                    op: ast::BinaryOperator::GreaterThanOrEqual,
+                    right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(0))),
+                },
+            )],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert valid row (price >= 0)
+        let stmt = ast::InsertStmt {
+            table_name: "products".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(1)),
+                ast::Expression::Literal(types::SqlValue::Integer(100)),
+            ]],
+        };
+
+        InsertExecutor::execute(&mut db, &stmt).unwrap();
+
+        // Verify row inserted
+        let table = db.get_table("products").unwrap();
+        assert_eq!(table.row_count(), 1);
+    }
+
+    #[test]
+    fn test_insert_check_constraint_violation() {
+        let mut db = storage::Database::new();
+
+        // CREATE TABLE products (id INT, price INT CHECK (price >= 0))
+        let schema = catalog::TableSchema::with_all_constraint_types(
+            "products".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("price".to_string(), types::DataType::Integer, false),
+            ],
+            None,
+            Vec::new(),
+            vec![(
+                "price_positive".to_string(),
+                ast::Expression::BinaryOp {
+                    left: Box::new(ast::Expression::ColumnRef {
+                        table: None,
+                        column: "price".to_string(),
+                    }),
+                    op: ast::BinaryOperator::GreaterThanOrEqual,
+                    right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(0))),
+                },
+            )],
+        );
+        db.create_table(schema).unwrap();
+
+        // Try to insert row with negative price (should fail)
+        let stmt = ast::InsertStmt {
+            table_name: "products".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(1)),
+                ast::Expression::Literal(types::SqlValue::Integer(-10)),
+            ]],
+        };
+
+        let result = InsertExecutor::execute(&mut db, &stmt);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExecutorError::ConstraintViolation(msg) => {
+                assert!(msg.contains("CHECK"));
+                assert!(msg.contains("price_positive"));
+            }
+            other => panic!("Expected ConstraintViolation, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_insert_check_constraint_with_null() {
+        let mut db = storage::Database::new();
+
+        // CREATE TABLE products (id INT, price INT CHECK (price >= 0))
+        let schema = catalog::TableSchema::with_all_constraint_types(
+            "products".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("price".to_string(), types::DataType::Integer, true), // nullable
+            ],
+            None,
+            Vec::new(),
+            vec![(
+                "price_positive".to_string(),
+                ast::Expression::BinaryOp {
+                    left: Box::new(ast::Expression::ColumnRef {
+                        table: None,
+                        column: "price".to_string(),
+                    }),
+                    op: ast::BinaryOperator::GreaterThanOrEqual,
+                    right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(0))),
+                },
+            )],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert row with NULL price - should succeed
+        // (NULL in CHECK constraint evaluates to UNKNOWN, which is treated as TRUE)
+        let stmt = ast::InsertStmt {
+            table_name: "products".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(1)),
+                ast::Expression::Literal(types::SqlValue::Null),
+            ]],
+        };
+
+        InsertExecutor::execute(&mut db, &stmt).unwrap();
+
+        // Verify row inserted
+        let table = db.get_table("products").unwrap();
+        assert_eq!(table.row_count(), 1);
+    }
+
+    #[test]
+    fn test_insert_multiple_check_constraints() {
+        let mut db = storage::Database::new();
+
+        // CREATE TABLE products (id INT, price INT, quantity INT,
+        //                        CHECK (price >= 0), CHECK (quantity >= 0))
+        let schema = catalog::TableSchema::with_all_constraint_types(
+            "products".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("price".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("quantity".to_string(), types::DataType::Integer, false),
+            ],
+            None,
+            Vec::new(),
+            vec![
+                (
+                    "price_positive".to_string(),
+                    ast::Expression::BinaryOp {
+                        left: Box::new(ast::Expression::ColumnRef {
+                            table: None,
+                            column: "price".to_string(),
+                        }),
+                        op: ast::BinaryOperator::GreaterThanOrEqual,
+                        right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(0))),
+                    },
+                ),
+                (
+                    "quantity_positive".to_string(),
+                    ast::Expression::BinaryOp {
+                        left: Box::new(ast::Expression::ColumnRef {
+                            table: None,
+                            column: "quantity".to_string(),
+                        }),
+                        op: ast::BinaryOperator::GreaterThanOrEqual,
+                        right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(0))),
+                    },
+                ),
+            ],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert valid row
+        let stmt1 = ast::InsertStmt {
+            table_name: "products".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(1)),
+                ast::Expression::Literal(types::SqlValue::Integer(100)),
+                ast::Expression::Literal(types::SqlValue::Integer(50)),
+            ]],
+        };
+        InsertExecutor::execute(&mut db, &stmt1).unwrap();
+
+        // Try to insert row with negative price (violates first CHECK)
+        let stmt2 = ast::InsertStmt {
+            table_name: "products".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(2)),
+                ast::Expression::Literal(types::SqlValue::Integer(-10)),
+                ast::Expression::Literal(types::SqlValue::Integer(50)),
+            ]],
+        };
+
+        let result = InsertExecutor::execute(&mut db, &stmt2);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExecutorError::ConstraintViolation(msg) => {
+                assert!(msg.contains("CHECK"));
+                assert!(msg.contains("price_positive"));
+            }
+            other => panic!("Expected ConstraintViolation, got {:?}", other),
+        }
+
+        // Try to insert row with negative quantity (violates second CHECK)
+        let stmt3 = ast::InsertStmt {
+            table_name: "products".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(3)),
+                ast::Expression::Literal(types::SqlValue::Integer(100)),
+                ast::Expression::Literal(types::SqlValue::Integer(-5)),
+            ]],
+        };
+
+        let result = InsertExecutor::execute(&mut db, &stmt3);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExecutorError::ConstraintViolation(msg) => {
+                assert!(msg.contains("CHECK"));
+                assert!(msg.contains("quantity_positive"));
+            }
+            other => panic!("Expected ConstraintViolation, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_insert_check_constraint_with_expression() {
+        let mut db = storage::Database::new();
+
+        // CREATE TABLE employees (id INT, salary INT, bonus INT,
+        //                         CHECK (bonus < salary))
+        let schema = catalog::TableSchema::with_all_constraint_types(
+            "employees".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("salary".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("bonus".to_string(), types::DataType::Integer, false),
+            ],
+            None,
+            Vec::new(),
+            vec![(
+                "bonus_less_than_salary".to_string(),
+                ast::Expression::BinaryOp {
+                    left: Box::new(ast::Expression::ColumnRef {
+                        table: None,
+                        column: "bonus".to_string(),
+                    }),
+                    op: ast::BinaryOperator::LessThan,
+                    right: Box::new(ast::Expression::ColumnRef {
+                        table: None,
+                        column: "salary".to_string(),
+                    }),
+                },
+            )],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert valid row (bonus < salary)
+        let stmt1 = ast::InsertStmt {
+            table_name: "employees".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(1)),
+                ast::Expression::Literal(types::SqlValue::Integer(50000)),
+                ast::Expression::Literal(types::SqlValue::Integer(10000)),
+            ]],
+        };
+        InsertExecutor::execute(&mut db, &stmt1).unwrap();
+
+        // Try to insert row where bonus >= salary (should fail)
+        let stmt2 = ast::InsertStmt {
+            table_name: "employees".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(2)),
+                ast::Expression::Literal(types::SqlValue::Integer(50000)),
+                ast::Expression::Literal(types::SqlValue::Integer(60000)),
+            ]],
+        };
+
+        let result = InsertExecutor::execute(&mut db, &stmt2);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExecutorError::ConstraintViolation(msg) => {
+                assert!(msg.contains("CHECK"));
+                assert!(msg.contains("bonus_less_than_salary"));
+            }
+            other => panic!("Expected ConstraintViolation, got {:?}", other),
+        }
+    }
 }

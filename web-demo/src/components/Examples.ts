@@ -59,17 +59,17 @@ export class ExamplesComponent extends Component<ExamplesState> {
     const { expandedCategories } = this.state
 
     this.element.innerHTML = `
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg">
-        <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-          <h2 class="font-semibold text-gray-900 dark:text-gray-100">
+      <div class="bg-background rounded-lg shadow-lg border border-border">
+        <div class="px-4 py-3 border-b border-border">
+          <h2 class="font-semibold text-foreground">
             SQL:1999 Examples
           </h2>
-          <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+          <p class="text-xs text-muted mt-1">
             ${this.getTotalExampleCount()} queries across ${exampleCategories.length} categories
           </p>
         </div>
 
-        <div class="divide-y divide-gray-200 dark:divide-gray-700">
+        <div class="divide-y divide-border">
           ${exampleCategories.map(category => this.renderCategory(category, expandedCategories)).join('')}
         </div>
       </div>
@@ -89,29 +89,29 @@ export class ExamplesComponent extends Component<ExamplesState> {
     return `
       <div class="category-section">
         <button
-          class="category-toggle w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex justify-between items-center"
+          class="category-toggle w-full px-4 py-3 text-left hover:bg-card/50 transition-colors flex justify-between items-center"
           data-category-id="${this.escapeHtml(category.id)}"
           aria-expanded="${isExpanded}"
           aria-controls="category-${this.escapeHtml(category.id)}"
         >
           <div class="flex-1">
-            <div class="font-medium text-sm text-gray-900 dark:text-gray-100">
+            <div class="font-medium text-sm text-foreground">
               ${this.escapeHtml(category.title)}
             </div>
-            <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+            <div class="text-xs text-muted mt-1">
               ${this.escapeHtml(category.description)}
             </div>
           </div>
           <div class="ml-2 flex items-center gap-2">
-            <span class="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+            <span class="text-xs bg-card px-2 py-1 rounded">
               ${category.queries.length}
             </span>
-            <span class="text-gray-500 dark:text-gray-400">${isExpanded ? '▼' : '▶'}</span>
+            <span class="text-muted">${isExpanded ? '▼' : '▶'}</span>
           </div>
         </button>
 
         ${isExpanded ? `
-          <div id="category-${this.escapeHtml(category.id)}" class="bg-gray-50 dark:bg-gray-900/50">
+          <div id="category-${this.escapeHtml(category.id)}" class="bg-card/30">
             ${category.queries.map(query => this.renderQuery(query)).join('')}
           </div>
         ` : ''}
@@ -122,16 +122,16 @@ export class ExamplesComponent extends Component<ExamplesState> {
   private renderQuery(query: QueryExample): string {
     return `
       <button
-        class="example-item w-full px-4 py-3 text-left border-t border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-colors"
+        class="example-item w-full px-4 py-3 text-left border-t border-border hover:bg-background transition-colors"
         data-example-id="${this.escapeHtml(query.id)}"
         aria-label="Load ${this.escapeHtml(query.title)} example"
       >
         <div class="flex items-start justify-between gap-2">
           <div class="flex-1 min-w-0">
-            <div class="font-medium text-sm text-gray-900 dark:text-gray-100">
+            <div class="font-medium text-sm text-foreground">
               ${this.escapeHtml(query.title)}
             </div>
-            <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+            <div class="text-xs text-muted mt-1">
               ${this.escapeHtml(query.description)}
             </div>
             ${query.sqlFeatures.length > 0 ? `
@@ -142,7 +142,7 @@ export class ExamplesComponent extends Component<ExamplesState> {
                   </span>
                 `).join('')}
                 ${query.sqlFeatures.length > 3 ? `
-                  <span class="text-xs text-gray-500 dark:text-gray-400">
+                  <span class="text-xs text-muted">
                     +${query.sqlFeatures.length - 3} more
                   </span>
                 ` : ''}

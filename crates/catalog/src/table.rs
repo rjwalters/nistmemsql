@@ -9,6 +9,8 @@ pub struct TableSchema {
     pub primary_key: Option<Vec<String>>,
     /// Unique constraints - each inner vec represents a unique constraint (can be single or composite)
     pub unique_constraints: Vec<Vec<String>>,
+    /// Check constraints - each tuple is (constraint_name, check_expression)
+    pub check_constraints: Vec<(String, ast::Expression)>,
 }
 
 impl TableSchema {
@@ -18,6 +20,7 @@ impl TableSchema {
             columns,
             primary_key: None,
             unique_constraints: Vec::new(),
+            check_constraints: Vec::new(),
         }
     }
 
@@ -28,6 +31,7 @@ impl TableSchema {
             columns,
             primary_key: Some(primary_key),
             unique_constraints: Vec::new(),
+            check_constraints: Vec::new(),
         }
     }
 
@@ -42,6 +46,7 @@ impl TableSchema {
             columns,
             primary_key: None,
             unique_constraints,
+            check_constraints: Vec::new(),
         }
     }
 
@@ -57,6 +62,24 @@ impl TableSchema {
             columns,
             primary_key,
             unique_constraints,
+            check_constraints: Vec::new(),
+        }
+    }
+
+    /// Create a table schema with all constraint types
+    pub fn with_all_constraint_types(
+        name: String,
+        columns: Vec<ColumnSchema>,
+        primary_key: Option<Vec<String>>,
+        unique_constraints: Vec<Vec<String>>,
+        check_constraints: Vec<(String, ast::Expression)>,
+    ) -> Self {
+        TableSchema {
+            name,
+            columns,
+            primary_key,
+            unique_constraints,
+            check_constraints,
         }
     }
 

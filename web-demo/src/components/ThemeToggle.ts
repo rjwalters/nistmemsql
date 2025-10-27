@@ -47,7 +47,7 @@ export class ThemeToggleComponent extends Component<ThemeToggleState> {
     this.element.innerHTML = `
       <button
         id="theme-toggle-btn"
-        class="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark"
+        class="p-2 rounded-lg bg-card text-foreground hover:bg-card/80 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark"
         aria-label="Toggle ${label} mode"
         title="Toggle ${label} mode"
       >
