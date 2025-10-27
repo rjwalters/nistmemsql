@@ -9,6 +9,13 @@ permissions:
   contents: read
 
 jobs:
+  noop_for_push:
+    if: github.event_name != 'issues'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip non-issue events
+        run: echo "Workflow only runs on issue events. Current event: ${{ github.event_name }}."
+
   label_external:
     if: github.event_name == 'issues'
     runs-on: ubuntu-latest
