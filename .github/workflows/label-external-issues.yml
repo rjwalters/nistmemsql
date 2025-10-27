@@ -6,6 +6,7 @@ on:
   push:
     paths:
       - '.github/workflows/label-external-issues.yml'
+  workflow_dispatch:
 
 permissions:
   issues: write
