@@ -5,6 +5,7 @@ import { PredicatesShowcase } from '../components/PredicatesShowcase'
 import { AggregatesShowcase } from '../components/AggregatesShowcase'
 import { DMLOperationsShowcase } from '../components/DMLOperationsShowcase'
 import { JOINsShowcase } from '../components/JOINsShowcase'
+import { ComplianceDashboard } from '../components/ComplianceDashboard'
 
 type ShowcaseComponent =
   | DataTypesShowcase
@@ -13,6 +14,7 @@ type ShowcaseComponent =
   | AggregatesShowcase
   | DMLOperationsShowcase
   | JOINsShowcase
+  | ComplianceDashboard
 
 export class ShowcaseController {
   private nav: ShowcaseNav
@@ -88,6 +90,11 @@ export class ShowcaseController {
 
       case 'joins':
         this.currentShowcase = new JOINsShowcase()
+        this.currentShowcase.mount(this.contentContainer)
+        break
+
+      case 'compliance':
+        this.currentShowcase = new ComplianceDashboard()
         this.currentShowcase.mount(this.contentContainer)
         break
 
