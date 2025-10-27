@@ -8,7 +8,16 @@ on:
       - '.github/workflows/label-external-issues.yml'
 
 jobs:
-  noop:
+  label_external:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "noop"
+      - name: Log event
+        id: event
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.info(`Event: ${context.eventName}`);
+            core.setOutput('status', context.eventName);
+
+      - name: Done
+        run: echo "${{ steps.event.outputs.status }}"
