@@ -97,3 +97,160 @@ fn test_eval_addition() {
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(15));
 }
+
+#[test]
+fn test_eval_null_in_addition() {
+    let schema = catalog::TableSchema::new("test".to_string(), vec![]);
+    let evaluator = ExpressionEvaluator::new(&schema);
+    let row = storage::Row::new(vec![]);
+
+    // NULL + 5 = NULL
+    let expr = ast::Expression::BinaryOp {
+        left: Box::new(ast::Expression::Literal(types::SqlValue::Null)),
+        op: ast::BinaryOperator::Plus,
+        right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(5))),
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+    assert_eq!(result, types::SqlValue::Null);
+}
+
+#[test]
+fn test_eval_null_in_subtraction() {
+    let schema = catalog::TableSchema::new("test".to_string(), vec![]);
+    let evaluator = ExpressionEvaluator::new(&schema);
+    let row = storage::Row::new(vec![]);
+
+    // 10 - NULL = NULL
+    let expr = ast::Expression::BinaryOp {
+        left: Box::new(ast::Expression::Literal(types::SqlValue::Integer(10))),
+        op: ast::BinaryOperator::Minus,
+        right: Box::new(ast::Expression::Literal(types::SqlValue::Null)),
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+    assert_eq!(result, types::SqlValue::Null);
+}
+
+#[test]
+fn test_eval_null_in_multiplication() {
+    let schema = catalog::TableSchema::new("test".to_string(), vec![]);
+    let evaluator = ExpressionEvaluator::new(&schema);
+    let row = storage::Row::new(vec![]);
+
+    // NULL * 5 = NULL
+    let expr = ast::Expression::BinaryOp {
+        left: Box::new(ast::Expression::Literal(types::SqlValue::Null)),
+        op: ast::BinaryOperator::Multiply,
+        right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(5))),
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+    assert_eq!(result, types::SqlValue::Null);
+}
+
+#[test]
+fn test_eval_null_in_division() {
+    let schema = catalog::TableSchema::new("test".to_string(), vec![]);
+    let evaluator = ExpressionEvaluator::new(&schema);
+    let row = storage::Row::new(vec![]);
+
+    // NULL / 5 = NULL
+    let expr = ast::Expression::BinaryOp {
+        left: Box::new(ast::Expression::Literal(types::SqlValue::Null)),
+        op: ast::BinaryOperator::Divide,
+        right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(5))),
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+    assert_eq!(result, types::SqlValue::Null);
+}
+
+#[test]
+fn test_eval_division_by_zero() {
+    let schema = catalog::TableSchema::new("test".to_string(), vec![]);
+    let evaluator = ExpressionEvaluator::new(&schema);
+    let row = storage::Row::new(vec![]);
+
+    // 10 / 0 = Error
+    let expr = ast::Expression::BinaryOp {
+        left: Box::new(ast::Expression::Literal(types::SqlValue::Integer(10))),
+        op: ast::BinaryOperator::Divide,
+        right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(0))),
+    };
+    let err = evaluator.eval(&expr, &row).unwrap_err();
+    assert!(matches!(err, ExecutorError::DivisionByZero));
+}
+
+#[test]
+fn test_eval_type_mismatch_in_addition() {
+    let schema = catalog::TableSchema::new("test".to_string(), vec![]);
+    let evaluator = ExpressionEvaluator::new(&schema);
+    let row = storage::Row::new(vec![]);
+
+    // 10 + "hello" = Error
+    let expr = ast::Expression::BinaryOp {
+        left: Box::new(ast::Expression::Literal(types::SqlValue::Integer(10))),
+        op: ast::BinaryOperator::Plus,
+        right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("hello".to_string()))),
+    };
+    let err = evaluator.eval(&expr, &row).unwrap_err();
+    assert!(matches!(err, ExecutorError::TypeMismatch { .. }));
+}
+
+#[test]
+fn test_eval_null_in_comparison() {
+    let schema = catalog::TableSchema::new("test".to_string(), vec![]);
+    let evaluator = ExpressionEvaluator::new(&schema);
+    let row = storage::Row::new(vec![]);
+
+    // NULL = 5 should return NULL (unknown)
+    let expr = ast::Expression::BinaryOp {
+        left: Box::new(ast::Expression::Literal(types::SqlValue::Null)),
+        op: ast::BinaryOperator::Equal,
+        right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(5))),
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+    assert_eq!(result, types::SqlValue::Null);
+}
+
+#[test]
+fn test_eval_subtraction() {
+    let schema = catalog::TableSchema::new("test".to_string(), vec![]);
+    let evaluator = ExpressionEvaluator::new(&schema);
+    let row = storage::Row::new(vec![]);
+
+    let expr = ast::Expression::BinaryOp {
+        left: Box::new(ast::Expression::Literal(types::SqlValue::Integer(10))),
+        op: ast::BinaryOperator::Minus,
+        right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(3))),
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+    assert_eq!(result, types::SqlValue::Integer(7));
+}
+
+#[test]
+fn test_eval_multiplication() {
+    let schema = catalog::TableSchema::new("test".to_string(), vec![]);
+    let evaluator = ExpressionEvaluator::new(&schema);
+    let row = storage::Row::new(vec![]);
+
+    let expr = ast::Expression::BinaryOp {
+        left: Box::new(ast::Expression::Literal(types::SqlValue::Integer(6))),
+        op: ast::BinaryOperator::Multiply,
+        right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(7))),
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+    assert_eq!(result, types::SqlValue::Integer(42));
+}
+
+#[test]
+fn test_eval_division() {
+    let schema = catalog::TableSchema::new("test".to_string(), vec![]);
+    let evaluator = ExpressionEvaluator::new(&schema);
+    let row = storage::Row::new(vec![]);
+
+    let expr = ast::Expression::BinaryOp {
+        left: Box::new(ast::Expression::Literal(types::SqlValue::Integer(20))),
+        op: ast::BinaryOperator::Divide,
+        right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(4))),
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+    assert_eq!(result, types::SqlValue::Integer(5));
+}

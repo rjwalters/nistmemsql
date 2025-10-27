@@ -9,8 +9,12 @@
 //! - `aggregates`: Aggregate functions (COUNT, SUM, GROUP BY, HAVING)
 //! - `select_joins`: JOIN operation tests
 //! - `scalar_subqueries`: Scalar subquery execution tests
+//! - `error_display`: ExecutorError Display implementation tests
+//! - `comparison_ops`: Comparison operator tests
 
 mod aggregates;
+mod comparison_ops;
+mod error_display;
 mod expression_eval;
 mod limit_offset;
 mod scalar_subqueries;
