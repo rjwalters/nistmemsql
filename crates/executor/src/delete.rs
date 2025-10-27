@@ -98,11 +98,11 @@ impl DeleteExecutor {
         let deleted_count = table.delete_where(|row| {
             // Evaluate WHERE clause for this row
             match evaluator.eval(where_expr, row) {
-                Ok(types::SqlValue::Boolean(true)) => true,  // Delete this row
+                Ok(types::SqlValue::Boolean(true)) => true, // Delete this row
                 Ok(types::SqlValue::Boolean(false)) => false, // Keep this row
-                Ok(types::SqlValue::Null) => false,          // NULL = false (SQL semantics)
-                Ok(_) => false,                              // Non-boolean = keep row
-                Err(_) => false,                             // Error = keep row (safe default)
+                Ok(types::SqlValue::Null) => false,         // NULL = false (SQL semantics)
+                Ok(_) => false,                             // Non-boolean = keep row
+                Err(_) => false,                            // Error = keep row (safe default)
             }
         });
 
@@ -169,10 +169,7 @@ mod tests {
         setup_test_table(&mut db);
 
         // DELETE FROM users;
-        let stmt = DeleteStmt {
-            table_name: "users".to_string(),
-            where_clause: None,
-        };
+        let stmt = DeleteStmt { table_name: "users".to_string(), where_clause: None };
 
         let deleted = DeleteExecutor::execute(&stmt, &mut db).unwrap();
         assert_eq!(deleted, 3);
@@ -190,10 +187,7 @@ mod tests {
         let stmt = DeleteStmt {
             table_name: "users".to_string(),
             where_clause: Some(Expression::BinaryOp {
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "id".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
                 op: BinaryOperator::Equal,
                 right: Box::new(Expression::Literal(SqlValue::Integer(2))),
             }),
@@ -209,13 +203,7 @@ mod tests {
         let remaining: Vec<i64> = table
             .scan()
             .iter()
-            .map(|row| {
-                if let SqlValue::Integer(id) = row.get(0).unwrap() {
-                    *id
-                } else {
-                    0
-                }
-            })
+            .map(|row| if let SqlValue::Integer(id) = row.get(0).unwrap() { *id } else { 0 })
             .collect();
 
         assert!(remaining.contains(&1)); // Alice
@@ -232,10 +220,7 @@ mod tests {
         let stmt = DeleteStmt {
             table_name: "users".to_string(),
             where_clause: Some(Expression::BinaryOp {
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "active".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "active".to_string() }),
                 op: BinaryOperator::Equal,
                 right: Box::new(Expression::Literal(SqlValue::Boolean(true))),
             }),
@@ -248,11 +233,8 @@ mod tests {
         let table = db.get_table("users").unwrap();
         assert_eq!(table.row_count(), 1);
 
-        let remaining_id = if let SqlValue::Integer(id) = table.scan()[0].get(0).unwrap() {
-            *id
-        } else {
-            0
-        };
+        let remaining_id =
+            if let SqlValue::Integer(id) = table.scan()[0].get(0).unwrap() { *id } else { 0 };
         assert_eq!(remaining_id, 2); // Bob
     }
 
@@ -265,10 +247,7 @@ mod tests {
         let stmt = DeleteStmt {
             table_name: "users".to_string(),
             where_clause: Some(Expression::BinaryOp {
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "id".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
                 op: BinaryOperator::GreaterThan,
                 right: Box::new(Expression::Literal(SqlValue::Integer(1))),
             }),
@@ -281,12 +260,11 @@ mod tests {
         let table = db.get_table("users").unwrap();
         assert_eq!(table.row_count(), 1);
 
-        let remaining_name =
-            if let SqlValue::Varchar(name) = table.scan()[0].get(1).unwrap() {
-                name.clone()
-            } else {
-                String::new()
-            };
+        let remaining_name = if let SqlValue::Varchar(name) = table.scan()[0].get(1).unwrap() {
+            name.clone()
+        } else {
+            String::new()
+        };
         assert_eq!(remaining_name, "Alice");
     }
 
@@ -294,10 +272,7 @@ mod tests {
     fn test_delete_table_not_found() {
         let mut db = Database::new();
 
-        let stmt = DeleteStmt {
-            table_name: "nonexistent".to_string(),
-            where_clause: None,
-        };
+        let stmt = DeleteStmt { table_name: "nonexistent".to_string(), where_clause: None };
 
         let result = DeleteExecutor::execute(&stmt, &mut db);
         assert!(result.is_err());
@@ -313,10 +288,7 @@ mod tests {
         let stmt = DeleteStmt {
             table_name: "users".to_string(),
             where_clause: Some(Expression::BinaryOp {
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "id".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
                 op: BinaryOperator::Equal,
                 right: Box::new(Expression::Literal(SqlValue::Integer(999))),
             }),
@@ -342,10 +314,7 @@ mod tests {
         db.create_table(schema).unwrap();
 
         // DELETE FROM empty_users;
-        let stmt = DeleteStmt {
-            table_name: "empty_users".to_string(),
-            where_clause: None,
-        };
+        let stmt = DeleteStmt { table_name: "empty_users".to_string(), where_clause: None };
 
         let deleted = DeleteExecutor::execute(&stmt, &mut db).unwrap();
         assert_eq!(deleted, 0);

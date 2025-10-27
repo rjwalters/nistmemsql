@@ -49,7 +49,10 @@ impl CreateTableExecutor {
     /// let result = CreateTableExecutor::execute(&stmt, &mut db);
     /// assert!(result.is_ok());
     /// ```
-    pub fn execute(stmt: &CreateTableStmt, database: &mut Database) -> Result<String, ExecutorError> {
+    pub fn execute(
+        stmt: &CreateTableStmt,
+        database: &mut Database,
+    ) -> Result<String, ExecutorError> {
         // Check if table already exists (defensive check before calling storage)
         if database.catalog.table_exists(&stmt.table_name) {
             return Err(ExecutorError::TableAlreadyExists(stmt.table_name.clone()));
@@ -59,11 +62,9 @@ impl CreateTableExecutor {
         let columns: Vec<ColumnSchema> = stmt
             .columns
             .iter()
-            .map(|col_def| ColumnSchema::new(
-                col_def.name.clone(),
-                col_def.data_type.clone(),
-                col_def.nullable,
-            ))
+            .map(|col_def| {
+                ColumnSchema::new(col_def.name.clone(), col_def.data_type.clone(), col_def.nullable)
+            })
             .collect();
 
         // Create TableSchema
@@ -92,11 +93,7 @@ mod tests {
         let stmt = CreateTableStmt {
             table_name: "users".to_string(),
             columns: vec![
-                ColumnDef {
-                    name: "id".to_string(),
-                    data_type: DataType::Integer,
-                    nullable: false,
-                },
+                ColumnDef { name: "id".to_string(), data_type: DataType::Integer, nullable: false },
                 ColumnDef {
                     name: "name".to_string(),
                     data_type: DataType::Varchar { max_length: 255 },
@@ -193,11 +190,7 @@ mod tests {
         let stmt = CreateTableStmt {
             table_name: "employees".to_string(),
             columns: vec![
-                ColumnDef {
-                    name: "id".to_string(),
-                    data_type: DataType::Integer,
-                    nullable: false,
-                },
+                ColumnDef { name: "id".to_string(), data_type: DataType::Integer, nullable: false },
                 ColumnDef {
                     name: "middle_name".to_string(),
                     data_type: DataType::Varchar { max_length: 50 },

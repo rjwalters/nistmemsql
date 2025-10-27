@@ -10,29 +10,16 @@ pub enum Expression {
     Literal(SqlValue),
 
     /// Column reference (id, users.id)
-    ColumnRef {
-        table: Option<String>,
-        column: String
-    },
+    ColumnRef { table: Option<String>, column: String },
 
     /// Binary operation (a + b, x = y, p AND q)
-    BinaryOp {
-        op: BinaryOperator,
-        left: Box<Expression>,
-        right: Box<Expression>
-    },
+    BinaryOp { op: BinaryOperator, left: Box<Expression>, right: Box<Expression> },
 
     /// Unary operation (NOT x, -5)
-    UnaryOp {
-        op: UnaryOperator,
-        expr: Box<Expression>
-    },
+    UnaryOp { op: UnaryOperator, expr: Box<Expression> },
 
     /// Function call (COUNT(*), SUM(x))
-    Function {
-        name: String,
-        args: Vec<Expression>
-    },
+    Function { name: String, args: Vec<Expression> },
 
     /// IS NULL / IS NOT NULL
     IsNull {

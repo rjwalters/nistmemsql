@@ -273,10 +273,7 @@ mod tests {
                 },
             ],
             where_clause: Some(Expression::BinaryOp {
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "id".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
                 op: BinaryOperator::Equal,
                 right: Box::new(Expression::Literal(SqlValue::Integer(1))),
             }),
@@ -376,10 +373,7 @@ mod tests {
                 value: Expression::Literal(SqlValue::Integer(99999)),
             }],
             where_clause: Some(Expression::BinaryOp {
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "id".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
                 op: BinaryOperator::Equal,
                 right: Box::new(Expression::Literal(SqlValue::Integer(999))),
             }),

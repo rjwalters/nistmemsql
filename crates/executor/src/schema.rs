@@ -30,7 +30,7 @@ impl CombinedSchema {
         // Build column definitions
         let columns: Vec<catalog::ColumnSchema> = column_names
             .into_iter()
-            .zip(column_types.into_iter())
+            .zip(column_types)
             .map(|(name, data_type)| catalog::ColumnSchema {
                 name,
                 data_type,
@@ -38,10 +38,7 @@ impl CombinedSchema {
             })
             .collect();
 
-        let schema = catalog::TableSchema {
-            name: alias.clone(),
-            columns,
-        };
+        let schema = catalog::TableSchema { name: alias.clone(), columns };
         let mut table_schemas = HashMap::new();
         table_schemas.insert(alias, (0, schema));
         CombinedSchema { table_schemas, total_columns }

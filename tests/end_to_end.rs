@@ -184,26 +184,11 @@ fn test_e2e_distinct() {
 
     // Insert products with duplicate categories
     let products = vec![
-        Row::new(vec![
-            SqlValue::Integer(1),
-            SqlValue::Varchar("Electronics".to_string()),
-        ]),
-        Row::new(vec![
-            SqlValue::Integer(2),
-            SqlValue::Varchar("Books".to_string()),
-        ]),
-        Row::new(vec![
-            SqlValue::Integer(3),
-            SqlValue::Varchar("Electronics".to_string()),
-        ]),
-        Row::new(vec![
-            SqlValue::Integer(4),
-            SqlValue::Varchar("Books".to_string()),
-        ]),
-        Row::new(vec![
-            SqlValue::Integer(5),
-            SqlValue::Varchar("Clothing".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Electronics".to_string())]),
+        Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Books".to_string())]),
+        Row::new(vec![SqlValue::Integer(3), SqlValue::Varchar("Electronics".to_string())]),
+        Row::new(vec![SqlValue::Integer(4), SqlValue::Varchar("Books".to_string())]),
+        Row::new(vec![SqlValue::Integer(5), SqlValue::Varchar("Clothing".to_string())]),
     ];
 
     for row in products {

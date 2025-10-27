@@ -18,7 +18,11 @@ fn test_scalar_subquery_in_where_clause() {
         "employees".to_string(),
         vec![
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: 100 }, false),
+            catalog::ColumnSchema::new(
+                "name".to_string(),
+                types::DataType::Varchar { max_length: 100 },
+                false,
+            ),
             catalog::ColumnSchema::new("salary".to_string(), types::DataType::Integer, false),
         ],
     );
@@ -32,7 +36,8 @@ fn test_scalar_subquery_in_where_clause() {
             types::SqlValue::Varchar("Alice".to_string()),
             types::SqlValue::Integer(50000),
         ]),
-    ).unwrap();
+    )
+    .unwrap();
     db.insert_row(
         "employees",
         storage::Row::new(vec![
@@ -40,7 +45,8 @@ fn test_scalar_subquery_in_where_clause() {
             types::SqlValue::Varchar("Bob".to_string()),
             types::SqlValue::Integer(60000),
         ]),
-    ).unwrap();
+    )
+    .unwrap();
     db.insert_row(
         "employees",
         storage::Row::new(vec![
@@ -48,7 +54,8 @@ fn test_scalar_subquery_in_where_clause() {
             types::SqlValue::Varchar("Charlie".to_string()),
             types::SqlValue::Integer(70000),
         ]),
-    ).unwrap();
+    )
+    .unwrap();
 
     // Build subquery: SELECT AVG(salary) FROM employees
     let subquery = Box::new(ast::SelectStmt {
@@ -63,10 +70,7 @@ fn test_scalar_subquery_in_where_clause() {
             },
             alias: None,
         }],
-        from: Some(ast::FromClause::Table {
-            name: "employees".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "employees".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -79,10 +83,7 @@ fn test_scalar_subquery_in_where_clause() {
     let stmt = ast::SelectStmt {
         distinct: false,
         select_list: vec![ast::SelectItem::Wildcard],
-        from: Some(ast::FromClause::Table {
-            name: "employees".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "employees".to_string(), alias: None }),
         where_clause: Some(ast::Expression::BinaryOp {
             left: Box::new(ast::Expression::ColumnRef {
                 table: None,
@@ -118,7 +119,11 @@ fn test_scalar_subquery_in_select_list() {
         "employees".to_string(),
         vec![
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: 100 }, false),
+            catalog::ColumnSchema::new(
+                "name".to_string(),
+                types::DataType::Varchar { max_length: 100 },
+                false,
+            ),
             catalog::ColumnSchema::new("salary".to_string(), types::DataType::Integer, false),
         ],
     );
@@ -132,7 +137,8 @@ fn test_scalar_subquery_in_select_list() {
             types::SqlValue::Varchar("Alice".to_string()),
             types::SqlValue::Integer(50000),
         ]),
-    ).unwrap();
+    )
+    .unwrap();
     db.insert_row(
         "employees",
         storage::Row::new(vec![
@@ -140,7 +146,8 @@ fn test_scalar_subquery_in_select_list() {
             types::SqlValue::Varchar("Bob".to_string()),
             types::SqlValue::Integer(70000),
         ]),
-    ).unwrap();
+    )
+    .unwrap();
 
     // Build subquery: SELECT MAX(salary) FROM employees
     let subquery = Box::new(ast::SelectStmt {
@@ -155,10 +162,7 @@ fn test_scalar_subquery_in_select_list() {
             },
             alias: None,
         }],
-        from: Some(ast::FromClause::Table {
-            name: "employees".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "employees".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -172,17 +176,11 @@ fn test_scalar_subquery_in_select_list() {
         distinct: false,
         select_list: vec![
             ast::SelectItem::Expression {
-                expr: ast::Expression::ColumnRef {
-                    table: None,
-                    column: "name".to_string(),
-                },
+                expr: ast::Expression::ColumnRef { table: None, column: "name".to_string() },
                 alias: None,
             },
             ast::SelectItem::Expression {
-                expr: ast::Expression::ColumnRef {
-                    table: None,
-                    column: "salary".to_string(),
-                },
+                expr: ast::Expression::ColumnRef { table: None, column: "salary".to_string() },
                 alias: None,
             },
             ast::SelectItem::Expression {
@@ -190,10 +188,7 @@ fn test_scalar_subquery_in_select_list() {
                 alias: Some("max_sal".to_string()),
             },
         ],
-        from: Some(ast::FromClause::Table {
-            name: "employees".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "employees".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -223,37 +218,23 @@ fn test_scalar_subquery_returns_null_when_empty() {
     // Create employees table
     let schema = catalog::TableSchema::new(
         "employees".to_string(),
-        vec![
-            catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-        ],
+        vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
 
     // Insert one row with id=1
-    db.insert_row(
-        "employees",
-        storage::Row::new(vec![types::SqlValue::Integer(1)]),
-    ).unwrap();
+    db.insert_row("employees", storage::Row::new(vec![types::SqlValue::Integer(1)])).unwrap();
 
     // Build subquery that returns no rows: SELECT id FROM employees WHERE id = 999
     let subquery = Box::new(ast::SelectStmt {
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
-            expr: ast::Expression::ColumnRef {
-                table: None,
-                column: "id".to_string(),
-            },
+            expr: ast::Expression::ColumnRef { table: None, column: "id".to_string() },
             alias: None,
         }],
-        from: Some(ast::FromClause::Table {
-            name: "employees".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "employees".to_string(), alias: None }),
         where_clause: Some(ast::Expression::BinaryOp {
-            left: Box::new(ast::Expression::ColumnRef {
-                table: None,
-                column: "id".to_string(),
-            }),
+            left: Box::new(ast::Expression::ColumnRef { table: None, column: "id".to_string() }),
             op: ast::BinaryOperator::Equal,
             right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(999))),
         }),
@@ -271,10 +252,7 @@ fn test_scalar_subquery_returns_null_when_empty() {
             expr: ast::Expression::ScalarSubquery(subquery),
             alias: Some("missing_id".to_string()),
         }],
-        from: Some(ast::FromClause::Table {
-            name: "employees".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "employees".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -299,9 +277,7 @@ fn test_scalar_subquery_error_multiple_rows() {
     // Create employees table
     let schema = catalog::TableSchema::new(
         "employees".to_string(),
-        vec![
-            catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-        ],
+        vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
 
@@ -313,16 +289,10 @@ fn test_scalar_subquery_error_multiple_rows() {
     let subquery = Box::new(ast::SelectStmt {
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
-            expr: ast::Expression::ColumnRef {
-                table: None,
-                column: "id".to_string(),
-            },
+            expr: ast::Expression::ColumnRef { table: None, column: "id".to_string() },
             alias: None,
         }],
-        from: Some(ast::FromClause::Table {
-            name: "employees".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "employees".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -338,10 +308,7 @@ fn test_scalar_subquery_error_multiple_rows() {
             expr: ast::Expression::ScalarSubquery(subquery),
             alias: None,
         }],
-        from: Some(ast::FromClause::Table {
-            name: "employees".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "employees".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -374,7 +341,11 @@ fn test_scalar_subquery_error_multiple_columns() {
         "employees".to_string(),
         vec![
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: 100 }, false),
+            catalog::ColumnSchema::new(
+                "name".to_string(),
+                types::DataType::Varchar { max_length: 100 },
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -386,31 +357,23 @@ fn test_scalar_subquery_error_multiple_columns() {
             types::SqlValue::Integer(1),
             types::SqlValue::Varchar("Alice".to_string()),
         ]),
-    ).unwrap();
+    )
+    .unwrap();
 
     // Build subquery that returns multiple columns: SELECT id, name FROM employees
     let subquery = Box::new(ast::SelectStmt {
         distinct: false,
         select_list: vec![
             ast::SelectItem::Expression {
-                expr: ast::Expression::ColumnRef {
-                    table: None,
-                    column: "id".to_string(),
-                },
+                expr: ast::Expression::ColumnRef { table: None, column: "id".to_string() },
                 alias: None,
             },
             ast::SelectItem::Expression {
-                expr: ast::Expression::ColumnRef {
-                    table: None,
-                    column: "name".to_string(),
-                },
+                expr: ast::Expression::ColumnRef { table: None, column: "name".to_string() },
                 alias: None,
             },
         ],
-        from: Some(ast::FromClause::Table {
-            name: "employees".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "employees".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -426,10 +389,7 @@ fn test_scalar_subquery_error_multiple_columns() {
             expr: ast::Expression::ScalarSubquery(subquery),
             alias: None,
         }],
-        from: Some(ast::FromClause::Table {
-            name: "employees".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "employees".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,

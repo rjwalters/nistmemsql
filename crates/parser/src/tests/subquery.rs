@@ -49,7 +49,7 @@ fn test_parse_not_in_subquery() {
             match where_clause {
                 Expression::In { expr, subquery: _, negated } => {
                     assert!(negated); // Should be negated
-                    // Check left expression is 'status'
+                                      // Check left expression is 'status'
                     match *expr {
                         Expression::ColumnRef { table, column } => {
                             assert_eq!(table, None);
@@ -152,14 +152,12 @@ fn test_parse_scalar_subquery_in_where() {
                             // Verify it's selecting AVG
                             assert_eq!(subquery.select_list.len(), 1);
                             match &subquery.select_list[0] {
-                                ast::SelectItem::Expression { expr, .. } => {
-                                    match expr {
-                                        Expression::Function { name, .. } => {
-                                            assert_eq!(name.to_uppercase(), "AVG");
-                                        }
-                                        _ => panic!("Expected function call in subquery"),
+                                ast::SelectItem::Expression { expr, .. } => match expr {
+                                    Expression::Function { name, .. } => {
+                                        assert_eq!(name.to_uppercase(), "AVG");
                                     }
-                                }
+                                    _ => panic!("Expected function call in subquery"),
+                                },
                                 _ => panic!("Expected expression in subquery"),
                             }
                         }

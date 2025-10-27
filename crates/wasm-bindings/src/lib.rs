@@ -94,7 +94,8 @@ impl Database {
                 let row_count = insert_stmt.values.len();
                 let result = ExecuteResult {
                     rows_affected: row_count,
-                    message: format!("{} row{} inserted into '{}'",
+                    message: format!(
+                        "{} row{} inserted into '{}'",
                         row_count,
                         if row_count == 1 { "" } else { "s" },
                         insert_stmt.table_name

@@ -37,9 +37,7 @@ fn test_simple_case_basic_match() {
                 Expression::Literal(SqlValue::Varchar("Inactive User".to_string())),
             ),
         ],
-        else_result: Some(Box::new(Expression::Literal(SqlValue::Varchar(
-            "Unknown".to_string(),
-        )))),
+        else_result: Some(Box::new(Expression::Literal(SqlValue::Varchar("Unknown".to_string())))),
     };
 
     // Test with 'active' status
@@ -85,17 +83,11 @@ fn test_simple_case_null_handling() {
             Expression::Literal(SqlValue::Null),
             Expression::Literal(SqlValue::Varchar("Null Status".to_string())),
         )],
-        else_result: Some(Box::new(Expression::Literal(SqlValue::Varchar(
-            "Not Null".to_string(),
-        )))),
+        else_result: Some(Box::new(Expression::Literal(SqlValue::Varchar("Not Null".to_string())))),
     };
 
     // Test with NULL status (NULL = NULL should be TRUE in simple CASE)
-    let row = Row::new(vec![
-        SqlValue::Integer(1),
-        SqlValue::Null,
-        SqlValue::Integer(100),
-    ]);
+    let row = Row::new(vec![SqlValue::Integer(1), SqlValue::Null, SqlValue::Integer(100)]);
     let result = evaluator.eval(&case_expr, &row).unwrap();
     assert_eq!(result, SqlValue::Varchar("Null Status".to_string()));
 }
@@ -132,9 +124,7 @@ fn test_searched_case_basic() {
                 Expression::Literal(SqlValue::Varchar("Medium".to_string())),
             ),
         ],
-        else_result: Some(Box::new(Expression::Literal(SqlValue::Varchar(
-            "High".to_string(),
-        )))),
+        else_result: Some(Box::new(Expression::Literal(SqlValue::Varchar("High".to_string())))),
     };
 
     // Test value = 25 (should match first condition)
@@ -178,9 +168,7 @@ fn test_searched_case_null_condition() {
             Expression::Literal(SqlValue::Null),
             Expression::Literal(SqlValue::Varchar("yes".to_string())),
         )],
-        else_result: Some(Box::new(Expression::Literal(SqlValue::Varchar(
-            "no".to_string(),
-        )))),
+        else_result: Some(Box::new(Expression::Literal(SqlValue::Varchar("no".to_string())))),
     };
 
     let row = Row::new(vec![
@@ -201,10 +189,7 @@ fn test_case_no_else_defaults_to_null() {
     // CASE value WHEN 1 THEN 'one' WHEN 2 THEN 'two' END
     // No ELSE clause, value = 3 -> should return NULL
     let case_expr = Expression::Case {
-        operand: Some(Box::new(Expression::ColumnRef {
-            table: None,
-            column: "value".to_string(),
-        })),
+        operand: Some(Box::new(Expression::ColumnRef { table: None, column: "value".to_string() })),
         when_clauses: vec![
             (
                 Expression::Literal(SqlValue::Integer(1)),
@@ -235,10 +220,7 @@ fn test_case_lazy_evaluation() {
     // CASE value WHEN 1 THEN 'first' WHEN 1 THEN 'second' ELSE 'other' END
     // Should return 'first' and not evaluate second WHEN
     let case_expr = Expression::Case {
-        operand: Some(Box::new(Expression::ColumnRef {
-            table: None,
-            column: "value".to_string(),
-        })),
+        operand: Some(Box::new(Expression::ColumnRef { table: None, column: "value".to_string() })),
         when_clauses: vec![
             (
                 Expression::Literal(SqlValue::Integer(1)),
@@ -249,9 +231,7 @@ fn test_case_lazy_evaluation() {
                 Expression::Literal(SqlValue::Varchar("second".to_string())),
             ),
         ],
-        else_result: Some(Box::new(Expression::Literal(SqlValue::Varchar(
-            "other".to_string(),
-        )))),
+        else_result: Some(Box::new(Expression::Literal(SqlValue::Varchar("other".to_string())))),
     };
 
     let row = Row::new(vec![

@@ -297,11 +297,13 @@ fn test_full_outer_join() {
     assert_eq!(result.len(), 3); // Alice (no order), Bob+order, order (no user)
 
     // Count rows with NULLs in user columns (order with no user)
-    let null_user_count = result.iter().filter(|row| row.values[0] == types::SqlValue::Null).count();
+    let null_user_count =
+        result.iter().filter(|row| row.values[0] == types::SqlValue::Null).count();
     assert_eq!(null_user_count, 1, "Should have one unmatched order");
 
     // Count rows with NULLs in order columns (user with no order)
-    let null_order_count = result.iter().filter(|row| row.values[2] == types::SqlValue::Null).count();
+    let null_order_count =
+        result.iter().filter(|row| row.values[2] == types::SqlValue::Null).count();
     assert_eq!(null_order_count, 1, "Should have one unmatched user");
 }
 

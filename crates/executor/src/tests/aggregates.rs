@@ -183,11 +183,9 @@ fn test_group_by_with_count() {
         .into_iter()
         .map(|row| (row.values[0].clone(), row.values[1].clone()))
         .collect::<Vec<_>>();
-    results.sort_by(|(dept_a, _), (dept_b, _)| {
-        match (dept_a, dept_b) {
-            (types::SqlValue::Integer(a), types::SqlValue::Integer(b)) => a.cmp(b),
-            _ => std::cmp::Ordering::Equal,
-        }
+    results.sort_by(|(dept_a, _), (dept_b, _)| match (dept_a, dept_b) {
+        (types::SqlValue::Integer(a), types::SqlValue::Integer(b)) => a.cmp(b),
+        _ => std::cmp::Ordering::Equal,
     });
     assert_eq!(results[0], (types::SqlValue::Integer(1), types::SqlValue::Integer(2)));
     assert_eq!(results[1], (types::SqlValue::Integer(2), types::SqlValue::Integer(1)));

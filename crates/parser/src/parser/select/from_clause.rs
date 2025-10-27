@@ -48,12 +48,19 @@ impl Parser {
                     Token::RParen => {
                         self.advance();
                     }
-                    _ => return Err(ParseError { message: "Expected ')' after subquery".to_string() }),
+                    _ => {
+                        return Err(ParseError {
+                            message: "Expected ')' after subquery".to_string(),
+                        })
+                    }
                 }
 
                 // SQL:1999 requires AS alias for derived tables
                 if !self.peek_keyword(Keyword::As) {
-                    return Err(ParseError { message: "Derived table must have AS alias (SQL:1999 requirement)".to_string() });
+                    return Err(ParseError {
+                        message: "Derived table must have AS alias (SQL:1999 requirement)"
+                            .to_string(),
+                    });
                 }
                 self.consume_keyword(Keyword::As)?;
 
@@ -64,7 +71,11 @@ impl Parser {
                         self.advance();
                         alias
                     }
-                    _ => return Err(ParseError { message: "Expected alias after AS keyword".to_string() }),
+                    _ => {
+                        return Err(ParseError {
+                            message: "Expected alias after AS keyword".to_string(),
+                        })
+                    }
                 };
 
                 Ok(ast::FromClause::Subquery { query, alias })
@@ -100,7 +111,9 @@ impl Parser {
 
                 Ok(ast::FromClause::Table { name, alias })
             }
-            _ => Err(ParseError { message: "Expected table name or subquery in FROM clause".to_string() }),
+            _ => Err(ParseError {
+                message: "Expected table name or subquery in FROM clause".to_string(),
+            }),
         }
     }
 

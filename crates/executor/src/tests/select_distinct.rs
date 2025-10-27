@@ -99,7 +99,11 @@ fn test_distinct_with_multiple_columns() {
         vec![
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new("customer_id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("status".to_string(), types::DataType::Varchar { max_length: 20 }, false),
+            catalog::ColumnSchema::new(
+                "status".to_string(),
+                types::DataType::Varchar { max_length: 20 },
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();

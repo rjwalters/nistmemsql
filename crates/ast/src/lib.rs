@@ -18,8 +18,6 @@ pub use operators::{BinaryOperator, UnaryOperator};
 pub use select::{FromClause, JoinType, OrderByItem, OrderDirection, SelectItem, SelectStmt};
 pub use statement::Statement;
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;

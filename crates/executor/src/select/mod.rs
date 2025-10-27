@@ -184,11 +184,7 @@ impl<'a> SelectExecutor<'a> {
         }
 
         // Apply DISTINCT if specified
-        let result_rows = if stmt.distinct {
-            apply_distinct(result_rows)
-        } else {
-            result_rows
-        };
+        let result_rows = if stmt.distinct { apply_distinct(result_rows) } else { result_rows };
 
         Ok(apply_limit_offset(result_rows, stmt.limit, stmt.offset))
     }
@@ -266,11 +262,7 @@ impl<'a> SelectExecutor<'a> {
         }
 
         // Apply DISTINCT if specified
-        let final_rows = if stmt.distinct {
-            apply_distinct(final_rows)
-        } else {
-            final_rows
-        };
+        let final_rows = if stmt.distinct { apply_distinct(final_rows) } else { final_rows };
 
         Ok(apply_limit_offset(final_rows, stmt.limit, stmt.offset))
     }
@@ -338,11 +330,8 @@ impl<'a> SelectExecutor<'a> {
                 }
 
                 // Create schema with table alias
-                let schema = CombinedSchema::from_derived_table(
-                    alias.clone(),
-                    column_names,
-                    column_types,
-                );
+                let schema =
+                    CombinedSchema::from_derived_table(alias.clone(), column_names, column_types);
 
                 Ok(FromResult { schema, rows })
             }

@@ -74,8 +74,9 @@ impl InsertExecutor {
 
             // Insert the row
             let row = storage::Row::new(row_values);
-            db.insert_row(&stmt.table_name, row)
-                .map_err(|e| ExecutorError::UnsupportedExpression(format!("Storage error: {}", e)))?;
+            db.insert_row(&stmt.table_name, row).map_err(|e| {
+                ExecutorError::UnsupportedExpression(format!("Storage error: {}", e))
+            })?;
             rows_inserted += 1;
         }
 

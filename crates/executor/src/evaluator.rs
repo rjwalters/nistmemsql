@@ -18,12 +18,7 @@ pub(crate) struct CombinedExpressionEvaluator<'a> {
 impl<'a> ExpressionEvaluator<'a> {
     /// Create a new expression evaluator for a given schema
     pub fn new(schema: &'a catalog::TableSchema) -> Self {
-        ExpressionEvaluator {
-            schema,
-            outer_row: None,
-            outer_schema: None,
-            database: None,
-        }
+        ExpressionEvaluator { schema, outer_row: None, outer_schema: None, database: None }
     }
 
     /// Create a new expression evaluator with outer query context for correlated subqueries
@@ -67,7 +62,8 @@ impl<'a> ExpressionEvaluator<'a> {
             ast::Expression::ColumnRef { table: _, column } => {
                 // Try to resolve in inner schema first
                 if let Some(col_index) = self.schema.get_column_index(column) {
-                    return row.get(col_index)
+                    return row
+                        .get(col_index)
                         .cloned()
                         .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: col_index });
                 }
@@ -75,7 +71,8 @@ impl<'a> ExpressionEvaluator<'a> {
                 // If not found in inner schema and outer context exists, try outer schema
                 if let (Some(outer_row), Some(outer_schema)) = (self.outer_row, self.outer_schema) {
                     if let Some(col_index) = outer_schema.get_column_index(column) {
-                        return outer_row.get(col_index)
+                        return outer_row
+                            .get(col_index)
                             .cloned()
                             .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: col_index });
                     }
@@ -93,11 +90,9 @@ impl<'a> ExpressionEvaluator<'a> {
             }
 
             // CASE expression
-            ast::Expression::Case {
-                operand,
-                when_clauses,
-                else_result,
-            } => self.eval_case(operand, when_clauses, else_result, row),
+            ast::Expression::Case { operand, when_clauses, else_result } => {
+                self.eval_case(operand, when_clauses, else_result, row)
+            }
 
             // IN operator with subquery
             ast::Expression::In { expr, subquery: _, negated: _ } => {
@@ -106,17 +101,16 @@ impl<'a> ExpressionEvaluator<'a> {
                 // For now, evaluate the left expression to ensure it's valid
                 let _left_val = self.eval(expr, row)?;
                 Err(ExecutorError::UnsupportedFeature(
-                    "IN with subquery requires database access - implementation pending".to_string()
+                    "IN with subquery requires database access - implementation pending"
+                        .to_string(),
                 ))
             }
 
             // Scalar subquery - must return exactly one row and one column
             ast::Expression::ScalarSubquery(subquery) => {
-                let database = self.database.ok_or(
-                    ExecutorError::UnsupportedFeature(
-                        "Subquery execution requires database reference".to_string()
-                    )
-                )?;
+                let database = self.database.ok_or(ExecutorError::UnsupportedFeature(
+                    "Subquery execution requires database reference".to_string(),
+                ))?;
 
                 // Execute the subquery using SelectExecutor
                 let select_executor = crate::select::SelectExecutor::new(database);
@@ -143,9 +137,10 @@ impl<'a> ExpressionEvaluator<'a> {
                 if rows.is_empty() {
                     Ok(types::SqlValue::Null)
                 } else {
-                    rows[0].get(0).cloned().ok_or(
-                        ExecutorError::ColumnIndexOutOfBounds { index: 0 }
-                    )
+                    rows[0]
+                        .get(0)
+                        .cloned()
+                        .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })
                 }
             }
 
@@ -289,10 +284,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
     /// Note: Currently unused as all callers use with_database(), but kept for API completeness
     #[allow(dead_code)]
     pub(crate) fn new(schema: &'a CombinedSchema) -> Self {
-        CombinedExpressionEvaluator {
-            schema,
-            database: None,
-        }
+        CombinedExpressionEvaluator { schema, database: None }
     }
 
     /// Create a new combined expression evaluator with database reference
@@ -300,10 +292,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         schema: &'a CombinedSchema,
         database: &'a storage::Database,
     ) -> Self {
-        CombinedExpressionEvaluator {
-            schema,
-            database: Some(database),
-        }
+        CombinedExpressionEvaluator { schema, database: Some(database) }
     }
 
     /// Evaluate an expression in the context of a combined row
@@ -335,11 +324,9 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             }
 
             // CASE expression
-            ast::Expression::Case {
-                operand,
-                when_clauses,
-                else_result,
-            } => self.eval_case(operand, when_clauses, else_result, row),
+            ast::Expression::Case { operand, when_clauses, else_result } => {
+                self.eval_case(operand, when_clauses, else_result, row)
+            }
 
             // IN operator with subquery
             ast::Expression::In { expr, subquery: _, negated: _ } => {
@@ -348,17 +335,16 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 // For now, evaluate the left expression to ensure it's valid
                 let _left_val = self.eval(expr, row)?;
                 Err(ExecutorError::UnsupportedFeature(
-                    "IN with subquery requires database access - implementation pending".to_string()
+                    "IN with subquery requires database access - implementation pending"
+                        .to_string(),
                 ))
             }
 
             // Scalar subquery - must return exactly one row and one column
             ast::Expression::ScalarSubquery(subquery) => {
-                let database = self.database.ok_or(
-                    ExecutorError::UnsupportedFeature(
-                        "Subquery execution requires database reference".to_string()
-                    )
-                )?;
+                let database = self.database.ok_or(ExecutorError::UnsupportedFeature(
+                    "Subquery execution requires database reference".to_string(),
+                ))?;
 
                 // Execute the subquery using SelectExecutor
                 let select_executor = crate::select::SelectExecutor::new(database);
@@ -385,9 +371,10 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 if rows.is_empty() {
                     Ok(types::SqlValue::Null)
                 } else {
-                    rows[0].get(0).cloned().ok_or(
-                        ExecutorError::ColumnIndexOutOfBounds { index: 0 }
-                    )
+                    rows[0]
+                        .get(0)
+                        .cloned()
+                        .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })
                 }
             }
 
@@ -453,21 +440,13 @@ mod tests {
         // Create inner schema with "inner_col"
         let inner_schema = TableSchema::new(
             "inner".to_string(),
-            vec![ColumnSchema::new(
-                "inner_col".to_string(),
-                DataType::Integer,
-                false,
-            )],
+            vec![ColumnSchema::new("inner_col".to_string(), DataType::Integer, false)],
         );
 
         // Create outer schema with "outer_col"
         let outer_schema = TableSchema::new(
             "outer".to_string(),
-            vec![ColumnSchema::new(
-                "outer_col".to_string(),
-                DataType::Integer,
-                false,
-            )],
+            vec![ColumnSchema::new("outer_col".to_string(), DataType::Integer, false)],
         );
 
         let outer_row = storage::Row::new(vec![SqlValue::Integer(100)]);
@@ -477,10 +456,7 @@ mod tests {
             ExpressionEvaluator::with_outer_context(&inner_schema, &outer_row, &outer_schema);
 
         // Should resolve inner_col from inner row
-        let expr = ast::Expression::ColumnRef {
-            table: None,
-            column: "inner_col".to_string(),
-        };
+        let expr = ast::Expression::ColumnRef { table: None, column: "inner_col".to_string() };
 
         let result = evaluator.eval(&expr, &inner_row).unwrap();
         assert_eq!(result, SqlValue::Integer(42));
@@ -491,21 +467,13 @@ mod tests {
         // Create inner schema with "inner_col"
         let inner_schema = TableSchema::new(
             "inner".to_string(),
-            vec![ColumnSchema::new(
-                "inner_col".to_string(),
-                DataType::Integer,
-                false,
-            )],
+            vec![ColumnSchema::new("inner_col".to_string(), DataType::Integer, false)],
         );
 
         // Create outer schema with "outer_col"
         let outer_schema = TableSchema::new(
             "outer".to_string(),
-            vec![ColumnSchema::new(
-                "outer_col".to_string(),
-                DataType::Integer,
-                false,
-            )],
+            vec![ColumnSchema::new("outer_col".to_string(), DataType::Integer, false)],
         );
 
         let outer_row = storage::Row::new(vec![SqlValue::Integer(100)]);
@@ -515,10 +483,7 @@ mod tests {
             ExpressionEvaluator::with_outer_context(&inner_schema, &outer_row, &outer_schema);
 
         // Should resolve outer_col from outer row (not in inner schema)
-        let expr = ast::Expression::ColumnRef {
-            table: None,
-            column: "outer_col".to_string(),
-        };
+        let expr = ast::Expression::ColumnRef { table: None, column: "outer_col".to_string() };
 
         let result = evaluator.eval(&expr, &inner_row).unwrap();
         assert_eq!(result, SqlValue::Integer(100));
@@ -543,10 +508,7 @@ mod tests {
         let evaluator =
             ExpressionEvaluator::with_outer_context(&inner_schema, &outer_row, &outer_schema);
 
-        let expr = ast::Expression::ColumnRef {
-            table: None,
-            column: "col".to_string(),
-        };
+        let expr = ast::Expression::ColumnRef { table: None, column: "col".to_string() };
 
         let result = evaluator.eval(&expr, &inner_row).unwrap();
         // Should get inner value (42), not outer (999)
@@ -557,20 +519,12 @@ mod tests {
     fn test_evaluator_with_outer_context_column_not_found() {
         let inner_schema = TableSchema::new(
             "inner".to_string(),
-            vec![ColumnSchema::new(
-                "inner_col".to_string(),
-                DataType::Integer,
-                false,
-            )],
+            vec![ColumnSchema::new("inner_col".to_string(), DataType::Integer, false)],
         );
 
         let outer_schema = TableSchema::new(
             "outer".to_string(),
-            vec![ColumnSchema::new(
-                "outer_col".to_string(),
-                DataType::Integer,
-                false,
-            )],
+            vec![ColumnSchema::new("outer_col".to_string(), DataType::Integer, false)],
         );
 
         let outer_row = storage::Row::new(vec![SqlValue::Integer(100)]);
@@ -580,10 +534,7 @@ mod tests {
             ExpressionEvaluator::with_outer_context(&inner_schema, &outer_row, &outer_schema);
 
         // Try to resolve non-existent column
-        let expr = ast::Expression::ColumnRef {
-            table: None,
-            column: "nonexistent".to_string(),
-        };
+        let expr = ast::Expression::ColumnRef { table: None, column: "nonexistent".to_string() };
 
         let result = evaluator.eval(&expr, &inner_row);
         assert!(matches!(result, Err(ExecutorError::ColumnNotFound(_))));
@@ -600,10 +551,7 @@ mod tests {
         let evaluator = ExpressionEvaluator::new(&schema);
         let row = storage::Row::new(vec![SqlValue::Integer(42)]);
 
-        let expr = ast::Expression::ColumnRef {
-            table: None,
-            column: "col".to_string(),
-        };
+        let expr = ast::Expression::ColumnRef { table: None, column: "col".to_string() };
 
         let result = evaluator.eval(&expr, &row).unwrap();
         assert_eq!(result, SqlValue::Integer(42));
