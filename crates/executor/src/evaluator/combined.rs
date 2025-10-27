@@ -557,6 +557,27 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                         }
                     }
 
+                    // CHAR_LENGTH(string) / CHARACTER_LENGTH(string) - Return string length
+                    // SQL:1999 Section 6.29: String value functions
+                    "CHAR_LENGTH" | "CHARACTER_LENGTH" => {
+                        if args.len() != 1 {
+                            return Err(ExecutorError::UnsupportedFeature(
+                                format!("{} requires exactly 1 argument, got {}", name, args.len()),
+                            ));
+                        }
+
+                        let val = self.eval(&args[0], row)?;
+
+                        match val {
+                            types::SqlValue::Null => Ok(types::SqlValue::Null),
+                            types::SqlValue::Varchar(s) => Ok(types::SqlValue::Integer(s.len() as i64)),
+                            types::SqlValue::Character(s) => Ok(types::SqlValue::Integer(s.len() as i64)),
+                            _ => Err(ExecutorError::UnsupportedFeature(
+                                format!("{} requires string argument, got {:?}", name, val),
+                            )),
+                        }
+                    }
+
                     // Unknown function - could be aggregate (handled elsewhere) or error
                     _ => Err(ExecutorError::UnsupportedFeature(
                         format!("Scalar function {} not supported in this context", name),

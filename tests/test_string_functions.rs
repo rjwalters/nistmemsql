@@ -409,3 +409,67 @@ fn test_trim_null() {
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Null);
 }
+
+// --- CHAR_LENGTH / CHARACTER_LENGTH tests ---
+
+#[test]
+fn test_char_length_basic() {
+    let mut db = Database::new();
+    create_dummy_table(&mut db);
+
+    let results = execute_query(&db, "SELECT CHAR_LENGTH('hello') AS result FROM dual;").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].values[0], SqlValue::Integer(5));
+}
+
+#[test]
+fn test_character_length_alias() {
+    let mut db = Database::new();
+    create_dummy_table(&mut db);
+
+    // CHARACTER_LENGTH is an alias for CHAR_LENGTH
+    let results = execute_query(&db, "SELECT CHARACTER_LENGTH('hello') AS result FROM dual;").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].values[0], SqlValue::Integer(5));
+}
+
+#[test]
+fn test_char_length_empty_string() {
+    let mut db = Database::new();
+    create_dummy_table(&mut db);
+
+    let results = execute_query(&db, "SELECT CHAR_LENGTH('') AS result FROM dual;").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].values[0], SqlValue::Integer(0));
+}
+
+#[test]
+fn test_char_length_with_spaces() {
+    let mut db = Database::new();
+    create_dummy_table(&mut db);
+
+    let results = execute_query(&db, "SELECT CHAR_LENGTH('hello world') AS result FROM dual;").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].values[0], SqlValue::Integer(11));
+}
+
+#[test]
+fn test_char_length_leading_trailing_spaces() {
+    let mut db = Database::new();
+    create_dummy_table(&mut db);
+
+    // Spaces count as characters
+    let results = execute_query(&db, "SELECT CHAR_LENGTH('  hello  ') AS result FROM dual;").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].values[0], SqlValue::Integer(9));
+}
+
+#[test]
+fn test_char_length_null() {
+    let mut db = Database::new();
+    create_dummy_table(&mut db);
+
+    let results = execute_query(&db, "SELECT CHAR_LENGTH(NULL) AS result FROM dual;").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].values[0], SqlValue::Null);
+}
