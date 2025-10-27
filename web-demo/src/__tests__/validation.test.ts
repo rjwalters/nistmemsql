@@ -10,18 +10,18 @@ describe('validateSql', () => {
   it('flags unmatched parentheses', () => {
     const sql = 'SELECT (1 + (2 * 3) FROM dual;'
     const issues = validateSql(sql)
-    expect(issues.some((issue) => issue.message.includes('parenthesis'))).toBe(true)
+    expect(issues.some(issue => issue.message.includes('parenthesis'))).toBe(true)
   })
 
   it('flags unclosed single quotes', () => {
     const sql = "SELECT * FROM users WHERE name = 'Alice;"
     const issues = validateSql(sql)
-    expect(issues.some((issue) => issue.message.includes('single quote'))).toBe(true)
+    expect(issues.some(issue => issue.message.includes('single quote'))).toBe(true)
   })
 
   it('flags unclosed quoted identifiers', () => {
     const sql = 'SELECT "column FROM data;'
     const issues = validateSql(sql)
-    expect(issues.some((issue) => issue.message.includes('quoted identifier'))).toBe(true)
+    expect(issues.some(issue => issue.message.includes('quoted identifier'))).toBe(true)
   })
 })

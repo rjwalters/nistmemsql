@@ -30,8 +30,8 @@ export function validateSql(sql: string): SqlIssue[] {
         }
         break
       }
-      case ''': {
-        if (singleQuoteOffset >= 0 && sql[i - 1] !== '\') {
+      case "'": {
+        if (singleQuoteOffset >= 0 && sql[i - 1] !== '\\') {
           singleQuoteOffset = -1
         } else if (singleQuoteOffset === -1) {
           singleQuoteOffset = i
@@ -39,7 +39,7 @@ export function validateSql(sql: string): SqlIssue[] {
         break
       }
       case '"': {
-        if (doubleQuoteOffset >= 0 && sql[i - 1] !== '\') {
+        if (doubleQuoteOffset >= 0 && sql[i - 1] !== '\\') {
           doubleQuoteOffset = -1
         } else if (doubleQuoteOffset === -1) {
           doubleQuoteOffset = i

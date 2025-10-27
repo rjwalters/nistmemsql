@@ -5,6 +5,8 @@ import type { Database, QueryResult } from './db/types'
 import { formatSqlValue } from './utils/format'
 import { validateSql } from './editor/validation'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// Monaco types are loaded dynamically from CDN and not available at compile time
 type Monaco = any
 type MonacoEditor = any
 
@@ -15,6 +17,7 @@ declare global {
     monaco?: Monaco
   }
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 const SQL_KEYWORDS = [
   'SELECT',
@@ -81,12 +84,19 @@ async function loadMonaco(): Promise<Monaco> {
           reject(new Error('Monaco loaded but window.monaco is undefined'))
         }
       },
-      (err: unknown) => reject(err instanceof Error ? err : new Error(String(err))),
+      (err: unknown) => reject(err instanceof Error ? err : new Error(String(err)))
     )
   })
 }
 
-function createLayout(root: HTMLElement) {
+function createLayout(root: HTMLElement): {
+  editorContainer: HTMLDivElement | null
+  statusBar: HTMLDivElement | null
+  results: HTMLDivElement | null
+  resultMeta: HTMLSpanElement | null
+  runButton: HTMLButtonElement | null
+  themeToggle: HTMLButtonElement | null
+} {
   root.innerHTML = `
     <div class="app-shell">
       <header class="app-header">
@@ -136,7 +146,11 @@ function createLayout(root: HTMLElement) {
   } as const
 }
 
-function updateStatus(element: HTMLDivElement | null, message: string, variant: StatusVariant) {
+function updateStatus(
+  element: HTMLDivElement | null,
+  message: string,
+  variant: StatusVariant
+): void {
   if (!element) return
 
   element.textContent = message
@@ -144,7 +158,11 @@ function updateStatus(element: HTMLDivElement | null, message: string, variant: 
   element.classList.add(`status-bar--${variant}`)
 }
 
-function renderResults(container: HTMLDivElement | null, meta: HTMLSpanElement | null, result: QueryResult) {
+function renderResults(
+  container: HTMLDivElement | null,
+  meta: HTMLSpanElement | null,
+  result: QueryResult
+): void {
   if (!container) return
 
   if (!result || result.rows.length === 0) {
@@ -162,7 +180,7 @@ function renderResults(container: HTMLDivElement | null, meta: HTMLSpanElement |
   table.createTHead()
 
   const headRow = table.tHead?.insertRow() ?? table.insertRow()
-  result.columns.forEach((column) => {
+  result.columns.forEach(column => {
     const th = document.createElement('th')
     th.textContent = column
     headRow.appendChild(th)
@@ -171,7 +189,7 @@ function renderResults(container: HTMLDivElement | null, meta: HTMLSpanElement |
   const tbody = document.createElement('tbody')
   for (const row of result.rows) {
     const tr = document.createElement('tr')
-    row.forEach((value) => {
+    row.forEach(value => {
       const td = document.createElement('td')
       td.textContent = formatSqlValue(value)
       tr.appendChild(td)
@@ -187,13 +205,13 @@ function renderResults(container: HTMLDivElement | null, meta: HTMLSpanElement |
   }
 }
 
-function applyValidationMarkers(monaco: Monaco, editor: MonacoEditor) {
+function applyValidationMarkers(monaco: Monaco, editor: MonacoEditor): void {
   const model = editor.getModel()
   if (!model || !monaco.editor) return
 
   const sql = editor.getValue()
   const issues = validateSql(sql)
-  const markers = issues.map((issue) => {
+  const markers = issues.map(issue => {
     const start = model.getPositionAt(issue.offset)
     const end = model.getPositionAt(issue.offset + Math.max(issue.length, 1))
 
@@ -210,11 +228,12 @@ function applyValidationMarkers(monaco: Monaco, editor: MonacoEditor) {
   monaco.editor.setModelMarkers(model, 'sql-validation', markers)
 }
 
-function registerCompletions(monaco: Monaco, getTableNames: () => string[]) {
+function registerCompletions(monaco: Monaco, getTableNames: () => string[]): void {
   if (!monaco.languages?.registerCompletionItemProvider) return
 
   monaco.languages.registerCompletionItemProvider('sql', {
     triggerCharacters: [' ', '.', '\n'],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     provideCompletionItems(model: any, position: any) {
       const wordInfo = model.getWordUntilPosition(position)
       const range = {
@@ -224,9 +243,9 @@ function registerCompletions(monaco: Monaco, getTableNames: () => string[]) {
         endColumn: wordInfo.endColumn,
       }
 
-      const keywordSuggestions = SQL_KEYWORDS.filter((word) =>
-        word.toLowerCase().startsWith(wordInfo.word.toLowerCase()),
-      ).map((label) => ({
+      const keywordSuggestions = SQL_KEYWORDS.filter(word =>
+        word.toLowerCase().startsWith(wordInfo.word.toLowerCase())
+      ).map(label => ({
         label,
         kind: monaco.languages.CompletionItemKind?.Keyword ?? 14,
         insertText: label,
@@ -234,8 +253,8 @@ function registerCompletions(monaco: Monaco, getTableNames: () => string[]) {
       }))
 
       const tableSuggestions = getTableNames()
-        .filter((table) => table.toLowerCase().startsWith(wordInfo.word.toLowerCase()))
-        .map((label) => ({
+        .filter(table => table.toLowerCase().startsWith(wordInfo.word.toLowerCase()))
+        .map(label => ({
           label,
           kind: monaco.languages.CompletionItemKind?.Field ?? 4,
           insertText: label,
@@ -249,7 +268,7 @@ function registerCompletions(monaco: Monaco, getTableNames: () => string[]) {
   })
 }
 
-function registerShortcuts(monaco: Monaco, editor: MonacoEditor, execute: () => void) {
+function registerShortcuts(monaco: Monaco, editor: MonacoEditor, execute: () => void): void {
   const { KeyMod = {}, KeyCode = {} } = monaco
   const ctrlEnter = (KeyMod.CtrlCmd ?? 0) | (KeyCode.Enter ?? 3)
   const ctrlSlash = (KeyMod.CtrlCmd ?? 0) | (KeyCode.US_SLASH ?? 85)
@@ -276,10 +295,10 @@ async function safeInitDatabase(): Promise<Database | null> {
   }
 }
 
-function setupThemeSync(themeToggle: HTMLButtonElement | null, monaco: Monaco, editor: MonacoEditor) {
+function setupThemeSync(themeToggle: HTMLButtonElement | null, monaco: Monaco): void {
   const theme = initTheme()
 
-  const applyTheme = (mode: 'light' | 'dark') => {
+  const applyTheme = (mode: 'light' | 'dark'): void => {
     const targetTheme = mode === 'dark' ? 'vs-dark' : 'vs'
     monaco.editor?.setTheme?.(targetTheme)
   }
@@ -298,8 +317,8 @@ function createExecutionHandler(
   statusBar: HTMLDivElement | null,
   resultsContainer: HTMLDivElement | null,
   resultMeta: HTMLSpanElement | null,
-  refreshTables: () => void,
-) {
+  refreshTables: () => void
+): () => void {
   return () => {
     const sql = editor.getValue().trim()
 
@@ -312,7 +331,7 @@ function createExecutionHandler(
       updateStatus(
         statusBar,
         'Database core is not ready yet. Build the WASM module to enable execution.',
-        'error',
+        'error'
       )
       return
     }
@@ -329,7 +348,7 @@ function createExecutionHandler(
   }
 }
 
-async function bootstrap() {
+async function bootstrap(): Promise<void> {
   const appRoot = document.getElementById('app')
   if (!appRoot) {
     console.error('Failed to find #app container')
@@ -344,13 +363,14 @@ async function bootstrap() {
     theme: 'vs-dark',
     minimap: { enabled: false },
     automaticLayout: true,
-    fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    fontFamily:
+      'JetBrains Mono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
     fontSize: 14,
     smoothScrolling: true,
     scrollBeyondLastLine: false,
   })
 
-  setupThemeSync(layout.themeToggle, monaco, editor)
+  setupThemeSync(layout.themeToggle, monaco)
 
   const database = await safeInitDatabase()
   let tableNames: string[] = []
@@ -364,7 +384,7 @@ async function bootstrap() {
 
   registerCompletions(monaco, () => tableNames)
 
-  const refreshTables = () => {
+  const refreshTables = (): void => {
     if (!database) return
     try {
       tableNames = database.get_tables()
@@ -386,7 +406,7 @@ async function bootstrap() {
     layout.statusBar,
     layout.results,
     layout.resultMeta,
-    refreshTables,
+    refreshTables
   )
 
   registerShortcuts(monaco, editor, execute)
