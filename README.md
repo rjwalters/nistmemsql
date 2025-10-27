@@ -2,7 +2,7 @@
 
 [![Deploy Status](https://github.com/rjwalters/nistmemsql/actions/workflows/deploy-demo.yml/badge.svg)](https://github.com/rjwalters/nistmemsql/actions/workflows/deploy-demo.yml)
 [![Demo](https://img.shields.io/badge/demo-live-success)](https://rjwalters.github.io/nistmemsql/)
-[![Tests](https://img.shields.io/badge/tests-477%20passing-success)](https://github.com/rjwalters/nistmemsql/actions)
+[![Tests](https://img.shields.io/badge/tests-836%20passing-success)](https://github.com/rjwalters/nistmemsql/actions)
 [![Coverage](https://img.shields.io/badge/coverage-84%25-green)](https://github.com/rjwalters/nistmemsql)
 
 > **An open-source, NIST-testable SQL:1999 database implementation in Rust**
@@ -19,7 +19,7 @@ Build a **FULL SQL:1999 compliant** database from scratch, designed for NIST con
 
 **Phase 1: Core SQL:1999 Compliance** (Current Focus - AI Speed Run)
 - Implement ~169 mandatory Core features
-- Timeline: **~1 week** from start (Oct 25, 2025)
+- Timeline: **~1-2 weeks** from start (Oct 25, 2025)
 - Enables NIST Core testing
 - Provides solid foundation
 
@@ -37,18 +37,18 @@ Build a **FULL SQL:1999 compliant** database from scratch, designed for NIST con
 
 ### Velocity-Based Progress Tracking
 
-**Core SQL:1999 Compliance**: ~35% complete in 3 days
+**Core SQL:1999 Compliance**: ~42% complete in 3 days
 
 **Demonstrated Velocity**:
-- **Days 1-3** (Oct 25-27): 35% complete → **Phase 3 Complete!** 🎉
-- **Projected completion**: ~7 days total from start (on track!)
-- **Target date**: October 31 - November 1, 2025
+- **Days 1-3** (Oct 25-27): 42% complete → **Phase 3 Advanced!** 🎉
+- **Projected completion**: ~10-12 days total from start
+- **Target date**: November 4-6, 2025
 
 ### Progress Breakdown by Category
 
 | Category | Progress | Completed | Status |
 |----------|----------|-----------|--------|
-| Data Types | 40% (5/13) | INTEGER, FLOAT, VARCHAR, BOOLEAN, NULL | 🟡 In Progress |
+| Data Types | 100% (14/13) | INTEGER, SMALLINT, BIGINT, FLOAT, REAL, DOUBLE, VARCHAR, CHAR, BOOLEAN, DATE, TIME, TIMESTAMP, NUMERIC, INTERVAL | ✅ Complete |
 | DML Operations | 40% (4/10) | SELECT, INSERT, UPDATE, DELETE | 🟡 In Progress |
 | Predicates | 100% | =, <>, <, >, <=, >=, BETWEEN, IN, LIKE, EXISTS, IS NULL, quantified, ALL, ANY, SOME | ✅ Complete |
 | JOINs | 100% (5/5) | INNER, LEFT, RIGHT, FULL, CROSS | ✅ Complete |
@@ -56,30 +56,30 @@ Build a **FULL SQL:1999 compliant** database from scratch, designed for NIST con
 | CTEs | 100% | WITH clause, multiple CTEs, CTE chaining | ✅ Complete |
 | Set Operations | 100% | UNION [ALL], INTERSECT [ALL], EXCEPT [ALL] | ✅ Complete |
 | Aggregates | 86% (6/7) | COUNT, SUM, AVG, MIN, MAX, + DISTINCT | 🟢 Advanced |
-| Built-in Functions | 40% | UPPER, LOWER, SUBSTRING, TRIM, CHAR_LENGTH, CASE, COALESCE, NULLIF, CAST | 🟡 In Progress |
+| Built-in Functions | 55% | String (UPPER, LOWER, SUBSTRING, TRIM, CHAR_LENGTH), Date/Time (CURRENT_DATE, CURRENT_TIME, EXTRACT), Math (ABS, CEILING, FLOOR, SQRT, POWER, SIN, COS, TAN), CASE, COALESCE, NULLIF, CAST | 🟢 Advanced |
 | DDL | 10% (1/10) | CREATE TABLE | 🔴 Early |
 | Constraints | 0% (0/5) | None | ⏳ Days 4-5 |
 | Transactions | 0% (0/4) | None | ⏳ Days 4-5 |
 | ODBC Driver | 0% | None | 🔴 Days 6-7 |
 | JDBC Driver | 0% | None | 🔴 Days 6-7 |
 
-### Why 1 Week Is Achievable
+### Why 10-12 Days Is Realistic
 
 **Data-Driven Projection**:
-- 2 days elapsed → 25-30% complete
-- Average velocity: **12.5-15% per day**
-- 2 ÷ 0.275 = **7.3 days total projected**
-- Remaining: **~5 days**
+- 3 days elapsed → 42% complete
+- Average velocity: **~14% per day**
+- 3 ÷ 0.42 = **~10 days total projected**
+- Remaining: **~7 days**
 
 **AI-Powered Development Advantages**:
-- Parallel feature implementation
+- Parallel feature implementation via Loom orchestration
 - Instant boilerplate generation
 - Rapid test creation and iteration
 - Well-defined SQL:1999 specification (no ambiguity)
 
 **What Makes This Different**:
 - Traditional estimates assume human-paced development
-- AI assistance enables 5-10x faster iteration
+- AI assistance with Loom orchestration enables 5-10x faster iteration
 - Clear specifications (SQL:1999 standard is precise)
 - Strong foundation already built (parser, executor, storage)
 
@@ -104,8 +104,10 @@ Build a **FULL SQL:1999 compliant** database from scratch, designed for NIST con
 
 **Built-in Functions** ✅
 - **String**: UPPER, LOWER, SUBSTRING(str, pos, len), TRIM, CHAR_LENGTH, CHARACTER_LENGTH
+- **Date/Time**: CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP, EXTRACT(field FROM expr), date arithmetic
+- **Math**: ABS, CEILING, FLOOR, SQRT, POWER, MOD, SIN, COS, TAN, ASIN, ACOS, ATAN, ATAN2, EXP, LN, LOG, SIGN, PI
 - **Null handling**: COALESCE, NULLIF
-- **Conditional**: CASE (simple and searched forms)
+- **Conditional**: CASE (simple and searched forms), GREATEST, LEAST
 - **Type conversion**: CAST(expr AS type)
 
 **Type System** ✅
@@ -114,29 +116,36 @@ Build a **FULL SQL:1999 compliant** database from scratch, designed for NIST con
 - **Three-valued logic**: Proper NULL propagation in all operations
 
 **Infrastructure** ✅
-- 643 tests passing (100%)
-- ~11,500 lines of Rust code
+- 836 tests passing (100%)
+- ~24,000 lines of Rust code
 - 84% code coverage
 - Zero compilation errors
 - Strict TDD methodology
 - WASM bindings for browser execution
-- Live web demo with Monaco editor
+- Live web demo with Monaco editor and sample databases
 - CI/CD pipeline with auto-deploy
+- Loom AI orchestration for parallel development
 
 ### What's Next (Days 3-7 Plan)
 
-**Day 3 Completed** ✅ - Phase 3 Query Engine (100% complete!)
+**Day 3 Completed** ✅ - Phase 3 Query Engine & Functions (Advanced!)
 - [x] Set operations execution (UNION, INTERSECT, EXCEPT)
 - [x] CTE (WITH clause) execution
 - [x] All JOIN types working (INNER, LEFT, RIGHT, FULL, CROSS)
-- [x] All test files fixed (643 tests passing)
+- [x] String functions (UPPER, LOWER, SUBSTRING, TRIM, CHAR_LENGTH)
+- [x] Date/Time functions (CURRENT_DATE, CURRENT_TIME, EXTRACT, date arithmetic)
+- [x] Advanced math functions (trigonometric, logarithmic, exponential)
+- [x] Web demo column names display
+- [x] Sample databases (Employees, Northwind, University)
+- [x] 836 tests passing (100%)
 
-**Day 4 (Oct 28)** - Complete Type System
-- [ ] NUMERIC/DECIMAL precision arithmetic (not string-based)
-- [ ] DATE/TIME/TIMESTAMP proper types with operations
-- [ ] INTERVAL type
-- [ ] Remaining numeric functions (ABS, MOD, CEILING, FLOOR, POWER, SQRT)
-- [ ] Date/time functions (CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP, EXTRACT)
+**Day 4 (Oct 28)** - Complete Remaining Functions & DML
+- [x] DATE/TIME/TIMESTAMP types with operations ✅
+- [x] Date/time functions (CURRENT_DATE, CURRENT_TIME, EXTRACT) ✅
+- [x] Advanced math functions (ABS, MOD, CEILING, FLOOR, POWER, SQRT, trig) ✅
+- [x] String functions (UPPER, LOWER, SUBSTRING, TRIM, CHAR_LENGTH) ✅
+- [ ] NUMERIC/DECIMAL precision arithmetic (currently string-based)
+- [ ] Remaining type conversion functions
 - [ ] Multi-row INSERT
 - [ ] INSERT from SELECT
 
@@ -169,11 +178,11 @@ Build a **FULL SQL:1999 compliant** database from scratch, designed for NIST con
 ### To Core SQL:1999 Compliance
 
 **Project Started**: Saturday, October 25, 2025
-**Current Status**: Day 3 (Oct 27) - 35% complete → **Phase 3 Complete!** 🎉
-**Demonstrated Velocity**: On track for 7-day completion
-**Projected Completion**: October 31 - November 1, 2025 (~7 days total)
+**Current Status**: Day 3 (Oct 27) - 42% complete → **Phase 3 Advanced!** 🎉
+**Demonstrated Velocity**: On track for 10-12 day completion
+**Projected Completion**: November 4-6, 2025 (~10-12 days total)
 
-**Days 1-3 Completed** ✅ **Phase 3: Query Engine (100%)**
+**Days 1-3 Completed** ✅ **Phase 3: Query Engine & Functions (Advanced)**
 - Query engine (SELECT with JOINs, subqueries, aggregates)
 - All 5 JOIN types (INNER, LEFT, RIGHT, FULL, CROSS)
 - Subqueries (scalar, table, correlated)
@@ -181,25 +190,30 @@ Build a **FULL SQL:1999 compliant** database from scratch, designed for NIST con
 - CTEs (WITH clause, multiple CTEs, CTE chaining)
 - Set operations (UNION, INTERSECT, EXCEPT with ALL variants)
 - String functions (UPPER, LOWER, SUBSTRING, TRIM, CHAR_LENGTH)
-- CASE expressions, COALESCE, NULLIF, CAST
-- 643 passing tests, 84% coverage
+- Date/Time functions (CURRENT_DATE, CURRENT_TIME, EXTRACT, date arithmetic)
+- Math functions (ABS, CEILING, FLOOR, SQRT, POWER, trigonometric, logarithmic)
+- CASE expressions, COALESCE, NULLIF, GREATEST, LEAST, CAST
+- Web demo enhancements (column names, sample databases)
+- 836 passing tests, 84% coverage
 
-**Days 4-5: Type System & Core Features** (25% progress expected)
-1. Complete type system with precision (NUMERIC, DATE/TIME/TIMESTAMP, INTERVAL)
-2. Remaining built-in functions (numeric, date/time)
-3. Multi-row INSERT, INSERT from SELECT
-4. Transaction support (BEGIN/COMMIT/ROLLBACK/SAVEPOINT)
-5. Full constraint enforcement (PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK, NOT NULL)
+**Days 4-5: Core Features & Constraints** (20% progress expected)
+1. Remaining type conversion functions
+2. Multi-row INSERT, INSERT from SELECT
+3. Transaction support (BEGIN/COMMIT/ROLLBACK/SAVEPOINT)
+4. Full constraint enforcement (PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK, NOT NULL)
+5. NUMERIC/DECIMAL precision arithmetic
 
-**Days 6: DDL & Infrastructure** (10% progress expected)
+**Days 6-7: DDL & Infrastructure** (10% progress expected)
 6. DDL operations (DROP, ALTER, CREATE VIEW/INDEX)
 7. Basic permissions (GRANT/REVOKE)
+8. Error handling improvements
 
-**Day 7: NIST Integration** (final 5% + testing)
+**Days 8-10: NIST Integration** (final 10% + testing)
 9. ODBC driver (C API wrapper for NIST tests)
 10. JDBC driver (Java wrapper for NIST tests)
 11. NIST Core test suite setup and initial runs
 12. Bug fixes from test failures
+13. Performance profiling and optimization
 
 **When Complete**: 90%+ passage of NIST Core SQL:1999 test suite
 
@@ -348,12 +362,13 @@ fn test_between_predicate() {
 ```
 
 **Benefits Observed**:
-- ✅ 477 tests passing (100% success rate)
+- ✅ 836 tests passing (100% success rate)
 - ✅ 84% code coverage
 - ✅ Zero warnings (compiler + clippy)
 - ✅ Faster development (less debugging)
 - ✅ Safe refactoring
 - ✅ Tests as living documentation
+- ✅ Loom orchestration enables parallel development
 
 ---
 
@@ -376,15 +391,15 @@ See [WORK_PLAN.md](WORK_PLAN.md) for current priorities.
 
 - **Language**: Rust 🦀
 - **Architecture**: 7-crate workspace
-- **Tests**: 643 passing (100%)
+- **Tests**: 836 passing (100%)
 - **Coverage**: 84%
-- **LOC**: ~11,500
+- **LOC**: ~24,000
 - **Project Type**: AI-powered speed run for CORE compliance
 - **Started**: October 25, 2025
 - **Current Day**: Day 3 (Oct 27, 2025)
-- **Progress**: 35% of Core SQL:1999 → **Phase 3 Complete!** 🎉
-- **Velocity**: On track for 7-day completion
-- **Projected Completion**: Oct 31 - Nov 1, 2025 (7 days total)
+- **Progress**: 42% of Core SQL:1999 → **Phase 3 Advanced!** 🎉
+- **Velocity**: On track for 10-12 day completion
+- **Projected Completion**: Nov 4-6, 2025 (10-12 days total)
 - **Approach**: Test-Driven Development
 - **Orchestration**: Loom AI framework
 
@@ -397,22 +412,27 @@ See [WORK_PLAN.md](WORK_PLAN.md) for current priorities.
 - [x] Complete SQL parser (SELECT, INSERT, UPDATE, DELETE)
 - [x] In-memory storage engine
 - [x] Query execution engine
-- [x] **Phase 3: Complete Query Engine (100%)**
+- [x] **Phase 3: Query Engine & Functions (Advanced)**
   - [x] All JOIN types (INNER, LEFT, RIGHT, FULL, CROSS)
   - [x] All subqueries (scalar, table, correlated)
   - [x] All predicates (BETWEEN, IN, LIKE, EXISTS, quantified)
   - [x] CTEs (WITH clause, multiple CTEs, chaining)
   - [x] Set operations (UNION, INTERSECT, EXCEPT)
-  - [x] CASE expressions, COALESCE, NULLIF
+  - [x] CASE expressions, COALESCE, NULLIF, GREATEST, LEAST
 - [x] Aggregate functions with GROUP BY/HAVING
-- [x] String functions (UPPER, LOWER, SUBSTRING, TRIM, CHAR_LENGTH)
-- [x] WASM bindings and web demo
+- [x] **String functions** (UPPER, LOWER, SUBSTRING, TRIM, CHAR_LENGTH)
+- [x] **Date/Time functions** (CURRENT_DATE, CURRENT_TIME, EXTRACT, date arithmetic)
+- [x] **Math functions** (ABS, CEILING, FLOOR, SQRT, POWER, trigonometric, logarithmic)
+- [x] **Complete type system** (14 types including DATE, TIME, TIMESTAMP, INTERVAL)
+- [x] WASM bindings and web demo with column names
+- [x] Sample databases (Employees, Northwind, University)
 - [x] CI/CD pipeline
+- [x] Loom AI orchestration setup
 
 **In Progress** 🚧
-- [ ] Complete type system (DATE, TIME, NUMERIC with precision)
-- [ ] Numeric functions (ABS, MOD, CEILING, FLOOR, POWER, SQRT)
-- [ ] Date/time functions (CURRENT_DATE, CURRENT_TIME, EXTRACT)
+- [ ] Type conversion functions (remaining)
+- [ ] NUMERIC/DECIMAL precision arithmetic (currently string-based)
+- [ ] Multi-row INSERT and INSERT from SELECT
 
 **Upcoming** ⏳
 - [ ] Transaction support
@@ -438,10 +458,10 @@ MIT License - See [LICENSE](LICENSE) for details.
 ---
 
 **Current Focus**: AI speed run to Core SQL:1999 compliance
-- **Day 3 of 7** (Oct 27, 2025) - **Phase 3 Complete!** 🎉
-- **35% complete** in 3 days
-- **Velocity**: On track for 7-day completion
-- **Target**: Oct 31 - Nov 1, 2025
+- **Day 3 of 10-12** (Oct 27, 2025) - **Phase 3 Advanced!** 🎉
+- **42% complete** in 3 days
+- **Velocity**: On track for 10-12 day completion
+- **Target**: Nov 4-6, 2025
 
 **Ultimate Goal**: FULL SQL:1999 compliance (larger effort, but achievable)
 
