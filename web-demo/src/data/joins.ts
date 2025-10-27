@@ -23,7 +23,8 @@ export const JOIN_TYPES: JoinType[] = [
     name: 'LEFT OUTER JOIN',
     category: 'Outer',
     status: 'implemented',
-    description: 'Returns all rows from left table, with matches from right (NULLs for non-matches)',
+    description:
+      'Returns all rows from left table, with matches from right (NULLs for non-matches)',
     syntax: 'SELECT ... FROM table1 LEFT JOIN table2 ON condition',
     useCase: 'When you want all records from the first table, even without matches',
   },
@@ -31,7 +32,8 @@ export const JOIN_TYPES: JoinType[] = [
     name: 'RIGHT OUTER JOIN',
     category: 'Outer',
     status: 'implemented',
-    description: 'Returns all rows from right table, with matches from left (NULLs for non-matches)',
+    description:
+      'Returns all rows from right table, with matches from left (NULLs for non-matches)',
     syntax: 'SELECT ... FROM table1 RIGHT JOIN table2 ON condition',
     useCase: 'When you want all records from the second table, even without matches',
   },
