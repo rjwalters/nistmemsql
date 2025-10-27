@@ -6,9 +6,56 @@
   <title>NIST MemSQL - SQL Database in WebAssembly</title>
 </head>
 <body>
-  <div id="app">
-    <h1>NIST MemSQL Demo</h1>
-    <p>Loading...</p>
+  <div id="app" class="min-h-screen bg-surface-light dark:bg-surface-dark">
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-md">
+      <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center flex-wrap gap-4">
+        <h1 class="text-3xl font-bold text-primary-light dark:text-primary-dark">
+          NIST MemSQL Demo
+        </h1>
+        <div class="flex items-center gap-4">
+          <div id="database-selector"></div>
+          <div id="theme-toggle"></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-6">
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- Sidebar: Examples -->
+        <aside class="lg:col-span-1" id="examples" aria-label="Example queries"></aside>
+
+        <!-- Main Area: Editor and Results -->
+        <section class="lg:col-span-3 space-y-6">
+          <!-- Editor -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                SQL Editor
+              </h2>
+              <button id="execute-btn" class="btn-primary" aria-label="Execute query">
+                Execute Query
+              </button>
+            </div>
+            <div id="editor"></div>
+          </div>
+
+          <!-- Results -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              Results
+            </h2>
+            <div id="results"></div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-12 text-center text-sm text-gray-600 dark:text-gray-400 pb-6">
+      <p>NIST MemSQL - SQL:1999 Compliant Database in WebAssembly</p>
+    </footer>
   </div>
   <script type="module" src="/src/main.ts"></script>
 </body>

@@ -45,7 +45,13 @@ pub enum FromClause {
         join_type: JoinType,
         condition: Option<Expression>,
     },
-    // TODO: Add subqueries, etc.
+    /// Subquery in FROM clause (derived table)
+    /// SQL:1999 requires AS alias for derived tables
+    /// Example: FROM (SELECT * FROM users WHERE active = TRUE) AS active_users
+    Subquery {
+        query: Box<SelectStmt>,
+        alias: String,
+    },
 }
 
 /// JOIN types

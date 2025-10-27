@@ -298,6 +298,54 @@ impl<'a> SelectExecutor<'a> {
                 // Perform nested loop join
                 nested_loop_join(left_result, right_result, join_type, condition, self.database)
             }
+            ast::FromClause::Subquery { query, alias } => {
+                // Execute subquery to get rows
+                let rows = self.execute(query)?;
+
+                // Derive schema from SELECT list
+                let mut column_names = Vec::new();
+                let mut column_types = Vec::new();
+
+                for (i, item) in query.select_list.iter().enumerate() {
+                    match item {
+                        ast::SelectItem::Wildcard => {
+                            return Err(ExecutorError::UnsupportedFeature(
+                                "SELECT * not yet supported in derived tables".to_string(),
+                            ));
+                        }
+                        ast::SelectItem::Expression { expr: _, alias: col_alias } => {
+                            // Use alias if provided, otherwise generate column name
+                            let col_name = if let Some(a) = col_alias {
+                                a.clone()
+                            } else {
+                                format!("column{}", i + 1)
+                            };
+                            column_names.push(col_name);
+
+                            // Infer type from first row if available
+                            let col_type = if let Some(first_row) = rows.first() {
+                                if i < first_row.values.len() {
+                                    first_row.values[i].get_type()
+                                } else {
+                                    types::DataType::Null
+                                }
+                            } else {
+                                types::DataType::Null
+                            };
+                            column_types.push(col_type);
+                        }
+                    }
+                }
+
+                // Create schema with table alias
+                let schema = CombinedSchema::from_derived_table(
+                    alias.clone(),
+                    column_names,
+                    column_types,
+                );
+
+                Ok(FromResult { schema, rows })
+            }
         }
     }
 

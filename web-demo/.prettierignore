@@ -3,3 +3,4 @@ dist
 pkg
 *.md
 package-lock.json
+src/components
