@@ -305,11 +305,8 @@ function createExecutionHandler(
         const startTime = performance.now()
 
         // Detect if this is a SELECT query
-        const isSelectQuery = /^\s*SELECT\s+/i.test(sql)
-
-        console.log('[DEBUG] SQL:', sql.substring(0, 100))
-        console.log('[DEBUG] isSelectQuery:', isSelectQuery)
-        console.log('[DEBUG] Calling:', isSelectQuery ? 'query()' : 'execute()')
+        // Skip SQL line comments (--) and whitespace before checking for SELECT
+        const isSelectQuery = /^(?:\s*--[^\n]*\n)*\s*SELECT\s+/i.test(sql)
 
         const result = isSelectQuery ? database.query(sql) : database.execute(sql)
 
