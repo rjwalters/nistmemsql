@@ -14,10 +14,11 @@ pub(super) fn nested_loop_join(
     right: FromResult,
     join_type: &ast::JoinType,
     condition: &Option<ast::Expression>,
+    database: &storage::Database,
 ) -> Result<FromResult, ExecutorError> {
     match join_type {
-        ast::JoinType::Inner => nested_loop_inner_join(left, right, condition),
-        ast::JoinType::LeftOuter => nested_loop_left_outer_join(left, right, condition),
+        ast::JoinType::Inner => nested_loop_inner_join(left, right, condition, database),
+        ast::JoinType::LeftOuter => nested_loop_left_outer_join(left, right, condition, database),
         _ => Err(ExecutorError::UnsupportedFeature(format!(
             "JOIN type {:?} not yet implemented",
             join_type
@@ -30,6 +31,7 @@ pub(super) fn nested_loop_inner_join(
     left: FromResult,
     right: FromResult,
     condition: &Option<ast::Expression>,
+    database: &storage::Database,
 ) -> Result<FromResult, ExecutorError> {
     // Extract right table name (assume single table for now)
     let right_table_name = right
@@ -50,7 +52,7 @@ pub(super) fn nested_loop_inner_join(
 
     // Combine schemas
     let combined_schema = CombinedSchema::combine(left.schema, right_table_name, right_schema);
-    let evaluator = CombinedExpressionEvaluator::new(&combined_schema);
+    let evaluator = CombinedExpressionEvaluator::with_database(&combined_schema, database);
 
     // Nested loop join algorithm
     let mut result_rows = Vec::new();
@@ -92,6 +94,7 @@ pub(super) fn nested_loop_left_outer_join(
     left: FromResult,
     right: FromResult,
     condition: &Option<ast::Expression>,
+    database: &storage::Database,
 ) -> Result<FromResult, ExecutorError> {
     // Extract right table name and schema
     let right_table_name = right
@@ -114,7 +117,7 @@ pub(super) fn nested_loop_left_outer_join(
 
     // Combine schemas
     let combined_schema = CombinedSchema::combine(left.schema, right_table_name, right_schema);
-    let evaluator = CombinedExpressionEvaluator::new(&combined_schema);
+    let evaluator = CombinedExpressionEvaluator::with_database(&combined_schema, database);
 
     // Nested loop LEFT OUTER JOIN algorithm
     let mut result_rows = Vec::new();
