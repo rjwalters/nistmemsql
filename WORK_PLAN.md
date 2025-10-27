@@ -5,6 +5,7 @@
 **Current Phase**: Implementing Core SQL:1999 mandatory features
 **Ultimate Goal**: FULL SQL:1999 compliance (Core first, then optional features)
 **Development Approach**: Test-Driven Development (TDD) ✅
+**Rebrand Planned**: See [REBRANDING.md](REBRANDING.md) for vibesql transition plan
 
 ---
 
@@ -18,7 +19,7 @@
 ### Phase 2: FULL SQL:1999 Compliance (Long-term Vision)
 **Timeline**: 3-5 years total
 **Goal**: Implement all mandatory + optional features (400+ features)
-**Alignment**: Original posix4e/nistmemsql vision
+**Origin**: Inspired by posix4e/nistmemsql challenge (rebranding to vibesql planned)
 
 **Note**: No production database has achieved FULL SQL:1999 compliance. PostgreSQL, Oracle, and SQL Server implement Core + selective optional features. We're targeting complete compliance as a long-term research goal.
 
@@ -484,7 +485,7 @@ Once Core SQL:1999 compliance is achieved (~10-14 months), the following work re
 
 **Combined Timeline (Core + FULL)**: 62-86 months (5-7 years)
 
-This aligns with the original posix4e/nistmemsql vision while acknowledging the realistic scope. Core compliance first provides an achievable milestone and enables NIST testing, while FULL compliance remains the ultimate research goal.
+This builds on the original posix4e/nistmemsql challenge while taking an AI-first approach. Core compliance first provides an achievable milestone and enables NIST testing, while FULL compliance remains the ultimate research goal. (See [REBRANDING.md](REBRANDING.md) for planned transition to "vibesql" branding.)
 
 ---
 
