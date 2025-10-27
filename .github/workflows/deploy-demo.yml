@@ -96,7 +96,8 @@ jobs:
 
       # Build WASM
       - name: Build WASM
-        run: wasm-pack build --target web --out-dir web-demo/public/pkg
+        working-directory: crates/wasm-bindings
+        run: wasm-pack build --target web --out-dir ../../web-demo/public/pkg
 
       # Setup Node.js
       - name: Setup Node.js
