@@ -26,4 +26,13 @@ impl Row {
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
     }
+
+    /// Set value at column index
+    pub fn set(&mut self, index: usize, value: SqlValue) -> Result<(), crate::StorageError> {
+        if index >= self.values.len() {
+            return Err(crate::StorageError::ColumnIndexOutOfBounds { index });
+        }
+        self.values[index] = value;
+        Ok(())
+    }
 }

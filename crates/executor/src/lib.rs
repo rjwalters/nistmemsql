@@ -8,12 +8,14 @@ mod evaluator;
 mod insert;
 mod schema;
 mod select;
+mod update;
 
 pub use create_table::CreateTableExecutor;
 pub use errors::ExecutorError;
 pub use evaluator::ExpressionEvaluator;
 pub use insert::InsertExecutor;
 pub use select::SelectExecutor;
+pub use update::UpdateExecutor;
 
 #[cfg(test)]
 mod tests;
