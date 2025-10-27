@@ -1,26 +1,27 @@
-use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use crate::errors::ExecutorError;
 use crate::evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator};
-use crate::schema::CombinedSchema;
 
 mod cte;
+mod filter;
 mod grouping;
 mod helpers;
 mod join;
+mod order;
 mod projection;
+mod scan;
 mod set_operations;
 
 use cte::{execute_ctes, CteResult};
-use grouping::{compare_sql_values, group_rows, AggregateAccumulator};
+use filter::{apply_where_filter_basic, apply_where_filter_combined};
+use grouping::{group_rows, AggregateAccumulator};
 use helpers::{apply_distinct, apply_limit_offset};
-use join::{nested_loop_join, FromResult};
+use join::FromResult;
+use order::{apply_order_by, RowWithSortKeys};
 use projection::project_row_combined;
+use scan::execute_from_clause;
 use set_operations::apply_set_operation;
-
-/// Row with optional sort keys for ORDER BY
-type RowWithSortKeys = (storage::Row, Option<Vec<(types::SqlValue, ast::OrderDirection)>>);
 
 /// Result of a SELECT query including column metadata
 pub struct SelectResult {
@@ -301,28 +302,8 @@ impl<'a> SelectExecutor<'a> {
             _ => ExpressionEvaluator::with_database(&schema, self.database),
         };
 
-        // Scan and filter rows
-        let mut filtered_rows = Vec::new();
-        for row in &rows {
-            let include_row = if let Some(where_expr) = &stmt.where_clause {
-                match evaluator.eval(where_expr, row)? {
-                    types::SqlValue::Boolean(true) => true,
-                    types::SqlValue::Boolean(false) | types::SqlValue::Null => false,
-                    other => {
-                        return Err(ExecutorError::InvalidWhereClause(format!(
-                            "WHERE must evaluate to boolean, got: {:?}",
-                            other
-                        )))
-                    }
-                }
-            } else {
-                true
-            };
-
-            if include_row {
-                filtered_rows.push(row.clone());
-            }
-        }
+        // Scan and filter rows with WHERE clause
+        let filtered_rows = apply_where_filter_basic(rows, stmt.where_clause.as_ref(), &evaluator)?;
 
         // Group rows
         let groups = if let Some(group_by_exprs) = &stmt.group_by {
@@ -410,60 +391,15 @@ impl<'a> SelectExecutor<'a> {
         let FromResult { schema, rows } = from_result;
         let evaluator = CombinedExpressionEvaluator::with_database(&schema, self.database);
 
-        // Scan all rows and filter with WHERE clause
-        let mut result_rows: Vec<RowWithSortKeys> = Vec::new();
+        // Apply WHERE clause filter
+        let filtered_rows = apply_where_filter_combined(rows, stmt.where_clause.as_ref(), &evaluator)?;
 
-        for row in rows.into_iter() {
-            // Apply WHERE filter
-            let include_row = if let Some(where_expr) = &stmt.where_clause {
-                match evaluator.eval(where_expr, &row)? {
-                    types::SqlValue::Boolean(true) => true,
-                    types::SqlValue::Boolean(false) | types::SqlValue::Null => false,
-                    other => {
-                        return Err(ExecutorError::InvalidWhereClause(format!(
-                            "WHERE clause must evaluate to boolean, got: {:?}",
-                            other
-                        )))
-                    }
-                }
-            } else {
-                true // No WHERE clause, include all rows
-            };
+        // Convert to RowWithSortKeys format
+        let mut result_rows: Vec<RowWithSortKeys> = filtered_rows.into_iter().map(|row| (row, None)).collect();
 
-            if include_row {
-                result_rows.push((row, None));
-            }
-        }
-
-        // Apply ORDER BY if present
+        // Apply ORDER BY sorting if present
         if let Some(order_by) = &stmt.order_by {
-            // Evaluate ORDER BY expressions for each row
-            for (row, sort_keys) in &mut result_rows {
-                let mut keys = Vec::new();
-                for order_item in order_by {
-                    let key_value = evaluator.eval(&order_item.expr, row)?;
-                    keys.push((key_value, order_item.direction.clone()));
-                }
-                *sort_keys = Some(keys);
-            }
-
-            // Sort by the evaluated keys
-            result_rows.sort_by(|(_, keys_a), (_, keys_b)| {
-                let keys_a = keys_a.as_ref().unwrap();
-                let keys_b = keys_b.as_ref().unwrap();
-
-                for ((val_a, dir), (val_b, _)) in keys_a.iter().zip(keys_b.iter()) {
-                    let cmp = match dir {
-                        ast::OrderDirection::Asc => compare_sql_values(val_a, val_b),
-                        ast::OrderDirection::Desc => compare_sql_values(val_a, val_b).reverse(),
-                    };
-
-                    if cmp != Ordering::Equal {
-                        return cmp;
-                    }
-                }
-                Ordering::Equal
-            });
+            result_rows = apply_order_by(result_rows, order_by, &evaluator)?;
         }
 
         // Project columns from the sorted rows
@@ -490,83 +426,7 @@ impl<'a> SelectExecutor<'a> {
         from: &ast::FromClause,
         cte_results: &HashMap<String, CteResult>,
     ) -> Result<FromResult, ExecutorError> {
-        match from {
-            ast::FromClause::Table { name, alias } => {
-                // Check if table is a CTE first, then check database
-                if let Some((cte_schema, cte_rows)) = cte_results.get(name) {
-                    // Use CTE result
-                    let table_name = alias.as_ref().unwrap_or(name);
-                    let schema = CombinedSchema::from_table(table_name.clone(), cte_schema.clone());
-                    let rows = cte_rows.clone();
-                    Ok(FromResult { schema, rows })
-                } else {
-                    // Use database table
-                    let table = self
-                        .database
-                        .get_table(name)
-                        .ok_or_else(|| ExecutorError::TableNotFound(name.clone()))?;
-
-                    let table_name = alias.as_ref().unwrap_or(name);
-                    let schema = CombinedSchema::from_table(table_name.clone(), table.schema.clone());
-                    let rows = table.scan().to_vec();
-
-                    Ok(FromResult { schema, rows })
-                }
-            }
-            ast::FromClause::Join { left, right, join_type, condition } => {
-                // Execute left and right sides
-                let left_result = self.execute_from(left, cte_results)?;
-                let right_result = self.execute_from(right, cte_results)?;
-
-                // Perform nested loop join
-                nested_loop_join(left_result, right_result, join_type, condition, self.database)
-            }
-            ast::FromClause::Subquery { query, alias } => {
-                // Execute subquery to get rows
-                let rows = self.execute(query)?;
-
-                // Derive schema from SELECT list
-                let mut column_names = Vec::new();
-                let mut column_types = Vec::new();
-
-                for (i, item) in query.select_list.iter().enumerate() {
-                    match item {
-                        ast::SelectItem::Wildcard => {
-                            return Err(ExecutorError::UnsupportedFeature(
-                                "SELECT * not yet supported in derived tables".to_string(),
-                            ));
-                        }
-                        ast::SelectItem::Expression { expr: _, alias: col_alias } => {
-                            // Use alias if provided, otherwise generate column name
-                            let col_name = if let Some(a) = col_alias {
-                                a.clone()
-                            } else {
-                                format!("column{}", i + 1)
-                            };
-                            column_names.push(col_name);
-
-                            // Infer type from first row if available
-                            let col_type = if let Some(first_row) = rows.first() {
-                                if i < first_row.values.len() {
-                                    first_row.values[i].get_type()
-                                } else {
-                                    types::DataType::Null
-                                }
-                            } else {
-                                types::DataType::Null
-                            };
-                            column_types.push(col_type);
-                        }
-                    }
-                }
-
-                // Create schema with table alias
-                let schema =
-                    CombinedSchema::from_derived_table(alias.clone(), column_names, column_types);
-
-                Ok(FromResult { schema, rows })
-            }
-        }
+        execute_from_clause(from, cte_results, self.database, |query| self.execute(query))
     }
 
     /// Evaluate an expression in the context of aggregation

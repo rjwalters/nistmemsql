@@ -1,0 +1,151 @@
+//! FROM clause scanning logic
+//!
+//! Handles execution of FROM clauses including:
+//! - Table scans (regular tables and CTEs)
+//! - JOIN operations (delegates to join module)
+//! - Derived tables (subqueries)
+
+use std::collections::HashMap;
+
+use crate::errors::ExecutorError;
+use crate::schema::CombinedSchema;
+
+use super::cte::CteResult;
+use super::join::{nested_loop_join, FromResult};
+
+/// Execute a FROM clause (table, join, or subquery) and return combined schema and rows
+///
+/// This function handles all types of FROM clauses:
+/// - Simple table references (with optional alias)
+/// - CTEs (Common Table Expressions)
+/// - JOIN operations (INNER, LEFT, RIGHT, FULL)
+/// - Derived tables (subqueries with alias)
+pub(super) fn execute_from_clause<'a, F>(
+    from: &ast::FromClause,
+    cte_results: &HashMap<String, CteResult>,
+    database: &'a storage::Database,
+    execute_subquery: F,
+) -> Result<FromResult, ExecutorError>
+where
+    F: Fn(&ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> + Copy,
+{
+    match from {
+        ast::FromClause::Table { name, alias } => {
+            execute_table_scan(name, alias.as_ref(), cte_results, database)
+        }
+        ast::FromClause::Join {
+            left,
+            right,
+            join_type,
+            condition,
+        } => execute_join(left, right, join_type, condition, cte_results, database, execute_subquery),
+        ast::FromClause::Subquery { query, alias } => {
+            execute_derived_table(query, alias, execute_subquery)
+        }
+    }
+}
+
+/// Execute a table scan (handles both regular tables and CTEs)
+fn execute_table_scan(
+    table_name: &str,
+    alias: Option<&String>,
+    cte_results: &HashMap<String, CteResult>,
+    database: &storage::Database,
+) -> Result<FromResult, ExecutorError> {
+    // Check if table is a CTE first, then check database
+    if let Some((cte_schema, cte_rows)) = cte_results.get(table_name) {
+        // Use CTE result
+        let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
+        let schema = CombinedSchema::from_table(effective_name, cte_schema.clone());
+        let rows = cte_rows.clone();
+        Ok(FromResult { schema, rows })
+    } else {
+        // Use database table
+        let table = database
+            .get_table(table_name)
+            .ok_or_else(|| ExecutorError::TableNotFound(table_name.to_string()))?;
+
+        let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
+        let schema = CombinedSchema::from_table(effective_name, table.schema.clone());
+        let rows = table.scan().to_vec();
+
+        Ok(FromResult { schema, rows })
+    }
+}
+
+/// Execute a JOIN operation
+fn execute_join<F>(
+    left: &ast::FromClause,
+    right: &ast::FromClause,
+    join_type: &ast::JoinType,
+    condition: &Option<ast::Expression>,
+    cte_results: &HashMap<String, CteResult>,
+    database: &storage::Database,
+    execute_subquery: F,
+) -> Result<FromResult, ExecutorError>
+where
+    F: Fn(&ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> + Copy,
+{
+    // Execute left and right sides recursively
+    let left_result = execute_from_clause(left, cte_results, database, execute_subquery)?;
+    let right_result = execute_from_clause(right, cte_results, database, execute_subquery)?;
+
+    // Perform nested loop join
+    nested_loop_join(left_result, right_result, join_type, condition, database)
+}
+
+/// Execute a derived table (subquery with alias)
+fn execute_derived_table<F>(
+    query: &ast::SelectStmt,
+    alias: &str,
+    execute_subquery: F,
+) -> Result<FromResult, ExecutorError>
+where
+    F: Fn(&ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError>,
+{
+    // Execute subquery to get rows
+    let rows = execute_subquery(query)?;
+
+    // Derive schema from SELECT list
+    let mut column_names = Vec::new();
+    let mut column_types = Vec::new();
+
+    for (i, item) in query.select_list.iter().enumerate() {
+        match item {
+            ast::SelectItem::Wildcard => {
+                return Err(ExecutorError::UnsupportedFeature(
+                    "SELECT * not yet supported in derived tables".to_string(),
+                ));
+            }
+            ast::SelectItem::Expression {
+                expr: _,
+                alias: col_alias,
+            } => {
+                // Use alias if provided, otherwise generate column name
+                let col_name = if let Some(a) = col_alias {
+                    a.clone()
+                } else {
+                    format!("column{}", i + 1)
+                };
+                column_names.push(col_name);
+
+                // Infer type from first row if available
+                let col_type = if let Some(first_row) = rows.first() {
+                    if i < first_row.values.len() {
+                        first_row.values[i].get_type()
+                    } else {
+                        types::DataType::Null
+                    }
+                } else {
+                    types::DataType::Null
+                };
+                column_types.push(col_type);
+            }
+        }
+    }
+
+    // Create schema with table alias
+    let schema = CombinedSchema::from_derived_table(alias.to_string(), column_names, column_types);
+
+    Ok(FromResult { schema, rows })
+}
