@@ -1029,6 +1029,298 @@ pub(super) fn eval_scalar_function(
             }
         }
 
+        // ==================== DATE/TIME FUNCTIONS ====================
+
+        // CURRENT_DATE / CURDATE - Returns current date
+        // SQL:1999 Section 6.31: Datetime value functions
+        "CURRENT_DATE" | "CURDATE" => {
+            if !args.is_empty() {
+                return Err(ExecutorError::UnsupportedFeature(format!(
+                    "{} takes no arguments",
+                    name
+                )));
+            }
+
+            use chrono::Local;
+            let now = Local::now();
+            let date_str = now.format("%Y-%m-%d").to_string();
+            Ok(types::SqlValue::Date(date_str))
+        }
+
+        // CURRENT_TIME / CURTIME - Returns current time
+        // SQL:1999 Section 6.31: Datetime value functions
+        "CURRENT_TIME" | "CURTIME" => {
+            if !args.is_empty() {
+                return Err(ExecutorError::UnsupportedFeature(format!(
+                    "{} takes no arguments",
+                    name
+                )));
+            }
+
+            use chrono::Local;
+            let now = Local::now();
+            let time_str = now.format("%H:%M:%S").to_string();
+            Ok(types::SqlValue::Time(time_str))
+        }
+
+        // CURRENT_TIMESTAMP / NOW - Returns current timestamp
+        // SQL:1999 Section 6.31: Datetime value functions
+        "CURRENT_TIMESTAMP" | "NOW" => {
+            if !args.is_empty() {
+                return Err(ExecutorError::UnsupportedFeature(format!(
+                    "{} takes no arguments",
+                    name
+                )));
+            }
+
+            use chrono::Local;
+            let now = Local::now();
+            let timestamp_str = now.format("%Y-%m-%d %H:%M:%S").to_string();
+            Ok(types::SqlValue::Timestamp(timestamp_str))
+        }
+
+        // YEAR(date) - Extract year from date/timestamp
+        // SQL:1999 Section 6.32: Datetime field extraction
+        "YEAR" => {
+            if args.len() != 1 {
+                return Err(ExecutorError::UnsupportedFeature(
+                    "YEAR requires exactly 1 argument".to_string(),
+                ));
+            }
+
+            match &args[0] {
+                types::SqlValue::Null => Ok(types::SqlValue::Null),
+                types::SqlValue::Date(s) | types::SqlValue::Timestamp(s) => {
+                    // Parse date string (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)
+                    let parts: Vec<&str> = s.split(&['-', ' '][..]).collect();
+                    if parts.is_empty() {
+                        return Err(ExecutorError::UnsupportedFeature(
+                            "Invalid date format for YEAR".to_string(),
+                        ));
+                    }
+                    match parts[0].parse::<i64>() {
+                        Ok(year) => Ok(types::SqlValue::Integer(year)),
+                        Err(_) => Err(ExecutorError::UnsupportedFeature(
+                            "Invalid year value".to_string(),
+                        )),
+                    }
+                }
+                _ => Err(ExecutorError::UnsupportedFeature(
+                    "YEAR requires date or timestamp argument".to_string(),
+                )),
+            }
+        }
+
+        // MONTH(date) - Extract month from date/timestamp
+        // SQL:1999 Section 6.32: Datetime field extraction
+        "MONTH" => {
+            if args.len() != 1 {
+                return Err(ExecutorError::UnsupportedFeature(
+                    "MONTH requires exactly 1 argument".to_string(),
+                ));
+            }
+
+            match &args[0] {
+                types::SqlValue::Null => Ok(types::SqlValue::Null),
+                types::SqlValue::Date(s) | types::SqlValue::Timestamp(s) => {
+                    // Parse date string (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)
+                    let date_part = s.split(' ').next().unwrap_or(s);
+                    let parts: Vec<&str> = date_part.split('-').collect();
+                    if parts.len() < 2 {
+                        return Err(ExecutorError::UnsupportedFeature(
+                            "Invalid date format for MONTH".to_string(),
+                        ));
+                    }
+                    match parts[1].parse::<i64>() {
+                        Ok(month) => Ok(types::SqlValue::Integer(month)),
+                        Err(_) => Err(ExecutorError::UnsupportedFeature(
+                            "Invalid month value".to_string(),
+                        )),
+                    }
+                }
+                _ => Err(ExecutorError::UnsupportedFeature(
+                    "MONTH requires date or timestamp argument".to_string(),
+                )),
+            }
+        }
+
+        // DAY(date) - Extract day from date/timestamp
+        // SQL:1999 Section 6.32: Datetime field extraction
+        "DAY" => {
+            if args.len() != 1 {
+                return Err(ExecutorError::UnsupportedFeature(
+                    "DAY requires exactly 1 argument".to_string(),
+                ));
+            }
+
+            match &args[0] {
+                types::SqlValue::Null => Ok(types::SqlValue::Null),
+                types::SqlValue::Date(s) | types::SqlValue::Timestamp(s) => {
+                    // Parse date string (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)
+                    let date_part = s.split(' ').next().unwrap_or(s);
+                    let parts: Vec<&str> = date_part.split('-').collect();
+                    if parts.len() < 3 {
+                        return Err(ExecutorError::UnsupportedFeature(
+                            "Invalid date format for DAY".to_string(),
+                        ));
+                    }
+                    match parts[2].parse::<i64>() {
+                        Ok(day) => Ok(types::SqlValue::Integer(day)),
+                        Err(_) => Err(ExecutorError::UnsupportedFeature(
+                            "Invalid day value".to_string(),
+                        )),
+                    }
+                }
+                _ => Err(ExecutorError::UnsupportedFeature(
+                    "DAY requires date or timestamp argument".to_string(),
+                )),
+            }
+        }
+
+        // HOUR(time) - Extract hour from time/timestamp
+        // SQL:1999 Section 6.32: Datetime field extraction
+        "HOUR" => {
+            if args.len() != 1 {
+                return Err(ExecutorError::UnsupportedFeature(
+                    "HOUR requires exactly 1 argument".to_string(),
+                ));
+            }
+
+            match &args[0] {
+                types::SqlValue::Null => Ok(types::SqlValue::Null),
+                types::SqlValue::Time(s) => {
+                    // Parse time string (HH:MM:SS)
+                    let parts: Vec<&str> = s.split(':').collect();
+                    if parts.is_empty() {
+                        return Err(ExecutorError::UnsupportedFeature(
+                            "Invalid time format for HOUR".to_string(),
+                        ));
+                    }
+                    match parts[0].parse::<i64>() {
+                        Ok(hour) => Ok(types::SqlValue::Integer(hour)),
+                        Err(_) => Err(ExecutorError::UnsupportedFeature(
+                            "Invalid hour value".to_string(),
+                        )),
+                    }
+                }
+                types::SqlValue::Timestamp(s) => {
+                    // Parse timestamp string (YYYY-MM-DD HH:MM:SS)
+                    let time_part = s.split(' ').nth(1).unwrap_or("");
+                    let parts: Vec<&str> = time_part.split(':').collect();
+                    if parts.is_empty() {
+                        return Err(ExecutorError::UnsupportedFeature(
+                            "Invalid timestamp format for HOUR".to_string(),
+                        ));
+                    }
+                    match parts[0].parse::<i64>() {
+                        Ok(hour) => Ok(types::SqlValue::Integer(hour)),
+                        Err(_) => Err(ExecutorError::UnsupportedFeature(
+                            "Invalid hour value".to_string(),
+                        )),
+                    }
+                }
+                _ => Err(ExecutorError::UnsupportedFeature(
+                    "HOUR requires time or timestamp argument".to_string(),
+                )),
+            }
+        }
+
+        // MINUTE(time) - Extract minute from time/timestamp
+        // SQL:1999 Section 6.32: Datetime field extraction
+        "MINUTE" => {
+            if args.len() != 1 {
+                return Err(ExecutorError::UnsupportedFeature(
+                    "MINUTE requires exactly 1 argument".to_string(),
+                ));
+            }
+
+            match &args[0] {
+                types::SqlValue::Null => Ok(types::SqlValue::Null),
+                types::SqlValue::Time(s) => {
+                    // Parse time string (HH:MM:SS)
+                    let parts: Vec<&str> = s.split(':').collect();
+                    if parts.len() < 2 {
+                        return Err(ExecutorError::UnsupportedFeature(
+                            "Invalid time format for MINUTE".to_string(),
+                        ));
+                    }
+                    match parts[1].parse::<i64>() {
+                        Ok(minute) => Ok(types::SqlValue::Integer(minute)),
+                        Err(_) => Err(ExecutorError::UnsupportedFeature(
+                            "Invalid minute value".to_string(),
+                        )),
+                    }
+                }
+                types::SqlValue::Timestamp(s) => {
+                    // Parse timestamp string (YYYY-MM-DD HH:MM:SS)
+                    let time_part = s.split(' ').nth(1).unwrap_or("");
+                    let parts: Vec<&str> = time_part.split(':').collect();
+                    if parts.len() < 2 {
+                        return Err(ExecutorError::UnsupportedFeature(
+                            "Invalid timestamp format for MINUTE".to_string(),
+                        ));
+                    }
+                    match parts[1].parse::<i64>() {
+                        Ok(minute) => Ok(types::SqlValue::Integer(minute)),
+                        Err(_) => Err(ExecutorError::UnsupportedFeature(
+                            "Invalid minute value".to_string(),
+                        )),
+                    }
+                }
+                _ => Err(ExecutorError::UnsupportedFeature(
+                    "MINUTE requires time or timestamp argument".to_string(),
+                )),
+            }
+        }
+
+        // SECOND(time) - Extract second from time/timestamp
+        // SQL:1999 Section 6.32: Datetime field extraction
+        "SECOND" => {
+            if args.len() != 1 {
+                return Err(ExecutorError::UnsupportedFeature(
+                    "SECOND requires exactly 1 argument".to_string(),
+                ));
+            }
+
+            match &args[0] {
+                types::SqlValue::Null => Ok(types::SqlValue::Null),
+                types::SqlValue::Time(s) => {
+                    // Parse time string (HH:MM:SS)
+                    let parts: Vec<&str> = s.split(':').collect();
+                    if parts.len() < 3 {
+                        return Err(ExecutorError::UnsupportedFeature(
+                            "Invalid time format for SECOND".to_string(),
+                        ));
+                    }
+                    match parts[2].parse::<i64>() {
+                        Ok(second) => Ok(types::SqlValue::Integer(second)),
+                        Err(_) => Err(ExecutorError::UnsupportedFeature(
+                            "Invalid second value".to_string(),
+                        )),
+                    }
+                }
+                types::SqlValue::Timestamp(s) => {
+                    // Parse timestamp string (YYYY-MM-DD HH:MM:SS)
+                    let time_part = s.split(' ').nth(1).unwrap_or("");
+                    let parts: Vec<&str> = time_part.split(':').collect();
+                    if parts.len() < 3 {
+                        return Err(ExecutorError::UnsupportedFeature(
+                            "Invalid timestamp format for SECOND".to_string(),
+                        ));
+                    }
+                    match parts[2].parse::<i64>() {
+                        Ok(second) => Ok(types::SqlValue::Integer(second)),
+                        Err(_) => Err(ExecutorError::UnsupportedFeature(
+                            "Invalid second value".to_string(),
+                        )),
+                    }
+                }
+                _ => Err(ExecutorError::UnsupportedFeature(
+                    "SECOND requires time or timestamp argument".to_string(),
+                )),
+            }
+        }
+
         // Unknown function
         _ => Err(ExecutorError::UnsupportedFeature(
             format!("Scalar function {} not supported in this context", name),
