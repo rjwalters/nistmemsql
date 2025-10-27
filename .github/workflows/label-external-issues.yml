@@ -21,53 +21,59 @@ jobs:
   label_external:
     if: github.event_name == 'issues'
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
     steps:
       - name: Determine collaborator status
-        id: collaborator
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            const username = context.payload.issue.user.login;
+        id: status
+        run: |
+          set -euo pipefail
 
-            try {
-              await github.rest.repos.checkCollaborator({ owner, repo, username });
-              core.setOutput('isCollaborator', 'true');
-              core.info(`${username} is a collaborator`);
-            } catch (error) {
-              core.setOutput('isCollaborator', 'false');
-              core.info(`${username} is NOT a collaborator`);
-            }
+          payload="$GITHUB_EVENT_PATH"
+          issue_number=$(jq -r '.issue.number // empty' "$payload")
+          username=$(jq -r '.issue.user.login // empty' "$payload")
+
+          if [ -z "$issue_number" ] || [ -z "$username" ]; then
+            echo "status=skipped" >> "$GITHUB_OUTPUT"
+            echo "issue_number=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/collaborators/${username}")
+
+          if [ "$response" = "204" ]; then
+            status="collaborator"
+          else
+            status="external"
+          fi
+
+          echo "Detected ${status} for ${username}" >&2
+
+          {
+            echo "status=${status}"
+            echo "issue_number=${issue_number}"
+            echo "username=${username}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Add 'external' label if needed
-        if: steps.collaborator.outputs.isCollaborator == 'false'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              labels: ['external'],
-            });
+        if: steps.status.outputs.status == 'external'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh issue edit ${{ steps.status.outputs.issue_number }} --add-label external
 
       - name: Post welcome comment on external issues
-        if: steps.collaborator.outputs.isCollaborator == 'false'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `Thank you for submitting an issue! 🙏
-
-This issue has been automatically labeled as \`external\` and will be reviewed by the maintainers.
-
-**Note**: External issues require manual triage before being assigned. We appreciate your patience while we review your submission.
-
-For questions or discussions, please use [GitHub Discussions](https://github.com/rjwalters/nistmemsql/discussions).`
-            });
+        if: steps.status.outputs.status == 'external'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh issue comment ${{ steps.status.outputs.issue_number }} --body $'Thank you for submitting an issue! 🙏\n\nThis issue has been automatically labeled as `external` and will be reviewed by the maintainers.\n\n**Note**: External issues require manual triage before being assigned. We appreciate your patience while we review your submission.\n\nFor questions or discussions, please use [GitHub Discussions](https://github.com/rjwalters/nistmemsql/discussions).'
 
       - name: Log collaborator outcome
-        run: echo "Collaborator status: ${{ steps.collaborator.outputs.isCollaborator }}"
+        run: echo "Collaborator status: ${{ steps.status.outputs.status }}"
