@@ -10,6 +10,7 @@ import type { ExampleSelectEvent } from './components/Examples'
 import { DatabaseSelectorComponent } from './components/DatabaseSelector'
 import type { DatabaseOption } from './components/DatabaseSelector'
 import { initShowcase } from './showcase'
+import { sampleDatabases, loadSampleDatabase, getSampleDatabase } from './data/sample-databases'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Monaco types are loaded dynamically from CDN and not available at compile time
@@ -309,22 +310,30 @@ async function bootstrap(): Promise<void> {
 
   const database = await safeInitDatabase()
   let tableNames: string[] = []
-  if (database) {
-    try {
-      // Pre-load sample database for immediate exploration
-      database.execute(
-        'CREATE TABLE employees (id INTEGER, name VARCHAR(50), department VARCHAR(50), salary INTEGER);'
-      )
-      database.execute("INSERT INTO employees VALUES (1, 'Alice Johnson', 'Engineering', 95000);")
-      database.execute("INSERT INTO employees VALUES (2, 'Bob Smith', 'Engineering', 87000);")
-      database.execute("INSERT INTO employees VALUES (3, 'Carol White', 'Sales', 72000);")
-      database.execute("INSERT INTO employees VALUES (4, 'David Brown', 'Sales', 68000);")
-      database.execute("INSERT INTO employees VALUES (5, 'Eve Martinez', 'HR', 65000);")
-      database.execute("INSERT INTO employees VALUES (6, 'Frank Wilson', 'Engineering', 92000);")
-      tableNames = database.list_tables()
-    } catch (error) {
-      console.warn('Failed to load sample data', error)
+  let currentDatabaseId = 'employees'
+
+  // Function to load a database by ID
+  const loadDatabase = (dbId: string): void => {
+    if (!database) return
+
+    const sampleDb = getSampleDatabase(dbId)
+    if (!sampleDb) {
+      console.error(`Unknown database: ${dbId}`)
+      return
     }
+
+    try {
+      loadSampleDatabase(database, sampleDb)
+      tableNames = database.list_tables()
+      currentDatabaseId = dbId
+    } catch (error) {
+      console.warn(`Failed to load sample database ${dbId}:`, error)
+    }
+  }
+
+  // Pre-load default sample database for immediate exploration
+  if (database) {
+    loadDatabase('employees')
   }
 
   registerCompletions(monaco, () => tableNames)
@@ -351,17 +360,23 @@ async function bootstrap(): Promise<void> {
   const examplesComponent = new ExamplesComponent()
   examplesComponent.onSelect((event: ExampleSelectEvent) => {
     editor.setValue(event.sql)
-    // TODO: Switch database if needed based on event.database
+    // Switch database if needed
+    if (event.database !== currentDatabaseId) {
+      loadDatabase(event.database)
+      databaseSelector.setSelected(event.database)
+    }
   })
 
-  // Initialize Database Selector
-  const databases: DatabaseOption[] = [
-    { id: 'employees', name: 'Employees', description: 'Sample employee data' },
-    { id: 'empty', name: 'Empty', description: 'Start with empty database' },
-  ]
-  const databaseSelector = new DatabaseSelectorComponent(databases, 'employees')
+  // Initialize Database Selector with all available sample databases
+  const databases: DatabaseOption[] = sampleDatabases.map(db => ({
+    id: db.id,
+    name: db.name,
+    description: db.description,
+  }))
+  const databaseSelector = new DatabaseSelectorComponent(databases, currentDatabaseId)
   databaseSelector.onChange((dbId: string) => {
-    console.warn(`Database switching to ${dbId} not yet implemented`)
+    loadDatabase(dbId)
+    refreshTables()
   })
 
   const execute = createExecutionHandler(editor, database, resultsComponent, refreshTables)
