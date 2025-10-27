@@ -5,6 +5,7 @@ mod create_table;
 mod delete;
 mod display;
 mod errors;
+mod exists;
 mod group_by;
 mod in_list;
 mod insert;

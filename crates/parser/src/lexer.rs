@@ -163,6 +163,7 @@ impl Lexer {
             "IN" => Token::Keyword(Keyword::In),
             "BETWEEN" => Token::Keyword(Keyword::Between),
             "LIKE" => Token::Keyword(Keyword::Like),
+            "EXISTS" => Token::Keyword(Keyword::Exists),
             "DATE" => Token::Keyword(Keyword::Date),
             "TIME" => Token::Keyword(Keyword::Time),
             "TIMESTAMP" => Token::Keyword(Keyword::Timestamp),

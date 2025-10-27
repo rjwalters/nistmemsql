@@ -778,3 +778,125 @@ fn test_e2e_in_list_predicate() {
     let results = execute_select(&db, "SELECT name FROM products WHERE id IN (99, 100)").unwrap();
     assert_eq!(results.len(), 0);
 }
+
+// ========================================================================
+// Phase 3: EXISTS Predicate Test
+// ========================================================================
+
+#[test]
+fn test_e2e_exists_predicate() {
+    // Test EXISTS predicate with correlated and non-correlated subqueries
+    let customers_schema = TableSchema::new(
+        "customers".to_string(),
+        vec![
+            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 50 }, false),
+        ],
+    );
+
+    let orders_schema = TableSchema::new(
+        "orders".to_string(),
+        vec![
+            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("customer_id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("total".to_string(), DataType::Integer, false),
+        ],
+    );
+
+    let mut db = Database::new();
+    db.create_table(customers_schema).unwrap();
+    db.create_table(orders_schema).unwrap();
+
+    // Insert customers
+    db.insert_row(
+        "customers",
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
+    )
+    .unwrap();
+    db.insert_row(
+        "customers",
+        Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())]),
+    )
+    .unwrap();
+    db.insert_row(
+        "customers",
+        Row::new(vec![SqlValue::Integer(3), SqlValue::Varchar("Charlie".to_string())]),
+    )
+    .unwrap();
+
+    // Insert orders (only for customer 1 and 2)
+    db.insert_row(
+        "orders",
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(1), SqlValue::Integer(100)]),
+    )
+    .unwrap();
+    db.insert_row(
+        "orders",
+        Row::new(vec![SqlValue::Integer(2), SqlValue::Integer(1), SqlValue::Integer(200)]),
+    )
+    .unwrap();
+    db.insert_row(
+        "orders",
+        Row::new(vec![SqlValue::Integer(3), SqlValue::Integer(2), SqlValue::Integer(150)]),
+    )
+    .unwrap();
+
+    // Test 1: Simple EXISTS - check if there are any orders
+    let results = execute_select(
+        &db,
+        "SELECT name FROM customers WHERE EXISTS (SELECT 1 FROM orders)",
+    )
+    .unwrap();
+    assert_eq!(results.len(), 3, "All customers should be returned when orders exist");
+
+    // Test 2: NOT EXISTS with empty table - all customers should match
+    let empty_schema = TableSchema::new(
+        "empty_table".to_string(),
+        vec![ColumnSchema::new("dummy".to_string(), DataType::Integer, false)],
+    );
+    db.create_table(empty_schema).unwrap();
+
+    let results = execute_select(
+        &db,
+        "SELECT name FROM customers WHERE NOT EXISTS (SELECT 1 FROM empty_table)",
+    )
+    .unwrap();
+    assert_eq!(results.len(), 3, "All customers should match when NOT EXISTS on empty table");
+
+    // Test 3: EXISTS with WHERE condition in subquery
+    let results = execute_select(
+        &db,
+        "SELECT name FROM customers WHERE EXISTS (SELECT 1 FROM orders WHERE total > 150)",
+    )
+    .unwrap();
+    assert_eq!(results.len(), 3, "All customers returned when orders with total > 150 exist");
+
+    // Test 4: NOT EXISTS with matching rows
+    let results = execute_select(
+        &db,
+        "SELECT name FROM customers WHERE NOT EXISTS (SELECT 1 FROM orders WHERE total > 150)",
+    )
+    .unwrap();
+    assert_eq!(results.len(), 0, "No customers when orders with total > 150 exist");
+
+    // Test 5: EXISTS combined with AND
+    let results = execute_select(
+        &db,
+        "SELECT name FROM customers WHERE id > 1 AND EXISTS (SELECT 1 FROM orders)",
+    )
+    .unwrap();
+    assert_eq!(results.len(), 2, "Should find customers with id > 1 when orders exist");
+    assert_eq!(results[0].values[0], SqlValue::Varchar("Bob".to_string()));
+    assert_eq!(results[1].values[0], SqlValue::Varchar("Charlie".to_string()));
+
+    // Test 6: EXISTS combined with OR
+    let results = execute_select(
+        &db,
+        "SELECT name FROM customers WHERE id = 3 OR EXISTS (SELECT 1 FROM orders)",
+    )
+    .unwrap();
+    assert_eq!(results.len(), 3, "Should find all customers (either id=3 or orders exist)");
+
+    // Note: Correlated subqueries with table aliases (e.g., WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id))
+    // are not yet fully supported and will be added in a future update.
+}

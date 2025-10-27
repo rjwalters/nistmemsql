@@ -297,6 +297,34 @@ impl<'a> ExpressionEvaluator<'a> {
                 }
             }
 
+            // EXISTS predicate: EXISTS (SELECT ...)
+            // SQL:1999 Section 8.7: EXISTS predicate
+            // Returns TRUE if subquery returns at least one row
+            // Returns FALSE if subquery returns zero rows
+            // Never returns NULL (unlike most predicates)
+            ast::Expression::Exists { subquery, negated } => {
+                let database = self.database.ok_or(ExecutorError::UnsupportedFeature(
+                    "EXISTS requires database reference".to_string(),
+                ))?;
+
+                // Execute the subquery using SelectExecutor
+                // Pass current row and schema as outer context for correlated subqueries
+                let select_executor = crate::select::SelectExecutor::new_with_outer_context(
+                    database,
+                    row,
+                    self.schema,
+                );
+                let rows = select_executor.execute(subquery)?;
+
+                // Check if subquery returned any rows
+                let has_rows = !rows.is_empty();
+
+                // Apply negation if needed
+                let result = if *negated { !has_rows } else { has_rows };
+
+                Ok(types::SqlValue::Boolean(result))
+            }
+
             // TODO: Implement other expression types
             _ => Err(ExecutorError::UnsupportedExpression(format!("{:?}", expr))),
         }
@@ -705,6 +733,29 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 } else {
                     Ok(types::SqlValue::Boolean(*negated))
                 }
+            }
+
+            // EXISTS predicate: EXISTS (SELECT ...)
+            // SQL:1999 Section 8.7: EXISTS predicate
+            // Returns TRUE if subquery returns at least one row
+            // Returns FALSE if subquery returns zero rows
+            // Never returns NULL (unlike most predicates)
+            ast::Expression::Exists { subquery, negated } => {
+                let database = self.database.ok_or(ExecutorError::UnsupportedFeature(
+                    "EXISTS requires database reference".to_string(),
+                ))?;
+
+                // Execute the subquery using SelectExecutor
+                let select_executor = crate::select::SelectExecutor::new(database);
+                let rows = select_executor.execute(subquery)?;
+
+                // Check if subquery returned any rows
+                let has_rows = !rows.is_empty();
+
+                // Apply negation if needed
+                let result = if *negated { !has_rows } else { has_rows };
+
+                Ok(types::SqlValue::Boolean(result))
             }
 
             // TODO: Implement other expression types

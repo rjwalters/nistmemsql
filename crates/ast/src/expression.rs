@@ -96,4 +96,14 @@ pub enum Expression {
         pattern: Box<Expression>,
         negated: bool, // false = LIKE, true = NOT LIKE
     },
+
+    /// EXISTS predicate
+    /// Example: WHERE EXISTS (SELECT 1 FROM orders WHERE customer_id = c.id)
+    /// Example: WHERE NOT EXISTS (SELECT 1 FROM orders WHERE customer_id = c.id)
+    /// Returns TRUE if subquery returns at least one row, FALSE otherwise
+    /// Never returns NULL (unlike most predicates)
+    Exists {
+        subquery: Box<SelectStmt>,
+        negated: bool, // false = EXISTS, true = NOT EXISTS
+    },
 }

@@ -146,6 +146,7 @@ impl Parser {
                 });
             } else {
                 // Not "NOT IN", "NOT BETWEEN", or "NOT LIKE", restore position and continue
+                // Note: NOT EXISTS is handled in parse_primary_expression()
                 self.position = saved_pos;
             }
         } else if self.peek_keyword(Keyword::In) {
@@ -375,6 +376,50 @@ impl Parser {
                 self.expect_token(Token::RParen)?;
 
                 Ok(ast::Expression::Cast { expr: Box::new(expr), data_type })
+            }
+            // EXISTS expression: EXISTS (SELECT ...)
+            Token::Keyword(Keyword::Exists) => {
+                self.advance(); // consume EXISTS
+
+                // Expect opening parenthesis
+                self.expect_token(Token::LParen)?;
+
+                // Parse the subquery (parse_select_statement will consume SELECT keyword)
+                let subquery = self.parse_select_statement()?;
+
+                // Expect closing parenthesis
+                self.expect_token(Token::RParen)?;
+
+                Ok(ast::Expression::Exists { subquery: Box::new(subquery), negated: false })
+            }
+            // NOT keyword - could be NOT EXISTS or unary NOT
+            Token::Keyword(Keyword::Not) => {
+                self.advance(); // consume NOT
+
+                // Check if it's NOT EXISTS
+                if self.peek_keyword(Keyword::Exists) {
+                    self.advance(); // consume EXISTS
+
+                    // Expect opening parenthesis
+                    self.expect_token(Token::LParen)?;
+
+                    // Parse the subquery
+                    let subquery = self.parse_select_statement()?;
+
+                    // Expect closing parenthesis
+                    self.expect_token(Token::RParen)?;
+
+                    Ok(ast::Expression::Exists { subquery: Box::new(subquery), negated: true })
+                } else {
+                    // It's a unary NOT operator on another expression
+                    // Parse the inner expression
+                    let expr = self.parse_primary_expression()?;
+
+                    Ok(ast::Expression::UnaryOp {
+                        op: ast::UnaryOperator::Not,
+                        expr: Box::new(expr),
+                    })
+                }
             }
             Token::Identifier(id) => {
                 let first = id.clone();
