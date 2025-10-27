@@ -16,7 +16,7 @@ pub use delete::DeleteExecutor;
 pub use errors::ExecutorError;
 pub use evaluator::ExpressionEvaluator;
 pub use insert::InsertExecutor;
-pub use select::SelectExecutor;
+pub use select::{SelectExecutor, SelectResult};
 pub use update::UpdateExecutor;
 
 #[cfg(test)]

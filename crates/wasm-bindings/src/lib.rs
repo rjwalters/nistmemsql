@@ -127,20 +127,14 @@ impl Database {
             _ => return Err(JsValue::from_str("query() method requires a SELECT statement")),
         };
 
-        // Execute the query
+        // Execute the query with column metadata
         let select_executor = executor::SelectExecutor::new(&self.db);
-        let rows = select_executor
-            .execute(&select_stmt)
+        let result = select_executor
+            .execute_with_columns(&select_stmt)
             .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
-        // Extract column names (simplified - assumes we can derive from first row or schema)
-        let columns = if !rows.is_empty() {
-            // For now, use generic column names
-            // In a real implementation, we'd extract from the schema
-            (0..rows[0].values.len()).map(|i| format!("col{}", i)).collect()
-        } else {
-            Vec::new()
-        };
+        let columns = result.columns;
+        let rows = result.rows;
 
         // Convert rows to JSON strings
         let row_strings: Vec<String> = rows
