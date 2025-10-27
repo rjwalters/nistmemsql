@@ -241,10 +241,20 @@ impl Parser {
                 }
             }
             Token::LParen => {
-                self.advance();
-                let expr = self.parse_expression()?;
-                self.expect_token(Token::RParen)?;
-                Ok(expr)
+                self.advance(); // consume '('
+
+                // Check if this is a scalar subquery by peeking at next token
+                if self.peek_keyword(Keyword::Select) {
+                    // It's a scalar subquery: (SELECT ...)
+                    let select_stmt = self.parse_select_statement()?;
+                    self.expect_token(Token::RParen)?;
+                    Ok(ast::Expression::ScalarSubquery(Box::new(select_stmt)))
+                } else {
+                    // Regular parenthesized expression: (expr)
+                    let expr = self.parse_expression()?;
+                    self.expect_token(Token::RParen)?;
+                    Ok(expr)
+                }
             }
             _ => {
                 Err(ParseError { message: format!("Expected expression, found {:?}", self.peek()) })
