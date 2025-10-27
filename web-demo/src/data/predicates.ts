@@ -8,35 +8,149 @@ export interface Predicate {
 
 export const PREDICATES: Predicate[] = [
   // Comparison Operators
-  { name: '=', category: 'Comparison', status: 'implemented', description: 'Equal to', syntax: 'expr = expr' },
-  { name: '<>', category: 'Comparison', status: 'implemented', description: 'Not equal to', syntax: 'expr <> expr' },
-  { name: '<', category: 'Comparison', status: 'implemented', description: 'Less than', syntax: 'expr < expr' },
-  { name: '<=', category: 'Comparison', status: 'implemented', description: 'Less than or equal', syntax: 'expr <= expr' },
-  { name: '>', category: 'Comparison', status: 'implemented', description: 'Greater than', syntax: 'expr > expr' },
-  { name: '>=', category: 'Comparison', status: 'implemented', description: 'Greater than or equal', syntax: 'expr >= expr' },
+  {
+    name: '=',
+    category: 'Comparison',
+    status: 'implemented',
+    description: 'Equal to',
+    syntax: 'expr = expr',
+  },
+  {
+    name: '<>',
+    category: 'Comparison',
+    status: 'implemented',
+    description: 'Not equal to',
+    syntax: 'expr <> expr',
+  },
+  {
+    name: '<',
+    category: 'Comparison',
+    status: 'implemented',
+    description: 'Less than',
+    syntax: 'expr < expr',
+  },
+  {
+    name: '<=',
+    category: 'Comparison',
+    status: 'implemented',
+    description: 'Less than or equal',
+    syntax: 'expr <= expr',
+  },
+  {
+    name: '>',
+    category: 'Comparison',
+    status: 'implemented',
+    description: 'Greater than',
+    syntax: 'expr > expr',
+  },
+  {
+    name: '>=',
+    category: 'Comparison',
+    status: 'implemented',
+    description: 'Greater than or equal',
+    syntax: 'expr >= expr',
+  },
 
   // NULL Predicates
-  { name: 'IS NULL', category: 'NULL', status: 'implemented', description: 'Test for NULL value', syntax: 'expr IS NULL' },
-  { name: 'IS NOT NULL', category: 'NULL', status: 'implemented', description: 'Test for non-NULL value', syntax: 'expr IS NOT NULL' },
+  {
+    name: 'IS NULL',
+    category: 'NULL',
+    status: 'implemented',
+    description: 'Test for NULL value',
+    syntax: 'expr IS NULL',
+  },
+  {
+    name: 'IS NOT NULL',
+    category: 'NULL',
+    status: 'implemented',
+    description: 'Test for non-NULL value',
+    syntax: 'expr IS NOT NULL',
+  },
 
   // Range Predicates
-  { name: 'BETWEEN', category: 'Range', status: 'implemented', description: 'Value within range (inclusive)', syntax: 'expr BETWEEN low AND high' },
-  { name: 'NOT BETWEEN', category: 'Range', status: 'implemented', description: 'Value outside range', syntax: 'expr NOT BETWEEN low AND high' },
+  {
+    name: 'BETWEEN',
+    category: 'Range',
+    status: 'implemented',
+    description: 'Value within range (inclusive)',
+    syntax: 'expr BETWEEN low AND high',
+  },
+  {
+    name: 'NOT BETWEEN',
+    category: 'Range',
+    status: 'implemented',
+    description: 'Value outside range',
+    syntax: 'expr NOT BETWEEN low AND high',
+  },
 
   // Set Predicates
-  { name: 'IN (subquery)', category: 'Set', status: 'implemented', description: 'Value in subquery results', syntax: 'expr IN (SELECT ...)' },
+  {
+    name: 'IN (subquery)',
+    category: 'Set',
+    status: 'implemented',
+    description: 'Value in subquery results',
+    syntax: 'expr IN (SELECT ...)',
+  },
 
   // Boolean Operators
-  { name: 'AND', category: 'Boolean', status: 'implemented', description: 'Logical conjunction', syntax: 'condition AND condition' },
-  { name: 'OR', category: 'Boolean', status: 'implemented', description: 'Logical disjunction', syntax: 'condition OR condition' },
-  { name: 'NOT', category: 'Boolean', status: 'implemented', description: 'Logical negation', syntax: 'NOT condition' },
+  {
+    name: 'AND',
+    category: 'Boolean',
+    status: 'implemented',
+    description: 'Logical conjunction',
+    syntax: 'condition AND condition',
+  },
+  {
+    name: 'OR',
+    category: 'Boolean',
+    status: 'implemented',
+    description: 'Logical disjunction',
+    syntax: 'condition OR condition',
+  },
+  {
+    name: 'NOT',
+    category: 'Boolean',
+    status: 'implemented',
+    description: 'Logical negation',
+    syntax: 'NOT condition',
+  },
 
   // Planned Features
-  { name: 'LIKE', category: 'Planned', status: 'planned', description: 'Pattern matching', syntax: 'expr LIKE pattern' },
-  { name: 'EXISTS', category: 'Planned', status: 'planned', description: 'Subquery returns rows', syntax: 'EXISTS (SELECT ...)' },
-  { name: 'ALL/SOME/ANY', category: 'Planned', status: 'planned', description: 'Quantified comparisons', syntax: 'expr = ALL (SELECT ...)' },
-  { name: 'CASE', category: 'Planned', status: 'planned', description: 'Conditional expressions', syntax: 'CASE WHEN ... THEN ... END' },
-  { name: 'COALESCE', category: 'Planned', status: 'planned', description: 'First non-NULL value', syntax: 'COALESCE(expr, ...)' },
+  {
+    name: 'LIKE',
+    category: 'Planned',
+    status: 'planned',
+    description: 'Pattern matching',
+    syntax: 'expr LIKE pattern',
+  },
+  {
+    name: 'EXISTS',
+    category: 'Planned',
+    status: 'planned',
+    description: 'Subquery returns rows',
+    syntax: 'EXISTS (SELECT ...)',
+  },
+  {
+    name: 'ALL/SOME/ANY',
+    category: 'Planned',
+    status: 'planned',
+    description: 'Quantified comparisons',
+    syntax: 'expr = ALL (SELECT ...)',
+  },
+  {
+    name: 'CASE',
+    category: 'Planned',
+    status: 'planned',
+    description: 'Conditional expressions',
+    syntax: 'CASE WHEN ... THEN ... END',
+  },
+  {
+    name: 'COALESCE',
+    category: 'Planned',
+    status: 'planned',
+    description: 'First non-NULL value',
+    syntax: 'COALESCE(expr, ...)',
+  },
 ]
 
 export const PREDICATE_EXAMPLES = {
