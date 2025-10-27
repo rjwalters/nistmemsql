@@ -8,6 +8,7 @@ types = { path = "../types" }
 ast = { path = "../ast" }
 catalog = { path = "../catalog" }
 storage = { path = "../storage" }
+chrono = "0.4"
 
 [dev-dependencies]
 parser = { path = "../parser" }
