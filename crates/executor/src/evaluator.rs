@@ -206,6 +206,97 @@ impl<'a> ExpressionEvaluator<'a> {
                 }
             }
 
+            // CAST expression: CAST(expr AS data_type)
+            // Explicit type conversion
+            ast::Expression::Cast { expr, data_type } => {
+                let value = self.eval(expr, row)?;
+                cast_value(&value, data_type)
+            }
+
+            // LIKE pattern matching: expr LIKE pattern
+            // Supports wildcards: % (any chars), _ (single char)
+            ast::Expression::Like { expr, pattern, negated } => {
+                let expr_val = self.eval(expr, row)?;
+                let pattern_val = self.eval(pattern, row)?;
+
+                // Extract string values
+                let text = match expr_val {
+                    types::SqlValue::Varchar(ref s) | types::SqlValue::Character(ref s) => s.clone(),
+                    types::SqlValue::Null => return Ok(types::SqlValue::Null),
+                    _ => {
+                        return Err(ExecutorError::TypeMismatch {
+                            left: expr_val,
+                            op: "LIKE".to_string(),
+                            right: pattern_val,
+                        })
+                    }
+                };
+
+                let pattern_str = match pattern_val {
+                    types::SqlValue::Varchar(ref s) | types::SqlValue::Character(ref s) => s.clone(),
+                    types::SqlValue::Null => return Ok(types::SqlValue::Null),
+                    _ => {
+                        return Err(ExecutorError::TypeMismatch {
+                            left: expr_val,
+                            op: "LIKE".to_string(),
+                            right: pattern_val,
+                        })
+                    }
+                };
+
+                // Perform pattern matching
+                let matches = like_match(&text, &pattern_str);
+
+                // Apply negation if needed
+                let result = if *negated { !matches } else { matches };
+
+                Ok(types::SqlValue::Boolean(result))
+            }
+
+            // IN operator with value list: expr IN (val1, val2, ...)
+            // SQL:1999 Section 8.4: IN predicate
+            // Returns TRUE if expr equals any value in the list
+            // Returns FALSE if no match and no NULLs
+            // Returns NULL if no match and list contains NULL
+            ast::Expression::InList { expr, values, negated } => {
+                let expr_val = self.eval(expr, row)?;
+
+                // If left expression is NULL, result is NULL
+                if matches!(expr_val, types::SqlValue::Null) {
+                    return Ok(types::SqlValue::Null);
+                }
+
+                let mut found_null = false;
+
+                // Check each value in the list
+                for value_expr in values {
+                    let value = self.eval(value_expr, row)?;
+
+                    // Track if we encounter NULL
+                    if matches!(value, types::SqlValue::Null) {
+                        found_null = true;
+                        continue;
+                    }
+
+                    // Compare using equality
+                    let eq_result = self.eval_binary_op(&expr_val, &ast::BinaryOperator::Equal, &value)?;
+
+                    // If we found a match, return TRUE (or FALSE if negated)
+                    if matches!(eq_result, types::SqlValue::Boolean(true)) {
+                        return Ok(types::SqlValue::Boolean(!negated));
+                    }
+                }
+
+                // No match found
+                // If we encountered NULL, return NULL (per SQL three-valued logic)
+                // Otherwise return FALSE (or TRUE if negated)
+                if found_null {
+                    Ok(types::SqlValue::Null)
+                } else {
+                    Ok(types::SqlValue::Boolean(*negated))
+                }
+            }
+
             // TODO: Implement other expression types
             _ => Err(ExecutorError::UnsupportedExpression(format!("{:?}", expr))),
         }
@@ -251,9 +342,15 @@ impl<'a> ExpressionEvaluator<'a> {
             (Integer(a), GreaterThan, Integer(b)) => Ok(Boolean(a > b)),
             (Integer(a), GreaterThanOrEqual, Integer(b)) => Ok(Boolean(a >= b)),
 
-            // String comparisons
+            // String comparisons (VARCHAR and CHAR are compatible)
             (Varchar(a), Equal, Varchar(b)) => Ok(Boolean(a == b)),
             (Varchar(a), NotEqual, Varchar(b)) => Ok(Boolean(a != b)),
+            (Character(a), Equal, Character(b)) => Ok(Boolean(a == b)),
+            (Character(a), NotEqual, Character(b)) => Ok(Boolean(a != b)),
+
+            // Cross-type string comparisons (CHAR vs VARCHAR)
+            (Character(a), Equal, Varchar(b)) | (Varchar(b), Equal, Character(a)) => Ok(Boolean(a == b)),
+            (Character(a), NotEqual, Varchar(b)) | (Varchar(b), NotEqual, Character(a)) => Ok(Boolean(a != b)),
 
             // Boolean comparisons
             (Boolean(a), Equal, Boolean(b)) => Ok(Boolean(a == b)),
@@ -265,6 +362,41 @@ impl<'a> ExpressionEvaluator<'a> {
 
             // NULL comparisons - NULL compared to anything is NULL (three-valued logic)
             (Null, _, _) | (_, _, Null) => Ok(Null),
+
+            // Cross-type numeric comparisons - promote to common type
+            // Compare exact integer types (SMALLINT, INTEGER, BIGINT) by promoting to i64
+            (left_val, op @ (Equal | NotEqual | LessThan | LessThanOrEqual | GreaterThan | GreaterThanOrEqual), right_val)
+                if is_exact_numeric(left_val) && is_exact_numeric(right_val) =>
+            {
+                let left_i64 = to_i64(left_val)?;
+                let right_i64 = to_i64(right_val)?;
+                match op {
+                    Equal => Ok(Boolean(left_i64 == right_i64)),
+                    NotEqual => Ok(Boolean(left_i64 != right_i64)),
+                    LessThan => Ok(Boolean(left_i64 < right_i64)),
+                    LessThanOrEqual => Ok(Boolean(left_i64 <= right_i64)),
+                    GreaterThan => Ok(Boolean(left_i64 > right_i64)),
+                    GreaterThanOrEqual => Ok(Boolean(left_i64 >= right_i64)),
+                    _ => unreachable!(),
+                }
+            }
+
+            // Compare approximate numeric types (FLOAT, REAL, DOUBLE) by promoting to f64
+            (left_val, op @ (Equal | NotEqual | LessThan | LessThanOrEqual | GreaterThan | GreaterThanOrEqual), right_val)
+                if is_approximate_numeric(left_val) && is_approximate_numeric(right_val) =>
+            {
+                let left_f64 = to_f64(left_val)?;
+                let right_f64 = to_f64(right_val)?;
+                match op {
+                    Equal => Ok(Boolean(left_f64 == right_f64)),
+                    NotEqual => Ok(Boolean(left_f64 != right_f64)),
+                    LessThan => Ok(Boolean(left_f64 < right_f64)),
+                    LessThanOrEqual => Ok(Boolean(left_f64 <= right_f64)),
+                    GreaterThan => Ok(Boolean(left_f64 > right_f64)),
+                    GreaterThanOrEqual => Ok(Boolean(left_f64 >= right_f64)),
+                    _ => unreachable!(),
+                }
+            }
 
             // Type mismatch
             _ => Err(ExecutorError::TypeMismatch {
@@ -335,6 +467,8 @@ impl<'a> ExpressionEvaluator<'a> {
             (Null, _) | (_, Null) => false,
             (Integer(a), Integer(b)) => a == b,
             (Varchar(a), Varchar(b)) => a == b,
+            (Character(a), Character(b)) => a == b,
+            (Character(a), Varchar(b)) | (Varchar(a), Character(b)) => a == b,
             (Boolean(a), Boolean(b)) => a == b,
             _ => false, // Type mismatch = not equal
         }
@@ -479,6 +613,97 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 } else {
                     // BETWEEN: expr >= low AND expr <= high
                     ExpressionEvaluator::eval_binary_op_static(&ge_low, &ast::BinaryOperator::And, &le_high)
+                }
+            }
+
+            // CAST expression: CAST(expr AS data_type)
+            // Explicit type conversion
+            ast::Expression::Cast { expr, data_type } => {
+                let value = self.eval(expr, row)?;
+                cast_value(&value, data_type)
+            }
+
+            // LIKE pattern matching: expr LIKE pattern
+            // Supports wildcards: % (any chars), _ (single char)
+            ast::Expression::Like { expr, pattern, negated } => {
+                let expr_val = self.eval(expr, row)?;
+                let pattern_val = self.eval(pattern, row)?;
+
+                // Extract string values
+                let text = match expr_val {
+                    types::SqlValue::Varchar(ref s) | types::SqlValue::Character(ref s) => s.clone(),
+                    types::SqlValue::Null => return Ok(types::SqlValue::Null),
+                    _ => {
+                        return Err(ExecutorError::TypeMismatch {
+                            left: expr_val,
+                            op: "LIKE".to_string(),
+                            right: pattern_val,
+                        })
+                    }
+                };
+
+                let pattern_str = match pattern_val {
+                    types::SqlValue::Varchar(ref s) | types::SqlValue::Character(ref s) => s.clone(),
+                    types::SqlValue::Null => return Ok(types::SqlValue::Null),
+                    _ => {
+                        return Err(ExecutorError::TypeMismatch {
+                            left: expr_val,
+                            op: "LIKE".to_string(),
+                            right: pattern_val,
+                        })
+                    }
+                };
+
+                // Perform pattern matching
+                let matches = like_match(&text, &pattern_str);
+
+                // Apply negation if needed
+                let result = if *negated { !matches } else { matches };
+
+                Ok(types::SqlValue::Boolean(result))
+            }
+
+            // IN operator with value list: expr IN (val1, val2, ...)
+            // SQL:1999 Section 8.4: IN predicate
+            // Returns TRUE if expr equals any value in the list
+            // Returns FALSE if no match and no NULLs
+            // Returns NULL if no match and list contains NULL
+            ast::Expression::InList { expr, values, negated } => {
+                let expr_val = self.eval(expr, row)?;
+
+                // If left expression is NULL, result is NULL
+                if matches!(expr_val, types::SqlValue::Null) {
+                    return Ok(types::SqlValue::Null);
+                }
+
+                let mut found_null = false;
+
+                // Check each value in the list
+                for value_expr in values {
+                    let value = self.eval(value_expr, row)?;
+
+                    // Track if we encounter NULL
+                    if matches!(value, types::SqlValue::Null) {
+                        found_null = true;
+                        continue;
+                    }
+
+                    // Compare using equality
+                    let eq_result = ExpressionEvaluator::eval_binary_op_static(&expr_val, &ast::BinaryOperator::Equal, &value)?;
+
+                    // If we found a match, return TRUE (or FALSE if negated)
+                    if matches!(eq_result, types::SqlValue::Boolean(true)) {
+                        return Ok(types::SqlValue::Boolean(!negated));
+                    }
+                }
+
+                // No match found
+                // If we encountered NULL, return NULL (per SQL three-valued logic)
+                // Otherwise return FALSE (or TRUE if negated)
+                if found_null {
+                    Ok(types::SqlValue::Null)
+                } else {
+                    Ok(types::SqlValue::Boolean(*negated))
                 }
             }
 
@@ -659,5 +884,300 @@ mod tests {
 
         let result = evaluator.eval(&expr, &row).unwrap();
         assert_eq!(result, SqlValue::Integer(42));
+    }
+}
+
+// ========================================================================
+// Type Coercion Helper Functions
+// ========================================================================
+
+/// Check if a value is an exact numeric type (SMALLINT, INTEGER, BIGINT)
+fn is_exact_numeric(value: &types::SqlValue) -> bool {
+    matches!(
+        value,
+        types::SqlValue::Smallint(_) | types::SqlValue::Integer(_) | types::SqlValue::Bigint(_)
+    )
+}
+
+/// Check if a value is an approximate numeric type (FLOAT, REAL, DOUBLE)
+fn is_approximate_numeric(value: &types::SqlValue) -> bool {
+    matches!(
+        value,
+        types::SqlValue::Float(_) | types::SqlValue::Real(_) | types::SqlValue::Double(_)
+    )
+}
+
+/// Convert exact numeric types to i64 for comparison
+fn to_i64(value: &types::SqlValue) -> Result<i64, ExecutorError> {
+    match value {
+        types::SqlValue::Smallint(n) => Ok(*n as i64),
+        types::SqlValue::Integer(n) => Ok(*n),
+        types::SqlValue::Bigint(n) => Ok(*n),
+        _ => Err(ExecutorError::TypeMismatch {
+            left: value.clone(),
+            op: "numeric_conversion".to_string(),
+            right: types::SqlValue::Null,
+        }),
+    }
+}
+
+/// Convert approximate numeric types to f64 for comparison
+fn to_f64(value: &types::SqlValue) -> Result<f64, ExecutorError> {
+    match value {
+        types::SqlValue::Float(n) => Ok(*n as f64),
+        types::SqlValue::Real(n) => Ok(*n as f64),
+        types::SqlValue::Double(n) => Ok(*n),
+        _ => Err(ExecutorError::TypeMismatch {
+            left: value.clone(),
+            op: "numeric_conversion".to_string(),
+            right: types::SqlValue::Null,
+        }),
+    }
+}
+
+/// Cast a value to the target data type
+/// Implements SQL:1999 CAST semantics for explicit type conversion
+fn cast_value(
+    value: &types::SqlValue,
+    target_type: &types::DataType,
+) -> Result<types::SqlValue, ExecutorError> {
+    use types::DataType::*;
+    use types::SqlValue;
+
+    // NULL can be cast to any type and remains NULL
+    if matches!(value, SqlValue::Null) {
+        return Ok(SqlValue::Null);
+    }
+
+    match target_type {
+        // Cast to INTEGER
+        Integer => match value {
+            SqlValue::Integer(n) => Ok(SqlValue::Integer(*n)),
+            SqlValue::Smallint(n) => Ok(SqlValue::Integer(*n as i64)),
+            SqlValue::Bigint(n) => Ok(SqlValue::Integer(*n)),
+            SqlValue::Varchar(s) => s.parse::<i64>().map(SqlValue::Integer).map_err(|_| {
+                ExecutorError::CastError {
+                    from_type: format!("{:?}", value),
+                    to_type: "INTEGER".to_string(),
+                }
+            }),
+            _ => Err(ExecutorError::CastError {
+                from_type: format!("{:?}", value),
+                to_type: "INTEGER".to_string(),
+            }),
+        },
+
+        // Cast to SMALLINT
+        Smallint => match value {
+            SqlValue::Smallint(n) => Ok(SqlValue::Smallint(*n)),
+            SqlValue::Integer(n) => Ok(SqlValue::Smallint(*n as i16)),
+            SqlValue::Bigint(n) => Ok(SqlValue::Smallint(*n as i16)),
+            SqlValue::Varchar(s) => s.parse::<i16>().map(SqlValue::Smallint).map_err(|_| {
+                ExecutorError::CastError {
+                    from_type: format!("{:?}", value),
+                    to_type: "SMALLINT".to_string(),
+                }
+            }),
+            _ => Err(ExecutorError::CastError {
+                from_type: format!("{:?}", value),
+                to_type: "SMALLINT".to_string(),
+            }),
+        },
+
+        // Cast to BIGINT
+        Bigint => match value {
+            SqlValue::Bigint(n) => Ok(SqlValue::Bigint(*n)),
+            SqlValue::Integer(n) => Ok(SqlValue::Bigint(*n)),
+            SqlValue::Smallint(n) => Ok(SqlValue::Bigint(*n as i64)),
+            SqlValue::Varchar(s) => s.parse::<i64>().map(SqlValue::Bigint).map_err(|_| {
+                ExecutorError::CastError {
+                    from_type: format!("{:?}", value),
+                    to_type: "BIGINT".to_string(),
+                }
+            }),
+            _ => Err(ExecutorError::CastError {
+                from_type: format!("{:?}", value),
+                to_type: "BIGINT".to_string(),
+            }),
+        },
+
+        // Cast to FLOAT
+        Float => match value {
+            SqlValue::Float(n) => Ok(SqlValue::Float(*n)),
+            SqlValue::Real(n) => Ok(SqlValue::Float(*n)),
+            SqlValue::Double(n) => Ok(SqlValue::Float(*n as f32)),
+            SqlValue::Integer(n) => Ok(SqlValue::Float(*n as f32)),
+            SqlValue::Smallint(n) => Ok(SqlValue::Float(*n as f32)),
+            SqlValue::Bigint(n) => Ok(SqlValue::Float(*n as f32)),
+            SqlValue::Varchar(s) => s.parse::<f32>().map(SqlValue::Float).map_err(|_| {
+                ExecutorError::CastError {
+                    from_type: format!("{:?}", value),
+                    to_type: "FLOAT".to_string(),
+                }
+            }),
+            _ => Err(ExecutorError::CastError {
+                from_type: format!("{:?}", value),
+                to_type: "FLOAT".to_string(),
+            }),
+        },
+
+        // Cast to DOUBLE PRECISION
+        DoublePrecision => match value {
+            SqlValue::Double(n) => Ok(SqlValue::Double(*n)),
+            SqlValue::Float(n) => Ok(SqlValue::Double(*n as f64)),
+            SqlValue::Real(n) => Ok(SqlValue::Double(*n as f64)),
+            SqlValue::Integer(n) => Ok(SqlValue::Double(*n as f64)),
+            SqlValue::Smallint(n) => Ok(SqlValue::Double(*n as f64)),
+            SqlValue::Bigint(n) => Ok(SqlValue::Double(*n as f64)),
+            SqlValue::Varchar(s) => s.parse::<f64>().map(SqlValue::Double).map_err(|_| {
+                ExecutorError::CastError {
+                    from_type: format!("{:?}", value),
+                    to_type: "DOUBLE PRECISION".to_string(),
+                }
+            }),
+            _ => Err(ExecutorError::CastError {
+                from_type: format!("{:?}", value),
+                to_type: "DOUBLE PRECISION".to_string(),
+            }),
+        },
+
+        // Cast to VARCHAR
+        Varchar { max_length } => {
+            let string_val = match value {
+                SqlValue::Varchar(s) => s.clone(),
+                SqlValue::Integer(n) => n.to_string(),
+                SqlValue::Smallint(n) => n.to_string(),
+                SqlValue::Bigint(n) => n.to_string(),
+                SqlValue::Float(n) => n.to_string(),
+                SqlValue::Real(n) => n.to_string(),
+                SqlValue::Double(n) => n.to_string(),
+                SqlValue::Boolean(b) => if *b { "TRUE" } else { "FALSE" }.to_string(),
+                SqlValue::Date(s) => s.clone(),
+                SqlValue::Time(s) => s.clone(),
+                SqlValue::Timestamp(s) => s.clone(),
+                _ => {
+                    return Err(ExecutorError::CastError {
+                        from_type: format!("{:?}", value),
+                        to_type: format!("VARCHAR({})", max_length),
+                    })
+                }
+            };
+
+            // Truncate if exceeds max_length
+            if string_val.len() > *max_length {
+                Ok(SqlValue::Varchar(string_val[..*max_length].to_string()))
+            } else {
+                Ok(SqlValue::Varchar(string_val))
+            }
+        }
+
+        // Cast to DATE
+        Date => match value {
+            SqlValue::Date(s) => Ok(SqlValue::Date(s.clone())),
+            SqlValue::Timestamp(s) => {
+                // Extract date part from timestamp (YYYY-MM-DD)
+                if let Some(date_part) = s.split_whitespace().next() {
+                    Ok(SqlValue::Date(date_part.to_string()))
+                } else {
+                    Ok(SqlValue::Date(s.clone()))
+                }
+            }
+            SqlValue::Varchar(s) => Ok(SqlValue::Date(s.clone())),
+            _ => Err(ExecutorError::CastError {
+                from_type: format!("{:?}", value),
+                to_type: "DATE".to_string(),
+            }),
+        },
+
+        // Cast to TIME
+        Time { .. } => match value {
+            SqlValue::Time(s) => Ok(SqlValue::Time(s.clone())),
+            SqlValue::Timestamp(s) => {
+                // Extract time part from timestamp (HH:MM:SS)
+                if let Some(time_part) = s.split_whitespace().nth(1) {
+                    Ok(SqlValue::Time(time_part.to_string()))
+                } else {
+                    Ok(SqlValue::Time(s.clone()))
+                }
+            }
+            SqlValue::Varchar(s) => Ok(SqlValue::Time(s.clone())),
+            _ => Err(ExecutorError::CastError {
+                from_type: format!("{:?}", value),
+                to_type: "TIME".to_string(),
+            }),
+        },
+
+        // Cast to TIMESTAMP
+        Timestamp { .. } => match value {
+            SqlValue::Timestamp(s) => Ok(SqlValue::Timestamp(s.clone())),
+            SqlValue::Date(s) => Ok(SqlValue::Timestamp(format!("{} 00:00:00", s))),
+            SqlValue::Varchar(s) => Ok(SqlValue::Timestamp(s.clone())),
+            _ => Err(ExecutorError::CastError {
+                from_type: format!("{:?}", value),
+                to_type: "TIMESTAMP".to_string(),
+            }),
+        },
+
+        // Unsupported target types
+        _ => Err(ExecutorError::UnsupportedFeature(format!(
+            "CAST to {:?} not yet implemented",
+            target_type
+        ))),
+    }
+}
+
+/// SQL LIKE pattern matching
+/// Supports wildcards:
+/// - % matches any sequence of characters (including empty)
+/// - _ matches exactly one character
+///
+/// This is a case-sensitive match following SQL:1999 semantics
+fn like_match(text: &str, pattern: &str) -> bool {
+    like_match_recursive(text.as_bytes(), pattern.as_bytes(), 0, 0)
+}
+
+/// Recursive helper for LIKE pattern matching
+fn like_match_recursive(text: &[u8], pattern: &[u8], text_pos: usize, pattern_pos: usize) -> bool {
+    // If we've consumed the entire pattern
+    if pattern_pos >= pattern.len() {
+        // Match succeeds if we've also consumed all of text
+        return text_pos >= text.len();
+    }
+
+    let pattern_char = pattern[pattern_pos];
+
+    match pattern_char {
+        b'%' => {
+            // % matches zero or more characters
+            // Try matching with % consuming 0 chars, 1 char, 2 chars, etc.
+            for skip in 0..=(text.len() - text_pos) {
+                if like_match_recursive(text, pattern, text_pos + skip, pattern_pos + 1) {
+                    return true;
+                }
+            }
+            false
+        }
+        b'_' => {
+            // _ matches exactly one character
+            if text_pos >= text.len() {
+                // No character left to match
+                return false;
+            }
+            // Skip one character in text and one in pattern
+            like_match_recursive(text, pattern, text_pos + 1, pattern_pos + 1)
+        }
+        _ => {
+            // Regular character must match exactly
+            if text_pos >= text.len() {
+                // No character left in text
+                return false;
+            }
+            if text[text_pos] != pattern_char {
+                // Characters don't match
+                return false;
+            }
+            // Characters match, continue
+            like_match_recursive(text, pattern, text_pos + 1, pattern_pos + 1)
+        }
     }
 }

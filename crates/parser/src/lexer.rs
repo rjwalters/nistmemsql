@@ -162,6 +162,12 @@ impl Lexer {
             "VALUES" => Token::Keyword(Keyword::Values),
             "IN" => Token::Keyword(Keyword::In),
             "BETWEEN" => Token::Keyword(Keyword::Between),
+            "LIKE" => Token::Keyword(Keyword::Like),
+            "DATE" => Token::Keyword(Keyword::Date),
+            "TIME" => Token::Keyword(Keyword::Time),
+            "TIMESTAMP" => Token::Keyword(Keyword::Timestamp),
+            "INTERVAL" => Token::Keyword(Keyword::Interval),
+            "CAST" => Token::Keyword(Keyword::Cast),
             _ => Token::Identifier(text),
         };
 

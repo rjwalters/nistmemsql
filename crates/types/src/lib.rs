@@ -10,6 +10,19 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 
+/// SQL:1999 Interval Fields
+///
+/// Represents the fields that can be used in INTERVAL types
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IntervalField {
+    Year,
+    Month,
+    Day,
+    Hour,
+    Minute,
+    Second,
+}
+
 /// SQL:1999 Data Types
 ///
 /// Represents the type of a column or expression in SQL.
@@ -39,6 +52,14 @@ pub enum DataType {
     Date,
     Time { with_timezone: bool },
     Timestamp { with_timezone: bool },
+
+    // Interval types
+    // Single field: INTERVAL YEAR, INTERVAL MONTH, etc. (end_field is None)
+    // Multi-field: INTERVAL YEAR TO MONTH, INTERVAL DAY TO SECOND, etc.
+    Interval {
+        start_field: IntervalField,
+        end_field: Option<IntervalField>,
+    },
 
     // Binary types
     BinaryLargeObject, // BLOB
@@ -98,6 +119,9 @@ pub enum SqlValue {
     Time(String),
     Timestamp(String),
 
+    // Interval (using string for now)
+    Interval(String), // TODO: Use proper interval representation
+
     Null,
 }
 
@@ -123,6 +147,10 @@ impl SqlValue {
             SqlValue::Date(_) => DataType::Date,
             SqlValue::Time(_) => DataType::Time { with_timezone: false },
             SqlValue::Timestamp(_) => DataType::Timestamp { with_timezone: false },
+            SqlValue::Interval(_) => DataType::Interval {
+                start_field: IntervalField::Day, // Default - actual type lost in string representation
+                end_field: None,
+            },
             SqlValue::Null => DataType::Null,
         }
     }
@@ -171,6 +199,10 @@ impl PartialOrd for SqlValue {
             (Date(a), Date(b)) => a.partial_cmp(b),
             (Time(a), Time(b)) => a.partial_cmp(b),
             (Timestamp(a), Timestamp(b)) => a.partial_cmp(b),
+
+            // Interval (lexicographic for now)
+            // TODO: Replace with proper interval type for correct comparison
+            (Interval(a), Interval(b)) => a.partial_cmp(b),
 
             // Type mismatch - incomparable (SQL:1999 behavior)
             _ => None,
@@ -235,6 +267,7 @@ impl Hash for SqlValue {
             Date(s) => s.hash(state),
             Time(s) => s.hash(state),
             Timestamp(s) => s.hash(state),
+            Interval(s) => s.hash(state),
 
             // NULL hashes to nothing (discriminant is enough)
             Null => {}
@@ -260,6 +293,7 @@ impl fmt::Display for SqlValue {
             SqlValue::Date(s) => write!(f, "{}", s),
             SqlValue::Time(s) => write!(f, "{}", s),
             SqlValue::Timestamp(s) => write!(f, "{}", s),
+            SqlValue::Interval(s) => write!(f, "{}", s),
             SqlValue::Null => write!(f, "NULL"),
         }
     }

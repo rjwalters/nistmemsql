@@ -40,6 +40,12 @@ pub enum Keyword {
     Values,
     In,
     Between,
+    Like,
+    Date,
+    Time,
+    Timestamp,
+    Interval,
+    Cast,
 }
 
 impl fmt::Display for Keyword {
@@ -82,6 +88,12 @@ impl fmt::Display for Keyword {
             Keyword::Values => "VALUES",
             Keyword::In => "IN",
             Keyword::Between => "BETWEEN",
+            Keyword::Like => "LIKE",
+            Keyword::Date => "DATE",
+            Keyword::Time => "TIME",
+            Keyword::Timestamp => "TIMESTAMP",
+            Keyword::Interval => "INTERVAL",
+            Keyword::Cast => "CAST",
         };
         write!(f, "{}", keyword_str)
     }

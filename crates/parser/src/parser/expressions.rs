@@ -92,14 +92,31 @@ impl Parser {
                 // It's NOT IN
                 self.consume_keyword(Keyword::In)?;
 
-                // Expect (SELECT ...)
-                let subquery = self.parse_subquery()?;
+                // Expect opening paren
+                self.expect_token(Token::LParen)?;
 
-                return Ok(ast::Expression::In {
-                    expr: Box::new(left),
-                    subquery: Box::new(subquery),
-                    negated: true,
-                });
+                // Check if it's a subquery (SELECT ...) or a value list
+                if self.peek_keyword(Keyword::Select) {
+                    // It's a subquery: NOT IN (SELECT ...)
+                    let subquery = self.parse_select_statement()?;
+                    self.expect_token(Token::RParen)?;
+
+                    return Ok(ast::Expression::In {
+                        expr: Box::new(left),
+                        subquery: Box::new(subquery),
+                        negated: true,
+                    });
+                } else {
+                    // It's a value list: NOT IN (val1, val2, ...)
+                    let values = self.parse_expression_list()?;
+                    self.expect_token(Token::RParen)?;
+
+                    return Ok(ast::Expression::InList {
+                        expr: Box::new(left),
+                        values,
+                        negated: true,
+                    });
+                }
             } else if self.peek_keyword(Keyword::Between) {
                 // It's NOT BETWEEN
                 self.consume_keyword(Keyword::Between)?;
@@ -115,22 +132,51 @@ impl Parser {
                     high: Box::new(high),
                     negated: true,
                 });
+            } else if self.peek_keyword(Keyword::Like) {
+                // It's NOT LIKE
+                self.consume_keyword(Keyword::Like)?;
+
+                // Parse pattern expression
+                let pattern = self.parse_additive_expression()?;
+
+                return Ok(ast::Expression::Like {
+                    expr: Box::new(left),
+                    pattern: Box::new(pattern),
+                    negated: true,
+                });
             } else {
-                // Not "NOT IN" or "NOT BETWEEN", restore position and continue
+                // Not "NOT IN", "NOT BETWEEN", or "NOT LIKE", restore position and continue
                 self.position = saved_pos;
             }
         } else if self.peek_keyword(Keyword::In) {
             // It's IN (not negated)
             self.consume_keyword(Keyword::In)?;
 
-            // Expect (SELECT ...)
-            let subquery = self.parse_subquery()?;
+            // Expect opening paren
+            self.expect_token(Token::LParen)?;
 
-            return Ok(ast::Expression::In {
-                expr: Box::new(left),
-                subquery: Box::new(subquery),
-                negated: false,
-            });
+            // Check if it's a subquery (SELECT ...) or a value list
+            if self.peek_keyword(Keyword::Select) {
+                // It's a subquery: IN (SELECT ...)
+                let subquery = self.parse_select_statement()?;
+                self.expect_token(Token::RParen)?;
+
+                return Ok(ast::Expression::In {
+                    expr: Box::new(left),
+                    subquery: Box::new(subquery),
+                    negated: false,
+                });
+            } else {
+                // It's a value list: IN (val1, val2, ...)
+                let values = self.parse_expression_list()?;
+                self.expect_token(Token::RParen)?;
+
+                return Ok(ast::Expression::InList {
+                    expr: Box::new(left),
+                    values,
+                    negated: false,
+                });
+            }
         } else if self.peek_keyword(Keyword::Between) {
             // It's BETWEEN (not negated)
             self.consume_keyword(Keyword::Between)?;
@@ -144,6 +190,18 @@ impl Parser {
                 expr: Box::new(left),
                 low: Box::new(low),
                 high: Box::new(high),
+                negated: false,
+            });
+        } else if self.peek_keyword(Keyword::Like) {
+            // It's LIKE (not negated)
+            self.consume_keyword(Keyword::Like)?;
+
+            // Parse pattern expression
+            let pattern = self.parse_additive_expression()?;
+
+            return Ok(ast::Expression::Like {
+                expr: Box::new(left),
+                pattern: Box::new(pattern),
                 negated: false,
             });
         }
@@ -208,6 +266,115 @@ impl Parser {
             Token::Keyword(Keyword::Null) => {
                 self.advance();
                 Ok(ast::Expression::Literal(types::SqlValue::Null))
+            }
+            // Typed literals: DATE 'string', TIME 'string', TIMESTAMP 'string'
+            Token::Keyword(Keyword::Date) => {
+                self.advance();
+                match self.peek() {
+                    Token::String(s) => {
+                        let date_str = s.clone();
+                        self.advance();
+                        Ok(ast::Expression::Literal(types::SqlValue::Date(date_str)))
+                    }
+                    _ => Err(ParseError {
+                        message: "Expected string literal after DATE keyword".to_string(),
+                    }),
+                }
+            }
+            Token::Keyword(Keyword::Time) => {
+                self.advance();
+                match self.peek() {
+                    Token::String(s) => {
+                        let time_str = s.clone();
+                        self.advance();
+                        Ok(ast::Expression::Literal(types::SqlValue::Time(time_str)))
+                    }
+                    _ => Err(ParseError {
+                        message: "Expected string literal after TIME keyword".to_string(),
+                    }),
+                }
+            }
+            Token::Keyword(Keyword::Timestamp) => {
+                self.advance();
+                match self.peek() {
+                    Token::String(s) => {
+                        let timestamp_str = s.clone();
+                        self.advance();
+                        Ok(ast::Expression::Literal(types::SqlValue::Timestamp(timestamp_str)))
+                    }
+                    _ => Err(ParseError {
+                        message: "Expected string literal after TIMESTAMP keyword".to_string(),
+                    }),
+                }
+            }
+            Token::Keyword(Keyword::Interval) => {
+                self.advance();
+                // Parse INTERVAL 'value' field [TO field]
+                match self.peek() {
+                    Token::String(interval_str) => {
+                        let value_str = interval_str.clone();
+                        self.advance();
+
+                        // Parse interval field (YEAR, MONTH, DAY, etc.)
+                        let start_field = match self.peek() {
+                            Token::Identifier(field) => field.to_uppercase(),
+                            _ => {
+                                return Err(ParseError {
+                                    message: "Expected interval field after INTERVAL value"
+                                        .to_string(),
+                                })
+                            }
+                        };
+                        self.advance();
+
+                        // Check for TO (multi-field interval)
+                        let interval_spec = if let Token::Identifier(word) = self.peek() {
+                            if word.to_uppercase() == "TO" {
+                                self.advance(); // consume TO
+                                let end_field = match self.peek() {
+                                    Token::Identifier(field) => field.to_uppercase(),
+                                    _ => {
+                                        return Err(ParseError {
+                                            message: "Expected interval field after TO".to_string(),
+                                        })
+                                    }
+                                };
+                                self.advance();
+                                format!("{} {} TO {}", value_str, start_field, end_field)
+                            } else {
+                                format!("{} {}", value_str, start_field)
+                            }
+                        } else {
+                            format!("{} {}", value_str, start_field)
+                        };
+
+                        Ok(ast::Expression::Literal(types::SqlValue::Interval(interval_spec)))
+                    }
+                    _ => Err(ParseError {
+                        message: "Expected string literal after INTERVAL keyword".to_string(),
+                    }),
+                }
+            }
+            // CAST expression: CAST(expr AS data_type)
+            Token::Keyword(Keyword::Cast) => {
+                self.advance(); // consume CAST
+
+                // Expect opening parenthesis
+                self.expect_token(Token::LParen)?;
+
+                // Parse the expression to cast
+                let expr = self.parse_expression()?;
+
+                // Expect AS keyword
+                self.expect_keyword(Keyword::As)?;
+
+                // Parse the target data type
+                let data_type = self.parse_data_type()?;
+
+                // Expect closing parenthesis
+                self.expect_token(Token::RParen)?;
+
+                Ok(ast::Expression::Cast { expr: Box::new(expr), data_type })
             }
             Token::Identifier(id) => {
                 let first = id.clone();
@@ -305,5 +472,31 @@ impl Parser {
         self.expect_token(Token::RParen)?;
 
         Ok(select_stmt)
+    }
+
+    /// Parse a comma-separated list of expressions
+    /// Used for IN (val1, val2, ...) and function arguments
+    /// Does NOT consume the opening or closing parentheses
+    fn parse_expression_list(&mut self) -> Result<Vec<ast::Expression>, ParseError> {
+        let mut expressions = Vec::new();
+
+        // Empty list check
+        if matches!(self.peek(), Token::RParen) {
+            // Empty list - SQL standard requires at least one value in IN list
+            return Err(ParseError {
+                message: "Expected at least one value in list".to_string(),
+            });
+        }
+
+        // Parse first expression
+        expressions.push(self.parse_expression()?);
+
+        // Parse remaining expressions
+        while matches!(self.peek(), Token::Comma) {
+            self.advance(); // consume comma
+            expressions.push(self.parse_expression()?);
+        }
+
+        Ok(expressions)
     }
 }

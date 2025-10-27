@@ -30,8 +30,45 @@ impl Table {
         // TODO: Type checking - verify each value matches column type
         // TODO: NULL checking - verify non-nullable columns have values
 
-        self.rows.push(row);
+        // Normalize row values (e.g., CHAR padding/truncation)
+        let normalized_row = self.normalize_row(row);
+
+        self.rows.push(normalized_row);
         Ok(())
+    }
+
+    /// Normalize row values according to schema
+    /// - CHAR: pad with spaces or truncate to fixed length
+    /// - Other types: pass through unchanged
+    fn normalize_row(&self, mut row: Row) -> Row {
+        for (i, column) in self.schema.columns.iter().enumerate() {
+            if let Some(value) = row.values.get_mut(i) {
+                // Normalize CHAR values
+                if let types::DataType::Character { length } = column.data_type {
+                    if let types::SqlValue::Character(s) = value {
+                        *s = Self::normalize_char_value(s, length);
+                    }
+                }
+            }
+        }
+        row
+    }
+
+    /// Normalize a CHAR value to fixed length
+    /// - Pad with spaces if too short
+    /// - Truncate if too long
+    fn normalize_char_value(value: &str, length: usize) -> String {
+        let current_len = value.len();
+        if current_len < length {
+            // Pad with spaces to the right
+            format!("{:width$}", value, width = length)
+        } else if current_len > length {
+            // Truncate to fixed length
+            value[..length].to_string()
+        } else {
+            // Exact length - no change needed
+            value.to_string()
+        }
     }
 
     /// Get all rows (for scanning)
@@ -63,7 +100,10 @@ impl Table {
             });
         }
 
-        self.rows[index] = row;
+        // Normalize row values (e.g., CHAR padding/truncation)
+        let normalized_row = self.normalize_row(row);
+
+        self.rows[index] = normalized_row;
         Ok(())
     }
 

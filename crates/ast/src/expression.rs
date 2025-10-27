@@ -59,6 +59,15 @@ pub enum Expression {
         negated: bool, // false = IN, true = NOT IN
     },
 
+    /// IN operator with value list
+    /// Example: WHERE id IN (1, 2, 3)
+    /// Example: WHERE name NOT IN ('admin', 'root')
+    InList {
+        expr: Box<Expression>,
+        values: Vec<Expression>,
+        negated: bool, // false = IN, true = NOT IN
+    },
+
     /// BETWEEN predicate
     /// Example: WHERE age BETWEEN 18 AND 65
     /// Example: WHERE price NOT BETWEEN 10.0 AND 20.0
@@ -68,5 +77,23 @@ pub enum Expression {
         low: Box<Expression>,
         high: Box<Expression>,
         negated: bool, // false = BETWEEN, true = NOT BETWEEN
+    },
+
+    /// CAST expression
+    /// Example: CAST(value AS INTEGER)
+    /// Example: CAST('123' AS NUMERIC(10, 2))
+    Cast {
+        expr: Box<Expression>,
+        data_type: types::DataType,
+    },
+
+    /// LIKE pattern matching
+    /// Example: name LIKE 'John%'
+    /// Example: email NOT LIKE '%spam%'
+    /// Pattern wildcards: % (any chars), _ (single char)
+    Like {
+        expr: Box<Expression>,
+        pattern: Box<Expression>,
+        negated: bool, // false = LIKE, true = NOT LIKE
     },
 }
