@@ -23,8 +23,8 @@ pub(crate) fn sql_to_chrono_format(sql_format: &str) -> Result<String, ExecutorE
     // Date components (order matters - replace longer patterns first)
     result = result.replace("YYYY", "%Y"); // 4-digit year
     result = result.replace("YY", "%y"); // 2-digit year
+    result = result.replace("Month", "%B"); // Full month name (January, February, etc.) - must come before "Mon"
     result = result.replace("Mon", "%b"); // Abbreviated month name (Jan, Feb, etc.)
-    result = result.replace("Month", "%B"); // Full month name (January, February, etc.)
     result = result.replace("MM", "%m"); // Month as number (01-12)
     result = result.replace("DD", "%d"); // Day of month (01-31)
     result = result.replace("Day", "%A"); // Full day name (Monday, Tuesday, etc.)
@@ -180,7 +180,14 @@ pub(crate) fn format_number(number: f64, sql_format: &str) -> Result<String, Exe
     let int_part = parts[0].parse::<i64>().unwrap_or(0);
     let dec_part = if decimal_places > 0 {
         if parts.len() > 1 {
-            format!(".{:0width$}", parts[1], width = decimal_places)
+            // Right-pad the decimal part with zeros
+            let mut dec = parts[1].to_string();
+            while dec.len() < decimal_places {
+                dec.push('0');
+            }
+            // Truncate if too long
+            dec.truncate(decimal_places);
+            format!(".{}", dec)
         } else {
             format!(".{:0width$}", 0, width = decimal_places)
         }
