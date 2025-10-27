@@ -92,7 +92,7 @@ impl<'a> SelectExecutor<'a> {
             .get_table(table_name)
             .ok_or_else(|| ExecutorError::TableNotFound(table_name.clone()))?;
 
-        let evaluator = ExpressionEvaluator::new(&table.schema);
+        let evaluator = ExpressionEvaluator::with_database(&table.schema, self.database);
 
         // Scan and filter rows
         let mut filtered_rows = Vec::new();
@@ -200,7 +200,7 @@ impl<'a> SelectExecutor<'a> {
         from_result: FromResult,
     ) -> Result<Vec<storage::Row>, ExecutorError> {
         let FromResult { schema, rows } = from_result;
-        let evaluator = CombinedExpressionEvaluator::new(&schema);
+        let evaluator = CombinedExpressionEvaluator::with_database(&schema, self.database);
 
         // Scan all rows and filter with WHERE clause
         let mut result_rows: Vec<RowWithSortKeys> = Vec::new();
@@ -296,7 +296,7 @@ impl<'a> SelectExecutor<'a> {
                 let right_result = self.execute_from(right)?;
 
                 // Perform nested loop join
-                nested_loop_join(left_result, right_result, join_type, condition)
+                nested_loop_join(left_result, right_result, join_type, condition, self.database)
             }
         }
     }

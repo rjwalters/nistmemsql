@@ -8,10 +8,12 @@
 //! - `select_distinct`: DISTINCT keyword tests for duplicate removal
 //! - `aggregates`: Aggregate functions (COUNT, SUM, GROUP BY, HAVING)
 //! - `select_joins`: JOIN operation tests
+//! - `scalar_subqueries`: Scalar subquery execution tests
 
 mod aggregates;
 mod expression_eval;
 mod limit_offset;
+mod scalar_subqueries;
 mod select_basic;
 mod select_distinct;
 mod select_joins;

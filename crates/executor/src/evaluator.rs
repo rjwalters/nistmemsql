@@ -6,11 +6,13 @@ pub struct ExpressionEvaluator<'a> {
     schema: &'a catalog::TableSchema,
     outer_row: Option<&'a storage::Row>,
     outer_schema: Option<&'a catalog::TableSchema>,
+    database: Option<&'a storage::Database>,
 }
 
 /// Evaluates expressions with combined schema (for JOINs)
 pub(crate) struct CombinedExpressionEvaluator<'a> {
     schema: &'a CombinedSchema,
+    database: Option<&'a storage::Database>,
 }
 
 impl<'a> ExpressionEvaluator<'a> {
@@ -20,6 +22,7 @@ impl<'a> ExpressionEvaluator<'a> {
             schema,
             outer_row: None,
             outer_schema: None,
+            database: None,
         }
     }
 
@@ -33,6 +36,20 @@ impl<'a> ExpressionEvaluator<'a> {
             schema,
             outer_row: Some(outer_row),
             outer_schema: Some(outer_schema),
+            database: None,
+        }
+    }
+
+    /// Create a new expression evaluator with database reference for subqueries
+    pub fn with_database(
+        schema: &'a catalog::TableSchema,
+        database: &'a storage::Database,
+    ) -> Self {
+        ExpressionEvaluator {
+            schema,
+            outer_row: None,
+            outer_schema: None,
+            database: Some(database),
         }
     }
 
@@ -231,7 +248,21 @@ impl<'a> ExpressionEvaluator<'a> {
 impl<'a> CombinedExpressionEvaluator<'a> {
     /// Create a new combined expression evaluator
     pub(crate) fn new(schema: &'a CombinedSchema) -> Self {
-        CombinedExpressionEvaluator { schema }
+        CombinedExpressionEvaluator {
+            schema,
+            database: None,
+        }
+    }
+
+    /// Create a new combined expression evaluator with database reference
+    pub(crate) fn with_database(
+        schema: &'a CombinedSchema,
+        database: &'a storage::Database,
+    ) -> Self {
+        CombinedExpressionEvaluator {
+            schema,
+            database: Some(database),
+        }
     }
 
     /// Evaluate an expression in the context of a combined row
@@ -278,6 +309,45 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 Err(ExecutorError::UnsupportedFeature(
                     "IN with subquery requires database access - implementation pending".to_string()
                 ))
+            }
+
+            // Scalar subquery - must return exactly one row and one column
+            ast::Expression::ScalarSubquery(subquery) => {
+                let database = self.database.ok_or_else(|| {
+                    ExecutorError::UnsupportedFeature(
+                        "Subquery execution requires database reference".to_string()
+                    )
+                })?;
+
+                // Execute the subquery using SelectExecutor
+                let select_executor = crate::select::SelectExecutor::new(database);
+                let rows = select_executor.execute(subquery)?;
+
+                // SQL:1999 Section 7.9: Scalar subquery must return exactly 1 row
+                if rows.len() > 1 {
+                    return Err(ExecutorError::SubqueryReturnedMultipleRows {
+                        expected: 1,
+                        actual: rows.len(),
+                    });
+                }
+
+                // SQL:1999 Section 7.9: Scalar subquery must return exactly 1 column
+                // Check column count from SELECT list
+                if subquery.select_list.len() != 1 {
+                    return Err(ExecutorError::SubqueryColumnCountMismatch {
+                        expected: 1,
+                        actual: subquery.select_list.len(),
+                    });
+                }
+
+                // Return the single value, or NULL if no rows
+                if rows.is_empty() {
+                    Ok(types::SqlValue::Null)
+                } else {
+                    rows[0].get(0).cloned().ok_or_else(|| {
+                        ExecutorError::ColumnIndexOutOfBounds { index: 0 }
+                    })
+                }
             }
 
             // TODO: Implement other expression types
