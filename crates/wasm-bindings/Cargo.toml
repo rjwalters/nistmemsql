@@ -1,0 +1,24 @@
+[package]
+name = "wasm-bindings"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+console_error_panic_hook = "0.1"
+serde = { version = "1.0", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
+
+# Internal crates (will be added incrementally)
+# Commenting out initially to ensure clean build
+# types = { path = "../types" }
+# parser = { path = "../parser" }
+# executor = { path = "../executor" }
+# storage = { path = "../storage" }
+# catalog = { path = "../catalog" }

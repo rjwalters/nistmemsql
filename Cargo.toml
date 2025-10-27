@@ -20,6 +20,7 @@ members = [
     "crates/storage",
     "crates/executor",
     "crates/transaction",
+    "crates/wasm-bindings",
     # "crates/odbc-driver",  # Will add when implementing
     # "crates/jdbc-driver",  # Will add when implementing
 ]
