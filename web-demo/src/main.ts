@@ -5,6 +5,7 @@ import type { Database } from './db/types'
 import { validateSql } from './editor/validation'
 import { ResultsComponent } from './components/Results'
 import { HelpModal } from './components/HelpModal'
+import { initShowcase } from './showcase'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Monaco types are loaded dynamically from CDN and not available at compile time
@@ -383,6 +384,9 @@ async function bootstrap(): Promise<void> {
   registerShortcuts(monaco, editor, execute)
   layout.runButton?.addEventListener('click', execute)
   layout.helpButton?.addEventListener('click', () => helpModal.open())
+
+  // Initialize SQL:1999 Showcase navigation
+  initShowcase()
 
   if (layout.statusBar) {
     layout.statusBar.textContent = 'Monaco editor ready. Write SQL and run with Ctrl/Cmd + Enter.'

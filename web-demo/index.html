@@ -12,9 +12,18 @@
     <!-- Header -->
     <header class="bg-white dark:bg-gray-800 shadow-md">
       <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center flex-wrap gap-4">
-        <h1 class="text-3xl font-bold text-primary-light dark:text-primary-dark">
-          NIST MemSQL Demo
-        </h1>
+        <div class="flex items-center gap-4">
+          <h1 class="text-3xl font-bold text-primary-light dark:text-primary-dark">
+            NIST MemSQL Demo
+          </h1>
+          <button
+            id="showcase-toggle"
+            class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            aria-label="Toggle SQL:1999 Showcase"
+          >
+            SQL:1999 Showcase
+          </button>
+        </div>
         <div class="flex items-center gap-4">
           <div id="database-selector"></div>
           <div id="theme-toggle"></div>
@@ -24,6 +33,9 @@
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 py-6">
+      <!-- SQL:1999 Showcase Navigation -->
+      <div id="showcase-nav" class="hidden"></div>
+
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <!-- Sidebar: Examples -->
         <aside class="lg:col-span-1" id="examples" aria-label="Example queries"></aside>
