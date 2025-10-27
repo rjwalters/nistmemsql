@@ -18,5 +18,6 @@ mod null_functions;
 mod predicates;
 mod quantified;
 mod select;
+mod set_operations;
 mod subquery;
 mod update;

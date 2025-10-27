@@ -44,11 +44,12 @@ impl<'a> SelectExecutor<'a> {
 
     /// Execute a SELECT statement
     pub fn execute(&self, stmt: &ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> {
+        // Execute the left-hand side query
         let has_aggregates = self.has_aggregates(&stmt.select_list) || stmt.having.is_some();
         let has_group_by = stmt.group_by.is_some();
 
-        if has_aggregates || has_group_by {
-            self.execute_with_aggregation(stmt)
+        let mut results = if has_aggregates || has_group_by {
+            self.execute_with_aggregation(stmt)?
         } else {
             let from_clause = stmt.from.as_ref().ok_or_else(|| {
                 ExecutorError::UnsupportedFeature(
@@ -56,8 +57,22 @@ impl<'a> SelectExecutor<'a> {
                 )
             })?;
             let from_result = self.execute_from(from_clause)?;
-            self.execute_without_aggregation(stmt, from_result)
+            self.execute_without_aggregation(stmt, from_result)?
+        };
+
+        // Handle set operations (UNION, INTERSECT, EXCEPT)
+        if let Some(set_op) = &stmt.set_operation {
+            // Execute the right-hand side query
+            let right_results = self.execute(&set_op.right)?;
+
+            // Apply the set operation
+            results = self.apply_set_operation(results, right_results, set_op)?;
+
+            // Apply LIMIT/OFFSET to the final combined result
+            results = apply_limit_offset(results, stmt.limit, stmt.offset);
         }
+
+        Ok(results)
     }
 
     /// Check if SELECT list contains aggregate functions
@@ -211,7 +226,12 @@ impl<'a> SelectExecutor<'a> {
         // Apply DISTINCT if specified
         let result_rows = if stmt.distinct { apply_distinct(result_rows) } else { result_rows };
 
-        Ok(apply_limit_offset(result_rows, stmt.limit, stmt.offset))
+        // Don't apply LIMIT/OFFSET if we have a set operation - it will be applied later
+        if stmt.set_operation.is_some() {
+            Ok(result_rows)
+        } else {
+            Ok(apply_limit_offset(result_rows, stmt.limit, stmt.offset))
+        }
     }
 
     /// Execute SELECT without aggregation
@@ -289,7 +309,12 @@ impl<'a> SelectExecutor<'a> {
         // Apply DISTINCT if specified
         let final_rows = if stmt.distinct { apply_distinct(final_rows) } else { final_rows };
 
-        Ok(apply_limit_offset(final_rows, stmt.limit, stmt.offset))
+        // Don't apply LIMIT/OFFSET if we have a set operation - it will be applied later
+        if stmt.set_operation.is_some() {
+            Ok(final_rows)
+        } else {
+            Ok(apply_limit_offset(final_rows, stmt.limit, stmt.offset))
+        }
     }
 
     /// Execute a FROM clause (table or join) and return combined schema and rows
@@ -442,6 +467,122 @@ impl<'a> SelectExecutor<'a> {
                 "Unsupported expression in aggregate context: {:?}",
                 expr
             ))),
+        }
+    }
+
+    /// Apply a set operation (UNION, INTERSECT, EXCEPT) to two result sets
+    fn apply_set_operation(
+        &self,
+        left: Vec<storage::Row>,
+        right: Vec<storage::Row>,
+        set_op: &ast::SetOperation,
+    ) -> Result<Vec<storage::Row>, ExecutorError> {
+        // Validate that both result sets have the same number of columns
+        if !left.is_empty() && !right.is_empty() {
+            let left_cols = left[0].values.len();
+            let right_cols = right[0].values.len();
+            if left_cols != right_cols {
+                return Err(ExecutorError::SubqueryColumnCountMismatch {
+                    expected: left_cols,
+                    actual: right_cols,
+                });
+            }
+        }
+
+        match set_op.op {
+            ast::SetOperator::Union => {
+                if set_op.all {
+                    // UNION ALL: combine all rows from both queries
+                    let mut result = left;
+                    result.extend(right);
+                    Ok(result)
+                } else {
+                    // UNION (DISTINCT): combine and remove duplicates
+                    let mut result = left;
+                    result.extend(right);
+                    Ok(apply_distinct(result))
+                }
+            }
+
+            ast::SetOperator::Intersect => {
+                if set_op.all {
+                    // INTERSECT ALL: return rows that appear in both (with multiplicity)
+                    // Count occurrences in right side
+                    let mut right_counts = std::collections::HashMap::new();
+                    for row in &right {
+                        *right_counts.entry(row.values.clone()).or_insert(0) += 1;
+                    }
+
+                    // For each left row, if it appears in right, include it and decrement count
+                    let mut result = Vec::new();
+                    for row in left {
+                        if let Some(count) = right_counts.get_mut(&row.values) {
+                            if *count > 0 {
+                                result.push(row);
+                                *count -= 1;
+                            }
+                        }
+                    }
+                    Ok(result)
+                } else {
+                    // INTERSECT (DISTINCT): return unique rows that appear in both
+                    let right_set: std::collections::HashSet<_> =
+                        right.iter().map(|row| row.values.clone()).collect();
+
+                    let mut result = Vec::new();
+                    let mut seen = std::collections::HashSet::new();
+                    for row in left {
+                        if right_set.contains(&row.values) && seen.insert(row.values.clone()) {
+                            result.push(row);
+                        }
+                    }
+                    Ok(result)
+                }
+            }
+
+            ast::SetOperator::Except => {
+                if set_op.all {
+                    // EXCEPT ALL: return rows from left that don't appear in right (with multiplicity)
+                    // Count occurrences in right side
+                    let mut right_counts = std::collections::HashMap::new();
+                    for row in &right {
+                        *right_counts.entry(row.values.clone()).or_insert(0) += 1;
+                    }
+
+                    // For each left row, if it doesn't appear in right (or count exhausted), include it
+                    let mut result = Vec::new();
+                    for row in left {
+                        match right_counts.get_mut(&row.values) {
+                            None => {
+                                // Row not in right side, include it
+                                result.push(row);
+                            }
+                            Some(count) if *count == 0 => {
+                                // All instances from right side already used, include it
+                                result.push(row);
+                            }
+                            Some(count) => {
+                                // Row exists in right side, decrement count (exclude this instance)
+                                *count -= 1;
+                            }
+                        }
+                    }
+                    Ok(result)
+                } else {
+                    // EXCEPT (DISTINCT): return unique rows from left that don't appear in right
+                    let right_set: std::collections::HashSet<_> =
+                        right.iter().map(|row| row.values.clone()).collect();
+
+                    let mut result = Vec::new();
+                    let mut seen = std::collections::HashSet::new();
+                    for row in left {
+                        if !right_set.contains(&row.values) && seen.insert(row.values.clone()) {
+                            result.push(row);
+                        }
+                    }
+                    Ok(result)
+                }
+            }
         }
     }
 }

@@ -21,6 +21,16 @@ pub struct SelectStmt {
     pub order_by: Option<Vec<OrderByItem>>,
     pub limit: Option<usize>,
     pub offset: Option<usize>,
+    /// Set operation (UNION, INTERSECT, EXCEPT) combining this query with another
+    pub set_operation: Option<SetOperation>,
+}
+
+/// Set operation combining two SELECT statements
+#[derive(Debug, Clone, PartialEq)]
+pub struct SetOperation {
+    pub op: SetOperator,
+    pub all: bool, // true = ALL, false = DISTINCT (default)
+    pub right: Box<SelectStmt>,
 }
 
 /// Item in the SELECT list
@@ -76,4 +86,15 @@ pub struct OrderByItem {
 pub enum OrderDirection {
     Asc,
     Desc,
+}
+
+/// Set operators for combining SELECT statements
+#[derive(Debug, Clone, PartialEq)]
+pub enum SetOperator {
+    /// UNION - combines results from two queries, removing duplicates (unless ALL specified)
+    Union,
+    /// INTERSECT - returns only rows that appear in both queries
+    Intersect,
+    /// EXCEPT - returns rows from left query that don't appear in right query (SQL standard)
+    Except,
 }

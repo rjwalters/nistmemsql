@@ -1,8 +1,20 @@
 use super::*;
 
 impl Parser {
-    /// Parse SELECT statement
+    /// Parse SELECT statement (public entry point)
     pub(crate) fn parse_select_statement(&mut self) -> Result<ast::SelectStmt, ParseError> {
+        self.parse_select_statement_internal(true)
+    }
+
+    /// Internal SELECT parser with control over ORDER BY/LIMIT parsing
+    ///
+    /// The `allow_order_limit` parameter controls whether ORDER BY, LIMIT, and OFFSET
+    /// are parsed. This is set to false when parsing the right-hand side of set operations
+    /// to ensure these clauses only apply to the outermost query.
+    fn parse_select_statement_internal(
+        &mut self,
+        allow_order_limit: bool,
+    ) -> Result<ast::SelectStmt, ParseError> {
         self.expect_keyword(Keyword::Select)?;
 
         // Parse optional DISTINCT keyword
@@ -63,8 +75,45 @@ impl Parser {
             None
         };
 
+        // Parse set operations (UNION, INTERSECT, EXCEPT) before ORDER BY/LIMIT
+        // This ensures ORDER BY/LIMIT apply to the entire set operation result
+        let set_operation = if self.peek_keyword(Keyword::Union)
+            || self.peek_keyword(Keyword::Intersect)
+            || self.peek_keyword(Keyword::Except)
+        {
+            let op = if self.peek_keyword(Keyword::Union) {
+                self.consume_keyword(Keyword::Union)?;
+                ast::SetOperator::Union
+            } else if self.peek_keyword(Keyword::Intersect) {
+                self.consume_keyword(Keyword::Intersect)?;
+                ast::SetOperator::Intersect
+            } else {
+                self.consume_keyword(Keyword::Except)?;
+                ast::SetOperator::Except
+            };
+
+            // Check for ALL keyword (default is DISTINCT)
+            let all = if self.peek_keyword(Keyword::All) {
+                self.consume_keyword(Keyword::All)?;
+                true
+            } else {
+                false
+            };
+
+            // Parse the right-hand side SELECT statement
+            // Don't allow ORDER BY/LIMIT on the right side - they should only apply to the final result
+            let right = Box::new(self.parse_select_statement_internal(false)?);
+
+            Some(ast::SetOperation { op, all, right })
+        } else {
+            None
+        };
+
+        // Parse ORDER BY, LIMIT, OFFSET after set operations (only if allowed)
+        // These apply to the entire result (including set operations)
+
         // Parse optional ORDER BY clause
-        let order_by = if self.peek_keyword(Keyword::Order) {
+        let order_by = if allow_order_limit && self.peek_keyword(Keyword::Order) {
             self.consume_keyword(Keyword::Order)?;
             self.expect_keyword(Keyword::By)?;
 
@@ -99,7 +148,7 @@ impl Parser {
         };
 
         // Parse LIMIT clause
-        let limit = if self.peek_keyword(Keyword::Limit) {
+        let limit = if allow_order_limit && self.peek_keyword(Keyword::Limit) {
             self.consume_keyword(Keyword::Limit)?;
             match self.peek() {
                 Token::Number(n) => {
@@ -117,7 +166,7 @@ impl Parser {
         };
 
         // Parse OFFSET clause
-        let offset = if self.peek_keyword(Keyword::Offset) {
+        let offset = if allow_order_limit && self.peek_keyword(Keyword::Offset) {
             self.consume_keyword(Keyword::Offset)?;
             match self.peek() {
                 Token::Number(n) => {
@@ -150,6 +199,7 @@ impl Parser {
             order_by,
             limit,
             offset,
+            set_operation,
         })
     }
 }
