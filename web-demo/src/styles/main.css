@@ -8,6 +8,23 @@
     @apply border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm;
   }
 
+  .button {
+    @apply bg-blue-600 dark:bg-blue-500 text-white px-4 py-2 rounded-lg
+           hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors
+           focus:ring-2 focus:ring-blue-500 focus:outline-none
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .button.secondary {
+    @apply bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100
+           hover:bg-gray-300 dark:hover:bg-gray-600
+           focus:ring-gray-400;
+  }
+
+  .button.small {
+    @apply px-3 py-1 text-sm;
+  }
+
   .btn-primary {
     @apply bg-primary-light dark:bg-primary-dark text-white px-4 py-2 rounded-lg
            hover:opacity-90 transition-opacity focus:ring-2 focus:ring-primary-light;
@@ -23,5 +40,73 @@
 
   .results-table td {
     @apply border-t border-gray-200 dark:border-gray-700 px-4 py-2;
+  }
+
+  /* Modal styles */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50
+           backdrop-blur-sm;
+  }
+
+  .modal-content {
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4
+           max-h-[90vh] overflow-y-auto;
+  }
+
+  .modal-header {
+    @apply flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700;
+  }
+
+  .modal-close {
+    @apply text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200
+           text-3xl leading-none font-light transition-colors;
+  }
+
+  .modal-body {
+    @apply p-6 space-y-6;
+  }
+
+  .modal-footer {
+    @apply flex justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700;
+  }
+
+  /* Help modal specific styles */
+  .help-section {
+    @apply space-y-3;
+  }
+
+  .help-section__title {
+    @apply text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3;
+  }
+
+  .help-shortcuts {
+    @apply space-y-2;
+  }
+
+  .help-shortcut {
+    @apply flex items-baseline gap-4;
+  }
+
+  .help-shortcut dt {
+    @apply min-w-[180px] font-mono text-sm;
+  }
+
+  .help-shortcut dd {
+    @apply text-gray-700 dark:text-gray-300;
+  }
+
+  .help-tips {
+    @apply list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300;
+  }
+
+  .help-tips code {
+    @apply bg-gray-100 dark:bg-gray-900 px-1.5 py-0.5 rounded text-sm
+           font-mono text-blue-600 dark:text-blue-400;
+  }
+
+  kbd {
+    @apply inline-block bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600
+           rounded px-2 py-0.5 text-sm font-mono text-gray-800 dark:text-gray-200
+           shadow-sm;
   }
 }

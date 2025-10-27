@@ -1,9 +1,10 @@
 import './styles/main.css'
 import { initTheme } from './theme'
 import { initDatabase } from './db/wasm'
-import type { Database, QueryResult } from './db/types'
-import { formatSqlValue } from './utils/format'
+import type { Database } from './db/types'
 import { validateSql } from './editor/validation'
+import { ResultsComponent } from './components/Results'
+import { HelpModal } from './components/HelpModal'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Monaco types are loaded dynamically from CDN and not available at compile time
@@ -96,6 +97,7 @@ function createLayout(root: HTMLElement): {
   resultMeta: HTMLSpanElement | null
   runButton: HTMLButtonElement | null
   themeToggle: HTMLButtonElement | null
+  helpButton: HTMLButtonElement | null
 } {
   root.innerHTML = `
     <div class="app-shell">
@@ -108,6 +110,9 @@ function createLayout(root: HTMLElement): {
           </p>
         </div>
         <div class="app-header__actions">
+          <button id="help-button" class="button secondary" type="button" title="Keyboard shortcuts (? or F1)">
+            Help
+          </button>
           <button id="toggle-theme" class="button secondary" type="button">
             Toggle theme
           </button>
@@ -133,6 +138,7 @@ function createLayout(root: HTMLElement): {
           </div>
         </section>
       </div>
+      <div id="help-modal"></div>
     </div>
   `
 
@@ -143,6 +149,7 @@ function createLayout(root: HTMLElement): {
     resultMeta: root.querySelector<HTMLSpanElement>('#result-meta'),
     runButton: root.querySelector<HTMLButtonElement>('#run-query'),
     themeToggle: root.querySelector<HTMLButtonElement>('#toggle-theme'),
+    helpButton: root.querySelector<HTMLButtonElement>('#help-button'),
   } as const
 }
 
@@ -156,53 +163,6 @@ function updateStatus(
   element.textContent = message
   element.classList.remove('status-bar--info', 'status-bar--success', 'status-bar--error')
   element.classList.add(`status-bar--${variant}`)
-}
-
-function renderResults(
-  container: HTMLDivElement | null,
-  meta: HTMLSpanElement | null,
-  result: QueryResult
-): void {
-  if (!container) return
-
-  if (!result || result.rows.length === 0) {
-    container.className = 'results-empty'
-    container.textContent = 'Query executed successfully. No rows returned.'
-    if (meta) {
-      meta.textContent = '0 rows'
-    }
-    return
-  }
-
-  container.className = 'results-table-wrapper'
-  const table = document.createElement('table')
-  table.className = 'results-table'
-  table.createTHead()
-
-  const headRow = table.tHead?.insertRow() ?? table.insertRow()
-  result.columns.forEach(column => {
-    const th = document.createElement('th')
-    th.textContent = column
-    headRow.appendChild(th)
-  })
-
-  const tbody = document.createElement('tbody')
-  for (const row of result.rows) {
-    const tr = document.createElement('tr')
-    row.forEach(value => {
-      const td = document.createElement('td')
-      td.textContent = formatSqlValue(value)
-      tr.appendChild(td)
-    })
-    tbody.appendChild(tr)
-  }
-
-  table.appendChild(tbody)
-  container.replaceChildren(table)
-
-  if (meta) {
-    meta.textContent = `${result.row_count} row${result.row_count === 1 ? '' : 's'}`
-  }
 }
 
 function applyValidationMarkers(monaco: Monaco, editor: MonacoEditor): void {
@@ -315,8 +275,7 @@ function createExecutionHandler(
   editor: MonacoEditor,
   database: Database | null,
   statusBar: HTMLDivElement | null,
-  resultsContainer: HTMLDivElement | null,
-  resultMeta: HTMLSpanElement | null,
+  resultsComponent: ResultsComponent,
   refreshTables: () => void
 ): () => void {
   return () => {
@@ -336,15 +295,25 @@ function createExecutionHandler(
       return
     }
 
-    try {
-      const result = database.execute(sql)
-      renderResults(resultsContainer, resultMeta, result)
-      updateStatus(statusBar, 'Query executed successfully.', 'success')
-      refreshTables()
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      updateStatus(statusBar, `Execution error: ${message}`, 'error')
-    }
+    resultsComponent.setLoading(true)
+    updateStatus(statusBar, 'Executing query...', 'info')
+
+    // Use setTimeout to allow UI to update before blocking execution
+    setTimeout(() => {
+      try {
+        const startTime = performance.now()
+        const result = database.execute(sql)
+        const executionTime = performance.now() - startTime
+
+        resultsComponent.showResults(result, executionTime)
+        updateStatus(statusBar, 'Query executed successfully.', 'success')
+        refreshTables()
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        resultsComponent.showError(message)
+        updateStatus(statusBar, `Execution error: ${message}`, 'error')
+      }
+    }, 10)
   }
 }
 
@@ -400,17 +369,20 @@ async function bootstrap(): Promise<void> {
   })
   applyValidationMarkers(monaco, editor)
 
+  const resultsComponent = new ResultsComponent()
+  const helpModal = new HelpModal()
+
   const execute = createExecutionHandler(
     editor,
     database,
     layout.statusBar,
-    layout.results,
-    layout.resultMeta,
+    resultsComponent,
     refreshTables
   )
 
   registerShortcuts(monaco, editor, execute)
   layout.runButton?.addEventListener('click', execute)
+  layout.helpButton?.addEventListener('click', () => helpModal.open())
 
   if (layout.statusBar) {
     layout.statusBar.textContent = 'Monaco editor ready. Write SQL and run with Ctrl/Cmd + Enter.'
