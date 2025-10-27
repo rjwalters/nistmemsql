@@ -38,7 +38,11 @@ impl CombinedSchema {
             })
             .collect();
 
-        let schema = catalog::TableSchema { name: alias.clone(), columns };
+        let schema = catalog::TableSchema {
+            name: alias.clone(),
+            columns,
+            primary_key: None,
+        };
         let mut table_schemas = HashMap::new();
         table_schemas.insert(alias, (0, schema));
         CombinedSchema { table_schemas, total_columns }

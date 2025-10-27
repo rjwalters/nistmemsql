@@ -83,6 +83,37 @@ impl InsertExecutor {
                 }
             }
 
+            // Enforce PRIMARY KEY constraint (uniqueness)
+            if let Some(pk_indices) = schema.get_primary_key_indices() {
+                // Extract primary key values from the new row
+                let new_pk_values: Vec<&types::SqlValue> = pk_indices
+                    .iter()
+                    .map(|&idx| &full_row_values[idx])
+                    .collect();
+
+                // Check if any existing row has the same primary key
+                let table = db.get_table(&stmt.table_name)
+                    .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
+
+                for existing_row in table.scan() {
+                    let existing_pk_values: Vec<&types::SqlValue> = pk_indices
+                        .iter()
+                        .filter_map(|&idx| existing_row.get(idx))
+                        .collect();
+
+                    if new_pk_values == existing_pk_values {
+                        let pk_col_names: Vec<String> = schema.primary_key
+                            .as_ref()
+                            .unwrap()
+                            .clone();
+                        return Err(ExecutorError::ConstraintViolation(format!(
+                            "PRIMARY KEY constraint violated: duplicate key value for ({})",
+                            pk_col_names.join(", ")
+                        )));
+                    }
+                }
+            }
+
             // Insert the row
             let row = storage::Row::new(full_row_values);
             db.insert_row(&stmt.table_name, row).map_err(|e| {
@@ -396,5 +427,154 @@ mod tests {
             }
             other => panic!("Expected ConstraintViolation, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn test_insert_primary_key_duplicate_single_column() {
+        let mut db = storage::Database::new();
+
+        // CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(50))
+        let schema = catalog::TableSchema::with_primary_key(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    "name".to_string(),
+                    types::DataType::Varchar { max_length: 50 },
+                    true,
+                ),
+            ],
+            vec!["id".to_string()],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert first row
+        let stmt1 = ast::InsertStmt {
+            table_name: "users".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(1)),
+                ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
+            ]],
+        };
+        InsertExecutor::execute(&mut db, &stmt1).unwrap();
+
+        // Try to insert row with duplicate id
+        let stmt2 = ast::InsertStmt {
+            table_name: "users".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(1)),
+                ast::Expression::Literal(types::SqlValue::Varchar("Bob".to_string())),
+            ]],
+        };
+
+        let result = InsertExecutor::execute(&mut db, &stmt2);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExecutorError::ConstraintViolation(msg) => {
+                assert!(msg.contains("PRIMARY KEY"));
+                assert!(msg.contains("id"));
+            }
+            other => panic!("Expected ConstraintViolation, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_insert_primary_key_duplicate_composite() {
+        let mut db = storage::Database::new();
+
+        // CREATE TABLE order_items (order_id INT, item_id INT, qty INT, PRIMARY KEY (order_id, item_id))
+        let schema = catalog::TableSchema::with_primary_key(
+            "order_items".to_string(),
+            vec![
+                catalog::ColumnSchema::new("order_id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("item_id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("qty".to_string(), types::DataType::Integer, true),
+            ],
+            vec!["order_id".to_string(), "item_id".to_string()],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert first row (order_id=1, item_id=100)
+        let stmt1 = ast::InsertStmt {
+            table_name: "order_items".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(1)),
+                ast::Expression::Literal(types::SqlValue::Integer(100)),
+                ast::Expression::Literal(types::SqlValue::Integer(5)),
+            ]],
+        };
+        InsertExecutor::execute(&mut db, &stmt1).unwrap();
+
+        // Insert row with different combination (order_id=1, item_id=200) - should succeed
+        let stmt2 = ast::InsertStmt {
+            table_name: "order_items".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(1)),
+                ast::Expression::Literal(types::SqlValue::Integer(200)),
+                ast::Expression::Literal(types::SqlValue::Integer(3)),
+            ]],
+        };
+        InsertExecutor::execute(&mut db, &stmt2).unwrap();
+
+        // Try to insert duplicate composite key (order_id=1, item_id=100)
+        let stmt3 = ast::InsertStmt {
+            table_name: "order_items".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(1)),
+                ast::Expression::Literal(types::SqlValue::Integer(100)),
+                ast::Expression::Literal(types::SqlValue::Integer(10)),
+            ]],
+        };
+
+        let result = InsertExecutor::execute(&mut db, &stmt3);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExecutorError::ConstraintViolation(msg) => {
+                assert!(msg.contains("PRIMARY KEY"));
+            }
+            other => panic!("Expected ConstraintViolation, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_insert_primary_key_unique_values() {
+        let mut db = storage::Database::new();
+
+        // CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(50))
+        let schema = catalog::TableSchema::with_primary_key(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    "name".to_string(),
+                    types::DataType::Varchar { max_length: 50 },
+                    true,
+                ),
+            ],
+            vec!["id".to_string()],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert rows with unique ids - should all succeed
+        for i in 1..=3 {
+            let stmt = ast::InsertStmt {
+                table_name: "users".to_string(),
+                columns: vec![],
+                values: vec![vec![
+                    ast::Expression::Literal(types::SqlValue::Integer(i)),
+                    ast::Expression::Literal(types::SqlValue::Varchar(format!("User{}", i))),
+                ]],
+            };
+            InsertExecutor::execute(&mut db, &stmt).unwrap();
+        }
+
+        // Verify all 3 rows inserted
+        let table = db.get_table("users").unwrap();
+        assert_eq!(table.row_count(), 3);
     }
 }

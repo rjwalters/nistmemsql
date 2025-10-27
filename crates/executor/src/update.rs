@@ -125,6 +125,39 @@ impl UpdateExecutor {
                     }
                 }
 
+                // Enforce PRIMARY KEY constraint (uniqueness)
+                if let Some(pk_indices) = schema.get_primary_key_indices() {
+                    // Extract primary key values from the updated row
+                    let new_pk_values: Vec<&types::SqlValue> = pk_indices
+                        .iter()
+                        .filter_map(|&idx| new_row.get(idx))
+                        .collect();
+
+                    // Check if any OTHER row has the same primary key
+                    for (other_idx, other_row) in table.scan().iter().enumerate() {
+                        // Skip the row being updated
+                        if other_idx == row_index {
+                            continue;
+                        }
+
+                        let other_pk_values: Vec<&types::SqlValue> = pk_indices
+                            .iter()
+                            .filter_map(|&idx| other_row.get(idx))
+                            .collect();
+
+                        if new_pk_values == other_pk_values {
+                            let pk_col_names: Vec<String> = schema.primary_key
+                                .as_ref()
+                                .unwrap()
+                                .clone();
+                            return Err(ExecutorError::ConstraintViolation(format!(
+                                "PRIMARY KEY constraint violated: duplicate key value for ({})",
+                                pk_col_names.join(", ")
+                            )));
+                        }
+                    }
+                }
+
                 updates.push((row_index, new_row));
             }
         }
@@ -452,5 +485,132 @@ mod tests {
         let table = db.get_table("employees").unwrap();
         let row = &table.scan()[0];
         assert_eq!(row.get(2).unwrap(), &SqlValue::Null);
+    }
+
+    #[test]
+    fn test_update_primary_key_duplicate() {
+        let mut db = Database::new();
+
+        // CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(50))
+        let schema = catalog::TableSchema::with_primary_key(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    "name".to_string(),
+                    DataType::Varchar { max_length: 50 },
+                    true,
+                ),
+            ],
+            vec!["id".to_string()],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert two rows
+        db.insert_row(
+            "users",
+            Row::new(vec![
+                SqlValue::Integer(1),
+                SqlValue::Varchar("Alice".to_string()),
+            ]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            Row::new(vec![
+                SqlValue::Integer(2),
+                SqlValue::Varchar("Bob".to_string()),
+            ]),
+        )
+        .unwrap();
+
+        // Try to update Bob's id to 1 (duplicate)
+        let stmt = UpdateStmt {
+            table_name: "users".to_string(),
+            assignments: vec![Assignment {
+                column: "id".to_string(),
+                value: Expression::Literal(SqlValue::Integer(1)),
+            }],
+            where_clause: Some(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "id".to_string(),
+                }),
+                op: BinaryOperator::Equal,
+                right: Box::new(Expression::Literal(SqlValue::Integer(2))),
+            }),
+        };
+
+        let result = UpdateExecutor::execute(&stmt, &mut db);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExecutorError::ConstraintViolation(msg) => {
+                assert!(msg.contains("PRIMARY KEY"));
+            }
+            other => panic!("Expected ConstraintViolation, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_update_primary_key_to_unique_value() {
+        let mut db = Database::new();
+
+        // CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(50))
+        let schema = catalog::TableSchema::with_primary_key(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    "name".to_string(),
+                    DataType::Varchar { max_length: 50 },
+                    true,
+                ),
+            ],
+            vec!["id".to_string()],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert two rows
+        db.insert_row(
+            "users",
+            Row::new(vec![
+                SqlValue::Integer(1),
+                SqlValue::Varchar("Alice".to_string()),
+            ]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            Row::new(vec![
+                SqlValue::Integer(2),
+                SqlValue::Varchar("Bob".to_string()),
+            ]),
+        )
+        .unwrap();
+
+        // Update Bob's id to 3 (unique) - should succeed
+        let stmt = UpdateStmt {
+            table_name: "users".to_string(),
+            assignments: vec![Assignment {
+                column: "id".to_string(),
+                value: Expression::Literal(SqlValue::Integer(3)),
+            }],
+            where_clause: Some(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "id".to_string(),
+                }),
+                op: BinaryOperator::Equal,
+                right: Box::new(Expression::Literal(SqlValue::Integer(2))),
+            }),
+        };
+
+        let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
+        assert_eq!(count, 1);
+
+        // Verify the update
+        let table = db.get_table("users").unwrap();
+        let rows: Vec<&Row> = table.scan().iter().collect();
+        assert_eq!(rows[1].get(0).unwrap(), &SqlValue::Integer(3));
     }
 }
