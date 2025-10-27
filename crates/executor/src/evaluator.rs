@@ -48,6 +48,21 @@ impl<'a> ExpressionEvaluator<'a> {
         }
     }
 
+    /// Create a new expression evaluator with database and outer context (for correlated subqueries)
+    pub fn with_database_and_outer_context(
+        schema: &'a catalog::TableSchema,
+        database: &'a storage::Database,
+        outer_row: &'a storage::Row,
+        outer_schema: &'a catalog::TableSchema,
+    ) -> Self {
+        ExpressionEvaluator {
+            schema,
+            outer_row: Some(outer_row),
+            outer_schema: Some(outer_schema),
+            database: Some(database),
+        }
+    }
+
     /// Evaluate an expression in the context of a row
     pub fn eval(
         &self,
@@ -113,7 +128,12 @@ impl<'a> ExpressionEvaluator<'a> {
                 ))?;
 
                 // Execute the subquery using SelectExecutor
-                let select_executor = crate::select::SelectExecutor::new(database);
+                // Pass current row and schema as outer context for correlated subqueries
+                let select_executor = crate::select::SelectExecutor::new_with_outer_context(
+                    database,
+                    row,
+                    self.schema,
+                );
                 let rows = select_executor.execute(subquery)?;
 
                 // SQL:1999 Section 7.9: Scalar subquery must return exactly 1 row

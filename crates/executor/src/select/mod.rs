@@ -19,12 +19,27 @@ type RowWithSortKeys = (storage::Row, Option<Vec<(types::SqlValue, ast::OrderDir
 /// Executes SELECT queries
 pub struct SelectExecutor<'a> {
     database: &'a storage::Database,
+    outer_row: Option<&'a storage::Row>,
+    outer_schema: Option<&'a catalog::TableSchema>,
 }
 
 impl<'a> SelectExecutor<'a> {
     /// Create a new SELECT executor
     pub fn new(database: &'a storage::Database) -> Self {
-        SelectExecutor { database }
+        SelectExecutor { database, outer_row: None, outer_schema: None }
+    }
+
+    /// Create a new SELECT executor with outer context for correlated subqueries
+    pub fn new_with_outer_context(
+        database: &'a storage::Database,
+        outer_row: &'a storage::Row,
+        outer_schema: &'a catalog::TableSchema,
+    ) -> Self {
+        SelectExecutor {
+            database,
+            outer_row: Some(outer_row),
+            outer_schema: Some(outer_schema),
+        }
     }
 
     /// Execute a SELECT statement
@@ -92,7 +107,17 @@ impl<'a> SelectExecutor<'a> {
             .get_table(table_name)
             .ok_or_else(|| ExecutorError::TableNotFound(table_name.clone()))?;
 
-        let evaluator = ExpressionEvaluator::with_database(&table.schema, self.database);
+        let evaluator = match (self.outer_row, self.outer_schema) {
+            (Some(outer_row), Some(outer_schema)) => {
+                ExpressionEvaluator::with_database_and_outer_context(
+                    &table.schema,
+                    self.database,
+                    outer_row,
+                    outer_schema,
+                )
+            }
+            _ => ExpressionEvaluator::with_database(&table.schema, self.database),
+        };
 
         // Scan and filter rows
         let mut filtered_rows = Vec::new();
