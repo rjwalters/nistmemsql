@@ -862,6 +862,164 @@ ORDER BY user_id;`,
       },
     ],
   },
+
+  {
+    id: 'datetime',
+    title: 'Date & Time Functions',
+    description: 'CURRENT_DATE, date/time extraction, and date-based analysis',
+    queries: [
+      {
+        id: 'datetime-1',
+        title: 'Current Date and Time',
+        database: 'employees',
+        sql: `SELECT
+  CURRENT_DATE AS today,
+  CURDATE() AS today_alias,
+  CURRENT_TIME AS now_time,
+  CURTIME() AS now_time_alias,
+  CURRENT_TIMESTAMP AS now_full,
+  NOW() AS now_alias;`,
+        description: 'Get current date, time, and timestamp values with aliases',
+        sqlFeatures: [
+          'CURRENT_DATE',
+          'CURDATE',
+          'CURRENT_TIME',
+          'CURTIME',
+          'CURRENT_TIMESTAMP',
+          'NOW',
+        ],
+      },
+      {
+        id: 'datetime-2',
+        title: 'Date Part Extraction',
+        database: 'employees',
+        sql: `SELECT
+  CURRENT_DATE AS full_date,
+  YEAR(CURRENT_DATE) AS year,
+  MONTH(CURRENT_DATE) AS month,
+  DAY(CURRENT_DATE) AS day;`,
+        description: 'Extract year, month, and day components from dates',
+        sqlFeatures: ['YEAR', 'MONTH', 'DAY', 'CURRENT_DATE'],
+      },
+      {
+        id: 'datetime-3',
+        title: 'Time Part Extraction',
+        database: 'employees',
+        sql: `SELECT
+  CURRENT_TIMESTAMP AS full_timestamp,
+  HOUR(CURRENT_TIMESTAMP) AS hour,
+  MINUTE(CURRENT_TIMESTAMP) AS minute,
+  SECOND(CURRENT_TIMESTAMP) AS second;`,
+        description: 'Extract hour, minute, and second components from timestamps',
+        sqlFeatures: ['HOUR', 'MINUTE', 'SECOND', 'CURRENT_TIMESTAMP'],
+      },
+      {
+        id: 'datetime-4',
+        title: 'Employee Hire Date Analysis',
+        database: 'employees',
+        sql: `SELECT
+  first_name || ' ' || last_name AS employee,
+  hire_date,
+  YEAR(hire_date) AS hire_year,
+  MONTH(hire_date) AS hire_month
+FROM employees
+ORDER BY hire_date DESC
+LIMIT 10;`,
+        description: 'Analyze employee hire dates with year and month extraction',
+        sqlFeatures: ['YEAR', 'MONTH', 'String concatenation', 'ORDER BY'],
+      },
+      {
+        id: 'datetime-5',
+        title: 'Grouping by Date Parts',
+        database: 'employees',
+        sql: `SELECT
+  YEAR(hire_date) AS year,
+  MONTH(hire_date) AS month,
+  COUNT(*) AS hires
+FROM employees
+GROUP BY YEAR(hire_date), MONTH(hire_date)
+ORDER BY year DESC, month DESC;`,
+        description: 'Group and count employees by hire year and month',
+        sqlFeatures: ['YEAR', 'MONTH', 'GROUP BY', 'COUNT', 'Date functions in GROUP BY'],
+      },
+      {
+        id: 'datetime-6',
+        title: 'Date Filtering',
+        database: 'employees',
+        sql: `SELECT
+  first_name || ' ' || last_name AS employee,
+  hire_date,
+  department
+FROM employees
+WHERE YEAR(hire_date) >= 2020
+ORDER BY hire_date;`,
+        description: 'Filter employees hired in recent years using date functions',
+        sqlFeatures: ['YEAR', 'WHERE', 'Date functions in WHERE'],
+      },
+      {
+        id: 'datetime-7',
+        title: 'Age/Tenure Calculation',
+        database: 'employees',
+        sql: `SELECT
+  first_name || ' ' || last_name AS employee,
+  hire_date,
+  YEAR(CURRENT_DATE) - YEAR(hire_date) AS years_with_company,
+  CASE
+    WHEN YEAR(CURRENT_DATE) - YEAR(hire_date) < 1 THEN 'New'
+    WHEN YEAR(CURRENT_DATE) - YEAR(hire_date) < 3 THEN 'Junior'
+    WHEN YEAR(CURRENT_DATE) - YEAR(hire_date) < 10 THEN 'Senior'
+    ELSE 'Veteran'
+  END AS tenure_level
+FROM employees
+ORDER BY hire_date
+LIMIT 15;`,
+        description: 'Calculate employee tenure and categorize by experience level',
+        sqlFeatures: ['YEAR', 'CURRENT_DATE', 'CASE', 'Date arithmetic'],
+      },
+      {
+        id: 'datetime-8',
+        title: 'Date-based Aggregations',
+        database: 'employees',
+        sql: `SELECT
+  YEAR(hire_date) AS hire_year,
+  department,
+  COUNT(*) AS employee_count,
+  AVG(salary) AS avg_salary
+FROM employees
+GROUP BY YEAR(hire_date), department
+HAVING COUNT(*) > 1
+ORDER BY hire_year DESC, avg_salary DESC;`,
+        description: 'Aggregate employee statistics by hire year and department',
+        sqlFeatures: ['YEAR', 'GROUP BY', 'HAVING', 'COUNT', 'AVG', 'Date-based reporting'],
+      },
+      {
+        id: 'datetime-9',
+        title: 'Quarter Analysis',
+        database: 'employees',
+        sql: `SELECT
+  CASE
+    WHEN MONTH(hire_date) BETWEEN 1 AND 3 THEN 'Q1'
+    WHEN MONTH(hire_date) BETWEEN 4 AND 6 THEN 'Q2'
+    WHEN MONTH(hire_date) BETWEEN 7 AND 9 THEN 'Q3'
+    ELSE 'Q4'
+  END AS quarter,
+  YEAR(hire_date) AS year,
+  COUNT(*) AS hires
+FROM employees
+GROUP BY
+  CASE
+    WHEN MONTH(hire_date) BETWEEN 1 AND 3 THEN 'Q1'
+    WHEN MONTH(hire_date) BETWEEN 4 AND 6 THEN 'Q2'
+    WHEN MONTH(hire_date) BETWEEN 7 AND 9 THEN 'Q3'
+    ELSE 'Q4'
+  END,
+  YEAR(hire_date)
+ORDER BY year DESC, quarter;`,
+        description: 'Analyze hiring patterns by fiscal quarter using date functions',
+        sqlFeatures: ['MONTH', 'YEAR', 'CASE', 'BETWEEN', 'GROUP BY', 'Business intelligence'],
+      },
+    ],
+  },
 ]
 
 /**
