@@ -76,8 +76,17 @@ export class ShowcaseController {
   private loadExampleIntoEditor(query: string): void {
     // Find Monaco editor and load the example query
     const editorElement = document.querySelector('.monaco-editor')
-    if (editorElement && (window as { monaco?: { editor?: { getEditors?: () => { setValue: (v: string) => void }[] } } }).monaco) {
-      const editors = (window as { monaco: { editor: { getEditors: () => { setValue: (v: string) => void }[] } } }).monaco.editor.getEditors()
+    if (
+      editorElement &&
+      (
+        window as {
+          monaco?: { editor?: { getEditors?: () => { setValue: (v: string) => void }[] } }
+        }
+      ).monaco
+    ) {
+      const editors = (
+        window as { monaco: { editor: { getEditors: () => { setValue: (v: string) => void }[] } } }
+      ).monaco.editor.getEditors()
       if (editors && editors.length > 0) {
         editors[0].setValue(query)
       }
