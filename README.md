@@ -1,5 +1,8 @@
 # NIST-Compatible In-Memory SQL Database
 
+[![Deploy Status](https://github.com/rjwalters/nistmemsql/actions/workflows/deploy-demo.yml/badge.svg)](https://github.com/rjwalters/nistmemsql/actions/workflows/deploy-demo.yml)
+[![Demo](https://img.shields.io/badge/demo-live-success)](https://rjwalters.github.io/nistmemsql/)
+
 ## Project Goal
 Build a **FULL** NIST-compatible SQL:1999 parser and in-memory database implementation from scratch.
 

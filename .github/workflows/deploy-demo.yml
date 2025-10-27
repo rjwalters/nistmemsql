@@ -1,0 +1,129 @@
+name: Deploy Web Demo
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Cancel in-progress runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Quality checks (lint, format, typecheck)
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web-demo/package-lock.json
+
+      - name: Install dependencies
+        working-directory: web-demo
+        run: npm ci
+
+      - name: Lint
+        working-directory: web-demo
+        run: npm run lint
+
+      - name: Format check
+        working-directory: web-demo
+        run: npm run format:check
+
+      - name: Type check
+        working-directory: web-demo
+        run: npx tsc --noEmit
+
+  # Unit tests with coverage
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web-demo/package-lock.json
+
+      - name: Install dependencies
+        working-directory: web-demo
+        run: npm ci
+
+      - name: Run tests
+        working-directory: web-demo
+        run: npm run test:coverage
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: web-demo/coverage
+
+  # Build and deploy
+  build-deploy:
+    needs: [quality, test]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Setup Rust
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      # Build WASM
+      - name: Build WASM
+        run: wasm-pack build --target web --out-dir web-demo/public/pkg
+
+      # Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web-demo/package-lock.json
+
+      # Build Vite app
+      - name: Install dependencies
+        working-directory: web-demo
+        run: npm ci
+
+      - name: Build Vite app
+        working-directory: web-demo
+        run: npm run build
+
+      # Deploy to GitHub Pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web-demo/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
