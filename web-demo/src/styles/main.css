@@ -9,11 +9,11 @@
   }
 
   #editor {
-    @apply min-h-[50vh];
+    @apply min-h-[35vh];
   }
 
   #results {
-    @apply min-h-[40vh];
+    @apply min-h-[35vh];
   }
 
   .button {
