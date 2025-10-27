@@ -325,6 +325,124 @@ impl<'a> ExpressionEvaluator<'a> {
                 Ok(types::SqlValue::Boolean(result))
             }
 
+            // Quantified comparison: expr op ALL/ANY/SOME (SELECT ...)
+            // SQL:1999 Section 8.8: Quantified comparison predicate
+            // ALL: comparison must be TRUE for all rows
+            // ANY/SOME: comparison must be TRUE for at least one row
+            ast::Expression::QuantifiedComparison { expr, op, quantifier, subquery } => {
+                let database = self.database.ok_or(ExecutorError::UnsupportedFeature(
+                    "Quantified comparison requires database reference".to_string(),
+                ))?;
+
+                // Evaluate the left-hand expression
+                let left_val = self.eval(expr, row)?;
+
+                // Execute the subquery using SelectExecutor
+                let select_executor = crate::select::SelectExecutor::new_with_outer_context(
+                    database,
+                    row,
+                    self.schema,
+                );
+                let rows = select_executor.execute(subquery)?;
+
+                // Empty subquery special cases:
+                // - ALL: returns TRUE (vacuously true - all zero rows satisfy the condition)
+                // - ANY/SOME: returns FALSE (no rows to satisfy the condition)
+                if rows.is_empty() {
+                    return Ok(types::SqlValue::Boolean(matches!(quantifier, ast::Quantifier::All)));
+                }
+
+                // If left value is NULL, result depends on quantifier and subquery results
+                if matches!(left_val, types::SqlValue::Null) {
+                    return Ok(types::SqlValue::Null);
+                }
+
+                match quantifier {
+                    ast::Quantifier::All => {
+                        // ALL: comparison must be TRUE for all rows
+                        // If any comparison is FALSE, return FALSE
+                        // If any comparison is NULL (and none FALSE), return NULL
+                        let mut has_null = false;
+
+                        for subquery_row in &rows {
+                            if subquery_row.values.len() != 1 {
+                                return Err(ExecutorError::SubqueryColumnCountMismatch {
+                                    expected: 1,
+                                    actual: subquery_row.values.len(),
+                                });
+                            }
+
+                            let right_val = &subquery_row.values[0];
+
+                            // Handle NULL in subquery result
+                            if matches!(right_val, types::SqlValue::Null) {
+                                has_null = true;
+                                continue;
+                            }
+
+                            // Evaluate comparison
+                            let cmp_result = self.eval_binary_op(&left_val, op, right_val)?;
+
+                            match cmp_result {
+                                types::SqlValue::Boolean(false) => return Ok(types::SqlValue::Boolean(false)),
+                                types::SqlValue::Null => has_null = true,
+                                _ => {} // TRUE, continue checking
+                            }
+                        }
+
+                        // If we saw any NULLs (and no FALSEs), return NULL
+                        // Otherwise return TRUE (all comparisons were TRUE)
+                        if has_null {
+                            Ok(types::SqlValue::Null)
+                        } else {
+                            Ok(types::SqlValue::Boolean(true))
+                        }
+                    }
+
+                    ast::Quantifier::Any | ast::Quantifier::Some => {
+                        // ANY/SOME: comparison must be TRUE for at least one row
+                        // If any comparison is TRUE, return TRUE
+                        // If all comparisons are FALSE, return FALSE
+                        // If any comparison is NULL (and none TRUE), return NULL
+                        let mut has_null = false;
+
+                        for subquery_row in &rows {
+                            if subquery_row.values.len() != 1 {
+                                return Err(ExecutorError::SubqueryColumnCountMismatch {
+                                    expected: 1,
+                                    actual: subquery_row.values.len(),
+                                });
+                            }
+
+                            let right_val = &subquery_row.values[0];
+
+                            // Handle NULL in subquery result
+                            if matches!(right_val, types::SqlValue::Null) {
+                                has_null = true;
+                                continue;
+                            }
+
+                            // Evaluate comparison
+                            let cmp_result = self.eval_binary_op(&left_val, op, right_val)?;
+
+                            match cmp_result {
+                                types::SqlValue::Boolean(true) => return Ok(types::SqlValue::Boolean(true)),
+                                types::SqlValue::Null => has_null = true,
+                                _ => {} // FALSE, continue checking
+                            }
+                        }
+
+                        // If we saw any NULLs (and no TRUEs), return NULL
+                        // Otherwise return FALSE (no comparisons were TRUE)
+                        if has_null {
+                            Ok(types::SqlValue::Null)
+                        } else {
+                            Ok(types::SqlValue::Boolean(false))
+                        }
+                    }
+                }
+            }
+
             // Function expressions - handle scalar functions (not aggregates)
             // Aggregates (COUNT, SUM, etc.) are handled in SelectExecutor
             ast::Expression::Function { name, args } => {
@@ -816,6 +934,120 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 let result = if *negated { !has_rows } else { has_rows };
 
                 Ok(types::SqlValue::Boolean(result))
+            }
+
+            // Quantified comparison: expr op ALL/ANY/SOME (SELECT ...)
+            // SQL:1999 Section 8.8: Quantified comparison predicate
+            // ALL: comparison must be TRUE for all rows
+            // ANY/SOME: comparison must be TRUE for at least one row
+            ast::Expression::QuantifiedComparison { expr, op, quantifier, subquery } => {
+                let database = self.database.ok_or(ExecutorError::UnsupportedFeature(
+                    "Quantified comparison requires database reference".to_string(),
+                ))?;
+
+                // Evaluate the left-hand expression
+                let left_val = self.eval(expr, row)?;
+
+                // Execute the subquery using SelectExecutor
+                let select_executor = crate::select::SelectExecutor::new(database);
+                let rows = select_executor.execute(subquery)?;
+
+                // Empty subquery special cases:
+                // - ALL: returns TRUE (vacuously true - all zero rows satisfy the condition)
+                // - ANY/SOME: returns FALSE (no rows to satisfy the condition)
+                if rows.is_empty() {
+                    return Ok(types::SqlValue::Boolean(matches!(quantifier, ast::Quantifier::All)));
+                }
+
+                // If left value is NULL, result depends on quantifier and subquery results
+                if matches!(left_val, types::SqlValue::Null) {
+                    return Ok(types::SqlValue::Null);
+                }
+
+                match quantifier {
+                    ast::Quantifier::All => {
+                        // ALL: comparison must be TRUE for all rows
+                        // If any comparison is FALSE, return FALSE
+                        // If any comparison is NULL (and none FALSE), return NULL
+                        let mut has_null = false;
+
+                        for subquery_row in &rows {
+                            if subquery_row.values.len() != 1 {
+                                return Err(ExecutorError::SubqueryColumnCountMismatch {
+                                    expected: 1,
+                                    actual: subquery_row.values.len(),
+                                });
+                            }
+
+                            let right_val = &subquery_row.values[0];
+
+                            // Handle NULL in subquery result
+                            if matches!(right_val, types::SqlValue::Null) {
+                                has_null = true;
+                                continue;
+                            }
+
+                            // Evaluate comparison
+                            let cmp_result = ExpressionEvaluator::eval_binary_op_static(&left_val, op, right_val)?;
+
+                            match cmp_result {
+                                types::SqlValue::Boolean(false) => return Ok(types::SqlValue::Boolean(false)),
+                                types::SqlValue::Null => has_null = true,
+                                _ => {} // TRUE, continue checking
+                            }
+                        }
+
+                        // If we saw any NULLs (and no FALSEs), return NULL
+                        // Otherwise return TRUE (all comparisons were TRUE)
+                        if has_null {
+                            Ok(types::SqlValue::Null)
+                        } else {
+                            Ok(types::SqlValue::Boolean(true))
+                        }
+                    }
+
+                    ast::Quantifier::Any | ast::Quantifier::Some => {
+                        // ANY/SOME: comparison must be TRUE for at least one row
+                        // If any comparison is TRUE, return TRUE
+                        // If all comparisons are FALSE, return FALSE
+                        // If any comparison is NULL (and none TRUE), return NULL
+                        let mut has_null = false;
+
+                        for subquery_row in &rows {
+                            if subquery_row.values.len() != 1 {
+                                return Err(ExecutorError::SubqueryColumnCountMismatch {
+                                    expected: 1,
+                                    actual: subquery_row.values.len(),
+                                });
+                            }
+
+                            let right_val = &subquery_row.values[0];
+
+                            // Handle NULL in subquery result
+                            if matches!(right_val, types::SqlValue::Null) {
+                                has_null = true;
+                                continue;
+                            }
+
+                            // Evaluate comparison
+                            let cmp_result = ExpressionEvaluator::eval_binary_op_static(&left_val, op, right_val)?;
+
+                            match cmp_result {
+                                types::SqlValue::Boolean(true) => return Ok(types::SqlValue::Boolean(true)),
+                                types::SqlValue::Null => has_null = true,
+                                _ => {} // FALSE, continue checking
+                            }
+                        }
+
+                        // If we saw any NULLs (and no TRUEs), return NULL
+                        // Otherwise return FALSE (no comparisons were TRUE)
+                        if has_null {
+                            Ok(types::SqlValue::Null)
+                        } else {
+                            Ok(types::SqlValue::Boolean(false))
+                        }
+                    }
+                }
             }
 
             // Function expressions - handle scalar functions (not aggregates)

@@ -229,6 +229,39 @@ impl Parser {
             };
             self.advance();
 
+            // Check for quantified comparison (ALL, ANY, SOME)
+            if self.peek_keyword(Keyword::All)
+                || self.peek_keyword(Keyword::Any)
+                || self.peek_keyword(Keyword::Some)
+            {
+                let quantifier = if self.peek_keyword(Keyword::All) {
+                    self.consume_keyword(Keyword::All)?;
+                    ast::Quantifier::All
+                } else if self.peek_keyword(Keyword::Any) {
+                    self.consume_keyword(Keyword::Any)?;
+                    ast::Quantifier::Any
+                } else {
+                    self.consume_keyword(Keyword::Some)?;
+                    ast::Quantifier::Some
+                };
+
+                // Expect opening paren
+                self.expect_token(Token::LParen)?;
+
+                // Parse subquery
+                let subquery = self.parse_select_statement()?;
+
+                // Expect closing paren
+                self.expect_token(Token::RParen)?;
+
+                return Ok(ast::Expression::QuantifiedComparison {
+                    expr: Box::new(left),
+                    op,
+                    quantifier,
+                    subquery: Box::new(subquery),
+                });
+            }
+
             let right = self.parse_primary_expression()?;
             left = ast::Expression::BinaryOp { op, left: Box::new(left), right: Box::new(right) };
         }

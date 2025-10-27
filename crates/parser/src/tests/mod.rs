@@ -16,6 +16,7 @@ mod limit;
 mod literals;
 mod null_functions;
 mod predicates;
+mod quantified;
 mod select;
 mod subquery;
 mod update;

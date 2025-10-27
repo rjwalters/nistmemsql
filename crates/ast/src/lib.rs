@@ -13,7 +13,7 @@ mod statement;
 
 pub use ddl::{ColumnDef, CreateTableStmt};
 pub use dml::{Assignment, DeleteStmt, InsertStmt, UpdateStmt};
-pub use expression::Expression;
+pub use expression::{Expression, Quantifier};
 pub use operators::{BinaryOperator, UnaryOperator};
 pub use select::{FromClause, JoinType, OrderByItem, OrderDirection, SelectItem, SelectStmt};
 pub use statement::Statement;

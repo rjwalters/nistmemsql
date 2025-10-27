@@ -106,4 +106,27 @@ pub enum Expression {
         subquery: Box<SelectStmt>,
         negated: bool, // false = EXISTS, true = NOT EXISTS
     },
+
+    /// Quantified comparison (ALL, ANY, SOME)
+    /// Example: salary > ALL (SELECT salary FROM dept WHERE dept_id = 10)
+    /// Example: price < ANY (SELECT price FROM competitors)
+    /// Example: quantity = SOME (SELECT quantity FROM inventory)
+    /// SOME is a synonym for ANY
+    QuantifiedComparison {
+        expr: Box<Expression>,
+        op: BinaryOperator,
+        quantifier: Quantifier,
+        subquery: Box<SelectStmt>,
+    },
+}
+
+/// Quantifier for quantified comparisons
+#[derive(Debug, Clone, PartialEq)]
+pub enum Quantifier {
+    /// ALL - comparison must be TRUE for all rows
+    All,
+    /// ANY - comparison must be TRUE for at least one row
+    Any,
+    /// SOME - synonym for ANY
+    Some,
 }
