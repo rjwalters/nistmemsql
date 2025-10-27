@@ -17,6 +17,11 @@ export async function initDatabase(): Promise<Database> {
     // Dynamic import for code splitting
     wasmModule = await import('../../public/pkg/nistmemsql_wasm')
 
+    // Null check for TypeScript strict mode
+    if (!wasmModule) {
+      throw new Error('Failed to import WASM module')
+    }
+
     // Wait for WASM to initialize
     await wasmModule.default()
 
