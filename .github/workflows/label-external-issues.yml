@@ -13,16 +13,19 @@ permissions:
   contents: read
 
 jobs:
-  label_external:
+  noop:
+    if: github.event_name != 'issues'
     runs-on: ubuntu-latest
     steps:
       - name: Skip non-issue events
-        if: github.event_name != 'issues'
         run: echo "Workflow only runs on issue events. Current event: ${{ github.event_name }}."
 
-      - name: Check if author is a collaborator
-        if: github.event_name == 'issues'
-        id: check
+  label_external:
+    if: github.event_name == 'issues'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine collaborator status
+        id: collaborator
         uses: actions/github-script@v7
         with:
           script: |
@@ -30,20 +33,16 @@ jobs:
             const username = context.payload.issue.user.login;
 
             try {
-              await github.rest.repos.checkCollaborator({
-                owner,
-                repo,
-                username
-              });
-              console.log(`${username} is a collaborator`);
-              return { isCollaborator: true };
+              await github.rest.repos.checkCollaborator({ owner, repo, username });
+              core.setOutput('isCollaborator', 'true');
+              core.info(`${username} is a collaborator`);
             } catch (error) {
-              console.log(`${username} is NOT a collaborator`);
-              return { isCollaborator: false };
+              core.setOutput('isCollaborator', 'false');
+              core.info(`${username} is NOT a collaborator`);
             }
 
       - name: Add 'external' label if not a collaborator
-        if: github.event_name == 'issues' && fromJSON(steps.check.outputs.result).isCollaborator == false
+        if: steps.collaborator.outputs.isCollaborator == 'false'
         uses: actions/github-script@v7
         with:
           script: |
@@ -51,11 +50,11 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              labels: ['external']
+              labels: ['external'],
             });
 
       - name: Post welcome comment on external issues
-        if: github.event_name == 'issues' && fromJSON(steps.check.outputs.result).isCollaborator == false
+        if: steps.collaborator.outputs.isCollaborator == 'false'
         uses: actions/github-script@v7
         with:
           script: |
