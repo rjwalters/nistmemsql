@@ -167,10 +167,7 @@ impl Database {
 
     /// Lists all table names in the database
     pub fn list_tables(&self) -> Result<JsValue, JsValue> {
-        let table_names: Vec<String> = self.db.list_tables()
-            .into_iter()
-            .map(|name| name.clone())
-            .collect();
+        let table_names: Vec<String> = self.db.list_tables();
 
         serde_wasm_bindgen::to_value(&table_names).map_err(|e| {
             JsValue::from_str(&format!("Serialization error: {:?}", e))
