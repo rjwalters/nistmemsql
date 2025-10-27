@@ -4,6 +4,8 @@ use crate::schema::CombinedSchema;
 /// Evaluates expressions in the context of a row
 pub struct ExpressionEvaluator<'a> {
     schema: &'a catalog::TableSchema,
+    outer_row: Option<&'a storage::Row>,
+    outer_schema: Option<&'a catalog::TableSchema>,
 }
 
 /// Evaluates expressions with combined schema (for JOINs)
@@ -14,7 +16,24 @@ pub(crate) struct CombinedExpressionEvaluator<'a> {
 impl<'a> ExpressionEvaluator<'a> {
     /// Create a new expression evaluator for a given schema
     pub fn new(schema: &'a catalog::TableSchema) -> Self {
-        ExpressionEvaluator { schema }
+        ExpressionEvaluator {
+            schema,
+            outer_row: None,
+            outer_schema: None,
+        }
+    }
+
+    /// Create a new expression evaluator with outer query context for correlated subqueries
+    pub fn with_outer_context(
+        schema: &'a catalog::TableSchema,
+        outer_row: &'a storage::Row,
+        outer_schema: &'a catalog::TableSchema,
+    ) -> Self {
+        ExpressionEvaluator {
+            schema,
+            outer_row: Some(outer_row),
+            outer_schema: Some(outer_schema),
+        }
     }
 
     /// Evaluate an expression in the context of a row
@@ -29,13 +48,24 @@ impl<'a> ExpressionEvaluator<'a> {
 
             // Column reference - look up column index and get value from row
             ast::Expression::ColumnRef { table: _, column } => {
-                let col_index = self
-                    .schema
-                    .get_column_index(column)
-                    .ok_or_else(|| ExecutorError::ColumnNotFound(column.clone()))?;
-                row.get(col_index)
-                    .cloned()
-                    .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: col_index })
+                // Try to resolve in inner schema first
+                if let Some(col_index) = self.schema.get_column_index(column) {
+                    return row.get(col_index)
+                        .cloned()
+                        .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: col_index });
+                }
+
+                // If not found in inner schema and outer context exists, try outer schema
+                if let (Some(outer_row), Some(outer_schema)) = (self.outer_row, self.outer_schema) {
+                    if let Some(col_index) = outer_schema.get_column_index(column) {
+                        return outer_row.get(col_index)
+                            .cloned()
+                            .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: col_index });
+                    }
+                }
+
+                // Column not found in either schema
+                Err(ExecutorError::ColumnNotFound(column.clone()))
             }
 
             // Binary operations
@@ -276,5 +306,173 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             Some(else_expr) => self.eval(else_expr, row),
             None => Ok(types::SqlValue::Null),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use catalog::{ColumnSchema, TableSchema};
+    use types::{DataType, SqlValue};
+
+    #[test]
+    fn test_evaluator_with_outer_context_resolves_inner_column() {
+        // Create inner schema with "inner_col"
+        let inner_schema = TableSchema::new(
+            "inner".to_string(),
+            vec![ColumnSchema::new(
+                "inner_col".to_string(),
+                DataType::Integer,
+                false,
+            )],
+        );
+
+        // Create outer schema with "outer_col"
+        let outer_schema = TableSchema::new(
+            "outer".to_string(),
+            vec![ColumnSchema::new(
+                "outer_col".to_string(),
+                DataType::Integer,
+                false,
+            )],
+        );
+
+        let outer_row = storage::Row::new(vec![SqlValue::Integer(100)]);
+        let inner_row = storage::Row::new(vec![SqlValue::Integer(42)]);
+
+        let evaluator =
+            ExpressionEvaluator::with_outer_context(&inner_schema, &outer_row, &outer_schema);
+
+        // Should resolve inner_col from inner row
+        let expr = ast::Expression::ColumnRef {
+            table: None,
+            column: "inner_col".to_string(),
+        };
+
+        let result = evaluator.eval(&expr, &inner_row).unwrap();
+        assert_eq!(result, SqlValue::Integer(42));
+    }
+
+    #[test]
+    fn test_evaluator_with_outer_context_resolves_outer_column() {
+        // Create inner schema with "inner_col"
+        let inner_schema = TableSchema::new(
+            "inner".to_string(),
+            vec![ColumnSchema::new(
+                "inner_col".to_string(),
+                DataType::Integer,
+                false,
+            )],
+        );
+
+        // Create outer schema with "outer_col"
+        let outer_schema = TableSchema::new(
+            "outer".to_string(),
+            vec![ColumnSchema::new(
+                "outer_col".to_string(),
+                DataType::Integer,
+                false,
+            )],
+        );
+
+        let outer_row = storage::Row::new(vec![SqlValue::Integer(100)]);
+        let inner_row = storage::Row::new(vec![SqlValue::Integer(42)]);
+
+        let evaluator =
+            ExpressionEvaluator::with_outer_context(&inner_schema, &outer_row, &outer_schema);
+
+        // Should resolve outer_col from outer row (not in inner schema)
+        let expr = ast::Expression::ColumnRef {
+            table: None,
+            column: "outer_col".to_string(),
+        };
+
+        let result = evaluator.eval(&expr, &inner_row).unwrap();
+        assert_eq!(result, SqlValue::Integer(100));
+    }
+
+    #[test]
+    fn test_evaluator_with_outer_context_inner_shadows_outer() {
+        // Both schemas have "col" - inner should win
+        let inner_schema = TableSchema::new(
+            "inner".to_string(),
+            vec![ColumnSchema::new("col".to_string(), DataType::Integer, false)],
+        );
+
+        let outer_schema = TableSchema::new(
+            "outer".to_string(),
+            vec![ColumnSchema::new("col".to_string(), DataType::Integer, false)],
+        );
+
+        let outer_row = storage::Row::new(vec![SqlValue::Integer(999)]);
+        let inner_row = storage::Row::new(vec![SqlValue::Integer(42)]);
+
+        let evaluator =
+            ExpressionEvaluator::with_outer_context(&inner_schema, &outer_row, &outer_schema);
+
+        let expr = ast::Expression::ColumnRef {
+            table: None,
+            column: "col".to_string(),
+        };
+
+        let result = evaluator.eval(&expr, &inner_row).unwrap();
+        // Should get inner value (42), not outer (999)
+        assert_eq!(result, SqlValue::Integer(42));
+    }
+
+    #[test]
+    fn test_evaluator_with_outer_context_column_not_found() {
+        let inner_schema = TableSchema::new(
+            "inner".to_string(),
+            vec![ColumnSchema::new(
+                "inner_col".to_string(),
+                DataType::Integer,
+                false,
+            )],
+        );
+
+        let outer_schema = TableSchema::new(
+            "outer".to_string(),
+            vec![ColumnSchema::new(
+                "outer_col".to_string(),
+                DataType::Integer,
+                false,
+            )],
+        );
+
+        let outer_row = storage::Row::new(vec![SqlValue::Integer(100)]);
+        let inner_row = storage::Row::new(vec![SqlValue::Integer(42)]);
+
+        let evaluator =
+            ExpressionEvaluator::with_outer_context(&inner_schema, &outer_row, &outer_schema);
+
+        // Try to resolve non-existent column
+        let expr = ast::Expression::ColumnRef {
+            table: None,
+            column: "nonexistent".to_string(),
+        };
+
+        let result = evaluator.eval(&expr, &inner_row);
+        assert!(matches!(result, Err(ExecutorError::ColumnNotFound(_))));
+    }
+
+    #[test]
+    fn test_evaluator_without_outer_context() {
+        // Normal evaluator without outer context
+        let schema = TableSchema::new(
+            "table".to_string(),
+            vec![ColumnSchema::new("col".to_string(), DataType::Integer, false)],
+        );
+
+        let evaluator = ExpressionEvaluator::new(&schema);
+        let row = storage::Row::new(vec![SqlValue::Integer(42)]);
+
+        let expr = ast::Expression::ColumnRef {
+            table: None,
+            column: "col".to_string(),
+        };
+
+        let result = evaluator.eval(&expr, &row).unwrap();
+        assert_eq!(result, SqlValue::Integer(42));
     }
 }
