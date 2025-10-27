@@ -13,18 +13,15 @@ permissions:
   contents: read
 
 jobs:
-  noop:
-    if: github.event_name != 'issues'
+  label_external:
     runs-on: ubuntu-latest
     steps:
       - name: Skip non-issue events
+        if: github.event_name != 'issues'
         run: echo "Workflow only runs on issue events. Current event: ${{ github.event_name }}."
 
-  label_external:
-    if: github.event_name == 'issues'
-    runs-on: ubuntu-latest
-    steps:
       - name: Determine collaborator status
+        if: github.event_name == 'issues'
         id: collaborator
         uses: actions/github-script@v7
         with:
@@ -42,7 +39,7 @@ jobs:
             }
 
       - name: Add 'external' label if not a collaborator
-        if: steps.collaborator.outputs.isCollaborator == 'false'
+        if: github.event_name == 'issues' && steps.collaborator.outputs.isCollaborator == 'false'
         uses: actions/github-script@v7
         with:
           script: |
@@ -54,7 +51,7 @@ jobs:
             });
 
       - name: Post welcome comment on external issues
-        if: steps.collaborator.outputs.isCollaborator == 'false'
+        if: github.event_name == 'issues' && steps.collaborator.outputs.isCollaborator == 'false'
         uses: actions/github-script@v7
         with:
           script: |
