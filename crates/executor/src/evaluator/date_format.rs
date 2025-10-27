@@ -180,12 +180,11 @@ pub(crate) fn format_number(number: f64, sql_format: &str) -> Result<String, Exe
     let int_part = parts[0].parse::<i64>().unwrap_or(0);
     let dec_part = if decimal_places > 0 {
         if parts.len() > 1 {
-            // Right-pad the decimal part with zeros
+            // Pad or truncate decimal part to required decimal places
             let mut dec = parts[1].to_string();
             while dec.len() < decimal_places {
                 dec.push('0');
             }
-            // Truncate if too long
             dec.truncate(decimal_places);
             format!(".{}", dec)
         } else {
