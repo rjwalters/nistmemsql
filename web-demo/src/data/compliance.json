@@ -435,5 +435,113 @@
       "status": "complete",
       "description": "WITH clause (recursive and non-recursive)"
     }
+  ],
+  "roadmap": {
+    "phases": [
+      {
+        "name": "Foundation (Phases 1-3)",
+        "percentage": 100,
+        "status": "complete",
+        "description": "Core infrastructure, parser, type system"
+      },
+      {
+        "name": "Query Engine (Phase 4)",
+        "percentage": 82,
+        "status": "in-progress",
+        "description": "SELECT, JOINs, subqueries, aggregates"
+      },
+      {
+        "name": "Built-in Functions (Phase 3 ongoing)",
+        "percentage": 12,
+        "status": "in-progress",
+        "description": "String, numeric, date/time functions"
+      },
+      {
+        "name": "DDL & Constraints (Phase 5)",
+        "percentage": 10,
+        "status": "early",
+        "description": "CREATE, ALTER, DROP, constraints"
+      },
+      {
+        "name": "Transactions (Phase 6)",
+        "percentage": 0,
+        "status": "not-started",
+        "description": "BEGIN, COMMIT, ROLLBACK, isolation"
+      },
+      {
+        "name": "Advanced Features (Phase 7+)",
+        "percentage": 0,
+        "status": "not-started",
+        "description": "Views, triggers, stored procedures, ODBC/JDBC"
+      }
+    ],
+    "estimatedCompletion": "10-14 months (Core SQL:1999)",
+    "currentFocus": "Built-in Functions & Query Engine completion"
+  },
+  "recentUpdates": [
+    {
+      "date": "2025-10-27",
+      "feature": "BETWEEN predicate implementation",
+      "tests": 8,
+      "pr": 143
+    },
+    {
+      "date": "2025-10-26",
+      "feature": "Type conversion functions (CAST, TO_CHAR, etc.)",
+      "tests": 15,
+      "pr": 185
+    },
+    {
+      "date": "2025-10-25",
+      "feature": "Correlated subqueries support",
+      "tests": 12,
+      "pr": 138
+    },
+    {
+      "date": "2025-10-24",
+      "feature": "FULL and RIGHT OUTER JOIN",
+      "tests": 8,
+      "pr": 135
+    },
+    {
+      "date": "2025-10-23",
+      "feature": "Recursive CTEs (Common Table Expressions)",
+      "tests": 10,
+      "pr": 132
+    },
+    {
+      "date": "2025-10-22",
+      "feature": "Date/time functions (NOW, CURRENT_DATE, etc.)",
+      "tests": 23,
+      "pr": 174
+    }
+  ],
+  "comparison": [
+    {
+      "database": "nistmemsql",
+      "percentage": 27,
+      "target": 100,
+      "notes": "Targeting 100% Core SQL:1999 compliance"
+    },
+    {
+      "database": "PostgreSQL",
+      "percentage": 100,
+      "notes": "Industry leader, exceeds Core with extensions"
+    },
+    {
+      "database": "MySQL",
+      "percentage": 85,
+      "notes": "Strong Core compliance with some gaps"
+    },
+    {
+      "database": "SQLite",
+      "percentage": 80,
+      "notes": "Good Core compliance, limited by embedded focus"
+    },
+    {
+      "database": "SQL Server",
+      "percentage": 95,
+      "notes": "Excellent compliance with T-SQL extensions"
+    }
   ]
 }
