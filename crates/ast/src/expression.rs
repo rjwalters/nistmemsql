@@ -58,4 +58,15 @@ pub enum Expression {
         subquery: Box<SelectStmt>,
         negated: bool, // false = IN, true = NOT IN
     },
+
+    /// BETWEEN predicate
+    /// Example: WHERE age BETWEEN 18 AND 65
+    /// Example: WHERE price NOT BETWEEN 10.0 AND 20.0
+    /// Equivalent to: expr >= low AND expr <= high (or negated)
+    Between {
+        expr: Box<Expression>,
+        low: Box<Expression>,
+        high: Box<Expression>,
+        negated: bool, // false = BETWEEN, true = NOT BETWEEN
+    },
 }

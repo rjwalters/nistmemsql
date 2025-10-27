@@ -10,6 +10,7 @@ mod insert;
 mod joins;
 mod lexer;
 mod limit;
+mod predicates;
 mod select;
 mod subquery;
 mod update;

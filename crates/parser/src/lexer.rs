@@ -161,6 +161,7 @@ impl Lexer {
             "SET" => Token::Keyword(Keyword::Set),
             "VALUES" => Token::Keyword(Keyword::Values),
             "IN" => Token::Keyword(Keyword::In),
+            "BETWEEN" => Token::Keyword(Keyword::Between),
             _ => Token::Identifier(text),
         };
 
