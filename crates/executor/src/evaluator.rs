@@ -45,6 +45,13 @@ impl<'a> ExpressionEvaluator<'a> {
                 self.eval_binary_op(&left_val, op, &right_val)
             }
 
+            // CASE expression
+            ast::Expression::Case {
+                operand,
+                when_clauses,
+                else_result,
+            } => self.eval_case(operand, when_clauses, else_result, row),
+
             // TODO: Implement other expression types
             _ => Err(ExecutorError::UnsupportedExpression(format!("{:?}", expr))),
         }
@@ -109,6 +116,71 @@ impl<'a> ExpressionEvaluator<'a> {
             }),
         }
     }
+
+    /// Evaluate CASE expression
+    fn eval_case(
+        &self,
+        operand: &Option<Box<ast::Expression>>,
+        when_clauses: &[(ast::Expression, ast::Expression)],
+        else_result: &Option<Box<ast::Expression>>,
+        row: &storage::Row,
+    ) -> Result<types::SqlValue, ExecutorError> {
+        match operand {
+            // Simple CASE: CASE operand WHEN value THEN result ...
+            Some(operand_expr) => {
+                let operand_value = self.eval(operand_expr, row)?;
+
+                // Iterate through WHEN clauses
+                for (when_value_expr, then_result_expr) in when_clauses {
+                    let when_value = self.eval(when_value_expr, row)?;
+
+                    // Compare operand to when_value using SQL equality semantics
+                    // IMPORTANT: Use IS NOT DISTINCT FROM for NULL-safe comparison
+                    if Self::values_are_equal(&operand_value, &when_value) {
+                        return self.eval(then_result_expr, row);
+                    }
+                }
+            }
+
+            // Searched CASE: CASE WHEN condition THEN result ...
+            None => {
+                // Iterate through WHEN clauses
+                for (when_condition_expr, then_result_expr) in when_clauses {
+                    let condition_result = self.eval(when_condition_expr, row)?;
+
+                    // Check if condition is TRUE (not just truthy)
+                    if matches!(condition_result, types::SqlValue::Boolean(true)) {
+                        return self.eval(then_result_expr, row);
+                    }
+                    // Note: NULL and FALSE both skip this branch
+                }
+            }
+        }
+
+        // No WHEN matched, evaluate ELSE or return NULL
+        match else_result {
+            Some(else_expr) => self.eval(else_expr, row),
+            None => Ok(types::SqlValue::Null),
+        }
+    }
+
+    /// Compare two SQL values for equality (NULL-safe for simple CASE)
+    /// Uses IS NOT DISTINCT FROM semantics where NULL = NULL is TRUE
+    pub(crate) fn values_are_equal(left: &types::SqlValue, right: &types::SqlValue) -> bool {
+        use types::SqlValue::*;
+
+        // SQL:1999 semantics for CASE equality:
+        // - NULL = NULL is TRUE (different from WHERE clause behavior!)
+        // - This is "IS NOT DISTINCT FROM" semantics
+        match (left, right) {
+            (Null, Null) => true,
+            (Null, _) | (_, Null) => false,
+            (Integer(a), Integer(b)) => a == b,
+            (Varchar(a), Varchar(b)) => a == b,
+            (Boolean(a), Boolean(b)) => a == b,
+            _ => false, // Type mismatch = not equal
+        }
+    }
 }
 
 impl<'a> CombinedExpressionEvaluator<'a> {
@@ -145,8 +217,60 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 ExpressionEvaluator::eval_binary_op_static(&left_val, op, &right_val)
             }
 
+            // CASE expression
+            ast::Expression::Case {
+                operand,
+                when_clauses,
+                else_result,
+            } => self.eval_case(operand, when_clauses, else_result, row),
+
             // TODO: Implement other expression types
             _ => Err(ExecutorError::UnsupportedExpression(format!("{:?}", expr))),
+        }
+    }
+
+    /// Evaluate CASE expression
+    fn eval_case(
+        &self,
+        operand: &Option<Box<ast::Expression>>,
+        when_clauses: &[(ast::Expression, ast::Expression)],
+        else_result: &Option<Box<ast::Expression>>,
+        row: &storage::Row,
+    ) -> Result<types::SqlValue, ExecutorError> {
+        match operand {
+            // Simple CASE: CASE operand WHEN value THEN result ...
+            Some(operand_expr) => {
+                let operand_value = self.eval(operand_expr, row)?;
+
+                // Iterate through WHEN clauses
+                for (when_value_expr, then_result_expr) in when_clauses {
+                    let when_value = self.eval(when_value_expr, row)?;
+
+                    // Compare operand to when_value using SQL equality semantics
+                    if ExpressionEvaluator::values_are_equal(&operand_value, &when_value) {
+                        return self.eval(then_result_expr, row);
+                    }
+                }
+            }
+
+            // Searched CASE: CASE WHEN condition THEN result ...
+            None => {
+                // Iterate through WHEN clauses
+                for (when_condition_expr, then_result_expr) in when_clauses {
+                    let condition_result = self.eval(when_condition_expr, row)?;
+
+                    // Check if condition is TRUE (not just truthy)
+                    if matches!(condition_result, types::SqlValue::Boolean(true)) {
+                        return self.eval(then_result_expr, row);
+                    }
+                }
+            }
+        }
+
+        // No WHEN matched, evaluate ELSE or return NULL
+        match else_result {
+            Some(else_expr) => self.eval(else_expr, row),
+            None => Ok(types::SqlValue::Null),
         }
     }
 }
