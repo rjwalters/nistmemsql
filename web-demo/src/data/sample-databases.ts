@@ -116,6 +116,86 @@ export const northwindDatabase: SampleDatabase = {
 }
 
 /**
+ * Company Sample Database
+ * Purpose: Multi-table JOINs and business analytics
+ */
+export const companyDatabase: SampleDatabase = {
+  id: 'company',
+  name: 'Company',
+  description: 'Corporate database with departments, employees, and projects',
+  tables: [
+    {
+      name: 'departments',
+      createSql: `CREATE TABLE departments (
+        dept_id INTEGER,
+        dept_name VARCHAR(100),
+        location VARCHAR(100)
+      );`,
+      insertSql: [
+        "INSERT INTO departments VALUES (1, 'Engineering', 'San Francisco');",
+        "INSERT INTO departments VALUES (2, 'Sales', 'New York');",
+        "INSERT INTO departments VALUES (3, 'Marketing', 'Los Angeles');",
+        "INSERT INTO departments VALUES (4, 'Human Resources', 'Chicago');",
+        "INSERT INTO departments VALUES (5, 'Operations', 'Seattle');",
+      ],
+    },
+    {
+      name: 'employees',
+      createSql: `CREATE TABLE employees (
+        emp_id INTEGER,
+        name VARCHAR(100),
+        dept_id INTEGER,
+        salary INTEGER,
+        hire_date VARCHAR(20)
+      );`,
+      insertSql: [
+        "INSERT INTO employees VALUES (1, 'Alice Chen', 1, 125000, '2020-01-15');",
+        "INSERT INTO employees VALUES (2, 'Bob Martinez', 1, 110000, '2021-03-22');",
+        "INSERT INTO employees VALUES (3, 'Carol Williams', 1, 95000, '2022-06-10');",
+        "INSERT INTO employees VALUES (4, 'David Thompson', 2, 85000, '2019-11-05');",
+        "INSERT INTO employees VALUES (5, 'Emma Davis', 2, 92000, '2020-08-17');",
+        "INSERT INTO employees VALUES (6, 'Frank Lee', 2, 78000, '2023-02-28');",
+        "INSERT INTO employees VALUES (7, 'Grace Park', 3, 88000, '2021-04-12');",
+        "INSERT INTO employees VALUES (8, 'Henry Wilson', 3, 82000, '2022-01-20');",
+        "INSERT INTO employees VALUES (9, 'Iris Brown', 4, 75000, '2020-09-15');",
+        "INSERT INTO employees VALUES (10, 'Jack Robinson', 4, 71000, '2022-11-08');",
+        "INSERT INTO employees VALUES (11, 'Karen Miller', 5, 68000, '2021-07-03');",
+        "INSERT INTO employees VALUES (12, 'Leo Garcia', 5, 72000, '2022-05-18');",
+        "INSERT INTO employees VALUES (13, 'Maria Rodriguez', 1, 118000, '2019-02-10');",
+        "INSERT INTO employees VALUES (14, 'Nathan Taylor', 2, 89000, '2020-12-01');",
+        "INSERT INTO employees VALUES (15, 'Olivia Johnson', 3, 91000, '2021-10-25');",
+        "INSERT INTO employees VALUES (16, 'Paul Anderson', 5, 70000, '2023-03-14');",
+        "INSERT INTO employees VALUES (17, 'Quinn Moore', NULL, 95000, '2023-01-09');",
+        "INSERT INTO employees VALUES (18, 'Rachel White', NULL, 88000, '2023-04-20');",
+        "INSERT INTO employees VALUES (19, 'Sam Harris', 1, NULL, '2023-06-05');",
+        "INSERT INTO employees VALUES (20, 'Tina Clark', 2, NULL, '2023-07-12');",
+      ],
+    },
+    {
+      name: 'projects',
+      createSql: `CREATE TABLE projects (
+        project_id INTEGER,
+        project_name VARCHAR(100),
+        dept_id INTEGER,
+        budget INTEGER
+      );`,
+      insertSql: [
+        "INSERT INTO projects VALUES (1, 'Cloud Migration', 1, 500000);",
+        "INSERT INTO projects VALUES (2, 'Mobile App Redesign', 1, 250000);",
+        "INSERT INTO projects VALUES (3, 'Q4 Sales Campaign', 2, 150000);",
+        "INSERT INTO projects VALUES (4, 'Customer Portal', 1, 320000);",
+        "INSERT INTO projects VALUES (5, 'Brand Refresh', 3, 180000);",
+        "INSERT INTO projects VALUES (6, 'Market Research Initiative', 3, 95000);",
+        "INSERT INTO projects VALUES (7, 'Employee Wellness Program', 4, 75000);",
+        "INSERT INTO projects VALUES (8, 'Supply Chain Optimization', 5, 410000);",
+        "INSERT INTO projects VALUES (9, 'Innovation Lab', NULL, 200000);",
+        "INSERT INTO projects VALUES (10, 'Security Audit', NULL, NULL);",
+      ],
+    },
+  ],
+}
+
+/**
  * Empty Database
  * Purpose: Clean slate for user experimentation
  */
@@ -129,7 +209,12 @@ export const emptyDatabase: SampleDatabase = {
 /**
  * All available sample databases
  */
-export const sampleDatabases = [employeesDatabase, northwindDatabase, emptyDatabase]
+export const sampleDatabases = [
+  employeesDatabase,
+  northwindDatabase,
+  companyDatabase,
+  emptyDatabase,
+]
 
 /**
  * Load a sample database into the WASM database instance

@@ -3,6 +3,7 @@ mod casting;
 mod combined;
 mod core;
 mod expressions;
+mod functions;
 mod pattern;
 
 #[cfg(test)]

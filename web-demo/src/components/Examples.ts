@@ -7,7 +7,7 @@ interface ExamplesState {
 
 export interface ExampleSelectEvent {
   sql: string
-  database: 'northwind' | 'employees' | 'empty'
+  database: 'northwind' | 'employees' | 'company' | 'empty'
 }
 
 /**
