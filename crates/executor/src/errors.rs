@@ -1,6 +1,7 @@
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExecutorError {
     TableNotFound(String),
+    TableAlreadyExists(String),
     ColumnNotFound(String),
     ColumnIndexOutOfBounds { index: usize },
     TypeMismatch { left: types::SqlValue, op: String, right: types::SqlValue },
@@ -8,12 +9,14 @@ pub enum ExecutorError {
     InvalidWhereClause(String),
     UnsupportedExpression(String),
     UnsupportedFeature(String),
+    StorageError(String),
 }
 
 impl std::fmt::Display for ExecutorError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ExecutorError::TableNotFound(name) => write!(f, "Table '{}' not found", name),
+            ExecutorError::TableAlreadyExists(name) => write!(f, "Table '{}' already exists", name),
             ExecutorError::ColumnNotFound(name) => write!(f, "Column '{}' not found", name),
             ExecutorError::ColumnIndexOutOfBounds { index } => {
                 write!(f, "Column index {} out of bounds", index)
@@ -27,6 +30,7 @@ impl std::fmt::Display for ExecutorError {
                 write!(f, "Unsupported expression: {}", msg)
             }
             ExecutorError::UnsupportedFeature(msg) => write!(f, "Unsupported feature: {}", msg),
+            ExecutorError::StorageError(msg) => write!(f, "Storage error: {}", msg),
         }
     }
 }
