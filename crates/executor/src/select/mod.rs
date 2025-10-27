@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::collections::HashSet;
 
 use crate::errors::ExecutorError;
 use crate::evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator};
@@ -184,6 +185,13 @@ impl<'a> SelectExecutor<'a> {
             ));
         }
 
+        // Apply DISTINCT if specified
+        let result_rows = if stmt.distinct {
+            apply_distinct(result_rows)
+        } else {
+            result_rows
+        };
+
         Ok(apply_limit_offset(result_rows, stmt.limit, stmt.offset))
     }
 
@@ -258,6 +266,13 @@ impl<'a> SelectExecutor<'a> {
             let projected_row = project_row_combined(&row, &stmt.select_list, &evaluator)?;
             final_rows.push(projected_row);
         }
+
+        // Apply DISTINCT if specified
+        let final_rows = if stmt.distinct {
+            apply_distinct(final_rows)
+        } else {
+            final_rows
+        };
 
         Ok(apply_limit_offset(final_rows, stmt.limit, stmt.offset))
     }
@@ -369,6 +384,27 @@ impl<'a> SelectExecutor<'a> {
             ))),
         }
     }
+}
+
+/// Apply DISTINCT to remove duplicate rows
+///
+/// Uses a HashSet to track unique rows. This requires SqlValue to implement
+/// Hash and Eq, which we've implemented with SQL semantics:
+/// - NULL == NULL for grouping
+/// - NaN == NaN for grouping
+fn apply_distinct(rows: Vec<storage::Row>) -> Vec<storage::Row> {
+    let mut seen = HashSet::new();
+    let mut result = Vec::new();
+
+    for row in rows {
+        // Try to insert the row's values into the set
+        // If insertion succeeds (wasn't already present), keep the row
+        if seen.insert(row.values.clone()) {
+            result.push(row);
+        }
+    }
+
+    result
 }
 
 fn apply_limit_offset(

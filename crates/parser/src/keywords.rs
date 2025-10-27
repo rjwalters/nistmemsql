@@ -4,6 +4,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Keyword {
     Select,
+    Distinct,
     From,
     Where,
     Insert,
@@ -43,6 +44,7 @@ impl fmt::Display for Keyword {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let keyword_str = match self {
             Keyword::Select => "SELECT",
+            Keyword::Distinct => "DISTINCT",
             Keyword::From => "FROM",
             Keyword::Where => "WHERE",
             Keyword::Insert => "INSERT",

@@ -5,6 +5,14 @@ impl Parser {
     pub(crate) fn parse_select_statement(&mut self) -> Result<ast::SelectStmt, ParseError> {
         self.expect_keyword(Keyword::Select)?;
 
+        // Parse optional DISTINCT keyword
+        let distinct = if self.peek_keyword(Keyword::Distinct) {
+            self.consume_keyword(Keyword::Distinct)?;
+            true
+        } else {
+            false
+        };
+
         // Parse SELECT list
         let select_list = self.parse_select_list()?;
 
@@ -133,6 +141,7 @@ impl Parser {
         }
 
         Ok(ast::SelectStmt {
+            distinct,
             select_list,
             from,
             where_clause,

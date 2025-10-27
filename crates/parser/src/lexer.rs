@@ -126,6 +126,7 @@ impl Lexer {
 
         let token = match upper_text.as_str() {
             "SELECT" => Token::Keyword(Keyword::Select),
+            "DISTINCT" => Token::Keyword(Keyword::Distinct),
             "FROM" => Token::Keyword(Keyword::From),
             "WHERE" => Token::Keyword(Keyword::Where),
             "INSERT" => Token::Keyword(Keyword::Insert),

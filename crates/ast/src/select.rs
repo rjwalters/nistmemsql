@@ -12,6 +12,7 @@ use crate::Expression;
 /// SELECT statement structure
 #[derive(Debug, Clone, PartialEq)]
 pub struct SelectStmt {
+    pub distinct: bool,
     pub select_list: Vec<SelectItem>,
     pub from: Option<FromClause>,
     pub where_clause: Option<Expression>,
