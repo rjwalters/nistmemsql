@@ -74,6 +74,125 @@ ORDER BY category_id;`,
   },
 
   {
+    id: 'string',
+    title: 'String Functions',
+    description: 'UPPER, LOWER, SUBSTRING, TRIM, CONCAT, LENGTH, and more',
+    queries: [
+      {
+        id: 'string-1',
+        title: 'Text Case Conversion',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  UPPER(product_name) AS uppercase,
+  LOWER(product_name) AS lowercase
+FROM products
+LIMIT 5;`,
+        description: 'Convert text to uppercase and lowercase',
+        sqlFeatures: ['UPPER', 'LOWER'],
+      },
+      {
+        id: 'string-2',
+        title: 'String Extraction',
+        database: 'employees',
+        sql: `SELECT
+  first_name,
+  last_name,
+  SUBSTRING(first_name, 1, 1) AS first_initial,
+  LENGTH(last_name) AS last_name_length
+FROM employees
+LIMIT 8;`,
+        description: 'Extract substrings and measure string length',
+        sqlFeatures: ['SUBSTRING', 'LENGTH'],
+      },
+      {
+        id: 'string-3',
+        title: 'Text Trimming',
+        database: 'northwind',
+        sql: `SELECT
+  '  ' || product_name || '  ' AS padded,
+  TRIM('  ' || product_name || '  ') AS trimmed,
+  LENGTH('  ' || product_name || '  ') AS padded_length,
+  LENGTH(TRIM('  ' || product_name || '  ')) AS trimmed_length
+FROM products
+LIMIT 5;`,
+        description: 'Remove leading and trailing whitespace',
+        sqlFeatures: ['TRIM', 'LENGTH', '||'],
+      },
+      {
+        id: 'string-4',
+        title: 'String Concatenation',
+        database: 'employees',
+        sql: `SELECT
+  first_name,
+  last_name,
+  first_name || ' ' || last_name AS full_name,
+  CONCAT(last_name, ', ', first_name) AS formatted_name
+FROM employees
+LIMIT 8;`,
+        description: 'Combine strings using || operator and CONCAT function',
+        sqlFeatures: ['CONCAT', '||'],
+      },
+      {
+        id: 'string-5',
+        title: 'LEFT and RIGHT Extraction',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  LEFT(product_name, 5) AS first_5_chars,
+  RIGHT(product_name, 5) AS last_5_chars
+FROM products
+WHERE LENGTH(product_name) >= 10
+LIMIT 6;`,
+        description: 'Extract characters from start and end of strings',
+        sqlFeatures: ['LEFT', 'RIGHT', 'LENGTH'],
+      },
+      {
+        id: 'string-6',
+        title: 'String Replacement',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  REPLACE(product_name, 'a', '@') AS replaced,
+  REPLACE(product_name, ' ', '_') AS underscored
+FROM products
+WHERE product_name LIKE '%a%'
+LIMIT 6;`,
+        description: 'Replace characters or substrings within text',
+        sqlFeatures: ['REPLACE', 'LIKE'],
+      },
+      {
+        id: 'string-7',
+        title: 'String Search',
+        database: 'employees',
+        sql: `SELECT
+  first_name,
+  last_name,
+  POSITION('a' IN LOWER(first_name)) AS first_a_position,
+  POSITION('e' IN LOWER(last_name)) AS first_e_position
+FROM employees
+WHERE POSITION('a' IN LOWER(first_name)) > 0
+LIMIT 8;`,
+        description: 'Find position of substring within text',
+        sqlFeatures: ['POSITION', 'LOWER'],
+      },
+      {
+        id: 'string-8',
+        title: 'Text Reversal',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  REVERSE(product_name) AS reversed,
+  UPPER(REVERSE(product_name)) AS reversed_upper
+FROM products
+LIMIT 5;`,
+        description: 'Reverse string character order',
+        sqlFeatures: ['REVERSE', 'UPPER'],
+      },
+    ],
+  },
+
+  {
     id: 'joins',
     title: 'JOIN Operations',
     description: 'INNER, LEFT, RIGHT, FULL OUTER, CROSS joins',
