@@ -9,7 +9,7 @@
 export interface QueryExample {
   id: string
   title: string
-  database: 'northwind' | 'employees' | 'empty'
+  database: 'northwind' | 'employees' | 'company' | 'empty'
   sql: string
   description: string
   sqlFeatures: string[]
@@ -455,6 +455,108 @@ LIMIT 15;`,
       },
     ],
   },
+
+  {
+    id: 'company',
+    title: 'Company Database',
+    description: 'Multi-table JOINs and business analytics',
+    queries: [
+      {
+        id: 'company-1',
+        title: 'Department headcount and salaries',
+        database: 'company',
+        sql: `SELECT
+  d.dept_name,
+  COUNT(e.emp_id) AS headcount,
+  AVG(e.salary) AS avg_salary,
+  MIN(e.salary) AS min_salary,
+  MAX(e.salary) AS max_salary
+FROM departments d
+LEFT JOIN employees e ON d.dept_id = e.dept_id
+GROUP BY d.dept_name
+ORDER BY avg_salary DESC;`,
+        description: 'Show employee count and salary statistics by department',
+        sqlFeatures: ['LEFT JOIN', 'GROUP BY', 'COUNT', 'AVG', 'MIN', 'MAX'],
+      },
+      {
+        id: 'company-2',
+        title: 'Total project budget by department',
+        database: 'company',
+        sql: `SELECT
+  d.dept_name,
+  d.location,
+  COUNT(p.project_id) AS project_count,
+  SUM(p.budget) AS total_budget
+FROM departments d
+LEFT JOIN projects p ON d.dept_id = p.dept_id
+GROUP BY d.dept_name, d.location
+HAVING SUM(p.budget) > 0
+ORDER BY total_budget DESC;`,
+        description: 'Calculate total project budgets and counts per department',
+        sqlFeatures: ['LEFT JOIN', 'GROUP BY', 'COUNT', 'SUM', 'HAVING'],
+      },
+      {
+        id: 'company-3',
+        title: 'Employee project assignments',
+        database: 'company',
+        sql: `SELECT
+  e.name AS employee,
+  d.dept_name AS department,
+  p.project_name,
+  p.budget
+FROM employees e
+LEFT JOIN departments d ON e.dept_id = d.dept_id
+LEFT JOIN projects p ON e.dept_id = p.dept_id
+WHERE e.dept_id IS NOT NULL
+ORDER BY d.dept_name, e.name
+LIMIT 15;`,
+        description: 'Show employees with their departments and assigned projects',
+        sqlFeatures: ['LEFT JOIN', 'Multi-table JOIN', 'WHERE', 'LIMIT'],
+      },
+      {
+        id: 'company-4',
+        title: 'Budget efficiency analysis',
+        database: 'company',
+        sql: `SELECT
+  d.dept_name,
+  COUNT(e.emp_id) AS headcount,
+  SUM(p.budget) AS project_budget,
+  CASE
+    WHEN COUNT(e.emp_id) = 0 THEN 0
+    ELSE SUM(p.budget) / COUNT(e.emp_id)
+  END AS budget_per_employee
+FROM departments d
+LEFT JOIN employees e ON d.dept_id = e.dept_id
+LEFT JOIN projects p ON d.dept_id = p.dept_id
+GROUP BY d.dept_name
+ORDER BY budget_per_employee DESC;`,
+        description: 'Calculate budget efficiency (budget per employee) by department',
+        sqlFeatures: ['LEFT JOIN', 'Multi-table JOIN', 'GROUP BY', 'CASE', 'Calculated fields'],
+      },
+      {
+        id: 'company-5',
+        title: 'High-value projects report',
+        database: 'company',
+        sql: `SELECT
+  p.project_name,
+  p.budget,
+  d.dept_name,
+  d.location,
+  CASE
+    WHEN p.budget >= 400000 THEN 'Critical'
+    WHEN p.budget >= 200000 THEN 'Major'
+    WHEN p.budget >= 100000 THEN 'Standard'
+    ELSE 'Minor'
+  END AS priority
+FROM projects p
+LEFT JOIN departments d ON p.dept_id = d.dept_id
+WHERE p.budget IS NOT NULL
+ORDER BY p.budget DESC;`,
+        description: 'List projects with budget categorization and department info',
+        sqlFeatures: ['LEFT JOIN', 'WHERE', 'CASE', 'ORDER BY'],
+      },
+    ],
+  },
 ]
 
 /**
@@ -475,7 +577,7 @@ export function findExample(id: string): QueryExample | undefined {
  * Get examples for a specific database
  */
 export function getExamplesForDatabase(
-  database: 'northwind' | 'employees' | 'empty'
+  database: 'northwind' | 'employees' | 'company' | 'empty'
 ): QueryExample[] {
   return getAllExamples().filter(ex => ex.database === database)
 }
