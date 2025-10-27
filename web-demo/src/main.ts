@@ -53,9 +53,25 @@ const SQL_KEYWORDS = [
   'MAX',
 ]
 
-const DEFAULT_SQL = `-- Welcome to NIST MemSQL
--- Use Ctrl/Cmd + Enter to execute the current query
-SELECT * FROM employees;
+const DEFAULT_SQL = `-- Welcome to NIST MemSQL Web Studio!
+-- Press Ctrl/Cmd + Enter to execute queries
+
+-- Create a sample table
+CREATE TABLE products (
+  id INTEGER,
+  name VARCHAR(100),
+  price INTEGER,
+  category VARCHAR(50)
+);
+
+-- Insert sample data
+INSERT INTO products VALUES (1, 'Laptop', 999, 'Electronics');
+INSERT INTO products VALUES (2, 'Mouse', 25, 'Electronics');
+INSERT INTO products VALUES (3, 'Desk Chair', 299, 'Furniture');
+INSERT INTO products VALUES (4, 'Monitor', 449, 'Electronics');
+
+-- Query the data
+SELECT * FROM products;
 `
 
 type StatusVariant = 'info' | 'success' | 'error'
