@@ -19,6 +19,34 @@ impl CombinedSchema {
         CombinedSchema { table_schemas, total_columns }
     }
 
+    /// Create a new combined schema from a derived table (subquery result)
+    pub(crate) fn from_derived_table(
+        alias: String,
+        column_names: Vec<String>,
+        column_types: Vec<types::DataType>,
+    ) -> Self {
+        let total_columns = column_names.len();
+
+        // Build column definitions
+        let columns: Vec<catalog::ColumnSchema> = column_names
+            .into_iter()
+            .zip(column_types.into_iter())
+            .map(|(name, data_type)| catalog::ColumnSchema {
+                name,
+                data_type,
+                nullable: true, // Derived table columns are always nullable
+            })
+            .collect();
+
+        let schema = catalog::TableSchema {
+            name: alias.clone(),
+            columns,
+        };
+        let mut table_schemas = HashMap::new();
+        table_schemas.insert(alias, (0, schema));
+        CombinedSchema { table_schemas, total_columns }
+    }
+
     /// Combine two schemas (for JOIN operations)
     pub(crate) fn combine(
         left: CombinedSchema,

@@ -33,9 +33,42 @@ impl Parser {
         Ok(left)
     }
 
-    /// Parse a single table reference (table name with optional alias)
+    /// Parse a single table reference (table name, subquery, or derived table with alias)
     pub(crate) fn parse_table_reference(&mut self) -> Result<ast::FromClause, ParseError> {
         match self.peek() {
+            Token::LParen => {
+                // Subquery in FROM clause (derived table)
+                self.advance(); // Consume '('
+
+                // Parse the SELECT statement
+                let query = Box::new(self.parse_select_statement()?);
+
+                // Expect closing ')'
+                match self.peek() {
+                    Token::RParen => {
+                        self.advance();
+                    }
+                    _ => return Err(ParseError { message: "Expected ')' after subquery".to_string() }),
+                }
+
+                // SQL:1999 requires AS alias for derived tables
+                if !self.peek_keyword(Keyword::As) {
+                    return Err(ParseError { message: "Derived table must have AS alias (SQL:1999 requirement)".to_string() });
+                }
+                self.consume_keyword(Keyword::As)?;
+
+                // Parse alias
+                let alias = match self.peek() {
+                    Token::Identifier(id) => {
+                        let alias = id.clone();
+                        self.advance();
+                        alias
+                    }
+                    _ => return Err(ParseError { message: "Expected alias after AS keyword".to_string() }),
+                };
+
+                Ok(ast::FromClause::Subquery { query, alias })
+            }
             Token::Identifier(table_name) => {
                 let name = table_name.clone();
                 self.advance();
@@ -67,7 +100,7 @@ impl Parser {
 
                 Ok(ast::FromClause::Table { name, alias })
             }
-            _ => Err(ParseError { message: "Expected table name in FROM clause".to_string() }),
+            _ => Err(ParseError { message: "Expected table name or subquery in FROM clause".to_string() }),
         }
     }
 
