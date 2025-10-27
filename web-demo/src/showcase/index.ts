@@ -2,8 +2,13 @@ import { ShowcaseNav } from '../components/ShowcaseNav'
 import { DataTypesShowcase } from '../components/DataTypesShowcase'
 import { SubqueriesShowcase } from '../components/SubqueriesShowcase'
 import { PredicatesShowcase } from '../components/PredicatesShowcase'
+import { AggregatesShowcase } from '../components/AggregatesShowcase'
 
-type ShowcaseComponent = DataTypesShowcase | SubqueriesShowcase | PredicatesShowcase
+type ShowcaseComponent =
+  | DataTypesShowcase
+  | SubqueriesShowcase
+  | PredicatesShowcase
+  | AggregatesShowcase
 
 export class ShowcaseController {
   private nav: ShowcaseNav
@@ -64,6 +69,11 @@ export class ShowcaseController {
 
       case 'predicates':
         this.currentShowcase = new PredicatesShowcase()
+        this.currentShowcase.mount(this.contentContainer)
+        break
+
+      case 'aggregates':
+        this.currentShowcase = new AggregatesShowcase()
         this.currentShowcase.mount(this.contentContainer)
         break
 
