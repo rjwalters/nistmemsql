@@ -1,8 +1,9 @@
 import { ShowcaseNav } from '../components/ShowcaseNav'
 import { DataTypesShowcase } from '../components/DataTypesShowcase'
 import { SubqueriesShowcase } from '../components/SubqueriesShowcase'
+import { PredicatesShowcase } from '../components/PredicatesShowcase'
 
-type ShowcaseComponent = DataTypesShowcase | SubqueriesShowcase
+type ShowcaseComponent = DataTypesShowcase | SubqueriesShowcase | PredicatesShowcase
 
 export class ShowcaseController {
   private nav: ShowcaseNav
@@ -61,9 +62,13 @@ export class ShowcaseController {
         this.currentShowcase.mount(this.contentContainer)
         break
 
+      case 'predicates':
+        this.currentShowcase = new PredicatesShowcase()
+        this.currentShowcase.mount(this.contentContainer)
+        break
+
       // Future categories will be added here:
       // case 'dml': ...
-      // case 'predicates': ...
       // case 'joins': ...
       // etc.
 
