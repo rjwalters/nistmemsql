@@ -62,4 +62,13 @@ pub enum Expression {
     /// Scalar subquery (returns single value)
     /// Example: WHERE salary > (SELECT AVG(salary) FROM employees)
     ScalarSubquery(Box<SelectStmt>),
+
+    /// IN operator with subquery
+    /// Example: WHERE id IN (SELECT user_id FROM orders)
+    /// Example: WHERE status NOT IN (SELECT blocked_status FROM config)
+    In {
+        expr: Box<Expression>,
+        subquery: Box<SelectStmt>,
+        negated: bool, // false = IN, true = NOT IN
+    },
 }

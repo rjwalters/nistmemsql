@@ -9,4 +9,5 @@ mod joins;
 mod lexer;
 mod limit;
 mod select;
+mod subquery;
 mod update;
