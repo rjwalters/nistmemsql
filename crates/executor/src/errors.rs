@@ -10,6 +10,8 @@ pub enum ExecutorError {
     UnsupportedExpression(String),
     UnsupportedFeature(String),
     StorageError(String),
+    SubqueryReturnedMultipleRows { expected: usize, actual: usize },
+    SubqueryColumnCountMismatch { expected: usize, actual: usize },
 }
 
 impl std::fmt::Display for ExecutorError {
@@ -31,6 +33,12 @@ impl std::fmt::Display for ExecutorError {
             }
             ExecutorError::UnsupportedFeature(msg) => write!(f, "Unsupported feature: {}", msg),
             ExecutorError::StorageError(msg) => write!(f, "Storage error: {}", msg),
+            ExecutorError::SubqueryReturnedMultipleRows { expected, actual } => {
+                write!(f, "Scalar subquery returned {} rows, expected {}", actual, expected)
+            }
+            ExecutorError::SubqueryColumnCountMismatch { expected, actual } => {
+                write!(f, "Subquery returned {} columns, expected {}", actual, expected)
+            }
         }
     }
 }
