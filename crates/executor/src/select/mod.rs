@@ -22,6 +22,14 @@ use set_operations::apply_set_operation;
 /// Row with optional sort keys for ORDER BY
 type RowWithSortKeys = (storage::Row, Option<Vec<(types::SqlValue, ast::OrderDirection)>>);
 
+/// Result of a SELECT query including column metadata
+pub struct SelectResult {
+    /// Column names derived from the SELECT list
+    pub columns: Vec<String>,
+    /// Result rows
+    pub rows: Vec<storage::Row>,
+}
+
 /// Executes SELECT queries
 pub struct SelectExecutor<'a> {
     database: &'a storage::Database,
@@ -65,6 +73,127 @@ impl<'a> SelectExecutor<'a> {
 
         // Execute the main query with CTE context
         self.execute_with_ctes(stmt, &cte_results)
+    }
+
+    /// Execute a SELECT statement and return both columns and rows
+    pub fn execute_with_columns(&self, stmt: &ast::SelectStmt) -> Result<SelectResult, ExecutorError> {
+        // First, get the FROM result to access the schema
+        let from_result = if let Some(from_clause) = &stmt.from {
+            let cte_results = if let Some(with_clause) = &stmt.with_clause {
+                execute_ctes(with_clause, |query, cte_ctx| {
+                    self.execute_with_ctes(query, cte_ctx)
+                })?
+            } else {
+                HashMap::new()
+            };
+            Some(self.execute_from(from_clause, &cte_results)?)
+        } else {
+            None
+        };
+
+        // Derive column names from the SELECT list
+        let columns = self.derive_column_names(&stmt.select_list, from_result.as_ref())?;
+
+        // Execute the query to get rows
+        let rows = self.execute(stmt)?;
+
+        Ok(SelectResult { columns, rows })
+    }
+
+    /// Derive column names from SELECT list
+    fn derive_column_names(
+        &self,
+        select_list: &[ast::SelectItem],
+        from_result: Option<&FromResult>,
+    ) -> Result<Vec<String>, ExecutorError> {
+        let mut column_names = Vec::new();
+
+        for item in select_list {
+            match item {
+                ast::SelectItem::Wildcard => {
+                    // SELECT * - expand to all column names from schema
+                    if let Some(from_res) = from_result {
+                        // Get all column names in order from the combined schema
+                        let mut table_columns: Vec<(usize, String)> = Vec::new();
+
+                        for (_table_name, (start_index, schema)) in &from_res.schema.table_schemas {
+                            for (col_idx, col_schema) in schema.columns.iter().enumerate() {
+                                table_columns.push((start_index + col_idx, col_schema.name.clone()));
+                            }
+                        }
+
+                        // Sort by index to maintain column order
+                        table_columns.sort_by_key(|(idx, _)| *idx);
+
+                        for (_, name) in table_columns {
+                            column_names.push(name);
+                        }
+                    } else {
+                        return Err(ExecutorError::UnsupportedFeature(
+                            "SELECT * without FROM not supported".to_string(),
+                        ));
+                    }
+                }
+                ast::SelectItem::Expression { expr, alias } => {
+                    // If there's an alias, use it
+                    if let Some(alias_name) = alias {
+                        column_names.push(alias_name.clone());
+                    } else {
+                        // Derive name from the expression
+                        column_names.push(self.derive_expression_name(expr));
+                    }
+                }
+            }
+        }
+
+        Ok(column_names)
+    }
+
+    /// Derive a column name from an expression
+    fn derive_expression_name(&self, expr: &ast::Expression) -> String {
+        match expr {
+            ast::Expression::ColumnRef { table: _, column } => column.clone(),
+            ast::Expression::Function { name, args } => {
+                // For functions, use name(args) format
+                let args_str = if args.is_empty() {
+                    "*".to_string()
+                } else {
+                    args.iter()
+                        .map(|arg| self.derive_expression_name(arg))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                };
+                format!("{}({})", name, args_str)
+            }
+            ast::Expression::BinaryOp { left, op, right } => {
+                // For binary operations, create descriptive name
+                format!(
+                    "({} {} {})",
+                    self.derive_expression_name(left),
+                    match op {
+                        ast::BinaryOperator::Plus => "+",
+                        ast::BinaryOperator::Minus => "-",
+                        ast::BinaryOperator::Multiply => "*",
+                        ast::BinaryOperator::Divide => "/",
+                        ast::BinaryOperator::Equal => "=",
+                        ast::BinaryOperator::NotEqual => "!=",
+                        ast::BinaryOperator::LessThan => "<",
+                        ast::BinaryOperator::LessThanOrEqual => "<=",
+                        ast::BinaryOperator::GreaterThan => ">",
+                        ast::BinaryOperator::GreaterThanOrEqual => ">=",
+                        ast::BinaryOperator::And => "AND",
+                        ast::BinaryOperator::Or => "OR",
+                        _ => "?",
+                    },
+                    self.derive_expression_name(right)
+                )
+            }
+            ast::Expression::Literal(val) => {
+                // For literals, use the value representation
+                format!("{:?}", val)
+            }
+            _ => "?column?".to_string(), // Default for other expression types
+        }
     }
 
     /// Execute SELECT statement with CTE context
