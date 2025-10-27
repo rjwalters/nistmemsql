@@ -27,6 +27,6 @@ export default [
     },
   },
   {
-    ignores: ['dist/', 'node_modules/', '*.config.*', 'examples/'],
+    ignores: ['dist/', 'node_modules/', '*.config.*', 'examples/', 'public/pkg/'],
   },
 ]
