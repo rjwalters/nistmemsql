@@ -68,7 +68,7 @@
 
 ### Phase 3: Complete Query Engine
 **Duration**: 2-3 months
-**Status**: 40% complete
+**Status**: 50% complete
 
 **3.1 Missing Operators and Predicates**
 - [ ] BETWEEN predicate
@@ -98,8 +98,9 @@
 - [ ] Subquery optimization basics
 
 **3.5 Common Table Expressions**
-- [ ] WITH clause (non-recursive CTEs)
-- [ ] Multiple CTEs in one query
+- [x] WITH clause (non-recursive CTEs) (commit 4bc13b9)
+- [x] Multiple CTEs in one query (commit 4bc13b9)
+- [x] CTE chaining (CTEs referencing other CTEs) (commit 4bc13b9)
 - [ ] CTE in subqueries
 
 **Deliverables**:
