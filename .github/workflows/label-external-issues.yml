@@ -23,29 +23,37 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const issue = context.payload.issue;
+            const result = {
+              status: 'skipped',
+              issue_number: '',
+              issue_owner: owner,
+              issue_repo: repo,
+              username: '',
+            };
 
             if (!issue) {
               core.info(`No issue payload for ${context.eventName}. Skipping labeling.`);
-              core.setOutput('status', 'skipped');
+              for (const [key, value] of Object.entries(result)) {
+                core.setOutput(key, value);
+              }
               return;
             }
 
-            const username = issue.user.login;
-            let isCollaborator = false;
+            result.issue_number = String(issue.number);
+            result.username = issue.user.login;
 
             try {
-              await github.rest.repos.checkCollaborator({ owner, repo, username });
-              isCollaborator = true;
-              core.info(`${username} is a collaborator`);
+              await github.rest.repos.checkCollaborator({ owner, repo, username: result.username });
+              result.status = 'collaborator';
+              core.info(`${result.username} is a collaborator`);
             } catch (error) {
-              core.info(`${username} is NOT a collaborator`);
+              result.status = 'external';
+              core.info(`${result.username} is NOT a collaborator`);
             }
 
-            core.setOutput('status', isCollaborator ? 'collaborator' : 'external');
-            core.setOutput('issue-number', issue.number.toString());
-            core.setOutput('issue-owner', owner);
-            core.setOutput('issue-repo', repo);
-            core.setOutput('username', username);
+            for (const [key, value] of Object.entries(result)) {
+              core.setOutput(key, value);
+            }
 
       - name: Add 'external' label if not a collaborator
         if: steps.collaborator.outputs.status == 'external'
@@ -53,9 +61,9 @@ jobs:
         with:
           script: |
             await github.rest.issues.addLabels({
-              owner: '${{ steps.collaborator.outputs.issue-owner }}',
-              repo: '${{ steps.collaborator.outputs.issue-repo }}',
-              issue_number: Number('${{ steps.collaborator.outputs.issue-number }}'),
+              owner: '${{ steps.collaborator.outputs.issue_owner }}',
+              repo: '${{ steps.collaborator.outputs.issue_repo }}',
+              issue_number: Number('${{ steps.collaborator.outputs.issue_number }}'),
               labels: ['external'],
             });
 
@@ -65,9 +73,9 @@ jobs:
         with:
           script: |
             await github.rest.issues.createComment({
-              owner: '${{ steps.collaborator.outputs.issue-owner }}',
-              repo: '${{ steps.collaborator.outputs.issue-repo }}',
-              issue_number: Number('${{ steps.collaborator.outputs.issue-number }}'),
+              owner: '${{ steps.collaborator.outputs.issue_owner }}',
+              repo: '${{ steps.collaborator.outputs.issue_repo }}',
+              issue_number: Number('${{ steps.collaborator.outputs.issue_number }}'),
               body: `Thank you for submitting an issue! 🙏
 
 This issue has been automatically labeled as \`external\` and will be reviewed by the maintainers.
