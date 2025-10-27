@@ -1,7 +1,37 @@
 import type { WasmModule, Database } from './types'
 
+const WASM_MODULE_PATH = '../../public/pkg/nistmemsql_wasm.js'
+const isProdBuild =
+  typeof import.meta !== 'undefined' &&
+  Boolean((import.meta as { env?: { PROD?: boolean } }).env?.PROD)
+
 let wasmModule: WasmModule | null = null
 let db: Database | null = null
+
+async function loadWasmModule(): Promise<WasmModule> {
+  if (wasmModule) return wasmModule
+
+  try {
+    const module = (await import(/* @vite-ignore */ WASM_MODULE_PATH)) as unknown as WasmModule
+    wasmModule = module
+    return module
+  } catch (error) {
+    if (isProdBuild) {
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(
+        `WASM bindings missing in production build: ${message}. Generate them with ` +
+          '`wasm-pack build --target web --out-dir web-demo/public/pkg` prior to deploying.'
+      )
+    }
+
+    console.warn(
+      'WASM bindings not found; falling back to stub module. Run `wasm-pack build --target web --out-dir web-demo/public/pkg` to enable database features.'
+    )
+    const module = (await import('./wasm-fallback')) as unknown as WasmModule
+    wasmModule = module
+    return module
+  }
+}
 
 /**
  * Initialize the WASM database module.
@@ -14,21 +44,9 @@ export async function initDatabase(): Promise<Database> {
   if (db) return db
 
   try {
-    // Dynamic import for code splitting
-    wasmModule = await import('../../public/pkg/nistmemsql_wasm')
-
-    // Null check for TypeScript strict mode
-    if (!wasmModule) {
-      throw new Error('Failed to import WASM module')
-    }
-
-    // Wait for WASM to initialize
-    await wasmModule.default()
-
-    // Create database instance
-    db = new wasmModule.Database()
-
-    // Database initialized successfully
+    const module = await loadWasmModule()
+    await module.default()
+    db = new module.Database()
     return db
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
