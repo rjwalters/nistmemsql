@@ -85,19 +85,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Setup Rust
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-
-      - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-
-      # Build WASM
-      - name: Build WASM
-        working-directory: crates/wasm-bindings
-        run: wasm-pack build --target web --out-dir ../../web-demo/public/pkg
+      # TODO: Uncomment when crates/wasm-bindings is created (issue #101)
+      # # Setup Rust
+      # - name: Setup Rust
+      #   uses: dtolnay/rust-toolchain@stable
+      #   with:
+      #     targets: wasm32-unknown-unknown
+      #
+      # - name: Install wasm-pack
+      #   run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      #
+      # # Build WASM
+      # - name: Build WASM
+      #   working-directory: crates/wasm-bindings
+      #   run: wasm-pack build --target web --out-dir ../../web-demo/public/pkg
 
       # Setup Node.js
       - name: Setup Node.js
