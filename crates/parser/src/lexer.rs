@@ -170,6 +170,7 @@ impl Lexer {
             "UNION" => Token::Keyword(Keyword::Union),
             "INTERSECT" => Token::Keyword(Keyword::Intersect),
             "EXCEPT" => Token::Keyword(Keyword::Except),
+            "WITH" => Token::Keyword(Keyword::With),
             "DATE" => Token::Keyword(Keyword::Date),
             "TIME" => Token::Keyword(Keyword::Time),
             "TIMESTAMP" => Token::Keyword(Keyword::Timestamp),

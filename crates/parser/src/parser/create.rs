@@ -257,36 +257,43 @@ impl Parser {
     /// Parse optional timezone modifier (WITH TIME ZONE or WITHOUT TIME ZONE)
     /// Returns true if WITH TIME ZONE, false if WITHOUT TIME ZONE or no modifier
     fn parse_timezone_modifier(&mut self) -> Result<bool, ParseError> {
-        if let Token::Identifier(word) = self.peek() {
-            let word_upper = word.to_uppercase();
-            if word_upper == "WITH" {
-                self.advance(); // consume WITH
+        // Check for WITH keyword or identifier
+        let is_with = matches!(self.peek(), Token::Keyword(Keyword::With))
+            || matches!(self.peek(), Token::Identifier(word) if word.to_uppercase() == "WITH");
 
-                // Expect TIME (as keyword or identifier)
-                let is_time = match self.peek() {
-                    Token::Keyword(Keyword::Time) => true,
-                    Token::Identifier(next) if next.to_uppercase() == "TIME" => true,
-                    _ => false,
-                };
+        if is_with {
+            self.advance(); // consume WITH
 
-                if is_time {
-                    self.advance(); // consume TIME
+            // Expect TIME (as keyword or identifier)
+            let is_time = match self.peek() {
+                Token::Keyword(Keyword::Time) => true,
+                Token::Identifier(next) if next.to_uppercase() == "TIME" => true,
+                _ => false,
+            };
 
-                    // Expect ZONE
-                    if let Token::Identifier(zone) = self.peek() {
-                        if zone.to_uppercase() == "ZONE" {
-                            self.advance(); // consume ZONE
-                            return Ok(true); // WITH TIME ZONE
-                        }
+            if is_time {
+                self.advance(); // consume TIME
+
+                // Expect ZONE
+                if let Token::Identifier(zone) = self.peek() {
+                    if zone.to_uppercase() == "ZONE" {
+                        self.advance(); // consume ZONE
+                        return Ok(true); // WITH TIME ZONE
                     }
-                    return Err(ParseError {
-                        message: "Expected ZONE after WITH TIME".to_string(),
-                    });
                 }
                 return Err(ParseError {
-                    message: "Expected TIME after WITH".to_string(),
+                    message: "Expected ZONE after WITH TIME".to_string(),
                 });
-            } else if word_upper == "WITHOUT" {
+            }
+            return Err(ParseError {
+                message: "Expected TIME after WITH".to_string(),
+            });
+        }
+
+        // Check for WITHOUT identifier
+        if let Token::Identifier(word) = self.peek() {
+            let word_upper = word.to_uppercase();
+            if word_upper == "WITHOUT" {
                 self.advance(); // consume WITHOUT
 
                 // Expect TIME (as keyword or identifier)

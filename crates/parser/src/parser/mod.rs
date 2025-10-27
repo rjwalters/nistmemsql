@@ -48,7 +48,7 @@ impl Parser {
     /// Parse a statement
     pub fn parse_statement(&mut self) -> Result<ast::Statement, ParseError> {
         match self.peek() {
-            Token::Keyword(Keyword::Select) => {
+            Token::Keyword(Keyword::Select) | Token::Keyword(Keyword::With) => {
                 let select_stmt = self.parse_select_statement()?;
                 Ok(ast::Statement::Select(select_stmt))
             }

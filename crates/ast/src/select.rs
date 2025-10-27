@@ -6,12 +6,34 @@
 use crate::Expression;
 
 // ============================================================================
+// Common Table Expressions (CTEs)
+// ============================================================================
+
+/// Common Table Expression (CTE) definition
+///
+/// CTEs are temporary named result sets defined with the WITH clause that exist
+/// only for the duration of a single query.
+///
+/// Example: `WITH regional_sales AS (SELECT region, SUM(amount) FROM orders GROUP BY region)`
+#[derive(Debug, Clone, PartialEq)]
+pub struct CommonTableExpr {
+    /// Name of the CTE
+    pub name: String,
+    /// Optional column name list (e.g., `WITH cte (col1, col2) AS (...)`)
+    pub columns: Option<Vec<String>>,
+    /// The query defining the CTE
+    pub query: Box<SelectStmt>,
+}
+
+// ============================================================================
 // SELECT Statement
 // ============================================================================
 
 /// SELECT statement structure
 #[derive(Debug, Clone, PartialEq)]
 pub struct SelectStmt {
+    /// Optional WITH clause containing CTEs
+    pub with_clause: Option<Vec<CommonTableExpr>>,
     pub distinct: bool,
     pub select_list: Vec<SelectItem>,
     pub from: Option<FromClause>,

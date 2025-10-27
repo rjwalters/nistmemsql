@@ -15,6 +15,14 @@ impl Parser {
         &mut self,
         allow_order_limit: bool,
     ) -> Result<ast::SelectStmt, ParseError> {
+        // Parse optional WITH clause (CTEs)
+        let with_clause = if self.peek_keyword(Keyword::With) {
+            self.consume_keyword(Keyword::With)?;
+            Some(self.parse_cte_list()?)
+        } else {
+            None
+        };
+
         self.expect_keyword(Keyword::Select)?;
 
         // Parse optional DISTINCT keyword
@@ -190,6 +198,7 @@ impl Parser {
         }
 
         Ok(ast::SelectStmt {
+            with_clause,
             distinct,
             select_list,
             from,
@@ -201,5 +210,113 @@ impl Parser {
             offset,
             set_operation,
         })
+    }
+
+    /// Parse a comma-separated list of CTEs
+    ///
+    /// Syntax: cte_name [(col1, col2, ...)] AS (SELECT ...) [, ...]
+    fn parse_cte_list(&mut self) -> Result<Vec<ast::CommonTableExpr>, ParseError> {
+        let mut ctes = Vec::new();
+
+        loop {
+            ctes.push(self.parse_cte()?);
+
+            // Check for more CTEs
+            if matches!(self.peek(), Token::Comma) {
+                self.advance(); // consume comma
+            } else {
+                break;
+            }
+        }
+
+        Ok(ctes)
+    }
+
+    /// Parse a single CTE definition
+    ///
+    /// Syntax: cte_name [(col1, col2, ...)] AS (SELECT ...)
+    fn parse_cte(&mut self) -> Result<ast::CommonTableExpr, ParseError> {
+        // Parse CTE name
+        let name = match self.peek() {
+            Token::Identifier(id) => {
+                let name = id.clone();
+                self.advance();
+                name
+            }
+            _ => {
+                return Err(ParseError {
+                    message: "Expected CTE name (identifier)".to_string(),
+                })
+            }
+        };
+
+        // Parse optional column list: (col1, col2, ...)
+        let columns = if matches!(self.peek(), Token::LParen) {
+            self.advance(); // consume '('
+
+            // Check for empty column list
+            if matches!(self.peek(), Token::RParen) {
+                return Err(ParseError {
+                    message: "CTE column list cannot be empty".to_string(),
+                });
+            }
+
+            let mut cols = Vec::new();
+            loop {
+                match self.peek() {
+                    Token::Identifier(col) => {
+                        cols.push(col.clone());
+                        self.advance();
+                    }
+                    _ => {
+                        return Err(ParseError {
+                            message: "Expected column name in CTE column list".to_string(),
+                        })
+                    }
+                }
+
+                if matches!(self.peek(), Token::Comma) {
+                    self.advance(); // consume comma
+                } else {
+                    break;
+                }
+            }
+
+            // Expect closing paren
+            if !matches!(self.peek(), Token::RParen) {
+                return Err(ParseError {
+                    message: "Expected ')' after CTE column list".to_string(),
+                });
+            }
+            self.advance(); // consume ')'
+
+            Some(cols)
+        } else {
+            None
+        };
+
+        // Expect AS keyword
+        self.expect_keyword(Keyword::As)?;
+
+        // Expect opening paren for subquery
+        if !matches!(self.peek(), Token::LParen) {
+            return Err(ParseError {
+                message: "Expected '(' after AS in CTE definition".to_string(),
+            });
+        }
+        self.advance(); // consume '('
+
+        // Parse the SELECT statement
+        let query = Box::new(self.parse_select_statement()?);
+
+        // Expect closing paren
+        if !matches!(self.peek(), Token::RParen) {
+            return Err(ParseError {
+                message: "Expected ')' after CTE query".to_string(),
+            });
+        }
+        self.advance(); // consume ')'
+
+        Ok(ast::CommonTableExpr { name, columns, query })
     }
 }

@@ -15,7 +15,10 @@ pub use ddl::{ColumnDef, CreateTableStmt};
 pub use dml::{Assignment, DeleteStmt, InsertStmt, UpdateStmt};
 pub use expression::{Expression, Quantifier};
 pub use operators::{BinaryOperator, UnaryOperator};
-pub use select::{FromClause, JoinType, OrderByItem, OrderDirection, SelectItem, SelectStmt, SetOperation, SetOperator};
+pub use select::{
+    CommonTableExpr, FromClause, JoinType, OrderByItem, OrderDirection, SelectItem, SelectStmt,
+    SetOperation, SetOperator,
+};
 pub use statement::Statement;
 
 #[cfg(test)]
@@ -30,6 +33,7 @@ mod tests {
     #[test]
     fn test_create_select_statement() {
         let stmt = Statement::Select(SelectStmt {
+            with_clause: None,
             distinct: false,
             select_list: vec![SelectItem::Wildcard],
             from: None,
@@ -39,6 +43,7 @@ mod tests {
             order_by: None,
             limit: None,
             offset: None,
+            set_operation: None,
         });
 
         match stmt {

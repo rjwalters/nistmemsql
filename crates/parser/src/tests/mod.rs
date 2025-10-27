@@ -2,6 +2,7 @@ use super::*;
 
 mod aggregates;
 mod create_table;
+mod cte;
 mod delete;
 mod display;
 mod errors;
