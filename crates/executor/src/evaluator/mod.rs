@@ -2,6 +2,7 @@
 mod casting;
 mod combined;
 mod core;
+mod date_format;
 mod expressions;
 mod functions;
 mod pattern;
