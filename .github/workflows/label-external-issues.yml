@@ -7,15 +7,67 @@ on:
     paths:
       - '.github/workflows/label-external-issues.yml'
 
+permissions:
+  issues: write
+  contents: read
+
 jobs:
-  push_job:
+  push_validate:
     if: github.event_name != 'issues'
     runs-on: ubuntu-latest
     steps:
-      - run: echo "push event"
+      - run: echo "No issue event detected (event: ${{ github.event_name }}). Workflow validation only."
 
-  issue_job:
+  label_external:
     if: github.event_name == 'issues'
     runs-on: ubuntu-latest
     steps:
-      - run: echo "issue event"
+      - name: Determine collaborator status
+        id: collaborator
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const username = context.payload.issue.user.login;
+
+            try {
+              await github.rest.repos.checkCollaborator({ owner, repo, username });
+              core.setOutput('isCollaborator', 'true');
+              core.info(`${username} is a collaborator`);
+            } catch (error) {
+              core.setOutput('isCollaborator', 'false');
+              core.info(`${username} is NOT a collaborator`);
+            }
+
+      - name: Add 'external' label if needed
+        if: steps.collaborator.outputs.isCollaborator == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['external'],
+            });
+
+      - name: Post welcome comment on external issues
+        if: steps.collaborator.outputs.isCollaborator == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `Thank you for submitting an issue! 🙏
+
+This issue has been automatically labeled as \`external\` and will be reviewed by the maintainers.
+
+**Note**: External issues require manual triage before being assigned. We appreciate your patience while we review your submission.
+
+For questions or discussions, please use [GitHub Discussions](https://github.com/rjwalters/nistmemsql/discussions).`
+            });
+
+      - name: Log collaborator outcome
+        run: echo "Collaborator status: ${{ steps.collaborator.outputs.isCollaborator }}"
