@@ -9,7 +9,7 @@
 export interface QueryExample {
   id: string
   title: string
-  database: 'northwind' | 'employees' | 'company' | 'empty'
+  database: 'northwind' | 'employees' | 'company' | 'university' | 'empty'
   sql: string
   description: string
   sqlFeatures: string[]
@@ -557,6 +557,99 @@ ORDER BY p.budget DESC;`,
       },
     ],
   },
+
+  {
+    id: 'university',
+    title: 'University Database Examples',
+    description: 'Complex relationships, correlated subqueries, and multi-table JOINs',
+    queries: [
+      {
+        id: 'uni-1',
+        title: 'Student GPA Calculation',
+        database: 'university',
+        sql: `SELECT s.name, s.major, s.gpa AS declared_gpa,
+       (SELECT AVG(CASE
+           WHEN e.grade = 'A' THEN 4.0
+           WHEN e.grade = 'B' THEN 3.0
+           WHEN e.grade = 'C' THEN 2.0
+           WHEN e.grade = 'D' THEN 1.0
+           WHEN e.grade = 'F' THEN 0.0
+       END)
+        FROM enrollments e
+        WHERE e.student_id = s.student_id AND e.grade IS NOT NULL) AS calculated_gpa
+FROM students s
+LIMIT 10;`,
+        description: 'Calculate GPA from enrollments using correlated subquery',
+        sqlFeatures: ['Correlated subquery', 'CASE', 'AVG', 'NULL handling'],
+      },
+      {
+        id: 'uni-2',
+        title: 'Course Enrollment Statistics',
+        database: 'university',
+        sql: `SELECT c.course_name, c.department, COUNT(e.student_id) AS enrollment_count
+FROM courses c
+LEFT JOIN enrollments e ON c.course_id = e.course_id
+GROUP BY c.course_name, c.department
+ORDER BY enrollment_count DESC;`,
+        description: 'Count enrollments by course with LEFT JOIN',
+        sqlFeatures: ['LEFT JOIN', 'COUNT', 'GROUP BY', 'ORDER BY'],
+      },
+      {
+        id: 'uni-3',
+        title: 'Department Analysis',
+        database: 'university',
+        sql: `SELECT c.department,
+       COUNT(DISTINCT s.student_id) AS student_count,
+       COUNT(DISTINCT c.course_id) AS course_count,
+       AVG(s.gpa) AS avg_student_gpa
+FROM courses c
+JOIN enrollments e ON c.course_id = e.course_id
+JOIN students s ON e.student_id = s.student_id
+GROUP BY c.department
+ORDER BY student_count DESC;`,
+        description: 'Multi-table JOIN to analyze departments',
+        sqlFeatures: ['Multi-table JOIN', 'COUNT DISTINCT', 'AVG', 'GROUP BY'],
+      },
+      {
+        id: 'uni-4',
+        title: 'Grade Distribution',
+        database: 'university',
+        sql: `SELECT grade, COUNT(*) AS count
+FROM enrollments
+WHERE grade IS NOT NULL
+GROUP BY grade
+ORDER BY grade;`,
+        description: 'Count enrollments by grade (excluding NULLs)',
+        sqlFeatures: ['COUNT', 'GROUP BY', 'WHERE', 'NULL filtering'],
+      },
+      {
+        id: 'uni-5',
+        title: 'High-Performing Students',
+        database: 'university',
+        sql: `SELECT s.name, s.major, s.gpa
+FROM students s
+WHERE s.gpa > (
+    SELECT AVG(s2.gpa)
+    FROM students s2
+    WHERE s2.major = s.major AND s2.gpa IS NOT NULL
+)
+ORDER BY s.gpa DESC;`,
+        description: 'Students with GPA above their major average',
+        sqlFeatures: ['Correlated subquery', 'AVG', 'WHERE', 'NULL handling'],
+      },
+      {
+        id: 'uni-6',
+        title: 'Courses with No Enrollments',
+        database: 'university',
+        sql: `SELECT c.course_name, c.department
+FROM courses c
+LEFT JOIN enrollments e ON c.course_id = e.course_id
+WHERE e.student_id IS NULL;`,
+        description: 'Find courses with zero enrollment using LEFT JOIN',
+        sqlFeatures: ['LEFT JOIN', 'WHERE', 'NULL filtering'],
+      },
+    ],
+  },
 ]
 
 /**
@@ -577,7 +670,7 @@ export function findExample(id: string): QueryExample | undefined {
  * Get examples for a specific database
  */
 export function getExamplesForDatabase(
-  database: 'northwind' | 'employees' | 'company' | 'empty'
+  database: 'northwind' | 'employees' | 'company' | 'university' | 'empty'
 ): QueryExample[] {
   return getAllExamples().filter(ex => ex.database === database)
 }
