@@ -23,6 +23,27 @@ interface TestStatistics {
   byModule: Record<string, number>
 }
 
+interface RoadmapPhase {
+  name: string
+  percentage: number
+  status: string
+  description: string
+}
+
+interface RecentUpdate {
+  date: string
+  feature: string
+  tests: number
+  pr: number
+}
+
+interface DatabaseComparison {
+  database: string
+  percentage: number
+  target?: number
+  notes: string
+}
+
 interface ComplianceData {
   overall: {
     percentage: number
@@ -33,6 +54,13 @@ interface ComplianceData {
   categories: ComplianceCategory[]
   features?: FeatureNode[]
   testStatistics?: TestStatistics
+  roadmap?: {
+    phases: RoadmapPhase[]
+    estimatedCompletion: string
+    currentFocus: string
+  }
+  recentUpdates?: RecentUpdate[]
+  comparison?: DatabaseComparison[]
 }
 
 export class ComplianceDashboard {
@@ -598,6 +626,194 @@ export class ComplianceDashboard {
     `
   }
 
+  private renderRoadmapTimeline(): string {
+    if (!this.data?.roadmap) return ''
+
+    const { phases, estimatedCompletion, currentFocus } = this.data.roadmap
+
+    return `
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-1">
+          🗺️ Roadmap Timeline
+        </h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          ${this.escapeHtml(currentFocus)} • Est. Completion: ${this.escapeHtml(estimatedCompletion)}
+        </p>
+
+        <div class="space-y-4">
+          ${phases.map(phase => `
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <div class="flex items-center gap-2">
+                  <span class="font-medium text-sm text-gray-900 dark:text-gray-100">
+                    ${this.escapeHtml(phase.name)}
+                  </span>
+                  <span class="text-xs px-2 py-1 rounded ${this.getStatusColor(phase.status)}">
+                    ${this.getStatusLabel(phase.status)}
+                  </span>
+                </div>
+                <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  ${phase.percentage}%
+                </span>
+              </div>
+              <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div
+                  class="h-full ${phase.percentage === 100 ? 'bg-green-500' : phase.percentage > 0 ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'} transition-all duration-500"
+                  style="width: ${phase.percentage}%"
+                  role="progressbar"
+                  aria-valuenow="${phase.percentage}"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                  aria-label="${this.escapeHtml(phase.name)}: ${phase.percentage}%"
+                ></div>
+              </div>
+              <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                ${this.escapeHtml(phase.description)}
+              </p>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <a
+            href="https://github.com/rjwalters/nistmemsql/blob/main/WORK_PLAN.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+          >
+            View Full Roadmap →
+          </a>
+        </div>
+      </div>
+    `
+  }
+
+  private renderRecentUpdates(): string {
+    if (!this.data?.recentUpdates) return ''
+
+    return `
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          📰 Recent Updates
+        </h3>
+
+        <div class="space-y-3">
+          ${this.data.recentUpdates.map(update => {
+            const date = new Date(update.date)
+            const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+
+            return `
+              <div class="flex items-start gap-3 pb-3 border-b border-gray-200 dark:border-gray-700 last:border-0 last:pb-0">
+                <div class="flex-shrink-0 w-20 text-sm text-gray-600 dark:text-gray-400">
+                  ${formattedDate}
+                </div>
+                <div class="flex-1">
+                  <div class="font-medium text-gray-900 dark:text-gray-100 text-sm">
+                    ${this.escapeHtml(update.feature)}
+                  </div>
+                  <div class="flex items-center gap-2 mt-1">
+                    <span class="text-xs text-gray-600 dark:text-gray-400">
+                      +${update.tests} tests
+                    </span>
+                    <a
+                      href="https://github.com/rjwalters/nistmemsql/pull/${update.pr}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                    >
+                      PR #${update.pr}
+                    </a>
+                  </div>
+                </div>
+                <div class="flex-shrink-0">
+                  <span class="text-green-600 dark:text-green-400">✅</span>
+                </div>
+              </div>
+            `
+          }).join('')}
+        </div>
+      </div>
+    `
+  }
+
+  private renderDatabaseComparison(): string {
+    if (!this.data?.comparison) return ''
+
+    const maxPercentage = Math.max(...this.data.comparison.map(db => db.percentage))
+
+    return `
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-1">
+          📊 SQL:1999 Core Compliance Comparison
+        </h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
+          Approximate compliance estimates based on published documentation
+        </p>
+
+        <div class="space-y-4">
+          ${this.data.comparison.map(db => {
+            const isNistMemSQL = db.database === 'nistmemsql'
+            const displayPercentage = isNistMemSQL && db.target ? db.target : db.percentage
+            const progressPercentage = db.percentage
+
+            return `
+              <div>
+                <div class="flex justify-between items-center mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="font-medium text-sm text-gray-900 dark:text-gray-100 ${isNistMemSQL ? 'font-bold' : ''}">
+                      ${this.escapeHtml(db.database)}
+                    </span>
+                    ${isNistMemSQL && db.target ? `
+                      <span class="text-xs text-gray-600 dark:text-gray-400">
+                        (currently ${db.percentage}%)
+                      </span>
+                    ` : ''}
+                  </div>
+                  <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    ${displayPercentage}%${isNistMemSQL && db.target ? ' target' : ''}
+                  </span>
+                </div>
+                <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  ${isNistMemSQL && db.target ? `
+                    <div class="h-full relative">
+                      <div
+                        class="h-full bg-blue-500 transition-all duration-500 absolute"
+                        style="width: ${progressPercentage}%"
+                        role="progressbar"
+                        aria-valuenow="${progressPercentage}"
+                        aria-valuemin="0"
+                        aria-valuemax="${displayPercentage}"
+                        aria-label="${this.escapeHtml(db.database)} current: ${progressPercentage}%"
+                      ></div>
+                      <div
+                        class="h-full border-2 border-blue-300 dark:border-blue-600 bg-transparent absolute"
+                        style="width: ${displayPercentage}%"
+                        aria-label="${this.escapeHtml(db.database)} target: ${displayPercentage}%"
+                      ></div>
+                    </div>
+                  ` : `
+                    <div
+                      class="h-full ${displayPercentage === 100 ? 'bg-green-500' : 'bg-gray-400 dark:bg-gray-500'} transition-all duration-500"
+                      style="width: ${(displayPercentage / maxPercentage) * 100}%"
+                      role="progressbar"
+                      aria-valuenow="${displayPercentage}"
+                      aria-valuemin="0"
+                      aria-valuemax="${maxPercentage}"
+                      aria-label="${this.escapeHtml(db.database)}: ${displayPercentage}%"
+                    ></div>
+                  `}
+                </div>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                  ${this.escapeHtml(db.notes)}
+                </p>
+              </div>
+            `
+          }).join('')}
+        </div>
+      </div>
+    `
+  }
+
   private render(): void {
     if (!this.data) {
       this.root.innerHTML = `
@@ -615,26 +831,11 @@ export class ComplianceDashboard {
       <div class="space-y-6">
         ${this.renderOverallGauge()}
         ${this.renderCategoryBreakdown()}
+        ${this.renderRoadmapTimeline()}
+        ${this.renderRecentUpdates()}
+        ${this.renderDatabaseComparison()}
         ${this.renderFeatureMatrix()}
         ${this.renderTestStatistics()}
-
-        <!-- Link to Roadmap -->
-        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
-          <h3 class="text-lg font-semibold text-blue-900 dark:text-blue-300 mb-2">
-            📋 Implementation Roadmap
-          </h3>
-          <p class="text-sm text-blue-800 dark:text-blue-400 mb-3">
-            For detailed implementation timeline and completion estimates, see the WORK_PLAN.md document.
-          </p>
-          <a
-            href="https://github.com/rjwalters/nistmemsql/blob/main/WORK_PLAN.md"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
-          >
-            View Full Roadmap →
-          </a>
-        </div>
       </div>
     `
   }
