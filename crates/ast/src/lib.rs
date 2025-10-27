@@ -209,6 +209,8 @@ mod tests {
     #[test]
     fn test_select_star() {
         let select = SelectStmt {
+            with_clause: None,
+            set_operation: None,
             distinct: false,
             select_list: vec![SelectItem::Wildcard],
             from: None,
@@ -230,6 +232,8 @@ mod tests {
     #[test]
     fn test_select_with_columns() {
         let select = SelectStmt {
+            with_clause: None,
+            set_operation: None,
             distinct: false,
             select_list: vec![
                 SelectItem::Expression {
@@ -256,6 +260,8 @@ mod tests {
     #[test]
     fn test_select_with_alias() {
         let select = SelectStmt {
+            with_clause: None,
+            set_operation: None,
             distinct: false,
             select_list: vec![SelectItem::Expression {
                 expr: Expression::ColumnRef { table: None, column: "id".to_string() },
@@ -279,6 +285,8 @@ mod tests {
     #[test]
     fn test_select_from_table() {
         let select = SelectStmt {
+            with_clause: None,
+            set_operation: None,
             distinct: false,
             select_list: vec![SelectItem::Wildcard],
             from: Some(FromClause::Table { name: "users".to_string(), alias: None }),
@@ -299,6 +307,8 @@ mod tests {
     #[test]
     fn test_select_with_where() {
         let select = SelectStmt {
+            with_clause: None,
+            set_operation: None,
             distinct: false,
             select_list: vec![SelectItem::Wildcard],
             from: Some(FromClause::Table { name: "users".to_string(), alias: None }),
@@ -320,6 +330,8 @@ mod tests {
     #[test]
     fn test_select_with_order_by() {
         let select = SelectStmt {
+            with_clause: None,
+            set_operation: None,
             distinct: false,
             select_list: vec![SelectItem::Wildcard],
             from: Some(FromClause::Table { name: "users".to_string(), alias: None }),
@@ -557,6 +569,8 @@ mod tests {
     #[test]
     fn test_scalar_subquery() {
         let subquery = SelectStmt {
+            with_clause: None,
+            set_operation: None,
             distinct: false,
             select_list: vec![SelectItem::Expression {
                 expr: Expression::Function {
@@ -590,6 +604,8 @@ mod tests {
     #[test]
     fn test_in_expression() {
         let subquery = SelectStmt {
+            with_clause: None,
+            set_operation: None,
             distinct: false,
             select_list: vec![SelectItem::Expression {
                 expr: Expression::ColumnRef {
@@ -627,6 +643,8 @@ mod tests {
     #[test]
     fn test_not_in_expression() {
         let subquery = SelectStmt {
+            with_clause: None,
+            set_operation: None,
             distinct: false,
             select_list: vec![SelectItem::Wildcard],
             from: Some(FromClause::Table {
@@ -710,6 +728,8 @@ mod tests {
     #[test]
     fn test_select_distinct() {
         let select = SelectStmt {
+            with_clause: None,
+            set_operation: None,
             distinct: true,
             select_list: vec![SelectItem::Expression {
                 expr: Expression::ColumnRef {
@@ -735,6 +755,8 @@ mod tests {
     #[test]
     fn test_select_with_group_by() {
         let select = SelectStmt {
+            with_clause: None,
+            set_operation: None,
             distinct: false,
             select_list: vec![SelectItem::Expression {
                 expr: Expression::Function {
@@ -763,6 +785,8 @@ mod tests {
     #[test]
     fn test_select_with_having() {
         let select = SelectStmt {
+            with_clause: None,
+            set_operation: None,
             distinct: false,
             select_list: vec![SelectItem::Wildcard],
             from: Some(FromClause::Table {
@@ -795,6 +819,8 @@ mod tests {
     #[test]
     fn test_select_with_limit() {
         let select = SelectStmt {
+            with_clause: None,
+            set_operation: None,
             distinct: false,
             select_list: vec![SelectItem::Wildcard],
             from: Some(FromClause::Table {
@@ -814,6 +840,8 @@ mod tests {
     #[test]
     fn test_select_with_offset() {
         let select = SelectStmt {
+            with_clause: None,
+            set_operation: None,
             distinct: false,
             select_list: vec![SelectItem::Wildcard],
             from: Some(FromClause::Table {
@@ -833,6 +861,8 @@ mod tests {
     #[test]
     fn test_order_by_desc() {
         let select = SelectStmt {
+            with_clause: None,
+            set_operation: None,
             distinct: false,
             select_list: vec![SelectItem::Wildcard],
             from: Some(FromClause::Table {
@@ -992,6 +1022,8 @@ mod tests {
     #[test]
     fn test_from_subquery() {
         let subquery = SelectStmt {
+            with_clause: None,
+            set_operation: None,
             distinct: false,
             select_list: vec![SelectItem::Wildcard],
             from: Some(FromClause::Table {

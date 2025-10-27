@@ -58,6 +58,8 @@ fn test_between_integer() {
     // Test: age BETWEEN 28 AND 36
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![
             ast::SelectItem::Expression {
@@ -140,6 +142,8 @@ fn test_not_between() {
     // Test: price NOT BETWEEN 10 AND 20
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::ColumnRef { table: None, column: "name".to_string() },
@@ -197,6 +201,8 @@ fn test_between_boundary_inclusive() {
     // Test: BETWEEN is inclusive of boundaries
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Wildcard],
         from: Some(ast::FromClause::Table { name: "data".to_string(), alias: None }),
@@ -269,6 +275,8 @@ fn test_between_with_column_references() {
     // Test: value BETWEEN min_val AND max_val
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::ColumnRef { table: None, column: "value".to_string() },

@@ -58,6 +58,8 @@ fn test_distinct_removes_duplicate_rows() {
 
     // SELECT DISTINCT category FROM products
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: true,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::ColumnRef { table: None, column: "category".to_string() },
@@ -150,6 +152,8 @@ fn test_distinct_with_multiple_columns() {
 
     // SELECT DISTINCT customer_id, status FROM orders
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: true,
         select_list: vec![
             ast::SelectItem::Expression {
@@ -224,6 +228,8 @@ fn test_distinct_with_null_values() {
 
     // SELECT DISTINCT description FROM items
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: true,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::ColumnRef { table: None, column: "description".to_string() },
@@ -277,6 +283,8 @@ fn test_distinct_false_preserves_duplicates() {
 
     // SELECT category FROM products (without DISTINCT)
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Wildcard],
         from: Some(ast::FromClause::Table { name: "products".to_string(), alias: None }),
@@ -347,6 +355,8 @@ fn test_distinct_with_where_clause() {
 
     // SELECT DISTINCT role FROM users WHERE id > 1
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: true,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::ColumnRef { table: None, column: "role".to_string() },
@@ -426,6 +436,8 @@ fn test_distinct_with_order_by() {
 
     // SELECT DISTINCT category FROM products ORDER BY category
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: true,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::ColumnRef { table: None, column: "category".to_string() },

@@ -38,6 +38,8 @@ fn test_select_star() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Wildcard],
         from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
@@ -85,6 +87,8 @@ fn test_select_specific_columns() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![
             ast::SelectItem::Expression {
@@ -141,6 +145,8 @@ fn test_order_by_single_column_asc() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Wildcard],
         from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
@@ -213,6 +219,8 @@ fn test_order_by_multiple_columns() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Wildcard],
         from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),

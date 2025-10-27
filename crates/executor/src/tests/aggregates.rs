@@ -33,6 +33,8 @@ fn test_count_star_no_group_by() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Function {
@@ -84,6 +86,8 @@ fn test_sum_no_group_by() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Function {
@@ -151,6 +155,8 @@ fn test_group_by_with_count() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![
             ast::SelectItem::Expression {
@@ -233,6 +239,8 @@ fn test_having_clause() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![
             ast::SelectItem::Expression {
@@ -308,6 +316,8 @@ fn test_count_with_nulls() {
     let executor = SelectExecutor::new(&db);
     // COUNT(*) counts all rows including NULL
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Function {
@@ -359,6 +369,8 @@ fn test_sum_with_nulls() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Function {
@@ -414,6 +426,8 @@ fn test_avg_function() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Function {
@@ -469,6 +483,8 @@ fn test_min_function() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Function {
@@ -523,6 +539,8 @@ fn test_max_function() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Function {
@@ -577,6 +595,8 @@ fn test_avg_with_nulls() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Function {

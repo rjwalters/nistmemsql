@@ -5,6 +5,8 @@
 use super::super::*;
 fn make_pagination_stmt(limit: Option<usize>, offset: Option<usize>) -> ast::SelectStmt {
     ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Wildcard],
         from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
