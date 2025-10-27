@@ -862,6 +862,164 @@ ORDER BY user_id;`,
       },
     ],
   },
+
+  {
+    id: 'math',
+    title: 'Math Functions',
+    description: 'ABS, ROUND, POWER, SQRT, trigonometric, and comparison functions',
+    queries: [
+      {
+        id: 'math-1',
+        title: 'Absolute Value and Sign',
+        database: 'northwind',
+        sql: `SELECT
+  unit_price,
+  unit_price - 20 AS price_diff,
+  ABS(unit_price - 20) AS abs_diff,
+  SIGN(unit_price - 20) AS sign_indicator
+FROM products
+LIMIT 10;`,
+        description: 'Calculate absolute values and sign indicators for price differences',
+        sqlFeatures: ['ABS', 'SIGN', 'Expressions'],
+      },
+      {
+        id: 'math-2',
+        title: 'Rounding Functions',
+        database: 'northwind',
+        sql: `SELECT
+  unit_price,
+  ROUND(unit_price) AS rounded,
+  ROUND(unit_price, 1) AS one_decimal,
+  FLOOR(unit_price) AS floor_value,
+  CEIL(unit_price) AS ceiling_value
+FROM products
+WHERE unit_price IS NOT NULL
+LIMIT 10;`,
+        description: 'Demonstrate various rounding methods for numeric values',
+        sqlFeatures: ['ROUND', 'FLOOR', 'CEIL', 'WHERE'],
+      },
+      {
+        id: 'math-3',
+        title: 'Power and Square Root',
+        database: 'northwind',
+        sql: `SELECT
+  unit_price,
+  POWER(unit_price, 2) AS squared,
+  SQRT(unit_price) AS square_root,
+  ROUND(SQRT(unit_price), 2) AS sqrt_rounded
+FROM products
+WHERE unit_price > 0
+LIMIT 10;`,
+        description: 'Calculate squares, square roots, and combinations',
+        sqlFeatures: ['POWER', 'SQRT', 'ROUND', 'WHERE'],
+      },
+      {
+        id: 'math-4',
+        title: 'Modulo (Remainder)',
+        database: 'northwind',
+        sql: `SELECT
+  product_id,
+  product_name,
+  MOD(product_id, 3) AS group_number,
+  CASE
+    WHEN MOD(product_id, 3) = 0 THEN 'Group A'
+    WHEN MOD(product_id, 3) = 1 THEN 'Group B'
+    ELSE 'Group C'
+  END AS group_name
+FROM products
+ORDER BY product_id
+LIMIT 15;`,
+        description: 'Use MOD to divide products into rotating groups',
+        sqlFeatures: ['MOD', 'CASE', 'ORDER BY'],
+      },
+      {
+        id: 'math-5',
+        title: 'Logarithmic Functions',
+        database: 'northwind',
+        sql: `SELECT
+  unit_price,
+  ROUND(LN(unit_price), 2) AS natural_log,
+  ROUND(LOG10(unit_price), 2) AS log_base_10,
+  ROUND(EXP(1.0), 4) AS e_constant
+FROM products
+WHERE unit_price > 0
+LIMIT 10;`,
+        description: 'Calculate natural logarithms, base-10 logarithms, and exponentials',
+        sqlFeatures: ['LN', 'LOG10', 'EXP', 'ROUND'],
+      },
+      {
+        id: 'math-6',
+        title: 'Trigonometric Functions',
+        database: 'northwind',
+        sql: `SELECT
+  ROUND(PI(), 6) AS pi_value,
+  ROUND(SIN(PI() / 2), 4) AS sin_90_degrees,
+  ROUND(COS(PI()), 4) AS cos_180_degrees,
+  ROUND(TAN(PI() / 4), 4) AS tan_45_degrees
+FROM (SELECT * FROM products LIMIT 1) AS dummy;`,
+        description: 'Demonstrate trigonometric functions with common angles',
+        sqlFeatures: ['PI', 'SIN', 'COS', 'TAN', 'ROUND'],
+      },
+      {
+        id: 'math-7',
+        title: 'Inverse Trigonometric Functions',
+        database: 'northwind',
+        sql: `SELECT
+  ROUND(ASIN(1.0), 4) AS asin_1,
+  ROUND(ACOS(0.0), 4) AS acos_0,
+  ROUND(ATAN(1.0), 4) AS atan_1,
+  ROUND(ATAN2(1.0, 1.0), 4) AS atan2_1_1
+FROM (SELECT * FROM products LIMIT 1) AS dummy;`,
+        description: 'Calculate inverse trigonometric functions (arcsin, arccos, arctan)',
+        sqlFeatures: ['ASIN', 'ACOS', 'ATAN', 'ATAN2', 'ROUND'],
+      },
+      {
+        id: 'math-8',
+        title: 'Angle Conversions',
+        database: 'northwind',
+        sql: `SELECT
+  180 AS degrees,
+  ROUND(RADIANS(180), 4) AS radians,
+  ROUND(DEGREES(PI()), 2) AS back_to_degrees
+FROM (SELECT * FROM products LIMIT 1) AS dummy;`,
+        description: 'Convert between degrees and radians',
+        sqlFeatures: ['RADIANS', 'DEGREES', 'PI', 'ROUND'],
+      },
+      {
+        id: 'math-9',
+        title: 'GREATEST and LEAST',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  unit_price,
+  units_in_stock,
+  GREATEST(unit_price, units_in_stock) AS max_value,
+  LEAST(unit_price, units_in_stock) AS min_value
+FROM products
+WHERE unit_price IS NOT NULL AND units_in_stock IS NOT NULL
+LIMIT 10;`,
+        description: 'Find maximum and minimum values across columns',
+        sqlFeatures: ['GREATEST', 'LEAST', 'WHERE'],
+      },
+      {
+        id: 'math-10',
+        title: 'Price Calculations',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  unit_price,
+  ROUND(unit_price * 1.08, 2) AS with_tax,
+  ROUND(unit_price * 0.9, 2) AS discounted,
+  FLOOR(unit_price) || '.99' AS psychological_price
+FROM products
+WHERE unit_price > 0
+ORDER BY unit_price DESC
+LIMIT 10;`,
+        description: 'Practical business calculations: taxes, discounts, and pricing strategies',
+        sqlFeatures: ['ROUND', 'FLOOR', 'String concatenation', 'Business calculations'],
+      },
+    ],
+  },
 ]
 
 /**
