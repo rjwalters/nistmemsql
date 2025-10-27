@@ -190,7 +190,12 @@ export const companyDatabase: SampleDatabase = {
         "INSERT INTO projects VALUES (8, 'Supply Chain Optimization', 5, 410000);",
         "INSERT INTO projects VALUES (9, 'Innovation Lab', NULL, 200000);",
         "INSERT INTO projects VALUES (10, 'Security Audit', NULL, NULL);",
+      ],
+    },
+  ],
+}
 
+/**
  * University Sample Database
  * Purpose: Complex relationships, correlated subqueries, aggregates
  */
