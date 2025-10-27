@@ -1,0 +1,20 @@
+/* Tailwind CSS directives */
+@import "tailwindcss";
+
+/* Base styles */
+@layer base {
+  body {
+    @apply bg-white dark:bg-gray-900;
+    @apply text-gray-900 dark:text-gray-100;
+    @apply transition-colors duration-200;
+  }
+}
+
+/* Custom component styles */
+@layer components {
+  .btn-primary {
+    @apply bg-blue-500 dark:bg-blue-600;
+    @apply text-white font-medium px-4 py-2 rounded;
+    @apply hover:opacity-90 transition-opacity;
+  }
+}
