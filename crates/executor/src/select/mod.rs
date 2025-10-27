@@ -5,12 +5,14 @@ use crate::errors::ExecutorError;
 use crate::evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator};
 use crate::schema::CombinedSchema;
 
+mod cte;
 mod grouping;
 mod helpers;
 mod join;
 mod projection;
 mod set_operations;
 
+use cte::{execute_ctes, CteResult};
 use grouping::{compare_sql_values, group_rows, AggregateAccumulator};
 use helpers::{apply_distinct, apply_limit_offset};
 use join::{nested_loop_join, FromResult};
@@ -19,9 +21,6 @@ use set_operations::apply_set_operation;
 
 /// Row with optional sort keys for ORDER BY
 type RowWithSortKeys = (storage::Row, Option<Vec<(types::SqlValue, ast::OrderDirection)>>);
-
-/// CTE result: (schema, rows)
-type CteResult = (catalog::TableSchema, Vec<storage::Row>);
 
 /// Executes SELECT queries
 pub struct SelectExecutor<'a> {
@@ -57,7 +56,9 @@ impl<'a> SelectExecutor<'a> {
     pub fn execute(&self, stmt: &ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> {
         // Execute CTEs if present
         let cte_results = if let Some(with_clause) = &stmt.with_clause {
-            self.execute_ctes(with_clause)?
+            execute_ctes(with_clause, |query, cte_ctx| {
+                self.execute_with_ctes(query, cte_ctx)
+            })?
         } else {
             HashMap::new()
         };
@@ -101,140 +102,6 @@ impl<'a> SelectExecutor<'a> {
         }
 
         Ok(results)
-    }
-
-    /// Execute all CTEs and return their results
-    fn execute_ctes(
-        &self,
-        ctes: &[ast::CommonTableExpr],
-    ) -> Result<HashMap<String, CteResult>, ExecutorError> {
-        let mut cte_results = HashMap::new();
-
-        // Execute each CTE in order
-        // CTEs can reference previously defined CTEs
-        for cte in ctes {
-            // Execute the CTE query with accumulated CTE results so far
-            // This allows later CTEs to reference earlier ones
-            let rows = self.execute_with_ctes(&cte.query, &cte_results)?;
-
-            //  Determine the schema for this CTE
-            let schema = self.derive_cte_schema(cte, &rows)?;
-
-            // Store the CTE result
-            cte_results.insert(cte.name.clone(), (schema, rows));
-        }
-
-        Ok(cte_results)
-    }
-
-    /// Derive the schema for a CTE from its query and results
-    fn derive_cte_schema(
-        &self,
-        cte: &ast::CommonTableExpr,
-        rows: &[storage::Row],
-    ) -> Result<catalog::TableSchema, ExecutorError> {
-        // If column names are explicitly specified, use those
-        if let Some(column_names) = &cte.columns {
-            // Get data types from first row (if available)
-            if let Some(first_row) = rows.first() {
-                if first_row.values.len() != column_names.len() {
-                    return Err(ExecutorError::UnsupportedFeature(
-                        format!(
-                            "CTE column count mismatch: specified {} columns but query returned {}",
-                            column_names.len(),
-                            first_row.values.len()
-                        ),
-                    ));
-                }
-
-                let columns = column_names
-                    .iter()
-                    .zip(&first_row.values)
-                    .map(|(name, value)| {
-                        let data_type = Self::infer_type_from_value(value);
-                        catalog::ColumnSchema::new(name.clone(), data_type, true) // nullable for simplicity
-                    })
-                    .collect();
-
-                Ok(catalog::TableSchema::new(cte.name.clone(), columns))
-            } else {
-                // Empty result set - create schema with VARCHAR columns
-                let columns = column_names
-                    .iter()
-                    .map(|name| {
-                        catalog::ColumnSchema::new(
-                            name.clone(),
-                            types::DataType::Varchar { max_length: 255 },
-                            true,
-                        )
-                    })
-                    .collect();
-
-                Ok(catalog::TableSchema::new(cte.name.clone(), columns))
-            }
-        } else {
-            // No explicit column names - infer from query SELECT list
-            if let Some(first_row) = rows.first() {
-                let columns = cte
-                    .query
-                    .select_list
-                    .iter()
-                    .enumerate()
-                    .map(|(i, item)| {
-                        let data_type = Self::infer_type_from_value(&first_row.values[i]);
-
-                        // Extract column name from SELECT item
-                        let col_name = match item {
-                            ast::SelectItem::Wildcard => format!("col{}", i),
-                            ast::SelectItem::Expression { expr, alias } => {
-                                if let Some(a) = alias {
-                                    a.clone()
-                                } else {
-                                    // Try to extract name from expression
-                                    match expr {
-                                        ast::Expression::ColumnRef { table: _, column } => column.clone(),
-                                        _ => format!("col{}", i),
-                                    }
-                                }
-                            }
-                        };
-
-                        catalog::ColumnSchema::new(col_name, data_type, true) // nullable
-                    })
-                    .collect();
-
-                Ok(catalog::TableSchema::new(cte.name.clone(), columns))
-            } else {
-                // Empty CTE with no column specification
-                Err(ExecutorError::UnsupportedFeature(
-                    "Cannot infer schema for empty CTE without column list".to_string(),
-                ))
-            }
-        }
-    }
-
-    /// Infer data type from a SQL value
-    fn infer_type_from_value(value: &types::SqlValue) -> types::DataType {
-        match value {
-            types::SqlValue::Null => types::DataType::Varchar { max_length: 255 }, // default
-            types::SqlValue::Integer(_) => types::DataType::Integer,
-            types::SqlValue::Varchar(_) => types::DataType::Varchar { max_length: 255 },
-            types::SqlValue::Character(_) => types::DataType::Character { length: 1 },
-            types::SqlValue::Boolean(_) => types::DataType::Boolean,
-            types::SqlValue::Float(_) => types::DataType::Float,
-            types::SqlValue::Double(_) => types::DataType::DoublePrecision,
-            types::SqlValue::Numeric(_) => types::DataType::Numeric {
-                precision: 10,
-                scale: 2,
-            },
-            types::SqlValue::Real(_) => types::DataType::Real,
-            types::SqlValue::Smallint(_) => types::DataType::Smallint,
-            types::SqlValue::Bigint(_) => types::DataType::Bigint,
-            types::SqlValue::Date(_) => types::DataType::Varchar { max_length: 255 }, // TODO: proper date type
-            types::SqlValue::Time(_) => types::DataType::Varchar { max_length: 255 }, // TODO: proper time type
-            types::SqlValue::Timestamp(_) => types::DataType::Varchar { max_length: 255 }, // TODO: proper timestamp type
-            types::SqlValue::Interval(_) => types::DataType::Varchar { max_length: 255 }, // TODO: proper interval type
-        }
     }
 
     /// Check if SELECT list contains aggregate functions
