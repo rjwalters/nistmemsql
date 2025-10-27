@@ -14,6 +14,7 @@ mod lexer;
 mod like;
 mod limit;
 mod literals;
+mod null_functions;
 mod predicates;
 mod select;
 mod subquery;

@@ -325,6 +325,66 @@ impl<'a> ExpressionEvaluator<'a> {
                 Ok(types::SqlValue::Boolean(result))
             }
 
+            // Function expressions - handle scalar functions (not aggregates)
+            // Aggregates (COUNT, SUM, etc.) are handled in SelectExecutor
+            ast::Expression::Function { name, args } => {
+                match name.to_uppercase().as_str() {
+                    // COALESCE(val1, val2, ..., valN) - returns first non-NULL value
+                    // SQL:1999 Section 6.12: COALESCE expression
+                    "COALESCE" => {
+                        if args.is_empty() {
+                            return Err(ExecutorError::UnsupportedFeature(
+                                "COALESCE requires at least one argument".to_string(),
+                            ));
+                        }
+
+                        // Evaluate arguments left to right, return first non-NULL
+                        for arg in args {
+                            let val = self.eval(arg, row)?;
+                            if !matches!(val, types::SqlValue::Null) {
+                                return Ok(val);
+                            }
+                        }
+
+                        // All arguments were NULL
+                        Ok(types::SqlValue::Null)
+                    }
+
+                    // NULLIF(val1, val2) - returns NULL if val1 = val2, otherwise val1
+                    // SQL:1999 Section 6.13: NULLIF expression
+                    "NULLIF" => {
+                        if args.len() != 2 {
+                            return Err(ExecutorError::UnsupportedFeature(
+                                format!("NULLIF requires exactly 2 arguments, got {}", args.len()),
+                            ));
+                        }
+
+                        let val1 = self.eval(&args[0], row)?;
+                        let val2 = self.eval(&args[1], row)?;
+
+                        // If either is NULL, comparison is undefined - return val1
+                        if matches!(val1, types::SqlValue::Null) || matches!(val2, types::SqlValue::Null) {
+                            return Ok(val1);
+                        }
+
+                        // Compare using equality
+                        let eq_result = self.eval_binary_op(&val1, &ast::BinaryOperator::Equal, &val2)?;
+
+                        // If equal, return NULL; otherwise return val1
+                        if matches!(eq_result, types::SqlValue::Boolean(true)) {
+                            Ok(types::SqlValue::Null)
+                        } else {
+                            Ok(val1)
+                        }
+                    }
+
+                    // Unknown function - could be aggregate (handled elsewhere) or error
+                    _ => Err(ExecutorError::UnsupportedFeature(
+                        format!("Scalar function {} not supported in this context", name),
+                    )),
+                }
+            }
+
             // TODO: Implement other expression types
             _ => Err(ExecutorError::UnsupportedExpression(format!("{:?}", expr))),
         }
@@ -756,6 +816,66 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 let result = if *negated { !has_rows } else { has_rows };
 
                 Ok(types::SqlValue::Boolean(result))
+            }
+
+            // Function expressions - handle scalar functions (not aggregates)
+            // Aggregates (COUNT, SUM, etc.) are handled in SelectExecutor
+            ast::Expression::Function { name, args } => {
+                match name.to_uppercase().as_str() {
+                    // COALESCE(val1, val2, ..., valN) - returns first non-NULL value
+                    // SQL:1999 Section 6.12: COALESCE expression
+                    "COALESCE" => {
+                        if args.is_empty() {
+                            return Err(ExecutorError::UnsupportedFeature(
+                                "COALESCE requires at least one argument".to_string(),
+                            ));
+                        }
+
+                        // Evaluate arguments left to right, return first non-NULL
+                        for arg in args {
+                            let val = self.eval(arg, row)?;
+                            if !matches!(val, types::SqlValue::Null) {
+                                return Ok(val);
+                            }
+                        }
+
+                        // All arguments were NULL
+                        Ok(types::SqlValue::Null)
+                    }
+
+                    // NULLIF(val1, val2) - returns NULL if val1 = val2, otherwise val1
+                    // SQL:1999 Section 6.13: NULLIF expression
+                    "NULLIF" => {
+                        if args.len() != 2 {
+                            return Err(ExecutorError::UnsupportedFeature(
+                                format!("NULLIF requires exactly 2 arguments, got {}", args.len()),
+                            ));
+                        }
+
+                        let val1 = self.eval(&args[0], row)?;
+                        let val2 = self.eval(&args[1], row)?;
+
+                        // If either is NULL, comparison is undefined - return val1
+                        if matches!(val1, types::SqlValue::Null) || matches!(val2, types::SqlValue::Null) {
+                            return Ok(val1);
+                        }
+
+                        // Compare using equality
+                        let eq_result = ExpressionEvaluator::eval_binary_op_static(&val1, &ast::BinaryOperator::Equal, &val2)?;
+
+                        // If equal, return NULL; otherwise return val1
+                        if matches!(eq_result, types::SqlValue::Boolean(true)) {
+                            Ok(types::SqlValue::Null)
+                        } else {
+                            Ok(val1)
+                        }
+                    }
+
+                    // Unknown function - could be aggregate (handled elsewhere) or error
+                    _ => Err(ExecutorError::UnsupportedFeature(
+                        format!("Scalar function {} not supported in this context", name),
+                    )),
+                }
             }
 
             // TODO: Implement other expression types
