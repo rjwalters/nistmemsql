@@ -303,7 +303,14 @@ function createExecutionHandler(
     setTimeout(() => {
       try {
         const startTime = performance.now()
-        const result = database.execute(sql)
+
+        // Detect if this is a SELECT query
+        const isSelectQuery = /^\s*SELECT\s+/i.test(sql)
+
+        const result = isSelectQuery
+          ? database.query(sql)
+          : database.execute(sql)
+
         const executionTime = performance.now() - startTime
 
         resultsComponent.showResults(result, executionTime)
@@ -346,7 +353,7 @@ async function bootstrap(): Promise<void> {
   let tableNames: string[] = []
   if (database) {
     try {
-      tableNames = database.get_tables()
+      tableNames = database.list_tables()
     } catch (error) {
       console.warn('Failed to fetch table metadata', error)
     }
@@ -357,7 +364,7 @@ async function bootstrap(): Promise<void> {
   const refreshTables = (): void => {
     if (!database) return
     try {
-      tableNames = database.get_tables()
+      tableNames = database.list_tables()
     } catch (error) {
       console.warn('Failed to refresh table metadata', error)
     }

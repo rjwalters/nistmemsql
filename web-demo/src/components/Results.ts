@@ -1,13 +1,21 @@
 import { Component } from './base'
-import type { QueryResult } from '../db/types'
+import type { QueryResult, ExecuteResult } from '../db/types'
 
 const MAX_DISPLAY_ROWS = 1000
 
 interface ResultsState {
-  result: QueryResult | null
+  result: QueryResult | ExecuteResult | null
   error: string | null
   loading: boolean
   executionTime: number | null
+}
+
+function isQueryResult(result: QueryResult | ExecuteResult): result is QueryResult {
+  return 'columns' in result && 'rows' in result
+}
+
+function isExecuteResult(result: QueryResult | ExecuteResult): result is ExecuteResult {
+  return 'rows_affected' in result && 'message' in result
 }
 
 /**
@@ -24,9 +32,9 @@ export class ResultsComponent extends Component<ResultsState> {
   }
 
   /**
-   * Show query results
+   * Show query results (SELECT) or execution results (DDL/DML)
    */
-  showResults(result: QueryResult, executionTime?: number): void {
+  showResults(result: QueryResult | ExecuteResult, executionTime?: number): void {
     this.setState({
       result,
       error: null,
@@ -61,8 +69,12 @@ export class ResultsComponent extends Component<ResultsState> {
     }
 
     if (this.state.result) {
-      this.element.innerHTML = this.renderTable(this.state.result)
-      this.attachResultHandlers()
+      if (isQueryResult(this.state.result)) {
+        this.element.innerHTML = this.renderTable(this.state.result)
+        this.attachResultHandlers()
+      } else if (isExecuteResult(this.state.result)) {
+        this.element.innerHTML = this.renderExecuteResult(this.state.result)
+      }
     } else {
       this.element.innerHTML = this.renderEmpty()
     }
@@ -77,12 +89,20 @@ export class ResultsComponent extends Component<ResultsState> {
   }
 
   private copyToClipboard(): void {
-    if (!this.state.result) return
+    if (!this.state.result || !isQueryResult(this.state.result)) return
 
     const { columns, rows } = this.state.result
+    const parsedRows = rows.map(rowStr => {
+      try {
+        return JSON.parse(rowStr) as unknown[]
+      } catch {
+        return [rowStr]
+      }
+    })
+
     const tsv = [
       columns.join('\t'),
-      ...rows.map(row => row.map(cell => String(cell ?? '')).join('\t'))
+      ...parsedRows.map(row => row.map(cell => String(cell ?? '')).join('\t'))
     ].join('\n')
 
     navigator.clipboard.writeText(tsv).catch(err => {
@@ -91,9 +111,17 @@ export class ResultsComponent extends Component<ResultsState> {
   }
 
   private exportToCSV(): void {
-    if (!this.state.result) return
+    if (!this.state.result || !isQueryResult(this.state.result)) return
 
     const { columns, rows } = this.state.result
+    const parsedRows = rows.map(rowStr => {
+      try {
+        return JSON.parse(rowStr) as unknown[]
+      } catch {
+        return [rowStr]
+      }
+    })
+
     const escapeCsv = (value: unknown): string => {
       const str = String(value ?? '')
       if (str.includes(',') || str.includes('"') || str.includes('\n')) {
@@ -104,7 +132,7 @@ export class ResultsComponent extends Component<ResultsState> {
 
     const csv = [
       columns.map(escapeCsv).join(','),
-      ...rows.map(row => row.map(escapeCsv).join(','))
+      ...parsedRows.map(row => row.map(escapeCsv).join(','))
     ].join('\n')
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
@@ -144,6 +172,25 @@ export class ResultsComponent extends Component<ResultsState> {
     `
   }
 
+  private renderExecuteResult(result: ExecuteResult): string {
+    const executionTimeText = this.state.executionTime !== null
+      ? ` (${this.state.executionTime.toFixed(2)}ms)`
+      : ''
+
+    return `
+      <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+        <p class="text-green-700 dark:text-green-300">
+          ${this.escapeHtml(result.message)}${executionTimeText}
+        </p>
+        ${result.rows_affected > 0 ? `
+          <p class="text-sm text-green-600 dark:text-green-400 mt-1">
+            ${result.rows_affected} row${result.rows_affected === 1 ? '' : 's'} affected
+          </p>
+        ` : ''}
+      </div>
+    `
+  }
+
   private renderTable(result: QueryResult): string {
     const { columns, rows, row_count } = result
 
@@ -155,7 +202,16 @@ export class ResultsComponent extends Component<ResultsState> {
       `
     }
 
-    const displayRows = rows.slice(0, MAX_DISPLAY_ROWS)
+    // Parse JSON strings from WASM into arrays
+    const parsedRows = rows.map(rowStr => {
+      try {
+        return JSON.parse(rowStr) as unknown[]
+      } catch {
+        return [rowStr] // Fallback if parsing fails
+      }
+    })
+
+    const displayRows = parsedRows.slice(0, MAX_DISPLAY_ROWS)
     const isLimited = row_count > MAX_DISPLAY_ROWS
     const executionTimeText = this.state.executionTime !== null
       ? ` • ${this.state.executionTime.toFixed(2)}ms`

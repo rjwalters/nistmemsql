@@ -1,4 +1,10 @@
-import type { Database as DatabaseInterface, QueryResult, TableSchema, WasmModule } from './types'
+import type {
+  Database as DatabaseInterface,
+  QueryResult,
+  ExecuteResult,
+  TableSchema,
+  WasmModule,
+} from './types'
 
 const MISSING_BINDINGS_MESSAGE =
   'WASM bindings are not available. Generate them with `wasm-pack build --target web --out-dir web-demo/public/pkg`.'
@@ -8,19 +14,31 @@ const fallbackModule: WasmModule = {
     console.warn(MISSING_BINDINGS_MESSAGE)
   },
   Database: class FallbackDatabase implements DatabaseInterface {
-    execute(_sql: string): QueryResult {
+    execute(_sql: string): ExecuteResult {
       throw new Error(MISSING_BINDINGS_MESSAGE)
     }
 
-    execute_batch(_sql: string): void {
+    query(_sql: string): QueryResult {
       throw new Error(MISSING_BINDINGS_MESSAGE)
     }
 
-    get_tables(): string[] {
+    list_tables(): string[] {
       throw new Error(MISSING_BINDINGS_MESSAGE)
     }
 
-    get_schema(_table: string): TableSchema {
+    describe_table(_table: string): TableSchema {
+      throw new Error(MISSING_BINDINGS_MESSAGE)
+    }
+
+    load_employees(): ExecuteResult {
+      throw new Error(MISSING_BINDINGS_MESSAGE)
+    }
+
+    load_northwind(): ExecuteResult {
+      throw new Error(MISSING_BINDINGS_MESSAGE)
+    }
+
+    version(): string {
       throw new Error(MISSING_BINDINGS_MESSAGE)
     }
   },

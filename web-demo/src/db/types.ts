@@ -4,24 +4,39 @@
 
 /** Main database interface */
 export interface Database {
-  /** Execute a single SQL statement and return results */
-  execute(sql: string): QueryResult
+  /** Execute DDL/DML statement (CREATE, INSERT, UPDATE, DELETE) */
+  execute(sql: string): ExecuteResult
 
-  /** Execute multiple SQL statements (no results) */
-  execute_batch(sql: string): void
+  /** Execute SELECT query and return results */
+  query(sql: string): QueryResult
 
   /** Get list of all table names */
-  get_tables(): string[]
+  list_tables(): string[]
 
   /** Get schema information for a table */
-  get_schema(table: string): TableSchema
+  describe_table(table: string): TableSchema
+
+  /** Load the Employees example database */
+  load_employees(): ExecuteResult
+
+  /** Load the Northwind example database */
+  load_northwind(): ExecuteResult
+
+  /** Get database version string */
+  version(): string
 }
 
-/** Query execution result */
+/** Query execution result (SELECT) */
 export interface QueryResult {
   columns: string[]
-  rows: SqlValue[][]
+  rows: string[] // JSON strings from WASM
   row_count: number
+}
+
+/** Execute result (DDL/DML) */
+export interface ExecuteResult {
+  rows_affected: number
+  message: string
 }
 
 /** Table schema metadata */
