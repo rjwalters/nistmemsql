@@ -114,6 +114,46 @@ impl InsertExecutor {
                 }
             }
 
+            // Enforce UNIQUE constraints
+            let unique_constraint_indices = schema.get_unique_constraint_indices();
+            for (constraint_idx, unique_indices) in unique_constraint_indices.iter().enumerate() {
+                // Extract unique constraint values from the new row
+                let new_unique_values: Vec<&types::SqlValue> = unique_indices
+                    .iter()
+                    .map(|&idx| &full_row_values[idx])
+                    .collect();
+
+                // Skip if any value in the unique constraint is NULL
+                // (NULL != NULL in SQL, so multiple NULLs are allowed)
+                if new_unique_values.iter().any(|v| **v == types::SqlValue::Null) {
+                    continue;
+                }
+
+                // Check if any existing row has the same unique constraint values
+                let table = db.get_table(&stmt.table_name)
+                    .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
+
+                for existing_row in table.scan() {
+                    let existing_unique_values: Vec<&types::SqlValue> = unique_indices
+                        .iter()
+                        .filter_map(|&idx| existing_row.get(idx))
+                        .collect();
+
+                    // Skip if any existing value is NULL
+                    if existing_unique_values.iter().any(|v| **v == types::SqlValue::Null) {
+                        continue;
+                    }
+
+                    if new_unique_values == existing_unique_values {
+                        let unique_col_names: Vec<String> = schema.unique_constraints[constraint_idx].clone();
+                        return Err(ExecutorError::ConstraintViolation(format!(
+                            "UNIQUE constraint violated: duplicate value for ({})",
+                            unique_col_names.join(", ")
+                        )));
+                    }
+                }
+            }
+
             // Insert the row
             let row = storage::Row::new(full_row_values);
             db.insert_row(&stmt.table_name, row).map_err(|e| {
@@ -576,5 +616,240 @@ mod tests {
         // Verify all 3 rows inserted
         let table = db.get_table("users").unwrap();
         assert_eq!(table.row_count(), 3);
+    }
+
+    #[test]
+    fn test_insert_unique_constraint_duplicate() {
+        let mut db = storage::Database::new();
+
+        // CREATE TABLE users (id INT PRIMARY KEY, email VARCHAR(50) UNIQUE)
+        let schema = catalog::TableSchema::with_all_constraints(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    "email".to_string(),
+                    types::DataType::Varchar { max_length: 50 },
+                    true,
+                ),
+            ],
+            Some(vec!["id".to_string()]),
+            vec![vec!["email".to_string()]],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert first row
+        let stmt1 = ast::InsertStmt {
+            table_name: "users".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(1)),
+                ast::Expression::Literal(types::SqlValue::Varchar("alice@example.com".to_string())),
+            ]],
+        };
+        InsertExecutor::execute(&mut db, &stmt1).unwrap();
+
+        // Try to insert row with duplicate email
+        let stmt2 = ast::InsertStmt {
+            table_name: "users".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(2)),
+                ast::Expression::Literal(types::SqlValue::Varchar("alice@example.com".to_string())),
+            ]],
+        };
+
+        let result = InsertExecutor::execute(&mut db, &stmt2);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExecutorError::ConstraintViolation(msg) => {
+                assert!(msg.contains("UNIQUE"));
+                assert!(msg.contains("email"));
+            }
+            other => panic!("Expected ConstraintViolation, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_insert_unique_constraint_allows_null() {
+        let mut db = storage::Database::new();
+
+        // CREATE TABLE users (id INT PRIMARY KEY, email VARCHAR(50) UNIQUE)
+        let schema = catalog::TableSchema::with_all_constraints(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    "email".to_string(),
+                    types::DataType::Varchar { max_length: 50 },
+                    true,
+                ),
+            ],
+            Some(vec!["id".to_string()]),
+            vec![vec!["email".to_string()]],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert multiple rows with NULL email - should all succeed
+        // (NULL != NULL in SQL, so multiple NULLs are allowed)
+        for i in 1..=3 {
+            let stmt = ast::InsertStmt {
+                table_name: "users".to_string(),
+                columns: vec![],
+                values: vec![vec![
+                    ast::Expression::Literal(types::SqlValue::Integer(i)),
+                    ast::Expression::Literal(types::SqlValue::Null),
+                ]],
+            };
+            InsertExecutor::execute(&mut db, &stmt).unwrap();
+        }
+
+        // Verify all 3 rows inserted
+        let table = db.get_table("users").unwrap();
+        assert_eq!(table.row_count(), 3);
+    }
+
+    #[test]
+    fn test_insert_unique_constraint_composite() {
+        let mut db = storage::Database::new();
+
+        // CREATE TABLE enrollments (student_id INT, course_id INT, UNIQUE (student_id, course_id))
+        let schema = catalog::TableSchema::with_unique_constraints(
+            "enrollments".to_string(),
+            vec![
+                catalog::ColumnSchema::new("student_id".to_string(), types::DataType::Integer, true),
+                catalog::ColumnSchema::new("course_id".to_string(), types::DataType::Integer, true),
+                catalog::ColumnSchema::new("grade".to_string(), types::DataType::Integer, true),
+            ],
+            vec![vec!["student_id".to_string(), "course_id".to_string()]],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert first enrollment (student=1, course=101)
+        let stmt1 = ast::InsertStmt {
+            table_name: "enrollments".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(1)),
+                ast::Expression::Literal(types::SqlValue::Integer(101)),
+                ast::Expression::Literal(types::SqlValue::Integer(85)),
+            ]],
+        };
+        InsertExecutor::execute(&mut db, &stmt1).unwrap();
+
+        // Insert different combination (student=1, course=102) - should succeed
+        let stmt2 = ast::InsertStmt {
+            table_name: "enrollments".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(1)),
+                ast::Expression::Literal(types::SqlValue::Integer(102)),
+                ast::Expression::Literal(types::SqlValue::Integer(90)),
+            ]],
+        };
+        InsertExecutor::execute(&mut db, &stmt2).unwrap();
+
+        // Try to insert duplicate combination (student=1, course=101)
+        let stmt3 = ast::InsertStmt {
+            table_name: "enrollments".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(1)),
+                ast::Expression::Literal(types::SqlValue::Integer(101)),
+                ast::Expression::Literal(types::SqlValue::Integer(95)),
+            ]],
+        };
+
+        let result = InsertExecutor::execute(&mut db, &stmt3);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExecutorError::ConstraintViolation(msg) => {
+                assert!(msg.contains("UNIQUE"));
+            }
+            other => panic!("Expected ConstraintViolation, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_insert_multiple_unique_constraints() {
+        let mut db = storage::Database::new();
+
+        // CREATE TABLE users (id INT PRIMARY KEY, email VARCHAR(50) UNIQUE, username VARCHAR(50) UNIQUE)
+        let schema = catalog::TableSchema::with_all_constraints(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    "email".to_string(),
+                    types::DataType::Varchar { max_length: 50 },
+                    true,
+                ),
+                catalog::ColumnSchema::new(
+                    "username".to_string(),
+                    types::DataType::Varchar { max_length: 50 },
+                    true,
+                ),
+            ],
+            Some(vec!["id".to_string()]),
+            vec![
+                vec!["email".to_string()],
+                vec!["username".to_string()],
+            ],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert first user
+        let stmt1 = ast::InsertStmt {
+            table_name: "users".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(1)),
+                ast::Expression::Literal(types::SqlValue::Varchar("alice@example.com".to_string())),
+                ast::Expression::Literal(types::SqlValue::Varchar("alice".to_string())),
+            ]],
+        };
+        InsertExecutor::execute(&mut db, &stmt1).unwrap();
+
+        // Try to insert with duplicate email (different username)
+        let stmt2 = ast::InsertStmt {
+            table_name: "users".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(2)),
+                ast::Expression::Literal(types::SqlValue::Varchar("alice@example.com".to_string())),
+                ast::Expression::Literal(types::SqlValue::Varchar("bob".to_string())),
+            ]],
+        };
+
+        let result = InsertExecutor::execute(&mut db, &stmt2);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExecutorError::ConstraintViolation(msg) => {
+                assert!(msg.contains("UNIQUE"));
+                assert!(msg.contains("email"));
+            }
+            other => panic!("Expected ConstraintViolation, got {:?}", other),
+        }
+
+        // Try to insert with duplicate username (different email)
+        let stmt3 = ast::InsertStmt {
+            table_name: "users".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(2)),
+                ast::Expression::Literal(types::SqlValue::Varchar("bob@example.com".to_string())),
+                ast::Expression::Literal(types::SqlValue::Varchar("alice".to_string())),
+            ]],
+        };
+
+        let result = InsertExecutor::execute(&mut db, &stmt3);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExecutorError::ConstraintViolation(msg) => {
+                assert!(msg.contains("UNIQUE"));
+                assert!(msg.contains("username"));
+            }
+            other => panic!("Expected ConstraintViolation, got {:?}", other),
+        }
     }
 }

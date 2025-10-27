@@ -42,6 +42,7 @@ impl CombinedSchema {
             name: alias.clone(),
             columns,
             primary_key: None,
+            unique_constraints: Vec::new(),
         };
         let mut table_schemas = HashMap::new();
         table_schemas.insert(alias, (0, schema));

@@ -7,6 +7,8 @@ pub struct TableSchema {
     pub columns: Vec<ColumnSchema>,
     /// Primary key column names (None if no primary key, Some(vec) for single or composite key)
     pub primary_key: Option<Vec<String>>,
+    /// Unique constraints - each inner vec represents a unique constraint (can be single or composite)
+    pub unique_constraints: Vec<Vec<String>>,
 }
 
 impl TableSchema {
@@ -15,6 +17,7 @@ impl TableSchema {
             name,
             columns,
             primary_key: None,
+            unique_constraints: Vec::new(),
         }
     }
 
@@ -24,6 +27,36 @@ impl TableSchema {
             name,
             columns,
             primary_key: Some(primary_key),
+            unique_constraints: Vec::new(),
+        }
+    }
+
+    /// Create a table schema with unique constraints
+    pub fn with_unique_constraints(
+        name: String,
+        columns: Vec<ColumnSchema>,
+        unique_constraints: Vec<Vec<String>>,
+    ) -> Self {
+        TableSchema {
+            name,
+            columns,
+            primary_key: None,
+            unique_constraints,
+        }
+    }
+
+    /// Create a table schema with both primary key and unique constraints
+    pub fn with_all_constraints(
+        name: String,
+        columns: Vec<ColumnSchema>,
+        primary_key: Option<Vec<String>>,
+        unique_constraints: Vec<Vec<String>>,
+    ) -> Self {
+        TableSchema {
+            name,
+            columns,
+            primary_key,
+            unique_constraints,
         }
     }
 
@@ -50,5 +83,19 @@ impl TableSchema {
                 .filter_map(|col_name| self.get_column_index(col_name))
                 .collect()
         })
+    }
+
+    /// Get the indices for all unique constraints
+    /// Returns a vector where each element is a vector of column indices for one unique constraint
+    pub fn get_unique_constraint_indices(&self) -> Vec<Vec<usize>> {
+        self.unique_constraints
+            .iter()
+            .map(|constraint_cols| {
+                constraint_cols
+                    .iter()
+                    .filter_map(|col_name| self.get_column_index(col_name))
+                    .collect()
+            })
+            .collect()
     }
 }

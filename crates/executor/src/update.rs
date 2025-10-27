@@ -158,6 +158,48 @@ impl UpdateExecutor {
                     }
                 }
 
+                // Enforce UNIQUE constraints
+                let unique_constraint_indices = schema.get_unique_constraint_indices();
+                for (constraint_idx, unique_indices) in unique_constraint_indices.iter().enumerate() {
+                    // Extract unique constraint values from the updated row
+                    let new_unique_values: Vec<&types::SqlValue> = unique_indices
+                        .iter()
+                        .filter_map(|&idx| new_row.get(idx))
+                        .collect();
+
+                    // Skip if any value in the unique constraint is NULL
+                    // (NULL != NULL in SQL, so multiple NULLs are allowed)
+                    if new_unique_values.iter().any(|v| **v == types::SqlValue::Null) {
+                        continue;
+                    }
+
+                    // Check if any OTHER row has the same unique constraint values
+                    for (other_idx, other_row) in table.scan().iter().enumerate() {
+                        // Skip the row being updated
+                        if other_idx == row_index {
+                            continue;
+                        }
+
+                        let other_unique_values: Vec<&types::SqlValue> = unique_indices
+                            .iter()
+                            .filter_map(|&idx| other_row.get(idx))
+                            .collect();
+
+                        // Skip if any existing value is NULL
+                        if other_unique_values.iter().any(|v| **v == types::SqlValue::Null) {
+                            continue;
+                        }
+
+                        if new_unique_values == other_unique_values {
+                            let unique_col_names: Vec<String> = schema.unique_constraints[constraint_idx].clone();
+                            return Err(ExecutorError::ConstraintViolation(format!(
+                                "UNIQUE constraint violated: duplicate value for ({})",
+                                unique_col_names.join(", ")
+                            )));
+                        }
+                    }
+                }
+
                 updates.push((row_index, new_row));
             }
         }
@@ -612,5 +654,301 @@ mod tests {
         let table = db.get_table("users").unwrap();
         let rows: Vec<&Row> = table.scan().iter().collect();
         assert_eq!(rows[1].get(0).unwrap(), &SqlValue::Integer(3));
+    }
+
+    #[test]
+    fn test_update_unique_constraint_duplicate() {
+        let mut db = storage::Database::new();
+
+        // CREATE TABLE users (id INT PRIMARY KEY, email VARCHAR(50) UNIQUE)
+        let schema = catalog::TableSchema::with_all_constraints(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    "email".to_string(),
+                    types::DataType::Varchar { max_length: 50 },
+                    true,
+                ),
+            ],
+            Some(vec!["id".to_string()]),
+            vec![vec!["email".to_string()]],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert two users
+        db.insert_row(
+            "users",
+            Row::new(vec![
+                SqlValue::Integer(1),
+                SqlValue::Varchar("alice@example.com".to_string()),
+            ]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            Row::new(vec![
+                SqlValue::Integer(2),
+                SqlValue::Varchar("bob@example.com".to_string()),
+            ]),
+        )
+        .unwrap();
+
+        // Try to update Bob's email to Alice's email (should fail - UNIQUE violation)
+        let stmt = UpdateStmt {
+            table_name: "users".to_string(),
+            assignments: vec![Assignment {
+                column: "email".to_string(),
+                value: Expression::Literal(SqlValue::Varchar("alice@example.com".to_string())),
+            }],
+            where_clause: Some(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "id".to_string(),
+                }),
+                op: BinaryOperator::Equal,
+                right: Box::new(Expression::Literal(SqlValue::Integer(2))),
+            }),
+        };
+
+        let result = UpdateExecutor::execute(&stmt, &mut db);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExecutorError::ConstraintViolation(msg) => {
+                assert!(msg.contains("UNIQUE"));
+                assert!(msg.contains("email"));
+            }
+            other => panic!("Expected ConstraintViolation, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_update_unique_constraint_to_unique_value() {
+        let mut db = storage::Database::new();
+
+        // CREATE TABLE users (id INT PRIMARY KEY, email VARCHAR(50) UNIQUE)
+        let schema = catalog::TableSchema::with_all_constraints(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    "email".to_string(),
+                    types::DataType::Varchar { max_length: 50 },
+                    true,
+                ),
+            ],
+            Some(vec!["id".to_string()]),
+            vec![vec!["email".to_string()]],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert two users
+        db.insert_row(
+            "users",
+            Row::new(vec![
+                SqlValue::Integer(1),
+                SqlValue::Varchar("alice@example.com".to_string()),
+            ]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            Row::new(vec![
+                SqlValue::Integer(2),
+                SqlValue::Varchar("bob@example.com".to_string()),
+            ]),
+        )
+        .unwrap();
+
+        // Update Bob's email to a new unique value - should succeed
+        let stmt = UpdateStmt {
+            table_name: "users".to_string(),
+            assignments: vec![Assignment {
+                column: "email".to_string(),
+                value: Expression::Literal(SqlValue::Varchar("robert@example.com".to_string())),
+            }],
+            where_clause: Some(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "id".to_string(),
+                }),
+                op: BinaryOperator::Equal,
+                right: Box::new(Expression::Literal(SqlValue::Integer(2))),
+            }),
+        };
+
+        let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
+        assert_eq!(count, 1);
+
+        // Verify the update
+        let table = db.get_table("users").unwrap();
+        let rows: Vec<&Row> = table.scan().iter().collect();
+        assert_eq!(
+            rows[1].get(1).unwrap(),
+            &SqlValue::Varchar("robert@example.com".to_string())
+        );
+    }
+
+    #[test]
+    fn test_update_unique_constraint_allows_null() {
+        let mut db = storage::Database::new();
+
+        // CREATE TABLE users (id INT PRIMARY KEY, email VARCHAR(50) UNIQUE)
+        let schema = catalog::TableSchema::with_all_constraints(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    "email".to_string(),
+                    types::DataType::Varchar { max_length: 50 },
+                    true, // nullable
+                ),
+            ],
+            Some(vec!["id".to_string()]),
+            vec![vec!["email".to_string()]],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert two users with email
+        db.insert_row(
+            "users",
+            Row::new(vec![
+                SqlValue::Integer(1),
+                SqlValue::Varchar("alice@example.com".to_string()),
+            ]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            Row::new(vec![
+                SqlValue::Integer(2),
+                SqlValue::Varchar("bob@example.com".to_string()),
+            ]),
+        )
+        .unwrap();
+
+        // Update first user's email to NULL - should succeed
+        let stmt = UpdateStmt {
+            table_name: "users".to_string(),
+            assignments: vec![Assignment {
+                column: "email".to_string(),
+                value: Expression::Literal(SqlValue::Null),
+            }],
+            where_clause: Some(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "id".to_string(),
+                }),
+                op: BinaryOperator::Equal,
+                right: Box::new(Expression::Literal(SqlValue::Integer(1))),
+            }),
+        };
+
+        let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
+        assert_eq!(count, 1);
+
+        // Update second user's email to NULL too - should succeed (multiple NULLs allowed)
+        let stmt2 = UpdateStmt {
+            table_name: "users".to_string(),
+            assignments: vec![Assignment {
+                column: "email".to_string(),
+                value: Expression::Literal(SqlValue::Null),
+            }],
+            where_clause: Some(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "id".to_string(),
+                }),
+                op: BinaryOperator::Equal,
+                right: Box::new(Expression::Literal(SqlValue::Integer(2))),
+            }),
+        };
+
+        let count2 = UpdateExecutor::execute(&stmt2, &mut db).unwrap();
+        assert_eq!(count2, 1);
+
+        // Verify both emails are NULL
+        let table = db.get_table("users").unwrap();
+        let rows: Vec<&Row> = table.scan().iter().collect();
+        assert_eq!(rows[0].get(1).unwrap(), &SqlValue::Null);
+        assert_eq!(rows[1].get(1).unwrap(), &SqlValue::Null);
+    }
+
+    #[test]
+    fn test_update_unique_constraint_composite() {
+        let mut db = storage::Database::new();
+
+        // CREATE TABLE users (id INT PRIMARY KEY, first_name VARCHAR(50), last_name VARCHAR(50), UNIQUE(first_name, last_name))
+        let schema = catalog::TableSchema::with_all_constraints(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    "first_name".to_string(),
+                    types::DataType::Varchar { max_length: 50 },
+                    true,
+                ),
+                catalog::ColumnSchema::new(
+                    "last_name".to_string(),
+                    types::DataType::Varchar { max_length: 50 },
+                    true,
+                ),
+            ],
+            Some(vec!["id".to_string()]),
+            vec![vec!["first_name".to_string(), "last_name".to_string()]],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert two users
+        db.insert_row(
+            "users",
+            Row::new(vec![
+                SqlValue::Integer(1),
+                SqlValue::Varchar("Alice".to_string()),
+                SqlValue::Varchar("Smith".to_string()),
+            ]),
+        )
+        .unwrap();
+        db.insert_row(
+            "users",
+            Row::new(vec![
+                SqlValue::Integer(2),
+                SqlValue::Varchar("Bob".to_string()),
+                SqlValue::Varchar("Jones".to_string()),
+            ]),
+        )
+        .unwrap();
+
+        // Try to update Bob to have the same first_name and last_name as Alice (should fail)
+        let stmt = UpdateStmt {
+            table_name: "users".to_string(),
+            assignments: vec![
+                Assignment {
+                    column: "first_name".to_string(),
+                    value: Expression::Literal(SqlValue::Varchar("Alice".to_string())),
+                },
+                Assignment {
+                    column: "last_name".to_string(),
+                    value: Expression::Literal(SqlValue::Varchar("Smith".to_string())),
+                },
+            ],
+            where_clause: Some(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "id".to_string(),
+                }),
+                op: BinaryOperator::Equal,
+                right: Box::new(Expression::Literal(SqlValue::Integer(2))),
+            }),
+        };
+
+        let result = UpdateExecutor::execute(&stmt, &mut db);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExecutorError::ConstraintViolation(msg) => {
+                assert!(msg.contains("UNIQUE"));
+            }
+            other => panic!("Expected ConstraintViolation, got {:?}", other),
+        }
     }
 }
