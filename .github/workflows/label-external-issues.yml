@@ -7,58 +7,15 @@ on:
     paths:
       - '.github/workflows/label-external-issues.yml'
 
-permissions:
-  issues: write
-  contents: read
-
 jobs:
-  label_external:
+  push_job:
+    if: github.event_name != 'issues'
     runs-on: ubuntu-latest
     steps:
-      - name: Determine collaborator status
-        id: status
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
+      - run: echo "push event"
 
-          payload="$GITHUB_EVENT_PATH"
-          repo="$GITHUB_REPOSITORY"
-          issue_number=$(jq -r '.issue.number // empty' "$payload")
-          username=$(jq -r '.issue.user.login // empty' "$payload")
-
-          if [ -z "$issue_number" ] || [ -z "$username" ]; then
-            echo "status=skipped" >> "$GITHUB_OUTPUT"
-            echo "issue_number=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if gh api "repos/${repo}/collaborators/${username}" >/dev/null 2>&1; then
-            echo "status=collaborator" >> "$GITHUB_OUTPUT"
-            echo "Detected collaborator: ${username}"
-          else
-            echo "status=external" >> "$GITHUB_OUTPUT"
-            echo "Detected external contributor: ${username}"
-          fi
-
-          echo "issue_number=${issue_number}" >> "$GITHUB_OUTPUT"
-
-      - name: Add 'external' label if needed
-        if: steps.status.outputs.status == 'external'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          gh issue edit ${{ steps.status.outputs.issue_number }} --add-label external
-
-      - name: Post welcome comment on external issues
-        if: steps.status.outputs.status == 'external'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          gh issue comment ${{ steps.status.outputs.issue_number }} --body $'Thank you for submitting an issue! 🙏\n\nThis issue has been automatically labeled as `external` and will be reviewed by the maintainers.\n\n**Note**: External issues require manual triage before being assigned. We appreciate your patience while we review your submission.\n\nFor questions or discussions, please use [GitHub Discussions](https://github.com/rjwalters/nistmemsql/discussions).'
-
-      - name: Complete without action
-        if: steps.status.outputs.status != 'external'
-        run: echo "No action needed (status: ${{ steps.status.outputs.status || 'unknown' }})."
+  issue_job:
+    if: github.event_name == 'issues'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "issue event"
