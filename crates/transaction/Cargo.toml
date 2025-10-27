@@ -1,8 +1,0 @@
-[package]
-name = "transaction"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-
-[dev-dependencies]
