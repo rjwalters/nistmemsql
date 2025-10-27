@@ -154,6 +154,27 @@ impl InsertExecutor {
                 }
             }
 
+            // Enforce CHECK constraints
+            if !schema.check_constraints.is_empty() {
+                // Create a row from the values to evaluate the expression
+                let row = storage::Row::new(full_row_values.clone());
+                let evaluator = crate::evaluator::ExpressionEvaluator::new(&schema);
+
+                for (constraint_name, check_expr) in &schema.check_constraints {
+                    // Evaluate the CHECK expression against the row
+                    let result = evaluator.eval(check_expr, &row)?;
+
+                    // CHECK constraint passes if result is TRUE or NULL (UNKNOWN)
+                    // CHECK constraint fails if result is FALSE
+                    if result == types::SqlValue::Boolean(false) {
+                        return Err(ExecutorError::ConstraintViolation(format!(
+                            "CHECK constraint '{}' violated",
+                            constraint_name
+                        )));
+                    }
+                }
+            }
+
             // Insert the row
             let row = storage::Row::new(full_row_values);
             db.insert_row(&stmt.table_name, row).map_err(|e| {

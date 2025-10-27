@@ -200,6 +200,25 @@ impl UpdateExecutor {
                     }
                 }
 
+                // Enforce CHECK constraints
+                if !schema.check_constraints.is_empty() {
+                    let evaluator = crate::evaluator::ExpressionEvaluator::new(&schema);
+
+                    for (constraint_name, check_expr) in &schema.check_constraints {
+                        // Evaluate the CHECK expression against the updated row
+                        let result = evaluator.eval(check_expr, &new_row)?;
+
+                        // CHECK constraint passes if result is TRUE or NULL (UNKNOWN)
+                        // CHECK constraint fails if result is FALSE
+                        if result == types::SqlValue::Boolean(false) {
+                            return Err(ExecutorError::ConstraintViolation(format!(
+                                "CHECK constraint '{}' violated",
+                                constraint_name
+                            )));
+                        }
+                    }
+                }
+
                 updates.push((row_index, new_row));
             }
         }
@@ -947,6 +966,232 @@ mod tests {
         match result.unwrap_err() {
             ExecutorError::ConstraintViolation(msg) => {
                 assert!(msg.contains("UNIQUE"));
+            }
+            other => panic!("Expected ConstraintViolation, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_update_check_constraint_passes() {
+        let mut db = Database::new();
+
+        // CREATE TABLE products (id INT, price INT CHECK (price >= 0))
+        let schema = catalog::TableSchema::with_all_constraint_types(
+            "products".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), DataType::Integer, false),
+                catalog::ColumnSchema::new("price".to_string(), DataType::Integer, false),
+            ],
+            None,
+            Vec::new(),
+            vec![(
+                "price_positive".to_string(),
+                ast::Expression::BinaryOp {
+                    left: Box::new(ast::Expression::ColumnRef {
+                        table: None,
+                        column: "price".to_string(),
+                    }),
+                    op: ast::BinaryOperator::GreaterThanOrEqual,
+                    right: Box::new(ast::Expression::Literal(SqlValue::Integer(0))),
+                },
+            )],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert a row
+        db.insert_row(
+            "products",
+            Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(50)]),
+        )
+        .unwrap();
+
+        // Update to valid price (should succeed)
+        let stmt = UpdateStmt {
+            table_name: "products".to_string(),
+            assignments: vec![Assignment {
+                column: "price".to_string(),
+                value: Expression::Literal(SqlValue::Integer(100)),
+            }],
+            where_clause: None,
+        };
+
+        let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn test_update_check_constraint_violation() {
+        let mut db = Database::new();
+
+        // CREATE TABLE products (id INT, price INT CHECK (price >= 0))
+        let schema = catalog::TableSchema::with_all_constraint_types(
+            "products".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), DataType::Integer, false),
+                catalog::ColumnSchema::new("price".to_string(), DataType::Integer, false),
+            ],
+            None,
+            Vec::new(),
+            vec![(
+                "price_positive".to_string(),
+                ast::Expression::BinaryOp {
+                    left: Box::new(ast::Expression::ColumnRef {
+                        table: None,
+                        column: "price".to_string(),
+                    }),
+                    op: ast::BinaryOperator::GreaterThanOrEqual,
+                    right: Box::new(ast::Expression::Literal(SqlValue::Integer(0))),
+                },
+            )],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert a row
+        db.insert_row(
+            "products",
+            Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(50)]),
+        )
+        .unwrap();
+
+        // Try to update to negative price (should fail)
+        let stmt = UpdateStmt {
+            table_name: "products".to_string(),
+            assignments: vec![Assignment {
+                column: "price".to_string(),
+                value: Expression::Literal(SqlValue::Integer(-10)),
+            }],
+            where_clause: None,
+        };
+
+        let result = UpdateExecutor::execute(&stmt, &mut db);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExecutorError::ConstraintViolation(msg) => {
+                assert!(msg.contains("CHECK"));
+                assert!(msg.contains("price_positive"));
+            }
+            other => panic!("Expected ConstraintViolation, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_update_check_constraint_with_null() {
+        let mut db = Database::new();
+
+        // CREATE TABLE products (id INT, price INT CHECK (price >= 0))
+        let schema = catalog::TableSchema::with_all_constraint_types(
+            "products".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), DataType::Integer, false),
+                catalog::ColumnSchema::new("price".to_string(), DataType::Integer, true), // nullable
+            ],
+            None,
+            Vec::new(),
+            vec![(
+                "price_positive".to_string(),
+                ast::Expression::BinaryOp {
+                    left: Box::new(ast::Expression::ColumnRef {
+                        table: None,
+                        column: "price".to_string(),
+                    }),
+                    op: ast::BinaryOperator::GreaterThanOrEqual,
+                    right: Box::new(ast::Expression::Literal(SqlValue::Integer(0))),
+                },
+            )],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert a row
+        db.insert_row(
+            "products",
+            Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(50)]),
+        )
+        .unwrap();
+
+        // Update to NULL (should succeed - NULL is treated as UNKNOWN which passes CHECK)
+        let stmt = UpdateStmt {
+            table_name: "products".to_string(),
+            assignments: vec![Assignment {
+                column: "price".to_string(),
+                value: Expression::Literal(SqlValue::Null),
+            }],
+            where_clause: None,
+        };
+
+        let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn test_update_check_constraint_with_expression() {
+        let mut db = Database::new();
+
+        // CREATE TABLE employees (id INT, salary INT, bonus INT, CHECK (bonus < salary))
+        let schema = catalog::TableSchema::with_all_constraint_types(
+            "employees".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), DataType::Integer, false),
+                catalog::ColumnSchema::new("salary".to_string(), DataType::Integer, false),
+                catalog::ColumnSchema::new("bonus".to_string(), DataType::Integer, false),
+            ],
+            None,
+            Vec::new(),
+            vec![(
+                "bonus_less_than_salary".to_string(),
+                ast::Expression::BinaryOp {
+                    left: Box::new(ast::Expression::ColumnRef {
+                        table: None,
+                        column: "bonus".to_string(),
+                    }),
+                    op: ast::BinaryOperator::LessThan,
+                    right: Box::new(ast::Expression::ColumnRef {
+                        table: None,
+                        column: "salary".to_string(),
+                    }),
+                },
+            )],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert a row
+        db.insert_row(
+            "employees",
+            Row::new(vec![
+                SqlValue::Integer(1),
+                SqlValue::Integer(50000),
+                SqlValue::Integer(10000),
+            ]),
+        )
+        .unwrap();
+
+        // Update bonus to still be less than salary (should succeed)
+        let stmt1 = UpdateStmt {
+            table_name: "employees".to_string(),
+            assignments: vec![Assignment {
+                column: "bonus".to_string(),
+                value: Expression::Literal(SqlValue::Integer(15000)),
+            }],
+            where_clause: None,
+        };
+        let count = UpdateExecutor::execute(&stmt1, &mut db).unwrap();
+        assert_eq!(count, 1);
+
+        // Try to update bonus to be >= salary (should fail)
+        let stmt2 = UpdateStmt {
+            table_name: "employees".to_string(),
+            assignments: vec![Assignment {
+                column: "bonus".to_string(),
+                value: Expression::Literal(SqlValue::Integer(60000)),
+            }],
+            where_clause: None,
+        };
+
+        let result = UpdateExecutor::execute(&stmt2, &mut db);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExecutorError::ConstraintViolation(msg) => {
+                assert!(msg.contains("CHECK"));
+                assert!(msg.contains("bonus_less_than_salary"));
             }
             other => panic!("Expected ConstraintViolation, got {:?}", other),
         }
