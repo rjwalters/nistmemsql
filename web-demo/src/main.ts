@@ -54,24 +54,19 @@ const SQL_KEYWORDS = [
 ]
 
 const DEFAULT_SQL = `-- Welcome to NIST MemSQL Web Studio!
--- Press Ctrl/Cmd + Enter to execute queries
+-- Press Ctrl/Cmd + Enter to run queries
+-- Sample database with 35 employees is pre-loaded
 
--- Create a sample table
-CREATE TABLE products (
-  id INTEGER,
-  name VARCHAR(100),
-  price INTEGER,
-  category VARCHAR(50)
-);
+-- See all employees
+SELECT * FROM employees;
 
--- Insert sample data
-INSERT INTO products VALUES (1, 'Laptop', 999, 'Electronics');
-INSERT INTO products VALUES (2, 'Mouse', 25, 'Electronics');
-INSERT INTO products VALUES (3, 'Desk Chair', 299, 'Furniture');
-INSERT INTO products VALUES (4, 'Monitor', 449, 'Electronics');
+-- Find employees by department
+-- SELECT * FROM employees WHERE department = 'Engineering';
 
--- Query the data
-SELECT * FROM products;
+-- Count employees per department
+-- SELECT department, COUNT(*) as employee_count
+-- FROM employees
+-- GROUP BY department;
 `
 
 type StatusVariant = 'info' | 'success' | 'error'
@@ -368,6 +363,9 @@ async function bootstrap(): Promise<void> {
   let tableNames: string[] = []
   if (database) {
     try {
+      // Pre-load sample database for immediate exploration
+      database.load_employees()
+      console.log('📦 Loaded sample employees database')
       tableNames = database.list_tables()
     } catch (error) {
       console.warn('Failed to fetch table metadata', error)
