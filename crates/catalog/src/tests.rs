@@ -152,4 +152,64 @@ mod tests {
         tables.sort();
         assert_eq!(tables, vec!["orders".to_string(), "users".to_string()]);
     }
+
+    #[test]
+    fn test_error_display_table_already_exists() {
+        let error = CatalogError::TableAlreadyExists("customers".to_string());
+        let error_msg = format!("{}", error);
+        assert_eq!(error_msg, "Table 'customers' already exists");
+    }
+
+    #[test]
+    fn test_error_display_table_not_found() {
+        let error = CatalogError::TableNotFound("products".to_string());
+        let error_msg = format!("{}", error);
+        assert_eq!(error_msg, "Table 'products' not found");
+    }
+
+    #[test]
+    fn test_catalog_default() {
+        let catalog = Catalog::default();
+        assert_eq!(catalog.list_tables().len(), 0);
+        assert!(!catalog.table_exists("any_table"));
+    }
+
+    #[test]
+    fn test_column_schema_clone() {
+        let col1 = ColumnSchema::new("id".to_string(), types::DataType::Integer, false);
+        let col2 = col1.clone();
+        assert_eq!(col1, col2);
+        assert_eq!(col1.name, col2.name);
+        assert_eq!(col1.data_type, col2.data_type);
+        assert_eq!(col1.nullable, col2.nullable);
+    }
+
+    #[test]
+    fn test_table_schema_clone() {
+        let columns = vec![
+            ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+            ColumnSchema::new(
+                "email".to_string(),
+                types::DataType::Varchar { max_length: 255 },
+                true,
+            ),
+        ];
+        let schema1 = TableSchema::new("accounts".to_string(), columns);
+        let schema2 = schema1.clone();
+        assert_eq!(schema1, schema2);
+        assert_eq!(schema1.name, schema2.name);
+        assert_eq!(schema1.columns.len(), schema2.columns.len());
+    }
+
+    #[test]
+    fn test_catalog_clone() {
+        let mut catalog1 = Catalog::new();
+        let columns = vec![ColumnSchema::new("id".to_string(), types::DataType::Integer, false)];
+        let schema = TableSchema::new("users".to_string(), columns);
+        catalog1.create_table(schema).unwrap();
+
+        let catalog2 = catalog1.clone();
+        assert!(catalog2.table_exists("users"));
+        assert_eq!(catalog1.list_tables(), catalog2.list_tables());
+    }
 }
