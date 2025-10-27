@@ -212,3 +212,110 @@ fn test_case_insensitive_function_names() {
         SqlValue::Varchar("TEST".to_string())
     );
 }
+
+// --- SUBSTRING tests ---
+
+#[test]
+fn test_substring_basic_with_length() {
+    let mut db = Database::new();
+    create_dummy_table(&mut db);
+
+    let results = execute_query(&db, "SELECT SUBSTRING('hello world', 1, 5) AS result FROM dual;").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(
+        results[0].values[0],
+        SqlValue::Varchar("hello".to_string())
+    );
+}
+
+#[test]
+fn test_substring_without_length() {
+    let mut db = Database::new();
+    create_dummy_table(&mut db);
+
+    // Without length, should extract to end of string
+    let results = execute_query(&db, "SELECT SUBSTRING('hello world', 7) AS result FROM dual;").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(
+        results[0].values[0],
+        SqlValue::Varchar("world".to_string())
+    );
+}
+
+#[test]
+fn test_substring_middle_of_string() {
+    let mut db = Database::new();
+    create_dummy_table(&mut db);
+
+    let results = execute_query(&db, "SELECT SUBSTRING('hello world', 7, 5) AS result FROM dual;").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(
+        results[0].values[0],
+        SqlValue::Varchar("world".to_string())
+    );
+}
+
+#[test]
+fn test_substring_single_char() {
+    let mut db = Database::new();
+    create_dummy_table(&mut db);
+
+    let results = execute_query(&db, "SELECT SUBSTRING('hello', 1, 1) AS result FROM dual;").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(
+        results[0].values[0],
+        SqlValue::Varchar("h".to_string())
+    );
+}
+
+#[test]
+fn test_substring_length_exceeds_string() {
+    let mut db = Database::new();
+    create_dummy_table(&mut db);
+
+    // Length exceeds remaining string, should return what's available
+    let results = execute_query(&db, "SELECT SUBSTRING('hello', 3, 100) AS result FROM dual;").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(
+        results[0].values[0],
+        SqlValue::Varchar("llo".to_string())
+    );
+}
+
+#[test]
+fn test_substring_start_exceeds_length() {
+    let mut db = Database::new();
+    create_dummy_table(&mut db);
+
+    // Start position exceeds string length, should return empty string
+    let results = execute_query(&db, "SELECT SUBSTRING('hello', 100, 5) AS result FROM dual;").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(
+        results[0].values[0],
+        SqlValue::Varchar("".to_string())
+    );
+}
+
+#[test]
+fn test_substring_null() {
+    let mut db = Database::new();
+    create_dummy_table(&mut db);
+
+    let results = execute_query(&db, "SELECT SUBSTRING(NULL, 1, 5) AS result FROM dual;").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].values[0], SqlValue::Null);
+}
+
+#[test]
+fn test_substring_zero_length() {
+    let mut db = Database::new();
+    create_dummy_table(&mut db);
+
+    // Length of 0 should return empty string
+    let results = execute_query(&db, "SELECT SUBSTRING('hello', 1, 0) AS result FROM dual;").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(
+        results[0].values[0],
+        SqlValue::Varchar("".to_string())
+    );
+}
