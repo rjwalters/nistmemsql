@@ -8,8 +8,6 @@ use crate::schema::CombinedSchema;
 mod grouping;
 mod join;
 mod projection;
-#[allow(dead_code)]
-mod filter;
 
 use grouping::{compare_sql_values, group_rows, AggregateAccumulator};
 use join::{nested_loop_join, FromResult};
