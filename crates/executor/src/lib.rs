@@ -2,12 +2,14 @@
 //!
 //! This crate provides query execution functionality for SQL statements.
 
+mod create_table;
 pub mod errors;
 mod evaluator;
 mod insert;
 mod schema;
 mod select;
 
+pub use create_table::CreateTableExecutor;
 pub use errors::ExecutorError;
 pub use evaluator::ExpressionEvaluator;
 pub use insert::InsertExecutor;
