@@ -307,9 +307,7 @@ function createExecutionHandler(
         // Detect if this is a SELECT query
         const isSelectQuery = /^\s*SELECT\s+/i.test(sql)
 
-        const result = isSelectQuery
-          ? database.query(sql)
-          : database.execute(sql)
+        const result = isSelectQuery ? database.query(sql) : database.execute(sql)
 
         const executionTime = performance.now() - startTime
 
