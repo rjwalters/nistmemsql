@@ -142,12 +142,26 @@ Build a **FULL SQL:1999 compliant** database from scratch, designed for NIST con
 
 **[Try it now →](https://rjwalters.github.io/nistmemsql/)**
 
-Run SQL queries directly in your browser with:
+Run SQL queries directly in your browser with **zero setup**:
+- **Pre-loaded Sample Data** - 6 employee records ready to query
+- **Instant Execution** - Press Ctrl/Cmd+Enter and see results immediately
 - **Monaco Editor** - Full SQL syntax highlighting and IntelliSense
-- **Real-time Execution** - Instant query results
 - **WASM-Powered** - Rust database compiled to WebAssembly
-- **Interactive Examples** - Learn SQL:1999 features hands-on
+- **SQL Comment Support** - Use `--` for inline documentation
+- **Export Results** - Copy to clipboard or download as CSV
 - **Dark Mode** - Beautiful Tailwind CSS interface
+
+**Try these queries**:
+```sql
+-- See all employees
+SELECT * FROM employees;
+
+-- Filter by department
+SELECT name, salary FROM employees WHERE department = 'Engineering';
+
+-- Aggregate data
+SELECT department, COUNT(*) as count FROM employees GROUP BY department;
+```
 
 ---
 
