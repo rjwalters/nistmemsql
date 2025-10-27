@@ -27,12 +27,12 @@
 ## 📊 Current Status (2025-10-27)
 
 ### Test Suite
-- **Total Tests**: 311 ✅ (290 parser + 21 end-to-end)
-- **Passing**: 311 (100%)
+- **Total Tests**: 335 ✅ (313 parser + 22 end-to-end)
+- **Passing**: 335 (100%)
 - **Failing**: 0
-- **Code Coverage**: ~86%
+- **Code Coverage**: ~87%
 - **Source Files**: 85+ Rust files
-- **Lines of Code**: ~12,500
+- **Lines of Code**: ~13,500
 
 ### Recent Additions (This Session)
 - ✅ **IN list predicate** - Value lists vs subqueries with 12 tests
@@ -59,6 +59,13 @@
   - `NULLIF(val1, val2)`
   - Returns NULL if val1 = val2, else val1
 
+- ✅ **Quantified comparisons** - ALL, ANY, SOME predicates with 23 tests
+  - `expr op ALL (SELECT ...)`
+  - `expr op ANY (SELECT ...)`
+  - `expr op SOME (SELECT ...)` (SOME is synonym for ANY)
+  - SQL three-valued logic with NULL handling
+  - Empty subquery semantics (ALL=TRUE, ANY=FALSE)
+
 - ✅ **CHAR type** - Fixed-length character strings
   - Space padding for short strings
   - Truncation for long strings
@@ -76,11 +83,11 @@
 #### **Core Engine** ✅
 - **Types**: INTEGER, SMALLINT, BIGINT, FLOAT, REAL, DOUBLE PRECISION, NUMERIC/DECIMAL, VARCHAR, CHAR, BOOLEAN, NULL, DATE, TIME, TIMESTAMP, INTERVAL (14 types)
 - **DML**: SELECT, INSERT, UPDATE, DELETE (full basic operations)
-- **Predicates**: =, <, >, <=, >=, !=, <>, IS NULL, BETWEEN, IN (lists & subqueries), LIKE, EXISTS
+- **Predicates**: =, <, >, <=, >=, !=, <>, IS NULL, BETWEEN, IN (lists & subqueries), LIKE, EXISTS, ALL, ANY, SOME
 - **Operators**: +, -, *, /, AND, OR, NOT
 - **Functions**: CAST, COALESCE, NULLIF
 - **JOINs**: INNER, LEFT, RIGHT, FULL OUTER, CROSS (all working)
-- **Subqueries**: Scalar, table (derived tables), correlated, EXISTS
+- **Subqueries**: Scalar, table (derived tables), correlated, EXISTS, quantified (ALL/ANY/SOME)
 - **Aggregates**: COUNT, SUM, AVG, MIN, MAX with GROUP BY, HAVING
 - **Sorting**: ORDER BY (ASC/DESC, multi-column)
 - **Pagination**: LIMIT, OFFSET
@@ -128,17 +135,17 @@
 
 ---
 
-### Phase 3: Complete Query Engine (60% complete)
+### Phase 3: Complete Query Engine (65% complete)
 **Duration**: 2-3 months
 **Status**: In Progress
 
-**3.1 Predicates and Functions** (83% complete - 5 of 6)
+**3.1 Predicates and Functions** (100% complete - 6 of 6) ✅
 - [x] LIKE pattern matching ✅
 - [x] EXISTS predicate ✅
 - [x] CASE expressions ✅
 - [x] COALESCE function ✅
 - [x] NULLIF function ✅
-- [ ] Quantified comparisons (ALL, SOME, ANY)
+- [x] Quantified comparisons (ALL, SOME, ANY) ✅
 
 **3.2 Set Operations**
 - [ ] UNION [ALL]
@@ -351,11 +358,11 @@
 |----------|----------|--------|
 | **Data Types** | 100% | 14 types (exceeds Core requirement) ✅ |
 | **DML Statements** | 40% | Basic CRUD working |
-| **Predicates** | 65% | 13 of ~20 Core predicates |
+| **Predicates** | 80% | 16 of ~20 Core predicates |
 | **Operators** | 40% | Basic math/logic/comparison |
 | **JOINs** | 100% | All JOIN types working ✅ |
 | **Set Operations** | 0% | Not started |
-| **Subqueries** | 90% | Scalar, table, correlated, EXISTS |
+| **Subqueries** | 95% | Scalar, table, correlated, EXISTS, quantified |
 | **Built-in Functions** | 27% | 8 functions (CAST, COALESCE, NULLIF + 5 aggregates) |
 | **DDL** | 10% | CREATE TABLE only |
 | **Constraints** | 0% | None enforced |
@@ -363,7 +370,7 @@
 | **ODBC Driver** | 0% | 🔴 BLOCKING |
 | **JDBC Driver** | 0% | 🔴 BLOCKING |
 
-**Overall Core SQL:1999 Compliance: ~32-35%**
+**Overall Core SQL:1999 Compliance: ~35-38%**
 
 ---
 
@@ -374,9 +381,11 @@
 3. ✅ **EXISTS predicate** - COMPLETE
 4. ✅ **COALESCE function** - COMPLETE
 5. ✅ **NULLIF function** - COMPLETE
-6. ⚡ **Quantified comparisons** - ALL, SOME, ANY (next up!)
-7. **Set operations** - UNION, INTERSECT, EXCEPT
+6. ✅ **Quantified comparisons** - ALL, SOME, ANY - COMPLETE
+7. ⚡ **Set operations** - UNION, INTERSECT, EXCEPT (next up!)
 8. **Common Table Expressions** - WITH clause (non-recursive)
+9. **String functions** - SUBSTRING, UPPER, LOWER, TRIM
+10. **Numeric functions** - ABS, CEILING, FLOOR, MOD
 
 ---
 
@@ -466,9 +475,9 @@ This aligns with the original posix4e/nistmemsql vision while acknowledging the 
 ## 🚀 Project Velocity
 
 **Development Speed**: Excellent 🚀
-- 311 tests passing (100%) - 290 parser + 21 end-to-end
-- 42 parser tests added this session (IN list, EXISTS, COALESCE/NULLIF)
-- 3 end-to-end tests added this session
+- 335 tests passing (100%) - 313 parser + 22 end-to-end
+- 65 parser tests added this session (IN list, EXISTS, COALESCE/NULLIF, quantified comparisons)
+- 4 end-to-end tests added this session
 - TDD approach maintaining quality
 - AI-powered development (Loom) highly effective
 
