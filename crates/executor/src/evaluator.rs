@@ -112,11 +112,11 @@ impl<'a> ExpressionEvaluator<'a> {
 
             // Scalar subquery - must return exactly one row and one column
             ast::Expression::ScalarSubquery(subquery) => {
-                let database = self.database.ok_or_else(|| {
+                let database = self.database.ok_or(
                     ExecutorError::UnsupportedFeature(
                         "Subquery execution requires database reference".to_string()
                     )
-                })?;
+                )?;
 
                 // Execute the subquery using SelectExecutor
                 let select_executor = crate::select::SelectExecutor::new(database);
@@ -143,9 +143,9 @@ impl<'a> ExpressionEvaluator<'a> {
                 if rows.is_empty() {
                     Ok(types::SqlValue::Null)
                 } else {
-                    rows[0].get(0).cloned().ok_or_else(|| {
+                    rows[0].get(0).cloned().ok_or(
                         ExecutorError::ColumnIndexOutOfBounds { index: 0 }
-                    })
+                    )
                 }
             }
 
@@ -286,6 +286,8 @@ impl<'a> ExpressionEvaluator<'a> {
 
 impl<'a> CombinedExpressionEvaluator<'a> {
     /// Create a new combined expression evaluator
+    /// Note: Currently unused as all callers use with_database(), but kept for API completeness
+    #[allow(dead_code)]
     pub(crate) fn new(schema: &'a CombinedSchema) -> Self {
         CombinedExpressionEvaluator {
             schema,
@@ -352,11 +354,11 @@ impl<'a> CombinedExpressionEvaluator<'a> {
 
             // Scalar subquery - must return exactly one row and one column
             ast::Expression::ScalarSubquery(subquery) => {
-                let database = self.database.ok_or_else(|| {
+                let database = self.database.ok_or(
                     ExecutorError::UnsupportedFeature(
                         "Subquery execution requires database reference".to_string()
                     )
-                })?;
+                )?;
 
                 // Execute the subquery using SelectExecutor
                 let select_executor = crate::select::SelectExecutor::new(database);
@@ -383,9 +385,9 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 if rows.is_empty() {
                     Ok(types::SqlValue::Null)
                 } else {
-                    rows[0].get(0).cloned().ok_or_else(|| {
+                    rows[0].get(0).cloned().ok_or(
                         ExecutorError::ColumnIndexOutOfBounds { index: 0 }
-                    })
+                    )
                 }
             }
 
