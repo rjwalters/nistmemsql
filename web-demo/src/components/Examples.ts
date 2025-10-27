@@ -106,7 +106,7 @@ export class ExamplesComponent extends Component<ExamplesState> {
             <span class="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
               ${category.queries.length}
             </span>
-            <span class="text-gray-500">${isExpanded ? '▼' : '▶'}</span>
+            <span class="text-gray-500 dark:text-gray-400">${isExpanded ? '▼' : '▶'}</span>
           </div>
         </button>
 

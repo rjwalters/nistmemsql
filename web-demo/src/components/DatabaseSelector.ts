@@ -54,7 +54,7 @@ export class DatabaseSelectorComponent extends Component<DatabaseSelectorState> 
     const { databases, selected } = this.state
 
     if (databases.length === 0) {
-      this.element.innerHTML = '<p class="text-gray-500">No databases available</p>'
+      this.element.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No databases available</p>'
       return
     }
 

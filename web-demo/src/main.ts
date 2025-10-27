@@ -154,6 +154,10 @@ function createLayout(root: HTMLElement): {
         </section>
       </div>
       <div id="help-modal"></div>
+      <footer class="mt-12 text-center text-sm text-gray-600 dark:text-gray-400 pb-6 space-y-1">
+        <p>NIST MemSQL - SQL:1999 Compliant Database in WebAssembly</p>
+        <p id="build-timestamp" class="text-xs text-gray-500 dark:text-gray-500"></p>
+      </footer>
     </div>
   `
 
@@ -423,6 +427,27 @@ async function bootstrap(): Promise<void> {
     layout.statusBar.textContent = 'Monaco editor ready. Write SQL and run with Ctrl/Cmd + Enter.'
     layout.statusBar.classList.remove('status-bar--info')
     layout.statusBar.classList.add('status-bar--success')
+  }
+
+  // Set build timestamp in footer
+  const timestampElement = document.getElementById('build-timestamp')
+  if (timestampElement) {
+    try {
+      const timestamp = __BUILD_TIMESTAMP__
+      const date = new Date(timestamp)
+      const formattedDate = date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZoneName: 'short',
+      })
+      timestampElement.textContent = `Deployed: ${formattedDate}`
+    } catch (error) {
+      console.warn('Failed to set build timestamp', error)
+      timestampElement.textContent = 'Deployed: Development build'
+    }
   }
 }
 
