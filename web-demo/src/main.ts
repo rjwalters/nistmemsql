@@ -4,7 +4,7 @@ import { initDatabase } from './db/wasm'
 import type { Database } from './db/types'
 import { validateSql } from './editor/validation'
 import { ResultsComponent } from './components/Results'
-import { HelpModal } from './components/HelpModal'
+import { ThemeToggleComponent } from './components/ThemeToggle'
 import { initShowcase } from './showcase'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -72,8 +72,6 @@ SELECT * FROM employees;
 -- SELECT name, department, salary FROM employees WHERE salary > 80000;
 `
 
-type StatusVariant = 'info' | 'success' | 'error'
-
 async function loadMonaco(): Promise<Monaco> {
   const amdRequire = window.require
 
@@ -105,83 +103,13 @@ async function loadMonaco(): Promise<Monaco> {
   })
 }
 
-function createLayout(root: HTMLElement): {
-  editorContainer: HTMLDivElement | null
-  statusBar: HTMLDivElement | null
-  results: HTMLDivElement | null
-  resultMeta: HTMLSpanElement | null
-  runButton: HTMLButtonElement | null
-  themeToggle: HTMLButtonElement | null
-  helpButton: HTMLButtonElement | null
-} {
-  root.innerHTML = `
-    <div class="app-shell">
-      <header class="app-header">
-        <div>
-          <h1 class="app-header__title">NIST MemSQL Web Studio</h1>
-          <p class="shortcut-badge">
-            <span class="shortcut-key">⌘ / Ctrl + Enter</span>
-            <span>Run query</span>
-          </p>
-        </div>
-        <div class="app-header__actions">
-          <button id="help-button" class="button secondary" type="button" title="Keyboard shortcuts (? or F1)">
-            Help
-          </button>
-          <button id="toggle-theme" class="button secondary" type="button">
-            Toggle theme
-          </button>
-          <button id="run-query" class="button" type="button">
-            Run query
-          </button>
-        </div>
-      </header>
-      <div class="app-body">
-        <section class="panel">
-          <div id="editor" class="editor-container"></div>
-          <div id="status-bar" class="status-bar status-bar--info">
-            Initializing Monaco editor…
-          </div>
-        </section>
-        <section class="panel panel--results">
-          <div class="results-heading">
-            <span>Results</span>
-            <span id="result-meta" class="shortcut-badge">No query executed yet</span>
-          </div>
-          <div id="results" class="results-empty">
-            Run a query to see results here.
-          </div>
-        </section>
-      </div>
-      <div id="help-modal"></div>
-      <footer class="mt-12 text-center text-sm text-gray-600 dark:text-gray-400 pb-6 space-y-1">
-        <p>NIST MemSQL - SQL:1999 Compliant Database in WebAssembly</p>
-        <p id="build-timestamp" class="text-xs text-gray-500 dark:text-gray-500"></p>
-      </footer>
-    </div>
-  `
-
+function getLayoutElements() {
   return {
-    editorContainer: root.querySelector<HTMLDivElement>('#editor'),
-    statusBar: root.querySelector<HTMLDivElement>('#status-bar'),
-    results: root.querySelector<HTMLDivElement>('#results'),
-    resultMeta: root.querySelector<HTMLSpanElement>('#result-meta'),
-    runButton: root.querySelector<HTMLButtonElement>('#run-query'),
-    themeToggle: root.querySelector<HTMLButtonElement>('#toggle-theme'),
-    helpButton: root.querySelector<HTMLButtonElement>('#help-button'),
+    editorContainer: document.querySelector<HTMLDivElement>('#editor'),
+    results: document.querySelector<HTMLDivElement>('#results'),
+    runButton: document.querySelector<HTMLButtonElement>('#execute-btn'),
+    themeToggleContainer: document.querySelector<HTMLDivElement>('#theme-toggle'),
   } as const
-}
-
-function updateStatus(
-  element: HTMLDivElement | null,
-  message: string,
-  variant: StatusVariant
-): void {
-  if (!element) return
-
-  element.textContent = message
-  element.classList.remove('status-bar--info', 'status-bar--success', 'status-bar--error')
-  element.classList.add(`status-bar--${variant}`)
 }
 
 function applyValidationMarkers(monaco: Monaco, editor: MonacoEditor): void {
@@ -274,8 +202,13 @@ async function safeInitDatabase(): Promise<Database | null> {
   }
 }
 
-function setupThemeSync(themeToggle: HTMLButtonElement | null, monaco: Monaco): void {
+function setupThemeSync(themeToggleContainer: HTMLDivElement | null, monaco: Monaco): void {
+  if (!themeToggleContainer) return
+
   const theme = initTheme()
+
+  // Initialize ThemeToggleComponent - it will populate #theme-toggle automatically
+  new ThemeToggleComponent(theme)
 
   const applyTheme = (mode: 'light' | 'dark'): void => {
     const targetTheme = mode === 'dark' ? 'vs-dark' : 'vs'
@@ -284,16 +217,20 @@ function setupThemeSync(themeToggle: HTMLButtonElement | null, monaco: Monaco): 
 
   applyTheme(theme.current)
 
-  themeToggle?.addEventListener('click', () => {
-    const isDark = theme.toggle()
+  // Listen for theme changes
+  const observer = new MutationObserver(() => {
+    const isDark = document.documentElement.classList.contains('dark')
     applyTheme(isDark ? 'dark' : 'light')
+  })
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class']
   })
 }
 
 function createExecutionHandler(
   editor: MonacoEditor,
   database: Database | null,
-  statusBar: HTMLDivElement | null,
   resultsComponent: ResultsComponent,
   refreshTables: () => void
 ): () => void {
@@ -301,21 +238,17 @@ function createExecutionHandler(
     const sql = editor.getValue().trim()
 
     if (!sql) {
-      updateStatus(statusBar, 'Nothing to execute. Type a query first.', 'info')
+      console.warn('Nothing to execute. Type a query first.')
       return
     }
 
     if (!database) {
-      updateStatus(
-        statusBar,
-        'Database core is not ready yet. Build the WASM module to enable execution.',
-        'error'
-      )
+      console.error('Database core is not ready yet.')
+      resultsComponent.showError('Database not ready. Please refresh the page.')
       return
     }
 
     resultsComponent.setLoading(true)
-    updateStatus(statusBar, 'Executing query...', 'info')
 
     // Use setTimeout to allow UI to update before blocking execution
     setTimeout(() => {
@@ -331,25 +264,24 @@ function createExecutionHandler(
         const executionTime = performance.now() - startTime
 
         resultsComponent.showResults(result, executionTime)
-        updateStatus(statusBar, 'Query executed successfully.', 'success')
         refreshTables()
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         resultsComponent.showError(message)
-        updateStatus(statusBar, `Execution error: ${message}`, 'error')
+        console.error(`Execution error: ${message}`)
       }
     }, 10)
   }
 }
 
 async function bootstrap(): Promise<void> {
-  const appRoot = document.getElementById('app')
-  if (!appRoot) {
-    console.error('Failed to find #app container')
+  const layout = getLayoutElements()
+
+  if (!layout.editorContainer) {
+    console.error('Failed to find #editor container')
     return
   }
 
-  const layout = createLayout(appRoot)
   const monaco = await loadMonaco()
   const editor = monaco.editor.create(layout.editorContainer, {
     value: DEFAULT_SQL,
@@ -364,7 +296,7 @@ async function bootstrap(): Promise<void> {
     scrollBeyondLastLine: false,
   })
 
-  setupThemeSync(layout.themeToggle, monaco)
+  setupThemeSync(layout.themeToggleContainer, monaco)
 
   const database = await safeInitDatabase()
   let tableNames: string[] = []
@@ -406,28 +338,19 @@ async function bootstrap(): Promise<void> {
   applyValidationMarkers(monaco, editor)
 
   const resultsComponent = new ResultsComponent()
-  const helpModal = new HelpModal()
 
   const execute = createExecutionHandler(
     editor,
     database,
-    layout.statusBar,
     resultsComponent,
     refreshTables
   )
 
   registerShortcuts(monaco, editor, execute)
   layout.runButton?.addEventListener('click', execute)
-  layout.helpButton?.addEventListener('click', () => helpModal.open())
 
   // Initialize SQL:1999 Showcase navigation
   initShowcase()
-
-  if (layout.statusBar) {
-    layout.statusBar.textContent = 'Monaco editor ready. Write SQL and run with Ctrl/Cmd + Enter.'
-    layout.statusBar.classList.remove('status-bar--info')
-    layout.statusBar.classList.add('status-bar--success')
-  }
 
   // Set build timestamp in footer
   const timestampElement = document.getElementById('build-timestamp')
