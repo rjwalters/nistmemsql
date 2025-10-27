@@ -4,6 +4,7 @@ import { SubqueriesShowcase } from '../components/SubqueriesShowcase'
 import { PredicatesShowcase } from '../components/PredicatesShowcase'
 import { AggregatesShowcase } from '../components/AggregatesShowcase'
 import { DMLOperationsShowcase } from '../components/DMLOperationsShowcase'
+import { JOINsShowcase } from '../components/JOINsShowcase'
 
 type ShowcaseComponent =
   | DataTypesShowcase
@@ -11,6 +12,7 @@ type ShowcaseComponent =
   | PredicatesShowcase
   | AggregatesShowcase
   | DMLOperationsShowcase
+  | JOINsShowcase
 
 export class ShowcaseController {
   private nav: ShowcaseNav
@@ -84,8 +86,12 @@ export class ShowcaseController {
         this.currentShowcase.mount(this.contentContainer)
         break
 
+      case 'joins':
+        this.currentShowcase = new JOINsShowcase()
+        this.currentShowcase.mount(this.contentContainer)
+        break
+
       // Future categories will be added here:
-      // case 'joins': ...
       // etc.
 
       default:
