@@ -437,6 +437,48 @@ impl<'a> ExpressionEvaluator<'a> {
                         }
                     }
 
+                    // UPPER(string) - Convert string to uppercase
+                    // SQL:1999 Section 6.29: String value functions
+                    "UPPER" => {
+                        if args.len() != 1 {
+                            return Err(ExecutorError::UnsupportedFeature(
+                                format!("UPPER requires exactly 1 argument, got {}", args.len()),
+                            ));
+                        }
+
+                        let val = self.eval(&args[0], row)?;
+
+                        match val {
+                            types::SqlValue::Null => Ok(types::SqlValue::Null),
+                            types::SqlValue::Varchar(s) => Ok(types::SqlValue::Varchar(s.to_uppercase())),
+                            types::SqlValue::Character(s) => Ok(types::SqlValue::Varchar(s.to_uppercase())),
+                            _ => Err(ExecutorError::UnsupportedFeature(
+                                format!("UPPER requires string argument, got {:?}", val),
+                            )),
+                        }
+                    }
+
+                    // LOWER(string) - Convert string to lowercase
+                    // SQL:1999 Section 6.29: String value functions
+                    "LOWER" => {
+                        if args.len() != 1 {
+                            return Err(ExecutorError::UnsupportedFeature(
+                                format!("LOWER requires exactly 1 argument, got {}", args.len()),
+                            ));
+                        }
+
+                        let val = self.eval(&args[0], row)?;
+
+                        match val {
+                            types::SqlValue::Null => Ok(types::SqlValue::Null),
+                            types::SqlValue::Varchar(s) => Ok(types::SqlValue::Varchar(s.to_lowercase())),
+                            types::SqlValue::Character(s) => Ok(types::SqlValue::Varchar(s.to_lowercase())),
+                            _ => Err(ExecutorError::UnsupportedFeature(
+                                format!("LOWER requires string argument, got {:?}", val),
+                            )),
+                        }
+                    }
+
                     // Unknown function - could be aggregate (handled elsewhere) or error
                     _ => Err(ExecutorError::UnsupportedFeature(
                         format!("Scalar function {} not supported in this context", name),
