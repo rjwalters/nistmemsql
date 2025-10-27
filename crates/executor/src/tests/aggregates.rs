@@ -33,6 +33,7 @@ fn test_count_star_no_group_by() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Function {
                 name: "COUNT".to_string(),
@@ -83,6 +84,7 @@ fn test_sum_no_group_by() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Function {
                 name: "SUM".to_string(),
@@ -149,6 +151,7 @@ fn test_group_by_with_count() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        distinct: false,
         select_list: vec![
             ast::SelectItem::Expression {
                 expr: ast::Expression::ColumnRef { table: None, column: "dept".to_string() },
@@ -232,6 +235,7 @@ fn test_having_clause() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        distinct: false,
         select_list: vec![
             ast::SelectItem::Expression {
                 expr: ast::Expression::ColumnRef { table: None, column: "dept".to_string() },

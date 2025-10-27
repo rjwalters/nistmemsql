@@ -169,3 +169,60 @@ fn test_e2e_limit_offset() {
 
     assert_eq!(names, vec!["Bob".to_string(), "Charlie".to_string()]);
 }
+
+#[test]
+fn test_e2e_distinct() {
+    let mut db = Database::new();
+    let schema = TableSchema::new(
+        "products".to_string(),
+        vec![
+            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("category".to_string(), DataType::Varchar { max_length: 50 }, false),
+        ],
+    );
+    db.create_table(schema).unwrap();
+
+    // Insert products with duplicate categories
+    let products = vec![
+        Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Electronics".to_string()),
+        ]),
+        Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Books".to_string()),
+        ]),
+        Row::new(vec![
+            SqlValue::Integer(3),
+            SqlValue::Varchar("Electronics".to_string()),
+        ]),
+        Row::new(vec![
+            SqlValue::Integer(4),
+            SqlValue::Varchar("Books".to_string()),
+        ]),
+        Row::new(vec![
+            SqlValue::Integer(5),
+            SqlValue::Varchar("Clothing".to_string()),
+        ]),
+    ];
+
+    for row in products {
+        db.insert_row("products", row).unwrap();
+    }
+
+    // Test SELECT DISTINCT
+    let results = execute_select(&db, "SELECT DISTINCT category FROM products").unwrap();
+    assert_eq!(results.len(), 3);
+
+    let categories: Vec<String> = results
+        .iter()
+        .map(|row| match &row.values[0] {
+            SqlValue::Varchar(name) => name.clone(),
+            _ => panic!("Expected varchar"),
+        })
+        .collect();
+
+    assert!(categories.contains(&"Electronics".to_string()));
+    assert!(categories.contains(&"Books".to_string()));
+    assert!(categories.contains(&"Clothing".to_string()));
+}

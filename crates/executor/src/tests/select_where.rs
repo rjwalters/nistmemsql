@@ -33,6 +33,7 @@ fn test_select_with_where() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        distinct: false,
         select_list: vec![ast::SelectItem::Wildcard],
         from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
         where_clause: Some(ast::Expression::BinaryOp {

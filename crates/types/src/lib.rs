@@ -8,6 +8,7 @@
 
 use std::cmp::Ordering;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 
 /// SQL:1999 Data Types
 ///
@@ -173,6 +174,70 @@ impl PartialOrd for SqlValue {
 
             // Type mismatch - incomparable (SQL:1999 behavior)
             _ => None,
+        }
+    }
+}
+
+/// Eq implementation for SqlValue
+///
+/// For DISTINCT operations, we need Eq semantics where:
+/// - NULL == NULL (for grouping purposes, unlike SQL comparison)
+/// - NaN == NaN (for grouping purposes, unlike IEEE 754)
+/// - All other values use standard equality
+impl Eq for SqlValue {}
+
+/// Hash implementation for SqlValue
+///
+/// Custom implementation to handle floating-point values correctly:
+/// - NaN values are treated as equal (hash to same value)
+/// - Uses to_bits() for floats to ensure consistent hashing
+/// - NULL hashes to a specific value
+impl Hash for SqlValue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        use SqlValue::*;
+
+        // Hash discriminant first to distinguish variants
+        std::mem::discriminant(self).hash(state);
+
+        match self {
+            Integer(i) => i.hash(state),
+            Smallint(i) => i.hash(state),
+            Bigint(i) => i.hash(state),
+            Numeric(s) => s.hash(state),
+
+            // For floats, use to_bits() to get consistent hash for NaN
+            Float(f) => {
+                if f.is_nan() {
+                    // All NaN values hash the same
+                    f32::NAN.to_bits().hash(state);
+                } else {
+                    f.to_bits().hash(state);
+                }
+            }
+            Real(f) => {
+                if f.is_nan() {
+                    f32::NAN.to_bits().hash(state);
+                } else {
+                    f.to_bits().hash(state);
+                }
+            }
+            Double(f) => {
+                if f.is_nan() {
+                    f64::NAN.to_bits().hash(state);
+                } else {
+                    f.to_bits().hash(state);
+                }
+            }
+
+            Character(s) => s.hash(state),
+            Varchar(s) => s.hash(state),
+            Boolean(b) => b.hash(state),
+            Date(s) => s.hash(state),
+            Time(s) => s.hash(state),
+            Timestamp(s) => s.hash(state),
+
+            // NULL hashes to nothing (discriminant is enough)
+            Null => {}
         }
     }
 }
