@@ -1,12 +1,15 @@
 import { ShowcaseNav } from '../components/ShowcaseNav'
 import { DataTypesShowcase } from '../components/DataTypesShowcase'
+import { SubqueriesShowcase } from '../components/SubqueriesShowcase'
+
+type ShowcaseComponent = DataTypesShowcase | SubqueriesShowcase
 
 export class ShowcaseController {
   private nav: ShowcaseNav
   private container: HTMLElement
   private contentContainer: HTMLElement
   private isVisible: boolean = false
-  private currentShowcase: DataTypesShowcase | null = null
+  private currentShowcase: ShowcaseComponent | null = null
 
   constructor(containerId: string) {
     const container = document.getElementById(containerId)
@@ -53,9 +56,15 @@ export class ShowcaseController {
         this.currentShowcase.mount(this.contentContainer)
         break
 
+      case 'subqueries':
+        this.currentShowcase = new SubqueriesShowcase()
+        this.currentShowcase.mount(this.contentContainer)
+        break
+
       // Future categories will be added here:
       // case 'dml': ...
       // case 'predicates': ...
+      // case 'joins': ...
       // etc.
 
       default:
