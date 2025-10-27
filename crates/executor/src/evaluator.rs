@@ -110,6 +110,45 @@ impl<'a> ExpressionEvaluator<'a> {
                 ))
             }
 
+            // Scalar subquery - must return exactly one row and one column
+            ast::Expression::ScalarSubquery(subquery) => {
+                let database = self.database.ok_or_else(|| {
+                    ExecutorError::UnsupportedFeature(
+                        "Subquery execution requires database reference".to_string()
+                    )
+                })?;
+
+                // Execute the subquery using SelectExecutor
+                let select_executor = crate::select::SelectExecutor::new(database);
+                let rows = select_executor.execute(subquery)?;
+
+                // SQL:1999 Section 7.9: Scalar subquery must return exactly 1 row
+                if rows.len() > 1 {
+                    return Err(ExecutorError::SubqueryReturnedMultipleRows {
+                        expected: 1,
+                        actual: rows.len(),
+                    });
+                }
+
+                // SQL:1999 Section 7.9: Scalar subquery must return exactly 1 column
+                // Check column count from SELECT list
+                if subquery.select_list.len() != 1 {
+                    return Err(ExecutorError::SubqueryColumnCountMismatch {
+                        expected: 1,
+                        actual: subquery.select_list.len(),
+                    });
+                }
+
+                // Return the single value, or NULL if no rows
+                if rows.is_empty() {
+                    Ok(types::SqlValue::Null)
+                } else {
+                    rows[0].get(0).cloned().ok_or_else(|| {
+                        ExecutorError::ColumnIndexOutOfBounds { index: 0 }
+                    })
+                }
+            }
+
             // TODO: Implement other expression types
             _ => Err(ExecutorError::UnsupportedExpression(format!("{:?}", expr))),
         }
