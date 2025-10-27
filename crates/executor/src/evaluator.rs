@@ -101,6 +101,10 @@ impl<'a> ExpressionEvaluator<'a> {
             (Varchar(a), Equal, Varchar(b)) => Ok(Boolean(a == b)),
             (Varchar(a), NotEqual, Varchar(b)) => Ok(Boolean(a != b)),
 
+            // Boolean comparisons
+            (Boolean(a), Equal, Boolean(b)) => Ok(Boolean(a == b)),
+            (Boolean(a), NotEqual, Boolean(b)) => Ok(Boolean(a != b)),
+
             // Boolean logic
             (Boolean(a), And, Boolean(b)) => Ok(Boolean(*a && *b)),
             (Boolean(a), Or, Boolean(b)) => Ok(Boolean(*a || *b)),
