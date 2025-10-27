@@ -445,6 +445,394 @@ pub(super) fn eval_scalar_function(
             }
         }
 
+        // EXP(x) - e raised to power x
+        // SQL:1999 Section 6.27: Numeric value functions
+        "EXP" => {
+            if args.len() != 1 {
+                return Err(ExecutorError::UnsupportedFeature(
+                    format!("EXP requires exactly 1 argument, got {}", args.len()),
+                ));
+            }
+
+            match &args[0] {
+                types::SqlValue::Null => Ok(types::SqlValue::Null),
+                val => {
+                    let x = numeric_to_f64(val)?;
+                    Ok(types::SqlValue::Double(x.exp()))
+                }
+            }
+        }
+
+        // LN(x) / LOG(x) - Natural logarithm
+        // SQL:1999 Section 6.27: Numeric value functions
+        "LN" | "LOG" => {
+            if args.len() != 1 {
+                return Err(ExecutorError::UnsupportedFeature(
+                    format!("{} requires exactly 1 argument, got {}", name, args.len()),
+                ));
+            }
+
+            match &args[0] {
+                types::SqlValue::Null => Ok(types::SqlValue::Null),
+                val => {
+                    let x = numeric_to_f64(val)?;
+                    if x <= 0.0 {
+                        Err(ExecutorError::UnsupportedFeature(
+                            format!("{} of non-positive number", name),
+                        ))
+                    } else {
+                        Ok(types::SqlValue::Double(x.ln()))
+                    }
+                }
+            }
+        }
+
+        // LOG10(x) - Base-10 logarithm
+        "LOG10" => {
+            if args.len() != 1 {
+                return Err(ExecutorError::UnsupportedFeature(
+                    format!("LOG10 requires exactly 1 argument, got {}", args.len()),
+                ));
+            }
+
+            match &args[0] {
+                types::SqlValue::Null => Ok(types::SqlValue::Null),
+                val => {
+                    let x = numeric_to_f64(val)?;
+                    if x <= 0.0 {
+                        Err(ExecutorError::UnsupportedFeature(
+                            "LOG10 of non-positive number".to_string(),
+                        ))
+                    } else {
+                        Ok(types::SqlValue::Double(x.log10()))
+                    }
+                }
+            }
+        }
+
+        // SIGN(x) - Sign of number (-1, 0, or 1)
+        "SIGN" => {
+            if args.len() != 1 {
+                return Err(ExecutorError::UnsupportedFeature(
+                    format!("SIGN requires exactly 1 argument, got {}", args.len()),
+                ));
+            }
+
+            match &args[0] {
+                types::SqlValue::Null => Ok(types::SqlValue::Null),
+                types::SqlValue::Integer(n) => {
+                    let sign = if *n < 0 {
+                        -1
+                    } else if *n > 0 {
+                        1
+                    } else {
+                        0
+                    };
+                    Ok(types::SqlValue::Integer(sign))
+                }
+                val => {
+                    let x = numeric_to_f64(val)?;
+                    let sign = if x < 0.0 {
+                        -1.0
+                    } else if x > 0.0 {
+                        1.0
+                    } else {
+                        0.0
+                    };
+                    Ok(types::SqlValue::Double(sign))
+                }
+            }
+        }
+
+        // PI() - Mathematical constant π
+        "PI" => {
+            if !args.is_empty() {
+                return Err(ExecutorError::UnsupportedFeature(
+                    format!("PI requires no arguments, got {}", args.len()),
+                ));
+            }
+            Ok(types::SqlValue::Double(std::f64::consts::PI))
+        }
+
+        // ==================== TRIGONOMETRIC FUNCTIONS ====================
+
+        // SIN(x) - Sine (x in radians)
+        "SIN" => {
+            if args.len() != 1 {
+                return Err(ExecutorError::UnsupportedFeature(
+                    format!("SIN requires exactly 1 argument, got {}", args.len()),
+                ));
+            }
+
+            match &args[0] {
+                types::SqlValue::Null => Ok(types::SqlValue::Null),
+                val => {
+                    let x = numeric_to_f64(val)?;
+                    Ok(types::SqlValue::Double(x.sin()))
+                }
+            }
+        }
+
+        // COS(x) - Cosine (x in radians)
+        "COS" => {
+            if args.len() != 1 {
+                return Err(ExecutorError::UnsupportedFeature(
+                    format!("COS requires exactly 1 argument, got {}", args.len()),
+                ));
+            }
+
+            match &args[0] {
+                types::SqlValue::Null => Ok(types::SqlValue::Null),
+                val => {
+                    let x = numeric_to_f64(val)?;
+                    Ok(types::SqlValue::Double(x.cos()))
+                }
+            }
+        }
+
+        // TAN(x) - Tangent (x in radians)
+        "TAN" => {
+            if args.len() != 1 {
+                return Err(ExecutorError::UnsupportedFeature(
+                    format!("TAN requires exactly 1 argument, got {}", args.len()),
+                ));
+            }
+
+            match &args[0] {
+                types::SqlValue::Null => Ok(types::SqlValue::Null),
+                val => {
+                    let x = numeric_to_f64(val)?;
+                    Ok(types::SqlValue::Double(x.tan()))
+                }
+            }
+        }
+
+        // ASIN(x) - Arcsine (returns radians)
+        "ASIN" => {
+            if args.len() != 1 {
+                return Err(ExecutorError::UnsupportedFeature(
+                    format!("ASIN requires exactly 1 argument, got {}", args.len()),
+                ));
+            }
+
+            match &args[0] {
+                types::SqlValue::Null => Ok(types::SqlValue::Null),
+                val => {
+                    let x = numeric_to_f64(val)?;
+                    if x < -1.0 || x > 1.0 {
+                        Err(ExecutorError::UnsupportedFeature(
+                            "ASIN requires value between -1 and 1".to_string(),
+                        ))
+                    } else {
+                        Ok(types::SqlValue::Double(x.asin()))
+                    }
+                }
+            }
+        }
+
+        // ACOS(x) - Arccosine (returns radians)
+        "ACOS" => {
+            if args.len() != 1 {
+                return Err(ExecutorError::UnsupportedFeature(
+                    format!("ACOS requires exactly 1 argument, got {}", args.len()),
+                ));
+            }
+
+            match &args[0] {
+                types::SqlValue::Null => Ok(types::SqlValue::Null),
+                val => {
+                    let x = numeric_to_f64(val)?;
+                    if x < -1.0 || x > 1.0 {
+                        Err(ExecutorError::UnsupportedFeature(
+                            "ACOS requires value between -1 and 1".to_string(),
+                        ))
+                    } else {
+                        Ok(types::SqlValue::Double(x.acos()))
+                    }
+                }
+            }
+        }
+
+        // ATAN(x) - Arctangent (returns radians)
+        "ATAN" => {
+            if args.len() != 1 {
+                return Err(ExecutorError::UnsupportedFeature(
+                    format!("ATAN requires exactly 1 argument, got {}", args.len()),
+                ));
+            }
+
+            match &args[0] {
+                types::SqlValue::Null => Ok(types::SqlValue::Null),
+                val => {
+                    let x = numeric_to_f64(val)?;
+                    Ok(types::SqlValue::Double(x.atan()))
+                }
+            }
+        }
+
+        // ATAN2(y, x) - Arctangent of y/x (returns radians)
+        "ATAN2" => {
+            if args.len() != 2 {
+                return Err(ExecutorError::UnsupportedFeature(
+                    format!("ATAN2 requires exactly 2 arguments, got {}", args.len()),
+                ));
+            }
+
+            match (&args[0], &args[1]) {
+                (types::SqlValue::Null, _) | (_, types::SqlValue::Null) => {
+                    Ok(types::SqlValue::Null)
+                }
+                (y_val, x_val) => {
+                    let y = numeric_to_f64(y_val)?;
+                    let x = numeric_to_f64(x_val)?;
+                    Ok(types::SqlValue::Double(y.atan2(x)))
+                }
+            }
+        }
+
+        // RADIANS(x) - Convert degrees to radians
+        "RADIANS" => {
+            if args.len() != 1 {
+                return Err(ExecutorError::UnsupportedFeature(
+                    format!("RADIANS requires exactly 1 argument, got {}", args.len()),
+                ));
+            }
+
+            match &args[0] {
+                types::SqlValue::Null => Ok(types::SqlValue::Null),
+                val => {
+                    let degrees = numeric_to_f64(val)?;
+                    Ok(types::SqlValue::Double(degrees.to_radians()))
+                }
+            }
+        }
+
+        // DEGREES(x) - Convert radians to degrees
+        "DEGREES" => {
+            if args.len() != 1 {
+                return Err(ExecutorError::UnsupportedFeature(
+                    format!("DEGREES requires exactly 1 argument, got {}", args.len()),
+                ));
+            }
+
+            match &args[0] {
+                types::SqlValue::Null => Ok(types::SqlValue::Null),
+                val => {
+                    let radians = numeric_to_f64(val)?;
+                    Ok(types::SqlValue::Double(radians.to_degrees()))
+                }
+            }
+        }
+
+        // ==================== CONDITIONAL FUNCTIONS ====================
+
+        // GREATEST(val1, val2, ...) - Returns greatest value
+        "GREATEST" => {
+            if args.is_empty() {
+                return Err(ExecutorError::UnsupportedFeature(
+                    "GREATEST requires at least one argument".to_string(),
+                ));
+            }
+
+            let mut max_val = &args[0];
+            for arg in &args[1..] {
+                // Skip NULL values
+                if matches!(arg, types::SqlValue::Null) {
+                    continue;
+                }
+                if matches!(max_val, types::SqlValue::Null) {
+                    max_val = arg;
+                    continue;
+                }
+
+                // Compare values
+                match (max_val, arg) {
+                    (types::SqlValue::Integer(a), types::SqlValue::Integer(b)) => {
+                        if b > a {
+                            max_val = arg;
+                        }
+                    }
+                    (types::SqlValue::Double(a), types::SqlValue::Double(b)) => {
+                        if b > a {
+                            max_val = arg;
+                        }
+                    }
+                    (a, b) => {
+                        let a_f64 = numeric_to_f64(a)?;
+                        let b_f64 = numeric_to_f64(b)?;
+                        if b_f64 > a_f64 {
+                            max_val = arg;
+                        }
+                    }
+                }
+            }
+
+            Ok(max_val.clone())
+        }
+
+        // LEAST(val1, val2, ...) - Returns smallest value
+        "LEAST" => {
+            if args.is_empty() {
+                return Err(ExecutorError::UnsupportedFeature(
+                    "LEAST requires at least one argument".to_string(),
+                ));
+            }
+
+            let mut min_val = &args[0];
+            for arg in &args[1..] {
+                // Skip NULL values
+                if matches!(arg, types::SqlValue::Null) {
+                    continue;
+                }
+                if matches!(min_val, types::SqlValue::Null) {
+                    min_val = arg;
+                    continue;
+                }
+
+                // Compare values
+                match (min_val, arg) {
+                    (types::SqlValue::Integer(a), types::SqlValue::Integer(b)) => {
+                        if b < a {
+                            min_val = arg;
+                        }
+                    }
+                    (types::SqlValue::Double(a), types::SqlValue::Double(b)) => {
+                        if b < a {
+                            min_val = arg;
+                        }
+                    }
+                    (a, b) => {
+                        let a_f64 = numeric_to_f64(a)?;
+                        let b_f64 = numeric_to_f64(b)?;
+                        if b_f64 < a_f64 {
+                            min_val = arg;
+                        }
+                    }
+                }
+            }
+
+            Ok(min_val.clone())
+        }
+
+        // IF(condition, true_value, false_value) - MySQL-style conditional
+        "IF" => {
+            if args.len() != 3 {
+                return Err(ExecutorError::UnsupportedFeature(
+                    format!("IF requires exactly 3 arguments, got {}", args.len()),
+                ));
+            }
+
+            // Evaluate condition
+            let condition = &args[0];
+            match condition {
+                types::SqlValue::Boolean(true) => Ok(args[1].clone()),
+                types::SqlValue::Boolean(false) | types::SqlValue::Null => Ok(args[2].clone()),
+                _ => Err(ExecutorError::UnsupportedFeature(
+                    format!("IF condition must be boolean, got {:?}", condition),
+                )),
+            }
+        }
+
         // ==================== ADDITIONAL STRING FUNCTIONS ====================
 
         // CONCAT(str1, str2, ...) - Concatenate strings
