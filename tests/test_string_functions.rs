@@ -319,3 +319,93 @@ fn test_substring_zero_length() {
         SqlValue::Varchar("".to_string())
     );
 }
+
+// --- TRIM tests ---
+
+#[test]
+fn test_trim_basic() {
+    let mut db = Database::new();
+    create_dummy_table(&mut db);
+
+    let results = execute_query(&db, "SELECT TRIM('  hello  ') AS result FROM dual;").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(
+        results[0].values[0],
+        SqlValue::Varchar("hello".to_string())
+    );
+}
+
+#[test]
+fn test_trim_leading_only() {
+    let mut db = Database::new();
+    create_dummy_table(&mut db);
+
+    let results = execute_query(&db, "SELECT TRIM('  hello') AS result FROM dual;").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(
+        results[0].values[0],
+        SqlValue::Varchar("hello".to_string())
+    );
+}
+
+#[test]
+fn test_trim_trailing_only() {
+    let mut db = Database::new();
+    create_dummy_table(&mut db);
+
+    let results = execute_query(&db, "SELECT TRIM('hello  ') AS result FROM dual;").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(
+        results[0].values[0],
+        SqlValue::Varchar("hello".to_string())
+    );
+}
+
+#[test]
+fn test_trim_no_spaces() {
+    let mut db = Database::new();
+    create_dummy_table(&mut db);
+
+    let results = execute_query(&db, "SELECT TRIM('hello') AS result FROM dual;").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(
+        results[0].values[0],
+        SqlValue::Varchar("hello".to_string())
+    );
+}
+
+#[test]
+fn test_trim_only_spaces() {
+    let mut db = Database::new();
+    create_dummy_table(&mut db);
+
+    let results = execute_query(&db, "SELECT TRIM('   ') AS result FROM dual;").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(
+        results[0].values[0],
+        SqlValue::Varchar("".to_string())
+    );
+}
+
+#[test]
+fn test_trim_preserves_internal_spaces() {
+    let mut db = Database::new();
+    create_dummy_table(&mut db);
+
+    let results = execute_query(&db, "SELECT TRIM('  hello world  ') AS result FROM dual;").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(
+        results[0].values[0],
+        SqlValue::Varchar("hello world".to_string())
+    );
+}
+
+#[test]
+fn test_trim_null() {
+    let mut db = Database::new();
+    create_dummy_table(&mut db);
+
+    let results = execute_query(&db, "SELECT TRIM(NULL) AS result FROM dual;").unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].values[0], SqlValue::Null);
+}

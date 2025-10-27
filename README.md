@@ -17,19 +17,19 @@ Build a **FULL SQL:1999 compliant** database from scratch, designed for NIST con
 
 ### Two-Phase Strategy
 
-**Phase 1: Core SQL:1999 Compliance** (Current Focus)
+**Phase 1: Core SQL:1999 Compliance** (Current Focus - AI Speed Run)
 - Implement ~169 mandatory Core features
-- Timeline: **10-14 months** from start
+- Timeline: **~1 week** from start (Oct 25, 2025)
 - Enables NIST Core testing
 - Provides solid foundation
 
 **Phase 2: FULL SQL:1999 Compliance** (Ultimate Goal)
 - Implement all mandatory + optional features (400+)
-- Timeline: **5-7 years** total
+- Timeline: A larger effort, but not years
 - Unprecedented achievement
 - Aligns with [upstream posix4e/nistmemsql](https://github.com/posix4e/nistmemsql) vision
 
-**Note**: PostgreSQL, Oracle, and SQL Server implement Core + selective optional features. We're targeting complete compliance as a long-term research goal.
+**Note**: PostgreSQL, Oracle, and SQL Server implement Core + selective optional features. This is an AI-powered "speed run" to demonstrate rapid standards compliance.
 
 ---
 
@@ -102,8 +102,9 @@ Build a **FULL SQL:1999 compliant** database from scratch, designed for NIST con
 
 ### To Core SQL:1999 Compliance
 
-**Estimated Timeline**: 10-14 months from project start (Oct 2024)
-**Completion Target**: ~August 2025 - October 2025
+**Project Started**: Saturday, October 25, 2025
+**Estimated Timeline**: ~1 week (AI speed run)
+**Target Completion**: Early November 2025
 
 **Remaining Major Work**:
 1. Complete type system (DATE, TIME, TIMESTAMP, NUMERIC, INTERVAL, etc.)
@@ -119,10 +120,10 @@ Build a **FULL SQL:1999 compliant** database from scratch, designed for NIST con
 
 ### To FULL SQL:1999 Compliance
 
-**Estimated Timeline**: 5-7 years total
-**Completion Target**: ~2029-2031
+**Estimated Timeline**: A much larger effort beyond Core, but achievable
+**Target**: To be determined after Core completion
 
-**Additional Work Beyond Core** (~4-6 years):
+**Additional Work Beyond Core**:
 - Advanced type system (ARRAY, ROW, UDT, BLOB, CLOB)
 - Window functions (ROW_NUMBER, RANK, LEAD, LAG)
 - Recursive CTEs (WITH RECURSIVE)
@@ -293,7 +294,8 @@ See [WORK_PLAN.md](WORK_PLAN.md) for current priorities.
 - **Tests**: 477 passing (100%)
 - **Coverage**: 84%
 - **LOC**: ~11,000
-- **Development Time**: ~6 months (Oct 2024 - Oct 2025)
+- **Project Type**: AI-powered speed run for CORE compliance
+- **Started**: October 25, 2025
 - **Approach**: Test-Driven Development
 - **Orchestration**: Loom AI framework
 
@@ -340,8 +342,8 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 ---
 
-**Current Focus**: Building toward Core SQL:1999 compliance (~25-30% complete)
+**Current Focus**: AI speed run to Core SQL:1999 compliance (~25-30% complete, target: 1 week)
 
-**Ultimate Goal**: FULL SQL:1999 compliance (5-7 year research project)
+**Ultimate Goal**: FULL SQL:1999 compliance (larger effort, but achievable)
 
 **Try it now**: [Live Demo →](https://rjwalters.github.io/nistmemsql/)

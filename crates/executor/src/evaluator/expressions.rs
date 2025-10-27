@@ -563,6 +563,27 @@ impl<'a> ExpressionEvaluator<'a> {
                         Ok(types::SqlValue::Varchar(result))
                     }
 
+                    // TRIM(string) - Remove leading and trailing spaces
+                    // SQL:1999 Section 6.29: String value functions
+                    "TRIM" => {
+                        if args.len() != 1 {
+                            return Err(ExecutorError::UnsupportedFeature(
+                                format!("TRIM requires exactly 1 argument, got {}", args.len()),
+                            ));
+                        }
+
+                        let val = self.eval(&args[0], row)?;
+
+                        match val {
+                            types::SqlValue::Null => Ok(types::SqlValue::Null),
+                            types::SqlValue::Varchar(s) => Ok(types::SqlValue::Varchar(s.trim().to_string())),
+                            types::SqlValue::Character(s) => Ok(types::SqlValue::Varchar(s.trim().to_string())),
+                            _ => Err(ExecutorError::UnsupportedFeature(
+                                format!("TRIM requires string argument, got {:?}", val),
+                            )),
+                        }
+                    }
+
                     // Unknown function - could be aggregate (handled elsewhere) or error
                     _ => Err(ExecutorError::UnsupportedFeature(
                         format!("Scalar function {} not supported in this context", name),
