@@ -607,4 +607,349 @@ mod tests {
         assert!(a == a);
         assert!(a != b);
     }
+
+    // ============================================================================
+    // Additional Type Compatibility Tests
+    // ============================================================================
+
+    #[test]
+    fn test_boolean_compatible_with_boolean() {
+        assert!(DataType::Boolean.is_compatible_with(&DataType::Boolean));
+    }
+
+    #[test]
+    fn test_date_compatible_with_date() {
+        assert!(DataType::Date.is_compatible_with(&DataType::Date));
+    }
+
+    // ============================================================================
+    // Additional get_type() Tests
+    // ============================================================================
+
+    #[test]
+    fn test_smallint_value_has_smallint_type() {
+        let value = SqlValue::Smallint(42);
+        assert_eq!(value.get_type(), DataType::Smallint);
+    }
+
+    #[test]
+    fn test_bigint_value_has_bigint_type() {
+        let value = SqlValue::Bigint(1000);
+        assert_eq!(value.get_type(), DataType::Bigint);
+    }
+
+    #[test]
+    fn test_numeric_value_has_numeric_type() {
+        let value = SqlValue::Numeric("123.45".to_string());
+        match value.get_type() {
+            DataType::Numeric { .. } => {} // Success
+            _ => panic!("Expected Numeric type"),
+        }
+    }
+
+    #[test]
+    fn test_float_value_has_float_type() {
+        let value = SqlValue::Float(3.14);
+        assert_eq!(value.get_type(), DataType::Float);
+    }
+
+    #[test]
+    fn test_real_value_has_real_type() {
+        let value = SqlValue::Real(2.71);
+        assert_eq!(value.get_type(), DataType::Real);
+    }
+
+    #[test]
+    fn test_double_value_has_double_type() {
+        let value = SqlValue::Double(3.14159);
+        assert_eq!(value.get_type(), DataType::DoublePrecision);
+    }
+
+    #[test]
+    fn test_character_value_has_character_type() {
+        let value = SqlValue::Character("hello".to_string());
+        match value.get_type() {
+            DataType::Character { .. } => {} // Success
+            _ => panic!("Expected Character type"),
+        }
+    }
+
+    #[test]
+    fn test_date_value_has_date_type() {
+        let value = SqlValue::Date("2024-01-01".to_string());
+        assert_eq!(value.get_type(), DataType::Date);
+    }
+
+    #[test]
+    fn test_time_value_has_time_type() {
+        let value = SqlValue::Time("12:30:00".to_string());
+        match value.get_type() {
+            DataType::Time { .. } => {} // Success
+            _ => panic!("Expected Time type"),
+        }
+    }
+
+    #[test]
+    fn test_timestamp_value_has_timestamp_type() {
+        let value = SqlValue::Timestamp("2024-01-01 12:30:00".to_string());
+        match value.get_type() {
+            DataType::Timestamp { .. } => {} // Success
+            _ => panic!("Expected Timestamp type"),
+        }
+    }
+
+    // ============================================================================
+    // Additional Display Tests
+    // ============================================================================
+
+    #[test]
+    fn test_smallint_display() {
+        let value = SqlValue::Smallint(100);
+        assert_eq!(format!("{}", value), "100");
+    }
+
+    #[test]
+    fn test_bigint_display() {
+        let value = SqlValue::Bigint(1000000);
+        assert_eq!(format!("{}", value), "1000000");
+    }
+
+    #[test]
+    fn test_numeric_display() {
+        let value = SqlValue::Numeric("123.45".to_string());
+        assert_eq!(format!("{}", value), "123.45");
+    }
+
+    #[test]
+    fn test_float_display() {
+        let value = SqlValue::Float(3.14);
+        assert_eq!(format!("{}", value), "3.14");
+    }
+
+    #[test]
+    fn test_real_display() {
+        let value = SqlValue::Real(2.71);
+        assert_eq!(format!("{}", value), "2.71");
+    }
+
+    #[test]
+    fn test_double_display() {
+        let value = SqlValue::Double(3.14159);
+        assert_eq!(format!("{}", value), "3.14159");
+    }
+
+    #[test]
+    fn test_character_display() {
+        let value = SqlValue::Character("test".to_string());
+        assert_eq!(format!("{}", value), "test");
+    }
+
+    #[test]
+    fn test_date_display() {
+        let value = SqlValue::Date("2024-01-01".to_string());
+        assert_eq!(format!("{}", value), "2024-01-01");
+    }
+
+    #[test]
+    fn test_time_display() {
+        let value = SqlValue::Time("12:30:00".to_string());
+        assert_eq!(format!("{}", value), "12:30:00");
+    }
+
+    #[test]
+    fn test_timestamp_display() {
+        let value = SqlValue::Timestamp("2024-01-01 12:30:00".to_string());
+        assert_eq!(format!("{}", value), "2024-01-01 12:30:00");
+    }
+
+    // ============================================================================
+    // Real Type Comparison Tests
+    // ============================================================================
+
+    #[test]
+    fn test_real_ordering() {
+        assert!(SqlValue::Real(1.5) < SqlValue::Real(2.5));
+        assert!(SqlValue::Real(2.5) > SqlValue::Real(1.5));
+    }
+
+    #[test]
+    fn test_real_nan_is_incomparable() {
+        let nan = SqlValue::Real(f32::NAN);
+        let one = SqlValue::Real(1.0);
+        assert_eq!(nan.partial_cmp(&one), None);
+        assert_eq!(one.partial_cmp(&nan), None);
+    }
+
+    // ============================================================================
+    // Hash Implementation Tests (for DISTINCT operations)
+    // ============================================================================
+
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    fn calculate_hash<T: Hash>(value: &T) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        value.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    #[test]
+    fn test_integer_hash() {
+        let v1 = SqlValue::Integer(42);
+        let v2 = SqlValue::Integer(42);
+        let v3 = SqlValue::Integer(43);
+        assert_eq!(calculate_hash(&v1), calculate_hash(&v2));
+        assert_ne!(calculate_hash(&v1), calculate_hash(&v3));
+    }
+
+    #[test]
+    fn test_smallint_hash() {
+        let v1 = SqlValue::Smallint(10);
+        let v2 = SqlValue::Smallint(10);
+        assert_eq!(calculate_hash(&v1), calculate_hash(&v2));
+    }
+
+    #[test]
+    fn test_bigint_hash() {
+        let v1 = SqlValue::Bigint(1000);
+        let v2 = SqlValue::Bigint(1000);
+        assert_eq!(calculate_hash(&v1), calculate_hash(&v2));
+    }
+
+    #[test]
+    fn test_numeric_hash() {
+        let v1 = SqlValue::Numeric("123.45".to_string());
+        let v2 = SqlValue::Numeric("123.45".to_string());
+        assert_eq!(calculate_hash(&v1), calculate_hash(&v2));
+    }
+
+    #[test]
+    fn test_float_hash() {
+        let v1 = SqlValue::Float(3.14);
+        let v2 = SqlValue::Float(3.14);
+        assert_eq!(calculate_hash(&v1), calculate_hash(&v2));
+    }
+
+    #[test]
+    fn test_float_nan_hash() {
+        // NaN values should hash to the same value for DISTINCT operations
+        let nan1 = SqlValue::Float(f32::NAN);
+        let nan2 = SqlValue::Float(f32::NAN);
+        assert_eq!(calculate_hash(&nan1), calculate_hash(&nan2));
+    }
+
+    #[test]
+    fn test_real_hash() {
+        let v1 = SqlValue::Real(2.71);
+        let v2 = SqlValue::Real(2.71);
+        assert_eq!(calculate_hash(&v1), calculate_hash(&v2));
+    }
+
+    #[test]
+    fn test_real_nan_hash() {
+        let nan1 = SqlValue::Real(f32::NAN);
+        let nan2 = SqlValue::Real(f32::NAN);
+        assert_eq!(calculate_hash(&nan1), calculate_hash(&nan2));
+    }
+
+    #[test]
+    fn test_double_hash() {
+        let v1 = SqlValue::Double(3.14159);
+        let v2 = SqlValue::Double(3.14159);
+        assert_eq!(calculate_hash(&v1), calculate_hash(&v2));
+    }
+
+    #[test]
+    fn test_double_nan_hash() {
+        let nan1 = SqlValue::Double(f64::NAN);
+        let nan2 = SqlValue::Double(f64::NAN);
+        assert_eq!(calculate_hash(&nan1), calculate_hash(&nan2));
+    }
+
+    #[test]
+    fn test_varchar_hash() {
+        let v1 = SqlValue::Varchar("hello".to_string());
+        let v2 = SqlValue::Varchar("hello".to_string());
+        assert_eq!(calculate_hash(&v1), calculate_hash(&v2));
+    }
+
+    #[test]
+    fn test_character_hash() {
+        let v1 = SqlValue::Character("test".to_string());
+        let v2 = SqlValue::Character("test".to_string());
+        assert_eq!(calculate_hash(&v1), calculate_hash(&v2));
+    }
+
+    #[test]
+    fn test_boolean_hash() {
+        let v1 = SqlValue::Boolean(true);
+        let v2 = SqlValue::Boolean(true);
+        let v3 = SqlValue::Boolean(false);
+        assert_eq!(calculate_hash(&v1), calculate_hash(&v2));
+        assert_ne!(calculate_hash(&v1), calculate_hash(&v3));
+    }
+
+    #[test]
+    fn test_date_hash() {
+        let v1 = SqlValue::Date("2024-01-01".to_string());
+        let v2 = SqlValue::Date("2024-01-01".to_string());
+        assert_eq!(calculate_hash(&v1), calculate_hash(&v2));
+    }
+
+    #[test]
+    fn test_time_hash() {
+        let v1 = SqlValue::Time("12:30:00".to_string());
+        let v2 = SqlValue::Time("12:30:00".to_string());
+        assert_eq!(calculate_hash(&v1), calculate_hash(&v2));
+    }
+
+    #[test]
+    fn test_timestamp_hash() {
+        let v1 = SqlValue::Timestamp("2024-01-01 12:30:00".to_string());
+        let v2 = SqlValue::Timestamp("2024-01-01 12:30:00".to_string());
+        assert_eq!(calculate_hash(&v1), calculate_hash(&v2));
+    }
+
+    #[test]
+    fn test_null_hash() {
+        let v1 = SqlValue::Null;
+        let v2 = SqlValue::Null;
+        // NULL values should hash consistently
+        assert_eq!(calculate_hash(&v1), calculate_hash(&v2));
+    }
+
+    // ============================================================================
+    // Edge Case Tests
+    // ============================================================================
+
+    #[test]
+    fn test_empty_string_varchar() {
+        let value = SqlValue::Varchar("".to_string());
+        assert_eq!(format!("{}", value), "");
+        assert!(!value.is_null());
+    }
+
+    #[test]
+    fn test_negative_integer() {
+        let value = SqlValue::Integer(-42);
+        assert_eq!(format!("{}", value), "-42");
+    }
+
+    #[test]
+    fn test_very_large_bigint() {
+        let value = SqlValue::Bigint(i64::MAX);
+        assert_eq!(format!("{}", value), format!("{}", i64::MAX));
+    }
+
+    #[test]
+    fn test_very_small_bigint() {
+        let value = SqlValue::Bigint(i64::MIN);
+        assert_eq!(format!("{}", value), format!("{}", i64::MIN));
+    }
+
+    #[test]
+    fn test_special_characters_in_varchar() {
+        let value = SqlValue::Varchar("Hello, 世界! 🌍".to_string());
+        assert_eq!(format!("{}", value), "Hello, 世界! 🌍");
+    }
 }
