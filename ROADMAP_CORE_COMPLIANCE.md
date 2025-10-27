@@ -1,0 +1,532 @@
+# Roadmap: SQL:1999 Core Compliance
+
+**Goal**: Build a **SQL:1999 Core-compliant** in-memory database with ODBC/JDBC support
+**Timeline**: 6-12 months (with AI assistance)
+**Current Status**: ~20% complete (foundation laid)
+
+---
+
+## Why Core Instead of FULL?
+
+**Reality Check**: No production database achieves SQL:1999 FULL compliance
+- PostgreSQL: ~180 of 179 mandatory features (exceeds core, not full)
+- Oracle, SQL Server, MySQL: High core compliance, selective optional features
+- **FULL compliance includes 400+ features** - unprecedented and unnecessary
+
+**Core Compliance is Still Impressive**:
+- ~169 mandatory features
+- Sufficient for most SQL applications
+- Enables NIST Core SQL:1999 test passage
+- Realistic 6-12 month timeline
+- Honest and achievable goal
+
+---
+
+## Phase Breakdown
+
+### Phase 1: Foundation (COMPLETE) ✅
+**Duration**: 2 months
+**Status**: Done
+
+- [x] Project setup and tooling
+- [x] Basic type system (INTEGER, VARCHAR, FLOAT, BOOLEAN)
+- [x] Lexer and parser foundation
+- [x] AST structures
+- [x] Basic query executor
+- [x] SELECT, INSERT, UPDATE, DELETE (basic)
+- [x] WHERE clause evaluation
+- [x] Basic JOINs (INNER, LEFT)
+- [x] Scalar and table subqueries
+- [x] Aggregate functions (COUNT, SUM, AVG, MIN, MAX)
+- [x] GROUP BY, HAVING, ORDER BY
+- [x] LIMIT, OFFSET
+- [x] Test infrastructure and CI/CD
+- [x] Web demo with WASM
+
+### Phase 2: Complete Type System (IN PROGRESS)
+**Duration**: 1-2 months
+**Status**: 30% complete
+
+**Remaining Work**:
+- [ ] NUMERIC/DECIMAL (fixed-point arithmetic)
+- [ ] SMALLINT, BIGINT
+- [ ] REAL, DOUBLE PRECISION
+- [ ] CHAR (fixed-length)
+- [ ] DATE type
+- [ ] TIME type
+- [ ] TIMESTAMP type
+- [ ] INTERVAL types (year-month, day-time)
+- [ ] Type coercion rules
+- [ ] CAST function
+- [ ] Default values per type
+
+**Deliverables**:
+- All SQL:1999 Core predefined types
+- Type compatibility matrix
+- Implicit/explicit conversion
+- 95%+ test coverage
+
+### Phase 3: Complete Query Engine
+**Duration**: 2-3 months
+**Status**: 40% complete
+
+**3.1 Missing Operators and Predicates**
+- [ ] BETWEEN predicate
+- [ ] IN predicate (value lists - we have subquery version)
+- [ ] LIKE pattern matching
+- [ ] EXISTS predicate
+- [ ] Quantified comparisons (ALL, SOME, ANY)
+- [ ] CASE expressions (simple and searched)
+- [ ] COALESCE function
+- [ ] NULLIF function
+
+**3.2 Complete JOIN Support**
+- [ ] Fix RIGHT OUTER JOIN executor
+- [ ] Fix FULL OUTER JOIN executor
+- [ ] Fix CROSS JOIN executor
+- [ ] NATURAL JOIN
+- [ ] Join condition validation
+
+**3.3 Set Operations**
+- [ ] UNION [ALL]
+- [ ] INTERSECT [ALL]
+- [ ] EXCEPT [ALL]
+
+**3.4 Subqueries (Complete)**
+- [ ] Correlated subqueries (Issue #82)
+- [ ] Row subqueries
+- [ ] Subquery optimization basics
+
+**3.5 Common Table Expressions**
+- [ ] WITH clause (non-recursive CTEs)
+- [ ] Multiple CTEs in one query
+- [ ] CTE in subqueries
+
+**Deliverables**:
+- Complete SELECT query support
+- All Core predicates and operators
+- Set operations
+- CTEs
+- 90%+ test coverage
+
+### Phase 4: DDL and Constraints
+**Duration**: 2-3 months
+**Status**: 10% complete
+
+**4.1 Schema Management**
+- [ ] CREATE SCHEMA
+- [ ] DROP SCHEMA
+- [ ] SET SCHEMA
+
+**4.2 Table Operations**
+- [ ] DROP TABLE
+- [ ] ALTER TABLE ADD COLUMN
+- [ ] ALTER TABLE DROP COLUMN
+- [ ] ALTER TABLE MODIFY COLUMN
+- [ ] Table-level constraints
+
+**4.3 Constraint Enforcement** (CRITICAL)
+- [ ] NOT NULL enforcement
+- [ ] PRIMARY KEY constraint
+- [ ] UNIQUE constraint
+- [ ] CHECK constraint
+- [ ] FOREIGN KEY constraint
+- [ ] Referential integrity enforcement
+- [ ] Constraint violation error messages
+
+**4.4 Views**
+- [ ] CREATE VIEW
+- [ ] DROP VIEW
+- [ ] View query expansion
+- [ ] Views in FROM clause
+
+**4.5 Indexes** (Optional for Core, but useful)
+- [ ] CREATE INDEX
+- [ ] DROP INDEX
+- [ ] Index-based lookups
+- [ ] Index maintenance on INSERT/UPDATE/DELETE
+
+**Deliverables**:
+- Complete DDL support
+- All Core constraints enforced
+- Views working
+- Basic indexing
+- 90%+ test coverage
+
+### Phase 5: Transaction Support
+**Duration**: 1.5-2 months
+**Status**: 0% complete
+
+**5.1 Transaction Basics** (CRITICAL for tests)
+- [ ] BEGIN / START TRANSACTION
+- [ ] COMMIT
+- [ ] ROLLBACK
+- [ ] Transaction isolation (READ COMMITTED minimum)
+- [ ] ACID properties (Atomicity, Consistency, Isolation, Durability*)
+  - *Note: Durability relaxed (ephemeral database per requirements)
+
+**5.2 Savepoints** (Core requirement)
+- [ ] SAVEPOINT creation
+- [ ] ROLLBACK TO SAVEPOINT
+- [ ] RELEASE SAVEPOINT
+- [ ] Nested savepoint handling
+
+**5.3 Concurrency** (Simplified - single-threaded allowed)
+- [ ] Lock management (simple)
+- [ ] Deadlock prevention (simple strategy)
+- [ ] Transaction commit/abort handling
+
+**Deliverables**:
+- Full transaction support
+- ACID properties (except durable persistence)
+- Savepoints working
+- Tests pass with transaction boundaries
+- 90%+ test coverage
+
+### Phase 6: Built-in Functions
+**Duration**: 1.5-2 months
+**Status**: 10% complete
+
+**6.1 String Functions** (Core subset)
+- [ ] SUBSTRING
+- [ ] UPPER, LOWER
+- [ ] TRIM (LEADING, TRAILING, BOTH)
+- [ ] CHAR_LENGTH / CHARACTER_LENGTH
+- [ ] POSITION
+- [ ] String concatenation (||)
+
+**6.2 Numeric Functions** (Core subset)
+- [ ] ABS
+- [ ] MOD
+- [ ] CEILING, FLOOR
+- [ ] POWER, SQRT
+- [ ] Basic rounding
+
+**6.3 Date/Time Functions** (Core subset)
+- [ ] CURRENT_DATE
+- [ ] CURRENT_TIME
+- [ ] CURRENT_TIMESTAMP
+- [ ] EXTRACT
+- [ ] Date arithmetic basics
+
+**6.4 Aggregate Functions** (Complete)
+- [x] COUNT, SUM, AVG, MIN, MAX (done)
+- [ ] DISTINCT in aggregates (COUNT(DISTINCT col))
+- [ ] GROUP BY edge cases
+- [ ] HAVING with complex expressions
+
+**Deliverables**:
+- Core SQL:1999 built-in functions
+- Comprehensive function tests
+- Type compatibility in functions
+- 95%+ test coverage
+
+### Phase 7: ODBC Driver (CRITICAL)
+**Duration**: 2-3 months
+**Status**: 0% complete (BLOCKING TESTS)
+
+**7.1 ODBC Basics**
+- [ ] Driver registration and discovery
+- [ ] Connection establishment (SQLConnect, SQLDriverConnect)
+- [ ] Connection string parsing
+- [ ] Environment handles (SQLAllocHandle, SQLFreeHandle)
+
+**7.2 Statement Execution**
+- [ ] Statement preparation (SQLPrepare)
+- [ ] Direct execution (SQLExecDirect)
+- [ ] Parameter binding (SQLBindParameter)
+- [ ] Execution (SQLExecute)
+
+**7.3 Result Sets**
+- [ ] Result set metadata (SQLNumResultCols, SQLDescribeCol)
+- [ ] Data fetching (SQLFetch, SQLFetchScroll)
+- [ ] Column binding (SQLBindCol)
+- [ ] Data type mapping (SQL types to C types)
+
+**7.4 Transactions**
+- [ ] Manual commit mode (SQLSetConnectAttr)
+- [ ] Commit (SQLEndTran with SQL_COMMIT)
+- [ ] Rollback (SQLEndTran with SQL_ROLLBACK)
+
+**7.5 Error Handling**
+- [ ] Diagnostic records (SQLGetDiagRec, SQLGetDiagField)
+- [ ] SQLSTATE codes
+- [ ] Error messages
+
+**7.6 Metadata**
+- [ ] Catalog functions (SQLTables, SQLColumns)
+- [ ] Type information (SQLGetTypeInfo)
+
+**Deliverables**:
+- Functional ODBC driver (minimal subset)
+- Can connect from ODBC clients
+- Can execute SQL and retrieve results
+- Transaction control works
+- **NIST tests can run via ODBC**
+
+### Phase 8: JDBC Driver (CRITICAL)
+**Duration**: 2-3 months
+**Status**: 0% complete (BLOCKING TESTS)
+
+**8.1 JDBC Basics**
+- [ ] Driver registration (java.sql.Driver)
+- [ ] Connection establishment (DriverManager.getConnection)
+- [ ] JDBC URL parsing (jdbc:nistmemsql://...)
+- [ ] Connection properties
+
+**8.2 Statement Execution**
+- [ ] Statement interface (createStatement, execute, executeQuery, executeUpdate)
+- [ ] PreparedStatement interface (prepareStatement, setXxx methods, execute)
+- [ ] Batch execution (addBatch, executeBatch)
+
+**8.3 Result Sets**
+- [ ] ResultSet interface (next, getXxx methods)
+- [ ] ResultSetMetaData (getColumnCount, getColumnName, getColumnType)
+- [ ] Type mapping (SQL types to Java types)
+- [ ] NULL handling
+
+**8.4 Transactions**
+- [ ] Auto-commit mode (setAutoCommit)
+- [ ] Manual commit (commit)
+- [ ] Rollback (rollback)
+- [ ] Transaction isolation (setTransactionIsolation)
+- [ ] Savepoints (setSavepoint, releaseSavepoint, rollback to savepoint)
+
+**8.5 Metadata**
+- [ ] DatabaseMetaData (getTables, getColumns, getPrimaryKeys, etc.)
+- [ ] Driver metadata (getDriverVersion, etc.)
+
+**8.6 Error Handling**
+- [ ] SQLException construction
+- [ ] SQL state codes
+- [ ] Error chaining
+
+**Deliverables**:
+- Functional JDBC driver (JDBC 4.0 subset)
+- Can connect from Java applications
+- Can execute SQL and retrieve results
+- Transaction control works
+- **NIST tests can run via JDBC**
+
+### Phase 9: NIST Test Integration
+**Duration**: 1-2 months
+**Status**: 5% complete
+
+**9.1 Test Infrastructure**
+- [ ] Locate/download official NIST SQL:1999 test suite
+- [ ] sqltest integration (if using github.com/elliotchance/sqltest)
+- [ ] Test harness for ODBC execution
+- [ ] Test harness for JDBC execution
+- [ ] Test result capture and reporting
+
+**9.2 Core SQL:1999 Tests**
+- [ ] Identify Core SQL:1999 test subset
+- [ ] Run tests via ODBC
+- [ ] Run tests via JDBC
+- [ ] Debug failures
+- [ ] Fix failing features
+
+**9.3 GitHub Actions Integration**
+- [ ] Automated test execution on PR
+- [ ] Test result reporting
+- [ ] Compliance percentage calculation
+- [ ] Regression detection
+
+**9.4 Documentation**
+- [ ] Compliance report (% passing per feature area)
+- [ ] Known limitations
+- [ ] Test execution guide
+
+**Deliverables**:
+- NIST Core SQL:1999 tests running
+- CI/CD test execution
+- Compliance reporting
+- **Target: 90%+ Core SQL:1999 test passage**
+
+### Phase 10: Polish and Documentation
+**Duration**: 1 month
+**Status**: 20% complete
+
+**10.1 Error Messages**
+- [ ] User-friendly error messages
+- [ ] SQL standard error codes
+- [ ] Helpful syntax error suggestions
+- [ ] Error position reporting
+
+**10.2 Performance** (Optional - "no performance requirements")
+- [ ] Basic query plan optimization
+- [ ] Index usage
+- [ ] Simple statistics
+- [ ] Query explain (for education/debugging)
+
+**10.3 Documentation**
+- [ ] User guide
+- [ ] SQL reference manual
+- [ ] ODBC connection guide
+- [ ] JDBC connection guide
+- [ ] Architecture documentation
+- [ ] Contributing guide
+
+**10.4 Examples**
+- [ ] Example databases (Northwind, etc.)
+- [ ] Example queries
+- [ ] Tutorial materials
+- [ ] Web demo enhancements
+
+**Deliverables**:
+- Production-ready documentation
+- Example applications
+- Easy onboarding
+- Clear value proposition
+
+---
+
+## Timeline Summary
+
+| Phase | Duration | Dependencies | Status |
+|-------|----------|--------------|--------|
+| 1. Foundation | 2 months | None | ✅ COMPLETE |
+| 2. Type System | 1-2 months | Phase 1 | 🚧 30% |
+| 3. Query Engine | 2-3 months | Phase 2 | 🚧 40% |
+| 4. DDL & Constraints | 2-3 months | Phase 2 | 10% |
+| 5. Transactions | 1.5-2 months | Phase 4 | Not started |
+| 6. Built-in Functions | 1.5-2 months | Phase 2, 3 | 10% |
+| 7. ODBC Driver | 2-3 months | Phase 3, 5 | ❌ CRITICAL |
+| 8. JDBC Driver | 2-3 months | Phase 3, 5 | ❌ CRITICAL |
+| 9. NIST Testing | 1-2 months | Phase 7, 8 | 5% |
+| 10. Polish | 1 month | All phases | 20% |
+| **TOTAL** | **16-23 months** | | **~20% complete** |
+
+**With AI Assistance & Parallel Work**: 10-14 months estimated
+
+---
+
+## Critical Path
+
+The critical path to NIST test execution:
+
+1. **Complete Query Engine** (Phase 3) - 2-3 months
+2. **Transaction Support** (Phase 5) - 2 months
+3. **ODBC Driver** (Phase 7) - 2-3 months (BLOCKING)
+4. **JDBC Driver** (Phase 8) - 2-3 months (BLOCKING)
+5. **NIST Tests** (Phase 9) - 1-2 months
+
+**Minimum time to first NIST test run**: 9-13 months
+
+---
+
+## Success Criteria
+
+### Minimum Viable Compliance (6 months)
+- [ ] All Core data types implemented
+- [ ] Complete SELECT query support
+- [ ] Full DDL (CREATE/DROP/ALTER TABLE)
+- [ ] Constraints enforced (PK, FK, UNIQUE, CHECK)
+- [ ] Basic transactions (BEGIN, COMMIT, ROLLBACK)
+- [ ] Core built-in functions
+- [ ] Basic ODBC driver (enough for simple tests)
+- [ ] Basic JDBC driver (enough for simple tests)
+
+### Core SQL:1999 Compliance (12 months)
+- [ ] All ~169 Core SQL:1999 features implemented
+- [ ] Full ODBC driver (all Core features accessible)
+- [ ] Full JDBC driver (all Core features accessible)
+- [ ] 90%+ NIST Core SQL:1999 tests passing
+- [ ] ODBC and JDBC test passage
+- [ ] Automated CI/CD testing
+- [ ] Complete documentation
+
+### Stretch Goals (18+ months)
+- [ ] SELECT optional features (window functions)
+- [ ] WITH RECURSIVE (recursive CTEs)
+- [ ] Triggers (basic)
+- [ ] Information schema views
+- [ ] Performance optimization
+- [ ] Query explain/analyze
+- [ ] 95%+ Core test passage
+
+---
+
+## Risk Management
+
+### High Risks
+
+**1. ODBC/JDBC Complexity** 🔴
+- **Risk**: Protocol implementation is complex and unfamiliar
+- **Mitigation**:
+  - Start early (don't leave for last)
+  - Reference existing open-source drivers
+  - Implement minimal subset first
+  - Test continuously
+
+**2. Transaction Implementation** 🟡
+- **Risk**: ACID properties are subtle and complex
+- **Mitigation**:
+  - Single-threaded simplification
+  - No persistence requirement helps
+  - Focus on correctness over performance
+  - Comprehensive testing
+
+**3. Scope Creep** 🟡
+- **Risk**: Temptation to add optional features
+- **Mitigation**:
+  - Strict Core SQL:1999 focus
+  - Track features explicitly
+  - Defer optional features to later
+  - Regular scope reviews
+
+### Medium Risks
+
+**4. Test Suite Integration** 🟡
+- **Risk**: NIST test suite may be difficult to integrate
+- **Mitigation**:
+  - Research test suite early
+  - Build test harness incrementally
+  - Plan for manual test development if needed
+
+**5. Constraint Enforcement Bugs** 🟡
+- **Risk**: Subtle bugs in referential integrity
+- **Mitigation**:
+  - Extensive test coverage
+  - Focused testing per constraint type
+  - Incremental implementation
+
+---
+
+## Next Immediate Steps (Priority Order)
+
+### This Week
+1. **Decide on scope**: Confirm pivot to Core SQL:1999 compliance
+2. **Update README.md**: Honest current state and new goal
+3. **Update WORK_PLAN.md**: Align with Core roadmap
+4. **Create feature tracking**: Spreadsheet/issues for ~169 Core features
+
+### Next Month
+1. **Complete Phase 2**: Full type system
+2. **Fix JOIN tests**: Get all tests passing
+3. **Start Phase 3**: CASE expressions, BETWEEN, IN, LIKE
+4. **Research ODBC/JDBC**: Understand requirements, reference implementations
+
+### Next Quarter
+1. **Complete Phase 3**: Full query engine
+2. **Start Phase 4**: DDL and constraints
+3. **Prototype ODBC**: Basic connection and query execution
+
+---
+
+## Conclusion
+
+**New Goal**: SQL:1999 **Core** Compliance (realistic and impressive)
+
+**Timeline**: 10-14 months with AI assistance
+
+**Value**:
+- Actually achievable
+- Demonstrates real database expertise
+- Can pass NIST Core SQL:1999 tests
+- Honest scope claim
+- Strong foundation for future work
+
+**This is a pivot toward success, not a retreat.** Core SQL:1999 compliance is a worthy and challenging goal that has never been achieved by an open-source AI-assisted project.
+
+Let's build something real.

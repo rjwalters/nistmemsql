@@ -11,8 +11,10 @@
 //! - `scalar_subqueries`: Scalar subquery execution tests
 //! - `error_display`: ExecutorError Display implementation tests
 //! - `comparison_ops`: Comparison operator tests
+//! - `between_predicates`: BETWEEN predicate execution tests
 
 mod aggregates;
+mod between_predicates;
 mod comparison_ops;
 mod error_display;
 mod expression_eval;

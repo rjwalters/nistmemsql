@@ -82,9 +82,9 @@ impl Parser {
     fn parse_comparison_expression(&mut self) -> Result<ast::Expression, ParseError> {
         let mut left = self.parse_primary_expression()?;
 
-        // Check for IN operator (including NOT IN)
+        // Check for IN operator (including NOT IN) and BETWEEN (including NOT BETWEEN)
         if self.peek_keyword(Keyword::Not) {
-            // Peek ahead to see if it's "NOT IN"
+            // Peek ahead to see if it's "NOT IN" or "NOT BETWEEN"
             let saved_pos = self.position;
             self.advance(); // consume NOT
 
@@ -100,8 +100,23 @@ impl Parser {
                     subquery: Box::new(subquery),
                     negated: true,
                 });
+            } else if self.peek_keyword(Keyword::Between) {
+                // It's NOT BETWEEN
+                self.consume_keyword(Keyword::Between)?;
+
+                // Parse low AND high
+                let low = self.parse_additive_expression()?;
+                self.consume_keyword(Keyword::And)?;
+                let high = self.parse_additive_expression()?;
+
+                return Ok(ast::Expression::Between {
+                    expr: Box::new(left),
+                    low: Box::new(low),
+                    high: Box::new(high),
+                    negated: true,
+                });
             } else {
-                // Not "NOT IN", restore position and continue
+                // Not "NOT IN" or "NOT BETWEEN", restore position and continue
                 self.position = saved_pos;
             }
         } else if self.peek_keyword(Keyword::In) {
@@ -114,6 +129,21 @@ impl Parser {
             return Ok(ast::Expression::In {
                 expr: Box::new(left),
                 subquery: Box::new(subquery),
+                negated: false,
+            });
+        } else if self.peek_keyword(Keyword::Between) {
+            // It's BETWEEN (not negated)
+            self.consume_keyword(Keyword::Between)?;
+
+            // Parse low AND high
+            let low = self.parse_additive_expression()?;
+            self.consume_keyword(Keyword::And)?;
+            let high = self.parse_additive_expression()?;
+
+            return Ok(ast::Expression::Between {
+                expr: Box::new(left),
+                low: Box::new(low),
+                high: Box::new(high),
                 negated: false,
             });
         }

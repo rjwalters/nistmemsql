@@ -164,6 +164,48 @@ impl<'a> ExpressionEvaluator<'a> {
                 }
             }
 
+            // BETWEEN predicate: expr BETWEEN low AND high
+            // Equivalent to: expr >= low AND expr <= high
+            // If negated: expr < low OR expr > high
+            ast::Expression::Between { expr, low, high, negated } => {
+                let expr_val = self.eval(expr, row)?;
+                let low_val = self.eval(low, row)?;
+                let high_val = self.eval(high, row)?;
+
+                // Check if expr >= low
+                let ge_low = self.eval_binary_op(
+                    &expr_val,
+                    &ast::BinaryOperator::GreaterThanOrEqual,
+                    &low_val,
+                )?;
+
+                // Check if expr <= high
+                let le_high = self.eval_binary_op(
+                    &expr_val,
+                    &ast::BinaryOperator::LessThanOrEqual,
+                    &high_val,
+                )?;
+
+                // Combine with AND/OR depending on negated
+                if *negated {
+                    // NOT BETWEEN: expr < low OR expr > high
+                    let lt_low = self.eval_binary_op(
+                        &expr_val,
+                        &ast::BinaryOperator::LessThan,
+                        &low_val,
+                    )?;
+                    let gt_high = self.eval_binary_op(
+                        &expr_val,
+                        &ast::BinaryOperator::GreaterThan,
+                        &high_val,
+                    )?;
+                    self.eval_binary_op(&lt_low, &ast::BinaryOperator::Or, &gt_high)
+                } else {
+                    // BETWEEN: expr >= low AND expr <= high
+                    self.eval_binary_op(&ge_low, &ast::BinaryOperator::And, &le_high)
+                }
+            }
+
             // TODO: Implement other expression types
             _ => Err(ExecutorError::UnsupportedExpression(format!("{:?}", expr))),
         }
@@ -395,6 +437,48 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                         .get(0)
                         .cloned()
                         .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })
+                }
+            }
+
+            // BETWEEN predicate: expr BETWEEN low AND high
+            // Equivalent to: expr >= low AND expr <= high
+            // If negated: expr < low OR expr > high
+            ast::Expression::Between { expr, low, high, negated } => {
+                let expr_val = self.eval(expr, row)?;
+                let low_val = self.eval(low, row)?;
+                let high_val = self.eval(high, row)?;
+
+                // Check if expr >= low
+                let ge_low = ExpressionEvaluator::eval_binary_op_static(
+                    &expr_val,
+                    &ast::BinaryOperator::GreaterThanOrEqual,
+                    &low_val,
+                )?;
+
+                // Check if expr <= high
+                let le_high = ExpressionEvaluator::eval_binary_op_static(
+                    &expr_val,
+                    &ast::BinaryOperator::LessThanOrEqual,
+                    &high_val,
+                )?;
+
+                // Combine with AND/OR depending on negated
+                if *negated {
+                    // NOT BETWEEN: expr < low OR expr > high
+                    let lt_low = ExpressionEvaluator::eval_binary_op_static(
+                        &expr_val,
+                        &ast::BinaryOperator::LessThan,
+                        &low_val,
+                    )?;
+                    let gt_high = ExpressionEvaluator::eval_binary_op_static(
+                        &expr_val,
+                        &ast::BinaryOperator::GreaterThan,
+                        &high_val,
+                    )?;
+                    ExpressionEvaluator::eval_binary_op_static(&lt_low, &ast::BinaryOperator::Or, &gt_high)
+                } else {
+                    // BETWEEN: expr >= low AND expr <= high
+                    ExpressionEvaluator::eval_binary_op_static(&ge_low, &ast::BinaryOperator::And, &le_high)
                 }
             }
 

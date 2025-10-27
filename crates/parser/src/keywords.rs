@@ -39,6 +39,7 @@ pub enum Keyword {
     Set,
     Values,
     In,
+    Between,
 }
 
 impl fmt::Display for Keyword {
@@ -80,6 +81,7 @@ impl fmt::Display for Keyword {
             Keyword::Set => "SET",
             Keyword::Values => "VALUES",
             Keyword::In => "IN",
+            Keyword::Between => "BETWEEN",
         };
         write!(f, "{}", keyword_str)
     }
