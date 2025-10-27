@@ -3,6 +3,9 @@ name: Label external issues
 on:
   issues:
     types: [opened]
+  push:
+    paths:
+      - '.github/workflows/label-external-issues.yml'
 
 permissions:
   issues: write
