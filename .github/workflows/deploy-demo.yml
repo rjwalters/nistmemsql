@@ -25,28 +25,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: web-demo/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: web-demo/pnpm-lock.yaml
 
       - name: Install dependencies
         working-directory: web-demo
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Lint
         working-directory: web-demo
-        run: npm run lint
+        run: pnpm lint
 
       - name: Format check
         working-directory: web-demo
-        run: npm run format:check
+        run: pnpm format:check
 
       - name: Type check
         working-directory: web-demo
-        run: npx tsc --noEmit
+        run: pnpm exec tsc --noEmit
 
   # Unit tests with coverage
   test:
@@ -55,20 +60,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: web-demo/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: web-demo/pnpm-lock.yaml
 
       - name: Install dependencies
         working-directory: web-demo
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Run tests
         working-directory: web-demo
-        run: npm run test:coverage
+        run: pnpm test:coverage
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
@@ -85,37 +95,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # TODO: Uncomment when crates/wasm-bindings is created (issue #101)
-      # # Setup Rust
-      # - name: Setup Rust
-      #   uses: dtolnay/rust-toolchain@stable
-      #   with:
-      #     targets: wasm32-unknown-unknown
-      #
-      # - name: Install wasm-pack
-      #   run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-      #
-      # # Build WASM
-      # - name: Build WASM
-      #   working-directory: crates/wasm-bindings
-      #   run: wasm-pack build --target web --out-dir ../../web-demo/public/pkg
+      # Setup Rust
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      # Build WASM
+      - name: Build WASM
+        working-directory: crates/wasm-bindings
+        run: wasm-pack build --target web --out-dir ../../web-demo/public/pkg
 
       # Setup Node.js
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: web-demo/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: web-demo/pnpm-lock.yaml
 
       # Build Vite app
       - name: Install dependencies
         working-directory: web-demo
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build Vite app
         working-directory: web-demo
-        run: npm run build
+        run: pnpm build
 
       # Deploy to GitHub Pages
       - name: Setup Pages
