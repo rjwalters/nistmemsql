@@ -1,17 +1,21 @@
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate::errors::ExecutorError;
 use crate::evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator};
 use crate::schema::CombinedSchema;
 
 mod grouping;
+mod helpers;
 mod join;
 mod projection;
+mod set_operations;
 
 use grouping::{compare_sql_values, group_rows, AggregateAccumulator};
+use helpers::{apply_distinct, apply_limit_offset};
 use join::{nested_loop_join, FromResult};
 use projection::project_row_combined;
+use set_operations::apply_set_operation;
 
 /// Row with optional sort keys for ORDER BY
 type RowWithSortKeys = (storage::Row, Option<Vec<(types::SqlValue, ast::OrderDirection)>>);
@@ -90,7 +94,7 @@ impl<'a> SelectExecutor<'a> {
             let right_results = self.execute(&set_op.right)?;
 
             // Apply the set operation
-            results = self.apply_set_operation(results, right_results, set_op)?;
+            results = apply_set_operation(results, right_results, set_op)?;
 
             // Apply LIMIT/OFFSET to the final combined result
             results = apply_limit_offset(results, stmt.limit, stmt.offset);
@@ -650,157 +654,4 @@ impl<'a> SelectExecutor<'a> {
             ))),
         }
     }
-
-    /// Apply a set operation (UNION, INTERSECT, EXCEPT) to two result sets
-    fn apply_set_operation(
-        &self,
-        left: Vec<storage::Row>,
-        right: Vec<storage::Row>,
-        set_op: &ast::SetOperation,
-    ) -> Result<Vec<storage::Row>, ExecutorError> {
-        // Validate that both result sets have the same number of columns
-        if !left.is_empty() && !right.is_empty() {
-            let left_cols = left[0].values.len();
-            let right_cols = right[0].values.len();
-            if left_cols != right_cols {
-                return Err(ExecutorError::SubqueryColumnCountMismatch {
-                    expected: left_cols,
-                    actual: right_cols,
-                });
-            }
-        }
-
-        match set_op.op {
-            ast::SetOperator::Union => {
-                if set_op.all {
-                    // UNION ALL: combine all rows from both queries
-                    let mut result = left;
-                    result.extend(right);
-                    Ok(result)
-                } else {
-                    // UNION (DISTINCT): combine and remove duplicates
-                    let mut result = left;
-                    result.extend(right);
-                    Ok(apply_distinct(result))
-                }
-            }
-
-            ast::SetOperator::Intersect => {
-                if set_op.all {
-                    // INTERSECT ALL: return rows that appear in both (with multiplicity)
-                    // Count occurrences in right side
-                    let mut right_counts = std::collections::HashMap::new();
-                    for row in &right {
-                        *right_counts.entry(row.values.clone()).or_insert(0) += 1;
-                    }
-
-                    // For each left row, if it appears in right, include it and decrement count
-                    let mut result = Vec::new();
-                    for row in left {
-                        if let Some(count) = right_counts.get_mut(&row.values) {
-                            if *count > 0 {
-                                result.push(row);
-                                *count -= 1;
-                            }
-                        }
-                    }
-                    Ok(result)
-                } else {
-                    // INTERSECT (DISTINCT): return unique rows that appear in both
-                    let right_set: std::collections::HashSet<_> =
-                        right.iter().map(|row| row.values.clone()).collect();
-
-                    let mut result = Vec::new();
-                    let mut seen = std::collections::HashSet::new();
-                    for row in left {
-                        if right_set.contains(&row.values) && seen.insert(row.values.clone()) {
-                            result.push(row);
-                        }
-                    }
-                    Ok(result)
-                }
-            }
-
-            ast::SetOperator::Except => {
-                if set_op.all {
-                    // EXCEPT ALL: return rows from left that don't appear in right (with multiplicity)
-                    // Count occurrences in right side
-                    let mut right_counts = std::collections::HashMap::new();
-                    for row in &right {
-                        *right_counts.entry(row.values.clone()).or_insert(0) += 1;
-                    }
-
-                    // For each left row, if it doesn't appear in right (or count exhausted), include it
-                    let mut result = Vec::new();
-                    for row in left {
-                        match right_counts.get_mut(&row.values) {
-                            None => {
-                                // Row not in right side, include it
-                                result.push(row);
-                            }
-                            Some(count) if *count == 0 => {
-                                // All instances from right side already used, include it
-                                result.push(row);
-                            }
-                            Some(count) => {
-                                // Row exists in right side, decrement count (exclude this instance)
-                                *count -= 1;
-                            }
-                        }
-                    }
-                    Ok(result)
-                } else {
-                    // EXCEPT (DISTINCT): return unique rows from left that don't appear in right
-                    let right_set: std::collections::HashSet<_> =
-                        right.iter().map(|row| row.values.clone()).collect();
-
-                    let mut result = Vec::new();
-                    let mut seen = std::collections::HashSet::new();
-                    for row in left {
-                        if !right_set.contains(&row.values) && seen.insert(row.values.clone()) {
-                            result.push(row);
-                        }
-                    }
-                    Ok(result)
-                }
-            }
-        }
-    }
-}
-
-/// Apply DISTINCT to remove duplicate rows
-///
-/// Uses a HashSet to track unique rows. This requires SqlValue to implement
-/// Hash and Eq, which we've implemented with SQL semantics:
-/// - NULL == NULL for grouping
-/// - NaN == NaN for grouping
-fn apply_distinct(rows: Vec<storage::Row>) -> Vec<storage::Row> {
-    let mut seen = HashSet::new();
-    let mut result = Vec::new();
-
-    for row in rows {
-        // Try to insert the row's values into the set
-        // If insertion succeeds (wasn't already present), keep the row
-        if seen.insert(row.values.clone()) {
-            result.push(row);
-        }
-    }
-
-    result
-}
-
-fn apply_limit_offset(
-    rows: Vec<storage::Row>,
-    limit: Option<usize>,
-    offset: Option<usize>,
-) -> Vec<storage::Row> {
-    let start = offset.unwrap_or(0);
-    if start >= rows.len() {
-        return Vec::new();
-    }
-
-    let max_take = rows.len() - start;
-    let take = limit.unwrap_or(max_take).min(max_take);
-
-    rows.into_iter().skip(start).take(take).collect()
 }
