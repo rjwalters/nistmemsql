@@ -1,109 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NistMemSQL - WASM SQL Database Demo</title>
-    <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NIST MemSQL - SQL Database in WebAssembly</title>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>NistMemSQL</h1>
-            <p class="subtitle">In-browser SQL database powered by WebAssembly</p>
-            <div id="status" class="status">
-                <span class="loading-spinner"></span>
-                <span id="status-text">Initializing WASM module...</span>
-            </div>
-        </header>
-
-        <main>
-            <div class="panel">
-                <div class="panel-header">
-                    <h2>SQL Query</h2>
-                    <div class="panel-actions">
-                        <button id="example-btn" class="btn btn-secondary" title="Load example query">
-                            Example
-                        </button>
-                        <button id="clear-btn" class="btn btn-secondary" title="Clear query">
-                            Clear
-                        </button>
-                        <button id="execute-btn" class="btn btn-primary" disabled title="Execute SQL query">
-                            Execute
-                        </button>
-                    </div>
-                </div>
-                <textarea
-                    id="sql-input"
-                    placeholder="Enter your SQL query here...&#10;&#10;Example:&#10;SELECT 42 AS answer"
-                    rows="8"
-                ></textarea>
-            </div>
-
-            <div class="panel">
-                <div class="panel-header">
-                    <h2>Results</h2>
-                    <div id="result-meta" class="result-meta"></div>
-                </div>
-                <div id="results" class="results-container">
-                    <div class="empty-state">
-                        <p>No results yet. Execute a query to see results here.</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="panel">
-                <div class="panel-header">
-                    <h2>Quick Start Guide</h2>
-                </div>
-                <div class="guide">
-                    <h3>Try these examples:</h3>
-                    <div class="example-grid">
-                        <div class="example-card">
-                            <h4>1. Create a table</h4>
-                            <code>CREATE TABLE users (
-    id INTEGER,
-    name VARCHAR,
-    age INTEGER
-)</code>
-                        </div>
-                        <div class="example-card">
-                            <h4>2. Insert data</h4>
-                            <code>INSERT INTO users (id, name, age)
-VALUES (1, 'Alice', 30)</code>
-                        </div>
-                        <div class="example-card">
-                            <h4>3. Query data</h4>
-                            <code>SELECT * FROM users</code>
-                        </div>
-                        <div class="example-card">
-                            <h4>4. Filter results</h4>
-                            <code>SELECT name, age FROM users
-WHERE age > 25</code>
-                        </div>
-                    </div>
-
-                    <h3>Supported Features:</h3>
-                    <ul>
-                        <li><strong>DDL:</strong> CREATE TABLE, DROP TABLE</li>
-                        <li><strong>DML:</strong> INSERT, SELECT, UPDATE, DELETE</li>
-                        <li><strong>Queries:</strong> WHERE, ORDER BY, GROUP BY, HAVING, DISTINCT</li>
-                        <li><strong>Joins:</strong> INNER JOIN, LEFT OUTER JOIN</li>
-                        <li><strong>Aggregates:</strong> COUNT, SUM, AVG, MIN, MAX</li>
-                        <li><strong>Expressions:</strong> Arithmetic, comparison, logical operators</li>
-                    </ul>
-                </div>
-            </div>
-        </main>
-
-        <footer>
-            <p>
-                <a href="https://github.com/rjwalters/nistmemsql" target="_blank">View on GitHub</a>
-                | Version <span id="version">loading...</span>
-            </p>
-        </footer>
-    </div>
-
-    <script type="module" src="js/app.js"></script>
+  <div id="app">
+    <h1>NIST MemSQL Demo</h1>
+    <p>Loading...</p>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
