@@ -27,12 +27,12 @@
 ## 📊 Current Status (2025-10-27)
 
 ### Test Suite
-- **Total Tests**: 335 ✅ (313 parser + 22 end-to-end)
-- **Passing**: 335 (100%)
+- **Total Tests**: 360 ✅ (337 parser + 23 end-to-end)
+- **Passing**: 360 (100%)
 - **Failing**: 0
 - **Code Coverage**: ~87%
 - **Source Files**: 85+ Rust files
-- **Lines of Code**: ~13,500
+- **Lines of Code**: ~14,000
 
 ### Recent Additions (This Session)
 - ✅ **IN list predicate** - Value lists vs subqueries with 12 tests
@@ -66,6 +66,15 @@
   - SQL three-valued logic with NULL handling
   - Empty subquery semantics (ALL=TRUE, ANY=FALSE)
 
+- ✅ **Set operations** - UNION, INTERSECT, EXCEPT with 24 parser tests + comprehensive e2e test
+  - `SELECT ... UNION [ALL] SELECT ...`
+  - `SELECT ... INTERSECT [ALL] SELECT ...`
+  - `SELECT ... EXCEPT [ALL] SELECT ...`
+  - DISTINCT (default) removes duplicates
+  - ALL preserves multiplicity
+  - ORDER BY/LIMIT apply to entire result
+  - Proper SQL:1999 precedence and semantics
+
 - ✅ **CHAR type** - Fixed-length character strings
   - Space padding for short strings
   - Truncation for long strings
@@ -89,6 +98,7 @@
 - **JOINs**: INNER, LEFT, RIGHT, FULL OUTER, CROSS (all working)
 - **Subqueries**: Scalar, table (derived tables), correlated, EXISTS, quantified (ALL/ANY/SOME)
 - **Aggregates**: COUNT, SUM, AVG, MIN, MAX with GROUP BY, HAVING
+- **Set Operations**: UNION, INTERSECT, EXCEPT (with ALL support)
 - **Sorting**: ORDER BY (ASC/DESC, multi-column)
 - **Pagination**: LIMIT, OFFSET
 - **DDL**: CREATE TABLE (basic, no constraints)
@@ -135,7 +145,7 @@
 
 ---
 
-### Phase 3: Complete Query Engine (65% complete)
+### Phase 3: Complete Query Engine (75% complete)
 **Duration**: 2-3 months
 **Status**: In Progress
 
@@ -147,10 +157,10 @@
 - [x] NULLIF function ✅
 - [x] Quantified comparisons (ALL, SOME, ANY) ✅
 
-**3.2 Set Operations**
-- [ ] UNION [ALL]
-- [ ] INTERSECT [ALL]
-- [ ] EXCEPT [ALL]
+**3.2 Set Operations** (100% complete - 3 of 3) ✅
+- [x] UNION [ALL] ✅
+- [x] INTERSECT [ALL] ✅
+- [x] EXCEPT [ALL] ✅
 
 **3.3 Common Table Expressions**
 - [ ] WITH clause (non-recursive CTEs)
@@ -361,7 +371,7 @@
 | **Predicates** | 80% | 16 of ~20 Core predicates |
 | **Operators** | 40% | Basic math/logic/comparison |
 | **JOINs** | 100% | All JOIN types working ✅ |
-| **Set Operations** | 0% | Not started |
+| **Set Operations** | 100% | UNION, INTERSECT, EXCEPT (with ALL) ✅ |
 | **Subqueries** | 95% | Scalar, table, correlated, EXISTS, quantified |
 | **Built-in Functions** | 27% | 8 functions (CAST, COALESCE, NULLIF + 5 aggregates) |
 | **DDL** | 10% | CREATE TABLE only |
@@ -370,7 +380,7 @@
 | **ODBC Driver** | 0% | 🔴 BLOCKING |
 | **JDBC Driver** | 0% | 🔴 BLOCKING |
 
-**Overall Core SQL:1999 Compliance: ~35-38%**
+**Overall Core SQL:1999 Compliance: ~38-40%**
 
 ---
 
@@ -382,8 +392,8 @@
 4. ✅ **COALESCE function** - COMPLETE
 5. ✅ **NULLIF function** - COMPLETE
 6. ✅ **Quantified comparisons** - ALL, SOME, ANY - COMPLETE
-7. ⚡ **Set operations** - UNION, INTERSECT, EXCEPT (next up!)
-8. **Common Table Expressions** - WITH clause (non-recursive)
+7. ✅ **Set operations** - UNION, INTERSECT, EXCEPT - COMPLETE
+8. ⚡ **Common Table Expressions** - WITH clause (non-recursive) (next up!)
 9. **String functions** - SUBSTRING, UPPER, LOWER, TRIM
 10. **Numeric functions** - ABS, CEILING, FLOOR, MOD
 
@@ -475,9 +485,9 @@ This aligns with the original posix4e/nistmemsql vision while acknowledging the 
 ## 🚀 Project Velocity
 
 **Development Speed**: Excellent 🚀
-- 335 tests passing (100%) - 313 parser + 22 end-to-end
-- 65 parser tests added this session (IN list, EXISTS, COALESCE/NULLIF, quantified comparisons)
-- 4 end-to-end tests added this session
+- 360 tests passing (100%) - 337 parser + 23 end-to-end
+- 89 parser tests added this session (IN list, EXISTS, COALESCE/NULLIF, quantified comparisons, set operations)
+- 5 end-to-end tests added this session
 - TDD approach maintaining quality
 - AI-powered development (Loom) highly effective
 
