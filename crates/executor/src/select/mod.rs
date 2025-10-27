@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::errors::ExecutorError;
 use crate::evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator};
@@ -16,6 +16,9 @@ use projection::project_row_combined;
 /// Row with optional sort keys for ORDER BY
 type RowWithSortKeys = (storage::Row, Option<Vec<(types::SqlValue, ast::OrderDirection)>>);
 
+/// CTE result: (schema, rows)
+type CteResult = (catalog::TableSchema, Vec<storage::Row>);
+
 /// Executes SELECT queries
 pub struct SelectExecutor<'a> {
     database: &'a storage::Database,
@@ -26,7 +29,11 @@ pub struct SelectExecutor<'a> {
 impl<'a> SelectExecutor<'a> {
     /// Create a new SELECT executor
     pub fn new(database: &'a storage::Database) -> Self {
-        SelectExecutor { database, outer_row: None, outer_schema: None }
+        SelectExecutor {
+            database,
+            outer_row: None,
+            outer_schema: None,
+        }
     }
 
     /// Create a new SELECT executor with outer context for correlated subqueries
@@ -44,19 +51,36 @@ impl<'a> SelectExecutor<'a> {
 
     /// Execute a SELECT statement
     pub fn execute(&self, stmt: &ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> {
+        // Execute CTEs if present
+        let cte_results = if let Some(with_clause) = &stmt.with_clause {
+            self.execute_ctes(with_clause)?
+        } else {
+            HashMap::new()
+        };
+
+        // Execute the main query with CTE context
+        self.execute_with_ctes(stmt, &cte_results)
+    }
+
+    /// Execute SELECT statement with CTE context
+    fn execute_with_ctes(
+        &self,
+        stmt: &ast::SelectStmt,
+        cte_results: &HashMap<String, CteResult>,
+    ) -> Result<Vec<storage::Row>, ExecutorError> {
         // Execute the left-hand side query
         let has_aggregates = self.has_aggregates(&stmt.select_list) || stmt.having.is_some();
         let has_group_by = stmt.group_by.is_some();
 
         let mut results = if has_aggregates || has_group_by {
-            self.execute_with_aggregation(stmt)?
+            self.execute_with_aggregation(stmt, cte_results)?
         } else {
             let from_clause = stmt.from.as_ref().ok_or_else(|| {
                 ExecutorError::UnsupportedFeature(
                     "SELECT without FROM not yet implemented".to_string(),
                 )
             })?;
-            let from_result = self.execute_from(from_clause)?;
+            let from_result = self.execute_from(from_clause, cte_results)?;
             self.execute_without_aggregation(stmt, from_result)?
         };
 
@@ -73,6 +97,140 @@ impl<'a> SelectExecutor<'a> {
         }
 
         Ok(results)
+    }
+
+    /// Execute all CTEs and return their results
+    fn execute_ctes(
+        &self,
+        ctes: &[ast::CommonTableExpr],
+    ) -> Result<HashMap<String, CteResult>, ExecutorError> {
+        let mut cte_results = HashMap::new();
+
+        // Execute each CTE in order
+        // CTEs can reference previously defined CTEs
+        for cte in ctes {
+            // Execute the CTE query with accumulated CTE results so far
+            // This allows later CTEs to reference earlier ones
+            let rows = self.execute_with_ctes(&cte.query, &cte_results)?;
+
+            //  Determine the schema for this CTE
+            let schema = self.derive_cte_schema(cte, &rows)?;
+
+            // Store the CTE result
+            cte_results.insert(cte.name.clone(), (schema, rows));
+        }
+
+        Ok(cte_results)
+    }
+
+    /// Derive the schema for a CTE from its query and results
+    fn derive_cte_schema(
+        &self,
+        cte: &ast::CommonTableExpr,
+        rows: &[storage::Row],
+    ) -> Result<catalog::TableSchema, ExecutorError> {
+        // If column names are explicitly specified, use those
+        if let Some(column_names) = &cte.columns {
+            // Get data types from first row (if available)
+            if let Some(first_row) = rows.first() {
+                if first_row.values.len() != column_names.len() {
+                    return Err(ExecutorError::UnsupportedFeature(
+                        format!(
+                            "CTE column count mismatch: specified {} columns but query returned {}",
+                            column_names.len(),
+                            first_row.values.len()
+                        ),
+                    ));
+                }
+
+                let columns = column_names
+                    .iter()
+                    .zip(&first_row.values)
+                    .map(|(name, value)| {
+                        let data_type = Self::infer_type_from_value(value);
+                        catalog::ColumnSchema::new(name.clone(), data_type, true) // nullable for simplicity
+                    })
+                    .collect();
+
+                Ok(catalog::TableSchema::new(cte.name.clone(), columns))
+            } else {
+                // Empty result set - create schema with VARCHAR columns
+                let columns = column_names
+                    .iter()
+                    .map(|name| {
+                        catalog::ColumnSchema::new(
+                            name.clone(),
+                            types::DataType::Varchar { max_length: 255 },
+                            true,
+                        )
+                    })
+                    .collect();
+
+                Ok(catalog::TableSchema::new(cte.name.clone(), columns))
+            }
+        } else {
+            // No explicit column names - infer from query SELECT list
+            if let Some(first_row) = rows.first() {
+                let columns = cte
+                    .query
+                    .select_list
+                    .iter()
+                    .enumerate()
+                    .map(|(i, item)| {
+                        let data_type = Self::infer_type_from_value(&first_row.values[i]);
+
+                        // Extract column name from SELECT item
+                        let col_name = match item {
+                            ast::SelectItem::Wildcard => format!("col{}", i),
+                            ast::SelectItem::Expression { expr, alias } => {
+                                if let Some(a) = alias {
+                                    a.clone()
+                                } else {
+                                    // Try to extract name from expression
+                                    match expr {
+                                        ast::Expression::ColumnRef { table: _, column } => column.clone(),
+                                        _ => format!("col{}", i),
+                                    }
+                                }
+                            }
+                        };
+
+                        catalog::ColumnSchema::new(col_name, data_type, true) // nullable
+                    })
+                    .collect();
+
+                Ok(catalog::TableSchema::new(cte.name.clone(), columns))
+            } else {
+                // Empty CTE with no column specification
+                Err(ExecutorError::UnsupportedFeature(
+                    "Cannot infer schema for empty CTE without column list".to_string(),
+                ))
+            }
+        }
+    }
+
+    /// Infer data type from a SQL value
+    fn infer_type_from_value(value: &types::SqlValue) -> types::DataType {
+        match value {
+            types::SqlValue::Null => types::DataType::Varchar { max_length: 255 }, // default
+            types::SqlValue::Integer(_) => types::DataType::Integer,
+            types::SqlValue::Varchar(_) => types::DataType::Varchar { max_length: 255 },
+            types::SqlValue::Character(_) => types::DataType::Character { length: 1 },
+            types::SqlValue::Boolean(_) => types::DataType::Boolean,
+            types::SqlValue::Float(_) => types::DataType::Float,
+            types::SqlValue::Double(_) => types::DataType::DoublePrecision,
+            types::SqlValue::Numeric(_) => types::DataType::Numeric {
+                precision: 10,
+                scale: 2,
+            },
+            types::SqlValue::Real(_) => types::DataType::Real,
+            types::SqlValue::Smallint(_) => types::DataType::Smallint,
+            types::SqlValue::Bigint(_) => types::DataType::Bigint,
+            types::SqlValue::Date(_) => types::DataType::Varchar { max_length: 255 }, // TODO: proper date type
+            types::SqlValue::Time(_) => types::DataType::Varchar { max_length: 255 }, // TODO: proper time type
+            types::SqlValue::Timestamp(_) => types::DataType::Varchar { max_length: 255 }, // TODO: proper timestamp type
+            types::SqlValue::Interval(_) => types::DataType::Varchar { max_length: 255 }, // TODO: proper interval type
+        }
     }
 
     /// Check if SELECT list contains aggregate functions
@@ -101,6 +259,7 @@ impl<'a> SelectExecutor<'a> {
     fn execute_with_aggregation(
         &self,
         stmt: &ast::SelectStmt,
+        cte_results: &HashMap<String, CteResult>,
     ) -> Result<Vec<storage::Row>, ExecutorError> {
         // Get table
         let table_name = match &stmt.from {
@@ -117,26 +276,34 @@ impl<'a> SelectExecutor<'a> {
             }
         };
 
-        let table = self
-            .database
-            .get_table(table_name)
-            .ok_or_else(|| ExecutorError::TableNotFound(table_name.clone()))?;
+        // Check if table is a CTE first, then check database
+        let (schema, rows) = if let Some((cte_schema, cte_rows)) = cte_results.get(table_name) {
+            // Use CTE result
+            (cte_schema.clone(), cte_rows.clone())
+        } else {
+            // Use database table
+            let table = self
+                .database
+                .get_table(table_name)
+                .ok_or_else(|| ExecutorError::TableNotFound(table_name.clone()))?;
+            (table.schema.clone(), table.scan().to_vec())
+        };
 
         let evaluator = match (self.outer_row, self.outer_schema) {
             (Some(outer_row), Some(outer_schema)) => {
                 ExpressionEvaluator::with_database_and_outer_context(
-                    &table.schema,
+                    &schema,
                     self.database,
                     outer_row,
                     outer_schema,
                 )
             }
-            _ => ExpressionEvaluator::with_database(&table.schema, self.database),
+            _ => ExpressionEvaluator::with_database(&schema, self.database),
         };
 
         // Scan and filter rows
         let mut filtered_rows = Vec::new();
-        for row in table.scan() {
+        for row in &rows {
             let include_row = if let Some(where_expr) = &stmt.where_clause {
                 match evaluator.eval(where_expr, row)? {
                     types::SqlValue::Boolean(true) => true,
@@ -318,24 +485,38 @@ impl<'a> SelectExecutor<'a> {
     }
 
     /// Execute a FROM clause (table or join) and return combined schema and rows
-    fn execute_from(&self, from: &ast::FromClause) -> Result<FromResult, ExecutorError> {
+    fn execute_from(
+        &self,
+        from: &ast::FromClause,
+        cte_results: &HashMap<String, CteResult>,
+    ) -> Result<FromResult, ExecutorError> {
         match from {
-            ast::FromClause::Table { name, alias: _ } => {
-                // Simple table scan
-                let table = self
-                    .database
-                    .get_table(name)
-                    .ok_or_else(|| ExecutorError::TableNotFound(name.clone()))?;
+            ast::FromClause::Table { name, alias } => {
+                // Check if table is a CTE first, then check database
+                if let Some((cte_schema, cte_rows)) = cte_results.get(name) {
+                    // Use CTE result
+                    let table_name = alias.as_ref().unwrap_or(name);
+                    let schema = CombinedSchema::from_table(table_name.clone(), cte_schema.clone());
+                    let rows = cte_rows.clone();
+                    Ok(FromResult { schema, rows })
+                } else {
+                    // Use database table
+                    let table = self
+                        .database
+                        .get_table(name)
+                        .ok_or_else(|| ExecutorError::TableNotFound(name.clone()))?;
 
-                let schema = CombinedSchema::from_table(name.clone(), table.schema.clone());
-                let rows = table.scan().to_vec();
+                    let table_name = alias.as_ref().unwrap_or(name);
+                    let schema = CombinedSchema::from_table(table_name.clone(), table.schema.clone());
+                    let rows = table.scan().to_vec();
 
-                Ok(FromResult { schema, rows })
+                    Ok(FromResult { schema, rows })
+                }
             }
             ast::FromClause::Join { left, right, join_type, condition } => {
                 // Execute left and right sides
-                let left_result = self.execute_from(left)?;
-                let right_result = self.execute_from(right)?;
+                let left_result = self.execute_from(left, cte_results)?;
+                let right_result = self.execute_from(right, cte_results)?;
 
                 // Perform nested loop join
                 nested_loop_join(left_result, right_result, join_type, condition, self.database)
