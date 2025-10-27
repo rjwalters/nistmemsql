@@ -176,6 +176,22 @@ impl Lexer {
             "TIMESTAMP" => Token::Keyword(Keyword::Timestamp),
             "INTERVAL" => Token::Keyword(Keyword::Interval),
             "CAST" => Token::Keyword(Keyword::Cast),
+            // Window function keywords
+            "OVER" => Token::Keyword(Keyword::Over),
+            "PARTITION" => Token::Keyword(Keyword::Partition),
+            "ROWS" => Token::Keyword(Keyword::Rows),
+            "RANGE" => Token::Keyword(Keyword::Range),
+            "PRECEDING" => Token::Keyword(Keyword::Preceding),
+            "FOLLOWING" => Token::Keyword(Keyword::Following),
+            "UNBOUNDED" => Token::Keyword(Keyword::Unbounded),
+            "CURRENT" => Token::Keyword(Keyword::Current),
+            // Window function names
+            "ROW_NUMBER" => Token::Keyword(Keyword::RowNumber),
+            "RANK" => Token::Keyword(Keyword::Rank),
+            "DENSE_RANK" => Token::Keyword(Keyword::DenseRank),
+            "NTILE" => Token::Keyword(Keyword::Ntile),
+            "LAG" => Token::Keyword(Keyword::Lag),
+            "LEAD" => Token::Keyword(Keyword::Lead),
             _ => Token::Identifier(text),
         };
 
