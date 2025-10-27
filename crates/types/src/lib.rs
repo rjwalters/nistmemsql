@@ -649,7 +649,7 @@ mod tests {
 
     #[test]
     fn test_float_value_has_float_type() {
-        let value = SqlValue::Float(3.14);
+        let value = SqlValue::Float(2.5);
         assert_eq!(value.get_type(), DataType::Float);
     }
 
@@ -661,7 +661,7 @@ mod tests {
 
     #[test]
     fn test_double_value_has_double_type() {
-        let value = SqlValue::Double(3.14159);
+        let value = SqlValue::Double(123.456);
         assert_eq!(value.get_type(), DataType::DoublePrecision);
     }
 
@@ -722,8 +722,8 @@ mod tests {
 
     #[test]
     fn test_float_display() {
-        let value = SqlValue::Float(3.14);
-        assert_eq!(format!("{}", value), "3.14");
+        let value = SqlValue::Float(2.5);
+        assert_eq!(format!("{}", value), "2.5");
     }
 
     #[test]
@@ -734,8 +734,8 @@ mod tests {
 
     #[test]
     fn test_double_display() {
-        let value = SqlValue::Double(3.14159);
-        assert_eq!(format!("{}", value), "3.14159");
+        let value = SqlValue::Double(123.456);
+        assert_eq!(format!("{}", value), "123.456");
     }
 
     #[test]
@@ -825,8 +825,8 @@ mod tests {
 
     #[test]
     fn test_float_hash() {
-        let v1 = SqlValue::Float(3.14);
-        let v2 = SqlValue::Float(3.14);
+        let v1 = SqlValue::Float(2.5);
+        let v2 = SqlValue::Float(2.5);
         assert_eq!(calculate_hash(&v1), calculate_hash(&v2));
     }
 
@@ -854,8 +854,8 @@ mod tests {
 
     #[test]
     fn test_double_hash() {
-        let v1 = SqlValue::Double(3.14159);
-        let v2 = SqlValue::Double(3.14159);
+        let v1 = SqlValue::Double(123.456);
+        let v2 = SqlValue::Double(123.456);
         assert_eq!(calculate_hash(&v1), calculate_hash(&v2));
     }
 

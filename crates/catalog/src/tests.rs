@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+mod catalog_tests {
     use crate::{Catalog, CatalogError, ColumnSchema, TableSchema};
 
     #[test]
