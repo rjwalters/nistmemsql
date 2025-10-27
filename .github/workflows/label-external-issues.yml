@@ -7,17 +7,87 @@ on:
     paths:
       - '.github/workflows/label-external-issues.yml'
 
+permissions:
+  issues: write
+  contents: read
+
 jobs:
   label_external:
     runs-on: ubuntu-latest
     steps:
-      - name: Log event
-        id: event
+      - name: Determine collaborator status
+        id: collaborator
         uses: actions/github-script@v7
         with:
           script: |
-            core.info(`Event: ${context.eventName}`);
-            core.setOutput('status', context.eventName);
+            const { owner, repo } = context.repo;
+            const issue = context.payload.issue;
 
-      - name: Done
-        run: echo "${{ steps.event.outputs.status }}"
+            if (!issue) {
+              core.info(`No issue payload for ${context.eventName}. Skipping labeling.`);
+              core.setOutput('status', 'skipped');
+              return;
+            }
+
+            const username = issue.user.login;
+            let status = 'external';
+
+            try {
+              await github.rest.repos.checkCollaborator({ owner, repo, username });
+              status = 'collaborator';
+              core.info(`${username} is a collaborator`);
+            } catch (error) {
+              core.info(`${username} is NOT a collaborator`);
+            }
+
+            core.setOutput('status', status);
+
+      - name: Add 'external' label if needed
+        if: steps.collaborator.outputs.status == 'external'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issue = context.payload.issue;
+
+            if (!issue) {
+              core.warning('Missing issue context while attempting to add label.');
+              return;
+            }
+
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: issue.number,
+              labels: ['external'],
+            });
+
+      - name: Post welcome comment on external issues
+        if: steps.collaborator.outputs.status == 'external'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issue = context.payload.issue;
+
+            if (!issue) {
+              core.warning('Missing issue context while attempting to post comment.');
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issue.number,
+              body: `Thank you for submitting an issue! 🙏
+
+This issue has been automatically labeled as \`external\` and will be reviewed by the maintainers.
+
+**Note**: External issues require manual triage before being assigned. We appreciate your patience while we review your submission.
+
+For questions or discussions, please use [GitHub Discussions](https://github.com/rjwalters/nistmemsql/discussions).`
+            });
+
+      - name: Complete without action
+        if: steps.collaborator.outputs.status != 'external'
+        run: echo "No action needed (status: ${{ steps.collaborator.outputs.status || 'unknown' }})."
