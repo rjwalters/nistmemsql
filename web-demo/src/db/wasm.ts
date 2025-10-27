@@ -28,7 +28,7 @@ export async function initDatabase(): Promise<Database> {
     // Create database instance
     db = new wasmModule.Database()
 
-    console.log('✅ Database initialized successfully')
+    // Database initialized successfully
     return db
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)

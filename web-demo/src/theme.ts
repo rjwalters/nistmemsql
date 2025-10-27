@@ -42,6 +42,6 @@ export function initTheme(): Theme {
 
     get current() {
       return document.documentElement.classList.contains('dark') ? 'dark' : 'light'
-    }
+    },
   }
 }
