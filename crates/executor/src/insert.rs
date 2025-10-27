@@ -59,21 +59,32 @@ impl InsertExecutor {
         let mut rows_inserted = 0;
 
         for value_exprs in &stmt.values {
-            // Evaluate each expression to get SqlValue
-            let mut row_values = Vec::new();
+            // Build a complete row with values for all columns
+            // Start with NULL for all columns, then fill in provided values
+            let mut full_row_values = vec![types::SqlValue::Null; schema.columns.len()];
 
-            for (expr, (_idx, data_type)) in value_exprs.iter().zip(target_column_info.iter()) {
+            for (expr, (col_idx, data_type)) in value_exprs.iter().zip(target_column_info.iter()) {
                 // Evaluate expression (only literals supported initially)
                 let value = evaluate_literal_expression(expr)?;
 
                 // Type check: ensure value matches column type
                 validate_type(&value, data_type)?;
 
-                row_values.push(value);
+                full_row_values[*col_idx] = value;
+            }
+
+            // Enforce NOT NULL constraints
+            for (col_idx, col) in schema.columns.iter().enumerate() {
+                if !col.nullable && full_row_values[col_idx] == types::SqlValue::Null {
+                    return Err(ExecutorError::ConstraintViolation(format!(
+                        "NOT NULL constraint violated for column '{}'",
+                        col.name
+                    )));
+                }
             }
 
             // Insert the row
-            let row = storage::Row::new(row_values);
+            let row = storage::Row::new(full_row_values);
             db.insert_row(&stmt.table_name, row).map_err(|e| {
                 ExecutorError::UnsupportedExpression(format!("Storage error: {}", e))
             })?;
@@ -101,7 +112,7 @@ fn validate_type(
 ) -> Result<(), ExecutorError> {
     use types::{DataType, SqlValue};
 
-    // NULL is valid for any type (nullability checked by storage layer)
+    // NULL is valid for any type (NOT NULL constraint checked separately)
     if matches!(value, SqlValue::Null) {
         return Ok(());
     }
@@ -317,5 +328,73 @@ mod tests {
         let result = InsertExecutor::execute(&mut db, &stmt);
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), ExecutorError::ColumnNotFound(_)));
+    }
+
+    #[test]
+    fn test_insert_not_null_constraint_violation() {
+        let mut db = storage::Database::new();
+        setup_test_table(&mut db);
+
+        // INSERT INTO users VALUES (NULL, 'Alice')
+        // id column is NOT NULL, so this should fail
+        let stmt = ast::InsertStmt {
+            table_name: "users".to_string(),
+            columns: vec![],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Null),
+                ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
+            ]],
+        };
+
+        let result = InsertExecutor::execute(&mut db, &stmt);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExecutorError::ConstraintViolation(msg) => {
+                assert!(msg.contains("NOT NULL"));
+                assert!(msg.contains("id"));
+            }
+            other => panic!("Expected ConstraintViolation, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_insert_not_null_constraint_with_column_list() {
+        let mut db = storage::Database::new();
+
+        // CREATE TABLE test (id INT NOT NULL, name VARCHAR(50) NOT NULL, age INT)
+        let schema = catalog::TableSchema::new(
+            "test".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    "name".to_string(),
+                    types::DataType::Varchar { max_length: 50 },
+                    false,
+                ),
+                catalog::ColumnSchema::new("age".to_string(), types::DataType::Integer, true),
+            ],
+        );
+        db.create_table(schema).unwrap();
+
+        // INSERT INTO test (id, age) VALUES (1, 25)
+        // name is NOT NULL but not provided, should fail
+        let stmt = ast::InsertStmt {
+            table_name: "test".to_string(),
+            columns: vec!["id".to_string(), "age".to_string()],
+            values: vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(1)),
+                ast::Expression::Literal(types::SqlValue::Integer(25)),
+            ]],
+        };
+
+        let result = InsertExecutor::execute(&mut db, &stmt);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExecutorError::ConstraintViolation(msg) => {
+                assert!(msg.contains("NOT NULL"));
+                assert!(msg.contains("name"));
+            }
+            other => panic!("Expected ConstraintViolation, got {:?}", other),
+        }
     }
 }

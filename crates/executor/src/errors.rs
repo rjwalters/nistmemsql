@@ -13,6 +13,7 @@ pub enum ExecutorError {
     SubqueryReturnedMultipleRows { expected: usize, actual: usize },
     SubqueryColumnCountMismatch { expected: usize, actual: usize },
     CastError { from_type: String, to_type: String },
+    ConstraintViolation(String),
 }
 
 impl std::fmt::Display for ExecutorError {
@@ -42,6 +43,9 @@ impl std::fmt::Display for ExecutorError {
             }
             ExecutorError::CastError { from_type, to_type } => {
                 write!(f, "Cannot cast {} to {}", from_type, to_type)
+            }
+            ExecutorError::ConstraintViolation(msg) => {
+                write!(f, "Constraint violation: {}", msg)
             }
         }
     }

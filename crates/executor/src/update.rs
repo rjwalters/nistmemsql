@@ -112,6 +112,19 @@ impl UpdateExecutor {
                         .map_err(|e| ExecutorError::StorageError(e.to_string()))?;
                 }
 
+                // Enforce NOT NULL constraints on the updated row
+                for (col_idx, col) in schema.columns.iter().enumerate() {
+                    let value = new_row.get(col_idx)
+                        .ok_or_else(|| ExecutorError::ColumnIndexOutOfBounds { index: col_idx })?;
+
+                    if !col.nullable && *value == types::SqlValue::Null {
+                        return Err(ExecutorError::ConstraintViolation(format!(
+                            "NOT NULL constraint violated for column '{}'",
+                            col.name
+                        )));
+                    }
+                }
+
                 updates.push((row_index, new_row));
             }
         }
@@ -381,5 +394,63 @@ mod tests {
 
         let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
         assert_eq!(count, 0); // No rows matched
+    }
+
+    #[test]
+    fn test_update_not_null_constraint_violation() {
+        let mut db = Database::new();
+        setup_test_table(&mut db);
+
+        // Try to set name (NOT NULL column) to NULL
+        let stmt = UpdateStmt {
+            table_name: "employees".to_string(),
+            assignments: vec![Assignment {
+                column: "name".to_string(),
+                value: Expression::Literal(SqlValue::Null),
+            }],
+            where_clause: Some(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
+                op: BinaryOperator::Equal,
+                right: Box::new(Expression::Literal(SqlValue::Integer(1))),
+            }),
+        };
+
+        let result = UpdateExecutor::execute(&stmt, &mut db);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExecutorError::ConstraintViolation(msg) => {
+                assert!(msg.contains("NOT NULL"));
+                assert!(msg.contains("name"));
+            }
+            other => panic!("Expected ConstraintViolation, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_update_nullable_column_to_null() {
+        let mut db = Database::new();
+        setup_test_table(&mut db);
+
+        // Set salary (nullable column) to NULL - should succeed
+        let stmt = UpdateStmt {
+            table_name: "employees".to_string(),
+            assignments: vec![Assignment {
+                column: "salary".to_string(),
+                value: Expression::Literal(SqlValue::Null),
+            }],
+            where_clause: Some(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
+                op: BinaryOperator::Equal,
+                right: Box::new(Expression::Literal(SqlValue::Integer(1))),
+            }),
+        };
+
+        let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
+        assert_eq!(count, 1);
+
+        // Verify salary was set to NULL
+        let table = db.get_table("employees").unwrap();
+        let row = &table.scan()[0];
+        assert_eq!(row.get(2).unwrap(), &SqlValue::Null);
     }
 }
