@@ -1,6 +1,10 @@
 import type { WasmModule, Database } from './types'
 
-const WASM_MODULE_PATH = '../../public/pkg/nistmemsql_wasm.js'
+// In production, Vite copies public/ files to dist root, so public/pkg/ becomes /pkg/
+// We need the full path with base for GitHub Pages deployment
+const WASM_MODULE_PATH = import.meta.env.PROD
+  ? '/nistmemsql/pkg/nistmemsql_wasm.js'
+  : '../../public/pkg/nistmemsql_wasm.js'
 const isProdBuild =
   typeof import.meta !== 'undefined' &&
   Boolean((import.meta as { env?: { PROD?: boolean } }).env?.PROD)
