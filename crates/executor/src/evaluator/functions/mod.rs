@@ -17,6 +17,7 @@ use crate::errors::ExecutorError;
 
 // Module declarations
 mod control;
+mod conversion;
 mod datetime;
 mod null_handling;
 mod numeric;
@@ -92,6 +93,13 @@ pub(super) fn eval_scalar_function(
 
         // Control flow functions
         "IF" => control::if_func(args),
+
+        // Type conversion functions
+        "TO_NUMBER" => conversion::to_number(args),
+        "TO_DATE" => conversion::to_date(args),
+        "TO_TIMESTAMP" => conversion::to_timestamp(args),
+        "TO_CHAR" => conversion::to_char(args),
+        "CAST" => conversion::cast(args),
 
         // Unknown function
         _ => Err(ExecutorError::UnsupportedFeature(format!(
