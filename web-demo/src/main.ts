@@ -103,13 +103,18 @@ async function loadMonaco(): Promise<Monaco> {
   })
 }
 
-function getLayoutElements() {
+function getLayoutElements(): {
+  editorContainer: HTMLDivElement | null
+  results: HTMLDivElement | null
+  runButton: HTMLButtonElement | null
+  themeToggleContainer: HTMLDivElement | null
+} {
   return {
     editorContainer: document.querySelector<HTMLDivElement>('#editor'),
     results: document.querySelector<HTMLDivElement>('#results'),
     runButton: document.querySelector<HTMLButtonElement>('#execute-btn'),
     themeToggleContainer: document.querySelector<HTMLDivElement>('#theme-toggle'),
-  } as const
+  }
 }
 
 function applyValidationMarkers(monaco: Monaco, editor: MonacoEditor): void {
@@ -224,7 +229,7 @@ function setupThemeSync(themeToggleContainer: HTMLDivElement | null, monaco: Mon
   })
   observer.observe(document.documentElement, {
     attributes: true,
-    attributeFilter: ['class']
+    attributeFilter: ['class'],
   })
 }
 
@@ -312,7 +317,6 @@ async function bootstrap(): Promise<void> {
       database.execute("INSERT INTO employees VALUES (4, 'David Brown', 'Sales', 68000);")
       database.execute("INSERT INTO employees VALUES (5, 'Eve Martinez', 'HR', 65000);")
       database.execute("INSERT INTO employees VALUES (6, 'Frank Wilson', 'Engineering', 92000);")
-      console.log('📦 Loaded sample employees database')
       tableNames = database.list_tables()
     } catch (error) {
       console.warn('Failed to load sample data', error)
@@ -339,12 +343,7 @@ async function bootstrap(): Promise<void> {
 
   const resultsComponent = new ResultsComponent()
 
-  const execute = createExecutionHandler(
-    editor,
-    database,
-    resultsComponent,
-    refreshTables
-  )
+  const execute = createExecutionHandler(editor, database, resultsComponent, refreshTables)
 
   registerShortcuts(monaco, editor, execute)
   layout.runButton?.addEventListener('click', execute)
