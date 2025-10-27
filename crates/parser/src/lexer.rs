@@ -32,7 +32,7 @@ impl Lexer {
         let mut tokens = Vec::new();
 
         loop {
-            self.skip_whitespace();
+            self.skip_whitespace_and_comments();
 
             if self.is_eof() {
                 tokens.push(Token::Eof);
@@ -220,12 +220,47 @@ impl Lexer {
         }
     }
 
+    /// Skip whitespace and SQL comments.
+    /// SQL supports line comments starting with -- until end of line.
+    fn skip_whitespace_and_comments(&mut self) {
+        loop {
+            self.skip_whitespace();
+
+            if self.is_eof() {
+                break;
+            }
+
+            // Check for -- line comment
+            if self.current_char() == '-' && self.peek(1) == Some('-') {
+                // Skip until end of line
+                while !self.is_eof() && self.current_char() != '\n' {
+                    self.advance();
+                }
+                // Continue loop to skip the newline and any following whitespace/comments
+                continue;
+            }
+
+            // No more whitespace or comments
+            break;
+        }
+    }
+
     /// Get current character without advancing.
     fn current_char(&self) -> char {
         if self.is_eof() {
             '\0'
         } else {
             self.input[self.position]
+        }
+    }
+
+    /// Peek ahead n characters without advancing.
+    fn peek(&self, n: usize) -> Option<char> {
+        let peek_pos = self.position + n;
+        if peek_pos < self.input.len() {
+            Some(self.input[peek_pos])
+        } else {
+            None
         }
     }
 

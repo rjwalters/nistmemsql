@@ -1,3 +1,4 @@
+mod comments;
 mod errors;
 mod identifiers;
 mod keywords;
