@@ -9,6 +9,7 @@ pub fn init_wasm() {
 
 /// Placeholder Database struct for initial testing
 #[wasm_bindgen]
+#[derive(Default)]
 pub struct Database {
     // Will be populated in future issues
 }
