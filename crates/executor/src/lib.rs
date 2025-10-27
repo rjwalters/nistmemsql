@@ -6,10 +6,12 @@ pub mod errors;
 mod evaluator;
 mod schema;
 mod select;
+mod update;
 
 pub use errors::ExecutorError;
 pub use evaluator::ExpressionEvaluator;
 pub use select::SelectExecutor;
+pub use update::UpdateExecutor;
 
 #[cfg(test)]
 mod tests;

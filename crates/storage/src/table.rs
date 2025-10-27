@@ -48,4 +48,22 @@ impl Table {
     pub fn clear(&mut self) {
         self.rows.clear();
     }
+
+    /// Update a row at the specified index
+    pub fn update_row(&mut self, index: usize, row: Row) -> Result<(), StorageError> {
+        if index >= self.rows.len() {
+            return Err(StorageError::ColumnIndexOutOfBounds { index });
+        }
+
+        // Validate row has correct number of columns
+        if row.len() != self.schema.column_count() {
+            return Err(StorageError::ColumnCountMismatch {
+                expected: self.schema.column_count(),
+                actual: row.len(),
+            });
+        }
+
+        self.rows[index] = row;
+        Ok(())
+    }
 }

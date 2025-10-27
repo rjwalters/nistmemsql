@@ -8,6 +8,7 @@ pub enum ExecutorError {
     InvalidWhereClause(String),
     UnsupportedExpression(String),
     UnsupportedFeature(String),
+    StorageError(String),
 }
 
 impl std::fmt::Display for ExecutorError {
@@ -27,6 +28,7 @@ impl std::fmt::Display for ExecutorError {
                 write!(f, "Unsupported expression: {}", msg)
             }
             ExecutorError::UnsupportedFeature(msg) => write!(f, "Unsupported feature: {}", msg),
+            ExecutorError::StorageError(msg) => write!(f, "Storage error: {}", msg),
         }
     }
 }
