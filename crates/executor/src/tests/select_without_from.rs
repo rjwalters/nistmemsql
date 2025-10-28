@@ -218,3 +218,201 @@ fn test_column_reference_without_from_fails() {
         _ => panic!("Expected UnsupportedFeature error"),
     }
 }
+
+#[test]
+fn test_is_null_with_column_reference_fails() {
+    let db = storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::IsNull {
+                expr: Box::new(ast::Expression::ColumnRef {
+                    table: None,
+                    column: "id".to_string(),
+                }),
+                negated: false,
+            },
+            alias: None,
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt);
+    assert!(result.is_err());
+    match result {
+        Err(ExecutorError::UnsupportedFeature(msg)) => {
+            assert!(msg.contains("Column reference requires FROM clause"));
+        }
+        _ => panic!("Expected UnsupportedFeature error"),
+    }
+}
+
+#[test]
+fn test_between_with_column_reference_fails() {
+    let db = storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::Between {
+                expr: Box::new(ast::Expression::ColumnRef {
+                    table: None,
+                    column: "price".to_string(),
+                }),
+                low: Box::new(ast::Expression::Literal(types::SqlValue::Integer(10))),
+                high: Box::new(ast::Expression::Literal(types::SqlValue::Integer(20))),
+                negated: false,
+            },
+            alias: None,
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt);
+    assert!(result.is_err());
+    match result {
+        Err(ExecutorError::UnsupportedFeature(msg)) => {
+            assert!(msg.contains("Column reference requires FROM clause"));
+        }
+        _ => panic!("Expected UnsupportedFeature error"),
+    }
+}
+
+#[test]
+fn test_cast_with_column_reference_fails() {
+    let db = storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::Cast {
+                expr: Box::new(ast::Expression::ColumnRef {
+                    table: None,
+                    column: "id".to_string(),
+                }),
+                data_type: types::DataType::Varchar { max_length: 255 },
+            },
+            alias: None,
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt);
+    assert!(result.is_err());
+    match result {
+        Err(ExecutorError::UnsupportedFeature(msg)) => {
+            assert!(msg.contains("Column reference requires FROM clause"));
+        }
+        _ => panic!("Expected UnsupportedFeature error"),
+    }
+}
+
+#[test]
+fn test_like_with_column_reference_fails() {
+    let db = storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::Like {
+                expr: Box::new(ast::Expression::ColumnRef {
+                    table: None,
+                    column: "name".to_string(),
+                }),
+                pattern: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("A%".to_string()))),
+                negated: false,
+            },
+            alias: None,
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt);
+    assert!(result.is_err());
+    match result {
+        Err(ExecutorError::UnsupportedFeature(msg)) => {
+            assert!(msg.contains("Column reference requires FROM clause"));
+        }
+        _ => panic!("Expected UnsupportedFeature error"),
+    }
+}
+
+#[test]
+fn test_in_list_with_column_reference_fails() {
+    let db = storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::InList {
+                expr: Box::new(ast::Expression::ColumnRef {
+                    table: None,
+                    column: "id".to_string(),
+                }),
+                values: vec![
+                    ast::Expression::Literal(types::SqlValue::Integer(1)),
+                    ast::Expression::Literal(types::SqlValue::Integer(2)),
+                    ast::Expression::Literal(types::SqlValue::Integer(3)),
+                ],
+                negated: false,
+            },
+            alias: None,
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt);
+    assert!(result.is_err());
+    match result {
+        Err(ExecutorError::UnsupportedFeature(msg)) => {
+            assert!(msg.contains("Column reference requires FROM clause"));
+        }
+        _ => panic!("Expected UnsupportedFeature error"),
+    }
+}

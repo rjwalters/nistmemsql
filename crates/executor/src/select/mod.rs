@@ -556,13 +556,52 @@ impl<'a> SelectExecutor<'a> {
     fn expression_references_column(&self, expr: &ast::Expression) -> bool {
         match expr {
             ast::Expression::ColumnRef { .. } => true,
+
             ast::Expression::BinaryOp { left, right, .. } => {
                 self.expression_references_column(left) || self.expression_references_column(right)
             }
+
+            ast::Expression::UnaryOp { expr, .. } => {
+                self.expression_references_column(expr)
+            }
+
             ast::Expression::Function { args, .. } => {
                 args.iter().any(|arg| self.expression_references_column(arg))
             }
-            ast::Expression::UnaryOp { expr, .. } => self.expression_references_column(expr),
+
+            ast::Expression::IsNull { expr, .. } => {
+                self.expression_references_column(expr)
+            }
+
+            ast::Expression::InList { expr, values, .. } => {
+                self.expression_references_column(expr)
+                    || values.iter().any(|v| self.expression_references_column(v))
+            }
+
+            ast::Expression::Between { expr, low, high, .. } => {
+                self.expression_references_column(expr)
+                    || self.expression_references_column(low)
+                    || self.expression_references_column(high)
+            }
+
+            ast::Expression::Cast { expr, .. } => {
+                self.expression_references_column(expr)
+            }
+
+            ast::Expression::Like { expr, pattern, .. } => {
+                self.expression_references_column(expr)
+                    || self.expression_references_column(pattern)
+            }
+
+            ast::Expression::In { expr, .. } => {
+                // Note: subquery could reference outer columns but that's a different case
+                self.expression_references_column(expr)
+            }
+
+            ast::Expression::QuantifiedComparison { expr, .. } => {
+                self.expression_references_column(expr)
+            }
+
             ast::Expression::Case { operand, when_clauses, else_result } => {
                 operand.as_ref().map_or(false, |e| self.expression_references_column(e))
                     || when_clauses.iter().any(|(cond, res)| {
@@ -570,7 +609,12 @@ impl<'a> SelectExecutor<'a> {
                     })
                     || else_result.as_ref().map_or(false, |e| self.expression_references_column(e))
             }
-            _ => false,
+
+            // These don't contain column references:
+            ast::Expression::Literal(_) => false,
+            ast::Expression::Wildcard => false,
+            ast::Expression::ScalarSubquery(_) => false, // Subquery has its own scope
+            ast::Expression::Exists { .. } => false,     // Subquery has its own scope
         }
     }
 }
