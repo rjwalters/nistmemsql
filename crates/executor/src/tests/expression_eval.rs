@@ -254,3 +254,83 @@ fn test_eval_division() {
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(5));
 }
+
+#[test]
+fn test_eval_string_concat_varchar() {
+    let schema = catalog::TableSchema::new("test".to_string(), vec![]);
+    let evaluator = ExpressionEvaluator::new(&schema);
+    let row = storage::Row::new(vec![]);
+
+    let expr = ast::Expression::BinaryOp {
+        left: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("Hello".to_string()))),
+        op: ast::BinaryOperator::Concat,
+        right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(" World".to_string()))),
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+    assert_eq!(result, types::SqlValue::Varchar("Hello World".to_string()));
+}
+
+#[test]
+fn test_eval_string_concat_char() {
+    let schema = catalog::TableSchema::new("test".to_string(), vec![]);
+    let evaluator = ExpressionEvaluator::new(&schema);
+    let row = storage::Row::new(vec![]);
+
+    let expr = ast::Expression::BinaryOp {
+        left: Box::new(ast::Expression::Literal(types::SqlValue::Character("Hello".to_string()))),
+        op: ast::BinaryOperator::Concat,
+        right: Box::new(ast::Expression::Literal(types::SqlValue::Character(" World".to_string()))),
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+    assert_eq!(result, types::SqlValue::Varchar("Hello World".to_string()));
+}
+
+#[test]
+fn test_eval_string_concat_mixed() {
+    let schema = catalog::TableSchema::new("test".to_string(), vec![]);
+    let evaluator = ExpressionEvaluator::new(&schema);
+    let row = storage::Row::new(vec![]);
+
+    let expr = ast::Expression::BinaryOp {
+        left: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("Hello".to_string()))),
+        op: ast::BinaryOperator::Concat,
+        right: Box::new(ast::Expression::Literal(types::SqlValue::Character(" World".to_string()))),
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+    assert_eq!(result, types::SqlValue::Varchar("Hello World".to_string()));
+}
+
+#[test]
+fn test_eval_string_concat_null() {
+    let schema = catalog::TableSchema::new("test".to_string(), vec![]);
+    let evaluator = ExpressionEvaluator::new(&schema);
+    let row = storage::Row::new(vec![]);
+
+    let expr = ast::Expression::BinaryOp {
+        left: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("Hello".to_string()))),
+        op: ast::BinaryOperator::Concat,
+        right: Box::new(ast::Expression::Literal(types::SqlValue::Null)),
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+    assert_eq!(result, types::SqlValue::Null);
+}
+
+#[test]
+fn test_eval_string_concat_multiple() {
+    let schema = catalog::TableSchema::new("test".to_string(), vec![]);
+    let evaluator = ExpressionEvaluator::new(&schema);
+    let row = storage::Row::new(vec![]);
+
+    // ("Hello" || " " || "World")
+    let expr = ast::Expression::BinaryOp {
+        left: Box::new(ast::Expression::BinaryOp {
+            left: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("Hello".to_string()))),
+            op: ast::BinaryOperator::Concat,
+            right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(" ".to_string()))),
+        }),
+        op: ast::BinaryOperator::Concat,
+        right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("World".to_string()))),
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+    assert_eq!(result, types::SqlValue::Varchar("Hello World".to_string()));
+}

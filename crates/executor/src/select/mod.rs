@@ -184,6 +184,7 @@ impl<'a> SelectExecutor<'a> {
                         ast::BinaryOperator::GreaterThanOrEqual => ">=",
                         ast::BinaryOperator::And => "AND",
                         ast::BinaryOperator::Or => "OR",
+                        ast::BinaryOperator::Concat => "||",
                         _ => "?",
                     },
                     self.derive_expression_name(right)

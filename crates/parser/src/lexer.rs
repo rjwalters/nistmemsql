@@ -94,6 +94,18 @@ impl Lexer {
                     Ok(Token::Symbol(ch))
                 }
             }
+            '|' => {
+                self.advance();
+                if !self.is_eof() && self.current_char() == '|' {
+                    self.advance();
+                    Ok(Token::Operator("||".to_string()))
+                } else {
+                    Err(LexerError {
+                        message: "Unexpected character: '|' (did you mean '||'?)".to_string(),
+                        position: self.position - 1,
+                    })
+                }
+            }
             '+' | '-' | '*' | '/' | '.' => {
                 let symbol = ch;
                 self.advance();

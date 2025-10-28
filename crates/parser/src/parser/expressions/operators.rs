@@ -35,15 +35,16 @@ impl Parser {
         Ok(left)
     }
 
-    /// Parse additive expression (handles + and -)
+    /// Parse additive expression (handles +, -, and ||)
     pub(super) fn parse_additive_expression(&mut self) -> Result<ast::Expression, ParseError> {
         let mut left = self.parse_multiplicative_expression()?;
 
-        while matches!(self.peek(), Token::Symbol('+') | Token::Symbol('-')) {
+        loop {
             let op = match self.peek() {
                 Token::Symbol('+') => ast::BinaryOperator::Plus,
                 Token::Symbol('-') => ast::BinaryOperator::Minus,
-                _ => unreachable!(),
+                Token::Operator(ref s) if s == "||" => ast::BinaryOperator::Concat,
+                _ => break,
             };
             self.advance();
 
@@ -203,10 +204,12 @@ impl Parser {
         }
 
         // Check for comparison operators (both single-char and multi-char)
-        let is_comparison = matches!(
-            self.peek(),
-            Token::Symbol('=') | Token::Symbol('<') | Token::Symbol('>') | Token::Operator(_)
-        );
+        // Note: Exclude || (concat) operator which should be handled in additive expression
+        let is_comparison = match self.peek() {
+            Token::Symbol('=') | Token::Symbol('<') | Token::Symbol('>') => true,
+            Token::Operator(ref s) => matches!(s.as_str(), "<=" | ">=" | "!=" | "<>"),
+            _ => false,
+        };
 
         if is_comparison {
             let op = match self.peek() {
