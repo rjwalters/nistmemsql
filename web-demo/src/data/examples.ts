@@ -89,7 +89,17 @@ LIMIT 10;`,
         database: 'northwind',
         sql: `SELECT DISTINCT category_id
 FROM products
-ORDER BY category_id;`,
+ORDER BY category_id;
+-- EXPECTED:
+-- | category_id |
+-- | 1           |
+-- | 2           |
+-- | 3           |
+-- | 4           |
+-- | 6           |
+-- | 7           |
+-- | 8           |
+-- (7 rows)`,
         description: 'Get unique category IDs',
         sqlFeatures: ['SELECT', 'DISTINCT', 'ORDER BY'],
       },
