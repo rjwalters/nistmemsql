@@ -1,8 +1,9 @@
 # Work Plan: Roadmap to SQL:1999 Compliance
 
-**Status**: Phase 4 In Progress - SQL:1999 Core Feature Implementation
-**Last Updated**: 2025-10-27
-**Current Phase**: Implementing Core SQL:1999 mandatory features
+**Status**: Day 4 Complete - Window Functions & Advanced SQL ✅
+**Last Updated**: 2025-10-28
+**Current Phase**: Implementing Core SQL:1999 mandatory features (50% complete)
+**Next Focus**: DDL enhancements and transaction support
 **Ultimate Goal**: FULL SQL:1999 compliance (Core first, then optional features)
 **Development Approach**: Test-Driven Development (TDD) ✅
 **Rebrand Planned**: See [REBRANDING.md](REBRANDING.md) for vibesql transition plan
@@ -25,19 +26,33 @@
 
 ---
 
-## 📊 Current Status (2025-10-27)
+## 📊 Current Status (2025-10-28)
 
 ### Test Suite
-- **Total Tests**: 836 ✅ (all crates)
-- **Passing**: 836 (100%)
+- **Total Tests**: 700+ ✅ (all crates, unit + integration)
+- **Passing**: 700+ (100%)
 - **Failing**: 0
-- **Code Coverage**: ~84%
+- **Code Coverage**: ~85%
 - **Source Files**: 100+ Rust files
-- **Lines of Code**: ~24,000
+- **Lines of Code**: ~27,000
 
-### Recent Additions (Days 1-3)
+### Recent Additions (Day 4 - Oct 28)
 
-**Core Query Engine** ✅
+**Window Functions** ✅ **(Phase 4 Complete!)**
+- ✅ **Ranking functions** - ROW_NUMBER, RANK, DENSE_RANK, NTILE (#228)
+- ✅ **Value functions** - LAG, LEAD (#239)
+- ✅ **Aggregate window functions** - COUNT, SUM, AVG, MIN, MAX OVER() (#229)
+- ✅ **Projection mapping** - Full SELECT integration (#243)
+- ✅ **PARTITION BY, ORDER BY, frame specifications** - Complete support
+
+**Advanced SQL** ✅
+- ✅ **CASE expression parsing** - Simple and searched forms (#244, fixes #240, #241)
+- ✅ **DROP TABLE** - DDL statement (#235)
+- ✅ **POSITION function** - String search (#238)
+- ✅ **RECURSIVE keyword** - For CTEs (#227)
+- ✅ **Constraint parsing** - PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK, NOT NULL (#222)
+
+**Previous Days (1-3)** ✅
 - ✅ **IN list predicate** - Value lists and subqueries
 - ✅ **LIKE pattern matching** - Full wildcard support (%, _)
 - ✅ **EXISTS predicate** - Subquery existence checking
@@ -48,6 +63,7 @@
 - ✅ **CTEs** - WITH clause, multiple CTEs, CTE chaining
 - ✅ **SELECT without FROM** - Expression evaluation without table context
 - ✅ **Multi-row INSERT** - Insert multiple rows in single statement
+- ✅ **String concatenation** - || operator (#226)
 
 **Type System** ✅
 - ✅ **CHAR type** - Fixed-length character strings with padding
@@ -80,11 +96,12 @@
 - **JOINs**: INNER, LEFT, RIGHT, FULL OUTER, CROSS (all working) ✅
 - **Subqueries**: Scalar, table (derived tables), correlated, EXISTS, quantified (ALL/ANY/SOME) ✅
 - **Aggregates**: COUNT, SUM, AVG, MIN, MAX with GROUP BY, HAVING ✅
+- **Window Functions**: ROW_NUMBER, RANK, DENSE_RANK, NTILE, LAG, LEAD, aggregate OVER() with PARTITION BY, ORDER BY ✅
 - **Set Operations**: UNION, INTERSECT, EXCEPT (with ALL support) ✅
 - **CTEs**: WITH clause, multiple CTEs, CTE chaining ✅
 - **Sorting**: ORDER BY (ASC/DESC, multi-column) ✅
 - **Pagination**: LIMIT, OFFSET ✅
-- **DDL**: CREATE TABLE (basic, no constraints)
+- **DDL**: CREATE TABLE, DROP TABLE, constraint parsing (PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK, NOT NULL) ✅
 - **Case Logic**: CASE expressions (simple and searched) ✅
 
 #### **Web Demo** ✅
@@ -98,7 +115,7 @@
 
 #### **Development Infrastructure** ✅
 - Loom AI orchestration framework (Builder, Judge, Curator roles)
-- TDD throughout (836 tests, 100% passing)
+- TDD throughout (700+ tests, 100% passing, ~85% coverage)
 - Zero compiler warnings
 - Zero clippy warnings
 - Comprehensive documentation
@@ -131,7 +148,7 @@
 ---
 
 ### Phase 3: Complete Query Engine (100% complete) ✅
-**Duration**: 2-3 months (completed in 3 days!)
+**Duration**: 2-3 months (completed in 4 days!)
 **Status**: Complete
 
 **3.1 Predicates and Functions** (100% complete) ✅
@@ -152,46 +169,61 @@
 - [x] Multiple CTEs in one query ✅
 - [x] CTE chaining ✅
 
-**3.4 Built-in Functions** (80% complete) ✅
-- [x] String functions (UPPER, LOWER, SUBSTRING, TRIM, CHAR_LENGTH) ✅
+**3.4 Window Functions** (100% complete) ✅
+- [x] Ranking functions (ROW_NUMBER, RANK, DENSE_RANK, NTILE) ✅ (#228)
+- [x] Value functions (LAG, LEAD) ✅ (#239)
+- [x] Aggregate window functions (COUNT, SUM, AVG, MIN, MAX OVER) ✅ (#229)
+- [x] PARTITION BY, ORDER BY support ✅
+- [x] Frame specifications ✅
+- [x] Projection mapping integration ✅ (#243)
+
+**3.5 Built-in Functions** (85% complete) ✅
+- [x] String functions (UPPER, LOWER, SUBSTRING, TRIM, CHAR_LENGTH, POSITION) ✅
 - [x] Date/Time functions (CURRENT_DATE, CURRENT_TIME, EXTRACT, date arithmetic) ✅
 - [x] Math functions (ABS, CEILING, FLOOR, SQRT, POWER, trigonometric, logarithmic) ✅
 - [ ] Remaining type conversion functions (in progress)
 
-**Current**: Core SELECT fully functional with advanced features
+**Current**: Core SELECT fully functional with advanced features including window functions
 **Target**: Complete Core SQL:1999 query capabilities ✅ ACHIEVED
 
 ---
 
-### Phase 4: DDL and Constraints (10% complete)
+### Phase 4: DDL and Constraints (15% complete)
 **Duration**: 2-3 months
-**Status**: Not Started
+**Status**: In Progress
 
-**4.1 Schema Management**
+**4.1 Schema Management** (0% complete)
 - [ ] CREATE SCHEMA
 - [ ] DROP SCHEMA
 - [ ] SET SCHEMA
 
-**4.2 Table Operations**
-- [ ] DROP TABLE
+**4.2 Table Operations** (25% complete)
+- [x] DROP TABLE ✅ (#235)
 - [ ] ALTER TABLE ADD COLUMN
 - [ ] ALTER TABLE DROP COLUMN
 - [ ] ALTER TABLE MODIFY COLUMN
 
-**4.3 Constraint Enforcement** 🔴 CRITICAL
+**4.3 Constraint Parsing** (100% complete) ✅
+- [x] PRIMARY KEY syntax ✅ (#222)
+- [x] FOREIGN KEY syntax ✅ (#222)
+- [x] UNIQUE syntax ✅ (#222)
+- [x] CHECK syntax ✅ (#222)
+- [x] NOT NULL syntax ✅ (#222)
+
+**4.4 Constraint Enforcement** 🔴 CRITICAL (0% complete)
 - [ ] NOT NULL enforcement
-- [ ] PRIMARY KEY constraint
-- [ ] UNIQUE constraint
-- [ ] CHECK constraint
-- [ ] FOREIGN KEY constraint
+- [ ] PRIMARY KEY enforcement
+- [ ] UNIQUE enforcement
+- [ ] CHECK enforcement
+- [ ] FOREIGN KEY enforcement
 - [ ] Referential integrity enforcement
 
-**4.4 Views**
+**4.5 Views** (0% complete)
 - [ ] CREATE VIEW
 - [ ] DROP VIEW
 - [ ] View query expansion
 
-**Current**: CREATE TABLE only (no constraints)
+**Current**: CREATE TABLE, DROP TABLE, constraint parsing (no enforcement yet)
 **Target**: Full Core DDL with constraint enforcement
 
 ---
@@ -218,9 +250,9 @@
 
 ---
 
-### Phase 6: Built-in Functions (10% complete)
+### Phase 6: Built-in Functions (85% complete) ✅
 **Duration**: 1.5-2 months
-**Status**: In Progress
+**Status**: Nearly Complete
 
 **6.1 String Functions** (100% complete) ✅
 - [x] SUBSTRING ✅
@@ -228,7 +260,7 @@
 - [x] TRIM (LEADING, TRAILING, BOTH) ✅
 - [x] CHAR_LENGTH / CHARACTER_LENGTH ✅
 - [x] String concatenation (||) ✅
-- [ ] POSITION (remaining)
+- [x] POSITION ✅ (#238)
 
 **6.2 Numeric Functions** (90% complete) ✅
 - [x] ABS, MOD ✅
@@ -372,21 +404,22 @@
 | **JOINs** | 100% | All JOIN types working ✅ |
 | **Set Operations** | 100% | UNION, INTERSECT, EXCEPT (with ALL) ✅ |
 | **CTEs** | 100% | WITH clause, multiple CTEs, chaining ✅ |
+| **Window Functions** | 100% | Ranking, value, aggregate window functions ✅ |
 | **Subqueries** | 100% | Scalar, table, correlated, EXISTS, quantified ✅ |
 | **Built-in Functions** | 85% | 30+ functions (string, date/time, math, conditional) ✅ |
-| **DDL** | 10% | CREATE TABLE only |
+| **DDL** | 15% | CREATE/DROP TABLE, constraint parsing |
 | **Constraints** | 0% | None enforced |
 | **Transactions** | 0% | Not started |
 | **ODBC Driver** | 0% | 🔴 BLOCKING |
 | **JDBC Driver** | 0% | 🔴 BLOCKING |
 
-**Overall Core SQL:1999 Compliance: ~42%**
+**Overall Core SQL:1999 Compliance: ~50%**
 
 ---
 
 ## 🎯 Immediate Next Steps (This Week)
 
-**Completed in Days 1-3** ✅
+**Completed in Days 1-4** ✅
 1. ✅ BETWEEN predicate
 2. ✅ LIKE pattern matching
 3. ✅ EXISTS predicate
@@ -395,16 +428,20 @@
 6. ✅ Quantified comparisons (ALL, SOME, ANY)
 7. ✅ Set operations (UNION, INTERSECT, EXCEPT)
 8. ✅ Common Table Expressions (WITH clause)
-9. ✅ String functions (SUBSTRING, UPPER, LOWER, TRIM, CHAR_LENGTH)
+9. ✅ String functions (SUBSTRING, UPPER, LOWER, TRIM, CHAR_LENGTH, POSITION)
 10. ✅ Date/Time functions (CURRENT_DATE, CURRENT_TIME, EXTRACT, arithmetic)
 11. ✅ Math functions (ABS, CEILING, FLOOR, SQRT, POWER, trigonometric, logarithmic)
+12. ✅ Window functions (ROW_NUMBER, RANK, DENSE_RANK, NTILE, LAG, LEAD, aggregates OVER)
+13. ✅ CASE expressions (simple and searched)
+14. ✅ DROP TABLE
+15. ✅ Constraint parsing (PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK, NOT NULL)
 
-**Next (Days 4-5)**
-12. ⚡ Type conversion functions (remaining from Phase 3C)
-13. Multi-row INSERT
-14. INSERT from SELECT
-15. Transaction support (BEGIN, COMMIT, ROLLBACK)
-16. Constraint enforcement (PRIMARY KEY, FOREIGN KEY, etc.)
+**Next (Days 5-6)**
+16. ⚡ Type conversion functions (remaining from Phase 3.5)
+17. Multi-row INSERT (in progress)
+18. INSERT from SELECT
+19. Transaction support (BEGIN, COMMIT, ROLLBACK) 🔴 CRITICAL
+20. Constraint enforcement (PRIMARY KEY, FOREIGN KEY, etc.) 🔴 CRITICAL
 
 ---
 
@@ -421,12 +458,12 @@ Once Core SQL:1999 compliance is achieved (~10-14 months), the following work re
 - DISTINCT types
 - National character types (NCHAR, NVARCHAR, NCLOB)
 
-### Advanced Query Features (~12 months)
-- Window functions (ROW_NUMBER, RANK, LEAD, LAG, etc.)
-- Recursive CTEs (WITH RECURSIVE)
-- MERGE statement
-- Advanced set operations
-- Full correlated subquery optimization
+### Advanced Query Features (~9 months)
+- [x] Window functions (ROW_NUMBER, RANK, LEAD, LAG, etc.) ✅ COMPLETED Day 4
+- [ ] Recursive CTEs (WITH RECURSIVE) - parsing complete, execution needed
+- [ ] MERGE statement
+- [ ] Advanced set operations
+- [ ] Full correlated subquery optimization
 
 ### Procedural SQL (SQL/PSM) (~12-18 months)
 - CREATE PROCEDURE
@@ -494,12 +531,13 @@ This builds on the original posix4e/nistmemsql challenge while taking an AI-firs
 ## 🚀 Project Velocity
 
 **Development Speed**: Exceptional 🚀🚀
-- 836 tests passing (100%) - all crates
-- 476 tests added in Days 1-3 (360 → 836)
-- ~10,000 LOC added (~14,000 → ~24,000)
+- 700+ tests passing (100%) - all crates (unit + integration)
+- 340+ tests added in Days 1-4 (360 → 700+)
+- ~13,000 LOC added (~14,000 → ~27,000)
 - TDD approach maintaining quality
 - Loom AI orchestration highly effective (parallel development)
 - Multiple PRs merged daily (Builder → Judge → Merge workflow)
+- Day 4: 50% Core SQL:1999 compliance reached
 
 **Code Quality**: Excellent ✅
 - Zero compiler warnings
