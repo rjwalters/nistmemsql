@@ -46,6 +46,8 @@
 - ✅ **Quantified comparisons** - ALL, ANY, SOME predicates
 - ✅ **Set operations** - UNION, INTERSECT, EXCEPT (with ALL support)
 - ✅ **CTEs** - WITH clause, multiple CTEs, CTE chaining
+- ✅ **SELECT without FROM** - Expression evaluation without table context
+- ✅ **Multi-row INSERT** - Insert multiple rows in single statement
 
 **Type System** ✅
 - ✅ **CHAR type** - Fixed-length character strings with padding
@@ -71,10 +73,10 @@
 
 #### **Core Engine** ✅
 - **Types**: INTEGER, SMALLINT, BIGINT, FLOAT, REAL, DOUBLE PRECISION, NUMERIC/DECIMAL, VARCHAR, CHAR, BOOLEAN, NULL, DATE, TIME, TIMESTAMP, INTERVAL (14 types) ✅
-- **DML**: SELECT, INSERT, UPDATE, DELETE (full basic operations)
+- **DML**: SELECT (with and without FROM), INSERT (single and multi-row), UPDATE, DELETE ✅
 - **Predicates**: =, <, >, <=, >=, !=, <>, IS NULL, BETWEEN, IN (lists & subqueries), LIKE, EXISTS, ALL, ANY, SOME ✅
-- **Operators**: +, -, *, /, AND, OR, NOT ✅
-- **Functions**: String (UPPER, LOWER, SUBSTRING, TRIM, CHAR_LENGTH), Date/Time (CURRENT_DATE, CURRENT_TIME, EXTRACT, date arithmetic), Math (ABS, CEILING, FLOOR, SQRT, POWER, SIN, COS, TAN, etc.), CAST, COALESCE, NULLIF, GREATEST, LEAST ✅
+- **Operators**: +, -, *, /, ||, AND, OR, NOT ✅
+- **Functions**: String (UPPER, LOWER, SUBSTRING, TRIM, CHAR_LENGTH, ||), Date/Time (CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP, EXTRACT, date arithmetic), Math (ABS, CEILING, FLOOR, SQRT, POWER, SIN, COS, TAN, etc.), CAST, COALESCE, NULLIF, GREATEST, LEAST ✅
 - **JOINs**: INNER, LEFT, RIGHT, FULL OUTER, CROSS (all working) ✅
 - **Subqueries**: Scalar, table (derived tables), correlated, EXISTS, quantified (ALL/ANY/SOME) ✅
 - **Aggregates**: COUNT, SUM, AVG, MIN, MAX with GROUP BY, HAVING ✅

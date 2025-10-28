@@ -137,12 +137,13 @@ This isn't just about databases. It's about understanding what's now possible wi
 
 **Query Engine** ✅ **(Phase 3 Complete!)**
 - **SELECT**: WHERE, JOIN, subqueries, GROUP BY, HAVING, ORDER BY, LIMIT, DISTINCT
+- **SELECT without FROM**: Expression evaluation (e.g., `SELECT 1 + 1`)
 - **All 5 JOIN types**: INNER, LEFT, RIGHT, FULL OUTER, CROSS (100% complete)
 - **Subqueries**: Scalar, table (derived tables), correlated
 - **CTEs**: WITH clause, multiple CTEs, CTE chaining
 - **Set Operations**: UNION [ALL], INTERSECT [ALL], EXCEPT [ALL]
 - **Aggregates**: COUNT(*), COUNT(col), SUM, AVG, MIN, MAX with NULL handling
-- **DML**: INSERT, UPDATE, DELETE, CREATE TABLE
+- **DML**: INSERT (including multi-row), UPDATE, DELETE, CREATE TABLE
 
 **Predicates & Operators** ✅
 - **Comparison**: =, <>, <, >, <=, >=
@@ -194,9 +195,12 @@ This isn't just about databases. It's about understanding what's now possible wi
 - [x] Date/time functions (CURRENT_DATE, CURRENT_TIME, EXTRACT) ✅
 - [x] Advanced math functions (ABS, MOD, CEILING, FLOOR, POWER, SQRT, trig) ✅
 - [x] String functions (UPPER, LOWER, SUBSTRING, TRIM, CHAR_LENGTH) ✅
+- [x] CASE expressions (simple and searched forms) ✅
+- [x] Multi-row INSERT (already implemented) ✅
+- [x] String concatenation operator (||) ✅
+- [x] SELECT without FROM clause ✅
 - [ ] NUMERIC/DECIMAL precision arithmetic (currently string-based)
 - [ ] Remaining type conversion functions
-- [ ] Multi-row INSERT
 - [ ] INSERT from SELECT
 
 **Day 5 (Oct 30)** - Constraints & Transactions
