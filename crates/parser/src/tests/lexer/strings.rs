@@ -39,4 +39,32 @@ fn test_tokenize_unterminated_string() {
     assert_eq!(err.message, "Unterminated string literal");
 }
 
+#[test]
+fn test_tokenize_string_with_escaped_quote() {
+    let mut lexer = Lexer::new("'O''Reilly'");
+    let tokens = lexer.tokenize().unwrap();
+    assert_eq!(tokens[0], Token::String("O'Reilly".to_string()));
+}
+
+#[test]
+fn test_tokenize_string_with_multiple_escaped_quotes() {
+    let mut lexer = Lexer::new("'Chef Anton''s Cajun Seasoning'");
+    let tokens = lexer.tokenize().unwrap();
+    assert_eq!(tokens[0], Token::String("Chef Anton's Cajun Seasoning".to_string()));
+}
+
+#[test]
+fn test_tokenize_string_with_double_escaped_quote() {
+    let mut lexer = Lexer::new("'It''s ''great'''");
+    let tokens = lexer.tokenize().unwrap();
+    assert_eq!(tokens[0], Token::String("It's 'great'".to_string()));
+}
+
+#[test]
+fn test_tokenize_empty_string_not_confused_with_escaped_quote() {
+    let mut lexer = Lexer::new("''");
+    let tokens = lexer.tokenize().unwrap();
+    assert_eq!(tokens[0], Token::String("".to_string()));
+}
+
 // ============================================================================

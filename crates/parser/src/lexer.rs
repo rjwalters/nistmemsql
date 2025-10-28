@@ -249,22 +249,32 @@ impl Lexer {
     }
 
     /// Tokenize a string literal enclosed in single or double quotes.
+    /// Supports SQL-standard escaped quotes (e.g., 'O''Reilly' becomes "O'Reilly")
     fn tokenize_string(&mut self) -> Result<Token, LexerError> {
         let quote = self.current_char();
         self.advance();
 
-        let start = self.position;
+        let mut string_content = String::new();
         while !self.is_eof() {
             let ch = self.current_char();
             if ch == quote {
-                let string_content: String = self.input[start..self.position].iter().collect();
+                // Check if this is an escaped quote (two consecutive quotes)
                 self.advance();
-                return Ok(Token::String(string_content));
+                if !self.is_eof() && self.current_char() == quote {
+                    // Escaped quote - add a single quote to the result and continue
+                    string_content.push(quote);
+                    self.advance();
+                } else {
+                    // End of string
+                    return Ok(Token::String(string_content));
+                }
+            } else {
+                string_content.push(ch);
+                self.advance();
             }
-            self.advance();
         }
 
-        Err(LexerError { message: "Unterminated string literal".to_string(), position: start - 1 })
+        Err(LexerError { message: "Unterminated string literal".to_string(), position: self.position })
     }
 
     /// Skip whitespace characters.
