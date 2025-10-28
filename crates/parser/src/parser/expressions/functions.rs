@@ -12,6 +12,28 @@ impl Parser {
                 if matches!(self.peek(), Token::LParen) {
                     self.advance(); // consume '('
 
+                    // Special case for POSITION(substring IN string)
+                    // SQL:1999 standard syntax
+                    if first.to_uppercase() == "POSITION" {
+                        // Parse substring at primary level (literals, identifiers, function calls)
+                        // to avoid IN operator consumption at comparison level
+                        let substring = self.parse_primary_expression()?;
+
+                        // Expect IN keyword
+                        self.expect_keyword(Keyword::In)?;
+
+                        // Parse string expression at primary level
+                        let string = self.parse_primary_expression()?;
+
+                        // Expect closing parenthesis
+                        self.expect_token(Token::RParen)?;
+
+                        return Ok(Some(ast::Expression::Position {
+                            substring: Box::new(substring),
+                            string: Box::new(string),
+                        }));
+                    }
+
                     // Parse function arguments
                     let mut args = Vec::new();
 

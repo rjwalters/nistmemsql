@@ -589,6 +589,11 @@ impl<'a> SelectExecutor<'a> {
                 self.expression_references_column(expr)
             }
 
+            ast::Expression::Position { substring, string } => {
+                self.expression_references_column(substring)
+                    || self.expression_references_column(string)
+            }
+
             ast::Expression::Like { expr, pattern, .. } => {
                 self.expression_references_column(expr)
                     || self.expression_references_column(pattern)
