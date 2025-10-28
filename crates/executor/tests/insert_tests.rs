@@ -656,7 +656,7 @@ use ast;
                 source: ast::InsertSource::Values(vec![vec![
                     ast::Expression::Literal(types::SqlValue::Integer(i)),
                     ast::Expression::Literal(types::SqlValue::Varchar(format!("User{}", i))),
-                ]),
+                ]]),
             };
             InsertExecutor::execute(&mut db, &stmt).unwrap();
         }
@@ -747,7 +747,7 @@ use ast;
                 source: ast::InsertSource::Values(vec![vec![
                     ast::Expression::Literal(types::SqlValue::Integer(i)),
                     ast::Expression::Literal(types::SqlValue::Null),
-                ]),
+                ]]),
             };
             InsertExecutor::execute(&mut db, &stmt).unwrap();
         }
@@ -1434,6 +1434,7 @@ use ast;
                             table: None,
                             column: "amount".to_string(),
                         }],
+                        over: None,
                         distinct: false,
                     },
                     alias: None,
@@ -1442,6 +1443,7 @@ use ast;
                     expr: ast::Expression::Function {
                         name: "COUNT".to_string(),
                         args: vec![ast::Expression::Wildcard],
+                        over: None,
                         distinct: false,
                     },
                     alias: None,
@@ -1467,3 +1469,10 @@ use ast;
             columns: vec![],
             source: ast::InsertSource::Select(Box::new(select_stmt)),
         };
+        let rows = InsertExecutor::execute(&mut db, &insert_select_stmt).unwrap();
+        assert_eq!(rows, 1);
+
+        // Verify aggregated data was inserted
+        let table = db.get_table("summary").unwrap();
+        assert_eq!(table.row_count(), 1);
+    }
