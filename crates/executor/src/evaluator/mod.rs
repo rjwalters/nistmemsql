@@ -6,6 +6,7 @@ mod date_format;
 mod expressions;
 mod functions;
 mod pattern;
+pub mod window;
 
 #[cfg(test)]
 mod tests;
