@@ -77,8 +77,8 @@ impl InsertExecutor {
             for (col_idx, col) in schema.columns.iter().enumerate() {
                 if !col.nullable && full_row_values[col_idx] == types::SqlValue::Null {
                     return Err(ExecutorError::ConstraintViolation(format!(
-                        "NOT NULL constraint violated for column '{}'",
-                        col.name
+                        "NOT NULL constraint violation: column '{}' in table '{}' cannot be NULL",
+                        col.name, stmt.table_name
                     )));
                 }
             }

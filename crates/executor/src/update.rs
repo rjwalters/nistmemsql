@@ -119,8 +119,8 @@ impl UpdateExecutor {
 
                     if !col.nullable && *value == types::SqlValue::Null {
                         return Err(ExecutorError::ConstraintViolation(format!(
-                            "NOT NULL constraint violated for column '{}'",
-                            col.name
+                            "NOT NULL constraint violation: column '{}' in table '{}' cannot be NULL",
+                            col.name, stmt.table_name
                         )));
                     }
                 }
