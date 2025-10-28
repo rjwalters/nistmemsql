@@ -4,6 +4,7 @@
 
 mod create_table;
 mod delete;
+mod drop_table;
 pub mod errors;
 mod evaluator;
 mod insert;
@@ -13,6 +14,7 @@ mod update;
 
 pub use create_table::CreateTableExecutor;
 pub use delete::DeleteExecutor;
+pub use drop_table::DropTableExecutor;
 pub use errors::ExecutorError;
 pub use evaluator::ExpressionEvaluator;
 pub use insert::InsertExecutor;
