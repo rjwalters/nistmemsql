@@ -15,7 +15,7 @@ mod set_operations;
 mod window;
 
 use cte::{execute_ctes, CteResult};
-use filter::{apply_where_filter_basic, apply_where_filter_combined};
+use filter::apply_where_filter_combined;
 use grouping::{group_rows, AggregateAccumulator};
 use helpers::{apply_distinct, apply_limit_offset};
 use join::FromResult;
@@ -263,14 +263,9 @@ impl<'a> SelectExecutor<'a> {
         stmt: &ast::SelectStmt,
         cte_results: &HashMap<String, CteResult>,
     ) -> Result<Vec<storage::Row>, ExecutorError> {
-        // Get table
-        let table_name = match &stmt.from {
-            Some(ast::FromClause::Table { name, alias: _ }) => name,
-            Some(_) => {
-                return Err(ExecutorError::UnsupportedFeature(
-                    "Aggregates only supported on single tables".to_string(),
-                ))
-            }
+        // Execute FROM clause (handles JOINs, subqueries, CTEs)
+        let from_result = match &stmt.from {
+            Some(from_clause) => self.execute_from(from_clause, cte_results)?,
             None => {
                 return Err(ExecutorError::UnsupportedFeature(
                     "SELECT without FROM not yet implemented".to_string(),
@@ -278,33 +273,10 @@ impl<'a> SelectExecutor<'a> {
             }
         };
 
-        // Check if table is a CTE first, then check database
-        let (schema, rows) = if let Some((cte_schema, cte_rows)) = cte_results.get(table_name) {
-            // Use CTE result
-            (cte_schema.clone(), cte_rows.clone())
-        } else {
-            // Use database table
-            let table = self
-                .database
-                .get_table(table_name)
-                .ok_or_else(|| ExecutorError::TableNotFound(table_name.clone()))?;
-            (table.schema.clone(), table.scan().to_vec())
-        };
+        let evaluator = CombinedExpressionEvaluator::with_database(&from_result.schema, self.database);
 
-        let evaluator = match (self.outer_row, self.outer_schema) {
-            (Some(outer_row), Some(outer_schema)) => {
-                ExpressionEvaluator::with_database_and_outer_context(
-                    &schema,
-                    self.database,
-                    outer_row,
-                    outer_schema,
-                )
-            }
-            _ => ExpressionEvaluator::with_database(&schema, self.database),
-        };
-
-        // Scan and filter rows with WHERE clause
-        let filtered_rows = apply_where_filter_basic(rows, stmt.where_clause.as_ref(), &evaluator)?;
+        // Apply WHERE clause to filter joined rows
+        let filtered_rows = apply_where_filter_combined(from_result.rows, stmt.where_clause.as_ref(), &evaluator)?;
 
         // Group rows
         let groups = if let Some(group_by_exprs) = &stmt.group_by {
@@ -450,7 +422,7 @@ impl<'a> SelectExecutor<'a> {
         expr: &ast::Expression,
         group_rows: &[storage::Row],
         _group_key: &[types::SqlValue],
-        evaluator: &ExpressionEvaluator,
+        evaluator: &CombinedExpressionEvaluator,
     ) -> Result<types::SqlValue, ExecutorError> {
         match expr {
             // Aggregate function
