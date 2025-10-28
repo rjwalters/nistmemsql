@@ -1297,6 +1297,156 @@ LIMIT 10;`,
       },
     ],
   },
+
+  {
+    id: 'null-handling',
+    title: 'NULL Handling Functions',
+    description: 'COALESCE and NULLIF for dealing with NULL values',
+    queries: [
+      {
+        id: 'null-1',
+        title: 'COALESCE with Default Values',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  unit_price,
+  units_in_stock,
+  COALESCE(units_in_stock, 0) AS stock_or_zero,
+  COALESCE(units_on_order, 0) AS orders_or_zero
+FROM products
+LIMIT 10;`,
+        description: 'Replace NULL values with defaults using COALESCE',
+        sqlFeatures: ['COALESCE', 'NULL defaults'],
+      },
+      {
+        id: 'null-2',
+        title: 'COALESCE with Multiple Fallbacks',
+        database: 'employees',
+        sql: `SELECT
+  first_name,
+  last_name,
+  email,
+  phone,
+  COALESCE(email, phone, 'No contact info') AS primary_contact
+FROM employees
+LIMIT 10;`,
+        description: 'Use COALESCE with multiple fallback values',
+        sqlFeatures: ['COALESCE', 'Multiple fallback values'],
+      },
+      {
+        id: 'null-3',
+        title: 'NULLIF to Convert Values to NULL',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  units_in_stock,
+  NULLIF(units_in_stock, 0) AS stock_if_available,
+  CASE
+    WHEN NULLIF(units_in_stock, 0) IS NULL THEN 'Out of Stock'
+    ELSE 'In Stock'
+  END AS status
+FROM products
+ORDER BY units_in_stock
+LIMIT 15;`,
+        description: 'Convert specific values to NULL using NULLIF',
+        sqlFeatures: ['NULLIF', 'CASE', 'IS NULL'],
+      },
+      {
+        id: 'null-4',
+        title: 'COALESCE in Calculations',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  unit_price,
+  units_in_stock,
+  unit_price * COALESCE(units_in_stock, 0) AS inventory_value
+FROM products
+ORDER BY inventory_value DESC
+LIMIT 10;`,
+        description: 'Use COALESCE for NULL-safe arithmetic operations',
+        sqlFeatures: ['COALESCE', 'Calculated fields', 'NULL-safe arithmetic'],
+      },
+      {
+        id: 'null-5',
+        title: 'COALESCE with Aggregates',
+        database: 'northwind',
+        sql: `SELECT
+  c.category_name,
+  COUNT(p.product_id) AS product_count,
+  COALESCE(AVG(p.unit_price), 0) AS avg_price,
+  COALESCE(SUM(p.units_in_stock), 0) AS total_stock
+FROM categories c
+LEFT JOIN products p ON c.category_id = p.category_id
+GROUP BY c.category_name
+ORDER BY product_count DESC;`,
+        description: 'Handle NULL results from LEFT JOIN aggregates with COALESCE',
+        sqlFeatures: [
+          'COALESCE',
+          'LEFT JOIN',
+          'AVG',
+          'SUM',
+          'GROUP BY',
+          'NULL handling in aggregates',
+        ],
+      },
+      {
+        id: 'null-6',
+        title: 'Combining COALESCE and NULLIF',
+        database: 'employees',
+        sql: `SELECT
+  first_name || ' ' || last_name AS employee,
+  salary,
+  commission,
+  COALESCE(NULLIF(commission, 0), salary * 0.05) AS effective_commission
+FROM employees
+ORDER BY effective_commission DESC
+LIMIT 10;`,
+        description: 'Combine COALESCE and NULLIF for complex NULL logic',
+        sqlFeatures: ['COALESCE', 'NULLIF', 'Complex NULL logic'],
+      },
+      {
+        id: 'null-7',
+        title: 'NULL-Safe Comparisons',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  units_in_stock,
+  units_on_order,
+  CASE
+    WHEN COALESCE(units_in_stock, 0) = 0
+     AND COALESCE(units_on_order, 0) > 0 THEN 'Restocking'
+    WHEN COALESCE(units_in_stock, 0) = 0 THEN 'Out of Stock'
+    WHEN COALESCE(units_in_stock, 0) < 10 THEN 'Low Stock'
+    ELSE 'In Stock'
+  END AS inventory_status
+FROM products
+ORDER BY COALESCE(units_in_stock, 0);`,
+        description: 'Use COALESCE for NULL-safe comparisons in business logic',
+        sqlFeatures: ['COALESCE', 'CASE', 'NULL-safe comparisons', 'Business logic'],
+      },
+      {
+        id: 'null-8',
+        title: 'COALESCE for Report Formatting',
+        database: 'northwind',
+        sql: `SELECT
+  c.category_name,
+  COALESCE(
+    CAST(COUNT(p.product_id) AS VARCHAR) || ' products',
+    'No products'
+  ) AS product_summary,
+  COALESCE(
+    '$' || CAST(ROUND(AVG(p.unit_price), 2) AS VARCHAR),
+    'N/A'
+  ) AS avg_price_formatted
+FROM categories c
+LEFT JOIN products p ON c.category_id = p.category_id
+GROUP BY c.category_name
+ORDER BY COUNT(p.product_id) DESC;`,
+        description: 'Format report output with COALESCE for NULL-safe string operations',
+        sqlFeatures: ['COALESCE', 'CAST', 'String concatenation', 'Report formatting'],
+      },
+    ],
+  },
 ]
 
 /**
