@@ -12,6 +12,7 @@ mod order;
 mod projection;
 mod scan;
 mod set_operations;
+mod window;
 
 use cte::{execute_ctes, CteResult};
 use filter::{apply_where_filter_basic, apply_where_filter_combined};
@@ -22,6 +23,7 @@ use order::{apply_order_by, RowWithSortKeys};
 use projection::project_row_combined;
 use scan::execute_from_clause;
 use set_operations::apply_set_operation;
+use window::{evaluate_window_functions, has_window_functions};
 
 /// Result of a SELECT query including column metadata
 pub struct SelectResult {
@@ -391,7 +393,16 @@ impl<'a> SelectExecutor<'a> {
         let evaluator = CombinedExpressionEvaluator::with_database(&schema, self.database);
 
         // Apply WHERE clause filter
-        let filtered_rows = apply_where_filter_combined(rows, stmt.where_clause.as_ref(), &evaluator)?;
+        let mut filtered_rows = apply_where_filter_combined(rows, stmt.where_clause.as_ref(), &evaluator)?;
+
+        // Check if SELECT list has window functions
+        let has_windows = has_window_functions(&stmt.select_list);
+
+        // If there are window functions, evaluate them first
+        // Window functions operate on the filtered result set
+        if has_windows {
+            filtered_rows = evaluate_window_functions(filtered_rows, &stmt.select_list, &evaluator)?;
+        }
 
         // Convert to RowWithSortKeys format
         let mut result_rows: Vec<RowWithSortKeys> = filtered_rows.into_iter().map(|row| (row, None)).collect();
