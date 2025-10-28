@@ -7,7 +7,7 @@ pub mod error;
 pub mod row;
 pub mod table;
 
-pub use database::Database;
+pub use database::{Database, TransactionState};
 pub use error::StorageError;
 pub use row::Row;
 pub use table::Table;
