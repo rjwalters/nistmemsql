@@ -64,6 +64,13 @@ pub enum Keyword {
     Unbounded,
     Current,
     // Note: Window function names (ROW_NUMBER, RANK, etc.) are identifiers, not keywords
+    // Constraint keywords
+    Primary,
+    Foreign,
+    Key,
+    Unique,
+    Check,
+    References,
 }
 
 impl fmt::Display for Keyword {
@@ -128,6 +135,12 @@ impl fmt::Display for Keyword {
             Keyword::Following => "FOLLOWING",
             Keyword::Unbounded => "UNBOUNDED",
             Keyword::Current => "CURRENT",
+            Keyword::Primary => "PRIMARY",
+            Keyword::Foreign => "FOREIGN",
+            Keyword::Key => "KEY",
+            Keyword::Unique => "UNIQUE",
+            Keyword::Check => "CHECK",
+            Keyword::References => "REFERENCES",
         };
         write!(f, "{}", keyword_str)
     }

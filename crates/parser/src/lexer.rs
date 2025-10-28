@@ -188,6 +188,13 @@ impl Lexer {
             // Note: ROW_NUMBER, RANK, DENSE_RANK, NTILE, LAG, LEAD are treated as
             // identifiers (function names), not keywords. They are classified as
             // window functions by the parser's classify_window_function() method.
+            // Constraint keywords
+            "PRIMARY" => Token::Keyword(Keyword::Primary),
+            "FOREIGN" => Token::Keyword(Keyword::Foreign),
+            "KEY" => Token::Keyword(Keyword::Key),
+            "UNIQUE" => Token::Keyword(Keyword::Unique),
+            "CHECK" => Token::Keyword(Keyword::Check),
+            "REFERENCES" => Token::Keyword(Keyword::References),
             _ => Token::Identifier(text),
         };
 
