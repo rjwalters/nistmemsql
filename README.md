@@ -109,7 +109,7 @@ This isn't just about databases. It's about understanding what's now possible wi
 | Window Functions | 100% | ROW_NUMBER, RANK, DENSE_RANK, NTILE, LAG, LEAD, COUNT, SUM, AVG, MIN, MAX OVER() | ✅ Complete |
 | Built-in Functions | 65% | String (40+ functions), Date/Time (15+ functions), Math (20+ functions), CASE, COALESCE, NULLIF, CAST, POSITION | 🟢 Advanced |
 | DDL | 20% (2/10) | CREATE TABLE, DROP TABLE | 🟡 In Progress |
-| Constraints | 20% (1/5 enforced) | NOT NULL enforced ✅, PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK (parsing only) | 🟡 In Progress |
+| Constraints | 80% (4/5 enforced) | NOT NULL, PRIMARY KEY, UNIQUE, CHECK enforced ✅ (25 tests) | 🟢 Nearly Complete |
 | Transactions | 75% (3/4) | BEGIN, COMMIT, ROLLBACK ✅ (SAVEPOINT pending) | 🟢 Advanced |
 | Web Demo Validation | 30% | Automated test infrastructure ✅, Expected results for 19 examples ✅ | 🟡 In Progress |
 | Conformance Tests | 0% | NIST harness + ISO validator needed | 🔴 Day 7-8 |
@@ -169,9 +169,12 @@ This isn't just about databases. It's about understanding what's now possible wi
 - **Partial** (string-based): DATE, TIME, TIMESTAMP, NUMERIC(p,s), DECIMAL(p,s)
 - **Three-valued logic**: Proper NULL propagation in all operations
 
-**Constraints** 🟡
-- **NOT NULL**: Fully enforced ✅
-- **PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK**: Parsing complete, enforcement pending
+**Constraints** 🟢
+- **NOT NULL**: Fully enforced ✅ (6 tests)
+- **PRIMARY KEY**: Fully enforced ✅ (6 tests) - Single & composite keys, duplicate detection
+- **UNIQUE**: Fully enforced ✅ (10 tests) - Correct SQL:1999 NULL semantics
+- **CHECK**: Fully enforced ✅ (9 tests) - Three-valued logic (TRUE/FALSE/NULL)
+- **FOREIGN KEY**: Parsing complete, enforcement pending
 
 **Web Demo Validation** 🟡
 - **Test Infrastructure**: Automated test runner for all SQL examples ✅

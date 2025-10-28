@@ -235,21 +235,21 @@
 - [x] CHECK syntax ✅ (#222)
 - [x] NOT NULL syntax ✅ (#222)
 
-**4.4 Constraint Enforcement** 🟡 CRITICAL (20% complete)
-- [x] NOT NULL enforcement ✅ (#267)
-- [ ] PRIMARY KEY enforcement
-- [ ] UNIQUE enforcement
-- [ ] CHECK enforcement
-- [ ] FOREIGN KEY enforcement
-- [ ] Referential integrity enforcement
+**4.4 Constraint Enforcement** 🟢 CRITICAL (80% complete)
+- [x] NOT NULL enforcement ✅ (#267, 6 tests)
+- [x] PRIMARY KEY enforcement ✅ (Oct 27, 6 tests)
+- [x] UNIQUE enforcement ✅ (Oct 27, 10 tests)
+- [x] CHECK enforcement ✅ (Oct 27, 9 tests)
+- [ ] FOREIGN KEY enforcement (pending)
+- [ ] Referential integrity enforcement (pending)
 
 **4.5 Views** (0% complete)
 - [ ] CREATE VIEW
 - [ ] DROP VIEW
 - [ ] View query expansion
 
-**Current**: CREATE TABLE, DROP TABLE, constraint parsing + NOT NULL enforcement
-**Target**: Full Core DDL with all constraint enforcement
+**Current**: CREATE TABLE, DROP TABLE, constraint parsing + PRIMARY KEY, UNIQUE, CHECK, NOT NULL enforcement (25 tests passing)
+**Target**: Full Core DDL with all constraint enforcement including FOREIGN KEY
 
 ---
 
@@ -411,7 +411,7 @@ We can test Core compliance directly through our Rust API, CLI, and WASM interfa
 | **Subqueries** | 100% | Scalar, table, correlated, EXISTS, quantified ✅ |
 | **Built-in Functions** | 85% | 30+ functions (string, date/time, math, conditional) ✅ |
 | **DDL** | 20% | CREATE/DROP TABLE, constraint parsing |
-| **Constraints** | 20% | NOT NULL enforced ✅, others parsed |
+| **Constraints** | 80% | PRIMARY KEY, UNIQUE, CHECK, NOT NULL enforced ✅ (25 tests) |
 | **Transactions** | 75% | BEGIN, COMMIT, ROLLBACK ✅ (SAVEPOINT pending) |
 | **Web Demo Validation** | 30% | Test infrastructure ✅, 19 examples validated ✅ |
 | **Conformance Tests** | 0% | NIST harness + ISO validator needed |
