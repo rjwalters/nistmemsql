@@ -1900,6 +1900,146 @@ ORDER BY COUNT(p.product_id) DESC;`,
       },
     ],
   },
+
+  {
+    id: 'window',
+    title: 'Window Functions',
+    description: 'Aggregate window functions with OVER clause - running totals, moving averages, partitioned aggregates',
+    queries: [
+      {
+        id: 'window-1',
+        title: 'COUNT(*) OVER - Total Row Count',
+        database: 'employees',
+        sql: `SELECT
+  first_name || ' ' || last_name AS employee,
+  department,
+  salary,
+  COUNT(*) OVER () AS total_employees
+FROM employees
+LIMIT 10;`,
+        description: 'Add total count to each row without GROUP BY collapse',
+        sqlFeatures: ['COUNT', 'OVER', 'Window functions'],
+      },
+      {
+        id: 'window-2',
+        title: 'Running Total with ORDER BY',
+        database: 'employees',
+        sql: `SELECT
+  first_name || ' ' || last_name AS employee,
+  salary,
+  SUM(salary) OVER (ORDER BY employee_id) AS running_total
+FROM employees
+ORDER BY employee_id
+LIMIT 10;`,
+        description: 'Calculate cumulative salary sum ordered by employee ID',
+        sqlFeatures: ['SUM', 'OVER', 'ORDER BY', 'Running totals'],
+      },
+      {
+        id: 'window-3',
+        title: 'Partitioned Averages',
+        database: 'employees',
+        sql: `SELECT
+  department,
+  first_name || ' ' || last_name AS employee,
+  salary,
+  AVG(salary) OVER (PARTITION BY department) AS dept_avg_salary
+FROM employees
+ORDER BY department, salary DESC
+LIMIT 15;`,
+        description: 'Calculate average salary per department for each employee',
+        sqlFeatures: ['AVG', 'OVER', 'PARTITION BY', 'Partitioned aggregates'],
+      },
+      {
+        id: 'window-4',
+        title: 'MIN and MAX in Windows',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  category_id,
+  unit_price,
+  MIN(unit_price) OVER (PARTITION BY category_id) AS category_min,
+  MAX(unit_price) OVER (PARTITION BY category_id) AS category_max
+FROM products
+WHERE category_id IN (1, 2, 3)
+ORDER BY category_id, unit_price;`,
+        description: 'Find min and max prices within each product category',
+        sqlFeatures: ['MIN', 'MAX', 'OVER', 'PARTITION BY'],
+      },
+      {
+        id: 'window-5',
+        title: 'Moving Average with Frame',
+        database: 'employees',
+        sql: `SELECT
+  employee_id,
+  salary,
+  AVG(salary) OVER (
+    ORDER BY employee_id
+    ROWS BETWEEN 2 PRECEDING AND CURRENT ROW
+  ) AS moving_avg_3
+FROM employees
+ORDER BY employee_id
+LIMIT 15;`,
+        description: 'Calculate 3-row moving average of salaries',
+        sqlFeatures: ['AVG', 'OVER', 'ROWS BETWEEN', 'Moving frame', 'Window frames'],
+      },
+      {
+        id: 'window-6',
+        title: 'Window Function in Expression',
+        database: 'employees',
+        sql: `SELECT
+  department,
+  first_name || ' ' || last_name AS employee,
+  salary,
+  AVG(salary) OVER (PARTITION BY department) AS dept_avg,
+  salary - AVG(salary) OVER (PARTITION BY department) AS diff_from_avg
+FROM employees
+ORDER BY department, diff_from_avg DESC
+LIMIT 15;`,
+        description: 'Calculate salary deviation from department average',
+        sqlFeatures: ['AVG', 'OVER', 'PARTITION BY', 'Window functions in expressions'],
+      },
+      {
+        id: 'window-7',
+        title: 'Multiple Window Functions',
+        database: 'employees',
+        sql: `SELECT
+  department,
+  COUNT(*) OVER (PARTITION BY department) AS dept_headcount,
+  AVG(salary) OVER (PARTITION BY department) AS dept_avg_salary,
+  MIN(salary) OVER (PARTITION BY department) AS dept_min_salary,
+  MAX(salary) OVER (PARTITION BY department) AS dept_max_salary
+FROM employees
+ORDER BY department
+LIMIT 15;`,
+        description: 'Multiple aggregate window functions in one query',
+        sqlFeatures: [
+          'COUNT',
+          'AVG',
+          'MIN',
+          'MAX',
+          'OVER',
+          'PARTITION BY',
+          'Multiple window functions',
+        ],
+      },
+      {
+        id: 'window-8',
+        title: 'Percentage of Total',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  unit_price,
+  SUM(unit_price) OVER () AS total_price,
+  ROUND(unit_price * 100.0 / SUM(unit_price) OVER (), 2) AS pct_of_total
+FROM products
+WHERE unit_price IS NOT NULL
+ORDER BY pct_of_total DESC
+LIMIT 10;`,
+        description: 'Calculate each product price as percentage of total',
+        sqlFeatures: ['SUM', 'OVER', 'ROUND', 'Percentage calculations', 'Business analytics'],
+      },
+    ],
+  },
 ]
 
 /**
