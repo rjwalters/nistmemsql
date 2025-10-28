@@ -129,7 +129,7 @@ pub(super) type GroupedRows = Vec<(Vec<types::SqlValue>, Vec<storage::Row>)>;
 pub(super) fn group_rows(
     rows: &[storage::Row],
     group_by_exprs: &[ast::Expression],
-    evaluator: &crate::evaluator::ExpressionEvaluator,
+    evaluator: &crate::evaluator::CombinedExpressionEvaluator,
 ) -> Result<GroupedRows, crate::errors::ExecutorError> {
     let mut groups: GroupedRows = Vec::new();
 

@@ -27,4 +27,5 @@ mod select_joins;
 mod select_where;
 mod select_window_aggregate;
 mod select_without_from;
+mod join_aggregation;
 mod transaction_tests;
