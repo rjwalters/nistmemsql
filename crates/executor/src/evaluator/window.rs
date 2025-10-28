@@ -618,128 +618,111 @@ pub fn evaluate_max_window(
     max_val.unwrap_or(SqlValue::Null)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// Evaluate LAG() value window function
+///
+/// Accesses a value from a previous row in the partition (offset rows back).
+/// Returns the value from (current_row_idx - offset).
+/// If offset goes before partition start, returns default value (or NULL).
+///
+/// Signature: LAG(expr [, offset [, default]])
+/// - expr: Expression to evaluate on the offset row
+/// - offset: Number of rows back (default: 1)
+/// - default: Value to return when offset is out of bounds (default: NULL)
+///
+/// Example: LAG(price, 1) OVER (ORDER BY date)
+/// Example: LAG(revenue, 1, 0) OVER (PARTITION BY region ORDER BY month)
+///
+/// Requires: ORDER BY in window spec (partition must be sorted)
+pub fn evaluate_lag(
+    partition: &Partition,
+    current_row_idx: usize,
+    value_expr: &Expression,
+    offset: Option<i64>,
+    default: Option<&Expression>,
+) -> Result<SqlValue, String> {
+    let offset_val = offset.unwrap_or(1);
 
-    fn make_test_rows(values: Vec<i64>) -> Vec<Row> {
-        values
-            .into_iter()
-            .map(|v| Row::new(vec![SqlValue::Integer(v)]))
-            .collect()
+    // Validate offset is non-negative
+    if offset_val < 0 {
+        return Err(format!("LAG offset must be non-negative, got {}", offset_val));
     }
 
-    #[test]
-    fn test_partition_rows_no_partition_by() {
-        let rows = make_test_rows(vec![1, 2, 3]);
-        let partitions = partition_rows(rows, &None);
+    // Calculate target row index (current_row_idx - offset)
+    let target_idx = if offset_val as usize > current_row_idx {
+        // Offset goes before partition start - return default
+        return Ok(evaluate_default_value(default)?);
+    } else {
+        current_row_idx - offset_val as usize
+    };
 
-        assert_eq!(partitions.len(), 1);
-        assert_eq!(partitions[0].len(), 3);
+    // Get value from target row
+    if let Some(target_row) = partition.rows.get(target_idx) {
+        evaluate_expression(value_expr, target_row).map_err(|e| e.to_string())
+    } else {
+        // Should not happen if bounds check is correct
+        Ok(evaluate_default_value(default)?)
+    }
+}
+
+/// Evaluate LEAD() value window function
+///
+/// Accesses a value from a subsequent row in the partition (offset rows forward).
+/// Returns the value from (current_row_idx + offset).
+/// If offset goes past partition end, returns default value (or NULL).
+///
+/// Signature: LEAD(expr [, offset [, default]])
+/// - expr: Expression to evaluate on the offset row
+/// - offset: Number of rows forward (default: 1)
+/// - default: Value to return when offset is out of bounds (default: NULL)
+///
+/// Example: LEAD(price, 1) OVER (ORDER BY date)
+/// Example: LEAD(sales, 3, 0) OVER (PARTITION BY product ORDER BY quarter)
+///
+/// Requires: ORDER BY in window spec (partition must be sorted)
+pub fn evaluate_lead(
+    partition: &Partition,
+    current_row_idx: usize,
+    value_expr: &Expression,
+    offset: Option<i64>,
+    default: Option<&Expression>,
+) -> Result<SqlValue, String> {
+    let offset_val = offset.unwrap_or(1);
+
+    // Validate offset is non-negative
+    if offset_val < 0 {
+        return Err(format!("LEAD offset must be non-negative, got {}", offset_val));
     }
 
-    #[test]
-    fn test_partition_rows_empty_partition_by() {
-        let rows = make_test_rows(vec![1, 2, 3]);
-        let partitions = partition_rows(rows, &Some(vec![]));
+    // Calculate target row index (current_row_idx + offset)
+    let target_idx = current_row_idx + offset_val as usize;
 
-        assert_eq!(partitions.len(), 1);
-        assert_eq!(partitions[0].len(), 3);
+    // Check if target is beyond partition end
+    if target_idx >= partition.len() {
+        return Ok(evaluate_default_value(default)?);
     }
 
-    #[test]
-    fn test_sort_partition_ascending() {
-        let mut partition = Partition::new(make_test_rows(vec![3, 1, 2]));
-
-        let order_by = vec![OrderByItem {
-            expr: Expression::ColumnRef {
-                table: None,
-                column: String::new(), // Will use first column
-            },
-            direction: OrderDirection::Asc,
-        }];
-
-        sort_partition(&mut partition, &Some(order_by));
-
-        // Should be sorted ascending: 1, 2, 3
-        assert_eq!(partition.rows[0].values[0], SqlValue::Integer(1));
-        assert_eq!(partition.rows[1].values[0], SqlValue::Integer(2));
-        assert_eq!(partition.rows[2].values[0], SqlValue::Integer(3));
+    // Get value from target row
+    if let Some(target_row) = partition.rows.get(target_idx) {
+        evaluate_expression(value_expr, target_row).map_err(|e| e.to_string())
+    } else {
+        // Should not happen if bounds check is correct
+        Ok(evaluate_default_value(default)?)
     }
+}
 
-    #[test]
-    fn test_calculate_frame_default() {
-        let partition = Partition::new(make_test_rows(vec![1, 2, 3, 4, 5]));
-
-        // Default frame: UNBOUNDED PRECEDING to CURRENT ROW
-        let frame = calculate_frame(&partition, 2, &None);
-
-        assert_eq!(frame, 0..3); // Rows 0, 1, 2 (current row is 2)
+/// Helper function to evaluate default value for LAG/LEAD
+///
+/// If default expression is provided, evaluate it.
+/// Otherwise, return NULL.
+fn evaluate_default_value(default: Option<&Expression>) -> Result<SqlValue, String> {
+    match default {
+        Some(expr) => match expr {
+            Expression::Literal(val) => Ok(val.clone()),
+            _ => Err("Default value must be a literal".to_string()),
+        },
+        None => Ok(SqlValue::Null),
     }
-
-    #[test]
-    fn test_calculate_frame_unbounded_preceding() {
-        let partition = Partition::new(make_test_rows(vec![1, 2, 3, 4, 5]));
-
-        let frame_spec = WindowFrame {
-            unit: FrameUnit::Rows,
-            start: FrameBound::UnboundedPreceding,
-            end: Some(FrameBound::CurrentRow),
-        };
-
-        let frame = calculate_frame(&partition, 2, &Some(frame_spec));
-
-        assert_eq!(frame, 0..3); // Rows 0, 1, 2
-    }
-
-    #[test]
-    fn test_calculate_frame_preceding() {
-        let partition = Partition::new(make_test_rows(vec![1, 2, 3, 4, 5]));
-
-        let frame_spec = WindowFrame {
-            unit: FrameUnit::Rows,
-            start: FrameBound::Preceding(Box::new(Expression::Literal(SqlValue::Integer(2)))),
-            end: Some(FrameBound::CurrentRow),
-        };
-
-        let frame = calculate_frame(&partition, 3, &Some(frame_spec));
-
-        // 2 PRECEDING from row 3 is row 1, so rows 1, 2, 3
-        assert_eq!(frame, 1..4);
-    }
-
-    #[test]
-    fn test_calculate_frame_following() {
-        let partition = Partition::new(make_test_rows(vec![1, 2, 3, 4, 5]));
-
-        let frame_spec = WindowFrame {
-            unit: FrameUnit::Rows,
-            start: FrameBound::CurrentRow,
-            end: Some(FrameBound::Following(Box::new(Expression::Literal(SqlValue::Integer(2))))),
-        };
-
-        let frame = calculate_frame(&partition, 1, &Some(frame_spec));
-
-        // Current row 1 to 2 FOLLOWING (row 3), so rows 1, 2, 3
-        assert_eq!(frame, 1..4);
-    }
-
-    #[test]
-    fn test_calculate_frame_unbounded_following() {
-        let partition = Partition::new(make_test_rows(vec![1, 2, 3, 4, 5]));
-
-        let frame_spec = WindowFrame {
-            unit: FrameUnit::Rows,
-            start: FrameBound::CurrentRow,
-            end: Some(FrameBound::UnboundedFollowing),
-        };
-
-        let frame = calculate_frame(&partition, 2, &Some(frame_spec));
-
-        // Current row 2 to end: rows 2, 3, 4
-        assert_eq!(frame, 2..5);
-    }
-
+}
 
 #[cfg(test)]
 mod tests {
@@ -1321,5 +1304,280 @@ mod tests {
         // Should only sum rows 3, 4 (values 40, 50)
         assert_eq!(result, SqlValue::Integer(90));
     }
-}
+
+    // ===== LAG/LEAD Value Function Tests =====
+
+    #[test]
+    fn test_lag_default_offset() {
+        // LAG(value) with default offset of 1
+        let partition = Partition::new(make_test_rows(vec![10, 20, 30, 40, 50]));
+
+        let value_expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        // Row 0: LAG should return NULL (no previous row)
+        let result = evaluate_lag(&partition, 0, &value_expr, None, None).unwrap();
+        assert_eq!(result, SqlValue::Null);
+
+        // Row 1: LAG should return 10 (previous row value)
+        let result = evaluate_lag(&partition, 1, &value_expr, None, None).unwrap();
+        assert_eq!(result, SqlValue::Integer(10));
+
+        // Row 2: LAG should return 20
+        let result = evaluate_lag(&partition, 2, &value_expr, None, None).unwrap();
+        assert_eq!(result, SqlValue::Integer(20));
+
+        // Row 4: LAG should return 40
+        let result = evaluate_lag(&partition, 4, &value_expr, None, None).unwrap();
+        assert_eq!(result, SqlValue::Integer(40));
+    }
+
+    #[test]
+    fn test_lag_custom_offset() {
+        // LAG(value, 2) - look back 2 rows
+        let partition = Partition::new(make_test_rows(vec![10, 20, 30, 40, 50]));
+
+        let value_expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        // Row 0: offset 2 goes before partition start -> NULL
+        let result = evaluate_lag(&partition, 0, &value_expr, Some(2), None).unwrap();
+        assert_eq!(result, SqlValue::Null);
+
+        // Row 1: offset 2 goes before partition start -> NULL
+        let result = evaluate_lag(&partition, 1, &value_expr, Some(2), None).unwrap();
+        assert_eq!(result, SqlValue::Null);
+
+        // Row 2: LAG(value, 2) should return 10 (row 0)
+        let result = evaluate_lag(&partition, 2, &value_expr, Some(2), None).unwrap();
+        assert_eq!(result, SqlValue::Integer(10));
+
+        // Row 3: LAG(value, 2) should return 20 (row 1)
+        let result = evaluate_lag(&partition, 3, &value_expr, Some(2), None).unwrap();
+        assert_eq!(result, SqlValue::Integer(20));
+
+        // Row 4: LAG(value, 2) should return 30 (row 2)
+        let result = evaluate_lag(&partition, 4, &value_expr, Some(2), None).unwrap();
+        assert_eq!(result, SqlValue::Integer(30));
+    }
+
+    #[test]
+    fn test_lag_with_default_value() {
+        // LAG(value, 1, 0) - default value of 0 instead of NULL
+        let partition = Partition::new(make_test_rows(vec![10, 20, 30]));
+
+        let value_expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        let default_expr = Expression::Literal(SqlValue::Integer(0));
+
+        // Row 0: should return 0 (default) instead of NULL
+        let result = evaluate_lag(&partition, 0, &value_expr, None, Some(&default_expr)).unwrap();
+        assert_eq!(result, SqlValue::Integer(0));
+
+        // Row 1: should return 10 (previous row)
+        let result = evaluate_lag(&partition, 1, &value_expr, None, Some(&default_expr)).unwrap();
+        assert_eq!(result, SqlValue::Integer(10));
+
+        // Row 2: should return 20 (previous row)
+        let result = evaluate_lag(&partition, 2, &value_expr, None, Some(&default_expr)).unwrap();
+        assert_eq!(result, SqlValue::Integer(20));
+    }
+
+    #[test]
+    fn test_lag_offset_beyond_partition_start() {
+        // Large offset that goes way before partition start
+        let partition = Partition::new(make_test_rows(vec![10, 20, 30]));
+
+        let value_expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        // Row 2 with offset 100 should return NULL
+        let result = evaluate_lag(&partition, 2, &value_expr, Some(100), None).unwrap();
+        assert_eq!(result, SqlValue::Null);
+
+        // With default value
+        let default_expr = Expression::Literal(SqlValue::Integer(-1));
+        let result = evaluate_lag(&partition, 2, &value_expr, Some(100), Some(&default_expr)).unwrap();
+        assert_eq!(result, SqlValue::Integer(-1));
+    }
+
+    #[test]
+    fn test_lead_default_offset() {
+        // LEAD(value) with default offset of 1
+        let partition = Partition::new(make_test_rows(vec![10, 20, 30, 40, 50]));
+
+        let value_expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        // Row 0: LEAD should return 20 (next row value)
+        let result = evaluate_lead(&partition, 0, &value_expr, None, None).unwrap();
+        assert_eq!(result, SqlValue::Integer(20));
+
+        // Row 1: LEAD should return 30
+        let result = evaluate_lead(&partition, 1, &value_expr, None, None).unwrap();
+        assert_eq!(result, SqlValue::Integer(30));
+
+        // Row 3: LEAD should return 50
+        let result = evaluate_lead(&partition, 3, &value_expr, None, None).unwrap();
+        assert_eq!(result, SqlValue::Integer(50));
+
+        // Row 4: LEAD should return NULL (no next row)
+        let result = evaluate_lead(&partition, 4, &value_expr, None, None).unwrap();
+        assert_eq!(result, SqlValue::Null);
+    }
+
+    #[test]
+    fn test_lead_custom_offset() {
+        // LEAD(value, 2) - look forward 2 rows
+        let partition = Partition::new(make_test_rows(vec![10, 20, 30, 40, 50]));
+
+        let value_expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        // Row 0: LEAD(value, 2) should return 30 (row 2)
+        let result = evaluate_lead(&partition, 0, &value_expr, Some(2), None).unwrap();
+        assert_eq!(result, SqlValue::Integer(30));
+
+        // Row 1: LEAD(value, 2) should return 40 (row 3)
+        let result = evaluate_lead(&partition, 1, &value_expr, Some(2), None).unwrap();
+        assert_eq!(result, SqlValue::Integer(40));
+
+        // Row 2: LEAD(value, 2) should return 50 (row 4)
+        let result = evaluate_lead(&partition, 2, &value_expr, Some(2), None).unwrap();
+        assert_eq!(result, SqlValue::Integer(50));
+
+        // Row 3: offset 2 goes past partition end -> NULL
+        let result = evaluate_lead(&partition, 3, &value_expr, Some(2), None).unwrap();
+        assert_eq!(result, SqlValue::Null);
+
+        // Row 4: offset 2 goes past partition end -> NULL
+        let result = evaluate_lead(&partition, 4, &value_expr, Some(2), None).unwrap();
+        assert_eq!(result, SqlValue::Null);
+    }
+
+    #[test]
+    fn test_lead_with_default_value() {
+        // LEAD(value, 1, 999) - default value of 999 instead of NULL
+        let partition = Partition::new(make_test_rows(vec![10, 20, 30]));
+
+        let value_expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        let default_expr = Expression::Literal(SqlValue::Integer(999));
+
+        // Row 0: should return 20 (next row)
+        let result = evaluate_lead(&partition, 0, &value_expr, None, Some(&default_expr)).unwrap();
+        assert_eq!(result, SqlValue::Integer(20));
+
+        // Row 1: should return 30 (next row)
+        let result = evaluate_lead(&partition, 1, &value_expr, None, Some(&default_expr)).unwrap();
+        assert_eq!(result, SqlValue::Integer(30));
+
+        // Row 2: should return 999 (default) instead of NULL
+        let result = evaluate_lead(&partition, 2, &value_expr, None, Some(&default_expr)).unwrap();
+        assert_eq!(result, SqlValue::Integer(999));
+    }
+
+    #[test]
+    fn test_lead_offset_beyond_partition_end() {
+        // Large offset that goes way past partition end
+        let partition = Partition::new(make_test_rows(vec![10, 20, 30]));
+
+        let value_expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        // Row 0 with offset 100 should return NULL
+        let result = evaluate_lead(&partition, 0, &value_expr, Some(100), None).unwrap();
+        assert_eq!(result, SqlValue::Null);
+
+        // With default value
+        let default_expr = Expression::Literal(SqlValue::Integer(-1));
+        let result = evaluate_lead(&partition, 0, &value_expr, Some(100), Some(&default_expr)).unwrap();
+        assert_eq!(result, SqlValue::Integer(-1));
+    }
+
+    #[test]
+    fn test_lag_lead_single_row_partition() {
+        // Edge case: partition with only one row
+        let partition = Partition::new(make_test_rows(vec![42]));
+
+        let value_expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        // LAG on single row should return NULL
+        let result = evaluate_lag(&partition, 0, &value_expr, None, None).unwrap();
+        assert_eq!(result, SqlValue::Null);
+
+        // LEAD on single row should return NULL
+        let result = evaluate_lead(&partition, 0, &value_expr, None, None).unwrap();
+        assert_eq!(result, SqlValue::Null);
+    }
+
+    #[test]
+    fn test_lag_lead_with_zero_offset() {
+        // Special case: offset of 0 should return current row value
+        let partition = Partition::new(make_test_rows(vec![10, 20, 30]));
+
+        let value_expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        // LAG(value, 0) should return current row value
+        let result = evaluate_lag(&partition, 1, &value_expr, Some(0), None).unwrap();
+        assert_eq!(result, SqlValue::Integer(20));
+
+        // LEAD(value, 0) should return current row value
+        let result = evaluate_lead(&partition, 1, &value_expr, Some(0), None).unwrap();
+        assert_eq!(result, SqlValue::Integer(20));
+    }
+
+    #[test]
+    fn test_lag_negative_offset_error() {
+        // LAG with negative offset should return error
+        let partition = Partition::new(make_test_rows(vec![10, 20, 30]));
+
+        let value_expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        let result = evaluate_lag(&partition, 1, &value_expr, Some(-1), None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("non-negative"));
+    }
+
+    #[test]
+    fn test_lead_negative_offset_error() {
+        // LEAD with negative offset should return error
+        let partition = Partition::new(make_test_rows(vec![10, 20, 30]));
+
+        let value_expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        let result = evaluate_lead(&partition, 1, &value_expr, Some(-1), None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("non-negative"));
+    }
 }
