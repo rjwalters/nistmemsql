@@ -10,6 +10,7 @@ mod evaluator;
 mod insert;
 mod schema;
 mod select;
+mod transaction;
 mod update;
 
 pub use create_table::CreateTableExecutor;
@@ -19,6 +20,7 @@ pub use errors::ExecutorError;
 pub use evaluator::ExpressionEvaluator;
 pub use insert::InsertExecutor;
 pub use select::{SelectExecutor, SelectResult};
+pub use transaction::{BeginTransactionExecutor, CommitExecutor, RollbackExecutor};
 pub use update::UpdateExecutor;
 
 #[cfg(test)]

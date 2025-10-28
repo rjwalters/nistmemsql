@@ -8,6 +8,7 @@ pub enum StorageError {
     ColumnCountMismatch { expected: usize, actual: usize },
     ColumnIndexOutOfBounds { index: usize },
     CatalogError(String),
+    TransactionError(String),
 }
 
 impl std::fmt::Display for StorageError {
@@ -21,6 +22,7 @@ impl std::fmt::Display for StorageError {
                 write!(f, "Column index {} out of bounds", index)
             }
             StorageError::CatalogError(msg) => write!(f, "Catalog error: {}", msg),
+            StorageError::TransactionError(msg) => write!(f, "Transaction error: {}", msg),
         }
     }
 }

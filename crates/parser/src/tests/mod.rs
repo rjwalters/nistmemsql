@@ -22,5 +22,6 @@ mod quantified;
 mod select;
 mod set_operations;
 mod subquery;
+mod transaction;
 mod update;
 mod window_functions;

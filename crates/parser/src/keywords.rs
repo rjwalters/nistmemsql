@@ -79,6 +79,12 @@ pub enum Keyword {
     Unique,
     Check,
     References,
+    // Transaction keywords
+    Begin,
+    Commit,
+    Rollback,
+    Start,
+    Transaction,
 }
 
 impl fmt::Display for Keyword {
@@ -156,6 +162,11 @@ impl fmt::Display for Keyword {
             Keyword::Unique => "UNIQUE",
             Keyword::Check => "CHECK",
             Keyword::References => "REFERENCES",
+            Keyword::Begin => "BEGIN",
+            Keyword::Commit => "COMMIT",
+            Keyword::Rollback => "ROLLBACK",
+            Keyword::Start => "START",
+            Keyword::Transaction => "TRANSACTION",
         };
         write!(f, "{}", keyword_str)
     }

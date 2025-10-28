@@ -5,17 +5,40 @@
 use crate::{Row, StorageError, Table};
 use std::collections::HashMap;
 
+/// Transaction state
+#[derive(Debug, Clone)]
+pub enum TransactionState {
+    /// No active transaction
+    None,
+    /// Transaction is active
+    Active {
+        /// Transaction ID for debugging
+        id: u64,
+        /// Original table snapshots for rollback
+        original_tables: HashMap<String, Table>,
+    },
+}
+
 /// In-memory database - manages catalog and tables
 #[derive(Debug, Clone)]
 pub struct Database {
     pub catalog: catalog::Catalog,
     tables: HashMap<String, Table>,
+    /// Current transaction state
+    transaction_state: TransactionState,
+    /// Next transaction ID
+    next_transaction_id: u64,
 }
 
 impl Database {
     /// Create a new empty database
     pub fn new() -> Self {
-        Database { catalog: catalog::Catalog::new(), tables: HashMap::new() }
+        Database {
+            catalog: catalog::Catalog::new(),
+            tables: HashMap::new(),
+            transaction_state: TransactionState::None,
+            next_transaction_id: 1,
+        }
     }
 
     /// Create a table
@@ -120,6 +143,74 @@ impl Database {
 
         output.push_str(&format!("({} rows)\n", table.row_count()));
         Ok(output)
+    }
+
+    /// Begin a new transaction
+    pub fn begin_transaction(&mut self) -> Result<(), StorageError> {
+        match self.transaction_state {
+            TransactionState::None => {
+                // Create snapshots of all current tables
+                let mut original_tables = HashMap::new();
+                for (name, table) in &self.tables {
+                    original_tables.insert(name.clone(), table.clone());
+                }
+
+                let transaction_id = self.next_transaction_id;
+                self.next_transaction_id += 1;
+
+                self.transaction_state = TransactionState::Active {
+                    id: transaction_id,
+                    original_tables,
+                };
+                Ok(())
+            }
+            TransactionState::Active { .. } => {
+                Err(StorageError::TransactionError("Transaction already active".to_string()))
+            }
+        }
+    }
+
+    /// Commit the current transaction
+    pub fn commit_transaction(&mut self) -> Result<(), StorageError> {
+        match self.transaction_state {
+            TransactionState::None => {
+                Err(StorageError::TransactionError("No active transaction to commit".to_string()))
+            }
+            TransactionState::Active { .. } => {
+                // Transaction committed - just clear the state
+                // Changes are already in the tables
+                self.transaction_state = TransactionState::None;
+                Ok(())
+            }
+        }
+    }
+
+    /// Rollback the current transaction
+    pub fn rollback_transaction(&mut self) -> Result<(), StorageError> {
+        match &self.transaction_state {
+            TransactionState::None => {
+                Err(StorageError::TransactionError("No active transaction to rollback".to_string()))
+            }
+            TransactionState::Active { original_tables, .. } => {
+                // Restore all tables from snapshots
+                self.tables = original_tables.clone();
+                self.transaction_state = TransactionState::None;
+                Ok(())
+            }
+        }
+    }
+
+    /// Check if we're currently in a transaction
+    pub fn in_transaction(&self) -> bool {
+        matches!(self.transaction_state, TransactionState::Active { .. })
+    }
+
+    /// Get current transaction ID (for debugging)
+    pub fn transaction_id(&self) -> Option<u64> {
+        match &self.transaction_state {
+            TransactionState::Active { id, .. } => Some(*id),
+            TransactionState::None => None,
+        }
     }
 }
 
