@@ -87,39 +87,40 @@ This isn't just about databases. It's about understanding what's now possible wi
 
 ### Velocity-Based Progress Tracking
 
-**Core SQL:1999 Compliance**: ~50% complete in 4 days
+**Core SQL:1999 Compliance**: ~60% complete in 4 days
 
 **Demonstrated Velocity**:
-- **Days 1-4** (Oct 25-28): 50% complete → **Ahead of schedule!** 🚀
-- **Projected completion**: ~8-10 days total from start
-- **Target date**: November 2-4, 2025
+- **Days 1-4** (Oct 25-28): 60% complete → **Ahead of schedule!** 🚀
+- **Projected completion**: ~7-8 days total from start
+- **Target date**: November 1-2, 2025
 
 ### Progress Breakdown by Category
 
 | Category | Progress | Completed | Status |
 |----------|----------|-----------|--------|
 | Data Types | 100% (14/13) | INTEGER, SMALLINT, BIGINT, FLOAT, REAL, DOUBLE, VARCHAR, CHAR, BOOLEAN, DATE, TIME, TIMESTAMP, NUMERIC, INTERVAL | ✅ Complete |
-| DML Operations | 50% (5/10) | SELECT, INSERT, UPDATE, DELETE, DROP TABLE | 🟢 Advanced |
+| DML Operations | 70% (7/10) | SELECT, INSERT (single + multi-row), INSERT...SELECT, UPDATE, DELETE, DROP TABLE | 🟢 Advanced |
 | Predicates | 100% | =, <>, <, >, <=, >=, BETWEEN, IN, LIKE, EXISTS, IS NULL, quantified, ALL, ANY, SOME | ✅ Complete |
-| JOINs | 100% (5/5) | INNER, LEFT, RIGHT, FULL, CROSS | ✅ Complete |
+| JOINs | 100% (5/5) | INNER, LEFT, RIGHT, FULL, CROSS (with GROUP BY support) | ✅ Complete |
 | Subqueries | 100% | Scalar, table, correlated, IN with subquery | ✅ Complete |
 | CTEs | 100% | WITH clause, multiple CTEs, CTE chaining, RECURSIVE keyword | ✅ Complete |
 | Set Operations | 100% | UNION [ALL], INTERSECT [ALL], EXCEPT [ALL] | ✅ Complete |
-| Aggregates | 100% (7/7) | COUNT, SUM, AVG, MIN, MAX, + DISTINCT, GROUP BY, HAVING | ✅ Complete |
+| Aggregates | 100% (7/7) | COUNT, SUM, AVG, MIN, MAX, + DISTINCT, GROUP BY, HAVING (works with JOINs) | ✅ Complete |
 | Window Functions | 100% | ROW_NUMBER, RANK, DENSE_RANK, NTILE, LAG, LEAD, COUNT, SUM, AVG, MIN, MAX OVER() | ✅ Complete |
 | Built-in Functions | 65% | String (40+ functions), Date/Time (15+ functions), Math (20+ functions), CASE, COALESCE, NULLIF, CAST, POSITION | 🟢 Advanced |
 | DDL | 20% (2/10) | CREATE TABLE, DROP TABLE | 🟡 In Progress |
-| Constraints | 10% (parsing only) | PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK, NOT NULL (parsing, not enforced) | 🔴 Early |
-| Transactions | 0% (0/4) | None | ⏳ Days 5-6 |
+| Constraints | 20% (1/5 enforced) | NOT NULL enforced ✅, PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK (parsing only) | 🟡 In Progress |
+| Transactions | 75% (3/4) | BEGIN, COMMIT, ROLLBACK ✅ (SAVEPOINT pending) | 🟢 Advanced |
+| Web Demo Validation | 30% | Automated test infrastructure ✅, Expected results for 19 examples ✅ | 🟡 In Progress |
 | Conformance Tests | 0% | NIST harness + ISO validator needed | 🔴 Day 7-8 |
 
-### Why 8-10 Days Is Achievable
+### Why 7-8 Days Is Achievable
 
 **Data-Driven Projection**:
-- 4 days elapsed → 50% complete
-- Average velocity: **~12.5% per day**
-- 4 ÷ 0.50 = **~8 days total projected**
-- Remaining: **~4 days**
+- 4 days elapsed → 60% complete
+- Average velocity: **~15% per day**
+- 4 ÷ 0.60 = **~6.7 days total projected**
+- Remaining: **~3 days**
 
 **AI-Powered Development Advantages**:
 - Parallel feature implementation via Loom orchestration
@@ -138,13 +139,14 @@ This isn't just about databases. It's about understanding what's now possible wi
 **Query Engine** ✅ **(Phase 4 Complete!)**
 - **SELECT**: WHERE, JOIN, subqueries, GROUP BY, HAVING, ORDER BY, LIMIT, DISTINCT
 - **SELECT without FROM**: Expression evaluation (e.g., `SELECT 1 + 1`)
-- **All 5 JOIN types**: INNER, LEFT, RIGHT, FULL OUTER, CROSS (100% complete)
+- **All 5 JOIN types**: INNER, LEFT, RIGHT, FULL OUTER, CROSS (100% complete, works with GROUP BY)
 - **Subqueries**: Scalar, table (derived tables), correlated
 - **CTEs**: WITH clause, multiple CTEs, CTE chaining, RECURSIVE keyword
 - **Set Operations**: UNION [ALL], INTERSECT [ALL], EXCEPT [ALL]
 - **Aggregates**: COUNT(*), COUNT(col), SUM, AVG, MIN, MAX with NULL handling
 - **Window Functions**: ROW_NUMBER, RANK, DENSE_RANK, NTILE, LAG, LEAD, COUNT/SUM/AVG/MIN/MAX OVER()
-- **DML**: INSERT (including multi-row), UPDATE, DELETE, CREATE TABLE, DROP TABLE
+- **DML**: INSERT (single-row, multi-row, INSERT...SELECT), UPDATE, DELETE, CREATE TABLE, DROP TABLE
+- **Transactions**: BEGIN, COMMIT, ROLLBACK (SAVEPOINT pending)
 
 **Predicates & Operators** ✅
 - **Comparison**: =, <>, <, >, <=, >=
@@ -167,6 +169,15 @@ This isn't just about databases. It's about understanding what's now possible wi
 - **Partial** (string-based): DATE, TIME, TIMESTAMP, NUMERIC(p,s), DECIMAL(p,s)
 - **Three-valued logic**: Proper NULL propagation in all operations
 
+**Constraints** 🟡
+- **NOT NULL**: Fully enforced ✅
+- **PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK**: Parsing complete, enforcement pending
+
+**Web Demo Validation** 🟡
+- **Test Infrastructure**: Automated test runner for all SQL examples ✅
+- **Expected Results**: 19 examples with full expected results (math + datetime functions) ✅
+- **Query Runner Tool**: Batch execution and validation CLI ✅
+
 **Infrastructure** ✅
 - 700+ tests passing (100%)
 - ~27,000 lines of Rust code
@@ -180,7 +191,7 @@ This isn't just about databases. It's about understanding what's now possible wi
 
 ### What's Next (Days 4-8 Plan)
 
-**Day 4 Completed** ✅ - Phase 4 Window Functions & Advanced SQL (Complete!)
+**Day 4 Completed** ✅ - Phase 4 Window Functions & Advanced SQL + Major DML/DDL Enhancements!
 - [x] Window Functions (ROW_NUMBER, RANK, DENSE_RANK, NTILE) ✅
 - [x] Value Window Functions (LAG, LEAD) ✅
 - [x] Aggregate Window Functions (COUNT, SUM, AVG, MIN, MAX OVER()) ✅
@@ -190,22 +201,32 @@ This isn't just about databases. It's about understanding what's now possible wi
 - [x] POSITION function ✅
 - [x] RECURSIVE keyword for CTEs ✅
 - [x] Constraint parsing (PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK) ✅
-- [x] 700+ tests passing (100%) ✅
+- [x] **Multi-row INSERT** - Insert multiple rows in single statement ✅ (#269)
+- [x] **INSERT...SELECT** - Insert query results into table ✅ (#270)
+- [x] **Transaction Support** - BEGIN, COMMIT, ROLLBACK ✅ (#268)
+- [x] **NOT NULL Constraint** - Full enforcement ✅ (#267)
+- [x] **GROUP BY with JOINs** - Aggregates work across joined tables ✅ (#271)
+- [x] **Web Demo Testing** - Automated test infrastructure for SQL examples ✅ (#272)
+- [x] **Query Runner Tool** - CLI for batch SQL execution and validation ✅ (#277)
+- [x] **Expected Results** - 19 math/datetime examples with full validation ✅ (#280)
+- [x] **Code Refactoring** - Modular parser/evaluator structure ✅ (#263, #266)
+- [x] 800+ tests passing (100%) ✅
 
-**Day 5 (Oct 29)** - Remaining Functions & INSERT enhancements
-- [ ] NUMERIC/DECIMAL precision arithmetic (currently string-based)
-- [ ] Remaining string functions (LOCATE, INSTR, REPLACE, etc.)
-- [ ] INSERT from SELECT
-- [ ] More date/time functions (DATE_ADD, DATE_SUB, DATEDIFF)
-- [ ] Type conversion functions
-
-**Day 6 (Oct 30)** - Constraints & Transactions
-- [ ] Transaction support (BEGIN, COMMIT, ROLLBACK, SAVEPOINT)
+**Day 5 (Oct 29)** - Remaining Constraints & Web Demo Completion
 - [ ] PRIMARY KEY enforcement
 - [ ] FOREIGN KEY enforcement with referential integrity
 - [ ] UNIQUE constraint enforcement
 - [ ] CHECK constraint enforcement
-- [ ] NOT NULL enforcement
+- [ ] SAVEPOINT support (transaction)
+- [ ] Complete web demo expected results (remaining ~50 examples)
+- [ ] NUMERIC/DECIMAL precision arithmetic (currently string-based)
+
+**Day 6 (Oct 30)** - Additional Functions & DDL
+- [ ] Remaining string functions (LOCATE, INSTR, REPLACE, etc.)
+- [ ] More date/time functions (DATE_ADD, DATE_SUB, DATEDIFF)
+- [ ] Type conversion functions
+- [ ] ALTER TABLE (ADD COLUMN, DROP COLUMN)
+- [ ] CREATE VIEW, DROP VIEW
 
 **Day 7 (Oct 31)** - DDL & Infrastructure
 - [ ] DROP VIEW, DROP INDEX

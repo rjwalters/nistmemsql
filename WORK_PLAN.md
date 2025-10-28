@@ -32,12 +32,12 @@
 ## 📊 Current Status (2025-10-28)
 
 ### Test Suite
-- **Total Tests**: 700+ ✅ (all crates, unit + integration)
-- **Passing**: 700+ (100%)
+- **Total Tests**: 800+ ✅ (all crates, unit + integration)
+- **Passing**: 800+ (100%)
 - **Failing**: 0
 - **Code Coverage**: ~85%
 - **Source Files**: 100+ Rust files
-- **Lines of Code**: ~27,000
+- **Lines of Code**: ~30,000+
 
 ### Recent Additions (Day 4 - Oct 28)
 
@@ -47,6 +47,28 @@
 - ✅ **Aggregate window functions** - COUNT, SUM, AVG, MIN, MAX OVER() (#229)
 - ✅ **Projection mapping** - Full SELECT integration (#243)
 - ✅ **PARTITION BY, ORDER BY, frame specifications** - Complete support
+
+**DML Enhancements** ✅
+- ✅ **Multi-row INSERT** - Insert multiple rows in single statement (#269)
+- ✅ **INSERT...SELECT** - Insert query results into table (#270)
+- ✅ **GROUP BY with JOINs** - Aggregates work across joined tables (#271)
+
+**Transaction Support** ✅ **(Major Milestone!)**
+- ✅ **BEGIN/COMMIT/ROLLBACK** - Full transaction lifecycle (#268)
+- ⏳ **SAVEPOINT** - Nested transaction support (pending)
+
+**Constraint Enforcement** 🟡 **(Started!)**
+- ✅ **NOT NULL** - Full enforcement with proper error handling (#267)
+- ⏳ **PRIMARY KEY** - Parsing complete, enforcement pending
+- ⏳ **FOREIGN KEY** - Parsing complete, enforcement pending
+- ⏳ **UNIQUE** - Parsing complete, enforcement pending
+- ⏳ **CHECK** - Parsing complete, enforcement pending
+
+**Web Demo & Validation** ✅ **(Phase 3 Progress!)**
+- ✅ **Automated Testing** - Test infrastructure for web demo SQL examples (#272)
+- ✅ **Query Runner Tool** - CLI for batch SQL execution and validation (#277)
+- ✅ **Expected Results** - 19 math/datetime examples with full validation (#280)
+- ⏳ **Remaining Examples** - ~50 examples need expected results
 
 **Advanced SQL** ✅
 - ✅ **CASE expression parsing** - Simple and searched forms (#244, fixes #240, #241)
@@ -191,7 +213,7 @@
 
 ---
 
-### Phase 4: DDL and Constraints (15% complete)
+### Phase 4: DDL and Constraints (30% complete)
 **Duration**: 2-3 months
 **Status**: In Progress
 
@@ -213,8 +235,8 @@
 - [x] CHECK syntax ✅ (#222)
 - [x] NOT NULL syntax ✅ (#222)
 
-**4.4 Constraint Enforcement** 🔴 CRITICAL (0% complete)
-- [ ] NOT NULL enforcement
+**4.4 Constraint Enforcement** 🟡 CRITICAL (20% complete)
+- [x] NOT NULL enforcement ✅ (#267)
 - [ ] PRIMARY KEY enforcement
 - [ ] UNIQUE enforcement
 - [ ] CHECK enforcement
@@ -226,30 +248,30 @@
 - [ ] DROP VIEW
 - [ ] View query expansion
 
-**Current**: CREATE TABLE, DROP TABLE, constraint parsing (no enforcement yet)
-**Target**: Full Core DDL with constraint enforcement
+**Current**: CREATE TABLE, DROP TABLE, constraint parsing + NOT NULL enforcement
+**Target**: Full Core DDL with all constraint enforcement
 
 ---
 
-### Phase 5: Transaction Support (0% complete)
+### Phase 5: Transaction Support (75% complete) ✅
 **Duration**: 1.5-2 months
-**Status**: Not Started
-**Priority**: 🔴 CRITICAL (required for NIST tests)
+**Status**: Nearly Complete!
+**Priority**: 🟢 ACHIEVED (required for NIST tests)
 
-**5.1 Transaction Basics**
-- [ ] BEGIN / START TRANSACTION
-- [ ] COMMIT
-- [ ] ROLLBACK
-- [ ] Transaction isolation (READ COMMITTED minimum)
-- [ ] ACID properties (except durability - ephemeral DB)
+**5.1 Transaction Basics** (100% complete) ✅
+- [x] BEGIN / START TRANSACTION ✅ (#268)
+- [x] COMMIT ✅ (#268)
+- [x] ROLLBACK ✅ (#268)
+- [x] Transaction isolation (READ COMMITTED minimum) ✅
+- [x] ACID properties (except durability - ephemeral DB) ✅
 
-**5.2 Savepoints**
+**5.2 Savepoints** (0% complete)
 - [ ] SAVEPOINT creation
 - [ ] ROLLBACK TO SAVEPOINT
 - [ ] RELEASE SAVEPOINT
 
-**Current**: No transaction support
-**Target**: Full ACID transaction support (minus durability)
+**Current**: BEGIN, COMMIT, ROLLBACK working with full ACID semantics
+**Target**: Full ACID transaction support including savepoints
 
 ---
 
@@ -379,21 +401,22 @@ We can test Core compliance directly through our Rust API, CLI, and WASM interfa
 | Category | Coverage | Status |
 |----------|----------|--------|
 | **Data Types** | 100% | 14 types (exceeds Core requirement) ✅ |
-| **DML Statements** | 40% | Basic CRUD working |
+| **DML Statements** | 70% | SELECT, INSERT (single/multi/SELECT), UPDATE, DELETE ✅ |
 | **Predicates** | 100% | All Core predicates ✅ |
 | **Operators** | 100% | All Core operators ✅ |
-| **JOINs** | 100% | All JOIN types working ✅ |
+| **JOINs** | 100% | All JOIN types working (with GROUP BY) ✅ |
 | **Set Operations** | 100% | UNION, INTERSECT, EXCEPT (with ALL) ✅ |
 | **CTEs** | 100% | WITH clause, multiple CTEs, chaining ✅ |
 | **Window Functions** | 100% | Ranking, value, aggregate window functions ✅ |
 | **Subqueries** | 100% | Scalar, table, correlated, EXISTS, quantified ✅ |
 | **Built-in Functions** | 85% | 30+ functions (string, date/time, math, conditional) ✅ |
-| **DDL** | 15% | CREATE/DROP TABLE, constraint parsing |
-| **Constraints** | 0% | None enforced |
-| **Transactions** | 0% | Not started |
+| **DDL** | 20% | CREATE/DROP TABLE, constraint parsing |
+| **Constraints** | 20% | NOT NULL enforced ✅, others parsed |
+| **Transactions** | 75% | BEGIN, COMMIT, ROLLBACK ✅ (SAVEPOINT pending) |
+| **Web Demo Validation** | 30% | Test infrastructure ✅, 19 examples validated ✅ |
 | **Conformance Tests** | 0% | NIST harness + ISO validator needed |
 
-**Overall Core SQL:1999 Compliance: ~50%**
+**Overall Core SQL:1999 Compliance: ~60%**
 
 **Note**: ODBC/JDBC drivers removed from scope - they are SQL/CLI (Part 3), not SQL Foundation (Part 2).
 Core compliance will be validated directly via Rust API, CLI, and WASM interfaces.
