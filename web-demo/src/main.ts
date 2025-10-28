@@ -410,8 +410,8 @@ async function bootstrap(): Promise<void> {
   })
 
   const resultsEditor = monaco.editor.create(layout.resultsEditorContainer, {
-    value: '-- Query results will appear here\n-- Press Ctrl/Cmd + Enter to run queries',
-    language: 'sql',
+    value: 'Query results will appear here\nPress Ctrl/Cmd + Enter to run queries',
+    language: 'plaintext',
     theme: 'vs-dark',
     readOnly: true,
     minimap: { enabled: false },
