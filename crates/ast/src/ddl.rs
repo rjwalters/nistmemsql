@@ -1,5 +1,6 @@
 //! Data Definition Language (DDL) AST nodes
 
+use crate::Expression;
 use types::DataType;
 
 /// CREATE TABLE statement
@@ -7,7 +8,7 @@ use types::DataType;
 pub struct CreateTableStmt {
     pub table_name: String,
     pub columns: Vec<ColumnDef>,
-    // TODO: Add constraints
+    pub table_constraints: Vec<TableConstraint>,
 }
 
 /// Column definition
@@ -16,4 +17,36 @@ pub struct ColumnDef {
     pub name: String,
     pub data_type: DataType,
     pub nullable: bool,
+    pub constraints: Vec<ColumnConstraint>,
+}
+
+/// Column-level constraint
+#[derive(Debug, Clone, PartialEq)]
+pub enum ColumnConstraint {
+    PrimaryKey,
+    Unique,
+    Check(Box<Expression>),
+    References {
+        table: String,
+        column: String,
+    },
+}
+
+/// Table-level constraint
+#[derive(Debug, Clone, PartialEq)]
+pub enum TableConstraint {
+    PrimaryKey {
+        columns: Vec<String>,
+    },
+    ForeignKey {
+        columns: Vec<String>,
+        references_table: String,
+        references_columns: Vec<String>,
+    },
+    Unique {
+        columns: Vec<String>,
+    },
+    Check {
+        expr: Box<Expression>,
+    },
 }
