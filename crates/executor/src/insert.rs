@@ -56,9 +56,17 @@ impl InsertExecutor {
             }
         }
 
-        let mut rows_inserted = 0;
+        // For multi-row INSERT, validate all rows first, then insert all
+        // This ensures atomicity: all rows succeed or all fail
+        let mut validated_rows = Vec::new();
+        let mut primary_key_values: Vec<Vec<types::SqlValue>> = Vec::new(); // Track PK values for duplicate checking within batch
+        let mut unique_constraint_values = if schema.get_unique_constraint_indices().is_empty() {
+            Vec::new()
+        } else {
+            vec![Vec::new(); schema.get_unique_constraint_indices().len()]
+        }; // Track UNIQUE values for each constraint
 
-        for value_exprs in &stmt.values {
+        for (row_idx, value_exprs) in stmt.values.iter().enumerate() {
             // Build a complete row with values for all columns
             // Start with NULL for all columns, then fill in provided values
             let mut full_row_values = vec![types::SqlValue::Null; schema.columns.len()];
@@ -77,8 +85,8 @@ impl InsertExecutor {
             for (col_idx, col) in schema.columns.iter().enumerate() {
                 if !col.nullable && full_row_values[col_idx] == types::SqlValue::Null {
                     return Err(ExecutorError::ConstraintViolation(format!(
-                        "NOT NULL constraint violated for column '{}'",
-                        col.name
+                        "NOT NULL constraint violation: column '{}' in table '{}' cannot be NULL",
+                        col.name, stmt.table_name
                     )));
                 }
             }
@@ -86,19 +94,31 @@ impl InsertExecutor {
             // Enforce PRIMARY KEY constraint (uniqueness)
             if let Some(pk_indices) = schema.get_primary_key_indices() {
                 // Extract primary key values from the new row
-                let new_pk_values: Vec<&types::SqlValue> = pk_indices
+                let new_pk_values: Vec<types::SqlValue> = pk_indices
                     .iter()
-                    .map(|&idx| &full_row_values[idx])
+                    .map(|&idx| full_row_values[idx].clone())
                     .collect();
+
+                // Check for duplicates within the batch of rows being inserted
+                if primary_key_values.contains(&new_pk_values) {
+                    let pk_col_names: Vec<String> = schema.primary_key
+                        .as_ref()
+                        .unwrap()
+                        .clone();
+                    return Err(ExecutorError::ConstraintViolation(format!(
+                        "PRIMARY KEY constraint violated: duplicate key value for ({})",
+                        pk_col_names.join(", ")
+                    )));
+                }
 
                 // Check if any existing row has the same primary key
                 let table = db.get_table(&stmt.table_name)
                     .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
 
                 for existing_row in table.scan() {
-                    let existing_pk_values: Vec<&types::SqlValue> = pk_indices
+                    let existing_pk_values: Vec<types::SqlValue> = pk_indices
                         .iter()
-                        .filter_map(|&idx| existing_row.get(idx))
+                        .filter_map(|&idx| existing_row.get(idx).cloned())
                         .collect();
 
                     if new_pk_values == existing_pk_values {
@@ -112,21 +132,33 @@ impl InsertExecutor {
                         )));
                     }
                 }
+
+                // Add to the batch for future duplicate checking
+                primary_key_values.push(new_pk_values);
             }
 
             // Enforce UNIQUE constraints
             let unique_constraint_indices = schema.get_unique_constraint_indices();
             for (constraint_idx, unique_indices) in unique_constraint_indices.iter().enumerate() {
                 // Extract unique constraint values from the new row
-                let new_unique_values: Vec<&types::SqlValue> = unique_indices
+                let new_unique_values: Vec<types::SqlValue> = unique_indices
                     .iter()
-                    .map(|&idx| &full_row_values[idx])
+                    .map(|&idx| full_row_values[idx].clone())
                     .collect();
 
                 // Skip if any value in the unique constraint is NULL
                 // (NULL != NULL in SQL, so multiple NULLs are allowed)
-                if new_unique_values.iter().any(|v| **v == types::SqlValue::Null) {
+                if new_unique_values.iter().any(|v| *v == types::SqlValue::Null) {
                     continue;
+                }
+
+                // Check for duplicates within the batch of rows being inserted
+                if unique_constraint_values[constraint_idx].contains(&new_unique_values) {
+                    let unique_col_names: Vec<String> = schema.unique_constraints[constraint_idx].clone();
+                    return Err(ExecutorError::ConstraintViolation(format!(
+                        "UNIQUE constraint violated: duplicate value for ({})",
+                        unique_col_names.join(", ")
+                    )));
                 }
 
                 // Check if any existing row has the same unique constraint values
@@ -134,13 +166,13 @@ impl InsertExecutor {
                     .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
 
                 for existing_row in table.scan() {
-                    let existing_unique_values: Vec<&types::SqlValue> = unique_indices
+                    let existing_unique_values: Vec<types::SqlValue> = unique_indices
                         .iter()
-                        .filter_map(|&idx| existing_row.get(idx))
+                        .filter_map(|&idx| existing_row.get(idx).cloned())
                         .collect();
 
                     // Skip if any existing value is NULL
-                    if existing_unique_values.iter().any(|v| **v == types::SqlValue::Null) {
+                    if existing_unique_values.iter().any(|v| *v == types::SqlValue::Null) {
                         continue;
                     }
 
@@ -152,6 +184,9 @@ impl InsertExecutor {
                         )));
                     }
                 }
+
+                // Add to the batch for future duplicate checking
+                unique_constraint_values[constraint_idx].push(new_unique_values);
             }
 
             // Enforce CHECK constraints
@@ -175,7 +210,13 @@ impl InsertExecutor {
                 }
             }
 
-            // Insert the row
+            // Store validated row for insertion
+            validated_rows.push(full_row_values);
+        }
+
+        // All rows validated successfully, now insert them
+        let mut rows_inserted = 0;
+        for full_row_values in validated_rows {
             let row = storage::Row::new(full_row_values);
             db.insert_row(&stmt.table_name, row).map_err(|e| {
                 ExecutorError::UnsupportedExpression(format!("Storage error: {}", e))
