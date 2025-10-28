@@ -142,7 +142,18 @@ LIMIT 5;
   SUBSTRING(first_name, 1, 1) AS first_initial,
   LENGTH(last_name) AS last_name_length
 FROM employees
-LIMIT 8;`,
+LIMIT 8;
+-- EXPECTED:
+-- | first_name | last_name | first_initial | last_name_length |
+-- | Alice      | Johnson   | A             | 7                |
+-- | Bob        | Smith     | B             | 5                |
+-- | Carol      | White     | C             | 5                |
+-- | David      | Brown     | D             | 5                |
+-- | Eve        | Martinez  | E             | 8                |
+-- | Frank      | Wilson    | F             | 6                |
+-- | Grace      | Taylor    | G             | 6                |
+-- | Henry      | Anderson  | H             | 8                |
+-- (8 rows)`,
         description: 'Extract substrings and measure string length',
         sqlFeatures: ['SUBSTRING', 'LENGTH'],
       },
@@ -170,7 +181,18 @@ LIMIT 5;`,
   first_name || ' ' || last_name AS full_name,
   CONCAT(last_name, ', ', first_name) AS formatted_name
 FROM employees
-LIMIT 8;`,
+LIMIT 8;
+-- EXPECTED:
+-- | first_name | last_name | full_name       | formatted_name  |
+-- | Alice      | Johnson   | Alice Johnson   | Johnson, Alice  |
+-- | Bob        | Smith     | Bob Smith       | Smith, Bob      |
+-- | Carol      | White     | Carol White     | White, Carol    |
+-- | David      | Brown     | David Brown     | Brown, David    |
+-- | Eve        | Martinez  | Eve Martinez    | Martinez, Eve   |
+-- | Frank      | Wilson    | Frank Wilson    | Wilson, Frank   |
+-- | Grace      | Taylor    | Grace Taylor    | Taylor, Grace   |
+-- | Henry      | Anderson  | Henry Anderson  | Anderson, Henry |
+-- (8 rows)`,
         description: 'Combine strings using || operator and CONCAT function',
         sqlFeatures: ['CONCAT', '||'],
       },
@@ -213,7 +235,18 @@ LIMIT 6;`,
   POSITION('e' IN LOWER(last_name)) AS first_e_position
 FROM employees
 WHERE POSITION('a' IN LOWER(first_name)) > 0
-LIMIT 8;`,
+LIMIT 8;
+-- EXPECTED:
+-- | first_name | last_name | first_a_position | first_e_position |
+-- | Alice      | Johnson   | 1                | 0                |
+-- | David      | Brown     | 2                | 0                |
+-- | Frank      | Wilson    | 3                | 0                |
+-- | Grace      | Taylor    | 3                | 5                |
+-- | Maria      | Clark     | 2                | 0                |
+-- | Nathan     | Lewis     | 2                | 2                |
+-- | Olivia     | Walker    | 6                | 5                |
+-- | Paul       | Hall      | 2                | 0                |
+-- (8 rows)`,
         description: 'Find position of substring within text',
         sqlFeatures: ['POSITION', 'LOWER'],
       },
@@ -690,7 +723,15 @@ LIMIT 15;
 FROM departments d
 LEFT JOIN employees e ON d.dept_id = e.dept_id
 GROUP BY d.dept_name
-ORDER BY avg_salary DESC;`,
+ORDER BY avg_salary DESC;
+-- EXPECTED:
+-- | dept_name         | headcount | avg_salary | min_salary | max_salary |
+-- | Engineering       | 5         | 112000.0   | 95000      | 125000     |
+-- | Marketing         | 3         | 87000.0    | 82000      | 91000      |
+-- | Sales             | 5         | 86000.0    | 78000      | 92000      |
+-- | Human Resources   | 2         | 73000.0    | 71000      | 75000      |
+-- | Operations        | 3         | 70000.0    | 68000      | 72000      |
+-- (5 rows)`,
         description: 'Show employee count and salary statistics by department',
         sqlFeatures: ['LEFT JOIN', 'GROUP BY', 'COUNT', 'AVG', 'MIN', 'MAX'],
       },
@@ -707,7 +748,15 @@ FROM departments d
 LEFT JOIN projects p ON d.dept_id = p.dept_id
 GROUP BY d.dept_name, d.location
 HAVING SUM(p.budget) > 0
-ORDER BY total_budget DESC;`,
+ORDER BY total_budget DESC;
+-- EXPECTED:
+-- | dept_name         | location      | project_count | total_budget |
+-- | Engineering       | San Francisco | 3             | 1070000      |
+-- | Operations        | Seattle       | 1             | 410000       |
+-- | Marketing         | Los Angeles   | 2             | 275000       |
+-- | Sales             | New York      | 1             | 150000       |
+-- | Human Resources   | Chicago       | 1             | 75000        |
+-- (5 rows)`,
         description: 'Calculate total project budgets and counts per department',
         sqlFeatures: ['LEFT JOIN', 'GROUP BY', 'COUNT', 'SUM', 'HAVING'],
       },
@@ -725,7 +774,25 @@ LEFT JOIN departments d ON e.dept_id = d.dept_id
 LEFT JOIN projects p ON e.dept_id = p.dept_id
 WHERE e.dept_id IS NOT NULL
 ORDER BY d.dept_name, e.name
-LIMIT 15;`,
+LIMIT 15;
+-- EXPECTED:
+-- | employee        | department  | project_name            | budget  |
+-- | Alice Chen      | Engineering | Cloud Migration         | 500000  |
+-- | Alice Chen      | Engineering | Mobile App Redesign     | 250000  |
+-- | Alice Chen      | Engineering | Customer Portal         | 320000  |
+-- | Bob Martinez    | Engineering | Cloud Migration         | 500000  |
+-- | Bob Martinez    | Engineering | Mobile App Redesign     | 250000  |
+-- | Bob Martinez    | Engineering | Customer Portal         | 320000  |
+-- | Carol Williams  | Engineering | Cloud Migration         | 500000  |
+-- | Carol Williams  | Engineering | Mobile App Redesign     | 250000  |
+-- | Carol Williams  | Engineering | Customer Portal         | 320000  |
+-- | Maria Rodriguez | Engineering | Cloud Migration         | 500000  |
+-- | Maria Rodriguez | Engineering | Mobile App Redesign     | 250000  |
+-- | Maria Rodriguez | Engineering | Customer Portal         | 320000  |
+-- | Sam Harris      | Engineering | Cloud Migration         | 500000  |
+-- | Sam Harris      | Engineering | Mobile App Redesign     | 250000  |
+-- | Sam Harris      | Engineering | Customer Portal         | 320000  |
+-- (15 rows)`,
         description: 'Show employees with their departments and assigned projects',
         sqlFeatures: ['LEFT JOIN', 'Multi-table JOIN', 'WHERE', 'LIMIT'],
       },
@@ -745,7 +812,15 @@ FROM departments d
 LEFT JOIN employees e ON d.dept_id = e.dept_id
 LEFT JOIN projects p ON d.dept_id = p.dept_id
 GROUP BY d.dept_name
-ORDER BY budget_per_employee DESC;`,
+ORDER BY budget_per_employee DESC;
+-- EXPECTED:
+-- | dept_name         | headcount | project_budget | budget_per_employee |
+-- | Operations        | 3         | 1230000        | 410000              |
+-- | Engineering       | 15        | 5350000        | 356666              |
+-- | Sales             | 5         | 750000         | 150000              |
+-- | Human Resources   | 2         | 150000         | 75000               |
+-- | Marketing         | 6         | 550000         | 91666               |
+-- (5 rows)`,
         description: 'Calculate budget efficiency (budget per employee) by department',
         sqlFeatures: ['LEFT JOIN', 'Multi-table JOIN', 'GROUP BY', 'CASE', 'Calculated fields'],
       },
@@ -767,7 +842,19 @@ ORDER BY budget_per_employee DESC;`,
 FROM projects p
 LEFT JOIN departments d ON p.dept_id = d.dept_id
 WHERE p.budget IS NOT NULL
-ORDER BY p.budget DESC;`,
+ORDER BY p.budget DESC;
+-- EXPECTED:
+-- | project_name                    | budget | dept_name   | location      | priority |
+-- | Cloud Migration                 | 500000 | Engineering | San Francisco | Critical |
+-- | Supply Chain Optimization       | 410000 | Operations  | Seattle       | Critical |
+-- | Customer Portal                 | 320000 | Engineering | San Francisco | Major    |
+-- | Mobile App Redesign             | 250000 | Engineering | San Francisco | Major    |
+-- | Innovation Lab                  | 200000 | NULL        | NULL          | Major    |
+-- | Brand Refresh                   | 180000 | Marketing   | Los Angeles   | Standard |
+-- | Q4 Sales Campaign               | 150000 | Sales       | New York      | Standard |
+-- | Market Research Initiative      | 95000  | Marketing   | Los Angeles   | Minor    |
+-- | Employee Wellness Program       | 75000  | Human Resources | Chicago   | Minor    |
+-- (9 rows)`,
         description: 'List projects with budget categorization and department info',
         sqlFeatures: ['LEFT JOIN', 'WHERE', 'CASE', 'ORDER BY'],
       },
@@ -834,7 +921,15 @@ ORDER BY student_count DESC;`,
 FROM enrollments
 WHERE grade IS NOT NULL
 GROUP BY grade
-ORDER BY grade;`,
+ORDER BY grade;
+-- EXPECTED:
+-- | grade | count |
+-- | A     | 30    |
+-- | B     | 27    |
+-- | C     | 18    |
+-- | D     | 6     |
+-- | F     | 2     |
+-- (5 rows)`,
         description: 'Count enrollments by grade (excluding NULLs)',
         sqlFeatures: ['COUNT', 'GROUP BY', 'WHERE', 'NULL filtering'],
       },
