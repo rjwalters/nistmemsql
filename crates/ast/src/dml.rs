@@ -2,18 +2,27 @@
 //!
 //! This module contains INSERT, UPDATE, and DELETE statement types.
 
-use crate::Expression;
+use crate::{Expression, SelectStmt};
 
 // ============================================================================
 // INSERT Statement
 // ============================================================================
+
+/// Source of data for INSERT statement
+#[derive(Debug, Clone, PartialEq)]
+pub enum InsertSource {
+    /// INSERT ... VALUES (...)
+    Values(Vec<Vec<Expression>>),
+    /// INSERT ... SELECT ...
+    Select(Box<SelectStmt>),
+}
 
 /// INSERT statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct InsertStmt {
     pub table_name: String,
     pub columns: Vec<String>,
-    pub values: Vec<Vec<Expression>>, // Can insert multiple rows
+    pub source: InsertSource,
 }
 
 // ============================================================================

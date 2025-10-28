@@ -45,17 +45,28 @@ impl Parser {
             Vec::new() // No columns specified
         };
 
-        // Parse VALUES
-        self.expect_keyword(Keyword::Values)?;
+        // Parse source: VALUES or SELECT
+        let source = if self.peek_keyword(Keyword::Values) {
+            // Parse VALUES
+            self.expect_keyword(Keyword::Values)?;
 
-        // Parse value lists
-        let mut values = Vec::new();
-        loop {
-            self.expect_token(Token::LParen)?;
-            let mut row = Vec::new();
+            // Parse value lists
+            let mut values = Vec::new();
             loop {
-                let expr = self.parse_expression()?;
-                row.push(expr);
+                self.expect_token(Token::LParen)?;
+                let mut row = Vec::new();
+                loop {
+                    let expr = self.parse_expression()?;
+                    row.push(expr);
+
+                    if matches!(self.peek(), Token::Comma) {
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                }
+                self.expect_token(Token::RParen)?;
+                values.push(row);
 
                 if matches!(self.peek(), Token::Comma) {
                     self.advance();
@@ -63,21 +74,22 @@ impl Parser {
                     break;
                 }
             }
-            self.expect_token(Token::RParen)?;
-            values.push(row);
-
-            if matches!(self.peek(), Token::Comma) {
-                self.advance();
-            } else {
-                break;
-            }
-        }
+            ast::InsertSource::Values(values)
+        } else if self.peek_keyword(Keyword::Select) || self.peek_keyword(Keyword::With) {
+            // Parse SELECT
+            let select_stmt = self.parse_select_statement()?;
+            ast::InsertSource::Select(Box::new(select_stmt))
+        } else {
+            return Err(ParseError {
+                message: "Expected VALUES or SELECT after INSERT".to_string(),
+            });
+        };
 
         // Expect semicolon or EOF
         if matches!(self.peek(), Token::Semicolon) {
             self.advance();
         }
 
-        Ok(ast::InsertStmt { table_name, columns, values })
+        Ok(ast::InsertStmt { table_name, columns, source })
     }
 }

@@ -100,10 +100,9 @@ impl Database {
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
             ast::Statement::Insert(insert_stmt) => {
-                executor::InsertExecutor::execute(&mut self.db, &insert_stmt)
+                let row_count = executor::InsertExecutor::execute(&mut self.db, &insert_stmt)
                     .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
-                let row_count = insert_stmt.values.len();
                 let result = ExecuteResult {
                     rows_affected: row_count,
                     message: format!(

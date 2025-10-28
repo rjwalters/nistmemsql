@@ -122,10 +122,10 @@ fn test_transaction_insert_commit() {
     let insert_stmt = InsertStmt {
         table_name: "users".to_string(),
         columns: vec![],
-        values: vec![vec![
+        source: ast::InsertSource::Values(vec![vec![
             ast::Expression::Literal(SqlValue::Integer(1)),
             ast::Expression::Literal(SqlValue::Varchar("Alice".to_string())),
-        ]],
+        ]]),
     };
     let rows = InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
     assert_eq!(rows, 1);
@@ -154,10 +154,10 @@ fn test_transaction_insert_rollback() {
     let insert_stmt = InsertStmt {
         table_name: "users".to_string(),
         columns: vec![],
-        values: vec![vec![
+        source: ast::InsertSource::Values(vec![vec![
             ast::Expression::Literal(SqlValue::Integer(1)),
             ast::Expression::Literal(SqlValue::Varchar("Alice".to_string())),
-        ]],
+        ]]),
     };
     let rows = InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
     assert_eq!(rows, 1);
@@ -183,10 +183,10 @@ fn test_transaction_multiple_operations_commit() {
     let insert_stmt1 = InsertStmt {
         table_name: "users".to_string(),
         columns: vec![],
-        values: vec![vec![
+        source: ast::InsertSource::Values(vec![vec![
             ast::Expression::Literal(SqlValue::Integer(1)),
             ast::Expression::Literal(SqlValue::Varchar("Alice".to_string())),
-        ]],
+        ]]),
     };
     InsertExecutor::execute(&mut db, &insert_stmt1).unwrap();
 
@@ -197,10 +197,10 @@ fn test_transaction_multiple_operations_commit() {
     let insert_stmt2 = InsertStmt {
         table_name: "users".to_string(),
         columns: vec![],
-        values: vec![vec![
+        source: ast::InsertSource::Values(vec![vec![
             ast::Expression::Literal(SqlValue::Integer(2)),
             ast::Expression::Literal(SqlValue::Varchar("Bob".to_string())),
-        ]],
+        ]]),
     };
     InsertExecutor::execute(&mut db, &insert_stmt2).unwrap();
 
@@ -225,10 +225,10 @@ fn test_transaction_multiple_operations_rollback() {
     let insert_stmt1 = InsertStmt {
         table_name: "users".to_string(),
         columns: vec![],
-        values: vec![vec![
+        source: ast::InsertSource::Values(vec![vec![
             ast::Expression::Literal(SqlValue::Integer(1)),
             ast::Expression::Literal(SqlValue::Varchar("Alice".to_string())),
-        ]],
+        ]]),
     };
     InsertExecutor::execute(&mut db, &insert_stmt1).unwrap();
 
@@ -239,10 +239,10 @@ fn test_transaction_multiple_operations_rollback() {
     let insert_stmt2 = InsertStmt {
         table_name: "users".to_string(),
         columns: vec![],
-        values: vec![vec![
+        source: ast::InsertSource::Values(vec![vec![
             ast::Expression::Literal(SqlValue::Integer(2)),
             ast::Expression::Literal(SqlValue::Varchar("Bob".to_string())),
-        ]],
+        ]]),
     };
     InsertExecutor::execute(&mut db, &insert_stmt2).unwrap();
 
@@ -274,10 +274,10 @@ fn test_transaction_isolation() {
     let insert_stmt = InsertStmt {
         table_name: "users".to_string(),
         columns: vec![],
-        values: vec![vec![
+        source: ast::InsertSource::Values(vec![vec![
             ast::Expression::Literal(SqlValue::Integer(1)),
             ast::Expression::Literal(SqlValue::Varchar("Alice".to_string())),
-        ]],
+        ]]),
     };
     InsertExecutor::execute(&mut db1, &insert_stmt).unwrap();
 
@@ -309,10 +309,10 @@ fn test_transaction_nested_operations() {
         let insert_stmt = InsertStmt {
             table_name: "users".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(SqlValue::Integer(i)),
                 ast::Expression::Literal(SqlValue::Varchar(format!("User{}", i))),
-            ]],
+            ]]),
         };
         InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
     }
@@ -338,10 +338,10 @@ fn test_transaction_empty_rollback() {
     let insert_stmt = InsertStmt {
         table_name: "users".to_string(),
         columns: vec![],
-        values: vec![vec![
+        source: ast::InsertSource::Values(vec![vec![
             ast::Expression::Literal(SqlValue::Integer(1)),
             ast::Expression::Literal(SqlValue::Varchar("Alice".to_string())),
-        ]],
+        ]]),
     };
     InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
 
@@ -366,10 +366,10 @@ fn test_multiple_transactions() {
     let insert_stmt1 = InsertStmt {
         table_name: "users".to_string(),
         columns: vec![],
-        values: vec![vec![
+        source: ast::InsertSource::Values(vec![vec![
             ast::Expression::Literal(SqlValue::Integer(1)),
             ast::Expression::Literal(SqlValue::Varchar("Alice".to_string())),
-        ]],
+        ]]),
     };
     InsertExecutor::execute(&mut db, &insert_stmt1).unwrap();
     CommitExecutor::execute(&CommitStmt, &mut db).unwrap();
@@ -379,10 +379,10 @@ fn test_multiple_transactions() {
     let insert_stmt2 = InsertStmt {
         table_name: "users".to_string(),
         columns: vec![],
-        values: vec![vec![
+        source: ast::InsertSource::Values(vec![vec![
             ast::Expression::Literal(SqlValue::Integer(2)),
             ast::Expression::Literal(SqlValue::Varchar("Bob".to_string())),
-        ]],
+        ]]),
     };
     InsertExecutor::execute(&mut db, &insert_stmt2).unwrap();
     RollbackExecutor::execute(&RollbackStmt, &mut db).unwrap();
