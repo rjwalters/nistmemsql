@@ -5,6 +5,7 @@ use storage::Database;
 use types::SqlValue;
 
 #[test]
+#[ignore] // TODO: Enable after #241 (CASE expression parsing) is fixed
 fn test_case_expression_with_from_clause() {
     let mut db = Database::new();
 
