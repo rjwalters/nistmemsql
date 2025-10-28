@@ -44,8 +44,43 @@ impl InsertExecutor {
                 .collect::<Result<Vec<_>, _>>()?
         };
 
+        // Get the rows to insert based on the source
+        let rows_to_insert = match &stmt.source {
+            ast::InsertSource::Values(values) => {
+                // For VALUES, we already have the rows as expressions
+                values.clone()
+            }
+            ast::InsertSource::Select(select_stmt) => {
+                // For SELECT, execute the query and get the result rows
+                let select_executor = crate::SelectExecutor::new(db);
+                let select_result = select_executor.execute_with_columns(select_stmt)?;
+
+                // Validate column count
+                if select_result.columns.len() != target_column_info.len() {
+                    return Err(ExecutorError::UnsupportedExpression(format!(
+                        "INSERT column count mismatch: expected {}, got {} from SELECT",
+                        target_column_info.len(),
+                        select_result.columns.len()
+                    )));
+                }
+
+                // Convert SelectResult to Vec<Vec<Expression>> format
+                // Each row becomes a Vec<Expression> with literals
+                select_result
+                    .rows
+                    .into_iter()
+                    .map(|row| {
+                        row.values
+                            .into_iter()
+                            .map(ast::Expression::Literal)
+                            .collect()
+                    })
+                    .collect()
+            }
+        };
+
         // Validate each row has correct number of values
-        for (row_idx, value_exprs) in stmt.values.iter().enumerate() {
+        for (row_idx, value_exprs) in rows_to_insert.iter().enumerate() {
             if value_exprs.len() != target_column_info.len() {
                 return Err(ExecutorError::UnsupportedExpression(format!(
                     "INSERT row {} column count mismatch: expected {}, got {}",
@@ -66,7 +101,7 @@ impl InsertExecutor {
             vec![Vec::new(); schema.get_unique_constraint_indices().len()]
         }; // Track UNIQUE values for each constraint
 
-        for (row_idx, value_exprs) in stmt.values.iter().enumerate() {
+        for value_exprs in &rows_to_insert {
             // Build a complete row with values for all columns
             // Start with NULL for all columns, then fill in provided values
             let mut full_row_values = vec![types::SqlValue::Null; schema.columns.len()];

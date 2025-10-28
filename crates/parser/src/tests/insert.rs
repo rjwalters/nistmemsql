@@ -32,7 +32,12 @@ fn test_parse_insert_multiple_rows() {
     match stmt {
         ast::Statement::Insert(insert) => {
             assert_eq!(insert.table_name, "users");
-            assert_eq!(insert.values.len(), 2); // Two rows
+            match &insert.source {
+                ast::InsertSource::Values(values) => {
+                    assert_eq!(values.len(), 2); // Two rows
+                }
+                _ => panic!("Expected VALUES source"),
+            }
         }
         _ => panic!("Expected INSERT statement"),
     }

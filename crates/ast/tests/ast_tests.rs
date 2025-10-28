@@ -33,7 +33,7 @@ use types::SqlValue;
         let stmt = Statement::Insert(InsertStmt {
             table_name: "users".to_string(),
             columns: vec!["name".to_string()],
-            values: vec![vec![Expression::Literal(SqlValue::Varchar("Alice".to_string()))]],
+            source: InsertSource::Values(vec![vec![Expression::Literal(SqlValue::Varchar("Alice".to_string()))]]),
         });
 
         match stmt {

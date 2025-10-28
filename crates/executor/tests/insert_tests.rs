@@ -30,10 +30,10 @@ use ast;
         let stmt = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec![], // No columns specified
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
-            ]],
+            ]),
         };
 
         let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -53,7 +53,7 @@ use ast;
         let stmt = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec![],
-            values: vec![
+            source: ast::InsertSource::Values(vec![
                 vec![
                     ast::Expression::Literal(types::SqlValue::Integer(1)),
                     ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
@@ -62,7 +62,7 @@ use ast;
                     ast::Expression::Literal(types::SqlValue::Integer(2)),
                     ast::Expression::Literal(types::SqlValue::Varchar("Bob".to_string())),
                 ],
-            ],
+            ]),
         };
 
         let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -81,10 +81,10 @@ use ast;
         let stmt = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec!["name".to_string(), "id".to_string()],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
-            ]],
+            ]),
         };
 
         let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -117,10 +117,10 @@ use ast;
         let stmt = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Null),
-            ]],
+            ]),
         };
 
         let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -136,10 +136,10 @@ use ast;
         let stmt = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Varchar("not_a_number".to_string())),
                 ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
-            ]],
+            ]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt);
@@ -156,7 +156,7 @@ use ast;
         let stmt = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec![],
-            values: vec![vec![ast::Expression::Literal(types::SqlValue::Integer(1))]],
+            source: ast::InsertSource::Values(vec![vec![ast::Expression::Literal(types::SqlValue::Integer(1))]],
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt);
@@ -171,10 +171,10 @@ use ast;
         let stmt = ast::InsertStmt {
             table_name: "nonexistent".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
-            ]],
+            ]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt);
@@ -191,10 +191,10 @@ use ast;
         let stmt = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec!["id".to_string(), "invalid_col".to_string()],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
-            ]],
+            ]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt);
@@ -212,10 +212,10 @@ use ast;
         let stmt = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Null),
                 ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
-            ]],
+            ]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt);
@@ -241,7 +241,7 @@ use ast;
         let stmt = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec![],
-            values: vec![
+            source: ast::InsertSource::Values(vec![
                 vec![
                     ast::Expression::Literal(types::SqlValue::Integer(1)),
                     ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
@@ -254,7 +254,7 @@ use ast;
                     ast::Expression::Literal(types::SqlValue::Integer(3)),
                     ast::Expression::Literal(types::SqlValue::Varchar("Charlie".to_string())),
                 ],
-            ],
+            ]),
         };
 
         let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -274,7 +274,7 @@ use ast;
         let stmt = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec![],
-            values: vec![
+            source: ast::InsertSource::Values(vec![
                 vec![
                     ast::Expression::Literal(types::SqlValue::Integer(1)),
                     ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
@@ -287,7 +287,7 @@ use ast;
                     ast::Expression::Literal(types::SqlValue::Integer(3)),
                     ast::Expression::Literal(types::SqlValue::Varchar("Charlie".to_string())),
                 ],
-            ],
+            ]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt);
@@ -308,7 +308,7 @@ use ast;
         let stmt = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec!["name".to_string(), "id".to_string()],
-            values: vec![
+            source: ast::InsertSource::Values(vec![
                 vec![
                     ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
                     ast::Expression::Literal(types::SqlValue::Integer(1)),
@@ -317,7 +317,7 @@ use ast;
                     ast::Expression::Literal(types::SqlValue::Varchar("Bob".to_string())),
                     ast::Expression::Literal(types::SqlValue::Integer(2)),
                 ],
-            ],
+            ]),
         };
 
         let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -337,7 +337,7 @@ use ast;
         let stmt = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec![],
-            values: vec![
+            source: ast::InsertSource::Values(vec![
                 vec![
                     ast::Expression::Literal(types::SqlValue::Integer(1)),
                     ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
@@ -346,7 +346,7 @@ use ast;
                     ast::Expression::Literal(types::SqlValue::Varchar("not_a_number".to_string())), // Wrong type for id
                     ast::Expression::Literal(types::SqlValue::Varchar("Bob".to_string())),
                 ],
-            ],
+            ]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt);
@@ -380,7 +380,7 @@ use ast;
         let stmt = ast::InsertStmt {
             table_name: "test_types".to_string(),
             columns: vec![],
-            values: vec![
+            source: ast::InsertSource::Values(vec![
                 vec![
                     ast::Expression::Literal(types::SqlValue::Integer(1)),
                     ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
@@ -399,7 +399,7 @@ use ast;
                     ast::Expression::Literal(types::SqlValue::Null),
                     ast::Expression::Literal(types::SqlValue::Null),
                 ],
-            ],
+            ]),
         };
 
         let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -429,7 +429,7 @@ use ast;
         let stmt = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec![],
-            values: vec![
+            source: ast::InsertSource::Values(vec![
                 vec![
                     ast::Expression::Literal(types::SqlValue::Integer(1)),
                     ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
@@ -438,7 +438,7 @@ use ast;
                     ast::Expression::Literal(types::SqlValue::Integer(1)), // Duplicate primary key
                     ast::Expression::Literal(types::SqlValue::Varchar("Bob".to_string())),
                 ],
-            ],
+            ]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt);
@@ -459,10 +459,10 @@ use ast;
         let stmt = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
-            ]],
+            ]),
         };
 
         let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -498,10 +498,10 @@ use ast;
         let stmt = ast::InsertStmt {
             table_name: "test".to_string(),
             columns: vec!["id".to_string(), "age".to_string()],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(25)),
-            ]],
+            ]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt);
@@ -540,10 +540,10 @@ use ast;
         let stmt1 = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
-            ]],
+            ]),
         };
         InsertExecutor::execute(&mut db, &stmt1).unwrap();
 
@@ -551,10 +551,10 @@ use ast;
         let stmt2 = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Varchar("Bob".to_string())),
-            ]],
+            ]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt2);
@@ -588,11 +588,11 @@ use ast;
         let stmt1 = ast::InsertStmt {
             table_name: "order_items".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(100)),
                 ast::Expression::Literal(types::SqlValue::Integer(5)),
-            ]],
+            ]),
         };
         InsertExecutor::execute(&mut db, &stmt1).unwrap();
 
@@ -600,11 +600,11 @@ use ast;
         let stmt2 = ast::InsertStmt {
             table_name: "order_items".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(200)),
                 ast::Expression::Literal(types::SqlValue::Integer(3)),
-            ]],
+            ]),
         };
         InsertExecutor::execute(&mut db, &stmt2).unwrap();
 
@@ -612,11 +612,11 @@ use ast;
         let stmt3 = ast::InsertStmt {
             table_name: "order_items".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(100)),
                 ast::Expression::Literal(types::SqlValue::Integer(10)),
-            ]],
+            ]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt3);
@@ -653,10 +653,10 @@ use ast;
             let stmt = ast::InsertStmt {
                 table_name: "users".to_string(),
                 columns: vec![],
-                values: vec![vec![
+                source: ast::InsertSource::Values(vec![vec![
                     ast::Expression::Literal(types::SqlValue::Integer(i)),
                     ast::Expression::Literal(types::SqlValue::Varchar(format!("User{}", i))),
-                ]],
+                ]),
             };
             InsertExecutor::execute(&mut db, &stmt).unwrap();
         }
@@ -690,10 +690,10 @@ use ast;
         let stmt1 = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Varchar("alice@example.com".to_string())),
-            ]],
+            ]),
         };
         InsertExecutor::execute(&mut db, &stmt1).unwrap();
 
@@ -701,10 +701,10 @@ use ast;
         let stmt2 = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(2)),
                 ast::Expression::Literal(types::SqlValue::Varchar("alice@example.com".to_string())),
-            ]],
+            ]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt2);
@@ -744,10 +744,10 @@ use ast;
             let stmt = ast::InsertStmt {
                 table_name: "users".to_string(),
                 columns: vec![],
-                values: vec![vec![
+                source: ast::InsertSource::Values(vec![vec![
                     ast::Expression::Literal(types::SqlValue::Integer(i)),
                     ast::Expression::Literal(types::SqlValue::Null),
-                ]],
+                ]),
             };
             InsertExecutor::execute(&mut db, &stmt).unwrap();
         }
@@ -777,11 +777,11 @@ use ast;
         let stmt1 = ast::InsertStmt {
             table_name: "enrollments".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(101)),
                 ast::Expression::Literal(types::SqlValue::Integer(85)),
-            ]],
+            ]),
         };
         InsertExecutor::execute(&mut db, &stmt1).unwrap();
 
@@ -789,11 +789,11 @@ use ast;
         let stmt2 = ast::InsertStmt {
             table_name: "enrollments".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(102)),
                 ast::Expression::Literal(types::SqlValue::Integer(90)),
-            ]],
+            ]),
         };
         InsertExecutor::execute(&mut db, &stmt2).unwrap();
 
@@ -801,11 +801,11 @@ use ast;
         let stmt3 = ast::InsertStmt {
             table_name: "enrollments".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(101)),
                 ast::Expression::Literal(types::SqlValue::Integer(95)),
-            ]],
+            ]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt3);
@@ -850,11 +850,11 @@ use ast;
         let stmt1 = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Varchar("alice@example.com".to_string())),
                 ast::Expression::Literal(types::SqlValue::Varchar("alice".to_string())),
-            ]],
+            ]),
         };
         InsertExecutor::execute(&mut db, &stmt1).unwrap();
 
@@ -862,11 +862,11 @@ use ast;
         let stmt2 = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(2)),
                 ast::Expression::Literal(types::SqlValue::Varchar("alice@example.com".to_string())),
                 ast::Expression::Literal(types::SqlValue::Varchar("bob".to_string())),
-            ]],
+            ]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt2);
@@ -883,11 +883,11 @@ use ast;
         let stmt3 = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(2)),
                 ast::Expression::Literal(types::SqlValue::Varchar("bob@example.com".to_string())),
                 ast::Expression::Literal(types::SqlValue::Varchar("alice".to_string())),
-            ]],
+            ]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt3);
@@ -932,10 +932,10 @@ use ast;
         let stmt = ast::InsertStmt {
             table_name: "products".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(100)),
-            ]],
+            ]),
         };
 
         InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -976,10 +976,10 @@ use ast;
         let stmt = ast::InsertStmt {
             table_name: "products".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(-10)),
-            ]],
+            ]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt);
@@ -1025,10 +1025,10 @@ use ast;
         let stmt = ast::InsertStmt {
             table_name: "products".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Null),
-            ]],
+            ]),
         };
 
         InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -1084,11 +1084,11 @@ use ast;
         let stmt1 = ast::InsertStmt {
             table_name: "products".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(100)),
                 ast::Expression::Literal(types::SqlValue::Integer(50)),
-            ]],
+            ]),
         };
         InsertExecutor::execute(&mut db, &stmt1).unwrap();
 
@@ -1096,11 +1096,11 @@ use ast;
         let stmt2 = ast::InsertStmt {
             table_name: "products".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(2)),
                 ast::Expression::Literal(types::SqlValue::Integer(-10)),
                 ast::Expression::Literal(types::SqlValue::Integer(50)),
-            ]],
+            ]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt2);
@@ -1117,11 +1117,11 @@ use ast;
         let stmt3 = ast::InsertStmt {
             table_name: "products".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(3)),
                 ast::Expression::Literal(types::SqlValue::Integer(100)),
                 ast::Expression::Literal(types::SqlValue::Integer(-5)),
-            ]],
+            ]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt3);
@@ -1171,11 +1171,11 @@ use ast;
         let stmt1 = ast::InsertStmt {
             table_name: "employees".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(50000)),
                 ast::Expression::Literal(types::SqlValue::Integer(10000)),
-            ]],
+            ]),
         };
         InsertExecutor::execute(&mut db, &stmt1).unwrap();
 
@@ -1183,11 +1183,11 @@ use ast;
         let stmt2 = ast::InsertStmt {
             table_name: "employees".to_string(),
             columns: vec![],
-            values: vec![vec![
+            source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(2)),
                 ast::Expression::Literal(types::SqlValue::Integer(50000)),
                 ast::Expression::Literal(types::SqlValue::Integer(60000)),
-            ]],
+            ]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt2);
@@ -1200,3 +1200,270 @@ use ast;
             other => panic!("Expected ConstraintViolation, got {:?}", other),
         }
     }
+    #[test]
+    fn test_insert_from_select_basic() {
+        let mut db = storage::Database::new();
+        setup_test_table(&mut db);
+
+        // First insert some data to select from
+        let insert_stmt = ast::InsertStmt {
+            table_name: "users".to_string(),
+            columns: vec![],
+            source: ast::InsertSource::Values(vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(1)),
+                ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
+            ]]),
+        };
+        InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
+
+        // Create another table to insert into
+        let schema = catalog::TableSchema::new(
+            "users_backup".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: 50 }, true),
+            ],
+        );
+        db.create_table(schema).unwrap();
+
+        // INSERT INTO users_backup SELECT * FROM users
+        let select_stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Table {
+                name: "users".to_string(),
+                alias: None,
+            }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: None,
+            offset: None,
+            with_clause: None,
+            distinct: false,
+            set_operation: None,
+        };
+
+        let insert_select_stmt = ast::InsertStmt {
+            table_name: "users_backup".to_string(),
+            columns: vec![], // No explicit columns, use all
+            source: ast::InsertSource::Select(Box::new(select_stmt)),
+        };
+
+        let rows = InsertExecutor::execute(&mut db, &insert_select_stmt).unwrap();
+        assert_eq!(rows, 1);
+
+        let table = db.get_table("users_backup").unwrap();
+        assert_eq!(table.row_count(), 1);
+    }
+
+    #[test]
+    fn test_insert_from_select_with_where() {
+        let mut db = storage::Database::new();
+        setup_test_table(&mut db);
+
+        // Insert multiple users
+        let insert_stmt = ast::InsertStmt {
+            table_name: "users".to_string(),
+            columns: vec![],
+            source: ast::InsertSource::Values(vec![
+                vec![
+                    ast::Expression::Literal(types::SqlValue::Integer(1)),
+                    ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
+                ],
+                vec![
+                    ast::Expression::Literal(types::SqlValue::Integer(2)),
+                    ast::Expression::Literal(types::SqlValue::Varchar("Bob".to_string())),
+                ],
+            ]),
+        };
+        InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
+
+        // Create backup table
+        let schema = catalog::TableSchema::new(
+            "active_users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: 50 }, true),
+            ],
+        );
+        db.create_table(schema).unwrap();
+
+        // INSERT INTO active_users SELECT * FROM users WHERE id = 1
+        let select_stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Table {
+                name: "users".to_string(),
+                alias: None,
+            }),
+            where_clause: Some(ast::Expression::BinaryOp {
+                left: Box::new(ast::Expression::ColumnRef {
+                    table: None,
+                    column: "id".to_string(),
+                }),
+                op: ast::BinaryOperator::Equal,
+                right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(1))),
+            }),
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: None,
+            offset: None,
+            with_clause: None,
+            distinct: false,
+            set_operation: None,
+        };
+
+        let insert_select_stmt = ast::InsertStmt {
+            table_name: "active_users".to_string(),
+            columns: vec![],
+            source: ast::InsertSource::Select(Box::new(select_stmt)),
+        };
+
+        let rows = InsertExecutor::execute(&mut db, &insert_select_stmt).unwrap();
+        assert_eq!(rows, 1);
+
+        let table = db.get_table("active_users").unwrap();
+        assert_eq!(table.row_count(), 1);
+    }
+
+    #[test]
+    fn test_insert_from_select_column_mismatch() {
+        let mut db = storage::Database::new();
+        setup_test_table(&mut db);
+
+        // Insert some data
+        let insert_stmt = ast::InsertStmt {
+            table_name: "users".to_string(),
+            columns: vec![],
+            source: ast::InsertSource::Values(vec![vec![
+                ast::Expression::Literal(types::SqlValue::Integer(1)),
+                ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
+            ]]),
+        };
+        InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
+
+        // Create a table with different column count
+        let schema = catalog::TableSchema::new(
+            "wrong_table".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: 50 }, true),
+                catalog::ColumnSchema::new("extra".to_string(), types::DataType::Integer, true),
+            ],
+        );
+        db.create_table(schema).unwrap();
+
+        // Try to INSERT with wrong column count
+        let select_stmt = ast::SelectStmt {
+            select_list: vec![ast::SelectItem::Wildcard],
+            from: Some(ast::FromClause::Table {
+                name: "users".to_string(),
+                alias: None,
+            }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: None,
+            offset: None,
+            with_clause: None,
+            distinct: false,
+            set_operation: None,
+        };
+
+        let insert_select_stmt = ast::InsertStmt {
+            table_name: "wrong_table".to_string(),
+            columns: vec![], // Should match all columns
+            source: ast::InsertSource::Select(Box::new(select_stmt)),
+        };
+
+        let result = InsertExecutor::execute(&mut db, &insert_select_stmt);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), ExecutorError::UnsupportedExpression(_)));
+    }
+
+    #[test]
+    fn test_insert_from_select_with_aggregates() {
+        let mut db = storage::Database::new();
+
+        // Create sales table
+        let schema = catalog::TableSchema::new(
+            "sales".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("amount".to_string(), types::DataType::Integer, false),
+            ],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert sales data
+        let insert_stmt = ast::InsertStmt {
+            table_name: "sales".to_string(),
+            columns: vec![],
+            source: ast::InsertSource::Values(vec![
+                vec![
+                    ast::Expression::Literal(types::SqlValue::Integer(1)),
+                    ast::Expression::Literal(types::SqlValue::Integer(100)),
+                ],
+                vec![
+                    ast::Expression::Literal(types::SqlValue::Integer(2)),
+                    ast::Expression::Literal(types::SqlValue::Integer(200)),
+                ],
+            ]),
+        };
+        InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
+
+        // Create summary table
+        let summary_schema = catalog::TableSchema::new(
+            "summary".to_string(),
+            vec![
+                catalog::ColumnSchema::new("total".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new("count".to_string(), types::DataType::Integer, false),
+            ],
+        );
+        db.create_table(summary_schema).unwrap();
+
+        // INSERT INTO summary SELECT SUM(amount), COUNT(*) FROM sales
+        let select_stmt = ast::SelectStmt {
+            select_list: vec![
+                ast::SelectItem::Expression {
+                    expr: ast::Expression::Function {
+                        name: "SUM".to_string(),
+                        args: vec![ast::Expression::ColumnRef {
+                            table: None,
+                            column: "amount".to_string(),
+                        }],
+                        distinct: false,
+                    },
+                    alias: None,
+                },
+                ast::SelectItem::Expression {
+                    expr: ast::Expression::Function {
+                        name: "COUNT".to_string(),
+                        args: vec![ast::Expression::Wildcard],
+                        distinct: false,
+                    },
+                    alias: None,
+                },
+            ],
+            from: Some(ast::FromClause::Table {
+                name: "sales".to_string(),
+                alias: None,
+            }),
+            where_clause: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: None,
+            offset: None,
+            with_clause: None,
+            distinct: false,
+            set_operation: None,
+        };
+
+        let insert_select_stmt = ast::InsertStmt {
+            table_name: "summary".to_string(),
+            columns: vec![],
+            source: ast::InsertSource::Select(Box::new(select_stmt)),
+        };
