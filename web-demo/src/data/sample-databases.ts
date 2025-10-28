@@ -22,28 +22,44 @@ export interface SampleDatabase {
 
 /**
  * Employees Sample Database
- * Purpose: Basic DML, JOINs, simple aggregates
+ * Purpose: Basic DML, JOINs, simple aggregates, string functions
  */
 export const employeesDatabase: SampleDatabase = {
   id: 'employees',
   name: 'Employees',
-  description: 'Sample employee data for basic queries and JOINs',
+  description: 'Sample employee data for basic queries, JOINs, and string functions',
   tables: [
     {
       name: 'employees',
       createSql: `CREATE TABLE employees (
         id INTEGER,
-        name VARCHAR(50),
+        first_name VARCHAR(50),
+        last_name VARCHAR(50),
         department VARCHAR(50),
-        salary INTEGER
+        salary INTEGER,
+        hire_date VARCHAR(20)
       );`,
       insertSql: [
-        "INSERT INTO employees VALUES (1, 'Alice Johnson', 'Engineering', 95000);",
-        "INSERT INTO employees VALUES (2, 'Bob Smith', 'Engineering', 87000);",
-        "INSERT INTO employees VALUES (3, 'Carol White', 'Sales', 72000);",
-        "INSERT INTO employees VALUES (4, 'David Brown', 'Sales', 68000);",
-        "INSERT INTO employees VALUES (5, 'Eve Martinez', 'HR', 65000);",
-        "INSERT INTO employees VALUES (6, 'Frank Wilson', 'Engineering', 92000);",
+        "INSERT INTO employees VALUES (1, 'Alice', 'Johnson', 'Engineering', 95000, '2020-01-15');",
+        "INSERT INTO employees VALUES (2, 'Bob', 'Smith', 'Engineering', 87000, '2021-03-22');",
+        "INSERT INTO employees VALUES (3, 'Carol', 'White', 'Sales', 72000, '2022-06-10');",
+        "INSERT INTO employees VALUES (4, 'David', 'Brown', 'Sales', 68000, '2019-11-05');",
+        "INSERT INTO employees VALUES (5, 'Eve', 'Martinez', 'HR', 65000, '2020-08-17');",
+        "INSERT INTO employees VALUES (6, 'Frank', 'Wilson', 'Engineering', 92000, '2018-02-28');",
+        "INSERT INTO employees VALUES (7, 'Grace', 'Taylor', 'Engineering', 88000, '2021-04-12');",
+        "INSERT INTO employees VALUES (8, 'Henry', 'Anderson', 'Sales', 74000, '2022-01-20');",
+        "INSERT INTO employees VALUES (9, 'Iris', 'Thomas', 'HR', 71000, '2020-09-15');",
+        "INSERT INTO employees VALUES (10, 'Jack', 'Moore', 'Marketing', 79000, '2021-07-03');",
+        "INSERT INTO employees VALUES (11, 'Karen', 'Jackson', 'Marketing', 82000, '2019-12-18');",
+        "INSERT INTO employees VALUES (12, 'Leo', 'Harris', 'Engineering', 91000, '2020-05-09');",
+        "INSERT INTO employees VALUES (13, 'Maria', 'Clark', 'Sales', 76000, '2022-03-15');",
+        "INSERT INTO employees VALUES (14, 'Nathan', 'Lewis', 'HR', 69000, '2021-11-22');",
+        "INSERT INTO employees VALUES (15, 'Olivia', 'Walker', 'Engineering', 93000, '2019-08-07');",
+        "INSERT INTO employees VALUES (16, 'Paul', 'Hall', 'Marketing', 77000, '2020-10-30');",
+        "INSERT INTO employees VALUES (17, 'Quinn', 'Allen', 'Sales', 73000, '2022-02-14');",
+        "INSERT INTO employees VALUES (18, 'Rachel', 'Young', 'Engineering', 89000, '2021-06-19');",
+        "INSERT INTO employees VALUES (19, 'Sam', 'King', 'HR', 70000, '2020-12-05');",
+        "INSERT INTO employees VALUES (20, 'Tina', 'Wright', 'Marketing', 80000, '2019-09-28');",
       ],
     },
   ],
