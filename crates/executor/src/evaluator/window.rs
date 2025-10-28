@@ -1581,4 +1581,3 @@ mod tests {
         assert!(result.unwrap_err().contains("non-negative"));
     }
 }
-}
