@@ -671,13 +671,16 @@ use types::SqlValue;
                     name: "id".to_string(),
                     data_type: types::DataType::Integer,
                     nullable: false,
+                    constraints: vec![],
                 },
                 ColumnDef {
                     name: "name".to_string(),
                     data_type: types::DataType::Varchar { max_length: 255 },
                     nullable: true,
+                    constraints: vec![],
                 },
             ],
+            table_constraints: vec![],
         });
 
         match stmt {
@@ -692,6 +695,7 @@ use types::SqlValue;
             name: "email".to_string(),
             data_type: types::DataType::Varchar { max_length: 100 },
             nullable: false,
+            constraints: vec![],
         };
         assert_eq!(col.name, "email");
         assert!(!col.nullable);
