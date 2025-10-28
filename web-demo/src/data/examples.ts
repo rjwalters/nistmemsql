@@ -1904,7 +1904,8 @@ ORDER BY COUNT(p.product_id) DESC;`,
   {
     id: 'window',
     title: 'Window Functions',
-    description: 'Aggregate window functions with OVER clause - running totals, moving averages, partitioned aggregates',
+    description:
+      'Aggregate window functions with OVER clause - running totals, moving averages, partitioned aggregates',
     queries: [
       {
         id: 'window-1',
