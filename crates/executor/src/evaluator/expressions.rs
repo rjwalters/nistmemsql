@@ -210,6 +210,36 @@ impl<'a> ExpressionEvaluator<'a> {
                 cast_value(&value, data_type)
             }
 
+            // POSITION expression: POSITION(substring IN string)
+            // SQL:1999 Section 6.29: String value functions
+            // Returns 1-indexed position of first occurrence, or 0 if not found
+            ast::Expression::Position { substring, string } => {
+                let substring_val = self.eval(substring, row)?;
+                let string_val = self.eval(string, row)?;
+
+                // Handle NULL inputs
+                match (&substring_val, &string_val) {
+                    (types::SqlValue::Null, _) | (_, types::SqlValue::Null) => {
+                        Ok(types::SqlValue::Null)
+                    }
+                    (
+                        types::SqlValue::Varchar(needle) | types::SqlValue::Character(needle),
+                        types::SqlValue::Varchar(haystack) | types::SqlValue::Character(haystack),
+                    ) => {
+                        // Find returns 0-indexed position, SQL needs 1-indexed
+                        match haystack.find(needle.as_str()) {
+                            Some(pos) => Ok(types::SqlValue::Integer((pos + 1) as i64)),
+                            None => Ok(types::SqlValue::Integer(0)),
+                        }
+                    }
+                    _ => Err(ExecutorError::TypeMismatch {
+                        left: substring_val.clone(),
+                        op: "POSITION".to_string(),
+                        right: string_val.clone(),
+                    }),
+                }
+            }
+
             // LIKE pattern matching: expr LIKE pattern
             // Supports wildcards: % (any chars), _ (single char)
             ast::Expression::Like { expr, pattern, negated } => {

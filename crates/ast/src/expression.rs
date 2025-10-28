@@ -87,6 +87,15 @@ pub enum Expression {
         data_type: types::DataType,
     },
 
+    /// POSITION expression
+    /// Example: POSITION('lo' IN 'hello')
+    /// SQL:1999 Section 6.29: String value functions
+    /// Returns 1-indexed position of substring in string, or 0 if not found
+    Position {
+        substring: Box<Expression>,
+        string: Box<Expression>,
+    },
+
     /// LIKE pattern matching
     /// Example: name LIKE 'John%'
     /// Example: email NOT LIKE '%spam%'
