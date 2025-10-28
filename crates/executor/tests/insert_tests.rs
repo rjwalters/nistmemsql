@@ -1434,8 +1434,6 @@ use ast;
                             table: None,
                             column: "amount".to_string(),
                         }],
-                        over: None,
-                        distinct: false,
                     },
                     alias: None,
                 },
@@ -1443,8 +1441,6 @@ use ast;
                     expr: ast::Expression::Function {
                         name: "COUNT".to_string(),
                         args: vec![ast::Expression::Wildcard],
-                        over: None,
-                        distinct: false,
                     },
                     alias: None,
                 },
