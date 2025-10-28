@@ -1,7 +1,7 @@
 use super::*;
 
 impl Parser {
-    /// Parse function call expressions
+    /// Parse function call expressions (including window functions)
     pub(super) fn parse_function_call(&mut self) -> Result<Option<ast::Expression>, ParseError> {
         match self.peek() {
             Token::Identifier(id) => {
@@ -19,7 +19,6 @@ impl Parser {
                     if matches!(self.peek(), Token::RParen) {
                         // No arguments: func()
                         self.advance();
-                        return Ok(Some(ast::Expression::Function { name: first, args }));
                     } else if matches!(self.peek(), Token::Symbol('*')) {
                         // Special case for COUNT(*)
                         self.advance(); // consume '*'
@@ -29,22 +28,39 @@ impl Parser {
                             table: None,
                             column: "*".to_string(),
                         });
-                        return Ok(Some(ast::Expression::Function { name: first, args }));
-                    }
+                    } else {
+                        // Parse comma-separated argument list
+                        loop {
+                            let arg = self.parse_expression()?;
+                            args.push(arg);
 
-                    // Parse comma-separated argument list
-                    loop {
-                        let arg = self.parse_expression()?;
-                        args.push(arg);
-
-                        if matches!(self.peek(), Token::Comma) {
-                            self.advance();
-                        } else {
-                            break;
+                            if matches!(self.peek(), Token::Comma) {
+                                self.advance();
+                            } else {
+                                break;
+                            }
                         }
+
+                        self.expect_token(Token::RParen)?;
                     }
 
-                    self.expect_token(Token::RParen)?;
+                    // Check for OVER clause (window function)
+                    if matches!(self.peek(), Token::Keyword(Keyword::Over)) {
+                        self.advance(); // consume OVER
+
+                        // Parse window specification
+                        let window_spec = self.parse_window_spec()?;
+
+                        // Determine window function type based on function name
+                        let function_spec = self.classify_window_function(&first, args);
+
+                        return Ok(Some(ast::Expression::WindowFunction {
+                            function: function_spec,
+                            over: window_spec,
+                        }));
+                    }
+
+                    // Regular function call (not a window function)
                     Ok(Some(ast::Expression::Function { name: first, args }))
                 } else {
                     // Not a function call, rewind
@@ -53,6 +69,245 @@ impl Parser {
                 }
             }
             _ => Ok(None),
+        }
+    }
+
+    /// Classify a function as aggregate, ranking, or value window function
+    fn classify_window_function(
+        &self,
+        name: &str,
+        args: Vec<ast::Expression>,
+    ) -> ast::WindowFunctionSpec {
+        let name_upper = name.to_uppercase();
+
+        match name_upper.as_str() {
+            // Ranking functions
+            "ROW_NUMBER" | "RANK" | "DENSE_RANK" | "NTILE" => {
+                ast::WindowFunctionSpec::Ranking {
+                    name: name_upper,
+                    args,
+                }
+            }
+
+            // Value functions
+            "LAG" | "LEAD" | "FIRST_VALUE" | "LAST_VALUE" => {
+                ast::WindowFunctionSpec::Value {
+                    name: name_upper,
+                    args,
+                }
+            }
+
+            // Aggregate functions (SUM, AVG, COUNT, MIN, MAX, etc.)
+            _ => ast::WindowFunctionSpec::Aggregate {
+                name: name_upper,
+                args,
+            },
+        }
+    }
+
+    /// Parse window specification (OVER clause contents)
+    fn parse_window_spec(&mut self) -> Result<ast::WindowSpec, ParseError> {
+        // OVER ( [PARTITION BY expr_list] [ORDER BY order_list] [frame_clause] )
+        self.expect_token(Token::LParen)?;
+
+        let mut partition_by = None;
+        let mut order_by = None;
+        let mut frame = None;
+
+        // Check for empty OVER()
+        if matches!(self.peek(), Token::RParen) {
+            self.advance();
+            return Ok(ast::WindowSpec {
+                partition_by,
+                order_by,
+                frame,
+            });
+        }
+
+        // Parse PARTITION BY clause
+        if matches!(self.peek(), Token::Keyword(Keyword::Partition)) {
+            self.advance(); // consume PARTITION
+            self.expect_keyword(Keyword::By)?;
+
+            let mut expressions = vec![self.parse_expression()?];
+
+            while matches!(self.peek(), Token::Comma) {
+                self.advance();
+                expressions.push(self.parse_expression()?);
+            }
+
+            partition_by = Some(expressions);
+        }
+
+        // Parse ORDER BY clause
+        if matches!(self.peek(), Token::Keyword(Keyword::Order)) {
+            self.advance(); // consume ORDER
+            self.expect_keyword(Keyword::By)?;
+
+            let mut order_items = Vec::new();
+            loop {
+                let expr = self.parse_expression()?;
+
+                // Check for optional ASC/DESC
+                let direction = if matches!(self.peek(), Token::Keyword(Keyword::Asc)) {
+                    self.advance();
+                    ast::OrderDirection::Asc
+                } else if matches!(self.peek(), Token::Keyword(Keyword::Desc)) {
+                    self.advance();
+                    ast::OrderDirection::Desc
+                } else {
+                    ast::OrderDirection::Asc // Default
+                };
+
+                order_items.push(ast::OrderByItem { expr, direction });
+
+                if matches!(self.peek(), Token::Comma) {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+
+            order_by = Some(order_items);
+        }
+
+        // Parse frame clause (ROWS/RANGE)
+        if matches!(
+            self.peek(),
+            Token::Keyword(Keyword::Rows) | Token::Keyword(Keyword::Range)
+        ) {
+            frame = Some(self.parse_frame_clause()?);
+        }
+
+        self.expect_token(Token::RParen)?;
+
+        Ok(ast::WindowSpec {
+            partition_by,
+            order_by,
+            frame,
+        })
+    }
+
+    /// Parse frame clause (ROWS/RANGE BETWEEN ... AND ...)
+    fn parse_frame_clause(&mut self) -> Result<ast::WindowFrame, ParseError> {
+        // Parse frame unit (ROWS or RANGE)
+        let unit = match self.peek() {
+            Token::Keyword(Keyword::Rows) => {
+                self.advance();
+                ast::FrameUnit::Rows
+            }
+            Token::Keyword(Keyword::Range) => {
+                self.advance();
+                ast::FrameUnit::Range
+            }
+            _ => {
+                return Err(ParseError {
+                    message: format!(
+                        "Expected ROWS or RANGE in frame clause, found {:?}",
+                        self.peek()
+                    ),
+                })
+            }
+        };
+
+        // Parse BETWEEN ... AND ... or single bound
+        if matches!(self.peek(), Token::Keyword(Keyword::Between)) {
+            self.advance(); // consume BETWEEN
+
+            let start = self.parse_frame_bound()?;
+
+            self.expect_keyword(Keyword::And)?;
+
+            let end = self.parse_frame_bound()?;
+
+            Ok(ast::WindowFrame {
+                unit,
+                start,
+                end: Some(end),
+            })
+        } else {
+            // Single bound (defaults to CURRENT ROW as end)
+            let start = self.parse_frame_bound()?;
+
+            Ok(ast::WindowFrame {
+                unit,
+                start,
+                end: None,
+            })
+        }
+    }
+
+    /// Parse a single frame boundary
+    fn parse_frame_bound(&mut self) -> Result<ast::FrameBound, ParseError> {
+        match self.peek() {
+            Token::Keyword(Keyword::Unbounded) => {
+                self.advance(); // consume UNBOUNDED
+
+                match self.peek() {
+                    Token::Keyword(Keyword::Preceding) => {
+                        self.advance();
+                        Ok(ast::FrameBound::UnboundedPreceding)
+                    }
+                    Token::Keyword(Keyword::Following) => {
+                        self.advance();
+                        Ok(ast::FrameBound::UnboundedFollowing)
+                    }
+                    _ => Err(ParseError {
+                        message: format!(
+                            "Expected PRECEDING or FOLLOWING after UNBOUNDED, found {:?}",
+                            self.peek()
+                        ),
+                    }),
+                }
+            }
+
+            Token::Keyword(Keyword::Current) => {
+                self.advance(); // consume CURRENT
+                // Expect ROW (note: not ROWS, this is "CURRENT ROW" singular)
+                // We need to match against an identifier "ROW" since there's no Keyword::Row
+                if let Token::Identifier(ref id) = self.peek() {
+                    if id.to_uppercase() == "ROW" {
+                        self.advance();
+                        Ok(ast::FrameBound::CurrentRow)
+                    } else {
+                        Err(ParseError {
+                            message: format!(
+                                "Expected ROW after CURRENT in frame bound, found {:?}",
+                                self.peek()
+                            ),
+                        })
+                    }
+                } else {
+                    Err(ParseError {
+                        message: format!(
+                            "Expected ROW after CURRENT in frame bound, found {:?}",
+                            self.peek()
+                        ),
+                    })
+                }
+            }
+
+            // N PRECEDING or N FOLLOWING
+            _ => {
+                let offset = self.parse_primary_expression()?;
+
+                match self.peek() {
+                    Token::Keyword(Keyword::Preceding) => {
+                        self.advance();
+                        Ok(ast::FrameBound::Preceding(Box::new(offset)))
+                    }
+                    Token::Keyword(Keyword::Following) => {
+                        self.advance();
+                        Ok(ast::FrameBound::Following(Box::new(offset)))
+                    }
+                    _ => Err(ParseError {
+                        message: format!(
+                            "Expected PRECEDING or FOLLOWING in frame bound, found {:?}",
+                            self.peek()
+                        ),
+                    }),
+                }
+            }
         }
     }
 }

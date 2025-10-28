@@ -22,3 +22,4 @@ mod select;
 mod set_operations;
 mod subquery;
 mod update;
+mod window_functions;

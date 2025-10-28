@@ -13,7 +13,9 @@ mod statement;
 
 pub use ddl::{ColumnDef, CreateTableStmt};
 pub use dml::{Assignment, DeleteStmt, InsertStmt, UpdateStmt};
-pub use expression::{Expression, Quantifier};
+pub use expression::{
+    Expression, FrameBound, FrameUnit, Quantifier, WindowFrame, WindowFunctionSpec, WindowSpec,
+};
 pub use operators::{BinaryOperator, UnaryOperator};
 pub use select::{
     CommonTableExpr, FromClause, JoinType, OrderByItem, OrderDirection, SelectItem, SelectStmt,
