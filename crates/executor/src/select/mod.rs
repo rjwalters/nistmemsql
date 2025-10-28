@@ -400,9 +400,13 @@ impl<'a> SelectExecutor<'a> {
 
         // If there are window functions, evaluate them first
         // Window functions operate on the filtered result set
-        if has_windows {
-            filtered_rows = evaluate_window_functions(filtered_rows, &stmt.select_list, &evaluator)?;
-        }
+        let window_mapping = if has_windows {
+            let (rows_with_windows, mapping) = evaluate_window_functions(filtered_rows, &stmt.select_list, &evaluator)?;
+            filtered_rows = rows_with_windows;
+            Some(mapping)
+        } else {
+            None
+        };
 
         // Convert to RowWithSortKeys format
         let mut result_rows: Vec<RowWithSortKeys> = filtered_rows.into_iter().map(|row| (row, None)).collect();
@@ -415,7 +419,7 @@ impl<'a> SelectExecutor<'a> {
         // Project columns from the sorted rows
         let mut final_rows = Vec::new();
         for (row, _) in result_rows {
-            let projected_row = project_row_combined(&row, &stmt.select_list, &evaluator)?;
+            let projected_row = project_row_combined(&row, &stmt.select_list, &evaluator, &window_mapping)?;
             final_rows.push(projected_row);
         }
 

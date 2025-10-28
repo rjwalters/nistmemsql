@@ -10,6 +10,7 @@ use crate::evaluator::window::{
 };
 use crate::evaluator::CombinedExpressionEvaluator;
 use ast::{Expression, SelectItem, WindowFunctionSpec};
+use std::collections::HashMap;
 use storage::Row;
 use types::SqlValue;
 
@@ -22,6 +23,81 @@ struct WindowFunctionInfo {
     function_spec: WindowFunctionSpec,
     /// The OVER clause specification
     window_spec: ast::WindowSpec,
+}
+
+/// Key for identifying and hashing window function expressions
+/// Used to map window function expressions to their pre-computed column indices
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct WindowFunctionKey {
+    /// Serialized representation of the window function for hashing
+    /// Format: "FUNC_NAME(args)|PARTITION BY col1,col2|ORDER BY col3 ASC|FRAME_SPEC"
+    pub key: String,
+}
+
+impl WindowFunctionKey {
+    /// Create a key from a window function expression
+    pub fn from_expression(function: &WindowFunctionSpec, window: &ast::WindowSpec) -> Self {
+        let mut key_parts = Vec::new();
+
+        // Add function name and args
+        match function {
+            WindowFunctionSpec::Aggregate { name, args } => {
+                let args_str = args
+                    .iter()
+                    .map(|expr| format!("{:?}", expr))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                key_parts.push(format!("{}({})", name, args_str));
+            }
+            WindowFunctionSpec::Ranking { name, args } => {
+                let args_str = args
+                    .iter()
+                    .map(|expr| format!("{:?}", expr))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                key_parts.push(format!("{}({})", name, args_str));
+            }
+            WindowFunctionSpec::Value { name, args } => {
+                let args_str = args
+                    .iter()
+                    .map(|expr| format!("{:?}", expr))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                key_parts.push(format!("{}({})", name, args_str));
+            }
+        }
+
+        // Add PARTITION BY clause
+        if let Some(partition_by) = &window.partition_by {
+            if !partition_by.is_empty() {
+                let partition_str = partition_by
+                    .iter()
+                    .map(|expr| format!("{:?}", expr))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                key_parts.push(format!("PARTITION BY {}", partition_str));
+            }
+        }
+
+        // Add ORDER BY clause
+        if let Some(order_by) = &window.order_by {
+            if !order_by.is_empty() {
+                let order_str = order_by
+                    .iter()
+                    .map(|item| format!("{:?} {:?}", item.expr, item.direction))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                key_parts.push(format!("ORDER BY {}", order_str));
+            }
+        }
+
+        // Add FRAME clause
+        if let Some(frame) = &window.frame {
+            key_parts.push(format!("{:?}", frame));
+        }
+
+        WindowFunctionKey { key: key_parts.join("|") }
+    }
 }
 
 /// Check if SELECT list contains any window functions
@@ -64,6 +140,11 @@ fn expression_has_window_function(expr: &Expression) -> bool {
 /// to each row. Window functions don't collapse rows like GROUP BY - each input row
 /// produces one output row with window function values added.
 ///
+/// # Returns
+/// Returns a tuple of (rows_with_window_values, mapping) where:
+/// - rows_with_window_values: Original rows with window function results appended
+/// - mapping: HashMap mapping WindowFunctionKey to column index in extended row
+///
 /// # Algorithm
 /// 1. Find all window functions in SELECT list
 /// 2. Group window functions by their window specification (for optimization)
@@ -73,26 +154,39 @@ fn expression_has_window_function(expr: &Expression) -> bool {
 ///    - For each row, calculate frame and evaluate window functions
 ///    - Store results
 /// 4. Extend each row with window function results
+/// 5. Build mapping from WindowFunctionKey to column index
 pub(super) fn evaluate_window_functions(
     mut rows: Vec<Row>,
     select_list: &[SelectItem],
-    _evaluator: &CombinedExpressionEvaluator,
-) -> Result<Vec<Row>, ExecutorError> {
+    evaluator: &CombinedExpressionEvaluator,
+) -> Result<(Vec<Row>, HashMap<WindowFunctionKey, usize>), ExecutorError> {
     // Find all window functions in SELECT list
     let window_functions = collect_window_functions(select_list)?;
 
     if window_functions.is_empty() {
-        return Ok(rows);
+        return Ok((rows, HashMap::new()));
     }
 
     // For each window function, compute values for all rows
     // We'll build a Vec<Vec<SqlValue>> where outer vec is window functions,
     // inner vec is values for each row
     let mut window_results: Vec<Vec<SqlValue>> = Vec::new();
+    let mut window_mapping = HashMap::new();
 
-    for win_func in &window_functions {
-        let values = evaluate_single_window_function(&rows, win_func)?;
+    // Track the column index where window function results start
+    let base_column_count = if rows.is_empty() { 0 } else { rows[0].values.len() };
+
+    for (idx, win_func) in window_functions.iter().enumerate() {
+        let values = evaluate_single_window_function(&rows, win_func, evaluator)?;
         window_results.push(values);
+
+        // Build mapping: WindowFunctionKey -> column index
+        let key = WindowFunctionKey::from_expression(
+            &win_func.function_spec,
+            &win_func.window_spec,
+        );
+        let col_idx = base_column_count + idx;
+        window_mapping.insert(key, col_idx);
     }
 
     // Extend each row with window function results
@@ -102,7 +196,7 @@ pub(super) fn evaluate_window_functions(
         }
     }
 
-    Ok(rows)
+    Ok((rows, window_mapping))
 }
 
 /// Collect all window functions from SELECT list
@@ -169,6 +263,7 @@ fn collect_from_expression(
 fn evaluate_single_window_function(
     rows: &[Row],
     win_func: &WindowFunctionInfo,
+    evaluator: &CombinedExpressionEvaluator,
 ) -> Result<Vec<SqlValue>, ExecutorError> {
     // Extract function details
     let (func_name, args) = match &win_func.function_spec {
@@ -180,8 +275,11 @@ fn evaluate_single_window_function(
         }
     };
 
-    // Partition rows
-    let mut partitions = partition_rows(rows.to_vec(), &win_func.window_spec.partition_by);
+    // Partition rows using evaluator for column resolution
+    let eval_fn = |expr: &Expression, row: &Row| -> Result<SqlValue, String> {
+        evaluator.eval(expr, row).map_err(|e| format!("{:?}", e))
+    };
+    let mut partitions = partition_rows(rows.to_vec(), &win_func.window_spec.partition_by, eval_fn);
 
     // Sort each partition
     for partition in &mut partitions {
@@ -196,7 +294,9 @@ fn evaluate_single_window_function(
             partition,
             func_name,
             args,
+            &win_func.window_spec.order_by,
             &win_func.window_spec.frame,
+            evaluator,
         )?;
         all_results.extend(partition_results);
     }
@@ -209,25 +309,35 @@ fn evaluate_window_function_for_partition(
     partition: &Partition,
     func_name: &str,
     args: &[Expression],
+    order_by: &Option<Vec<ast::OrderByItem>>,
     frame_spec: &Option<ast::WindowFrame>,
+    evaluator: &CombinedExpressionEvaluator,
 ) -> Result<Vec<SqlValue>, ExecutorError> {
     let mut results = Vec::with_capacity(partition.len());
 
     // Evaluate function for each row in the partition
     for row_idx in 0..partition.len() {
         // Calculate frame for this row
-        let frame = calculate_frame(partition, row_idx, frame_spec);
+        let frame = calculate_frame(partition, row_idx, order_by, frame_spec);
+
+        // Create closure that evaluates expressions using the evaluator
+        let eval_fn = |expr: &Expression, row: &Row| -> Result<SqlValue, String> {
+            evaluator.eval(expr, row).map_err(|e| format!("{:?}", e))
+        };
 
         // Evaluate the aggregate function over the frame
         let value = match func_name.to_uppercase().as_str() {
             "COUNT" => {
                 // COUNT(*) or COUNT(expr)
+                // Check if arg is the special "*" column reference
                 let arg_expr = if args.is_empty() {
                     None
+                } else if matches!(&args[0], Expression::ColumnRef { column, .. } if column == "*") {
+                    None  // COUNT(*) should count all rows
                 } else {
                     Some(&args[0])
                 };
-                evaluate_count_window(partition, &frame, arg_expr)
+                evaluate_count_window(partition, &frame, arg_expr, eval_fn)
             }
             "SUM" => {
                 if args.is_empty() {
@@ -235,7 +345,7 @@ fn evaluate_window_function_for_partition(
                         "SUM requires an argument".to_string(),
                     ));
                 }
-                evaluate_sum_window(partition, &frame, &args[0])
+                evaluate_sum_window(partition, &frame, &args[0], eval_fn)
             }
             "AVG" => {
                 if args.is_empty() {
@@ -243,7 +353,7 @@ fn evaluate_window_function_for_partition(
                         "AVG requires an argument".to_string(),
                     ));
                 }
-                evaluate_avg_window(partition, &frame, &args[0])
+                evaluate_avg_window(partition, &frame, &args[0], eval_fn)
             }
             "MIN" => {
                 if args.is_empty() {
@@ -251,7 +361,7 @@ fn evaluate_window_function_for_partition(
                         "MIN requires an argument".to_string(),
                     ));
                 }
-                evaluate_min_window(partition, &frame, &args[0])
+                evaluate_min_window(partition, &frame, &args[0], eval_fn)
             }
             "MAX" => {
                 if args.is_empty() {
@@ -259,7 +369,7 @@ fn evaluate_window_function_for_partition(
                         "MAX requires an argument".to_string(),
                     ));
                 }
-                evaluate_max_window(partition, &frame, &args[0])
+                evaluate_max_window(partition, &frame, &args[0], eval_fn)
             }
             _ => {
                 return Err(ExecutorError::UnsupportedExpression(format!(
