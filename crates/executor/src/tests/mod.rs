@@ -15,6 +15,7 @@
 
 mod aggregates;
 mod between_predicates;
+mod case_bug;
 mod comparison_ops;
 mod error_display;
 mod expression_eval;
