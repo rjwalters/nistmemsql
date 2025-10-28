@@ -1,6 +1,6 @@
 //! SQL Expression types for use in SELECT, WHERE, and other clauses
 
-use crate::{BinaryOperator, SelectStmt, UnaryOperator};
+use crate::{BinaryOperator, OrderByItem, SelectStmt, UnaryOperator};
 use types::SqlValue;
 
 /// SQL Expression (can appear in SELECT, WHERE, etc.)
@@ -118,6 +118,15 @@ pub enum Expression {
         quantifier: Quantifier,
         subquery: Box<SelectStmt>,
     },
+
+    /// Window function with OVER clause
+    /// Example: ROW_NUMBER() OVER (PARTITION BY dept ORDER BY salary DESC)
+    /// Example: SUM(amount) OVER (ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)
+    /// Applies a function over a window of rows related to the current row
+    WindowFunction {
+        function: WindowFunctionSpec,
+        over: WindowSpec,
+    },
 }
 
 /// Quantifier for quantified comparisons
@@ -129,4 +138,77 @@ pub enum Quantifier {
     Any,
     /// SOME - synonym for ANY
     Some,
+}
+
+/// Window function specification
+#[derive(Debug, Clone, PartialEq)]
+pub enum WindowFunctionSpec {
+    /// Aggregate function used as window function
+    /// Example: SUM(salary), AVG(price), COUNT(*)
+    Aggregate { name: String, args: Vec<Expression> },
+
+    /// Ranking function
+    /// Example: ROW_NUMBER(), RANK(), DENSE_RANK(), NTILE(4)
+    Ranking { name: String, args: Vec<Expression> },
+
+    /// Value function
+    /// Example: LAG(salary, 1), LEAD(price, 2), FIRST_VALUE(name), LAST_VALUE(amount)
+    Value { name: String, args: Vec<Expression> },
+}
+
+/// Window specification (OVER clause)
+#[derive(Debug, Clone, PartialEq)]
+pub struct WindowSpec {
+    /// PARTITION BY clause - divides rows into partitions
+    /// Example: PARTITION BY department_id
+    pub partition_by: Option<Vec<Expression>>,
+
+    /// ORDER BY clause - defines order within each partition
+    /// Example: ORDER BY salary DESC, hire_date
+    pub order_by: Option<Vec<OrderByItem>>,
+
+    /// Frame clause - defines which rows are included in the window frame
+    /// Example: ROWS BETWEEN 2 PRECEDING AND CURRENT ROW
+    pub frame: Option<WindowFrame>,
+}
+
+/// Window frame specification
+#[derive(Debug, Clone, PartialEq)]
+pub struct WindowFrame {
+    /// Frame unit (ROWS or RANGE)
+    pub unit: FrameUnit,
+
+    /// Frame start boundary
+    pub start: FrameBound,
+
+    /// Frame end boundary (defaults to CURRENT ROW if None)
+    pub end: Option<FrameBound>,
+}
+
+/// Frame unit type
+#[derive(Debug, Clone, PartialEq)]
+pub enum FrameUnit {
+    /// ROWS - physical rows
+    Rows,
+    /// RANGE - logical range based on ORDER BY values
+    Range,
+}
+
+/// Frame boundary specification
+#[derive(Debug, Clone, PartialEq)]
+pub enum FrameBound {
+    /// UNBOUNDED PRECEDING - start of partition
+    UnboundedPreceding,
+
+    /// N PRECEDING - N rows before current row
+    Preceding(Box<Expression>),
+
+    /// CURRENT ROW - the current row
+    CurrentRow,
+
+    /// N FOLLOWING - N rows after current row
+    Following(Box<Expression>),
+
+    /// UNBOUNDED FOLLOWING - end of partition
+    UnboundedFollowing,
 }

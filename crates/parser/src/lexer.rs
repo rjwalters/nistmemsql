@@ -176,6 +176,18 @@ impl Lexer {
             "TIMESTAMP" => Token::Keyword(Keyword::Timestamp),
             "INTERVAL" => Token::Keyword(Keyword::Interval),
             "CAST" => Token::Keyword(Keyword::Cast),
+            // Window function keywords
+            "OVER" => Token::Keyword(Keyword::Over),
+            "PARTITION" => Token::Keyword(Keyword::Partition),
+            "ROWS" => Token::Keyword(Keyword::Rows),
+            "RANGE" => Token::Keyword(Keyword::Range),
+            "PRECEDING" => Token::Keyword(Keyword::Preceding),
+            "FOLLOWING" => Token::Keyword(Keyword::Following),
+            "UNBOUNDED" => Token::Keyword(Keyword::Unbounded),
+            "CURRENT" => Token::Keyword(Keyword::Current),
+            // Note: ROW_NUMBER, RANK, DENSE_RANK, NTILE, LAG, LEAD are treated as
+            // identifiers (function names), not keywords. They are classified as
+            // window functions by the parser's classify_window_function() method.
             _ => Token::Identifier(text),
         };
 

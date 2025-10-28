@@ -54,6 +54,16 @@ pub enum Keyword {
     Timestamp,
     Interval,
     Cast,
+    // Window function keywords
+    Over,
+    Partition,
+    Rows,
+    Range,
+    Preceding,
+    Following,
+    Unbounded,
+    Current,
+    // Note: Window function names (ROW_NUMBER, RANK, etc.) are identifiers, not keywords
 }
 
 impl fmt::Display for Keyword {
@@ -110,6 +120,14 @@ impl fmt::Display for Keyword {
             Keyword::Timestamp => "TIMESTAMP",
             Keyword::Interval => "INTERVAL",
             Keyword::Cast => "CAST",
+            Keyword::Over => "OVER",
+            Keyword::Partition => "PARTITION",
+            Keyword::Rows => "ROWS",
+            Keyword::Range => "RANGE",
+            Keyword::Preceding => "PRECEDING",
+            Keyword::Following => "FOLLOWING",
+            Keyword::Unbounded => "UNBOUNDED",
+            Keyword::Current => "CURRENT",
         };
         write!(f, "{}", keyword_str)
     }
