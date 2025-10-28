@@ -114,6 +114,12 @@ impl<'a> ExpressionEvaluator<'a> {
             (Character(a), Equal, Varchar(b)) | (Varchar(b), Equal, Character(a)) => Ok(Boolean(a == b)),
             (Character(a), NotEqual, Varchar(b)) | (Varchar(b), NotEqual, Character(a)) => Ok(Boolean(a != b)),
 
+            // String concatenation (||)
+            (Varchar(a), Concat, Varchar(b)) => Ok(Varchar(format!("{}{}", a, b))),
+            (Varchar(a), Concat, Character(b)) => Ok(Varchar(format!("{}{}", a, b))),
+            (Character(a), Concat, Varchar(b)) => Ok(Varchar(format!("{}{}", a, b))),
+            (Character(a), Concat, Character(b)) => Ok(Varchar(format!("{}{}", a, b))),
+
             // Boolean comparisons
             (Boolean(a), Equal, Boolean(b)) => Ok(Boolean(a == b)),
             (Boolean(a), NotEqual, Boolean(b)) => Ok(Boolean(a != b)),
