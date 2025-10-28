@@ -13,9 +13,12 @@
 ## 🎯 Compliance Strategy
 
 ### Phase 1: Core SQL:1999 Compliance (Current Focus)
-**Timeline**: 10-14 months
+**Timeline**: 6-8 months (revised from 10-14 months)
 **Goal**: Implement ~169 mandatory Core SQL:1999 features
 **Why Core First**: Achievable milestone that enables NIST testing and provides solid foundation
+**Validation**: NIST SQL Test Suite v6.0 + Mimer SQL:1999 Core feature taxonomy
+
+**Architecture Decision**: Skip ODBC/JDBC drivers (SQL/CLI Part 3) - test directly via Rust API/CLI/WASM
 
 ### Phase 2: FULL SQL:1999 Compliance (Long-term Vision)
 **Timeline**: 3-5 years total
@@ -295,99 +298,77 @@
 
 ---
 
-### Phase 7: ODBC Driver (0% complete)
-**Duration**: 2-3 months
+### Phase 7: Conformance Test Harness (0% complete)
+**Duration**: 3-4 weeks
 **Status**: Not Started
-**Priority**: 🔴 BLOCKING (required for NIST tests)
+**Priority**: 🟢 RECOMMENDED (validates Core SQL:1999 compliance)
 
-**7.1 ODBC Basics**
-- [ ] Driver registration and discovery
-- [ ] Connection establishment
-- [ ] Statement preparation and execution
-- [ ] Parameter binding
+**Decision**: Skip ODBC/JDBC drivers - they are SQL/CLI (Part 3), not SQL Foundation (Part 2).
+We can test Core compliance directly through our Rust API, CLI, and WASM interfaces.
 
-**7.2 Result Sets**
-- [ ] Result set metadata
-- [ ] Data fetching
-- [ ] Column binding
-- [ ] Type mapping
+**7.1 NIST SQL Test Suite Integration**
+- [ ] Download NIST SQL Test Suite v6.0
+- [ ] Parse test `.sql` files and expected `.out` files
+- [ ] Convert to machine-readable manifest (`nist_core.json`)
+- [ ] Implement Rust test harness: `nistmemsql test --manifest tests/nist_core.json`
+- [ ] Each test entry: `{ "sql": "...", "expected": [...], "sqlstate": "00000" }`
+- [ ] Run inside CLI (Rust) and WASM (Node/browser) for consistency
+- [ ] Report pass/fail with category grouping (DML, Joins, Constraints, etc.)
+- [ ] Target: ≥90% pass rate on SQL-92 Core tests (overlap with SQL:1999 Core)
 
-**7.3 Transactions**
-- [ ] Manual commit mode
-- [ ] Commit/Rollback via ODBC
+**7.2 SQL:1999 Core Feature Validation**
+- [ ] Use Mimer SQL Validator or SQL:1999 Annex F feature taxonomy
+- [ ] Generate `core_features.json` checklist from mandatory features
+- [ ] For each Core feature (F051, E121, etc.):
+  - [ ] Write positive test case (feature works)
+  - [ ] Write negative test case (proper error handling)
+  - [ ] Tag with ISO feature code
+- [ ] Implement: `nistmemsql validate --core`
+- [ ] Output compliance table: feature → implemented → passed
+- [ ] Target: 100% coverage of SQL:1999 Core mandatory features
 
-**Current**: No ODBC support
-**Target**: Functional ODBC driver for NIST test execution
+**7.3 Compliance Reporting**
+- [ ] Generate badges for CI/CD:
+  - [ ] NIST SQL-92 overlap: ≥90% passing
+  - [ ] SQL:1999 Core: 100% features implemented
+- [ ] Publish test results to GitHub Pages
+- [ ] Generate detailed conformance report (markdown + JSON)
+- [ ] Track regression with each PR
+
+**Current**: Manual TDD tests only
+**Target**: Automated NIST + ISO conformance validation
+
+**Why This Works**:
+- ✅ ODBC/JDBC are **not part of Core SQL:1999** (they're SQL/CLI Part 3)
+- ✅ Core compliance is about **SQL language semantics**, not client APIs
+- ✅ Direct API testing is **simpler and faster** than driver protocols
+- ✅ Preserves **WASM/browser portability** (no native driver dependencies)
+- ✅ NIST tests care about **SQL statement results**, not transport layer
 
 ---
 
-### Phase 8: JDBC Driver (0% complete)
-**Duration**: 2-3 months
-**Status**: Not Started
-**Priority**: 🔴 BLOCKING (required for NIST tests)
-
-**8.1 JDBC Basics**
-- [ ] Driver registration
-- [ ] Connection establishment
-- [ ] JDBC URL parsing
-
-**8.2 Statement Execution**
-- [ ] Statement interface
-- [ ] PreparedStatement interface
-- [ ] Batch execution
-
-**8.3 Result Sets**
-- [ ] ResultSet interface
-- [ ] ResultSetMetaData
-- [ ] Type mapping
-
-**Current**: No JDBC support
-**Target**: Functional JDBC driver for NIST test execution
-
----
-
-### Phase 9: NIST Test Integration (5% complete)
-**Duration**: 1-2 months
-**Status**: Not Started
-**Depends On**: ODBC/JDBC drivers complete
-
-**9.1 Test Infrastructure**
-- [ ] Locate/download official NIST SQL:1999 test suite
-- [ ] Test harness for ODBC execution
-- [ ] Test harness for JDBC execution
-- [ ] Test result capture and reporting
-
-**9.2 Core SQL:1999 Tests**
-- [ ] Identify Core SQL:1999 test subset
-- [ ] Run tests via ODBC
-- [ ] Run tests via JDBC
-- [ ] Debug failures
-- [ ] Fix failing features
-
-**Current**: No NIST test integration
-**Target**: 90%+ Core SQL:1999 test passage
-
----
-
-### Phase 10: Polish and Documentation (20% complete)
+### Phase 8: Polish and Documentation (20% complete)
 **Duration**: 1 month
 **Status**: Ongoing
 
-**10.1 Error Messages**
+**8.1 Error Messages**
 - [ ] User-friendly error messages
-- [ ] SQL standard error codes
+- [ ] SQL standard error codes (SQLSTATE)
 - [ ] Helpful syntax error suggestions
 
-**10.2 Documentation**
+**8.2 Documentation**
 - [x] Architecture documentation
 - [x] Contributing guide
-- [ ] SQL reference manual
-- [ ] ODBC/JDBC connection guides
+- [x] Work plan and roadmap
+- [ ] SQL reference manual (feature catalog)
+- [ ] Conformance testing guide
+- [ ] WASM API documentation
 
-**10.3 Examples**
-- [ ] Example databases (Northwind, etc.)
-- [ ] Example queries
+**8.3 Examples**
+- [x] Sample databases (Employees, Northwind, University) ✅
+- [x] Web demo with query examples ✅
 - [ ] Tutorial materials
+- [ ] Conformance test examples
 
 ---
 
@@ -410,10 +391,12 @@
 | **DDL** | 15% | CREATE/DROP TABLE, constraint parsing |
 | **Constraints** | 0% | None enforced |
 | **Transactions** | 0% | Not started |
-| **ODBC Driver** | 0% | 🔴 BLOCKING |
-| **JDBC Driver** | 0% | 🔴 BLOCKING |
+| **Conformance Tests** | 0% | NIST harness + ISO validator needed |
 
 **Overall Core SQL:1999 Compliance: ~50%**
+
+**Note**: ODBC/JDBC drivers removed from scope - they are SQL/CLI (Part 3), not SQL Foundation (Part 2).
+Core compliance will be validated directly via Rust API, CLI, and WASM interfaces.
 
 ---
 
@@ -555,13 +538,17 @@ This builds on the original posix4e/nistmemsql challenge while taking an AI-firs
 
 ## 📝 Success Criteria
 
-### Core SQL:1999 Compliance (12 months)
+### Core SQL:1999 Compliance (6-8 months, revised timeline)
 - [ ] All ~169 Core SQL:1999 features implemented
-- [ ] Full ODBC driver (all Core features accessible)
-- [ ] Full JDBC driver (all Core features accessible)
-- [ ] 90%+ NIST Core SQL:1999 tests passing
-- [ ] Automated CI/CD testing
-- [ ] Complete documentation
+- [ ] ≥90% NIST SQL Test Suite v6.0 tests passing (SQL-92 Core overlap)
+- [ ] 100% SQL:1999 Annex F Core features validated (Mimer taxonomy)
+- [ ] Automated conformance test harness (`nistmemsql test` + `nistmemsql validate`)
+- [ ] Rust CLI, WASM, and web demo all passing same test suite
+- [ ] Conformance badges published to README
+- [ ] Complete SQL reference documentation
+- [ ] Automated CI/CD testing with regression tracking
+
+**Note**: ODBC/JDBC drivers removed from scope - Core compliance is SQL Foundation (Part 2), not SQL/CLI (Part 3)
 
 ### FULL SQL:1999 Compliance (5-7 years)
 - [ ] All mandatory + optional features implemented

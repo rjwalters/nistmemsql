@@ -111,8 +111,7 @@ This isn't just about databases. It's about understanding what's now possible wi
 | DDL | 20% (2/10) | CREATE TABLE, DROP TABLE | 🟡 In Progress |
 | Constraints | 10% (parsing only) | PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK, NOT NULL (parsing, not enforced) | 🔴 Early |
 | Transactions | 0% (0/4) | None | ⏳ Days 5-6 |
-| ODBC Driver | 0% | None | 🔴 Days 7-8 |
-| JDBC Driver | 0% | None | 🔴 Days 7-8 |
+| Conformance Tests | 0% | NIST harness + ISO validator needed | 🔴 Day 7-8 |
 
 ### Why 8-10 Days Is Achievable
 
@@ -215,12 +214,16 @@ This isn't just about databases. It's about understanding what's now possible wi
 - [ ] CREATE INDEX (basic B-tree)
 - [ ] GRANT/REVOKE basic permissions
 
-**Day 8 (Nov 1)** - NIST Test Integration
-- [ ] ODBC driver implementation (C API wrapper)
-- [ ] JDBC driver implementation (Java wrapper via JNI or socket)
-- [ ] NIST Core test suite setup
-- [ ] Run tests and fix failures
+**Day 8 (Nov 1)** - Conformance Test Harness
+- [ ] NIST SQL Test Suite v6.0 integration (no ODBC/JDBC needed)
+- [ ] SQL:1999 Core feature validator (Mimer taxonomy)
+- [ ] Automated test harness: `nistmemsql test` + `nistmemsql validate`
+- [ ] Run tests via Rust API, CLI, and WASM
+- [ ] Publish conformance badges (≥90% NIST, 100% Core features)
 - [ ] Document compliance level
+
+**Architecture Decision**: Skip ODBC/JDBC - they're SQL/CLI (Part 3), not SQL Foundation (Part 2).
+Core compliance tested directly via engine API.
 
 ---
 
@@ -265,14 +268,16 @@ This isn't just about databases. It's about understanding what's now possible wi
 6. Basic permissions (GRANT/REVOKE)
 7. Error handling improvements
 
-**Day 8: NIST Integration** (final 10% + testing)
-8. ODBC driver (C API wrapper for NIST tests)
-9. JDBC driver (Java wrapper for NIST tests)
-10. NIST Core test suite setup and initial runs
-11. Bug fixes from test failures
+**Day 8: Conformance Validation** (final 10% + testing)
+8. NIST SQL Test Suite v6.0 integration (direct API testing)
+9. SQL:1999 Core feature validator (Mimer taxonomy)
+10. Automated harness implementation
+11. Bug fixes from conformance test failures
 12. Performance profiling and optimization
 
-**When Complete**: 90%+ passage of NIST Core SQL:1999 test suite
+**When Complete**: ≥90% NIST test passage + 100% Core feature coverage
+
+**Note**: ODBC/JDBC drivers removed from scope - Core compliance is SQL Foundation (Part 2), not SQL/CLI (Part 3)
 
 ### To FULL SQL:1999 Compliance
 
@@ -498,10 +503,10 @@ See [WORK_PLAN.md](WORK_PLAN.md) for current priorities.
 - [ ] INSERT from SELECT
 
 **Upcoming** ⏳
-- [ ] Transaction support
-- [ ] Constraint enforcement
-- [ ] ODBC/JDBC drivers
-- [ ] NIST test integration
+- [ ] Transaction support (BEGIN, COMMIT, ROLLBACK)
+- [ ] Constraint enforcement (NOT NULL, PRIMARY KEY, UNIQUE, CHECK, FOREIGN KEY)
+- [ ] Conformance test harness (NIST + Mimer SQL:1999 Core validator)
+- [ ] Automated compliance reporting with badges
 
 ---
 
