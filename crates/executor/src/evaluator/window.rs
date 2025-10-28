@@ -420,6 +420,327 @@ pub fn evaluate_ntile(partition: &Partition, n: i64) -> Result<Vec<SqlValue>, St
     Ok(bucket_numbers)
 }
 
+
+/// Evaluate COUNT aggregate window function over a frame
+///
+/// Counts rows in the frame. Two variants:
+/// - COUNT(*): counts all rows in frame
+/// - COUNT(expr): counts rows where expr is not NULL
+///
+/// Example: COUNT(*) OVER (ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)
+pub fn evaluate_count_window(
+    partition: &Partition,
+    frame: &Range<usize>,
+    arg_expr: Option<&Expression>,
+) -> SqlValue {
+    let mut count = 0i64;
+
+    for idx in frame.clone() {
+        if idx >= partition.len() {
+            break;
+        }
+
+        let row = &partition.rows[idx];
+
+        // COUNT(*) - count all rows
+        if arg_expr.is_none() {
+            count += 1;
+            continue;
+        }
+
+        // COUNT(expr) - count non-NULL values
+        if let Some(expr) = arg_expr {
+            if let Ok(val) = evaluate_expression(expr, row) {
+                if !matches!(val, SqlValue::Null) {
+                    count += 1;
+                }
+            }
+        }
+    }
+
+    SqlValue::Integer(count)
+}
+
+/// Evaluate SUM aggregate window function over a frame
+///
+/// Sums integer values in the frame, ignoring NULLs.
+/// Returns NULL if all values are NULL or frame is empty.
+///
+/// Example: SUM(amount) OVER (ORDER BY date) for running totals
+pub fn evaluate_sum_window(
+    partition: &Partition,
+    frame: &Range<usize>,
+    arg_expr: &Expression,
+) -> SqlValue {
+    let mut sum = 0i64;
+    let mut has_value = false;
+
+    for idx in frame.clone() {
+        if idx >= partition.len() {
+            break;
+        }
+
+        let row = &partition.rows[idx];
+
+        if let Ok(val) = evaluate_expression(arg_expr, row) {
+            match val {
+                SqlValue::Integer(n) => {
+                    sum += n;
+                    has_value = true;
+                }
+                SqlValue::Null => {} // Ignore NULL
+                _ => {}             // Ignore non-integer values
+            }
+        }
+    }
+
+    if has_value {
+        SqlValue::Integer(sum)
+    } else {
+        SqlValue::Null
+    }
+}
+
+/// Evaluate AVG aggregate window function over a frame
+///
+/// Computes average of integer values in the frame, ignoring NULLs.
+/// Returns NULL if all values are NULL or frame is empty.
+///
+/// Example: AVG(temperature) OVER (ORDER BY date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)
+/// for 7-day moving average
+pub fn evaluate_avg_window(
+    partition: &Partition,
+    frame: &Range<usize>,
+    arg_expr: &Expression,
+) -> SqlValue {
+    let mut sum = 0i64;
+    let mut count = 0i64;
+
+    for idx in frame.clone() {
+        if idx >= partition.len() {
+            break;
+        }
+
+        let row = &partition.rows[idx];
+
+        if let Ok(val) = evaluate_expression(arg_expr, row) {
+            match val {
+                SqlValue::Integer(n) => {
+                    sum += n;
+                    count += 1;
+                }
+                SqlValue::Null => {} // Ignore NULL
+                _ => {}             // Ignore non-integer values
+            }
+        }
+    }
+
+    if count > 0 {
+        SqlValue::Integer(sum / count)
+    } else {
+        SqlValue::Null
+    }
+}
+
+/// Evaluate MIN aggregate window function over a frame
+///
+/// Finds minimum value in the frame, ignoring NULLs.
+/// Returns NULL if all values are NULL or frame is empty.
+///
+/// Example: MIN(salary) OVER (PARTITION BY department)
+pub fn evaluate_min_window(
+    partition: &Partition,
+    frame: &Range<usize>,
+    arg_expr: &Expression,
+) -> SqlValue {
+    let mut min_val: Option<SqlValue> = None;
+
+    for idx in frame.clone() {
+        if idx >= partition.len() {
+            break;
+        }
+
+        let row = &partition.rows[idx];
+
+        if let Ok(val) = evaluate_expression(arg_expr, row) {
+            if matches!(val, SqlValue::Null) {
+                continue; // Ignore NULL
+            }
+
+            if let Some(ref current_min) = min_val {
+                if compare_values(&val, current_min) == Ordering::Less {
+                    min_val = Some(val);
+                }
+            } else {
+                min_val = Some(val);
+            }
+        }
+    }
+
+    min_val.unwrap_or(SqlValue::Null)
+}
+
+/// Evaluate MAX aggregate window function over a frame
+///
+/// Finds maximum value in the frame, ignoring NULLs.
+/// Returns NULL if all values are NULL or frame is empty.
+///
+/// Example: MAX(salary) OVER (PARTITION BY department)
+pub fn evaluate_max_window(
+    partition: &Partition,
+    frame: &Range<usize>,
+    arg_expr: &Expression,
+) -> SqlValue {
+    let mut max_val: Option<SqlValue> = None;
+
+    for idx in frame.clone() {
+        if idx >= partition.len() {
+            break;
+        }
+
+        let row = &partition.rows[idx];
+
+        if let Ok(val) = evaluate_expression(arg_expr, row) {
+            if matches!(val, SqlValue::Null) {
+                continue; // Ignore NULL
+            }
+
+            if let Some(ref current_max) = max_val {
+                if compare_values(&val, current_max) == Ordering::Greater {
+                    max_val = Some(val);
+                }
+            } else {
+                max_val = Some(val);
+            }
+        }
+    }
+
+    max_val.unwrap_or(SqlValue::Null)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_test_rows(values: Vec<i64>) -> Vec<Row> {
+        values
+            .into_iter()
+            .map(|v| Row::new(vec![SqlValue::Integer(v)]))
+            .collect()
+    }
+
+    #[test]
+    fn test_partition_rows_no_partition_by() {
+        let rows = make_test_rows(vec![1, 2, 3]);
+        let partitions = partition_rows(rows, &None);
+
+        assert_eq!(partitions.len(), 1);
+        assert_eq!(partitions[0].len(), 3);
+    }
+
+    #[test]
+    fn test_partition_rows_empty_partition_by() {
+        let rows = make_test_rows(vec![1, 2, 3]);
+        let partitions = partition_rows(rows, &Some(vec![]));
+
+        assert_eq!(partitions.len(), 1);
+        assert_eq!(partitions[0].len(), 3);
+    }
+
+    #[test]
+    fn test_sort_partition_ascending() {
+        let mut partition = Partition::new(make_test_rows(vec![3, 1, 2]));
+
+        let order_by = vec![OrderByItem {
+            expr: Expression::ColumnRef {
+                table: None,
+                column: String::new(), // Will use first column
+            },
+            direction: OrderDirection::Asc,
+        }];
+
+        sort_partition(&mut partition, &Some(order_by));
+
+        // Should be sorted ascending: 1, 2, 3
+        assert_eq!(partition.rows[0].values[0], SqlValue::Integer(1));
+        assert_eq!(partition.rows[1].values[0], SqlValue::Integer(2));
+        assert_eq!(partition.rows[2].values[0], SqlValue::Integer(3));
+    }
+
+    #[test]
+    fn test_calculate_frame_default() {
+        let partition = Partition::new(make_test_rows(vec![1, 2, 3, 4, 5]));
+
+        // Default frame: UNBOUNDED PRECEDING to CURRENT ROW
+        let frame = calculate_frame(&partition, 2, &None);
+
+        assert_eq!(frame, 0..3); // Rows 0, 1, 2 (current row is 2)
+    }
+
+    #[test]
+    fn test_calculate_frame_unbounded_preceding() {
+        let partition = Partition::new(make_test_rows(vec![1, 2, 3, 4, 5]));
+
+        let frame_spec = WindowFrame {
+            unit: FrameUnit::Rows,
+            start: FrameBound::UnboundedPreceding,
+            end: Some(FrameBound::CurrentRow),
+        };
+
+        let frame = calculate_frame(&partition, 2, &Some(frame_spec));
+
+        assert_eq!(frame, 0..3); // Rows 0, 1, 2
+    }
+
+    #[test]
+    fn test_calculate_frame_preceding() {
+        let partition = Partition::new(make_test_rows(vec![1, 2, 3, 4, 5]));
+
+        let frame_spec = WindowFrame {
+            unit: FrameUnit::Rows,
+            start: FrameBound::Preceding(Box::new(Expression::Literal(SqlValue::Integer(2)))),
+            end: Some(FrameBound::CurrentRow),
+        };
+
+        let frame = calculate_frame(&partition, 3, &Some(frame_spec));
+
+        // 2 PRECEDING from row 3 is row 1, so rows 1, 2, 3
+        assert_eq!(frame, 1..4);
+    }
+
+    #[test]
+    fn test_calculate_frame_following() {
+        let partition = Partition::new(make_test_rows(vec![1, 2, 3, 4, 5]));
+
+        let frame_spec = WindowFrame {
+            unit: FrameUnit::Rows,
+            start: FrameBound::CurrentRow,
+            end: Some(FrameBound::Following(Box::new(Expression::Literal(SqlValue::Integer(2))))),
+        };
+
+        let frame = calculate_frame(&partition, 1, &Some(frame_spec));
+
+        // Current row 1 to 2 FOLLOWING (row 3), so rows 1, 2, 3
+        assert_eq!(frame, 1..4);
+    }
+
+    #[test]
+    fn test_calculate_frame_unbounded_following() {
+        let partition = Partition::new(make_test_rows(vec![1, 2, 3, 4, 5]));
+
+        let frame_spec = WindowFrame {
+            unit: FrameUnit::Rows,
+            start: FrameBound::CurrentRow,
+            end: Some(FrameBound::UnboundedFollowing),
+        };
+
+        let frame = calculate_frame(&partition, 2, &Some(frame_spec));
+
+        // Current row 2 to end: rows 2, 3, 4
+        assert_eq!(frame, 2..5);
+    }
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -742,4 +1063,263 @@ mod tests {
         let result = evaluate_ntile(&partition, -1);
         assert!(result.is_err());
     }
+
+
+    #[test]
+    fn test_count_star_window() {
+        // COUNT(*) over entire partition
+        let partition = Partition::new(make_test_rows(vec![10, 20, 30, 40, 50]));
+        let frame = 0..5; // All rows
+
+        let result = evaluate_count_window(&partition, &frame, None);
+
+        assert_eq!(result, SqlValue::Integer(5));
+    }
+
+    #[test]
+    fn test_count_window_with_frame() {
+        // COUNT(*) over 3-row moving window
+        let partition = Partition::new(make_test_rows(vec![1, 2, 3, 4, 5]));
+
+        // Frame: rows 1, 2, 3 (3 rows)
+        let frame = 1..4;
+        let result = evaluate_count_window(&partition, &frame, None);
+
+        assert_eq!(result, SqlValue::Integer(3));
+    }
+
+    #[test]
+    fn test_count_expr_window() {
+        // COUNT(expr) - counts non-NULL values
+        let partition = Partition::new(make_test_rows(vec![10, 20, 30]));
+        let frame = 0..3;
+
+        let expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        let result = evaluate_count_window(&partition, &frame, Some(&expr));
+
+        // All 3 values are non-NULL
+        assert_eq!(result, SqlValue::Integer(3));
+    }
+
+    #[test]
+    fn test_sum_window_running_total() {
+        // SUM for running total
+        let partition = Partition::new(make_test_rows(vec![10, 20, 30, 40, 50]));
+
+        let expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        // Running total at position 2: sum of rows 0, 1, 2
+        let frame = 0..3; // 10 + 20 + 30 = 60
+        let result = evaluate_sum_window(&partition, &frame, &expr);
+
+        assert_eq!(result, SqlValue::Integer(60));
+    }
+
+    #[test]
+    fn test_sum_window_moving() {
+        // SUM over 3-row moving window
+        let partition = Partition::new(make_test_rows(vec![5, 10, 15, 20, 25]));
+
+        let expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        // Frame: rows 2, 3, 4 (values 15, 20, 25)
+        let frame = 2..5;
+        let result = evaluate_sum_window(&partition, &frame, &expr);
+
+        assert_eq!(result, SqlValue::Integer(60)); // 15 + 20 + 25
+    }
+
+    #[test]
+    fn test_sum_window_empty_frame() {
+        let partition = Partition::new(make_test_rows(vec![10, 20, 30]));
+
+        let expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        // Empty frame
+        let frame = 0..0;
+        let result = evaluate_sum_window(&partition, &frame, &expr);
+
+        assert_eq!(result, SqlValue::Null);
+    }
+
+    #[test]
+    fn test_avg_window_simple() {
+        // AVG over entire partition
+        let partition = Partition::new(make_test_rows(vec![10, 20, 30, 40, 50]));
+
+        let expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        let frame = 0..5;
+        let result = evaluate_avg_window(&partition, &frame, &expr);
+
+        // Average: (10 + 20 + 30 + 40 + 50) / 5 = 30
+        assert_eq!(result, SqlValue::Integer(30));
+    }
+
+    #[test]
+    fn test_avg_window_moving() {
+        // 3-row moving average
+        let partition = Partition::new(make_test_rows(vec![10, 20, 30, 40, 50]));
+
+        let expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        // Frame: rows 1, 2, 3 (values 20, 30, 40)
+        let frame = 1..4;
+        let result = evaluate_avg_window(&partition, &frame, &expr);
+
+        // Average: (20 + 30 + 40) / 3 = 30
+        assert_eq!(result, SqlValue::Integer(30));
+    }
+
+    #[test]
+    fn test_avg_window_empty_frame() {
+        let partition = Partition::new(make_test_rows(vec![10, 20, 30]));
+
+        let expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        // Empty frame
+        let frame = 0..0;
+        let result = evaluate_avg_window(&partition, &frame, &expr);
+
+        assert_eq!(result, SqlValue::Null);
+    }
+
+    #[test]
+    fn test_min_window_partition() {
+        // MIN over entire partition
+        let partition = Partition::new(make_test_rows(vec![50, 20, 80, 10, 40]));
+
+        let expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        let frame = 0..5;
+        let result = evaluate_min_window(&partition, &frame, &expr);
+
+        assert_eq!(result, SqlValue::Integer(10));
+    }
+
+    #[test]
+    fn test_min_window_moving() {
+        // MIN in 3-row window
+        let partition = Partition::new(make_test_rows(vec![50, 20, 80, 10, 40]));
+
+        let expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        // Frame: rows 1, 2, 3 (values 20, 80, 10)
+        let frame = 1..4;
+        let result = evaluate_min_window(&partition, &frame, &expr);
+
+        assert_eq!(result, SqlValue::Integer(10));
+    }
+
+    #[test]
+    fn test_min_window_empty_frame() {
+        let partition = Partition::new(make_test_rows(vec![10, 20, 30]));
+
+        let expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        // Empty frame
+        let frame = 0..0;
+        let result = evaluate_min_window(&partition, &frame, &expr);
+
+        assert_eq!(result, SqlValue::Null);
+    }
+
+    #[test]
+    fn test_max_window_partition() {
+        // MAX over entire partition
+        let partition = Partition::new(make_test_rows(vec![50, 20, 80, 10, 40]));
+
+        let expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        let frame = 0..5;
+        let result = evaluate_max_window(&partition, &frame, &expr);
+
+        assert_eq!(result, SqlValue::Integer(80));
+    }
+
+    #[test]
+    fn test_max_window_moving() {
+        // MAX in 3-row window
+        let partition = Partition::new(make_test_rows(vec![50, 20, 80, 10, 40]));
+
+        let expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        // Frame: rows 2, 3, 4 (values 80, 10, 40)
+        let frame = 2..5;
+        let result = evaluate_max_window(&partition, &frame, &expr);
+
+        assert_eq!(result, SqlValue::Integer(80));
+    }
+
+    #[test]
+    fn test_max_window_empty_frame() {
+        let partition = Partition::new(make_test_rows(vec![10, 20, 30]));
+
+        let expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        // Empty frame
+        let frame = 0..0;
+        let result = evaluate_max_window(&partition, &frame, &expr);
+
+        assert_eq!(result, SqlValue::Null);
+    }
+
+    #[test]
+    fn test_frame_at_partition_boundaries() {
+        // Test frame behavior at partition start and end
+        let partition = Partition::new(make_test_rows(vec![10, 20, 30, 40, 50]));
+
+        let expr = Expression::ColumnRef {
+            table: None,
+            column: "0".to_string(),
+        };
+
+        // Frame extends beyond partition end
+        let frame = 3..10; // Should clamp to 3..5
+        let result = evaluate_sum_window(&partition, &frame, &expr);
+
+        // Should only sum rows 3, 4 (values 40, 50)
+        assert_eq!(result, SqlValue::Integer(90));
+    }
+}
 }
