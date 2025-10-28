@@ -33,7 +33,7 @@ use ast;
             source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
-            ]),
+            ]]),
         };
 
         let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -84,7 +84,7 @@ use ast;
             source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
-            ]),
+            ]]),
         };
 
         let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -120,7 +120,7 @@ use ast;
             source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Null),
-            ]),
+            ]]),
         };
 
         let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -139,7 +139,7 @@ use ast;
             source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Varchar("not_a_number".to_string())),
                 ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
-            ]),
+            ]]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt);
@@ -156,7 +156,7 @@ use ast;
         let stmt = ast::InsertStmt {
             table_name: "users".to_string(),
             columns: vec![],
-            source: ast::InsertSource::Values(vec![vec![ast::Expression::Literal(types::SqlValue::Integer(1))]],
+            source: ast::InsertSource::Values(vec![vec![ast::Expression::Literal(types::SqlValue::Integer(1))]],)
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt);
@@ -174,7 +174,7 @@ use ast;
             source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
-            ]),
+            ]]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt);
@@ -194,7 +194,7 @@ use ast;
             source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
-            ]),
+            ]]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt);
@@ -215,7 +215,7 @@ use ast;
             source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Null),
                 ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
-            ]),
+            ]]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt);
@@ -462,7 +462,7 @@ use ast;
             source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
-            ]),
+            ]]),
         };
 
         let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -501,7 +501,7 @@ use ast;
             source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(25)),
-            ]),
+            ]]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt);
@@ -543,7 +543,7 @@ use ast;
             source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
-            ]),
+            ]]),
         };
         InsertExecutor::execute(&mut db, &stmt1).unwrap();
 
@@ -554,7 +554,7 @@ use ast;
             source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Varchar("Bob".to_string())),
-            ]),
+            ]]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt2);
@@ -592,7 +592,7 @@ use ast;
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(100)),
                 ast::Expression::Literal(types::SqlValue::Integer(5)),
-            ]),
+            ]]),
         };
         InsertExecutor::execute(&mut db, &stmt1).unwrap();
 
@@ -604,7 +604,7 @@ use ast;
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(200)),
                 ast::Expression::Literal(types::SqlValue::Integer(3)),
-            ]),
+            ]]),
         };
         InsertExecutor::execute(&mut db, &stmt2).unwrap();
 
@@ -616,7 +616,7 @@ use ast;
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(100)),
                 ast::Expression::Literal(types::SqlValue::Integer(10)),
-            ]),
+            ]]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt3);
@@ -693,7 +693,7 @@ use ast;
             source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Varchar("alice@example.com".to_string())),
-            ]),
+            ]]),
         };
         InsertExecutor::execute(&mut db, &stmt1).unwrap();
 
@@ -704,7 +704,7 @@ use ast;
             source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(2)),
                 ast::Expression::Literal(types::SqlValue::Varchar("alice@example.com".to_string())),
-            ]),
+            ]]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt2);
@@ -781,7 +781,7 @@ use ast;
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(101)),
                 ast::Expression::Literal(types::SqlValue::Integer(85)),
-            ]),
+            ]]),
         };
         InsertExecutor::execute(&mut db, &stmt1).unwrap();
 
@@ -793,7 +793,7 @@ use ast;
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(102)),
                 ast::Expression::Literal(types::SqlValue::Integer(90)),
-            ]),
+            ]]),
         };
         InsertExecutor::execute(&mut db, &stmt2).unwrap();
 
@@ -805,7 +805,7 @@ use ast;
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(101)),
                 ast::Expression::Literal(types::SqlValue::Integer(95)),
-            ]),
+            ]]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt3);
@@ -854,7 +854,7 @@ use ast;
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Varchar("alice@example.com".to_string())),
                 ast::Expression::Literal(types::SqlValue::Varchar("alice".to_string())),
-            ]),
+            ]]),
         };
         InsertExecutor::execute(&mut db, &stmt1).unwrap();
 
@@ -866,7 +866,7 @@ use ast;
                 ast::Expression::Literal(types::SqlValue::Integer(2)),
                 ast::Expression::Literal(types::SqlValue::Varchar("alice@example.com".to_string())),
                 ast::Expression::Literal(types::SqlValue::Varchar("bob".to_string())),
-            ]),
+            ]]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt2);
@@ -887,7 +887,7 @@ use ast;
                 ast::Expression::Literal(types::SqlValue::Integer(2)),
                 ast::Expression::Literal(types::SqlValue::Varchar("bob@example.com".to_string())),
                 ast::Expression::Literal(types::SqlValue::Varchar("alice".to_string())),
-            ]),
+            ]]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt3);
@@ -935,7 +935,7 @@ use ast;
             source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(100)),
-            ]),
+            ]]),
         };
 
         InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -979,7 +979,7 @@ use ast;
             source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(-10)),
-            ]),
+            ]]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt);
@@ -1028,7 +1028,7 @@ use ast;
             source: ast::InsertSource::Values(vec![vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Null),
-            ]),
+            ]]),
         };
 
         InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -1088,7 +1088,7 @@ use ast;
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(100)),
                 ast::Expression::Literal(types::SqlValue::Integer(50)),
-            ]),
+            ]]),
         };
         InsertExecutor::execute(&mut db, &stmt1).unwrap();
 
@@ -1100,7 +1100,7 @@ use ast;
                 ast::Expression::Literal(types::SqlValue::Integer(2)),
                 ast::Expression::Literal(types::SqlValue::Integer(-10)),
                 ast::Expression::Literal(types::SqlValue::Integer(50)),
-            ]),
+            ]]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt2);
@@ -1121,7 +1121,7 @@ use ast;
                 ast::Expression::Literal(types::SqlValue::Integer(3)),
                 ast::Expression::Literal(types::SqlValue::Integer(100)),
                 ast::Expression::Literal(types::SqlValue::Integer(-5)),
-            ]),
+            ]]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt3);
@@ -1175,7 +1175,7 @@ use ast;
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Integer(50000)),
                 ast::Expression::Literal(types::SqlValue::Integer(10000)),
-            ]),
+            ]]),
         };
         InsertExecutor::execute(&mut db, &stmt1).unwrap();
 
@@ -1187,7 +1187,7 @@ use ast;
                 ast::Expression::Literal(types::SqlValue::Integer(2)),
                 ast::Expression::Literal(types::SqlValue::Integer(50000)),
                 ast::Expression::Literal(types::SqlValue::Integer(60000)),
-            ]),
+            ]]),
         };
 
         let result = InsertExecutor::execute(&mut db, &stmt2);
