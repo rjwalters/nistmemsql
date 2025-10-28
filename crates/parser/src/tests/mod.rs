@@ -1,6 +1,7 @@
 use super::*;
 
 mod aggregates;
+mod case_expression;
 mod create_table;
 mod cte;
 mod delete;
