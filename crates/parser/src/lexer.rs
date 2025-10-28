@@ -171,6 +171,7 @@ impl Lexer {
             "INTERSECT" => Token::Keyword(Keyword::Intersect),
             "EXCEPT" => Token::Keyword(Keyword::Except),
             "WITH" => Token::Keyword(Keyword::With),
+            "RECURSIVE" => Token::Keyword(Keyword::Recursive),
             "DATE" => Token::Keyword(Keyword::Date),
             "TIME" => Token::Keyword(Keyword::Time),
             "TIMESTAMP" => Token::Keyword(Keyword::Timestamp),
