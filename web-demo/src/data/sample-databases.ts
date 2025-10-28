@@ -59,6 +59,24 @@ export const northwindDatabase: SampleDatabase = {
   description: 'E-commerce database with products, orders, and customers',
   tables: [
     {
+      name: 'categories',
+      createSql: `CREATE TABLE categories (
+        category_id INTEGER,
+        category_name VARCHAR(50),
+        description VARCHAR(200)
+      );`,
+      insertSql: [
+        "INSERT INTO categories VALUES (1, 'Beverages', 'Soft drinks, coffees, teas, beers, and ales');",
+        "INSERT INTO categories VALUES (2, 'Condiments', 'Sweet and savory sauces, relishes, spreads, and seasonings');",
+        "INSERT INTO categories VALUES (3, 'Confections', 'Desserts, candies, and sweet breads');",
+        "INSERT INTO categories VALUES (4, 'Dairy Products', 'Cheeses');",
+        "INSERT INTO categories VALUES (5, 'Grains/Cereals', 'Breads, crackers, pasta, and cereal');",
+        "INSERT INTO categories VALUES (6, 'Meat/Poultry', 'Prepared meats');",
+        "INSERT INTO categories VALUES (7, 'Produce', 'Dried fruit and bean curd');",
+        "INSERT INTO categories VALUES (8, 'Seafood', 'Seaweed and fish');",
+      ],
+    },
+    {
       name: 'customers',
       createSql: `CREATE TABLE customers (
         customer_id INTEGER,
@@ -80,19 +98,32 @@ export const northwindDatabase: SampleDatabase = {
       createSql: `CREATE TABLE products (
         product_id INTEGER,
         product_name VARCHAR(100),
-        category VARCHAR(50),
+        category_id INTEGER,
         unit_price FLOAT,
-        units_in_stock INTEGER
+        units_in_stock INTEGER,
+        units_on_order INTEGER
       );`,
       insertSql: [
-        "INSERT INTO products VALUES (1, 'Chai', 'Beverages', 18.0, 39);",
-        "INSERT INTO products VALUES (2, 'Chang', 'Beverages', 19.0, 17);",
-        "INSERT INTO products VALUES (3, 'Aniseed Syrup', 'Condiments', 10.0, 13);",
-        "INSERT INTO products VALUES (4, 'Olive Oil', 'Condiments', 21.35, 53);",
-        "INSERT INTO products VALUES (5, 'Ikura', 'Seafood', 31.0, 31);",
-        "INSERT INTO products VALUES (6, 'Tofu', 'Produce', 23.25, 35);",
-        "INSERT INTO products VALUES (7, 'Pavlova', 'Confections', 17.45, 29);",
-        "INSERT INTO products VALUES (8, 'Carnarvon Tigers', 'Seafood', 62.5, 42);",
+        "INSERT INTO products VALUES (1, 'Chai', 1, 18.0, 39, 0);",
+        "INSERT INTO products VALUES (2, 'Chang', 1, 19.0, 17, 40);",
+        "INSERT INTO products VALUES (3, 'Aniseed Syrup', 2, 10.0, 13, 70);",
+        "INSERT INTO products VALUES (4, 'Chef Anton''s Cajun Seasoning', 2, 22.0, 53, 0);",
+        "INSERT INTO products VALUES (5, 'Chef Anton''s Gumbo Mix', 2, 21.35, 0, 0);",
+        "INSERT INTO products VALUES (6, 'Grandma''s Boysenberry Spread', 2, 25.0, 120, 0);",
+        "INSERT INTO products VALUES (7, 'Uncle Bob''s Organic Dried Pears', 7, 30.0, 15, 0);",
+        "INSERT INTO products VALUES (8, 'Northwoods Cranberry Sauce', 2, 40.0, 6, 0);",
+        "INSERT INTO products VALUES (9, 'Mishi Kobe Niku', 6, 97.0, 29, 0);",
+        "INSERT INTO products VALUES (10, 'Ikura', 8, 31.0, 31, 0);",
+        "INSERT INTO products VALUES (11, 'Queso Cabrales', 4, 21.0, 22, 30);",
+        "INSERT INTO products VALUES (12, 'Queso Manchego La Pastora', 4, 38.0, 86, 0);",
+        "INSERT INTO products VALUES (13, 'Konbu', 8, 6.0, 24, 0);",
+        "INSERT INTO products VALUES (14, 'Tofu', 7, 23.25, 35, 0);",
+        "INSERT INTO products VALUES (15, 'Genen Shouyu', 2, 15.5, 39, 0);",
+        "INSERT INTO products VALUES (16, 'Pavlova', 3, 17.45, 29, 0);",
+        "INSERT INTO products VALUES (17, 'Alice Mutton', 6, 39.0, 0, 0);",
+        "INSERT INTO products VALUES (18, 'Carnarvon Tigers', 8, 62.5, 42, 0);",
+        "INSERT INTO products VALUES (19, 'Teatime Chocolate Biscuits', 3, 9.2, 25, 0);",
+        "INSERT INTO products VALUES (20, 'Sir Rodney''s Marmalade', 3, 81.0, 40, 0);",
       ],
     },
     {
