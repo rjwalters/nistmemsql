@@ -209,14 +209,12 @@ impl<'a> SelectExecutor<'a> {
 
         let mut results = if has_aggregates || has_group_by {
             self.execute_with_aggregation(stmt, cte_results)?
-        } else {
-            let from_clause = stmt.from.as_ref().ok_or_else(|| {
-                ExecutorError::UnsupportedFeature(
-                    "SELECT without FROM not yet implemented".to_string(),
-                )
-            })?;
+        } else if let Some(from_clause) = &stmt.from {
             let from_result = self.execute_from(from_clause, cte_results)?;
             self.execute_without_aggregation(stmt, from_result)?
+        } else {
+            // SELECT without FROM - evaluate expressions as a single row
+            self.execute_select_without_from(stmt)?
         };
 
         // Handle set operations (UNION, INTERSECT, EXCEPT)
@@ -508,6 +506,115 @@ impl<'a> SelectExecutor<'a> {
                 "Unsupported expression in aggregate context: {:?}",
                 expr
             ))),
+        }
+    }
+
+    /// Execute SELECT without FROM clause
+    ///
+    /// Evaluates expressions in the SELECT list without any table context.
+    /// Returns a single row with the evaluated expressions.
+    fn execute_select_without_from(
+        &self,
+        stmt: &ast::SelectStmt,
+    ) -> Result<Vec<storage::Row>, ExecutorError> {
+        // Create an empty schema (no table context)
+        let empty_schema = catalog::TableSchema::new("".to_string(), vec![]);
+        let evaluator = ExpressionEvaluator::new(&empty_schema);
+
+        // Create an empty row (no data to reference)
+        let empty_row = storage::Row::new(vec![]);
+
+        // Evaluate each item in the SELECT list
+        let mut values = Vec::new();
+        for item in &stmt.select_list {
+            match item {
+                ast::SelectItem::Wildcard => {
+                    return Err(ExecutorError::UnsupportedFeature(
+                        "SELECT * requires FROM clause".to_string(),
+                    ));
+                }
+                ast::SelectItem::Expression { expr, .. } => {
+                    // Check if expression references a column
+                    if self.expression_references_column(expr) {
+                        return Err(ExecutorError::UnsupportedFeature(
+                            "Column reference requires FROM clause".to_string(),
+                        ));
+                    }
+
+                    // Evaluate the expression
+                    let value = evaluator.eval(expr, &empty_row)?;
+                    values.push(value);
+                }
+            }
+        }
+
+        // Return a single row with the evaluated values
+        Ok(vec![storage::Row::new(values)])
+    }
+
+    /// Check if an expression references a column (which requires FROM clause)
+    fn expression_references_column(&self, expr: &ast::Expression) -> bool {
+        match expr {
+            ast::Expression::ColumnRef { .. } => true,
+
+            ast::Expression::BinaryOp { left, right, .. } => {
+                self.expression_references_column(left) || self.expression_references_column(right)
+            }
+
+            ast::Expression::UnaryOp { expr, .. } => {
+                self.expression_references_column(expr)
+            }
+
+            ast::Expression::Function { args, .. } => {
+                args.iter().any(|arg| self.expression_references_column(arg))
+            }
+
+            ast::Expression::IsNull { expr, .. } => {
+                self.expression_references_column(expr)
+            }
+
+            ast::Expression::InList { expr, values, .. } => {
+                self.expression_references_column(expr)
+                    || values.iter().any(|v| self.expression_references_column(v))
+            }
+
+            ast::Expression::Between { expr, low, high, .. } => {
+                self.expression_references_column(expr)
+                    || self.expression_references_column(low)
+                    || self.expression_references_column(high)
+            }
+
+            ast::Expression::Cast { expr, .. } => {
+                self.expression_references_column(expr)
+            }
+
+            ast::Expression::Like { expr, pattern, .. } => {
+                self.expression_references_column(expr)
+                    || self.expression_references_column(pattern)
+            }
+
+            ast::Expression::In { expr, .. } => {
+                // Note: subquery could reference outer columns but that's a different case
+                self.expression_references_column(expr)
+            }
+
+            ast::Expression::QuantifiedComparison { expr, .. } => {
+                self.expression_references_column(expr)
+            }
+
+            ast::Expression::Case { operand, when_clauses, else_result } => {
+                operand.as_ref().map_or(false, |e| self.expression_references_column(e))
+                    || when_clauses.iter().any(|(cond, res)| {
+                        self.expression_references_column(cond) || self.expression_references_column(res)
+                    })
+                    || else_result.as_ref().map_or(false, |e| self.expression_references_column(e))
+            }
+
+            // These don't contain column references:
+            ast::Expression::Literal(_) => false,
+            ast::Expression::Wildcard => false,
+            ast::Expression::ScalarSubquery(_) => false, // Subquery has its own scope
+            ast::Expression::Exists { .. } => false,     // Subquery has its own scope
         }
     }
 }

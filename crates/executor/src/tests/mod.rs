@@ -24,3 +24,4 @@ mod select_basic;
 mod select_distinct;
 mod select_joins;
 mod select_where;
+mod select_without_from;
