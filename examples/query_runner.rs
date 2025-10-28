@@ -98,7 +98,13 @@ fn format_result(result: executor::SelectResult) -> String {
         let values: Vec<String> = (0..result.columns.len())
             .map(|i| {
                 match row.get(i) {
-                    Some(val) => format!("{:?}", val).replace("Varchar(\"", "").replace("\")", "").replace("Float(", "").replace(")", "").replace("Integer(", "").replace(")", ""),
+                    Some(val) => match val {
+                        SqlValue::Integer(i) => i.to_string(),
+                        SqlValue::Float(f) => f.to_string(),
+                        SqlValue::Varchar(s) => s.clone(),
+                        SqlValue::Null => "NULL".to_string(),
+                        other => format!("{:?}", other), // Fallback for other types
+                    },
                     None => "NULL".to_string(),
                 }
             })

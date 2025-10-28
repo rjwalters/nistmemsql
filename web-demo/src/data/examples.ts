@@ -94,11 +94,12 @@ ORDER BY category_id;
 -- | category_id |
 -- | 1           |
 -- | 2           |
+-- | 3           |
 -- | 4           |
 -- | 6           |
 -- | 7           |
 -- | 8           |
--- (6 rows)`,
+-- (7 rows)`,
         description: 'Get unique category IDs',
         sqlFeatures: ['SELECT', 'DISTINCT', 'ORDER BY'],
       },
