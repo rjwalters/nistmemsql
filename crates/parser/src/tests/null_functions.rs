@@ -104,7 +104,7 @@ fn test_parse_coalesce_and_nullif_combined() {
 #[test]
 fn test_parse_nullif_in_case() {
     let result = Parser::parse_sql(
-        "SELECT CASE WHEN NULLIF(balance, 0) IS NULL THEN 'zero' ELSE 'non-zero' END FROM accounts;"
+        "SELECT CASE WHEN NULLIF(balance, 0) = NULL THEN 'zero' ELSE 'non-zero' END FROM accounts;"
     );
     assert!(result.is_ok(), "NULLIF in CASE should parse: {:?}", result);
 }

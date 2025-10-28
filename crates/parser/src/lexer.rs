@@ -190,6 +190,12 @@ impl Lexer {
             "TIMESTAMP" => Token::Keyword(Keyword::Timestamp),
             "INTERVAL" => Token::Keyword(Keyword::Interval),
             "CAST" => Token::Keyword(Keyword::Cast),
+            // CASE expression keywords
+            "CASE" => Token::Keyword(Keyword::Case),
+            "WHEN" => Token::Keyword(Keyword::When),
+            "THEN" => Token::Keyword(Keyword::Then),
+            "ELSE" => Token::Keyword(Keyword::Else),
+            "END" => Token::Keyword(Keyword::End),
             // Window function keywords
             "OVER" => Token::Keyword(Keyword::Over),
             "PARTITION" => Token::Keyword(Keyword::Partition),
