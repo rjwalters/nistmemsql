@@ -1141,6 +1141,206 @@ ORDER BY year DESC, quarter;`,
   },
 
   {
+    id: 'patterns',
+    title: 'Pattern Matching & Predicates',
+    description: 'LIKE, BETWEEN, IN, EXISTS, ANY/ALL predicates',
+    queries: [
+      {
+        id: 'pattern-1',
+        title: 'LIKE Pattern Matching (Basic)',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  unit_price
+FROM products
+WHERE product_name LIKE 'Ch%'
+ORDER BY product_name;`,
+        description: 'Match products starting with "Ch" using % wildcard',
+        sqlFeatures: ['LIKE', '% wildcard', 'Pattern matching'],
+      },
+      {
+        id: 'pattern-2',
+        title: 'LIKE with Multiple Patterns',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  category_id
+FROM products
+WHERE product_name LIKE '%sauce%'
+   OR product_name LIKE '%cream%'
+ORDER BY product_name;`,
+        description: 'Find products containing "sauce" or "cream" (case-insensitive)',
+        sqlFeatures: ['LIKE', 'OR', 'Case-insensitive matching'],
+      },
+      {
+        id: 'pattern-3',
+        title: 'LIKE with Underscore Wildcard',
+        database: 'employees',
+        sql: `SELECT
+  first_name,
+  last_name
+FROM employees
+WHERE first_name LIKE 'J_hn'
+ORDER BY last_name;`,
+        description: 'Match names like "John" using _ for single character',
+        sqlFeatures: ['LIKE', '_ wildcard', 'Single character matching'],
+      },
+      {
+        id: 'pattern-4',
+        title: 'BETWEEN for Ranges',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  unit_price
+FROM products
+WHERE unit_price BETWEEN 10 AND 50
+ORDER BY unit_price;`,
+        description: 'Find products with prices in the 10-50 range (inclusive)',
+        sqlFeatures: ['BETWEEN', 'Numeric ranges', 'Inclusive bounds'],
+      },
+      {
+        id: 'pattern-5',
+        title: 'BETWEEN with Dates',
+        database: 'employees',
+        sql: `SELECT
+  first_name || ' ' || last_name AS employee,
+  hire_date,
+  department
+FROM employees
+WHERE YEAR(hire_date) BETWEEN 2019 AND 2021
+ORDER BY hire_date;`,
+        description: 'Filter employees hired between 2019-2021 using date functions',
+        sqlFeatures: ['BETWEEN', 'YEAR', 'Date ranges'],
+      },
+      {
+        id: 'pattern-6',
+        title: 'IN with List',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  category_id,
+  unit_price
+FROM products
+WHERE category_id IN (1, 2, 3)
+ORDER BY category_id, unit_price DESC;`,
+        description: 'Find products in specific categories using IN operator',
+        sqlFeatures: ['IN', 'List of values', 'Multi-column ORDER BY'],
+      },
+      {
+        id: 'pattern-7',
+        title: 'IN with Subquery',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  unit_price
+FROM products
+WHERE category_id IN (
+  SELECT category_id
+  FROM categories
+  WHERE category_name LIKE '%Bev%'
+)
+ORDER BY unit_price DESC;`,
+        description: 'Use IN with subquery to find products in Beverage categories',
+        sqlFeatures: ['IN', 'Subquery', 'LIKE', 'Dynamic filtering'],
+      },
+      {
+        id: 'pattern-8',
+        title: 'EXISTS with Correlated Subquery',
+        database: 'northwind',
+        sql: `SELECT
+  c.category_name
+FROM categories c
+WHERE EXISTS (
+  SELECT 1
+  FROM products p
+  WHERE p.category_id = c.category_id
+    AND p.unit_price > 50
+)
+ORDER BY c.category_name;`,
+        description: 'Find categories that have expensive products (>$50)',
+        sqlFeatures: ['EXISTS', 'Correlated subquery', 'Existential check'],
+      },
+      {
+        id: 'pattern-9',
+        title: 'NOT IN and NOT BETWEEN',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  unit_price
+FROM products
+WHERE unit_price NOT BETWEEN 10 AND 30
+  AND category_id NOT IN (1, 2)
+ORDER BY unit_price DESC
+LIMIT 10;`,
+        description: 'Find products outside price range and excluded categories',
+        sqlFeatures: ['NOT BETWEEN', 'NOT IN', 'Negative predicates', 'LIMIT'],
+      },
+      {
+        id: 'pattern-10',
+        title: 'Combining Predicates',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  category_id,
+  unit_price,
+  units_in_stock
+FROM products
+WHERE product_name LIKE 'C%'
+  AND unit_price BETWEEN 5 AND 100
+  AND category_id IN (1, 2, 3, 4)
+  AND units_in_stock > 0
+ORDER BY unit_price DESC;`,
+        description: 'Complex filtering using multiple predicates together',
+        sqlFeatures: ['LIKE', 'BETWEEN', 'IN', 'AND', 'Multiple predicates'],
+      },
+      {
+        id: 'pattern-11',
+        title: 'ALL Quantified Comparison',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  unit_price
+FROM products p
+WHERE unit_price > ALL (
+  SELECT unit_price
+  FROM products
+  WHERE category_id = 1
+)
+ORDER BY unit_price DESC
+LIMIT 5;`,
+        description: 'Find products more expensive than ALL category 1 products',
+        sqlFeatures: ['ALL', 'Quantified comparison', 'Subquery', 'Universal quantifier'],
+      },
+      {
+        id: 'pattern-12',
+        title: 'ANY/SOME Quantified Comparison',
+        database: 'northwind',
+        sql: `SELECT
+  product_name,
+  unit_price,
+  category_id
+FROM products p
+WHERE unit_price > ANY (
+  SELECT AVG(unit_price)
+  FROM products
+  GROUP BY category_id
+)
+ORDER BY unit_price DESC
+LIMIT 10;`,
+        description: 'Find products more expensive than ANY category average',
+        sqlFeatures: [
+          'ANY',
+          'SOME',
+          'Quantified comparison',
+          'AVG',
+          'GROUP BY',
+          'Existential quantifier',
+        ],
+      },
+    ],
+  },
+
+  {
     id: 'math',
     title: 'Math Functions',
     description: 'ABS, ROUND, POWER, SQRT, trigonometric, and comparison functions',
