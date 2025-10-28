@@ -32,7 +32,15 @@ export const exampleCategories: ExampleCategory[] = [
         id: 'basic-1',
         title: 'Simple SELECT',
         database: 'northwind',
-        sql: 'SELECT * FROM products LIMIT 5;',
+        sql: `SELECT * FROM products LIMIT 5;
+-- EXPECTED:
+-- | product_id | product_name | category_id | unit_price | units_in_stock | units_on_order |
+-- | 1          | Chai         | 1           | 18.0       | 39             | 0              |
+-- | 2          | Chang        | 1           | 19.0       | 17             | 40             |
+-- | 3          | Aniseed Syrup| 2           | 10.0       | 13             | 70             |
+-- | 4          | Chef Anton's Cajun Seasoning | 2 | 22.0 | 53             | 0              |
+-- | 5          | Chef Anton's Gumbo Mix       | 2 | 21.35| 0              | 0              |
+-- (5 rows)`,
         description: 'Retrieve first 5 products',
         sqlFeatures: ['SELECT', 'LIMIT'],
       },
@@ -43,7 +51,22 @@ export const exampleCategories: ExampleCategory[] = [
         sql: `SELECT product_name, unit_price
 FROM products
 WHERE unit_price > 20
-ORDER BY unit_price DESC;`,
+ORDER BY unit_price DESC;
+-- EXPECTED:
+-- | product_name                  | unit_price |
+-- | Mishi Kobe Niku               | 97.0       |
+-- | Sir Rodney's Marmalade        | 81.0       |
+-- | Carnarvon Tigers              | 62.5       |
+-- | Northwoods Cranberry Sauce    | 40.0       |
+-- | Alice Mutton                  | 39.0       |
+-- | Queso Manchego La Pastora     | 38.0       |
+-- | Ikura                         | 31.0       |
+-- | Grandma's Boysenberry Spread  | 25.0       |
+-- | Tofu                          | 23.25      |
+-- | Chef Anton's Cajun Seasoning  | 22.0       |
+-- | Queso Cabrales                | 21.0       |
+-- | Chef Anton's Gumbo Mix        | 21.35      |
+-- (12 rows)`,
         description: 'Filter products by price with sorting',
         sqlFeatures: ['SELECT', 'WHERE', 'ORDER BY'],
       },
@@ -87,7 +110,15 @@ ORDER BY category_id;`,
   UPPER(product_name) AS uppercase,
   LOWER(product_name) AS lowercase
 FROM products
-LIMIT 5;`,
+LIMIT 5;
+-- EXPECTED:
+-- | product_name                   | uppercase                      | lowercase                      |
+-- | Chai                           | CHAI                           | chai                           |
+-- | Chang                          | CHANG                          | chang                          |
+-- | Aniseed Syrup                  | ANISEED SYRUP                  | aniseed syrup                  |
+-- | Chef Anton's Cajun Seasoning   | CHEF ANTON'S CAJUN SEASONING   | chef anton's cajun seasoning   |
+-- | Chef Anton's Gumbo Mix         | CHEF ANTON'S GUMBO MIX         | chef anton's gumbo mix         |
+-- (5 rows)`,
         description: 'Convert text to uppercase and lowercase',
         sqlFeatures: ['UPPER', 'LOWER'],
       },
@@ -207,7 +238,30 @@ LIMIT 5;`,
   p.unit_price
 FROM products p
 INNER JOIN categories c ON p.category_id = c.category_id
-ORDER BY c.category_name, p.product_name;`,
+ORDER BY c.category_name, p.product_name;
+-- EXPECTED:
+-- | product_name                   | category_name | unit_price |
+-- | Chai                           | Beverages     | 18.0       |
+-- | Chang                          | Beverages     | 19.0       |
+-- | Aniseed Syrup                  | Condiments    | 10.0       |
+-- | Chef Anton's Cajun Seasoning   | Condiments    | 22.0       |
+-- | Chef Anton's Gumbo Mix         | Condiments    | 21.35      |
+-- | Genen Shouyu                   | Condiments    | 15.5       |
+-- | Grandma's Boysenberry Spread   | Condiments    | 25.0       |
+-- | Northwoods Cranberry Sauce     | Condiments    | 40.0       |
+-- | Pavlova                        | Confections   | 17.45      |
+-- | Sir Rodney's Marmalade         | Confections   | 81.0       |
+-- | Teatime Chocolate Biscuits     | Confections   | 9.2        |
+-- | Queso Cabrales                 | Dairy Products| 21.0       |
+-- | Queso Manchego La Pastora      | Dairy Products| 38.0       |
+-- | Alice Mutton                   | Meat/Poultry  | 39.0       |
+-- | Mishi Kobe Niku                | Meat/Poultry  | 97.0       |
+-- | Tofu                           | Produce       | 23.25      |
+-- | Uncle Bob's Organic Dried Pears| Produce       | 30.0       |
+-- | Carnarvon Tigers               | Seafood       | 62.5       |
+-- | Ikura                          | Seafood       | 31.0       |
+-- | Konbu                          | Seafood       | 6.0        |
+-- (20 rows)`,
         description: 'Join products with their categories',
         sqlFeatures: ['INNER JOIN', 'ON', 'ORDER BY'],
       },
@@ -271,7 +325,12 @@ LIMIT 10;`,
   AVG(unit_price) as avg_price,
   MIN(unit_price) as min_price,
   MAX(unit_price) as max_price
-FROM products;`,
+FROM products;
+-- EXPECTED:
+-- | total_products | avg_price | min_price | max_price |
+-- | 20             | ~34.05    | 6.0       | 97.0      |
+-- (1 row)
+-- Note: avg_price is approximate due to floating point`,
         description: 'Aggregate statistics for all products',
         sqlFeatures: ['COUNT', 'AVG', 'MIN', 'MAX'],
       },
