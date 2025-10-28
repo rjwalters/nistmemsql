@@ -443,11 +443,11 @@ Core compliance will be validated directly via Rust API, CLI, and WASM interface
 15. ✅ Constraint parsing (PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK, NOT NULL)
 
 **Next (Days 5-6)**
-16. ⚡ Type conversion functions (remaining from Phase 3.5)
-17. Multi-row INSERT (in progress)
-18. INSERT from SELECT
-19. Transaction support (BEGIN, COMMIT, ROLLBACK) 🔴 CRITICAL
-20. Constraint enforcement (PRIMARY KEY, FOREIGN KEY, etc.) 🔴 CRITICAL
+16. ⚡ Constraint enforcement (PRIMARY KEY, UNIQUE, CHECK, FOREIGN KEY) 🔴 CRITICAL
+17. ⚡ SAVEPOINT support (nested transactions)
+18. ⚡ Type coercion (Float vs Integer arithmetic/comparisons)
+19. ALTER TABLE operations (ADD/DROP/MODIFY COLUMN)
+20. CREATE/DROP SCHEMA support
 
 ---
 
