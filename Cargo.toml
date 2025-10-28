@@ -11,6 +11,9 @@ storage = { path = "crates/storage" }
 executor = { path = "crates/executor" }
 parser = { path = "crates/parser" }
 
+[dev-dependencies]
+regex = "1.10"
+
 [workspace]
 members = [
     "crates/parser",
