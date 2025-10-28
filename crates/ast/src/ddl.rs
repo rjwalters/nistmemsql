@@ -50,3 +50,10 @@ pub enum TableConstraint {
         expr: Box<Expression>,
     },
 }
+
+/// DROP TABLE statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropTableStmt {
+    pub table_name: String,
+    pub if_exists: bool,
+}

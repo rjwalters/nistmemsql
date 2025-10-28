@@ -5,6 +5,7 @@ use std::fmt;
 
 mod create;
 mod delete;
+mod drop;
 mod expressions;
 mod helpers;
 mod insert;
@@ -67,6 +68,10 @@ impl Parser {
             Token::Keyword(Keyword::Create) => {
                 let create_stmt = self.parse_create_table_statement()?;
                 Ok(ast::Statement::CreateTable(create_stmt))
+            }
+            Token::Keyword(Keyword::Drop) => {
+                let drop_stmt = self.parse_drop_table_statement()?;
+                Ok(ast::Statement::DropTable(drop_stmt))
             }
             _ => {
                 Err(ParseError { message: format!("Expected statement, found {:?}", self.peek()) })

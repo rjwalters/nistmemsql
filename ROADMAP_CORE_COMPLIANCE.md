@@ -123,7 +123,7 @@
 - [ ] SET SCHEMA
 
 **4.2 Table Operations**
-- [ ] DROP TABLE
+- [x] DROP TABLE (with IF EXISTS support)
 - [ ] ALTER TABLE ADD COLUMN
 - [ ] ALTER TABLE DROP COLUMN
 - [ ] ALTER TABLE MODIFY COLUMN

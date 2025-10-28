@@ -87,6 +87,18 @@ impl Database {
                 serde_wasm_bindgen::to_value(&result)
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
+            ast::Statement::DropTable(drop_stmt) => {
+                let message = executor::DropTableExecutor::execute(&drop_stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message,
+                };
+
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
             ast::Statement::Insert(insert_stmt) => {
                 executor::InsertExecutor::execute(&mut self.db, &insert_stmt)
                     .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
@@ -332,6 +344,10 @@ mod tests {
                     executor::CreateTableExecutor::execute(&create_stmt, db)
                         .map_err(|e| format!("CreateTable error: {:?}", e))?;
                 }
+                ast::Statement::DropTable(drop_stmt) => {
+                    executor::DropTableExecutor::execute(&drop_stmt, db)
+                        .map_err(|e| format!("DropTable error: {:?}", e))?;
+                }
                 ast::Statement::Insert(insert_stmt) => {
                     executor::InsertExecutor::execute(db, &insert_stmt)
                         .map_err(|e| format!("Insert error: {:?}", e))?;
@@ -507,8 +523,8 @@ mod tests {
         if sql_upper.contains(" UNION ") || sql_upper.contains(" INTERSECT ") || sql_upper.contains(" EXCEPT ") {
             return Some("SET operations (UNION/INTERSECT/EXCEPT)");
         }
-        if sql_upper.contains("ALTER TABLE") || sql_upper.contains("DROP TABLE") || sql_upper.contains("DROP INDEX") {
-            return Some("DDL operations (ALTER/DROP)");
+        if sql_upper.contains("ALTER TABLE") || sql_upper.contains("DROP INDEX") {
+            return Some("DDL operations (ALTER TABLE/DROP INDEX)");
         }
         if sql.contains('|') && !sql.contains("'|'") {
             return Some("pipe character (possibly unsupported syntax)");
