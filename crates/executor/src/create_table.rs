@@ -41,10 +41,10 @@ impl CreateTableExecutor {
     ///         ColumnDef {
     ///             name: "name".to_string(),
     ///             data_type: DataType::Varchar { max_length: 255 },
-    ///             nullable: true,
+    ///             nullable: true, constraints: vec![],
     ///         },
     ///     ],
-    /// };
+    /// table_constraints: vec![], };
     ///
     /// let result = CreateTableExecutor::execute(&stmt, &mut db);
     /// assert!(result.is_ok());
@@ -93,14 +93,14 @@ mod tests {
         let stmt = CreateTableStmt {
             table_name: "users".to_string(),
             columns: vec![
-                ColumnDef { name: "id".to_string(), data_type: DataType::Integer, nullable: false },
+                ColumnDef { name: "id".to_string(), data_type: DataType::Integer, nullable: false, constraints: vec![] },
                 ColumnDef {
                     name: "name".to_string(),
                     data_type: DataType::Varchar { max_length: 255 },
-                    nullable: true,
+                    nullable: true, constraints: vec![],
                 },
             ],
-        };
+        table_constraints: vec![], };
 
         let result = CreateTableExecutor::execute(&stmt, &mut db);
         assert!(result.is_ok());
@@ -124,29 +124,34 @@ mod tests {
                     name: "product_id".to_string(),
                     data_type: DataType::Integer,
                     nullable: false,
+                    constraints: vec![],
                 },
                 ColumnDef {
                     name: "name".to_string(),
                     data_type: DataType::Varchar { max_length: 100 },
                     nullable: false,
+                    constraints: vec![],
                 },
                 ColumnDef {
                     name: "price".to_string(),
                     data_type: DataType::Integer, // Using Integer for price (could be Decimal in future)
                     nullable: false,
+                    constraints: vec![],
                 },
                 ColumnDef {
                     name: "in_stock".to_string(),
                     data_type: DataType::Boolean,
                     nullable: false,
+                    constraints: vec![],
                 },
                 ColumnDef {
                     name: "description".to_string(),
                     data_type: DataType::Varchar { max_length: 500 },
                     nullable: true, // Optional field
+                    constraints: vec![],
                 },
             ],
-        };
+        table_constraints: vec![], };
 
         let result = CreateTableExecutor::execute(&stmt, &mut db);
         assert!(result.is_ok());
@@ -170,8 +175,9 @@ mod tests {
                 name: "id".to_string(),
                 data_type: DataType::Integer,
                 nullable: false,
+                constraints: vec![],
             }],
-        };
+        table_constraints: vec![], };
 
         // First creation succeeds
         let result = CreateTableExecutor::execute(&stmt, &mut db);
@@ -190,19 +196,21 @@ mod tests {
         let stmt = CreateTableStmt {
             table_name: "employees".to_string(),
             columns: vec![
-                ColumnDef { name: "id".to_string(), data_type: DataType::Integer, nullable: false },
+                ColumnDef { name: "id".to_string(), data_type: DataType::Integer, nullable: false, constraints: vec![] },
                 ColumnDef {
                     name: "middle_name".to_string(),
                     data_type: DataType::Varchar { max_length: 50 },
                     nullable: true, // Nullable field
+                    constraints: vec![],
                 },
                 ColumnDef {
                     name: "manager_id".to_string(),
                     data_type: DataType::Integer,
                     nullable: true, // Nullable foreign key
+                    constraints: vec![],
                 },
             ],
-        };
+        table_constraints: vec![], };
 
         let result = CreateTableExecutor::execute(&stmt, &mut db);
         assert!(result.is_ok());
@@ -221,7 +229,7 @@ mod tests {
         let stmt = CreateTableStmt {
             table_name: "empty_table".to_string(),
             columns: vec![], // Empty columns
-        };
+        table_constraints: vec![], };
 
         // Should succeed (though not very useful)
         let result = CreateTableExecutor::execute(&stmt, &mut db);
@@ -242,8 +250,9 @@ mod tests {
                 name: "customer_id".to_string(),
                 data_type: DataType::Integer,
                 nullable: false,
+                constraints: vec![],
             }],
-        };
+        table_constraints: vec![], };
         CreateTableExecutor::execute(&stmt1, &mut db).unwrap();
 
         // Create second table
@@ -253,8 +262,9 @@ mod tests {
                 name: "order_id".to_string(),
                 data_type: DataType::Integer,
                 nullable: false,
+                constraints: vec![],
             }],
-        };
+        table_constraints: vec![], };
         CreateTableExecutor::execute(&stmt2, &mut db).unwrap();
 
         // Verify both tables exist
@@ -274,8 +284,9 @@ mod tests {
                 name: "profile_id".to_string(),
                 data_type: DataType::Integer,
                 nullable: false,
+                constraints: vec![],
             }],
-        };
+        table_constraints: vec![], };
 
         let result = CreateTableExecutor::execute(&stmt, &mut db);
         assert!(result.is_ok());
@@ -292,8 +303,9 @@ mod tests {
                 name: "id".to_string(),
                 data_type: DataType::Integer,
                 nullable: false,
+                constraints: vec![],
             }],
-        };
+        table_constraints: vec![], };
         CreateTableExecutor::execute(&stmt1, &mut db).unwrap();
 
         // Try to create "users" (different case)
@@ -303,8 +315,9 @@ mod tests {
                 name: "id".to_string(),
                 data_type: DataType::Integer,
                 nullable: false,
+                constraints: vec![],
             }],
-        };
+        table_constraints: vec![], };
 
         // Behavior depends on catalog's case sensitivity
         // Just verify it either succeeds or fails gracefully
