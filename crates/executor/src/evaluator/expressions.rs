@@ -52,15 +52,70 @@ impl<'a> ExpressionEvaluator<'a> {
             }
 
             // IN operator with subquery
-            ast::Expression::In { expr, subquery: _, negated: _ } => {
-                // TODO: Full implementation requires database access to execute subquery
-                // This requires refactoring ExpressionEvaluator to have database reference
-                // For now, evaluate the left expression to ensure it's valid
-                let _left_val = self.eval(expr, row)?;
-                Err(ExecutorError::UnsupportedFeature(
-                    "IN with subquery requires database access - implementation pending"
-                        .to_string(),
-                ))
+            // SQL:1999 Section 8.4: IN predicate
+            // expr IN (SELECT ...) returns:
+            // - TRUE if expr equals any value from subquery
+            // - FALSE if subquery returns no rows or no match found
+            // - NULL if expr is NULL or subquery contains NULL and no match
+            ast::Expression::In { expr, subquery, negated } => {
+                let database = self.database.ok_or(ExecutorError::UnsupportedFeature(
+                    "IN with subquery requires database reference".to_string(),
+                ))?;
+
+                // Evaluate the left expression
+                let expr_val = self.eval(expr, row)?;
+
+                // If left expression is NULL, result is NULL
+                if matches!(expr_val, types::SqlValue::Null) {
+                    return Ok(types::SqlValue::Null);
+                }
+
+                // IN subquery must return exactly one column
+                if subquery.select_list.len() != 1 {
+                    return Err(ExecutorError::SubqueryColumnCountMismatch {
+                        expected: 1,
+                        actual: subquery.select_list.len(),
+                    });
+                }
+
+                // Execute the subquery using SelectExecutor
+                // Pass current row and schema as outer context for correlated subqueries
+                let select_executor = crate::select::SelectExecutor::new_with_outer_context(
+                    database,
+                    row,
+                    self.schema,
+                );
+                let rows = select_executor.execute(subquery)?;
+
+                // Check if expr_val matches any value from subquery result
+                let mut found_null = false;
+                for subquery_row in &rows {
+                    // Get the first (and only) column value
+                    let subquery_val = subquery_row
+                        .get(0)
+                        .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
+
+                    // Track if we encounter NULL
+                    if matches!(subquery_val, types::SqlValue::Null) {
+                        found_null = true;
+                        continue;
+                    }
+
+                    // Check for equality
+                    if expr_val == *subquery_val {
+                        // Found a match
+                        return Ok(types::SqlValue::Boolean(!*negated));
+                    }
+                }
+
+                // No match found
+                if found_null {
+                    // Subquery contained NULL, result is NULL
+                    Ok(types::SqlValue::Null)
+                } else {
+                    // No NULLs, result is FALSE (or TRUE if negated)
+                    Ok(types::SqlValue::Boolean(*negated))
+                }
             }
 
             // Scalar subquery - must return exactly one row and one column
