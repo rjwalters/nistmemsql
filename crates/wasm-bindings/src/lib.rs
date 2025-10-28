@@ -504,9 +504,6 @@ mod tests {
         if sql_upper.contains("WITH ") && (sql_upper.contains(" AS (") || sql_upper.contains(" AS(")) {
             return Some("Common Table Expressions (CTEs)");
         }
-        if sql_upper.contains(" CASE ") || sql_upper.starts_with("CASE ") || sql_upper.contains("\nCASE ") {
-            return Some("CASE expressions");
-        }
         if sql_upper.contains(" UNION ") || sql_upper.contains(" INTERSECT ") || sql_upper.contains(" EXCEPT ") {
             return Some("SET operations (UNION/INTERSECT/EXCEPT)");
         }
@@ -531,23 +528,8 @@ mod tests {
         if sql_upper.contains("RECURSIVE") {
             return Some("Recursive CTEs");
         }
-        // SELECT without FROM (not yet supported)
-        if sql_upper.contains("SELECT") && !sql_upper.contains("FROM") {
-            return Some("SELECT without FROM clause");
-        }
-        // Date/time functions that may not be implemented
-        if sql_upper.contains("CURRENT_DATE") || sql_upper.contains("CURRENT_TIMESTAMP")
-            || sql_upper.contains("CURRENT_TIME") {
-            return Some("CURRENT_DATE/TIMESTAMP/TIME functions");
-        }
         if sql_upper.contains("EXTRACT(") || sql_upper.contains("DATE_PART(") || sql_upper.contains("YEAR(") {
             return Some("Date/time extraction functions");
-        }
-        // Math functions that may not be fully implemented
-        if sql_upper.contains("ROUND(") || sql_upper.contains("CEIL(") || sql_upper.contains("FLOOR(")
-            || sql_upper.contains("ABS(") || sql_upper.contains("SQRT(") || sql_upper.contains("POWER(")
-            || sql_upper.contains("MOD(") || sql_upper.contains("PI(") {
-            return Some("Advanced math functions");
         }
 
         None

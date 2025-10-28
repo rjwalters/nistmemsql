@@ -611,6 +611,28 @@ impl<'a> SelectExecutor<'a> {
                     || else_result.as_ref().map_or(false, |e| self.expression_references_column(e))
             }
 
+            ast::Expression::WindowFunction { function, over } => {
+                // Check window function arguments
+                let args_reference_column = match function {
+                    ast::WindowFunctionSpec::Aggregate { args, .. }
+                    | ast::WindowFunctionSpec::Ranking { args, .. }
+                    | ast::WindowFunctionSpec::Value { args, .. } => {
+                        args.iter().any(|arg| self.expression_references_column(arg))
+                    }
+                };
+
+                // Check PARTITION BY and ORDER BY clauses
+                let partition_references = over.partition_by.as_ref().map_or(false, |exprs| {
+                    exprs.iter().any(|e| self.expression_references_column(e))
+                });
+
+                let order_references = over.order_by.as_ref().map_or(false, |items| {
+                    items.iter().any(|item| self.expression_references_column(&item.expr))
+                });
+
+                args_reference_column || partition_references || order_references
+            }
+
             // These don't contain column references:
             ast::Expression::Literal(_) => false,
             ast::Expression::Wildcard => false,
