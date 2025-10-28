@@ -1309,7 +1309,13 @@ ORDER BY account_id;`,
   CURRENT_TIME AS now_time,
   CURTIME() AS now_time_alias,
   CURRENT_TIMESTAMP AS now_full,
-  NOW() AS now_alias;`,
+  NOW() AS now_alias;
+-- EXPECTED:
+-- Non-deterministic output - returns current system date/time
+-- Sample format:
+-- | today      | today_alias | now_time | now_time_alias | now_full            | now_alias           |
+-- | 2025-01-28 | 2025-01-28  | 14:30:45 | 14:30:45       | 2025-01-28 14:30:45 | 2025-01-28 14:30:45 |
+-- (1 row)`,
         description: 'Get current date, time, and timestamp values with aliases',
         sqlFeatures: [
           'CURRENT_DATE',
@@ -1328,7 +1334,13 @@ ORDER BY account_id;`,
   CURRENT_DATE AS full_date,
   YEAR(CURRENT_DATE) AS year,
   MONTH(CURRENT_DATE) AS month,
-  DAY(CURRENT_DATE) AS day;`,
+  DAY(CURRENT_DATE) AS day;
+-- EXPECTED:
+-- Non-deterministic output - depends on current date
+-- Sample format:
+-- | full_date  | year | month | day |
+-- | 2025-01-28 | 2025 | 1     | 28  |
+-- (1 row)`,
         description: 'Extract year, month, and day components from dates',
         sqlFeatures: ['YEAR', 'MONTH', 'DAY', 'CURRENT_DATE'],
       },
@@ -1340,7 +1352,13 @@ ORDER BY account_id;`,
   CURRENT_TIMESTAMP AS full_timestamp,
   HOUR(CURRENT_TIMESTAMP) AS hour,
   MINUTE(CURRENT_TIMESTAMP) AS minute,
-  SECOND(CURRENT_TIMESTAMP) AS second;`,
+  SECOND(CURRENT_TIMESTAMP) AS second;
+-- EXPECTED:
+-- Non-deterministic output - depends on current timestamp
+-- Sample format:
+-- | full_timestamp      | hour | minute | second |
+-- | 2025-01-28 14:30:45 | 14   | 30     | 45     |
+-- (1 row)`,
         description: 'Extract hour, minute, and second components from timestamps',
         sqlFeatures: ['HOUR', 'MINUTE', 'SECOND', 'CURRENT_TIMESTAMP'],
       },
@@ -1355,7 +1373,20 @@ ORDER BY account_id;`,
   MONTH(hire_date) AS hire_month
 FROM employees
 ORDER BY hire_date DESC
-LIMIT 10;`,
+LIMIT 10;
+-- EXPECTED:
+-- | employee         | hire_date  | hire_year | hire_month |
+-- | Tyler Hill       | 2020-04-15 | 2020      | 4          |
+-- | Justin Wright    | 2019-07-01 | 2019      | 7          |
+-- | Brian Hernandez  | 2019-05-20 | 2019      | 5          |
+-- | Brandon Martin   | 2019-05-12 | 2019      | 5          |
+-- | Eric Robinson    | 2019-04-10 | 2019      | 4          |
+-- | Ryan Thomas      | 2019-03-15 | 2019      | 3          |
+-- | Sarah Hall       | 2019-03-10 | 2019      | 3          |
+-- | Matthew Lewis    | 2019-02-15 | 2019      | 2          |
+-- | Amanda Lee       | 2018-07-15 | 2018      | 7          |
+-- | James Wilson     | 2017-11-12 | 2017      | 11         |
+-- (10 rows)`,
         description: 'Analyze employee hire dates with year and month extraction',
         sqlFeatures: ['YEAR', 'MONTH', 'String concatenation', 'ORDER BY'],
       },
@@ -1369,7 +1400,21 @@ LIMIT 10;`,
   COUNT(*) AS hires
 FROM employees
 GROUP BY YEAR(hire_date), MONTH(hire_date)
-ORDER BY year DESC, month DESC;`,
+ORDER BY year DESC, month DESC;
+-- EXPECTED:
+-- | year | month | hires |
+-- | 2020 | 4     | 1     |
+-- | 2019 | 7     | 1     |
+-- | 2019 | 5     | 2     |
+-- | 2019 | 4     | 1     |
+-- | 2019 | 3     | 2     |
+-- | 2019 | 2     | 1     |
+-- | 2018 | 7     | 1     |
+-- | 2017 | 11    | 1     |
+-- | 2017 | 8     | 1     |
+-- | 2016 | 3     | 1     |
+-- | 2015 | 1     | 1     |
+-- (11 rows)`,
         description: 'Group and count employees by hire year and month',
         sqlFeatures: ['YEAR', 'MONTH', 'GROUP BY', 'COUNT', 'Date functions in GROUP BY'],
       },
@@ -1383,7 +1428,11 @@ ORDER BY year DESC, month DESC;`,
   department
 FROM employees
 WHERE YEAR(hire_date) >= 2020
-ORDER BY hire_date;`,
+ORDER BY hire_date;
+-- EXPECTED:
+-- | employee    | hire_date  | department |
+-- | Tyler Hill  | 2020-04-15 | Operations |
+-- (1 row)`,
         description: 'Filter employees hired in recent years using date functions',
         sqlFeatures: ['YEAR', 'WHERE', 'Date functions in WHERE'],
       },
@@ -1403,7 +1452,25 @@ ORDER BY hire_date;`,
   END AS tenure_level
 FROM employees
 ORDER BY hire_date
-LIMIT 15;`,
+LIMIT 15;
+-- EXPECTED:
+-- Non-deterministic output - depends on current date
+-- Sample (assuming current year is 2025):
+-- | employee            | hire_date  | years_with_company | tenure_level |
+-- | Sarah Chen          | 2015-01-15 | 10                 | Veteran      |
+-- | Michael Rodriguez   | 2016-03-20 | 9                  | Senior       |
+-- | Jennifer Martinez   | 2017-08-15 | 8                  | Senior       |
+-- | James Wilson        | 2017-11-12 | 8                  | Senior       |
+-- | Amanda Lee          | 2018-07-15 | 7                  | Senior       |
+-- | Matthew Lewis       | 2019-02-15 | 6                  | Senior       |
+-- | Sarah Hall          | 2019-03-10 | 6                  | Senior       |
+-- | Ryan Thomas         | 2019-03-15 | 6                  | Senior       |
+-- | Eric Robinson       | 2019-04-10 | 6                  | Senior       |
+-- | Brandon Martin      | 2019-05-12 | 6                  | Senior       |
+-- | Brian Hernandez     | 2019-05-20 | 6                  | Senior       |
+-- | Justin Wright       | 2019-07-01 | 6                  | Senior       |
+-- | Tyler Hill          | 2020-04-15 | 5                  | Senior       |
+-- (15 rows total, values may vary based on current year)`,
         description: 'Calculate employee tenure and categorize by experience level',
         sqlFeatures: ['YEAR', 'CURRENT_DATE', 'CASE', 'Date arithmetic'],
       },
@@ -1419,7 +1486,13 @@ LIMIT 15;`,
 FROM employees
 GROUP BY YEAR(hire_date), department
 HAVING COUNT(*) > 1
-ORDER BY hire_year DESC, avg_salary DESC;`,
+ORDER BY hire_year DESC, avg_salary DESC;
+-- EXPECTED:
+-- | hire_year | department  | employee_count | avg_salary |
+-- | 2019      | Engineering | 3              | ~92666.67  |
+-- | 2019      | Sales       | 3              | ~83666.67  |
+-- (2 rows)
+-- Note: avg_salary values are approximate due to floating point`,
         description: 'Aggregate employee statistics by hire year and department',
         sqlFeatures: ['YEAR', 'GROUP BY', 'HAVING', 'COUNT', 'AVG', 'Date-based reporting'],
       },
@@ -1445,7 +1518,19 @@ GROUP BY
     ELSE 'Q4'
   END,
   YEAR(hire_date)
-ORDER BY year DESC, quarter;`,
+ORDER BY year DESC, quarter;
+-- EXPECTED:
+-- | quarter | year | hires |
+-- | Q2      | 2020 | 1     |
+-- | Q1      | 2019 | 3     |
+-- | Q2      | 2019 | 3     |
+-- | Q3      | 2019 | 1     |
+-- | Q3      | 2018 | 1     |
+-- | Q3      | 2017 | 1     |
+-- | Q4      | 2017 | 1     |
+-- | Q1      | 2016 | 1     |
+-- | Q1      | 2015 | 1     |
+-- (9 rows)`,
         description: 'Analyze hiring patterns by fiscal quarter using date functions',
         sqlFeatures: ['MONTH', 'YEAR', 'CASE', 'BETWEEN', 'GROUP BY', 'Business intelligence'],
       },
@@ -1667,7 +1752,20 @@ LIMIT 10;`,
   ABS(unit_price - 20) AS abs_diff,
   SIGN(unit_price - 20) AS sign_indicator
 FROM products
-LIMIT 10;`,
+LIMIT 10;
+-- EXPECTED:
+-- | unit_price | price_diff | abs_diff | sign_indicator |
+-- | 18.0       | -2.0       | 2.0      | -1             |
+-- | 19.0       | -1.0       | 1.0      | -1             |
+-- | 10.0       | -10.0      | 10.0     | -1             |
+-- | 22.0       | 2.0        | 2.0      | 1              |
+-- | 21.35      | 1.35       | 1.35     | 1              |
+-- | 15.5       | -4.5       | 4.5      | -1             |
+-- | 25.0       | 5.0        | 5.0      | 1              |
+-- | 40.0       | 20.0       | 20.0     | 1              |
+-- | 17.45      | -2.55      | 2.55     | -1             |
+-- | 81.0       | 61.0       | 61.0     | 1              |
+-- (10 rows)`,
         description: 'Calculate absolute values and sign indicators for price differences',
         sqlFeatures: ['ABS', 'SIGN', 'Expressions'],
       },
@@ -1683,7 +1781,20 @@ LIMIT 10;`,
   CEIL(unit_price) AS ceiling_value
 FROM products
 WHERE unit_price IS NOT NULL
-LIMIT 10;`,
+LIMIT 10;
+-- EXPECTED:
+-- | unit_price | rounded | one_decimal | floor_value | ceiling_value |
+-- | 18.0       | 18.0    | 18.0        | 18.0        | 18.0          |
+-- | 19.0       | 19.0    | 19.0        | 19.0        | 19.0          |
+-- | 10.0       | 10.0    | 10.0        | 10.0        | 10.0          |
+-- | 22.0       | 22.0    | 22.0        | 22.0        | 22.0          |
+-- | 21.35      | 21.0    | 21.4        | 21.0        | 22.0          |
+-- | 15.5       | 16.0    | 15.5        | 15.0        | 16.0          |
+-- | 25.0       | 25.0    | 25.0        | 25.0        | 25.0          |
+-- | 40.0       | 40.0    | 40.0        | 40.0        | 40.0          |
+-- | 17.45      | 17.0    | 17.5        | 17.0        | 18.0          |
+-- | 81.0       | 81.0    | 81.0        | 81.0        | 81.0          |
+-- (10 rows)`,
         description: 'Demonstrate various rounding methods for numeric values',
         sqlFeatures: ['ROUND', 'FLOOR', 'CEIL', 'WHERE'],
       },
@@ -1698,7 +1809,20 @@ LIMIT 10;`,
   ROUND(SQRT(unit_price), 2) AS sqrt_rounded
 FROM products
 WHERE unit_price > 0
-LIMIT 10;`,
+LIMIT 10;
+-- EXPECTED:
+-- | unit_price | squared | square_root | sqrt_rounded |
+-- | 18.0       | 324.0   | 4.2426...   | 4.24         |
+-- | 19.0       | 361.0   | 4.3588...   | 4.36         |
+-- | 10.0       | 100.0   | 3.1622...   | 3.16         |
+-- | 22.0       | 484.0   | 4.6904...   | 4.69         |
+-- | 21.35      | 455.82  | 4.6206...   | 4.62         |
+-- | 15.5       | 240.25  | 3.9370...   | 3.94         |
+-- | 25.0       | 625.0   | 5.0         | 5.0          |
+-- | 40.0       | 1600.0  | 6.3245...   | 6.32         |
+-- | 17.45      | 304.50  | 4.1773...   | 4.18         |
+-- | 81.0       | 6561.0  | 9.0         | 9.0          |
+-- (10 rows)`,
         description: 'Calculate squares, square roots, and combinations',
         sqlFeatures: ['POWER', 'SQRT', 'ROUND', 'WHERE'],
       },
@@ -1717,7 +1841,25 @@ LIMIT 10;`,
   END AS group_name
 FROM products
 ORDER BY product_id
-LIMIT 15;`,
+LIMIT 15;
+-- EXPECTED:
+-- | product_id | product_name                     | group_number | group_name |
+-- | 1          | Chai                             | 1            | Group B    |
+-- | 2          | Chang                            | 2            | Group C    |
+-- | 3          | Aniseed Syrup                    | 0            | Group A    |
+-- | 4          | Chef Anton's Cajun Seasoning     | 1            | Group B    |
+-- | 5          | Chef Anton's Gumbo Mix           | 2            | Group C    |
+-- | 6          | Genen Shouyu                     | 0            | Group A    |
+-- | 7          | Grandma's Boysenberry Spread     | 1            | Group B    |
+-- | 8          | Northwoods Cranberry Sauce       | 2            | Group C    |
+-- | 9          | Pavlova                          | 0            | Group A    |
+-- | 10         | Sir Rodney's Marmalade           | 1            | Group B    |
+-- | 11         | Teatime Chocolate Biscuits       | 2            | Group C    |
+-- | 12         | Queso Cabrales                   | 0            | Group A    |
+-- | 13         | Queso Manchego La Pastora        | 1            | Group B    |
+-- | 14         | Alice Mutton                     | 2            | Group C    |
+-- | 15         | Mishi Kobe Niku                  | 0            | Group A    |
+-- (15 rows)`,
         description: 'Use MOD to divide products into rotating groups',
         sqlFeatures: ['MOD', 'CASE', 'ORDER BY'],
       },
@@ -1732,7 +1874,20 @@ LIMIT 15;`,
   ROUND(EXP(1.0), 4) AS e_constant
 FROM products
 WHERE unit_price > 0
-LIMIT 10;`,
+LIMIT 10;
+-- EXPECTED:
+-- | unit_price | natural_log | log_base_10 | e_constant |
+-- | 18.0       | 2.89        | 1.26        | 2.7183     |
+-- | 19.0       | 2.94        | 1.28        | 2.7183     |
+-- | 10.0       | 2.30        | 1.0         | 2.7183     |
+-- | 22.0       | 3.09        | 1.34        | 2.7183     |
+-- | 21.35      | 3.06        | 1.33        | 2.7183     |
+-- | 15.5       | 2.74        | 1.19        | 2.7183     |
+-- | 25.0       | 3.22        | 1.40        | 2.7183     |
+-- | 40.0       | 3.69        | 1.60        | 2.7183     |
+-- | 17.45      | 2.86        | 1.24        | 2.7183     |
+-- | 81.0       | 4.39        | 1.91        | 2.7183     |
+-- (10 rows)`,
         description: 'Calculate natural logarithms, base-10 logarithms, and exponentials',
         sqlFeatures: ['LN', 'LOG10', 'EXP', 'ROUND'],
       },
@@ -1745,7 +1900,11 @@ LIMIT 10;`,
   ROUND(SIN(PI() / 2), 4) AS sin_90_degrees,
   ROUND(COS(PI()), 4) AS cos_180_degrees,
   ROUND(TAN(PI() / 4), 4) AS tan_45_degrees
-FROM (SELECT * FROM products LIMIT 1) AS dummy;`,
+FROM (SELECT * FROM products LIMIT 1) AS dummy;
+-- EXPECTED:
+-- | pi_value | sin_90_degrees | cos_180_degrees | tan_45_degrees |
+-- | 3.141593 | 1.0            | -1.0            | 1.0            |
+-- (1 row)`,
         description: 'Demonstrate trigonometric functions with common angles',
         sqlFeatures: ['PI', 'SIN', 'COS', 'TAN', 'ROUND'],
       },
@@ -1758,7 +1917,11 @@ FROM (SELECT * FROM products LIMIT 1) AS dummy;`,
   ROUND(ACOS(0.0), 4) AS acos_0,
   ROUND(ATAN(1.0), 4) AS atan_1,
   ROUND(ATAN2(1.0, 1.0), 4) AS atan2_1_1
-FROM (SELECT * FROM products LIMIT 1) AS dummy;`,
+FROM (SELECT * FROM products LIMIT 1) AS dummy;
+-- EXPECTED:
+-- | asin_1 | acos_0 | atan_1 | atan2_1_1 |
+-- | 1.5708 | 1.5708 | 0.7854 | 0.7854    |
+-- (1 row)`,
         description: 'Calculate inverse trigonometric functions (arcsin, arccos, arctan)',
         sqlFeatures: ['ASIN', 'ACOS', 'ATAN', 'ATAN2', 'ROUND'],
       },
@@ -1770,7 +1933,11 @@ FROM (SELECT * FROM products LIMIT 1) AS dummy;`,
   180 AS degrees,
   ROUND(RADIANS(180), 4) AS radians,
   ROUND(DEGREES(PI()), 2) AS back_to_degrees
-FROM (SELECT * FROM products LIMIT 1) AS dummy;`,
+FROM (SELECT * FROM products LIMIT 1) AS dummy;
+-- EXPECTED:
+-- | degrees | radians | back_to_degrees |
+-- | 180     | 3.1416  | 180.0           |
+-- (1 row)`,
         description: 'Convert between degrees and radians',
         sqlFeatures: ['RADIANS', 'DEGREES', 'PI', 'ROUND'],
       },
@@ -1786,7 +1953,20 @@ FROM (SELECT * FROM products LIMIT 1) AS dummy;`,
   LEAST(unit_price, units_in_stock) AS min_value
 FROM products
 WHERE unit_price IS NOT NULL AND units_in_stock IS NOT NULL
-LIMIT 10;`,
+LIMIT 10;
+-- EXPECTED:
+-- | product_name                     | unit_price | units_in_stock | max_value | min_value |
+-- | Chai                             | 18.0       | 39             | 39.0      | 18.0      |
+-- | Chang                            | 19.0       | 17             | 19.0      | 17.0      |
+-- | Aniseed Syrup                    | 10.0       | 13             | 13.0      | 10.0      |
+-- | Chef Anton's Cajun Seasoning     | 22.0       | 53             | 53.0      | 22.0      |
+-- | Chef Anton's Gumbo Mix           | 21.35      | 0              | 21.35     | 0.0       |
+-- | Genen Shouyu                     | 15.5       | 39             | 39.0      | 15.5      |
+-- | Grandma's Boysenberry Spread     | 25.0       | 120            | 120.0     | 25.0      |
+-- | Northwoods Cranberry Sauce       | 40.0       | 6              | 40.0      | 6.0       |
+-- | Pavlova                          | 17.45      | 29             | 29.0      | 17.45     |
+-- | Sir Rodney's Marmalade           | 81.0       | 40             | 81.0      | 40.0      |
+-- (10 rows)`,
         description: 'Find maximum and minimum values across columns',
         sqlFeatures: ['GREATEST', 'LEAST', 'WHERE'],
       },
@@ -1803,7 +1983,20 @@ LIMIT 10;`,
 FROM products
 WHERE unit_price > 0
 ORDER BY unit_price DESC
-LIMIT 10;`,
+LIMIT 10;
+-- EXPECTED:
+-- | product_name                  | unit_price | with_tax | discounted | psychological_price |
+-- | Mishi Kobe Niku               | 97.0       | 104.76   | 87.30      | 97.99               |
+-- | Sir Rodney's Marmalade        | 81.0       | 87.48    | 72.90      | 81.99               |
+-- | Carnarvon Tigers              | 62.5       | 67.50    | 56.25      | 62.99               |
+-- | Northwoods Cranberry Sauce    | 40.0       | 43.20    | 36.00      | 40.99               |
+-- | Alice Mutton                  | 39.0       | 42.12    | 35.10      | 39.99               |
+-- | Queso Manchego La Pastora     | 38.0       | 41.04    | 34.20      | 38.99               |
+-- | Ikura                         | 31.0       | 33.48    | 27.90      | 31.99               |
+-- | Uncle Bob's Organic Dried Pears| 30.0      | 32.40    | 27.00      | 30.99               |
+-- | Grandma's Boysenberry Spread  | 25.0       | 27.00    | 22.50      | 25.99               |
+-- | Tofu                          | 23.25      | 25.11    | 20.93      | 23.99               |
+-- (10 rows)`,
         description: 'Practical business calculations: taxes, discounts, and pricing strategies',
         sqlFeatures: ['ROUND', 'FLOOR', 'String concatenation', 'Business calculations'],
       },
