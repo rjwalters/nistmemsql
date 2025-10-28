@@ -10,6 +10,7 @@ mod expressions;
 mod helpers;
 mod insert;
 mod select;
+mod transaction;
 mod update;
 
 /// Parser error
@@ -73,9 +74,36 @@ impl Parser {
                 let drop_stmt = self.parse_drop_table_statement()?;
                 Ok(ast::Statement::DropTable(drop_stmt))
             }
+            Token::Keyword(Keyword::Begin) | Token::Keyword(Keyword::Start) => {
+                let begin_stmt = self.parse_begin_statement()?;
+                Ok(ast::Statement::BeginTransaction(begin_stmt))
+            }
+            Token::Keyword(Keyword::Commit) => {
+                let commit_stmt = self.parse_commit_statement()?;
+                Ok(ast::Statement::Commit(commit_stmt))
+            }
+            Token::Keyword(Keyword::Rollback) => {
+                let rollback_stmt = self.parse_rollback_statement()?;
+                Ok(ast::Statement::Rollback(rollback_stmt))
+            }
             _ => {
                 Err(ParseError { message: format!("Expected statement, found {:?}", self.peek()) })
             }
         }
+    }
+
+    /// Parse BEGIN [TRANSACTION] statement
+    pub fn parse_begin_statement(&mut self) -> Result<ast::BeginStmt, ParseError> {
+        transaction::parse_begin_statement(self)
+    }
+
+    /// Parse COMMIT statement
+    pub fn parse_commit_statement(&mut self) -> Result<ast::CommitStmt, ParseError> {
+        transaction::parse_commit_statement(self)
+    }
+
+    /// Parse ROLLBACK statement
+    pub fn parse_rollback_statement(&mut self) -> Result<ast::RollbackStmt, ParseError> {
+        transaction::parse_rollback_statement(self)
     }
 }

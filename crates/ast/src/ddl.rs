@@ -57,3 +57,15 @@ pub struct DropTableStmt {
     pub table_name: String,
     pub if_exists: bool,
 }
+
+/// BEGIN TRANSACTION statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct BeginStmt;
+
+/// COMMIT statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct CommitStmt;
+
+/// ROLLBACK statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct RollbackStmt;

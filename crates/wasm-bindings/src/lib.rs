@@ -365,6 +365,18 @@ mod tests {
                     executor::DeleteExecutor::execute(&delete_stmt, db)
                         .map_err(|e| format!("Delete error: {:?}", e))?;
                 }
+                ast::Statement::BeginTransaction(begin_stmt) => {
+                    executor::BeginTransactionExecutor::execute(&begin_stmt, db)
+                        .map_err(|e| format!("Begin transaction error: {:?}", e))?;
+                }
+                ast::Statement::Commit(commit_stmt) => {
+                    executor::CommitExecutor::execute(&commit_stmt, db)
+                        .map_err(|e| format!("Commit error: {:?}", e))?;
+                }
+                ast::Statement::Rollback(rollback_stmt) => {
+                    executor::RollbackExecutor::execute(&rollback_stmt, db)
+                        .map_err(|e| format!("Rollback error: {:?}", e))?;
+                }
                 _ => return Err(format!("Unsupported statement type: {:?}", stmt)),
             }
         }
