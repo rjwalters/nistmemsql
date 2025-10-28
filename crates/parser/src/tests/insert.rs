@@ -16,8 +16,13 @@ fn test_parse_insert_basic() {
             assert_eq!(insert.columns.len(), 2);
             assert_eq!(insert.columns[0], "id");
             assert_eq!(insert.columns[1], "name");
-            assert_eq!(insert.values.len(), 1); // One row
-            assert_eq!(insert.values[0].len(), 2); // Two values
+            match &insert.source {
+                ast::InsertSource::Values(values) => {
+                    assert_eq!(values.len(), 1); // One row
+                    assert_eq!(values[0].len(), 2); // Two values
+                }
+                _ => panic!("Expected VALUES source"),
+            }
         }
         _ => panic!("Expected INSERT statement"),
     }
