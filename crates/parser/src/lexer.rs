@@ -185,13 +185,9 @@ impl Lexer {
             "FOLLOWING" => Token::Keyword(Keyword::Following),
             "UNBOUNDED" => Token::Keyword(Keyword::Unbounded),
             "CURRENT" => Token::Keyword(Keyword::Current),
-            // Window function names
-            "ROW_NUMBER" => Token::Keyword(Keyword::RowNumber),
-            "RANK" => Token::Keyword(Keyword::Rank),
-            "DENSE_RANK" => Token::Keyword(Keyword::DenseRank),
-            "NTILE" => Token::Keyword(Keyword::Ntile),
-            "LAG" => Token::Keyword(Keyword::Lag),
-            "LEAD" => Token::Keyword(Keyword::Lead),
+            // Note: ROW_NUMBER, RANK, DENSE_RANK, NTILE, LAG, LEAD are treated as
+            // identifiers (function names), not keywords. They are classified as
+            // window functions by the parser's classify_window_function() method.
             _ => Token::Identifier(text),
         };
 

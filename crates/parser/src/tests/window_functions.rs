@@ -6,9 +6,6 @@ use super::*;
 fn test_empty_over_clause() {
     let sql = "SELECT ROW_NUMBER() OVER () FROM t";
     let result = Parser::parse_sql(sql);
-    if result.is_err() {
-        eprintln!("Parse error: {:?}", result.err());
-    }
     assert!(result.is_ok());
 
     let stmt = result.unwrap();

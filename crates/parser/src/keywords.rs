@@ -63,13 +63,7 @@ pub enum Keyword {
     Following,
     Unbounded,
     Current,
-    // Window function names
-    RowNumber,
-    Rank,
-    DenseRank,
-    Ntile,
-    Lag,
-    Lead,
+    // Note: Window function names (ROW_NUMBER, RANK, etc.) are identifiers, not keywords
 }
 
 impl fmt::Display for Keyword {
@@ -134,12 +128,6 @@ impl fmt::Display for Keyword {
             Keyword::Following => "FOLLOWING",
             Keyword::Unbounded => "UNBOUNDED",
             Keyword::Current => "CURRENT",
-            Keyword::RowNumber => "ROW_NUMBER",
-            Keyword::Rank => "RANK",
-            Keyword::DenseRank => "DENSE_RANK",
-            Keyword::Ntile => "NTILE",
-            Keyword::Lag => "LAG",
-            Keyword::Lead => "LEAD",
         };
         write!(f, "{}", keyword_str)
     }
