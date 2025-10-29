@@ -28,8 +28,6 @@ Current test suite covers Core SQL:1999 features:
 Based on test failures, the following areas need implementation:
 
 ### Parser Gaps
-- [ ] Unary plus (+) operator support
-- [ ] Unary minus (-) operator support
 - [ ] DECIMAL/DEC type alias recognition
 - [ ] Floating point literals starting with decimal point (e.g., .5)
 - [ ] Scientific notation (e.g., 1.5E+10)
@@ -42,9 +40,9 @@ Based on test failures, the following areas need implementation:
 
 ## Improvement Roadmap
 
-To improve conformance from current % to 80%+:
+Phase 1 Complete ✅ | Remaining work to reach 80%+:
 
-1. **Phase 1**: Implement unary operators (+, -) - Will fix ~25 tests
+1. **Phase 1**: ✅ Implemented unary operators (+, -) - Fixed ~25 tests
 2. **Phase 2**: Add DECIMAL type alias and floating point literal parsing - Will fix ~15 tests
 3. **Phase 3**: Implement numeric type coercion in executor - Will fix ~18 tests
 4. **Phase 4**: Proper DECIMAL type arithmetic - Will improve accuracy
