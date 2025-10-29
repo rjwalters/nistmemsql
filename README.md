@@ -4,7 +4,7 @@
 [![Tests](https://github.com/rjwalters/nistmemsql/actions/workflows/test.yml/badge.svg)](https://github.com/rjwalters/nistmemsql/actions/workflows/test.yml)
 [![Demo](https://img.shields.io/badge/demo-live-success)](https://rjwalters.github.io/nistmemsql/)
 [![Coverage](https://img.shields.io/badge/coverage-84%25-green)](https://github.com/rjwalters/nistmemsql)
-[![SQL:1999 Conformance](https://img.shields.io/badge/SQL%3A1999-42%25-yellow)](https://github.com/rjwalters/nistmemsql/blob/main/docs/SQL1999_CONFORMANCE.md)
+[![SQL:1999 Conformance](https://img.shields.io/endpoint?url=https://rjwalters.github.io/nistmemsql/badges/sql1999-conformance.json)](https://github.com/rjwalters/nistmemsql/blob/main/docs/SQL1999_CONFORMANCE.md)
 
 > **An open-source, NIST-testable SQL:1999 database implementation in Rust**
 
@@ -140,14 +140,15 @@ This isn't just about databases. It's about understanding what's now possible wi
 
 ---
 
-## 📊 Current Status (October 28, 2025 - Day 4)
+## 📊 Current Status (October 29, 2025 - Day 5)
 
 ### Velocity-Based Progress Tracking
 
-**Core SQL:1999 Compliance**: ~60% complete in 4 days
+**Core SQL:1999 Compliance**: ~65% complete in 5 days
 
 **Demonstrated Velocity**:
-- **Days 1-4** (Oct 25-28): 60% complete → **Ahead of schedule!** 🚀
+- **Days 1-5** (Oct 25-29): 65% complete → **Ahead of schedule!** 🚀
+- **Major Milestone**: Complete constraint enforcement system
 - **Projected completion**: ~7-8 days total from start
 - **Target date**: November 1-2, 2025
 
@@ -166,7 +167,7 @@ This isn't just about databases. It's about understanding what's now possible wi
 | Window Functions | 100% | ROW_NUMBER, RANK, DENSE_RANK, NTILE, LAG, LEAD, COUNT, SUM, AVG, MIN, MAX OVER() | ✅ Complete |
 | Built-in Functions | 65% | String (40+ functions), Date/Time (15+ functions), Math (20+ functions), CASE, COALESCE, NULLIF, CAST, POSITION | 🟢 Advanced |
 | DDL | 20% (2/10) | CREATE TABLE, DROP TABLE | 🟡 In Progress |
-| Constraints | 80% (4/5 enforced) | NOT NULL, PRIMARY KEY, UNIQUE, CHECK enforced ✅ (25 tests) | 🟢 Nearly Complete |
+| Constraints | 100% (5/5 enforced) | NOT NULL, PRIMARY KEY, UNIQUE, CHECK, FOREIGN KEY enforced ✅ (30+ tests) | ✅ Complete |
 | Transactions | 75% (3/4) | BEGIN, COMMIT, ROLLBACK ✅ (SAVEPOINT pending) | 🟢 Advanced |
 | Web Demo Validation | 30% | Automated test infrastructure ✅, Expected results for 19 examples ✅ | 🟡 In Progress |
 | Conformance Tests | 0% | NIST harness + ISO validator needed | 🔴 Day 7-8 |
@@ -231,7 +232,7 @@ This isn't just about databases. It's about understanding what's now possible wi
 - **PRIMARY KEY**: Fully enforced ✅ (6 tests) - Single & composite keys, duplicate detection
 - **UNIQUE**: Fully enforced ✅ (10 tests) - Correct SQL:1999 NULL semantics
 - **CHECK**: Fully enforced ✅ (9 tests) - Three-valued logic (TRUE/FALSE/NULL)
-- **FOREIGN KEY**: Parsing complete, enforcement pending
+- **FOREIGN KEY**: Fully enforced ✅ (FK tests) - Referential integrity, single & composite keys
 
 **Web Demo Validation** 🟡
 - **Test Infrastructure**: Automated test runner for all SQL examples ✅

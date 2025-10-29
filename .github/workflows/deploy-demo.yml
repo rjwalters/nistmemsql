@@ -1,0 +1,140 @@
+name: Deploy Web Demo and Badges
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Setup Rust for WASM build
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      # Install wasm-pack for building WASM bindings
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      # Build WASM bindings
+      - name: Build WASM bindings
+        working-directory: crates/wasm-bindings
+        run: wasm-pack build --target web --release
+
+      # Setup Node.js for web demo
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web-demo/package-lock.json
+
+      # Install web demo dependencies
+      - name: Install dependencies
+        working-directory: web-demo
+        run: npm ci
+
+      # Build web demo
+      - name: Build web demo
+        working-directory: web-demo
+        run: npm run build
+
+      # Run conformance tests to get latest metrics
+      - name: Setup Python for test manifest
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Generate SQL:1999 test manifest
+        run: python3 scripts/extract_sql1999_tests.py
+        continue-on-error: true
+
+      - name: Run sqltest conformance suite
+        run: cargo test sqltest_conformance --release -- --nocapture
+        continue-on-error: true
+
+      # Generate dynamic badge data
+      - name: Generate badge JSON
+        run: |
+          # Create badges directory
+          mkdir -p badges
+
+          # Extract pass rate from sqltest results (default to 0 if not found)
+          if [ -f target/sqltest_results.json ]; then
+            PASS_RATE=$(jq -r '.pass_rate // "0"' target/sqltest_results.json)
+          else
+            PASS_RATE="0"
+          fi
+
+          # Determine badge color based on pass rate
+          if (( $(echo "$PASS_RATE >= 80" | bc -l) )); then
+            COLOR="brightgreen"
+          elif (( $(echo "$PASS_RATE >= 60" | bc -l) )); then
+            COLOR="green"
+          elif (( $(echo "$PASS_RATE >= 40" | bc -l) )); then
+            COLOR="yellow"
+          elif (( $(echo "$PASS_RATE >= 20" | bc -l) )); then
+            COLOR="orange"
+          else
+            COLOR="red"
+          fi
+
+          # Create badge JSON for shields.io endpoint
+          cat > badges/sql1999-conformance.json <<JSON
+          {
+            "schemaVersion": 1,
+            "label": "SQL:1999",
+            "message": "${PASS_RATE}%",
+            "color": "$COLOR"
+          }
+          JSON
+
+          echo "Generated badge with pass rate: ${PASS_RATE}% (color: $COLOR)"
+
+      # Prepare deployment directory
+      - name: Prepare deployment
+        run: |
+          # Create deployment directory
+          mkdir -p deploy
+
+          # Copy web demo build output
+          cp -r web-demo/dist/* deploy/
+
+          # Copy badges to subdirectory
+          cp -r badges deploy/badges
+
+          echo "Deployment directory contents:"
+          ls -la deploy/
+          ls -la deploy/badges/
+
+      # Upload to GitHub Pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './deploy'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
