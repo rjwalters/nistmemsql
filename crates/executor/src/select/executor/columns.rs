@@ -70,6 +70,19 @@ impl<'a> SelectExecutor<'a> {
                 };
                 format!("{}({})", name, args_str)
             }
+            ast::Expression::AggregateFunction { name, distinct, args } => {
+                // For aggregate functions, use name(DISTINCT args) format
+                let distinct_str = if *distinct { "DISTINCT " } else { "" };
+                let args_str = if args.is_empty() {
+                    "*".to_string()
+                } else {
+                    args.iter()
+                        .map(|arg| self.derive_expression_name(arg))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                };
+                format!("{}({}{})", name, distinct_str, args_str)
+            }
             ast::Expression::BinaryOp { left, op, right } => {
                 // For binary operations, create descriptive name
                 format!(
