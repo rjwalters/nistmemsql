@@ -925,6 +925,7 @@ use ast;
                     right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(0))),
                 },
             )],
+            Vec::new(),
         );
         db.create_table(schema).unwrap();
 
@@ -969,6 +970,7 @@ use ast;
                     right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(0))),
                 },
             )],
+            Vec::new(),
         );
         db.create_table(schema).unwrap();
 
@@ -1017,6 +1019,7 @@ use ast;
                     right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(0))),
                 },
             )],
+            Vec::new(),
         );
         db.create_table(schema).unwrap();
 
@@ -1077,6 +1080,7 @@ use ast;
                     },
                 ),
             ],
+            Vec::new(),
         );
         db.create_table(schema).unwrap();
 
@@ -1164,6 +1168,7 @@ use ast;
                     }),
                 },
             )],
+            Vec::new(),
         );
         db.create_table(schema).unwrap();
 

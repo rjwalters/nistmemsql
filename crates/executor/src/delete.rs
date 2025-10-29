@@ -75,39 +75,109 @@ impl DeleteExecutor {
             return Err(ExecutorError::TableNotFound(stmt.table_name.clone()));
         }
 
-        // Get mutable table reference
         let table = database
-            .get_table_mut(&stmt.table_name)
+            .get_table(&stmt.table_name)
             .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
 
-        // Case 1: No WHERE clause - delete all rows
-        if stmt.where_clause.is_none() {
-            let deleted_count = table.row_count();
-            table.clear();
-            return Ok(deleted_count);
-        }
-
-        // Case 2: WHERE clause - filter and delete matching rows
-        let where_expr = stmt.where_clause.as_ref().unwrap();
-
-        // Clone schema to avoid borrow issues with delete_where closure
+        // Clone schema to avoid borrow issues
         let schema = table.schema.clone();
         let evaluator = ExpressionEvaluator::new(&schema);
 
+        // Find rows to delete
+        let rows_to_delete: Vec<_> = table
+            .scan()
+            .iter()
+            .filter(|row| {
+                if let Some(ref where_expr) = stmt.where_clause {
+                    match evaluator.eval(where_expr, row) {
+                        Ok(types::SqlValue::Boolean(true)) => true,
+                        _ => false,
+                    }
+                } else {
+                    true
+                }
+            })
+            .cloned()
+            .collect();
+
+        // Check referential integrity for each row to be deleted
+        for row in &rows_to_delete {
+            check_no_child_references(database, &stmt.table_name, row)?;
+        }
+
+        let table_mut = database
+            .get_table_mut(&stmt.table_name)
+            .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
+
         // Delete rows where WHERE clause evaluates to TRUE
-        let deleted_count = table.delete_where(|row| {
-            // Evaluate WHERE clause for this row
-            match evaluator.eval(where_expr, row) {
-                Ok(types::SqlValue::Boolean(true)) => true, // Delete this row
-                Ok(types::SqlValue::Boolean(false)) => false, // Keep this row
-                Ok(types::SqlValue::Null) => false,         // NULL = false (SQL semantics)
-                Ok(_) => false,                             // Non-boolean = keep row
-                Err(_) => false,                            // Error = keep row (safe default)
+        let deleted_count = table_mut.delete_where(|row| {
+            if let Some(ref where_expr) = stmt.where_clause {
+                match evaluator.eval(where_expr, row) {
+                    Ok(types::SqlValue::Boolean(true)) => true, // Delete this row
+                    _ => false,
+                }
+            } else {
+                true
             }
         });
 
         Ok(deleted_count)
     }
+}
+
+/// Check that no child tables reference a row that is about to be deleted or updated.
+fn check_no_child_references(
+    db: &storage::Database,
+    parent_table_name: &str,
+    parent_row: &storage::Row,
+) -> Result<(), ExecutorError> {
+    let parent_schema = db
+        .catalog
+        .get_table(parent_table_name)
+        .ok_or_else(|| ExecutorError::TableNotFound(parent_table_name.to_string()))?;
+
+    // This check is only meaningful if the parent table has a primary key.
+    let pk_indices = match parent_schema.get_primary_key_indices() {
+        Some(indices) => indices,
+        None => return Ok(()),
+    };
+
+    let parent_key_values: Vec<types::SqlValue> = pk_indices
+        .iter()
+        .map(|&idx| parent_row.values[idx].clone())
+        .collect();
+
+    // Scan all tables in the database to find foreign keys that reference this table.
+    for table_name in db.catalog.list_tables() {
+        let child_schema = db.catalog.get_table(&table_name).unwrap();
+
+        for fk in &child_schema.foreign_keys {
+            if fk.parent_table != parent_table_name {
+                continue;
+            }
+
+            // Check if any row in the child table references the parent row.
+            let child_table = db.get_table(&table_name).unwrap();
+            let has_references = child_table.scan().iter().any(|child_row| {
+                let child_fk_values: Vec<types::SqlValue> = fk
+                    .column_indices
+                    .iter()
+                    .map(|&idx| child_row.values[idx].clone())
+                    .collect();
+                child_fk_values == parent_key_values
+            });
+
+            if has_references {
+                return Err(ExecutorError::ConstraintViolation(format!(
+                    "FOREIGN KEY constraint violation: cannot delete or update a parent row when a foreign key constraint exists. The conflict occurred in table \'{}\', constraint \'{}\'.",
+                    table_name,
+                    fk.name.as_deref().unwrap_or(""),
+                )));
+            }
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

@@ -1,4 +1,5 @@
 use crate::column::ColumnSchema;
+use crate::foreign_key::ForeignKeyConstraint;
 
 /// Table schema definition.
 #[derive(Debug, Clone, PartialEq)]
@@ -11,6 +12,8 @@ pub struct TableSchema {
     pub unique_constraints: Vec<Vec<String>>,
     /// Check constraints - each tuple is (constraint_name, check_expression)
     pub check_constraints: Vec<(String, ast::Expression)>,
+    /// Foreign key constraints
+    pub foreign_keys: Vec<ForeignKeyConstraint>,
 }
 
 impl TableSchema {
@@ -21,6 +24,7 @@ impl TableSchema {
             primary_key: None,
             unique_constraints: Vec::new(),
             check_constraints: Vec::new(),
+            foreign_keys: Vec::new(),
         }
     }
 
@@ -32,6 +36,7 @@ impl TableSchema {
             primary_key: Some(primary_key),
             unique_constraints: Vec::new(),
             check_constraints: Vec::new(),
+            foreign_keys: Vec::new(),
         }
     }
 
@@ -47,6 +52,23 @@ impl TableSchema {
             primary_key: None,
             unique_constraints,
             check_constraints: Vec::new(),
+            foreign_keys: Vec::new(),
+        }
+    }
+
+    /// Create a table schema with foreign key constraints
+    pub fn with_foreign_keys(
+        name: String,
+        columns: Vec<ColumnSchema>,
+        foreign_keys: Vec<ForeignKeyConstraint>,
+    ) -> Self {
+        TableSchema {
+            name,
+            columns,
+            primary_key: None,
+            unique_constraints: Vec::new(),
+            check_constraints: Vec::new(),
+            foreign_keys,
         }
     }
 
@@ -63,6 +85,7 @@ impl TableSchema {
             primary_key,
             unique_constraints,
             check_constraints: Vec::new(),
+            foreign_keys: Vec::new(),
         }
     }
 
@@ -73,6 +96,7 @@ impl TableSchema {
         primary_key: Option<Vec<String>>,
         unique_constraints: Vec<Vec<String>>,
         check_constraints: Vec<(String, ast::Expression)>,
+        foreign_keys: Vec<ForeignKeyConstraint>,
     ) -> Self {
         TableSchema {
             name,
@@ -80,6 +104,7 @@ impl TableSchema {
             primary_key,
             unique_constraints,
             check_constraints,
+            foreign_keys,
         }
     }
 

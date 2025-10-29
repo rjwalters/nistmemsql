@@ -37,11 +37,13 @@ impl CreateTableExecutor {
     ///             name: "id".to_string(),
     ///             data_type: DataType::Integer,
     ///             nullable: false,
+    ///             constraints: vec![],
     ///         },
     ///         ColumnDef {
     ///             name: "name".to_string(),
     ///             data_type: DataType::Varchar { max_length: 255 },
-    ///             nullable: true, constraints: vec![],
+    ///             nullable: true,
+    ///             constraints: vec![],
     ///         },
     ///     ],
     /// table_constraints: vec![], };
