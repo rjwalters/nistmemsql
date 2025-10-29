@@ -2,7 +2,7 @@
   "version": "SQL:1999 (from SQL:2016 subset)",
   "source": "sqltest by Elliot Chance",
   "url": "https://github.com/elliotchance/sqltest",
-  "test_count": 109,
+  "test_count": 124,
   "tests": [
     {
       "id": "e011_01_01_01",
@@ -765,6 +765,111 @@
       "feature": "E061-08",
       "category": "Core",
       "sql": "CREATE TABLE TABLE_E061_08_01_01 ( A INT ); SELECT A FROM TABLE_E061_08_01_01 WHERE EXISTS ( SELECT 1 )",
+      "expect_success": true
+    },
+    {
+      "id": "e071_01_01",
+      "feature": "E071-01",
+      "category": "Core",
+      "sql": "SELECT 1 UNION SELECT 1",
+      "expect_success": true
+    },
+    {
+      "id": "e071_01_02",
+      "feature": "E071-01",
+      "category": "Core",
+      "sql": "SELECT 1 UNION SELECT 2",
+      "expect_success": true
+    },
+    {
+      "id": "e071_01_03",
+      "feature": "E071-01",
+      "category": "Core",
+      "sql": "CREATE TABLE E071_T1 (A INT); INSERT INTO E071_T1 VALUES (1), (2), (1); CREATE TABLE E071_T2 (A INT); INSERT INTO E071_T2 VALUES (2), (3); SELECT A FROM E071_T1 UNION SELECT A FROM E071_T2",
+      "expect_success": true
+    },
+    {
+      "id": "e071_02_01",
+      "feature": "E071-02",
+      "category": "Core",
+      "sql": "SELECT 1 UNION ALL SELECT 1",
+      "expect_success": true
+    },
+    {
+      "id": "e071_02_02",
+      "feature": "E071-02",
+      "category": "Core",
+      "sql": "SELECT 1 UNION ALL SELECT 2",
+      "expect_success": true
+    },
+    {
+      "id": "e071_02_03",
+      "feature": "E071-02",
+      "category": "Core",
+      "sql": "CREATE TABLE E071_T3 (A INT); INSERT INTO E071_T3 VALUES (1), (2); CREATE TABLE E071_T4 (A INT); INSERT INTO E071_T4 VALUES (2), (3); SELECT A FROM E071_T3 UNION ALL SELECT A FROM E071_T4",
+      "expect_success": true
+    },
+    {
+      "id": "e071_03_01",
+      "feature": "E071-03",
+      "category": "Core",
+      "sql": "SELECT 1 EXCEPT SELECT 2",
+      "expect_success": true
+    },
+    {
+      "id": "e071_03_02",
+      "feature": "E071-03",
+      "category": "Core",
+      "sql": "SELECT 1 EXCEPT SELECT 1",
+      "expect_success": true
+    },
+    {
+      "id": "e071_03_03",
+      "feature": "E071-03",
+      "category": "Core",
+      "sql": "CREATE TABLE E071_T5 (A INT); INSERT INTO E071_T5 VALUES (1), (2), (1); CREATE TABLE E071_T6 (A INT); INSERT INTO E071_T6 VALUES (2); SELECT A FROM E071_T5 EXCEPT SELECT A FROM E071_T6",
+      "expect_success": true
+    },
+    {
+      "id": "e071_05_01",
+      "feature": "E071-05",
+      "category": "Core",
+      "sql": "SELECT 1 EXCEPT ALL SELECT 2",
+      "expect_success": true
+    },
+    {
+      "id": "e071_05_02",
+      "feature": "E071-05",
+      "category": "Core",
+      "sql": "SELECT 1 EXCEPT ALL SELECT 1",
+      "expect_success": true
+    },
+    {
+      "id": "e071_05_03",
+      "feature": "E071-05",
+      "category": "Core",
+      "sql": "CREATE TABLE E071_T7 (A INT); INSERT INTO E071_T7 VALUES (1), (1), (2); CREATE TABLE E071_T8 (A INT); INSERT INTO E071_T8 VALUES (1); SELECT A FROM E071_T7 EXCEPT ALL SELECT A FROM E071_T8",
+      "expect_success": true
+    },
+    {
+      "id": "e071_06_01",
+      "feature": "E071-06",
+      "category": "Core",
+      "sql": "SELECT 1 INTERSECT SELECT 1",
+      "expect_success": true
+    },
+    {
+      "id": "e071_06_02",
+      "feature": "E071-06",
+      "category": "Core",
+      "sql": "SELECT 1 INTERSECT SELECT 2",
+      "expect_success": true
+    },
+    {
+      "id": "e071_06_03",
+      "feature": "E071-06",
+      "category": "Core",
+      "sql": "CREATE TABLE E071_T9 (A INT); INSERT INTO E071_T9 VALUES (1), (2), (1); CREATE TABLE E071_T10 (A INT); INSERT INTO E071_T10 VALUES (1), (3); SELECT A FROM E071_T9 INTERSECT SELECT A FROM E071_T10",
       "expect_success": true
     }
   ]
