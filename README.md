@@ -144,11 +144,11 @@ This isn't just about databases. It's about understanding what's now possible wi
 
 ### Velocity-Based Progress Tracking
 
-**Core SQL:1999 Compliance**: ~65% complete in 5 days
+**Core SQL:1999 Compliance**: ~70-75% complete in 5 days
 
 **Demonstrated Velocity**:
-- **Days 1-5** (Oct 25-29): 65% complete → **Ahead of schedule!** 🚀
-- **Major Milestone**: Complete constraint enforcement system
+- **Days 1-5** (Oct 25-29): 70-75% complete → **Ahead of schedule!** 🚀
+- **Major Milestones**: Transactions 100% ✅, Constraints 100% ✅, Schema Management ✅
 - **Projected completion**: ~7-8 days total from start
 - **Target date**: November 1-2, 2025
 
@@ -166,19 +166,19 @@ This isn't just about databases. It's about understanding what's now possible wi
 | Aggregates | 100% (7/7) | COUNT, SUM, AVG, MIN, MAX, + DISTINCT, GROUP BY, HAVING (works with JOINs) | ✅ Complete |
 | Window Functions | 100% | ROW_NUMBER, RANK, DENSE_RANK, NTILE, LAG, LEAD, COUNT, SUM, AVG, MIN, MAX OVER() | ✅ Complete |
 | Built-in Functions | 65% | String (40+ functions), Date/Time (15+ functions), Math (20+ functions), CASE, COALESCE, NULLIF, CAST, POSITION | 🟢 Advanced |
-| DDL | 20% (2/10) | CREATE TABLE, DROP TABLE | 🟡 In Progress |
-| Constraints | 100% (5/5 enforced) | NOT NULL, PRIMARY KEY, UNIQUE, CHECK, FOREIGN KEY enforced ✅ (30+ tests) | ✅ Complete |
-| Transactions | 100% (4/4) | BEGIN, COMMIT, ROLLBACK, SAVEPOINT ✅ | 🟢 Advanced |
+| DDL | 40% (4/10) | CREATE TABLE, DROP TABLE, CREATE/DROP/SET SCHEMA, ALTER TABLE (ADD/DROP/MODIFY COLUMN) | 🟢 Advanced |
+| Constraints | 100% (5/5 enforced) | NOT NULL, PRIMARY KEY, UNIQUE, CHECK, FOREIGN KEY enforced ✅ (35+ tests) | ✅ Complete |
+| Transactions | 100% (4/4) | BEGIN, COMMIT, ROLLBACK, SAVEPOINT ✅ (nested transactions) | ✅ Complete |
 | Web Demo Validation | 30% | Automated test infrastructure ✅, Expected results for 19 examples ✅ | 🟡 In Progress |
 | Conformance Tests | 0% | NIST harness + ISO validator needed | 🔴 Day 7-8 |
 
 ### Why 7-8 Days Is Achievable
 
 **Data-Driven Projection**:
-- 4 days elapsed → 60% complete
-- Average velocity: **~15% per day**
-- 4 ÷ 0.60 = **~6.7 days total projected**
-- Remaining: **~3 days**
+- 5 days elapsed → 70-75% complete
+- Average velocity: **~14-15% per day**
+- Remaining: **~2-3 days**
+- On track for 7-8 day completion
 
 **AI-Powered Development Advantages**:
 - Parallel feature implementation via Loom orchestration
@@ -203,8 +203,9 @@ This isn't just about databases. It's about understanding what's now possible wi
 - **Set Operations**: UNION [ALL], INTERSECT [ALL], EXCEPT [ALL]
 - **Aggregates**: COUNT(*), COUNT(col), SUM, AVG, MIN, MAX with NULL handling
 - **Window Functions**: ROW_NUMBER, RANK, DENSE_RANK, NTILE, LAG, LEAD, COUNT/SUM/AVG/MIN/MAX OVER()
-- **DML**: INSERT (single-row, multi-row, INSERT...SELECT), UPDATE, DELETE, CREATE TABLE, DROP TABLE
-- **Transactions**: BEGIN, COMMIT, ROLLBACK, SAVEPOINT ✅
+- **DML**: INSERT (single-row, multi-row, INSERT...SELECT), UPDATE, DELETE
+- **DDL**: CREATE TABLE, DROP TABLE, CREATE/DROP SCHEMA, SET SCHEMA, ALTER TABLE (ADD/DROP/MODIFY COLUMN)
+- **Transactions**: BEGIN, COMMIT, ROLLBACK, SAVEPOINT ✅ (nested transactions with full rollback support)
 
 **Predicates & Operators** ✅
 - **Comparison**: =, <>, <, >, <=, >=
@@ -227,12 +228,12 @@ This isn't just about databases. It's about understanding what's now possible wi
 - **Partial** (string-based): DATE, TIME, TIMESTAMP, NUMERIC(p,s), DECIMAL(p,s)
 - **Three-valued logic**: Proper NULL propagation in all operations
 
-**Constraints** 🟢
+**Constraints** ✅
 - **NOT NULL**: Fully enforced ✅ (6 tests)
 - **PRIMARY KEY**: Fully enforced ✅ (6 tests) - Single & composite keys, duplicate detection
 - **UNIQUE**: Fully enforced ✅ (10 tests) - Correct SQL:1999 NULL semantics
 - **CHECK**: Fully enforced ✅ (9 tests) - Three-valued logic (TRUE/FALSE/NULL)
-- **FOREIGN KEY**: Fully enforced ✅ (FK tests) - Referential integrity, single & composite keys
+- **FOREIGN KEY**: Fully enforced ✅ (10+ tests) - Complete referential integrity, INSERT/UPDATE/DELETE validation, single & composite keys
 
 **Web Demo Validation** 🟡
 - **Test Infrastructure**: Automated test runner for all SQL examples ✅
@@ -273,28 +274,33 @@ This isn't just about databases. It's about understanding what's now possible wi
 - [x] **Code Refactoring** - Modular parser/evaluator structure ✅ (#263, #266)
 - [x] 800+ tests passing (100%) ✅
 
-**Day 5 (Oct 29)** - Remaining Constraints & Web Demo Completion
-- [ ] PRIMARY KEY enforcement
-- [ ] FOREIGN KEY enforcement with referential integrity
-- [ ] UNIQUE constraint enforcement
-- [ ] CHECK constraint enforcement
-- [x] SAVEPOINT support (transaction)
-- [ ] Complete web demo expected results (remaining ~50 examples)
-- [ ] NUMERIC/DECIMAL precision arithmetic (currently string-based)
+**Day 5 (Oct 29)** - ✅ **COMPLETED** - Schema Management, Constraints, & Transactions
+- [x] PRIMARY KEY enforcement ✅
+- [x] FOREIGN KEY enforcement with referential integrity ✅
+- [x] UNIQUE constraint enforcement ✅
+- [x] CHECK constraint enforcement ✅
+- [x] SAVEPOINT support (nested transactions) ✅
+- [x] CREATE/DROP SCHEMA support ✅
+- [x] SET SCHEMA (current schema tracking) ✅
+- [x] ALTER TABLE (ADD/DROP/MODIFY COLUMN) ✅
+- [x] Cross-type arithmetic (Float vs Integer) ✅
+- [x] SELECT * in derived tables ✅
 
-**Day 6 (Oct 30)** - Additional Functions & DDL
-- [ ] Remaining string functions (LOCATE, INSTR, REPLACE, etc.)
+**Day 6 (Oct 30)** - Views & Additional Functions
+- [ ] CREATE VIEW, DROP VIEW
+- [ ] CREATE INDEX (basic B-tree)
+- [ ] Remaining string functions (LOCATE, REPLACE, etc.)
 - [ ] More date/time functions (DATE_ADD, DATE_SUB, DATEDIFF)
 - [ ] Type conversion functions
-- [ ] ALTER TABLE (ADD COLUMN, DROP COLUMN)
-- [ ] CREATE VIEW, DROP VIEW
+- [ ] Complete web demo expected results (remaining ~50 examples)
+- [ ] NUMERIC/DECIMAL precision arithmetic improvements
 
-**Day 7 (Oct 31)** - DDL & Infrastructure
-- [ ] DROP VIEW, DROP INDEX
-- [ ] ALTER TABLE (ADD COLUMN, DROP COLUMN, MODIFY COLUMN)
-- [ ] CREATE VIEW with query storage
-- [ ] CREATE INDEX (basic B-tree)
+**Day 7 (Oct 31)** - Advanced DDL & Optimization
+- [ ] View query expansion and execution
+- [ ] Index usage in query optimization
 - [ ] GRANT/REVOKE basic permissions
+- [ ] Performance profiling and optimization
+- [ ] Additional built-in functions
 
 **Day 8 (Nov 1)** - Conformance Test Harness
 - [ ] NIST SQL Test Suite v6.0 integration (no ODBC/JDBC needed)
