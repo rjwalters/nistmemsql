@@ -6,7 +6,7 @@ mod create_table;
 mod delete;
 mod drop_table;
 pub mod errors;
-mod evaluator;
+pub mod evaluator;
 mod insert;
 mod schema;
 mod select;
