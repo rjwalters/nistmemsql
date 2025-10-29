@@ -2,7 +2,7 @@
   "version": "SQL:1999 (from SQL:2016 subset)",
   "source": "sqltest by Elliot Chance (extended with E021 tests)",
   "url": "https://github.com/elliotchance/sqltest",
-  "test_count": 150,
+  "test_count": 159,
   "tests": [
     {
       "id": "e011_01_01_01",
@@ -1052,6 +1052,69 @@
       "feature": "E021-12",
       "category": "Core",
       "sql": "SELECT 'hello' = 'hello'",
+      "expect_success": true
+    },
+    {
+      "id": "e061_03_01_01",
+      "feature": "E061-03",
+      "category": "Core",
+      "sql": "CREATE TABLE TABLE_E061_03_01_01 ( A INT ); SELECT A FROM TABLE_E061_03_01_01 WHERE A IN ( 1 )",
+      "expect_success": true
+    },
+    {
+      "id": "e061_03_01_02",
+      "feature": "E061-03",
+      "category": "Core",
+      "sql": "CREATE TABLE TABLE_E061_03_01_02 ( A INT ); SELECT A FROM TABLE_E061_03_01_02 WHERE A IN ( 1, 2 )",
+      "expect_success": true
+    },
+    {
+      "id": "e061_03_01_03",
+      "feature": "E061-03",
+      "category": "Core",
+      "sql": "CREATE TABLE TABLE_E061_03_01_03 ( A INT ); SELECT A FROM TABLE_E061_03_01_03 WHERE A NOT IN ( 1 )",
+      "expect_success": true
+    },
+    {
+      "id": "e061_03_01_04",
+      "feature": "E061-03",
+      "category": "Core",
+      "sql": "CREATE TABLE TABLE_E061_03_01_04 ( A INT ); SELECT A FROM TABLE_E061_03_01_04 WHERE A NOT IN ( 1, 2 )",
+      "expect_success": true
+    },
+    {
+      "id": "e061_04_01_01",
+      "feature": "E061-04",
+      "category": "Core",
+      "sql": "CREATE TABLE TABLE_E061_04_01_01 ( A VARCHAR ( 255 ) ); SELECT A FROM TABLE_E061_04_01_01 WHERE A LIKE 'foo'",
+      "expect_success": true
+    },
+    {
+      "id": "e061_04_01_02",
+      "feature": "E061-04",
+      "category": "Core",
+      "sql": "CREATE TABLE TABLE_E061_04_01_02 ( A VARCHAR ( 255 ) ); SELECT A FROM TABLE_E061_04_01_02 WHERE A NOT LIKE 'foo'",
+      "expect_success": true
+    },
+    {
+      "id": "e061_05_01_01",
+      "feature": "E061-05",
+      "category": "Core",
+      "sql": "CREATE TABLE TABLE_E061_05_01_01 ( A VARCHAR ( 255 ) ); SELECT A FROM TABLE_E061_05_01_01 WHERE A LIKE 'foo' ESCAPE 'f'",
+      "expect_success": true
+    },
+    {
+      "id": "e061_05_01_02",
+      "feature": "E061-05",
+      "category": "Core",
+      "sql": "CREATE TABLE TABLE_E061_05_01_02 ( A VARCHAR ( 255 ) ); SELECT A FROM TABLE_E061_05_01_02 WHERE A NOT LIKE 'foo' ESCAPE 'f'",
+      "expect_success": true
+    },
+    {
+      "id": "e061_08_01_01",
+      "feature": "E061-08",
+      "category": "Core",
+      "sql": "CREATE TABLE TABLE_E061_08_01_01 ( A INT ); SELECT A FROM TABLE_E061_08_01_01 WHERE EXISTS ( SELECT 1 )",
       "expect_success": true
     }
   ]
