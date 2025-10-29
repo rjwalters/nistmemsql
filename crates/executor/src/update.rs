@@ -76,8 +76,8 @@ impl UpdateExecutor {
             .get_table(&stmt.table_name)
             .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
 
-        // Step 3: Create expression evaluator
-        let evaluator = ExpressionEvaluator::new(schema);
+        // Step 3: Create expression evaluator with database reference for subquery support
+        let evaluator = ExpressionEvaluator::with_database(schema, database);
 
         // Step 4: Build list of updates (two-phase execution for SQL semantics)
         let mut updates = Vec::new();
