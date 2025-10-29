@@ -160,7 +160,7 @@ fn substitute_window_functions(
                 .transpose()?
                 .map(Box::new);
 
-            let subst_when: Result<Vec<_>, _> = when_clauses
+            let subst_when: Result<Vec<(ast::Expression, ast::Expression)>, crate::ExecutorError> = when_clauses
                 .iter()
                 .map(|(cond, result)| {
                     Ok((

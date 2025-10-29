@@ -163,6 +163,11 @@ impl SqltestRunner {
                     .map_err(|e| format!("Execution error: {:?}", e))?;
                 Ok(true)
             }
+            ast::Statement::AlterTable(alter_stmt) => {
+                executor::AlterTableExecutor::execute(&alter_stmt, db)
+                    .map_err(|e| format!("Execution error: {:?}", e))?;
+                Ok(true)
+            }
             ast::Statement::CreateSchema(create_stmt) => {
                 executor::SchemaExecutor::execute_create_schema(&create_stmt, db)
                     .map_err(|e| format!("Execution error: {:?}", e))?;
@@ -180,7 +185,10 @@ impl SqltestRunner {
             }
             ast::Statement::BeginTransaction(_)
             | ast::Statement::Commit(_)
-            | ast::Statement::Rollback(_) => {
+            | ast::Statement::Rollback(_)
+            | ast::Statement::Savepoint(_)
+            | ast::Statement::RollbackToSavepoint(_)
+            | ast::Statement::ReleaseSavepoint(_) => {
                 // Transactions are no-ops currently
                 Ok(true)
             }

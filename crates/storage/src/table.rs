@@ -111,10 +111,32 @@ impl Table {
     /// Returns number of rows deleted
     pub fn delete_where<F>(&mut self, predicate: F) -> usize
     where
-        F: Fn(&Row) -> bool,
+    F: Fn(&Row) -> bool,
     {
-        let initial_count = self.rows.len();
-        self.rows.retain(|row| !predicate(row));
-        initial_count - self.rows.len()
+    let initial_count = self.rows.len();
+    self.rows.retain(|row| !predicate(row));
+    initial_count - self.rows.len()
+    }
+
+    /// Remove a specific row (used for transaction undo)
+    /// Returns error if row not found
+    pub fn remove_row(&mut self, target_row: &Row) -> Result<(), StorageError> {
+        // Find and remove the first matching row
+        if let Some(pos) = self.rows.iter().position(|row| row == target_row) {
+            self.rows.remove(pos);
+            Ok(())
+        } else {
+            Err(StorageError::RowNotFound)
+        }
+    }
+
+    /// Get mutable reference to rows
+    pub fn rows_mut(&mut self) -> &mut Vec<Row> {
+        &mut self.rows
+    }
+
+    /// Get mutable reference to schema
+    pub fn schema_mut(&mut self) -> &mut catalog::TableSchema {
+        &mut self.schema
     }
 }

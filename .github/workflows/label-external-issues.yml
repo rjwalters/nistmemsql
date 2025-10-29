@@ -12,8 +12,7 @@ jobs:
   label_external:
     runs-on: ubuntu-latest
     steps:
-      - name: Check if author is a collaborator
-        id: check
+      - name: Handle external issue
         if: github.event_name == 'issues'
         uses: actions/github-script@v7
         with:
@@ -28,38 +27,28 @@ jobs:
                 username
               });
               console.log(`${username} is a collaborator`);
-              return { isCollaborator: true };
+              // No action needed for collaborators
             } catch (error) {
               console.log(`${username} is NOT a collaborator`);
-              return { isCollaborator: false };
-            }
+              // Add external label
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: context.issue.number,
+                labels: ['external']
+              });
 
-      - name: Add 'external' label if not a collaborator
-        if: github.event_name == 'issues' && fromJSON(steps.check.outputs.result).isCollaborator == false
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              labels: ['external']
-            });
-
-      - name: Post welcome comment on external issues
-        if: github.event_name == 'issues' && fromJSON(steps.check.outputs.result).isCollaborator == false
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `Thank you for submitting an issue! 🙏
+              // Post welcome comment
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: context.issue.number,
+                body: `Thank you for submitting an issue! 🙏
 
 This issue has been automatically labeled as \`external\` and will be reviewed by the maintainers.
 
 **Note**: External issues require manual triage before being assigned. We appreciate your patience while we review your submission.
 
 For questions or discussions, please use [GitHub Discussions](https://github.com/rjwalters/nistmemsql/discussions).`
-            });
+              });
+            }

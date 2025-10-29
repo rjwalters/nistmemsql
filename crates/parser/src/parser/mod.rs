@@ -3,6 +3,7 @@ use crate::lexer::Lexer;
 use crate::token::Token;
 use std::fmt;
 
+mod alter;
 mod create;
 mod delete;
 mod drop;
@@ -105,6 +106,10 @@ impl Parser {
                     }
                 }
             }
+            Token::Keyword(Keyword::Alter) => {
+                let alter_stmt = self.parse_alter_table_statement()?;
+                Ok(ast::Statement::AlterTable(alter_stmt))
+            }
             Token::Keyword(Keyword::Begin) | Token::Keyword(Keyword::Start) => {
                 let begin_stmt = self.parse_begin_statement()?;
                 Ok(ast::Statement::BeginTransaction(begin_stmt))
@@ -114,8 +119,28 @@ impl Parser {
                 Ok(ast::Statement::Commit(commit_stmt))
             }
             Token::Keyword(Keyword::Rollback) => {
-                let rollback_stmt = self.parse_rollback_statement()?;
-                Ok(ast::Statement::Rollback(rollback_stmt))
+                // Check if this is ROLLBACK TO SAVEPOINT by looking ahead
+                let saved_position = self.position;
+                self.advance(); // consume ROLLBACK
+                if self.peek_keyword(Keyword::To) {
+                    // Reset and parse as ROLLBACK TO SAVEPOINT
+                    self.position = saved_position;
+                    let rollback_to_stmt = self.parse_rollback_to_savepoint_statement()?;
+                    Ok(ast::Statement::RollbackToSavepoint(rollback_to_stmt))
+                } else {
+                    // Reset and parse as regular ROLLBACK
+                    self.position = saved_position;
+                    let rollback_stmt = self.parse_rollback_statement()?;
+                    Ok(ast::Statement::Rollback(rollback_stmt))
+                }
+            }
+            Token::Keyword(Keyword::Savepoint) => {
+                let savepoint_stmt = self.parse_savepoint_statement()?;
+                Ok(ast::Statement::Savepoint(savepoint_stmt))
+            }
+            Token::Keyword(Keyword::Release) => {
+                let release_stmt = self.parse_release_savepoint_statement()?;
+                Ok(ast::Statement::ReleaseSavepoint(release_stmt))
             }
             Token::Keyword(Keyword::Set) => {
                 match self.peek_keyword(Keyword::Schema) {
@@ -147,6 +172,26 @@ impl Parser {
     /// Parse ROLLBACK statement
     pub fn parse_rollback_statement(&mut self) -> Result<ast::RollbackStmt, ParseError> {
         transaction::parse_rollback_statement(self)
+    }
+
+    /// Parse ALTER TABLE statement
+    pub fn parse_alter_table_statement(&mut self) -> Result<ast::AlterTableStmt, ParseError> {
+        alter::parse_alter_table(self)
+    }
+
+    /// Parse SAVEPOINT statement
+    pub fn parse_savepoint_statement(&mut self) -> Result<ast::SavepointStmt, ParseError> {
+        transaction::parse_savepoint_statement(self)
+    }
+
+    /// Parse ROLLBACK TO SAVEPOINT statement
+    pub fn parse_rollback_to_savepoint_statement(&mut self) -> Result<ast::RollbackToSavepointStmt, ParseError> {
+        transaction::parse_rollback_to_savepoint_statement(self)
+    }
+
+    /// Parse RELEASE SAVEPOINT statement
+    pub fn parse_release_savepoint_statement(&mut self) -> Result<ast::ReleaseSavepointStmt, ParseError> {
+        transaction::parse_release_savepoint_statement(self)
     }
 
     /// Parse CREATE SCHEMA statement

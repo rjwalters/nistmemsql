@@ -91,6 +91,15 @@ pub enum Keyword {
     Schema,
     Start,
     Transaction,
+    // ALTER TABLE keywords
+    Add,
+    Column,
+    Constraint,
+    Default,
+    // SAVEPOINT keywords
+    Savepoint,
+    Release,
+    To,
 }
 
 impl fmt::Display for Keyword {
@@ -177,6 +186,13 @@ impl fmt::Display for Keyword {
             Keyword::Schema => "SCHEMA",
             Keyword::Start => "START",
             Keyword::Transaction => "TRANSACTION",
+            Keyword::Add => "ADD",
+            Keyword::Column => "COLUMN",
+            Keyword::Constraint => "CONSTRAINT",
+            Keyword::Default => "DEFAULT",
+            Keyword::Savepoint => "SAVEPOINT",
+            Keyword::Release => "RELEASE",
+            Keyword::To => "TO",
         };
         write!(f, "{}", keyword_str)
     }

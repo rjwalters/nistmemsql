@@ -146,4 +146,67 @@ impl TableSchema {
             })
             .collect()
     }
+
+    /// Add a column to the table schema
+    pub fn add_column(&mut self, column: ColumnSchema) -> Result<(), crate::CatalogError> {
+        if self.get_column(&column.name).is_some() {
+            return Err(crate::CatalogError::ColumnAlreadyExists(column.name));
+        }
+        self.columns.push(column);
+        Ok(())
+    }
+
+    /// Remove a column from the table schema by index
+    pub fn remove_column(&mut self, index: usize) -> Result<(), crate::CatalogError> {
+        if index >= self.columns.len() {
+            return Err(crate::CatalogError::ColumnNotFound("index out of bounds".to_string()));
+        }
+        let removed_column = self.columns.remove(index);
+
+        // Remove from primary key if present
+        if let Some(ref mut pk) = self.primary_key {
+            pk.retain(|col_name| col_name != &removed_column.name);
+            if pk.is_empty() {
+                self.primary_key = None;
+            }
+        }
+
+        // Remove from unique constraints
+        self.unique_constraints = self.unique_constraints.iter()
+            .filter_map(|constraint| {
+                let filtered: Vec<String> = constraint.iter()
+                    .filter(|col_name| *col_name != &removed_column.name)
+                    .cloned()
+                    .collect();
+                if filtered.is_empty() {
+                    None
+                } else {
+                    Some(filtered)
+                }
+            })
+            .collect();
+
+        // TODO: Handle foreign keys and check constraints
+
+        Ok(())
+    }
+
+    /// Check if a column exists
+    pub fn has_column(&self, name: &str) -> bool {
+        self.get_column(name).is_some()
+    }
+
+    /// Check if a column is part of the primary key
+    pub fn is_column_in_primary_key(&self, column_name: &str) -> bool {
+        self.primary_key.as_ref().map_or(false, |pk| pk.contains(&column_name.to_string()))
+    }
+
+    /// Set nullable property for a column by index
+    pub fn set_column_nullable(&mut self, index: usize, nullable: bool) -> Result<(), crate::CatalogError> {
+        if index >= self.columns.len() {
+            return Err(crate::CatalogError::ColumnNotFound("index out of bounds".to_string()));
+        }
+        self.columns[index].set_nullable(nullable);
+        Ok(())
+    }
 }
