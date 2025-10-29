@@ -1,0 +1,83 @@
+name: Tests and Coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  rust-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive  # For third_party/sqltest
+      
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      
+      - name: Run all tests with coverage
+        run: cargo llvm-cov --workspace --lcov --output-path lcov.info
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: lcov.info
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+      
+      - name: Upload coverage HTML
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: target/llvm-cov/html/
+  
+  conformance-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Generate SQL:1999 test manifest
+        run: python3 scripts/extract_sql1999_tests.py
+      
+      - name: Run SQLLogicTest suite
+        run: cargo test sqllogictest --release -- --nocapture
+      
+      - name: Run sqltest conformance suite
+        run: cargo test sqltest_conformance --release -- --nocapture
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: target/sqltest_results.json
+        if: always()
+      
+      - name: Generate conformance report
+        run: |
+          chmod +x scripts/generate_compliance_report.sh
+          ./scripts/generate_compliance_report.sh
+        if: always()
+      
+      - name: Upload conformance report
+        uses: actions/upload-artifact@v4
+        with:
+          name: conformance-report
+          path: docs/SQL1999_CONFORMANCE.md
+        if: always()

@@ -1,9 +1,5 @@
 [alias]
-# Generate an HTML coverage report for the entire workspace under target/coverage/html
-coverage = "llvm-cov --workspace --all-features --html --output-dir target/coverage/html"
-
-# Emit an lcov report that can be uploaded to external services (e.g. Codecov)
-coverage-lcov = "llvm-cov --workspace --all-features --lcov --output-path target/coverage/lcov.info"
-
-# Remove cached coverage instrumentation before re-running coverage
-coverage-clean = "llvm-cov clean --workspace"
+# Coverage commands using cargo-llvm-cov
+coverage = "llvm-cov --workspace --html"
+coverage-lcov = "llvm-cov --workspace --lcov --output-path target/coverage/lcov.info"
+coverage-clean = "llvm-cov clean"
