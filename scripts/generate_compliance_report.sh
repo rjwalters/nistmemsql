@@ -21,11 +21,11 @@ if [ -f "$SQLTEST_RESULTS" ]; then
     echo "" >> "$OUTPUT"
     
     # Extract metrics from JSON using basic shell tools
-    TOTAL=$(grep -o '"total":[0-9]*' "$SQLTEST_RESULTS" | head -1 | cut -d':' -f2)
-    PASSED=$(grep -o '"passed":[0-9]*' "$SQLTEST_RESULTS" | head -1 | cut -d':' -f2)
-    FAILED=$(grep -o '"failed":[0-9]*' "$SQLTEST_RESULTS" | head -1 | cut -d':' -f2)
-    ERRORS=$(grep -o '"errors":[0-9]*' "$SQLTEST_RESULTS" | head -1 | cut -d':' -f2)
-    PASS_RATE=$(grep -o '"pass_rate":[0-9.]*' "$SQLTEST_RESULTS" | head -1 | cut -d':' -f2)
+    TOTAL=$(grep -o '"total":[[:space:]]*[0-9]*' "$SQLTEST_RESULTS" | sed 's/"total":[[:space:]]*//g')
+    PASSED=$(grep -o '"passed":[[:space:]]*[0-9]*' "$SQLTEST_RESULTS" | sed 's/"passed":[[:space:]]*//g')
+    FAILED=$(grep -o '"failed":[[:space:]]*[0-9]*' "$SQLTEST_RESULTS" | sed 's/"failed":[[:space:]]*//g')
+    ERRORS=$(grep -o '"errors":[[:space:]]*[0-9]*' "$SQLTEST_RESULTS" | sed 's/"errors":[[:space:]]*//g')
+    PASS_RATE=$(grep -o '"pass_rate":[[:space:]]*[0-9.]*' "$SQLTEST_RESULTS" | sed 's/"pass_rate":[[:space:]]*//g')
     
     echo "| Metric | Value |" >> "$OUTPUT"
     echo "|--------|-------|" >> "$OUTPUT"
