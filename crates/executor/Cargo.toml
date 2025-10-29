@@ -20,3 +20,7 @@ path = "tests/foreign_key_tests.rs"
 [[test]]
 name = "having_subquery_tests"
 path = "tests/having_subquery_tests.rs"
+
+[[test]]
+name = "delete_tests"
+path = "tests/delete_tests.rs"

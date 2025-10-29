@@ -75,50 +75,55 @@ impl DeleteExecutor {
             return Err(ExecutorError::TableNotFound(stmt.table_name.clone()));
         }
 
-        let table = database
+        // Step 1: Get schema (clone to avoid borrow issues)
+        let schema = database
+            .catalog
             .get_table(&stmt.table_name)
-            .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
+            .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?
+            .clone();
 
-        // Clone schema to avoid borrow issues
-        let schema = table.schema.clone();
-        let evaluator = ExpressionEvaluator::new(&schema);
+        // Step 2: Evaluate WHERE clause and collect rows to delete (two-phase execution)
+        let rows_to_delete: Vec<storage::Row> = {
+            let table = database
+                .get_table(&stmt.table_name)
+                .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
 
-        // Find rows to delete
-        let rows_to_delete: Vec<_> = table
-            .scan()
-            .iter()
-            .filter(|row| {
-                if let Some(ref where_expr) = stmt.where_clause {
-                    match evaluator.eval(where_expr, row) {
-                        Ok(types::SqlValue::Boolean(true)) => true,
-                        _ => false,
+            // Create evaluator with database reference for subquery support
+            let evaluator = ExpressionEvaluator::with_database(&schema, database);
+
+            table
+                .scan()
+                .iter()
+                .filter(|row| {
+                    if let Some(ref where_expr) = stmt.where_clause {
+                        match evaluator.eval(where_expr, row) {
+                            Ok(types::SqlValue::Boolean(true)) => true,
+                            _ => false,
+                        }
+                    } else {
+                        true
                     }
-                } else {
-                    true
-                }
-            })
-            .cloned()
-            .collect();
+                })
+                .cloned()
+                .collect()
+        }; // evaluator dropped here, releasing immutable borrow
 
-        // Check referential integrity for each row to be deleted
+        // Step 3: Check referential integrity for each row to be deleted
         for row in &rows_to_delete {
             check_no_child_references(database, &stmt.table_name, row)?;
         }
 
+        // Step 4: Actually delete the rows (now we can borrow mutably)
         let table_mut = database
             .get_table_mut(&stmt.table_name)
             .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
 
-        // Delete rows where WHERE clause evaluates to TRUE
+        // Delete rows by matching against our collected list
         let deleted_count = table_mut.delete_where(|row| {
-            if let Some(ref where_expr) = stmt.where_clause {
-                match evaluator.eval(where_expr, row) {
-                    Ok(types::SqlValue::Boolean(true)) => true, // Delete this row
-                    _ => false,
-                }
-            } else {
-                true
-            }
+            rows_to_delete.iter().any(|to_delete| {
+                // Compare all column values
+                row.values == to_delete.values
+            })
         });
 
         Ok(deleted_count)
