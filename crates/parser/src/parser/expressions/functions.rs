@@ -3,117 +3,144 @@ use super::*;
 impl Parser {
     /// Parse function call expressions (including window functions)
     pub(super) fn parse_function_call(&mut self) -> Result<Option<ast::Expression>, ParseError> {
-        match self.peek() {
+        // Try to match either an identifier or specific keywords that can be function names
+        let function_name = match self.peek() {
             Token::Identifier(id) => {
-                let first = id.clone();
+                let name = id.clone();
                 self.advance();
+                // Check if followed by '('
+                if !matches!(self.peek(), Token::LParen) {
+                    // Not a function call - rewind
+                    self.position -= 1;
+                    return Ok(None);
+                }
+                name
+            }
+            // Allow LEFT and RIGHT keywords as function names
+            // These are reserved for LEFT JOIN and RIGHT JOIN but can also be functions
+            Token::Keyword(Keyword::Left) | Token::Keyword(Keyword::Right) => {
+                // Peek ahead to see if this is followed by '('
+                // Don't consume the keyword unless we're sure it's a function
+                let keyword_name = match self.peek() {
+                    Token::Keyword(Keyword::Left) => "LEFT",
+                    Token::Keyword(Keyword::Right) => "RIGHT",
+                    _ => unreachable!(),
+                };
 
-                // Check for function call (identifier followed by '(')
-                if matches!(self.peek(), Token::LParen) {
-                    self.advance(); // consume '('
-
-                    // Special case for POSITION(substring IN string)
-                    // SQL:1999 standard syntax
-                    if first.to_uppercase() == "POSITION" {
-                        // Parse substring at primary level (literals, identifiers, function calls)
-                        // to avoid IN operator consumption at comparison level
-                        let substring = self.parse_primary_expression()?;
-
-                        // Expect IN keyword
-                        self.expect_keyword(Keyword::In)?;
-
-                        // Parse string expression at primary level
-                        let string = self.parse_primary_expression()?;
-
-                        // Expect closing parenthesis
-                        self.expect_token(Token::RParen)?;
-
-                        return Ok(Some(ast::Expression::Position {
-                            substring: Box::new(substring),
-                            string: Box::new(string),
-                        }));
-                    }
-
-                    // Check if this is an aggregate function
-                    let function_name_upper = first.to_uppercase();
-                    let is_aggregate = matches!(
-                        function_name_upper.as_str(),
-                        "COUNT" | "SUM" | "AVG" | "MIN" | "MAX"
-                    );
-
-                    // Parse optional DISTINCT for aggregate functions
-                    let distinct = if is_aggregate && matches!(self.peek(), Token::Keyword(Keyword::Distinct)) {
-                        self.advance(); // consume DISTINCT
-                        true
+                // Look ahead to next token
+                if self.position + 1 < self.tokens.len() {
+                    if matches!(self.tokens[self.position + 1], Token::LParen) {
+                        // Yes, it's a function call
+                        self.advance(); // consume keyword
+                        keyword_name.to_string()
                     } else {
-                        false
-                    };
-
-                    // Parse function arguments
-                    let mut args = Vec::new();
-
-                    // Check for empty argument list or '*'
-                    if matches!(self.peek(), Token::RParen) {
-                        // No arguments: func()
-                        self.advance();
-                    } else if matches!(self.peek(), Token::Symbol('*')) {
-                        // Special case for COUNT(*)
-                        self.advance(); // consume '*'
-                        self.expect_token(Token::RParen)?;
-                        // Represent * as a special wildcard expression
-                        args.push(ast::Expression::ColumnRef {
-                            table: None,
-                            column: "*".to_string(),
-                        });
-                    } else {
-                        // Parse comma-separated argument list
-                        loop {
-                            let arg = self.parse_expression()?;
-                            args.push(arg);
-
-                            if matches!(self.peek(), Token::Comma) {
-                                self.advance();
-                            } else {
-                                break;
-                            }
-                        }
-
-                        self.expect_token(Token::RParen)?;
-                    }
-
-                    // Check for OVER clause (window function)
-                    if matches!(self.peek(), Token::Keyword(Keyword::Over)) {
-                        self.advance(); // consume OVER
-
-                        // Parse window specification
-                        let window_spec = self.parse_window_spec()?;
-
-                        // Determine window function type based on function name
-                        let function_spec = self.classify_window_function(&first, args);
-
-                        return Ok(Some(ast::Expression::WindowFunction {
-                            function: function_spec,
-                            over: window_spec,
-                        }));
-                    }
-
-                    // Return appropriate expression type
-                    if is_aggregate {
-                        Ok(Some(ast::Expression::AggregateFunction {
-                            name: first,
-                            distinct,
-                            args,
-                        }))
-                    } else {
-                        Ok(Some(ast::Expression::Function { name: first, args }))
+                        // Not a function call, don't consume
+                        return Ok(None);
                     }
                 } else {
-                    // Not a function call, rewind
-                    self.position -= 1;
-                    Ok(None)
+                    return Ok(None);
                 }
             }
-            _ => Ok(None),
+            _ => return Ok(None),
+        };
+
+        self.advance(); // consume '('
+        let first = function_name;
+
+        // Special case for POSITION(substring IN string)
+        // SQL:1999 standard syntax
+        if first.to_uppercase() == "POSITION" {
+            // Parse substring at primary level (literals, identifiers, function calls)
+            // to avoid IN operator consumption at comparison level
+            let substring = self.parse_primary_expression()?;
+
+            // Expect IN keyword
+            self.expect_keyword(Keyword::In)?;
+
+            // Parse string expression at primary level
+            let string = self.parse_primary_expression()?;
+
+            // Expect closing parenthesis
+            self.expect_token(Token::RParen)?;
+
+            return Ok(Some(ast::Expression::Position {
+                substring: Box::new(substring),
+                string: Box::new(string),
+            }));
+        }
+
+        // Check if this is an aggregate function
+        let function_name_upper = first.to_uppercase();
+        let is_aggregate = matches!(
+            function_name_upper.as_str(),
+            "COUNT" | "SUM" | "AVG" | "MIN" | "MAX"
+        );
+
+        // Parse optional DISTINCT for aggregate functions
+        let distinct = if is_aggregate && matches!(self.peek(), Token::Keyword(Keyword::Distinct)) {
+            self.advance(); // consume DISTINCT
+            true
+        } else {
+            false
+        };
+
+        // Parse function arguments
+        let mut args = Vec::new();
+
+        // Check for empty argument list or '*'
+        if matches!(self.peek(), Token::RParen) {
+            // No arguments: func()
+            self.advance();
+        } else if matches!(self.peek(), Token::Symbol('*')) {
+            // Special case for COUNT(*)
+            self.advance(); // consume '*'
+            self.expect_token(Token::RParen)?;
+            // Represent * as a special wildcard expression
+            args.push(ast::Expression::ColumnRef {
+                table: None,
+                column: "*".to_string(),
+            });
+        } else {
+            // Parse comma-separated argument list
+            loop {
+                let arg = self.parse_expression()?;
+                args.push(arg);
+
+                if matches!(self.peek(), Token::Comma) {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+
+            self.expect_token(Token::RParen)?;
+        }
+
+        // Check for OVER clause (window function)
+        if matches!(self.peek(), Token::Keyword(Keyword::Over)) {
+            self.advance(); // consume OVER
+
+            // Parse window specification
+            let window_spec = self.parse_window_spec()?;
+
+            // Determine window function type based on function name
+            let function_spec = self.classify_window_function(&first, args);
+
+            return Ok(Some(ast::Expression::WindowFunction {
+                function: function_spec,
+                over: window_spec,
+            }));
+        }
+
+        // Return appropriate expression type
+        if is_aggregate {
+            Ok(Some(ast::Expression::AggregateFunction {
+                name: first,
+                distinct,
+                args,
+            }))
+        } else {
+            Ok(Some(ast::Expression::Function { name: first, args }))
         }
     }
 
