@@ -177,6 +177,7 @@ impl Lexer {
             "LIKE" => Token::Keyword(Keyword::Like),
             "EXISTS" => Token::Keyword(Keyword::Exists),
             "IF" => Token::Keyword(Keyword::If),
+            "IS" => Token::Keyword(Keyword::Is),
             "ALL" => Token::Keyword(Keyword::All),
             "ANY" => Token::Keyword(Keyword::Any),
             "SOME" => Token::Keyword(Keyword::Some),

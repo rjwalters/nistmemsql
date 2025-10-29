@@ -2,6 +2,7 @@
 
 use crate::errors::ExecutorError;
 use super::super::core::ExpressionEvaluator;
+use types::SqlValue;
 
 impl<'a> ExpressionEvaluator<'a> {
     /// Evaluate an expression in the context of a row
@@ -90,9 +91,12 @@ impl<'a> ExpressionEvaluator<'a> {
                 "Unary operators not yet implemented".to_string(),
             )),
 
-            ast::Expression::IsNull { .. } => Err(ExecutorError::UnsupportedExpression(
-                "IS NULL should be handled as BinaryOp".to_string(),
-            )),
+            ast::Expression::IsNull { expr, negated } => {
+                let value = self.eval(expr, row)?;
+                let is_null = matches!(value, SqlValue::Null);
+                let result = if *negated { !is_null } else { is_null };
+                Ok(SqlValue::Boolean(result))
+            }
 
             ast::Expression::WindowFunction { .. } => Err(ExecutorError::UnsupportedExpression(
                 "Window functions should be evaluated separately".to_string(),

@@ -40,6 +40,9 @@ pub(crate) fn to_f64(value: &types::SqlValue) -> Result<f64, ExecutorError> {
         types::SqlValue::Float(n) => Ok(*n as f64),
         types::SqlValue::Real(n) => Ok(*n as f64),
         types::SqlValue::Double(n) => Ok(*n),
+        types::SqlValue::Integer(n) => Ok(*n as f64),
+        types::SqlValue::Smallint(n) => Ok(*n as f64),
+        types::SqlValue::Bigint(n) => Ok(*n as f64),
         _ => Err(ExecutorError::TypeMismatch {
             left: value.clone(),
             op: "numeric_conversion".to_string(),

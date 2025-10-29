@@ -166,6 +166,70 @@ impl<'a> ExpressionEvaluator<'a> {
                 }
             }
 
+            // Mixed Float/Integer arithmetic - promote Integer to Float for all operations
+            (left_val @ (Float(_) | Real(_) | Double(_)), op @ (Plus | Minus | Multiply | Divide), right_val @ (Integer(_) | Smallint(_) | Bigint(_))) => {
+                let left_f64 = to_f64(left_val)?;
+                let right_f64 = to_f64(right_val)?;
+                match op {
+                    Plus => Ok(Float((left_f64 + right_f64) as f32)),
+                    Minus => Ok(Float((left_f64 - right_f64) as f32)),
+                    Multiply => Ok(Float((left_f64 * right_f64) as f32)),
+                    Divide => {
+                        if right_f64 == 0.0 {
+                            Err(ExecutorError::DivisionByZero)
+                        } else {
+                            Ok(Float((left_f64 / right_f64) as f32))
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            (left_val @ (Integer(_) | Smallint(_) | Bigint(_)), op @ (Plus | Minus | Multiply | Divide), right_val @ (Float(_) | Real(_) | Double(_))) => {
+                let left_f64 = to_f64(left_val)?;
+                let right_f64 = to_f64(right_val)?;
+                match op {
+                    Plus => Ok(Float((left_f64 + right_f64) as f32)),
+                    Minus => Ok(Float((left_f64 - right_f64) as f32)),
+                    Multiply => Ok(Float((left_f64 * right_f64) as f32)),
+                    Divide => {
+                        if right_f64 == 0.0 {
+                            Err(ExecutorError::DivisionByZero)
+                        } else {
+                            Ok(Float((left_f64 / right_f64) as f32))
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+
+            // Mixed Float/Integer comparisons - promote Integer to Float for comparison
+            (left_val @ (Float(_) | Real(_) | Double(_)), op @ (Equal | NotEqual | LessThan | LessThanOrEqual | GreaterThan | GreaterThanOrEqual), right_val @ (Integer(_) | Smallint(_) | Bigint(_))) => {
+                let left_f64 = to_f64(left_val)?;
+                let right_f64 = to_f64(right_val)?;
+                match op {
+                    Equal => Ok(Boolean(left_f64 == right_f64)),
+                    NotEqual => Ok(Boolean(left_f64 != right_f64)),
+                    LessThan => Ok(Boolean(left_f64 < right_f64)),
+                    LessThanOrEqual => Ok(Boolean(left_f64 <= right_f64)),
+                    GreaterThan => Ok(Boolean(left_f64 > right_f64)),
+                    GreaterThanOrEqual => Ok(Boolean(left_f64 >= right_f64)),
+                    _ => unreachable!(),
+                }
+            }
+            (left_val @ (Integer(_) | Smallint(_) | Bigint(_)), op @ (Equal | NotEqual | LessThan | LessThanOrEqual | GreaterThan | GreaterThanOrEqual), right_val @ (Float(_) | Real(_) | Double(_))) => {
+                let left_f64 = to_f64(left_val)?;
+                let right_f64 = to_f64(right_val)?;
+                match op {
+                    Equal => Ok(Boolean(left_f64 == right_f64)),
+                    NotEqual => Ok(Boolean(left_f64 != right_f64)),
+                    LessThan => Ok(Boolean(left_f64 < right_f64)),
+                    LessThanOrEqual => Ok(Boolean(left_f64 <= right_f64)),
+                    GreaterThan => Ok(Boolean(left_f64 > right_f64)),
+                    GreaterThanOrEqual => Ok(Boolean(left_f64 >= right_f64)),
+                    _ => unreachable!(),
+                }
+            }
+
             // Type mismatch
             _ => Err(ExecutorError::TypeMismatch {
                 left: left.clone(),

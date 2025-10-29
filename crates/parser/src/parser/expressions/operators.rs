@@ -264,6 +264,27 @@ impl Parser {
             left = ast::Expression::BinaryOp { op, left: Box::new(left), right: Box::new(right) };
         }
 
+        // Check for IS NULL / IS NOT NULL
+        if self.peek_keyword(Keyword::Is) {
+            self.consume_keyword(Keyword::Is)?;
+
+            // Check for NOT
+            let negated = if self.peek_keyword(Keyword::Not) {
+                self.consume_keyword(Keyword::Not)?;
+                true
+            } else {
+                false
+            };
+
+            // Expect NULL
+            self.expect_keyword(Keyword::Null)?;
+
+            left = ast::Expression::IsNull {
+                expr: Box::new(left),
+                negated,
+            };
+        }
+
         Ok(left)
     }
 
