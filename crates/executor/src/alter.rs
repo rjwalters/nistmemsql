@@ -3,7 +3,7 @@
 use crate::errors::ExecutorError;
 use ast::*;
 use catalog::ColumnSchema;
-use storage::{Database, Table};
+use storage::Database;
 use types::SqlValue;
 
 /// Executor for ALTER TABLE statements
@@ -40,7 +40,7 @@ impl AlterTableExecutor {
         table.schema_mut().add_column(new_column)?;
 
         // Add default value (or NULL) to all existing rows
-        let default_value = if let Some(default_constraint) = stmt.column_def.constraints.iter()
+        let default_value = if let Some(_default_constraint) = stmt.column_def.constraints.iter()
             .find(|c| matches!(c, ColumnConstraint::Check(_))) {
             // TODO: Handle default values properly
             SqlValue::Null
@@ -81,7 +81,7 @@ impl AlterTableExecutor {
 
         // Remove column data from all rows
         for row in table.rows_mut() {
-            row.remove_value(col_index);
+            let _ = row.remove_value(col_index);
         }
 
         Ok(format!("Column '{}' dropped from table '{}'", stmt.column_name, stmt.table_name))
@@ -135,13 +135,13 @@ impl AlterTableExecutor {
     }
 
     /// Execute ADD CONSTRAINT
-    fn execute_add_constraint(stmt: &AddConstraintStmt, database: &mut Database) -> Result<String, ExecutorError> {
+    fn execute_add_constraint(stmt: &AddConstraintStmt, _database: &mut Database) -> Result<String, ExecutorError> {
         // TODO: Implement ADD CONSTRAINT
         Ok(format!("Constraint added to table '{}'", stmt.table_name))
     }
 
     /// Execute DROP CONSTRAINT
-    fn execute_drop_constraint(stmt: &DropConstraintStmt, database: &mut Database) -> Result<String, ExecutorError> {
+    fn execute_drop_constraint(stmt: &DropConstraintStmt, _database: &mut Database) -> Result<String, ExecutorError> {
         // TODO: Implement DROP CONSTRAINT
         Ok(format!("Constraint '{}' dropped from table '{}'", stmt.constraint_name, stmt.table_name))
     }

@@ -80,7 +80,6 @@ impl DeleteExecutor {
             .catalog
             .get_table(&stmt.table_name)
             .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?
-            .schema
             .clone();
 
         // Step 2: Evaluate WHERE clause and collect rows to delete (two-phase execution)

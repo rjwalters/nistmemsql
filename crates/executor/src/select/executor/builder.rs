@@ -4,8 +4,8 @@
 /// Executes SELECT queries
 pub struct SelectExecutor<'a> {
     pub(super) database: &'a storage::Database,
-    pub(super) outer_row: Option<&'a storage::Row>,
-    pub(super) outer_schema: Option<&'a catalog::TableSchema>,
+    pub(super) _outer_row: Option<&'a storage::Row>,
+    pub(super) _outer_schema: Option<&'a catalog::TableSchema>,
 }
 
 impl<'a> SelectExecutor<'a> {
@@ -13,8 +13,8 @@ impl<'a> SelectExecutor<'a> {
     pub fn new(database: &'a storage::Database) -> Self {
         SelectExecutor {
             database,
-            outer_row: None,
-            outer_schema: None,
+            _outer_row: None,
+            _outer_schema: None,
         }
     }
 
@@ -26,8 +26,8 @@ impl<'a> SelectExecutor<'a> {
     ) -> Self {
         SelectExecutor {
             database,
-            outer_row: Some(outer_row),
-            outer_schema: Some(outer_schema),
+            _outer_row: Some(outer_row),
+            _outer_schema: Some(outer_schema),
         }
     }
 }

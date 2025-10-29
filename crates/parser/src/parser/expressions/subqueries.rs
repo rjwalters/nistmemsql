@@ -3,6 +3,7 @@ use super::*;
 impl Parser {
     /// Parse a subquery: (SELECT ...)
     /// Used for scalar subqueries and IN operator
+    #[allow(dead_code)]
     pub(super) fn parse_subquery(&mut self) -> Result<ast::SelectStmt, ParseError> {
         // Expect opening paren
         self.expect_token(Token::LParen)?;

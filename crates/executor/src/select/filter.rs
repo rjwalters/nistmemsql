@@ -44,6 +44,7 @@ pub(super) fn apply_where_filter_combined(
 ///
 /// Same as apply_where_filter but specifically for ExpressionEvaluator.
 /// Used in aggregation queries.
+#[allow(dead_code)]
 pub(super) fn apply_where_filter_basic(
     rows: Vec<storage::Row>,
     where_expr: Option<&ast::Expression>,

@@ -8,7 +8,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
     pub(super) fn eval_scalar_subquery(
         &self,
         subquery: &ast::SelectStmt,
-        row: &storage::Row,
+        _row: &storage::Row,
     ) -> Result<types::SqlValue, ExecutorError> {
         let database = self.database.ok_or(ExecutorError::UnsupportedFeature(
             "Subquery execution requires database reference".to_string(),
@@ -55,7 +55,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         &self,
         subquery: &ast::SelectStmt,
         negated: bool,
-        row: &storage::Row,
+        _row: &storage::Row,
     ) -> Result<types::SqlValue, ExecutorError> {
         let database = self.database.ok_or(ExecutorError::UnsupportedFeature(
             "EXISTS requires database reference".to_string(),

@@ -18,7 +18,7 @@ use types::SqlValue;
 #[derive(Debug, Clone)]
 struct WindowFunctionInfo {
     /// Index in the SELECT list
-    select_index: usize,
+    _select_index: usize,
     /// The window function specification
     function_spec: WindowFunctionSpec,
     /// The OVER clause specification
@@ -223,7 +223,7 @@ fn collect_from_expression(
             // Only handle aggregate window functions for now
             if let WindowFunctionSpec::Aggregate { .. } = function {
                 window_functions.push(WindowFunctionInfo {
-                    select_index,
+                    _select_index: select_index,
                     function_spec: function.clone(),
                     window_spec: over.clone(),
                 });
