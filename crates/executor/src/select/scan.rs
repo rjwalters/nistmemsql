@@ -110,12 +110,22 @@ where
     let mut column_names = Vec::new();
     let mut column_types = Vec::new();
 
-    for (i, item) in query.select_list.iter().enumerate() {
+    let mut col_index = 0;
+    for item in &query.select_list {
         match item {
             ast::SelectItem::Wildcard => {
-                return Err(ExecutorError::UnsupportedFeature(
-                    "SELECT * not yet supported in derived tables".to_string(),
-                ));
+                // For SELECT *, expand to all columns from the result rows
+                // Since we executed the subquery, the rows tell us how many columns there are
+                if let Some(first_row) = rows.first() {
+                    for (j, value) in first_row.values.iter().enumerate() {
+                        let col_name = format!("column{}", col_index + j + 1);
+                        column_names.push(col_name);
+                        column_types.push(value.get_type());
+                    }
+                    col_index += first_row.values.len();
+                } else {
+                    // No rows, no columns from wildcard
+                }
             }
             ast::SelectItem::Expression {
                 expr: _,
@@ -125,14 +135,14 @@ where
                 let col_name = if let Some(a) = col_alias {
                     a.clone()
                 } else {
-                    format!("column{}", i + 1)
+                    format!("column{}", col_index + 1)
                 };
                 column_names.push(col_name);
 
                 // Infer type from first row if available
                 let col_type = if let Some(first_row) = rows.first() {
-                    if i < first_row.values.len() {
-                        first_row.values[i].get_type()
+                    if col_index < first_row.values.len() {
+                        first_row.values[col_index].get_type()
                     } else {
                         types::DataType::Null
                     }
@@ -140,6 +150,7 @@ where
                     types::DataType::Null
                 };
                 column_types.push(col_type);
+                col_index += 1;
             }
         }
     }
