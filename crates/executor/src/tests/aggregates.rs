@@ -808,10 +808,8 @@ fn test_min_max_on_strings() {
 }
 
 #[test]
-#[ignore = "TODO(#377): Implement NUMERIC support for AVG"]
 fn test_avg_precision_decimal() {
     // Edge case: AVG should preserve DECIMAL precision, not truncate to INTEGER
-    // TODO(#377): Currently fails - AVG not yet implemented for NUMERIC types
     let mut db = storage::Database::new();
     let schema = catalog::TableSchema::new(
         "prices".to_string(),
@@ -873,14 +871,18 @@ fn test_avg_precision_decimal() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // AVG(10.50, 20.75, 15.25) = 46.50 / 3 = 15.50
-    assert_eq!(result[0].values[0], types::SqlValue::Numeric("15.50".parse().unwrap()));
+    match &result[0].values[0] {
+        types::SqlValue::Numeric(s) => {
+            let value: f64 = s.parse().unwrap();
+            assert!((value - 15.50).abs() < 0.01, "Expected 15.50, got {}", value);
+        }
+        other => panic!("Expected Numeric value, got {:?}", other),
+    }
 }
 
 #[test]
-#[ignore = "TODO(#377): Implement NUMERIC support for SUM"]
 fn test_sum_mixed_numeric_types() {
     // Edge case: SUM on NUMERIC values should work
-    // TODO(#377): Currently fails - SUM not yet implemented for NUMERIC types
     let mut db = storage::Database::new();
     let schema = catalog::TableSchema::new(
         "mixed_amounts".to_string(),

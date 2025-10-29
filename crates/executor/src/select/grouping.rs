@@ -5,8 +5,8 @@ use std::collections::HashSet;
 #[derive(Debug, Clone)]
 pub(super) enum AggregateAccumulator {
     Count { count: i64, distinct: bool, seen: HashSet<types::SqlValue> },
-    Sum { sum: i64, distinct: bool, seen: HashSet<types::SqlValue> },
-    Avg { sum: i64, count: i64, distinct: bool, seen: HashSet<types::SqlValue> },
+    Sum { sum: types::SqlValue, distinct: bool, seen: HashSet<types::SqlValue> },
+    Avg { sum: types::SqlValue, count: i64, distinct: bool, seen: HashSet<types::SqlValue> },
     Min { value: Option<types::SqlValue>, distinct: bool, seen: HashSet<types::SqlValue> },
     Max { value: Option<types::SqlValue>, distinct: bool, seen: HashSet<types::SqlValue> },
 }
@@ -20,12 +20,12 @@ impl AggregateAccumulator {
                 seen: HashSet::new()
             }),
             "SUM" => Ok(AggregateAccumulator::Sum {
-                sum: 0,
+                sum: types::SqlValue::Integer(0),
                 distinct,
                 seen: HashSet::new()
             }),
             "AVG" => Ok(AggregateAccumulator::Avg {
-                sum: 0,
+                sum: types::SqlValue::Integer(0),
                 count: 0,
                 distinct,
                 seen: HashSet::new()
@@ -65,37 +65,37 @@ impl AggregateAccumulator {
                 }
             }
 
-            // SUM - sums integer values, ignores NULLs
+            // SUM - sums numeric values (Integer or Numeric), ignores NULLs
             AggregateAccumulator::Sum { ref mut sum, distinct, ref mut seen } => {
                 match value {
                     types::SqlValue::Null => {} // Skip NULL
-                    types::SqlValue::Integer(val) => {
+                    types::SqlValue::Integer(_) | types::SqlValue::Numeric(_) => {
                         if *distinct {
                             // Only sum if we haven't seen this value before
                             if seen.insert(value.clone()) {
-                                *sum += val;
+                                *sum = add_sql_values(sum, value);
                             }
                         } else {
-                            *sum += val;
+                            *sum = add_sql_values(sum, value);
                         }
                     }
                     _ => {} // Type mismatch - ignore
                 }
             }
 
-            // AVG - computes average of integer values, ignores NULLs
+            // AVG - computes average of numeric values (Integer or Numeric), ignores NULLs
             AggregateAccumulator::Avg { ref mut sum, ref mut count, distinct, ref mut seen } => {
                 match value {
                     types::SqlValue::Null => {} // Skip NULL
-                    types::SqlValue::Integer(val) => {
+                    types::SqlValue::Integer(_) | types::SqlValue::Numeric(_) => {
                         if *distinct {
                             // Only include if we haven't seen this value before
                             if seen.insert(value.clone()) {
-                                *sum += val;
+                                *sum = add_sql_values(sum, value);
                                 *count += 1;
                             }
                         } else {
-                            *sum += val;
+                            *sum = add_sql_values(sum, value);
                             *count += 1;
                         }
                     }
@@ -160,17 +160,63 @@ impl AggregateAccumulator {
     pub(super) fn finalize(&self) -> types::SqlValue {
         match self {
             AggregateAccumulator::Count { count, .. } => types::SqlValue::Integer(*count),
-            AggregateAccumulator::Sum { sum, .. } => types::SqlValue::Integer(*sum),
+            AggregateAccumulator::Sum { sum, .. } => sum.clone(),
             AggregateAccumulator::Avg { sum, count, .. } => {
                 if *count == 0 {
                     types::SqlValue::Null
                 } else {
-                    types::SqlValue::Integer(sum / count)
+                    divide_sql_value(sum, *count)
                 }
             }
             AggregateAccumulator::Min { value, .. } => value.clone().unwrap_or(types::SqlValue::Null),
             AggregateAccumulator::Max { value, .. } => value.clone().unwrap_or(types::SqlValue::Null),
         }
+    }
+}
+
+/// Add two SqlValues together, handling Integer and Numeric types with type coercion
+fn add_sql_values(a: &types::SqlValue, b: &types::SqlValue) -> types::SqlValue {
+    match (a, b) {
+        // Integer + Integer => Integer
+        (types::SqlValue::Integer(x), types::SqlValue::Integer(y)) => {
+            types::SqlValue::Integer(x + y)
+        }
+        // Integer + Numeric => Numeric (promote Integer to Numeric)
+        (types::SqlValue::Integer(x), types::SqlValue::Numeric(y)) => {
+            let x_f64 = *x as f64;
+            let y_f64 = y.parse::<f64>().unwrap_or(0.0);
+            types::SqlValue::Numeric((x_f64 + y_f64).to_string())
+        }
+        // Numeric + Integer => Numeric (promote Integer to Numeric)
+        (types::SqlValue::Numeric(x), types::SqlValue::Integer(y)) => {
+            let x_f64 = x.parse::<f64>().unwrap_or(0.0);
+            let y_f64 = *y as f64;
+            types::SqlValue::Numeric((x_f64 + y_f64).to_string())
+        }
+        // Numeric + Numeric => Numeric
+        (types::SqlValue::Numeric(x), types::SqlValue::Numeric(y)) => {
+            let x_f64 = x.parse::<f64>().unwrap_or(0.0);
+            let y_f64 = y.parse::<f64>().unwrap_or(0.0);
+            types::SqlValue::Numeric((x_f64 + y_f64).to_string())
+        }
+        // Default: return first value unchanged
+        _ => a.clone(),
+    }
+}
+
+/// Divide a SqlValue by an integer count, handling Integer and Numeric types
+fn divide_sql_value(value: &types::SqlValue, count: i64) -> types::SqlValue {
+    match value {
+        types::SqlValue::Integer(sum) => {
+            types::SqlValue::Integer(sum / count)
+        }
+        types::SqlValue::Numeric(sum) => {
+            let sum_f64 = sum.parse::<f64>().unwrap_or(0.0);
+            let avg = sum_f64 / (count as f64);
+            types::SqlValue::Numeric(avg.to_string())
+        }
+        // Default: return NULL for unsupported types
+        _ => types::SqlValue::Null,
     }
 }
 
