@@ -69,11 +69,12 @@ jobs:
           # Create badges directory
           mkdir -p badges
 
-          # Extract pass rate from sqltest results (default to 0 if not found)
+          # Extract pass rate from sqltest results (default to 0.0 if not found)
+          # Round to 1 decimal place for badge display
           if [ -f target/sqltest_results.json ]; then
-            PASS_RATE=$(jq -r '.pass_rate // "0"' target/sqltest_results.json)
+            PASS_RATE=$(jq -r '.pass_rate // "0"' target/sqltest_results.json | xargs printf "%.1f")
           else
-            PASS_RATE="0"
+            PASS_RATE="0.0"
           fi
 
           # Determine badge color based on pass rate

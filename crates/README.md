@@ -17,10 +17,10 @@ This directory contains all the individual crates that make up the nistmemsql da
   - Type-safe tree representation
 
 - **`parser/`** - SQL:1999 parser
-  - Lexer/tokenizer
-  - Parser (using pest or lalrpop)
+  - Hand-written lexer/tokenizer
+  - Recursive descent parser
   - AST builder
-  - Semantic analysis
+  - Error reporting with position tracking
 
 - **`catalog/`** - Schema and metadata management
   - Database catalog
@@ -45,10 +45,10 @@ This directory contains all the individual crates that make up the nistmemsql da
   - Isolation levels
   - Simple single-threaded transaction model
 
-### Protocol Drivers (Phase 6)
-
-- **`odbc-driver/`** - ODBC driver implementation (coming later)
-- **`jdbc-driver/`** - JDBC driver implementation (coming later)
+- **`wasm-bindings/`** - WebAssembly bindings
+  - WASM-compatible API for browser execution
+  - JavaScript interop layer
+  - Powers the live web demo
 
 ## Development Phases
 
@@ -64,8 +64,8 @@ Work in: `executor/`, `transaction/`
 ### Phase 4-5: Advanced Features
 Extend: `parser/`, `executor/`, `types/`
 
-### Phase 6: Protocols
-Work in: `odbc-driver/`, `jdbc-driver/`
+### Phase 6: WASM & Web Demo
+Work in: `wasm-bindings/`, `web-demo/`
 
 ## Building
 
@@ -91,14 +91,13 @@ cargo check
 Crates can depend on each other. Typical dependency flow:
 
 ```
-odbc-driver ─┐
-             ├─> executor -> storage -> catalog -> types
-jdbc-driver ─┘              ↑          ↑
-                            │          │
-                   transaction         ast
-                            ↑          ↑
-                            │          │
-                           parser ─────┘
+wasm-bindings ──> executor -> storage -> catalog -> types
+                     ↑          ↑          ↑
+                     │          │          │
+            transaction         │         ast
+                     ↑          │          ↑
+                     │          │          │
+                    parser ─────┴──────────┘
 ```
 
 ## Documentation

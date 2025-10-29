@@ -58,6 +58,8 @@ struct TestResults {
     failed: usize,
     errors: usize,
     total: usize,
+    failed_tests: Vec<(String, String)>,  // (test_id, sql)
+    error_tests: Vec<(String, String, String)>,  // (test_id, sql, error_msg)
 }
 
 impl TestResults {
@@ -66,14 +68,16 @@ impl TestResults {
         self.total += 1;
     }
 
-    fn record_fail(&mut self) {
+    fn record_fail(&mut self, test_id: String, sql: String) {
         self.failed += 1;
         self.total += 1;
+        self.failed_tests.push((test_id, sql));
     }
 
-    fn record_error(&mut self) {
+    fn record_error(&mut self, test_id: String, sql: String, error: String) {
         self.errors += 1;
         self.total += 1;
+        self.error_tests.push((test_id, sql, error));
     }
 
     fn pass_rate(&self) -> f64 {
@@ -151,12 +155,12 @@ impl SqltestRunner {
                     print!(".");
                 }
                 Ok(false) => {
-                    results.record_fail();
+                    results.record_fail(test_case.id.clone(), test_case.sql.clone());
                     print!("F");
                     eprintln!("\n❌ FAIL: {} - {}", test_case.id, test_case.sql);
                 }
                 Err(e) => {
-                    results.record_error();
+                    results.record_error(test_case.id.clone(), test_case.sql.clone(), e.clone());
                     print!("E");
                     eprintln!("\n⚠️  ERROR: {} - {}\n   {}", test_case.id, test_case.sql, e);
                 }
@@ -274,13 +278,26 @@ fn run_sql1999_conformance_suite() {
     println!("Pass Rate: {:.1}%", results.pass_rate());
     println!("{}", "=".repeat(60));
 
-    // Save results to JSON
+    // Save results to JSON with detailed failure information
     let results_json = serde_json::json!({
         "total": results.total,
         "passed": results.passed,
         "failed": results.failed,
         "errors": results.errors,
         "pass_rate": results.pass_rate(),
+        "failed_tests": results.failed_tests.iter().map(|(id, sql)| {
+            serde_json::json!({
+                "id": id,
+                "sql": sql
+            })
+        }).collect::<Vec<_>>(),
+        "error_tests": results.error_tests.iter().map(|(id, sql, error)| {
+            serde_json::json!({
+                "id": id,
+                "sql": sql,
+                "error": error
+            })
+        }).collect::<Vec<_>>(),
     });
 
     fs::write(

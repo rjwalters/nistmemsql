@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: write  # Allow pushing conformance report updates
+
 jobs:
   rust-tests:
     runs-on: ubuntu-latest
@@ -66,10 +69,25 @@ jobs:
           chmod +x scripts/generate_compliance_report.sh
           ./scripts/generate_compliance_report.sh
         if: always()
-      
+
       - name: Upload conformance report
         uses: actions/upload-artifact@v4
         with:
           name: conformance-report
           path: docs/SQL1999_CONFORMANCE.md
         if: always()
+
+      - name: Commit conformance report
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Check if there are changes to commit
+          if git diff --quiet docs/SQL1999_CONFORMANCE.md; then
+            echo "No changes to conformance report"
+          else
+            git add docs/SQL1999_CONFORMANCE.md
+            git commit -m "Update SQL:1999 conformance report [skip ci]"
+            git push
+          fi

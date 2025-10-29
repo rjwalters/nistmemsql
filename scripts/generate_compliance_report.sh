@@ -25,7 +25,9 @@ if [ -f "$SQLTEST_RESULTS" ]; then
     PASSED=$(grep -o '"passed":[[:space:]]*[0-9]*' "$SQLTEST_RESULTS" | sed 's/"passed":[[:space:]]*//g')
     FAILED=$(grep -o '"failed":[[:space:]]*[0-9]*' "$SQLTEST_RESULTS" | sed 's/"failed":[[:space:]]*//g')
     ERRORS=$(grep -o '"errors":[[:space:]]*[0-9]*' "$SQLTEST_RESULTS" | sed 's/"errors":[[:space:]]*//g')
-    PASS_RATE=$(grep -o '"pass_rate":[[:space:]]*[0-9.]*' "$SQLTEST_RESULTS" | sed 's/"pass_rate":[[:space:]]*//g')
+    PASS_RATE_RAW=$(grep -o '"pass_rate":[[:space:]]*[0-9.]*' "$SQLTEST_RESULTS" | sed 's/"pass_rate":[[:space:]]*//g')
+    # Round to 1 decimal place
+    PASS_RATE=$(printf "%.1f" "$PASS_RATE_RAW")
     
     echo "| Metric | Value |" >> "$OUTPUT"
     echo "|--------|-------|" >> "$OUTPUT"
@@ -38,43 +40,60 @@ if [ -f "$SQLTEST_RESULTS" ]; then
     
     echo "## Test Coverage" >> "$OUTPUT"
     echo "" >> "$OUTPUT"
-    echo "Current test suite covers Core SQL:1999 features:" >> "$OUTPUT"
+    echo "Test suite from [sqltest](https://github.com/elliotchance/sqltest) - upstream-recommended SQL:1999 conformance tests." >> "$OUTPUT"
     echo "" >> "$OUTPUT"
-    echo "- **E011**: Numeric data types (INTEGER, SMALLINT, BIGINT, FLOAT, DOUBLE, DECIMAL)" >> "$OUTPUT"
-    echo "- **E021**: Character string types (CHAR, VARCHAR)" >> "$OUTPUT"
-    echo "- **E011-04**: Arithmetic operators (+, -, *, /)" >> "$OUTPUT"
-    echo "- **E011-05**: Comparison predicates (<, <=, =, <>, >=, >)" >> "$OUTPUT"
-    echo "- **E011-06**: Implicit casting between numeric types" >> "$OUTPUT"
+    echo "Coverage includes:" >> "$OUTPUT"
     echo "" >> "$OUTPUT"
-    
-    echo "## Known Gaps" >> "$OUTPUT"
+    echo "- **E011**: Numeric data types" >> "$OUTPUT"
+    echo "- **E021**: Character string types" >> "$OUTPUT"
+    echo "- **E031**: Identifiers" >> "$OUTPUT"
+    echo "- **E051**: Basic query specification" >> "$OUTPUT"
+    echo "- **E061**: Basic predicates and search conditions" >> "$OUTPUT"
+    echo "- **E071**: Basic query expressions" >> "$OUTPUT"
+    echo "- **E081**: Basic privileges" >> "$OUTPUT"
+    echo "- **E091**: Set functions" >> "$OUTPUT"
+    echo "- **E101**: Basic data manipulation" >> "$OUTPUT"
+    echo "- **E111**: Single row SELECT statement" >> "$OUTPUT"
+    echo "- **E121**: Basic cursor support" >> "$OUTPUT"
+    echo "- **E131**: Null value support" >> "$OUTPUT"
+    echo "- **E141**: Basic integrity constraints" >> "$OUTPUT"
+    echo "- **E151**: Transaction support" >> "$OUTPUT"
+    echo "- **E161**: SQL comments" >> "$OUTPUT"
+    echo "- **F031**: Basic schema manipulation" >> "$OUTPUT"
+    echo "- Plus additional features from the F-series" >> "$OUTPUT"
     echo "" >> "$OUTPUT"
-    echo "Based on test failures, the following areas need implementation:" >> "$OUTPUT"
-    echo "" >> "$OUTPUT"
-    echo "### Parser Gaps" >> "$OUTPUT"
-    echo "- [ ] Unary plus (+) operator support" >> "$OUTPUT"
-    echo "- [ ] Unary minus (-) operator support" >> "$OUTPUT"
-    echo "- [ ] DECIMAL/DEC type alias recognition" >> "$OUTPUT"
-    echo "- [ ] Floating point literals starting with decimal point (e.g., .5)" >> "$OUTPUT"
-    echo "- [ ] Scientific notation (e.g., 1.5E+10)" >> "$OUTPUT"
-    echo "- [ ] FLOAT with precision specification: FLOAT(n)" >> "$OUTPUT"
-    echo "" >> "$OUTPUT"
-    
-    echo "### Executor Gaps" >> "$OUTPUT"
-    echo "- [ ] Numeric type coercion (INTEGER <-> DECIMAL comparison)" >> "$OUTPUT"
-    echo "- [ ] Arithmetic operations on DECIMAL/NUMERIC types" >> "$OUTPUT"
-    echo "- [ ] Proper DECIMAL type implementation (currently string-based)" >> "$OUTPUT"
-    echo "" >> "$OUTPUT"
-    
-    echo "## Improvement Roadmap" >> "$OUTPUT"
-    echo "" >> "$OUTPUT"
-    echo "To improve conformance from current ${PASS_RATE}% to 80%+:" >> "$OUTPUT"
-    echo "" >> "$OUTPUT"
-    echo "1. **Phase 1**: Implement unary operators (+, -) - Will fix ~25 tests" >> "$OUTPUT"
-    echo "2. **Phase 2**: Add DECIMAL type alias and floating point literal parsing - Will fix ~15 tests" >> "$OUTPUT"
-    echo "3. **Phase 3**: Implement numeric type coercion in executor - Will fix ~18 tests" >> "$OUTPUT"
-    echo "4. **Phase 4**: Proper DECIMAL type arithmetic - Will improve accuracy" >> "$OUTPUT"
-    echo "" >> "$OUTPUT"
+
+    # Show sample of failing tests if there are errors
+    ERROR_COUNT=$(echo "$ERRORS" | sed 's/^0$//')
+    if [ -n "$ERROR_COUNT" ] && [ "$ERROR_COUNT" != "0" ]; then
+        echo "## Sample Failing Tests" >> "$OUTPUT"
+        echo "" >> "$OUTPUT"
+        echo "The following tests are currently failing (showing first 10):" >> "$OUTPUT"
+        echo "" >> "$OUTPUT"
+
+        # Extract first 10 error tests from JSON
+        if command -v jq >/dev/null 2>&1; then
+            jq -r '.error_tests[:10] | .[] | "- **\(.id)**: \(.sql)\n  - Error: \(.error)"' "$SQLTEST_RESULTS" >> "$OUTPUT" 2>/dev/null || \
+                echo "*Error details unavailable - install jq for detailed output*" >> "$OUTPUT"
+        else
+            echo "*Install jq to see detailed test failures*" >> "$OUTPUT"
+        fi
+        echo "" >> "$OUTPUT"
+        echo "<details>" >> "$OUTPUT"
+        echo "<summary>View all failing tests (click to expand)</summary>" >> "$OUTPUT"
+        echo "" >> "$OUTPUT"
+        echo "\`\`\`" >> "$OUTPUT"
+        if command -v jq >/dev/null 2>&1; then
+            jq -r '.error_tests | .[] | "\(.id): \(.sql)\n  Error: \(.error)\n"' "$SQLTEST_RESULTS" >> "$OUTPUT" 2>/dev/null || \
+                echo "Error details unavailable" >> "$OUTPUT"
+        else
+            echo "Install jq to see detailed test failures" >> "$OUTPUT"
+        fi
+        echo "\`\`\`" >> "$OUTPUT"
+        echo "" >> "$OUTPUT"
+        echo "</details>" >> "$OUTPUT"
+        echo "" >> "$OUTPUT"
+    fi
 else
     echo "⚠️ No test results found at $SQLTEST_RESULTS" >> "$OUTPUT"
     echo "" >> "$OUTPUT"
