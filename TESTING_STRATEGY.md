@@ -2,204 +2,120 @@
 
 ## Overview
 
-This document outlines the testing approach for achieving NIST SQL:1999 compliance, including test suite selection, execution strategy, and GitHub Actions integration.
+This document describes the SQL:1999 conformance testing strategy, including current implementation status, test suite organization, and future enhancement plans.
 
-## OFFICIAL TEST SUITE IDENTIFIED! ✅
+## Current Implementation Status
 
-**UPDATE**: Upstream maintainer has provided the official test suite to use!
+### Test Suite Architecture
 
-**Test Suite**: [sqltest by Elliot Chance](https://github.com/elliotchance/sqltest)
-- **Coverage**: SQL:1992, SQL:1999, SQL:2003, SQL:2011, SQL:2016
-- **Organization**: Feature-based tests (E011-02, etc.)
-- **Generation**: BNF-driven test generation from SQL standard syntax
-- **Status**: Active, open source
-- **Test Count**: Hundreds of tests auto-generated from BNF rules
-- **Results**: Published at https://elliotchance.github.io/sqltest/
+**Primary Test Suite**: SQL:1999 tests extracted from [sqltest by Elliot Chance](https://github.com/elliotchance/sqltest)
 
-### How sqltest Works
+- **Location**: `tests/sql1999/manifest.json`
+- **Test Count**: 100 tests covering Core SQL:1999 features
+- **Source**: Tests extracted from sqltest's SQL:2016 Core and Foundation features
+- **Organization**: Feature-based by SQL standard codes (E011, E021, F031, etc.)
+- **Format**: JSON manifest with SQL statements and expected outcomes
 
-1. **BNF Extraction**: Extracts Backus-Naur Form syntax rules from SQL standard documents
-2. **Test Generation**: Uses `bnf.py` tool to reverse-engineer valid SQL statements from BNF
-3. **Expansion**: Small template tests expand into hundreds of actual test cases
-4. **Automation**: Scripts (`run.sh`, `generate_tests.py`) handle execution
-5. **Reporting**: Generates HTML compliance reports
+**Test Runner**: `tests/sqltest_conformance.rs`
+- Loads test manifest from JSON
+- Parses SQL statements using our parser
+- Executes against database engine
+- Compares results and generates metrics
+- Outputs results to `target/sqltest_results.json`
 
-**Example**: 3 base templates for feature E011-02 → 70 individual test cases
+**Test Coverage** (as of current baseline):
+- **E011-01**: Numeric data types (INTEGER, SMALLINT, BIGINT, FLOAT, DOUBLE)
+- **E011-04**: Arithmetic operators (+, -, *, /)
+- **E011-05**: Comparison predicates (<, <=, =, <>, >=, >)
+- **E011-06**: Implicit casting between numeric types
+- **E021**: Character string types (CHAR, VARCHAR)
+- **Pass Rate**: ~42% (100 tests, identifies implementation gaps)
 
-## Primary Testing Strategy: sqltest Suite
+See `tests/sql1999/README.md` for details.
 
-**DECISION**: Use [sqltest](https://github.com/elliotchance/sqltest) as our primary conformance test suite, as directed by upstream maintainer.
+### Execution Strategy
 
-### Why sqltest?
+**Current**: Direct Rust API testing
+- Tests instantiate `Database` struct directly
+- Execute SQL via parser → executor pipeline
+- No protocol overhead (ODBC/JDBC)
+- Fast iteration during development
+- Identifies parser and executor gaps
 
-1. **Official Recommendation**: Upstream maintainer explicitly provided this suite
-2. **Comprehensive Coverage**: Includes SQL:1999 tests (our target) plus SQL:92, 2003, 2011, 2016
-3. **BNF-Driven**: Automatically generates tests from SQL standard BNF grammar
-4. **Active Project**: Maintained and used by the SQL community
-5. **Well-Organized**: Feature-based structure (E011, F031, etc.) matches standard taxonomy
-6. **Proven**: Used for testing multiple database implementations
+**Future**: ODBC/JDBC protocol testing (see "Planned Enhancements" below)
 
-### Integration Plan
+### Automated Testing & Reporting
 
-1. **Clone sqltest repository** as submodule or vendored dependency
-2. **Focus on SQL:1999 tests** (standards/1999/ directory if exists, or filter from 2016)
-3. **Adapt test runner** to work with ODBC and JDBC drivers
-4. **Generate compliance reports** showing feature-by-feature status
-5. **Automate in GitHub Actions** for CI/CD
+**GitHub Actions Integration**: `.github/workflows/deploy-demo.yml`
 
-### Test Execution Flow
+The CI pipeline automatically runs conformance tests and generates compliance artifacts:
 
-```
-sqltest Repository
-      ↓
-Extract SQL:1999 Tests
-      ↓
-   Test Runner (our code)
-   ↙         ↘
-ODBC Driver   JDBC Driver
-   ↓            ↓
-Our Database Engine
-   ↓            ↓
-Compare Results
-   ↓
-Compliance Report
-```
+1. **Test Execution** (lines 71-73):
+   ```yaml
+   - name: Run sqltest conformance suite
+     run: cargo test --test sqltest_conformance --release -- --nocapture
+     continue-on-error: true
+   ```
 
-## Supplementary Testing Approaches
+2. **Badge Generation** (lines 76-111):
+   ```yaml
+   - name: Generate badge JSON
+     run: |
+       mkdir -p badges
+       PASS_RATE=$(jq -r '.pass_rate // "0"' target/sqltest_results.json)
 
-### Approach 1: Use SQL-92 NIST Tests as Baseline (Optional)
-**Rationale**: SQL:1999 is a superset of SQL-92; compliance with SQL-92 is necessary but not sufficient.
+       # Determine color: 80%+ green, 60%+ yellow, 40%+ orange, <40% red
+       # Creates shields.io endpoint format badge
+       cat > badges/sql1999-conformance.json <<JSON
+       {
+         "schemaVersion": 1,
+         "label": "SQL:1999",
+         "message": "${PASS_RATE}%",
+         "color": "$COLOR"
+       }
+       JSON
+   ```
 
-**Approach**:
-1. Attempt to obtain NIST SQL-92 Test Suite Version 6.0
-   - Check NIST archives
-   - Contact NIST directly
-   - Look for mirrors/distributions in academic repositories
-2. Pass all NIST SQL-92 tests as baseline compliance
-3. Supplement with SQL:1999-specific tests
+3. **Deployment**: Badge and results deployed to GitHub Pages
+   - **Badge Endpoint**: https://rjwalters.github.io/nistmemsql/badges/sql1999-conformance.json
+   - **README Badge**: Displays live conformance percentage (README.md:7)
 
-**Pros**:
-- Established, well-vetted test suite
-- Tests fundamental SQL compliance
-- Provides credibility baseline
+**Compliance Report Generation**: `scripts/generate_compliance_report.sh`
 
-**Cons**:
-- Doesn't cover SQL:1999 features
-- May no longer be available for download
-- Designed for SQL-92, not modern standards
+Automated script that parses test results and generates `docs/SQL1999_CONFORMANCE.md`:
 
-### Strategy 2: SQLLogicTest
-**Rationale**: Industry-standard test framework used by SQLite, DuckDB, and other databases.
+```bash
+# Run after tests complete
+./scripts/generate_compliance_report.sh
 
-**Details**:
-- **Scale**: 7+ million tests
-- **Coverage**: Core SQL operations (portable subset)
-- **Source**: https://www.sqlite.org/sqllogictest/doc/trunk/about.wiki
-- **Implementations**:
-  - Original C implementation for SQLite
-  - sqllogictest-rs: Rust implementation (https://github.com/risinglightdb/sqllogictest-rs)
-  - Multiple forks for different databases
-
-**Approach**:
-1. Integrate sqllogictest framework
-2. Run comprehensive test suite
-3. Add custom SQL:1999-specific tests to fill gaps
-
-**Pros**:
-- Massive test coverage (7M+ tests)
-- Actively maintained
-- Used by production databases
-- Database-neutral design
-- Available in Rust (good for our likely implementation language)
-
-**Cons**:
-- Tests "core SQL" but not specifically SQL:1999 features
-- Not "NIST" branded
-- May need extensive customization for SQL:1999 features
-
-### Strategy 3: Custom SQL:1999 Conformance Test Suite
-**Rationale**: Build comprehensive tests directly from ISO/IEC 9075:1999 specification.
-
-**Approach**:
-1. Purchase official SQL:1999 standard documents
-2. Extract conformance requirements from each section
-3. Build test cases for each feature in the taxonomy
-4. Cover all Core SQL:1999 features (~169)
-5. Add tests for all optional SQL:1999 features (FULL compliance)
-
-**Test Organization**:
-```
-tests/
-├── core/
-│   ├── e011_numeric_types/
-│   ├── f031_basic_schema/
-│   ├── f041_basic_joins/
-│   └── ...
-├── optional/
-│   ├── t031_boolean_type/
-│   ├── t131_recursive_queries/
-│   ├── triggers/
-│   ├── stored_procedures/
-│   └── ...
-├── odbc/
-│   └── (test execution via ODBC)
-└── jdbc/
-    └── (test execution via JDBC)
+# Generates report with:
+# - Summary metrics (total, passed, failed, errors, pass rate)
+# - Test coverage details
+# - Known gaps (parser/executor)
+# - Improvement roadmap
 ```
 
-**Pros**:
-- Directly addresses SQL:1999 FULL compliance
-- Can be comprehensive and authoritative
-- Tailored to our specific requirements
-- Can document conformance gaps clearly
+The report provides:
+- Summary metrics table
+- Feature coverage breakdown
+- Known implementation gaps (parser and executor)
+- Phased improvement roadmap
+- Local testing instructions
 
-**Cons**:
-- Massive development effort
-- Requires deep standard expertise
-- Time-consuming to build
-- May miss edge cases that established suites cover
+## Planned Enhancements
 
-### Strategy 4: Hybrid Approach (RECOMMENDED)
+This section describes future testing strategies that are not yet implemented but are being considered for comprehensive SQL:1999 validation.
 
-Combine multiple test sources for comprehensive coverage:
+### Phase 1: ODBC/JDBC Protocol Testing (Planned)
 
-#### Tier 1: SQLLogicTest (Foundation)
-- Baseline: Run full sqllogictest suite
-- Validates core SQL operations work correctly
-- Provides millions of test cases automatically
-- Use sqllogictest-rs for Rust integration
+**Status**: Not yet implemented (awaiting ODBC/JDBC driver development)
 
-#### Tier 2: SQL:1999 Feature Tests (Compliance)
-- Build custom test suite organized by SQL:1999 feature codes
-- One test directory per feature (E011, F031, T131, etc.)
-- Cover all 169+ Core features
-- Cover all optional features for FULL compliance
-- Reference ISO/IEC 9075:1999 specification sections
+**Rationale**: Per upstream requirements, conformance tests should execute correctly through both ODBC and JDBC protocols to validate protocol compliance.
 
-#### Tier 3: NIST SQL-92 Tests (If Available)
-- If obtainable, run NIST SQL-92 suite for historical compliance
-- Validates compatibility with legacy systems
-- Demonstrates traditional conformance
+**Implementation Plan**:
 
-#### Tier 4: Real-World SQL (Practical Validation)
-- Collect SQL from open-source applications
-- Test queries from PostgreSQL, MySQL regression tests
-- Example schemas and queries from database textbooks
-- Ensures practical usability beyond spec compliance
+Once ODBC and JDBC drivers are implemented, adapt the test suite for dual-protocol execution:
 
-## ODBC/JDBC Testing Requirement
-
-Per upstream Issue #4 clarification: "The nist compat tests should function correctly when run through either ODBC or JDBC"
-
-### Dual-Protocol Test Execution
-
-**Requirement**: ALL tests must pass when executed via:
-1. ODBC connection
-2. JDBC connection
-
-**Implementation Strategy**:
-
-#### Test Framework Architecture
 ```
 Test Definition Layer (protocol-agnostic)
          ↓
@@ -210,13 +126,12 @@ ODBC Driver    JDBC Driver
 Database Engine
 ```
 
-#### Test Execution Flow
-1. **Define tests once** in protocol-agnostic format
-2. **Execute via ODBC**: Connect through ODBC driver, run test suite
-3. **Execute via JDBC**: Connect through JDBC driver, run same test suite
-4. **Compare results**: Both must produce identical correct results
+**Requirements**:
+- All 100+ tests must pass via ODBC connection
+- All 100+ tests must pass via JDBC connection
+- Both protocols produce identical correct results
 
-#### GitHub Actions Matrix
+**GitHub Actions Matrix** (planned):
 ```yaml
 test:
   strategy:
@@ -227,123 +142,102 @@ test:
       run: ./run_tests.sh --protocol=${{ matrix.protocol }}
 ```
 
-## GitHub Actions Integration
+### Phase 2: SQLLogicTest Integration (Planned)
 
-### CI/CD Pipeline Requirements
+**Status**: Not yet implemented
 
-Per original problem statement: "Implement full NIST Compat tests as github action"
+**Rationale**: Industry-standard test framework used by SQLite, DuckDB, and other databases provides massive baseline coverage.
 
-### Proposed GitHub Actions Workflow
+**Details**:
+- **Scale**: 7+ million tests
+- **Coverage**: Core SQL operations (portable subset)
+- **Source**: https://www.sqlite.org/sqllogictest/doc/trunk/about.wiki
+- **Implementation**: sqllogictest-rs (Rust): https://github.com/risinglightdb/sqllogictest-rs
 
-```yaml
-name: SQL:1999 Compliance Tests
+**Approach**:
+1. Integrate sqllogictest-rs framework
+2. Run comprehensive test suite for baseline validation
+3. Complement existing SQL:1999 tests with broader coverage
 
-on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
+**Benefits**:
+- Massive test coverage (7M+ tests)
+- Actively maintained
+- Used by production databases (SQLite, DuckDB, etc.)
+- Available in Rust
+- Validates core SQL functionality beyond standard-specific features
 
-jobs:
-  sqllogictest:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Build database
-        run: cargo build --release
-      - name: Run SQLLogicTest suite
-        run: ./scripts/run_sqllogictest.sh
-      - name: Upload test results
-        uses: actions/upload-artifact@v3
-        with:
-          name: sqllogictest-results
-          path: test-results/sqllogictest/
+### Phase 3: Expanded SQL:1999 Feature Coverage (Planned)
 
-  sql1999-core-tests:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        protocol: [odbc, jdbc]
-    steps:
-      - uses: actions/checkout@v3
-      - name: Build database and ${{ matrix.protocol }} driver
-        run: ./scripts/build_with_${{ matrix.protocol }}.sh
-      - name: Run Core SQL:1999 tests via ${{ matrix.protocol }}
-        run: ./scripts/run_core_tests.sh --protocol=${{ matrix.protocol }}
-      - name: Upload results
-        uses: actions/upload-artifact@v3
-        with:
-          name: core-tests-${{ matrix.protocol }}
-          path: test-results/core/${{ matrix.protocol }}/
+**Status**: Not yet implemented
 
-  sql1999-optional-tests:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        protocol: [odbc, jdbc]
-        feature-group: [triggers, procedures, recursive, udt, arrays]
-    steps:
-      - uses: actions/checkout@v3
-      - name: Build database and ${{ matrix.protocol }} driver
-        run: ./scripts/build_with_${{ matrix.protocol }}.sh
-      - name: Run ${{ matrix.feature-group }} tests via ${{ matrix.protocol }}
-        run: ./scripts/run_optional_tests.sh --group=${{ matrix.feature-group }} --protocol=${{ matrix.protocol }}
-      - name: Upload results
-        uses: actions/upload-artifact@v3
-        with:
-          name: optional-tests-${{ matrix.feature-group }}-${{ matrix.protocol }}
-          path: test-results/optional/${{ matrix.feature-group }}/${{ matrix.protocol }}/
+**Rationale**: Extend beyond current 100-test baseline to cover all Core and Optional SQL:1999 features.
 
-  compliance-report:
-    runs-on: ubuntu-latest
-    needs: [sqllogictest, sql1999-core-tests, sql1999-optional-tests]
-    steps:
-      - uses: actions/checkout@v3
-      - name: Download all test results
-        uses: actions/download-artifact@v3
-      - name: Generate compliance report
-        run: ./scripts/generate_compliance_report.sh
-      - name: Upload compliance report
-        uses: actions/upload-artifact@v3
-        with:
-          name: compliance-report
-          path: compliance-report.html
-      - name: Comment PR with results
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const fs = require('fs');
-            const report = fs.readFileSync('compliance-summary.md', 'utf8');
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: report
-            });
+**Approach**:
+1. Extract more tests from sqltest repository (currently 100, can expand to 200-500+)
+2. Build custom tests based on ISO/IEC 9075:1999 specification
+3. Cover all ~169 Core SQL:1999 features
+4. Add tests for Optional features (triggers, stored procedures, recursive queries, etc.)
+
+**Proposed Test Organization**:
 ```
+tests/sql1999/
+├── manifest.json (current: 100 tests)
+├── core/ (planned: expanded coverage)
+│   ├── e011_numeric_types/
+│   ├── e021_character_types/
+│   ├── f031_basic_schema/
+│   ├── f041_basic_joins/
+│   └── ...
+└── optional/ (planned: new coverage)
+    ├── t031_boolean_type/
+    ├── t131_recursive_queries/
+    ├── triggers/
+    └── stored_procedures/
+```
+
+**Expansion Strategy**:
+- Use `scripts/extract_sql1999_tests.py` to pull more tests from sqltest
+- Supplement with hand-crafted tests for gaps
+- Maintain JSON manifest format for consistency
+
+### Phase 4: Additional Test Sources (Optional)
+
+**NIST SQL-92 Tests**: If obtainable, provides historical baseline
+**PostgreSQL Regression Tests**: Real-world SQL validation
+**Apache Derby Tests**: JDBC-centric testing examples
 
 ## Test Result Tracking
 
-### Compliance Matrix
+### Current Tracking
 
-Track feature-by-feature compliance in a structured format:
+**Automated via CI/CD**:
+- Test results published to `target/sqltest_results.json`
+- Compliance report generated in `docs/SQL1999_CONFORMANCE.md`
+- Pass rate badge updated on GitHub Pages
+- Metrics: total tests, passed, failed, errors, pass rate percentage
+
+**Current Metrics** (100 tests):
+- ~42% pass rate
+- Identifies parser gaps (unary operators, DECIMAL type aliases, literals)
+- Identifies executor gaps (numeric coercion, DECIMAL arithmetic)
+
+### Future Compliance Matrix (Planned)
+
+When ODBC/JDBC testing is implemented, track feature-by-feature compliance:
 
 ```markdown
-| Feature ID | Feature Name | Core/Optional | ODBC Status | JDBC Status | Notes |
-|------------|--------------|---------------|-------------|-------------|-------|
-| E011 | Numeric types | Core | ✅ Pass | ✅ Pass | - |
-| F031 | Basic schema | Core | ✅ Pass | ✅ Pass | - |
-| T031 | BOOLEAN type | Optional | ❌ Fail | ❌ Fail | Issue #123 |
-| T131 | Recursive queries | Optional | 🚧 WIP | 🚧 WIP | PR #45 |
+| Feature ID | Feature Name | Core/Optional | Direct | ODBC | JDBC | Notes |
+|------------|--------------|---------------|--------|------|------|-------|
+| E011 | Numeric types | Core | ✅ | ✅ | ✅ | - |
+| F031 | Basic schema | Core | ✅ | ✅ | ✅ | - |
+| T031 | BOOLEAN type | Optional | ❌ | ❌ | ❌ | Issue #123 |
 ```
 
-### Continuous Tracking
-
-- Track compliance percentage: X% of Y features passing
+**Future Tracking Goals**:
 - Separate tracking for Core vs Optional features
-- Per-protocol breakdown (ODBC vs JDBC)
+- Per-protocol breakdown (Direct, ODBC, JDBC)
 - Trend over time (improving/regressing)
+- Feature-by-feature status updates
 
 ## Coverage Reporting
 
@@ -379,30 +273,34 @@ Coverage commands are defined as Cargo aliases in `.cargo/config.toml`, so the i
 
 ## Test Development Priorities
 
-### Phase 1: Foundation (Weeks 1-4)
-1. Set up sqllogictest-rs integration
-2. Create basic test harness
-3. Implement simple ODBC/JDBC test execution
-4. Get first tests running end-to-end
+### ✅ Completed: Foundation (Phase 1)
+- [x] Basic test harness created (`tests/sqltest_conformance.rs`)
+- [x] 100 SQL:1999 tests extracted from sqltest
+- [x] JSON manifest format established
+- [x] GitHub Actions integration with badge generation
+- [x] Compliance report automation
 
-### Phase 2: Core SQL:1999 (Months 2-6)
-1. Build tests for all ~169 Core features
-2. Organize by feature code (E011, F031, etc.)
-3. Ensure both ODBC and JDBC execution
-4. Track compliance gaps
+### 🚧 Current: Improving Pass Rate (Phase 2)
+1. Fix parser gaps identified by test failures (~25 tests)
+   - Unary operators (+, -)
+   - DECIMAL type aliases
+   - Floating point literal variations
+2. Fix executor gaps (~18 tests)
+   - Numeric type coercion
+   - DECIMAL arithmetic operations
+3. Target: 80%+ pass rate on current 100 tests
 
-### Phase 3: Optional Features (Months 7-12)
-1. Triggers and stored procedures
-2. Recursive queries
-3. User-defined types
-4. Arrays and advanced types
-5. All remaining optional features
+### Planned: Test Coverage Expansion (Phase 3)
+1. Extract 200-500 more tests from sqltest
+2. Build tests for all ~169 Core SQL:1999 features
+3. Organize expanded test coverage by feature codes
+4. Add Optional feature tests (triggers, procedures, recursive queries)
 
-### Phase 4: Comprehensive Coverage (Months 12+)
-1. Edge cases and error conditions
-2. Performance tests
-3. Concurrency and transaction tests
-4. Integration with real-world SQL
+### Future: Protocol & Advanced Testing (Phase 4)
+1. Implement ODBC driver and test execution
+2. Implement JDBC driver and test execution
+3. Integrate SQLLogicTest (7M+ tests)
+4. Edge cases, performance, concurrency tests
 
 ## Alternative Test Resources
 
@@ -440,15 +338,23 @@ Coverage commands are defined as Cargo aliases in `.cargo/config.toml`, so the i
 
 ## Success Criteria
 
-The testing strategy succeeds when:
+### Current Phase Goals (Direct API Testing)
 
-1. ✅ Comprehensive test coverage of all SQL:1999 Core features
-2. ✅ Complete test coverage of all SQL:1999 optional features (FULL compliance)
-3. ✅ All tests executable via both ODBC and JDBC
-4. ✅ Tests run automatically in GitHub Actions on every commit
-5. ✅ Clear compliance reporting showing feature-by-feature status
-6. ✅ Both ODBC and JDBC produce identical results for all tests
-7. ✅ 100% of tests passing (FULL SQL:1999 compliance achieved)
+1. ✅ Basic test infrastructure established
+2. ✅ Tests run automatically in GitHub Actions on every commit
+3. ✅ Automated badge generation and compliance reporting
+4. 🚧 80%+ pass rate on current 100-test baseline (currently ~42%)
+5. ⬜ 200-500 tests covering Core SQL:1999 features
+6. ⬜ Clear gap identification for parser and executor improvements
+
+### Future Phase Goals (Full Compliance)
+
+7. ⬜ ODBC and JDBC drivers implemented
+8. ⬜ All tests executable via both ODBC and JDBC protocols
+9. ⬜ Both protocols produce identical results for all tests
+10. ⬜ Comprehensive test coverage of all SQL:1999 Core features (~169)
+11. ⬜ Complete test coverage of SQL:1999 optional features (FULL compliance)
+12. ⬜ 100% of tests passing (FULL SQL:1999 compliance achieved)
 
 ## Risks and Mitigations
 
@@ -474,18 +380,51 @@ The testing strategy succeeds when:
 
 ## Next Steps
 
-1. **Immediate**: Set up basic test infrastructure
-2. **Week 1**: Integrate sqllogictest-rs
-3. **Week 2**: Create first SQL:1999 feature tests
-4. **Week 3**: Implement basic ODBC test execution
-5. **Week 4**: Implement basic JDBC test execution
-6. **Month 2**: Begin systematic Core feature test development
-7. **Ongoing**: Continuous integration and compliance tracking
+### Immediate Priorities
+
+1. **Fix parser gaps** to improve pass rate (see `docs/SQL1999_CONFORMANCE.md` for specifics)
+   - Add unary operator support (+, -)
+   - Add DECIMAL/DEC type alias recognition
+   - Support floating point literal variations (.5, 1.5E+10)
+
+2. **Fix executor gaps** to improve pass rate
+   - Implement numeric type coercion
+   - Implement proper DECIMAL arithmetic
+
+3. **Expand test coverage**
+   - Extract more tests from sqltest (target: 200-500 tests)
+   - Use `scripts/extract_sql1999_tests.py`
+
+### Medium-Term Goals
+
+4. **Achieve 80%+ pass rate** on expanded test suite
+5. **Build ODBC driver** (prerequisite for protocol testing)
+6. **Build JDBC driver** (prerequisite for protocol testing)
+
+### Long-Term Vision
+
+7. **Integrate SQLLogicTest** for baseline validation
+8. **Cover all Core and Optional features** for FULL SQL:1999 compliance
+9. **Achieve 100% test pass rate** across all protocols
 
 ## References
 
-1. NIST SQL Test Suite: https://www.itl.nist.gov/div897/ctg/sql_form.htm (obsolete)
-2. SQLLogicTest: https://www.sqlite.org/sqllogictest/doc/trunk/about.wiki
-3. sqllogictest-rs: https://github.com/risinglightdb/sqllogictest-rs
-4. PostgreSQL Tests: https://github.com/postgres/postgres/tree/master/src/test/regress
-5. SQL:1999 Standard: ISO/IEC 9075:1999 (purchase required)
+### Current Implementation Files
+
+1. **Test Suite**: `tests/sql1999/manifest.json` - 100 SQL:1999 tests
+2. **Test Runner**: `tests/sqltest_conformance.rs` - Main conformance test harness
+3. **Test Documentation**: `tests/sql1999/README.md` - Test organization and usage
+4. **Badge Generation**: `.github/workflows/deploy-demo.yml` (lines 76-111)
+5. **Compliance Reporting**: `scripts/generate_compliance_report.sh`
+6. **Compliance Report**: `docs/SQL1999_CONFORMANCE.md` (auto-generated)
+7. **Badge Endpoint**: https://rjwalters.github.io/nistmemsql/badges/sql1999-conformance.json
+8. **Test Results**: `target/sqltest_results.json` (generated after test runs)
+
+### External Resources
+
+9. **sqltest by Elliot Chance**: https://github.com/elliotchance/sqltest
+10. **SQLLogicTest**: https://www.sqlite.org/sqllogictest/doc/trunk/about.wiki
+11. **sqllogictest-rs**: https://github.com/risinglightdb/sqllogictest-rs
+12. **PostgreSQL Regression Tests**: https://github.com/postgres/postgres/tree/master/src/test/regress
+13. **SQL:1999 Standard**: ISO/IEC 9075:1999 (purchase required)
+14. **NIST SQL Test Suite**: https://www.itl.nist.gov/div897/ctg/sql_form.htm (historical, obsolete)
