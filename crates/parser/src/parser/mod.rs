@@ -68,13 +68,13 @@ impl Parser {
                 Ok(ast::Statement::Delete(delete_stmt))
             }
             Token::Keyword(Keyword::Create) => {
-                match self.peek_keyword(Keyword::Table) {
+                match self.peek_next_keyword(Keyword::Table) {
                     true => {
                         let create_stmt = self.parse_create_table_statement()?;
                         Ok(ast::Statement::CreateTable(create_stmt))
                     }
                     false => {
-                        match self.peek_keyword(Keyword::Schema) {
+                        match self.peek_next_keyword(Keyword::Schema) {
                             true => {
                                 let create_stmt = self.parse_create_schema_statement()?;
                                 Ok(ast::Statement::CreateSchema(create_stmt))
@@ -87,13 +87,13 @@ impl Parser {
                 }
             }
             Token::Keyword(Keyword::Drop) => {
-                match self.peek_keyword(Keyword::Table) {
+                match self.peek_next_keyword(Keyword::Table) {
                     true => {
                         let drop_stmt = self.parse_drop_table_statement()?;
                         Ok(ast::Statement::DropTable(drop_stmt))
                     }
                     false => {
-                        match self.peek_keyword(Keyword::Schema) {
+                        match self.peek_next_keyword(Keyword::Schema) {
                             true => {
                                 let drop_stmt = self.parse_drop_schema_statement()?;
                                 Ok(ast::Statement::DropSchema(drop_stmt))

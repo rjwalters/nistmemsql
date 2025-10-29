@@ -10,6 +10,15 @@ impl Parser {
         }
     }
 
+    /// Peek at next token (position + 1) without consuming.
+    pub(super) fn peek_next(&self) -> &Token {
+        if self.position + 1 < self.tokens.len() {
+            &self.tokens[self.position + 1]
+        } else {
+            &Token::Eof
+        }
+    }
+
     /// Advance to next token.
     pub(super) fn advance(&mut self) {
         if self.position < self.tokens.len() {
@@ -20,6 +29,11 @@ impl Parser {
     /// Check if current token is a specific keyword.
     pub(super) fn peek_keyword(&self, keyword: Keyword) -> bool {
         matches!(self.peek(), Token::Keyword(k) if k == &keyword)
+    }
+
+    /// Check if next token is a specific keyword.
+    pub(super) fn peek_next_keyword(&self, keyword: Keyword) -> bool {
+        matches!(self.peek_next(), Token::Keyword(k) if k == &keyword)
     }
 
     /// Expect and consume a specific keyword.
