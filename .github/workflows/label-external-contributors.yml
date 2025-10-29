@@ -42,7 +42,7 @@ jobs:
                 issue_number: context.issue.number,
                 body: `Thank you for submitting an issue!
 
-This issue has been automatically labeled as \`external\` and will be reviewed by the maintainers.
+This issue has been automatically labeled as 'external' and will be reviewed by the maintainers.
 
 **Note**: External issues require manual triage before being assigned. We appreciate your patience while we review your submission.
 
