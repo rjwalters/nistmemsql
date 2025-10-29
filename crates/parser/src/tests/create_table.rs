@@ -109,7 +109,7 @@ fn test_parse_create_table_float_types() {
             assert_eq!(create.columns.len(), 3);
 
             match create.columns[0].data_type {
-                types::DataType::Float => {} // Success
+                types::DataType::Float { .. } => {} // Success
                 _ => panic!("Expected FLOAT, got {:?}", create.columns[0].data_type),
             }
 

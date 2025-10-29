@@ -298,7 +298,7 @@ fn coerce_value(
         (SqlValue::Varchar(_), DataType::Varchar { .. }) => Ok(value),
         (SqlValue::Character(_), DataType::Character { .. }) => Ok(value),
         (SqlValue::Boolean(_), DataType::Boolean) => Ok(value),
-        (SqlValue::Float(_), DataType::Float) => Ok(value),
+        (SqlValue::Float(_), DataType::Float { .. }) => Ok(value),
         (SqlValue::Real(_), DataType::Real) => Ok(value),
         (SqlValue::Double(_), DataType::DoublePrecision) => Ok(value),
         (SqlValue::Date(_), DataType::Date) => Ok(value),
@@ -311,7 +311,7 @@ fn coerce_value(
         (SqlValue::Numeric(_), DataType::Decimal { .. }) => Ok(value),
 
         // Numeric literal → Float/Real/Double
-        (SqlValue::Numeric(s), DataType::Float) => {
+        (SqlValue::Numeric(s), DataType::Float { .. }) => {
             s.parse::<f32>()
                 .map(SqlValue::Float)
                 .map_err(|_| ExecutorError::UnsupportedExpression(format!(
@@ -357,13 +357,13 @@ fn coerce_value(
         }
 
         // Integer → Float types (safe widening conversion)
-        (SqlValue::Integer(i), DataType::Float) => Ok(SqlValue::Float(*i as f32)),
+        (SqlValue::Integer(i), DataType::Float { .. }) => Ok(SqlValue::Float(*i as f32)),
         (SqlValue::Integer(i), DataType::Real) => Ok(SqlValue::Real(*i as f32)),
         (SqlValue::Integer(i), DataType::DoublePrecision) => Ok(SqlValue::Double(*i as f64)),
-        (SqlValue::Smallint(i), DataType::Float) => Ok(SqlValue::Float(*i as f32)),
+        (SqlValue::Smallint(i), DataType::Float { .. }) => Ok(SqlValue::Float(*i as f32)),
         (SqlValue::Smallint(i), DataType::Real) => Ok(SqlValue::Real(*i as f32)),
         (SqlValue::Smallint(i), DataType::DoublePrecision) => Ok(SqlValue::Double(*i as f64)),
-        (SqlValue::Bigint(i), DataType::Float) => Ok(SqlValue::Float(*i as f32)),
+        (SqlValue::Bigint(i), DataType::Float { .. }) => Ok(SqlValue::Float(*i as f32)),
         (SqlValue::Bigint(i), DataType::Real) => Ok(SqlValue::Real(*i as f32)),
         (SqlValue::Bigint(i), DataType::DoublePrecision) => Ok(SqlValue::Double(*i as f64)),
 

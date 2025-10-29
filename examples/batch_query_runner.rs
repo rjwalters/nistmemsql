@@ -32,7 +32,7 @@ fn create_northwind_db() -> Database {
             ColumnSchema::new("product_id".to_string(), DataType::Integer, false),
             ColumnSchema::new("product_name".to_string(), DataType::Varchar { max_length: 100 }, false),
             ColumnSchema::new("category_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("unit_price".to_string(), DataType::Float, false),
+            ColumnSchema::new("unit_price".to_string(), DataType::Float { precision: 53 }, false),
             ColumnSchema::new("units_in_stock".to_string(), DataType::Integer, false),
             ColumnSchema::new("units_on_order".to_string(), DataType::Integer, false),
         ],

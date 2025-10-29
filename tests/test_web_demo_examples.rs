@@ -178,7 +178,7 @@ fn create_northwind_db() -> Database {
             ColumnSchema::new("product_id".to_string(), DataType::Integer, false),
             ColumnSchema::new("product_name".to_string(), DataType::Varchar { max_length: 100 }, false),
             ColumnSchema::new("category_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("unit_price".to_string(), DataType::Float, false),
+            ColumnSchema::new("unit_price".to_string(), DataType::Float { precision: 53 }, false),
             ColumnSchema::new("units_in_stock".to_string(), DataType::Integer, false),
             ColumnSchema::new("units_on_order".to_string(), DataType::Integer, false),
         ],
@@ -384,7 +384,7 @@ fn create_employees_db() -> Database {
             ColumnSchema::new("department".to_string(), DataType::Varchar { max_length: 50 }, false),
             ColumnSchema::new("dept_id".to_string(), DataType::Integer, true), // for company examples
             ColumnSchema::new("title".to_string(), DataType::Varchar { max_length: 100 }, false),
-            ColumnSchema::new("salary".to_string(), DataType::Float, false),
+            ColumnSchema::new("salary".to_string(), DataType::Float { precision: 53 }, false),
             ColumnSchema::new("hire_date".to_string(), DataType::Varchar { max_length: 20 }, true), // for datetime examples
             ColumnSchema::new("manager_id".to_string(), DataType::Integer, true), // nullable
         ],
@@ -568,7 +568,7 @@ fn create_university_db() -> Database {
             ColumnSchema::new("student_id".to_string(), DataType::Integer, false),
             ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 100 }, false),
             ColumnSchema::new("major".to_string(), DataType::Varchar { max_length: 50 }, false),
-            ColumnSchema::new("gpa".to_string(), DataType::Float, false),
+            ColumnSchema::new("gpa".to_string(), DataType::Float { precision: 53 }, false),
         ],
     );
     db.create_table(students_schema).unwrap();

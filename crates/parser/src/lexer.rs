@@ -248,7 +248,16 @@ impl Lexer {
         let start = self.position;
         let mut has_dot = false;
 
+<<<<<<< HEAD
         // Parse the main number (digits and optional decimal point)
+=======
+        // Handle leading decimal point (e.g., .5)
+        if !self.is_eof() && self.current_char() == '.' {
+            has_dot = true;
+            self.advance();
+        }
+
+>>>>>>> 798014c (Support leading decimal literals and FLOAT precision)
         while !self.is_eof() {
             let ch = self.current_char();
             if ch.is_ascii_digit() {
