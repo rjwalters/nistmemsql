@@ -80,10 +80,27 @@ impl CreateTableExecutor {
         // Create TableSchema with unqualified name
         let table_schema = TableSchema::new(table_name.clone(), columns);
 
-        // Create table in the specified schema
-        database.catalog
-            .create_table_in_schema(&schema_name, table_schema)
-            .map_err(|e| ExecutorError::StorageError(format!("Catalog error: {:?}", e)))?;
+        // If creating in a non-current schema, temporarily switch to it
+        let original_schema = database.catalog.get_current_schema().to_string();
+        let needs_schema_switch = schema_name != original_schema;
+
+        if needs_schema_switch {
+            database.catalog.set_current_schema(&schema_name)
+                .map_err(|e| ExecutorError::StorageError(format!("Schema error: {:?}", e)))?;
+        }
+
+        // Create table using Database API (handles both catalog and storage)
+        let result = database.create_table(table_schema)
+            .map_err(|e| ExecutorError::StorageError(e.to_string()));
+
+        // Restore original schema if we switched
+        if needs_schema_switch {
+            database.catalog.set_current_schema(&original_schema)
+                .map_err(|e| ExecutorError::StorageError(format!("Schema error: {:?}", e)))?;
+        }
+
+        // Check if table creation succeeded
+        result?;
 
         // Return success message
         Ok(format!("Table '{}' created successfully in schema '{}'", table_name, schema_name))
@@ -114,7 +131,7 @@ mod tests {
 
         let result = CreateTableExecutor::execute(&stmt, &mut db);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "Table 'users' created successfully");
+        assert_eq!(result.unwrap(), "Table 'users' created successfully in schema 'public'");
 
         // Verify table exists in catalog
         assert!(db.catalog.table_exists("users"));
