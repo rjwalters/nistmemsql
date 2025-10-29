@@ -1,0 +1,3 @@
+[submodule "third_party/sqltest"]
+	path = third_party/sqltest
+	url = https://github.com/elliotchance/sqltest.git
