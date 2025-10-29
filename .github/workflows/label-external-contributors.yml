@@ -1,4 +1,4 @@
-name: Label external issues
+name: Label External Contributors
 
 on:
   issues:
