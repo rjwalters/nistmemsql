@@ -168,6 +168,21 @@ impl SqltestRunner {
                     .map_err(|e| format!("Execution error: {:?}", e))?;
                 Ok(true)
             }
+            ast::Statement::CreateSchema(create_stmt) => {
+                executor::SchemaExecutor::execute_create_schema(&create_stmt, db)
+                    .map_err(|e| format!("Execution error: {:?}", e))?;
+                Ok(true)
+            }
+            ast::Statement::DropSchema(drop_stmt) => {
+                executor::SchemaExecutor::execute_drop_schema(&drop_stmt, db)
+                    .map_err(|e| format!("Execution error: {:?}", e))?;
+                Ok(true)
+            }
+            ast::Statement::SetSchema(set_stmt) => {
+                executor::SchemaExecutor::execute_set_schema(&set_stmt, db)
+                    .map_err(|e| format!("Execution error: {:?}", e))?;
+                Ok(true)
+            }
             ast::Statement::BeginTransaction(_)
             | ast::Statement::Commit(_)
             | ast::Statement::Rollback(_)

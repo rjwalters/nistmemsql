@@ -4,6 +4,9 @@ pub enum ExecutorError {
     TableAlreadyExists(String),
     ColumnNotFound(String),
     ColumnAlreadyExists(String),
+    SchemaNotFound(String),
+    SchemaAlreadyExists(String),
+    SchemaNotEmpty(String),
     ColumnIndexOutOfBounds { index: usize },
     TypeMismatch { left: types::SqlValue, op: String, right: types::SqlValue },
     DivisionByZero,
@@ -25,6 +28,9 @@ impl std::fmt::Display for ExecutorError {
             ExecutorError::TableAlreadyExists(name) => write!(f, "Table '{}' already exists", name),
             ExecutorError::ColumnNotFound(name) => write!(f, "Column '{}' not found", name),
             ExecutorError::ColumnAlreadyExists(name) => write!(f, "Column '{}' already exists", name),
+            ExecutorError::SchemaNotFound(name) => write!(f, "Schema '{}' not found", name),
+            ExecutorError::SchemaAlreadyExists(name) => write!(f, "Schema '{}' already exists", name),
+            ExecutorError::SchemaNotEmpty(name) => write!(f, "Cannot drop schema '{}': schema is not empty", name),
             ExecutorError::ColumnIndexOutOfBounds { index } => {
                 write!(f, "Column index {} out of bounds", index)
             }
@@ -66,6 +72,9 @@ impl From<catalog::CatalogError> for ExecutorError {
             catalog::CatalogError::TableNotFound(name) => ExecutorError::TableNotFound(name),
             catalog::CatalogError::ColumnAlreadyExists(name) => ExecutorError::ColumnAlreadyExists(name),
             catalog::CatalogError::ColumnNotFound(name) => ExecutorError::ColumnNotFound(name),
+            catalog::CatalogError::SchemaNotFound(name) => ExecutorError::SchemaNotFound(name),
+            catalog::CatalogError::SchemaAlreadyExists(name) => ExecutorError::SchemaAlreadyExists(name),
+            catalog::CatalogError::SchemaNotEmpty(name) => ExecutorError::SchemaNotEmpty(name),
         }
     }
 }

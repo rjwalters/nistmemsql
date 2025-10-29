@@ -25,19 +25,8 @@ impl Parser {
             false
         };
 
-        // Parse table name
-        let table_name = match self.peek() {
-            Token::Identifier(name) => {
-                let table = name.clone();
-                self.advance();
-                table
-            }
-            _ => {
-                return Err(ParseError {
-                    message: "Expected table name after DROP TABLE".to_string(),
-                })
-            }
-        };
+        // Parse table name (supports schema.table)
+        let table_name = self.parse_qualified_identifier()?;
 
         // Expect semicolon or EOF
         if matches!(self.peek(), Token::Semicolon) {

@@ -55,9 +55,17 @@ impl CreateTableExecutor {
         stmt: &CreateTableStmt,
         database: &mut Database,
     ) -> Result<String, ExecutorError> {
-        // Check if table already exists (defensive check before calling storage)
-        if database.catalog.table_exists(&stmt.table_name) {
-            return Err(ExecutorError::TableAlreadyExists(stmt.table_name.clone()));
+        // Parse qualified table name (schema.table or just table)
+        let (schema_name, table_name) = if let Some((schema_part, table_part)) = stmt.table_name.split_once('.') {
+            (schema_part.to_string(), table_part.to_string())
+        } else {
+            (database.catalog.get_current_schema().to_string(), stmt.table_name.clone())
+        };
+
+        // Check if table already exists in the target schema
+        let qualified_name = format!("{}.{}", schema_name, table_name);
+        if database.catalog.table_exists(&qualified_name) {
+            return Err(ExecutorError::TableAlreadyExists(qualified_name));
         }
 
         // Convert AST ColumnDef → Catalog ColumnSchema
@@ -69,16 +77,33 @@ impl CreateTableExecutor {
             })
             .collect();
 
-        // Create TableSchema
-        let table_schema = TableSchema::new(stmt.table_name.clone(), columns);
+        // Create TableSchema with unqualified name
+        let table_schema = TableSchema::new(table_name.clone(), columns);
 
-        // Create table in storage (this also registers in catalog)
-        database
-            .create_table(table_schema)
-            .map_err(|e| ExecutorError::StorageError(e.to_string()))?;
+        // If creating in a non-current schema, temporarily switch to it
+        let original_schema = database.catalog.get_current_schema().to_string();
+        let needs_schema_switch = schema_name != original_schema;
+
+        if needs_schema_switch {
+            database.catalog.set_current_schema(&schema_name)
+                .map_err(|e| ExecutorError::StorageError(format!("Schema error: {:?}", e)))?;
+        }
+
+        // Create table using Database API (handles both catalog and storage)
+        let result = database.create_table(table_schema)
+            .map_err(|e| ExecutorError::StorageError(e.to_string()));
+
+        // Restore original schema if we switched
+        if needs_schema_switch {
+            database.catalog.set_current_schema(&original_schema)
+                .map_err(|e| ExecutorError::StorageError(format!("Schema error: {:?}", e)))?;
+        }
+
+        // Check if table creation succeeded
+        result?;
 
         // Return success message
-        Ok(format!("Table '{}' created successfully", stmt.table_name))
+        Ok(format!("Table '{}' created successfully in schema '{}'", table_name, schema_name))
     }
 }
 
@@ -106,7 +131,7 @@ mod tests {
 
         let result = CreateTableExecutor::execute(&stmt, &mut db);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "Table 'users' created successfully");
+        assert_eq!(result.unwrap(), "Table 'users' created successfully in schema 'public'");
 
         // Verify table exists in catalog
         assert!(db.catalog.table_exists("users"));

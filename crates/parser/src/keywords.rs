@@ -85,6 +85,10 @@ pub enum Keyword {
     Begin,
     Commit,
     Rollback,
+    // SCHEMA keywords
+    Cascade,
+    Restrict,
+    Schema,
     Start,
     Transaction,
     // ALTER TABLE keywords
@@ -177,6 +181,9 @@ impl fmt::Display for Keyword {
             Keyword::Begin => "BEGIN",
             Keyword::Commit => "COMMIT",
             Keyword::Rollback => "ROLLBACK",
+            Keyword::Cascade => "CASCADE",
+            Keyword::Restrict => "RESTRICT",
+            Keyword::Schema => "SCHEMA",
             Keyword::Start => "START",
             Keyword::Transaction => "TRANSACTION",
             Keyword::Add => "ADD",

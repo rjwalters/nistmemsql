@@ -1,0 +1,71 @@
+//! Schema DDL parsing
+
+use crate::keywords::Keyword;
+use crate::parser::ParseError;
+use ast::*;
+
+/// Parse CREATE SCHEMA statement
+pub fn parse_create_schema(parser: &mut crate::Parser) -> Result<CreateSchemaStmt, ParseError> {
+    parser.expect_keyword(Keyword::Create)?;
+    parser.expect_keyword(Keyword::Schema)?;
+
+    let if_not_exists = parser.peek_keyword(Keyword::If)
+        && {
+            parser.advance();
+            parser.expect_keyword(Keyword::Not)?;
+            parser.expect_keyword(Keyword::Exists)?;
+            true
+        };
+
+    let schema_name = parser.parse_qualified_identifier()?;
+
+    Ok(CreateSchemaStmt {
+        schema_name,
+        if_not_exists,
+    })
+}
+
+/// Parse DROP SCHEMA statement
+pub fn parse_drop_schema(parser: &mut crate::Parser) -> Result<DropSchemaStmt, ParseError> {
+    parser.expect_keyword(Keyword::Drop)?;
+    parser.expect_keyword(Keyword::Schema)?;
+
+    let if_exists = parser.peek_keyword(Keyword::If)
+        && {
+            parser.advance();
+            parser.expect_keyword(Keyword::Exists)?;
+            true
+        };
+
+    let schema_name = parser.parse_qualified_identifier()?;
+
+    let cascade = if parser.peek_keyword(Keyword::Cascade) {
+        parser.advance();
+        true
+    } else if parser.peek_keyword(Keyword::Restrict) {
+        parser.advance();
+        false
+    } else {
+        // RESTRICT is the default
+        false
+    };
+
+    Ok(DropSchemaStmt {
+        schema_name,
+        if_exists,
+        cascade,
+    })
+}
+
+/// Parse SET SCHEMA statement
+pub fn parse_set_schema(parser: &mut crate::Parser) -> Result<SetSchemaStmt, ParseError> {
+    // This could be "SET SCHEMA schema_name" or "SET search_path TO schema_name"
+    // For now, we'll support the simpler "SET SCHEMA schema_name" form
+
+    parser.expect_keyword(Keyword::Set)?;
+    parser.expect_keyword(Keyword::Schema)?;
+
+    let schema_name = parser.parse_qualified_identifier()?;
+
+    Ok(SetSchemaStmt { schema_name })
+}

@@ -108,6 +108,42 @@ impl Database {
                 serde_wasm_bindgen::to_value(&result)
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
+            ast::Statement::CreateSchema(create_stmt) => {
+                let message = executor::SchemaExecutor::execute_create_schema(&create_stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message,
+                };
+
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
+            ast::Statement::DropSchema(drop_stmt) => {
+                let message = executor::SchemaExecutor::execute_drop_schema(&drop_stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message,
+                };
+
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
+            ast::Statement::SetSchema(set_stmt) => {
+                let message = executor::SchemaExecutor::execute_set_schema(&set_stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message,
+                };
+
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
             _ => Err(JsValue::from_str(&format!(
                 "Statement type not yet supported in WASM: {:?}",
                 stmt

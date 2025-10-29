@@ -10,6 +10,15 @@ impl Parser {
         }
     }
 
+    /// Peek at next token (position + 1) without consuming.
+    pub(super) fn peek_next(&self) -> &Token {
+        if self.position + 1 < self.tokens.len() {
+            &self.tokens[self.position + 1]
+        } else {
+            &Token::Eof
+        }
+    }
+
     /// Advance to next token.
     pub(super) fn advance(&mut self) {
         if self.position < self.tokens.len() {
@@ -20,6 +29,11 @@ impl Parser {
     /// Check if current token is a specific keyword.
     pub(super) fn peek_keyword(&self, keyword: Keyword) -> bool {
         matches!(self.peek(), Token::Keyword(k) if k == &keyword)
+    }
+
+    /// Check if next token is a specific keyword.
+    pub(super) fn peek_next_keyword(&self, keyword: Keyword) -> bool {
+        matches!(self.peek_next(), Token::Keyword(k) if k == &keyword)
     }
 
     /// Expect and consume a specific keyword.
@@ -70,6 +84,43 @@ impl Parser {
             true
         } else {
             false
+        }
+    }
+
+    /// Parse a qualified identifier (schema.table or just table)
+    pub(super) fn parse_qualified_identifier(&mut self) -> Result<String, ParseError> {
+        // Parse first identifier
+        let first_part = match self.peek() {
+            Token::Identifier(name) => {
+                let identifier = name.clone();
+                self.advance();
+                identifier
+            }
+            _ => {
+                return Err(ParseError {
+                    message: "Expected identifier".to_string(),
+                })
+            }
+        };
+
+        // Check if there's a dot followed by another identifier
+        if self.peek() == &Token::Symbol('.') {
+            self.advance(); // consume the dot
+            let second_part = match self.peek() {
+                Token::Identifier(name) => {
+                    let identifier = name.clone();
+                    self.advance();
+                    identifier
+                }
+                _ => {
+                    return Err(ParseError {
+                        message: "Expected identifier after '.'".to_string(),
+                    })
+                }
+            };
+            Ok(format!("{}.{}", first_part, second_part))
+        } else {
+            Ok(first_part)
         }
     }
 }

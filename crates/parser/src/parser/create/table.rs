@@ -10,19 +10,8 @@ impl Parser {
         self.expect_keyword(Keyword::Create)?;
         self.expect_keyword(Keyword::Table)?;
 
-        // Parse table name
-        let table_name = match self.peek() {
-            Token::Identifier(name) => {
-                let table = name.clone();
-                self.advance();
-                table
-            }
-            _ => {
-                return Err(ParseError {
-                    message: "Expected table name after CREATE TABLE".to_string(),
-                })
-            }
-        };
+        // Parse table name (supports schema.table)
+        let table_name = self.parse_qualified_identifier()?;
 
         // Parse column definitions and table constraints
         self.expect_token(Token::LParen)?;

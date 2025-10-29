@@ -80,9 +80,8 @@ impl Parser {
 
                 Ok(ast::FromClause::Subquery { query, alias })
             }
-            Token::Identifier(table_name) => {
-                let name = table_name.clone();
-                self.advance();
+            Token::Identifier(_) => {
+                let name = self.parse_qualified_identifier()?;
 
                 // Check for optional alias
                 let alias = if self.peek_keyword(Keyword::As) {

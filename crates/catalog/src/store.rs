@@ -1,52 +1,155 @@
 use std::collections::HashMap;
 
 use crate::errors::CatalogError;
+use crate::schema::Schema;
 use crate::table::TableSchema;
 
-/// Database catalog - manages all table schemas.
+/// Database catalog - manages all schemas and their objects.
 #[derive(Debug, Clone)]
 pub struct Catalog {
-    tables: HashMap<String, TableSchema>,
+    schemas: HashMap<String, Schema>,
+    current_schema: String,
 }
 
 impl Catalog {
     /// Create a new empty catalog.
     pub fn new() -> Self {
-        Catalog { tables: HashMap::new() }
+        let mut catalog = Catalog {
+            schemas: HashMap::new(),
+            current_schema: "public".to_string(),
+        };
+
+        // Create the default "public" schema
+        catalog.schemas.insert("public".to_string(), Schema::new("public".to_string()));
+
+        catalog
     }
 
-    /// Create a table schema.
+    /// Create a table schema in the current schema.
     pub fn create_table(&mut self, schema: TableSchema) -> Result<(), CatalogError> {
-        let table_name = schema.name.clone();
-        if self.tables.contains_key(&table_name) {
-            return Err(CatalogError::TableAlreadyExists(table_name));
+        let current_schema = self.schemas.get_mut(&self.current_schema)
+            .ok_or_else(|| CatalogError::SchemaNotFound(self.current_schema.clone()))?;
+
+        current_schema.create_table(schema)
+    }
+
+    /// Create a table schema in a specific schema.
+    pub fn create_table_in_schema(&mut self, schema_name: &str, schema: TableSchema) -> Result<(), CatalogError> {
+        let target_schema = self.schemas.get_mut(schema_name)
+            .ok_or_else(|| CatalogError::SchemaNotFound(schema_name.to_string()))?;
+
+        target_schema.create_table(schema)
+    }
+
+    /// Get a table schema by name (supports qualified names like "schema.table").
+    pub fn get_table(&self, name: &str) -> Option<&TableSchema> {
+        // Parse qualified name: schema.table or just table
+        if let Some((schema_name, table_name)) = name.split_once('.') {
+            self.schemas.get(schema_name)
+                .and_then(|schema| schema.get_table(table_name))
+        } else {
+            // Use current schema for unqualified names
+            self.schemas.get(&self.current_schema)
+                .and_then(|schema| schema.get_table(name))
         }
-        self.tables.insert(table_name, schema);
+    }
+
+    /// Drop a table schema (supports qualified names like "schema.table").
+    pub fn drop_table(&mut self, name: &str) -> Result<(), CatalogError> {
+        // Parse qualified name: schema.table or just table
+        let (schema_name, table_name) = if let Some((schema_part, table_part)) = name.split_once('.') {
+            (schema_part.to_string(), table_part)
+        } else {
+            (self.current_schema.clone(), name)
+        };
+
+        let schema = self.schemas.get_mut(&schema_name)
+            .ok_or_else(|| CatalogError::SchemaNotFound(schema_name))?;
+
+        schema.drop_table(table_name)
+    }
+
+    /// List all table names in the current schema.
+    pub fn list_tables(&self) -> Vec<String> {
+        self.schemas.get(&self.current_schema)
+            .map(|schema| schema.list_tables())
+            .unwrap_or_default()
+    }
+
+    /// List all table names with qualified names (schema.table).
+    pub fn list_all_tables(&self) -> Vec<String> {
+        let mut result = Vec::new();
+        for (schema_name, schema) in &self.schemas {
+            for table_name in schema.list_tables() {
+                result.push(format!("{}.{}", schema_name, table_name));
+            }
+        }
+        result
+    }
+
+    /// Check if table exists (supports qualified names).
+    pub fn table_exists(&self, name: &str) -> bool {
+        self.get_table(name).is_some()
+    }
+
+    // ============================================================================
+    // Schema Management Methods
+    // ============================================================================
+
+    /// Create a new schema.
+    pub fn create_schema(&mut self, name: String) -> Result<(), CatalogError> {
+        if self.schemas.contains_key(&name) {
+            return Err(CatalogError::SchemaAlreadyExists(name));
+        }
+        self.schemas.insert(name.clone(), Schema::new(name));
         Ok(())
     }
 
-    /// Get a table schema by name.
-    pub fn get_table(&self, name: &str) -> Option<&TableSchema> {
-        self.tables.get(name)
-    }
-
-    /// Drop a table schema.
-    pub fn drop_table(&mut self, name: &str) -> Result<(), CatalogError> {
-        if self.tables.remove(name).is_some() {
-            Ok(())
-        } else {
-            Err(CatalogError::TableNotFound(name.to_string()))
+    /// Drop a schema.
+    pub fn drop_schema(&mut self, name: &str, cascade: bool) -> Result<(), CatalogError> {
+        // Don't allow dropping the public schema
+        if name == "public" {
+            return Err(CatalogError::SchemaNotEmpty("public".to_string()));
         }
+
+        let schema = self.schemas.get(name)
+            .ok_or_else(|| CatalogError::SchemaNotFound(name.to_string()))?;
+
+        if !cascade && !schema.is_empty() {
+            return Err(CatalogError::SchemaNotEmpty(name.to_string()));
+        }
+
+        self.schemas.remove(name);
+        Ok(())
     }
 
-    /// List all table names.
-    pub fn list_tables(&self) -> Vec<String> {
-        self.tables.keys().cloned().collect()
+    /// Get a schema by name.
+    pub fn get_schema(&self, name: &str) -> Option<&Schema> {
+        self.schemas.get(name)
     }
 
-    /// Check if table exists.
-    pub fn table_exists(&self, name: &str) -> bool {
-        self.tables.contains_key(name)
+    /// List all schema names.
+    pub fn list_schemas(&self) -> Vec<String> {
+        self.schemas.keys().cloned().collect()
+    }
+
+    /// Check if schema exists.
+    pub fn schema_exists(&self, name: &str) -> bool {
+        self.schemas.contains_key(name)
+    }
+
+    /// Set the current schema for unqualified table references.
+    pub fn set_current_schema(&mut self, name: &str) -> Result<(), CatalogError> {
+        if !self.schema_exists(name) {
+            return Err(CatalogError::SchemaNotFound(name.to_string()));
+        }
+        self.current_schema = name.to_string();
+        Ok(())
+    }
+
+    /// Get the current schema name.
+    pub fn get_current_schema(&self) -> &str {
+        &self.current_schema
     }
 }
 

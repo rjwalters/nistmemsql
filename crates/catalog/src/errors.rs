@@ -5,6 +5,9 @@ pub enum CatalogError {
     TableNotFound(String),
     ColumnAlreadyExists(String),
     ColumnNotFound(String),
+    SchemaAlreadyExists(String),
+    SchemaNotFound(String),
+    SchemaNotEmpty(String),
 }
 
 impl std::fmt::Display for CatalogError {
@@ -18,6 +21,13 @@ impl std::fmt::Display for CatalogError {
                 write!(f, "Column '{}' already exists", name)
             }
             CatalogError::ColumnNotFound(name) => write!(f, "Column '{}' not found", name),
+            CatalogError::SchemaAlreadyExists(name) => {
+                write!(f, "Schema '{}' already exists", name)
+            }
+            CatalogError::SchemaNotFound(name) => write!(f, "Schema '{}' not found", name),
+            CatalogError::SchemaNotEmpty(name) => {
+                write!(f, "Schema '{}' is not empty", name)
+            }
         }
     }
 }
