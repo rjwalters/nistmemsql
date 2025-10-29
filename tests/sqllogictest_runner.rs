@@ -66,6 +66,21 @@ impl NistMemSqlDB {
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
+            ast::Statement::CreateSchema(create_schema_stmt) => {
+                executor::SchemaExecutor::execute_create_schema(&create_schema_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::DropSchema(drop_schema_stmt) => {
+                executor::SchemaExecutor::execute_drop_schema(&drop_schema_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::SetSchema(set_schema_stmt) => {
+                executor::SchemaExecutor::execute_set_schema(&set_schema_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
             ast::Statement::BeginTransaction(_)
             | ast::Statement::Commit(_)
             | ast::Statement::Rollback(_) => Ok(DBOutput::StatementComplete(0)),
