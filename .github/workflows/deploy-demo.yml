@@ -69,7 +69,7 @@ jobs:
         continue-on-error: true
 
       - name: Run sqltest conformance suite
-        run: cargo test sqltest_conformance --release -- --nocapture
+        run: cargo test --test sqltest_conformance --release -- --nocapture
         continue-on-error: true
 
       # Generate dynamic badge data

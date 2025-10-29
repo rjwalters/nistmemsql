@@ -57,10 +57,10 @@ jobs:
         run: python3 scripts/extract_sql1999_tests.py
       
       - name: Run SQLLogicTest suite
-        run: cargo test sqllogictest --release -- --nocapture
-      
+        run: cargo test --test sqllogictest_runner --release -- --nocapture
+
       - name: Run sqltest conformance suite
-        run: cargo test sqltest_conformance --release -- --nocapture
+        run: cargo test --test sqltest_conformance --release -- --nocapture
       
       - name: Upload test results
         uses: actions/upload-artifact@v4
