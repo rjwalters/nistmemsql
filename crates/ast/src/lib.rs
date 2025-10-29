@@ -11,7 +11,7 @@ mod operators;
 mod select;
 mod statement;
 
-pub use ddl::{BeginStmt, ColumnConstraint, ColumnDef, CommitStmt, CreateTableStmt, DropTableStmt, RollbackStmt, TableConstraint};
+pub use ddl::{BeginStmt, ColumnConstraint, ColumnDef, CommitStmt, CreateSchemaStmt, CreateTableStmt, DropSchemaStmt, DropTableStmt, RollbackStmt, SetSchemaStmt, TableConstraint};
 pub use dml::{Assignment, DeleteStmt, InsertSource, InsertStmt, UpdateStmt};
 pub use expression::{
     Expression, FrameBound, FrameUnit, Quantifier, WindowFrame, WindowFunctionSpec, WindowSpec,

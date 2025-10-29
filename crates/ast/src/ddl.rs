@@ -69,3 +69,24 @@ pub struct CommitStmt;
 /// ROLLBACK statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct RollbackStmt;
+
+/// CREATE SCHEMA statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreateSchemaStmt {
+    pub schema_name: String,
+    pub if_not_exists: bool,
+}
+
+/// DROP SCHEMA statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropSchemaStmt {
+    pub schema_name: String,
+    pub if_exists: bool,
+    pub cascade: bool,
+}
+
+/// SET SCHEMA statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct SetSchemaStmt {
+    pub schema_name: String,
+}

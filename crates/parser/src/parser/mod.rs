@@ -9,6 +9,7 @@ mod drop;
 mod expressions;
 mod helpers;
 mod insert;
+mod schema;
 mod select;
 mod transaction;
 mod update;
@@ -67,12 +68,42 @@ impl Parser {
                 Ok(ast::Statement::Delete(delete_stmt))
             }
             Token::Keyword(Keyword::Create) => {
-                let create_stmt = self.parse_create_table_statement()?;
-                Ok(ast::Statement::CreateTable(create_stmt))
+                match self.peek_keyword(Keyword::Table) {
+                    true => {
+                        let create_stmt = self.parse_create_table_statement()?;
+                        Ok(ast::Statement::CreateTable(create_stmt))
+                    }
+                    false => {
+                        match self.peek_keyword(Keyword::Schema) {
+                            true => {
+                                let create_stmt = self.parse_create_schema_statement()?;
+                                Ok(ast::Statement::CreateSchema(create_stmt))
+                            }
+                            false => Err(ParseError {
+                                message: "Expected TABLE or SCHEMA after CREATE".to_string(),
+                            }),
+                        }
+                    }
+                }
             }
             Token::Keyword(Keyword::Drop) => {
-                let drop_stmt = self.parse_drop_table_statement()?;
-                Ok(ast::Statement::DropTable(drop_stmt))
+                match self.peek_keyword(Keyword::Table) {
+                    true => {
+                        let drop_stmt = self.parse_drop_table_statement()?;
+                        Ok(ast::Statement::DropTable(drop_stmt))
+                    }
+                    false => {
+                        match self.peek_keyword(Keyword::Schema) {
+                            true => {
+                                let drop_stmt = self.parse_drop_schema_statement()?;
+                                Ok(ast::Statement::DropSchema(drop_stmt))
+                            }
+                            false => Err(ParseError {
+                                message: "Expected TABLE or SCHEMA after DROP".to_string(),
+                            }),
+                        }
+                    }
+                }
             }
             Token::Keyword(Keyword::Begin) | Token::Keyword(Keyword::Start) => {
                 let begin_stmt = self.parse_begin_statement()?;
@@ -85,6 +116,17 @@ impl Parser {
             Token::Keyword(Keyword::Rollback) => {
                 let rollback_stmt = self.parse_rollback_statement()?;
                 Ok(ast::Statement::Rollback(rollback_stmt))
+            }
+            Token::Keyword(Keyword::Set) => {
+                match self.peek_keyword(Keyword::Schema) {
+                    true => {
+                        let set_stmt = self.parse_set_schema_statement()?;
+                        Ok(ast::Statement::SetSchema(set_stmt))
+                    }
+                    false => Err(ParseError {
+                        message: "Expected SCHEMA after SET".to_string(),
+                    }),
+                }
             }
             _ => {
                 Err(ParseError { message: format!("Expected statement, found {:?}", self.peek()) })
@@ -105,5 +147,20 @@ impl Parser {
     /// Parse ROLLBACK statement
     pub fn parse_rollback_statement(&mut self) -> Result<ast::RollbackStmt, ParseError> {
         transaction::parse_rollback_statement(self)
+    }
+
+    /// Parse CREATE SCHEMA statement
+    pub fn parse_create_schema_statement(&mut self) -> Result<ast::CreateSchemaStmt, ParseError> {
+        schema::parse_create_schema(self)
+    }
+
+    /// Parse DROP SCHEMA statement
+    pub fn parse_drop_schema_statement(&mut self) -> Result<ast::DropSchemaStmt, ParseError> {
+        schema::parse_drop_schema(self)
+    }
+
+    /// Parse SET SCHEMA statement
+    pub fn parse_set_schema_statement(&mut self) -> Result<ast::SetSchemaStmt, ParseError> {
+        schema::parse_set_schema(self)
     }
 }

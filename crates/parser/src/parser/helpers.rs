@@ -48,4 +48,41 @@ impl Parser {
             Err(ParseError { message: format!("Expected {:?}, found {:?}", expected, self.peek()) })
         }
     }
+
+    /// Parse a qualified identifier (schema.table or just table)
+    pub(super) fn parse_qualified_identifier(&mut self) -> Result<String, ParseError> {
+        // Parse first identifier
+        let first_part = match self.peek() {
+            Token::Identifier(name) => {
+                let identifier = name.clone();
+                self.advance();
+                identifier
+            }
+            _ => {
+                return Err(ParseError {
+                    message: "Expected identifier".to_string(),
+                })
+            }
+        };
+
+        // Check if there's a dot followed by another identifier
+        if self.peek() == &Token::Symbol('.') {
+            self.advance(); // consume the dot
+            let second_part = match self.peek() {
+                Token::Identifier(name) => {
+                    let identifier = name.clone();
+                    self.advance();
+                    identifier
+                }
+                _ => {
+                    return Err(ParseError {
+                        message: "Expected identifier after '.'".to_string(),
+                    })
+                }
+            };
+            Ok(format!("{}.{}", first_part, second_part))
+        } else {
+            Ok(first_part)
+        }
+    }
 }
