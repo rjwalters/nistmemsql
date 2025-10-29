@@ -1,8 +1,8 @@
 {
   "version": "SQL:1999 (from SQL:2016 subset)",
-  "source": "sqltest by Elliot Chance",
+  "source": "sqltest by Elliot Chance (extended with E021 tests)",
   "url": "https://github.com/elliotchance/sqltest",
-  "test_count": 109,
+  "test_count": 159,
   "tests": [
     {
       "id": "e011_01_01_01",
@@ -702,6 +702,356 @@
       "feature": "E011-06",
       "category": "Core",
       "sql": "SELECT 3 >= 5",
+      "expect_success": true
+    },
+    {
+      "id": "e021_01_01_01",
+      "feature": "E021-01",
+      "category": "Core",
+      "sql": "CREATE TABLE TABLE_E021_01_01 ( A CHARACTER ( 10 ) )",
+      "expect_success": true
+    },
+    {
+      "id": "e021_01_01_02",
+      "feature": "E021-01",
+      "category": "Core",
+      "sql": "CREATE TABLE TABLE_E021_01_02 ( A CHAR ( 5 ) )",
+      "expect_success": true
+    },
+    {
+      "id": "e021_01_01_03",
+      "feature": "E021-01",
+      "category": "Core",
+      "sql": "CREATE TABLE TABLE_E021_01_03 ( A CHAR ( 1 ) )",
+      "expect_success": true
+    },
+    {
+      "id": "e021_02_01_01",
+      "feature": "E021-02",
+      "category": "Core",
+      "sql": "CREATE TABLE TABLE_E021_02_01 ( A VARCHAR ( 50 ) )",
+      "expect_success": true
+    },
+    {
+      "id": "e021_02_01_02",
+      "feature": "E021-02",
+      "category": "Core",
+      "sql": "CREATE TABLE TABLE_E021_02_02 ( A VARCHAR ( 100 ) )",
+      "expect_success": true
+    },
+    {
+      "id": "e021_02_01_03",
+      "feature": "E021-02",
+      "category": "Core",
+      "sql": "CREATE TABLE TABLE_E021_02_03 ( A VARCHAR ( 1 ) )",
+      "expect_success": true
+    },
+    {
+      "id": "e021_03_01_01",
+      "feature": "E021-03",
+      "category": "Core",
+      "sql": "SELECT 'hello'",
+      "expect_success": true
+    },
+    {
+      "id": "e021_03_01_02",
+      "feature": "E021-03",
+      "category": "Core",
+      "sql": "SELECT 'world'",
+      "expect_success": true
+    },
+    {
+      "id": "e021_03_01_03",
+      "feature": "E021-03",
+      "category": "Core",
+      "sql": "SELECT 'Hello World'",
+      "expect_success": true
+    },
+    {
+      "id": "e021_03_01_04",
+      "feature": "E021-03",
+      "category": "Core",
+      "sql": "SELECT ''",
+      "expect_success": true
+    },
+    {
+      "id": "e021_03_01_05",
+      "feature": "E021-03",
+      "category": "Core",
+      "sql": "SELECT 'test123'",
+      "expect_success": true
+    },
+    {
+      "id": "e021_03_01_06",
+      "feature": "E021-03",
+      "category": "Core",
+      "sql": "SELECT 'test''s'",
+      "expect_success": true
+    },
+    {
+      "id": "e021_04_01_01",
+      "feature": "E021-04",
+      "category": "Core",
+      "sql": "SELECT CHARACTER_LENGTH('hello')",
+      "expect_success": true
+    },
+    {
+      "id": "e021_04_01_02",
+      "feature": "E021-04",
+      "category": "Core",
+      "sql": "SELECT CHARACTER_LENGTH('')",
+      "expect_success": true
+    },
+    {
+      "id": "e021_04_01_03",
+      "feature": "E021-04",
+      "category": "Core",
+      "sql": "SELECT CHAR_LENGTH('test')",
+      "expect_success": true
+    },
+    {
+      "id": "e021_04_01_04",
+      "feature": "E021-04",
+      "category": "Core",
+      "sql": "SELECT CHAR_LENGTH('hello world')",
+      "expect_success": true
+    },
+    {
+      "id": "e021_04_01_05",
+      "feature": "E021-04",
+      "category": "Core",
+      "sql": "SELECT CHAR_LENGTH(NULL)",
+      "expect_success": true
+    },
+    {
+      "id": "e021_06_01_01",
+      "feature": "E021-06",
+      "category": "Core",
+      "sql": "SELECT SUBSTRING('hello world', 1, 5)",
+      "expect_success": true
+    },
+    {
+      "id": "e021_06_01_02",
+      "feature": "E021-06",
+      "category": "Core",
+      "sql": "SELECT SUBSTRING('hello world', 7)",
+      "expect_success": true
+    },
+    {
+      "id": "e021_06_01_03",
+      "feature": "E021-06",
+      "category": "Core",
+      "sql": "SELECT SUBSTRING('test', 1, 2)",
+      "expect_success": true
+    },
+    {
+      "id": "e021_06_01_04",
+      "feature": "E021-06",
+      "category": "Core",
+      "sql": "SELECT SUBSTRING('hello', 2, 3)",
+      "expect_success": true
+    },
+    {
+      "id": "e021_06_01_05",
+      "feature": "E021-06",
+      "category": "Core",
+      "sql": "SELECT SUBSTRING(NULL, 1, 5)",
+      "expect_success": true
+    },
+    {
+      "id": "e021_06_01_06",
+      "feature": "E021-06",
+      "category": "Core",
+      "sql": "SELECT SUBSTRING('', 1, 5)",
+      "expect_success": true
+    },
+    {
+      "id": "e021_08_01_01",
+      "feature": "E021-08",
+      "category": "Core",
+      "sql": "SELECT UPPER('hello')",
+      "expect_success": true
+    },
+    {
+      "id": "e021_08_01_02",
+      "feature": "E021-08",
+      "category": "Core",
+      "sql": "SELECT UPPER('world')",
+      "expect_success": true
+    },
+    {
+      "id": "e021_08_01_03",
+      "feature": "E021-08",
+      "category": "Core",
+      "sql": "SELECT UPPER('Hello World')",
+      "expect_success": true
+    },
+    {
+      "id": "e021_08_01_04",
+      "feature": "E021-08",
+      "category": "Core",
+      "sql": "SELECT UPPER('')",
+      "expect_success": true
+    },
+    {
+      "id": "e021_08_01_05",
+      "feature": "E021-08",
+      "category": "Core",
+      "sql": "SELECT UPPER(NULL)",
+      "expect_success": true
+    },
+    {
+      "id": "e021_08_02_01",
+      "feature": "E021-08",
+      "category": "Core",
+      "sql": "SELECT LOWER('HELLO')",
+      "expect_success": true
+    },
+    {
+      "id": "e021_08_02_02",
+      "feature": "E021-08",
+      "category": "Core",
+      "sql": "SELECT LOWER('WORLD')",
+      "expect_success": true
+    },
+    {
+      "id": "e021_08_02_03",
+      "feature": "E021-08",
+      "category": "Core",
+      "sql": "SELECT LOWER('Hello World')",
+      "expect_success": true
+    },
+    {
+      "id": "e021_08_02_04",
+      "feature": "E021-08",
+      "category": "Core",
+      "sql": "SELECT LOWER('')",
+      "expect_success": true
+    },
+    {
+      "id": "e021_08_02_05",
+      "feature": "E021-08",
+      "category": "Core",
+      "sql": "SELECT LOWER(NULL)",
+      "expect_success": true
+    },
+    {
+      "id": "e021_09_01_01",
+      "feature": "E021-09",
+      "category": "Core",
+      "sql": "SELECT TRIM('  hello  ')",
+      "expect_success": true
+    },
+    {
+      "id": "e021_09_01_02",
+      "feature": "E021-09",
+      "category": "Core",
+      "sql": "SELECT TRIM('hello')",
+      "expect_success": true
+    },
+    {
+      "id": "e021_09_01_03",
+      "feature": "E021-09",
+      "category": "Core",
+      "sql": "SELECT TRIM('  test')",
+      "expect_success": true
+    },
+    {
+      "id": "e021_09_01_04",
+      "feature": "E021-09",
+      "category": "Core",
+      "sql": "SELECT TRIM('test  ')",
+      "expect_success": true
+    },
+    {
+      "id": "e021_09_01_05",
+      "feature": "E021-09",
+      "category": "Core",
+      "sql": "SELECT TRIM(NULL)",
+      "expect_success": true
+    },
+    {
+      "id": "e021_11_01_01",
+      "feature": "E021-11",
+      "category": "Core",
+      "sql": "SELECT POSITION('lo' IN 'hello')",
+      "expect_success": true
+    },
+    {
+      "id": "e021_11_01_02",
+      "feature": "E021-11",
+      "category": "Core",
+      "sql": "SELECT POSITION('world' IN 'hello world')",
+      "expect_success": true
+    },
+    {
+      "id": "e021_11_01_03",
+      "feature": "E021-11",
+      "category": "Core",
+      "sql": "SELECT POSITION('x' IN 'hello')",
+      "expect_success": true
+    },
+    {
+      "id": "e021_11_01_04",
+      "feature": "E021-11",
+      "category": "Core",
+      "sql": "SELECT POSITION('' IN 'test')",
+      "expect_success": true
+    },
+    {
+      "id": "e021_11_01_05",
+      "feature": "E021-11",
+      "category": "Core",
+      "sql": "SELECT POSITION(NULL IN 'test')",
+      "expect_success": true
+    },
+    {
+      "id": "e021_12_01_01",
+      "feature": "E021-12",
+      "category": "Core",
+      "sql": "SELECT 'abc' = 'abc'",
+      "expect_success": true
+    },
+    {
+      "id": "e021_12_01_02",
+      "feature": "E021-12",
+      "category": "Core",
+      "sql": "SELECT 'abc' <> 'def'",
+      "expect_success": true
+    },
+    {
+      "id": "e021_12_01_07",
+      "feature": "E021-12",
+      "category": "Core",
+      "sql": "SELECT 'test' = NULL",
+      "expect_success": true
+    },
+    {
+      "id": "e021_12_01_08",
+      "feature": "E021-12",
+      "category": "Core",
+      "sql": "SELECT NULL = 'test'",
+      "expect_success": true
+    },
+    {
+      "id": "e021_12_01_09",
+      "feature": "E021-12",
+      "category": "Core",
+      "sql": "SELECT '' = ''",
+      "expect_success": true
+    },
+    {
+      "id": "e021_12_01_11",
+      "feature": "E021-12",
+      "category": "Core",
+      "sql": "SELECT 'abc' <> 'ABC'",
+      "expect_success": true
+    },
+    {
+      "id": "e021_12_01_12",
+      "feature": "E021-12",
+      "category": "Core",
+      "sql": "SELECT 'hello' = 'hello'",
       "expect_success": true
     },
     {
