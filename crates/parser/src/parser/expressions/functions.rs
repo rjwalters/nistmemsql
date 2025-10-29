@@ -34,6 +34,21 @@ impl Parser {
                         }));
                     }
 
+                    // Check if this is an aggregate function
+                    let function_name_upper = first.to_uppercase();
+                    let is_aggregate = matches!(
+                        function_name_upper.as_str(),
+                        "COUNT" | "SUM" | "AVG" | "MIN" | "MAX"
+                    );
+
+                    // Parse optional DISTINCT for aggregate functions
+                    let distinct = if is_aggregate && matches!(self.peek(), Token::Keyword(Keyword::Distinct)) {
+                        self.advance(); // consume DISTINCT
+                        true
+                    } else {
+                        false
+                    };
+
                     // Parse function arguments
                     let mut args = Vec::new();
 
@@ -82,8 +97,16 @@ impl Parser {
                         }));
                     }
 
-                    // Regular function call (not a window function)
-                    Ok(Some(ast::Expression::Function { name: first, args }))
+                    // Return appropriate expression type
+                    if is_aggregate {
+                        Ok(Some(ast::Expression::AggregateFunction {
+                            name: first,
+                            distinct,
+                            args,
+                        }))
+                    } else {
+                        Ok(Some(ast::Expression::Function { name: first, args }))
+                    }
                 } else {
                     // Not a function call, rewind
                     self.position -= 1;

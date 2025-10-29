@@ -103,6 +103,10 @@ impl<'a> ExpressionEvaluator<'a> {
             ast::Expression::WindowFunction { .. } => Err(ExecutorError::UnsupportedExpression(
                 "Window functions should be evaluated separately".to_string(),
             )),
+
+            ast::Expression::AggregateFunction { .. } => Err(ExecutorError::UnsupportedExpression(
+                "Aggregate functions should be evaluated in aggregation context".to_string(),
+            )),
         }
     }
 
