@@ -59,15 +59,6 @@ jobs:
         run: npm run build
 
       # Run conformance tests to get latest metrics
-      - name: Setup Python for test manifest
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Generate SQL:1999 test manifest
-        run: python3 scripts/extract_sql1999_tests.py
-        continue-on-error: true
-
       - name: Run sqltest conformance suite
         run: cargo test --test sqltest_conformance --release -- --nocapture
         continue-on-error: true
