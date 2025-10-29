@@ -11,9 +11,18 @@ permissions:
 jobs:
   label_external:
     runs-on: ubuntu-latest
-    if: github.event_name == 'issues'
     steps:
+      - name: Check event type
+        run: |
+          echo "Event type: ${{ github.event_name }}"
+          if [ "${{ github.event_name }}" = "issues" ]; then
+            echo "Processing issue event"
+          else
+            echo "Skipping - not an issue event"
+          fi
+
       - name: Handle external issue
+        if: github.event_name == 'issues'
         uses: actions/github-script@v7
         with:
           script: |
