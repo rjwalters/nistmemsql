@@ -358,6 +358,14 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 }
             }
 
+            // IS NULL / IS NOT NULL
+            ast::Expression::IsNull { expr, negated } => {
+                let value = self.eval(expr, row)?;
+                let is_null = matches!(value, types::SqlValue::Null);
+                let result = if *negated { !is_null } else { is_null };
+                Ok(types::SqlValue::Boolean(result))
+            }
+
             // Function expressions - handle scalar functions (not aggregates)
             // Aggregates (COUNT, SUM, etc.) are handled in SelectExecutor
             ast::Expression::Function { name, args } => {

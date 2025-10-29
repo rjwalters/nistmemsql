@@ -79,6 +79,8 @@ pub enum Keyword {
     Unique,
     Check,
     References,
+    // IS NULL keywords
+    Is,
     // Transaction keywords
     Begin,
     Commit,
@@ -162,6 +164,7 @@ impl fmt::Display for Keyword {
             Keyword::Unique => "UNIQUE",
             Keyword::Check => "CHECK",
             Keyword::References => "REFERENCES",
+            Keyword::Is => "IS",
             Keyword::Begin => "BEGIN",
             Keyword::Commit => "COMMIT",
             Keyword::Rollback => "ROLLBACK",
