@@ -673,11 +673,10 @@ mod tests {
             select_list: vec![ast::SelectItem::Expression {
                 expr: Expression::Function {
                     name: "AVG".to_string(),
-                    expr: Box::new(Expression::ColumnRef {
+                    args: vec![Expression::ColumnRef {
                         table: None,
                         column: "salary".to_string(),
-                    }),
-                    distinct: false,
+                    }],
                 },
                 alias: None,
             }],
@@ -848,11 +847,10 @@ mod tests {
             select_list: vec![ast::SelectItem::Expression {
                 expr: Expression::Function {
                     name: "MAX".to_string(),
-                    expr: Box::new(Expression::ColumnRef {
+                    args: vec![Expression::ColumnRef {
                         table: None,
                         column: "price".to_string(),
-                    }),
-                    distinct: false,
+                    }],
                 },
                 alias: None,
             }],
