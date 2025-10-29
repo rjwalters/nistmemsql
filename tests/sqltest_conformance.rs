@@ -165,7 +165,10 @@ impl SqltestRunner {
             }
             ast::Statement::BeginTransaction(_)
             | ast::Statement::Commit(_)
-            | ast::Statement::Rollback(_) => {
+            | ast::Statement::Rollback(_)
+            | ast::Statement::Savepoint(_)
+            | ast::Statement::RollbackToSavepoint(_)
+            | ast::Statement::ReleaseSavepoint(_) => {
                 // Transactions are no-ops currently
                 Ok(true)
             }

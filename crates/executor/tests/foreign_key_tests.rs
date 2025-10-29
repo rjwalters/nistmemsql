@@ -4,10 +4,10 @@
 
 use storage::Database;
 use types::SqlValue;
-use crate::InsertExecutor;
-use crate::UpdateExecutor;
-use crate::DeleteExecutor;
-use crate::ExecutorError;
+use executor::InsertExecutor;
+use executor::UpdateExecutor;
+use executor::DeleteExecutor;
+use executor::ExecutorError;
 
 #[test]
 fn test_foreign_key_enforcement_exists() {
