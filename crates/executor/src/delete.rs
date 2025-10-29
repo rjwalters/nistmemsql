@@ -75,13 +75,21 @@ impl DeleteExecutor {
             return Err(ExecutorError::TableNotFound(stmt.table_name.clone()));
         }
 
+        // Step 1: Get schema (clone to avoid borrow issues)
+        let schema = database
+            .catalog
+            .get_table(&stmt.table_name)
+            .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?
+            .schema
+            .clone();
+
+        // Step 2: Evaluate WHERE clause and collect rows to delete (two-phase execution)
+        // Get table for scanning
         let table = database
             .get_table(&stmt.table_name)
             .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
 
-        // Clone schema to avoid borrow issues
-        let schema = table.schema.clone();
-        // Create evaluator with database reference for subquery support in WHERE clause
+        // Create evaluator with database reference for subquery support (EXISTS, NOT EXISTS, IN with subquery, etc.)
         let evaluator = ExpressionEvaluator::with_database(&schema, database);
 
         // Find rows to delete and their indices
@@ -101,7 +109,7 @@ impl DeleteExecutor {
             }
         }
 
-        // Check referential integrity for each row to be deleted
+        // Step 3: Check referential integrity for each row to be deleted
         for (_, row) in &rows_and_indices_to_delete {
             check_no_child_references(database, &stmt.table_name, row)?;
         }
@@ -113,6 +121,7 @@ impl DeleteExecutor {
         // Drop evaluator to release database borrow
         drop(evaluator);
 
+        // Step 4: Actually delete the rows (now we can borrow mutably)
         let table_mut = database
             .get_table_mut(&stmt.table_name)
             .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;

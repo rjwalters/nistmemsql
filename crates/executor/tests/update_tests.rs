@@ -988,9 +988,8 @@ fn test_update_with_scalar_subquery_single_value() {
     // UPDATE employees SET salary = (SELECT max_salary FROM config)
     let subquery = Box::new(ast::SelectStmt {
             with_clause: None,
+
             distinct: false,
-        with_clause: None,
-        distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::ColumnRef {
                 table: None,
@@ -1008,7 +1007,6 @@ fn test_update_with_scalar_subquery_single_value() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
         set_operation: None,
     });
 
@@ -1060,14 +1058,12 @@ fn test_update_with_scalar_subquery_max_aggregate() {
 
     // UPDATE employees SET salary = (SELECT MAX(amount) FROM salaries)
     let subquery = Box::new(ast::SelectStmt {
-            with_clause: None,
-            distinct: false,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::Function {
                 name: "MAX".to_string(),
-                expr: Box::new(Expression::ColumnRef {
+                args: vec![Expression::ColumnRef {
                     table: None,
                     column: "amount".to_string(),
                 }],
@@ -1084,7 +1080,6 @@ fn test_update_with_scalar_subquery_max_aggregate() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
         set_operation: None,
     });
 
@@ -1136,14 +1131,12 @@ fn test_update_with_scalar_subquery_min_aggregate() {
 
     // UPDATE products SET price = (SELECT MIN(amount) FROM prices)
     let subquery = Box::new(ast::SelectStmt {
-            with_clause: None,
-            distinct: false,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::Function {
                 name: "MIN".to_string(),
-                expr: Box::new(Expression::ColumnRef {
+                args: vec![Expression::ColumnRef {
                     table: None,
                     column: "amount".to_string(),
                 }],
@@ -1160,7 +1153,6 @@ fn test_update_with_scalar_subquery_min_aggregate() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
         set_operation: None,
     });
 
@@ -1212,14 +1204,12 @@ fn test_update_with_scalar_subquery_avg_aggregate() {
 
     // UPDATE employees SET salary = (SELECT AVG(amount) FROM salaries)
     let subquery = Box::new(ast::SelectStmt {
-            with_clause: None,
-            distinct: false,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::Function {
                 name: "AVG".to_string(),
-                expr: Box::new(Expression::ColumnRef {
+                args: vec![Expression::ColumnRef {
                     table: None,
                     column: "amount".to_string(),
                 }],
@@ -1236,7 +1226,6 @@ fn test_update_with_scalar_subquery_avg_aggregate() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
         set_operation: None,
     });
 
@@ -1288,9 +1277,8 @@ fn test_update_with_scalar_subquery_returns_null() {
     // UPDATE employees SET salary = (SELECT max_salary FROM config)
     let subquery = Box::new(ast::SelectStmt {
             with_clause: None,
+
             distinct: false,
-        with_clause: None,
-        distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::ColumnRef {
                 table: None,
@@ -1308,7 +1296,6 @@ fn test_update_with_scalar_subquery_returns_null() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
         set_operation: None,
     });
 
@@ -1358,9 +1345,8 @@ fn test_update_with_scalar_subquery_empty_result() {
     // UPDATE employees SET salary = (SELECT max_salary FROM config) -- returns NULL
     let subquery = Box::new(ast::SelectStmt {
             with_clause: None,
+
             distinct: false,
-        with_clause: None,
-        distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::ColumnRef {
                 table: None,
@@ -1378,7 +1364,6 @@ fn test_update_with_scalar_subquery_empty_result() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
         set_operation: None,
     });
 
@@ -1439,7 +1424,7 @@ fn test_update_with_multiple_subqueries() {
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::Function {
                 name: "MIN".to_string(),
-                expr: Box::new(Expression::ColumnRef {
+                args: vec![Expression::ColumnRef {
                     table: None,
                     column: "amount".to_string(),
                 }],
@@ -1456,7 +1441,6 @@ fn test_update_with_multiple_subqueries() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
         set_operation: None,
     });
 
@@ -1466,7 +1450,7 @@ fn test_update_with_multiple_subqueries() {
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::Function {
                 name: "MAX".to_string(),
-                expr: Box::new(Expression::ColumnRef {
+                args: vec![Expression::ColumnRef {
                     table: None,
                     column: "amount".to_string(),
                 }],
@@ -1483,7 +1467,6 @@ fn test_update_with_multiple_subqueries() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
         set_operation: None,
     });
 
@@ -1542,9 +1525,8 @@ fn test_update_with_subquery_multiple_rows_error() {
     // UPDATE employees SET salary = (SELECT amount FROM salaries) -- ERROR: multiple rows
     let subquery = Box::new(ast::SelectStmt {
             with_clause: None,
+
             distinct: false,
-        with_clause: None,
-        distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::ColumnRef {
                 table: None,
@@ -1562,7 +1544,6 @@ fn test_update_with_subquery_multiple_rows_error() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
         set_operation: None,
     });
 
@@ -1618,9 +1599,8 @@ fn test_update_with_subquery_multiple_columns_error() {
     // UPDATE employees SET salary = (SELECT min_amt, max_amt FROM salaries) -- ERROR: 2 columns
     let subquery = Box::new(ast::SelectStmt {
             with_clause: None,
+
             distinct: false,
-        with_clause: None,
-        distinct: false,
         select_list: vec![
             ast::SelectItem::Expression {
                 expr: Expression::ColumnRef {
@@ -1647,7 +1627,6 @@ fn test_update_with_subquery_multiple_columns_error() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
         set_operation: None,
     });
 
@@ -1704,9 +1683,8 @@ fn test_update_with_subquery_updates_multiple_rows() {
     // UPDATE employees SET salary = (SELECT base_salary FROM config) -- all rows
     let subquery = Box::new(ast::SelectStmt {
             with_clause: None,
+
             distinct: false,
-        with_clause: None,
-        distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::ColumnRef {
                 table: None,
@@ -1724,7 +1702,6 @@ fn test_update_with_subquery_updates_multiple_rows() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
         set_operation: None,
     });
 
@@ -1778,9 +1755,8 @@ fn test_update_with_subquery_and_where_clause() {
     // UPDATE employees SET salary = (SELECT max_salary FROM config) WHERE id = 1
     let subquery = Box::new(ast::SelectStmt {
             with_clause: None,
+
             distinct: false,
-        with_clause: None,
-        distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::ColumnRef {
                 table: None,
@@ -1798,7 +1774,6 @@ fn test_update_with_subquery_and_where_clause() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
         set_operation: None,
     });
 
@@ -1904,7 +1879,7 @@ fn test_update_where_in_subquery() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
+        set_operation: None,
     });
 
     // UPDATE employees SET salary = 80000 WHERE dept_id IN (SELECT dept_id FROM active_depts)
@@ -1999,7 +1974,7 @@ fn test_update_where_not_in_subquery() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
+        set_operation: None,
     });
 
     // UPDATE employees SET active = FALSE WHERE dept_id NOT IN (SELECT dept_id FROM active_depts)
@@ -2084,7 +2059,7 @@ fn test_update_where_scalar_subquery_equal() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
+        set_operation: None,
     });
 
     // UPDATE employees SET salary = 55000 WHERE salary = (SELECT min_salary FROM config)
@@ -2149,16 +2124,15 @@ fn test_update_where_scalar_subquery_less_than() {
 
     // Subquery: SELECT AVG(salary) FROM employees
     let subquery = Box::new(ast::SelectStmt {
-            with_clause: None,
-            distinct: false,
+        with_clause: None,
+        distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::Function {
                 name: "AVG".to_string(),
-                expr: Box::new(Expression::ColumnRef {
+                args: vec![Expression::ColumnRef {
                     table: None,
                     column: "salary".to_string(),
-                }),
-                distinct: false,
+                }],
             },
             alias: None,
         }],
@@ -2169,7 +2143,7 @@ fn test_update_where_scalar_subquery_less_than() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
+        set_operation: None,
     });
 
     // UPDATE employees SET bonus = 5000 WHERE salary < (SELECT AVG(salary) FROM employees)
@@ -2248,7 +2222,7 @@ fn test_update_where_subquery_empty_result() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
+        set_operation: None,
     });
 
     // UPDATE employees SET active = FALSE WHERE dept_id IN (SELECT dept_id FROM inactive_depts)
@@ -2321,7 +2295,7 @@ fn test_update_where_subquery_returns_null() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
+        set_operation: None,
     });
 
     // UPDATE employees SET salary = 60000 WHERE salary < (SELECT max_salary FROM config)
@@ -2394,16 +2368,15 @@ fn test_update_where_subquery_with_aggregate() {
 
     // Subquery: SELECT MAX(price) FROM items
     let subquery = Box::new(ast::SelectStmt {
-            with_clause: None,
-            distinct: false,
+        with_clause: None,
+        distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::Function {
                 name: "MAX".to_string(),
-                expr: Box::new(Expression::ColumnRef {
+                args: vec![Expression::ColumnRef {
                     table: None,
                     column: "price".to_string(),
-                }),
-                distinct: false,
+                }],
             },
             alias: None,
         }],
@@ -2414,7 +2387,7 @@ fn test_update_where_subquery_with_aggregate() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
+        set_operation: None,
     });
 
     // UPDATE items SET discounted = TRUE WHERE price = (SELECT MAX(price) FROM items)
@@ -2523,7 +2496,7 @@ fn test_update_where_complex_subquery_condition() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
+        set_operation: None,
     });
 
     // UPDATE employees SET salary = 70000 WHERE dept_id IN (SELECT dept_id FROM departments WHERE budget > 80000)
@@ -2630,7 +2603,7 @@ fn test_update_where_multiple_rows_in_subquery() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
+        set_operation: None,
     });
 
     // UPDATE employees SET active = FALSE WHERE dept_id IN (SELECT dept_id FROM active_depts)
@@ -2720,6 +2693,8 @@ fn test_update_where_and_set_both_use_subqueries() {
 
     // SET subquery
     let set_subquery = Box::new(ast::SelectStmt {
+        with_clause: None,
+        distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::ColumnRef {
                 table: None,
@@ -2734,11 +2709,13 @@ fn test_update_where_and_set_both_use_subqueries() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
+        set_operation: None,
     });
 
     // WHERE subquery
     let where_subquery = Box::new(ast::SelectStmt {
+        with_clause: None,
+        distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::ColumnRef {
                 table: None,
@@ -2753,7 +2730,7 @@ fn test_update_where_and_set_both_use_subqueries() {
         order_by: None,
         limit: None,
         offset: None,
-            set_operation: None,
+        set_operation: None,
     });
 
     // UPDATE employees SET salary = (SELECT target FROM salary_targets) WHERE dept_id IN (SELECT dept_id FROM active_depts)
