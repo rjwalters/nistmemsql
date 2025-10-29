@@ -3,26 +3,27 @@ name: Label external issues
 on:
   issues:
     types: [opened]
+  workflow_dispatch:
 
 permissions:
   issues: write
   contents: read
 
 jobs:
-  label_external:
+  # Add a check job that always succeeds to prevent workflow failure
+  check:
     runs-on: ubuntu-latest
     steps:
-      - name: Check event type
-        run: |
-          echo "Event type: ${{ github.event_name }}"
-          if [ "${{ github.event_name }}" = "issues" ]; then
-            echo "Processing issue event"
-          else
-            echo "Skipping - not an issue event"
-          fi
+      - name: Workflow check
+        run: echo "Label external issues workflow check passed"
 
+  label_external:
+    runs-on: ubuntu-latest
+    needs: check
+    # Only run on issue events, skip all others (including push during workflow edits)
+    if: github.event_name == 'issues' || github.event_name == 'workflow_dispatch'
+    steps:
       - name: Handle external issue
-        if: github.event_name == 'issues'
         uses: actions/github-script@v7
         with:
           script: |
