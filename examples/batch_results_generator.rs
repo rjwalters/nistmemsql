@@ -130,8 +130,130 @@ mod db_setup {
     }
 
     pub fn create_university_db() -> Database {
-        let db = Database::new();
-        // Minimal implementation
+        let mut db = Database::new();
+
+        // Create students table
+        let students_schema = TableSchema::new(
+            "students".to_string(),
+            vec![
+                ColumnSchema::new("student_id".to_string(), DataType::Integer, false),
+                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 100 }, false),
+                ColumnSchema::new("major".to_string(), DataType::Varchar { max_length: 50 }, false),
+                ColumnSchema::new("gpa".to_string(), DataType::Float { precision: 53 }, false),
+            ],
+        );
+        db.create_table(students_schema).unwrap();
+
+        // Create courses table
+        let courses_schema = TableSchema::new(
+            "courses".to_string(),
+            vec![
+                ColumnSchema::new("course_id".to_string(), DataType::Integer, false),
+                ColumnSchema::new("course_name".to_string(), DataType::Varchar { max_length: 100 }, false),
+                ColumnSchema::new("department".to_string(), DataType::Varchar { max_length: 50 }, false),
+                ColumnSchema::new("credits".to_string(), DataType::Integer, false),
+            ],
+        );
+        db.create_table(courses_schema).unwrap();
+
+        // Create enrollments table
+        let enrollments_schema = TableSchema::new(
+            "enrollments".to_string(),
+            vec![
+                ColumnSchema::new("student_id".to_string(), DataType::Integer, false),
+                ColumnSchema::new("course_id".to_string(), DataType::Integer, false),
+                ColumnSchema::new("grade".to_string(), DataType::Varchar { max_length: 2 }, true),
+                ColumnSchema::new("semester".to_string(), DataType::Varchar { max_length: 20 }, false),
+            ],
+        );
+        db.create_table(enrollments_schema).unwrap();
+
+        // Insert students
+        let students_table = db.get_table_mut("students").unwrap();
+        for i in 1..=20 {
+            let (name, major, gpa) = match i {
+                1 => ("Alice Johnson", "Computer Science", 3.8_f32),
+                2 => ("Bob Smith", "Mathematics", 3.5_f32),
+                3 => ("Carol White", "Computer Science", 3.9_f32),
+                4 => ("David Brown", "Physics", 3.2_f32),
+                5 => ("Eve Martinez", "Computer Science", 3.7_f32),
+                6 => ("Frank Wilson", "Mathematics", 3.4_f32),
+                7 => ("Grace Taylor", "Physics", 3.6_f32),
+                8 => ("Henry Anderson", "Computer Science", 3.3_f32),
+                9 => ("Iris Chen", "Mathematics", 3.8_f32),
+                10 => ("Jack Robinson", "Physics", 3.1_f32),
+                _ => ("Student", "Computer Science", 3.0_f32 + (i as f32 % 10.0) / 10.0),
+            };
+            students_table.insert(Row::new(vec![
+                SqlValue::Integer(i),
+                SqlValue::Varchar(name.to_string()),
+                SqlValue::Varchar(major.to_string()),
+                SqlValue::Float(gpa),
+            ])).unwrap();
+        }
+
+        // Insert courses
+        let courses_table = db.get_table_mut("courses").unwrap();
+        let course_data = vec![
+            (101, "Introduction to Programming", "Computer Science", 4),
+            (102, "Data Structures", "Computer Science", 4),
+            (103, "Algorithms", "Computer Science", 4),
+            (201, "Calculus I", "Mathematics", 4),
+            (202, "Linear Algebra", "Mathematics", 3),
+            (203, "Statistics", "Mathematics", 3),
+            (301, "Classical Mechanics", "Physics", 4),
+            (302, "Electromagnetism", "Physics", 4),
+            (303, "Quantum Mechanics", "Physics", 3),
+        ];
+
+        for (id, name, dept, credits) in course_data {
+            courses_table.insert(Row::new(vec![
+                SqlValue::Integer(id),
+                SqlValue::Varchar(name.to_string()),
+                SqlValue::Varchar(dept.to_string()),
+                SqlValue::Integer(credits),
+            ])).unwrap();
+        }
+
+        // Insert enrollments
+        let enrollments_table = db.get_table_mut("enrollments").unwrap();
+        let grade_distribution = vec![
+            ("A", 30), ("B", 27), ("C", 18), ("D", 6), ("F", 2),
+        ];
+
+        let mut enrollment_id = 0;
+        for (grade, count) in grade_distribution {
+            for _ in 0..count {
+                let student_id = (enrollment_id % 20) + 1;
+                let course_id = match enrollment_id % 9 {
+                    0 => 101, 1 => 102, 2 => 103,
+                    3 => 201, 4 => 202, 5 => 203,
+                    6 => 301, 7 => 302, _ => 303,
+                };
+
+                enrollments_table.insert(Row::new(vec![
+                    SqlValue::Integer(student_id),
+                    SqlValue::Integer(course_id),
+                    SqlValue::Varchar(grade.to_string()),
+                    SqlValue::Varchar("Fall 2024".to_string()),
+                ])).unwrap();
+
+                enrollment_id += 1;
+            }
+        }
+
+        // Add some NULL grades (in progress courses)
+        for i in 0..10 {
+            let student_id = (i % 20) + 1;
+            let course_id = 101 + (i % 3);
+            enrollments_table.insert(Row::new(vec![
+                SqlValue::Integer(student_id),
+                SqlValue::Integer(course_id),
+                SqlValue::Null,
+                SqlValue::Varchar("Spring 2025".to_string()),
+            ])).unwrap();
+        }
+
         db
     }
 
