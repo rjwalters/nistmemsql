@@ -1,17 +1,17 @@
 # SQL:1999 Conformance Report
 
-**Generated**: Wed Oct 29 01:24:46 PDT 2025
-**Commit**: da4c8d8
+**Generated**: Wed Oct 29 13:09:18 PDT 2025
+**Commit**: 5cfafbd
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Total Tests |  |
-| Passed |  ✅ |
-| Failed |  ❌ |
-| Errors |  ⚠️ |
-| Pass Rate | % |
+| Total Tests | 100 |
+| Passed | 70 ✅ |
+| Failed | 0 ❌ |
+| Errors | 30 ⚠️ |
+| Pass Rate | 70.0% |
 
 ## Test Coverage
 
@@ -42,7 +42,7 @@ Based on test failures, the following areas need implementation:
 
 ## Improvement Roadmap
 
-To improve conformance from current % to 80%+:
+To improve conformance from current 70.0% to 80%+:
 
 1. **Phase 1**: Implement unary operators (+, -) - Will fix ~25 tests
 2. **Phase 2**: Add DECIMAL type alias and floating point literal parsing - Will fix ~15 tests

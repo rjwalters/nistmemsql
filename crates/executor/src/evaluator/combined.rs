@@ -379,6 +379,12 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 eval_scalar_function(name, &arg_values)
             }
 
+            // Unary operations (delegate to shared function)
+            ast::Expression::UnaryOp { op, expr } => {
+                let val = self.eval(expr, row)?;
+                super::expressions::operators::eval_unary_op(op, &val)
+            }
+
             // TODO: Implement other expression types
             _ => Err(ExecutorError::UnsupportedExpression(format!("{:?}", expr))),
         }

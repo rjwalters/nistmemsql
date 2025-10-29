@@ -5,8 +5,10 @@
 //! - `predicates` - BETWEEN, LIKE, IN list, POSITION, CAST
 //! - `subqueries` - Subquery evaluation (scalar, IN, EXISTS, quantified)
 //! - `special` - CASE expressions and function calls
+//! - `operators` - Operator evaluation (unary +/-)
 
 mod eval;
 mod predicates;
 mod special;
 mod subqueries;
+pub(crate) mod operators;

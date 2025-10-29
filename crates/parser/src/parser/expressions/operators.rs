@@ -76,7 +76,7 @@ impl Parser {
 
     /// Parse comparison expression (handles =, <, >, <=, >=, !=, <>, IN)
     pub(super) fn parse_comparison_expression(&mut self) -> Result<ast::Expression, ParseError> {
-        let mut left = self.parse_primary_expression()?;
+        let mut left = self.parse_unary_expression()?;
 
         // Check for IN operator (including NOT IN) and BETWEEN (including NOT BETWEEN)
         if self.peek_keyword(Keyword::Not) {
@@ -260,7 +260,7 @@ impl Parser {
                 });
             }
 
-            let right = self.parse_primary_expression()?;
+            let right = self.parse_unary_expression()?;
             left = ast::Expression::BinaryOp { op, left: Box::new(left), right: Box::new(right) };
         }
 
@@ -286,6 +286,30 @@ impl Parser {
         }
 
         Ok(left)
+    }
+
+    /// Parse unary expression (handles unary +/- operators)
+    pub(super) fn parse_unary_expression(&mut self) -> Result<ast::Expression, ParseError> {
+        // Check for unary + or -
+        match self.peek() {
+            Token::Symbol('+') => {
+                self.advance();
+                let expr = self.parse_unary_expression()?;
+                Ok(ast::Expression::UnaryOp {
+                    op: ast::UnaryOperator::Plus,
+                    expr: Box::new(expr),
+                })
+            }
+            Token::Symbol('-') => {
+                self.advance();
+                let expr = self.parse_unary_expression()?;
+                Ok(ast::Expression::UnaryOp {
+                    op: ast::UnaryOperator::Minus,
+                    expr: Box::new(expr),
+                })
+            }
+            _ => self.parse_primary_expression(),
+        }
     }
 
     /// Parse a comma-separated list of expressions

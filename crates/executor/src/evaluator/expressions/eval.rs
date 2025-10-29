@@ -87,9 +87,11 @@ impl<'a> ExpressionEvaluator<'a> {
                 "Wildcard (*) not supported in expressions".to_string(),
             )),
 
-            ast::Expression::UnaryOp { .. } => Err(ExecutorError::UnsupportedExpression(
-                "Unary operators not yet implemented".to_string(),
-            )),
+            // Unary operations
+            ast::Expression::UnaryOp { op, expr } => {
+                let val = self.eval(expr, row)?;
+                super::operators::eval_unary_op(op, &val)
+            }
 
             ast::Expression::IsNull { expr, negated } => {
                 let value = self.eval(expr, row)?;
