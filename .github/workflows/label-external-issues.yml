@@ -25,7 +25,6 @@ jobs:
 
   label_external:
     runs-on: ubuntu-latest
-    needs: check
     # Only run on issue events
     if: github.event_name == 'issues'
     steps:
