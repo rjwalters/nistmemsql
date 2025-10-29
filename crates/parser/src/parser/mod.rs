@@ -83,8 +83,28 @@ impl Parser {
                 Ok(ast::Statement::Commit(commit_stmt))
             }
             Token::Keyword(Keyword::Rollback) => {
-                let rollback_stmt = self.parse_rollback_statement()?;
-                Ok(ast::Statement::Rollback(rollback_stmt))
+                // Check if this is ROLLBACK TO SAVEPOINT by looking ahead
+                let saved_position = self.position;
+                self.advance(); // consume ROLLBACK
+                if self.peek_keyword(Keyword::To) {
+                    // Reset and parse as ROLLBACK TO SAVEPOINT
+                    self.position = saved_position;
+                    let rollback_to_stmt = self.parse_rollback_to_savepoint_statement()?;
+                    Ok(ast::Statement::RollbackToSavepoint(rollback_to_stmt))
+                } else {
+                    // Reset and parse as regular ROLLBACK
+                    self.position = saved_position;
+                    let rollback_stmt = self.parse_rollback_statement()?;
+                    Ok(ast::Statement::Rollback(rollback_stmt))
+                }
+            }
+            Token::Keyword(Keyword::Savepoint) => {
+                let savepoint_stmt = self.parse_savepoint_statement()?;
+                Ok(ast::Statement::Savepoint(savepoint_stmt))
+            }
+            Token::Keyword(Keyword::Release) => {
+                let release_stmt = self.parse_release_savepoint_statement()?;
+                Ok(ast::Statement::ReleaseSavepoint(release_stmt))
             }
             _ => {
                 Err(ParseError { message: format!("Expected statement, found {:?}", self.peek()) })
@@ -105,5 +125,20 @@ impl Parser {
     /// Parse ROLLBACK statement
     pub fn parse_rollback_statement(&mut self) -> Result<ast::RollbackStmt, ParseError> {
         transaction::parse_rollback_statement(self)
+    }
+
+    /// Parse SAVEPOINT statement
+    pub fn parse_savepoint_statement(&mut self) -> Result<ast::SavepointStmt, ParseError> {
+        transaction::parse_savepoint_statement(self)
+    }
+
+    /// Parse ROLLBACK TO SAVEPOINT statement
+    pub fn parse_rollback_to_savepoint_statement(&mut self) -> Result<ast::RollbackToSavepointStmt, ParseError> {
+        transaction::parse_rollback_to_savepoint_statement(self)
+    }
+
+    /// Parse RELEASE SAVEPOINT statement
+    pub fn parse_release_savepoint_statement(&mut self) -> Result<ast::ReleaseSavepointStmt, ParseError> {
+        transaction::parse_release_savepoint_statement(self)
     }
 }

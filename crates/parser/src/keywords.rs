@@ -87,6 +87,9 @@ pub enum Keyword {
     Rollback,
     Start,
     Transaction,
+    Savepoint,
+    Release,
+    To,
 }
 
 impl fmt::Display for Keyword {
@@ -170,6 +173,9 @@ impl fmt::Display for Keyword {
             Keyword::Rollback => "ROLLBACK",
             Keyword::Start => "START",
             Keyword::Transaction => "TRANSACTION",
+            Keyword::Savepoint => "SAVEPOINT",
+            Keyword::Release => "RELEASE",
+            Keyword::To => "TO",
         };
         write!(f, "{}", keyword_str)
     }

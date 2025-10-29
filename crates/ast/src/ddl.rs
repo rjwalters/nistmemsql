@@ -69,3 +69,21 @@ pub struct CommitStmt;
 /// ROLLBACK statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct RollbackStmt;
+
+/// SAVEPOINT statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct SavepointStmt {
+    pub name: String,
+}
+
+/// ROLLBACK TO SAVEPOINT statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct RollbackToSavepointStmt {
+    pub name: String,
+}
+
+/// RELEASE SAVEPOINT statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReleaseSavepointStmt {
+    pub name: String,
+}
