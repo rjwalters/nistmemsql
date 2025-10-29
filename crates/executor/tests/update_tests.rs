@@ -749,6 +749,7 @@ fn setup_test_table(db: &mut Database) {
                     right: Box::new(ast::Expression::Literal(SqlValue::Integer(0))),
                 },
             )],
+            Vec::new(),
         );
         db.create_table(schema).unwrap();
 
@@ -797,6 +798,7 @@ fn setup_test_table(db: &mut Database) {
                     right: Box::new(ast::Expression::Literal(SqlValue::Integer(0))),
                 },
             )],
+            Vec::new(),
         );
         db.create_table(schema).unwrap();
 
@@ -852,6 +854,7 @@ fn setup_test_table(db: &mut Database) {
                     right: Box::new(ast::Expression::Literal(SqlValue::Integer(0))),
                 },
             )],
+            Vec::new(),
         );
         db.create_table(schema).unwrap();
 
@@ -904,6 +907,7 @@ fn setup_test_table(db: &mut Database) {
                     }),
                 },
             )],
+            Vec::new(),
         );
         db.create_table(schema).unwrap();
 

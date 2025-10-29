@@ -23,12 +23,25 @@ impl DropTableExecutor {
     /// # Examples
     ///
     /// ```
-    /// use ast::DropTableStmt;
+    /// use ast::{CreateTableStmt, ColumnDef, DropTableStmt};
+    /// use types::DataType;
     /// use storage::Database;
-    /// use executor::DropTableExecutor;
+    /// use executor::{CreateTableExecutor, DropTableExecutor};
     ///
     /// let mut db = Database::new();
-    /// // ... create a table first ...
+    /// let create_stmt = CreateTableStmt {
+    ///     table_name: "users".to_string(),
+    ///     columns: vec![
+    ///         ColumnDef {
+    ///             name: "id".to_string(),
+    ///             data_type: DataType::Integer,
+    ///             nullable: false,
+    ///             constraints: vec![],
+    ///         },
+    ///     ],
+    ///     table_constraints: vec![],
+    /// };
+    /// CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
     ///
     /// let stmt = DropTableStmt {
     ///     table_name: "users".to_string(),
