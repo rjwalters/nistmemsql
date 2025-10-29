@@ -129,4 +129,14 @@ impl Table {
             Err(StorageError::RowNotFound)
         }
     }
+
+    /// Get mutable reference to rows
+    pub fn rows_mut(&mut self) -> &mut Vec<Row> {
+        &mut self.rows
+    }
+
+    /// Get mutable reference to schema
+    pub fn schema_mut(&mut self) -> &mut catalog::TableSchema {
+        &mut self.schema
+    }
 }

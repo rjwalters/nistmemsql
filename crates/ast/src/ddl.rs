@@ -70,6 +70,68 @@ pub struct CommitStmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct RollbackStmt;
 
+/// ALTER TABLE statement
+#[derive(Debug, Clone, PartialEq)]
+pub enum AlterTableStmt {
+    AddColumn(AddColumnStmt),
+    DropColumn(DropColumnStmt),
+    AlterColumn(AlterColumnStmt),
+    AddConstraint(AddConstraintStmt),
+    DropConstraint(DropConstraintStmt),
+}
+
+/// ADD COLUMN operation
+#[derive(Debug, Clone, PartialEq)]
+pub struct AddColumnStmt {
+    pub table_name: String,
+    pub column_def: ColumnDef,
+}
+
+/// DROP COLUMN operation
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropColumnStmt {
+    pub table_name: String,
+    pub column_name: String,
+    pub if_exists: bool,
+}
+
+/// ALTER COLUMN operation
+#[derive(Debug, Clone, PartialEq)]
+pub enum AlterColumnStmt {
+    SetDefault {
+        table_name: String,
+        column_name: String,
+        default: Expression,
+    },
+    DropDefault {
+        table_name: String,
+        column_name: String,
+    },
+    SetNotNull {
+        table_name: String,
+        column_name: String,
+    },
+    DropNotNull {
+        table_name: String,
+        column_name: String,
+    },
+}
+
+/// ADD CONSTRAINT operation
+#[derive(Debug, Clone, PartialEq)]
+pub struct AddConstraintStmt {
+    pub table_name: String,
+    pub constraint_name: Option<String>,
+    pub constraint: TableConstraint,
+}
+
+/// DROP CONSTRAINT operation
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropConstraintStmt {
+    pub table_name: String,
+    pub constraint_name: String,
+}
+
 /// SAVEPOINT statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct SavepointStmt {

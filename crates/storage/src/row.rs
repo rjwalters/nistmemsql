@@ -35,4 +35,17 @@ impl Row {
         self.values[index] = value;
         Ok(())
     }
+
+    /// Add a value to the end of the row
+    pub fn add_value(&mut self, value: SqlValue) {
+        self.values.push(value);
+    }
+
+    /// Remove a value at the specified index
+    pub fn remove_value(&mut self, index: usize) -> Result<SqlValue, crate::StorageError> {
+        if index >= self.values.len() {
+            return Err(crate::StorageError::ColumnIndexOutOfBounds { index });
+        }
+        Ok(self.values.remove(index))
+    }
 }

@@ -48,4 +48,28 @@ impl Parser {
             Err(ParseError { message: format!("Expected {:?}, found {:?}", expected, self.peek()) })
         }
     }
+
+    /// Parse an identifier token.
+    pub(super) fn parse_identifier(&mut self) -> Result<String, ParseError> {
+        match self.peek() {
+            Token::Identifier(name) => {
+                let identifier = name.clone();
+                self.advance();
+                Ok(identifier)
+            }
+            _ => Err(ParseError {
+                message: "Expected identifier".to_string(),
+            }),
+        }
+    }
+
+    /// Try to consume a keyword, returning true if successful.
+    pub(super) fn try_consume_keyword(&mut self, keyword: Keyword) -> bool {
+        if self.peek_keyword(keyword) {
+            self.advance();
+            true
+        } else {
+            false
+        }
+    }
 }

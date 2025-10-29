@@ -148,6 +148,7 @@ impl Lexer {
             "CREATE" => Token::Keyword(Keyword::Create),
             "TABLE" => Token::Keyword(Keyword::Table),
             "DROP" => Token::Keyword(Keyword::Drop),
+            "ADD" => Token::Keyword(Keyword::Add),
             "ALTER" => Token::Keyword(Keyword::Alter),
             "AND" => Token::Keyword(Keyword::And),
             "OR" => Token::Keyword(Keyword::Or),
@@ -187,6 +188,7 @@ impl Lexer {
             "WITH" => Token::Keyword(Keyword::With),
             "RECURSIVE" => Token::Keyword(Keyword::Recursive),
             "DATE" => Token::Keyword(Keyword::Date),
+            "DEFAULT" => Token::Keyword(Keyword::Default),
             "TIME" => Token::Keyword(Keyword::Time),
             "TIMESTAMP" => Token::Keyword(Keyword::Timestamp),
             "INTERVAL" => Token::Keyword(Keyword::Interval),
@@ -211,7 +213,9 @@ impl Lexer {
             // window functions by the parser's classify_window_function() method.
             // Transaction keywords
             "BEGIN" => Token::Keyword(Keyword::Begin),
+            "COLUMN" => Token::Keyword(Keyword::Column),
             "COMMIT" => Token::Keyword(Keyword::Commit),
+            "CONSTRAINT" => Token::Keyword(Keyword::Constraint),
             "ROLLBACK" => Token::Keyword(Keyword::Rollback),
             "START" => Token::Keyword(Keyword::Start),
             "TRANSACTION" => Token::Keyword(Keyword::Transaction),
