@@ -73,7 +73,10 @@ impl NistMemSqlDB {
             }
             ast::Statement::BeginTransaction(_)
             | ast::Statement::Commit(_)
-            | ast::Statement::Rollback(_) => Ok(DBOutput::StatementComplete(0)),
+            | ast::Statement::Rollback(_) 
+            | ast::Statement::Savepoint(_) 
+            | ast::Statement::RollbackToSavepoint(_) 
+            | ast::Statement::ReleaseSavepoint(_) => Ok(DBOutput::StatementComplete(0)),
         }
     }
 

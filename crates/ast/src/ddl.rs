@@ -131,3 +131,21 @@ pub struct DropConstraintStmt {
     pub table_name: String,
     pub constraint_name: String,
 }
+
+/// SAVEPOINT statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct SavepointStmt {
+    pub name: String,
+}
+
+/// ROLLBACK TO SAVEPOINT statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct RollbackToSavepointStmt {
+    pub name: String,
+}
+
+/// RELEASE SAVEPOINT statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReleaseSavepointStmt {
+    pub name: String,
+}

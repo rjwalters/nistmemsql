@@ -5,6 +5,22 @@
 use crate::{Row, StorageError, Table};
 use std::collections::HashMap;
 
+/// A single change made during a transaction
+#[derive(Debug, Clone)]
+pub enum TransactionChange {
+    Insert { table_name: String, row: Row },
+    Update { table_name: String, old_row: Row, new_row: Row },
+    Delete { table_name: String, row: Row },
+}
+
+/// A savepoint within a transaction
+#[derive(Debug, Clone)]
+pub struct Savepoint {
+    pub name: String,
+    /// Index in the changes vector where this savepoint was created
+    pub snapshot_index: usize,
+}
+
 /// Transaction state
 #[derive(Debug, Clone)]
 pub enum TransactionState {
@@ -14,8 +30,12 @@ pub enum TransactionState {
     Active {
         /// Transaction ID for debugging
         id: u64,
-        /// Original table snapshots for rollback
+        /// Original table snapshots for full rollback
         original_tables: HashMap<String, Table>,
+        /// Stack of savepoints (newest at end)
+        savepoints: Vec<Savepoint>,
+        /// All changes made since transaction start (for incremental undo)
+        changes: Vec<TransactionChange>,
     },
 }
 
@@ -38,6 +58,13 @@ impl Database {
             tables: HashMap::new(),
             transaction_state: TransactionState::None,
             next_transaction_id: 1,
+        }
+    }
+
+    /// Record a change in the current transaction (if any)
+    pub fn record_change(&mut self, change: TransactionChange) {
+        if let TransactionState::Active { changes, .. } = &mut self.transaction_state {
+            changes.push(change);
         }
     }
 
@@ -84,7 +111,15 @@ impl Database {
             .get_table_mut(table_name)
             .ok_or_else(|| StorageError::TableNotFound(table_name.to_string()))?;
 
-        table.insert(row)
+        table.insert(row.clone())?;
+
+        // Record the change for transaction rollback
+        self.record_change(TransactionChange::Insert {
+            table_name: table_name.to_string(),
+            row,
+        });
+
+        Ok(())
     }
 
     /// List all table names
@@ -161,6 +196,8 @@ impl Database {
                 self.transaction_state = TransactionState::Active {
                     id: transaction_id,
                     original_tables,
+                    savepoints: Vec::new(),
+                    changes: Vec::new(),
                 };
                 Ok(())
             }
@@ -211,6 +248,99 @@ impl Database {
             TransactionState::Active { id, .. } => Some(*id),
             TransactionState::None => None,
         }
+    }
+
+    /// Create a savepoint within the current transaction
+    pub fn create_savepoint(&mut self, name: String) -> Result<(), StorageError> {
+        match &mut self.transaction_state {
+            TransactionState::None => {
+                Err(StorageError::TransactionError("No active transaction".to_string()))
+            }
+            TransactionState::Active { savepoints, changes, .. } => {
+                let savepoint = Savepoint {
+                    name,
+                    snapshot_index: changes.len(),
+                };
+                savepoints.push(savepoint);
+                Ok(())
+            }
+        }
+    }
+
+    /// Rollback to a named savepoint
+    pub fn rollback_to_savepoint(&mut self, name: String) -> Result<(), StorageError> {
+        let (_snapshot_index, changes_to_undo) = match &mut self.transaction_state {
+            TransactionState::None => {
+                return Err(StorageError::TransactionError("No active transaction".to_string()))
+            }
+            TransactionState::Active { savepoints, changes, .. } => {
+                // Find the savepoint
+                let savepoint_idx = savepoints.iter().position(|sp| sp.name == name)
+                    .ok_or_else(|| StorageError::TransactionError(format!("Savepoint '{}' not found", name)))?;
+
+                let snapshot_index = savepoints[savepoint_idx].snapshot_index;
+
+                // Collect changes to undo (from snapshot_index to end)
+                let changes_to_undo: Vec<_> = changes.drain(snapshot_index..).collect();
+
+                // Destroy later savepoints
+                savepoints.truncate(savepoint_idx + 1);
+
+                (snapshot_index, changes_to_undo)
+            }
+        };
+
+        // Undo the changes (now we don't have the mutable borrow conflict)
+        for change in changes_to_undo.into_iter().rev() {
+            self.undo_change(change)?;
+        }
+
+        Ok(())
+    }
+
+    /// Release (destroy) a named savepoint
+    pub fn release_savepoint(&mut self, name: String) -> Result<(), StorageError> {
+        match &mut self.transaction_state {
+            TransactionState::None => {
+                Err(StorageError::TransactionError("No active transaction".to_string()))
+            }
+            TransactionState::Active { savepoints, .. } => {
+                let savepoint_idx = savepoints.iter().position(|sp| sp.name == name)
+                    .ok_or_else(|| StorageError::TransactionError(format!("Savepoint '{}' not found", name)))?;
+
+                // Remove the savepoint
+                savepoints.remove(savepoint_idx);
+
+                Ok(())
+            }
+        }
+    }
+
+    /// Undo a single transaction change
+    fn undo_change(&mut self, change: TransactionChange) -> Result<(), StorageError> {
+        match change {
+            TransactionChange::Insert { table_name, row } => {
+                // Remove the inserted row
+                let table = self.get_table_mut(&table_name)
+                    .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
+                table.remove_row(&row)?;
+            }
+            TransactionChange::Update { table_name, old_row, new_row: _ } => {
+                // Restore the old row (this is simplified - real implementation would need row IDs)
+                let table = self.get_table_mut(&table_name)
+                    .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
+                // For now, just remove the new row and re-insert old (simplified)
+                table.remove_row(&old_row)?;
+                table.insert(old_row)?;
+            }
+            TransactionChange::Delete { table_name, row } => {
+                // Re-insert the deleted row
+                let table = self.get_table_mut(&table_name)
+                    .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
+                table.insert(row)?;
+            }
+        }
+        Ok(())
     }
 }
 

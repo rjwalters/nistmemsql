@@ -1,6 +1,5 @@
 //! SelectExecutor construction and initialization
 
-use crate::errors::ExecutorError;
 
 /// Executes SELECT queries
 pub struct SelectExecutor<'a> {

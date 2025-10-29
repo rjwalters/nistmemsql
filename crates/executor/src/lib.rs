@@ -22,7 +22,7 @@ pub use errors::ExecutorError;
 pub use evaluator::ExpressionEvaluator;
 pub use insert::InsertExecutor;
 pub use select::{SelectExecutor, SelectResult};
-pub use transaction::{BeginTransactionExecutor, CommitExecutor, RollbackExecutor};
+pub use transaction::{BeginTransactionExecutor, CommitExecutor, ReleaseSavepointExecutor, RollbackExecutor, RollbackToSavepointExecutor, SavepointExecutor};
 pub use update::UpdateExecutor;
 
 #[cfg(test)]

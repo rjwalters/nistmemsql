@@ -92,6 +92,10 @@ pub enum Keyword {
     Column,
     Constraint,
     Default,
+    // SAVEPOINT keywords
+    Savepoint,
+    Release,
+    To,
 }
 
 impl fmt::Display for Keyword {
@@ -179,6 +183,9 @@ impl fmt::Display for Keyword {
             Keyword::Column => "COLUMN",
             Keyword::Constraint => "CONSTRAINT",
             Keyword::Default => "DEFAULT",
+            Keyword::Savepoint => "SAVEPOINT",
+            Keyword::Release => "RELEASE",
+            Keyword::To => "TO",
         };
         write!(f, "{}", keyword_str)
     }

@@ -3,7 +3,7 @@
 use super::builder::SelectExecutor;
 use crate::errors::ExecutorError;
 use crate::select::cte::{execute_ctes, CteResult};
-use crate::select::helpers::{apply_distinct, apply_limit_offset};
+use crate::select::helpers::apply_limit_offset;
 use crate::select::join::FromResult;
 use crate::select::set_operations::apply_set_operation;
 use crate::select::SelectResult;

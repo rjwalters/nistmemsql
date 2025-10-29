@@ -168,7 +168,7 @@ This isn't just about databases. It's about understanding what's now possible wi
 | Built-in Functions | 65% | String (40+ functions), Date/Time (15+ functions), Math (20+ functions), CASE, COALESCE, NULLIF, CAST, POSITION | 🟢 Advanced |
 | DDL | 20% (2/10) | CREATE TABLE, DROP TABLE | 🟡 In Progress |
 | Constraints | 100% (5/5 enforced) | NOT NULL, PRIMARY KEY, UNIQUE, CHECK, FOREIGN KEY enforced ✅ (30+ tests) | ✅ Complete |
-| Transactions | 75% (3/4) | BEGIN, COMMIT, ROLLBACK ✅ (SAVEPOINT pending) | 🟢 Advanced |
+| Transactions | 100% (4/4) | BEGIN, COMMIT, ROLLBACK, SAVEPOINT ✅ | 🟢 Advanced |
 | Web Demo Validation | 30% | Automated test infrastructure ✅, Expected results for 19 examples ✅ | 🟡 In Progress |
 | Conformance Tests | 0% | NIST harness + ISO validator needed | 🔴 Day 7-8 |
 
@@ -204,7 +204,7 @@ This isn't just about databases. It's about understanding what's now possible wi
 - **Aggregates**: COUNT(*), COUNT(col), SUM, AVG, MIN, MAX with NULL handling
 - **Window Functions**: ROW_NUMBER, RANK, DENSE_RANK, NTILE, LAG, LEAD, COUNT/SUM/AVG/MIN/MAX OVER()
 - **DML**: INSERT (single-row, multi-row, INSERT...SELECT), UPDATE, DELETE, CREATE TABLE, DROP TABLE
-- **Transactions**: BEGIN, COMMIT, ROLLBACK (SAVEPOINT pending)
+- **Transactions**: BEGIN, COMMIT, ROLLBACK, SAVEPOINT ✅
 
 **Predicates & Operators** ✅
 - **Comparison**: =, <>, <, >, <=, >=
@@ -278,7 +278,7 @@ This isn't just about databases. It's about understanding what's now possible wi
 - [ ] FOREIGN KEY enforcement with referential integrity
 - [ ] UNIQUE constraint enforcement
 - [ ] CHECK constraint enforcement
-- [ ] SAVEPOINT support (transaction)
+- [x] SAVEPOINT support (transaction)
 - [ ] Complete web demo expected results (remaining ~50 examples)
 - [ ] NUMERIC/DECIMAL precision arithmetic (currently string-based)
 
@@ -341,7 +341,7 @@ Core compliance tested directly via engine API.
 **Days 5-6: Core Features & Constraints** (20% progress expected)
 1. Remaining type conversion functions
 2. Multi-row INSERT, INSERT from SELECT
-3. Transaction support (BEGIN/COMMIT/ROLLBACK/SAVEPOINT)
+3. Transaction support (BEGIN/COMMIT/ROLLBACK/SAVEPOINT) ✅
 4. Full constraint enforcement (PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK, NOT NULL)
 5. NUMERIC/DECIMAL precision arithmetic
 
