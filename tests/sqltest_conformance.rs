@@ -1,27 +1,48 @@
 //! SQL:1999 Conformance Testing using sqltest suite
 //!
-//! This test module runs SQL:1999 conformance tests extracted from the
-//! upstream-recommended sqltest suite by Elliot Chance.
+//! This test module runs SQL:1999 conformance tests by reading YAML files
+//! directly from the upstream-recommended sqltest suite by Elliot Chance.
 
 use executor::SelectExecutor;
 use parser::Parser;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::fs;
-use std::path::Path;
 use storage::Database;
 
-/// Test manifest containing all SQL:1999 conformance tests
-#[derive(Debug, Deserialize, Serialize)]
-struct TestManifest {
-    version: String,
-    source: String,
-    url: String,
-    test_count: usize,
-    tests: Vec<TestCase>,
+/// Individual test case from YAML files
+#[derive(Debug, Deserialize, Clone)]
+struct YamlTest {
+    id: String,
+    feature: String,
+    #[serde(default)]
+    sql: SqlField,
 }
 
-/// Individual test case from the manifest
-#[derive(Debug, Deserialize, Serialize, Clone)]
+/// SQL field can be either a single string or array of strings
+#[derive(Debug, Deserialize, Clone)]
+#[serde(untagged)]
+enum SqlField {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
+impl Default for SqlField {
+    fn default() -> Self {
+        SqlField::Single(String::new())
+    }
+}
+
+impl SqlField {
+    fn to_string(&self) -> String {
+        match self {
+            SqlField::Single(s) => s.clone(),
+            SqlField::Multiple(v) => v.join("; "),
+        }
+    }
+}
+
+/// Processed test case ready for execution
+#[derive(Debug, Clone)]
 struct TestCase {
     id: String,
     feature: String,
@@ -66,19 +87,54 @@ impl TestResults {
 
 /// SQL:1999 Conformance Test Runner
 struct SqltestRunner {
-    manifest: TestManifest,
+    tests: Vec<TestCase>,
 }
 
 impl SqltestRunner {
-    /// Load test manifest from file
-    fn load(manifest_path: &Path) -> Result<Self, String> {
-        let content = fs::read_to_string(manifest_path)
-            .map_err(|e| format!("Failed to read manifest: {}", e))?;
-        
-        let manifest: TestManifest = serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse manifest: {}", e))?;
-        
-        Ok(Self { manifest })
+    /// Load all test YAML files directly from the sqltest suite
+    fn load() -> Result<Self, String> {
+        let mut tests = Vec::new();
+
+        // Read all E-series and F-series test files
+        let patterns = vec![
+            "third_party/sqltest/standards/2016/E/*.tests.yml",
+            "third_party/sqltest/standards/2016/F/*.tests.yml",
+        ];
+
+        for pattern in patterns {
+            for entry in glob::glob(pattern).map_err(|e| format!("Glob pattern error: {}", e))? {
+                let path = entry.map_err(|e| format!("Path error: {}", e))?;
+
+                // Read file content
+                let content = fs::read_to_string(&path)
+                    .map_err(|e| format!("Failed to read {:?}: {}", path, e))?;
+
+                // Parse YAML documents (separated by ---)
+                for document in serde_yaml::Deserializer::from_str(&content) {
+                    let yaml_test: YamlTest = YamlTest::deserialize(document)
+                        .map_err(|e| format!("Failed to parse YAML from {:?}: {}", path, e))?;
+
+                    // Determine category based on feature prefix
+                    let category = if yaml_test.feature.starts_with("E0") {
+                        "Core"
+                    } else if yaml_test.feature.starts_with("F0") {
+                        "Foundation"
+                    } else {
+                        "Optional"
+                    };
+
+                    tests.push(TestCase {
+                        id: yaml_test.id,
+                        feature: yaml_test.feature,
+                        category: category.to_string(),
+                        sql: yaml_test.sql.to_string(),
+                        expect_success: true, // All tests in upstream expect success
+                    });
+                }
+            }
+        }
+
+        Ok(Self { tests })
     }
 
     /// Run all conformance tests
@@ -86,9 +142,9 @@ impl SqltestRunner {
         let mut results = TestResults::default();
         let mut db = Database::new();
 
-        println!("\n🧪 Running {} SQL:1999 conformance tests...\n", self.manifest.test_count);
+        println!("\n🧪 Running {} SQL:1999 conformance tests from upstream YAML files...\n", self.tests.len());
 
-        for test_case in &self.manifest.tests {
+        for test_case in &self.tests {
             match self.run_test(&mut db, test_case) {
                 Ok(true) => {
                     results.record_pass();
@@ -202,13 +258,11 @@ impl SqltestRunner {
 
 #[test]
 fn run_sql1999_conformance_suite() {
-    let manifest_path = Path::new("tests/sql1999/manifest.json");
-    
-    let runner = SqltestRunner::load(manifest_path)
-        .expect("Failed to load conformance test manifest");
-    
+    let runner = SqltestRunner::load()
+        .expect("Failed to load YAML test files from third_party/sqltest");
+
     let results = runner.run_all();
-    
+
     // Print summary
     println!("{}", "=".repeat(60));
     println!("SQL:1999 Conformance Test Results");
@@ -219,7 +273,7 @@ fn run_sql1999_conformance_suite() {
     println!("Errors:  {} ⚠️", results.errors);
     println!("Pass Rate: {:.1}%", results.pass_rate());
     println!("{}", "=".repeat(60));
-    
+
     // Save results to JSON
     let results_json = serde_json::json!({
         "total": results.total,
@@ -228,15 +282,15 @@ fn run_sql1999_conformance_suite() {
         "errors": results.errors,
         "pass_rate": results.pass_rate(),
     });
-    
+
     fs::write(
         "target/sqltest_results.json",
         serde_json::to_string_pretty(&results_json).unwrap()
     ).ok();
-    
+
     // Assert we have some passing tests (not expecting 100% initially)
     assert!(results.passed > 0, "No tests passed! Pass rate: {:.1}%", results.pass_rate());
-    
-    // Optional: Assert minimum pass rate
+
+    // Optional: Assert minimum pass rate (commented out for now - allow any pass rate)
     // assert!(results.pass_rate() >= 50.0, "Pass rate too low: {:.1}%", results.pass_rate());
 }
