@@ -28,26 +28,28 @@ Current test suite covers Core SQL:1999 features:
 Based on test failures, the following areas need implementation:
 
 ### Parser Gaps
-- [ ] Unary plus (+) operator support
-- [ ] Unary minus (-) operator support
-- [ ] DECIMAL/DEC type alias recognition
-- [ ] Floating point literals starting with decimal point (e.g., .5)
-- [ ] Scientific notation (e.g., 1.5E+10)
-- [ ] FLOAT with precision specification: FLOAT(n)
+- [x] Unary plus (+) operator support ✅ **COMPLETED** (#332)
+- [x] Unary minus (-) operator support ✅ **COMPLETED** (#332)
+- [x] DECIMAL/DEC type alias recognition ✅ **COMPLETED** (#331)
+- [x] Floating point literals starting with decimal point (e.g., .5) ✅ **COMPLETED** (#329)
+- [x] Scientific notation (e.g., 1.5E+10) ✅ **COMPLETED** (#329)
+- [x] FLOAT with precision specification: FLOAT(n) ✅ **COMPLETED** (#329)
 
 ### Executor Gaps
-- [ ] Numeric type coercion (INTEGER <-> DECIMAL comparison)
-- [ ] Arithmetic operations on DECIMAL/NUMERIC types
-- [ ] Proper DECIMAL type implementation (currently string-based)
+- [x] Numeric type coercion (INTEGER <-> DECIMAL comparison) ✅ **COMPLETED** (#333)
+- [x] Arithmetic operations on DECIMAL/NUMERIC types ✅ **COMPLETED** (#333)
+- [ ] Proper DECIMAL type implementation (enhanced, now using numeric library)
 
 ## Improvement Roadmap
 
-To improve conformance from current 70.0% to 80%+:
+~~To improve conformance from 70.0% to 80%+~~ **All parser gaps completed! 🎉**
 
-1. **Phase 1**: Implement unary operators (+, -) - Will fix ~25 tests
-2. **Phase 2**: Add DECIMAL type alias and floating point literal parsing - Will fix ~15 tests
-3. **Phase 3**: Implement numeric type coercion in executor - Will fix ~18 tests
-4. **Phase 4**: Proper DECIMAL type arithmetic - Will improve accuracy
+1. ~~**Phase 1**: Implement unary operators (+, -)~~ ✅ **COMPLETED** (#332)
+2. ~~**Phase 2**: Add DECIMAL type alias and floating point literal parsing~~ ✅ **COMPLETED** (#331, #329)
+3. ~~**Phase 3**: Implement numeric type coercion in executor~~ ✅ **COMPLETED** (#333)
+4. **Phase 4**: Continue improving DECIMAL type arithmetic precision - In progress
+
+**All major conformance gaps have been addressed!** The remaining work focuses on advanced features and edge case handling.
 
 ## Running Tests Locally
 
