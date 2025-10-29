@@ -33,9 +33,10 @@ impl Parser {
                 // Just DOUBLE without PRECISION - treat as DOUBLE PRECISION
                 Ok(types::DataType::DoublePrecision)
             }
-            "NUMERIC" | "DECIMAL" => {
+            "NUMERIC" | "DECIMAL" | "DEC" => {
                 // Parse NUMERIC(precision, scale) or NUMERIC(precision)
-                // NUMERIC without parameters defaults to implementation-defined precision/scale
+                // NUMERIC, DECIMAL, and DEC are all aliases per SQL:1999
+                // All map to DataType::Numeric internally
                 if matches!(self.peek(), Token::LParen) {
                     self.advance(); // consume (
 
@@ -76,18 +77,11 @@ impl Parser {
 
                     self.expect_token(Token::RParen)?;
 
-                    if type_upper == "DECIMAL" {
-                        Ok(types::DataType::Decimal { precision, scale })
-                    } else {
-                        Ok(types::DataType::Numeric { precision, scale })
-                    }
+                    // DEC, DECIMAL, and NUMERIC all map to DataType::Numeric
+                    Ok(types::DataType::Numeric { precision, scale })
                 } else {
-                    // NUMERIC without parameters - use defaults (38, 0) per SQL standard
-                    if type_upper == "DECIMAL" {
-                        Ok(types::DataType::Decimal { precision: 38, scale: 0 })
-                    } else {
-                        Ok(types::DataType::Numeric { precision: 38, scale: 0 })
-                    }
+                    // NUMERIC/DECIMAL/DEC without parameters - use defaults (38, 0) per SQL standard
+                    Ok(types::DataType::Numeric { precision: 38, scale: 0 })
                 }
             }
             "DATE" => Ok(types::DataType::Date),
