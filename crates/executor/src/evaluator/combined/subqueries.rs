@@ -196,21 +196,72 @@ impl<'a> CombinedExpressionEvaluator<'a> {
     }
 
     /// Evaluate IN operator with subquery
-    /// Currently returns an error as it requires database access
+    /// SQL:1999 Section 8.4: IN predicate with subquery
     pub(super) fn eval_in_subquery(
         &self,
         expr: &ast::Expression,
-        _subquery: &ast::SelectStmt,
-        _negated: bool,
+        subquery: &ast::SelectStmt,
+        negated: bool,
         row: &storage::Row,
     ) -> Result<types::SqlValue, ExecutorError> {
-        // TODO: Full implementation requires database access to execute subquery
-        // This requires refactoring CombinedExpressionEvaluator to have database reference
-        // For now, evaluate the left expression to ensure it's valid
-        let _left_val = self.eval(expr, row)?;
-        Err(ExecutorError::UnsupportedFeature(
-            "IN with subquery requires database access - implementation pending"
-                .to_string(),
-        ))
+        let database = self.database.ok_or(ExecutorError::UnsupportedFeature(
+            "IN with subquery requires database reference".to_string(),
+        ))?;
+
+        // Evaluate the left-hand expression
+        let expr_val = self.eval(expr, row)?;
+
+        // If left expression is NULL, result is NULL
+        if matches!(expr_val, types::SqlValue::Null) {
+            return Ok(types::SqlValue::Null);
+        }
+
+        // Subquery must return exactly one column
+        if subquery.select_list.len() != 1 {
+            return Err(ExecutorError::SubqueryColumnCountMismatch {
+                expected: 1,
+                actual: subquery.select_list.len(),
+            });
+        }
+
+        // Execute the subquery
+        let select_executor = crate::select::SelectExecutor::new(database);
+        let rows = select_executor.execute(subquery)?;
+
+        let mut found_null = false;
+
+        // Check each row from subquery
+        for subquery_row in &rows {
+            let subquery_val = subquery_row
+                .get(0)
+                .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
+
+            // Track if we encounter NULL
+            if matches!(subquery_val, types::SqlValue::Null) {
+                found_null = true;
+                continue;
+            }
+
+            // Compare using equality
+            let eq_result = ExpressionEvaluator::eval_binary_op_static(
+                &expr_val,
+                &ast::BinaryOperator::Equal,
+                subquery_val,
+            )?;
+
+            // If we found a match, return TRUE (or FALSE if negated)
+            if matches!(eq_result, types::SqlValue::Boolean(true)) {
+                return Ok(types::SqlValue::Boolean(!negated));
+            }
+        }
+
+        // No match found
+        // If we encountered NULL, return NULL (per SQL three-valued logic)
+        // Otherwise return FALSE (or TRUE if negated)
+        if found_null {
+            Ok(types::SqlValue::Null)
+        } else {
+            Ok(types::SqlValue::Boolean(negated))
+        }
     }
 }

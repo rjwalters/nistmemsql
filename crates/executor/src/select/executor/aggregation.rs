@@ -223,17 +223,7 @@ impl<'a> SelectExecutor<'a> {
                 Ok(acc.finalize())
             }
 
-            // Column reference - use value from group key
-            ast::Expression::ColumnRef { .. } => {
-                // For GROUP BY columns, use the first row's value (they're all the same)
-                if let Some(first_row) = group_rows.first() {
-                    evaluator.eval(expr, first_row)
-                } else {
-                    Ok(types::SqlValue::Null)
-                }
-            }
-
-            // Binary operation
+            // Binary operation - recursively evaluate both sides
             ast::Expression::BinaryOp { left, op, right } => {
                 let left_val =
                     self.evaluate_with_aggregates(left, group_rows, _group_key, evaluator)?;
@@ -247,8 +237,180 @@ impl<'a> SelectExecutor<'a> {
                 temp_evaluator.eval_binary_op(&left_val, op, &right_val)
             }
 
-            // Literal
-            ast::Expression::Literal(val) => Ok(val.clone()),
+            // Scalar subquery - delegate to evaluator
+            ast::Expression::ScalarSubquery(_) | ast::Expression::Exists { .. } => {
+                // Use first row from group as context for subquery evaluation
+                if let Some(first_row) = group_rows.first() {
+                    evaluator.eval(expr, first_row)
+                } else {
+                    Ok(types::SqlValue::Null)
+                }
+            }
+
+            // IN with subquery - special handling for aggregate left-hand side
+            ast::Expression::In { expr: left_expr, subquery, negated } => {
+                // Evaluate left-hand expression (which may be an aggregate)
+                let left_val = self.evaluate_with_aggregates(left_expr, group_rows, _group_key, evaluator)?;
+
+                // Execute subquery to get values to compare against
+                let database = self.database;
+                let select_executor = crate::select::SelectExecutor::new(database);
+                let rows = select_executor.execute(subquery)?;
+
+                // Check subquery column count
+                if subquery.select_list.len() != 1 {
+                    return Err(ExecutorError::SubqueryColumnCountMismatch {
+                        expected: 1,
+                        actual: subquery.select_list.len(),
+                    });
+                }
+
+                // If left value is NULL, result is NULL
+                if matches!(left_val, types::SqlValue::Null) {
+                    return Ok(types::SqlValue::Null);
+                }
+
+                let mut found_null = false;
+
+                // Check each row from subquery
+                for subquery_row in &rows {
+                    let subquery_val = subquery_row
+                        .get(0)
+                        .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
+
+                    // Track if we encounter NULL
+                    if matches!(subquery_val, types::SqlValue::Null) {
+                        found_null = true;
+                        continue;
+                    }
+
+                    // Compare using equality
+                    if left_val == *subquery_val {
+                        return Ok(types::SqlValue::Boolean(!negated));
+                    }
+                }
+
+                // No match found
+                if found_null {
+                    Ok(types::SqlValue::Null)
+                } else {
+                    Ok(types::SqlValue::Boolean(*negated))
+                }
+            }
+
+            // Quantified comparison - special handling for aggregate left-hand side
+            ast::Expression::QuantifiedComparison { expr: left_expr, op, quantifier, subquery } => {
+                // Evaluate left-hand expression (which may be an aggregate)
+                let left_val = self.evaluate_with_aggregates(left_expr, group_rows, _group_key, evaluator)?;
+
+                // Execute subquery
+                let database = self.database;
+                let select_executor = crate::select::SelectExecutor::new(database);
+                let rows = select_executor.execute(subquery)?;
+
+                // Empty subquery special cases
+                if rows.is_empty() {
+                    return Ok(types::SqlValue::Boolean(matches!(quantifier, ast::Quantifier::All)));
+                }
+
+                // If left value is NULL, return NULL
+                if matches!(left_val, types::SqlValue::Null) {
+                    return Ok(types::SqlValue::Null);
+                }
+
+                let mut has_null = false;
+
+                match quantifier {
+                    ast::Quantifier::All => {
+                        for subquery_row in &rows {
+                            if subquery_row.values.len() != 1 {
+                                return Err(ExecutorError::SubqueryColumnCountMismatch {
+                                    expected: 1,
+                                    actual: subquery_row.values.len(),
+                                });
+                            }
+
+                            let right_val = &subquery_row.values[0];
+
+                            if matches!(right_val, types::SqlValue::Null) {
+                                has_null = true;
+                                continue;
+                            }
+
+                            // Create temp evaluator for comparison
+                            let temp_schema = catalog::TableSchema::new("temp".to_string(), vec![]);
+                            let temp_evaluator = ExpressionEvaluator::new(&temp_schema);
+                            let cmp_result = temp_evaluator.eval_binary_op(&left_val, op, right_val)?;
+
+                            match cmp_result {
+                                types::SqlValue::Boolean(false) => return Ok(types::SqlValue::Boolean(false)),
+                                types::SqlValue::Null => has_null = true,
+                                _ => {}
+                            }
+                        }
+
+                        if has_null {
+                            Ok(types::SqlValue::Null)
+                        } else {
+                            Ok(types::SqlValue::Boolean(true))
+                        }
+                    }
+
+                    ast::Quantifier::Any | ast::Quantifier::Some => {
+                        for subquery_row in &rows {
+                            if subquery_row.values.len() != 1 {
+                                return Err(ExecutorError::SubqueryColumnCountMismatch {
+                                    expected: 1,
+                                    actual: subquery_row.values.len(),
+                                });
+                            }
+
+                            let right_val = &subquery_row.values[0];
+
+                            if matches!(right_val, types::SqlValue::Null) {
+                                has_null = true;
+                                continue;
+                            }
+
+                            // Create temp evaluator for comparison
+                            let temp_schema = catalog::TableSchema::new("temp".to_string(), vec![]);
+                            let temp_evaluator = ExpressionEvaluator::new(&temp_schema);
+                            let cmp_result = temp_evaluator.eval_binary_op(&left_val, op, right_val)?;
+
+                            match cmp_result {
+                                types::SqlValue::Boolean(true) => return Ok(types::SqlValue::Boolean(true)),
+                                types::SqlValue::Null => has_null = true,
+                                _ => {}
+                            }
+                        }
+
+                        if has_null {
+                            Ok(types::SqlValue::Null)
+                        } else {
+                            Ok(types::SqlValue::Boolean(false))
+                        }
+                    }
+                }
+            }
+
+            // Other expressions that might contain subqueries or be useful in HAVING:
+            // Delegate to evaluator using first row from group as context
+            ast::Expression::ColumnRef { .. }
+            | ast::Expression::Literal(_)
+            | ast::Expression::InList { .. }
+            | ast::Expression::Between { .. }
+            | ast::Expression::Cast { .. }
+            | ast::Expression::Like { .. }
+            | ast::Expression::IsNull { .. }
+            | ast::Expression::UnaryOp { .. }
+            | ast::Expression::Case { .. } => {
+                // Use first row from group as context
+                if let Some(first_row) = group_rows.first() {
+                    evaluator.eval(expr, first_row)
+                } else {
+                    Ok(types::SqlValue::Null)
+                }
+            }
 
             _ => Err(ExecutorError::UnsupportedExpression(format!(
                 "Unsupported expression in aggregate context: {:?}",

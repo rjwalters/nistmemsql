@@ -811,6 +811,7 @@ fn test_min_max_on_strings() {
 #[ignore = "TODO(#377): Implement NUMERIC support for AVG"]
 fn test_avg_precision_decimal() {
     // Edge case: AVG should preserve DECIMAL precision, not truncate to INTEGER
+    // TODO(#377): Currently fails - AVG not yet implemented for NUMERIC types
     let mut db = storage::Database::new();
     let schema = catalog::TableSchema::new(
         "prices".to_string(),
@@ -878,7 +879,8 @@ fn test_avg_precision_decimal() {
 #[test]
 #[ignore = "TODO(#377): Implement NUMERIC support for SUM"]
 fn test_sum_mixed_numeric_types() {
-    // Edge case: SUM on NUMERIC values should work (currently only supports INTEGER)
+    // Edge case: SUM on NUMERIC values should work
+    // TODO(#377): Currently fails - SUM not yet implemented for NUMERIC types
     let mut db = storage::Database::new();
     let schema = catalog::TableSchema::new(
         "mixed_amounts".to_string(),
