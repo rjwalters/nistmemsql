@@ -1,11 +1,17 @@
-name: Minimal Test
+name: Label External Contributors
 
 on:
+  issues:
+    types: [opened]
   workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - name: Echo
-        run: echo "Hello"
+        run: echo "Test workflow"
