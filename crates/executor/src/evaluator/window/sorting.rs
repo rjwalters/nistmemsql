@@ -2,8 +2,7 @@
 //!
 //! Sorts rows within partitions according to ORDER BY specifications.
 
-use ast::{Expression, OrderByItem, OrderDirection};
-use storage::Row;
+use ast::{OrderByItem, OrderDirection};
 use std::cmp::Ordering;
 use types::SqlValue;
 

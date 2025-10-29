@@ -4,7 +4,6 @@ use catalog::{ColumnSchema, TableSchema};
 use executor::{BeginTransactionExecutor, CommitExecutor, SavepointExecutor, RollbackToSavepointExecutor};
 use storage::Database;
 use types::{DataType, SqlValue};
-use storage::Row;
 
 #[test]
 fn test_basic_savepoint() {

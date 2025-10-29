@@ -22,3 +22,4 @@ Cargo.lock
 .loom/worktrees/
 .loom/*.log
 .loom/*.sock
+lcov.info
