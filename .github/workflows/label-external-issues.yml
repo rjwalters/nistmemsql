@@ -51,7 +51,7 @@ jobs:
                 owner,
                 repo,
                 issue_number: context.issue.number,
-                body: `Thank you for submitting an issue! 🙏
+                body: `Thank you for submitting an issue!
 
 This issue has been automatically labeled as \`external\` and will be reviewed by the maintainers.
 
