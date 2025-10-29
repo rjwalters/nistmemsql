@@ -1,9 +1,10 @@
 # NIST-Compatible SQL:1999 Database
 
 [![Deploy Status](https://github.com/rjwalters/nistmemsql/actions/workflows/deploy-demo.yml/badge.svg)](https://github.com/rjwalters/nistmemsql/actions/workflows/deploy-demo.yml)
+[![Tests](https://github.com/rjwalters/nistmemsql/actions/workflows/test.yml/badge.svg)](https://github.com/rjwalters/nistmemsql/actions/workflows/test.yml)
 [![Demo](https://img.shields.io/badge/demo-live-success)](https://rjwalters.github.io/nistmemsql/)
-[![Tests](https://img.shields.io/badge/tests-836%20passing-success)](https://github.com/rjwalters/nistmemsql/actions)
 [![Coverage](https://img.shields.io/badge/coverage-84%25-green)](https://github.com/rjwalters/nistmemsql)
+[![SQL:1999 Conformance](https://img.shields.io/badge/SQL%3A1999-42%25-yellow)](https://github.com/rjwalters/nistmemsql/blob/main/docs/SQL1999_CONFORMANCE.md)
 
 > **An open-source, NIST-testable SQL:1999 database implementation in Rust**
 
@@ -52,6 +53,40 @@ Every line of code, every test, every piece of documentation in this repository 
 This is "vibe coding" at scale—high-level intent translated directly into working, tested, standards-compliant software. No human wrote the Rust. No human wrote the tests. The AI did it all.
 
 Want to see how? Check out the [Loom documentation](https://github.com/loomhq/loom) and the philosophy behind [working with AI](https://github.com/rjwalters/loom/blob/main/docs/philosophy/working-with-ai.md).
+
+---
+
+## 📊 SQL:1999 Conformance Testing
+
+We use comprehensive test suites to track SQL:1999 compliance:
+
+### Test Suites
+- **SQLLogicTest**: 7M+ tests from SQLite/DuckDB for core SQL correctness
+- **sqltest**: BNF-driven tests from SQL standard (upstream-recommended)
+- **Custom tests**: End-to-end integration tests for specific features
+
+### Current Conformance Status
+
+| Suite | Tests | Pass Rate | Status |
+|-------|-------|-----------|--------|
+| SQLLogicTest | 2 baseline | 100% | ✅ Passing |
+| SQL:1999 Core | 100 tests | 42% | 🟡 In Progress |
+| End-to-End | 836 tests | ~90% | ✅ Strong |
+
+**See [SQL:1999 Conformance Report](docs/SQL1999_CONFORMANCE.md) for detailed breakdown.**
+
+### Running Tests
+
+```bash
+# Run all tests with coverage
+cargo coverage
+
+# Run SQL:1999 conformance tests
+cargo test --test sqltest_conformance -- --nocapture
+
+# Run SQLLogicTest baseline
+cargo test --test sqllogictest_runner
+```
 
 ---
 
