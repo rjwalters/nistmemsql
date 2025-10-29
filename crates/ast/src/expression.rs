@@ -18,8 +18,17 @@ pub enum Expression {
     /// Unary operation (NOT x, -5)
     UnaryOp { op: UnaryOperator, expr: Box<Expression> },
 
-    /// Function call (COUNT(*), SUM(x))
+    /// Function call (UPPER(x), SUBSTRING(x, 1, 3))
     Function { name: String, args: Vec<Expression> },
+
+    /// Aggregate function call (COUNT, SUM, AVG, MIN, MAX)
+    /// SQL:1999 Section 6.16: Set functions
+    /// Example: COUNT(DISTINCT customer_id), SUM(ALL amount)
+    AggregateFunction {
+        name: String,
+        distinct: bool, // true = DISTINCT, false = ALL (implicit)
+        args: Vec<Expression>,
+    },
 
     /// IS NULL / IS NOT NULL
     IsNull {

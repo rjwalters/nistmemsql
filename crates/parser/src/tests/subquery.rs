@@ -153,10 +153,10 @@ fn test_parse_scalar_subquery_in_where() {
                             assert_eq!(subquery.select_list.len(), 1);
                             match &subquery.select_list[0] {
                                 ast::SelectItem::Expression { expr, .. } => match expr {
-                                    Expression::Function { name, .. } => {
+                                    Expression::AggregateFunction { name, .. } => {
                                         assert_eq!(name.to_uppercase(), "AVG");
                                     }
-                                    _ => panic!("Expected function call in subquery"),
+                                    _ => panic!("Expected aggregate function call in subquery"),
                                 },
                                 _ => panic!("Expected expression in subquery"),
                             }
@@ -201,10 +201,10 @@ fn test_parse_scalar_subquery_in_select() {
                         assert_eq!(subquery.select_list.len(), 1);
                         match &subquery.select_list[0] {
                             ast::SelectItem::Expression { expr, .. } => match expr {
-                                Expression::Function { name, .. } => {
+                                Expression::AggregateFunction { name, .. } => {
                                     assert_eq!(name.to_uppercase(), "COUNT");
                                 }
-                                _ => panic!("Expected function"),
+                                _ => panic!("Expected aggregate function"),
                             },
                             _ => panic!("Expected expression"),
                         }
