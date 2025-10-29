@@ -298,7 +298,7 @@ fn test_e2e_float_type() {
         "measurements".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("value".to_string(), DataType::Float, false),
+            ColumnSchema::new("value".to_string(), DataType::Float { precision: 53 }, false),
         ],
     );
 
@@ -446,7 +446,7 @@ fn test_e2e_all_numeric_types_together() {
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
             ColumnSchema::new("s".to_string(), DataType::Smallint, false),
             ColumnSchema::new("b".to_string(), DataType::Bigint, false),
-            ColumnSchema::new("f".to_string(), DataType::Float, false),
+            ColumnSchema::new("f".to_string(), DataType::Float { precision: 53 }, false),
             ColumnSchema::new("r".to_string(), DataType::Real, false),
             ColumnSchema::new("d".to_string(), DataType::DoublePrecision, false),
         ],

@@ -36,7 +36,7 @@ pub enum DataType {
     Decimal { precision: u8, scale: u8 },
 
     // Approximate numeric types
-    Float,
+    Float { precision: u8 }, // SQL:1999 FLOAT(p), default 53 (double precision)
     Real,
     DoublePrecision,
 
@@ -138,7 +138,7 @@ impl SqlValue {
             SqlValue::Smallint(_) => DataType::Smallint,
             SqlValue::Bigint(_) => DataType::Bigint,
             SqlValue::Numeric(_) => DataType::Numeric { precision: 38, scale: 0 }, // Default
-            SqlValue::Float(_) => DataType::Float,
+            SqlValue::Float(_) => DataType::Float { precision: 53 }, // Default to double precision
             SqlValue::Real(_) => DataType::Real,
             SqlValue::Double(_) => DataType::DoublePrecision,
             SqlValue::Character(s) => DataType::Character { length: s.len() },

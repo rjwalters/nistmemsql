@@ -20,7 +20,32 @@ impl Parser {
             "SMALLINT" => Ok(types::DataType::Smallint),
             "BIGINT" => Ok(types::DataType::Bigint),
             "BOOLEAN" | "BOOL" => Ok(types::DataType::Boolean),
-            "FLOAT" => Ok(types::DataType::Float),
+            "FLOAT" => {
+                // Parse FLOAT(precision) or FLOAT
+                // SQL:1999 allows FLOAT with optional precision parameter
+                if matches!(self.peek(), Token::LParen) {
+                    self.advance(); // consume (
+                    let precision = match self.peek() {
+                        Token::Number(n) => {
+                            let p = n.parse::<u8>().map_err(|_| ParseError {
+                                message: "Invalid FLOAT precision".to_string(),
+                            })?;
+                            self.advance();
+                            p
+                        }
+                        _ => {
+                            return Err(ParseError {
+                                message: "Expected precision after FLOAT(".to_string(),
+                            })
+                        }
+                    };
+                    self.expect_token(Token::RParen)?;
+                    Ok(types::DataType::Float { precision })
+                } else {
+                    // FLOAT without parameters defaults to 53-bit precision (IEEE 754 double)
+                    Ok(types::DataType::Float { precision: 53 })
+                }
+            }
             "REAL" => Ok(types::DataType::Real),
             "DOUBLE" => {
                 // Check for DOUBLE PRECISION

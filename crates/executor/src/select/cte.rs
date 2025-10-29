@@ -128,7 +128,7 @@ pub(super) fn infer_type_from_value(value: &types::SqlValue) -> types::DataType 
         types::SqlValue::Varchar(_) => types::DataType::Varchar { max_length: 255 },
         types::SqlValue::Character(_) => types::DataType::Character { length: 1 },
         types::SqlValue::Boolean(_) => types::DataType::Boolean,
-        types::SqlValue::Float(_) => types::DataType::Float,
+        types::SqlValue::Float(_) => types::DataType::Float { precision: 53 },
         types::SqlValue::Double(_) => types::DataType::DoublePrecision,
         types::SqlValue::Numeric(_) => types::DataType::Numeric {
             precision: 10,

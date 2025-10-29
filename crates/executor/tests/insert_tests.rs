@@ -368,7 +368,7 @@ use ast;
                 catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
                 catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: 50 }, true),
                 catalog::ColumnSchema::new("active".to_string(), types::DataType::Boolean, true),
-                catalog::ColumnSchema::new("score".to_string(), types::DataType::Float, true),
+                catalog::ColumnSchema::new("score".to_string(), types::DataType::Float { precision: 53 }, true),
             ],
         );
         db.create_table(schema).unwrap();

@@ -198,7 +198,7 @@ pub(super) fn cast(args: &[types::SqlValue]) -> Result<types::SqlValue, Executor
         "INTEGER" | "INT" => types::DataType::Integer,
         "SMALLINT" => types::DataType::Smallint,
         "BIGINT" => types::DataType::Bigint,
-        "FLOAT" => types::DataType::Float,
+        "FLOAT" => types::DataType::Float { precision: 53 },
         "DOUBLE PRECISION" | "DOUBLE" => types::DataType::DoublePrecision,
         "VARCHAR" => types::DataType::Varchar { max_length: 255 },
         "DATE" => types::DataType::Date,

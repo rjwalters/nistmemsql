@@ -381,7 +381,7 @@ use types::*;
     #[test]
     fn test_float_value_has_float_type() {
         let value = SqlValue::Float(2.5);
-        assert_eq!(value.get_type(), DataType::Float);
+        assert_eq!(value.get_type(), DataType::Float { precision: 53 });
     }
 
     #[test]
