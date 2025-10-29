@@ -37,3 +37,66 @@ pub(super) fn parse_rollback_statement(parser: &mut super::Parser) -> Result<ast
 
     Ok(ast::RollbackStmt)
 }
+
+/// Parse SAVEPOINT statement
+pub(super) fn parse_savepoint_statement(parser: &mut super::Parser) -> Result<ast::SavepointStmt, ParseError> {
+    // Consume SAVEPOINT
+    parser.consume_keyword(Keyword::Savepoint)?;
+
+    // Parse savepoint name (identifier)
+    let name = match parser.peek() {
+        super::Token::Identifier(name) => {
+            let savepoint_name = name.clone();
+            parser.advance();
+            savepoint_name
+        }
+        _ => return Err(ParseError { message: "Expected savepoint name after SAVEPOINT".to_string() }),
+    };
+
+    Ok(ast::SavepointStmt { name })
+}
+
+/// Parse ROLLBACK TO SAVEPOINT statement
+pub(super) fn parse_rollback_to_savepoint_statement(parser: &mut super::Parser) -> Result<ast::RollbackToSavepointStmt, ParseError> {
+    // Consume ROLLBACK
+    parser.consume_keyword(Keyword::Rollback)?;
+
+    // Consume TO
+    parser.consume_keyword(Keyword::To)?;
+
+    // Consume SAVEPOINT
+    parser.consume_keyword(Keyword::Savepoint)?;
+
+    // Parse savepoint name (identifier)
+    let name = match parser.peek() {
+        super::Token::Identifier(name) => {
+            let savepoint_name = name.clone();
+            parser.advance();
+            savepoint_name
+        }
+        _ => return Err(ParseError { message: "Expected savepoint name after ROLLBACK TO SAVEPOINT".to_string() }),
+    };
+
+    Ok(ast::RollbackToSavepointStmt { name })
+}
+
+/// Parse RELEASE SAVEPOINT statement
+pub(super) fn parse_release_savepoint_statement(parser: &mut super::Parser) -> Result<ast::ReleaseSavepointStmt, ParseError> {
+    // Consume RELEASE
+    parser.consume_keyword(Keyword::Release)?;
+
+    // Consume SAVEPOINT
+    parser.consume_keyword(Keyword::Savepoint)?;
+
+    // Parse savepoint name (identifier)
+    let name = match parser.peek() {
+        super::Token::Identifier(name) => {
+            let savepoint_name = name.clone();
+            parser.advance();
+            savepoint_name
+        }
+        _ => return Err(ParseError { message: "Expected savepoint name after RELEASE SAVEPOINT".to_string() }),
+    };
+
+    Ok(ast::ReleaseSavepointStmt { name })
+}

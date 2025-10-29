@@ -9,6 +9,7 @@ pub enum StorageError {
     ColumnIndexOutOfBounds { index: usize },
     CatalogError(String),
     TransactionError(String),
+    RowNotFound,
 }
 
 impl std::fmt::Display for StorageError {
@@ -23,6 +24,7 @@ impl std::fmt::Display for StorageError {
             }
             StorageError::CatalogError(msg) => write!(f, "Catalog error: {}", msg),
             StorageError::TransactionError(msg) => write!(f, "Transaction error: {}", msg),
+            StorageError::RowNotFound => write!(f, "Row not found"),
         }
     }
 }
