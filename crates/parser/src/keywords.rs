@@ -87,6 +87,11 @@ pub enum Keyword {
     Rollback,
     Start,
     Transaction,
+    // ALTER TABLE keywords
+    Add,
+    Column,
+    Constraint,
+    Default,
 }
 
 impl fmt::Display for Keyword {
@@ -170,6 +175,10 @@ impl fmt::Display for Keyword {
             Keyword::Rollback => "ROLLBACK",
             Keyword::Start => "START",
             Keyword::Transaction => "TRANSACTION",
+            Keyword::Add => "ADD",
+            Keyword::Column => "COLUMN",
+            Keyword::Constraint => "CONSTRAINT",
+            Keyword::Default => "DEFAULT",
         };
         write!(f, "{}", keyword_str)
     }

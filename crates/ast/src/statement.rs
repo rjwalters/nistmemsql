@@ -2,7 +2,7 @@
 //!
 //! This module defines the Statement enum that represents all possible SQL statements.
 
-use crate::{BeginStmt, CommitStmt, CreateTableStmt, DeleteStmt, DropTableStmt, InsertStmt, RollbackStmt, SelectStmt, UpdateStmt};
+use crate::{AlterTableStmt, BeginStmt, CommitStmt, CreateTableStmt, DeleteStmt, DropTableStmt, InsertStmt, RollbackStmt, SelectStmt, UpdateStmt};
 
 // ============================================================================
 // Top-level SQL Statements
@@ -17,6 +17,7 @@ pub enum Statement {
     Delete(DeleteStmt),
     CreateTable(CreateTableStmt),
     DropTable(DropTableStmt),
+    AlterTable(AlterTableStmt),
     BeginTransaction(BeginStmt),
     Commit(CommitStmt),
     Rollback(RollbackStmt),

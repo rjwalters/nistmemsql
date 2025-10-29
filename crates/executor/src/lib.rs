@@ -2,6 +2,7 @@
 //!
 //! This crate provides query execution functionality for SQL statements.
 
+mod alter;
 mod create_table;
 mod delete;
 mod drop_table;
@@ -13,6 +14,7 @@ mod select;
 mod transaction;
 mod update;
 
+pub use alter::AlterTableExecutor;
 pub use create_table::CreateTableExecutor;
 pub use delete::DeleteExecutor;
 pub use drop_table::DropTableExecutor;

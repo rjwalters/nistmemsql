@@ -3,6 +3,7 @@ pub enum ExecutorError {
     TableNotFound(String),
     TableAlreadyExists(String),
     ColumnNotFound(String),
+    ColumnAlreadyExists(String),
     ColumnIndexOutOfBounds { index: usize },
     TypeMismatch { left: types::SqlValue, op: String, right: types::SqlValue },
     DivisionByZero,
@@ -14,6 +15,7 @@ pub enum ExecutorError {
     SubqueryColumnCountMismatch { expected: usize, actual: usize },
     CastError { from_type: String, to_type: String },
     ConstraintViolation(String),
+    CannotDropColumn(String),
 }
 
 impl std::fmt::Display for ExecutorError {
@@ -22,6 +24,7 @@ impl std::fmt::Display for ExecutorError {
             ExecutorError::TableNotFound(name) => write!(f, "Table '{}' not found", name),
             ExecutorError::TableAlreadyExists(name) => write!(f, "Table '{}' already exists", name),
             ExecutorError::ColumnNotFound(name) => write!(f, "Column '{}' not found", name),
+            ExecutorError::ColumnAlreadyExists(name) => write!(f, "Column '{}' already exists", name),
             ExecutorError::ColumnIndexOutOfBounds { index } => {
                 write!(f, "Column index {} out of bounds", index)
             }
@@ -47,8 +50,22 @@ impl std::fmt::Display for ExecutorError {
             ExecutorError::ConstraintViolation(msg) => {
                 write!(f, "Constraint violation: {}", msg)
             }
+            ExecutorError::CannotDropColumn(msg) => {
+                write!(f, "Cannot drop column: {}", msg)
+            }
         }
     }
 }
 
 impl std::error::Error for ExecutorError {}
+
+impl From<catalog::CatalogError> for ExecutorError {
+    fn from(err: catalog::CatalogError) -> Self {
+        match err {
+            catalog::CatalogError::TableAlreadyExists(name) => ExecutorError::TableAlreadyExists(name),
+            catalog::CatalogError::TableNotFound(name) => ExecutorError::TableNotFound(name),
+            catalog::CatalogError::ColumnAlreadyExists(name) => ExecutorError::ColumnAlreadyExists(name),
+            catalog::CatalogError::ColumnNotFound(name) => ExecutorError::ColumnNotFound(name),
+        }
+    }
+}

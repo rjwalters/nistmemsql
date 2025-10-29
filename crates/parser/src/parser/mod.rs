@@ -3,6 +3,7 @@ use crate::lexer::Lexer;
 use crate::token::Token;
 use std::fmt;
 
+mod alter;
 mod create;
 mod delete;
 mod drop;
@@ -74,6 +75,10 @@ impl Parser {
                 let drop_stmt = self.parse_drop_table_statement()?;
                 Ok(ast::Statement::DropTable(drop_stmt))
             }
+            Token::Keyword(Keyword::Alter) => {
+                let alter_stmt = self.parse_alter_table_statement()?;
+                Ok(ast::Statement::AlterTable(alter_stmt))
+            }
             Token::Keyword(Keyword::Begin) | Token::Keyword(Keyword::Start) => {
                 let begin_stmt = self.parse_begin_statement()?;
                 Ok(ast::Statement::BeginTransaction(begin_stmt))
@@ -105,5 +110,10 @@ impl Parser {
     /// Parse ROLLBACK statement
     pub fn parse_rollback_statement(&mut self) -> Result<ast::RollbackStmt, ParseError> {
         transaction::parse_rollback_statement(self)
+    }
+
+    /// Parse ALTER TABLE statement
+    pub fn parse_alter_table_statement(&mut self) -> Result<ast::AlterTableStmt, ParseError> {
+        alter::parse_alter_table(self)
     }
 }

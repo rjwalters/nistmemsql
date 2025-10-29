@@ -3,6 +3,8 @@
 pub enum CatalogError {
     TableAlreadyExists(String),
     TableNotFound(String),
+    ColumnAlreadyExists(String),
+    ColumnNotFound(String),
 }
 
 impl std::fmt::Display for CatalogError {
@@ -12,6 +14,10 @@ impl std::fmt::Display for CatalogError {
                 write!(f, "Table '{}' already exists", name)
             }
             CatalogError::TableNotFound(name) => write!(f, "Table '{}' not found", name),
+            CatalogError::ColumnAlreadyExists(name) => {
+                write!(f, "Column '{}' already exists", name)
+            }
+            CatalogError::ColumnNotFound(name) => write!(f, "Column '{}' not found", name),
         }
     }
 }

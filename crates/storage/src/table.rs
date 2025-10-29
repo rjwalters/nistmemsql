@@ -117,4 +117,14 @@ impl Table {
         self.rows.retain(|row| !predicate(row));
         initial_count - self.rows.len()
     }
+
+    /// Get mutable reference to rows
+    pub fn rows_mut(&mut self) -> &mut Vec<Row> {
+        &mut self.rows
+    }
+
+    /// Get mutable reference to schema
+    pub fn schema_mut(&mut self) -> &mut catalog::TableSchema {
+        &mut self.schema
+    }
 }
