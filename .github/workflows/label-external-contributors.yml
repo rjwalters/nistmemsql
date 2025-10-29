@@ -10,8 +10,11 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  label_external:
     runs-on: ubuntu-latest
     steps:
-      - name: Echo
-        run: echo "Test workflow"
+      - name: Handle external issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            console.log("Test script");
