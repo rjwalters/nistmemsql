@@ -13,6 +13,9 @@ parser = { path = "crates/parser" }
 
 [dev-dependencies]
 regex = "1.10"
+sqllogictest = "0.21"
+async-trait = "0.1"
+tokio = { version = "1", features = ["rt", "macros"] }
 
 [workspace]
 members = [
