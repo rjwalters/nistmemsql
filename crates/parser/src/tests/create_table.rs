@@ -162,8 +162,8 @@ fn test_parse_create_table_numeric_with_precision_and_scale() {
             }
 
             match create.columns[1].data_type {
-                types::DataType::Decimal { precision: 15, scale: 4 } => {} // Success
-                _ => panic!("Expected DECIMAL(15, 4), got {:?}", create.columns[1].data_type),
+                types::DataType::Numeric { precision: 15, scale: 4 } => {} // Success
+                _ => panic!("Expected NUMERIC(15, 4), got {:?}", create.columns[1].data_type),
             }
         }
         _ => panic!("Expected CREATE TABLE statement"),
@@ -202,8 +202,8 @@ fn test_parse_create_table_numeric_without_parameters() {
             }
 
             match create.columns[1].data_type {
-                types::DataType::Decimal { precision: 38, scale: 0 } => {} // Success
-                _ => panic!("Expected DECIMAL(38, 0) default, got {:?}", create.columns[1].data_type),
+                types::DataType::Numeric { precision: 38, scale: 0 } => {} // Success
+                _ => panic!("Expected NUMERIC(38, 0) default, got {:?}", create.columns[1].data_type),
             }
         }
         _ => panic!("Expected CREATE TABLE statement"),
