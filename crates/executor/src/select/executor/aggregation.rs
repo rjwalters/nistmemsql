@@ -116,11 +116,11 @@ impl<'a> SelectExecutor<'a> {
         }
 
         // Apply ORDER BY if present
-        if stmt.order_by.is_some() {
-            return Err(ExecutorError::UnsupportedFeature(
-                "ORDER BY with aggregates not yet implemented".to_string(),
-            ));
-        }
+        let result_rows = if let Some(order_by) = &stmt.order_by {
+            self.apply_order_by_to_aggregates(result_rows, stmt, order_by)?
+        } else {
+            result_rows
+        };
 
         // Apply DISTINCT if specified
         let result_rows = if stmt.distinct { apply_distinct(result_rows) } else { result_rows };
@@ -417,5 +417,85 @@ impl<'a> SelectExecutor<'a> {
                 expr
             ))),
         }
+    }
+
+    /// Apply ORDER BY to aggregated results
+    fn apply_order_by_to_aggregates(
+        &self,
+        rows: Vec<storage::Row>,
+        stmt: &ast::SelectStmt,
+        order_by: &[ast::OrderByItem],
+    ) -> Result<Vec<storage::Row>, ExecutorError> {
+        // Build a schema from the SELECT list to enable ORDER BY column resolution
+        let mut result_columns = Vec::new();
+        for (idx, item) in stmt.select_list.iter().enumerate() {
+            match item {
+                ast::SelectItem::Expression { expr, alias } => {
+                    let column_name = if let Some(alias) = alias {
+                        alias.clone()
+                    } else {
+                        // Try to extract column name from expression
+                        match expr {
+                            ast::Expression::ColumnRef { column, .. } => column.clone(),
+                            ast::Expression::AggregateFunction { name, .. } => name.to_lowercase(),
+                            _ => format!("col{}", idx + 1),
+                        }
+                    };
+                    result_columns.push(catalog::ColumnSchema::new(
+                        column_name,
+                        types::DataType::Varchar { max_length: 255 }, // Placeholder type
+                        true,
+                    ));
+                }
+                ast::SelectItem::Wildcard => {
+                    return Err(ExecutorError::UnsupportedFeature(
+                        "SELECT * not supported with aggregates".to_string(),
+                    ));
+                }
+            }
+        }
+
+        let result_table_schema = catalog::TableSchema::new("result".to_string(), result_columns);
+
+        // Create a CombinedSchema for the result set
+        let mut table_schemas = std::collections::HashMap::new();
+        table_schemas.insert("result".to_string(), (0, result_table_schema.clone()));
+        let result_schema = crate::schema::CombinedSchema {
+            table_schemas,
+            total_columns: result_table_schema.columns.len(),
+        };
+
+        let result_evaluator = CombinedExpressionEvaluator::new(&result_schema);
+
+        // Evaluate ORDER BY expressions and attach sort keys to rows
+        let mut rows_with_keys: Vec<(storage::Row, Vec<(types::SqlValue, ast::OrderDirection)>)> = Vec::new();
+        for row in rows {
+            let mut sort_keys = Vec::new();
+            for order_item in order_by {
+                let key_value = result_evaluator.eval(&order_item.expr, &row)?;
+                sort_keys.push((key_value, order_item.direction.clone()));
+            }
+            rows_with_keys.push((row, sort_keys));
+        }
+
+        // Sort using the sort keys
+        rows_with_keys.sort_by(|(_, keys_a), (_, keys_b)| {
+            use crate::select::grouping::compare_sql_values;
+
+            for ((val_a, dir), (val_b, _)) in keys_a.iter().zip(keys_b.iter()) {
+                let cmp = match dir {
+                    ast::OrderDirection::Asc => compare_sql_values(val_a, val_b),
+                    ast::OrderDirection::Desc => compare_sql_values(val_a, val_b).reverse(),
+                };
+
+                if cmp != std::cmp::Ordering::Equal {
+                    return cmp;
+                }
+            }
+            std::cmp::Ordering::Equal
+        });
+
+        // Extract rows without sort keys
+        Ok(rows_with_keys.into_iter().map(|(row, _)| row).collect())
     }
 }
