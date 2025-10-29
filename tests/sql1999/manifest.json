@@ -2,7 +2,7 @@
   "version": "SQL:1999 (from SQL:2016 subset)",
   "source": "sqltest by Elliot Chance (extended with E021 tests)",
   "url": "https://github.com/elliotchance/sqltest",
-  "test_count": 109,
+  "test_count": 150,
   "tests": [
     {
       "id": "e011_01_01_01",
