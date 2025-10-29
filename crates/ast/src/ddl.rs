@@ -69,9 +69,6 @@ pub struct CommitStmt;
 /// ROLLBACK statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct RollbackStmt;
-/// ROLLBACK statement
-#[derive(Debug, Clone, PartialEq)]
-pub struct RollbackStmt;
 
 /// ALTER TABLE statement
 #[derive(Debug, Clone, PartialEq)]
