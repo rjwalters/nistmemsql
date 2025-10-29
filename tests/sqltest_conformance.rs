@@ -13,6 +13,7 @@ use storage::Database;
 #[derive(Debug, Deserialize, Clone)]
 struct YamlTest {
     id: String,
+    #[allow(dead_code)]  // Present in YAML but not used in our code
     feature: String,
     #[serde(default)]
     sql: SqlField,
@@ -45,8 +46,6 @@ impl SqlField {
 #[derive(Debug, Clone)]
 struct TestCase {
     id: String,
-    feature: String,
-    category: String,
     sql: String,
     expect_success: bool,
 }
@@ -118,19 +117,8 @@ impl SqltestRunner {
                     let yaml_test: YamlTest = YamlTest::deserialize(document)
                         .map_err(|e| format!("Failed to parse YAML from {:?}: {}", path, e))?;
 
-                    // Determine category based on feature prefix
-                    let category = if yaml_test.feature.starts_with("E0") {
-                        "Core"
-                    } else if yaml_test.feature.starts_with("F0") {
-                        "Foundation"
-                    } else {
-                        "Optional"
-                    };
-
                     tests.push(TestCase {
                         id: yaml_test.id,
-                        feature: yaml_test.feature,
-                        category: category.to_string(),
                         sql: yaml_test.sql.to_string(),
                         expect_success: true, // All tests in upstream expect success
                     });
