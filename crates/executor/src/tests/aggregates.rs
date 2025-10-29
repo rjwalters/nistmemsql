@@ -622,3 +622,409 @@ fn test_avg_with_nulls() {
     // AVG ignores NULL, so (5 + 3) / 2 = 4
     assert_eq!(result[0].values[0], types::SqlValue::Integer(4));
 }
+
+// ============================================================================
+// Edge case tests (complement sqltest E091 suite)
+// ============================================================================
+
+#[test]
+fn test_count_column_all_nulls() {
+    // Edge case: COUNT(column) with ALL NULL values should return 0, not row count
+    let mut db = storage::Database::new();
+    let schema = catalog::TableSchema::new(
+        "null_data".to_string(),
+        vec![
+            catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+            catalog::ColumnSchema::new("value".to_string(), types::DataType::Integer, true),
+        ],
+    );
+    db.create_table(schema).unwrap();
+    db.insert_row(
+        "null_data",
+        storage::Row::new(vec![types::SqlValue::Integer(1), types::SqlValue::Null]),
+    )
+    .unwrap();
+    db.insert_row(
+        "null_data",
+        storage::Row::new(vec![types::SqlValue::Integer(2), types::SqlValue::Null]),
+    )
+    .unwrap();
+    db.insert_row(
+        "null_data",
+        storage::Row::new(vec![types::SqlValue::Integer(3), types::SqlValue::Null]),
+    )
+    .unwrap();
+
+    let executor = SelectExecutor::new(&db);
+
+    // COUNT(column) should return 0 when all values are NULL
+    let stmt_count_col = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::Function {
+                name: "COUNT".to_string(),
+                args: vec![ast::Expression::ColumnRef {
+                    table: None,
+                    column: "value".to_string(),
+                }],
+            },
+            alias: None,
+        }],
+        from: Some(ast::FromClause::Table { name: "null_data".to_string(), alias: None }),
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt_count_col).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(0)); // COUNT(col) with all NULLs = 0
+
+    // COUNT(*) should still return row count
+    let stmt_count_star = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::Function {
+                name: "COUNT".to_string(),
+                args: vec![ast::Expression::Wildcard],
+            },
+            alias: None,
+        }],
+        from: Some(ast::FromClause::Table { name: "null_data".to_string(), alias: None }),
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt_count_star).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(3)); // COUNT(*) counts rows
+}
+
+#[test]
+fn test_min_max_on_strings() {
+    // Edge case: MIN/MAX on VARCHAR values should use lexicographic ordering
+    let mut db = storage::Database::new();
+    let schema = catalog::TableSchema::new(
+        "names".to_string(),
+        vec![
+            catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+            catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: 50 }, false),
+        ],
+    );
+    db.create_table(schema).unwrap();
+    db.insert_row(
+        "names",
+        storage::Row::new(vec![
+            types::SqlValue::Integer(1),
+            types::SqlValue::Varchar("Zebra".to_string()),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "names",
+        storage::Row::new(vec![
+            types::SqlValue::Integer(2),
+            types::SqlValue::Varchar("Apple".to_string()),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "names",
+        storage::Row::new(vec![
+            types::SqlValue::Integer(3),
+            types::SqlValue::Varchar("Mango".to_string()),
+        ]),
+    )
+    .unwrap();
+
+    let executor = SelectExecutor::new(&db);
+
+    // Test MIN
+    let stmt_min = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::Function {
+                name: "MIN".to_string(),
+                args: vec![ast::Expression::ColumnRef {
+                    table: None,
+                    column: "name".to_string(),
+                }],
+            },
+            alias: None,
+        }],
+        from: Some(ast::FromClause::Table { name: "names".to_string(), alias: None }),
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt_min).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].values[0], types::SqlValue::Varchar("Apple".to_string()));
+
+    // Test MAX
+    let stmt_max = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::Function {
+                name: "MAX".to_string(),
+                args: vec![ast::Expression::ColumnRef {
+                    table: None,
+                    column: "name".to_string(),
+                }],
+            },
+            alias: None,
+        }],
+        from: Some(ast::FromClause::Table { name: "names".to_string(), alias: None }),
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt_max).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].values[0], types::SqlValue::Varchar("Zebra".to_string()));
+}
+
+#[test]
+#[ignore = "TODO: AVG on NUMERIC columns not yet implemented - returns NULL instead of computed average"]
+fn test_avg_precision_decimal() {
+    // Edge case: AVG should preserve DECIMAL precision, not truncate to INTEGER
+    let mut db = storage::Database::new();
+    let schema = catalog::TableSchema::new(
+        "prices".to_string(),
+        vec![
+            catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+            catalog::ColumnSchema::new("price".to_string(), types::DataType::Numeric { precision: 10, scale: 2 }, false),
+        ],
+    );
+    db.create_table(schema).unwrap();
+    db.insert_row(
+        "prices",
+        storage::Row::new(vec![
+            types::SqlValue::Integer(1),
+            types::SqlValue::Numeric("10.50".parse().unwrap()),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "prices",
+        storage::Row::new(vec![
+            types::SqlValue::Integer(2),
+            types::SqlValue::Numeric("20.75".parse().unwrap()),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "prices",
+        storage::Row::new(vec![
+            types::SqlValue::Integer(3),
+            types::SqlValue::Numeric("15.25".parse().unwrap()),
+        ]),
+    )
+    .unwrap();
+
+    let executor = SelectExecutor::new(&db);
+    let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::Function {
+                name: "AVG".to_string(),
+                args: vec![ast::Expression::ColumnRef {
+                    table: None,
+                    column: "price".to_string(),
+                }],
+            },
+            alias: None,
+        }],
+        from: Some(ast::FromClause::Table { name: "prices".to_string(), alias: None }),
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1);
+    // AVG(10.50, 20.75, 15.25) = 46.50 / 3 = 15.50
+    assert_eq!(result[0].values[0], types::SqlValue::Numeric("15.50".parse().unwrap()));
+}
+
+#[test]
+#[ignore = "TODO: SUM on NUMERIC columns not yet implemented - returns 0 instead of sum"]
+fn test_sum_mixed_numeric_types() {
+    // Edge case: SUM on NUMERIC values should work (currently only supports INTEGER)
+    let mut db = storage::Database::new();
+    let schema = catalog::TableSchema::new(
+        "mixed_amounts".to_string(),
+        vec![
+            catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+            catalog::ColumnSchema::new("amount".to_string(), types::DataType::Numeric { precision: 10, scale: 2 }, false),
+        ],
+    );
+    db.create_table(schema).unwrap();
+    db.insert_row(
+        "mixed_amounts",
+        storage::Row::new(vec![
+            types::SqlValue::Integer(1),
+            types::SqlValue::Numeric("100.50".parse().unwrap()),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "mixed_amounts",
+        storage::Row::new(vec![
+            types::SqlValue::Integer(2),
+            types::SqlValue::Numeric("200.25".parse().unwrap()),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "mixed_amounts",
+        storage::Row::new(vec![
+            types::SqlValue::Integer(3),
+            types::SqlValue::Numeric("150.00".parse().unwrap()),
+        ]),
+    )
+    .unwrap();
+
+    let executor = SelectExecutor::new(&db);
+    let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::Function {
+                name: "SUM".to_string(),
+                args: vec![ast::Expression::ColumnRef {
+                    table: None,
+                    column: "amount".to_string(),
+                }],
+            },
+            alias: None,
+        }],
+        from: Some(ast::FromClause::Table { name: "mixed_amounts".to_string(), alias: None }),
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1);
+    // SUM(100.50, 200.25, 150.00) = 450.75
+    assert_eq!(result[0].values[0], types::SqlValue::Numeric("450.75".parse().unwrap()));
+}
+
+#[test]
+fn test_aggregate_with_case_expression() {
+    // Edge case: Aggregates with CASE expressions - common real-world pattern
+    let mut db = storage::Database::new();
+    let schema = catalog::TableSchema::new(
+        "transactions".to_string(),
+        vec![
+            catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+            catalog::ColumnSchema::new("type".to_string(), types::DataType::Varchar { max_length: 10 }, false),
+            catalog::ColumnSchema::new("amount".to_string(), types::DataType::Integer, false),
+        ],
+    );
+    db.create_table(schema).unwrap();
+    db.insert_row(
+        "transactions",
+        storage::Row::new(vec![
+            types::SqlValue::Integer(1),
+            types::SqlValue::Varchar("credit".to_string()),
+            types::SqlValue::Integer(100),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "transactions",
+        storage::Row::new(vec![
+            types::SqlValue::Integer(2),
+            types::SqlValue::Varchar("debit".to_string()),
+            types::SqlValue::Integer(50),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "transactions",
+        storage::Row::new(vec![
+            types::SqlValue::Integer(3),
+            types::SqlValue::Varchar("credit".to_string()),
+            types::SqlValue::Integer(200),
+        ]),
+    )
+    .unwrap();
+
+    let executor = SelectExecutor::new(&db);
+    // SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END)
+    let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::Function {
+                name: "SUM".to_string(),
+                args: vec![ast::Expression::Case {
+                    operand: None,
+                    when_clauses: vec![(
+                        ast::Expression::BinaryOp {
+                            left: Box::new(ast::Expression::ColumnRef {
+                                table: None,
+                                column: "type".to_string(),
+                            }),
+                            op: ast::BinaryOperator::Equal,
+                            right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("credit".to_string()))),
+                        },
+                        ast::Expression::ColumnRef {
+                            table: None,
+                            column: "amount".to_string(),
+                        },
+                    )],
+                    else_result: Some(Box::new(ast::Expression::Literal(types::SqlValue::Integer(0)))),
+                }],
+            },
+            alias: None,
+        }],
+        from: Some(ast::FromClause::Table { name: "transactions".to_string(), alias: None }),
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1);
+    // SUM of credits only: 100 + 200 = 300 (debit of 50 becomes 0)
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(300));
+}
