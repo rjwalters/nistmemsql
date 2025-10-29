@@ -20,6 +20,10 @@ impl<'a> SelectExecutor<'a> {
                 args.iter().any(|arg| self.expression_references_column(arg))
             }
 
+            ast::Expression::AggregateFunction { args, .. } => {
+                args.iter().any(|arg| self.expression_references_column(arg))
+            }
+
             ast::Expression::IsNull { expr, .. } => {
                 self.expression_references_column(expr)
             }

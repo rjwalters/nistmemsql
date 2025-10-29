@@ -15,12 +15,13 @@ fn test_parse_count_star() {
             assert_eq!(select.select_list.len(), 1);
             match &select.select_list[0] {
                 ast::SelectItem::Expression { expr, .. } => match expr {
-                    ast::Expression::Function { name, args } => {
+                    ast::Expression::AggregateFunction { name, distinct, args } => {
                         assert_eq!(name, "COUNT");
+                        assert_eq!(*distinct, false);
                         assert_eq!(args.len(), 1);
                         // COUNT(*) is represented as a special wildcard expression
                     }
-                    _ => panic!("Expected function call"),
+                    _ => panic!("Expected aggregate function call"),
                 },
                 _ => panic!("Expected expression"),
             }
@@ -38,15 +39,16 @@ fn test_parse_count_column() {
     match stmt {
         ast::Statement::Select(select) => match &select.select_list[0] {
             ast::SelectItem::Expression { expr, .. } => match expr {
-                ast::Expression::Function { name, args } => {
+                ast::Expression::AggregateFunction { name, distinct, args } => {
                     assert_eq!(name, "COUNT");
+                    assert_eq!(*distinct, false);
                     assert_eq!(args.len(), 1);
                     match &args[0] {
                         ast::Expression::ColumnRef { column, .. } if column == "id" => {}
                         _ => panic!("Expected column reference"),
                     }
                 }
-                _ => panic!("Expected function call"),
+                _ => panic!("Expected aggregate function call"),
             },
             _ => panic!("Expected expression"),
         },
@@ -63,11 +65,12 @@ fn test_parse_sum_function() {
     match stmt {
         ast::Statement::Select(select) => match &select.select_list[0] {
             ast::SelectItem::Expression { expr, .. } => match expr {
-                ast::Expression::Function { name, args } => {
+                ast::Expression::AggregateFunction { name, distinct, args } => {
                     assert_eq!(name, "SUM");
+                    assert_eq!(*distinct, false);
                     assert_eq!(args.len(), 1);
                 }
-                _ => panic!("Expected SUM function"),
+                _ => panic!("Expected SUM aggregate function"),
             },
             _ => panic!("Expected expression"),
         },
@@ -84,10 +87,10 @@ fn test_parse_avg_function() {
     match stmt {
         ast::Statement::Select(select) => match &select.select_list[0] {
             ast::SelectItem::Expression { expr, .. } => match expr {
-                ast::Expression::Function { name, .. } => {
+                ast::Expression::AggregateFunction { name, .. } => {
                     assert_eq!(name, "AVG");
                 }
-                _ => panic!("Expected AVG function"),
+                _ => panic!("Expected AVG aggregate function"),
             },
             _ => panic!("Expected expression"),
         },
@@ -108,10 +111,10 @@ fn test_parse_min_max_functions() {
             // Check MIN
             match &select.select_list[0] {
                 ast::SelectItem::Expression { expr, .. } => match expr {
-                    ast::Expression::Function { name, .. } => {
+                    ast::Expression::AggregateFunction { name, .. } => {
                         assert_eq!(name, "MIN");
                     }
-                    _ => panic!("Expected MIN function"),
+                    _ => panic!("Expected MIN aggregate function"),
                 },
                 _ => panic!("Expected expression"),
             }
@@ -119,10 +122,10 @@ fn test_parse_min_max_functions() {
             // Check MAX
             match &select.select_list[1] {
                 ast::SelectItem::Expression { expr, .. } => match expr {
-                    ast::Expression::Function { name, .. } => {
+                    ast::Expression::AggregateFunction { name, .. } => {
                         assert_eq!(name, "MAX");
                     }
-                    _ => panic!("Expected MAX function"),
+                    _ => panic!("Expected MAX aggregate function"),
                 },
                 _ => panic!("Expected expression"),
             }
@@ -141,10 +144,10 @@ fn test_parse_aggregate_with_alias() {
         ast::Statement::Select(select) => match &select.select_list[0] {
             ast::SelectItem::Expression { expr, alias } => {
                 match expr {
-                    ast::Expression::Function { name, .. } => {
+                    ast::Expression::AggregateFunction { name, .. } => {
                         assert_eq!(name, "COUNT");
                     }
-                    _ => panic!("Expected function"),
+                    _ => panic!("Expected aggregate function"),
                 }
                 assert_eq!(alias.as_ref().unwrap(), "total");
             }
@@ -164,12 +167,12 @@ fn test_parse_multiple_aggregates() {
         ast::Statement::Select(select) => {
             assert_eq!(select.select_list.len(), 3);
 
-            // Verify all are functions
+            // Verify all are aggregate functions
             for item in &select.select_list {
                 match item {
                     ast::SelectItem::Expression { expr, .. } => match expr {
-                        ast::Expression::Function { .. } => {} // Success
-                        _ => panic!("Expected function"),
+                        ast::Expression::AggregateFunction { .. } => {} // Success
+                        _ => panic!("Expected aggregate function"),
                     },
                     _ => panic!("Expected expression"),
                 }

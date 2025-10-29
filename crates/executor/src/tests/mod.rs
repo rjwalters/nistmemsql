@@ -14,6 +14,7 @@
 //! - `between_predicates`: BETWEEN predicate execution tests
 
 mod aggregates;
+mod aggregate_distinct;
 mod between_predicates;
 mod case_bug;
 mod comparison_ops;

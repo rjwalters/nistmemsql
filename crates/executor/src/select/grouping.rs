@@ -1,23 +1,45 @@
 use std::cmp::Ordering;
+use std::collections::HashSet;
 
 /// Accumulator for aggregate functions
 #[derive(Debug, Clone)]
 pub(super) enum AggregateAccumulator {
-    Count(i64),
-    Sum(types::SqlValue),
-    Avg { sum: types::SqlValue, count: i64 },
-    Min(Option<types::SqlValue>),
-    Max(Option<types::SqlValue>),
+    Count { count: i64, distinct: bool, seen: HashSet<types::SqlValue> },
+    Sum { sum: types::SqlValue, distinct: bool, seen: HashSet<types::SqlValue> },
+    Avg { sum: types::SqlValue, count: i64, distinct: bool, seen: HashSet<types::SqlValue> },
+    Min { value: Option<types::SqlValue>, distinct: bool, seen: HashSet<types::SqlValue> },
+    Max { value: Option<types::SqlValue>, distinct: bool, seen: HashSet<types::SqlValue> },
 }
 
 impl AggregateAccumulator {
-    pub(super) fn new(function_name: &str) -> Result<Self, crate::errors::ExecutorError> {
+    pub(super) fn new(function_name: &str, distinct: bool) -> Result<Self, crate::errors::ExecutorError> {
         match function_name.to_uppercase().as_str() {
-            "COUNT" => Ok(AggregateAccumulator::Count(0)),
-            "SUM" => Ok(AggregateAccumulator::Sum(types::SqlValue::Integer(0))),
-            "AVG" => Ok(AggregateAccumulator::Avg { sum: types::SqlValue::Integer(0), count: 0 }),
-            "MIN" => Ok(AggregateAccumulator::Min(None)),
-            "MAX" => Ok(AggregateAccumulator::Max(None)),
+            "COUNT" => Ok(AggregateAccumulator::Count {
+                count: 0,
+                distinct,
+                seen: HashSet::new()
+            }),
+            "SUM" => Ok(AggregateAccumulator::Sum {
+                sum: types::SqlValue::Integer(0),
+                distinct,
+                seen: HashSet::new()
+            }),
+            "AVG" => Ok(AggregateAccumulator::Avg {
+                sum: types::SqlValue::Integer(0),
+                count: 0,
+                distinct,
+                seen: HashSet::new()
+            }),
+            "MIN" => Ok(AggregateAccumulator::Min {
+                value: None,
+                distinct,
+                seen: HashSet::new()
+            }),
+            "MAX" => Ok(AggregateAccumulator::Max {
+                value: None,
+                distinct,
+                seen: HashSet::new()
+            }),
             _ => Err(crate::errors::ExecutorError::UnsupportedExpression(format!(
                 "Unknown aggregate function: {}",
                 function_name
@@ -26,86 +48,128 @@ impl AggregateAccumulator {
     }
 
     pub(super) fn accumulate(&mut self, value: &types::SqlValue) {
-        match (self, value) {
+        match self {
             // COUNT - counts non-NULL values
-            (AggregateAccumulator::Count(_), types::SqlValue::Null) => {}
-            (AggregateAccumulator::Count(ref mut count), _) => {
-                *count += 1;
+            AggregateAccumulator::Count { ref mut count, distinct, ref mut seen } => {
+                if value.is_null() {
+                    return; // Skip NULL values
+                }
+
+                if *distinct {
+                    // Only count if we haven't seen this value before
+                    if seen.insert(value.clone()) {
+                        *count += 1;
+                    }
+                } else {
+                    *count += 1;
+                }
             }
 
             // SUM - sums numeric values (Integer or Numeric), ignores NULLs
-            (AggregateAccumulator::Sum(ref mut sum), types::SqlValue::Integer(val)) => {
-                *sum = add_sql_values(sum, &types::SqlValue::Integer(*val));
+            AggregateAccumulator::Sum { ref mut sum, distinct, ref mut seen } => {
+                match value {
+                    types::SqlValue::Null => {} // Skip NULL
+                    types::SqlValue::Integer(_) | types::SqlValue::Numeric(_) => {
+                        if *distinct {
+                            // Only sum if we haven't seen this value before
+                            if seen.insert(value.clone()) {
+                                *sum = add_sql_values(sum, value);
+                            }
+                        } else {
+                            *sum = add_sql_values(sum, value);
+                        }
+                    }
+                    _ => {} // Type mismatch - ignore
+                }
             }
-            (AggregateAccumulator::Sum(ref mut sum), types::SqlValue::Numeric(val)) => {
-                *sum = add_sql_values(sum, &types::SqlValue::Numeric(val.clone()));
-            }
-            (AggregateAccumulator::Sum(_), types::SqlValue::Null) => {}
 
             // AVG - computes average of numeric values (Integer or Numeric), ignores NULLs
-            (
-                AggregateAccumulator::Avg { ref mut sum, ref mut count },
-                types::SqlValue::Integer(val),
-            ) => {
-                *sum = add_sql_values(sum, &types::SqlValue::Integer(*val));
-                *count += 1;
+            AggregateAccumulator::Avg { ref mut sum, ref mut count, distinct, ref mut seen } => {
+                match value {
+                    types::SqlValue::Null => {} // Skip NULL
+                    types::SqlValue::Integer(_) | types::SqlValue::Numeric(_) => {
+                        if *distinct {
+                            // Only include if we haven't seen this value before
+                            if seen.insert(value.clone()) {
+                                *sum = add_sql_values(sum, value);
+                                *count += 1;
+                            }
+                        } else {
+                            *sum = add_sql_values(sum, value);
+                            *count += 1;
+                        }
+                    }
+                    _ => {} // Type mismatch - ignore
+                }
             }
-            (
-                AggregateAccumulator::Avg { ref mut sum, ref mut count },
-                types::SqlValue::Numeric(val),
-            ) => {
-                *sum = add_sql_values(sum, &types::SqlValue::Numeric(val.clone()));
-                *count += 1;
-            }
-            (AggregateAccumulator::Avg { .. }, types::SqlValue::Null) => {}
 
             // MIN - finds minimum value, ignores NULLs
-            (AggregateAccumulator::Min(ref mut current_min), val @ types::SqlValue::Integer(_))
-            | (AggregateAccumulator::Min(ref mut current_min), val @ types::SqlValue::Varchar(_))
-            | (AggregateAccumulator::Min(ref mut current_min), val @ types::SqlValue::Boolean(_)) => {
-                if let Some(ref current) = current_min {
-                    if compare_sql_values(val, current) == Ordering::Less {
-                        *current_min = Some(val.clone());
+            AggregateAccumulator::Min { value: ref mut current_min, distinct, ref mut seen } => {
+                if value.is_null() {
+                    return; // Skip NULL
+                }
+
+                // For MIN with DISTINCT, we still need to consider all unique values
+                // but the result is the same as without DISTINCT
+                if *distinct && !seen.insert(value.clone()) {
+                    return; // Already seen this value
+                }
+
+                match value {
+                    types::SqlValue::Integer(_) | types::SqlValue::Varchar(_) | types::SqlValue::Boolean(_) => {
+                        if let Some(ref current) = current_min {
+                            if compare_sql_values(value, current) == Ordering::Less {
+                                *current_min = Some(value.clone());
+                            }
+                        } else {
+                            *current_min = Some(value.clone());
+                        }
                     }
-                } else {
-                    *current_min = Some(val.clone());
+                    _ => {} // Unsupported type
                 }
             }
-            (AggregateAccumulator::Min(_), types::SqlValue::Null) => {}
 
             // MAX - finds maximum value, ignores NULLs
-            (AggregateAccumulator::Max(ref mut current_max), val @ types::SqlValue::Integer(_))
-            | (AggregateAccumulator::Max(ref mut current_max), val @ types::SqlValue::Varchar(_))
-            | (AggregateAccumulator::Max(ref mut current_max), val @ types::SqlValue::Boolean(_)) => {
-                if let Some(ref current) = current_max {
-                    if compare_sql_values(val, current) == Ordering::Greater {
-                        *current_max = Some(val.clone());
-                    }
-                } else {
-                    *current_max = Some(val.clone());
+            AggregateAccumulator::Max { value: ref mut current_max, distinct, ref mut seen } => {
+                if value.is_null() {
+                    return; // Skip NULL
                 }
-            }
-            (AggregateAccumulator::Max(_), types::SqlValue::Null) => {}
 
-            _ => {
-                // Type mismatch or unsupported type - ignore for now
+                // For MAX with DISTINCT, we still need to consider all unique values
+                // but the result is the same as without DISTINCT
+                if *distinct && !seen.insert(value.clone()) {
+                    return; // Already seen this value
+                }
+
+                match value {
+                    types::SqlValue::Integer(_) | types::SqlValue::Varchar(_) | types::SqlValue::Boolean(_) => {
+                        if let Some(ref current) = current_max {
+                            if compare_sql_values(value, current) == Ordering::Greater {
+                                *current_max = Some(value.clone());
+                            }
+                        } else {
+                            *current_max = Some(value.clone());
+                        }
+                    }
+                    _ => {} // Unsupported type
+                }
             }
         }
     }
 
     pub(super) fn finalize(&self) -> types::SqlValue {
         match self {
-            AggregateAccumulator::Count(count) => types::SqlValue::Integer(*count),
-            AggregateAccumulator::Sum(sum) => sum.clone(),
-            AggregateAccumulator::Avg { sum, count } => {
+            AggregateAccumulator::Count { count, .. } => types::SqlValue::Integer(*count),
+            AggregateAccumulator::Sum { sum, .. } => sum.clone(),
+            AggregateAccumulator::Avg { sum, count, .. } => {
                 if *count == 0 {
                     types::SqlValue::Null
                 } else {
                     divide_sql_value(sum, *count)
                 }
             }
-            AggregateAccumulator::Min(val) => val.clone().unwrap_or(types::SqlValue::Null),
-            AggregateAccumulator::Max(val) => val.clone().unwrap_or(types::SqlValue::Null),
+            AggregateAccumulator::Min { value, .. } => value.clone().unwrap_or(types::SqlValue::Null),
+            AggregateAccumulator::Max { value, .. } => value.clone().unwrap_or(types::SqlValue::Null),
         }
     }
 }

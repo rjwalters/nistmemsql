@@ -22,6 +22,9 @@ impl<'a> SelectExecutor<'a> {
     #[allow(clippy::only_used_in_recursion)]
     pub(super) fn expression_has_aggregate(&self, expr: &ast::Expression) -> bool {
         match expr {
+            // New AggregateFunction variant
+            ast::Expression::AggregateFunction { .. } => true,
+            // Old Function variant (backwards compatibility)
             ast::Expression::Function { name, .. } => {
                 matches!(name.to_uppercase().as_str(), "COUNT" | "SUM" | "AVG" | "MIN" | "MAX")
             }
@@ -140,9 +143,51 @@ impl<'a> SelectExecutor<'a> {
         evaluator: &CombinedExpressionEvaluator,
     ) -> Result<types::SqlValue, ExecutorError> {
         match expr {
-            // Aggregate function
+            // New AggregateFunction variant
+            ast::Expression::AggregateFunction { name, distinct, args } => {
+                let mut acc = AggregateAccumulator::new(name, *distinct)?;
+
+                // Special handling for COUNT(*)
+                if name.to_uppercase() == "COUNT" && args.len() == 1 {
+                    let is_count_star = matches!(args[0], ast::Expression::Wildcard)
+                        || matches!(
+                            &args[0],
+                            ast::Expression::ColumnRef { table: None, column } if column == "*"
+                        );
+
+                    if is_count_star {
+                        // COUNT(*) - count all rows (DISTINCT not allowed with *)
+                        if *distinct {
+                            return Err(ExecutorError::UnsupportedExpression(
+                                "COUNT(DISTINCT *) is not valid SQL".to_string()
+                            ));
+                        }
+                        for _ in group_rows {
+                            acc.accumulate(&types::SqlValue::Integer(1));
+                        }
+                        return Ok(acc.finalize());
+                    }
+                }
+
+                // Regular aggregate - evaluate argument for each row
+                if args.len() != 1 {
+                    return Err(ExecutorError::UnsupportedExpression(format!(
+                        "Aggregate functions expect 1 argument, got {}",
+                        args.len()
+                    )));
+                }
+
+                for row in group_rows {
+                    let value = evaluator.eval(&args[0], row)?;
+                    acc.accumulate(&value);
+                }
+
+                Ok(acc.finalize())
+            }
+
+            // Old Function variant (backwards compatibility)
             ast::Expression::Function { name, args } => {
-                let mut acc = AggregateAccumulator::new(name)?;
+                let mut acc = AggregateAccumulator::new(name, false)?;
 
                 // Special handling for COUNT(*)
                 if name.to_uppercase() == "COUNT" && args.len() == 1 {
