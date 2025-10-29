@@ -1,7 +1,5 @@
 name: Label external issues
 
-# Note: Using 'on: push' allows the workflow to run but jobs are conditionally skipped.
-# This prevents GitHub Actions from marking the workflow as "failed" when it doesn't execute.
 on:
   push:
     branches: [main]
@@ -14,7 +12,6 @@ permissions:
   contents: read
 
 jobs:
-  # Always run a check job so workflow reports success even when main job is skipped
   check:
     runs-on: ubuntu-latest
     steps:
@@ -25,7 +22,6 @@ jobs:
 
   label_external:
     runs-on: ubuntu-latest
-    # Only run on issue events
     if: github.event_name == 'issues'
     steps:
       - name: Handle external issue
@@ -42,10 +38,8 @@ jobs:
                 username
               });
               console.log(`${username} is a collaborator`);
-              // No action needed for collaborators
             } catch (error) {
               console.log(`${username} is NOT a collaborator`);
-              // Add external label
               await github.rest.issues.addLabels({
                 owner,
                 repo,
@@ -53,7 +47,6 @@ jobs:
                 labels: ['external']
               });
 
-              // Post welcome comment
               await github.rest.issues.createComment({
                 owner,
                 repo,
