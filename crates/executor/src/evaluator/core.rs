@@ -230,6 +230,71 @@ impl<'a> ExpressionEvaluator<'a> {
                 }
             }
 
+            // NUMERIC type coercion - treat NUMERIC as approximate numeric for arithmetic
+            // NUMERIC with any other numeric type
+            (left_val @ Numeric(_), op @ (Plus | Minus | Multiply | Divide), right_val) if matches!(right_val, Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_) | Numeric(_)) => {
+                let left_f64 = to_f64(left_val)?;
+                let right_f64 = to_f64(right_val)?;
+                match op {
+                    Plus => Ok(Float((left_f64 + right_f64) as f32)),
+                    Minus => Ok(Float((left_f64 - right_f64) as f32)),
+                    Multiply => Ok(Float((left_f64 * right_f64) as f32)),
+                    Divide => {
+                        if right_f64 == 0.0 {
+                            Err(ExecutorError::DivisionByZero)
+                        } else {
+                            Ok(Float((left_f64 / right_f64) as f32))
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            (left_val, op @ (Plus | Minus | Multiply | Divide), right_val @ Numeric(_)) if matches!(left_val, Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_)) => {
+                let left_f64 = to_f64(left_val)?;
+                let right_f64 = to_f64(right_val)?;
+                match op {
+                    Plus => Ok(Float((left_f64 + right_f64) as f32)),
+                    Minus => Ok(Float((left_f64 - right_f64) as f32)),
+                    Multiply => Ok(Float((left_f64 * right_f64) as f32)),
+                    Divide => {
+                        if right_f64 == 0.0 {
+                            Err(ExecutorError::DivisionByZero)
+                        } else {
+                            Ok(Float((left_f64 / right_f64) as f32))
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+
+            // NUMERIC comparisons
+            (left_val @ Numeric(_), op @ (Equal | NotEqual | LessThan | LessThanOrEqual | GreaterThan | GreaterThanOrEqual), right_val) if matches!(right_val, Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_) | Numeric(_)) => {
+                let left_f64 = to_f64(left_val)?;
+                let right_f64 = to_f64(right_val)?;
+                match op {
+                    Equal => Ok(Boolean(left_f64 == right_f64)),
+                    NotEqual => Ok(Boolean(left_f64 != right_f64)),
+                    LessThan => Ok(Boolean(left_f64 < right_f64)),
+                    LessThanOrEqual => Ok(Boolean(left_f64 <= right_f64)),
+                    GreaterThan => Ok(Boolean(left_f64 > right_f64)),
+                    GreaterThanOrEqual => Ok(Boolean(left_f64 >= right_f64)),
+                    _ => unreachable!(),
+                }
+            }
+            (left_val, op @ (Equal | NotEqual | LessThan | LessThanOrEqual | GreaterThan | GreaterThanOrEqual), right_val @ Numeric(_)) if matches!(left_val, Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_)) => {
+                let left_f64 = to_f64(left_val)?;
+                let right_f64 = to_f64(right_val)?;
+                match op {
+                    Equal => Ok(Boolean(left_f64 == right_f64)),
+                    NotEqual => Ok(Boolean(left_f64 != right_f64)),
+                    LessThan => Ok(Boolean(left_f64 < right_f64)),
+                    LessThanOrEqual => Ok(Boolean(left_f64 <= right_f64)),
+                    GreaterThan => Ok(Boolean(left_f64 > right_f64)),
+                    GreaterThanOrEqual => Ok(Boolean(left_f64 >= right_f64)),
+                    _ => unreachable!(),
+                }
+            }
+
             // Type mismatch
             _ => Err(ExecutorError::TypeMismatch {
                 left: left.clone(),
