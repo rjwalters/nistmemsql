@@ -43,17 +43,23 @@ This means:
 - **Cons**: Steeper learning curve, longer compile times
 - **Alternative**: Java for easier JDBC integration, but performance overhead
 
-### 4. ODBC/JDBC Protocol Support
-**Specification**: NIST tests must run through ODBC and JDBC
-**Source**: [Issue #4](https://github.com/posix4e/nistmemsql/issues/4)
+### 4. Test Execution Interface
+**Specification**: Direct API testing (Rust API, CLI, WASM)
+**Rationale**: ODBC/JDBC are SQL/CLI (Part 3), not SQL Foundation (Part 2)
 
 Requirements:
-- Full ODBC driver implementation
-- Full JDBC driver implementation
-- Both must be functional enough to run NIST test suite
-- Tests must pass when executed through either protocol
+- Rust API for direct programmatic testing
+- CLI interface for command-line test execution
+- WASM interface for browser-based testing
+- All interfaces must produce consistent, validated results
+- Test suite must pass through any of these interfaces
 
-This is non-negotiable as it's part of the test execution strategy.
+**Why This Approach**:
+- ODBC/JDBC are client protocols, not part of Core SQL:1999 compliance
+- Direct API testing is simpler, faster, and more reliable
+- Preserves WASM/browser portability (no native driver dependencies)
+- Core compliance is about SQL language semantics, not transport layer
+- NIST tests care about SQL statement results, not how they're delivered
 
 ### 5. Persistence
 **Specification**: No persistence required - "No persistence. it's just for testing"
@@ -80,7 +86,7 @@ This is non-negotiable as it's part of the test execution strategy.
 Requirements:
 - Integrate sqltest test suite
 - Automate execution through GitHub Actions
-- Must run tests via both ODBC and JDBC connections
+- Run tests via Rust API, CLI, and WASM interfaces
 - Generate compliance reports
 - Focus on SQL:1999 tests (but suite includes newer standards too)
 

@@ -303,15 +303,15 @@ This isn't just about databases. It's about understanding what's now possible wi
 - [ ] Additional built-in functions
 
 **Day 8 (Nov 1)** - Conformance Test Harness
-- [ ] NIST SQL Test Suite v6.0 integration (no ODBC/JDBC needed)
+- [ ] NIST SQL Test Suite v6.0 integration
 - [ ] SQL:1999 Core feature validator (Mimer taxonomy)
 - [ ] Automated test harness: `nistmemsql test` + `nistmemsql validate`
 - [ ] Run tests via Rust API, CLI, and WASM
 - [ ] Publish conformance badges (≥90% NIST, 100% Core features)
 - [ ] Document compliance level
 
-**Architecture Decision**: Skip ODBC/JDBC - they're SQL/CLI (Part 3), not SQL Foundation (Part 2).
-Core compliance tested directly via engine API.
+**Test Approach**: Direct API testing via Rust, CLI, and WASM interfaces.
+Core compliance is about SQL language semantics, not client protocols.
 
 ---
 
@@ -364,8 +364,6 @@ Core compliance tested directly via engine API.
 12. Performance profiling and optimization
 
 **When Complete**: ≥90% NIST test passage + 100% Core feature coverage
-
-**Note**: ODBC/JDBC drivers removed from scope - Core compliance is SQL Foundation (Part 2), not SQL/CLI (Part 3)
 
 ### To FULL SQL:1999 Compliance
 

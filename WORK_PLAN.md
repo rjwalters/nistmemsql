@@ -18,7 +18,7 @@
 **Why Core First**: Achievable milestone that enables NIST testing and provides solid foundation
 **Validation**: NIST SQL Test Suite v6.0 + Mimer SQL:1999 Core feature taxonomy
 
-**Architecture Decision**: Skip ODBC/JDBC drivers (SQL/CLI Part 3) - test directly via Rust API/CLI/WASM
+**Test Approach**: Direct testing via Rust API, CLI, and WASM interfaces
 
 ### Phase 2: FULL SQL:1999 Compliance (Long-term Vision)
 **Timeline**: 3-5 years total
@@ -355,8 +355,8 @@
 **Status**: Not Started
 **Priority**: 🟢 RECOMMENDED (validates Core SQL:1999 compliance)
 
-**Decision**: Skip ODBC/JDBC drivers - they are SQL/CLI (Part 3), not SQL Foundation (Part 2).
-We can test Core compliance directly through our Rust API, CLI, and WASM interfaces.
+**Test Approach**: Direct API testing through Rust, CLI, and WASM interfaces.
+Core SQL:1999 compliance is about language semantics, not client protocols.
 
 **7.1 NIST SQL Test Suite Integration**
 - [ ] Download NIST SQL Test Suite v6.0
@@ -390,12 +390,12 @@ We can test Core compliance directly through our Rust API, CLI, and WASM interfa
 **Current**: Manual TDD tests only
 **Target**: Automated NIST + ISO conformance validation
 
-**Why This Works**:
-- ✅ ODBC/JDBC are **not part of Core SQL:1999** (they're SQL/CLI Part 3)
-- ✅ Core compliance is about **SQL language semantics**, not client APIs
-- ✅ Direct API testing is **simpler and faster** than driver protocols
-- ✅ Preserves **WASM/browser portability** (no native driver dependencies)
-- ✅ NIST tests care about **SQL statement results**, not transport layer
+**Test Strategy Benefits**:
+- ✅ Core compliance is about **SQL language semantics**, not transport protocols
+- ✅ Direct API testing is **simpler and more reliable**
+- ✅ Preserves **WASM/browser portability**
+- ✅ Consistent results across Rust, CLI, and WASM interfaces
+- ✅ NIST tests validate **SQL statement results**, not how they're delivered
 
 ---
 
@@ -447,9 +447,6 @@ We can test Core compliance directly through our Rust API, CLI, and WASM interfa
 | **Conformance Tests** | 0% | NIST harness + ISO validator needed |
 
 **Overall Core SQL:1999 Compliance: ~70-75%**
-
-**Note**: ODBC/JDBC drivers removed from scope - they are SQL/CLI (Part 3), not SQL Foundation (Part 2).
-Core compliance will be validated directly via Rust API, CLI, and WASM interfaces.
 
 ---
 
@@ -607,8 +604,6 @@ This builds on the original posix4e/nistmemsql challenge while taking an AI-firs
 - [ ] Conformance badges published to README
 - [ ] Complete SQL reference documentation
 - [ ] Automated CI/CD testing with regression tracking
-
-**Note**: ODBC/JDBC drivers removed from scope - Core compliance is SQL Foundation (Part 2), not SQL/CLI (Part 3)
 
 ### FULL SQL:1999 Compliance (5-7 years)
 - [ ] All mandatory + optional features implemented
