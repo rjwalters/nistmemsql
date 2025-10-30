@@ -35,7 +35,7 @@ impl Parser {
         let alias = if self.peek_keyword(Keyword::As) {
             self.consume_keyword(Keyword::As)?;
             match self.peek() {
-                Token::Identifier(id) => {
+                Token::Identifier(id) | Token::DelimitedIdentifier(id) => {
                     let alias = id.clone();
                     self.advance();
                     Some(alias)

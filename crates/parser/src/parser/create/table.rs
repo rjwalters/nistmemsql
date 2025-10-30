@@ -37,7 +37,7 @@ impl Parser {
 
             // Parse column name
             let name = match self.peek() {
-                Token::Identifier(col) => {
+                Token::Identifier(col) | Token::DelimitedIdentifier(col) => {
                     let c = col.clone();
                     self.advance();
                     c

@@ -66,7 +66,7 @@ impl Parser {
 
                 // Parse alias
                 let alias = match self.peek() {
-                    Token::Identifier(id) => {
+                    Token::Identifier(id) | Token::DelimitedIdentifier(id) => {
                         let alias = id.clone();
                         self.advance();
                         alias
@@ -80,24 +80,24 @@ impl Parser {
 
                 Ok(ast::FromClause::Subquery { query, alias })
             }
-            Token::Identifier(_) => {
+            Token::Identifier(_) | Token::DelimitedIdentifier(_) => {
                 let name = self.parse_qualified_identifier()?;
 
                 // Check for optional alias
                 let alias = if self.peek_keyword(Keyword::As) {
                     self.consume_keyword(Keyword::As)?;
                     match self.peek() {
-                        Token::Identifier(id) => {
+                        Token::Identifier(id) | Token::DelimitedIdentifier(id) => {
                             let alias = id.clone();
                             self.advance();
                             Some(alias)
                         }
                         _ => None,
                     }
-                } else if matches!(self.peek(), Token::Identifier(_)) && !self.is_join_keyword() {
+                } else if matches!(self.peek(), Token::Identifier(_) | Token::DelimitedIdentifier(_)) && !self.is_join_keyword() {
                     // Implicit alias (no AS keyword) - but not a JOIN keyword
                     match self.peek() {
-                        Token::Identifier(id) => {
+                        Token::Identifier(id) | Token::DelimitedIdentifier(id) => {
                             let alias = id.clone();
                             self.advance();
                             Some(alias)
