@@ -145,6 +145,216 @@ fn test_now_alias() {
     assert!(matches!(result, types::SqlValue::Timestamp(_)));
 }
 
+// ==================== PRECISION ARGUMENT TESTS ====================
+
+#[test]
+fn test_current_time_precision_0() {
+    let (evaluator, row) = create_test_evaluator();
+
+    let expr = ast::Expression::Function {
+        name: "CURRENT_TIME".to_string(),
+        args: vec![ast::Expression::Literal(types::SqlValue::Integer(0))],
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+
+    // Precision 0: HH:MM:SS (no fractional)
+    match result {
+        types::SqlValue::Time(s) => {
+            assert!(!s.contains('.'), "Precision 0 should not contain fractional seconds, got: {}", s);
+            let parts: Vec<&str> = s.split(':').collect();
+            assert_eq!(parts.len(), 3, "Time should have 3 parts (HH:MM:SS)");
+        }
+        _ => panic!("CURRENT_TIME should return Time type"),
+    }
+}
+
+#[test]
+fn test_current_time_precision_3() {
+    let (evaluator, row) = create_test_evaluator();
+
+    let expr = ast::Expression::Function {
+        name: "CURRENT_TIME".to_string(),
+        args: vec![ast::Expression::Literal(types::SqlValue::Integer(3))],
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+
+    // Precision 3: HH:MM:SS.fff
+    match result {
+        types::SqlValue::Time(s) => {
+            assert!(s.contains('.'), "Precision 3 should contain fractional seconds");
+            let fractional = s.split('.').nth(1).expect("Should have fractional part");
+            assert_eq!(fractional.len(), 3, "Fractional part should be 3 digits, got: {}", s);
+        }
+        _ => panic!("CURRENT_TIME should return Time type"),
+    }
+}
+
+#[test]
+fn test_current_time_precision_6() {
+    let (evaluator, row) = create_test_evaluator();
+
+    let expr = ast::Expression::Function {
+        name: "CURRENT_TIME".to_string(),
+        args: vec![ast::Expression::Literal(types::SqlValue::Integer(6))],
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+
+    // Precision 6: HH:MM:SS.ffffff
+    match result {
+        types::SqlValue::Time(s) => {
+            assert!(s.contains('.'), "Precision 6 should contain fractional seconds");
+            let fractional = s.split('.').nth(1).expect("Should have fractional part");
+            assert_eq!(fractional.len(), 6, "Fractional part should be 6 digits, got: {}", s);
+        }
+        _ => panic!("CURRENT_TIME should return Time type"),
+    }
+}
+
+#[test]
+fn test_current_time_precision_9() {
+    let (evaluator, row) = create_test_evaluator();
+
+    let expr = ast::Expression::Function {
+        name: "CURRENT_TIME".to_string(),
+        args: vec![ast::Expression::Literal(types::SqlValue::Integer(9))],
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+
+    // Precision 9: HH:MM:SS.nnnnnnnnn (max precision)
+    match result {
+        types::SqlValue::Time(s) => {
+            assert!(s.contains('.'), "Precision 9 should contain fractional seconds");
+            let fractional = s.split('.').nth(1).expect("Should have fractional part");
+            assert_eq!(fractional.len(), 9, "Fractional part should be 9 digits, got: {}", s);
+        }
+        _ => panic!("CURRENT_TIME should return Time type"),
+    }
+}
+
+#[test]
+fn test_current_time_precision_invalid_high() {
+    let (evaluator, row) = create_test_evaluator();
+
+    let expr = ast::Expression::Function {
+        name: "CURRENT_TIME".to_string(),
+        args: vec![ast::Expression::Literal(types::SqlValue::Integer(10))],
+    };
+    let result = evaluator.eval(&expr, &row);
+
+    // Precision > 9 should error
+    assert!(result.is_err(), "Precision 10 should return an error");
+    let err_msg = format!("{:?}", result.unwrap_err());
+    assert!(err_msg.to_lowercase().contains("precision"), "Error should mention precision");
+}
+
+#[test]
+fn test_current_time_precision_invalid_negative() {
+    let (evaluator, row) = create_test_evaluator();
+
+    let expr = ast::Expression::Function {
+        name: "CURRENT_TIME".to_string(),
+        args: vec![ast::Expression::Literal(types::SqlValue::Integer(-1))],
+    };
+    let result = evaluator.eval(&expr, &row);
+
+    // Negative precision should error
+    assert!(result.is_err(), "Negative precision should return an error");
+}
+
+#[test]
+fn test_current_timestamp_precision_0() {
+    let (evaluator, row) = create_test_evaluator();
+
+    let expr = ast::Expression::Function {
+        name: "CURRENT_TIMESTAMP".to_string(),
+        args: vec![ast::Expression::Literal(types::SqlValue::Integer(0))],
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+
+    // Precision 0: YYYY-MM-DD HH:MM:SS (no fractional)
+    match result {
+        types::SqlValue::Timestamp(s) => {
+            assert!(!s.contains('.'), "Precision 0 should not contain fractional seconds, got: {}", s);
+            let parts: Vec<&str> = s.split(' ').collect();
+            assert_eq!(parts.len(), 2, "Timestamp should have date and time");
+        }
+        _ => panic!("CURRENT_TIMESTAMP should return Timestamp type"),
+    }
+}
+
+#[test]
+fn test_current_timestamp_precision_3() {
+    let (evaluator, row) = create_test_evaluator();
+
+    let expr = ast::Expression::Function {
+        name: "CURRENT_TIMESTAMP".to_string(),
+        args: vec![ast::Expression::Literal(types::SqlValue::Integer(3))],
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+
+    // Precision 3: YYYY-MM-DD HH:MM:SS.fff
+    match result {
+        types::SqlValue::Timestamp(s) => {
+            assert!(s.contains('.'), "Precision 3 should contain fractional seconds");
+            let fractional = s.split('.').nth(1).expect("Should have fractional part");
+            assert_eq!(fractional.len(), 3, "Fractional part should be 3 digits, got: {}", s);
+        }
+        _ => panic!("CURRENT_TIMESTAMP should return Timestamp type"),
+    }
+}
+
+#[test]
+fn test_current_timestamp_precision_6() {
+    let (evaluator, row) = create_test_evaluator();
+
+    let expr = ast::Expression::Function {
+        name: "CURRENT_TIMESTAMP".to_string(),
+        args: vec![ast::Expression::Literal(types::SqlValue::Integer(6))],
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+
+    // Precision 6: YYYY-MM-DD HH:MM:SS.ffffff
+    match result {
+        types::SqlValue::Timestamp(s) => {
+            assert!(s.contains('.'), "Precision 6 should contain fractional seconds");
+            let fractional = s.split('.').nth(1).expect("Should have fractional part");
+            assert_eq!(fractional.len(), 6, "Fractional part should be 6 digits, got: {}", s);
+        }
+        _ => panic!("CURRENT_TIMESTAMP should return Timestamp type"),
+    }
+}
+
+#[test]
+fn test_current_timestamp_precision_invalid() {
+    let (evaluator, row) = create_test_evaluator();
+
+    let expr = ast::Expression::Function {
+        name: "CURRENT_TIMESTAMP".to_string(),
+        args: vec![ast::Expression::Literal(types::SqlValue::Integer(10))],
+    };
+    let result = evaluator.eval(&expr, &row);
+
+    // Precision > 9 should error
+    assert!(result.is_err(), "Precision 10 should return an error");
+}
+
+#[test]
+fn test_current_time_too_many_args() {
+    let (evaluator, row) = create_test_evaluator();
+
+    let expr = ast::Expression::Function {
+        name: "CURRENT_TIME".to_string(),
+        args: vec![
+            ast::Expression::Literal(types::SqlValue::Integer(3)),
+            ast::Expression::Literal(types::SqlValue::Integer(5)),
+        ],
+    };
+    let result = evaluator.eval(&expr, &row);
+
+    // Should error with too many arguments
+    assert!(result.is_err(), "Should error with too many arguments");
+}
+
 // ==================== DATE EXTRACTION FUNCTIONS ====================
 
 #[test]
