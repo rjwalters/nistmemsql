@@ -241,6 +241,8 @@ impl Lexer {
             "BOTH" => Token::Keyword(Keyword::Both),
             "LEADING" => Token::Keyword(Keyword::Leading),
             "TRAILING" => Token::Keyword(Keyword::Trailing),
+            // Data type keywords
+            "VARYING" => Token::Keyword(Keyword::Varying),
             _ => Token::Identifier(text),
         };
 

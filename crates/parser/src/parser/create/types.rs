@@ -165,7 +165,34 @@ impl Parser {
                 Ok(types::DataType::Varchar { max_length })
             }
             "CHAR" | "CHARACTER" => {
-                // Parse CHAR(n)
+                // Check for VARYING keyword (CHARACTER VARYING = VARCHAR)
+                if self.try_consume_keyword(Keyword::Varying) {
+                    // Parse as VARCHAR (CHARACTER VARYING)
+                    let max_length = if self.peek() == &Token::LParen {
+                        self.advance();
+                        let len = match self.peek() {
+                            Token::Number(n) => {
+                                let parsed = n.parse::<usize>().map_err(|_| ParseError {
+                                    message: "Invalid VARCHAR length".to_string(),
+                                })?;
+                                self.advance();
+                                Some(parsed)
+                            }
+                            _ => {
+                                return Err(ParseError {
+                                    message: "Expected number after CHARACTER VARYING(".to_string(),
+                                })
+                            }
+                        };
+                        self.expect_token(Token::RParen)?;
+                        len
+                    } else {
+                        None // No length specified, use default
+                    };
+                    return Ok(types::DataType::Varchar { max_length });
+                }
+
+                // Otherwise parse as CHAR
                 self.expect_token(Token::LParen)?;
                 let length = match self.peek() {
                     Token::Number(n) => {

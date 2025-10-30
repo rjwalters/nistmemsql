@@ -106,6 +106,8 @@ pub enum Keyword {
     Both,
     Leading,
     Trailing,
+    // Data type keywords
+    Varying,
 }
 
 impl fmt::Display for Keyword {
@@ -204,6 +206,7 @@ impl fmt::Display for Keyword {
             Keyword::Both => "BOTH",
             Keyword::Leading => "LEADING",
             Keyword::Trailing => "TRAILING",
+            Keyword::Varying => "VARYING",
         };
         write!(f, "{}", keyword_str)
     }

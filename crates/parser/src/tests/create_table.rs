@@ -764,3 +764,43 @@ fn test_parse_northwind_products_table() {
         _ => panic!("Expected CREATE TABLE statement"),
     }
 }
+
+#[test]
+fn test_parse_character_varying_with_length() {
+    let result = Parser::parse_sql("CREATE TABLE t (x CHARACTER VARYING(50));");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "t");
+            assert_eq!(create.columns.len(), 1);
+            assert_eq!(create.columns[0].name, "x");
+            match create.columns[0].data_type {
+                types::DataType::Varchar { max_length: Some(50) } => {} // Success
+                _ => panic!("Expected VARCHAR(50) data type"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_character_varying_without_length() {
+    let result = Parser::parse_sql("CREATE TABLE t (x CHARACTER VARYING);");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "t");
+            assert_eq!(create.columns.len(), 1);
+            assert_eq!(create.columns[0].name, "x");
+            match create.columns[0].data_type {
+                types::DataType::Varchar { max_length: None } => {} // Success
+                _ => panic!("Expected VARCHAR data type without length"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
