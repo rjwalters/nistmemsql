@@ -232,20 +232,23 @@ cat > "$OUTPUT" <<'HTMLEOF'
 </html>
 HTMLEOF
 
-# Replace placeholders
-sed -i.bak "s/TIMESTAMP_PLACEHOLDER/$TIMESTAMP/g" "$OUTPUT"
-sed -i.bak "s/COMMIT_PLACEHOLDER/$COMMIT/g" "$OUTPUT"
-sed -i.bak "s/TOTAL_PLACEHOLDER/$TOTAL/g" "$OUTPUT"
-sed -i.bak "s/PASSED_PLACEHOLDER/$PASSED/g" "$OUTPUT"
-sed -i.bak "s/FAILED_PLACEHOLDER/$FAILED/g" "$OUTPUT"
-sed -i.bak "s/ERRORS_PLACEHOLDER/$ERRORS/g" "$OUTPUT"
-sed -i.bak "s/PASS_RATE_PLACEHOLDER/$PASS_RATE/g" "$OUTPUT"
-sed -i.bak "s/STATUS_COLOR_PLACEHOLDER/$STATUS_COLOR/g" "$OUTPUT"
-sed -i.bak "s/STATUS_TEXT_PLACEHOLDER/$STATUS_TEXT/g" "$OUTPUT"
+# Replace simple placeholders using perl for better special character handling
+perl -i -pe "s/TIMESTAMP_PLACEHOLDER/$TIMESTAMP/g" "$OUTPUT"
+perl -i -pe "s/COMMIT_PLACEHOLDER/$COMMIT/g" "$OUTPUT"
+perl -i -pe "s/TOTAL_PLACEHOLDER/$TOTAL/g" "$OUTPUT"
+perl -i -pe "s/PASSED_PLACEHOLDER/$PASSED/g" "$OUTPUT"
+perl -i -pe "s/FAILED_PLACEHOLDER/$FAILED/g" "$OUTPUT"
+perl -i -pe "s/ERRORS_PLACEHOLDER/$ERRORS/g" "$OUTPUT"
+perl -i -pe "s/PASS_RATE_PLACEHOLDER/$PASS_RATE/g" "$OUTPUT"
+perl -i -pe "s|STATUS_COLOR_PLACEHOLDER|$STATUS_COLOR|g" "$OUTPUT"
+perl -i -pe "s/STATUS_TEXT_PLACEHOLDER/$STATUS_TEXT/g" "$OUTPUT"
 
 # Generate failing tests section if there are errors
 if [ "$ERRORS" != "0" ] && [ -f "$SQLTEST_RESULTS" ]; then
-    ERROR_SECTION=$(cat <<'ERRHTML'
+    # Create a temporary file for the error section
+    ERROR_SECTION_FILE=$(mktemp)
+
+    cat > "$ERROR_SECTION_FILE" <<'ERRHTML'
     <!-- Failing Tests -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-8">
       <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Failing Tests</h2>
@@ -256,33 +259,29 @@ if [ "$ERRORS" != "0" ] && [ -f "$SQLTEST_RESULTS" ]; then
 
       <details class="mt-4">
         <summary class="cursor-pointer text-blue-600 dark:text-blue-400 hover:underline font-medium">
-          View failing test details (ERRORS_COUNT tests)
+          View failing test details (ERROR_COUNT_PLACEHOLDER tests)
         </summary>
 
         <div class="mt-4 space-y-3 max-h-96 overflow-y-auto">
-ERROR_DETAILS_PLACEHOLDER
+          <div class="text-gray-600 dark:text-gray-400 text-sm">
+            Detailed test failures available in CI artifacts. Run <code class="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">cargo test --test sqltest_conformance -- --nocapture</code> locally to see full details.
+          </div>
         </div>
       </details>
     </div>
 ERRHTML
-)
 
-    # Extract error details if jq is available
-    if command -v jq >/dev/null 2>&1 && [ -f "$SQLTEST_RESULTS" ]; then
-        ERROR_DETAILS=$(jq -r '.error_tests | .[] | "<div class=\"bg-gray-50 dark:bg-gray-900 rounded p-3 border border-gray-200 dark:border-gray-700\"><div class=\"font-mono text-xs text-blue-600 dark:text-blue-400 mb-1\">\(.id)</div><div class=\"font-mono text-sm text-gray-800 dark:text-gray-200 mb-2\">\(.sql)</div><div class=\"text-xs text-red-600 dark:text-red-400\">Error: \(.error)</div></div>"' "$SQLTEST_RESULTS" 2>/dev/null || echo "")
-    else
-        ERROR_DETAILS="<div class=\"text-gray-600 dark:text-gray-400\">Install jq to see detailed error information</div>"
-    fi
+    # Replace error count
+    perl -i -pe "s/ERROR_COUNT_PLACEHOLDER/$ERRORS/g" "$ERROR_SECTION_FILE"
 
-    ERROR_SECTION=$(echo "$ERROR_SECTION" | sed "s/ERROR_DETAILS_PLACEHOLDER/$ERROR_DETAILS/g")
-    ERROR_SECTION=$(echo "$ERROR_SECTION" | sed "s/ERRORS_COUNT/$ERRORS/g")
+    # Replace the placeholder with the file contents using perl
+    perl -i -p0e "s/ERROR_TESTS_SECTION_PLACEHOLDER/\`cat '$ERROR_SECTION_FILE'\`/ge" "$OUTPUT"
 
-    sed -i.bak "s|ERROR_TESTS_SECTION_PLACEHOLDER|$ERROR_SECTION|g" "$OUTPUT"
+    # Clean up temp file
+    rm -f "$ERROR_SECTION_FILE"
 else
-    sed -i.bak "s/ERROR_TESTS_SECTION_PLACEHOLDER//g" "$OUTPUT"
+    # Remove the placeholder if no errors
+    perl -i -pe "s/ERROR_TESTS_SECTION_PLACEHOLDER//g" "$OUTPUT"
 fi
-
-# Clean up backup file
-rm -f "$OUTPUT.bak"
 
 echo "✅ HTML conformance report generated: $OUTPUT"
