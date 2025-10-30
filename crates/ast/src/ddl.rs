@@ -143,6 +143,14 @@ pub struct ReleaseSavepointStmt {
 pub struct CreateSchemaStmt {
     pub schema_name: String,
     pub if_not_exists: bool,
+    pub schema_elements: Vec<SchemaElement>,
+}
+
+/// Schema element that can be included in CREATE SCHEMA
+#[derive(Debug, Clone, PartialEq)]
+pub enum SchemaElement {
+    CreateTable(CreateTableStmt),
+    // Future: CreateView, Grant, etc.
 }
 
 /// DROP SCHEMA statement
@@ -157,4 +165,16 @@ pub struct DropSchemaStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub struct SetSchemaStmt {
     pub schema_name: String,
+}
+
+/// CREATE ROLE statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreateRoleStmt {
+    pub role_name: String,
+}
+
+/// DROP ROLE statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropRoleStmt {
+    pub role_name: String,
 }

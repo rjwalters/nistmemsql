@@ -24,7 +24,11 @@ pub fn setup_test_table(db: &mut storage::Database) {
         "employees".to_string(),
         vec![
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(50) }, false),
+            catalog::ColumnSchema::new(
+                "name".to_string(),
+                types::DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
             catalog::ColumnSchema::new("salary".to_string(), types::DataType::Integer, true),
             catalog::ColumnSchema::new(
                 "department".to_string(),

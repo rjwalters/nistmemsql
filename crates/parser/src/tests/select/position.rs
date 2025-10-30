@@ -18,7 +18,7 @@ fn test_parse_position_basic() {
             assert_eq!(select_stmt.select_list.len(), 1);
             match &select_stmt.select_list[0] {
                 ast::SelectItem::Expression { expr, .. } => match expr {
-                    ast::Expression::Position { substring, string } => {
+                    ast::Expression::Position { substring, string, character_unit: _ } => {
                         // Check substring
                         assert_eq!(
                             **substring,
@@ -51,7 +51,7 @@ fn test_parse_position_substring_found() {
             assert_eq!(select_stmt.select_list.len(), 1);
             match &select_stmt.select_list[0] {
                 ast::SelectItem::Expression { expr, .. } => match expr {
-                    ast::Expression::Position { substring, string } => {
+                    ast::Expression::Position { substring, string, character_unit: _ } => {
                         assert_eq!(
                             **substring,
                             ast::Expression::Literal(types::SqlValue::Varchar("world".to_string()))
@@ -85,7 +85,7 @@ fn test_parse_position_with_column() {
             assert_eq!(select_stmt.select_list.len(), 1);
             match &select_stmt.select_list[0] {
                 ast::SelectItem::Expression { expr, .. } => match expr {
-                    ast::Expression::Position { substring, string } => {
+                    ast::Expression::Position { substring, string, character_unit: _ } => {
                         assert_eq!(
                             **substring,
                             ast::Expression::Literal(types::SqlValue::Varchar("x".to_string()))
@@ -117,7 +117,7 @@ fn test_parse_position_both_columns() {
             assert_eq!(select_stmt.select_list.len(), 1);
             match &select_stmt.select_list[0] {
                 ast::SelectItem::Expression { expr, .. } => match expr {
-                    ast::Expression::Position { substring, string } => {
+                    ast::Expression::Position { substring, string, character_unit: _ } => {
                         assert_eq!(
                             **substring,
                             ast::Expression::ColumnRef {
@@ -155,14 +155,14 @@ fn test_parse_position_with_function() {
             assert_eq!(select_stmt.select_list.len(), 1);
             match &select_stmt.select_list[0] {
                 ast::SelectItem::Expression { expr, .. } => match expr {
-                    ast::Expression::Position { substring, string } => {
+                    ast::Expression::Position { substring, string, character_unit: _ } => {
                         assert_eq!(
                             **substring,
                             ast::Expression::Literal(types::SqlValue::Varchar("a".to_string()))
                         );
                         // Check that string is a Function expression
                         match &**string {
-                            ast::Expression::Function { name, args } => {
+                            ast::Expression::Function { name, args, character_unit: _ } => {
                                 assert_eq!(name, "LOWER");
                                 assert_eq!(args.len(), 1);
                             }

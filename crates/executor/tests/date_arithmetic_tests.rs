@@ -16,6 +16,7 @@ fn test_datediff_basic() {
             ast::Expression::Literal(types::SqlValue::Date("2024-01-10".to_string())),
             ast::Expression::Literal(types::SqlValue::Date("2024-01-05".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(5)); // 10 - 5 = 5 days
@@ -31,6 +32,7 @@ fn test_datediff_negative() {
             ast::Expression::Literal(types::SqlValue::Date("2024-01-05".to_string())),
             ast::Expression::Literal(types::SqlValue::Date("2024-01-10".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(-5)); // 5 - 10 = -5 days
@@ -46,6 +48,7 @@ fn test_datediff_same_date() {
             ast::Expression::Literal(types::SqlValue::Date("2024-01-15".to_string())),
             ast::Expression::Literal(types::SqlValue::Date("2024-01-15".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(0));
@@ -61,6 +64,7 @@ fn test_datediff_with_timestamps() {
             ast::Expression::Literal(types::SqlValue::Timestamp("2024-01-10 15:30:00".to_string())),
             ast::Expression::Literal(types::SqlValue::Timestamp("2024-01-05 08:00:00".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(5)); // Time component ignored
@@ -76,6 +80,7 @@ fn test_datediff_with_null() {
             ast::Expression::Literal(types::SqlValue::Null),
             ast::Expression::Literal(types::SqlValue::Date("2024-01-05".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Null);
@@ -94,6 +99,7 @@ fn test_date_add_days() {
             ast::Expression::Literal(types::SqlValue::Integer(7)),
             ast::Expression::Literal(types::SqlValue::Varchar("DAY".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Date("2024-01-22".to_string()));
@@ -110,6 +116,7 @@ fn test_date_add_months() {
             ast::Expression::Literal(types::SqlValue::Integer(3)),
             ast::Expression::Literal(types::SqlValue::Varchar("MONTH".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Date("2024-04-15".to_string()));
@@ -126,6 +133,7 @@ fn test_date_add_years() {
             ast::Expression::Literal(types::SqlValue::Integer(2)),
             ast::Expression::Literal(types::SqlValue::Varchar("YEAR".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Date("2026-01-15".to_string()));
@@ -142,6 +150,7 @@ fn test_date_add_negative() {
             ast::Expression::Literal(types::SqlValue::Integer(-5)),
             ast::Expression::Literal(types::SqlValue::Varchar("DAY".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Date("2024-01-10".to_string()));
@@ -158,6 +167,7 @@ fn test_date_add_timestamp_with_time() {
             ast::Expression::Literal(types::SqlValue::Integer(2)),
             ast::Expression::Literal(types::SqlValue::Varchar("HOUR".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Timestamp("2024-01-15 16:30:00".to_string()));
@@ -174,6 +184,7 @@ fn test_adddate_alias() {
             ast::Expression::Literal(types::SqlValue::Integer(10)),
             ast::Expression::Literal(types::SqlValue::Varchar("DAY".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Date("2024-01-25".to_string()));
@@ -192,6 +203,7 @@ fn test_date_sub_days() {
             ast::Expression::Literal(types::SqlValue::Integer(7)),
             ast::Expression::Literal(types::SqlValue::Varchar("DAY".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Date("2024-01-08".to_string()));
@@ -208,6 +220,7 @@ fn test_date_sub_months() {
             ast::Expression::Literal(types::SqlValue::Integer(2)),
             ast::Expression::Literal(types::SqlValue::Varchar("MONTH".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Date("2024-02-15".to_string()));
@@ -224,6 +237,7 @@ fn test_subdate_alias() {
             ast::Expression::Literal(types::SqlValue::Integer(5)),
             ast::Expression::Literal(types::SqlValue::Varchar("DAY".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Date("2024-01-10".to_string()));
@@ -241,6 +255,7 @@ fn test_extract_year() {
             ast::Expression::Literal(types::SqlValue::Varchar("YEAR".to_string())),
             ast::Expression::Literal(types::SqlValue::Date("2024-03-15".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(2024));
@@ -256,6 +271,7 @@ fn test_extract_month() {
             ast::Expression::Literal(types::SqlValue::Varchar("MONTH".to_string())),
             ast::Expression::Literal(types::SqlValue::Date("2024-03-15".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(3));
@@ -271,6 +287,7 @@ fn test_extract_day() {
             ast::Expression::Literal(types::SqlValue::Varchar("DAY".to_string())),
             ast::Expression::Literal(types::SqlValue::Date("2024-03-15".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(15));
@@ -286,6 +303,7 @@ fn test_extract_hour_from_timestamp() {
             ast::Expression::Literal(types::SqlValue::Varchar("HOUR".to_string())),
             ast::Expression::Literal(types::SqlValue::Timestamp("2024-03-15 14:30:45".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(14));
@@ -303,6 +321,7 @@ fn test_age_two_dates_years_only() {
             ast::Expression::Literal(types::SqlValue::Date("2024-01-15".to_string())),
             ast::Expression::Literal(types::SqlValue::Date("2020-01-15".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     if let types::SqlValue::Varchar(age_str) = result {
@@ -322,6 +341,7 @@ fn test_age_two_dates_complex() {
             ast::Expression::Literal(types::SqlValue::Date("2024-05-20".to_string())),
             ast::Expression::Literal(types::SqlValue::Date("2022-02-15".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     if let types::SqlValue::Varchar(age_str) = result {
@@ -343,6 +363,7 @@ fn test_age_negative() {
             ast::Expression::Literal(types::SqlValue::Date("2020-01-15".to_string())),
             ast::Expression::Literal(types::SqlValue::Date("2024-01-15".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     if let types::SqlValue::Varchar(age_str) = result {
@@ -363,6 +384,7 @@ fn test_age_same_date() {
             ast::Expression::Literal(types::SqlValue::Date("2024-01-15".to_string())),
             ast::Expression::Literal(types::SqlValue::Date("2024-01-15".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     if let types::SqlValue::Varchar(age_str) = result {
@@ -385,6 +407,7 @@ fn test_date_add_with_null() {
             ast::Expression::Literal(types::SqlValue::Integer(7)),
             ast::Expression::Literal(types::SqlValue::Varchar("DAY".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Null);
@@ -400,6 +423,7 @@ fn test_extract_with_null() {
             ast::Expression::Literal(types::SqlValue::Varchar("YEAR".to_string())),
             ast::Expression::Literal(types::SqlValue::Null),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Null);
@@ -415,6 +439,7 @@ fn test_age_with_null() {
             ast::Expression::Literal(types::SqlValue::Null),
             ast::Expression::Literal(types::SqlValue::Date("2024-01-15".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Null);

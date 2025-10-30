@@ -16,14 +16,15 @@ impl Parser {
                 }
                 name
             }
-            // Allow LEFT and RIGHT keywords as function names
-            // These are reserved for LEFT JOIN and RIGHT JOIN but can also be functions
-            Token::Keyword(Keyword::Left) | Token::Keyword(Keyword::Right) => {
+            // Allow LEFT, RIGHT, and SCHEMA keywords as function names
+            // These are reserved keywords but can also be functions
+            Token::Keyword(Keyword::Left) | Token::Keyword(Keyword::Right) | Token::Keyword(Keyword::Schema) => {
                 // Peek ahead to see if this is followed by '('
                 // Don't consume the keyword unless we're sure it's a function
                 let keyword_name = match self.peek() {
                     Token::Keyword(Keyword::Left) => "LEFT",
                     Token::Keyword(Keyword::Right) => "RIGHT",
+                    Token::Keyword(Keyword::Schema) => "SCHEMA",
                     _ => unreachable!(),
                 };
 
@@ -47,7 +48,7 @@ impl Parser {
         self.advance(); // consume '('
         let first = function_name;
 
-        // Special case for POSITION(substring IN string)
+        // Special case for POSITION(substring IN string [USING unit])
         // SQL:1999 standard syntax
         if first.to_uppercase() == "POSITION" {
             // Parse substring at primary level (literals, identifiers, function calls)
@@ -60,12 +61,21 @@ impl Parser {
             // Parse string expression at primary level
             let string = self.parse_primary_expression()?;
 
+            // Parse optional USING clause
+            let character_unit = if matches!(self.peek(), Token::Keyword(Keyword::Using)) {
+                self.advance(); // consume USING
+                Some(self.parse_character_unit()?)
+            } else {
+                None
+            };
+
             // Expect closing parenthesis
             self.expect_token(Token::RParen)?;
 
             return Ok(Some(ast::Expression::Position {
                 substring: Box::new(substring),
                 string: Box::new(string),
+                character_unit,
             }));
         }
 
@@ -77,6 +87,10 @@ impl Parser {
         //   TRIM(BOTH 'x' FROM string)                -- remove 'x' from both sides
         //   TRIM(LEADING 'x' FROM string)             -- remove 'x' from start
         //   TRIM(TRAILING 'x' FROM string)            -- remove 'x' from end
+        //   TRIM(FROM string)                         -- remove spaces from both sides (explicit FROM)
+        //   TRIM(BOTH FROM string)                    -- remove spaces from both sides (explicit BOTH)
+        //   TRIM(LEADING FROM string)                 -- remove spaces from start (explicit LEADING)
+        //   TRIM(TRAILING FROM string)                -- remove spaces from end (explicit TRAILING)
         if first.to_uppercase() == "TRIM" {
             let mut position: Option<ast::TrimPosition> = None;
             let removal_char: Option<Box<ast::Expression>>;
@@ -96,6 +110,22 @@ impl Parser {
                     position = Some(ast::TrimPosition::Trailing);
                 }
                 _ => {}
+            }
+
+            // Check if FROM comes immediately (no removal char specified)
+            // This handles: TRIM(FROM 'foo'), TRIM(BOTH FROM 'foo'), etc.
+            if matches!(self.peek(), Token::Keyword(Keyword::From)) {
+                self.advance(); // consume FROM
+                removal_char = None; // Default to space
+                let string = self.parse_primary_expression()?;
+
+                self.expect_token(Token::RParen)?;
+
+                return Ok(Some(ast::Expression::Trim {
+                    position,
+                    removal_char,
+                    string: Box::new(string),
+                }));
             }
 
             // Try to parse the first expression (could be removal_char or string)
@@ -128,7 +158,7 @@ impl Parser {
             }
         }
 
-        // Special case for SUBSTRING(string FROM start [FOR length])
+        // Special case for SUBSTRING(string FROM start [FOR length] [USING unit])
         // SQL:1999 standard syntax - alternative to comma syntax
         if first.to_uppercase() == "SUBSTRING" {
             // Parse the string expression
@@ -157,6 +187,14 @@ impl Parser {
                 (start, length)
             };
 
+            // Parse optional USING clause
+            let character_unit = if matches!(self.peek(), Token::Keyword(Keyword::Using)) {
+                self.advance(); // consume USING
+                Some(self.parse_character_unit()?)
+            } else {
+                None
+            };
+
             self.expect_token(Token::RParen)?;
 
             // For SUBSTRING, we represent it as a function call with 2 or 3 arguments
@@ -166,7 +204,7 @@ impl Parser {
                 args.push(length);
             }
 
-            return Ok(Some(ast::Expression::Function { name: first, args }));
+            return Ok(Some(ast::Expression::Function { name: first, args, character_unit }));
         }
 
         // Check if this is an aggregate function
@@ -211,6 +249,18 @@ impl Parser {
             self.expect_token(Token::RParen)?;
         }
 
+        // Parse optional USING clause for string functions
+        let character_unit = if matches!(function_name_upper.as_str(), "CHARACTER_LENGTH" | "CHAR_LENGTH") {
+            if matches!(self.peek(), Token::Keyword(Keyword::Using)) {
+                self.advance(); // consume USING
+                Some(self.parse_character_unit()?)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         // Check for OVER clause (window function)
         if matches!(self.peek(), Token::Keyword(Keyword::Over)) {
             self.advance(); // consume OVER
@@ -231,7 +281,7 @@ impl Parser {
         if is_aggregate {
             Ok(Some(ast::Expression::AggregateFunction { name: first, distinct, args }))
         } else {
-            Ok(Some(ast::Expression::Function { name: first, args }))
+            Ok(Some(ast::Expression::Function { name: first, args, character_unit }))
         }
     }
 
@@ -443,6 +493,27 @@ impl Parser {
                     }),
                 }
             }
+        }
+    }
+
+    /// Parse CHARACTERS or OCTETS keyword for USING clause
+    /// SQL:1999 Section 6.29: String value functions
+    pub(super) fn parse_character_unit(&mut self) -> Result<ast::CharacterUnit, ParseError> {
+        match self.peek() {
+            Token::Keyword(Keyword::Characters) => {
+                self.advance();
+                Ok(ast::CharacterUnit::Characters)
+            }
+            Token::Keyword(Keyword::Octets) => {
+                self.advance();
+                Ok(ast::CharacterUnit::Octets)
+            }
+            _ => Err(ParseError {
+                message: format!(
+                    "Expected CHARACTERS or OCTETS after USING, found {:?}",
+                    self.peek()
+                ),
+            }),
         }
     }
 }

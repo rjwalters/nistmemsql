@@ -184,6 +184,7 @@ fn test_select_with_group_by() {
             expr: Expression::Function {
                 name: "COUNT".to_string(),
                 args: vec![Expression::Wildcard],
+                character_unit: None,
             },
             alias: None,
         }],
@@ -216,6 +217,7 @@ fn test_select_with_having() {
             left: Box::new(Expression::Function {
                 name: "SUM".to_string(),
                 args: vec![Expression::ColumnRef { table: None, column: "amount".to_string() }],
+                character_unit: None,
             }),
             right: Box::new(Expression::Literal(SqlValue::Integer(1000))),
         }),

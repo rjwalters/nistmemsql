@@ -38,7 +38,7 @@ impl SelectExecutor<'_> {
 
             ast::Expression::Cast { expr, .. } => self.expression_references_column(expr),
 
-            ast::Expression::Position { substring, string } => {
+            ast::Expression::Position { substring, string, character_unit: _ } => {
                 self.expression_references_column(substring)
                     || self.expression_references_column(string)
             }

@@ -232,6 +232,16 @@ impl SqltestRunner {
                     .map_err(|e| format!("Execution error: {:?}", e))?;
                 Ok(true)
             }
+            ast::Statement::CreateRole(create_role_stmt) => {
+                executor::RoleExecutor::execute_create_role(&create_role_stmt, db)
+                    .map_err(|e| format!("Execution error: {:?}", e))?;
+                Ok(true)
+            }
+            ast::Statement::DropRole(drop_role_stmt) => {
+                executor::RoleExecutor::execute_drop_role(&drop_role_stmt, db)
+                    .map_err(|e| format!("Execution error: {:?}", e))?;
+                Ok(true)
+            }
             ast::Statement::BeginTransaction(_)
             | ast::Statement::Commit(_)
             | ast::Statement::Rollback(_)

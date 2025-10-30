@@ -233,6 +233,13 @@ impl Lexer {
             "ROLLBACK" => Token::Keyword(Keyword::Rollback),
             "START" => Token::Keyword(Keyword::Start),
             "TRANSACTION" => Token::Keyword(Keyword::Transaction),
+            // Schema keywords
+            "SCHEMA" => Token::Keyword(Keyword::Schema),
+            "CASCADE" => Token::Keyword(Keyword::Cascade),
+            "RESTRICT" => Token::Keyword(Keyword::Restrict),
+            "SAVEPOINT" => Token::Keyword(Keyword::Savepoint),
+            "RELEASE" => Token::Keyword(Keyword::Release),
+            "TO" => Token::Keyword(Keyword::To),
             // Constraint keywords
             "PRIMARY" => Token::Keyword(Keyword::Primary),
             "FOREIGN" => Token::Keyword(Keyword::Foreign),
@@ -248,8 +255,11 @@ impl Lexer {
             "VARYING" => Token::Keyword(Keyword::Varying),
             "CHARACTERS" => Token::Keyword(Keyword::Characters),
             "OCTETS" => Token::Keyword(Keyword::Octets),
+            "USING" => Token::Keyword(Keyword::Using),
             // SUBSTRING function keywords
             "FOR" => Token::Keyword(Keyword::For),
+            // Role management keywords
+            "ROLE" => Token::Keyword(Keyword::Role),
             _ => Token::Identifier(text),
         };
 

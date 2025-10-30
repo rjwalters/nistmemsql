@@ -10,6 +10,7 @@ impl Parser {
                 Ok(Some(ast::Expression::Function {
                     name: "CURRENT_DATE".to_string(),
                     args: vec![],
+                    character_unit: None,
                 }))
             }
             Token::Identifier(ref id) if id.to_uppercase() == "CURRENT_TIME" => {
@@ -17,6 +18,7 @@ impl Parser {
                 Ok(Some(ast::Expression::Function {
                     name: "CURRENT_TIME".to_string(),
                     args: vec![],
+                    character_unit: None,
                 }))
             }
             Token::Identifier(ref id) if id.to_uppercase() == "CURRENT_TIMESTAMP" => {
@@ -24,6 +26,7 @@ impl Parser {
                 Ok(Some(ast::Expression::Function {
                     name: "CURRENT_TIMESTAMP".to_string(),
                     args: vec![],
+                    character_unit: None,
                 }))
             }
             // CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP (multi-token form)
@@ -61,7 +64,12 @@ impl Parser {
                     Ok(Some(ast::Expression::Function {
                         name: function_name.to_string(),
                         args: vec![],
+<<<<<<< HEAD
                     }))
+=======
+                        character_unit: None,
+                    }));
+>>>>>>> origin/main
                 } else {
                     Err(ParseError {
                         message: format!(
