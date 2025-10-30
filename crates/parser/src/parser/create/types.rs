@@ -139,7 +139,7 @@ impl Parser {
                 Ok(types::DataType::Interval { start_field, end_field })
             }
             "VARCHAR" => {
-                // Parse VARCHAR or VARCHAR(n)
+                // Parse VARCHAR or VARCHAR(n) or VARCHAR(n CHARACTERS) or VARCHAR(n OCTETS)
                 // Length is optional - if not specified, defaults to None (unlimited)
                 let max_length = if matches!(self.peek(), Token::LParen) {
                     self.advance(); // consume LParen
@@ -157,6 +157,13 @@ impl Parser {
                             })
                         }
                     };
+
+                    // Check for CHARACTERS or OCTETS modifier
+                    // For MVP, we accept both but treat them the same (as character count)
+                    if self.try_consume_keyword(Keyword::Characters) || self.try_consume_keyword(Keyword::Octets) {
+                        // Modifier consumed, continue
+                    }
+
                     self.expect_token(Token::RParen)?;
                     Some(len)
                 } else {
@@ -184,6 +191,12 @@ impl Parser {
                                 })
                             }
                         };
+
+                        // Check for CHARACTERS or OCTETS modifier
+                        if self.try_consume_keyword(Keyword::Characters) || self.try_consume_keyword(Keyword::Octets) {
+                            // Modifier consumed, continue
+                        }
+
                         self.expect_token(Token::RParen)?;
                         len
                     } else {
@@ -208,6 +221,12 @@ impl Parser {
                         })
                     }
                 };
+
+                // Check for CHARACTERS or OCTETS modifier
+                if self.try_consume_keyword(Keyword::Characters) || self.try_consume_keyword(Keyword::Octets) {
+                    // Modifier consumed, continue
+                }
+
                 self.expect_token(Token::RParen)?;
                 Ok(types::DataType::Character { length })
             }
