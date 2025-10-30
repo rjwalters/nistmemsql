@@ -166,7 +166,7 @@ fn test_upper_with_table_data() {
         "users".to_string(),
         vec![ColumnSchema::new(
             "name".to_string(),
-            DataType::Varchar { max_length: 50 },
+            DataType::Varchar { max_length: Some(50) },
             false,
         )],
     );

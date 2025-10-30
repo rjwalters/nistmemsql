@@ -25,7 +25,7 @@ fn create_users_schema() -> TableSchema {
         "users".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 100 }, true),
+            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
             ColumnSchema::new("age".to_string(), DataType::Integer, false),
         ],
     )
@@ -138,7 +138,7 @@ fn test_e2e_distinct() {
     let schema = TableSchema::new(
         "people".to_string(),
         vec![
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 50 }, false),
+            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
             ColumnSchema::new("age".to_string(), DataType::Integer, false),
         ],
     );
@@ -174,7 +174,7 @@ fn test_e2e_group_by_count() {
     let schema = TableSchema::new(
         "sales".to_string(),
         vec![
-            ColumnSchema::new("product".to_string(), DataType::Varchar { max_length: 50 }, false),
+            ColumnSchema::new("product".to_string(), DataType::Varchar { max_length: Some(50) }, false),
             ColumnSchema::new("quantity".to_string(), DataType::Integer, false),
         ],
     );
@@ -601,7 +601,7 @@ fn test_e2e_like_pattern_matching() {
         "products".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 100 }, false),
+            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
         ],
     );
 
@@ -676,8 +676,8 @@ fn test_e2e_in_list_predicate() {
         "products".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 50 }, false),
-            ColumnSchema::new("category".to_string(), DataType::Varchar { max_length: 20 }, false),
+            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new("category".to_string(), DataType::Varchar { max_length: Some(20) }, false),
             ColumnSchema::new("price".to_string(), DataType::Integer, false),
         ],
     );
@@ -790,7 +790,7 @@ fn test_e2e_exists_predicate() {
         "customers".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 50 }, false),
+            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
         ],
     );
 
@@ -912,8 +912,8 @@ fn test_e2e_coalesce_and_nullif() {
         "users".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 50 }, false),
-            ColumnSchema::new("nickname".to_string(), DataType::Varchar { max_length: 50 }, false),
+            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new("nickname".to_string(), DataType::Varchar { max_length: Some(50) }, false),
             ColumnSchema::new("balance".to_string(), DataType::Integer, false),
         ],
     );
@@ -1016,7 +1016,7 @@ fn test_e2e_quantified_comparisons() {
         "employees".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 100 }, false),
+            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
             ColumnSchema::new("salary".to_string(), DataType::Integer, false),
             ColumnSchema::new("dept_id".to_string(), DataType::Integer, false),
         ],
@@ -1137,7 +1137,7 @@ fn test_e2e_set_operations() {
         "table_a".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 100 }, false),
+            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
         ],
     );
     db.create_table(table_a_schema).unwrap();
@@ -1146,7 +1146,7 @@ fn test_e2e_set_operations() {
         "table_b".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 100 }, false),
+            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
         ],
     );
     db.create_table(table_b_schema).unwrap();

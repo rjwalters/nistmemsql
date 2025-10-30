@@ -15,9 +15,9 @@ fn test_window_demo_count_over() {
         "employees".to_string(),
         vec![
             ColumnSchema::new("employee_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("first_name".to_string(), DataType::Varchar { max_length: 50 }, false),
-            ColumnSchema::new("last_name".to_string(), DataType::Varchar { max_length: 50 }, false),
-            ColumnSchema::new("department".to_string(), DataType::Varchar { max_length: 50 }, false),
+            ColumnSchema::new("first_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new("last_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new("department".to_string(), DataType::Varchar { max_length: Some(50) }, false),
             ColumnSchema::new("salary".to_string(), DataType::Integer, false),
         ],
     );
@@ -85,8 +85,8 @@ fn test_window_demo_running_total() {
         "employees".to_string(),
         vec![
             ColumnSchema::new("employee_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("first_name".to_string(), DataType::Varchar { max_length: 50 }, false),
-            ColumnSchema::new("last_name".to_string(), DataType::Varchar { max_length: 50 }, false),
+            ColumnSchema::new("first_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new("last_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
             ColumnSchema::new("salary".to_string(), DataType::Integer, false),
         ],
     );
@@ -151,9 +151,9 @@ fn test_window_demo_partitioned_avg() {
         "employees".to_string(),
         vec![
             ColumnSchema::new("employee_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("first_name".to_string(), DataType::Varchar { max_length: 50 }, false),
-            ColumnSchema::new("last_name".to_string(), DataType::Varchar { max_length: 50 }, false),
-            ColumnSchema::new("department".to_string(), DataType::Varchar { max_length: 50 }, false),
+            ColumnSchema::new("first_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new("last_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new("department".to_string(), DataType::Varchar { max_length: Some(50) }, false),
             ColumnSchema::new("salary".to_string(), DataType::Integer, false),
         ],
     );

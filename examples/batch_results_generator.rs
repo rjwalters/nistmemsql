@@ -30,8 +30,8 @@ mod db_setup {
             "categories".to_string(),
             vec![
                 ColumnSchema::new("category_id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("category_name".to_string(), DataType::Varchar { max_length: 50 }, false),
-                ColumnSchema::new("description".to_string(), DataType::Varchar { max_length: 200 }, false),
+                ColumnSchema::new("category_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+                ColumnSchema::new("description".to_string(), DataType::Varchar { max_length: Some(200) }, false),
             ],
         );
         db.create_table(categories_schema).unwrap();
@@ -41,7 +41,7 @@ mod db_setup {
             "products".to_string(),
             vec![
                 ColumnSchema::new("product_id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("product_name".to_string(), DataType::Varchar { max_length: 100 }, false),
+                ColumnSchema::new("product_name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
                 ColumnSchema::new("category_id".to_string(), DataType::Integer, false),
                 ColumnSchema::new("unit_price".to_string(), DataType::Float { precision: 53 }, false),
                 ColumnSchema::new("units_in_stock".to_string(), DataType::Integer, false),
@@ -118,9 +118,9 @@ mod db_setup {
             "employees".to_string(),
             vec![
                 ColumnSchema::new("employee_id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("first_name".to_string(), DataType::Varchar { max_length: 50 }, false),
-                ColumnSchema::new("last_name".to_string(), DataType::Varchar { max_length: 50 }, false),
-                ColumnSchema::new("department".to_string(), DataType::Varchar { max_length: 50 }, false),
+                ColumnSchema::new("first_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+                ColumnSchema::new("last_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+                ColumnSchema::new("department".to_string(), DataType::Varchar { max_length: Some(50) }, false),
                 ColumnSchema::new("salary".to_string(), DataType::Float { precision: 53 }, false),
             ],
         );
@@ -137,8 +137,8 @@ mod db_setup {
             "students".to_string(),
             vec![
                 ColumnSchema::new("student_id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 100 }, false),
-                ColumnSchema::new("major".to_string(), DataType::Varchar { max_length: 50 }, false),
+                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
+                ColumnSchema::new("major".to_string(), DataType::Varchar { max_length: Some(50) }, false),
                 ColumnSchema::new("gpa".to_string(), DataType::Float { precision: 53 }, false),
             ],
         );
@@ -149,8 +149,8 @@ mod db_setup {
             "courses".to_string(),
             vec![
                 ColumnSchema::new("course_id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("course_name".to_string(), DataType::Varchar { max_length: 100 }, false),
-                ColumnSchema::new("department".to_string(), DataType::Varchar { max_length: 50 }, false),
+                ColumnSchema::new("course_name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
+                ColumnSchema::new("department".to_string(), DataType::Varchar { max_length: Some(50) }, false),
                 ColumnSchema::new("credits".to_string(), DataType::Integer, false),
             ],
         );
@@ -162,8 +162,8 @@ mod db_setup {
             vec![
                 ColumnSchema::new("student_id".to_string(), DataType::Integer, false),
                 ColumnSchema::new("course_id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("grade".to_string(), DataType::Varchar { max_length: 2 }, true),
-                ColumnSchema::new("semester".to_string(), DataType::Varchar { max_length: 20 }, false),
+                ColumnSchema::new("grade".to_string(), DataType::Varchar { max_length: Some(2) }, true),
+                ColumnSchema::new("semester".to_string(), DataType::Varchar { max_length: Some(20) }, false),
             ],
         );
         db.create_table(enrollments_schema).unwrap();

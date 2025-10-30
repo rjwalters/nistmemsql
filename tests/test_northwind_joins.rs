@@ -14,8 +14,8 @@ fn create_northwind_db() -> Database {
         "categories".to_string(),
         vec![
             ColumnSchema::new("category_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("category_name".to_string(), DataType::Varchar { max_length: 50 }, false),
-            ColumnSchema::new("description".to_string(), DataType::Varchar { max_length: 200 }, false),
+            ColumnSchema::new("category_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new("description".to_string(), DataType::Varchar { max_length: Some(200) }, false),
         ],
     );
     db.create_table(categories_schema).unwrap();
@@ -25,7 +25,7 @@ fn create_northwind_db() -> Database {
         "products".to_string(),
         vec![
             ColumnSchema::new("product_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("product_name".to_string(), DataType::Varchar { max_length: 100 }, false),
+            ColumnSchema::new("product_name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
             ColumnSchema::new("category_id".to_string(), DataType::Integer, false),
             ColumnSchema::new("unit_price".to_string(), DataType::Float { precision: 53 }, false),
             ColumnSchema::new("units_in_stock".to_string(), DataType::Integer, false),
