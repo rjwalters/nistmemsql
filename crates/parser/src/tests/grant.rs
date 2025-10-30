@@ -13,8 +13,8 @@ fn test_parse_grant_select_on_table() {
             assert_eq!(grant_stmt.privileges.len(), 1);
             assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::Select);
             assert_eq!(grant_stmt.object_type, ast::ObjectType::Table);
-            assert_eq!(grant_stmt.object_name.to_string(), "users");
-            assert_eq!(grant_stmt.grantees, vec!["manager"]);
+            assert_eq!(grant_stmt.object_name.to_string(), "USERS");
+            assert_eq!(grant_stmt.grantees, vec!["MANAGER"]);
             assert!(!grant_stmt.with_grant_option);
         }
         other => panic!("Expected Grant statement, got {:?}", other),
@@ -29,8 +29,8 @@ fn test_parse_grant_case_insensitive() {
 
     match result.unwrap() {
         ast::Statement::Grant(grant_stmt) => {
-            assert_eq!(grant_stmt.object_name.to_string(), "employees");
-            assert_eq!(grant_stmt.grantees, vec!["clerk"]);
+            assert_eq!(grant_stmt.object_name.to_string(), "EMPLOYEES");
+            assert_eq!(grant_stmt.grantees, vec!["CLERK"]);
         }
         other => panic!("Expected Grant statement, got {:?}", other),
     }
@@ -44,7 +44,79 @@ fn test_parse_grant_qualified_table_name() {
 
     match result.unwrap() {
         ast::Statement::Grant(grant_stmt) => {
-            assert_eq!(grant_stmt.object_name.to_string(), "public.users");
+            assert_eq!(grant_stmt.object_name.to_string(), "PUBLIC.USERS");
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_multiple_privileges() {
+    let sql = "GRANT SELECT, INSERT, UPDATE ON TABLE users TO manager";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 3);
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::Select);
+            assert_eq!(grant_stmt.privileges[1], ast::PrivilegeType::Insert);
+            assert_eq!(grant_stmt.privileges[2], ast::PrivilegeType::Update);
+            assert_eq!(grant_stmt.object_name.to_string(), "USERS");
+            assert_eq!(grant_stmt.grantees, vec!["MANAGER"]);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_all_privilege_types() {
+    let sql = "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE orders TO clerk";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 4);
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::Select);
+            assert_eq!(grant_stmt.privileges[1], ast::PrivilegeType::Insert);
+            assert_eq!(grant_stmt.privileges[2], ast::PrivilegeType::Update);
+            assert_eq!(grant_stmt.privileges[3], ast::PrivilegeType::Delete);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_multiple_grantees() {
+    let sql = "GRANT SELECT ON TABLE users TO role1, role2, role3";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 1);
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::Select);
+            assert_eq!(grant_stmt.grantees.len(), 3);
+            assert_eq!(grant_stmt.grantees, vec!["ROLE1", "ROLE2", "ROLE3"]);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_multiple_privileges_and_grantees() {
+    let sql = "GRANT SELECT, INSERT ON TABLE users TO r1, r2";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 2);
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::Select);
+            assert_eq!(grant_stmt.privileges[1], ast::PrivilegeType::Insert);
+            assert_eq!(grant_stmt.grantees.len(), 2);
+            assert_eq!(grant_stmt.grantees, vec!["R1", "R2"]);
         }
         other => panic!("Expected Grant statement, got {:?}", other),
     }
