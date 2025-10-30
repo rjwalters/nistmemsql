@@ -192,7 +192,7 @@ fn test_parse_char_without_length() {
 
     match stmt {
         ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "t");
+            assert_eq!(create.table_name, "T");
             assert_eq!(create.columns.len(), 1);
             assert_eq!(create.columns[0].name, "A");
             match create.columns[0].data_type {
@@ -212,7 +212,7 @@ fn test_parse_character_without_length() {
 
     match stmt {
         ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "t");
+            assert_eq!(create.table_name, "T");
             assert_eq!(create.columns.len(), 1);
             assert_eq!(create.columns[0].name, "A");
             match create.columns[0].data_type {
