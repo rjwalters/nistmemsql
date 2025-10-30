@@ -456,11 +456,11 @@ fn test_e2e_all_numeric_types_together() {
         "all_numbers".to_string(),
         vec![
             ColumnSchema::new("ID".to_string(), DataType::Integer, false),
-            ColumnSchema::new("S".to_string(), DataType::Smallint, false),
-            ColumnSchema::new("B".to_string(), DataType::Bigint, false),
-            ColumnSchema::new("F".to_string(), DataType::Float { precision: 53 }, false),
-            ColumnSchema::new("R".to_string(), DataType::Real, false),
-            ColumnSchema::new("D".to_string(), DataType::DoublePrecision, false),
+            ColumnSchema::new("s".to_string(), DataType::Smallint, false),
+            ColumnSchema::new("b".to_string(), DataType::Bigint, false),
+            ColumnSchema::new("f".to_string(), DataType::Float { precision: 53 }, false),
+            ColumnSchema::new("r".to_string(), DataType::Real, false),
+            ColumnSchema::new("d".to_string(), DataType::DoublePrecision, false),
         ],
     );
 

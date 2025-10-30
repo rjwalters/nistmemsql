@@ -73,7 +73,7 @@ fn setup_test_database() -> storage::Database {
         vec![
             catalog::ColumnSchema::new("ID".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new(
-                "TARGET_AMOUNT".to_string(),
+                "target_amount".to_string(),
                 types::DataType::Integer,
                 false,
             ),

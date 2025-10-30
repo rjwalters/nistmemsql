@@ -110,7 +110,7 @@ fn test_drop_table_with_data() {
     }
 
     // Verify data exists
-    assert_eq!(db.get_table("ORDERS").unwrap().row_count(), 2);
+    assert_eq!(db.get_table("orders").unwrap().row_count(), 2);
 
     // Drop table
     let drop_sql = "DROP TABLE orders;";
@@ -122,8 +122,8 @@ fn test_drop_table_with_data() {
     }
 
     // Verify table and data are gone
-    assert!(!db.catalog.table_exists("ORDERS"));
-    assert!(db.get_table("ORDERS").is_none());
+    assert!(!db.catalog.table_exists("orders"));
+    assert!(db.get_table("orders").is_none());
 }
 
 #[test]
@@ -146,7 +146,7 @@ fn test_drop_and_recreate_table() {
         InsertExecutor::execute(&mut db, &stmt).unwrap();
     }
 
-    assert_eq!(db.get_table("TEMP").unwrap().row_count(), 1);
+    assert_eq!(db.get_table("temp").unwrap().row_count(), 1);
 
     // Drop table
     let drop_sql = "DROP TABLE temp;";
@@ -165,9 +165,9 @@ fn test_drop_and_recreate_table() {
     }
 
     // New table should be empty
-    assert!(db.catalog.table_exists("TEMP"));
-    assert_eq!(db.get_table("TEMP").unwrap().row_count(), 0);
-    assert_eq!(db.get_table("TEMP").unwrap().schema.column_count(), 2);
+    assert!(db.catalog.table_exists("temp"));
+    assert_eq!(db.get_table("temp").unwrap().row_count(), 0);
+    assert_eq!(db.get_table("temp").unwrap().schema.column_count(), 2);
 }
 
 #[test]
@@ -325,7 +325,7 @@ fn test_drop_table_integration_workflow() {
     }
 
     // 3. Verify data
-    assert_eq!(db.get_table("CUSTOMERS").unwrap().row_count(), 3);
+    assert_eq!(db.get_table("customers").unwrap().row_count(), 3);
 
     // 4. Drop table
     let drop_sql = "DROP TABLE customers;";
@@ -334,11 +334,11 @@ fn test_drop_table_integration_workflow() {
     if let ast::Statement::DropTable(stmt) = drop_stmt {
         let result = DropTableExecutor::execute(&stmt, &mut db);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "Table 'CUSTOMERS' dropped successfully");
+        assert_eq!(result.unwrap(), "Table 'customers' dropped successfully");
     }
 
     // 5. Verify table is completely gone
-    assert!(!db.catalog.table_exists("CUSTOMERS"));
-    assert!(db.get_table("CUSTOMERS").is_none());
+    assert!(!db.catalog.table_exists("customers"));
+    assert!(db.get_table("customers").is_none());
     assert_eq!(db.list_tables().len(), 0);
 }
