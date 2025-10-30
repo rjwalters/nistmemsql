@@ -46,6 +46,24 @@ fi
 # Generate failing tests section if there are errors
 ERROR_SECTION=""
 if [ "$ERRORS" != "0" ] && [ "$ERRORS" != "" ]; then
+    # Extract error details if jq is available
+    ERROR_DETAILS=""
+    if command -v jq >/dev/null 2>&1 && [ -f "$SQLTEST_RESULTS" ]; then
+        # Generate HTML for each failing test
+        ERROR_DETAILS=$(jq -r '.error_tests[] |
+          "<div class=\"bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700\">" +
+          "<div class=\"flex items-start justify-between mb-2\">" +
+          "<span class=\"font-mono text-xs text-blue-600 dark:text-blue-400 font-semibold\">" + .id + "</span>" +
+          "</div>" +
+          "<div class=\"font-mono text-sm text-gray-800 dark:text-gray-200 mb-2 bg-white dark:bg-gray-800 p-2 rounded overflow-x-auto\">" + (.sql | gsub("\""; "&quot;")) + "</div>" +
+          "<div class=\"text-xs text-red-600 dark:text-red-400\"><span class=\"font-semibold\">Error:</span> " + (.error | gsub("\""; "&quot;")) + "</div>" +
+          "</div>"' "$SQLTEST_RESULTS" 2>/dev/null | tr '\n' ' ')
+    fi
+
+    if [ -z "$ERROR_DETAILS" ]; then
+        ERROR_DETAILS="<div class=\"text-gray-600 dark:text-gray-400 text-sm\">Detailed test failures available in CI artifacts. Run <code class=\"bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded\">cargo test --test sqltest_conformance -- --nocapture</code> locally to see full details.</div>"
+    fi
+
     ERROR_SECTION="    <!-- Failing Tests -->
     <div class=\"bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-8\">
       <h2 class=\"text-2xl font-bold text-gray-900 dark:text-white mb-6\">Failing Tests</h2>
@@ -60,9 +78,7 @@ if [ "$ERRORS" != "0" ] && [ "$ERRORS" != "" ]; then
         </summary>
 
         <div class=\"mt-4 space-y-3 max-h-96 overflow-y-auto\">
-          <div class=\"text-gray-600 dark:text-gray-400 text-sm\">
-            Detailed test failures available in CI artifacts. Run <code class=\"bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded\">cargo test --test sqltest_conformance -- --nocapture</code> locally to see full details.
-          </div>
+          $ERROR_DETAILS
         </div>
       </details>
     </div>"
