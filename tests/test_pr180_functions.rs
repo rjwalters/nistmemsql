@@ -18,11 +18,11 @@ fn execute_query(db: &Database, query: &str) -> Result<Vec<Row>, String> {
 // Helper to create a dummy table with one row for testing functions without FROM
 fn create_dummy_table(db: &mut Database) {
     let schema = TableSchema::new(
-        "dual".to_string(),
+        "DUAL".to_string(),
         vec![ColumnSchema::new("dummy".to_string(), DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
-    db.insert_row("dual", Row::new(vec![SqlValue::Integer(1)])).unwrap();
+    db.insert_row("DUAL", Row::new(vec![SqlValue::Integer(1)])).unwrap();
 }
 
 // Test SUBSTR (alias for SUBSTRING)
