@@ -111,6 +111,10 @@ impl<'a> ExpressionEvaluator<'a> {
             // String comparisons (VARCHAR and CHAR are compatible)
             (Varchar(a), Equal, Varchar(b)) => Ok(Boolean(a == b)),
             (Varchar(a), NotEqual, Varchar(b)) => Ok(Boolean(a != b)),
+            (Varchar(a), LessThan, Varchar(b)) => Ok(Boolean(a < b)),
+            (Varchar(a), LessThanOrEqual, Varchar(b)) => Ok(Boolean(a <= b)),
+            (Varchar(a), GreaterThan, Varchar(b)) => Ok(Boolean(a > b)),
+            (Varchar(a), GreaterThanOrEqual, Varchar(b)) => Ok(Boolean(a >= b)),
             (Character(a), Equal, Character(b)) => Ok(Boolean(a == b)),
             (Character(a), NotEqual, Character(b)) => Ok(Boolean(a != b)),
 
