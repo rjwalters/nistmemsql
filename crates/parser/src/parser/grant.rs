@@ -41,8 +41,21 @@ pub fn parse_grant(parser: &mut crate::Parser) -> Result<GrantStmt, ParseError> 
 
 /// Parse a comma-separated list of privileges
 ///
-/// Supports: SELECT, INSERT, UPDATE, DELETE
+/// Supports: SELECT, INSERT, UPDATE, DELETE, ALL [PRIVILEGES]
 fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>, ParseError> {
+    // Check for ALL [PRIVILEGES] syntax
+    if parser.peek() == &Token::Keyword(Keyword::All) {
+        parser.advance(); // consume ALL
+
+        // Optional PRIVILEGES keyword
+        if parser.peek() == &Token::Keyword(Keyword::Privileges) {
+            parser.advance(); // consume PRIVILEGES
+        }
+
+        return Ok(vec![PrivilegeType::AllPrivileges]);
+    }
+
+    // Otherwise parse specific privilege list
     let mut privileges = vec![];
 
     loop {
@@ -66,7 +79,7 @@ fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>
             _ => {
                 return Err(ParseError {
                     message: format!(
-                        "Expected privilege keyword (SELECT, INSERT, UPDATE, DELETE), found {:?}",
+                        "Expected privilege keyword (SELECT, INSERT, UPDATE, DELETE, ALL), found {:?}",
                         parser.peek()
                     ),
                 })

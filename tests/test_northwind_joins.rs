@@ -11,16 +11,16 @@ fn create_northwind_db() -> Database {
 
     // Create categories table
     let categories_schema = TableSchema::new(
-        "categories".to_string(),
+        "CATEGORIES".to_string(),
         vec![
-            ColumnSchema::new("category_id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("CATEGORY_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "category_name".to_string(),
+                "CATEGORY_NAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
             ColumnSchema::new(
-                "description".to_string(),
+                "DESCRIPTION".to_string(),
                 DataType::Varchar { max_length: Some(200) },
                 false,
             ),
@@ -30,16 +30,16 @@ fn create_northwind_db() -> Database {
 
     // Create products table
     let products_schema = TableSchema::new(
-        "products".to_string(),
+        "PRODUCTS".to_string(),
         vec![
-            ColumnSchema::new("product_id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("PRODUCT_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "product_name".to_string(),
+                "PRODUCT_NAME".to_string(),
                 DataType::Varchar { max_length: Some(100) },
                 false,
             ),
-            ColumnSchema::new("category_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("unit_price".to_string(), DataType::Float { precision: 53 }, false),
+            ColumnSchema::new("CATEGORY_ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("UNIT_PRICE".to_string(), DataType::Float { precision: 53 }, false),
             ColumnSchema::new("units_in_stock".to_string(), DataType::Integer, false),
         ],
     );
@@ -47,7 +47,7 @@ fn create_northwind_db() -> Database {
 
     // Insert categories
     use storage::Row;
-    let categories_table = db.get_table_mut("categories").unwrap();
+    let categories_table = db.get_table_mut("CATEGORIES").unwrap();
     categories_table
         .insert(Row::new(vec![
             SqlValue::Integer(1),
@@ -71,7 +71,7 @@ fn create_northwind_db() -> Database {
         .unwrap();
 
     // Insert products
-    let products_table = db.get_table_mut("products").unwrap();
+    let products_table = db.get_table_mut("PRODUCTS").unwrap();
     products_table
         .insert(Row::new(vec![
             SqlValue::Integer(1),

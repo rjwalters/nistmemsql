@@ -18,11 +18,11 @@ fn execute_query(db: &Database, query: &str) -> Result<Vec<Row>, String> {
 // Helper to create a dummy table with one row for testing functions without FROM
 fn create_dummy_table(db: &mut Database) {
     let schema = TableSchema::new(
-        "dual".to_string(),
+        "DUAL".to_string(),
         vec![ColumnSchema::new("dummy".to_string(), DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
-    db.insert_row("dual", Row::new(vec![SqlValue::Integer(1)])).unwrap();
+    db.insert_row("DUAL", Row::new(vec![SqlValue::Integer(1)])).unwrap();
 }
 
 #[test]
@@ -131,17 +131,17 @@ fn test_upper_with_table_data() {
 
     // Create a test table with string data
     let schema = TableSchema::new(
-        "users".to_string(),
+        "USERS".to_string(),
         vec![ColumnSchema::new(
-            "name".to_string(),
+            "NAME".to_string(),
             DataType::Varchar { max_length: Some(50) },
             false,
         )],
     );
     db.create_table(schema).unwrap();
 
-    db.insert_row("users", Row::new(vec![SqlValue::Varchar("alice".to_string())])).unwrap();
-    db.insert_row("users", Row::new(vec![SqlValue::Varchar("bob".to_string())])).unwrap();
+    db.insert_row("USERS", Row::new(vec![SqlValue::Varchar("alice".to_string())])).unwrap();
+    db.insert_row("USERS", Row::new(vec![SqlValue::Varchar("bob".to_string())])).unwrap();
 
     let results = execute_query(&db, "SELECT UPPER(name) AS upper_name FROM users;").unwrap();
     assert_eq!(results.len(), 2);
