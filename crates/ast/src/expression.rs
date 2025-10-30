@@ -50,10 +50,10 @@ pub enum Expression {
         /// Operand for simple CASE (None for searched CASE)
         operand: Option<Box<Expression>>,
 
-        /// List of WHEN clauses: (condition, result)
-        /// - Simple CASE: condition is the comparison value
-        /// - Searched CASE: condition is a boolean expression
-        when_clauses: Vec<(Expression, Expression)>,
+        /// List of WHEN clauses with conditions and results
+        /// - Simple CASE: conditions are comparison values (OR'd together)
+        /// - Searched CASE: conditions are boolean expressions (OR'd together)
+        when_clauses: Vec<CaseWhen>,
 
         /// Optional ELSE result (defaults to NULL if None)
         else_result: Option<Box<Expression>>,
@@ -162,6 +162,20 @@ pub enum Expression {
         function: WindowFunctionSpec,
         over: WindowSpec,
     },
+}
+
+/// CASE WHEN clause structure
+/// Supports multiple conditions (OR'd together) per WHEN clause
+/// Example: WHEN 1, 2, 3 THEN 'low' means: WHEN x=1 OR x=2 OR x=3 THEN 'low'
+#[derive(Debug, Clone, PartialEq)]
+pub struct CaseWhen {
+    /// Multiple conditions (OR'd together)
+    /// For simple CASE: these are comparison values
+    /// For searched CASE: these are boolean expressions
+    pub conditions: Vec<Expression>,
+
+    /// Result expression when any condition matches
+    pub result: Expression,
 }
 
 /// Quantifier for quantified comparisons

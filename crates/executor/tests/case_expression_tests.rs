@@ -243,3 +243,66 @@ fn test_case_lazy_evaluation() {
     // Should match first WHEN clause
     assert_eq!(result, SqlValue::Varchar("first".to_string()));
 }
+
+// Tests for comma-separated WHEN values (Issue #409)
+
+#[test]
+fn test_case_comma_separated_matching_first() {
+    let db = Database::new();
+    db.execute("CREATE TABLE t (x INTEGER);").unwrap();
+    db.execute("INSERT INTO t VALUES (2);").unwrap();
+
+    let result = db.query("SELECT CASE x WHEN 2, 3, 4 THEN 'match' ELSE 'no' END FROM t;").unwrap();
+    assert_eq!(result.rows[0].values[0], SqlValue::Varchar("match".to_string()));
+}
+
+#[test]
+fn test_case_comma_separated_matching_last() {
+    let db = Database::new();
+    db.execute("CREATE TABLE t (x INTEGER);").unwrap();
+    db.execute("INSERT INTO t VALUES (4);").unwrap();
+
+    let result = db.query("SELECT CASE x WHEN 2, 3, 4 THEN 'match' ELSE 'no' END FROM t;").unwrap();
+    assert_eq!(result.rows[0].values[0], SqlValue::Varchar("match".to_string()));
+}
+
+#[test]
+fn test_case_comma_separated_no_match() {
+    let db = Database::new();
+    db.execute("CREATE TABLE t (x INTEGER);").unwrap();
+    db.execute("INSERT INTO t VALUES (5);").unwrap();
+
+    let result = db.query("SELECT CASE x WHEN 2, 3, 4 THEN 'match' ELSE 'no' END FROM t;").unwrap();
+    assert_eq!(result.rows[0].values[0], SqlValue::Varchar("no".to_string()));
+}
+
+#[test]
+fn test_case_comma_separated_duplicate_values() {
+    // Test from spec: CASE 0 WHEN 2, 2 THEN 1 ELSE 1 END
+    let db = Database::new();
+    db.execute("CREATE TABLE t (x INTEGER);").unwrap();
+    db.execute("INSERT INTO t VALUES (0);").unwrap();
+
+    let result = db.query("SELECT CASE x WHEN 2, 2 THEN 1 ELSE 1 END FROM t;").unwrap();
+    assert_eq!(result.rows[0].values[0], SqlValue::Integer(1));
+}
+
+#[test]
+fn test_case_comma_separated_with_null() {
+    let db = Database::new();
+    db.execute("CREATE TABLE t (x INTEGER);").unwrap();
+    db.execute("INSERT INTO t VALUES (2);").unwrap();
+
+    let result = db.query("SELECT CASE x WHEN 2, 2 THEN 1 ELSE NULL END FROM t;").unwrap();
+    assert_eq!(result.rows[0].values[0], SqlValue::Integer(1));
+}
+
+#[test]
+fn test_case_comma_separated_varchar() {
+    let db = Database::new();
+    db.execute("CREATE TABLE t (status VARCHAR(10));").unwrap();
+    db.execute("INSERT INTO t VALUES ('pending');").unwrap();
+
+    let result = db.query("SELECT CASE status WHEN 'active', 'pending', 'new' THEN 'open' ELSE 'closed' END FROM t;").unwrap();
+    assert_eq!(result.rows[0].values[0], SqlValue::Varchar("open".to_string()));
+}

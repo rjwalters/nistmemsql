@@ -160,13 +160,19 @@ fn substitute_window_functions(
                 .transpose()?
                 .map(Box::new);
 
-            let subst_when: Result<Vec<(ast::Expression, ast::Expression)>, crate::ExecutorError> = when_clauses
+            let subst_when: Result<Vec<ast::CaseWhen>, crate::ExecutorError> = when_clauses
                 .iter()
-                .map(|(cond, result)| {
-                    Ok((
-                        substitute_window_functions(cond, row, window_mapping)?,
-                        substitute_window_functions(result, row, window_mapping)?,
-                    ))
+                .map(|when_clause| {
+                    let subst_conditions: Result<Vec<ast::Expression>, crate::ExecutorError> = when_clause
+                        .conditions
+                        .iter()
+                        .map(|cond| substitute_window_functions(cond, row, window_mapping))
+                        .collect();
+
+                    Ok(ast::CaseWhen {
+                        conditions: subst_conditions?,
+                        result: substitute_window_functions(&when_clause.result, row, window_mapping)?,
+                    })
                 })
                 .collect();
 
