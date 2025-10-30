@@ -110,6 +110,7 @@ pub enum Keyword {
     Varying,
     Characters,
     Octets,
+    Using,
     // SUBSTRING function keywords
     For,
     // Current date/time function keywords
@@ -217,6 +218,7 @@ impl fmt::Display for Keyword {
             Keyword::Varying => "VARYING",
             Keyword::Characters => "CHARACTERS",
             Keyword::Octets => "OCTETS",
+            Keyword::Using => "USING",
             Keyword::For => "FOR",
             Keyword::CurrentDate => "CURRENT_DATE",
             Keyword::CurrentTime => "CURRENT_TIME",

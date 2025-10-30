@@ -82,7 +82,7 @@ impl<'a> SelectExecutor<'a> {
         // Extract name, distinct, and args from either variant
         let (name, distinct, args) = match expr {
             ast::Expression::AggregateFunction { name, distinct, args } => (name, *distinct, args),
-            ast::Expression::Function { name, args } => (name, false, args),
+            ast::Expression::Function { name, args, character_unit: _ } => (name, false, args),
             _ => unreachable!("evaluate_aggregate_function called with non-aggregate expression"),
         };
 

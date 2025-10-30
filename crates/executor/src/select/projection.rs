@@ -134,12 +134,12 @@ fn substitute_window_functions(
             let inner_sub = substitute_window_functions(inner, row, window_mapping)?;
             Ok(Expression::UnaryOp { expr: Box::new(inner_sub), op: op.clone() })
         }
-        Expression::Function { name, args } => {
+        Expression::Function { name, args, character_unit } => {
             let substituted_args: Result<Vec<_>, _> = args
                 .iter()
                 .map(|arg| substitute_window_functions(arg, row, window_mapping))
                 .collect();
-            Ok(Expression::Function { name: name.clone(), args: substituted_args? })
+            Ok(Expression::Function { name: name.clone(), args: substituted_args?, character_unit: character_unit.clone() })
         }
         Expression::Case { operand, when_clauses, else_result } => {
             let subst_operand = operand

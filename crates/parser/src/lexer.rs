@@ -248,6 +248,7 @@ impl Lexer {
             "VARYING" => Token::Keyword(Keyword::Varying),
             "CHARACTERS" => Token::Keyword(Keyword::Characters),
             "OCTETS" => Token::Keyword(Keyword::Octets),
+            "USING" => Token::Keyword(Keyword::Using),
             // SUBSTRING function keywords
             "FOR" => Token::Keyword(Keyword::For),
             _ => Token::Identifier(text),

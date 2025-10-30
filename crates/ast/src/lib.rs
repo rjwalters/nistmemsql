@@ -19,8 +19,8 @@ pub use ddl::{
 };
 pub use dml::{Assignment, DeleteStmt, InsertSource, InsertStmt, UpdateStmt};
 pub use expression::{
-    CaseWhen, Expression, FrameBound, FrameUnit, Quantifier, TrimPosition, WindowFrame,
-    WindowFunctionSpec, WindowSpec,
+    CaseWhen, CharacterUnit, Expression, FrameBound, FrameUnit, Quantifier, TrimPosition,
+    WindowFrame, WindowFunctionSpec, WindowSpec,
 };
 pub use operators::{BinaryOperator, UnaryOperator};
 pub use select::{
