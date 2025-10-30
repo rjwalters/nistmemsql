@@ -20,6 +20,7 @@ fn test_substring_from_for() {
             ast::Expression::Literal(types::SqlValue::Integer(2)),
             ast::Expression::Literal(types::SqlValue::Integer(3)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("ell".to_string()));
@@ -34,6 +35,7 @@ fn test_substring_from_only() {
             ast::Expression::Literal(types::SqlValue::Varchar("hello".to_string())),
             ast::Expression::Literal(types::SqlValue::Integer(2)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("ello".to_string()));
@@ -51,6 +53,7 @@ fn test_substring_both_syntaxes_equivalent() {
             ast::Expression::Literal(types::SqlValue::Integer(2)),
             ast::Expression::Literal(types::SqlValue::Integer(3)),
         ],
+        character_unit: None,
     };
     let comma_result = evaluator.eval(&comma_expr, &row).unwrap();
 
@@ -62,6 +65,7 @@ fn test_substring_both_syntaxes_equivalent() {
             ast::Expression::Literal(types::SqlValue::Integer(2)),
             ast::Expression::Literal(types::SqlValue::Integer(3)),
         ],
+        character_unit: None,
     };
     let from_for_result = evaluator.eval(&from_for_expr, &row).unwrap();
 

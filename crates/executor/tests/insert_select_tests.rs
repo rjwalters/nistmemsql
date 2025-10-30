@@ -261,6 +261,7 @@ fn test_insert_from_select_with_aggregates() {
                 expr: ast::Expression::Function {
                     name: "COUNT".to_string(),
                     args: vec![ast::Expression::Wildcard],
+                    character_unit: None,
                 },
                 alias: None,
             },

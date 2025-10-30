@@ -24,6 +24,7 @@ fn test_substr_basic() {
             ast::Expression::Literal(types::SqlValue::Integer(1)),
             ast::Expression::Literal(types::SqlValue::Integer(5)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("Hello".to_string()));
@@ -38,6 +39,7 @@ fn test_substr_to_end() {
             ast::Expression::Literal(types::SqlValue::Varchar("Hello World".to_string())),
             ast::Expression::Literal(types::SqlValue::Integer(7)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("World".to_string()));
@@ -52,6 +54,7 @@ fn test_substr_null() {
             ast::Expression::Literal(types::SqlValue::Null),
             ast::Expression::Literal(types::SqlValue::Integer(1)),
         ],
+        character_unit: None,
     };
     assert_eq!(evaluator.eval(&expr, &row).unwrap(), types::SqlValue::Null);
 }
@@ -69,6 +72,7 @@ fn test_instr_found() {
             ast::Expression::Literal(types::SqlValue::Varchar("Hello World".to_string())),
             ast::Expression::Literal(types::SqlValue::Varchar("World".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(7));
@@ -83,6 +87,7 @@ fn test_instr_not_found() {
             ast::Expression::Literal(types::SqlValue::Varchar("Hello World".to_string())),
             ast::Expression::Literal(types::SqlValue::Varchar("xyz".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(0));
@@ -97,6 +102,7 @@ fn test_instr_null() {
             ast::Expression::Literal(types::SqlValue::Null),
             ast::Expression::Literal(types::SqlValue::Varchar("test".to_string())),
         ],
+        character_unit: None,
     };
     assert_eq!(evaluator.eval(&expr, &row).unwrap(), types::SqlValue::Null);
 }
@@ -114,6 +120,7 @@ fn test_locate_basic() {
             ast::Expression::Literal(types::SqlValue::Varchar("World".to_string())),
             ast::Expression::Literal(types::SqlValue::Varchar("Hello World".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(7));
@@ -129,6 +136,7 @@ fn test_locate_with_start() {
             ast::Expression::Literal(types::SqlValue::Varchar("Hello World".to_string())),
             ast::Expression::Literal(types::SqlValue::Integer(6)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(8)); // Second 'o' at position 8
@@ -147,6 +155,7 @@ fn test_format_basic() {
             ast::Expression::Literal(types::SqlValue::Double(1234567.89)),
             ast::Expression::Literal(types::SqlValue::Integer(2)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("1,234,567.89".to_string()));
@@ -161,6 +170,7 @@ fn test_format_zero_decimals() {
             ast::Expression::Literal(types::SqlValue::Double(1234567.89)),
             ast::Expression::Literal(types::SqlValue::Integer(0)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("1,234,568".to_string())); // Rounds
@@ -175,6 +185,7 @@ fn test_format_adds_zeros() {
             ast::Expression::Literal(types::SqlValue::Integer(42)),
             ast::Expression::Literal(types::SqlValue::Integer(2)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("42.00".to_string()));
@@ -189,6 +200,7 @@ fn test_format_negative() {
             ast::Expression::Literal(types::SqlValue::Double(-1234567.89)),
             ast::Expression::Literal(types::SqlValue::Integer(2)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("-1,234,567.89".to_string()));
