@@ -196,11 +196,6 @@ impl Parser {
                     }))
                 }
             }
-            // DEFAULT keyword - represents default value
-            Token::Keyword(Keyword::Default) => {
-                self.advance(); // consume DEFAULT
-                Ok(Some(ast::Expression::Default))
-            }
             _ => Ok(None),
         }
     }
