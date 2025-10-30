@@ -179,3 +179,38 @@ pub struct CreateRoleStmt {
 pub struct DropRoleStmt {
     pub role_name: String,
 }
+
+/// CREATE TYPE statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreateTypeStmt {
+    pub type_name: String,
+    pub definition: TypeDefinition,
+}
+
+/// Type definition (distinct or structured)
+#[derive(Debug, Clone, PartialEq)]
+pub enum TypeDefinition {
+    Distinct { base_type: DataType },
+    Structured { attributes: Vec<TypeAttribute> },
+}
+
+/// Attribute in a structured type
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeAttribute {
+    pub name: String,
+    pub data_type: DataType,
+}
+
+/// DROP TYPE statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropTypeStmt {
+    pub type_name: String,
+    pub behavior: DropBehavior,
+}
+
+/// Drop behavior for CASCADE/RESTRICT
+#[derive(Debug, Clone, PartialEq)]
+pub enum DropBehavior {
+    Cascade,
+    Restrict,
+}

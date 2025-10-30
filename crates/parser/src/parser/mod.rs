@@ -16,6 +16,7 @@ mod role;
 mod schema;
 mod select;
 mod transaction;
+mod type_def;
 mod update;
 
 /// Parser error
@@ -86,9 +87,16 @@ impl Parser {
                             let create_stmt = self.parse_create_role_statement()?;
                             Ok(ast::Statement::CreateRole(create_stmt))
                         }
-                        false => Err(ParseError {
-                            message: "Expected TABLE, SCHEMA, or ROLE after CREATE".to_string(),
-                        }),
+                        false => match self.peek_next_keyword(Keyword::Type) {
+                            true => {
+                                let create_stmt = self.parse_create_type_statement()?;
+                                Ok(ast::Statement::CreateType(create_stmt))
+                            }
+                            false => Err(ParseError {
+                                message: "Expected TABLE, SCHEMA, ROLE, or TYPE after CREATE"
+                                    .to_string(),
+                            }),
+                        },
                     },
                 },
             },
@@ -107,9 +115,16 @@ impl Parser {
                             let drop_stmt = self.parse_drop_role_statement()?;
                             Ok(ast::Statement::DropRole(drop_stmt))
                         }
-                        false => Err(ParseError {
-                            message: "Expected TABLE, SCHEMA, or ROLE after DROP".to_string(),
-                        }),
+                        false => match self.peek_next_keyword(Keyword::Type) {
+                            true => {
+                                let drop_stmt = self.parse_drop_type_statement()?;
+                                Ok(ast::Statement::DropType(drop_stmt))
+                            }
+                            false => Err(ParseError {
+                                message: "Expected TABLE, SCHEMA, ROLE, or TYPE after DROP"
+                                    .to_string(),
+                            }),
+                        },
                     },
                 },
             },
@@ -242,5 +257,15 @@ impl Parser {
     /// Parse DROP ROLE statement
     pub fn parse_drop_role_statement(&mut self) -> Result<ast::DropRoleStmt, ParseError> {
         role::parse_drop_role(self)
+    }
+
+    /// Parse CREATE TYPE statement
+    pub fn parse_create_type_statement(&mut self) -> Result<ast::CreateTypeStmt, ParseError> {
+        type_def::parse_create_type(self)
+    }
+
+    /// Parse DROP TYPE statement
+    pub fn parse_drop_type_statement(&mut self) -> Result<ast::DropTypeStmt, ParseError> {
+        type_def::parse_drop_type(self)
     }
 }

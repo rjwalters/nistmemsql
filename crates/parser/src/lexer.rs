@@ -269,6 +269,8 @@ impl Lexer {
             "GRANTED" => Token::Keyword(Keyword::Granted),
             // Role management keywords
             "ROLE" => Token::Keyword(Keyword::Role),
+            // TYPE keyword
+            "TYPE" => Token::Keyword(Keyword::Type),
             _ => Token::Identifier(upper_text), // Regular identifiers are normalized to uppercase
         };
 

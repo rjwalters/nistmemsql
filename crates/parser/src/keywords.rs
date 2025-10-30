@@ -127,6 +127,8 @@ pub enum Keyword {
     // REVOKE keywords
     Revoke,
     Granted,
+    // TYPE keyword
+    Type,
 }
 
 impl fmt::Display for Keyword {
@@ -240,6 +242,7 @@ impl fmt::Display for Keyword {
             Keyword::Option => "OPTION",
             Keyword::Revoke => "REVOKE",
             Keyword::Granted => "GRANTED",
+            Keyword::Type => "TYPE",
         };
         write!(f, "{}", keyword_str)
     }

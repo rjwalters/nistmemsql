@@ -104,6 +104,16 @@ impl NistMemSqlDB {
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
+            ast::Statement::CreateType(create_type_stmt) => {
+                executor::TypeExecutor::execute_create_type(&create_type_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::DropType(drop_type_stmt) => {
+                executor::TypeExecutor::execute_drop_type(&drop_type_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
             ast::Statement::BeginTransaction(_)
             | ast::Statement::Commit(_)
             | ast::Statement::Rollback(_)

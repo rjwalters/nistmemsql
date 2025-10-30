@@ -10,6 +10,9 @@ pub enum CatalogError {
     SchemaNotEmpty(String),
     RoleAlreadyExists(String),
     RoleNotFound(String),
+    TypeAlreadyExists(String),
+    TypeNotFound(String),
+    TypeInUse(String),
 }
 
 impl std::fmt::Display for CatalogError {
@@ -34,6 +37,13 @@ impl std::fmt::Display for CatalogError {
                 write!(f, "Role '{}' already exists", name)
             }
             CatalogError::RoleNotFound(name) => write!(f, "Role '{}' not found", name),
+            CatalogError::TypeAlreadyExists(name) => {
+                write!(f, "Type '{}' already exists", name)
+            }
+            CatalogError::TypeNotFound(name) => write!(f, "Type '{}' not found", name),
+            CatalogError::TypeInUse(name) => {
+                write!(f, "Type '{}' is still in use by one or more tables", name)
+            }
         }
     }
 }
