@@ -22,9 +22,7 @@ fn test_case_expression_simple() {
                 result: Expression::Literal(SqlValue::Varchar("inactive".to_string())),
             },
         ],
-        else_result: Some(Box::new(Expression::Literal(SqlValue::Varchar(
-            "unknown".to_string(),
-        )))),
+        else_result: Some(Box::new(Expression::Literal(SqlValue::Varchar("unknown".to_string())))),
     };
     match expr {
         Expression::Case { .. } => {} // Success
@@ -39,10 +37,7 @@ fn test_case_expression_searched() {
         when_clauses: vec![CaseWhen {
             conditions: vec![Expression::BinaryOp {
                 op: BinaryOperator::GreaterThan,
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "age".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "age".to_string() }),
                 right: Box::new(Expression::Literal(SqlValue::Integer(18))),
             }],
             result: Expression::Literal(SqlValue::Varchar("adult".to_string())),
@@ -64,17 +59,11 @@ fn test_scalar_subquery() {
         select_list: vec![SelectItem::Expression {
             expr: Expression::Function {
                 name: "AVG".to_string(),
-                args: vec![Expression::ColumnRef {
-                    table: None,
-                    column: "salary".to_string(),
-                }],
+                args: vec![Expression::ColumnRef { table: None, column: "salary".to_string() }],
             },
             alias: None,
         }],
-        from: Some(FromClause::Table {
-            name: "employees".to_string(),
-            alias: None,
-        }),
+        from: Some(FromClause::Table { name: "employees".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -97,16 +86,10 @@ fn test_in_expression() {
         set_operation: None,
         distinct: false,
         select_list: vec![SelectItem::Expression {
-            expr: Expression::ColumnRef {
-                table: None,
-                column: "department_id".to_string(),
-            },
+            expr: Expression::ColumnRef { table: None, column: "department_id".to_string() },
             alias: None,
         }],
-        from: Some(FromClause::Table {
-            name: "departments".to_string(),
-            alias: None,
-        }),
+        from: Some(FromClause::Table { name: "departments".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -116,10 +99,7 @@ fn test_in_expression() {
     };
 
     let expr = Expression::In {
-        expr: Box::new(Expression::ColumnRef {
-            table: None,
-            column: "dept_id".to_string(),
-        }),
+        expr: Box::new(Expression::ColumnRef { table: None, column: "dept_id".to_string() }),
         subquery: Box::new(subquery),
         negated: false,
     };
@@ -136,10 +116,7 @@ fn test_not_in_expression() {
         set_operation: None,
         distinct: false,
         select_list: vec![SelectItem::Wildcard],
-        from: Some(FromClause::Table {
-            name: "excluded".to_string(),
-            alias: None,
-        }),
+        from: Some(FromClause::Table { name: "excluded".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -149,10 +126,7 @@ fn test_not_in_expression() {
     };
 
     let expr = Expression::In {
-        expr: Box::new(Expression::ColumnRef {
-            table: None,
-            column: "id".to_string(),
-        }),
+        expr: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
         subquery: Box::new(subquery),
         negated: true,
     };

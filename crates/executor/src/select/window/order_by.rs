@@ -9,7 +9,9 @@ use std::collections::HashMap;
 use types::SqlValue;
 
 /// Collect window functions from ORDER BY expressions
-pub(in crate::select) fn collect_order_by_window_functions(order_by: &[ast::OrderByItem]) -> Vec<(WindowFunctionSpec, ast::WindowSpec)> {
+pub(in crate::select) fn collect_order_by_window_functions(
+    order_by: &[ast::OrderByItem],
+) -> Vec<(WindowFunctionSpec, ast::WindowSpec)> {
     let mut window_functions = Vec::new();
 
     for item in order_by {
@@ -41,11 +43,7 @@ fn collect_window_functions_from_expression(
                 collect_window_functions_from_expression(arg, window_functions);
             }
         }
-        Expression::Case {
-            when_clauses,
-            else_result,
-            ..
-        } => {
+        Expression::Case { when_clauses, else_result, .. } => {
             for when_clause in when_clauses {
                 for cond in &when_clause.conditions {
                     collect_window_functions_from_expression(cond, window_functions);
@@ -81,17 +79,15 @@ fn collect_window_functions_from_expression(
             collect_window_functions_from_expression(substring, window_functions);
             collect_window_functions_from_expression(string, window_functions);
         }
-        Expression::Trim {
-            removal_char,
-            string,
-            ..
-        } => {
+        Expression::Trim { removal_char, string, .. } => {
             if let Some(removal_char) = removal_char {
                 collect_window_functions_from_expression(removal_char, window_functions);
             }
             collect_window_functions_from_expression(string, window_functions);
         }
-        Expression::Exists { .. } | Expression::ScalarSubquery(_) | Expression::QuantifiedComparison { .. } => {
+        Expression::Exists { .. }
+        | Expression::ScalarSubquery(_)
+        | Expression::QuantifiedComparison { .. } => {
             // These don't contain window functions in their expressions
         }
         Expression::AggregateFunction { .. } => {
@@ -103,7 +99,9 @@ fn collect_window_functions_from_expression(
         Expression::Literal(_) | Expression::ColumnRef { .. } => {
             // These are leaf nodes
         }
-        Expression::CurrentDate | Expression::CurrentTime { .. } | Expression::CurrentTimestamp { .. } => {
+        Expression::CurrentDate
+        | Expression::CurrentTime { .. }
+        | Expression::CurrentTimestamp { .. } => {
             // Current date/time functions don't contain window functions
         }
     }
@@ -121,9 +119,8 @@ pub(in crate::select) fn evaluate_order_by_window_functions(
     }
 
     // Build mapping from existing functions to avoid duplicates
-    let existing_keys: std::collections::HashSet<_> = existing_mapping
-        .map(|m| m.keys().collect())
-        .unwrap_or_default();
+    let existing_keys: std::collections::HashSet<_> =
+        existing_mapping.map(|m| m.keys().collect()).unwrap_or_default();
 
     let mut window_results: Vec<Vec<SqlValue>> = Vec::new();
     let mut window_mapping = HashMap::new();

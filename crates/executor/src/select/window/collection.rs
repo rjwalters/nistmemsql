@@ -5,7 +5,9 @@ use crate::errors::ExecutorError;
 use ast::{Expression, SelectItem, WindowFunctionSpec};
 
 /// Collect all window functions from SELECT list
-pub(super) fn collect_window_functions(select_list: &[SelectItem]) -> Result<Vec<WindowFunctionInfo>, ExecutorError> {
+pub(super) fn collect_window_functions(
+    select_list: &[SelectItem],
+) -> Result<Vec<WindowFunctionInfo>, ExecutorError> {
     let mut window_functions = Vec::new();
 
     for (idx, item) in select_list.iter().enumerate() {
@@ -46,11 +48,7 @@ fn collect_from_expression(
                 collect_from_expression(arg, select_index, window_functions)?;
             }
         }
-        Expression::Case {
-            when_clauses,
-            else_result,
-            ..
-        } => {
+        Expression::Case { when_clauses, else_result, .. } => {
             for when_clause in when_clauses {
                 for cond in &when_clause.conditions {
                     collect_from_expression(cond, select_index, window_functions)?;
