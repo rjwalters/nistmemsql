@@ -238,6 +238,7 @@ fn test_delete_where_scalar_subquery_comparison() {
             expr: Expression::Function {
                 name: "AVG".to_string(),
                 args: vec![Expression::ColumnRef { table: None, column: "salary".to_string() }],
+                character_unit: None,
             },
             alias: None,
         }],
@@ -408,6 +409,7 @@ fn test_delete_where_subquery_with_aggregate_max() {
             expr: Expression::Function {
                 name: "MAX".to_string(),
                 args: vec![Expression::ColumnRef { table: None, column: "price".to_string() }],
+                character_unit: None,
             },
             alias: None,
         }],
