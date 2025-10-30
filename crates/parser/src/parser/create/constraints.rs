@@ -8,22 +8,58 @@ impl Parser {
         let mut constraints = Vec::new();
 
         loop {
+            // Check for optional CONSTRAINT keyword
+            let name = if self.peek_keyword(Keyword::Constraint) {
+                self.advance(); // consume CONSTRAINT
+                match self.peek() {
+                    Token::Identifier(n) => {
+                        let constraint_name = n.clone();
+                        self.advance();
+                        Some(constraint_name)
+                    }
+                    _ => {
+                        return Err(ParseError {
+                            message: "Expected constraint name after CONSTRAINT".to_string(),
+                        })
+                    }
+                }
+            } else {
+                None
+            };
+
             match self.peek() {
+                Token::Keyword(Keyword::Not) => {
+                    self.advance(); // consume NOT
+                    self.expect_keyword(Keyword::Null)?;
+                    constraints.push(ast::ColumnConstraint {
+                        name,
+                        kind: ast::ColumnConstraintKind::NotNull,
+                    });
+                }
                 Token::Keyword(Keyword::Primary) => {
                     self.advance(); // consume PRIMARY
                     self.expect_keyword(Keyword::Key)?;
-                    constraints.push(ast::ColumnConstraint::PrimaryKey);
+                    constraints.push(ast::ColumnConstraint {
+                        name,
+                        kind: ast::ColumnConstraintKind::PrimaryKey,
+                    });
                 }
                 Token::Keyword(Keyword::Unique) => {
                     self.advance(); // consume UNIQUE
-                    constraints.push(ast::ColumnConstraint::Unique);
+                    constraints.push(ast::ColumnConstraint {
+                        name,
+                        kind: ast::ColumnConstraintKind::Unique,
+                    });
                 }
                 Token::Keyword(Keyword::Check) => {
                     self.advance(); // consume CHECK
                     self.expect_token(Token::LParen)?;
                     let expr = self.parse_expression()?;
                     self.expect_token(Token::RParen)?;
-                    constraints.push(ast::ColumnConstraint::Check(Box::new(expr)));
+                    constraints.push(ast::ColumnConstraint {
+                        name,
+                        kind: ast::ColumnConstraintKind::Check(Box::new(expr)),
+                    });
                 }
                 Token::Keyword(Keyword::References) => {
                     self.advance(); // consume REFERENCES
@@ -55,9 +91,20 @@ impl Parser {
                     };
                     self.expect_token(Token::RParen)?;
 
-                    constraints.push(ast::ColumnConstraint::References { table, column });
+                    constraints.push(ast::ColumnConstraint {
+                        name,
+                        kind: ast::ColumnConstraintKind::References { table, column },
+                    });
                 }
-                _ => break,
+                _ => {
+                    // If we parsed a CONSTRAINT name but no constraint type, error
+                    if name.is_some() {
+                        return Err(ParseError {
+                            message: "Expected constraint type after CONSTRAINT name".to_string(),
+                        });
+                    }
+                    break;
+                }
             }
         }
 
@@ -66,7 +113,26 @@ impl Parser {
 
     /// Parse table-level constraints (PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK)
     pub(in crate::parser) fn parse_table_constraint(&mut self) -> Result<ast::TableConstraint, ParseError> {
-        match self.peek() {
+        // Check for optional CONSTRAINT keyword
+        let name = if self.peek_keyword(Keyword::Constraint) {
+            self.advance(); // consume CONSTRAINT
+            match self.peek() {
+                Token::Identifier(n) => {
+                    let constraint_name = n.clone();
+                    self.advance();
+                    Some(constraint_name)
+                }
+                _ => {
+                    return Err(ParseError {
+                        message: "Expected constraint name after CONSTRAINT".to_string(),
+                    })
+                }
+            }
+        } else {
+            None
+        };
+
+        let kind = match self.peek() {
             Token::Keyword(Keyword::Primary) => {
                 self.advance(); // consume PRIMARY
                 self.expect_keyword(Keyword::Key)?;
@@ -94,7 +160,7 @@ impl Parser {
                 }
 
                 self.expect_token(Token::RParen)?;
-                Ok(ast::TableConstraint::PrimaryKey { columns })
+                ast::TableConstraintKind::PrimaryKey { columns }
             }
             Token::Keyword(Keyword::Foreign) => {
                 self.advance(); // consume FOREIGN
@@ -163,11 +229,11 @@ impl Parser {
 
                 self.expect_token(Token::RParen)?;
 
-                Ok(ast::TableConstraint::ForeignKey {
+                ast::TableConstraintKind::ForeignKey {
                     columns,
                     references_table,
                     references_columns,
-                })
+                }
             }
             Token::Keyword(Keyword::Unique) => {
                 self.advance(); // consume UNIQUE
@@ -195,21 +261,25 @@ impl Parser {
                 }
 
                 self.expect_token(Token::RParen)?;
-                Ok(ast::TableConstraint::Unique { columns })
+                ast::TableConstraintKind::Unique { columns }
             }
             Token::Keyword(Keyword::Check) => {
                 self.advance(); // consume CHECK
                 self.expect_token(Token::LParen)?;
                 let expr = self.parse_expression()?;
                 self.expect_token(Token::RParen)?;
-                Ok(ast::TableConstraint::Check {
+                ast::TableConstraintKind::Check {
                     expr: Box::new(expr),
+                }
+            }
+            _ => {
+                return Err(ParseError {
+                    message: "Expected table constraint keyword (PRIMARY, FOREIGN, UNIQUE, CHECK)"
+                        .to_string(),
                 })
             }
-            _ => Err(ParseError {
-                message: "Expected table constraint keyword (PRIMARY, FOREIGN, UNIQUE, CHECK)"
-                    .to_string(),
-            }),
-        }
+        };
+
+        Ok(ast::TableConstraint { name, kind })
     }
 }

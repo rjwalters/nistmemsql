@@ -457,7 +457,7 @@ fn test_parse_create_table_with_primary_key() {
             assert_eq!(create.columns[0].constraints.len(), 1);
             assert!(matches!(
                 create.columns[0].constraints[0],
-                ast::ColumnConstraint::PrimaryKey
+                ast::ColumnConstraint { kind: ast::ColumnConstraintKind::PrimaryKey, .. }
             ));
         }
         _ => panic!("Expected CREATE TABLE statement"),
@@ -475,7 +475,7 @@ fn test_parse_create_table_with_unique() {
             assert_eq!(create.columns[0].constraints.len(), 1);
             assert!(matches!(
                 create.columns[0].constraints[0],
-                ast::ColumnConstraint::Unique
+                ast::ColumnConstraint { kind: ast::ColumnConstraintKind::Unique, .. }
             ));
         }
         _ => panic!("Expected CREATE TABLE statement"),
@@ -493,7 +493,7 @@ fn test_parse_create_table_with_check_constraint() {
             assert_eq!(create.columns[0].constraints.len(), 1);
             assert!(matches!(
                 create.columns[0].constraints[0],
-                ast::ColumnConstraint::Check(_)
+                ast::ColumnConstraint { kind: ast::ColumnConstraintKind::Check(_), .. }
             ));
         }
         _ => panic!("Expected CREATE TABLE statement"),
@@ -510,7 +510,7 @@ fn test_parse_create_table_with_references() {
         ast::Statement::CreateTable(create) => {
             assert_eq!(create.columns[0].constraints.len(), 1);
             match &create.columns[0].constraints[0] {
-                ast::ColumnConstraint::References { table, column } => {
+                ast::ColumnConstraint { kind: ast::ColumnConstraintKind::References { table, column }, .. } => {
                     assert_eq!(table, "customers");
                     assert_eq!(column, "id");
                 }
@@ -538,7 +538,7 @@ fn test_parse_create_table_with_table_level_primary_key() {
         ast::Statement::CreateTable(create) => {
             assert_eq!(create.table_constraints.len(), 1);
             match &create.table_constraints[0] {
-                ast::TableConstraint::PrimaryKey { columns } => {
+                ast::TableConstraint { kind: ast::TableConstraintKind::PrimaryKey { columns }, .. } => {
                     assert_eq!(columns.len(), 2);
                     assert_eq!(columns[0], "order_id");
                     assert_eq!(columns[1], "product_id");
@@ -566,11 +566,11 @@ fn test_parse_create_table_with_foreign_key() {
         ast::Statement::CreateTable(create) => {
             assert_eq!(create.table_constraints.len(), 1);
             match &create.table_constraints[0] {
-                ast::TableConstraint::ForeignKey {
+                ast::TableConstraint { kind: ast::TableConstraintKind::ForeignKey {
                     columns,
                     references_table,
                     references_columns,
-                } => {
+                }, .. } => {
                     assert_eq!(columns.len(), 1);
                     assert_eq!(columns[0], "customer_id");
                     assert_eq!(references_table, "customers");
@@ -601,7 +601,7 @@ fn test_parse_create_table_with_table_level_unique() {
         ast::Statement::CreateTable(create) => {
             assert_eq!(create.table_constraints.len(), 1);
             match &create.table_constraints[0] {
-                ast::TableConstraint::Unique { columns } => {
+                ast::TableConstraint { kind: ast::TableConstraintKind::Unique { columns }, .. } => {
                     assert_eq!(columns.len(), 2);
                     assert_eq!(columns[0], "email");
                     assert_eq!(columns[1], "username");
@@ -630,7 +630,7 @@ fn test_parse_create_table_with_table_level_check() {
             assert_eq!(create.table_constraints.len(), 1);
             assert!(matches!(
                 create.table_constraints[0],
-                ast::TableConstraint::Check { .. }
+                ast::TableConstraint { kind: ast::TableConstraintKind::Check { .. }, .. }
             ));
         }
         _ => panic!("Expected CREATE TABLE statement"),
@@ -657,7 +657,7 @@ fn test_parse_northwind_categories_table() {
             assert_eq!(create.columns[0].constraints.len(), 1);
             assert!(matches!(
                 create.columns[0].constraints[0],
-                ast::ColumnConstraint::PrimaryKey
+                ast::ColumnConstraint { kind: ast::ColumnConstraintKind::PrimaryKey, .. }
             ));
         }
         _ => panic!("Expected CREATE TABLE statement"),
@@ -685,28 +685,28 @@ fn test_parse_create_table_with_multiple_constraints() {
             assert_eq!(create.columns[0].constraints.len(), 1);
             assert!(matches!(
                 create.columns[0].constraints[0],
-                ast::ColumnConstraint::PrimaryKey
+                ast::ColumnConstraint { kind: ast::ColumnConstraintKind::PrimaryKey, .. }
             ));
 
             // email has UNIQUE
             assert_eq!(create.columns[1].constraints.len(), 1);
             assert!(matches!(
                 create.columns[1].constraints[0],
-                ast::ColumnConstraint::Unique
+                ast::ColumnConstraint { kind: ast::ColumnConstraintKind::Unique, .. }
             ));
 
             // salary has CHECK
             assert_eq!(create.columns[2].constraints.len(), 1);
             assert!(matches!(
                 create.columns[2].constraints[0],
-                ast::ColumnConstraint::Check(_)
+                ast::ColumnConstraint { kind: ast::ColumnConstraintKind::Check(_), .. }
             ));
 
             // department_id has REFERENCES
             assert_eq!(create.columns[3].constraints.len(), 1);
             assert!(matches!(
                 create.columns[3].constraints[0],
-                ast::ColumnConstraint::References { .. }
+                ast::ColumnConstraint { kind: ast::ColumnConstraintKind::References { .. }, .. }
             ));
         }
         _ => panic!("Expected CREATE TABLE statement"),
@@ -737,7 +737,7 @@ fn test_parse_northwind_products_table() {
             assert_eq!(create.columns[0].constraints.len(), 1);
             assert!(matches!(
                 create.columns[0].constraints[0],
-                ast::ColumnConstraint::PrimaryKey
+                ast::ColumnConstraint { kind: ast::ColumnConstraintKind::PrimaryKey, .. }
             ));
 
             // product_name has NOT NULL (nullable = false)
@@ -747,11 +747,11 @@ fn test_parse_northwind_products_table() {
             // Table has FOREIGN KEY constraint
             assert_eq!(create.table_constraints.len(), 1);
             match &create.table_constraints[0] {
-                ast::TableConstraint::ForeignKey {
+                ast::TableConstraint { kind: ast::TableConstraintKind::ForeignKey {
                     columns,
                     references_table,
                     references_columns,
-                } => {
+                }, .. } => {
                     assert_eq!(columns.len(), 1);
                     assert_eq!(columns[0], "category_id");
                     assert_eq!(references_table, "categories");

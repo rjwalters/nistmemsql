@@ -19,8 +19,9 @@ impl Parser {
         let mut table_constraints = Vec::new();
 
         loop {
-            // Check if this is a table-level constraint
-            if self.peek_keyword(Keyword::Primary)
+            // Check if this is a table-level constraint (including CONSTRAINT keyword)
+            if self.peek_keyword(Keyword::Constraint)
+                || self.peek_keyword(Keyword::Primary)
                 || self.peek_keyword(Keyword::Foreign)
                 || self.peek_keyword(Keyword::Unique)
                 || self.peek_keyword(Keyword::Check)
@@ -47,17 +48,12 @@ impl Parser {
             // Parse data type
             let data_type = self.parse_data_type()?;
 
-            // Parse optional NOT NULL (default is nullable)
-            let nullable = if self.peek_keyword(Keyword::Not) {
-                self.consume_keyword(Keyword::Not)?;
-                self.expect_keyword(Keyword::Null)?;
-                false
-            } else {
-                true
-            };
-
-            // Parse column constraints
+            // Parse column constraints (which may include NOT NULL)
             let constraints = self.parse_column_constraints()?;
+
+            // Determine nullability based on constraints
+            let nullable = !constraints.iter()
+                .any(|c| matches!(&c.kind, ast::ColumnConstraintKind::NotNull));
 
             columns.push(ast::ColumnDef {
                 name,
