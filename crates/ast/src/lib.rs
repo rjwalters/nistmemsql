@@ -15,10 +15,11 @@ mod statement;
 
 pub use ddl::{
     AddColumnStmt, AddConstraintStmt, AlterColumnStmt, AlterTableStmt, BeginStmt, ColumnConstraint,
-    ColumnConstraintKind, ColumnDef, CommitStmt, CreateRoleStmt, CreateSchemaStmt, CreateTableStmt,
-    DropColumnStmt, DropConstraintStmt, DropRoleStmt, DropSchemaStmt, DropTableStmt,
-    ReleaseSavepointStmt, RollbackStmt, RollbackToSavepointStmt, SavepointStmt, SchemaElement,
-    SetSchemaStmt, TableConstraint, TableConstraintKind,
+    ColumnConstraintKind, ColumnDef, CommitStmt, CreateDomainStmt, CreateRoleStmt,
+    CreateSchemaStmt, CreateTableStmt, DomainConstraint, DropColumnStmt, DropConstraintStmt,
+    DropDomainStmt, DropRoleStmt, DropSchemaStmt, DropTableStmt, ReleaseSavepointStmt,
+    RollbackStmt, RollbackToSavepointStmt, SavepointStmt, SchemaElement, SetSchemaStmt,
+    TableConstraint, TableConstraintKind,
 };
 pub use dml::{Assignment, DeleteStmt, InsertSource, InsertStmt, UpdateStmt};
 pub use expression::{

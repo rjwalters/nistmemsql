@@ -179,3 +179,26 @@ pub struct CreateRoleStmt {
 pub struct DropRoleStmt {
     pub role_name: String,
 }
+
+/// CREATE DOMAIN statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreateDomainStmt {
+    pub domain_name: String,
+    pub data_type: DataType,
+    pub default: Option<Box<Expression>>,
+    pub constraints: Vec<DomainConstraint>,
+}
+
+/// Domain constraint (CHECK constraint on domain values)
+#[derive(Debug, Clone, PartialEq)]
+pub struct DomainConstraint {
+    pub name: Option<String>,
+    pub check: Box<Expression>,
+}
+
+/// DROP DOMAIN statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropDomainStmt {
+    pub domain_name: String,
+    pub cascade: bool, // true for CASCADE, false for RESTRICT
+}

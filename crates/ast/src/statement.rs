@@ -3,10 +3,10 @@
 //! This module defines the Statement enum that represents all possible SQL statements.
 
 use crate::{
-    AlterTableStmt, BeginStmt, CommitStmt, CreateRoleStmt, CreateSchemaStmt, CreateTableStmt,
-    DeleteStmt, DropRoleStmt, DropSchemaStmt, DropTableStmt, GrantStmt, InsertStmt,
-    ReleaseSavepointStmt, RevokeStmt, RollbackStmt, RollbackToSavepointStmt, SavepointStmt,
-    SelectStmt, SetSchemaStmt, UpdateStmt,
+    AlterTableStmt, BeginStmt, CommitStmt, CreateDomainStmt, CreateRoleStmt, CreateSchemaStmt,
+    CreateTableStmt, DeleteStmt, DropDomainStmt, DropRoleStmt, DropSchemaStmt, DropTableStmt,
+    GrantStmt, InsertStmt, ReleaseSavepointStmt, RevokeStmt, RollbackStmt,
+    RollbackToSavepointStmt, SavepointStmt, SelectStmt, SetSchemaStmt, UpdateStmt,
 };
 
 // ============================================================================
@@ -28,6 +28,8 @@ pub enum Statement {
     SetSchema(SetSchemaStmt),
     CreateRole(CreateRoleStmt),
     DropRole(DropRoleStmt),
+    CreateDomain(CreateDomainStmt),
+    DropDomain(DropDomainStmt),
     BeginTransaction(BeginStmt),
     Commit(CommitStmt),
     Rollback(RollbackStmt),

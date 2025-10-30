@@ -105,6 +105,12 @@ impl From<catalog::CatalogError> for ExecutorError {
                 ExecutorError::StorageError(format!("Role '{}' already exists", name))
             }
             catalog::CatalogError::RoleNotFound(name) => ExecutorError::RoleNotFound(name),
+            catalog::CatalogError::DomainAlreadyExists(name) => {
+                ExecutorError::StorageError(format!("Domain '{}' already exists", name))
+            }
+            catalog::CatalogError::DomainNotFound(name) => {
+                ExecutorError::StorageError(format!("Domain '{}' not found", name))
+            }
         }
     }
 }

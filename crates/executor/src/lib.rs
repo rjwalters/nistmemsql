@@ -5,6 +5,7 @@
 mod alter;
 mod create_table;
 mod delete;
+mod domain_ddl;
 mod drop_table;
 pub mod errors;
 pub mod evaluator;
@@ -22,6 +23,7 @@ mod update;
 pub use alter::AlterTableExecutor;
 pub use create_table::CreateTableExecutor;
 pub use delete::DeleteExecutor;
+pub use domain_ddl::DomainExecutor;
 pub use drop_table::DropTableExecutor;
 pub use errors::ExecutorError;
 pub use evaluator::ExpressionEvaluator;

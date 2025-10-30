@@ -10,6 +10,8 @@ pub enum CatalogError {
     SchemaNotEmpty(String),
     RoleAlreadyExists(String),
     RoleNotFound(String),
+    DomainAlreadyExists(String),
+    DomainNotFound(String),
 }
 
 impl std::fmt::Display for CatalogError {
@@ -34,6 +36,10 @@ impl std::fmt::Display for CatalogError {
                 write!(f, "Role '{}' already exists", name)
             }
             CatalogError::RoleNotFound(name) => write!(f, "Role '{}' not found", name),
+            CatalogError::DomainAlreadyExists(name) => {
+                write!(f, "Domain '{}' already exists", name)
+            }
+            CatalogError::DomainNotFound(name) => write!(f, "Domain '{}' not found", name),
         }
     }
 }

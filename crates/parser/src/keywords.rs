@@ -104,6 +104,8 @@ pub enum Keyword {
     To,
     // Role management keywords
     Role,
+    // Domain management keywords
+    Domain,
     // TRIM function keywords
     Both,
     Leading,
@@ -223,6 +225,7 @@ impl fmt::Display for Keyword {
             Keyword::Release => "RELEASE",
             Keyword::To => "TO",
             Keyword::Role => "ROLE",
+            Keyword::Domain => "DOMAIN",
             Keyword::Both => "BOTH",
             Keyword::Leading => "LEADING",
             Keyword::Trailing => "TRAILING",

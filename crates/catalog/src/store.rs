@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::domain::DomainDefinition;
 use crate::errors::CatalogError;
 use crate::privilege::PrivilegeGrant;
 use crate::schema::Schema;
@@ -12,6 +13,7 @@ pub struct Catalog {
     current_schema: String,
     privilege_grants: Vec<PrivilegeGrant>,
     roles: HashSet<String>,
+    domains: HashMap<String, DomainDefinition>,
 }
 
 impl Catalog {
@@ -22,6 +24,7 @@ impl Catalog {
             current_schema: "public".to_string(),
             privilege_grants: Vec::new(),
             roles: HashSet::new(),
+            domains: HashMap::new(),
         };
 
         // Create the default "public" schema
@@ -282,6 +285,62 @@ impl Catalog {
     /// List all roles.
     pub fn list_roles(&self) -> Vec<String> {
         self.roles.iter().cloned().collect()
+    }
+
+    // ============================================================================
+    // Domain Management Methods
+    // ============================================================================
+
+    /// Create a new domain.
+    pub fn create_domain(&mut self, domain: DomainDefinition) -> Result<(), CatalogError> {
+        let name = domain.name.clone();
+        if self.domains.contains_key(&name) {
+            return Err(CatalogError::DomainAlreadyExists(name));
+        }
+        self.domains.insert(name, domain);
+        Ok(())
+    }
+
+    /// Get a domain definition by name.
+    pub fn get_domain(&self, name: &str) -> Option<&DomainDefinition> {
+        self.domains.get(name)
+    }
+
+    /// Drop a domain.
+    pub fn drop_domain(&mut self, name: &str, cascade: bool) -> Result<(), CatalogError> {
+        if !self.domains.contains_key(name) {
+            return Err(CatalogError::DomainNotFound(name.to_string()));
+        }
+
+        // Check if any tables use this domain
+        if !cascade {
+            // For RESTRICT, we need to check if any columns use this domain
+            // We'll check all tables in all schemas
+            for schema in self.schemas.values() {
+                for table in schema.list_tables() {
+                    if let Some(table_schema) = schema.get_table(&table) {
+                        // For now, we'll skip this check since we haven't implemented
+                        // domain usage in column definitions yet.
+                        // TODO: Check if any columns use this domain when we implement
+                        // domain support in CREATE TABLE
+                        let _ = table_schema;
+                    }
+                }
+            }
+        }
+
+        self.domains.remove(name);
+        Ok(())
+    }
+
+    /// Check if a domain exists.
+    pub fn domain_exists(&self, name: &str) -> bool {
+        self.domains.contains_key(&name.to_uppercase())
+    }
+
+    /// List all domain names.
+    pub fn list_domains(&self) -> Vec<String> {
+        self.domains.keys().cloned().collect()
     }
 }
 
