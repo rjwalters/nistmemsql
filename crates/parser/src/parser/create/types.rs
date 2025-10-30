@@ -210,30 +210,37 @@ impl Parser {
                 }
 
                 // Otherwise parse as CHAR
-                self.expect_token(Token::LParen)?;
-                let length = match self.peek() {
-                    Token::Number(n) => {
-                        let len = n.parse::<usize>().map_err(|_| ParseError {
-                            message: "Invalid CHAR length".to_string(),
-                        })?;
-                        self.advance();
-                        len
+                // Length is optional - if not specified, defaults to 1 per SQL:1999
+                let length = if matches!(self.peek(), Token::LParen) {
+                    self.advance(); // consume (
+                    let len = match self.peek() {
+                        Token::Number(n) => {
+                            let parsed = n.parse::<usize>().map_err(|_| ParseError {
+                                message: "Invalid CHAR length".to_string(),
+                            })?;
+                            self.advance();
+                            parsed
+                        }
+                        _ => {
+                            return Err(ParseError {
+                                message: "Expected number after CHAR(".to_string(),
+                            })
+                        }
+                    };
+
+                    // Check for CHARACTERS or OCTETS modifier
+                    if self.try_consume_keyword(Keyword::Characters)
+                        || self.try_consume_keyword(Keyword::Octets)
+                    {
+                        // Modifier consumed, continue
                     }
-                    _ => {
-                        return Err(ParseError {
-                            message: "Expected number after CHAR(".to_string(),
-                        })
-                    }
+
+                    self.expect_token(Token::RParen)?;
+                    len
+                } else {
+                    1 // Default length is 1 per SQL:1999 standard
                 };
 
-                // Check for CHARACTERS or OCTETS modifier
-                if self.try_consume_keyword(Keyword::Characters)
-                    || self.try_consume_keyword(Keyword::Octets)
-                {
-                    // Modifier consumed, continue
-                }
-
-                self.expect_token(Token::RParen)?;
                 Ok(types::DataType::Character { length })
             }
             _ => Err(ParseError { message: format!("Unknown data type: {}", type_upper) }),
