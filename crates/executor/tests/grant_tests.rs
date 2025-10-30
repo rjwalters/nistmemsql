@@ -566,14 +566,12 @@ fn test_grant_schema_with_grant_option() {
     let grants = db.catalog.get_grants_for_grantee("power_user");
     assert!(!grants.is_empty(), "Should have at least one grant");
 
-    let grant = grants.iter()
+    let grant = grants
+        .iter()
         .find(|g| g.object == "power_schema" && g.privilege == ast::PrivilegeType::Usage)
         .expect("Should find the USAGE grant on power_schema");
 
-    assert!(
-        grant.with_grant_option,
-        "Grant should have with_grant_option set to true"
-    );
+    assert!(grant.with_grant_option, "Grant should have with_grant_option set to true");
 }
 
 #[test]

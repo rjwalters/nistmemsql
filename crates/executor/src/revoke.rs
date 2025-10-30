@@ -56,13 +56,11 @@ impl RevokeExecutor {
         if matches!(stmt.cascade_option, CascadeOption::Restrict) {
             for grantee in &stmt.grantees {
                 for privilege in &expanded_privileges {
-                    if database
-                        .catalog
-                        .has_dependent_grants(&stmt.object_name, grantee, privilege)
+                    if database.catalog.has_dependent_grants(&stmt.object_name, grantee, privilege)
                     {
                         return Err(ExecutorError::DependentPrivilegesExist(format!(
-                            "Cannot revoke {} on {} from {} - dependent grants exist (use CASCADE to revoke dependent grants)",
-                            format!("{:?}", privilege),
+                            "Cannot revoke {:?} on {} from {} - dependent grants exist (use CASCADE to revoke dependent grants)",
+                            privilege,
                             stmt.object_name,
                             grantee
                         )));
@@ -101,11 +99,7 @@ impl RevokeExecutor {
         let privileges_str =
             stmt.privileges.iter().map(|p| format!("{:?}", p)).collect::<Vec<_>>().join(", ");
 
-        let action = if stmt.grant_option_for {
-            "Revoked grant option for"
-        } else {
-            "Revoked"
-        };
+        let action = if stmt.grant_option_for { "Revoked grant option for" } else { "Revoked" };
 
         Ok(format!(
             "{} {} on {} from {} ({} grants affected)",
@@ -126,17 +120,18 @@ impl RevokeExecutor {
             .catalog
             .get_all_grants()
             .iter()
-            .filter(|g| {
-                g.object == object && g.grantor == grantor && g.privilege == *privilege
-            })
+            .filter(|g| g.object == object && g.grantor == grantor && g.privilege == *privilege)
             .map(|g| g.grantee.clone())
             .collect();
 
         // Recursively revoke from each dependent grantee
         for dependent_grantee in dependent_grants {
-            database
-                .catalog
-                .remove_grants(object, &dependent_grantee, privilege, grant_option_only);
+            database.catalog.remove_grants(
+                object,
+                &dependent_grantee,
+                privilege,
+                grant_option_only,
+            );
 
             // Recursively cascade
             Self::revoke_cascade(

@@ -51,16 +51,26 @@ pub struct Database {
     transaction_state: TransactionState,
     /// Next transaction ID
     next_transaction_id: u64,
+    /// Current session role for privilege checks
+    current_role: Option<String>,
+    /// Whether security checks are enabled (can be disabled for testing)
+    security_enabled: bool,
 }
 
 impl Database {
     /// Create a new empty database
+    ///
+    /// Note: Security is disabled by default for backward compatibility with existing code.
+    /// Call `enable_security()` to turn on access control enforcement.
     pub fn new() -> Self {
         Database {
             catalog: catalog::Catalog::new(),
             tables: HashMap::new(),
             transaction_state: TransactionState::None,
             next_transaction_id: 1,
+            current_role: None,
+            // Disabled by default for backward compatibility
+            security_enabled: false,
         }
     }
 
@@ -348,6 +358,35 @@ impl Database {
             }
         }
         Ok(())
+    }
+
+    // ============================================================================
+    // Security and Role Management
+    // ============================================================================
+
+    /// Set the current session role for privilege checks
+    pub fn set_role(&mut self, role: Option<String>) {
+        self.current_role = role;
+    }
+
+    /// Get the current session role (defaults to "PUBLIC" if not set)
+    pub fn get_current_role(&self) -> String {
+        self.current_role.clone().unwrap_or_else(|| "PUBLIC".to_string())
+    }
+
+    /// Check if security enforcement is enabled
+    pub fn is_security_enabled(&self) -> bool {
+        self.security_enabled
+    }
+
+    /// Disable security checks (for testing)
+    pub fn disable_security(&mut self) {
+        self.security_enabled = false;
+    }
+
+    /// Enable security checks
+    pub fn enable_security(&mut self) {
+        self.security_enabled = true;
     }
 }
 

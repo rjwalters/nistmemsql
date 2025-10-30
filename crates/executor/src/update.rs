@@ -5,6 +5,7 @@ use storage::Database;
 
 use crate::errors::ExecutorError;
 use crate::evaluator::ExpressionEvaluator;
+use crate::privilege_checker::PrivilegeChecker;
 
 /// Executor for UPDATE statements
 pub struct UpdateExecutor;
@@ -65,6 +66,9 @@ impl UpdateExecutor {
     /// assert_eq!(count, 1);
     /// ```
     pub fn execute(stmt: &UpdateStmt, database: &mut Database) -> Result<usize, ExecutorError> {
+        // Check UPDATE privilege on the table
+        PrivilegeChecker::check_update(database, &stmt.table_name)?;
+
         // Step 1: Get table schema from catalog
         let schema = database
             .catalog
