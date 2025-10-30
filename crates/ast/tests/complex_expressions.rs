@@ -60,6 +60,7 @@ fn test_scalar_subquery() {
             expr: Expression::Function {
                 name: "AVG".to_string(),
                 args: vec![Expression::ColumnRef { table: None, column: "salary".to_string() }],
+                character_unit: None,
             },
             alias: None,
         }],

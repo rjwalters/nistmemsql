@@ -89,6 +89,7 @@ fn test_correlated_subquery_basic() {
                     table: None,
                     column: "salary".to_string(),
                 }],
+                character_unit: None,
             },
             alias: None,
         }],

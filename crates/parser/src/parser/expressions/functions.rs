@@ -48,7 +48,7 @@ impl Parser {
         self.advance(); // consume '('
         let first = function_name;
 
-        // Special case for POSITION(substring IN string)
+        // Special case for POSITION(substring IN string [USING unit])
         // SQL:1999 standard syntax
         if first.to_uppercase() == "POSITION" {
             // Parse substring at primary level (literals, identifiers, function calls)
@@ -61,12 +61,21 @@ impl Parser {
             // Parse string expression at primary level
             let string = self.parse_primary_expression()?;
 
+            // Parse optional USING clause
+            let character_unit = if matches!(self.peek(), Token::Keyword(Keyword::Using)) {
+                self.advance(); // consume USING
+                Some(self.parse_character_unit()?)
+            } else {
+                None
+            };
+
             // Expect closing parenthesis
             self.expect_token(Token::RParen)?;
 
             return Ok(Some(ast::Expression::Position {
                 substring: Box::new(substring),
                 string: Box::new(string),
+                character_unit,
             }));
         }
 
@@ -149,7 +158,7 @@ impl Parser {
             }
         }
 
-        // Special case for SUBSTRING(string FROM start [FOR length])
+        // Special case for SUBSTRING(string FROM start [FOR length] [USING unit])
         // SQL:1999 standard syntax - alternative to comma syntax
         if first.to_uppercase() == "SUBSTRING" {
             // Parse the string expression
@@ -178,6 +187,14 @@ impl Parser {
                 (start, length)
             };
 
+            // Parse optional USING clause
+            let character_unit = if matches!(self.peek(), Token::Keyword(Keyword::Using)) {
+                self.advance(); // consume USING
+                Some(self.parse_character_unit()?)
+            } else {
+                None
+            };
+
             self.expect_token(Token::RParen)?;
 
             // For SUBSTRING, we represent it as a function call with 2 or 3 arguments
@@ -187,7 +204,7 @@ impl Parser {
                 args.push(length);
             }
 
-            return Ok(Some(ast::Expression::Function { name: first, args }));
+            return Ok(Some(ast::Expression::Function { name: first, args, character_unit }));
         }
 
         // Check if this is an aggregate function
@@ -232,6 +249,18 @@ impl Parser {
             self.expect_token(Token::RParen)?;
         }
 
+        // Parse optional USING clause for string functions
+        let character_unit = if matches!(function_name_upper.as_str(), "CHARACTER_LENGTH" | "CHAR_LENGTH") {
+            if matches!(self.peek(), Token::Keyword(Keyword::Using)) {
+                self.advance(); // consume USING
+                Some(self.parse_character_unit()?)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         // Check for OVER clause (window function)
         if matches!(self.peek(), Token::Keyword(Keyword::Over)) {
             self.advance(); // consume OVER
@@ -252,7 +281,7 @@ impl Parser {
         if is_aggregate {
             Ok(Some(ast::Expression::AggregateFunction { name: first, distinct, args }))
         } else {
-            Ok(Some(ast::Expression::Function { name: first, args }))
+            Ok(Some(ast::Expression::Function { name: first, args, character_unit }))
         }
     }
 
@@ -464,6 +493,27 @@ impl Parser {
                     }),
                 }
             }
+        }
+    }
+
+    /// Parse CHARACTERS or OCTETS keyword for USING clause
+    /// SQL:1999 Section 6.29: String value functions
+    pub(super) fn parse_character_unit(&mut self) -> Result<ast::CharacterUnit, ParseError> {
+        match self.peek() {
+            Token::Keyword(Keyword::Characters) => {
+                self.advance();
+                Ok(ast::CharacterUnit::Characters)
+            }
+            Token::Keyword(Keyword::Octets) => {
+                self.advance();
+                Ok(ast::CharacterUnit::Octets)
+            }
+            _ => Err(ParseError {
+                message: format!(
+                    "Expected CHARACTERS or OCTETS after USING, found {:?}",
+                    self.peek()
+                ),
+            }),
         }
     }
 }

@@ -40,6 +40,7 @@ fn test_min_function() {
             expr: ast::Expression::Function {
                 name: "MIN".to_string(),
                 args: vec![ast::Expression::ColumnRef { table: None, column: "temp".to_string() }],
+                character_unit: None,
             },
             alias: None,
         }],
@@ -93,6 +94,7 @@ fn test_max_function() {
             expr: ast::Expression::Function {
                 name: "MAX".to_string(),
                 args: vec![ast::Expression::ColumnRef { table: None, column: "temp".to_string() }],
+                character_unit: None,
             },
             alias: None,
         }],
@@ -162,6 +164,7 @@ fn test_min_max_on_strings() {
             expr: ast::Expression::Function {
                 name: "MIN".to_string(),
                 args: vec![ast::Expression::ColumnRef { table: None, column: "name".to_string() }],
+                character_unit: None,
             },
             alias: None,
         }],
@@ -187,6 +190,7 @@ fn test_min_max_on_strings() {
             expr: ast::Expression::Function {
                 name: "MAX".to_string(),
                 args: vec![ast::Expression::ColumnRef { table: None, column: "name".to_string() }],
+                character_unit: None,
             },
             alias: None,
         }],
