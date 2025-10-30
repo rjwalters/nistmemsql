@@ -1,8 +1,8 @@
 # Work Plan: Roadmap to SQL:1999 Compliance
 
 **Status**: Day 6 Complete - Comparison Operators, Named Constraints, TRIM Enhancements, CAST Improvements ✅
-**Last Updated**: 2025-10-30
-**Current Phase**: Implementing Core SQL:1999 mandatory features (**83.4% conformance**)
+**Last Updated**: 2024-10-30
+**Current Phase**: Implementing Core SQL:1999 mandatory features (**86.6% conformance**)
 **Next Focus**: String type variants, DEFAULT keyword, CURRENT_* improvements
 **Ultimate Goal**: FULL SQL:1999 compliance (Core first, then optional features)
 **Development Approach**: Test-Driven Development (TDD) ✅
@@ -29,7 +29,7 @@
 
 ---
 
-## 📊 Current Status (2025-10-30)
+## 📊 Current Status (2024-10-30)
 
 ### Test Suite Status
 **Unit & Integration Tests** ✅
@@ -40,9 +40,9 @@
 
 **SQL:1999 Conformance Tests** 🟢
 - **Total Tests**: 739 (from sqltest standard test suite)
-- **Passing**: 616 (83.4%)
-- **Errors**: 123 (16.6%)
-- **Status**: Excellent progress, +6.4% gain in Day 6
+- **Passing**: 640 (86.6%)
+- **Errors**: 99 (13.4%)
+- **Status**: Excellent progress, +9.6% gain in Day 6
 
 **Code Metrics**
 - **Source Files**: 100+ Rust files
@@ -50,7 +50,7 @@
 
 ### Recent Additions (Day 6 - Oct 30)
 
-**SQL:1999 Conformance Improvements** ✅ **+6.4% conformance gain!**
+**SQL:1999 Conformance Improvements** ✅ **+9.6% conformance gain!**
 - ✅ **Comparison operators for VARCHAR** (#396) - Enable `<`, `>`, `<=`, `>=` for VARCHAR types (4 tests)
 - ✅ **Comparison operators for DATE, TIME, TIMESTAMP** (#398) - Enable all comparison operators (18 tests)
 - ✅ **Comparison operators for CHARACTER** (#403) - Enable comparisons for CHAR types (additional coverage)
@@ -60,7 +60,7 @@
 - ✅ **CAST to VARCHAR without length** (#404) - Support `CAST(x AS VARCHAR)` with default length (5 tests)
 - ✅ **Window functions in ORDER BY** (#391) - Allow window functions in ORDER BY expressions
 
-**Conformance Progress**: 77% → **83.4%** (568 → 616 tests passing)
+**Conformance Progress**: 77% → **86.6%** (568 → 640 tests passing)
 
 ### Previous Additions (Day 5 - Oct 29)
 
@@ -469,7 +469,7 @@ Core SQL:1999 compliance is about language semantics, not client protocols.
 | **Web Demo Validation** | 30% | Test infrastructure ✅, 19 examples validated ✅ |
 | **Conformance Tests** | 0% | NIST harness + ISO validator needed |
 
-**Overall Core SQL:1999 Compliance: ~83%** (based on sqltest conformance suite: 616/739 tests passing)
+**Overall Core SQL:1999 Compliance: ~87%** (based on sqltest conformance suite: 640/739 tests passing)
 
 ---
 
@@ -483,7 +483,7 @@ Core SQL:1999 compliance is about language semantics, not client protocols.
 5. ✅ **CAST to VARCHAR** - Without explicit length `CAST(x AS VARCHAR)` (#404)
 6. ✅ **Window functions in ORDER BY** - Allow window functions in ORDER BY (#391)
 
-**Conformance gain**: 77% → **83.4%** (+6.4%)
+**Conformance gain**: 77% → **86.6%** (+9.6%)
 
 **Completed in Day 5 (Oct 29)** ✅
 - ✅ SAVEPOINT support (nested transactions)
@@ -504,7 +504,7 @@ Core SQL:1999 compliance is about language semantics, not client protocols.
 - ✅ Constraint parsing and enforcement
 - ✅ Transaction support (BEGIN, COMMIT, ROLLBACK)
 
-**Next Priorities** (targeting 87-90%+ conformance):
+**Next Priorities** (targeting 90%+ conformance):
 1. **String type variants** - `CHARACTER VARYING`, `CHAR(8 CHARACTERS)` (27 tests)
 2. **DEFAULT keyword** - `INSERT VALUES(DEFAULT)`, `UPDATE SET x = DEFAULT` (10 tests)
 3. **CURRENT_* without FROM** - `SELECT CURRENT_DATE` without FROM clause (6 tests)

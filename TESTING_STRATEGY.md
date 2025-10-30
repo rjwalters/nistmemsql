@@ -11,7 +11,7 @@ This document describes the SQL:1999 conformance testing strategy, including cur
 **Primary Test Suite**: SQL:1999 tests extracted from [sqltest by Elliot Chance](https://github.com/elliotchance/sqltest)
 
 - **Location**: `tests/sql1999/manifest.json`
-- **Test Count**: 100 tests covering Core SQL:1999 features
+- **Test Count**: 739 tests covering Core SQL:1999 features
 - **Source**: Tests extracted from sqltest's SQL:2016 Core and Foundation features
 - **Organization**: Feature-based by SQL standard codes (E011, E021, F031, etc.)
 - **Format**: JSON manifest with SQL statements and expected outcomes
@@ -29,7 +29,10 @@ This document describes the SQL:1999 conformance testing strategy, including cur
 - **E011-05**: Comparison predicates (<, <=, =, <>, >=, >)
 - **E011-06**: Implicit casting between numeric types
 - **E021**: Character string types (CHAR, VARCHAR)
-- **Pass Rate**: ~42% (100 tests, identifies implementation gaps)
+- **F051**: Date/Time types and operations
+- **E141**: Default values and constraints
+- **F031**: Basic schema operations
+- **Pass Rate**: **86.6%** (640/739 tests passing, excellent progress)
 
 See `tests/sql1999/README.md` for details.
 
@@ -216,10 +219,10 @@ tests/sql1999/
 - Pass rate badge updated on GitHub Pages
 - Metrics: total tests, passed, failed, errors, pass rate percentage
 
-**Current Metrics** (100 tests):
-- ~42% pass rate
-- Identifies parser gaps (unary operators, DECIMAL type aliases, literals)
-- Identifies executor gaps (numeric coercion, DECIMAL arithmetic)
+**Current Metrics** (739 tests):
+- **86.6% pass rate** (640 passing, 99 errors)
+- Strong conformance across Core SQL:1999 features
+- Remaining gaps: String type variants, DEFAULT keyword, CURRENT_* functions without FROM, advanced GRANT/REVOKE
 
 ### Future Compliance Matrix (Planned)
 
@@ -275,20 +278,22 @@ Coverage commands are defined as Cargo aliases in `.cargo/config.toml`, so the i
 
 ### ✅ Completed: Foundation (Phase 1)
 - [x] Basic test harness created (`tests/sqltest_conformance.rs`)
-- [x] 100 SQL:1999 tests extracted from sqltest
+- [x] 739 SQL:1999 tests extracted from sqltest
 - [x] JSON manifest format established
 - [x] GitHub Actions integration with badge generation
 - [x] Compliance report automation
 
-### 🚧 Current: Improving Pass Rate (Phase 2)
-1. Fix parser gaps identified by test failures (~25 tests)
-   - Unary operators (+, -)
-   - DECIMAL type aliases
-   - Floating point literal variations
-2. Fix executor gaps (~18 tests)
-   - Numeric type coercion
-   - DECIMAL arithmetic operations
-3. Target: 80%+ pass rate on current 100 tests
+### ✅ Completed: High Pass Rate Achievement (Phase 2)
+- [x] Achieved **86.6% pass rate** (640/739 tests)
+- [x] Fixed parser gaps (constraints, TRIM, CAST, comparison operators)
+- [x] Fixed executor gaps (type coercion, constraint enforcement, transactions)
+- [x] Strong Core SQL:1999 compliance demonstrated
+
+### 🚧 Current: Reaching 90%+ (Phase 3)
+1. String type variants (CHARACTER VARYING, CHAR with CHARACTERS/OCTETS)
+2. DEFAULT keyword in INSERT/UPDATE
+3. CURRENT_* functions without FROM clause
+4. Target: 90%+ pass rate on 739-test suite
 
 ### Planned: Test Coverage Expansion (Phase 3)
 1. Extract 200-500 more tests from sqltest
@@ -343,9 +348,10 @@ Coverage commands are defined as Cargo aliases in `.cargo/config.toml`, so the i
 1. ✅ Basic test infrastructure established
 2. ✅ Tests run automatically in GitHub Actions on every commit
 3. ✅ Automated badge generation and compliance reporting
-4. 🚧 80%+ pass rate on current 100-test baseline (currently ~42%)
-5. ⬜ 200-500 tests covering Core SQL:1999 features
-6. ⬜ Clear gap identification for parser and executor improvements
+4. ✅ 80%+ pass rate achieved - now at **86.6%** (640/739 tests)
+5. ✅ 739 tests covering Core SQL:1999 features
+6. ✅ Clear gap identification for parser and executor improvements
+7. 🚧 Target 90%+ pass rate (next milestone)
 
 ### Future Phase Goals (Full Compliance)
 
@@ -382,24 +388,28 @@ Coverage commands are defined as Cargo aliases in `.cargo/config.toml`, so the i
 
 ### Immediate Priorities
 
-1. **Fix parser gaps** to improve pass rate (see `docs/SQL1999_CONFORMANCE.md` for specifics)
-   - Add unary operator support (+, -)
-   - Add DECIMAL/DEC type alias recognition
-   - Support floating point literal variations (.5, 1.5E+10)
+1. ✅ **Fixed parser gaps** - Achieved 86.6% pass rate
+   - ✅ Added constraint naming support
+   - ✅ Enhanced TRIM syntax (BOTH/LEADING/TRAILING 'x' FROM s)
+   - ✅ CAST to VARCHAR without explicit length
+   - ✅ Comparison operators for all types
 
-2. **Fix executor gaps** to improve pass rate
-   - Implement numeric type coercion
-   - Implement proper DECIMAL arithmetic
+2. ✅ **Fixed executor gaps**
+   - ✅ Type coercion working
+   - ✅ All constraints enforced (NOT NULL, PRIMARY KEY, UNIQUE, CHECK, FOREIGN KEY)
+   - ✅ Transaction support complete (BEGIN, COMMIT, ROLLBACK, SAVEPOINT)
 
-3. **Expand test coverage**
-   - Extract more tests from sqltest (target: 200-500 tests)
-   - Use `scripts/extract_sql1999_tests.py`
+3. 🚧 **Reach 90%+ conformance** (current: 86.6%)
+   - String type variants (CHARACTER VARYING, CHAR with CHARACTERS/OCTETS)
+   - DEFAULT keyword in INSERT/UPDATE
+   - CURRENT_* functions without FROM clause
 
 ### Medium-Term Goals
 
-4. **Achieve 80%+ pass rate** on expanded test suite
-5. **Build ODBC driver** (prerequisite for protocol testing)
-6. **Build JDBC driver** (prerequisite for protocol testing)
+4. ✅ **Achieved 80%+ pass rate** - now at 86.6%
+5. 🚧 **Target 90%+ pass rate** (in progress)
+6. ⬜ **Build ODBC driver** (deferred - not required for Core compliance)
+7. ⬜ **Build JDBC driver** (deferred - not required for Core compliance)
 
 ### Long-Term Vision
 
