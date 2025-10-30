@@ -43,8 +43,33 @@ else
     STATUS_TEXT="Needs Work"
 fi
 
-# Generate HTML
-cat > "$OUTPUT" <<'HTMLEOF'
+# Generate failing tests section if there are errors
+ERROR_SECTION=""
+if [ "$ERRORS" != "0" ] && [ "$ERRORS" != "" ]; then
+    ERROR_SECTION="    <!-- Failing Tests -->
+    <div class=\"bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-8\">
+      <h2 class=\"text-2xl font-bold text-gray-900 dark:text-white mb-6\">Failing Tests</h2>
+
+      <p class=\"text-gray-700 dark:text-gray-300 mb-4\">
+        The following tests are currently failing. Click to expand details.
+      </p>
+
+      <details class=\"mt-4\">
+        <summary class=\"cursor-pointer text-blue-600 dark:text-blue-400 hover:underline font-medium\">
+          View failing test details ($ERRORS tests)
+        </summary>
+
+        <div class=\"mt-4 space-y-3 max-h-96 overflow-y-auto\">
+          <div class=\"text-gray-600 dark:text-gray-400 text-sm\">
+            Detailed test failures available in CI artifacts. Run <code class=\"bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded\">cargo test --test sqltest_conformance -- --nocapture</code> locally to see full details.
+          </div>
+        </div>
+      </details>
+    </div>"
+fi
+
+# Generate HTML directly with values
+cat > "$OUTPUT" <<EOF
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -100,21 +125,21 @@ cat > "$OUTPUT" <<'HTMLEOF'
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
         <div>
           <span class="text-gray-600 dark:text-gray-400">Generated:</span>
-          <span class="ml-2 text-gray-900 dark:text-white font-medium">TIMESTAMP_PLACEHOLDER</span>
+          <span class="ml-2 text-gray-900 dark:text-white font-medium">$TIMESTAMP</span>
         </div>
         <div>
           <span class="text-gray-600 dark:text-gray-400">Commit:</span>
           <a
-            href="https://github.com/rjwalters/nistmemsql/commit/COMMIT_PLACEHOLDER"
+            href="https://github.com/rjwalters/nistmemsql/commit/$COMMIT"
             target="_blank"
             class="ml-2 text-blue-600 dark:text-blue-400 hover:underline font-mono"
           >
-            COMMIT_PLACEHOLDER
+            $COMMIT
           </a>
         </div>
         <div>
           <span class="text-gray-600 dark:text-gray-400">Status:</span>
-          <span class="ml-2 font-medium" style="color: STATUS_COLOR_PLACEHOLDER">STATUS_TEXT_PLACEHOLDER</span>
+          <span class="ml-2 font-medium" style="color: $STATUS_COLOR">$STATUS_TEXT</span>
         </div>
       </div>
     </div>
@@ -124,12 +149,12 @@ cat > "$OUTPUT" <<'HTMLEOF'
       <!-- Pass Rate Card (Featured) -->
       <div class="md:col-span-2 lg:col-span-2 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg shadow-lg p-8 text-white">
         <div class="text-sm font-semibold uppercase tracking-wider opacity-90 mb-2">Pass Rate</div>
-        <div class="text-5xl font-bold mb-2">PASS_RATE_PLACEHOLDER%</div>
-        <div class="text-sm opacity-75">of TOTAL_PLACEHOLDER total tests</div>
+        <div class="text-5xl font-bold mb-2">$PASS_RATE%</div>
+        <div class="text-sm opacity-75">of $TOTAL total tests</div>
         <div class="mt-6 bg-white/20 rounded-full h-3 overflow-hidden">
           <div
             class="bg-white h-full rounded-full transition-all duration-500"
-            style="width: PASS_RATE_PLACEHOLDER%"
+            style="width: $PASS_RATE%"
           ></div>
         </div>
       </div>
@@ -137,21 +162,21 @@ cat > "$OUTPUT" <<'HTMLEOF'
       <!-- Passed Tests -->
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
         <div class="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2">Passed</div>
-        <div class="text-3xl font-bold text-green-600 dark:text-green-400 mb-1">PASSED_PLACEHOLDER</div>
+        <div class="text-3xl font-bold text-green-600 dark:text-green-400 mb-1">$PASSED</div>
         <div class="text-2xl">✅</div>
       </div>
 
       <!-- Failed Tests -->
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
         <div class="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2">Failed</div>
-        <div class="text-3xl font-bold text-red-600 dark:text-red-400 mb-1">FAILED_PLACEHOLDER</div>
+        <div class="text-3xl font-bold text-red-600 dark:text-red-400 mb-1">$FAILED</div>
         <div class="text-2xl">❌</div>
       </div>
 
       <!-- Errors -->
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
         <div class="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2">Errors</div>
-        <div class="text-3xl font-bold text-orange-600 dark:text-orange-400 mb-1">ERRORS_PLACEHOLDER</div>
+        <div class="text-3xl font-bold text-orange-600 dark:text-orange-400 mb-1">$ERRORS</div>
         <div class="text-2xl">⚠️</div>
       </div>
     </div>
@@ -196,7 +221,7 @@ cat > "$OUTPUT" <<'HTMLEOF'
     </div>
 
     <!-- Failing Tests Section (if any) -->
-    ERROR_TESTS_SECTION_PLACEHOLDER
+$ERROR_SECTION
 
     <!-- How to Run Tests Locally -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-8">
@@ -230,58 +255,6 @@ cat > "$OUTPUT" <<'HTMLEOF'
   </footer>
 </body>
 </html>
-HTMLEOF
-
-# Replace simple placeholders using perl for better special character handling
-perl -i -pe "s/TIMESTAMP_PLACEHOLDER/$TIMESTAMP/g" "$OUTPUT"
-perl -i -pe "s/COMMIT_PLACEHOLDER/$COMMIT/g" "$OUTPUT"
-perl -i -pe "s/TOTAL_PLACEHOLDER/$TOTAL/g" "$OUTPUT"
-perl -i -pe "s/PASSED_PLACEHOLDER/$PASSED/g" "$OUTPUT"
-perl -i -pe "s/FAILED_PLACEHOLDER/$FAILED/g" "$OUTPUT"
-perl -i -pe "s/ERRORS_PLACEHOLDER/$ERRORS/g" "$OUTPUT"
-perl -i -pe "s/PASS_RATE_PLACEHOLDER/$PASS_RATE/g" "$OUTPUT"
-perl -i -pe "s|STATUS_COLOR_PLACEHOLDER|$STATUS_COLOR|g" "$OUTPUT"
-perl -i -pe "s/STATUS_TEXT_PLACEHOLDER/$STATUS_TEXT/g" "$OUTPUT"
-
-# Generate failing tests section if there are errors
-if [ "$ERRORS" != "0" ] && [ -f "$SQLTEST_RESULTS" ]; then
-    # Create a temporary file for the error section
-    ERROR_SECTION_FILE=$(mktemp)
-
-    cat > "$ERROR_SECTION_FILE" <<'ERRHTML'
-    <!-- Failing Tests -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-8">
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Failing Tests</h2>
-
-      <p class="text-gray-700 dark:text-gray-300 mb-4">
-        The following tests are currently failing. Click to expand details.
-      </p>
-
-      <details class="mt-4">
-        <summary class="cursor-pointer text-blue-600 dark:text-blue-400 hover:underline font-medium">
-          View failing test details (ERROR_COUNT_PLACEHOLDER tests)
-        </summary>
-
-        <div class="mt-4 space-y-3 max-h-96 overflow-y-auto">
-          <div class="text-gray-600 dark:text-gray-400 text-sm">
-            Detailed test failures available in CI artifacts. Run <code class="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">cargo test --test sqltest_conformance -- --nocapture</code> locally to see full details.
-          </div>
-        </div>
-      </details>
-    </div>
-ERRHTML
-
-    # Replace error count
-    perl -i -pe "s/ERROR_COUNT_PLACEHOLDER/$ERRORS/g" "$ERROR_SECTION_FILE"
-
-    # Replace the placeholder with the file contents using perl
-    perl -i -p0e "s/ERROR_TESTS_SECTION_PLACEHOLDER/\`cat '$ERROR_SECTION_FILE'\`/ge" "$OUTPUT"
-
-    # Clean up temp file
-    rm -f "$ERROR_SECTION_FILE"
-else
-    # Remove the placeholder if no errors
-    perl -i -pe "s/ERROR_TESTS_SECTION_PLACEHOLDER//g" "$OUTPUT"
-fi
+EOF
 
 echo "✅ HTML conformance report generated: $OUTPUT"
