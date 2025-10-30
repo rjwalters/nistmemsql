@@ -10,6 +10,7 @@ mod delete;
 mod display;
 mod errors;
 mod exists;
+mod grant;
 mod group_by;
 mod in_list;
 mod insert;

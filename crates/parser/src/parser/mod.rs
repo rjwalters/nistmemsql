@@ -8,6 +8,7 @@ mod create;
 mod delete;
 mod drop;
 mod expressions;
+mod grant;
 mod helpers;
 mod insert;
 mod schema;
@@ -141,6 +142,10 @@ impl Parser {
                 }
                 false => Err(ParseError { message: "Expected SCHEMA after SET".to_string() }),
             },
+            Token::Keyword(Keyword::Grant) => {
+                let grant_stmt = self.parse_grant_statement()?;
+                Ok(ast::Statement::Grant(grant_stmt))
+            }
             _ => {
                 Err(ParseError { message: format!("Expected statement, found {:?}", self.peek()) })
             }
@@ -199,5 +204,10 @@ impl Parser {
     /// Parse SET SCHEMA statement
     pub fn parse_set_schema_statement(&mut self) -> Result<ast::SetSchemaStmt, ParseError> {
         schema::parse_set_schema(self)
+    }
+
+    /// Parse GRANT statement
+    pub fn parse_grant_statement(&mut self) -> Result<ast::GrantStmt, ParseError> {
+        grant::parse_grant(self)
     }
 }

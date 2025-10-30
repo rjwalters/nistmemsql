@@ -144,6 +144,18 @@ impl Database {
                 serde_wasm_bindgen::to_value(&result)
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
+            ast::Statement::Grant(grant_stmt) => {
+                let message = executor::GrantExecutor::execute_grant(&grant_stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message,
+                };
+
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
             _ => Err(JsValue::from_str(&format!(
                 "Statement type not yet supported in WASM: {:?}",
                 stmt

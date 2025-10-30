@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::errors::CatalogError;
+use crate::privilege::PrivilegeGrant;
 use crate::schema::Schema;
 use crate::table::TableSchema;
 
@@ -9,12 +10,17 @@ use crate::table::TableSchema;
 pub struct Catalog {
     schemas: HashMap<String, Schema>,
     current_schema: String,
+    privilege_grants: Vec<PrivilegeGrant>,
 }
 
 impl Catalog {
     /// Create a new empty catalog.
     pub fn new() -> Self {
-        let mut catalog = Catalog { schemas: HashMap::new(), current_schema: "public".to_string() };
+        let mut catalog = Catalog {
+            schemas: HashMap::new(),
+            current_schema: "public".to_string(),
+            privilege_grants: Vec::new(),
+        };
 
         // Create the default "public" schema
         catalog.schemas.insert("public".to_string(), Schema::new("public".to_string()));
@@ -157,6 +163,37 @@ impl Catalog {
     /// Get the current schema name.
     pub fn get_current_schema(&self) -> &str {
         &self.current_schema
+    }
+
+    // ============================================================================
+    // Privilege Management Methods
+    // ============================================================================
+
+    /// Add a privilege grant to the catalog.
+    pub fn add_grant(&mut self, grant: PrivilegeGrant) {
+        self.privilege_grants.push(grant);
+    }
+
+    /// Check if a grantee has a specific privilege on an object.
+    pub fn has_privilege(
+        &self,
+        grantee: &str,
+        object: &str,
+        priv_type: &ast::PrivilegeType,
+    ) -> bool {
+        self.privilege_grants.iter().any(|g| {
+            g.grantee == grantee && g.object == object && g.privilege == *priv_type
+        })
+    }
+
+    /// Get all grants for a specific grantee.
+    pub fn get_grants_for_grantee(&self, grantee: &str) -> Vec<&PrivilegeGrant> {
+        self.privilege_grants.iter().filter(|g| g.grantee == grantee).collect()
+    }
+
+    /// Get all grants for a specific object.
+    pub fn get_grants_for_object(&self, object: &str) -> Vec<&PrivilegeGrant> {
+        self.privilege_grants.iter().filter(|g| g.object == object).collect()
     }
 }
 

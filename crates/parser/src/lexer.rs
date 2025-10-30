@@ -250,6 +250,10 @@ impl Lexer {
             "OCTETS" => Token::Keyword(Keyword::Octets),
             // SUBSTRING function keywords
             "FOR" => Token::Keyword(Keyword::For),
+            // GRANT keywords
+            "GRANT" => Token::Keyword(Keyword::Grant),
+            "PRIVILEGES" => Token::Keyword(Keyword::Privileges),
+            "TO" => Token::Keyword(Keyword::To),
             _ => Token::Identifier(text),
         };
 

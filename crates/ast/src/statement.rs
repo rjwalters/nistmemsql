@@ -4,7 +4,7 @@
 
 use crate::{
     AlterTableStmt, BeginStmt, CommitStmt, CreateSchemaStmt, CreateTableStmt, DeleteStmt,
-    DropSchemaStmt, DropTableStmt, InsertStmt, ReleaseSavepointStmt, RollbackStmt,
+    DropSchemaStmt, DropTableStmt, GrantStmt, InsertStmt, ReleaseSavepointStmt, RollbackStmt,
     RollbackToSavepointStmt, SavepointStmt, SelectStmt, SetSchemaStmt, UpdateStmt,
 };
 
@@ -31,5 +31,6 @@ pub enum Statement {
     Savepoint(SavepointStmt),
     RollbackToSavepoint(RollbackToSavepointStmt),
     ReleaseSavepoint(ReleaseSavepointStmt),
+    Grant(GrantStmt),
     // TODO: Add more statement types (ALTER, etc.)
 }
