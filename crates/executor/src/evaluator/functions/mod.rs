@@ -21,7 +21,7 @@ mod conversion;
 mod datetime;
 mod null_handling;
 mod numeric;
-mod string;
+pub(crate) mod string;
 mod system;
 
 /// Evaluate a scalar function on given argument values

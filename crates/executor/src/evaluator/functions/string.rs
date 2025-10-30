@@ -154,6 +154,58 @@ pub(super) fn trim(args: &[types::SqlValue]) -> Result<types::SqlValue, Executor
     }
 }
 
+/// TRIM with position and custom character support
+/// Supports TRIM(BOTH/LEADING/TRAILING 'x' FROM 'string')
+/// SQL:1999 Section 6.29: String value functions
+pub(crate) fn trim_advanced(
+    string_val: types::SqlValue,
+    position: Option<ast::TrimPosition>,
+    removal_char: Option<types::SqlValue>,
+) -> Result<types::SqlValue, ExecutorError> {
+    // Handle NULL string
+    if matches!(string_val, types::SqlValue::Null) {
+        return Ok(types::SqlValue::Null);
+    }
+
+    // Extract string
+    let s = match &string_val {
+        types::SqlValue::Varchar(s) => s.as_str(),
+        types::SqlValue::Character(s) => s.as_str(),
+        _ => return Err(ExecutorError::UnsupportedFeature(
+            format!("TRIM requires string argument, got {:?}", string_val)
+        )),
+    };
+
+    // Determine character to remove (default: space)
+    let char_to_remove = if let Some(removal) = removal_char {
+        match removal {
+            types::SqlValue::Null => return Ok(types::SqlValue::Null),
+            types::SqlValue::Varchar(c) | types::SqlValue::Character(c) => {
+                if c.len() != 1 {
+                    return Err(ExecutorError::UnsupportedFeature(
+                        format!("TRIM removal character must be single character, got '{}'", c)
+                    ));
+                }
+                c.chars().next().unwrap()
+            }
+            _ => return Err(ExecutorError::UnsupportedFeature(
+                format!("TRIM removal character must be string, got {:?}", removal)
+            )),
+        }
+    } else {
+        ' ' // Default to space
+    };
+
+    // Apply trimming based on position
+    let result = match position.unwrap_or(ast::TrimPosition::Both) {
+        ast::TrimPosition::Both => s.trim_matches(char_to_remove).to_string(),
+        ast::TrimPosition::Leading => s.trim_start_matches(char_to_remove).to_string(),
+        ast::TrimPosition::Trailing => s.trim_end_matches(char_to_remove).to_string(),
+    };
+
+    Ok(types::SqlValue::Varchar(result))
+}
+
 /// CHAR_LENGTH(string) / CHARACTER_LENGTH(string) - Return string length
 /// SQL:1999 Section 6.29: String value functions
 pub(super) fn char_length(args: &[types::SqlValue], name: &str) -> Result<types::SqlValue, ExecutorError> {

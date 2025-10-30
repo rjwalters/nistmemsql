@@ -154,6 +154,17 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 }
             }
 
+            // TRIM expression - handle position and custom removal character
+            ast::Expression::Trim { position, removal_char, string } => {
+                let string_val = self.eval(string, row)?;
+                let removal_val = if let Some(removal) = removal_char {
+                    Some(self.eval(removal, row)?)
+                } else {
+                    None
+                };
+                super::super::functions::string::trim_advanced(string_val, position.clone(), removal_val)
+            }
+
             // Unsupported expressions
             _ => Err(ExecutorError::UnsupportedExpression(format!("{:?}", expr))),
         }
