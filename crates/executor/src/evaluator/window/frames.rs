@@ -27,7 +27,7 @@ pub fn calculate_frame(
         Some(f) => f,
         None => {
             // Check if there's an ORDER BY clause
-            let has_order_by = order_by.as_ref().map_or(false, |items| !items.is_empty());
+            let has_order_by = order_by.as_ref().is_some_and(|items| !items.is_empty());
 
             if has_order_by {
                 // Default with ORDER BY: start of partition to current row (inclusive)

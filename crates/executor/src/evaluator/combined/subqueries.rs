@@ -1,5 +1,6 @@
+//! Subquery evaluation for combined expressions
+
 use super::super::core::{CombinedExpressionEvaluator, ExpressionEvaluator};
-///! Subquery evaluation for combined expressions
 use crate::errors::ExecutorError;
 
 impl CombinedExpressionEvaluator<'_> {

@@ -1,5 +1,6 @@
+//! Main evaluation entry point for combined expressions
+
 use super::super::core::{CombinedExpressionEvaluator, ExpressionEvaluator};
-///! Main evaluation entry point for combined expressions
 use crate::errors::ExecutorError;
 use crate::select::WindowFunctionKey;
 

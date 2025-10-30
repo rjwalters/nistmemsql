@@ -25,7 +25,7 @@ pub(in crate::select) fn expression_has_window_function(expr: &Expression) -> bo
             when_clauses.iter().any(|when_clause| {
                 when_clause.conditions.iter().any(expression_has_window_function)
                     || expression_has_window_function(&when_clause.result)
-            }) || else_result.as_ref().map_or(false, |e| expression_has_window_function(e))
+            }) || else_result.as_ref().is_some_and(|e| expression_has_window_function(e))
         }
         _ => false,
     }

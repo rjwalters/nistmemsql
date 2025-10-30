@@ -44,7 +44,7 @@ impl SelectExecutor<'_> {
             }
 
             ast::Expression::Trim { removal_char, string, .. } => {
-                removal_char.as_ref().map_or(false, |e| self.expression_references_column(e))
+                removal_char.as_ref().is_some_and(|e| self.expression_references_column(e))
                     || self.expression_references_column(string)
             }
 
@@ -63,7 +63,7 @@ impl SelectExecutor<'_> {
             }
 
             ast::Expression::Case { operand, when_clauses, else_result } => {
-                operand.as_ref().map_or(false, |e| self.expression_references_column(e))
+                operand.as_ref().is_some_and(|e| self.expression_references_column(e))
                     || when_clauses.iter().any(|when_clause| {
                         when_clause
                             .conditions
@@ -71,7 +71,7 @@ impl SelectExecutor<'_> {
                             .any(|cond| self.expression_references_column(cond))
                             || self.expression_references_column(&when_clause.result)
                     })
-                    || else_result.as_ref().map_or(false, |e| self.expression_references_column(e))
+                    || else_result.as_ref().is_some_and(|e| self.expression_references_column(e))
             }
 
             ast::Expression::WindowFunction { function, over } => {
@@ -85,11 +85,11 @@ impl SelectExecutor<'_> {
                 };
 
                 // Check PARTITION BY and ORDER BY clauses
-                let partition_references = over.partition_by.as_ref().map_or(false, |exprs| {
+                let partition_references = over.partition_by.as_ref().is_some_and(|exprs| {
                     exprs.iter().any(|e| self.expression_references_column(e))
                 });
 
-                let order_references = over.order_by.as_ref().map_or(false, |items| {
+                let order_references = over.order_by.as_ref().is_some_and(|items| {
                     items.iter().any(|item| self.expression_references_column(&item.expr))
                 });
 
