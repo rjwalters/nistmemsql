@@ -278,3 +278,118 @@ fn test_window_function_with_partition_by() {
         panic!("Expected SELECT statement");
     }
 }
+
+#[test]
+fn test_order_by_with_window_function() {
+    use storage::Row;
+    let mut db = Database::new();
+
+    // Create employees table
+    let schema = TableSchema::new(
+        "employees".to_string(),
+        vec![
+            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 50 }, false),
+            ColumnSchema::new("salary".to_string(), DataType::Integer, false),
+        ],
+    );
+
+    db.create_table(schema).unwrap();
+
+    let table = db.get_table_mut("employees").unwrap();
+    table.insert(Row::new(vec![
+        SqlValue::Integer(1),
+        SqlValue::Varchar("Alice".to_string()),
+        SqlValue::Integer(50000),
+    ])).unwrap();
+    table.insert(Row::new(vec![
+        SqlValue::Integer(2),
+        SqlValue::Varchar("Bob".to_string()),
+        SqlValue::Integer(60000),
+    ])).unwrap();
+    table.insert(Row::new(vec![
+        SqlValue::Integer(3),
+        SqlValue::Varchar("Charlie".to_string()),
+        SqlValue::Integer(70000),
+    ])).unwrap();
+
+    let executor = SelectExecutor::new(&db);
+
+    // Test ORDER BY referencing a window function from SELECT
+    let query = "SELECT name, ROW_NUMBER() OVER (ORDER BY salary) as rn FROM employees ORDER BY ROW_NUMBER() OVER (ORDER BY salary)";
+    let stmt = Parser::parse_sql(query).unwrap();
+
+    if let ast::Statement::Select(select_stmt) = stmt {
+        let result = executor.execute(&select_stmt).unwrap();
+
+        assert_eq!(result.len(), 3);
+
+        // Results should be ordered by ROW_NUMBER (which is 1, 2, 3)
+        // Since ROW_NUMBER is ordered by salary ASC, Alice (50000) should be first
+        assert_eq!(result[0].values[0], SqlValue::Varchar("Alice".to_string()));
+        assert_eq!(result[0].values[1], SqlValue::Integer(1));
+
+        assert_eq!(result[1].values[0], SqlValue::Varchar("Bob".to_string()));
+        assert_eq!(result[1].values[1], SqlValue::Integer(2));
+
+        assert_eq!(result[2].values[0], SqlValue::Varchar("Charlie".to_string()));
+        assert_eq!(result[2].values[1], SqlValue::Integer(3));
+    } else {
+        panic!("Expected SELECT statement");
+    }
+}
+
+#[test]
+fn test_order_by_with_window_function_not_in_select() {
+    use storage::Row;
+    let mut db = Database::new();
+
+    // Create employees table
+    let schema = TableSchema::new(
+        "employees".to_string(),
+        vec![
+            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 50 }, false),
+            ColumnSchema::new("salary".to_string(), DataType::Integer, false),
+        ],
+    );
+
+    db.create_table(schema).unwrap();
+
+    let table = db.get_table_mut("employees").unwrap();
+    table.insert(Row::new(vec![
+        SqlValue::Integer(1),
+        SqlValue::Varchar("Alice".to_string()),
+        SqlValue::Integer(50000),
+    ])).unwrap();
+    table.insert(Row::new(vec![
+        SqlValue::Integer(2),
+        SqlValue::Varchar("Bob".to_string()),
+        SqlValue::Integer(60000),
+    ])).unwrap();
+    table.insert(Row::new(vec![
+        SqlValue::Integer(3),
+        SqlValue::Varchar("Charlie".to_string()),
+        SqlValue::Integer(70000),
+    ])).unwrap();
+
+    let executor = SelectExecutor::new(&db);
+
+    // Test ORDER BY with window function NOT in SELECT list
+    let query = "SELECT name FROM employees ORDER BY ROW_NUMBER() OVER (ORDER BY salary DESC)";
+    let stmt = Parser::parse_sql(query).unwrap();
+
+    if let ast::Statement::Select(select_stmt) = stmt {
+        let result = executor.execute(&select_stmt).unwrap();
+
+        assert_eq!(result.len(), 3);
+
+        // Results should be ordered by ROW_NUMBER with salary DESC
+        // Charlie (70000) gets ROW_NUMBER=1, Bob (60000) gets 2, Alice (50000) gets 3
+        assert_eq!(result[0].values[0], SqlValue::Varchar("Charlie".to_string()));
+        assert_eq!(result[1].values[0], SqlValue::Varchar("Bob".to_string()));
+        assert_eq!(result[2].values[0], SqlValue::Varchar("Alice".to_string()));
+    } else {
+        panic!("Expected SELECT statement");
+    }
+}
