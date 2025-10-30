@@ -48,6 +48,17 @@ impl<'a> SelectExecutor<'a> {
                     || self.expression_references_column(string)
             }
 
+            ast::Expression::Trim {
+                removal_char,
+                string,
+                ..
+            } => {
+                removal_char
+                    .as_ref()
+                    .map_or(false, |e| self.expression_references_column(e))
+                    || self.expression_references_column(string)
+            }
+
             ast::Expression::Like { expr, pattern, .. } => {
                 self.expression_references_column(expr)
                     || self.expression_references_column(pattern)

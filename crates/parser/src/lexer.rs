@@ -237,6 +237,10 @@ impl Lexer {
             "UNIQUE" => Token::Keyword(Keyword::Unique),
             "CHECK" => Token::Keyword(Keyword::Check),
             "REFERENCES" => Token::Keyword(Keyword::References),
+            // TRIM function keywords
+            "BOTH" => Token::Keyword(Keyword::Both),
+            "LEADING" => Token::Keyword(Keyword::Leading),
+            "TRAILING" => Token::Keyword(Keyword::Trailing),
             _ => Token::Identifier(text),
         };
 
