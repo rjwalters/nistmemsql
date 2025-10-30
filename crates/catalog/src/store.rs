@@ -70,7 +70,7 @@ impl Catalog {
         let schema = self
             .schemas
             .get_mut(&schema_name)
-            .ok_or_else(|| CatalogError::SchemaNotFound(schema_name))?;
+            .ok_or(CatalogError::SchemaNotFound(schema_name))?;
 
         schema.drop_table(table_name)
     }

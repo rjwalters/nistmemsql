@@ -2,7 +2,7 @@
 
 use super::builder::SelectExecutor;
 
-impl<'a> SelectExecutor<'a> {
+impl SelectExecutor<'_> {
     /// Check if an expression references a column (which requires FROM clause)
     pub(super) fn expression_references_column(&self, expr: &ast::Expression) -> bool {
         match expr {
@@ -104,7 +104,6 @@ impl<'a> SelectExecutor<'a> {
             ast::Expression::CurrentDate => false,
             ast::Expression::CurrentTime { .. } => false,
             ast::Expression::CurrentTimestamp { .. } => false,
-            ast::Expression::Default => false, // DEFAULT keyword doesn't reference columns
         }
     }
 }

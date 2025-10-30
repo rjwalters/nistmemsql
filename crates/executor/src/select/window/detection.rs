@@ -19,11 +19,11 @@ pub(in crate::select) fn expression_has_window_function(expr: &Expression) -> bo
         }
         Expression::UnaryOp { expr, .. } => expression_has_window_function(expr),
         Expression::Function { args, .. } => {
-            args.iter().any(|arg| expression_has_window_function(arg))
+            args.iter().any(expression_has_window_function)
         }
         Expression::Case { when_clauses, else_result, .. } => {
             when_clauses.iter().any(|when_clause| {
-                when_clause.conditions.iter().any(|cond| expression_has_window_function(cond))
+                when_clause.conditions.iter().any(expression_has_window_function)
                     || expression_has_window_function(&when_clause.result)
             }) || else_result.as_ref().map_or(false, |e| expression_has_window_function(e))
         }

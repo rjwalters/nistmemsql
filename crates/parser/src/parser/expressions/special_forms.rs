@@ -58,17 +58,17 @@ impl Parser {
                         }
                     };
 
-                    return Ok(Some(ast::Expression::Function {
+                    Ok(Some(ast::Expression::Function {
                         name: function_name.to_string(),
                         args: vec![],
-                    }));
+                    }))
                 } else {
-                    return Err(ParseError {
+                    Err(ParseError {
                         message: format!(
                             "Expected identifier after CURRENT, found {:?}",
                             self.peek()
                         ),
-                    });
+                    })
                 }
             }
             // CAST expression: CAST(expr AS data_type)
@@ -195,11 +195,6 @@ impl Parser {
                         expr: Box::new(expr),
                     }))
                 }
-            }
-            // DEFAULT keyword - represents default value
-            Token::Keyword(Keyword::Default) => {
-                self.advance(); // consume DEFAULT
-                Ok(Some(ast::Expression::Default))
             }
             _ => Ok(None),
         }

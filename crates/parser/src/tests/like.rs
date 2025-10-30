@@ -22,7 +22,7 @@ fn test_parse_like_exact_match() {
             assert!(matches!(**pattern, ast::Expression::Literal(types::SqlValue::Varchar(_))));
 
             // Not negated
-            assert_eq!(*negated, false);
+            assert!(!(*negated));
         } else {
             panic!("Expected LIKE expression");
         }
@@ -78,7 +78,7 @@ fn test_parse_not_like() {
 
         // Should be a LIKE expression with negated=true
         if let ast::Expression::Like { negated, .. } = &select.where_clause.unwrap() {
-            assert_eq!(*negated, true, "NOT LIKE should set negated=true");
+            assert!(*negated, "NOT LIKE should set negated=true");
         } else {
             panic!("Expected LIKE expression");
         }

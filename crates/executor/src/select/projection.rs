@@ -58,7 +58,7 @@ pub(super) fn evaluate_expression_with_windows(
             let key = WindowFunctionKey::from_expression(function, over);
             if let Some(&col_idx) = window_mapping.get(&key) {
                 // Extract the pre-computed value from the appended column
-                let value = row.values.get(col_idx).cloned().ok_or_else(|| {
+                let value = row.values.get(col_idx).cloned().ok_or({
                     crate::errors::ExecutorError::ColumnIndexOutOfBounds { index: col_idx }
                 })?;
                 Ok(value)
@@ -79,7 +79,7 @@ pub(super) fn evaluate_expression_with_windows(
             let new_expr = Expression::BinaryOp {
                 left: Box::new(left_substituted),
                 right: Box::new(right_substituted),
-                op: op.clone(),
+                op: *op,
             };
             evaluator.eval(&new_expr, row)
         }
@@ -87,7 +87,7 @@ pub(super) fn evaluate_expression_with_windows(
             // Similar substitution for unary operations
             let inner_substituted = substitute_window_functions(inner, row, window_mapping)?;
             let new_expr =
-                Expression::UnaryOp { expr: Box::new(inner_substituted), op: op.clone() };
+                Expression::UnaryOp { expr: Box::new(inner_substituted), op: *op };
             evaluator.eval(&new_expr, row)
         }
         _ => {
@@ -110,7 +110,7 @@ fn substitute_window_functions(
             // Look up the pre-computed value and convert to a literal expression
             let key = WindowFunctionKey::from_expression(function, over);
             if let Some(&col_idx) = window_mapping.get(&key) {
-                let value = row.values.get(col_idx).cloned().ok_or_else(|| {
+                let value = row.values.get(col_idx).cloned().ok_or({
                     crate::errors::ExecutorError::ColumnIndexOutOfBounds { index: col_idx }
                 })?;
                 Ok(Expression::Literal(value))
@@ -127,12 +127,12 @@ fn substitute_window_functions(
             Ok(Expression::BinaryOp {
                 left: Box::new(left_sub),
                 right: Box::new(right_sub),
-                op: op.clone(),
+                op: *op,
             })
         }
         Expression::UnaryOp { expr: inner, op } => {
             let inner_sub = substitute_window_functions(inner, row, window_mapping)?;
-            Ok(Expression::UnaryOp { expr: Box::new(inner_sub), op: op.clone() })
+            Ok(Expression::UnaryOp { expr: Box::new(inner_sub), op: *op })
         }
         Expression::Function { name, args } => {
             let substituted_args: Result<Vec<_>, _> = args

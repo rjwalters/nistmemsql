@@ -9,7 +9,7 @@ use crate::select::set_operations::apply_set_operation;
 use crate::select::SelectResult;
 use std::collections::HashMap;
 
-impl<'a> SelectExecutor<'a> {
+impl SelectExecutor<'_> {
     /// Execute a SELECT statement
     pub fn execute(&self, stmt: &ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> {
         // Execute CTEs if present

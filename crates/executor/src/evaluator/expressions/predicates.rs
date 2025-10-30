@@ -5,7 +5,7 @@ use super::super::core::ExpressionEvaluator;
 use super::super::pattern::like_match;
 use crate::errors::ExecutorError;
 
-impl<'a> ExpressionEvaluator<'a> {
+impl ExpressionEvaluator<'_> {
     /// Evaluate BETWEEN predicate
     pub(super) fn eval_between(
         &self,

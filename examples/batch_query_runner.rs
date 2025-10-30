@@ -133,7 +133,7 @@ fn test_query(db: &Database, id: &str, title: &str, query: &str) {
         match executor.execute(&select_stmt) {
             Ok(result) => {
                 println!("✅ Success - {} rows", result.len());
-                if result.len() > 0 && result.len() <= 10 {
+                if !result.is_empty() && result.len() <= 10 {
                     for row in &result {
                         print!("   ");
                         for (i, val) in row.values.iter().enumerate() {

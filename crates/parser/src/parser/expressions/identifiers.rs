@@ -18,7 +18,7 @@ impl Parser {
                     return Ok(None);
                 }
                 // Check for qualified column reference (table.column)
-                else if matches!(self.peek(), Token::Symbol('.')) {
+                if matches!(self.peek(), Token::Symbol('.')) {
                     self.advance(); // consume '.'
                     match self.peek() {
                         Token::Identifier(col) => {

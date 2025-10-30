@@ -58,16 +58,21 @@ impl Table {
     /// - Pad with spaces if too short
     /// - Truncate if too long
     fn normalize_char_value(value: &str, length: usize) -> String {
+        use std::cmp::Ordering;
         let current_len = value.len();
-        if current_len < length {
-            // Pad with spaces to the right
-            format!("{:width$}", value, width = length)
-        } else if current_len > length {
-            // Truncate to fixed length
-            value[..length].to_string()
-        } else {
-            // Exact length - no change needed
-            value.to_string()
+        match current_len.cmp(&length) {
+            Ordering::Less => {
+                // Pad with spaces to the right
+                format!("{:width$}", value, width = length)
+            }
+            Ordering::Greater => {
+                // Truncate to fixed length
+                value[..length].to_string()
+            }
+            Ordering::Equal => {
+                // Exact length - no change needed
+                value.to_string()
+            }
         }
     }
 

@@ -202,7 +202,7 @@ impl TableSchema {
 
     /// Check if a column is part of the primary key
     pub fn is_column_in_primary_key(&self, column_name: &str) -> bool {
-        self.primary_key.as_ref().map_or(false, |pk| pk.contains(&column_name.to_string()))
+        self.primary_key.as_ref().is_some_and(|pk| pk.contains(&column_name.to_string()))
     }
 
     /// Set nullable property for a column by index

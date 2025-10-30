@@ -40,7 +40,7 @@ pub fn evaluate_lag(
     // Calculate target row index (current_row_idx - offset)
     let target_idx = if offset_val as usize > current_row_idx {
         // Offset goes before partition start - return default
-        return Ok(evaluate_default_value(default)?);
+        return evaluate_default_value(default);
     } else {
         current_row_idx - offset_val as usize
     };
@@ -88,7 +88,7 @@ pub fn evaluate_lead(
 
     // Check if target is beyond partition end
     if target_idx >= partition.len() {
-        return Ok(evaluate_default_value(default)?);
+        return evaluate_default_value(default);
     }
 
     // Get value from target row

@@ -4,7 +4,7 @@ use super::super::core::ExpressionEvaluator;
 use crate::errors::ExecutorError;
 use types::SqlValue;
 
-impl<'a> ExpressionEvaluator<'a> {
+impl ExpressionEvaluator<'_> {
     /// Evaluate an expression in the context of a row
     pub fn eval(
         &self,
@@ -123,10 +123,6 @@ impl<'a> ExpressionEvaluator<'a> {
 
             ast::Expression::AggregateFunction { .. } => Err(ExecutorError::UnsupportedExpression(
                 "Aggregate functions should be evaluated in aggregation context".to_string(),
-            )),
-
-            ast::Expression::Default => Err(ExecutorError::UnsupportedExpression(
-                "DEFAULT keyword is only valid in INSERT and UPDATE statements".to_string(),
             )),
         }
     }

@@ -17,7 +17,7 @@ fn test_parse_exists_simple() {
 
         if let ast::Expression::Exists { subquery, negated } = &select.where_clause.unwrap() {
             // Should not be negated
-            assert_eq!(*negated, false);
+            assert!(!(*negated));
 
             // Should have a valid subquery
             assert_eq!(subquery.select_list.len(), 1);
@@ -42,7 +42,7 @@ fn test_parse_not_exists() {
 
         if let ast::Expression::Exists { negated, .. } = &select.where_clause.unwrap() {
             // Should be negated
-            assert_eq!(*negated, true);
+            assert!(*negated);
         } else {
             panic!("Expected Exists expression");
         }

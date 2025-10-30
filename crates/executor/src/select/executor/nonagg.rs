@@ -13,7 +13,7 @@ use crate::select::window::{
     evaluate_window_functions, expression_has_window_function, has_window_functions,
 };
 
-impl<'a> SelectExecutor<'a> {
+impl SelectExecutor<'_> {
     /// Execute SELECT without aggregation
     pub(super) fn execute_without_aggregation(
         &self,

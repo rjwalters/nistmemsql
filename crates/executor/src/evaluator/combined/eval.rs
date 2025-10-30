@@ -3,7 +3,7 @@ use super::super::core::{CombinedExpressionEvaluator, ExpressionEvaluator};
 use crate::errors::ExecutorError;
 use crate::select::WindowFunctionKey;
 
-impl<'a> CombinedExpressionEvaluator<'a> {
+impl CombinedExpressionEvaluator<'_> {
     /// Evaluate an expression in the context of a combined row
     /// This is the main entry point for expression evaluation
     pub(crate) fn eval(
@@ -153,7 +153,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                     let key = WindowFunctionKey::from_expression(function, over);
                     if let Some(&col_idx) = mapping.get(&key) {
                         // Extract the pre-computed value from the appended column
-                        let value = row.values.get(col_idx).cloned().ok_or_else(|| {
+                        let value = row.values.get(col_idx).cloned().ok_or({
                             ExecutorError::ColumnIndexOutOfBounds { index: col_idx }
                         })?;
                         Ok(value)
@@ -168,21 +168,6 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                         "Window functions require window mapping context".to_string(),
                     ))
                 }
-            }
-
-            // TRIM expression - handle position and custom removal character
-            ast::Expression::Trim { position, removal_char, string } => {
-                let string_val = self.eval(string, row)?;
-                let removal_val = if let Some(removal) = removal_char {
-                    Some(self.eval(removal, row)?)
-                } else {
-                    None
-                };
-                super::super::functions::string::trim_advanced(
-                    string_val,
-                    position.clone(),
-                    removal_val,
-                )
             }
 
             // Unsupported expressions

@@ -202,8 +202,8 @@ mod tests {
         assert!(schema.is_some());
         let schema = schema.unwrap();
         assert_eq!(schema.column_count(), 5);
-        assert_eq!(schema.get_column("product_id").unwrap().nullable, false);
-        assert_eq!(schema.get_column("description").unwrap().nullable, true);
+        assert!(!schema.get_column("product_id").unwrap().nullable);
+        assert!(schema.get_column("description").unwrap().nullable);
     }
 
     #[test]
@@ -265,9 +265,9 @@ mod tests {
 
         // Verify nullable attribute is preserved
         let schema = db.catalog.get_table("employees").unwrap();
-        assert_eq!(schema.get_column("id").unwrap().nullable, false);
-        assert_eq!(schema.get_column("middle_name").unwrap().nullable, true);
-        assert_eq!(schema.get_column("manager_id").unwrap().nullable, true);
+        assert!(!schema.get_column("id").unwrap().nullable);
+        assert!(schema.get_column("middle_name").unwrap().nullable);
+        assert!(schema.get_column("manager_id").unwrap().nullable);
     }
 
     #[test]
