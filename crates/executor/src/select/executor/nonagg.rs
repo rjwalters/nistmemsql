@@ -19,7 +19,24 @@ impl<'a> SelectExecutor<'a> {
     ) -> Result<Vec<storage::Row>, ExecutorError> {
         let FromResult { schema, rows } = from_result;
         eprintln!("DEBUG NONAGG: schema keys={:?}, row count={}", schema.table_schemas.keys().collect::<Vec<_>>(), rows.len());
-        let evaluator = CombinedExpressionEvaluator::with_database(&schema, self.database);
+        eprintln!("DEBUG NONAGG: outer_row={}, outer_schema={:?}",
+                 self._outer_row.is_some(),
+                 self._outer_schema.map(|s| s.table_schemas.keys().collect::<Vec<_>>()));
+
+        // Create evaluator with outer context if available (outer schema is already a CombinedSchema)
+        let evaluator = if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
+            eprintln!("DEBUG NONAGG: Creating evaluator WITH outer context, outer tables={:?}",
+                     outer_schema.table_schemas.keys().collect::<Vec<_>>());
+            CombinedExpressionEvaluator::with_database_and_outer_context(
+                &schema,
+                self.database,
+                outer_row,
+                outer_schema
+            )
+        } else {
+            eprintln!("DEBUG NONAGG: Creating evaluator WITHOUT outer context");
+            CombinedExpressionEvaluator::with_database(&schema, self.database)
+        };
 
         // Apply WHERE clause filter
         eprintln!("DEBUG NONAGG: About to apply WHERE filter");

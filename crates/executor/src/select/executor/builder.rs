@@ -5,7 +5,7 @@
 pub struct SelectExecutor<'a> {
     pub(super) database: &'a storage::Database,
     pub(super) _outer_row: Option<&'a storage::Row>,
-    pub(super) _outer_schema: Option<&'a catalog::TableSchema>,
+    pub(super) _outer_schema: Option<&'a crate::schema::CombinedSchema>,
 }
 
 impl<'a> SelectExecutor<'a> {
@@ -22,8 +22,10 @@ impl<'a> SelectExecutor<'a> {
     pub fn new_with_outer_context(
         database: &'a storage::Database,
         outer_row: &'a storage::Row,
-        outer_schema: &'a catalog::TableSchema,
+        outer_schema: &'a crate::schema::CombinedSchema,
     ) -> Self {
+        eprintln!("DEBUG SelectExecutor::new_with_outer_context: outer_tables={:?}, row.values={}",
+                 outer_schema.table_schemas.keys().collect::<Vec<_>>(), outer_row.values.len());
         SelectExecutor {
             database,
             _outer_row: Some(outer_row),
