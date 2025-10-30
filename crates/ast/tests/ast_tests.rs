@@ -500,14 +500,14 @@ use types::SqlValue;
                 column: "status".to_string(),
             })),
             when_clauses: vec![
-                (
-                    Expression::Literal(SqlValue::Integer(1)),
-                    Expression::Literal(SqlValue::Varchar("active".to_string())),
-                ),
-                (
-                    Expression::Literal(SqlValue::Integer(2)),
-                    Expression::Literal(SqlValue::Varchar("inactive".to_string())),
-                ),
+                CaseWhen {
+                    conditions: vec![Expression::Literal(SqlValue::Integer(1))],
+                    result: Expression::Literal(SqlValue::Varchar("active".to_string())),
+                },
+                CaseWhen {
+                    conditions: vec![Expression::Literal(SqlValue::Integer(2))],
+                    result: Expression::Literal(SqlValue::Varchar("inactive".to_string())),
+                },
             ],
             else_result: Some(Box::new(Expression::Literal(SqlValue::Varchar(
                 "unknown".to_string(),
@@ -523,17 +523,17 @@ use types::SqlValue;
     fn test_case_expression_searched() {
         let expr = Expression::Case {
             operand: None,
-            when_clauses: vec![(
-                Expression::BinaryOp {
+            when_clauses: vec![CaseWhen {
+                conditions: vec![Expression::BinaryOp {
                     op: BinaryOperator::GreaterThan,
                     left: Box::new(Expression::ColumnRef {
                         table: None,
                         column: "age".to_string(),
                     }),
                     right: Box::new(Expression::Literal(SqlValue::Integer(18))),
-                },
-                Expression::Literal(SqlValue::Varchar("adult".to_string())),
-            )],
+                }],
+                result: Expression::Literal(SqlValue::Varchar("adult".to_string())),
+            }],
             else_result: Some(Box::new(Expression::Literal(SqlValue::Varchar("minor".to_string())))),
         };
         match expr {

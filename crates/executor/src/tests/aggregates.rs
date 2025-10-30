@@ -999,20 +999,22 @@ fn test_aggregate_with_case_expression() {
                 name: "SUM".to_string(),
                 args: vec![ast::Expression::Case {
                     operand: None,
-                    when_clauses: vec![(
-                        ast::Expression::BinaryOp {
-                            left: Box::new(ast::Expression::ColumnRef {
-                                table: None,
-                                column: "type".to_string(),
-                            }),
-                            op: ast::BinaryOperator::Equal,
-                            right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("credit".to_string()))),
-                        },
-                        ast::Expression::ColumnRef {
+                    when_clauses: vec![ast::CaseWhen {
+                        conditions: vec![
+                            ast::Expression::BinaryOp {
+                                left: Box::new(ast::Expression::ColumnRef {
+                                    table: None,
+                                    column: "type".to_string(),
+                                }),
+                                op: ast::BinaryOperator::Equal,
+                                right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("credit".to_string()))),
+                            },
+                        ],
+                        result: ast::Expression::ColumnRef {
                             table: None,
                             column: "amount".to_string(),
                         },
-                    )],
+                    }],
                     else_result: Some(Box::new(ast::Expression::Literal(types::SqlValue::Integer(0)))),
                 }],
             },

@@ -10,7 +10,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
     pub(super) fn eval_case(
         &self,
         operand: &Option<Box<ast::Expression>>,
-        when_clauses: &[(ast::Expression, ast::Expression)],
+        when_clauses: &[ast::CaseWhen],
         else_result: &Option<Box<ast::Expression>>,
         row: &storage::Row,
     ) -> Result<types::SqlValue, ExecutorError> {
@@ -20,12 +20,15 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 let operand_value = self.eval(operand_expr, row)?;
 
                 // Iterate through WHEN clauses
-                for (when_value_expr, then_result_expr) in when_clauses {
-                    let when_value = self.eval(when_value_expr, row)?;
+                for when_clause in when_clauses {
+                    // Check if ANY condition matches (OR logic)
+                    for condition_expr in &when_clause.conditions {
+                        let when_value = self.eval(condition_expr, row)?;
 
-                    // Compare operand to when_value using SQL equality semantics
-                    if ExpressionEvaluator::values_are_equal(&operand_value, &when_value) {
-                        return self.eval(then_result_expr, row);
+                        // Compare operand to when_value using SQL equality semantics
+                        if ExpressionEvaluator::values_are_equal(&operand_value, &when_value) {
+                            return self.eval(&when_clause.result, row);
+                        }
                     }
                 }
             }
@@ -33,12 +36,15 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             // Searched CASE: CASE WHEN condition THEN result ...
             None => {
                 // Iterate through WHEN clauses
-                for (when_condition_expr, then_result_expr) in when_clauses {
-                    let condition_result = self.eval(when_condition_expr, row)?;
+                for when_clause in when_clauses {
+                    // Check if ANY condition is TRUE (OR logic)
+                    for condition_expr in &when_clause.conditions {
+                        let condition_result = self.eval(condition_expr, row)?;
 
-                    // Check if condition is TRUE (not just truthy)
-                    if matches!(condition_result, types::SqlValue::Boolean(true)) {
-                        return self.eval(then_result_expr, row);
+                        // Check if condition is TRUE (not just truthy)
+                        if matches!(condition_result, types::SqlValue::Boolean(true)) {
+                            return self.eval(&when_clause.result, row);
+                        }
                     }
                 }
             }

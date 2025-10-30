@@ -9,7 +9,7 @@ impl<'a> ExpressionEvaluator<'a> {
     pub(super) fn eval_case(
         &self,
         operand: &Option<Box<ast::Expression>>,
-        when_clauses: &[(ast::Expression, ast::Expression)],
+        when_clauses: &[ast::CaseWhen],
         else_result: &Option<Box<ast::Expression>>,
         row: &storage::Row,
     ) -> Result<types::SqlValue, ExecutorError> {
@@ -18,22 +18,28 @@ impl<'a> ExpressionEvaluator<'a> {
             Some(operand_expr) => {
                 let operand_value = self.eval(operand_expr, row)?;
 
-                for (when_value_expr, then_result_expr) in when_clauses {
-                    let when_value = self.eval(when_value_expr, row)?;
+                for when_clause in when_clauses {
+                    // Check if ANY condition matches (OR logic)
+                    for condition_expr in &when_clause.conditions {
+                        let when_value = self.eval(condition_expr, row)?;
 
-                    if super::super::core::ExpressionEvaluator::values_are_equal(&operand_value, &when_value) {
-                        return self.eval(then_result_expr, row);
+                        if super::super::core::ExpressionEvaluator::values_are_equal(&operand_value, &when_value) {
+                            return self.eval(&when_clause.result, row);
+                        }
                     }
                 }
             }
 
             // Searched CASE: CASE WHEN condition THEN result ...
             None => {
-                for (when_condition_expr, then_result_expr) in when_clauses {
-                    let condition_result = self.eval(when_condition_expr, row)?;
+                for when_clause in when_clauses {
+                    // Check if ANY condition is TRUE (OR logic)
+                    for condition_expr in &when_clause.conditions {
+                        let condition_result = self.eval(condition_expr, row)?;
 
-                    if matches!(condition_result, types::SqlValue::Boolean(true)) {
-                        return self.eval(then_result_expr, row);
+                        if matches!(condition_result, types::SqlValue::Boolean(true)) {
+                            return self.eval(&when_clause.result, row);
+                        }
                     }
                 }
             }

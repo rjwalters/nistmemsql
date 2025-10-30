@@ -164,7 +164,7 @@ fn test_parse_nested_case() {
         if let ast::SelectItem::Expression { expr, .. } = &select.select_list[0] {
             if let ast::Expression::Case { when_clauses, .. } = expr {
                 // Check that the result of the first WHEN is itself a CASE
-                if let ast::Expression::Case { .. } = &when_clauses[0].1 {
+                if let ast::Expression::Case { .. } = &when_clauses[0].result {
                     // Success - nested CASE found
                 } else {
                     panic!("Expected nested Case expression in THEN clause");
@@ -287,4 +287,67 @@ fn test_parse_case_error_missing_end() {
         "SELECT CASE WHEN x > 0 THEN 'positive' FROM t;"
     );
     assert!(result.is_err(), "CASE without END should fail");
+}
+
+// Tests for comma-separated WHEN values (Issue #409)
+
+#[test]
+fn test_parse_case_comma_separated_when() {
+    let result = Parser::parse_sql(
+        "SELECT CASE 0 WHEN 2, 2 THEN 1 ELSE 0 END;"
+    );
+    assert!(result.is_ok(), "CASE with comma-separated WHEN should parse: {:?}", result);
+
+    let stmt = result.unwrap();
+    if let ast::Statement::Select(select) = stmt {
+        if let ast::SelectItem::Expression { expr, .. } = &select.select_list[0] {
+            if let ast::Expression::Case { when_clauses, .. } = expr {
+                // First WHEN should have 2 conditions
+                assert_eq!(when_clauses[0].conditions.len(), 2);
+            } else {
+                panic!("Expected Case expression");
+            }
+        }
+    }
+}
+
+#[test]
+fn test_parse_case_multiple_values() {
+    let result = Parser::parse_sql(
+        "SELECT CASE status WHEN 'active', 'pending', 'new' THEN 'open' ELSE 'closed' END;"
+    );
+    assert!(result.is_ok(), "CASE with multiple values should parse: {:?}", result);
+
+    let stmt = result.unwrap();
+    if let ast::Statement::Select(select) = stmt {
+        if let ast::SelectItem::Expression { expr, .. } = &select.select_list[0] {
+            if let ast::Expression::Case { when_clauses, .. } = expr {
+                // First WHEN should have 3 conditions
+                assert_eq!(when_clauses[0].conditions.len(), 3);
+            } else {
+                panic!("Expected Case expression");
+            }
+        }
+    }
+}
+
+#[test]
+fn test_parse_case_mixed_single_and_multiple() {
+    let result = Parser::parse_sql(
+        "SELECT CASE x WHEN 1, 2 THEN 'low' WHEN 10 THEN 'high' END;"
+    );
+    assert!(result.is_ok(), "CASE with mixed single and multiple values should parse: {:?}", result);
+
+    let stmt = result.unwrap();
+    if let ast::Statement::Select(select) = stmt {
+        if let ast::SelectItem::Expression { expr, .. } = &select.select_list[0] {
+            if let ast::Expression::Case { when_clauses, .. } = expr {
+                // First WHEN should have 2 conditions, second should have 1
+                assert_eq!(when_clauses[0].conditions.len(), 2);
+                assert_eq!(when_clauses[1].conditions.len(), 1);
+            } else {
+                panic!("Expected Case expression");
+            }
+        }
+    }
 }

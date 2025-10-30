@@ -80,10 +80,20 @@ impl Parser {
                 let mut when_clauses = Vec::new();
                 while self.peek_keyword(Keyword::When) {
                     self.advance(); // consume WHEN
-                    let condition = self.parse_expression()?;
+
+                    // Parse first condition
+                    let mut conditions = vec![self.parse_expression()?];
+
+                    // Parse additional comma-separated conditions
+                    while matches!(self.peek(), Token::Comma) {
+                        self.advance(); // consume comma
+                        conditions.push(self.parse_expression()?);
+                    }
+
                     self.expect_keyword(Keyword::Then)?;
                     let result = self.parse_expression()?;
-                    when_clauses.push((condition, result));
+
+                    when_clauses.push(ast::CaseWhen { conditions, result });
                 }
 
                 // Ensure at least one WHEN clause exists

@@ -76,8 +76,9 @@ impl<'a> SelectExecutor<'a> {
 
             ast::Expression::Case { operand, when_clauses, else_result } => {
                 operand.as_ref().map_or(false, |e| self.expression_references_column(e))
-                    || when_clauses.iter().any(|(cond, res)| {
-                        self.expression_references_column(cond) || self.expression_references_column(res)
+                    || when_clauses.iter().any(|when_clause| {
+                        when_clause.conditions.iter().any(|cond| self.expression_references_column(cond))
+                            || self.expression_references_column(&when_clause.result)
                     })
                     || else_result.as_ref().map_or(false, |e| self.expression_references_column(e))
             }

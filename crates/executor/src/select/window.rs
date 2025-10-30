@@ -124,8 +124,9 @@ pub(super) fn expression_has_window_function(expr: &Expression) -> bool {
             else_result,
             ..
         } => {
-            when_clauses.iter().any(|(cond, result)| {
-                expression_has_window_function(cond) || expression_has_window_function(result)
+            when_clauses.iter().any(|when_clause| {
+                when_clause.conditions.iter().any(|cond| expression_has_window_function(cond))
+                    || expression_has_window_function(&when_clause.result)
             }) || else_result
                 .as_ref()
                 .map_or(false, |e| expression_has_window_function(e))
@@ -246,9 +247,11 @@ fn collect_from_expression(
             else_result,
             ..
         } => {
-            for (cond, result) in when_clauses {
-                collect_from_expression(cond, select_index, window_functions)?;
-                collect_from_expression(result, select_index, window_functions)?;
+            for when_clause in when_clauses {
+                for cond in &when_clause.conditions {
+                    collect_from_expression(cond, select_index, window_functions)?;
+                }
+                collect_from_expression(&when_clause.result, select_index, window_functions)?;
             }
             if let Some(else_expr) = else_result {
                 collect_from_expression(else_expr, select_index, window_functions)?;
@@ -465,9 +468,11 @@ fn collect_window_functions_from_expression(
             else_result,
             ..
         } => {
-            for (cond, result) in when_clauses {
-                collect_window_functions_from_expression(cond, window_functions);
-                collect_window_functions_from_expression(result, window_functions);
+            for when_clause in when_clauses {
+                for cond in &when_clause.conditions {
+                    collect_window_functions_from_expression(cond, window_functions);
+                }
+                collect_window_functions_from_expression(&when_clause.result, window_functions);
             }
             if let Some(else_result) = else_result {
                 collect_window_functions_from_expression(else_result, window_functions);
