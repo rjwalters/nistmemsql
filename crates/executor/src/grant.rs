@@ -49,7 +49,7 @@ impl GrantExecutor {
                 ],
                 ObjectType::Schema => vec![
                     PrivilegeType::Usage,
-                    // Future: add CREATE when schema support is complete
+                    PrivilegeType::Create,
                 ],
             }
         } else {
