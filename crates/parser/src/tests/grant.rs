@@ -302,3 +302,32 @@ fn test_parse_grant_schema_with_grant_option() {
         other => panic!("Expected Grant statement, got {:?}", other),
     }
 }
+
+#[test]
+fn test_grant_with_grant_option_case_insensitive() {
+    let sql = "grant select on table users to manager with grant option";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert!(grant_stmt.with_grant_option);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_grant_all_privileges_with_grant_option() {
+    let sql = "GRANT ALL PRIVILEGES ON TABLE users TO manager WITH GRANT OPTION";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::AllPrivileges);
+            assert!(grant_stmt.with_grant_option);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}

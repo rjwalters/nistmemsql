@@ -41,7 +41,7 @@ pub fn parse_grant(parser: &mut crate::Parser) -> Result<GrantStmt, ParseError> 
     // Parse comma-separated grantee list
     let grantees = parse_identifier_list(parser)?;
 
-    // Parse optional WITH GRANT OPTION
+    // Parse optional WITH GRANT OPTION clause
     let with_grant_option = if parser.peek() == &Token::Keyword(Keyword::With) {
         parser.advance(); // consume WITH
         parser.expect_keyword(Keyword::Grant)?;
