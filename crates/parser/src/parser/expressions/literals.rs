@@ -96,9 +96,9 @@ impl Parser {
                         self.advance();
 
                         // Check for TO (multi-field interval)
-                        let interval_spec = if let Token::Identifier(word) = self.peek() {
-                            if word.to_uppercase() == "TO" {
-                                self.advance(); // consume TO
+                        let interval_spec = match self.peek() {
+                            Token::Keyword(Keyword::To) => {
+                                self.advance(); // consume TO keyword
                                 let end_field = match self.peek() {
                                     Token::Identifier(field) => field.to_uppercase(),
                                     _ => {
@@ -109,11 +109,21 @@ impl Parser {
                                 };
                                 self.advance();
                                 format!("{} {} TO {}", value_str, start_field, end_field)
-                            } else {
-                                format!("{} {}", value_str, start_field)
                             }
-                        } else {
-                            format!("{} {}", value_str, start_field)
+                            Token::Identifier(word) if word.to_uppercase() == "TO" => {
+                                self.advance(); // consume TO identifier (backward compat)
+                                let end_field = match self.peek() {
+                                    Token::Identifier(field) => field.to_uppercase(),
+                                    _ => {
+                                        return Err(ParseError {
+                                            message: "Expected interval field after TO".to_string(),
+                                        })
+                                    }
+                                };
+                                self.advance();
+                                format!("{} {} TO {}", value_str, start_field, end_field)
+                            }
+                            _ => format!("{} {}", value_str, start_field),
                         };
 
                         Ok(Some(ast::Expression::Literal(types::SqlValue::Interval(interval_spec))))

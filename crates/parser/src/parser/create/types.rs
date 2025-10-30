@@ -125,15 +125,16 @@ impl Parser {
                 let start_field = self.parse_interval_field()?;
 
                 // Check for TO keyword (multi-field interval)
-                let end_field = if let Token::Identifier(word) = self.peek() {
-                    if word.to_uppercase() == "TO" {
-                        self.advance(); // consume TO
+                let end_field = match self.peek() {
+                    Token::Keyword(Keyword::To) => {
+                        self.advance(); // consume TO keyword
                         Some(self.parse_interval_field()?)
-                    } else {
-                        None
                     }
-                } else {
-                    None
+                    Token::Identifier(word) if word.to_uppercase() == "TO" => {
+                        self.advance(); // consume TO identifier (backward compat)
+                        Some(self.parse_interval_field()?)
+                    }
+                    _ => None,
                 };
 
                 Ok(types::DataType::Interval { start_field, end_field })
