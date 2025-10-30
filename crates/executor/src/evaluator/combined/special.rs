@@ -1,10 +1,11 @@
+//! Special expression forms (CASE, CAST, Function calls)
+
 use super::super::casting::cast_value;
 use super::super::core::{CombinedExpressionEvaluator, ExpressionEvaluator};
 use super::super::functions::eval_scalar_function;
-///! Special expression forms (CASE, CAST, Function calls)
 use crate::errors::ExecutorError;
 
-impl<'a> CombinedExpressionEvaluator<'a> {
+impl CombinedExpressionEvaluator<'_> {
     /// Evaluate CASE expression
     pub(super) fn eval_case(
         &self,

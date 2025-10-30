@@ -1,8 +1,9 @@
+//! Subquery evaluation for combined expressions
+
 use super::super::core::{CombinedExpressionEvaluator, ExpressionEvaluator};
-///! Subquery evaluation for combined expressions
 use crate::errors::ExecutorError;
 
-impl<'a> CombinedExpressionEvaluator<'a> {
+impl CombinedExpressionEvaluator<'_> {
     /// Evaluate scalar subquery - must return exactly one row and one column
     pub(super) fn eval_scalar_subquery(
         &self,
@@ -15,7 +16,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
 
         // Execute the subquery with outer context for correlated subqueries
         // Pass the entire CombinedSchema to preserve alias information
-        let select_executor = if self.schema.table_schemas.len() >= 1 {
+        let select_executor = if !self.schema.table_schemas.is_empty() {
             eprintln!(
                 "DEBUG eval_scalar_subquery: Passing outer context with tables {:?}",
                 self.schema.table_schemas.keys().collect::<Vec<_>>()
@@ -68,7 +69,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         ))?;
 
         // Execute the subquery with outer context
-        let select_executor = if self.schema.table_schemas.len() >= 1 {
+        let select_executor = if !self.schema.table_schemas.is_empty() {
             crate::select::SelectExecutor::new_with_outer_context(database, row, self.schema)
         } else {
             crate::select::SelectExecutor::new(database)
@@ -104,7 +105,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         let left_val = self.eval(expr, row)?;
 
         // Execute the subquery with outer context
-        let select_executor = if self.schema.table_schemas.len() >= 1 {
+        let select_executor = if !self.schema.table_schemas.is_empty() {
             crate::select::SelectExecutor::new_with_outer_context(database, row, self.schema)
         } else {
             crate::select::SelectExecutor::new(database)
@@ -245,7 +246,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         }
 
         // Execute the subquery with outer context
-        let select_executor = if self.schema.table_schemas.len() >= 1 {
+        let select_executor = if !self.schema.table_schemas.is_empty() {
             crate::select::SelectExecutor::new_with_outer_context(database, row, self.schema)
         } else {
             crate::select::SelectExecutor::new(database)

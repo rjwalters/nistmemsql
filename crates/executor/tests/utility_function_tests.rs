@@ -6,9 +6,7 @@
 
 mod common;
 
-use ast;
 use common::create_test_evaluator;
-use types;
 
 // ============================================================================
 // SUBSTR / SUBSTRING Tests

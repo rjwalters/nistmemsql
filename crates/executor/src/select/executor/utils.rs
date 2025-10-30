@@ -2,7 +2,7 @@
 
 use super::builder::SelectExecutor;
 
-impl<'a> SelectExecutor<'a> {
+impl SelectExecutor<'_> {
     /// Check if an expression references a column (which requires FROM clause)
     pub(super) fn expression_references_column(&self, expr: &ast::Expression) -> bool {
         match expr {
@@ -44,7 +44,7 @@ impl<'a> SelectExecutor<'a> {
             }
 
             ast::Expression::Trim { removal_char, string, .. } => {
-                removal_char.as_ref().map_or(false, |e| self.expression_references_column(e))
+                removal_char.as_ref().is_some_and(|e| self.expression_references_column(e))
                     || self.expression_references_column(string)
             }
 
@@ -63,7 +63,7 @@ impl<'a> SelectExecutor<'a> {
             }
 
             ast::Expression::Case { operand, when_clauses, else_result } => {
-                operand.as_ref().map_or(false, |e| self.expression_references_column(e))
+                operand.as_ref().is_some_and(|e| self.expression_references_column(e))
                     || when_clauses.iter().any(|when_clause| {
                         when_clause
                             .conditions
@@ -71,7 +71,7 @@ impl<'a> SelectExecutor<'a> {
                             .any(|cond| self.expression_references_column(cond))
                             || self.expression_references_column(&when_clause.result)
                     })
-                    || else_result.as_ref().map_or(false, |e| self.expression_references_column(e))
+                    || else_result.as_ref().is_some_and(|e| self.expression_references_column(e))
             }
 
             ast::Expression::WindowFunction { function, over } => {
@@ -85,11 +85,11 @@ impl<'a> SelectExecutor<'a> {
                 };
 
                 // Check PARTITION BY and ORDER BY clauses
-                let partition_references = over.partition_by.as_ref().map_or(false, |exprs| {
+                let partition_references = over.partition_by.as_ref().is_some_and(|exprs| {
                     exprs.iter().any(|e| self.expression_references_column(e))
                 });
 
-                let order_references = over.order_by.as_ref().map_or(false, |items| {
+                let order_references = over.order_by.as_ref().is_some_and(|items| {
                     items.iter().any(|item| self.expression_references_column(&item.expr))
                 });
 
@@ -104,7 +104,6 @@ impl<'a> SelectExecutor<'a> {
             ast::Expression::CurrentDate => false,
             ast::Expression::CurrentTime { .. } => false,
             ast::Expression::CurrentTimestamp { .. } => false,
-            ast::Expression::Default => false, // DEFAULT keyword doesn't reference columns
         }
     }
 }

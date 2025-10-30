@@ -270,7 +270,7 @@ fn test_all_quantifier() {
         "SELECT name FROM customers WHERE customer_id <> ALL (SELECT customer_id FROM orders WHERE amount < 150)"
     ).unwrap();
 
-    assert!(results.len() >= 1);
+    assert!(!results.is_empty());
 }
 
 #[test]
@@ -295,7 +295,7 @@ fn test_any_with_greater_than() {
         "SELECT order_id FROM orders WHERE amount > ANY (SELECT amount FROM orders WHERE customer_id = 1)"
     ).unwrap();
 
-    assert!(results.len() >= 1);
+    assert!(!results.is_empty());
 }
 
 #[test]

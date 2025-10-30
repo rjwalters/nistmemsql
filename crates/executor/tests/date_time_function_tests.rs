@@ -10,9 +10,7 @@
 
 mod common;
 
-use ast;
 use common::create_test_evaluator;
-use types;
 
 // ==================== CURRENT DATE/TIME FUNCTIONS ====================
 
@@ -544,7 +542,7 @@ fn test_extract_from_current_date() {
     // Should return an integer year (e.g., 2024, 2025)
     match result {
         types::SqlValue::Integer(year) => {
-            assert!(year >= 2024 && year <= 2100, "Year should be reasonable: {}", year);
+            assert!((2024..=2100).contains(&year), "Year should be reasonable: {}", year);
         }
         _ => panic!("YEAR should return Integer"),
     }
@@ -564,7 +562,7 @@ fn test_extract_from_current_timestamp() {
     // Should return an integer hour (0-23)
     match result {
         types::SqlValue::Integer(hour) => {
-            assert!(hour >= 0 && hour <= 23, "Hour should be 0-23: {}", hour);
+            assert!((0..=23).contains(&hour), "Hour should be 0-23: {}", hour);
         }
         _ => panic!("HOUR should return Integer"),
     }

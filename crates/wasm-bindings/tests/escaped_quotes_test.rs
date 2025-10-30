@@ -31,25 +31,21 @@ fn test_insert_with_escaped_quotes() {
     }
 
     // Insert products with escaped quotes (products 1-5 from Northwind sample)
-    let inserts = vec![
-        "INSERT INTO products VALUES (1, 'Chai', 1, 18.0, 39, 0);",
+    let inserts = ["INSERT INTO products VALUES (1, 'Chai', 1, 18.0, 39, 0);",
         "INSERT INTO products VALUES (2, 'Chang', 1, 19.0, 17, 40);",
         "INSERT INTO products VALUES (3, 'Aniseed Syrup', 2, 10.0, 13, 70);",
         "INSERT INTO products VALUES (4, 'Chef Anton''s Cajun Seasoning', 2, 22.0, 53, 0);",
-        "INSERT INTO products VALUES (5, 'Chef Anton''s Gumbo Mix', 2, 21.35, 0, 0);",
-    ];
+        "INSERT INTO products VALUES (5, 'Chef Anton''s Gumbo Mix', 2, 21.35, 0, 0);"];
 
     for (i, insert_sql) in inserts.iter().enumerate() {
-        let stmt = Parser::parse_sql(insert_sql).expect(&format!(
-            "Failed to parse INSERT #{}: {}",
+        let stmt = Parser::parse_sql(insert_sql).unwrap_or_else(|_| panic!("Failed to parse INSERT #{}: {}",
             i + 1,
-            insert_sql
-        ));
+            insert_sql));
 
         match stmt {
             ast::Statement::Insert(insert_stmt) => {
                 let rows_inserted = InsertExecutor::execute(&mut db, &insert_stmt)
-                    .expect(&format!("Failed to execute INSERT #{}: {}", i + 1, insert_sql));
+                    .unwrap_or_else(|_| panic!("Failed to execute INSERT #{}: {}", i + 1, insert_sql));
                 assert_eq!(rows_inserted, 1, "Expected 1 row inserted for product {}", i + 1);
             }
             _ => panic!("Expected INSERT statement"),

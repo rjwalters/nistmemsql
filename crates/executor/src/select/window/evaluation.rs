@@ -97,7 +97,7 @@ fn evaluate_window_function_for_partition(
                 }
             };
             crate::evaluator::window::evaluate_ntile(partition, n)
-                .map_err(|e| ExecutorError::UnsupportedExpression(e))?
+                .map_err(ExecutorError::UnsupportedExpression)?
         }
         _ => {
             // Handle aggregate functions that use frames

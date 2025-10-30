@@ -15,7 +15,7 @@ impl Parser {
                     // This is handled by parse_function_call, return None
                     // We need to rewind
                     self.position -= 1;
-                    return Ok(None);
+                    Ok(None)
                 }
                 // Check for qualified column reference (table.column)
                 else if matches!(self.peek(), Token::Symbol('.')) {

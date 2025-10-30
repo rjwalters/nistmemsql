@@ -5,7 +5,7 @@ use crate::errors::ExecutorError;
 use crate::evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator};
 use crate::select::grouping::AggregateAccumulator;
 
-impl<'a> SelectExecutor<'a> {
+impl SelectExecutor<'_> {
     /// Evaluate an expression in the context of aggregation
     #[allow(clippy::only_used_in_recursion)]
     pub(in crate::select::executor) fn evaluate_with_aggregates(

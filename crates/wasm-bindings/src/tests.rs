@@ -345,7 +345,7 @@ mod tests {
             let mut skipped_by_feature: std::collections::HashMap<&str, Vec<&str>> =
                 std::collections::HashMap::new();
             for (id, feature) in &skipped_examples {
-                skipped_by_feature.entry(*feature).or_insert_with(Vec::new).push(id.as_str());
+                skipped_by_feature.entry(*feature).or_default().push(id.as_str());
             }
             for (feature, ids) in skipped_by_feature {
                 eprintln!("  {} ({}): {}", feature, ids.len(), ids.join(", "));

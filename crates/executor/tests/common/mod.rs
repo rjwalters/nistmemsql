@@ -1,12 +1,10 @@
 //! Common test utilities for executor tests
 
-use catalog;
 use executor::ExpressionEvaluator;
-use storage;
-use types;
 
 /// Creates a test evaluator with a simple schema for testing.
 /// Returns an evaluator and a simple test row.
+#[allow(dead_code)] // Test helper - available for all test modules
 pub fn create_test_evaluator() -> (ExpressionEvaluator<'static>, storage::Row) {
     let schema = Box::leak(Box::new(catalog::TableSchema::new(
         "test".to_string(),
@@ -21,6 +19,7 @@ pub fn create_test_evaluator() -> (ExpressionEvaluator<'static>, storage::Row) {
 
 /// Sets up the standard employees test table with sample data.
 /// This table is used across multiple update test files.
+#[allow(dead_code)] // Test helper - available for all test modules
 pub fn setup_test_table(db: &mut storage::Database) {
     // Create table schema
     let schema = catalog::TableSchema::new(
