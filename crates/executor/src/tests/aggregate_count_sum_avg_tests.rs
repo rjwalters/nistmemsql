@@ -40,7 +40,7 @@ fn test_count_star_no_group_by() {
             expr: ast::Expression::Function {
                 name: "COUNT".to_string(),
                 args: vec![ast::Expression::Wildcard],
-            , character_unit: None,
+                character_unit: None,
             },
             alias: None,
         }],
@@ -97,6 +97,7 @@ fn test_sum_no_group_by() {
                     table: None,
                     column: "amount".to_string(),
                 }],
+                character_unit: None,
             },
             alias: None,
         }],
@@ -151,7 +152,7 @@ fn test_count_with_nulls() {
             expr: ast::Expression::Function {
                 name: "COUNT".to_string(),
                 args: vec![ast::Expression::Wildcard],
-            , character_unit: None,
+                character_unit: None,
             },
             alias: None,
         }],
@@ -205,6 +206,7 @@ fn test_sum_with_nulls() {
             expr: ast::Expression::Function {
                 name: "SUM".to_string(),
                 args: vec![ast::Expression::ColumnRef { table: None, column: "value".to_string() }],
+                character_unit: None,
             },
             alias: None,
         }],
@@ -259,6 +261,7 @@ fn test_avg_function() {
             expr: ast::Expression::Function {
                 name: "AVG".to_string(),
                 args: vec![ast::Expression::ColumnRef { table: None, column: "score".to_string() }],
+                character_unit: None,
             },
             alias: None,
         }],
@@ -316,6 +319,7 @@ fn test_avg_with_nulls() {
                     table: None,
                     column: "rating".to_string(),
                 }],
+                character_unit: None,
             },
             alias: None,
         }],
@@ -373,6 +377,7 @@ fn test_count_column_all_nulls() {
             expr: ast::Expression::Function {
                 name: "COUNT".to_string(),
                 args: vec![ast::Expression::ColumnRef { table: None, column: "value".to_string() }],
+                character_unit: None,
             },
             alias: None,
         }],
@@ -398,7 +403,7 @@ fn test_count_column_all_nulls() {
             expr: ast::Expression::Function {
                 name: "COUNT".to_string(),
                 args: vec![ast::Expression::Wildcard],
-            , character_unit: None,
+                character_unit: None,
             },
             alias: None,
         }],

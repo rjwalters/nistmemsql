@@ -138,7 +138,7 @@ fn test_select_function_call() {
             expr: ast::Expression::Function {
                 name: "UPPER".to_string(),
                 args: vec![ast::Expression::Literal(types::SqlValue::Varchar("hello".to_string()))],
-            , character_unit: None,
+                character_unit: None,
             },
             alias: Some("upper".to_string()),
         }],
