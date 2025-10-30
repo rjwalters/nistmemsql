@@ -74,7 +74,7 @@ pub fn asin(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         SqlValue::Null => Ok(SqlValue::Null),
         val => {
             let x = numeric_to_f64(val)?;
-            if x < -1.0 || x > 1.0 {
+            if !(-1.0..=1.0).contains(&x) {
                 Err(ExecutorError::UnsupportedFeature(
                     "ASIN requires value between -1 and 1".to_string(),
                 ))
@@ -98,7 +98,7 @@ pub fn acos(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         SqlValue::Null => Ok(SqlValue::Null),
         val => {
             let x = numeric_to_f64(val)?;
-            if x < -1.0 || x > 1.0 {
+            if !(-1.0..=1.0).contains(&x) {
                 Err(ExecutorError::UnsupportedFeature(
                     "ACOS requires value between -1 and 1".to_string(),
                 ))

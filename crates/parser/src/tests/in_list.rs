@@ -27,7 +27,7 @@ fn test_parse_in_with_integer_list() {
             assert!(matches!(values[2], ast::Expression::Literal(types::SqlValue::Integer(3))));
 
             // Not negated
-            assert_eq!(*negated, false);
+            assert!(!(*negated));
         } else {
             panic!("Expected InList expression");
         }
@@ -67,7 +67,7 @@ fn test_parse_not_in_with_value_list() {
 
         // Should be an InList expression with negated=true
         if let ast::Expression::InList { negated, values, .. } = &select.where_clause.unwrap() {
-            assert_eq!(*negated, true, "NOT IN should set negated=true");
+            assert!(*negated, "NOT IN should set negated=true");
             assert_eq!(values.len(), 2);
         } else {
             panic!("Expected InList expression");

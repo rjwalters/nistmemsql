@@ -3,7 +3,7 @@ use super::super::pattern::like_match;
 ///! Predicate evaluation for combined expressions (BETWEEN, LIKE, IN)
 use crate::errors::ExecutorError;
 
-impl<'a> CombinedExpressionEvaluator<'a> {
+impl CombinedExpressionEvaluator<'_> {
     /// Evaluate BETWEEN predicate: expr BETWEEN low AND high
     /// Equivalent to: expr >= low AND expr <= high
     /// If negated: expr < low OR expr > high

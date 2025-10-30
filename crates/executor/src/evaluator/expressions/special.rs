@@ -4,7 +4,7 @@ use super::super::core::ExpressionEvaluator;
 use super::super::functions::eval_scalar_function;
 use crate::errors::ExecutorError;
 
-impl<'a> ExpressionEvaluator<'a> {
+impl ExpressionEvaluator<'_> {
     /// Evaluate CASE expression
     pub(super) fn eval_case(
         &self,

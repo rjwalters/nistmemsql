@@ -150,7 +150,7 @@ impl UpdateExecutor {
                 for (col_idx, col) in schema.columns.iter().enumerate() {
                     let value = new_row
                         .get(col_idx)
-                        .ok_or_else(|| ExecutorError::ColumnIndexOutOfBounds { index: col_idx })?;
+                        .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: col_idx })?;
 
                     if !col.nullable && *value == types::SqlValue::Null {
                         return Err(ExecutorError::ConstraintViolation(format!(
@@ -229,7 +229,7 @@ impl UpdateExecutor {
 
                 // Enforce CHECK constraints
                 if !schema.check_constraints.is_empty() {
-                    let evaluator = crate::evaluator::ExpressionEvaluator::new(&schema);
+                    let evaluator = crate::evaluator::ExpressionEvaluator::new(schema);
 
                     for (constraint_name, check_expr) in &schema.check_constraints {
                         // Evaluate the CHECK expression against the updated row

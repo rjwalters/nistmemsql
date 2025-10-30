@@ -18,7 +18,7 @@ impl BeginTransactionExecutor {
             ExecutorError::StorageError(format!("Failed to begin transaction: {}", e))
         })?;
 
-        Ok(format!("Transaction started"))
+        Ok("Transaction started".to_string())
     }
 }
 
@@ -32,7 +32,7 @@ impl CommitExecutor {
             ExecutorError::StorageError(format!("Failed to commit transaction: {}", e))
         })?;
 
-        Ok(format!("Transaction committed"))
+        Ok("Transaction committed".to_string())
     }
 }
 
@@ -46,7 +46,7 @@ impl RollbackExecutor {
             ExecutorError::StorageError(format!("Failed to rollback transaction: {}", e))
         })?;
 
-        Ok(format!("Transaction rolled back"))
+        Ok("Transaction rolled back".to_string())
     }
 }
 

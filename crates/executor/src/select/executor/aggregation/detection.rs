@@ -2,7 +2,7 @@
 
 use super::super::builder::SelectExecutor;
 
-impl<'a> SelectExecutor<'a> {
+impl SelectExecutor<'_> {
     /// Check if SELECT list contains aggregate functions
     pub(in crate::select::executor) fn has_aggregates(
         &self,

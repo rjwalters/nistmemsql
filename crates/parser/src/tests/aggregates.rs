@@ -17,7 +17,7 @@ fn test_parse_count_star() {
                 ast::SelectItem::Expression { expr, .. } => match expr {
                     ast::Expression::AggregateFunction { name, distinct, args } => {
                         assert_eq!(name, "COUNT");
-                        assert_eq!(*distinct, false);
+                        assert!(!(*distinct));
                         assert_eq!(args.len(), 1);
                         // COUNT(*) is represented as a special wildcard expression
                     }
@@ -41,7 +41,7 @@ fn test_parse_count_column() {
             ast::SelectItem::Expression { expr, .. } => match expr {
                 ast::Expression::AggregateFunction { name, distinct, args } => {
                     assert_eq!(name, "COUNT");
-                    assert_eq!(*distinct, false);
+                    assert!(!(*distinct));
                     assert_eq!(args.len(), 1);
                     match &args[0] {
                         ast::Expression::ColumnRef { column, .. } if column == "id" => {}
@@ -67,7 +67,7 @@ fn test_parse_sum_function() {
             ast::SelectItem::Expression { expr, .. } => match expr {
                 ast::Expression::AggregateFunction { name, distinct, args } => {
                     assert_eq!(name, "SUM");
-                    assert_eq!(*distinct, false);
+                    assert!(!(*distinct));
                     assert_eq!(args.len(), 1);
                 }
                 _ => panic!("Expected SUM aggregate function"),

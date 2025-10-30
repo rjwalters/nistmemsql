@@ -447,7 +447,7 @@ mod tests {
 
         for (input, expected) in test_cases {
             let mut lexer = Lexer::new(input);
-            let tokens = lexer.tokenize().expect(&format!("Failed to tokenize: {}", input));
+            let tokens = lexer.tokenize().unwrap_or_else(|_| panic!("Failed to tokenize: {}", input));
 
             // Should have exactly 2 tokens: the number and EOF
             assert_eq!(tokens.len(), 2, "Input: {}", input);
@@ -468,7 +468,7 @@ mod tests {
 
         for (input, expected) in test_cases {
             let mut lexer = Lexer::new(input);
-            let tokens = lexer.tokenize().expect(&format!("Failed to tokenize: {}", input));
+            let tokens = lexer.tokenize().unwrap_or_else(|_| panic!("Failed to tokenize: {}", input));
 
             assert_eq!(tokens.len(), 2, "Input: {}", input);
 
