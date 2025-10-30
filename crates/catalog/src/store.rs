@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::advanced_objects::{CharacterSet, Collation, Sequence, Translation, UserDefinedType};
 use crate::domain::DomainDefinition;
 use crate::errors::CatalogError;
 use crate::privilege::PrivilegeGrant;
@@ -13,7 +14,13 @@ pub struct Catalog {
     current_schema: String,
     privilege_grants: Vec<PrivilegeGrant>,
     roles: HashSet<String>,
+    // Advanced SQL:1999 objects
     domains: HashMap<String, DomainDefinition>,
+    sequences: HashMap<String, Sequence>,
+    types: HashMap<String, UserDefinedType>,
+    collations: HashMap<String, Collation>,
+    character_sets: HashMap<String, CharacterSet>,
+    translations: HashMap<String, Translation>,
 }
 
 impl Catalog {
@@ -25,6 +32,11 @@ impl Catalog {
             privilege_grants: Vec::new(),
             roles: HashSet::new(),
             domains: HashMap::new(),
+            sequences: HashMap::new(),
+            types: HashMap::new(),
+            collations: HashMap::new(),
+            character_sets: HashMap::new(),
+            translations: HashMap::new(),
         };
 
         // Create the default "public" schema
@@ -287,8 +299,12 @@ impl Catalog {
         self.roles.iter().cloned().collect()
     }
 
+    // ========================================================================
+    // Advanced SQL:1999 Object Management
+    // ========================================================================
+
     // ============================================================================
-    // Domain Management Methods
+    // Domain Management Methods (Full Implementation)
     // ============================================================================
 
     /// Create a new domain.
@@ -341,6 +357,95 @@ impl Catalog {
     /// List all domain names.
     pub fn list_domains(&self) -> Vec<String> {
         self.domains.keys().cloned().collect()
+    }
+
+    // ============================================================================
+    // Other Advanced SQL Objects (Stub Implementations)
+    // ============================================================================
+
+    /// Create a SEQUENCE
+    pub fn create_sequence(&mut self, name: String) -> Result<(), CatalogError> {
+        if self.sequences.contains_key(&name) {
+            return Err(CatalogError::SequenceAlreadyExists(name));
+        }
+        self.sequences.insert(name.clone(), Sequence::new(name));
+        Ok(())
+    }
+
+    /// Drop a SEQUENCE
+    pub fn drop_sequence(&mut self, name: &str) -> Result<(), CatalogError> {
+        self.sequences
+            .remove(name)
+            .map(|_| ())
+            .ok_or_else(|| CatalogError::SequenceNotFound(name.to_string()))
+    }
+
+    /// Create a TYPE
+    pub fn create_type(&mut self, name: String) -> Result<(), CatalogError> {
+        if self.types.contains_key(&name) {
+            return Err(CatalogError::TypeAlreadyExists(name));
+        }
+        self.types.insert(name.clone(), UserDefinedType::new(name));
+        Ok(())
+    }
+
+    /// Drop a TYPE
+    pub fn drop_type(&mut self, name: &str) -> Result<(), CatalogError> {
+        self.types
+            .remove(name)
+            .map(|_| ())
+            .ok_or_else(|| CatalogError::TypeNotFound(name.to_string()))
+    }
+
+    /// Create a COLLATION
+    pub fn create_collation(&mut self, name: String) -> Result<(), CatalogError> {
+        if self.collations.contains_key(&name) {
+            return Err(CatalogError::CollationAlreadyExists(name));
+        }
+        self.collations.insert(name.clone(), Collation::new(name));
+        Ok(())
+    }
+
+    /// Drop a COLLATION
+    pub fn drop_collation(&mut self, name: &str) -> Result<(), CatalogError> {
+        self.collations
+            .remove(name)
+            .map(|_| ())
+            .ok_or_else(|| CatalogError::CollationNotFound(name.to_string()))
+    }
+
+    /// Create a CHARACTER SET
+    pub fn create_character_set(&mut self, name: String) -> Result<(), CatalogError> {
+        if self.character_sets.contains_key(&name) {
+            return Err(CatalogError::CharacterSetAlreadyExists(name));
+        }
+        self.character_sets.insert(name.clone(), CharacterSet::new(name));
+        Ok(())
+    }
+
+    /// Drop a CHARACTER SET
+    pub fn drop_character_set(&mut self, name: &str) -> Result<(), CatalogError> {
+        self.character_sets
+            .remove(name)
+            .map(|_| ())
+            .ok_or_else(|| CatalogError::CharacterSetNotFound(name.to_string()))
+    }
+
+    /// Create a TRANSLATION
+    pub fn create_translation(&mut self, name: String) -> Result<(), CatalogError> {
+        if self.translations.contains_key(&name) {
+            return Err(CatalogError::TranslationAlreadyExists(name));
+        }
+        self.translations.insert(name.clone(), Translation::new(name));
+        Ok(())
+    }
+
+    /// Drop a TRANSLATION
+    pub fn drop_translation(&mut self, name: &str) -> Result<(), CatalogError> {
+        self.translations
+            .remove(name)
+            .map(|_| ())
+            .ok_or_else(|| CatalogError::TranslationNotFound(name.to_string()))
     }
 }
 

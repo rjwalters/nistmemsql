@@ -3,6 +3,7 @@
 //! Provides metadata structures for tables and columns along with the catalog
 //! registry that tracks table schemas.
 
+mod advanced_objects;
 mod column;
 mod domain;
 pub mod errors;
@@ -12,6 +13,9 @@ mod schema;
 mod store;
 mod table;
 
+pub use advanced_objects::{
+    CharacterSet, Collation, Domain, Sequence, Translation, UserDefinedType,
+};
 pub use column::ColumnSchema;
 pub use domain::{DomainConstraintDef, DomainDefinition};
 pub use errors::CatalogError;

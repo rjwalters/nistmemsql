@@ -678,19 +678,18 @@ ORDER BY avg_salary DESC;
   END as price_category
 FROM products
 ORDER BY unit_price;
--- ⏭️ SKIP: CASE expressions have type coercion issues with numeric literals (Float vs Integer comparison);
 -- EXPECTED:
--- | product_name                    | unit_price | price_category | 
--- | Konbu                           | 6.0        | Budget         | 
--- | Teatime Chocolate Biscuits      | 9.2        | Budget         | 
--- | Aniseed Syrup                   | 10.0       | Standard       | 
--- | Genen Shouyu                    | 15.5       | Standard       | 
--- | Pavlova                         | 17.45      | Standard       | 
--- | Chai                            | 18.0       | Standard       | 
--- | Chang                           | 19.0       | Standard       | 
--- | Queso Cabrales                  | 21.0       | Standard       | 
--- | Chef Anton's Gumbo Mix          | 21.35      | Standard       | 
--- | Chef Anton's Cajun Seasoning    | 22.0       | Standard       | 
+-- | product_name                    | unit_price | price_category |
+-- | Konbu                           | 6.0        | Budget         |
+-- | Teatime Chocolate Biscuits      | 9.2        | Budget         |
+-- | Aniseed Syrup                   | 10.0       | Standard       |
+-- | Genen Shouyu                    | 15.5       | Standard       |
+-- | Pavlova                         | 17.45      | Standard       |
+-- | Chai                            | 18.0       | Standard       |
+-- | Chang                           | 19.0       | Standard       |
+-- | Queso Cabrales                  | 21.0       | Standard       |
+-- | Chef Anton's Gumbo Mix          | 21.35      | Standard       |
+-- | Chef Anton's Cajun Seasoning    | 22.0       | Standard       |
 -- (20 rows)`,
         description: 'Categorize products by price range',
         sqlFeatures: ['CASE', 'WHEN', 'ELSE', 'END'],
@@ -2419,7 +2418,19 @@ LIMIT 15;
 FROM products
 ORDER BY inventory_value DESC
 LIMIT 10;
--- ⏭️ SKIP: Arithmetic with COALESCE - may have type coercion issues`,
+-- EXPECTED:
+-- | product_name                     | unit_price | units_in_stock | inventory_value |
+-- | Mishi Kobe Niku                  | 97.0       | 29             | 2813.0          |
+-- | Chai                             | 18.0       | 39             | 702.0           |
+-- | Northwoods Cranberry Sauce       | 40.0       | 6              | 240.0           |
+-- | Chang                            | 19.0       | 17             | 323.0           |
+-- | Aniseed Syrup                    | 10.0       | 13             | 130.0           |
+-- | Chef Anton's Cajun Seasoning     | 22.0       | 53             | 1166.0          |
+-- | Grandma's Boysenberry Spread     | 25.0       | 120            | 3000.0          |
+-- | Uncle Bob's Organic Dried Pears  | 30.0       | 15             | 450.0           |
+-- | Queso Cabrales                   | 21.0       | 22             | 462.0           |
+-- | Ikura                            | 31.0       | 31             | 961.0           |
+-- (10 rows)`,
         description: 'Use COALESCE for NULL-safe arithmetic operations',
         sqlFeatures: ['COALESCE', 'Calculated fields', 'NULL-safe arithmetic'],
       },
@@ -2436,7 +2447,17 @@ FROM categories c
 LEFT JOIN products p ON c.category_id = p.category_id
 GROUP BY c.category_name
 ORDER BY product_count DESC;
--- ⏭️ SKIP: Complex aggregation with COALESCE - may have type coercion issues`,
+-- EXPECTED:
+-- | category_name  | product_count | avg_price | total_stock |
+-- | Beverages      | 12            | 37.98     | 559         |
+-- | Condiments     | 12            | 23.06     | 507         |
+-- | Confections    | 13            | 25.16     | 386         |
+-- | Dairy Products | 10            | 28.73     | 393         |
+-- | Grains/Cereals | 7             | 32.37     | 308         |
+-- | Meat/Poultry   | 6             | 54.01     | 165         |
+-- | Produce        | 5             | 32.37     | 100         |
+-- | Seafood        | 12            | 20.68     | 701         |
+-- (8 rows)`,
         description: 'Handle NULL results from LEFT JOIN aggregates with COALESCE',
         sqlFeatures: [
           'COALESCE',
@@ -2480,19 +2501,18 @@ LIMIT 10;
   END AS inventory_status
 FROM products
 ORDER BY COALESCE(units_in_stock, 0);
--- ⏭️ SKIP: CASE expressions with COALESCE - type coercion issues with comparisons;
 -- EXPECTED:
--- | product_name                    | units_in_stock | units_on_order | inventory_status | 
--- | Chef Anton's Gumbo Mix          | 0              | 0              | Out of Stock     | 
--- | Alice Mutton                    | 0              | 0              | Out of Stock     | 
--- | Northwoods Cranberry Sauce      | 6              | 0              | Low Stock        | 
--- | Aniseed Syrup                   | 13             | 70             | In Stock         | 
--- | Uncle Bob's Organic Dried Pears | 15             | 0              | In Stock         | 
--- | Chang                           | 17             | 40             | In Stock         | 
--- | Queso Cabrales                  | 22             | 30             | In Stock         | 
--- | Konbu                           | 24             | 0              | In Stock         | 
--- | Teatime Chocolate Biscuits      | 25             | 0              | In Stock         | 
--- | Mishi Kobe Niku                 | 29             | 0              | In Stock         | 
+-- | product_name                    | units_in_stock | units_on_order | inventory_status |
+-- | Chef Anton's Gumbo Mix          | 0              | 0              | Out of Stock     |
+-- | Alice Mutton                    | 0              | 0              | Out of Stock     |
+-- | Northwoods Cranberry Sauce      | 6              | 0              | Low Stock        |
+-- | Aniseed Syrup                   | 13             | 70             | In Stock         |
+-- | Uncle Bob's Organic Dried Pears | 15             | 0              | In Stock         |
+-- | Chang                           | 17             | 40             | In Stock         |
+-- | Queso Cabrales                  | 22             | 30             | In Stock         |
+-- | Konbu                           | 24             | 0              | In Stock         |
+-- | Teatime Chocolate Biscuits      | 25             | 0              | In Stock         |
+-- | Mishi Kobe Niku                 | 29             | 0              | In Stock         |
 -- (20 rows)`,
         description: 'Use COALESCE for NULL-safe comparisons in business logic',
         sqlFeatures: ['COALESCE', 'CASE', 'NULL-safe comparisons', 'Business logic'],

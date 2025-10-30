@@ -2,6 +2,7 @@
 //!
 //! This crate provides query execution functionality for SQL statements.
 
+mod advanced_objects;
 mod alter;
 mod create_table;
 mod delete;

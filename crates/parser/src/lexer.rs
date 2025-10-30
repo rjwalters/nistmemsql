@@ -269,8 +269,13 @@ impl Lexer {
             "GRANTED" => Token::Keyword(Keyword::Granted),
             // Role management keywords
             "ROLE" => Token::Keyword(Keyword::Role),
-            // Domain management keywords
+            // Advanced SQL object keywords
             "DOMAIN" => Token::Keyword(Keyword::Domain),
+            "SEQUENCE" => Token::Keyword(Keyword::Sequence),
+            "TYPE" => Token::Keyword(Keyword::Type),
+            "COLLATION" => Token::Keyword(Keyword::Collation),
+            "CHARACTER" => Token::Keyword(Keyword::Character),
+            "TRANSLATION" => Token::Keyword(Keyword::Translation),
             _ => Token::Identifier(upper_text), // Regular identifiers are normalized to uppercase
         };
 

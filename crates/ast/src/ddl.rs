@@ -180,6 +180,10 @@ pub struct DropRoleStmt {
     pub role_name: String,
 }
 
+// ============================================================================
+// Advanced SQL Object Statements (SQL:1999)
+// ============================================================================
+
 /// CREATE DOMAIN statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct CreateDomainStmt {
@@ -201,4 +205,64 @@ pub struct DomainConstraint {
 pub struct DropDomainStmt {
     pub domain_name: String,
     pub cascade: bool, // true for CASCADE, false for RESTRICT
+}
+
+/// CREATE SEQUENCE statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreateSequenceStmt {
+    pub sequence_name: String,
+}
+
+/// DROP SEQUENCE statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropSequenceStmt {
+    pub sequence_name: String,
+}
+
+/// CREATE TYPE statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreateTypeStmt {
+    pub type_name: String,
+}
+
+/// DROP TYPE statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropTypeStmt {
+    pub type_name: String,
+}
+
+/// CREATE COLLATION statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreateCollationStmt {
+    pub collation_name: String,
+}
+
+/// DROP COLLATION statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropCollationStmt {
+    pub collation_name: String,
+}
+
+/// CREATE CHARACTER SET statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreateCharacterSetStmt {
+    pub charset_name: String,
+}
+
+/// DROP CHARACTER SET statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropCharacterSetStmt {
+    pub charset_name: String,
+}
+
+/// CREATE TRANSLATION statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreateTranslationStmt {
+    pub translation_name: String,
+}
+
+/// DROP TRANSLATION statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropTranslationStmt {
+    pub translation_name: String,
 }

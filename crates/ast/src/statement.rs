@@ -3,10 +3,12 @@
 //! This module defines the Statement enum that represents all possible SQL statements.
 
 use crate::{
-    AlterTableStmt, BeginStmt, CommitStmt, CreateDomainStmt, CreateRoleStmt, CreateSchemaStmt,
-    CreateTableStmt, DeleteStmt, DropDomainStmt, DropRoleStmt, DropSchemaStmt, DropTableStmt,
-    GrantStmt, InsertStmt, ReleaseSavepointStmt, RevokeStmt, RollbackStmt,
-    RollbackToSavepointStmt, SavepointStmt, SelectStmt, SetSchemaStmt, UpdateStmt,
+    AlterTableStmt, BeginStmt, CommitStmt, CreateCharacterSetStmt, CreateCollationStmt,
+    CreateDomainStmt, CreateRoleStmt, CreateSchemaStmt, CreateSequenceStmt, CreateTableStmt,
+    CreateTranslationStmt, CreateTypeStmt, DeleteStmt, DropCharacterSetStmt, DropCollationStmt,
+    DropDomainStmt, DropRoleStmt, DropSchemaStmt, DropSequenceStmt, DropTableStmt,
+    DropTranslationStmt, DropTypeStmt, GrantStmt, InsertStmt, ReleaseSavepointStmt, RevokeStmt,
+    RollbackStmt, RollbackToSavepointStmt, SavepointStmt, SelectStmt, SetSchemaStmt, UpdateStmt,
 };
 
 // ============================================================================
@@ -28,8 +30,6 @@ pub enum Statement {
     SetSchema(SetSchemaStmt),
     CreateRole(CreateRoleStmt),
     DropRole(DropRoleStmt),
-    CreateDomain(CreateDomainStmt),
-    DropDomain(DropDomainStmt),
     BeginTransaction(BeginStmt),
     Commit(CommitStmt),
     Rollback(RollbackStmt),
@@ -38,5 +38,18 @@ pub enum Statement {
     ReleaseSavepoint(ReleaseSavepointStmt),
     Grant(GrantStmt),
     Revoke(RevokeStmt),
+    // Advanced SQL object statements (SQL:1999)
+    CreateDomain(CreateDomainStmt),
+    DropDomain(DropDomainStmt),
+    CreateSequence(CreateSequenceStmt),
+    DropSequence(DropSequenceStmt),
+    CreateType(CreateTypeStmt),
+    DropType(DropTypeStmt),
+    CreateCollation(CreateCollationStmt),
+    DropCollation(DropCollationStmt),
+    CreateCharacterSet(CreateCharacterSetStmt),
+    DropCharacterSet(DropCharacterSetStmt),
+    CreateTranslation(CreateTranslationStmt),
+    DropTranslation(DropTranslationStmt),
     // TODO: Add more statement types (ALTER, etc.)
 }
