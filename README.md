@@ -4,7 +4,7 @@
 [![Tests](https://github.com/rjwalters/nistmemsql/actions/workflows/test.yml/badge.svg)](https://github.com/rjwalters/nistmemsql/actions/workflows/test.yml)
 [![Demo](https://img.shields.io/badge/demo-live-success)](https://rjwalters.github.io/nistmemsql/)
 [![Coverage](https://img.shields.io/badge/coverage-84%25-green)](https://github.com/rjwalters/nistmemsql)
-[![SQL:1999 Conformance](https://img.shields.io/endpoint?url=https://rjwalters.github.io/nistmemsql/badges/sql1999-conformance.json)](https://rjwalters.github.io/nistmemsql/conformance.html)
+[![SQL:1999 CORE](https://img.shields.io/endpoint?url=https://rjwalters.github.io/nistmemsql/badges/sql1999-conformance.json)](https://rjwalters.github.io/nistmemsql/conformance.html)
 
 > **An open-source, NIST-testable SQL:1999 database implementation in Rust**
 
