@@ -525,6 +525,12 @@ fn collect_window_functions_from_expression(
         Expression::Literal(_) | Expression::ColumnRef { .. } => {
             // These are leaf nodes
         }
+        Expression::CurrentDate | Expression::CurrentTime { .. } | Expression::CurrentTimestamp { .. } => {
+            // Current date/time functions don't contain window functions
+        }
+        Expression::Default => {
+            // DEFAULT keyword doesn't contain window functions
+        }
     }
 }
 

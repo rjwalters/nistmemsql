@@ -110,6 +110,10 @@ impl<'a> SelectExecutor<'a> {
             ast::Expression::Wildcard => false,
             ast::Expression::ScalarSubquery(_) => false, // Subquery has its own scope
             ast::Expression::Exists { .. } => false,     // Subquery has its own scope
+            ast::Expression::CurrentDate => false,
+            ast::Expression::CurrentTime { .. } => false,
+            ast::Expression::CurrentTimestamp { .. } => false,
+            ast::Expression::Default => false,           // DEFAULT keyword doesn't reference columns
         }
     }
 }

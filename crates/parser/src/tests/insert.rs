@@ -25,6 +25,75 @@ fn test_parse_insert_basic() {
             }
         }
         _ => panic!("Expected INSERT statement"),
+        }
+}
+
+#[test]
+fn test_insert_with_default() {
+    let result = Parser::parse_sql("INSERT INTO users (id, name) VALUES (DEFAULT, 'Alice');");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Insert(insert) => {
+            assert_eq!(insert.table_name, "users");
+            match &insert.source {
+                ast::InsertSource::Values(values) => {
+                    assert_eq!(values.len(), 1); // One row
+                    assert_eq!(values[0].len(), 2); // Two values
+                    // Check that first value is DEFAULT
+                    match &values[0][0] {
+                        ast::Expression::Default => {
+                            // Success - parsed as Default expression
+                        }
+                        _ => panic!("Expected DEFAULT expression, got {:?}", values[0][0]),
+                    }
+                    // Check that second value is a string literal
+                    match &values[0][1] {
+                    ast::Expression::Literal(types::SqlValue::Varchar(s)) => {
+                    assert_eq!(s, "Alice");
+                    }
+                    _ => panic!("Expected string literal 'Alice', got {:?}", values[0][1]),
+                    }
+                }
+                _ => panic!("Expected VALUES source"),
+            }
+        }
+        _ => panic!("Expected INSERT statement"),
+    }
+}
+
+#[test]
+fn test_insert_multiple_defaults() {
+    let result = Parser::parse_sql("INSERT INTO t VALUES (DEFAULT, DEFAULT);");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Insert(insert) => {
+            assert_eq!(insert.table_name, "t");
+            match &insert.source {
+                ast::InsertSource::Values(values) => {
+                    assert_eq!(values.len(), 1); // One row
+                    assert_eq!(values[0].len(), 2); // Two values
+                    // Check that both values are DEFAULT
+                    match &values[0][0] {
+                        ast::Expression::Default => {
+                            // Success - parsed as Default expression
+                        }
+                        _ => panic!("Expected DEFAULT expression for first value, got {:?}", values[0][0]),
+                    }
+                    match &values[0][1] {
+                        ast::Expression::Default => {
+                            // Success - parsed as Default expression
+                        }
+                        _ => panic!("Expected DEFAULT expression for second value, got {:?}", values[0][1]),
+                    }
+                }
+                _ => panic!("Expected VALUES source"),
+            }
+        }
+        _ => panic!("Expected INSERT statement"),
     }
 }
 

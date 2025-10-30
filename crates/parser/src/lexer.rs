@@ -219,6 +219,9 @@ impl Lexer {
             "FOLLOWING" => Token::Keyword(Keyword::Following),
             "UNBOUNDED" => Token::Keyword(Keyword::Unbounded),
             "CURRENT" => Token::Keyword(Keyword::Current),
+            "CURRENT_DATE" => Token::Keyword(Keyword::CurrentDate),
+            "CURRENT_TIME" => Token::Keyword(Keyword::CurrentTime),
+            "CURRENT_TIMESTAMP" => Token::Keyword(Keyword::CurrentTimestamp),
             // Note: ROW_NUMBER, RANK, DENSE_RANK, NTILE, LAG, LEAD are treated as
             // identifiers (function names), not keywords. They are classified as
             // window functions by the parser's classify_window_function() method.

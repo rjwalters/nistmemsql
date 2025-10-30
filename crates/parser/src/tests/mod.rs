@@ -5,6 +5,7 @@ mod alter_table;
 mod case_expression;
 mod create_table;
 mod cte;
+mod datetime;
 mod delete;
 mod display;
 mod errors;

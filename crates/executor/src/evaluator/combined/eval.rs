@@ -91,11 +91,17 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 self.eval_cast(expr, data_type, row)
             }
 
-            // TRIM expression: TRIM([position] [removal_char FROM] string)
-            ast::Expression::Trim { position, removal_char, string } => {
-                self.eval_trim(position, removal_char, string, row)
+            // POSITION expression: POSITION(substring IN string)
+            ast::Expression::Position { substring, string } => {
+                self.eval_position(substring, string, row)
             }
 
+            // TRIM expression: TRIM([position] [removal_char FROM] string)
+            ast::Expression::Trim {
+                position,
+                removal_char,
+                string,
+            } => self.eval_trim(position, removal_char, string, row),
             // LIKE pattern matching: expr LIKE pattern
             ast::Expression::Like { expr, pattern, negated } => {
                 self.eval_like(expr, pattern, *negated, row)
@@ -124,6 +130,21 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             // Function expressions - handle scalar functions (not aggregates)
             ast::Expression::Function { name, args } => {
                 self.eval_function(name, args, row)
+            }
+
+            // Current date/time functions
+            ast::Expression::CurrentDate => {
+                super::super::functions::eval_scalar_function("CURRENT_DATE", &[])
+            }
+            ast::Expression::CurrentTime { precision: _ } => {
+                // For now, ignore precision and call existing function
+                // Phase 2 will implement precision-aware formatting
+                super::super::functions::eval_scalar_function("CURRENT_TIME", &[])
+            }
+            ast::Expression::CurrentTimestamp { precision: _ } => {
+                // For now, ignore precision and call existing function
+                // Phase 2 will implement precision-aware formatting
+                super::super::functions::eval_scalar_function("CURRENT_TIMESTAMP", &[])
             }
 
             // Unary operations (delegate to shared function)

@@ -248,4 +248,107 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         let result = if negated { !is_null } else { is_null };
         Ok(types::SqlValue::Boolean(result))
     }
+
+    /// Evaluate POSITION expression: POSITION(substring IN string)
+    pub(super) fn eval_position(
+        &self,
+        substring: &ast::Expression,
+        string: &ast::Expression,
+        row: &storage::Row,
+    ) -> Result<types::SqlValue, ExecutorError> {
+        let substring_val = self.eval(substring, row)?;
+        let string_val = self.eval(string, row)?;
+
+        match (&substring_val, &string_val) {
+            (types::SqlValue::Null, _) | (_, types::SqlValue::Null) => {
+                Ok(types::SqlValue::Null)
+            }
+            (
+                types::SqlValue::Varchar(needle) | types::SqlValue::Character(needle),
+                types::SqlValue::Varchar(haystack) | types::SqlValue::Character(haystack),
+            ) => {
+                match haystack.find(needle.as_str()) {
+                    Some(pos) => Ok(types::SqlValue::Integer((pos + 1) as i64)),
+                    None => Ok(types::SqlValue::Integer(0)),
+                }
+            }
+            _ => Err(ExecutorError::TypeMismatch {
+                left: substring_val.clone(),
+                op: "POSITION".to_string(),
+                right: string_val.clone(),
+            }),
+        }
+    }
+
+    /// Evaluate TRIM expression: TRIM([position] [removal_char FROM] string)
+    pub(super) fn eval_trim(
+        &self,
+        position: &Option<ast::TrimPosition>,
+        removal_char: &Option<Box<ast::Expression>>,
+        string: &ast::Expression,
+        row: &storage::Row,
+    ) -> Result<types::SqlValue, ExecutorError> {
+        let string_val = self.eval(string, row)?;
+
+        // Handle NULL string
+        if matches!(string_val, types::SqlValue::Null) {
+            return Ok(types::SqlValue::Null);
+        }
+
+        // Extract the string value
+        let s = match &string_val {
+            types::SqlValue::Varchar(s) | types::SqlValue::Character(s) => s.as_str(),
+            _ => {
+                return Err(ExecutorError::TypeMismatch {
+                    left: string_val.clone(),
+                    op: "TRIM".to_string(),
+                    right: types::SqlValue::Null,
+                })
+            }
+        };
+
+        // Determine the character(s) to remove
+        let char_to_remove: String = if let Some(removal_expr) = removal_char {
+            let removal_val = self.eval(removal_expr, row)?;
+
+            // Handle NULL removal character
+            if matches!(removal_val, types::SqlValue::Null) {
+                return Ok(types::SqlValue::Null);
+            }
+
+            match removal_val {
+                types::SqlValue::Varchar(c) | types::SqlValue::Character(c) => c,
+                _ => {
+                    return Err(ExecutorError::TypeMismatch {
+                        left: removal_val.clone(),
+                        op: "TRIM".to_string(),
+                        right: string_val.clone(),
+                    })
+                }
+            }
+        } else {
+            " ".to_string()
+        };
+
+        // Perform the trim based on position
+        let result = match position {
+            Some(ast::TrimPosition::Leading) => {
+                s.trim_start_matches(char_to_remove.as_str()).to_string()
+            }
+            Some(ast::TrimPosition::Trailing) => {
+                s.trim_end_matches(char_to_remove.as_str()).to_string()
+            }
+            Some(ast::TrimPosition::Both) | None => {
+                let temp = s.trim_start_matches(char_to_remove.as_str());
+                temp.trim_end_matches(char_to_remove.as_str()).to_string()
+            }
+        };
+
+        // Return result in same type as input
+        match string_val {
+            types::SqlValue::Varchar(_) => Ok(types::SqlValue::Varchar(result)),
+            types::SqlValue::Character(_) => Ok(types::SqlValue::Character(result)),
+            _ => unreachable!(),
+        }
+    }
 }

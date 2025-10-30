@@ -70,8 +70,20 @@ We use comprehensive test suites to track SQL:1999 compliance:
 | Suite | Tests | Pass Rate | Status |
 |-------|-------|-----------|--------|
 | SQLLogicTest | 2 baseline | 100% | ✅ Passing |
-| SQL:1999 Core | 100 tests | 42% | 🟡 In Progress |
+| SQL:1999 sqltest | 739 tests | **83.4%** (616 passing) | 🟢 Excellent Progress |
 | End-to-End | 836 tests | ~90% | ✅ Strong |
+
+**Recent Improvements** (Oct 30, 2025): **+6.4% conformance gain!**
+- ✅ **Comparison operators** for VARCHAR, CHAR, DATE, TIME, TIMESTAMP (#396, #398, #403) - 22 tests
+- ✅ **Named constraints** `CONSTRAINT name NOT NULL` (#402) - 15 tests
+- ✅ **Enhanced TRIM** `TRIM(BOTH/LEADING/TRAILING 'x' FROM s)` (#405) - 8 tests
+- ✅ **CAST to VARCHAR** without length `CAST(x AS VARCHAR)` (#404) - 5 tests
+- ✅ **OCTET_LENGTH** function (#395) - 1 test
+
+**Next Focus**: Targeting 87-90%+ conformance
+- String type variants `CHARACTER VARYING` (27 tests)
+- DEFAULT keyword in INSERT/UPDATE (10 tests)
+- CURRENT_* functions without FROM clause (6 tests)
 
 **See [SQL:1999 Conformance Report](https://rjwalters.github.io/nistmemsql/conformance.html) for detailed breakdown.**
 
@@ -114,12 +126,14 @@ This isn't a toy project. A fully SQL:1999 compliant database is a **massive und
 
 This repository is that experiment, documented in real-time:
 
-**Current Results** (4 days in):
-- ✅ 50% of Core SQL:1999 complete
-- ✅ 700+ tests passing (100%)
+**Current Results** (Oct 30, 2025 - Day 6):
+- ✅ **83.4% SQL:1999 conformance** (616/739 tests passing on sqltest suite)
+- ✅ **836+ unit/integration tests passing** (100%)
 - ✅ Complete query engine with JOINs, subqueries, CTEs, aggregates, window functions
-- ✅ 75+ built-in functions (string, date/time, math)
+- ✅ Full transaction support with SAVEPOINT, all constraints enforced
+- ✅ 40+ built-in functions (string, date/time, math)
 - ✅ Live web demo running in browser via WASM
+- 📈 **+6.4% conformance gain** in last 24 hours
 - 📈 Ahead of schedule - **8-10 day Core completion projected**
 
 **The Open Question**: Can Claude Code achieve **FULL SQL:1999 compliance**—something no database has ever accomplished? That would require months more work, implementing ~400+ features including procedural SQL, triggers, advanced types, and the information schema.
@@ -140,17 +154,18 @@ This isn't just about databases. It's about understanding what's now possible wi
 
 ---
 
-## 📊 Current Status (October 29, 2025 - Day 5)
+## 📊 Current Status (October 30, 2025 - Day 6)
 
-### Velocity-Based Progress Tracking
+### SQL:1999 Conformance Progress
 
-**Core SQL:1999 Compliance**: ~70-75% complete in 5 days
+**Current Conformance**: **83.4%** (616/739 tests passing on sqltest suite)
 
-**Demonstrated Velocity**:
-- **Days 1-5** (Oct 25-29): 70-75% complete → **Ahead of schedule!** 🚀
-- **Major Milestones**: Transactions 100% ✅, Constraints 100% ✅, Schema Management ✅
-- **Projected completion**: ~7-8 days total from start
-- **Target date**: November 1-2, 2025
+**Recent Progress**:
+- **Days 1-5** (Oct 25-29): Reached 77% → Foundation built
+- **Day 6** (Oct 30): **+6.4% gain** → 83.4% conformance
+- **Major Milestones**: Transactions ✅, Constraints ✅, Schema Management ✅, Comparison operators ✅
+- **Projected**: 87-90%+ achievable with remaining quick wins
+- **Focus**: String type variants, DEFAULT keyword, CURRENT_* fixes
 
 ### Progress Breakdown by Category
 
@@ -539,16 +554,16 @@ See [WORK_PLAN.md](WORK_PLAN.md) for current priorities.
 
 - **Language**: Rust 🦀
 - **Architecture**: 7-crate workspace
-- **Tests**: 700+ passing (100%)
-- **Coverage**: 85%
-- **LOC**: ~27,000
-- **Project Type**: AI-powered speed run for CORE compliance
+- **Tests**: 836+ unit/integration tests passing (100%), 616/739 conformance tests (83.4%)
+- **Coverage**: ~85%
+- **LOC**: ~30,000+
+- **Project Type**: AI-powered SQL:1999 compliance demonstration
 - **Started**: October 25, 2025
-- **Current Day**: Day 4 (Oct 28, 2025)
-- **Progress**: 50% of Core SQL:1999 → **Phase 4 Complete!** 🚀
-- **Velocity**: Ahead of schedule - 8-10 day completion
-- **Projected Completion**: Nov 2-4, 2025 (8-10 days total)
-- **Approach**: Test-Driven Development
+- **Current Day**: Day 6 (Oct 30, 2025)
+- **Progress**: **83.4% SQL:1999 conformance** (616/739 tests)
+- **Recent Gain**: **+6.4%** conformance in 24 hours
+- **Next Target**: 87-90%+ conformance via remaining quick wins
+- **Approach**: Test-Driven Development with sqltest conformance suite
 - **Orchestration**: Loom AI framework
 
 ---
@@ -611,12 +626,13 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 ---
 
-**Current Focus**: AI speed run to Core SQL:1999 compliance
-- **Day 4 of 8-10** (Oct 28, 2025) - **Phase 4 Complete!** 🚀
-- **50% complete** in 4 days
-- **Velocity**: Ahead of schedule - 8-10 day completion
-- **Target**: Nov 2-4, 2025
+**Current Focus**: SQL:1999 conformance improvement
+- **Day 6** (Oct 30, 2025)
+- **83.4% conformance** (616/739 tests passing)
+- **+6.4% gain** in last 24 hours
+- **Next Target**: 87-90%+ via string type variants, DEFAULT keyword, CURRENT_* fixes
+- **Strategy**: Data-driven prioritization based on test failure analysis
 
-**Ultimate Goal**: FULL SQL:1999 compliance (larger effort, but achievable)
+**Ultimate Goal**: Maximum SQL:1999 compliance through systematic improvement
 
 **Try it now**: [Live Demo →](https://rjwalters.github.io/nistmemsql/)

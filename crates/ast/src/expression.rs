@@ -154,6 +154,18 @@ pub enum Expression {
         subquery: Box<SelectStmt>,
     },
 
+    /// Current date/time functions
+    /// CURRENT_DATE - Returns current date (no precision)
+    /// CURRENT_TIME[(precision)] - Returns current time with optional precision
+    /// CURRENT_TIMESTAMP[(precision)] - Returns current timestamp with optional precision
+    CurrentDate,
+    CurrentTime { precision: Option<u32> },
+    CurrentTimestamp { precision: Option<u32> },
+
+    /// DEFAULT keyword - represents default value for column
+    /// Used in INSERT and UPDATE statements
+    Default,
+
     /// Window function with OVER clause
     /// Example: ROW_NUMBER() OVER (PARTITION BY dept ORDER BY salary DESC)
     /// Example: SUM(amount) OVER (ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)

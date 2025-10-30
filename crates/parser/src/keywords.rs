@@ -112,6 +112,10 @@ pub enum Keyword {
     Octets,
     // SUBSTRING function keywords
     For,
+    // Current date/time function keywords
+    CurrentDate,
+    CurrentTime,
+    CurrentTimestamp,
 }
 
 impl fmt::Display for Keyword {
@@ -214,6 +218,9 @@ impl fmt::Display for Keyword {
             Keyword::Characters => "CHARACTERS",
             Keyword::Octets => "OCTETS",
             Keyword::For => "FOR",
+            Keyword::CurrentDate => "CURRENT_DATE",
+            Keyword::CurrentTime => "CURRENT_TIME",
+            Keyword::CurrentTimestamp => "CURRENT_TIMESTAMP",
         };
         write!(f, "{}", keyword_str)
     }

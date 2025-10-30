@@ -87,6 +87,16 @@ impl Parser {
         }
     }
 
+    /// Try to consume a specific token, returning true if successful.
+    pub(super) fn try_consume(&mut self, token: &Token) -> bool {
+        if self.peek() == token {
+            self.advance();
+            true
+        } else {
+            false
+        }
+    }
+
     /// Parse a qualified identifier (schema.table or just table)
     pub(super) fn parse_qualified_identifier(&mut self) -> Result<String, ParseError> {
         // Parse first identifier

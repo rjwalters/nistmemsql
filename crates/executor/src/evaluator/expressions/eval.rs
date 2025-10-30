@@ -96,6 +96,21 @@ impl<'a> ExpressionEvaluator<'a> {
                 self.eval_function(name, args, row)
             }
 
+            // Current date/time functions
+            ast::Expression::CurrentDate => {
+                super::super::functions::eval_scalar_function("CURRENT_DATE", &[])
+            }
+            ast::Expression::CurrentTime { precision: _ } => {
+                // For now, ignore precision and call existing function
+                // Phase 2 will implement precision-aware formatting
+                super::super::functions::eval_scalar_function("CURRENT_TIME", &[])
+            }
+            ast::Expression::CurrentTimestamp { precision: _ } => {
+                // For now, ignore precision and call existing function
+                // Phase 2 will implement precision-aware formatting
+                super::super::functions::eval_scalar_function("CURRENT_TIMESTAMP", &[])
+            }
+
             // Unsupported expressions
             ast::Expression::Wildcard => Err(ExecutorError::UnsupportedExpression(
                 "Wildcard (*) not supported in expressions".to_string(),
@@ -120,6 +135,10 @@ impl<'a> ExpressionEvaluator<'a> {
 
             ast::Expression::AggregateFunction { .. } => Err(ExecutorError::UnsupportedExpression(
                 "Aggregate functions should be evaluated in aggregation context".to_string(),
+            )),
+
+            ast::Expression::Default => Err(ExecutorError::UnsupportedExpression(
+                "DEFAULT keyword is only valid in INSERT and UPDATE statements".to_string(),
             )),
         }
     }

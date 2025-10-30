@@ -1,9 +1,9 @@
 # Work Plan: Roadmap to SQL:1999 Compliance
 
-**Status**: Day 5 Complete - Transactions, Constraints, Schema Support ✅
-**Last Updated**: 2025-10-29
-**Current Phase**: Implementing Core SQL:1999 mandatory features (70-75% complete)
-**Next Focus**: Views, indexes, and additional built-in functions
+**Status**: Day 6 Complete - Comparison Operators, Named Constraints, TRIM Enhancements, CAST Improvements ✅
+**Last Updated**: 2025-10-30
+**Current Phase**: Implementing Core SQL:1999 mandatory features (**83.4% conformance**)
+**Next Focus**: String type variants, DEFAULT keyword, CURRENT_* improvements
 **Ultimate Goal**: FULL SQL:1999 compliance (Core first, then optional features)
 **Development Approach**: Test-Driven Development (TDD) ✅
 **Rebrand Planned**: See [REBRANDING.md](REBRANDING.md) for vibesql transition plan
@@ -29,17 +29,40 @@
 
 ---
 
-## 📊 Current Status (2025-10-29)
+## 📊 Current Status (2025-10-30)
 
-### Test Suite
-- **Total Tests**: 800+ ✅ (all crates, unit + integration)
-- **Passing**: 800+ (100%)
+### Test Suite Status
+**Unit & Integration Tests** ✅
+- **Total Tests**: 836+ (all crates)
+- **Passing**: 836+ (100%)
 - **Failing**: 0
 - **Code Coverage**: ~85%
+
+**SQL:1999 Conformance Tests** 🟢
+- **Total Tests**: 739 (from sqltest standard test suite)
+- **Passing**: 616 (83.4%)
+- **Errors**: 123 (16.6%)
+- **Status**: Excellent progress, +6.4% gain in Day 6
+
+**Code Metrics**
 - **Source Files**: 100+ Rust files
 - **Lines of Code**: ~30,000+
 
-### Recent Additions (Day 5 - Oct 29)
+### Recent Additions (Day 6 - Oct 30)
+
+**SQL:1999 Conformance Improvements** ✅ **+6.4% conformance gain!**
+- ✅ **Comparison operators for VARCHAR** (#396) - Enable `<`, `>`, `<=`, `>=` for VARCHAR types (4 tests)
+- ✅ **Comparison operators for DATE, TIME, TIMESTAMP** (#398) - Enable all comparison operators (18 tests)
+- ✅ **Comparison operators for CHARACTER** (#403) - Enable comparisons for CHAR types (additional coverage)
+- ✅ **OCTET_LENGTH function** (#395) - Add missing SQL:1999 string function (1 test)
+- ✅ **Named constraints** (#402) - Support `CONSTRAINT name NOT NULL`, `CONSTRAINT name PRIMARY KEY`, etc. (15 tests)
+- ✅ **Enhanced TRIM** (#405) - Support `TRIM(BOTH/LEADING/TRAILING 'x' FROM s)` syntax (8 tests)
+- ✅ **CAST to VARCHAR without length** (#404) - Support `CAST(x AS VARCHAR)` with default length (5 tests)
+- ✅ **Window functions in ORDER BY** (#391) - Allow window functions in ORDER BY expressions
+
+**Conformance Progress**: 77% → **83.4%** (568 → 616 tests passing)
+
+### Previous Additions (Day 5 - Oct 29)
 
 **Transaction Support** ✅ **(100% Complete!)**
 - ✅ **SAVEPOINT** - Nested transaction support (#311)
@@ -446,42 +469,47 @@ Core SQL:1999 compliance is about language semantics, not client protocols.
 | **Web Demo Validation** | 30% | Test infrastructure ✅, 19 examples validated ✅ |
 | **Conformance Tests** | 0% | NIST harness + ISO validator needed |
 
-**Overall Core SQL:1999 Compliance: ~70-75%**
+**Overall Core SQL:1999 Compliance: ~83%** (based on sqltest conformance suite: 616/739 tests passing)
 
 ---
 
-## 🎯 Immediate Next Steps (This Week)
+## 🎯 Immediate Next Steps
+
+**Completed in Day 6 (Oct 30)** ✅
+1. ✅ **Comparison operators** - VARCHAR, CHAR, DATE, TIME, TIMESTAMP (#396, #398, #403)
+2. ✅ **OCTET_LENGTH function** - Missing SQL:1999 string function (#395)
+3. ✅ **Named constraints** - `CONSTRAINT name NOT NULL` syntax (#402)
+4. ✅ **Enhanced TRIM** - `TRIM(BOTH/LEADING/TRAILING 'x' FROM s)` (#405)
+5. ✅ **CAST to VARCHAR** - Without explicit length `CAST(x AS VARCHAR)` (#404)
+6. ✅ **Window functions in ORDER BY** - Allow window functions in ORDER BY (#391)
+
+**Conformance gain**: 77% → **83.4%** (+6.4%)
 
 **Completed in Day 5 (Oct 29)** ✅
-1. ✅ SAVEPOINT support (nested transactions) ✅
-2. ✅ FOREIGN KEY enforcement with referential integrity ✅
-3. ✅ PRIMARY KEY, UNIQUE, CHECK constraint enforcement ✅
-4. ✅ ALTER TABLE operations (ADD/DROP/MODIFY COLUMN) ✅
-5. ✅ CREATE/DROP SCHEMA support ✅
-6. ✅ SET SCHEMA (current schema tracking) ✅
-7. ✅ Cross-type arithmetic (Float vs Integer) ✅
-8. ✅ SELECT * in derived tables ✅
+- ✅ SAVEPOINT support (nested transactions)
+- ✅ FOREIGN KEY enforcement with referential integrity
+- ✅ PRIMARY KEY, UNIQUE, CHECK constraint enforcement
+- ✅ ALTER TABLE operations (ADD/DROP/MODIFY COLUMN)
+- ✅ CREATE/DROP SCHEMA support
+- ✅ SET SCHEMA (current schema tracking)
+- ✅ Cross-type arithmetic (Float vs Integer)
+- ✅ SELECT * in derived tables
 
 **Completed in Days 1-4** ✅
-- ✅ BETWEEN, LIKE, EXISTS predicates
-- ✅ COALESCE, NULLIF functions
-- ✅ Quantified comparisons (ALL, SOME, ANY)
-- ✅ Set operations (UNION, INTERSECT, EXCEPT)
-- ✅ Common Table Expressions (WITH clause)
-- ✅ All string, date/time, and math functions
+- ✅ All JOIN types, subqueries, CTEs, set operations
 - ✅ Window functions (all types)
-- ✅ CASE expressions
-- ✅ DROP TABLE
-- ✅ Constraint parsing
-- ✅ BEGIN, COMMIT, ROLLBACK
+- ✅ BETWEEN, LIKE, EXISTS, quantified predicates
+- ✅ COALESCE, NULLIF, CASE expressions
+- ✅ 40+ built-in functions (string, date/time, math)
+- ✅ Constraint parsing and enforcement
+- ✅ Transaction support (BEGIN, COMMIT, ROLLBACK)
 
-**Next (Days 6-7)**
-1. CREATE VIEW, DROP VIEW
-2. CREATE INDEX (basic B-tree)
-3. Remaining string functions (LOCATE, REPLACE, etc.)
-4. More date/time functions (DATE_ADD, DATE_SUB, DATEDIFF)
-5. NUMERIC/DECIMAL precision improvements
-6. Complete web demo expected results
+**Next Priorities** (targeting 87-90%+ conformance):
+1. **String type variants** - `CHARACTER VARYING`, `CHAR(8 CHARACTERS)` (27 tests)
+2. **DEFAULT keyword** - `INSERT VALUES(DEFAULT)`, `UPDATE SET x = DEFAULT` (10 tests)
+3. **CURRENT_* without FROM** - `SELECT CURRENT_DATE` without FROM clause (6 tests)
+4. **SUBSTRING FROM/FOR** - Alternative SUBSTRING syntax (2 tests)
+5. **CASE comma-separated WHEN** - `CASE 0 WHEN 2, 2 THEN 1 END` (6 tests)
 
 ---
 

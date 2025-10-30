@@ -26,6 +26,11 @@ impl Parser {
             return Ok(expr);
         }
 
+        // Try to parse as current date/time functions
+        if let Some(expr) = self.parse_current_datetime_function()? {
+            return Ok(expr);
+        }
+
         // Try to parse as a function call
         if let Some(expr) = self.parse_function_call()? {
             return Ok(expr);

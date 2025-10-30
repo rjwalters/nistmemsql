@@ -185,6 +185,72 @@ impl Parser {
                     }))
                 }
             }
+            // DEFAULT keyword - represents default value
+            Token::Keyword(Keyword::Default) => {
+                self.advance(); // consume DEFAULT
+                Ok(Some(ast::Expression::Default))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// Parse current date/time functions (CURRENT_DATE, CURRENT_TIME[(precision)], CURRENT_TIMESTAMP[(precision)])
+    pub(super) fn parse_current_datetime_function(&mut self) -> Result<Option<ast::Expression>, ParseError> {
+        match self.peek() {
+            Token::Keyword(Keyword::CurrentDate) => {
+                self.advance(); // consume CURRENT_DATE
+                Ok(Some(ast::Expression::CurrentDate))
+            }
+            Token::Keyword(Keyword::CurrentTime) => {
+                self.advance(); // consume CURRENT_TIME
+                let precision = if self.try_consume(&Token::LParen) {
+                    let prec_str = match self.peek() {
+                        Token::Number(n) => n.clone(),
+                        _ => return Err(ParseError {
+                            message: "Expected integer precision for CURRENT_TIME".to_string(),
+                        }),
+                    };
+                    let prec: u32 = prec_str.parse().map_err(|_| ParseError {
+                        message: format!("Invalid precision value: {}", prec_str),
+                    })?;
+                    if prec > 9 {
+                        return Err(ParseError {
+                            message: format!("CURRENT_TIME precision must be between 0 and 9, got {}", prec),
+                        });
+                    }
+                    self.advance(); // consume the number
+                    self.expect_token(Token::RParen)?;
+                    Some(prec)
+                } else {
+                    None
+                };
+                Ok(Some(ast::Expression::CurrentTime { precision }))
+            }
+            Token::Keyword(Keyword::CurrentTimestamp) => {
+                self.advance(); // consume CURRENT_TIMESTAMP
+                let precision = if self.try_consume(&Token::LParen) {
+                    let prec_str = match self.peek() {
+                        Token::Number(n) => n.clone(),
+                        _ => return Err(ParseError {
+                            message: "Expected integer precision for CURRENT_TIMESTAMP".to_string(),
+                        }),
+                    };
+                    let prec: u32 = prec_str.parse().map_err(|_| ParseError {
+                        message: format!("Invalid precision value: {}", prec_str),
+                    })?;
+                    if prec > 9 {
+                        return Err(ParseError {
+                            message: format!("CURRENT_TIMESTAMP precision must be between 0 and 9, got {}", prec),
+                        });
+                    }
+                    self.advance(); // consume the number
+                    self.expect_token(Token::RParen)?;
+                    Some(prec)
+                } else {
+                    None
+                };
+                Ok(Some(ast::Expression::CurrentTimestamp { precision }))
+            }
             _ => Ok(None),
         }
     }
