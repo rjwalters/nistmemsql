@@ -4,7 +4,7 @@ use super::super::core::ExpressionEvaluator;
 use crate::errors::ExecutorError;
 use types::SqlValue;
 
-impl<'a> ExpressionEvaluator<'a> {
+impl ExpressionEvaluator<'_> {
     /// Evaluate an expression in the context of a row
     pub fn eval(
         &self,

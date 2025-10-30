@@ -2,7 +2,7 @@
 
 use super::builder::SelectExecutor;
 
-impl<'a> SelectExecutor<'a> {
+impl SelectExecutor<'_> {
     /// Check if an expression references a column (which requires FROM clause)
     pub(super) fn expression_references_column(&self, expr: &ast::Expression) -> bool {
         match expr {

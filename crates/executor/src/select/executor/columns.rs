@@ -4,7 +4,7 @@ use super::builder::SelectExecutor;
 use crate::errors::ExecutorError;
 use crate::select::join::FromResult;
 
-impl<'a> SelectExecutor<'a> {
+impl SelectExecutor<'_> {
     /// Derive column names from SELECT list
     pub(super) fn derive_column_names(
         &self,
@@ -21,7 +21,7 @@ impl<'a> SelectExecutor<'a> {
                         // Get all column names in order from the combined schema
                         let mut table_columns: Vec<(usize, String)> = Vec::new();
 
-                        for (_table_name, (start_index, schema)) in &from_res.schema.table_schemas {
+                        for (start_index, schema) in from_res.schema.table_schemas.values() {
                             for (col_idx, col_schema) in schema.columns.iter().enumerate() {
                                 table_columns
                                     .push((start_index + col_idx, col_schema.name.clone()));

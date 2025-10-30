@@ -1,8 +1,4 @@
-use ast;
-use catalog;
 use executor::{ExecutorError, InsertExecutor};
-use storage;
-use types;
 
 fn setup_test_table(db: &mut storage::Database) {
     // CREATE TABLE users (id INT, name VARCHAR(50))

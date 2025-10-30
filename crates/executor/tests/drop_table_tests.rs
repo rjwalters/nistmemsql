@@ -48,7 +48,7 @@ fn test_drop_table_if_exists_when_exists() {
     let drop_stmt = Parser::parse_sql(drop_sql).unwrap();
 
     if let ast::Statement::DropTable(stmt) = drop_stmt {
-        assert_eq!(stmt.if_exists, true);
+        assert!(stmt.if_exists);
         let result = DropTableExecutor::execute(&stmt, &mut db);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Table 'PRODUCTS' dropped successfully");
@@ -66,7 +66,7 @@ fn test_drop_table_if_exists_when_not_exists() {
     let drop_stmt = Parser::parse_sql(drop_sql).unwrap();
 
     if let ast::Statement::DropTable(stmt) = drop_stmt {
-        assert_eq!(stmt.if_exists, true);
+        assert!(stmt.if_exists);
         let result = DropTableExecutor::execute(&stmt, &mut db);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Table 'NONEXISTENT' does not exist (IF EXISTS specified)");
@@ -82,7 +82,7 @@ fn test_drop_table_without_if_exists_error() {
     let drop_stmt = Parser::parse_sql(drop_sql).unwrap();
 
     if let ast::Statement::DropTable(stmt) = drop_stmt {
-        assert_eq!(stmt.if_exists, false);
+        assert!(!stmt.if_exists);
         let result = DropTableExecutor::execute(&stmt, &mut db);
         assert!(result.is_err());
         assert!(matches!(result, Err(ExecutorError::TableNotFound(_))));
@@ -256,7 +256,7 @@ fn test_drop_table_if_exists_parser() {
 
     if let ast::Statement::DropTable(stmt) = drop_stmt {
         assert_eq!(stmt.table_name, "MYTABLE");
-        assert_eq!(stmt.if_exists, true);
+        assert!(stmt.if_exists);
     } else {
         panic!("Expected DropTable statement");
     }
@@ -270,7 +270,7 @@ fn test_drop_table_without_if_exists_parser() {
 
     if let ast::Statement::DropTable(stmt) = drop_stmt {
         assert_eq!(stmt.table_name, "MYTABLE");
-        assert_eq!(stmt.if_exists, false);
+        assert!(!stmt.if_exists);
     } else {
         panic!("Expected DropTable statement");
     }

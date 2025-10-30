@@ -1,9 +1,6 @@
 //! Common test utilities for executor tests
 
-use catalog;
 use executor::ExpressionEvaluator;
-use storage;
-use types;
 
 /// Creates a test evaluator with a simple schema for testing.
 /// Returns an evaluator and a simple test row.

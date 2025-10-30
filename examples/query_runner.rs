@@ -177,7 +177,7 @@ fn format_value(value: &SqlValue) -> String {
 
 fn format_result_as_expected(result: &[Row], column_names: &[String]) -> String {
     if result.is_empty() {
-        return format!("-- (0 rows)");
+        return "-- (0 rows)".to_string();
     }
 
     let mut output = String::new();

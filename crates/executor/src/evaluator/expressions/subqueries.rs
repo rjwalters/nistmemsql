@@ -3,7 +3,7 @@
 use super::super::core::ExpressionEvaluator;
 use crate::errors::ExecutorError;
 
-impl<'a> ExpressionEvaluator<'a> {
+impl ExpressionEvaluator<'_> {
     /// Evaluate IN subquery predicate
     pub(super) fn eval_in_subquery(
         &self,
