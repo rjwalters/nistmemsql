@@ -1,22 +1,10 @@
 //! Tests for date arithmetic functions (DATEDIFF, DATE_ADD, DATE_SUB, EXTRACT, AGE)
 
-use executor::ExpressionEvaluator;
-use storage;
-use catalog;
+mod common;
+
+use common::create_test_evaluator;
 use types;
 use ast;
-
-fn create_test_evaluator() -> (ExpressionEvaluator<'static>, storage::Row) {
-    let schema = Box::leak(Box::new(catalog::TableSchema::new(
-        "test".to_string(),
-        vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
-    )));
-
-    let evaluator = ExpressionEvaluator::new(schema);
-    let row = storage::Row::new(vec![types::SqlValue::Integer(1)]);
-
-    (evaluator, row)
-}
 
 // ==================== DATEDIFF TESTS ====================
 
