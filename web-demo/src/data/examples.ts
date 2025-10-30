@@ -79,7 +79,20 @@ ORDER BY unit_price DESC;
   unit_price AS price,
   unit_price * 1.2 AS price_with_tax
 FROM products
-LIMIT 10;`,
+LIMIT 10;
+-- EXPECTED:
+-- | name                            | price | price_with_tax | 
+-- | Chai                            | 18.0  | 21.6           | 
+-- | Chang                           | 19.0  | 22.8           | 
+-- | Aniseed Syrup                   | 10.0  | 12.0           | 
+-- | Chef Anton's Cajun Seasoning    | 22.0  | 26.4           | 
+-- | Chef Anton's Gumbo Mix          | 21.35 | 25.62          | 
+-- | Grandma's Boysenberry Spread    | 25.0  | 30.0           | 
+-- | Uncle Bob's Organic Dried Pears | 30.0  | 36.0           | 
+-- | Northwoods Cranberry Sauce      | 40.0  | 48.0           | 
+-- | Mishi Kobe Niku                 | 97.0  | 116.4          | 
+-- | Ikura                           | 31.0  | 37.2           | 
+-- (10 rows)`,
         description: 'Use aliases for columns and calculated fields',
         sqlFeatures: ['SELECT', 'AS', 'Expressions'],
       },
@@ -167,7 +180,15 @@ LIMIT 8;
   LENGTH('  ' || product_name || '  ') AS padded_length,
   LENGTH(TRIM('  ' || product_name || '  ')) AS trimmed_length
 FROM products
-LIMIT 5;`,
+LIMIT 5;
+-- EXPECTED:
+-- | padded                           | trimmed                      | padded_length | trimmed_length | 
+-- |   Chai                           | Chai                         | 8             | 4              | 
+-- |   Chang                          | Chang                        | 9             | 5              | 
+-- |   Aniseed Syrup                  | Aniseed Syrup                | 17            | 13             | 
+-- |   Chef Anton's Cajun Seasoning   | Chef Anton's Cajun Seasoning | 32            | 28             | 
+-- |   Chef Anton's Gumbo Mix         | Chef Anton's Gumbo Mix       | 26            | 22             | 
+-- (5 rows)`,
         description: 'Remove leading and trailing whitespace',
         sqlFeatures: ['TRIM', 'LENGTH', '||'],
       },
@@ -206,7 +227,16 @@ LIMIT 8;
   RIGHT(product_name, 5) AS last_5_chars
 FROM products
 WHERE LENGTH(product_name) >= 10
-LIMIT 6;`,
+LIMIT 6;
+-- EXPECTED:
+-- | product_name                    | first_5_chars | last_5_chars | 
+-- | Aniseed Syrup                   | Anise         | Syrup        | 
+-- | Chef Anton's Cajun Seasoning    | Chef          | oning        | 
+-- | Chef Anton's Gumbo Mix          | Chef          | o Mix        | 
+-- | Grandma's Boysenberry Spread    | Grand         | pread        | 
+-- | Uncle Bob's Organic Dried Pears | Uncle         | Pears        | 
+-- | Northwoods Cranberry Sauce      | North         | Sauce        | 
+-- (6 rows)`,
         description: 'Extract characters from start and end of strings',
         sqlFeatures: ['LEFT', 'RIGHT', 'LENGTH'],
       },
@@ -220,7 +250,16 @@ LIMIT 6;`,
   REPLACE(product_name, ' ', '_') AS underscored
 FROM products
 WHERE product_name LIKE '%a%'
-LIMIT 6;`,
+LIMIT 6;
+-- EXPECTED:
+-- | product_name                    | replaced                        | underscored                     | 
+-- | Chai                            | Ch@i                            | Chai                            | 
+-- | Chang                           | Ch@ng                           | Chang                           | 
+-- | Chef Anton's Cajun Seasoning    | Chef Anton's C@jun Se@soning    | Chef_Anton's_Cajun_Seasoning    | 
+-- | Grandma's Boysenberry Spread    | Gr@ndm@'s Boysenberry Spre@d    | Grandma's_Boysenberry_Spread    | 
+-- | Uncle Bob's Organic Dried Pears | Uncle Bob's Org@nic Dried Pe@rs | Uncle_Bob's_Organic_Dried_Pears | 
+-- | Northwoods Cranberry Sauce      | Northwoods Cr@nberry S@uce      | Northwoods_Cranberry_Sauce      | 
+-- (6 rows)`,
         description: 'Replace characters or substrings within text',
         sqlFeatures: ['REPLACE', 'LIKE'],
       },
@@ -259,7 +298,15 @@ LIMIT 8;
   REVERSE(product_name) AS reversed,
   UPPER(REVERSE(product_name)) AS reversed_upper
 FROM products
-LIMIT 5;`,
+LIMIT 5;
+-- EXPECTED:
+-- | product_name                 | reversed                     | reversed_upper               | 
+-- | Chai                         | iahC                         | IAHC                         | 
+-- | Chang                        | gnahC                        | GNAHC                        | 
+-- | Aniseed Syrup                | puryS deesinA                | PURYS DEESINA                | 
+-- | Chef Anton's Cajun Seasoning | gninosaeS nujaC s'notnA fehC | GNINOSAES NUJAC S'NOTNA FEHC | 
+-- | Chef Anton's Gumbo Mix       | xiM obmuG s'notnA fehC       | XIM OBMUG S'NOTNA FEHC       | 
+-- (5 rows)`,
         description: 'Reverse string character order',
         sqlFeatures: ['REVERSE', 'UPPER'],
       },
@@ -318,7 +365,17 @@ ORDER BY c.category_name, p.product_name;
 FROM categories c
 LEFT OUTER JOIN products p ON c.category_id = p.category_id
 GROUP BY c.category_name
-ORDER BY product_count DESC;`,
+ORDER BY product_count DESC;
+-- EXPECTED:
+-- | category_name  | product_count | 
+-- | Condiments     | 6             | 
+-- | Confections    | 3             | 
+-- | Seafood        | 3             | 
+-- | Beverages      | 2             | 
+-- | Dairy Products | 2             | 
+-- | Meat/Poultry   | 2             | 
+-- | Produce        | 2             | 
+-- (7 rows)`,
         description: 'Show all categories with product counts (including empty categories)',
         sqlFeatures: ['LEFT OUTER JOIN', 'GROUP BY', 'COUNT'],
       },
@@ -388,7 +445,17 @@ FROM products;
 FROM categories c
 INNER JOIN products p ON c.category_id = p.category_id
 GROUP BY c.category_name
-ORDER BY product_count DESC;`,
+ORDER BY product_count DESC;
+-- EXPECTED:
+-- | category_name  | product_count | avg_price | 
+-- | Condiments     | 6             | NULL      | 
+-- | Confections    | 3             | NULL      | 
+-- | Seafood        | 3             | NULL      | 
+-- | Beverages      | 2             | NULL      | 
+-- | Dairy Products | 2             | NULL      | 
+-- | Meat/Poultry   | 2             | NULL      | 
+-- | Produce        | 2             | NULL      | 
+-- (7 rows)`,
         description: 'Count and average price of products by category',
         sqlFeatures: ['GROUP BY', 'COUNT', 'AVG', 'INNER JOIN'],
       },
@@ -403,7 +470,17 @@ FROM categories c
 LEFT JOIN products p ON c.category_id = p.category_id
 GROUP BY c.category_name
 HAVING COUNT(p.product_id) >= 2
-ORDER BY product_count DESC;`,
+ORDER BY product_count DESC;
+-- EXPECTED:
+-- | category_name  | product_count | 
+-- | Condiments     | 6             | 
+-- | Confections    | 3             | 
+-- | Seafood        | 3             | 
+-- | Beverages      | 2             | 
+-- | Dairy Products | 2             | 
+-- | Meat/Poultry   | 2             | 
+-- | Produce        | 2             | 
+-- (7 rows)`,
         description: 'Filter aggregated results - categories with 2+ products',
         sqlFeatures: ['GROUP BY', 'HAVING', 'COUNT'],
       },
@@ -540,7 +617,18 @@ WHERE category_id IN (
   WHERE category_name IN ('Beverages', 'Condiments')
 )
 ORDER BY unit_price DESC;
--- ⏭️ SKIP: IN with subquery not yet implemented - requires subquery evaluation in WHERE clause`,
+-- ⏭️ SKIP: IN with subquery not yet implemented - requires subquery evaluation in WHERE clause;
+-- EXPECTED:
+-- | product_name                 | unit_price | 
+-- | Northwoods Cranberry Sauce   | 40.0       | 
+-- | Grandma's Boysenberry Spread | 25.0       | 
+-- | Chef Anton's Cajun Seasoning | 22.0       | 
+-- | Chef Anton's Gumbo Mix       | 21.35      | 
+-- | Chang                        | 19.0       | 
+-- | Chai                         | 18.0       | 
+-- | Genen Shouyu                 | 15.5       | 
+-- | Aniseed Syrup                | 10.0       | 
+-- (8 rows)`,
         description: 'Find products in specific categories using IN',
         sqlFeatures: ['IN', 'Subquery', 'WHERE'],
       },
@@ -590,7 +678,20 @@ ORDER BY avg_salary DESC;
   END as price_category
 FROM products
 ORDER BY unit_price;
--- ⏭️ SKIP: CASE expressions have type coercion issues with numeric literals (Float vs Integer comparison)`,
+-- ⏭️ SKIP: CASE expressions have type coercion issues with numeric literals (Float vs Integer comparison);
+-- EXPECTED:
+-- | product_name                    | unit_price | price_category | 
+-- | Konbu                           | 6.0        | Budget         | 
+-- | Teatime Chocolate Biscuits      | 9.2        | Budget         | 
+-- | Aniseed Syrup                   | 10.0       | Standard       | 
+-- | Genen Shouyu                    | 15.5       | Standard       | 
+-- | Pavlova                         | 17.45      | Standard       | 
+-- | Chai                            | 18.0       | Standard       | 
+-- | Chang                           | 19.0       | Standard       | 
+-- | Queso Cabrales                  | 21.0       | Standard       | 
+-- | Chef Anton's Gumbo Mix          | 21.35      | Standard       | 
+-- | Chef Anton's Cajun Seasoning    | 22.0       | Standard       | 
+-- (20 rows)`,
         description: 'Categorize products by price range',
         sqlFeatures: ['CASE', 'WHEN', 'ELSE', 'END'],
       },
@@ -667,7 +768,15 @@ SELECT 'Cheap' as category, product_name, unit_price
 FROM products
 WHERE unit_price < 10
 ORDER BY unit_price DESC;
--- ⏭️ SKIP: Type coercion issue - Float vs Integer comparison in WHERE clause`,
+-- ⏭️ SKIP: Type coercion issue - Float vs Integer comparison in WHERE clause;
+-- EXPECTED:
+-- | category  | product_name               | unit_price | 
+-- | Expensive | Mishi Kobe Niku            | 97.0       | 
+-- | Expensive | Sir Rodney's Marmalade     | 81.0       | 
+-- | Expensive | Carnarvon Tigers           | 62.5       | 
+-- | Cheap     | Konbu                      | 6.0        | 
+-- | Cheap     | Teatime Chocolate Biscuits | 9.2        | 
+-- (5 rows)`,
         description: 'Combine expensive and cheap products (with duplicates)',
         sqlFeatures: ['UNION ALL', 'WHERE', 'String literals'],
       },
@@ -893,7 +1002,19 @@ LIMIT 10;`,
 FROM courses c
 LEFT JOIN enrollments e ON c.course_id = e.course_id
 GROUP BY c.course_name, c.department
-ORDER BY enrollment_count DESC;`,
+ORDER BY enrollment_count DESC;
+-- EXPECTED:
+-- | course_name                 | department       | enrollment_count | 
+-- | Introduction to Programming | Computer Science | 14               | 
+-- | Data Structures             | Computer Science | 13               | 
+-- | Algorithms                  | Computer Science | 12               | 
+-- | Calculus I                  | Mathematics      | 9                | 
+-- | Linear Algebra              | Mathematics      | 9                | 
+-- | Statistics                  | Mathematics      | 9                | 
+-- | Classical Mechanics         | Physics          | 9                | 
+-- | Electromagnetism            | Physics          | 9                | 
+-- | Quantum Mechanics           | Physics          | 9                | 
+-- (9 rows)`,
         description: 'Count enrollments by course with LEFT JOIN',
         sqlFeatures: ['LEFT JOIN', 'COUNT', 'GROUP BY', 'ORDER BY'],
       },
@@ -909,7 +1030,13 @@ FROM courses c
 JOIN enrollments e ON c.course_id = e.course_id
 JOIN students s ON e.student_id = s.student_id
 GROUP BY c.department
-ORDER BY student_count DESC;`,
+ORDER BY student_count DESC;
+-- EXPECTED:
+-- | department       | student_count | course_count | avg_student_gpa | 
+-- | Computer Science | 20            | 3            | NULL            | 
+-- | Mathematics      | 20            | 3            | NULL            | 
+-- | Physics          | 20            | 3            | NULL            | 
+-- (3 rows)`,
         description: 'Multi-table JOIN to analyze departments',
         sqlFeatures: ['Multi-table JOIN', 'COUNT DISTINCT', 'AVG', 'GROUP BY'],
       },
@@ -1684,7 +1811,14 @@ ORDER BY year DESC, quarter;
   unit_price
 FROM products
 WHERE product_name LIKE 'Ch%'
-ORDER BY product_name;`,
+ORDER BY product_name;
+-- EXPECTED:
+-- | product_name                 | unit_price | 
+-- | Chai                         | 18.0       | 
+-- | Chang                        | 19.0       | 
+-- | Chef Anton's Cajun Seasoning | 22.0       | 
+-- | Chef Anton's Gumbo Mix       | 21.35      | 
+-- (4 rows)`,
         description: 'Match products starting with "Ch" using % wildcard',
         sqlFeatures: ['LIKE', '% wildcard', 'Pattern matching'],
       },
@@ -1724,7 +1858,20 @@ ORDER BY last_name;`,
   unit_price
 FROM products
 WHERE unit_price BETWEEN 10 AND 50
-ORDER BY unit_price;`,
+ORDER BY unit_price;
+-- EXPECTED:
+-- | product_name                    | unit_price | 
+-- | Aniseed Syrup                   | 10.0       | 
+-- | Genen Shouyu                    | 15.5       | 
+-- | Pavlova                         | 17.45      | 
+-- | Chai                            | 18.0       | 
+-- | Chang                           | 19.0       | 
+-- | Queso Cabrales                  | 21.0       | 
+-- | Chef Anton's Gumbo Mix          | 21.35      | 
+-- | Chef Anton's Cajun Seasoning    | 22.0       | 
+-- | Tofu                            | 23.25      | 
+-- | Grandma's Boysenberry Spread    | 25.0       | 
+-- (15 rows)`,
         description: 'Find products with prices in the 10-50 range (inclusive)',
         sqlFeatures: ['BETWEEN', 'Numeric ranges', 'Inclusive bounds'],
       },
@@ -1752,7 +1899,20 @@ ORDER BY hire_date;`,
   unit_price
 FROM products
 WHERE category_id IN (1, 2, 3)
-ORDER BY category_id, unit_price DESC;`,
+ORDER BY category_id, unit_price DESC;
+-- EXPECTED:
+-- | product_name                 | category_id | unit_price | 
+-- | Chang                        | 1           | 19.0       | 
+-- | Chai                         | 1           | 18.0       | 
+-- | Northwoods Cranberry Sauce   | 2           | 40.0       | 
+-- | Grandma's Boysenberry Spread | 2           | 25.0       | 
+-- | Chef Anton's Cajun Seasoning | 2           | 22.0       | 
+-- | Chef Anton's Gumbo Mix       | 2           | 21.35      | 
+-- | Genen Shouyu                 | 2           | 15.5       | 
+-- | Aniseed Syrup                | 2           | 10.0       | 
+-- | Sir Rodney's Marmalade       | 3           | 81.0       | 
+-- | Pavlova                      | 3           | 17.45      | 
+-- (11 rows)`,
         description: 'Find products in specific categories using IN operator',
         sqlFeatures: ['IN', 'List of values', 'Multi-column ORDER BY'],
       },
@@ -1769,7 +1929,12 @@ WHERE category_id IN (
   FROM categories
   WHERE category_name LIKE '%Bev%'
 )
-ORDER BY unit_price DESC;`,
+ORDER BY unit_price DESC;
+-- EXPECTED:
+-- | product_name | unit_price | 
+-- | Chang        | 19.0       | 
+-- | Chai         | 18.0       | 
+-- (2 rows)`,
         description: 'Use IN with subquery to find products in Beverage categories',
         sqlFeatures: ['IN', 'Subquery', 'LIKE', 'Dynamic filtering'],
       },
@@ -1801,7 +1966,18 @@ FROM products
 WHERE unit_price NOT BETWEEN 10 AND 30
   AND category_id NOT IN (1, 2)
 ORDER BY unit_price DESC
-LIMIT 10;`,
+LIMIT 10;
+-- EXPECTED:
+-- | product_name               | unit_price | 
+-- | Mishi Kobe Niku            | 97.0       | 
+-- | Sir Rodney's Marmalade     | 81.0       | 
+-- | Carnarvon Tigers           | 62.5       | 
+-- | Alice Mutton               | 39.0       | 
+-- | Queso Manchego La Pastora  | 38.0       | 
+-- | Ikura                      | 31.0       | 
+-- | Teatime Chocolate Biscuits | 9.2        | 
+-- | Konbu                      | 6.0        | 
+-- (8 rows)`,
         description: 'Find products outside price range and excluded categories',
         sqlFeatures: ['NOT BETWEEN', 'NOT IN', 'Negative predicates', 'LIMIT'],
       },
@@ -1819,7 +1995,13 @@ WHERE product_name LIKE 'C%'
   AND unit_price BETWEEN 5 AND 100
   AND category_id IN (1, 2, 3, 4)
   AND units_in_stock > 0
-ORDER BY unit_price DESC;`,
+ORDER BY unit_price DESC;
+-- EXPECTED:
+-- | product_name                 | category_id | unit_price | units_in_stock | 
+-- | Chef Anton's Cajun Seasoning | 2           | 22.0       | 53             | 
+-- | Chang                        | 1           | 19.0       | 17             | 
+-- | Chai                         | 1           | 18.0       | 39             | 
+-- (3 rows)`,
         description: 'Complex filtering using multiple predicates together',
         sqlFeatures: ['LIKE', 'BETWEEN', 'IN', 'AND', 'Multiple predicates'],
       },
@@ -1837,7 +2019,15 @@ WHERE unit_price > ALL (
   WHERE category_id = 1
 )
 ORDER BY unit_price DESC
-LIMIT 5;`,
+LIMIT 5;
+-- EXPECTED:
+-- | product_name               | unit_price | 
+-- | Mishi Kobe Niku            | 97.0       | 
+-- | Sir Rodney's Marmalade     | 81.0       | 
+-- | Carnarvon Tigers           | 62.5       | 
+-- | Northwoods Cranberry Sauce | 40.0       | 
+-- | Alice Mutton               | 39.0       | 
+-- (5 rows)`,
         description: 'Find products more expensive than ALL category 1 products',
         sqlFeatures: ['ALL', 'Quantified comparison', 'Subquery', 'Universal quantifier'],
       },
@@ -2200,7 +2390,20 @@ LIMIT 10;
 FROM products
 ORDER BY units_in_stock
 LIMIT 15;
--- ⏭️ SKIP: NULLIF function not yet implemented`,
+-- ⏭️ SKIP: NULLIF function not yet implemented;
+-- EXPECTED:
+-- | product_name                    | units_in_stock | stock_if_available | status       | 
+-- | Chef Anton's Gumbo Mix          | 0              | NULL               | Out of Stock | 
+-- | Alice Mutton                    | 0              | NULL               | Out of Stock | 
+-- | Northwoods Cranberry Sauce      | 6              | 6                  | In Stock     | 
+-- | Aniseed Syrup                   | 13             | 13                 | In Stock     | 
+-- | Uncle Bob's Organic Dried Pears | 15             | 15                 | In Stock     | 
+-- | Chang                           | 17             | 17                 | In Stock     | 
+-- | Queso Cabrales                  | 22             | 22                 | In Stock     | 
+-- | Konbu                           | 24             | 24                 | In Stock     | 
+-- | Teatime Chocolate Biscuits      | 25             | 25                 | In Stock     | 
+-- | Mishi Kobe Niku                 | 29             | 29                 | In Stock     | 
+-- (15 rows)`,
         description: 'Convert specific values to NULL using NULLIF',
         sqlFeatures: ['NULLIF', 'CASE', 'IS NULL'],
       },
@@ -2277,7 +2480,20 @@ LIMIT 10;
   END AS inventory_status
 FROM products
 ORDER BY COALESCE(units_in_stock, 0);
--- ⏭️ SKIP: CASE expressions with COALESCE - type coercion issues with comparisons`,
+-- ⏭️ SKIP: CASE expressions with COALESCE - type coercion issues with comparisons;
+-- EXPECTED:
+-- | product_name                    | units_in_stock | units_on_order | inventory_status | 
+-- | Chef Anton's Gumbo Mix          | 0              | 0              | Out of Stock     | 
+-- | Alice Mutton                    | 0              | 0              | Out of Stock     | 
+-- | Northwoods Cranberry Sauce      | 6              | 0              | Low Stock        | 
+-- | Aniseed Syrup                   | 13             | 70             | In Stock         | 
+-- | Uncle Bob's Organic Dried Pears | 15             | 0              | In Stock         | 
+-- | Chang                           | 17             | 40             | In Stock         | 
+-- | Queso Cabrales                  | 22             | 30             | In Stock         | 
+-- | Konbu                           | 24             | 0              | In Stock         | 
+-- | Teatime Chocolate Biscuits      | 25             | 0              | In Stock         | 
+-- | Mishi Kobe Niku                 | 29             | 0              | In Stock         | 
+-- (20 rows)`,
         description: 'Use COALESCE for NULL-safe comparisons in business logic',
         sqlFeatures: ['COALESCE', 'CASE', 'NULL-safe comparisons', 'Business logic'],
       },
@@ -2371,7 +2587,20 @@ LIMIT 15;
 FROM products
 WHERE category_id IN (1, 2, 3)
 ORDER BY category_id, unit_price;
--- ⏭️ SKIP: Window functions with OVER clause not yet fully integrated with executor`,
+-- ⏭️ SKIP: Window functions with OVER clause not yet fully integrated with executor;
+-- EXPECTED:
+-- | product_name                 | category_id | unit_price | category_min | category_max | 
+-- | Chai                         | 1           | 18.0       | 18.0         | 19.0         | 
+-- | Chang                        | 1           | 19.0       | 18.0         | 19.0         | 
+-- | Aniseed Syrup                | 2           | 10.0       | 10.0         | 40.0         | 
+-- | Genen Shouyu                 | 2           | 15.5       | 10.0         | 40.0         | 
+-- | Chef Anton's Gumbo Mix       | 2           | 21.35      | 10.0         | 40.0         | 
+-- | Chef Anton's Cajun Seasoning | 2           | 22.0       | 10.0         | 40.0         | 
+-- | Grandma's Boysenberry Spread | 2           | 25.0       | 10.0         | 40.0         | 
+-- | Northwoods Cranberry Sauce   | 2           | 40.0       | 10.0         | 40.0         | 
+-- | Teatime Chocolate Biscuits   | 3           | 9.2        | 17.45        | 9.2          | 
+-- | Pavlova                      | 3           | 17.45      | 17.45        | 9.2          | 
+-- (11 rows)`,
         description: 'Find min and max prices within each product category',
         sqlFeatures: ['MIN', 'MAX', 'OVER', 'PARTITION BY'],
       },
