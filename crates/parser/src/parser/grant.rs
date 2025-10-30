@@ -7,11 +7,11 @@ use ast::*;
 
 /// Parse GRANT statement
 ///
-/// Phase 2.2: Supports multiple privileges and grantees
+/// Phase 2.4: Supports WITH GRANT OPTION
 ///
 /// Grammar:
 /// ```text
-/// GRANT privilege_list ON TABLE table_name TO grantee_list
+/// GRANT privilege_list ON TABLE table_name TO grantee_list [WITH GRANT OPTION]
 /// ```
 pub fn parse_grant(parser: &mut crate::Parser) -> Result<GrantStmt, ParseError> {
     parser.expect_keyword(Keyword::Grant)?;
@@ -30,12 +30,22 @@ pub fn parse_grant(parser: &mut crate::Parser) -> Result<GrantStmt, ParseError> 
     // Parse comma-separated grantee list
     let grantees = parse_identifier_list(parser)?;
 
+    // Parse optional WITH GRANT OPTION clause
+    let with_grant_option = if parser.peek() == &Token::Keyword(Keyword::With) {
+        parser.advance(); // consume WITH
+        parser.expect_keyword(Keyword::Grant)?;
+        parser.expect_keyword(Keyword::Option)?;
+        true
+    } else {
+        false
+    };
+
     Ok(GrantStmt {
         privileges,
         object_type: ObjectType::Table,
         object_name,
         grantees,
-        with_grant_option: false,
+        with_grant_option,
     })
 }
 
