@@ -53,14 +53,17 @@ pub fn parse_alter_table(parser: &mut crate::Parser) -> Result<AlterTableStmt, P
             parser.expect_keyword(Keyword::Column)?;
             parse_alter_column(parser, table_name)
         }
-        _ => Err(ParseError {
-            message: "Expected ADD, DROP, or ALTER after table name".to_string(),
-        }),
+        _ => {
+            Err(ParseError { message: "Expected ADD, DROP, or ALTER after table name".to_string() })
+        }
     }
 }
 
 /// Parse ADD COLUMN
-fn parse_add_column(parser: &mut crate::Parser, table_name: String) -> Result<AlterTableStmt, ParseError> {
+fn parse_add_column(
+    parser: &mut crate::Parser,
+    table_name: String,
+) -> Result<AlterTableStmt, ParseError> {
     let column_name = parser.parse_identifier()?;
     let data_type = parser.parse_data_type()?;
 
@@ -78,17 +81,13 @@ fn parse_add_column(parser: &mut crate::Parser, table_name: String) -> Result<Al
             Token::Keyword(Keyword::Primary) => {
                 parser.advance();
                 parser.expect_keyword(Keyword::Key)?;
-                constraints.push(ColumnConstraint {
-                    name: None,
-                    kind: ColumnConstraintKind::PrimaryKey,
-                });
+                constraints
+                    .push(ColumnConstraint { name: None, kind: ColumnConstraintKind::PrimaryKey });
             }
             Token::Keyword(Keyword::Unique) => {
                 parser.advance();
-                constraints.push(ColumnConstraint {
-                    name: None,
-                    kind: ColumnConstraintKind::Unique,
-                });
+                constraints
+                    .push(ColumnConstraint { name: None, kind: ColumnConstraintKind::Unique });
             }
             Token::Keyword(Keyword::Default) => {
                 parser.advance();
@@ -104,45 +103,36 @@ fn parse_add_column(parser: &mut crate::Parser, table_name: String) -> Result<Al
                 parser.expect_token(crate::token::Token::RParen)?;
                 constraints.push(ColumnConstraint {
                     name: None,
-                    kind: ColumnConstraintKind::References {
-                        table: ref_table,
-                        column: ref_column,
-                    },
+                    kind: ColumnConstraintKind::References { table: ref_table, column: ref_column },
                 });
             }
             _ => break,
         }
     }
 
-    let column_def = ColumnDef {
-        name: column_name,
-        data_type,
-        nullable,
-        constraints,
-    };
+    let column_def = ColumnDef { name: column_name, data_type, nullable, constraints };
 
-    Ok(AlterTableStmt::AddColumn(AddColumnStmt {
-        table_name,
-        column_def,
-    }))
+    Ok(AlterTableStmt::AddColumn(AddColumnStmt { table_name, column_def }))
 }
 
 /// Parse DROP COLUMN
-fn parse_drop_column(parser: &mut crate::Parser, table_name: String) -> Result<AlterTableStmt, ParseError> {
-    let if_exists = parser.try_consume_keyword(Keyword::If)
-        && parser.try_consume_keyword(Keyword::Exists);
+fn parse_drop_column(
+    parser: &mut crate::Parser,
+    table_name: String,
+) -> Result<AlterTableStmt, ParseError> {
+    let if_exists =
+        parser.try_consume_keyword(Keyword::If) && parser.try_consume_keyword(Keyword::Exists);
 
     let column_name = parser.parse_identifier()?;
 
-    Ok(AlterTableStmt::DropColumn(DropColumnStmt {
-        table_name,
-        column_name,
-        if_exists,
-    }))
+    Ok(AlterTableStmt::DropColumn(DropColumnStmt { table_name, column_name, if_exists }))
 }
 
 /// Parse ALTER COLUMN
-fn parse_alter_column(parser: &mut crate::Parser, table_name: String) -> Result<AlterTableStmt, ParseError> {
+fn parse_alter_column(
+    parser: &mut crate::Parser,
+    table_name: String,
+) -> Result<AlterTableStmt, ParseError> {
     let column_name = parser.parse_identifier()?;
 
     match parser.peek() {
@@ -196,14 +186,15 @@ fn parse_alter_column(parser: &mut crate::Parser, table_name: String) -> Result<
                 }),
             }
         }
-        _ => Err(ParseError {
-            message: "Expected SET or DROP after column name".to_string(),
-        }),
+        _ => Err(ParseError { message: "Expected SET or DROP after column name".to_string() }),
     }
 }
 
 /// Parse ADD CONSTRAINT
-fn parse_add_constraint(parser: &mut crate::Parser, table_name: String) -> Result<AlterTableStmt, ParseError> {
+fn parse_add_constraint(
+    parser: &mut crate::Parser,
+    table_name: String,
+) -> Result<AlterTableStmt, ParseError> {
     let constraint_name = if parser.try_consume_keyword(Keyword::Constraint) {
         Some(parser.parse_identifier()?)
     } else {
@@ -214,23 +205,18 @@ fn parse_add_constraint(parser: &mut crate::Parser, table_name: String) -> Resul
     // For now, create a placeholder
     let constraint = TableConstraint {
         name: constraint_name,
-        kind: TableConstraintKind::PrimaryKey {
-            columns: vec!["placeholder".to_string()],
-        },
+        kind: TableConstraintKind::PrimaryKey { columns: vec!["placeholder".to_string()] },
     };
 
-    Ok(AlterTableStmt::AddConstraint(AddConstraintStmt {
-        table_name,
-        constraint,
-    }))
+    Ok(AlterTableStmt::AddConstraint(AddConstraintStmt { table_name, constraint }))
 }
 
 /// Parse DROP CONSTRAINT
-fn parse_drop_constraint(parser: &mut crate::Parser, table_name: String) -> Result<AlterTableStmt, ParseError> {
+fn parse_drop_constraint(
+    parser: &mut crate::Parser,
+    table_name: String,
+) -> Result<AlterTableStmt, ParseError> {
     let constraint_name = parser.parse_identifier()?;
 
-    Ok(AlterTableStmt::DropConstraint(DropConstraintStmt {
-        table_name,
-        constraint_name,
-    }))
+    Ok(AlterTableStmt::DropConstraint(DropConstraintStmt { table_name, constraint_name }))
 }

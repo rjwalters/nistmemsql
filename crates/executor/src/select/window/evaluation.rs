@@ -50,7 +50,9 @@ pub(super) fn evaluate_single_window_function(
         )?;
 
         // Pair each result with its original index
-        for (result, &original_idx) in partition_results.iter().zip(partition.original_indices.iter()) {
+        for (result, &original_idx) in
+            partition_results.iter().zip(partition.original_indices.iter())
+        {
             results_with_indices.push((original_idx, result.clone()));
         }
     }
@@ -73,18 +75,11 @@ fn evaluate_window_function_for_partition(
     frame_spec: &Option<ast::WindowFrame>,
     evaluator: &CombinedExpressionEvaluator,
 ) -> Result<Vec<SqlValue>, ExecutorError> {
-
     // Handle ranking functions (they don't use frames)
     let results = match func_name.to_uppercase().as_str() {
-        "ROW_NUMBER" => {
-            crate::evaluator::window::evaluate_row_number(partition)
-        }
-        "RANK" => {
-            crate::evaluator::window::evaluate_rank(partition, order_by)
-        }
-        "DENSE_RANK" => {
-            crate::evaluator::window::evaluate_dense_rank(partition, order_by)
-        }
+        "ROW_NUMBER" => crate::evaluator::window::evaluate_row_number(partition),
+        "RANK" => crate::evaluator::window::evaluate_rank(partition, order_by),
+        "DENSE_RANK" => crate::evaluator::window::evaluate_dense_rank(partition, order_by),
         "NTILE" => {
             if args.is_empty() {
                 return Err(ExecutorError::UnsupportedExpression(
@@ -95,11 +90,14 @@ fn evaluate_window_function_for_partition(
             let n_value = evaluator.eval(&args[0], &partition.rows[0])?;
             let n = match n_value {
                 types::SqlValue::Integer(n) => n,
-                _ => return Err(ExecutorError::UnsupportedExpression(
-                    "NTILE argument must be an integer".to_string(),
-                )),
+                _ => {
+                    return Err(ExecutorError::UnsupportedExpression(
+                        "NTILE argument must be an integer".to_string(),
+                    ))
+                }
             };
-            crate::evaluator::window::evaluate_ntile(partition, n).map_err(|e| ExecutorError::UnsupportedExpression(e))?
+            crate::evaluator::window::evaluate_ntile(partition, n)
+                .map_err(|e| ExecutorError::UnsupportedExpression(e))?
         }
         _ => {
             // Handle aggregate functions that use frames
@@ -117,57 +115,58 @@ fn evaluate_window_function_for_partition(
 
                 // Evaluate the aggregate function over the frame
                 let value = match func_name.to_uppercase().as_str() {
-            "COUNT" => {
-                // COUNT(*) or COUNT(expr)
-                // Check if arg is the special "*" column reference
-                let arg_expr = if args.is_empty() {
-                    None
-                } else if matches!(&args[0], Expression::ColumnRef { column, .. } if column == "*") {
-                    None  // COUNT(*) should count all rows
-                } else {
-                    Some(&args[0])
+                    "COUNT" => {
+                        // COUNT(*) or COUNT(expr)
+                        // Check if arg is the special "*" column reference
+                        let arg_expr = if args.is_empty() {
+                            None
+                        } else if matches!(&args[0], Expression::ColumnRef { column, .. } if column == "*")
+                        {
+                            None // COUNT(*) should count all rows
+                        } else {
+                            Some(&args[0])
+                        };
+                        evaluate_count_window(partition, &frame, arg_expr, eval_fn)
+                    }
+                    "SUM" => {
+                        if args.is_empty() {
+                            return Err(ExecutorError::UnsupportedExpression(
+                                "SUM requires an argument".to_string(),
+                            ));
+                        }
+                        evaluate_sum_window(partition, &frame, &args[0], eval_fn)
+                    }
+                    "AVG" => {
+                        if args.is_empty() {
+                            return Err(ExecutorError::UnsupportedExpression(
+                                "AVG requires an argument".to_string(),
+                            ));
+                        }
+                        evaluate_avg_window(partition, &frame, &args[0], eval_fn)
+                    }
+                    "MIN" => {
+                        if args.is_empty() {
+                            return Err(ExecutorError::UnsupportedExpression(
+                                "MIN requires an argument".to_string(),
+                            ));
+                        }
+                        evaluate_min_window(partition, &frame, &args[0], eval_fn)
+                    }
+                    "MAX" => {
+                        if args.is_empty() {
+                            return Err(ExecutorError::UnsupportedExpression(
+                                "MAX requires an argument".to_string(),
+                            ));
+                        }
+                        evaluate_max_window(partition, &frame, &args[0], eval_fn)
+                    }
+                    _ => {
+                        return Err(ExecutorError::UnsupportedExpression(format!(
+                            "Unsupported window function: {}",
+                            func_name
+                        )))
+                    }
                 };
-                evaluate_count_window(partition, &frame, arg_expr, eval_fn)
-            }
-            "SUM" => {
-                if args.is_empty() {
-                    return Err(ExecutorError::UnsupportedExpression(
-                        "SUM requires an argument".to_string(),
-                    ));
-                }
-                evaluate_sum_window(partition, &frame, &args[0], eval_fn)
-            }
-            "AVG" => {
-                if args.is_empty() {
-                    return Err(ExecutorError::UnsupportedExpression(
-                        "AVG requires an argument".to_string(),
-                    ));
-                }
-                evaluate_avg_window(partition, &frame, &args[0], eval_fn)
-            }
-            "MIN" => {
-                if args.is_empty() {
-                    return Err(ExecutorError::UnsupportedExpression(
-                        "MIN requires an argument".to_string(),
-                    ));
-                }
-                evaluate_min_window(partition, &frame, &args[0], eval_fn)
-            }
-            "MAX" => {
-                if args.is_empty() {
-                    return Err(ExecutorError::UnsupportedExpression(
-                        "MAX requires an argument".to_string(),
-                    ));
-                }
-                evaluate_max_window(partition, &frame, &args[0], eval_fn)
-            }
-            _ => {
-                return Err(ExecutorError::UnsupportedExpression(format!(
-                    "Unsupported window function: {}",
-                    func_name
-                )))
-            }
-        };
 
                 results.push(value);
             }

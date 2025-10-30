@@ -25,7 +25,7 @@ fn test_parse_insert_basic() {
             }
         }
         _ => panic!("Expected INSERT statement"),
-        }
+    }
 }
 
 #[test]
@@ -41,7 +41,7 @@ fn test_insert_with_default() {
                 ast::InsertSource::Values(values) => {
                     assert_eq!(values.len(), 1); // One row
                     assert_eq!(values[0].len(), 2); // Two values
-                    // Check that first value is DEFAULT
+                                                    // Check that first value is DEFAULT
                     match &values[0][0] {
                         ast::Expression::Default => {
                             // Success - parsed as Default expression
@@ -50,10 +50,10 @@ fn test_insert_with_default() {
                     }
                     // Check that second value is a string literal
                     match &values[0][1] {
-                    ast::Expression::Literal(types::SqlValue::Varchar(s)) => {
-                    assert_eq!(s, "Alice");
-                    }
-                    _ => panic!("Expected string literal 'Alice', got {:?}", values[0][1]),
+                        ast::Expression::Literal(types::SqlValue::Varchar(s)) => {
+                            assert_eq!(s, "Alice");
+                        }
+                        _ => panic!("Expected string literal 'Alice', got {:?}", values[0][1]),
                     }
                 }
                 _ => panic!("Expected VALUES source"),
@@ -76,18 +76,24 @@ fn test_insert_multiple_defaults() {
                 ast::InsertSource::Values(values) => {
                     assert_eq!(values.len(), 1); // One row
                     assert_eq!(values[0].len(), 2); // Two values
-                    // Check that both values are DEFAULT
+                                                    // Check that both values are DEFAULT
                     match &values[0][0] {
                         ast::Expression::Default => {
                             // Success - parsed as Default expression
                         }
-                        _ => panic!("Expected DEFAULT expression for first value, got {:?}", values[0][0]),
+                        _ => panic!(
+                            "Expected DEFAULT expression for first value, got {:?}",
+                            values[0][0]
+                        ),
                     }
                     match &values[0][1] {
                         ast::Expression::Default => {
                             // Success - parsed as Default expression
                         }
-                        _ => panic!("Expected DEFAULT expression for second value, got {:?}", values[0][1]),
+                        _ => panic!(
+                            "Expected DEFAULT expression for second value, got {:?}",
+                            values[0][1]
+                        ),
                     }
                 }
                 _ => panic!("Expected VALUES source"),

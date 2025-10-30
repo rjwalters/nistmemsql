@@ -35,8 +35,7 @@ fn test_column_reference_expression() {
 
 #[test]
 fn test_qualified_column_reference() {
-    let expr =
-        Expression::ColumnRef { table: Some("users".to_string()), column: "id".to_string() };
+    let expr = Expression::ColumnRef { table: Some("users".to_string()), column: "id".to_string() };
 
     match expr {
         Expression::ColumnRef { table: Some(t), column: c } if t == "users" && c == "id" => {} // Success
@@ -74,8 +73,7 @@ fn test_binary_operation_equality() {
 
 #[test]
 fn test_function_call_count_star() {
-    let expr =
-        Expression::Function { name: "COUNT".to_string(), args: vec![Expression::Wildcard] };
+    let expr = Expression::Function { name: "COUNT".to_string(), args: vec![Expression::Wildcard] };
 
     match expr {
         Expression::Function { name, .. } if name == "COUNT" => {} // Success

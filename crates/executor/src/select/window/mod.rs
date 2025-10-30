@@ -71,10 +71,8 @@ pub(super) fn evaluate_window_functions(
         window_results.push(values);
 
         // Build mapping: WindowFunctionKey -> column index
-        let key = WindowFunctionKey::from_expression(
-            &win_func.function_spec,
-            &win_func.window_spec,
-        );
+        let key =
+            WindowFunctionKey::from_expression(&win_func.function_spec, &win_func.window_spec);
         let col_idx = base_column_count + idx;
         window_mapping.insert(key, col_idx);
     }

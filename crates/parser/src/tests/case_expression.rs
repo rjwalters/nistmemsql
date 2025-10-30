@@ -6,9 +6,8 @@ use super::*;
 
 #[test]
 fn test_parse_searched_case_simple() {
-    let result = Parser::parse_sql(
-        "SELECT CASE WHEN x > 0 THEN 'positive' ELSE 'non-positive' END FROM t;"
-    );
+    let result =
+        Parser::parse_sql("SELECT CASE WHEN x > 0 THEN 'positive' ELSE 'non-positive' END FROM t;");
     assert!(result.is_ok(), "Simple searched CASE should parse: {:?}", result);
 
     let stmt = result.unwrap();
@@ -43,7 +42,7 @@ fn test_parse_searched_case_multiple_when() {
             WHEN x < 0 THEN 'negative'
             WHEN x = 0 THEN 'zero'
             WHEN x > 0 THEN 'positive'
-         END FROM t;"
+         END FROM t;",
     );
     assert!(result.is_ok(), "Searched CASE with multiple WHEN should parse: {:?}", result);
 
@@ -61,9 +60,7 @@ fn test_parse_searched_case_multiple_when() {
 
 #[test]
 fn test_parse_searched_case_no_else() {
-    let result = Parser::parse_sql(
-        "SELECT CASE WHEN status = 'active' THEN 1 END FROM users;"
-    );
+    let result = Parser::parse_sql("SELECT CASE WHEN status = 'active' THEN 1 END FROM users;");
     assert!(result.is_ok(), "CASE without ELSE should parse: {:?}", result);
 
     let stmt = result.unwrap();
@@ -85,7 +82,7 @@ fn test_parse_simple_case() {
             WHEN 'active' THEN 1
             WHEN 'inactive' THEN 0
             ELSE 99
-         END FROM users;"
+         END FROM users;",
     );
     assert!(result.is_ok(), "Simple CASE should parse: {:?}", result);
 
@@ -125,9 +122,8 @@ fn test_parse_case_with_alias() {
 
 #[test]
 fn test_parse_case_in_where() {
-    let result = Parser::parse_sql(
-        "SELECT * FROM t WHERE CASE WHEN x > 0 THEN TRUE ELSE FALSE END;"
-    );
+    let result =
+        Parser::parse_sql("SELECT * FROM t WHERE CASE WHEN x > 0 THEN TRUE ELSE FALSE END;");
     assert!(result.is_ok(), "CASE in WHERE clause should parse: {:?}", result);
 
     let stmt = result.unwrap();
@@ -144,7 +140,7 @@ fn test_parse_case_in_where() {
 #[test]
 fn test_parse_case_in_order_by() {
     let result = Parser::parse_sql(
-        "SELECT * FROM t ORDER BY CASE WHEN priority = 'high' THEN 1 ELSE 2 END;"
+        "SELECT * FROM t ORDER BY CASE WHEN priority = 'high' THEN 1 ELSE 2 END;",
     );
     assert!(result.is_ok(), "CASE in ORDER BY should parse: {:?}", result);
 }
@@ -155,7 +151,7 @@ fn test_parse_nested_case() {
         "SELECT CASE
             WHEN x > 0 THEN CASE WHEN y > 0 THEN 'both positive' ELSE 'x positive' END
             ELSE 'x not positive'
-         END FROM t;"
+         END FROM t;",
     );
     assert!(result.is_ok(), "Nested CASE should parse: {:?}", result);
 
@@ -183,16 +179,14 @@ fn test_parse_case_with_complex_conditions() {
             WHEN age >= 18 AND age < 65 THEN 'adult'
             WHEN age >= 65 THEN 'senior'
             ELSE 'minor'
-         END FROM users;"
+         END FROM users;",
     );
     assert!(result.is_ok(), "CASE with complex conditions should parse: {:?}", result);
 }
 
 #[test]
 fn test_parse_case_with_null() {
-    let result = Parser::parse_sql(
-        "SELECT CASE WHEN x = NULL THEN 0 ELSE x END FROM t;"
-    );
+    let result = Parser::parse_sql("SELECT CASE WHEN x = NULL THEN 0 ELSE x END FROM t;");
     assert!(result.is_ok(), "CASE with NULL comparison should parse: {:?}", result);
 }
 
@@ -202,7 +196,7 @@ fn test_parse_case_with_function_calls() {
         "SELECT CASE
             WHEN LENGTH(name) > 10 THEN SUBSTRING(name, 1, 10)
             ELSE name
-         END FROM users;"
+         END FROM users;",
     );
     assert!(result.is_ok(), "CASE with function calls should parse: {:?}", result);
 }
@@ -213,7 +207,7 @@ fn test_parse_multiple_case_in_select() {
         "SELECT
             CASE WHEN x > 0 THEN 'pos' ELSE 'neg' END AS x_sign,
             CASE WHEN y > 0 THEN 'pos' ELSE 'neg' END AS y_sign
-         FROM t;"
+         FROM t;",
     );
     assert!(result.is_ok(), "Multiple CASE in SELECT should parse: {:?}", result);
 
@@ -236,7 +230,7 @@ fn test_parse_case_web_demo_query() {
                 ELSE 'Premium'
             END as price_category
         FROM products
-        ORDER BY unit_price;"
+        ORDER BY unit_price;",
     );
     assert!(result.is_ok(), "Web demo CASE query should parse: {:?}", result);
 
@@ -266,26 +260,20 @@ fn test_parse_case_web_demo_query() {
 
 #[test]
 fn test_parse_case_error_no_when() {
-    let result = Parser::parse_sql(
-        "SELECT CASE ELSE 'default' END FROM t;"
-    );
+    let result = Parser::parse_sql("SELECT CASE ELSE 'default' END FROM t;");
     assert!(result.is_err(), "CASE without WHEN should fail");
     // The error can be either about missing WHEN or about unexpected ELSE keyword
 }
 
 #[test]
 fn test_parse_case_error_missing_then() {
-    let result = Parser::parse_sql(
-        "SELECT CASE WHEN x > 0 'positive' END FROM t;"
-    );
+    let result = Parser::parse_sql("SELECT CASE WHEN x > 0 'positive' END FROM t;");
     assert!(result.is_err(), "CASE without THEN should fail");
 }
 
 #[test]
 fn test_parse_case_error_missing_end() {
-    let result = Parser::parse_sql(
-        "SELECT CASE WHEN x > 0 THEN 'positive' FROM t;"
-    );
+    let result = Parser::parse_sql("SELECT CASE WHEN x > 0 THEN 'positive' FROM t;");
     assert!(result.is_err(), "CASE without END should fail");
 }
 
@@ -293,9 +281,7 @@ fn test_parse_case_error_missing_end() {
 
 #[test]
 fn test_parse_case_comma_separated_when() {
-    let result = Parser::parse_sql(
-        "SELECT CASE 0 WHEN 2, 2 THEN 1 ELSE 0 END;"
-    );
+    let result = Parser::parse_sql("SELECT CASE 0 WHEN 2, 2 THEN 1 ELSE 0 END;");
     assert!(result.is_ok(), "CASE with comma-separated WHEN should parse: {:?}", result);
 
     let stmt = result.unwrap();
@@ -314,7 +300,7 @@ fn test_parse_case_comma_separated_when() {
 #[test]
 fn test_parse_case_multiple_values() {
     let result = Parser::parse_sql(
-        "SELECT CASE status WHEN 'active', 'pending', 'new' THEN 'open' ELSE 'closed' END;"
+        "SELECT CASE status WHEN 'active', 'pending', 'new' THEN 'open' ELSE 'closed' END;",
     );
     assert!(result.is_ok(), "CASE with multiple values should parse: {:?}", result);
 
@@ -333,10 +319,12 @@ fn test_parse_case_multiple_values() {
 
 #[test]
 fn test_parse_case_mixed_single_and_multiple() {
-    let result = Parser::parse_sql(
-        "SELECT CASE x WHEN 1, 2 THEN 'low' WHEN 10 THEN 'high' END;"
+    let result = Parser::parse_sql("SELECT CASE x WHEN 1, 2 THEN 'low' WHEN 10 THEN 'high' END;");
+    assert!(
+        result.is_ok(),
+        "CASE with mixed single and multiple values should parse: {:?}",
+        result
     );
-    assert!(result.is_ok(), "CASE with mixed single and multiple values should parse: {:?}", result);
 
     let stmt = result.unwrap();
     if let ast::Statement::Select(select) = stmt {

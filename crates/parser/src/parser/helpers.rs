@@ -71,9 +71,7 @@ impl Parser {
                 self.advance();
                 Ok(identifier)
             }
-            _ => Err(ParseError {
-                message: "Expected identifier".to_string(),
-            }),
+            _ => Err(ParseError { message: "Expected identifier".to_string() }),
         }
     }
 
@@ -106,11 +104,7 @@ impl Parser {
                 self.advance();
                 identifier
             }
-            _ => {
-                return Err(ParseError {
-                    message: "Expected identifier".to_string(),
-                })
-            }
+            _ => return Err(ParseError { message: "Expected identifier".to_string() }),
         };
 
         // Check if there's a dot followed by another identifier
@@ -123,9 +117,7 @@ impl Parser {
                     identifier
                 }
                 _ => {
-                    return Err(ParseError {
-                        message: "Expected identifier after '.'".to_string(),
-                    })
+                    return Err(ParseError { message: "Expected identifier after '.'".to_string() })
                 }
             };
             Ok(format!("{}.{}", first_part, second_part))

@@ -10,11 +10,7 @@ fn test_line_comment_simple() {
 
     assert_eq!(
         tokens,
-        vec![
-            Token::Keyword(Keyword::Select),
-            Token::Number("1".to_string()),
-            Token::Eof,
-        ]
+        vec![Token::Keyword(Keyword::Select), Token::Number("1".to_string()), Token::Eof,]
     );
 }
 
@@ -26,11 +22,7 @@ fn test_line_comment_at_end() {
 
     assert_eq!(
         tokens,
-        vec![
-            Token::Keyword(Keyword::Select),
-            Token::Number("1".to_string()),
-            Token::Eof,
-        ]
+        vec![Token::Keyword(Keyword::Select), Token::Number("1".to_string()), Token::Eof,]
     );
 }
 
@@ -45,11 +37,7 @@ SELECT 1 -- inline comment
 
     assert_eq!(
         tokens,
-        vec![
-            Token::Keyword(Keyword::Select),
-            Token::Number("1".to_string()),
-            Token::Eof,
-        ]
+        vec![Token::Keyword(Keyword::Select), Token::Number("1".to_string()), Token::Eof,]
     );
 }
 

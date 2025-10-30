@@ -160,16 +160,10 @@ fn test_select_distinct() {
         set_operation: None,
         distinct: true,
         select_list: vec![SelectItem::Expression {
-            expr: Expression::ColumnRef {
-                table: None,
-                column: "country".to_string(),
-            },
+            expr: Expression::ColumnRef { table: None, column: "country".to_string() },
             alias: None,
         }],
-        from: Some(FromClause::Table {
-            name: "users".to_string(),
-            alias: None,
-        }),
+        from: Some(FromClause::Table { name: "users".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -193,10 +187,7 @@ fn test_select_with_group_by() {
             },
             alias: None,
         }],
-        from: Some(FromClause::Table {
-            name: "orders".to_string(),
-            alias: None,
-        }),
+        from: Some(FromClause::Table { name: "orders".to_string(), alias: None }),
         where_clause: None,
         group_by: Some(vec![Expression::ColumnRef {
             table: None,
@@ -217,23 +208,14 @@ fn test_select_with_having() {
         set_operation: None,
         distinct: false,
         select_list: vec![SelectItem::Wildcard],
-        from: Some(FromClause::Table {
-            name: "sales".to_string(),
-            alias: None,
-        }),
+        from: Some(FromClause::Table { name: "sales".to_string(), alias: None }),
         where_clause: None,
-        group_by: Some(vec![Expression::ColumnRef {
-            table: None,
-            column: "region".to_string(),
-        }]),
+        group_by: Some(vec![Expression::ColumnRef { table: None, column: "region".to_string() }]),
         having: Some(Expression::BinaryOp {
             op: BinaryOperator::GreaterThan,
             left: Box::new(Expression::Function {
                 name: "SUM".to_string(),
-                args: vec![Expression::ColumnRef {
-                    table: None,
-                    column: "amount".to_string(),
-                }],
+                args: vec![Expression::ColumnRef { table: None, column: "amount".to_string() }],
             }),
             right: Box::new(Expression::Literal(SqlValue::Integer(1000))),
         }),
@@ -251,10 +233,7 @@ fn test_select_with_limit() {
         set_operation: None,
         distinct: false,
         select_list: vec![SelectItem::Wildcard],
-        from: Some(FromClause::Table {
-            name: "products".to_string(),
-            alias: None,
-        }),
+        from: Some(FromClause::Table { name: "products".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -272,10 +251,7 @@ fn test_select_with_offset() {
         set_operation: None,
         distinct: false,
         select_list: vec![SelectItem::Wildcard],
-        from: Some(FromClause::Table {
-            name: "items".to_string(),
-            alias: None,
-        }),
+        from: Some(FromClause::Table { name: "items".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -293,18 +269,12 @@ fn test_order_by_desc() {
         set_operation: None,
         distinct: false,
         select_list: vec![SelectItem::Wildcard],
-        from: Some(FromClause::Table {
-            name: "posts".to_string(),
-            alias: None,
-        }),
+        from: Some(FromClause::Table { name: "posts".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
         order_by: Some(vec![OrderByItem {
-            expr: Expression::ColumnRef {
-                table: None,
-                column: "created_at".to_string(),
-            },
+            expr: Expression::ColumnRef { table: None, column: "created_at".to_string() },
             direction: OrderDirection::Desc,
         }]),
         limit: None,
@@ -321,14 +291,8 @@ fn test_order_by_desc() {
 #[test]
 fn test_inner_join() {
     let from = FromClause::Join {
-        left: Box::new(FromClause::Table {
-            name: "users".to_string(),
-            alias: None,
-        }),
-        right: Box::new(FromClause::Table {
-            name: "orders".to_string(),
-            alias: None,
-        }),
+        left: Box::new(FromClause::Table { name: "users".to_string(), alias: None }),
+        right: Box::new(FromClause::Table { name: "orders".to_string(), alias: None }),
         join_type: JoinType::Inner,
         condition: Some(Expression::BinaryOp {
             op: BinaryOperator::Equal,
@@ -343,10 +307,7 @@ fn test_inner_join() {
         }),
     };
     match from {
-        FromClause::Join {
-            join_type: JoinType::Inner,
-            ..
-        } => {} // Success
+        FromClause::Join { join_type: JoinType::Inner, .. } => {} // Success
         _ => panic!("Expected INNER JOIN"),
     }
 }
@@ -354,22 +315,13 @@ fn test_inner_join() {
 #[test]
 fn test_left_outer_join() {
     let from = FromClause::Join {
-        left: Box::new(FromClause::Table {
-            name: "customers".to_string(),
-            alias: None,
-        }),
-        right: Box::new(FromClause::Table {
-            name: "orders".to_string(),
-            alias: None,
-        }),
+        left: Box::new(FromClause::Table { name: "customers".to_string(), alias: None }),
+        right: Box::new(FromClause::Table { name: "orders".to_string(), alias: None }),
         join_type: JoinType::LeftOuter,
         condition: None,
     };
     match from {
-        FromClause::Join {
-            join_type: JoinType::LeftOuter,
-            ..
-        } => {} // Success
+        FromClause::Join { join_type: JoinType::LeftOuter, .. } => {} // Success
         _ => panic!("Expected LEFT OUTER JOIN"),
     }
 }
@@ -377,22 +329,13 @@ fn test_left_outer_join() {
 #[test]
 fn test_right_outer_join() {
     let from = FromClause::Join {
-        left: Box::new(FromClause::Table {
-            name: "products".to_string(),
-            alias: None,
-        }),
-        right: Box::new(FromClause::Table {
-            name: "categories".to_string(),
-            alias: None,
-        }),
+        left: Box::new(FromClause::Table { name: "products".to_string(), alias: None }),
+        right: Box::new(FromClause::Table { name: "categories".to_string(), alias: None }),
         join_type: JoinType::RightOuter,
         condition: None,
     };
     match from {
-        FromClause::Join {
-            join_type: JoinType::RightOuter,
-            ..
-        } => {} // Success
+        FromClause::Join { join_type: JoinType::RightOuter, .. } => {} // Success
         _ => panic!("Expected RIGHT OUTER JOIN"),
     }
 }
@@ -400,22 +343,13 @@ fn test_right_outer_join() {
 #[test]
 fn test_full_outer_join() {
     let from = FromClause::Join {
-        left: Box::new(FromClause::Table {
-            name: "table1".to_string(),
-            alias: None,
-        }),
-        right: Box::new(FromClause::Table {
-            name: "table2".to_string(),
-            alias: None,
-        }),
+        left: Box::new(FromClause::Table { name: "table1".to_string(), alias: None }),
+        right: Box::new(FromClause::Table { name: "table2".to_string(), alias: None }),
         join_type: JoinType::FullOuter,
         condition: None,
     };
     match from {
-        FromClause::Join {
-            join_type: JoinType::FullOuter,
-            ..
-        } => {} // Success
+        FromClause::Join { join_type: JoinType::FullOuter, .. } => {} // Success
         _ => panic!("Expected FULL OUTER JOIN"),
     }
 }
@@ -423,22 +357,13 @@ fn test_full_outer_join() {
 #[test]
 fn test_cross_join() {
     let from = FromClause::Join {
-        left: Box::new(FromClause::Table {
-            name: "colors".to_string(),
-            alias: None,
-        }),
-        right: Box::new(FromClause::Table {
-            name: "sizes".to_string(),
-            alias: None,
-        }),
+        left: Box::new(FromClause::Table { name: "colors".to_string(), alias: None }),
+        right: Box::new(FromClause::Table { name: "sizes".to_string(), alias: None }),
         join_type: JoinType::Cross,
         condition: None,
     };
     match from {
-        FromClause::Join {
-            join_type: JoinType::Cross,
-            ..
-        } => {} // Success
+        FromClause::Join { join_type: JoinType::Cross, .. } => {} // Success
         _ => panic!("Expected CROSS JOIN"),
     }
 }
@@ -454,16 +379,10 @@ fn test_from_subquery() {
         set_operation: None,
         distinct: false,
         select_list: vec![SelectItem::Wildcard],
-        from: Some(FromClause::Table {
-            name: "users".to_string(),
-            alias: None,
-        }),
+        from: Some(FromClause::Table { name: "users".to_string(), alias: None }),
         where_clause: Some(Expression::BinaryOp {
             op: BinaryOperator::Equal,
-            left: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "active".to_string(),
-            }),
+            left: Box::new(Expression::ColumnRef { table: None, column: "active".to_string() }),
             right: Box::new(Expression::Literal(SqlValue::Boolean(true))),
         }),
         group_by: None,
@@ -473,10 +392,8 @@ fn test_from_subquery() {
         offset: None,
     };
 
-    let from = FromClause::Subquery {
-        query: Box::new(subquery),
-        alias: "active_users".to_string(),
-    };
+    let from =
+        FromClause::Subquery { query: Box::new(subquery), alias: "active_users".to_string() };
     match from {
         FromClause::Subquery { alias, .. } if alias == "active_users" => {} // Success
         _ => panic!("Expected subquery in FROM clause"),
@@ -485,10 +402,7 @@ fn test_from_subquery() {
 
 #[test]
 fn test_table_with_alias() {
-    let from = FromClause::Table {
-        name: "employees".to_string(),
-        alias: Some("e".to_string()),
-    };
+    let from = FromClause::Table { name: "employees".to_string(), alias: Some("e".to_string()) };
     match from {
         FromClause::Table { alias: Some(a), .. } if a == "e" => {} // Success
         _ => panic!("Expected table with alias"),

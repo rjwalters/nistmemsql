@@ -1,0 +1,19 @@
+{
+  "name": "nistmemsql",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SQL Conformance Testing Database - pnpm helper scripts for Cargo commands",
+  "scripts": {
+    "check:all": "cargo fmt -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all && cargo build --all",
+    "check:ci": "cargo fmt -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all",
+    "test": "cargo test --all",
+    "test:lib": "cargo test --lib",
+    "test:integration": "cargo test --test '*'",
+    "build": "cargo build --all",
+    "build:release": "cargo build --release --all",
+    "fmt": "cargo fmt --all",
+    "fmt:check": "cargo fmt -- --check",
+    "lint": "cargo clippy --all-targets --all-features -- -D warnings",
+    "clean": "cargo clean"
+  }
+}

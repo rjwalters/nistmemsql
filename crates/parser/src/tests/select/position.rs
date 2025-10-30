@@ -58,7 +58,9 @@ fn test_parse_position_substring_found() {
                         );
                         assert_eq!(
                             **string,
-                            ast::Expression::Literal(types::SqlValue::Varchar("hello world".to_string()))
+                            ast::Expression::Literal(types::SqlValue::Varchar(
+                                "hello world".to_string()
+                            ))
                         );
                     }
                     _ => panic!("Expected Position expression"),
@@ -90,10 +92,7 @@ fn test_parse_position_with_column() {
                         );
                         assert_eq!(
                             **string,
-                            ast::Expression::ColumnRef {
-                                table: None,
-                                column: "name".to_string()
-                            }
+                            ast::Expression::ColumnRef { table: None, column: "name".to_string() }
                         );
                     }
                     _ => panic!("Expected Position expression"),
