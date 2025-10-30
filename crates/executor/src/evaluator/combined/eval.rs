@@ -1,6 +1,7 @@
 ///! Main evaluation entry point for combined expressions
 
 use crate::errors::ExecutorError;
+use crate::select::WindowFunctionKey;
 use super::super::core::{CombinedExpressionEvaluator, ExpressionEvaluator};
 
 impl<'a> CombinedExpressionEvaluator<'a> {
@@ -114,6 +115,29 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             // Unary operations (delegate to shared function)
             ast::Expression::UnaryOp { op, expr } => {
                 self.eval_unary(op, expr, row)
+            }
+
+            // Window functions - look up pre-computed values
+            ast::Expression::WindowFunction { function, over } => {
+                if let Some(mapping) = self.window_mapping {
+                    let key = WindowFunctionKey::from_expression(function, over);
+                    if let Some(&col_idx) = mapping.get(&key) {
+                        // Extract the pre-computed value from the appended column
+                        let value = row.values
+                            .get(col_idx)
+                            .cloned()
+                            .ok_or_else(|| ExecutorError::ColumnIndexOutOfBounds { index: col_idx })?;
+                        Ok(value)
+                    } else {
+                        Err(ExecutorError::UnsupportedExpression(
+                            format!("Window function not found in mapping: {:?}", expr),
+                        ))
+                    }
+                } else {
+                    Err(ExecutorError::UnsupportedExpression(
+                        "Window functions require window mapping context".to_string(),
+                    ))
+                }
             }
 
             // Unsupported expressions

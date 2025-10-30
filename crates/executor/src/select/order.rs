@@ -30,6 +30,7 @@ pub(super) fn apply_order_by(
         let mut keys = Vec::new();
         for order_item in order_by {
             // Check if ORDER BY expression is a SELECT list alias
+            // Evaluator handles window functions via window_mapping if present
             let expr_to_eval = resolve_order_by_alias(&order_item.expr, select_list);
             let key_value = evaluator.eval(expr_to_eval, row)?;
             keys.push((key_value, order_item.direction.clone()));

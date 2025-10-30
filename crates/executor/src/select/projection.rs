@@ -43,7 +43,7 @@ pub(super) fn project_row_combined(
 }
 
 /// Evaluate an expression, checking for window functions first
-fn evaluate_expression_with_windows(
+pub(super) fn evaluate_expression_with_windows(
     expr: &ast::Expression,
     row: &storage::Row,
     evaluator: &crate::evaluator::CombinedExpressionEvaluator,

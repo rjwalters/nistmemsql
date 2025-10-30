@@ -109,7 +109,7 @@ pub(super) fn has_window_functions(select_list: &[SelectItem]) -> bool {
 }
 
 /// Check if an expression contains a window function
-fn expression_has_window_function(expr: &Expression) -> bool {
+pub(super) fn expression_has_window_function(expr: &Expression) -> bool {
     match expr {
         Expression::WindowFunction { .. } => true,
         Expression::BinaryOp { left, right, .. } => {
@@ -267,12 +267,9 @@ fn evaluate_single_window_function(
 ) -> Result<Vec<SqlValue>, ExecutorError> {
     // Extract function details
     let (func_name, args) = match &win_func.function_spec {
-        WindowFunctionSpec::Aggregate { name, args } => (name.as_str(), args),
-        _ => {
-            return Err(ExecutorError::UnsupportedFeature(
-                "Only aggregate window functions are supported in this phase".to_string(),
-            ))
-        }
+        WindowFunctionSpec::Aggregate { name, args } => (name.as_str(), args.as_slice()),
+        WindowFunctionSpec::Ranking { name, args } => (name.as_str(), args.as_slice()),
+        WindowFunctionSpec::Value { name, args } => (name.as_str(), args.as_slice()),
     };
 
     // Partition rows using evaluator for column resolution
@@ -287,7 +284,8 @@ fn evaluate_single_window_function(
     }
 
     // Evaluate window function for each partition
-    let mut all_results = Vec::new();
+    // We need to collect results with their original indices, then reorder
+    let mut results_with_indices = Vec::new();
 
     for partition in &partitions {
         let partition_results = evaluate_window_function_for_partition(
@@ -298,8 +296,18 @@ fn evaluate_single_window_function(
             &win_func.window_spec.frame,
             evaluator,
         )?;
-        all_results.extend(partition_results);
+
+        // Pair each result with its original index
+        for (result, &original_idx) in partition_results.iter().zip(partition.original_indices.iter()) {
+            results_with_indices.push((original_idx, result.clone()));
+        }
     }
+
+    // Sort by original index to restore original row order
+    results_with_indices.sort_by_key(|(idx, _)| *idx);
+
+    // Extract just the results
+    let all_results = results_with_indices.into_iter().map(|(_, result)| result).collect();
 
     Ok(all_results)
 }
@@ -313,20 +321,50 @@ fn evaluate_window_function_for_partition(
     frame_spec: &Option<ast::WindowFrame>,
     evaluator: &CombinedExpressionEvaluator,
 ) -> Result<Vec<SqlValue>, ExecutorError> {
-    let mut results = Vec::with_capacity(partition.len());
 
-    // Evaluate function for each row in the partition
-    for row_idx in 0..partition.len() {
-        // Calculate frame for this row
-        let frame = calculate_frame(partition, row_idx, order_by, frame_spec);
+    // Handle ranking functions (they don't use frames)
+    let results = match func_name.to_uppercase().as_str() {
+        "ROW_NUMBER" => {
+            crate::evaluator::window::evaluate_row_number(partition)
+        }
+        "RANK" => {
+            crate::evaluator::window::evaluate_rank(partition, order_by)
+        }
+        "DENSE_RANK" => {
+            crate::evaluator::window::evaluate_dense_rank(partition, order_by)
+        }
+        "NTILE" => {
+            if args.is_empty() {
+                return Err(ExecutorError::UnsupportedExpression(
+                    "NTILE requires an argument".to_string(),
+                ));
+            }
+            // Evaluate the NTILE argument (should be a constant)
+            let n_value = evaluator.eval(&args[0], &partition.rows[0])?;
+            let n = match n_value {
+                types::SqlValue::Integer(n) => n,
+                _ => return Err(ExecutorError::UnsupportedExpression(
+                    "NTILE argument must be an integer".to_string(),
+                )),
+            };
+            crate::evaluator::window::evaluate_ntile(partition, n).map_err(|e| ExecutorError::UnsupportedExpression(e))?
+        }
+        _ => {
+            // Handle aggregate functions that use frames
+            let mut results: Vec<SqlValue> = Vec::with_capacity(partition.len());
 
-        // Create closure that evaluates expressions using the evaluator
-        let eval_fn = |expr: &Expression, row: &Row| -> Result<SqlValue, String> {
-            evaluator.eval(expr, row).map_err(|e| format!("{:?}", e))
-        };
+            // Evaluate function for each row in the partition
+            for row_idx in 0..partition.len() {
+                // Calculate frame for this row
+                let frame = calculate_frame(partition, row_idx, order_by, frame_spec);
 
-        // Evaluate the aggregate function over the frame
-        let value = match func_name.to_uppercase().as_str() {
+                // Create closure that evaluates expressions using the evaluator
+                let eval_fn = |expr: &Expression, row: &Row| -> Result<SqlValue, String> {
+                    evaluator.eval(expr, row).map_err(|e| format!("{:?}", e))
+                };
+
+                // Evaluate the aggregate function over the frame
+                let value = match func_name.to_uppercase().as_str() {
             "COUNT" => {
                 // COUNT(*) or COUNT(expr)
                 // Check if arg is the special "*" column reference
@@ -379,8 +417,146 @@ fn evaluate_window_function_for_partition(
             }
         };
 
-        results.push(value);
-    }
+                results.push(value);
+            }
+
+            results
+        }
+    };
 
     Ok(results)
+}
+
+/// Collect window functions from ORDER BY expressions
+pub(super) fn collect_order_by_window_functions(order_by: &[ast::OrderByItem]) -> Vec<(WindowFunctionSpec, ast::WindowSpec)> {
+    let mut window_functions = Vec::new();
+
+    for item in order_by {
+        collect_window_functions_from_expression(&item.expr, &mut window_functions);
+    }
+
+    window_functions
+}
+
+/// Recursively collect window functions from an expression
+fn collect_window_functions_from_expression(
+    expr: &Expression,
+    window_functions: &mut Vec<(WindowFunctionSpec, ast::WindowSpec)>,
+) {
+    match expr {
+        Expression::WindowFunction { function, over } => {
+            window_functions.push((function.clone(), over.clone()));
+        }
+        Expression::BinaryOp { left, right, .. } => {
+            collect_window_functions_from_expression(left, window_functions);
+            collect_window_functions_from_expression(right, window_functions);
+        }
+        Expression::UnaryOp { expr, .. } => {
+            collect_window_functions_from_expression(expr, window_functions);
+        }
+        Expression::Function { args, .. } => {
+            for arg in args {
+                collect_window_functions_from_expression(arg, window_functions);
+            }
+        }
+        Expression::Case {
+            when_clauses,
+            else_result,
+            ..
+        } => {
+            for (cond, result) in when_clauses {
+                collect_window_functions_from_expression(cond, window_functions);
+                collect_window_functions_from_expression(result, window_functions);
+            }
+            if let Some(else_result) = else_result {
+                collect_window_functions_from_expression(else_result, window_functions);
+            }
+        }
+        Expression::In { expr, .. } => {
+            collect_window_functions_from_expression(expr, window_functions);
+        }
+        Expression::InList { expr, .. } => {
+            collect_window_functions_from_expression(expr, window_functions);
+        }
+        Expression::Between { expr, low, high, .. } => {
+            collect_window_functions_from_expression(expr, window_functions);
+            collect_window_functions_from_expression(low, window_functions);
+            collect_window_functions_from_expression(high, window_functions);
+        }
+        Expression::Like { expr, pattern, .. } => {
+            collect_window_functions_from_expression(expr, window_functions);
+            collect_window_functions_from_expression(pattern, window_functions);
+        }
+        Expression::Cast { expr, .. } => {
+            collect_window_functions_from_expression(expr, window_functions);
+        }
+        Expression::IsNull { expr, .. } => {
+            collect_window_functions_from_expression(expr, window_functions);
+        }
+        Expression::Exists { .. } | Expression::ScalarSubquery(_) | Expression::QuantifiedComparison { .. } => {
+            // These don't contain window functions in their expressions
+        }
+        Expression::AggregateFunction { .. } => {
+            // Aggregate functions don't contain window functions
+        }
+        Expression::Wildcard => {
+            // Wildcard doesn't contain window functions
+        }
+        Expression::Literal(_) | Expression::ColumnRef { .. } | Expression::Position { .. } => {
+            // These are leaf nodes
+        }
+    }
+}
+
+/// Evaluate window functions found in ORDER BY expressions
+pub(super) fn evaluate_order_by_window_functions(
+    mut rows: Vec<storage::Row>,
+    order_by_window_functions: Vec<(WindowFunctionSpec, ast::WindowSpec)>,
+    evaluator: &CombinedExpressionEvaluator,
+    existing_mapping: Option<&HashMap<WindowFunctionKey, usize>>,
+) -> Result<(Vec<storage::Row>, HashMap<WindowFunctionKey, usize>), ExecutorError> {
+    if order_by_window_functions.is_empty() {
+        return Ok((rows, HashMap::new()));
+    }
+
+    // Build mapping from existing functions to avoid duplicates
+    let existing_keys: std::collections::HashSet<_> = existing_mapping
+        .map(|m| m.keys().collect())
+        .unwrap_or_default();
+
+    let mut window_results: Vec<Vec<SqlValue>> = Vec::new();
+    let mut window_mapping = HashMap::new();
+
+    // Track the column index where window function results start
+    let base_column_count = if rows.is_empty() { 0 } else { rows[0].values.len() };
+
+    for (idx, (function_spec, window_spec)) in order_by_window_functions.iter().enumerate() {
+        let key = WindowFunctionKey::from_expression(function_spec, window_spec);
+
+        // Skip if this window function is already evaluated
+        if existing_keys.contains(&key) {
+            continue;
+        }
+
+        let win_func_info = WindowFunctionInfo {
+            _select_index: 0, // Dummy value for ORDER BY functions
+            function_spec: function_spec.clone(),
+            window_spec: window_spec.clone(),
+        };
+        let values = evaluate_single_window_function(&rows, &win_func_info, evaluator)?;
+        window_results.push(values);
+
+        // Build mapping: WindowFunctionKey -> column index
+        let col_idx = base_column_count + idx;
+        window_mapping.insert(key, col_idx);
+    }
+
+    // Extend each row with window function results
+    for (row_idx, row) in rows.iter_mut().enumerate() {
+        for results in &window_results {
+            row.values.push(results[row_idx].clone());
+        }
+    }
+
+    Ok((rows, window_mapping))
 }

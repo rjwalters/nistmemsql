@@ -12,6 +12,7 @@ use super::utils::evaluate_expression;
 /// Sort a partition by ORDER BY clauses
 ///
 /// Sorts rows within a partition according to ORDER BY specification.
+/// Also keeps original_indices in sync with the sorted rows.
 pub fn sort_partition(partition: &mut Partition, order_by: &Option<Vec<OrderByItem>>) {
     // If no ORDER BY, keep original order
     let Some(order_items) = order_by else {
@@ -22,11 +23,15 @@ pub fn sort_partition(partition: &mut Partition, order_by: &Option<Vec<OrderByIt
         return;
     }
 
-    // Sort rows by order expressions
-    partition.rows.sort_by(|a, b| {
+    // Create indices for sorting without borrowing partition data
+    let mut indices: Vec<usize> = (0..partition.rows.len()).collect();
+
+    // Sort indices by evaluating order expressions on the rows
+    let rows = &partition.rows;  // Borrow for comparison only
+    indices.sort_by(|&a, &b| {
         for order_item in order_items {
-            let val_a = evaluate_expression(&order_item.expr, a).unwrap_or(SqlValue::Null);
-            let val_b = evaluate_expression(&order_item.expr, b).unwrap_or(SqlValue::Null);
+            let val_a = evaluate_expression(&order_item.expr, &rows[a]).unwrap_or(SqlValue::Null);
+            let val_b = evaluate_expression(&order_item.expr, &rows[b]).unwrap_or(SqlValue::Null);
 
             let cmp = compare_values(&val_a, &val_b);
 
@@ -41,6 +46,13 @@ pub fn sort_partition(partition: &mut Partition, order_by: &Option<Vec<OrderByIt
         }
         Ordering::Equal
     });
+
+    // Now reorder both rows and original_indices using the sorted indices
+    let old_rows = std::mem::take(&mut partition.rows);
+    let old_indices = std::mem::take(&mut partition.original_indices);
+
+    partition.rows = indices.iter().map(|&i| old_rows[i].clone()).collect();
+    partition.original_indices = indices.iter().map(|&i| old_indices[i]).collect();
 }
 
 /// Compare two SQL values for ordering
