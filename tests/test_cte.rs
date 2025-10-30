@@ -20,22 +20,22 @@ fn create_test_database() -> Database {
 
     // Create users table
     let users_schema = TableSchema::new(
-        "users".to_string(),
+        "USERS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "name".to_string(),
+                "NAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
-            ColumnSchema::new("age".to_string(), DataType::Integer, false),
+            ColumnSchema::new("AGE".to_string(), DataType::Integer, false),
         ],
     );
     db.create_table(users_schema).unwrap();
 
     // Insert test data
     db.insert_row(
-        "users",
+        "USERS",
         Row::new(vec![
             SqlValue::Integer(1),
             SqlValue::Varchar("Alice".to_string()),
@@ -44,7 +44,7 @@ fn create_test_database() -> Database {
     )
     .unwrap();
     db.insert_row(
-        "users",
+        "USERS",
         Row::new(vec![
             SqlValue::Integer(2),
             SqlValue::Varchar("Bob".to_string()),
@@ -53,7 +53,7 @@ fn create_test_database() -> Database {
     )
     .unwrap();
     db.insert_row(
-        "users",
+        "USERS",
         Row::new(vec![
             SqlValue::Integer(3),
             SqlValue::Varchar("Charlie".to_string()),
@@ -64,27 +64,27 @@ fn create_test_database() -> Database {
 
     // Create orders table
     let orders_schema = TableSchema::new(
-        "orders".to_string(),
+        "ORDERS".to_string(),
         vec![
-            ColumnSchema::new("order_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("user_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("amount".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ORDER_ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("USER_ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("AMOUNT".to_string(), DataType::Integer, false),
         ],
     );
     db.create_table(orders_schema).unwrap();
 
     db.insert_row(
-        "orders",
+        "ORDERS",
         Row::new(vec![SqlValue::Integer(101), SqlValue::Integer(1), SqlValue::Integer(100)]),
     )
     .unwrap();
     db.insert_row(
-        "orders",
+        "ORDERS",
         Row::new(vec![SqlValue::Integer(102), SqlValue::Integer(2), SqlValue::Integer(200)]),
     )
     .unwrap();
     db.insert_row(
-        "orders",
+        "ORDERS",
         Row::new(vec![SqlValue::Integer(103), SqlValue::Integer(1), SqlValue::Integer(150)]),
     )
     .unwrap();
