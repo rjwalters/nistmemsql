@@ -48,9 +48,14 @@ impl Parser {
                             self.advance(); // consume _TIMESTAMP
                             "CURRENT_TIMESTAMP"
                         }
-                        _ => return Err(ParseError {
-                            message: format!("Expected DATE, TIME, or TIMESTAMP after CURRENT, found {}", id),
-                        }),
+                        _ => {
+                            return Err(ParseError {
+                                message: format!(
+                                    "Expected DATE, TIME, or TIMESTAMP after CURRENT, found {}",
+                                    id
+                                ),
+                            })
+                        }
                     };
 
                     return Ok(Some(ast::Expression::Function {
@@ -59,7 +64,10 @@ impl Parser {
                     }));
                 } else {
                     return Err(ParseError {
-                        message: format!("Expected identifier after CURRENT, found {:?}", self.peek()),
+                        message: format!(
+                            "Expected identifier after CURRENT, found {:?}",
+                            self.peek()
+                        ),
                     });
                 }
             }
@@ -173,7 +181,10 @@ impl Parser {
                     // Expect closing parenthesis
                     self.expect_token(Token::RParen)?;
 
-                    Ok(Some(ast::Expression::Exists { subquery: Box::new(subquery), negated: true }))
+                    Ok(Some(ast::Expression::Exists {
+                        subquery: Box::new(subquery),
+                        negated: true,
+                    }))
                 } else {
                     // It's a unary NOT operator on another expression
                     // Parse the inner expression
@@ -195,7 +206,9 @@ impl Parser {
     }
 
     /// Parse current date/time functions (CURRENT_DATE, CURRENT_TIME[(precision)], CURRENT_TIMESTAMP[(precision)])
-    pub(super) fn parse_current_datetime_function(&mut self) -> Result<Option<ast::Expression>, ParseError> {
+    pub(super) fn parse_current_datetime_function(
+        &mut self,
+    ) -> Result<Option<ast::Expression>, ParseError> {
         match self.peek() {
             Token::Keyword(Keyword::CurrentDate) => {
                 self.advance(); // consume CURRENT_DATE
@@ -206,16 +219,21 @@ impl Parser {
                 let precision = if self.try_consume(&Token::LParen) {
                     let prec_str = match self.peek() {
                         Token::Number(n) => n.clone(),
-                        _ => return Err(ParseError {
-                            message: "Expected integer precision for CURRENT_TIME".to_string(),
-                        }),
+                        _ => {
+                            return Err(ParseError {
+                                message: "Expected integer precision for CURRENT_TIME".to_string(),
+                            })
+                        }
                     };
                     let prec: u32 = prec_str.parse().map_err(|_| ParseError {
                         message: format!("Invalid precision value: {}", prec_str),
                     })?;
                     if prec > 9 {
                         return Err(ParseError {
-                            message: format!("CURRENT_TIME precision must be between 0 and 9, got {}", prec),
+                            message: format!(
+                                "CURRENT_TIME precision must be between 0 and 9, got {}",
+                                prec
+                            ),
                         });
                     }
                     self.advance(); // consume the number
@@ -231,16 +249,22 @@ impl Parser {
                 let precision = if self.try_consume(&Token::LParen) {
                     let prec_str = match self.peek() {
                         Token::Number(n) => n.clone(),
-                        _ => return Err(ParseError {
-                            message: "Expected integer precision for CURRENT_TIMESTAMP".to_string(),
-                        }),
+                        _ => {
+                            return Err(ParseError {
+                                message: "Expected integer precision for CURRENT_TIMESTAMP"
+                                    .to_string(),
+                            })
+                        }
                     };
                     let prec: u32 = prec_str.parse().map_err(|_| ParseError {
                         message: format!("Invalid precision value: {}", prec_str),
                     })?;
                     if prec > 9 {
                         return Err(ParseError {
-                            message: format!("CURRENT_TIMESTAMP precision must be between 0 and 9, got {}", prec),
+                            message: format!(
+                                "CURRENT_TIMESTAMP precision must be between 0 and 9, got {}",
+                                prec
+                            ),
                         });
                     }
                     self.advance(); // consume the number

@@ -252,9 +252,6 @@ fn test_token_display_eof() {
 
 #[test]
 fn test_lexer_error_display() {
-    let error = LexerError {
-        message: "Unexpected character".to_string(),
-        position: 42,
-    };
+    let error = LexerError { message: "Unexpected character".to_string(), position: 42 };
     assert_eq!(format!("{}", error), "Lexer error at position 42: Unexpected character");
 }

@@ -18,7 +18,8 @@ fn test_parse_union_all() {
 
 #[test]
 fn test_parse_union_multiple_columns() {
-    let result = Parser::parse_sql("SELECT id, name FROM users UNION SELECT id, name FROM customers;");
+    let result =
+        Parser::parse_sql("SELECT id, name FROM users UNION SELECT id, name FROM customers;");
     assert!(result.is_ok(), "UNION with multiple columns should parse: {:?}", result);
 }
 
@@ -32,14 +33,15 @@ fn test_parse_union_with_where() {
 
 #[test]
 fn test_parse_union_with_order_by() {
-    let result = Parser::parse_sql("SELECT name FROM users UNION SELECT name FROM customers ORDER BY name;");
+    let result =
+        Parser::parse_sql("SELECT name FROM users UNION SELECT name FROM customers ORDER BY name;");
     assert!(result.is_ok(), "UNION with ORDER BY should parse: {:?}", result);
 }
 
 #[test]
 fn test_parse_union_three_queries() {
     let result = Parser::parse_sql(
-        "SELECT id FROM users UNION SELECT id FROM customers UNION SELECT id FROM vendors;"
+        "SELECT id FROM users UNION SELECT id FROM customers UNION SELECT id FROM vendors;",
     );
     assert!(result.is_ok(), "UNION with three queries should parse: {:?}", result);
 }
@@ -47,7 +49,7 @@ fn test_parse_union_three_queries() {
 #[test]
 fn test_parse_union_with_subquery() {
     let result = Parser::parse_sql(
-        "SELECT id FROM users UNION SELECT id FROM (SELECT customer_id AS id FROM orders) AS subq;"
+        "SELECT id FROM users UNION SELECT id FROM (SELECT customer_id AS id FROM orders) AS subq;",
     );
     assert!(result.is_ok(), "UNION with subquery should parse: {:?}", result);
 }
@@ -117,7 +119,7 @@ fn test_parse_except_with_where() {
 #[test]
 fn test_parse_except_multiple_columns() {
     let result = Parser::parse_sql(
-        "SELECT id, name FROM products EXCEPT SELECT id, name FROM discontinued_products;"
+        "SELECT id, name FROM products EXCEPT SELECT id, name FROM discontinued_products;",
     );
     assert!(result.is_ok(), "EXCEPT with multiple columns should parse: {:?}", result);
 }
@@ -144,9 +146,7 @@ fn test_parse_union_and_except() {
 
 #[test]
 fn test_parse_set_operation_with_aliases() {
-    let result = Parser::parse_sql(
-        "SELECT u.id FROM users u UNION SELECT c.id FROM customers c;"
-    );
+    let result = Parser::parse_sql("SELECT u.id FROM users u UNION SELECT c.id FROM customers c;");
     assert!(result.is_ok(), "Set operation with table aliases should parse: {:?}", result);
 }
 
@@ -179,7 +179,12 @@ fn test_parse_set_operation_case_insensitive() {
 
     for sql in sql_variants {
         let result = Parser::parse_sql(sql);
-        assert!(result.is_ok(), "Case-insensitive set operation should parse: {} -> {:?}", sql, result);
+        assert!(
+            result.is_ok(),
+            "Case-insensitive set operation should parse: {} -> {:?}",
+            sql,
+            result
+        );
     }
 }
 
@@ -194,7 +199,7 @@ fn test_parse_complex_set_operation_chain() {
 #[test]
 fn test_parse_set_operation_with_distinct() {
     let result = Parser::parse_sql(
-        "SELECT DISTINCT name FROM users UNION SELECT DISTINCT name FROM customers;"
+        "SELECT DISTINCT name FROM users UNION SELECT DISTINCT name FROM customers;",
     );
     assert!(result.is_ok(), "Set operation with DISTINCT should parse: {:?}", result);
 }

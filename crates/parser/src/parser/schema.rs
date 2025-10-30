@@ -9,20 +9,16 @@ pub fn parse_create_schema(parser: &mut crate::Parser) -> Result<CreateSchemaStm
     parser.expect_keyword(Keyword::Create)?;
     parser.expect_keyword(Keyword::Schema)?;
 
-    let if_not_exists = parser.peek_keyword(Keyword::If)
-        && {
-            parser.advance();
-            parser.expect_keyword(Keyword::Not)?;
-            parser.expect_keyword(Keyword::Exists)?;
-            true
-        };
+    let if_not_exists = parser.peek_keyword(Keyword::If) && {
+        parser.advance();
+        parser.expect_keyword(Keyword::Not)?;
+        parser.expect_keyword(Keyword::Exists)?;
+        true
+    };
 
     let schema_name = parser.parse_qualified_identifier()?;
 
-    Ok(CreateSchemaStmt {
-        schema_name,
-        if_not_exists,
-    })
+    Ok(CreateSchemaStmt { schema_name, if_not_exists })
 }
 
 /// Parse DROP SCHEMA statement
@@ -30,12 +26,11 @@ pub fn parse_drop_schema(parser: &mut crate::Parser) -> Result<DropSchemaStmt, P
     parser.expect_keyword(Keyword::Drop)?;
     parser.expect_keyword(Keyword::Schema)?;
 
-    let if_exists = parser.peek_keyword(Keyword::If)
-        && {
-            parser.advance();
-            parser.expect_keyword(Keyword::Exists)?;
-            true
-        };
+    let if_exists = parser.peek_keyword(Keyword::If) && {
+        parser.advance();
+        parser.expect_keyword(Keyword::Exists)?;
+        true
+    };
 
     let schema_name = parser.parse_qualified_identifier()?;
 
@@ -50,11 +45,7 @@ pub fn parse_drop_schema(parser: &mut crate::Parser) -> Result<DropSchemaStmt, P
         false
     };
 
-    Ok(DropSchemaStmt {
-        schema_name,
-        if_exists,
-        cascade,
-    })
+    Ok(DropSchemaStmt { schema_name, if_exists, cascade })
 }
 
 /// Parse SET SCHEMA statement

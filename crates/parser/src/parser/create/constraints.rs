@@ -4,7 +4,9 @@ use super::super::*;
 
 impl Parser {
     /// Parse column-level constraints (PRIMARY KEY, UNIQUE, CHECK, REFERENCES)
-    pub(in crate::parser) fn parse_column_constraints(&mut self) -> Result<Vec<ast::ColumnConstraint>, ParseError> {
+    pub(in crate::parser) fn parse_column_constraints(
+        &mut self,
+    ) -> Result<Vec<ast::ColumnConstraint>, ParseError> {
         let mut constraints = Vec::new();
 
         loop {
@@ -112,7 +114,9 @@ impl Parser {
     }
 
     /// Parse table-level constraints (PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK)
-    pub(in crate::parser) fn parse_table_constraint(&mut self) -> Result<ast::TableConstraint, ParseError> {
+    pub(in crate::parser) fn parse_table_constraint(
+        &mut self,
+    ) -> Result<ast::TableConstraint, ParseError> {
         // Check for optional CONSTRAINT keyword
         let name = if self.peek_keyword(Keyword::Constraint) {
             self.advance(); // consume CONSTRAINT
@@ -268,9 +272,7 @@ impl Parser {
                 self.expect_token(Token::LParen)?;
                 let expr = self.parse_expression()?;
                 self.expect_token(Token::RParen)?;
-                ast::TableConstraintKind::Check {
-                    expr: Box::new(expr),
-                }
+                ast::TableConstraintKind::Check { expr: Box::new(expr) }
             }
             _ => {
                 return Err(ParseError {

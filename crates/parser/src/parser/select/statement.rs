@@ -243,11 +243,7 @@ impl Parser {
                 self.advance();
                 name
             }
-            _ => {
-                return Err(ParseError {
-                    message: "Expected CTE name (identifier)".to_string(),
-                })
-            }
+            _ => return Err(ParseError { message: "Expected CTE name (identifier)".to_string() }),
         };
 
         // Parse optional column list: (col1, col2, ...)
@@ -256,9 +252,7 @@ impl Parser {
 
             // Check for empty column list
             if matches!(self.peek(), Token::RParen) {
-                return Err(ParseError {
-                    message: "CTE column list cannot be empty".to_string(),
-                });
+                return Err(ParseError { message: "CTE column list cannot be empty".to_string() });
             }
 
             let mut cols = Vec::new();
@@ -311,9 +305,7 @@ impl Parser {
 
         // Expect closing paren
         if !matches!(self.peek(), Token::RParen) {
-            return Err(ParseError {
-                message: "Expected ')' after CTE query".to_string(),
-            });
+            return Err(ParseError { message: "Expected ')' after CTE query".to_string() });
         }
         self.advance(); // consume ')'
 

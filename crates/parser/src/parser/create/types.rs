@@ -160,7 +160,9 @@ impl Parser {
 
                     // Check for CHARACTERS or OCTETS modifier
                     // For MVP, we accept both but treat them the same (as character count)
-                    if self.try_consume_keyword(Keyword::Characters) || self.try_consume_keyword(Keyword::Octets) {
+                    if self.try_consume_keyword(Keyword::Characters)
+                        || self.try_consume_keyword(Keyword::Octets)
+                    {
                         // Modifier consumed, continue
                     }
 
@@ -193,7 +195,9 @@ impl Parser {
                         };
 
                         // Check for CHARACTERS or OCTETS modifier
-                        if self.try_consume_keyword(Keyword::Characters) || self.try_consume_keyword(Keyword::Octets) {
+                        if self.try_consume_keyword(Keyword::Characters)
+                            || self.try_consume_keyword(Keyword::Octets)
+                        {
                             // Modifier consumed, continue
                         }
 
@@ -223,7 +227,9 @@ impl Parser {
                 };
 
                 // Check for CHARACTERS or OCTETS modifier
-                if self.try_consume_keyword(Keyword::Characters) || self.try_consume_keyword(Keyword::Octets) {
+                if self.try_consume_keyword(Keyword::Characters)
+                    || self.try_consume_keyword(Keyword::Octets)
+                {
                     // Modifier consumed, continue
                 }
 
@@ -235,7 +241,9 @@ impl Parser {
     }
 
     /// Parse interval field (YEAR, MONTH, DAY, HOUR, MINUTE, SECOND)
-    pub(in crate::parser) fn parse_interval_field(&mut self) -> Result<types::IntervalField, ParseError> {
+    pub(in crate::parser) fn parse_interval_field(
+        &mut self,
+    ) -> Result<types::IntervalField, ParseError> {
         let field_upper = match self.peek() {
             Token::Identifier(field) => field.to_uppercase(),
             _ => {
@@ -254,9 +262,7 @@ impl Parser {
             "HOUR" => Ok(types::IntervalField::Hour),
             "MINUTE" => Ok(types::IntervalField::Minute),
             "SECOND" => Ok(types::IntervalField::Second),
-            _ => Err(ParseError {
-                message: format!("Unknown interval field: {}", field_upper),
-            }),
+            _ => Err(ParseError { message: format!("Unknown interval field: {}", field_upper) }),
         }
     }
 
@@ -287,13 +293,9 @@ impl Parser {
                         return Ok(true); // WITH TIME ZONE
                     }
                 }
-                return Err(ParseError {
-                    message: "Expected ZONE after WITH TIME".to_string(),
-                });
+                return Err(ParseError { message: "Expected ZONE after WITH TIME".to_string() });
             }
-            return Err(ParseError {
-                message: "Expected TIME after WITH".to_string(),
-            });
+            return Err(ParseError { message: "Expected TIME after WITH".to_string() });
         }
 
         // Check for WITHOUT identifier
@@ -323,9 +325,7 @@ impl Parser {
                         message: "Expected ZONE after WITHOUT TIME".to_string(),
                     });
                 }
-                return Err(ParseError {
-                    message: "Expected TIME after WITHOUT".to_string(),
-                });
+                return Err(ParseError { message: "Expected TIME after WITHOUT".to_string() });
             }
         }
 

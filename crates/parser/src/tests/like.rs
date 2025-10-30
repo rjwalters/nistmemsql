@@ -87,16 +87,15 @@ fn test_parse_not_like() {
 
 #[test]
 fn test_parse_like_with_and() {
-    let result = Parser::parse_sql(
-        "SELECT * FROM users WHERE name LIKE 'J%' AND email LIKE '%@gmail.com';"
-    );
+    let result =
+        Parser::parse_sql("SELECT * FROM users WHERE name LIKE 'J%' AND email LIKE '%@gmail.com';");
     assert!(result.is_ok(), "LIKE with AND should parse: {:?}", result);
 }
 
 #[test]
 fn test_parse_like_with_or() {
     let result = Parser::parse_sql(
-        "SELECT * FROM products WHERE name LIKE 'Widget%' OR name LIKE 'Gadget%';"
+        "SELECT * FROM products WHERE name LIKE 'Widget%' OR name LIKE 'Gadget%';",
     );
     assert!(result.is_ok(), "LIKE with OR should parse: {:?}", result);
 }
@@ -104,7 +103,7 @@ fn test_parse_like_with_or() {
 #[test]
 fn test_parse_like_in_complex_expression() {
     let result = Parser::parse_sql(
-        "SELECT * FROM users WHERE (name LIKE 'A%' OR name LIKE 'B%') AND active = TRUE;"
+        "SELECT * FROM users WHERE (name LIKE 'A%' OR name LIKE 'B%') AND active = TRUE;",
     );
     assert!(result.is_ok(), "LIKE in complex expression should parse: {:?}", result);
 }
@@ -112,7 +111,7 @@ fn test_parse_like_in_complex_expression() {
 #[test]
 fn test_parse_multiple_like_conditions() {
     let result = Parser::parse_sql(
-        "SELECT * FROM files WHERE filename LIKE '%.pdf' AND path NOT LIKE '/tmp/%';"
+        "SELECT * FROM files WHERE filename LIKE '%.pdf' AND path NOT LIKE '/tmp/%';",
     );
     assert!(result.is_ok(), "Multiple LIKE conditions should parse: {:?}", result);
 }

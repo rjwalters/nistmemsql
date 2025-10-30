@@ -68,44 +68,36 @@ impl Parser {
                 let delete_stmt = self.parse_delete_statement()?;
                 Ok(ast::Statement::Delete(delete_stmt))
             }
-            Token::Keyword(Keyword::Create) => {
-                match self.peek_next_keyword(Keyword::Table) {
-                    true => {
-                        let create_stmt = self.parse_create_table_statement()?;
-                        Ok(ast::Statement::CreateTable(create_stmt))
-                    }
-                    false => {
-                        match self.peek_next_keyword(Keyword::Schema) {
-                            true => {
-                                let create_stmt = self.parse_create_schema_statement()?;
-                                Ok(ast::Statement::CreateSchema(create_stmt))
-                            }
-                            false => Err(ParseError {
-                                message: "Expected TABLE or SCHEMA after CREATE".to_string(),
-                            }),
-                        }
-                    }
+            Token::Keyword(Keyword::Create) => match self.peek_next_keyword(Keyword::Table) {
+                true => {
+                    let create_stmt = self.parse_create_table_statement()?;
+                    Ok(ast::Statement::CreateTable(create_stmt))
                 }
-            }
-            Token::Keyword(Keyword::Drop) => {
-                match self.peek_next_keyword(Keyword::Table) {
+                false => match self.peek_next_keyword(Keyword::Schema) {
                     true => {
-                        let drop_stmt = self.parse_drop_table_statement()?;
-                        Ok(ast::Statement::DropTable(drop_stmt))
+                        let create_stmt = self.parse_create_schema_statement()?;
+                        Ok(ast::Statement::CreateSchema(create_stmt))
                     }
-                    false => {
-                        match self.peek_next_keyword(Keyword::Schema) {
-                            true => {
-                                let drop_stmt = self.parse_drop_schema_statement()?;
-                                Ok(ast::Statement::DropSchema(drop_stmt))
-                            }
-                            false => Err(ParseError {
-                                message: "Expected TABLE or SCHEMA after DROP".to_string(),
-                            }),
-                        }
-                    }
+                    false => Err(ParseError {
+                        message: "Expected TABLE or SCHEMA after CREATE".to_string(),
+                    }),
+                },
+            },
+            Token::Keyword(Keyword::Drop) => match self.peek_next_keyword(Keyword::Table) {
+                true => {
+                    let drop_stmt = self.parse_drop_table_statement()?;
+                    Ok(ast::Statement::DropTable(drop_stmt))
                 }
-            }
+                false => match self.peek_next_keyword(Keyword::Schema) {
+                    true => {
+                        let drop_stmt = self.parse_drop_schema_statement()?;
+                        Ok(ast::Statement::DropSchema(drop_stmt))
+                    }
+                    false => Err(ParseError {
+                        message: "Expected TABLE or SCHEMA after DROP".to_string(),
+                    }),
+                },
+            },
             Token::Keyword(Keyword::Alter) => {
                 let alter_stmt = self.parse_alter_table_statement()?;
                 Ok(ast::Statement::AlterTable(alter_stmt))
@@ -142,17 +134,13 @@ impl Parser {
                 let release_stmt = self.parse_release_savepoint_statement()?;
                 Ok(ast::Statement::ReleaseSavepoint(release_stmt))
             }
-            Token::Keyword(Keyword::Set) => {
-                match self.peek_keyword(Keyword::Schema) {
-                    true => {
-                        let set_stmt = self.parse_set_schema_statement()?;
-                        Ok(ast::Statement::SetSchema(set_stmt))
-                    }
-                    false => Err(ParseError {
-                        message: "Expected SCHEMA after SET".to_string(),
-                    }),
+            Token::Keyword(Keyword::Set) => match self.peek_keyword(Keyword::Schema) {
+                true => {
+                    let set_stmt = self.parse_set_schema_statement()?;
+                    Ok(ast::Statement::SetSchema(set_stmt))
                 }
-            }
+                false => Err(ParseError { message: "Expected SCHEMA after SET".to_string() }),
+            },
             _ => {
                 Err(ParseError { message: format!("Expected statement, found {:?}", self.peek()) })
             }
@@ -185,12 +173,16 @@ impl Parser {
     }
 
     /// Parse ROLLBACK TO SAVEPOINT statement
-    pub fn parse_rollback_to_savepoint_statement(&mut self) -> Result<ast::RollbackToSavepointStmt, ParseError> {
+    pub fn parse_rollback_to_savepoint_statement(
+        &mut self,
+    ) -> Result<ast::RollbackToSavepointStmt, ParseError> {
         transaction::parse_rollback_to_savepoint_statement(self)
     }
 
     /// Parse RELEASE SAVEPOINT statement
-    pub fn parse_release_savepoint_statement(&mut self) -> Result<ast::ReleaseSavepointStmt, ParseError> {
+    pub fn parse_release_savepoint_statement(
+        &mut self,
+    ) -> Result<ast::ReleaseSavepointStmt, ParseError> {
         transaction::parse_release_savepoint_statement(self)
     }
 

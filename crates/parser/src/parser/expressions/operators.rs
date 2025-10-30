@@ -56,7 +56,9 @@ impl Parser {
     }
 
     /// Parse multiplicative expression (handles * and /)
-    pub(super) fn parse_multiplicative_expression(&mut self) -> Result<ast::Expression, ParseError> {
+    pub(super) fn parse_multiplicative_expression(
+        &mut self,
+    ) -> Result<ast::Expression, ParseError> {
         let mut left = self.parse_comparison_expression()?;
 
         while matches!(self.peek(), Token::Symbol('*') | Token::Symbol('/')) {
@@ -279,10 +281,7 @@ impl Parser {
             // Expect NULL
             self.expect_keyword(Keyword::Null)?;
 
-            left = ast::Expression::IsNull {
-                expr: Box::new(left),
-                negated,
-            };
+            left = ast::Expression::IsNull { expr: Box::new(left), negated };
         }
 
         Ok(left)
@@ -295,18 +294,12 @@ impl Parser {
             Token::Symbol('+') => {
                 self.advance();
                 let expr = self.parse_unary_expression()?;
-                Ok(ast::Expression::UnaryOp {
-                    op: ast::UnaryOperator::Plus,
-                    expr: Box::new(expr),
-                })
+                Ok(ast::Expression::UnaryOp { op: ast::UnaryOperator::Plus, expr: Box::new(expr) })
             }
             Token::Symbol('-') => {
                 self.advance();
                 let expr = self.parse_unary_expression()?;
-                Ok(ast::Expression::UnaryOp {
-                    op: ast::UnaryOperator::Minus,
-                    expr: Box::new(expr),
-                })
+                Ok(ast::Expression::UnaryOp { op: ast::UnaryOperator::Minus, expr: Box::new(expr) })
             }
             _ => self.parse_primary_expression(),
         }
@@ -321,9 +314,7 @@ impl Parser {
         // Empty list check
         if matches!(self.peek(), Token::RParen) {
             // Empty list - SQL standard requires at least one value in IN list
-            return Err(ParseError {
-                message: "Expected at least one value in list".to_string(),
-            });
+            return Err(ParseError { message: "Expected at least one value in list".to_string() });
         }
 
         // Parse first expression
