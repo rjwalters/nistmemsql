@@ -1,15 +1,14 @@
+use catalog::{ColumnSchema, TableSchema};
 /**
  * Batch Query Runner for Web Demo Examples
  *
  * Runs all 27 advanced example queries and generates expected results or SKIP comments.
  */
-
 use executor::SelectExecutor;
 use parser::Parser;
 use storage::Database;
-use catalog::{ColumnSchema, TableSchema};
-use types::{DataType, SqlValue};
 use storage::Row;
+use types::{DataType, SqlValue};
 
 fn create_northwind_db() -> Database {
     let mut db = Database::new();
@@ -19,8 +18,16 @@ fn create_northwind_db() -> Database {
         "categories".to_string(),
         vec![
             ColumnSchema::new("category_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("category_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
-            ColumnSchema::new("description".to_string(), DataType::Varchar { max_length: Some(200) }, false),
+            ColumnSchema::new(
+                "category_name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
+            ColumnSchema::new(
+                "description".to_string(),
+                DataType::Varchar { max_length: Some(200) },
+                false,
+            ),
         ],
     );
     db.create_table(categories_schema).unwrap();
@@ -30,7 +37,11 @@ fn create_northwind_db() -> Database {
         "products".to_string(),
         vec![
             ColumnSchema::new("product_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("product_name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
+            ColumnSchema::new(
+                "product_name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
             ColumnSchema::new("category_id".to_string(), DataType::Integer, false),
             ColumnSchema::new("unit_price".to_string(), DataType::Float { precision: 53 }, false),
             ColumnSchema::new("units_in_stock".to_string(), DataType::Integer, false),
@@ -53,11 +64,13 @@ fn create_northwind_db() -> Database {
     ];
 
     for (id, name, desc) in categories_data {
-        categories_table.insert(Row::new(vec![
-            SqlValue::Integer(id),
-            SqlValue::Varchar(name.to_string()),
-            SqlValue::Varchar(desc.to_string()),
-        ])).unwrap();
+        categories_table
+            .insert(Row::new(vec![
+                SqlValue::Integer(id),
+                SqlValue::Varchar(name.to_string()),
+                SqlValue::Varchar(desc.to_string()),
+            ]))
+            .unwrap();
     }
 
     // Insert products
@@ -86,14 +99,16 @@ fn create_northwind_db() -> Database {
     ];
 
     for (id, name, cat_id, price, stock, on_order) in products_data {
-        products_table.insert(Row::new(vec![
-            SqlValue::Integer(id),
-            SqlValue::Varchar(name.to_string()),
-            SqlValue::Integer(cat_id),
-            SqlValue::Float(price),
-            SqlValue::Integer(stock),
-            SqlValue::Integer(on_order),
-        ])).unwrap();
+        products_table
+            .insert(Row::new(vec![
+                SqlValue::Integer(id),
+                SqlValue::Varchar(name.to_string()),
+                SqlValue::Integer(cat_id),
+                SqlValue::Float(price),
+                SqlValue::Integer(stock),
+                SqlValue::Integer(on_order),
+            ]))
+            .unwrap();
     }
 
     db
@@ -122,13 +137,15 @@ fn test_query(db: &Database, id: &str, title: &str, query: &str) {
                     for row in &result {
                         print!("   ");
                         for (i, val) in row.values.iter().enumerate() {
-                            if i > 0 { print!(" | "); }
+                            if i > 0 {
+                                print!(" | ");
+                            }
                             print!("{:?}", val);
                         }
                         println!();
                     }
                 }
-            },
+            }
             Err(e) => {
                 println!("❌ Execution error: {:?}", e);
                 println!("Result: SKIP - Not implemented or has errors");
@@ -150,15 +167,24 @@ fn main() {
     // Subqueries (3 examples)
     println!("\n### SUBQUERIES ###\n");
 
-    test_query(&db, "sub-1", "Scalar subquery", r#"SELECT
+    test_query(
+        &db,
+        "sub-1",
+        "Scalar subquery",
+        r#"SELECT
   product_name,
   unit_price,
   (SELECT AVG(unit_price) FROM products) as avg_price
 FROM products
 WHERE unit_price > (SELECT AVG(unit_price) FROM products)
-ORDER BY unit_price DESC"#);
+ORDER BY unit_price DESC"#,
+    );
 
-    test_query(&db, "sub-2", "IN subquery", r#"SELECT
+    test_query(
+        &db,
+        "sub-2",
+        "IN subquery",
+        r#"SELECT
   product_name,
   unit_price
 FROM products
@@ -167,9 +193,14 @@ WHERE category_id IN (
   FROM categories
   WHERE category_name IN ('Beverages', 'Condiments')
 )
-ORDER BY unit_price DESC"#);
+ORDER BY unit_price DESC"#,
+    );
 
-    test_query(&db, "sub-3", "Subquery in FROM clause", r#"SELECT
+    test_query(
+        &db,
+        "sub-3",
+        "Subquery in FROM clause",
+        r#"SELECT
   department,
   avg_salary,
   CASE
@@ -184,12 +215,17 @@ FROM (
   FROM employees
   GROUP BY department
 ) dept_salaries
-ORDER BY avg_salary DESC"#);
+ORDER BY avg_salary DESC"#,
+    );
 
     // CASE Expressions (3 examples)
     println!("\n### CASE EXPRESSIONS ###\n");
 
-    test_query(&db, "case-1", "Simple CASE", r#"SELECT
+    test_query(
+        &db,
+        "case-1",
+        "Simple CASE",
+        r#"SELECT
   product_name,
   unit_price,
   CASE
@@ -198,18 +234,28 @@ ORDER BY avg_salary DESC"#);
     ELSE 'Premium'
   END as price_category
 FROM products
-ORDER BY unit_price"#);
+ORDER BY unit_price"#,
+    );
 
-    test_query(&db, "case-2", "CASE in aggregation", r#"SELECT
+    test_query(
+        &db,
+        "case-2",
+        "CASE in aggregation",
+        r#"SELECT
   department,
   COUNT(*) as total_employees,
   COUNT(CASE WHEN salary > 100000 THEN 1 END) as high_earners,
   COUNT(CASE WHEN salary <= 100000 THEN 1 END) as other_earners
 FROM employees
 GROUP BY department
-ORDER BY department"#);
+ORDER BY department"#,
+    );
 
-    test_query(&db, "case-3", "Multiple CASE expressions", r#"SELECT
+    test_query(
+        &db,
+        "case-3",
+        "Multiple CASE expressions",
+        r#"SELECT
   first_name || ' ' || last_name as employee,
   salary,
   CASE
@@ -225,36 +271,56 @@ ORDER BY department"#);
   END as division
 FROM employees
 ORDER BY salary DESC
-LIMIT 10"#);
+LIMIT 10"#,
+    );
 
     // Set Operations (3 examples)
     println!("\n### SET OPERATIONS ###\n");
 
-    test_query(&db, "set-1", "UNION", r#"SELECT department FROM employees WHERE salary > 150000
+    test_query(
+        &db,
+        "set-1",
+        "UNION",
+        r#"SELECT department FROM employees WHERE salary > 150000
 UNION
 SELECT department FROM employees WHERE title LIKE '%Director%'
-ORDER BY department"#);
+ORDER BY department"#,
+    );
 
-    test_query(&db, "set-2", "UNION ALL", r#"SELECT 'Expensive' as category, product_name, unit_price
+    test_query(
+        &db,
+        "set-2",
+        "UNION ALL",
+        r#"SELECT 'Expensive' as category, product_name, unit_price
 FROM products
 WHERE unit_price > 50
 UNION ALL
 SELECT 'Cheap' as category, product_name, unit_price
 FROM products
 WHERE unit_price < 10
-ORDER BY unit_price DESC"#);
+ORDER BY unit_price DESC"#,
+    );
 
-    test_query(&db, "set-3", "Column count in UNION", r#"SELECT category_name as name, 'category' as type
+    test_query(
+        &db,
+        "set-3",
+        "Column count in UNION",
+        r#"SELECT category_name as name, 'category' as type
 FROM categories
 UNION
 SELECT product_name as name, 'product' as type
 FROM products
-LIMIT 15"#);
+LIMIT 15"#,
+    );
 
     // Recursive Queries (2 examples)
     println!("\n### RECURSIVE QUERIES ###\n");
 
-    test_query(&db, "rec-1", "Employee hierarchy", r#"WITH RECURSIVE employee_hierarchy AS (
+    test_query(
+        &db,
+        "rec-1",
+        "Employee hierarchy",
+        r#"WITH RECURSIVE employee_hierarchy AS (
   SELECT
     employee_id,
     first_name,
@@ -286,9 +352,14 @@ SELECT
   path as reporting_chain
 FROM employee_hierarchy
 ORDER BY level, last_name
-LIMIT 15"#);
+LIMIT 15"#,
+    );
 
-    test_query(&db, "rec-2", "Count hierarchy levels", r#"WITH RECURSIVE hierarchy AS (
+    test_query(
+        &db,
+        "rec-2",
+        "Count hierarchy levels",
+        r#"WITH RECURSIVE hierarchy AS (
   SELECT
     employee_id,
     1 as level
@@ -308,26 +379,37 @@ SELECT
   COUNT(*) as employee_count
 FROM hierarchy
 GROUP BY level
-ORDER BY level"#);
+ORDER BY level"#,
+    );
 
     println!("\n### WINDOW FUNCTIONS ###\n");
-    test_query(&db, "window-1", "COUNT(*) OVER", r#"SELECT
+    test_query(
+        &db,
+        "window-1",
+        "COUNT(*) OVER",
+        r#"SELECT
   first_name || ' ' || last_name AS employee,
   department,
   salary,
   COUNT(*) OVER () AS total_employees
 FROM employees
-LIMIT 10"#);
+LIMIT 10"#,
+    );
 
     println!("\n### NULL HANDLING ###\n");
-    test_query(&db, "null-1", "COALESCE with Default Values", r#"SELECT
+    test_query(
+        &db,
+        "null-1",
+        "COALESCE with Default Values",
+        r#"SELECT
   product_name,
   unit_price,
   units_in_stock,
   COALESCE(units_in_stock, 0) AS stock_or_zero,
   COALESCE(units_on_order, 0) AS orders_or_zero
 FROM products
-LIMIT 10"#);
+LIMIT 10"#,
+    );
 
     let sep = "=".repeat(60);
     println!("\n{}", sep);

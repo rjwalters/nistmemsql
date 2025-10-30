@@ -1,7 +1,7 @@
+use super::casting::{is_approximate_numeric, is_exact_numeric, to_f64, to_i64};
 use crate::errors::ExecutorError;
 use crate::schema::CombinedSchema;
 use crate::select::WindowFunctionKey;
-use super::casting::{is_exact_numeric, is_approximate_numeric, to_i64, to_f64};
 
 /// Evaluates expressions in the context of a row
 pub struct ExpressionEvaluator<'a> {
@@ -123,12 +123,22 @@ impl<'a> ExpressionEvaluator<'a> {
             (Character(a), GreaterThanOrEqual, Character(b)) => Ok(Boolean(a >= b)),
 
             // Cross-type string comparisons (CHAR vs VARCHAR)
-            (Character(a), Equal, Varchar(b)) | (Varchar(b), Equal, Character(a)) => Ok(Boolean(a == b)),
-            (Character(a), NotEqual, Varchar(b)) | (Varchar(b), NotEqual, Character(a)) => Ok(Boolean(a != b)),
-            (Character(a), LessThan, Varchar(b)) | (Varchar(b), GreaterThan, Character(a)) => Ok(Boolean(a < b)),
-            (Character(a), LessThanOrEqual, Varchar(b)) | (Varchar(b), GreaterThanOrEqual, Character(a)) => Ok(Boolean(a <= b)),
-            (Character(a), GreaterThan, Varchar(b)) | (Varchar(b), LessThan, Character(a)) => Ok(Boolean(a > b)),
-            (Character(a), GreaterThanOrEqual, Varchar(b)) | (Varchar(b), LessThanOrEqual, Character(a)) => Ok(Boolean(a >= b)),
+            (Character(a), Equal, Varchar(b)) | (Varchar(b), Equal, Character(a)) => {
+                Ok(Boolean(a == b))
+            }
+            (Character(a), NotEqual, Varchar(b)) | (Varchar(b), NotEqual, Character(a)) => {
+                Ok(Boolean(a != b))
+            }
+            (Character(a), LessThan, Varchar(b)) | (Varchar(b), GreaterThan, Character(a)) => {
+                Ok(Boolean(a < b))
+            }
+            (Character(a), LessThanOrEqual, Varchar(b))
+            | (Varchar(b), GreaterThanOrEqual, Character(a)) => Ok(Boolean(a <= b)),
+            (Character(a), GreaterThan, Varchar(b)) | (Varchar(b), LessThan, Character(a)) => {
+                Ok(Boolean(a > b))
+            }
+            (Character(a), GreaterThanOrEqual, Varchar(b))
+            | (Varchar(b), LessThanOrEqual, Character(a)) => Ok(Boolean(a >= b)),
 
             // String concatenation (||)
             (Varchar(a), Concat, Varchar(b)) => Ok(Varchar(format!("{}{}", a, b))),
@@ -172,9 +182,12 @@ impl<'a> ExpressionEvaluator<'a> {
 
             // Cross-type numeric comparisons - promote to common type
             // Compare exact integer types (SMALLINT, INTEGER, BIGINT) by promoting to i64
-            (left_val, op @ (Equal | NotEqual | LessThan | LessThanOrEqual | GreaterThan | GreaterThanOrEqual), right_val)
-                if is_exact_numeric(left_val) && is_exact_numeric(right_val) =>
-            {
+            (
+                left_val,
+                op @ (Equal | NotEqual | LessThan | LessThanOrEqual | GreaterThan
+                | GreaterThanOrEqual),
+                right_val,
+            ) if is_exact_numeric(left_val) && is_exact_numeric(right_val) => {
                 let left_i64 = to_i64(left_val)?;
                 let right_i64 = to_i64(right_val)?;
                 match op {
@@ -189,9 +202,12 @@ impl<'a> ExpressionEvaluator<'a> {
             }
 
             // Compare approximate numeric types (FLOAT, REAL, DOUBLE) by promoting to f64
-            (left_val, op @ (Equal | NotEqual | LessThan | LessThanOrEqual | GreaterThan | GreaterThanOrEqual), right_val)
-                if is_approximate_numeric(left_val) && is_approximate_numeric(right_val) =>
-            {
+            (
+                left_val,
+                op @ (Equal | NotEqual | LessThan | LessThanOrEqual | GreaterThan
+                | GreaterThanOrEqual),
+                right_val,
+            ) if is_approximate_numeric(left_val) && is_approximate_numeric(right_val) => {
                 let left_f64 = to_f64(left_val)?;
                 let right_f64 = to_f64(right_val)?;
                 match op {
@@ -206,7 +222,11 @@ impl<'a> ExpressionEvaluator<'a> {
             }
 
             // Mixed Float/Integer arithmetic - promote Integer to Float for all operations
-            (left_val @ (Float(_) | Real(_) | Double(_)), op @ (Plus | Minus | Multiply | Divide), right_val @ (Integer(_) | Smallint(_) | Bigint(_))) => {
+            (
+                left_val @ (Float(_) | Real(_) | Double(_)),
+                op @ (Plus | Minus | Multiply | Divide),
+                right_val @ (Integer(_) | Smallint(_) | Bigint(_)),
+            ) => {
                 let left_f64 = to_f64(left_val)?;
                 let right_f64 = to_f64(right_val)?;
                 match op {
@@ -223,7 +243,11 @@ impl<'a> ExpressionEvaluator<'a> {
                     _ => unreachable!(),
                 }
             }
-            (left_val @ (Integer(_) | Smallint(_) | Bigint(_)), op @ (Plus | Minus | Multiply | Divide), right_val @ (Float(_) | Real(_) | Double(_))) => {
+            (
+                left_val @ (Integer(_) | Smallint(_) | Bigint(_)),
+                op @ (Plus | Minus | Multiply | Divide),
+                right_val @ (Float(_) | Real(_) | Double(_)),
+            ) => {
                 let left_f64 = to_f64(left_val)?;
                 let right_f64 = to_f64(right_val)?;
                 match op {
@@ -242,7 +266,12 @@ impl<'a> ExpressionEvaluator<'a> {
             }
 
             // Mixed Float/Integer comparisons - promote Integer to Float for comparison
-            (left_val @ (Float(_) | Real(_) | Double(_)), op @ (Equal | NotEqual | LessThan | LessThanOrEqual | GreaterThan | GreaterThanOrEqual), right_val @ (Integer(_) | Smallint(_) | Bigint(_))) => {
+            (
+                left_val @ (Float(_) | Real(_) | Double(_)),
+                op @ (Equal | NotEqual | LessThan | LessThanOrEqual | GreaterThan
+                | GreaterThanOrEqual),
+                right_val @ (Integer(_) | Smallint(_) | Bigint(_)),
+            ) => {
                 let left_f64 = to_f64(left_val)?;
                 let right_f64 = to_f64(right_val)?;
                 match op {
@@ -255,7 +284,12 @@ impl<'a> ExpressionEvaluator<'a> {
                     _ => unreachable!(),
                 }
             }
-            (left_val @ (Integer(_) | Smallint(_) | Bigint(_)), op @ (Equal | NotEqual | LessThan | LessThanOrEqual | GreaterThan | GreaterThanOrEqual), right_val @ (Float(_) | Real(_) | Double(_))) => {
+            (
+                left_val @ (Integer(_) | Smallint(_) | Bigint(_)),
+                op @ (Equal | NotEqual | LessThan | LessThanOrEqual | GreaterThan
+                | GreaterThanOrEqual),
+                right_val @ (Float(_) | Real(_) | Double(_)),
+            ) => {
                 let left_f64 = to_f64(left_val)?;
                 let right_f64 = to_f64(right_val)?;
                 match op {
@@ -271,7 +305,18 @@ impl<'a> ExpressionEvaluator<'a> {
 
             // NUMERIC type coercion - treat NUMERIC as approximate numeric for arithmetic
             // NUMERIC with any other numeric type
-            (left_val @ Numeric(_), op @ (Plus | Minus | Multiply | Divide), right_val) if matches!(right_val, Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_) | Numeric(_)) => {
+            (left_val @ Numeric(_), op @ (Plus | Minus | Multiply | Divide), right_val)
+                if matches!(
+                    right_val,
+                    Integer(_)
+                        | Smallint(_)
+                        | Bigint(_)
+                        | Float(_)
+                        | Real(_)
+                        | Double(_)
+                        | Numeric(_)
+                ) =>
+            {
                 let left_f64 = to_f64(left_val)?;
                 let right_f64 = to_f64(right_val)?;
                 match op {
@@ -288,7 +333,12 @@ impl<'a> ExpressionEvaluator<'a> {
                     _ => unreachable!(),
                 }
             }
-            (left_val, op @ (Plus | Minus | Multiply | Divide), right_val @ Numeric(_)) if matches!(left_val, Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_)) => {
+            (left_val, op @ (Plus | Minus | Multiply | Divide), right_val @ Numeric(_))
+                if matches!(
+                    left_val,
+                    Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_)
+                ) =>
+            {
                 let left_f64 = to_f64(left_val)?;
                 let right_f64 = to_f64(right_val)?;
                 match op {
@@ -307,7 +357,16 @@ impl<'a> ExpressionEvaluator<'a> {
             }
 
             // NUMERIC comparisons
-            (left_val @ Numeric(_), op @ (Equal | NotEqual | LessThan | LessThanOrEqual | GreaterThan | GreaterThanOrEqual), right_val) if matches!(right_val, Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_) | Numeric(_)) => {
+            (
+                left_val @ Numeric(_),
+                op @ (Equal | NotEqual | LessThan | LessThanOrEqual | GreaterThan
+                | GreaterThanOrEqual),
+                right_val,
+            ) if matches!(
+                right_val,
+                Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_) | Numeric(_)
+            ) =>
+            {
                 let left_f64 = to_f64(left_val)?;
                 let right_f64 = to_f64(right_val)?;
                 match op {
@@ -320,7 +379,16 @@ impl<'a> ExpressionEvaluator<'a> {
                     _ => unreachable!(),
                 }
             }
-            (left_val, op @ (Equal | NotEqual | LessThan | LessThanOrEqual | GreaterThan | GreaterThanOrEqual), right_val @ Numeric(_)) if matches!(left_val, Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_)) => {
+            (
+                left_val,
+                op @ (Equal | NotEqual | LessThan | LessThanOrEqual | GreaterThan
+                | GreaterThanOrEqual),
+                right_val @ Numeric(_),
+            ) if matches!(
+                left_val,
+                Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_)
+            ) =>
+            {
                 let left_f64 = to_f64(left_val)?;
                 let right_f64 = to_f64(right_val)?;
                 match op {

@@ -111,11 +111,11 @@ impl Table {
     /// Returns number of rows deleted
     pub fn delete_where<F>(&mut self, predicate: F) -> usize
     where
-    F: Fn(&Row) -> bool,
+        F: Fn(&Row) -> bool,
     {
-    let initial_count = self.rows.len();
-    self.rows.retain(|row| !predicate(row));
-    initial_count - self.rows.len()
+        let initial_count = self.rows.len();
+        self.rows.retain(|row| !predicate(row));
+        initial_count - self.rows.len()
     }
 
     /// Remove a specific row (used for transaction undo)

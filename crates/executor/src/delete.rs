@@ -156,10 +156,8 @@ fn check_no_child_references(
         None => return Ok(()),
     };
 
-    let parent_key_values: Vec<types::SqlValue> = pk_indices
-        .iter()
-        .map(|&idx| parent_row.values[idx].clone())
-        .collect();
+    let parent_key_values: Vec<types::SqlValue> =
+        pk_indices.iter().map(|&idx| parent_row.values[idx].clone()).collect();
 
     // Scan all tables in the database to find foreign keys that reference this table.
     for table_name in db.catalog.list_tables() {
@@ -173,11 +171,8 @@ fn check_no_child_references(
             // Check if any row in the child table references the parent row.
             let child_table = db.get_table(&table_name).unwrap();
             let has_references = child_table.scan().iter().any(|child_row| {
-                let child_fk_values: Vec<types::SqlValue> = fk
-                    .column_indices
-                    .iter()
-                    .map(|&idx| child_row.values[idx].clone())
-                    .collect();
+                let child_fk_values: Vec<types::SqlValue> =
+                    fk.column_indices.iter().map(|&idx| child_row.values[idx].clone()).collect();
                 child_fk_values == parent_key_values
             });
 
@@ -208,7 +203,11 @@ mod tests {
             "users".to_string(),
             vec![
                 ColumnSchema::new("id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+                ColumnSchema::new(
+                    "name".to_string(),
+                    DataType::Varchar { max_length: Some(50) },
+                    false,
+                ),
                 ColumnSchema::new("active".to_string(), DataType::Boolean, false),
             ],
         );
@@ -445,7 +444,11 @@ mod tests {
             "employees".to_string(),
             vec![
                 ColumnSchema::new("id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+                ColumnSchema::new(
+                    "name".to_string(),
+                    DataType::Varchar { max_length: Some(50) },
+                    false,
+                ),
                 ColumnSchema::new("dept_id".to_string(), DataType::Integer, false),
             ],
         );
@@ -485,21 +488,14 @@ mod tests {
             vec![ColumnSchema::new("dept_id".to_string(), DataType::Integer, false)],
         );
         db.create_table(dept_schema).unwrap();
-        db.insert_row(
-            "inactive_depts",
-            Row::new(vec![SqlValue::Integer(10)]),
-        )
-        .unwrap();
+        db.insert_row("inactive_depts", Row::new(vec![SqlValue::Integer(10)])).unwrap();
 
         // Subquery: SELECT dept_id FROM inactive_depts
         let subquery = Box::new(ast::SelectStmt {
             with_clause: None,
             distinct: false,
             select_list: vec![ast::SelectItem::Expression {
-                expr: Expression::ColumnRef {
-                    table: None,
-                    column: "dept_id".to_string(),
-                },
+                expr: Expression::ColumnRef { table: None, column: "dept_id".to_string() },
                 alias: None,
             }],
             from: Some(ast::FromClause::Table { name: "inactive_depts".to_string(), alias: None }),
@@ -532,10 +528,7 @@ mod tests {
         let table = db.get_table("employees").unwrap();
         assert_eq!(table.row_count(), 1);
         let remaining = &table.scan()[0];
-        assert_eq!(
-            remaining.get(1).unwrap(),
-            &SqlValue::Varchar("Bob".to_string())
-        );
+        assert_eq!(remaining.get(1).unwrap(), &SqlValue::Varchar("Bob".to_string()));
     }
 
     #[test]
@@ -547,7 +540,11 @@ mod tests {
             "employees".to_string(),
             vec![
                 ColumnSchema::new("id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+                ColumnSchema::new(
+                    "name".to_string(),
+                    DataType::Varchar { max_length: Some(50) },
+                    false,
+                ),
                 ColumnSchema::new("dept_id".to_string(), DataType::Integer, false),
             ],
         );
@@ -578,21 +575,14 @@ mod tests {
             vec![ColumnSchema::new("dept_id".to_string(), DataType::Integer, false)],
         );
         db.create_table(dept_schema).unwrap();
-        db.insert_row(
-            "active_depts",
-            Row::new(vec![SqlValue::Integer(10)]),
-        )
-        .unwrap();
+        db.insert_row("active_depts", Row::new(vec![SqlValue::Integer(10)])).unwrap();
 
         // Subquery
         let subquery = Box::new(ast::SelectStmt {
             with_clause: None,
             distinct: false,
             select_list: vec![ast::SelectItem::Expression {
-                expr: Expression::ColumnRef {
-                    table: None,
-                    column: "dept_id".to_string(),
-                },
+                expr: Expression::ColumnRef { table: None, column: "dept_id".to_string() },
                 alias: None,
             }],
             from: Some(ast::FromClause::Table { name: "active_depts".to_string(), alias: None }),
@@ -625,10 +615,7 @@ mod tests {
         let table = db.get_table("employees").unwrap();
         assert_eq!(table.row_count(), 1);
         let remaining = &table.scan()[0];
-        assert_eq!(
-            remaining.get(1).unwrap(),
-            &SqlValue::Varchar("Alice".to_string())
-        );
+        assert_eq!(remaining.get(1).unwrap(), &SqlValue::Varchar("Alice".to_string()));
     }
 
     #[test]
@@ -640,7 +627,11 @@ mod tests {
             "employees".to_string(),
             vec![
                 ColumnSchema::new("id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+                ColumnSchema::new(
+                    "name".to_string(),
+                    DataType::Varchar { max_length: Some(50) },
+                    false,
+                ),
                 ColumnSchema::new("salary".to_string(), DataType::Integer, false),
             ],
         );
@@ -681,10 +672,7 @@ mod tests {
             select_list: vec![ast::SelectItem::Expression {
                 expr: Expression::Function {
                     name: "AVG".to_string(),
-                    args: vec![Expression::ColumnRef {
-                        table: None,
-                        column: "salary".to_string(),
-                    }],
+                    args: vec![Expression::ColumnRef { table: None, column: "salary".to_string() }],
                 },
                 alias: None,
             }],
@@ -702,10 +690,7 @@ mod tests {
         let stmt = ast::DeleteStmt {
             table_name: "employees".to_string(),
             where_clause: Some(Expression::BinaryOp {
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "salary".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "salary".to_string() }),
                 op: ast::BinaryOperator::LessThan,
                 right: Box::new(Expression::ScalarSubquery(subquery)),
             }),
@@ -741,7 +726,11 @@ mod tests {
             "employees".to_string(),
             vec![
                 ColumnSchema::new("id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+                ColumnSchema::new(
+                    "name".to_string(),
+                    DataType::Varchar { max_length: Some(50) },
+                    false,
+                ),
                 ColumnSchema::new("dept_id".to_string(), DataType::Integer, false),
             ],
         );
@@ -769,10 +758,7 @@ mod tests {
             with_clause: None,
             distinct: false,
             select_list: vec![ast::SelectItem::Expression {
-                expr: Expression::ColumnRef {
-                    table: None,
-                    column: "dept_id".to_string(),
-                },
+                expr: Expression::ColumnRef { table: None, column: "dept_id".to_string() },
                 alias: None,
             }],
             from: Some(ast::FromClause::Table { name: "old_depts".to_string(), alias: None }),
@@ -814,7 +800,11 @@ mod tests {
             "items".to_string(),
             vec![
                 ColumnSchema::new("id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+                ColumnSchema::new(
+                    "name".to_string(),
+                    DataType::Varchar { max_length: Some(50) },
+                    false,
+                ),
                 ColumnSchema::new("price".to_string(), DataType::Integer, false),
             ],
         );
@@ -855,10 +845,7 @@ mod tests {
             select_list: vec![ast::SelectItem::Expression {
                 expr: Expression::Function {
                     name: "MAX".to_string(),
-                    args: vec![Expression::ColumnRef {
-                        table: None,
-                        column: "price".to_string(),
-                    }],
+                    args: vec![Expression::ColumnRef { table: None, column: "price".to_string() }],
                 },
                 alias: None,
             }],
@@ -876,10 +863,7 @@ mod tests {
         let stmt = ast::DeleteStmt {
             table_name: "items".to_string(),
             where_clause: Some(Expression::BinaryOp {
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "price".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "price".to_string() }),
                 op: ast::BinaryOperator::Equal,
                 right: Box::new(Expression::ScalarSubquery(subquery)),
             }),
@@ -894,13 +878,7 @@ mod tests {
         let prices: Vec<i64> = table
             .scan()
             .iter()
-            .map(|row| {
-                if let SqlValue::Integer(price) = row.get(2).unwrap() {
-                    *price
-                } else {
-                    0
-                }
-            })
+            .map(|row| if let SqlValue::Integer(price) = row.get(2).unwrap() { *price } else { 0 })
             .collect();
         assert!(prices.contains(&100));
         assert!(prices.contains(&150));
@@ -923,29 +901,17 @@ mod tests {
 
         db.insert_row(
             "orders",
-            Row::new(vec![
-                SqlValue::Integer(1),
-                SqlValue::Integer(101),
-                SqlValue::Integer(50),
-            ]),
+            Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(101), SqlValue::Integer(50)]),
         )
         .unwrap();
         db.insert_row(
             "orders",
-            Row::new(vec![
-                SqlValue::Integer(2),
-                SqlValue::Integer(102),
-                SqlValue::Integer(75),
-            ]),
+            Row::new(vec![SqlValue::Integer(2), SqlValue::Integer(102), SqlValue::Integer(75)]),
         )
         .unwrap();
         db.insert_row(
             "orders",
-            Row::new(vec![
-                SqlValue::Integer(3),
-                SqlValue::Integer(103),
-                SqlValue::Integer(120),
-            ]),
+            Row::new(vec![SqlValue::Integer(3), SqlValue::Integer(103), SqlValue::Integer(120)]),
         )
         .unwrap();
 
@@ -954,24 +920,22 @@ mod tests {
             "inactive_customers".to_string(),
             vec![
                 ColumnSchema::new("customer_id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("status".to_string(), DataType::Varchar { max_length: Some(20) }, false),
+                ColumnSchema::new(
+                    "status".to_string(),
+                    DataType::Varchar { max_length: Some(20) },
+                    false,
+                ),
             ],
         );
         db.create_table(customer_schema).unwrap();
         db.insert_row(
             "inactive_customers",
-            Row::new(vec![
-                SqlValue::Integer(101),
-                SqlValue::Varchar("inactive".to_string()),
-            ]),
+            Row::new(vec![SqlValue::Integer(101), SqlValue::Varchar("inactive".to_string())]),
         )
         .unwrap();
         db.insert_row(
             "inactive_customers",
-            Row::new(vec![
-                SqlValue::Integer(102),
-                SqlValue::Varchar("inactive".to_string()),
-            ]),
+            Row::new(vec![SqlValue::Integer(102), SqlValue::Varchar("inactive".to_string())]),
         )
         .unwrap();
 
@@ -980,18 +944,15 @@ mod tests {
             with_clause: None,
             distinct: false,
             select_list: vec![ast::SelectItem::Expression {
-                expr: Expression::ColumnRef {
-                    table: None,
-                    column: "customer_id".to_string(),
-                },
+                expr: Expression::ColumnRef { table: None, column: "customer_id".to_string() },
                 alias: None,
             }],
-            from: Some(ast::FromClause::Table { name: "inactive_customers".to_string(), alias: None }),
+            from: Some(ast::FromClause::Table {
+                name: "inactive_customers".to_string(),
+                alias: None,
+            }),
             where_clause: Some(Expression::BinaryOp {
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "status".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "status".to_string() }),
                 op: ast::BinaryOperator::Equal,
                 right: Box::new(Expression::Literal(SqlValue::Varchar("inactive".to_string()))),
             }),
@@ -1035,7 +996,11 @@ mod tests {
             "employees".to_string(),
             vec![
                 ColumnSchema::new("id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+                ColumnSchema::new(
+                    "name".to_string(),
+                    DataType::Varchar { max_length: Some(50) },
+                    false,
+                ),
                 ColumnSchema::new("salary".to_string(), DataType::Integer, false),
             ],
         );
@@ -1063,10 +1028,7 @@ mod tests {
             with_clause: None,
             distinct: false,
             select_list: vec![ast::SelectItem::Expression {
-                expr: Expression::ColumnRef {
-                    table: None,
-                    column: "threshold".to_string(),
-                },
+                expr: Expression::ColumnRef { table: None, column: "threshold".to_string() },
                 alias: None,
             }],
             from: Some(ast::FromClause::Table { name: "config".to_string(), alias: None }),
@@ -1083,10 +1045,7 @@ mod tests {
         let stmt = ast::DeleteStmt {
             table_name: "employees".to_string(),
             where_clause: Some(Expression::BinaryOp {
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "salary".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "salary".to_string() }),
                 op: ast::BinaryOperator::GreaterThan,
                 right: Box::new(Expression::ScalarSubquery(subquery)),
             }),

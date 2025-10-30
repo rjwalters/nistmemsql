@@ -10,9 +10,10 @@ use super::exponential::numeric_to_f64;
 /// SIN(x) - Sine (x in radians)
 pub fn sin(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("SIN requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "SIN requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
@@ -27,9 +28,10 @@ pub fn sin(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// COS(x) - Cosine (x in radians)
 pub fn cos(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("COS requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "COS requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
@@ -44,9 +46,10 @@ pub fn cos(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// TAN(x) - Tangent (x in radians)
 pub fn tan(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("TAN requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "TAN requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
@@ -61,9 +64,10 @@ pub fn tan(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// ASIN(x) - Arcsine (returns radians)
 pub fn asin(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("ASIN requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "ASIN requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
@@ -84,9 +88,10 @@ pub fn asin(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// ACOS(x) - Arccosine (returns radians)
 pub fn acos(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("ACOS requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "ACOS requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
@@ -107,9 +112,10 @@ pub fn acos(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// ATAN(x) - Arctangent (returns radians)
 pub fn atan(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("ATAN requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "ATAN requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
@@ -124,15 +130,14 @@ pub fn atan(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// ATAN2(y, x) - Arctangent of y/x (returns radians)
 pub fn atan2(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 2 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("ATAN2 requires exactly 2 arguments, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "ATAN2 requires exactly 2 arguments, got {}",
+            args.len()
+        )));
     }
 
     match (&args[0], &args[1]) {
-        (SqlValue::Null, _) | (_, SqlValue::Null) => {
-            Ok(SqlValue::Null)
-        }
+        (SqlValue::Null, _) | (_, SqlValue::Null) => Ok(SqlValue::Null),
         (y_val, x_val) => {
             let y = numeric_to_f64(y_val)?;
             let x = numeric_to_f64(x_val)?;
@@ -144,9 +149,10 @@ pub fn atan2(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// RADIANS(x) - Convert degrees to radians
 pub fn radians(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("RADIANS requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "RADIANS requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
@@ -161,9 +167,10 @@ pub fn radians(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// DEGREES(x) - Convert radians to degrees
 pub fn degrees(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("DEGREES requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "DEGREES requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {

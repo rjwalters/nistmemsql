@@ -73,7 +73,8 @@ where
     }
 
     // Convert HashMap to Vec<Partition>, preserving original indices
-    partitions_map.into_values()
+    partitions_map
+        .into_values()
         .map(|rows_with_indices| {
             let (indices, rows): (Vec<_>, Vec<_>) = rows_with_indices.into_iter().unzip();
             Partition::with_indices(rows, indices)

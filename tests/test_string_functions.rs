@@ -19,18 +19,10 @@ fn execute_query(db: &Database, query: &str) -> Result<Vec<Row>, String> {
 fn create_dummy_table(db: &mut Database) {
     let schema = TableSchema::new(
         "dual".to_string(),
-        vec![ColumnSchema::new(
-            "dummy".to_string(),
-            DataType::Integer,
-            false,
-        )],
+        vec![ColumnSchema::new("dummy".to_string(), DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
-    db.insert_row(
-        "dual",
-        Row::new(vec![SqlValue::Integer(1)]),
-    )
-    .unwrap();
+    db.insert_row("dual", Row::new(vec![SqlValue::Integer(1)])).unwrap();
 }
 
 #[test]
@@ -40,10 +32,7 @@ fn test_upper_basic() {
 
     let results = execute_query(&db, "SELECT UPPER('hello') AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("HELLO".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("HELLO".to_string()));
 }
 
 #[test]
@@ -53,10 +42,7 @@ fn test_upper_already_uppercase() {
 
     let results = execute_query(&db, "SELECT UPPER('WORLD') AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("WORLD".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("WORLD".to_string()));
 }
 
 #[test]
@@ -66,10 +52,7 @@ fn test_upper_mixed_case() {
 
     let results = execute_query(&db, "SELECT UPPER('HeLLo WoRLd') AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("HELLO WORLD".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("HELLO WORLD".to_string()));
 }
 
 #[test]
@@ -79,10 +62,7 @@ fn test_upper_with_numbers() {
 
     let results = execute_query(&db, "SELECT UPPER('test123') AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("TEST123".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("TEST123".to_string()));
 }
 
 #[test]
@@ -92,10 +72,7 @@ fn test_lower_basic() {
 
     let results = execute_query(&db, "SELECT LOWER('HELLO') AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("hello".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("hello".to_string()));
 }
 
 #[test]
@@ -105,10 +82,7 @@ fn test_lower_already_lowercase() {
 
     let results = execute_query(&db, "SELECT LOWER('world') AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("world".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("world".to_string()));
 }
 
 #[test]
@@ -118,10 +92,7 @@ fn test_lower_mixed_case() {
 
     let results = execute_query(&db, "SELECT LOWER('HeLLo WoRLd') AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("hello world".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("hello world".to_string()));
 }
 
 #[test]
@@ -131,10 +102,7 @@ fn test_lower_with_numbers() {
 
     let results = execute_query(&db, "SELECT LOWER('TEST123') AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("test123".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("test123".to_string()));
 }
 
 #[test]
@@ -172,27 +140,13 @@ fn test_upper_with_table_data() {
     );
     db.create_table(schema).unwrap();
 
-    db.insert_row(
-        "users",
-        Row::new(vec![SqlValue::Varchar("alice".to_string())]),
-    )
-    .unwrap();
-    db.insert_row(
-        "users",
-        Row::new(vec![SqlValue::Varchar("bob".to_string())]),
-    )
-    .unwrap();
+    db.insert_row("users", Row::new(vec![SqlValue::Varchar("alice".to_string())])).unwrap();
+    db.insert_row("users", Row::new(vec![SqlValue::Varchar("bob".to_string())])).unwrap();
 
     let results = execute_query(&db, "SELECT UPPER(name) AS upper_name FROM users;").unwrap();
     assert_eq!(results.len(), 2);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("ALICE".to_string())
-    );
-    assert_eq!(
-        results[1].values[0],
-        SqlValue::Varchar("BOB".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("ALICE".to_string()));
+    assert_eq!(results[1].values[0], SqlValue::Varchar("BOB".to_string()));
 }
 
 #[test]
@@ -207,10 +161,7 @@ fn test_case_insensitive_function_names() {
 
     assert_eq!(results1[0].values[0], results2[0].values[0]);
     assert_eq!(results2[0].values[0], results3[0].values[0]);
-    assert_eq!(
-        results1[0].values[0],
-        SqlValue::Varchar("TEST".to_string())
-    );
+    assert_eq!(results1[0].values[0], SqlValue::Varchar("TEST".to_string()));
 }
 
 // --- SUBSTRING tests ---
@@ -220,12 +171,10 @@ fn test_substring_basic_with_length() {
     let mut db = Database::new();
     create_dummy_table(&mut db);
 
-    let results = execute_query(&db, "SELECT SUBSTRING('hello world', 1, 5) AS result FROM dual;").unwrap();
+    let results =
+        execute_query(&db, "SELECT SUBSTRING('hello world', 1, 5) AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("hello".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("hello".to_string()));
 }
 
 #[test]
@@ -234,12 +183,10 @@ fn test_substring_without_length() {
     create_dummy_table(&mut db);
 
     // Without length, should extract to end of string
-    let results = execute_query(&db, "SELECT SUBSTRING('hello world', 7) AS result FROM dual;").unwrap();
+    let results =
+        execute_query(&db, "SELECT SUBSTRING('hello world', 7) AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("world".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("world".to_string()));
 }
 
 #[test]
@@ -247,12 +194,10 @@ fn test_substring_middle_of_string() {
     let mut db = Database::new();
     create_dummy_table(&mut db);
 
-    let results = execute_query(&db, "SELECT SUBSTRING('hello world', 7, 5) AS result FROM dual;").unwrap();
+    let results =
+        execute_query(&db, "SELECT SUBSTRING('hello world', 7, 5) AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("world".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("world".to_string()));
 }
 
 #[test]
@@ -260,12 +205,10 @@ fn test_substring_single_char() {
     let mut db = Database::new();
     create_dummy_table(&mut db);
 
-    let results = execute_query(&db, "SELECT SUBSTRING('hello', 1, 1) AS result FROM dual;").unwrap();
+    let results =
+        execute_query(&db, "SELECT SUBSTRING('hello', 1, 1) AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("h".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("h".to_string()));
 }
 
 #[test]
@@ -274,12 +217,10 @@ fn test_substring_length_exceeds_string() {
     create_dummy_table(&mut db);
 
     // Length exceeds remaining string, should return what's available
-    let results = execute_query(&db, "SELECT SUBSTRING('hello', 3, 100) AS result FROM dual;").unwrap();
+    let results =
+        execute_query(&db, "SELECT SUBSTRING('hello', 3, 100) AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("llo".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("llo".to_string()));
 }
 
 #[test]
@@ -288,12 +229,10 @@ fn test_substring_start_exceeds_length() {
     create_dummy_table(&mut db);
 
     // Start position exceeds string length, should return empty string
-    let results = execute_query(&db, "SELECT SUBSTRING('hello', 100, 5) AS result FROM dual;").unwrap();
+    let results =
+        execute_query(&db, "SELECT SUBSTRING('hello', 100, 5) AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("".to_string()));
 }
 
 #[test]
@@ -312,12 +251,10 @@ fn test_substring_zero_length() {
     create_dummy_table(&mut db);
 
     // Length of 0 should return empty string
-    let results = execute_query(&db, "SELECT SUBSTRING('hello', 1, 0) AS result FROM dual;").unwrap();
+    let results =
+        execute_query(&db, "SELECT SUBSTRING('hello', 1, 0) AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("".to_string()));
 }
 
 // --- TRIM tests ---
@@ -329,10 +266,7 @@ fn test_trim_basic() {
 
     let results = execute_query(&db, "SELECT TRIM('  hello  ') AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("hello".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("hello".to_string()));
 }
 
 #[test]
@@ -342,10 +276,7 @@ fn test_trim_leading_only() {
 
     let results = execute_query(&db, "SELECT TRIM('  hello') AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("hello".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("hello".to_string()));
 }
 
 #[test]
@@ -355,10 +286,7 @@ fn test_trim_trailing_only() {
 
     let results = execute_query(&db, "SELECT TRIM('hello  ') AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("hello".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("hello".to_string()));
 }
 
 #[test]
@@ -368,10 +296,7 @@ fn test_trim_no_spaces() {
 
     let results = execute_query(&db, "SELECT TRIM('hello') AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("hello".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("hello".to_string()));
 }
 
 #[test]
@@ -381,10 +306,7 @@ fn test_trim_only_spaces() {
 
     let results = execute_query(&db, "SELECT TRIM('   ') AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("".to_string()));
 }
 
 #[test]
@@ -392,12 +314,10 @@ fn test_trim_preserves_internal_spaces() {
     let mut db = Database::new();
     create_dummy_table(&mut db);
 
-    let results = execute_query(&db, "SELECT TRIM('  hello world  ') AS result FROM dual;").unwrap();
+    let results =
+        execute_query(&db, "SELECT TRIM('  hello world  ') AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("hello world".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("hello world".to_string()));
 }
 
 #[test]
@@ -428,7 +348,8 @@ fn test_character_length_alias() {
     create_dummy_table(&mut db);
 
     // CHARACTER_LENGTH is an alias for CHAR_LENGTH
-    let results = execute_query(&db, "SELECT CHARACTER_LENGTH('hello') AS result FROM dual;").unwrap();
+    let results =
+        execute_query(&db, "SELECT CHARACTER_LENGTH('hello') AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Integer(5));
 }
@@ -448,7 +369,8 @@ fn test_char_length_with_spaces() {
     let mut db = Database::new();
     create_dummy_table(&mut db);
 
-    let results = execute_query(&db, "SELECT CHAR_LENGTH('hello world') AS result FROM dual;").unwrap();
+    let results =
+        execute_query(&db, "SELECT CHAR_LENGTH('hello world') AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Integer(11));
 }
@@ -459,7 +381,8 @@ fn test_char_length_leading_trailing_spaces() {
     create_dummy_table(&mut db);
 
     // Spaces count as characters
-    let results = execute_query(&db, "SELECT CHAR_LENGTH('  hello  ') AS result FROM dual;").unwrap();
+    let results =
+        execute_query(&db, "SELECT CHAR_LENGTH('  hello  ') AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Integer(9));
 }

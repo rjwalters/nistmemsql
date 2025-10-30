@@ -19,18 +19,10 @@ fn execute_query(db: &Database, query: &str) -> Result<Vec<Row>, String> {
 fn create_dummy_table(db: &mut Database) {
     let schema = TableSchema::new(
         "dual".to_string(),
-        vec![ColumnSchema::new(
-            "dummy".to_string(),
-            DataType::Integer,
-            false,
-        )],
+        vec![ColumnSchema::new("dummy".to_string(), DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
-    db.insert_row(
-        "dual",
-        Row::new(vec![SqlValue::Integer(1)]),
-    )
-    .unwrap();
+    db.insert_row("dual", Row::new(vec![SqlValue::Integer(1)])).unwrap();
 }
 
 // Test SUBSTR (alias for SUBSTRING)
@@ -39,12 +31,10 @@ fn test_substr_basic() {
     let mut db = Database::new();
     create_dummy_table(&mut db);
 
-    let results = execute_query(&db, "SELECT SUBSTR('hello world', 1, 5) AS result FROM dual;").unwrap();
+    let results =
+        execute_query(&db, "SELECT SUBSTR('hello world', 1, 5) AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("hello".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("hello".to_string()));
 }
 
 // Test INSTR
@@ -53,7 +43,8 @@ fn test_instr_found() {
     let mut db = Database::new();
     create_dummy_table(&mut db);
 
-    let results = execute_query(&db, "SELECT INSTR('hello world', 'world') AS result FROM dual;").unwrap();
+    let results =
+        execute_query(&db, "SELECT INSTR('hello world', 'world') AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Integer(7));
 }
@@ -63,7 +54,8 @@ fn test_instr_not_found() {
     let mut db = Database::new();
     create_dummy_table(&mut db);
 
-    let results = execute_query(&db, "SELECT INSTR('hello world', 'xyz') AS result FROM dual;").unwrap();
+    let results =
+        execute_query(&db, "SELECT INSTR('hello world', 'xyz') AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Integer(0));
 }
@@ -84,7 +76,8 @@ fn test_locate_found() {
     let mut db = Database::new();
     create_dummy_table(&mut db);
 
-    let results = execute_query(&db, "SELECT LOCATE('world', 'hello world') AS result FROM dual;").unwrap();
+    let results =
+        execute_query(&db, "SELECT LOCATE('world', 'hello world') AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Integer(7));
 }
@@ -95,7 +88,9 @@ fn test_locate_with_start() {
     create_dummy_table(&mut db);
 
     // Start searching from position 7, won't find at position 7
-    let results = execute_query(&db, "SELECT LOCATE('world', 'hello world', 7) AS result FROM dual;").unwrap();
+    let results =
+        execute_query(&db, "SELECT LOCATE('world', 'hello world', 7) AS result FROM dual;")
+            .unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Integer(7));
 }
@@ -105,7 +100,8 @@ fn test_locate_not_found() {
     let mut db = Database::new();
     create_dummy_table(&mut db);
 
-    let results = execute_query(&db, "SELECT LOCATE('xyz', 'hello world') AS result FROM dual;").unwrap();
+    let results =
+        execute_query(&db, "SELECT LOCATE('xyz', 'hello world') AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Integer(0));
 }
@@ -118,10 +114,7 @@ fn test_format_with_decimals() {
 
     let results = execute_query(&db, "SELECT FORMAT(1234567.89, 2) AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("1,234,567.89".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("1,234,567.89".to_string()));
 }
 
 #[test]
@@ -131,10 +124,7 @@ fn test_format_no_decimals() {
 
     let results = execute_query(&db, "SELECT FORMAT(1000000, 0) AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("1,000,000".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("1,000,000".to_string()));
 }
 
 #[test]
@@ -145,10 +135,7 @@ fn test_format_negative() {
     // Test with integer subtraction to get negative number
     let results = execute_query(&db, "SELECT FORMAT(0 - 1234, 2) AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("-1,234.00".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("-1,234.00".to_string()));
 }
 
 // Test VERSION
@@ -175,10 +162,7 @@ fn test_database() {
 
     let results = execute_query(&db, "SELECT DATABASE() AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("default".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("default".to_string()));
 }
 
 #[test]
@@ -188,10 +172,7 @@ fn test_schema() {
 
     let results = execute_query(&db, "SELECT SCHEMA() AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("default".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("default".to_string()));
 }
 
 // Test USER/CURRENT_USER
@@ -202,10 +183,7 @@ fn test_user() {
 
     let results = execute_query(&db, "SELECT USER() AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("anonymous".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("anonymous".to_string()));
 }
 
 #[test]
@@ -215,8 +193,5 @@ fn test_current_user() {
 
     let results = execute_query(&db, "SELECT CURRENT_USER() AS result FROM dual;").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("anonymous".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("anonymous".to_string()));
 }

@@ -1,8 +1,8 @@
 //! Special expression forms (CASE, Function calls)
 
-use crate::errors::ExecutorError;
 use super::super::core::ExpressionEvaluator;
 use super::super::functions::eval_scalar_function;
+use crate::errors::ExecutorError;
 
 impl<'a> ExpressionEvaluator<'a> {
     /// Evaluate CASE expression
@@ -23,7 +23,10 @@ impl<'a> ExpressionEvaluator<'a> {
                     for condition_expr in &when_clause.conditions {
                         let when_value = self.eval(condition_expr, row)?;
 
-                        if super::super::core::ExpressionEvaluator::values_are_equal(&operand_value, &when_value) {
+                        if super::super::core::ExpressionEvaluator::values_are_equal(
+                            &operand_value,
+                            &when_value,
+                        ) {
                             return self.eval(&when_clause.result, row);
                         }
                     }
@@ -65,6 +68,4 @@ impl<'a> ExpressionEvaluator<'a> {
 
         eval_scalar_function(name, &arg_values)
     }
-
-
 }

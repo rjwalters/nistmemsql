@@ -1,6 +1,9 @@
 //! Transaction control statement execution (BEGIN, COMMIT, ROLLBACK)
 
-use ast::{BeginStmt, CommitStmt, ReleaseSavepointStmt, RollbackStmt, RollbackToSavepointStmt, SavepointStmt};
+use ast::{
+    BeginStmt, CommitStmt, ReleaseSavepointStmt, RollbackStmt, RollbackToSavepointStmt,
+    SavepointStmt,
+};
 use storage::Database;
 
 use crate::errors::ExecutorError;
@@ -11,8 +14,9 @@ pub struct BeginTransactionExecutor;
 impl BeginTransactionExecutor {
     /// Execute a BEGIN TRANSACTION statement
     pub fn execute(_stmt: &BeginStmt, db: &mut Database) -> Result<String, ExecutorError> {
-        db.begin_transaction()
-            .map_err(|e| ExecutorError::StorageError(format!("Failed to begin transaction: {}", e)))?;
+        db.begin_transaction().map_err(|e| {
+            ExecutorError::StorageError(format!("Failed to begin transaction: {}", e))
+        })?;
 
         Ok(format!("Transaction started"))
     }
@@ -24,8 +28,9 @@ pub struct CommitExecutor;
 impl CommitExecutor {
     /// Execute a COMMIT statement
     pub fn execute(_stmt: &CommitStmt, db: &mut Database) -> Result<String, ExecutorError> {
-        db.commit_transaction()
-            .map_err(|e| ExecutorError::StorageError(format!("Failed to commit transaction: {}", e)))?;
+        db.commit_transaction().map_err(|e| {
+            ExecutorError::StorageError(format!("Failed to commit transaction: {}", e))
+        })?;
 
         Ok(format!("Transaction committed"))
     }
@@ -37,8 +42,9 @@ pub struct RollbackExecutor;
 impl RollbackExecutor {
     /// Execute a ROLLBACK statement
     pub fn execute(_stmt: &RollbackStmt, db: &mut Database) -> Result<String, ExecutorError> {
-        db.rollback_transaction()
-            .map_err(|e| ExecutorError::StorageError(format!("Failed to rollback transaction: {}", e)))?;
+        db.rollback_transaction().map_err(|e| {
+            ExecutorError::StorageError(format!("Failed to rollback transaction: {}", e))
+        })?;
 
         Ok(format!("Transaction rolled back"))
     }
@@ -50,8 +56,9 @@ pub struct SavepointExecutor;
 impl SavepointExecutor {
     /// Execute a SAVEPOINT statement
     pub fn execute(stmt: &SavepointStmt, db: &mut Database) -> Result<String, ExecutorError> {
-        db.create_savepoint(stmt.name.clone())
-            .map_err(|e| ExecutorError::StorageError(format!("Failed to create savepoint: {}", e)))?;
+        db.create_savepoint(stmt.name.clone()).map_err(|e| {
+            ExecutorError::StorageError(format!("Failed to create savepoint: {}", e))
+        })?;
 
         Ok(format!("Savepoint '{}' created", stmt.name))
     }
@@ -62,9 +69,13 @@ pub struct RollbackToSavepointExecutor;
 
 impl RollbackToSavepointExecutor {
     /// Execute a ROLLBACK TO SAVEPOINT statement
-    pub fn execute(stmt: &RollbackToSavepointStmt, db: &mut Database) -> Result<String, ExecutorError> {
-        db.rollback_to_savepoint(stmt.name.clone())
-            .map_err(|e| ExecutorError::StorageError(format!("Failed to rollback to savepoint: {}", e)))?;
+    pub fn execute(
+        stmt: &RollbackToSavepointStmt,
+        db: &mut Database,
+    ) -> Result<String, ExecutorError> {
+        db.rollback_to_savepoint(stmt.name.clone()).map_err(|e| {
+            ExecutorError::StorageError(format!("Failed to rollback to savepoint: {}", e))
+        })?;
 
         Ok(format!("Rolled back to savepoint '{}'", stmt.name))
     }
@@ -75,9 +86,13 @@ pub struct ReleaseSavepointExecutor;
 
 impl ReleaseSavepointExecutor {
     /// Execute a RELEASE SAVEPOINT statement
-    pub fn execute(stmt: &ReleaseSavepointStmt, db: &mut Database) -> Result<String, ExecutorError> {
-        db.release_savepoint(stmt.name.clone())
-            .map_err(|e| ExecutorError::StorageError(format!("Failed to release savepoint: {}", e)))?;
+    pub fn execute(
+        stmt: &ReleaseSavepointStmt,
+        db: &mut Database,
+    ) -> Result<String, ExecutorError> {
+        db.release_savepoint(stmt.name.clone()).map_err(|e| {
+            ExecutorError::StorageError(format!("Failed to release savepoint: {}", e))
+        })?;
 
         Ok(format!("Savepoint '{}' released", stmt.name))
     }

@@ -2,9 +2,9 @@
 
 mod common;
 
+use ast;
 use common::create_test_evaluator;
 use types;
-use ast;
 
 // ==================== DATEDIFF TESTS ====================
 

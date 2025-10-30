@@ -7,11 +7,11 @@
 use catalog::{ColumnSchema, TableSchema};
 use executor::SelectExecutor;
 use parser::Parser;
-use storage::{Database, Row};
-use types::{DataType, SqlValue};
+use regex::Regex;
 use std::fs;
 use std::path::Path;
-use regex::Regex;
+use storage::{Database, Row};
+use types::{DataType, SqlValue};
 
 /// Represents a parsed SQL example from the web demo
 #[derive(Debug, Clone)]
@@ -27,25 +27,25 @@ struct WebDemoExample {
 /// Parse all TypeScript example files and extract SQL examples
 fn parse_example_files() -> Result<Vec<WebDemoExample>, Box<dyn std::error::Error>> {
     let mut examples = Vec::new();
-    
-    let example_files = vec![
-        "web-demo/src/data/examples.ts",
-    ];
-    
+
+    let example_files = vec!["web-demo/src/data/examples.ts"];
+
     for file_path in example_files {
         if Path::new(file_path).exists() {
             let content = fs::read_to_string(file_path)?;
             examples.extend(parse_typescript_examples(&content)?);
         }
     }
-    
+
     Ok(examples)
 }
 
 /// Parse TypeScript content to extract QueryExample objects
-fn parse_typescript_examples(content: &str) -> Result<Vec<WebDemoExample>, Box<dyn std::error::Error>> {
+fn parse_typescript_examples(
+    content: &str,
+) -> Result<Vec<WebDemoExample>, Box<dyn std::error::Error>> {
     let mut examples = Vec::new();
-    
+
     // Regex to match QueryExample objects in TypeScript
     // This is a simplified parser that looks for the pattern:
     // {
@@ -55,30 +55,23 @@ fn parse_typescript_examples(content: &str) -> Result<Vec<WebDemoExample>, Box<d
     //   sql: `SQL CONTENT`,
     //   ...
     // }
-    
+
     let example_pattern = Regex::new(
-        r#"(?s)\{\s*id:\s*['"]([^'"]+)['"],\s*title:\s*['"]([^'"]+)['"],\s*database:\s*['"]([^'"]+)['"],\s*sql:\s*`([^`]+)`"#
+        r#"(?s)\{\s*id:\s*['"]([^'"]+)['"],\s*title:\s*['"]([^'"]+)['"],\s*database:\s*['"]([^'"]+)['"],\s*sql:\s*`([^`]+)`"#,
     )?;
-    
+
     for cap in example_pattern.captures_iter(content) {
         let id = cap.get(1).unwrap().as_str().to_string();
         let title = cap.get(2).unwrap().as_str().to_string();
         let database = cap.get(3).unwrap().as_str().to_string();
         let sql = cap.get(4).unwrap().as_str().to_string();
-        
+
         // Parse expected results from SQL comments
         let (expected_rows, expected_count) = parse_expected_results(&sql);
-        
-        examples.push(WebDemoExample {
-            id,
-            title,
-            database,
-            sql,
-            expected_rows,
-            expected_count,
-        });
+
+        examples.push(WebDemoExample { id, title, database, sql, expected_rows, expected_count });
     }
-    
+
     Ok(examples)
 }
 
@@ -89,20 +82,19 @@ fn parse_expected_results(sql: &str) -> (Option<Vec<Vec<String>>>, Option<usize>
     let mut in_expected_block = false;
     let mut expected_rows = Vec::new();
     let mut expected_count = None;
-    
+
     for line in lines {
         let trimmed = line.trim();
-        
+
         // Check for EXPECTED block start
         if trimmed.contains("-- EXPECTED:") {
             in_expected_block = true;
             continue;
         }
-        
+
         // Check for row count pattern: "-- (N rows)"
-        if let Some(cap) = Regex::new(r"--\s*\((\d+)\s+rows?\)")
-            .ok()
-            .and_then(|re| re.captures(trimmed)) 
+        if let Some(cap) =
+            Regex::new(r"--\s*\((\d+)\s+rows?\)").ok().and_then(|re| re.captures(trimmed))
         {
             if let Ok(count) = cap.get(1).unwrap().as_str().parse::<usize>() {
                 expected_count = Some(count);
@@ -110,11 +102,11 @@ fn parse_expected_results(sql: &str) -> (Option<Vec<Vec<String>>>, Option<usize>
             in_expected_block = false;
             continue;
         }
-        
+
         // Parse table rows in expected block
         if in_expected_block && trimmed.starts_with("--") {
             let row_content = trimmed.trim_start_matches("--").trim();
-            
+
             // Skip header separator lines
             if row_content.starts_with("|") && !row_content.contains("----") {
                 // Parse table row: | col1 | col2 | col3 |
@@ -123,26 +115,26 @@ fn parse_expected_results(sql: &str) -> (Option<Vec<Vec<String>>>, Option<usize>
                     .map(|s| s.trim().to_string())
                     .filter(|s| !s.is_empty())
                     .collect();
-                
+
                 if !values.is_empty() {
                     expected_rows.push(values);
                 }
             }
         }
-        
+
         // Stop parsing if we hit a line that's not a comment
         if in_expected_block && !trimmed.starts_with("--") {
             in_expected_block = false;
         }
     }
-    
+
     let rows = if expected_rows.len() > 1 {
         // Skip header row (first row)
         Some(expected_rows[1..].to_vec())
     } else {
         None
     };
-    
+
     (rows, expected_count)
 }
 
@@ -165,8 +157,16 @@ fn create_northwind_db() -> Database {
         "categories".to_string(),
         vec![
             ColumnSchema::new("category_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("category_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
-            ColumnSchema::new("description".to_string(), DataType::Varchar { max_length: Some(200) }, false),
+            ColumnSchema::new(
+                "category_name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
+            ColumnSchema::new(
+                "description".to_string(),
+                DataType::Varchar { max_length: Some(200) },
+                false,
+            ),
         ],
     );
     db.create_table(categories_schema).unwrap();
@@ -176,7 +176,11 @@ fn create_northwind_db() -> Database {
         "products".to_string(),
         vec![
             ColumnSchema::new("product_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("product_name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
+            ColumnSchema::new(
+                "product_name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
             ColumnSchema::new("category_id".to_string(), DataType::Integer, false),
             ColumnSchema::new("unit_price".to_string(), DataType::Float { precision: 53 }, false),
             ColumnSchema::new("units_in_stock".to_string(), DataType::Integer, false),
@@ -187,160 +191,196 @@ fn create_northwind_db() -> Database {
 
     // Insert sample data
     let categories_table = db.get_table_mut("categories").unwrap();
-    categories_table.insert(Row::new(vec![
-        SqlValue::Integer(1),
-        SqlValue::Varchar("Beverages".to_string()),
-        SqlValue::Varchar("Soft drinks, coffees, teas, beers, and ales".to_string()),
-    ])).unwrap();
-    categories_table.insert(Row::new(vec![
-        SqlValue::Integer(2),
-        SqlValue::Varchar("Condiments".to_string()),
-        SqlValue::Varchar("Sweet and savory sauces".to_string()),
-    ])).unwrap();
-    categories_table.insert(Row::new(vec![
-        SqlValue::Integer(3),
-        SqlValue::Varchar("Confections".to_string()),
-        SqlValue::Varchar("Desserts and candies".to_string()),
-    ])).unwrap();
+    categories_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Beverages".to_string()),
+            SqlValue::Varchar("Soft drinks, coffees, teas, beers, and ales".to_string()),
+        ]))
+        .unwrap();
+    categories_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Condiments".to_string()),
+            SqlValue::Varchar("Sweet and savory sauces".to_string()),
+        ]))
+        .unwrap();
+    categories_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(3),
+            SqlValue::Varchar("Confections".to_string()),
+            SqlValue::Varchar("Desserts and candies".to_string()),
+        ]))
+        .unwrap();
 
     let products_table = db.get_table_mut("products").unwrap();
-    
+
     // Insert products - matching the expected results in examples
-    products_table.insert(Row::new(vec![
-        SqlValue::Integer(1),
-        SqlValue::Varchar("Chai".to_string()),
-        SqlValue::Integer(1),
-        SqlValue::Float(18.0),
-        SqlValue::Integer(39),
-        SqlValue::Integer(0),
-    ])).unwrap();
-    
-    products_table.insert(Row::new(vec![
-        SqlValue::Integer(2),
-        SqlValue::Varchar("Chang".to_string()),
-        SqlValue::Integer(1),
-        SqlValue::Float(19.0),
-        SqlValue::Integer(17),
-        SqlValue::Integer(40),
-    ])).unwrap();
-    
-    products_table.insert(Row::new(vec![
-        SqlValue::Integer(3),
-        SqlValue::Varchar("Aniseed Syrup".to_string()),
-        SqlValue::Integer(2),
-        SqlValue::Float(10.0),
-        SqlValue::Integer(13),
-        SqlValue::Integer(70),
-    ])).unwrap();
-    
-    products_table.insert(Row::new(vec![
-        SqlValue::Integer(4),
-        SqlValue::Varchar("Chef Anton's Cajun Seasoning".to_string()),
-        SqlValue::Integer(2),
-        SqlValue::Float(22.0),
-        SqlValue::Integer(53),
-        SqlValue::Integer(0),
-    ])).unwrap();
-    
-    products_table.insert(Row::new(vec![
-        SqlValue::Integer(5),
-        SqlValue::Varchar("Chef Anton's Gumbo Mix".to_string()),
-        SqlValue::Integer(2),
-        SqlValue::Float(21.35),
-        SqlValue::Integer(0),
-        SqlValue::Integer(0),
-    ])).unwrap();
-    
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Chai".to_string()),
+            SqlValue::Integer(1),
+            SqlValue::Float(18.0),
+            SqlValue::Integer(39),
+            SqlValue::Integer(0),
+        ]))
+        .unwrap();
+
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Chang".to_string()),
+            SqlValue::Integer(1),
+            SqlValue::Float(19.0),
+            SqlValue::Integer(17),
+            SqlValue::Integer(40),
+        ]))
+        .unwrap();
+
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(3),
+            SqlValue::Varchar("Aniseed Syrup".to_string()),
+            SqlValue::Integer(2),
+            SqlValue::Float(10.0),
+            SqlValue::Integer(13),
+            SqlValue::Integer(70),
+        ]))
+        .unwrap();
+
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(4),
+            SqlValue::Varchar("Chef Anton's Cajun Seasoning".to_string()),
+            SqlValue::Integer(2),
+            SqlValue::Float(22.0),
+            SqlValue::Integer(53),
+            SqlValue::Integer(0),
+        ]))
+        .unwrap();
+
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(5),
+            SqlValue::Varchar("Chef Anton's Gumbo Mix".to_string()),
+            SqlValue::Integer(2),
+            SqlValue::Float(21.35),
+            SqlValue::Integer(0),
+            SqlValue::Integer(0),
+        ]))
+        .unwrap();
+
     // Add more products for WHERE clause examples
-    products_table.insert(Row::new(vec![
-        SqlValue::Integer(6),
-        SqlValue::Varchar("Mishi Kobe Niku".to_string()),
-        SqlValue::Integer(3),
-        SqlValue::Float(97.0),
-        SqlValue::Integer(29),
-        SqlValue::Integer(0),
-    ])).unwrap();
-    
-    products_table.insert(Row::new(vec![
-        SqlValue::Integer(7),
-        SqlValue::Varchar("Sir Rodney's Marmalade".to_string()),
-        SqlValue::Integer(3),
-        SqlValue::Float(81.0),
-        SqlValue::Integer(40),
-        SqlValue::Integer(0),
-    ])).unwrap();
-    
-    products_table.insert(Row::new(vec![
-        SqlValue::Integer(8),
-        SqlValue::Varchar("Carnarvon Tigers".to_string()),
-        SqlValue::Integer(3),
-        SqlValue::Float(62.5),
-        SqlValue::Integer(42),
-        SqlValue::Integer(0),
-    ])).unwrap();
-    
-    products_table.insert(Row::new(vec![
-        SqlValue::Integer(9),
-        SqlValue::Varchar("Northwoods Cranberry Sauce".to_string()),
-        SqlValue::Integer(2),
-        SqlValue::Float(40.0),
-        SqlValue::Integer(6),
-        SqlValue::Integer(0),
-    ])).unwrap();
-    
-    products_table.insert(Row::new(vec![
-        SqlValue::Integer(10),
-        SqlValue::Varchar("Alice Mutton".to_string()),
-        SqlValue::Integer(3),
-        SqlValue::Float(39.0),
-        SqlValue::Integer(0),
-        SqlValue::Integer(0),
-    ])).unwrap();
-    
-    products_table.insert(Row::new(vec![
-        SqlValue::Integer(11),
-        SqlValue::Varchar("Queso Manchego La Pastora".to_string()),
-        SqlValue::Integer(2),
-        SqlValue::Float(38.0),
-        SqlValue::Integer(86),
-        SqlValue::Integer(0),
-    ])).unwrap();
-    
-    products_table.insert(Row::new(vec![
-        SqlValue::Integer(12),
-        SqlValue::Varchar("Ikura".to_string()),
-        SqlValue::Integer(3),
-        SqlValue::Float(31.0),
-        SqlValue::Integer(31),
-        SqlValue::Integer(0),
-    ])).unwrap();
-    
-    products_table.insert(Row::new(vec![
-        SqlValue::Integer(13),
-        SqlValue::Varchar("Grandma's Boysenberry Spread".to_string()),
-        SqlValue::Integer(2),
-        SqlValue::Float(25.0),
-        SqlValue::Integer(120),
-        SqlValue::Integer(0),
-    ])).unwrap();
-    
-    products_table.insert(Row::new(vec![
-        SqlValue::Integer(14),
-        SqlValue::Varchar("Tofu".to_string()),
-        SqlValue::Integer(1),
-        SqlValue::Float(23.25),
-        SqlValue::Integer(35),
-        SqlValue::Integer(0),
-    ])).unwrap();
-    
-    products_table.insert(Row::new(vec![
-        SqlValue::Integer(15),
-        SqlValue::Varchar("Queso Cabrales".to_string()),
-        SqlValue::Integer(2),
-        SqlValue::Float(21.0),
-        SqlValue::Integer(22),
-        SqlValue::Integer(30),
-    ])).unwrap();
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(6),
+            SqlValue::Varchar("Mishi Kobe Niku".to_string()),
+            SqlValue::Integer(3),
+            SqlValue::Float(97.0),
+            SqlValue::Integer(29),
+            SqlValue::Integer(0),
+        ]))
+        .unwrap();
+
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(7),
+            SqlValue::Varchar("Sir Rodney's Marmalade".to_string()),
+            SqlValue::Integer(3),
+            SqlValue::Float(81.0),
+            SqlValue::Integer(40),
+            SqlValue::Integer(0),
+        ]))
+        .unwrap();
+
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(8),
+            SqlValue::Varchar("Carnarvon Tigers".to_string()),
+            SqlValue::Integer(3),
+            SqlValue::Float(62.5),
+            SqlValue::Integer(42),
+            SqlValue::Integer(0),
+        ]))
+        .unwrap();
+
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(9),
+            SqlValue::Varchar("Northwoods Cranberry Sauce".to_string()),
+            SqlValue::Integer(2),
+            SqlValue::Float(40.0),
+            SqlValue::Integer(6),
+            SqlValue::Integer(0),
+        ]))
+        .unwrap();
+
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(10),
+            SqlValue::Varchar("Alice Mutton".to_string()),
+            SqlValue::Integer(3),
+            SqlValue::Float(39.0),
+            SqlValue::Integer(0),
+            SqlValue::Integer(0),
+        ]))
+        .unwrap();
+
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(11),
+            SqlValue::Varchar("Queso Manchego La Pastora".to_string()),
+            SqlValue::Integer(2),
+            SqlValue::Float(38.0),
+            SqlValue::Integer(86),
+            SqlValue::Integer(0),
+        ]))
+        .unwrap();
+
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(12),
+            SqlValue::Varchar("Ikura".to_string()),
+            SqlValue::Integer(3),
+            SqlValue::Float(31.0),
+            SqlValue::Integer(31),
+            SqlValue::Integer(0),
+        ]))
+        .unwrap();
+
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(13),
+            SqlValue::Varchar("Grandma's Boysenberry Spread".to_string()),
+            SqlValue::Integer(2),
+            SqlValue::Float(25.0),
+            SqlValue::Integer(120),
+            SqlValue::Integer(0),
+        ]))
+        .unwrap();
+
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(14),
+            SqlValue::Varchar("Tofu".to_string()),
+            SqlValue::Integer(1),
+            SqlValue::Float(23.25),
+            SqlValue::Integer(35),
+            SqlValue::Integer(0),
+        ]))
+        .unwrap();
+
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(15),
+            SqlValue::Varchar("Queso Cabrales".to_string()),
+            SqlValue::Integer(2),
+            SqlValue::Float(21.0),
+            SqlValue::Integer(22),
+            SqlValue::Integer(30),
+        ]))
+        .unwrap();
 
     db
 }
@@ -354,8 +394,16 @@ fn create_employees_db() -> Database {
         "departments".to_string(),
         vec![
             ColumnSchema::new("dept_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("dept_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
-            ColumnSchema::new("location".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "dept_name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
+            ColumnSchema::new(
+                "location".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(departments_schema).unwrap();
@@ -365,7 +413,11 @@ fn create_employees_db() -> Database {
         "projects".to_string(),
         vec![
             ColumnSchema::new("project_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("project_name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
+            ColumnSchema::new(
+                "project_name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
             ColumnSchema::new("dept_id".to_string(), DataType::Integer, true),
             ColumnSchema::new("budget".to_string(), DataType::Integer, false),
         ],
@@ -378,14 +430,38 @@ fn create_employees_db() -> Database {
         vec![
             ColumnSchema::new("employee_id".to_string(), DataType::Integer, false),
             ColumnSchema::new("emp_id".to_string(), DataType::Integer, false), // alias for company examples
-            ColumnSchema::new("first_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
-            ColumnSchema::new("last_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, false), // full name for company examples
-            ColumnSchema::new("department".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new(
+                "first_name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
+            ColumnSchema::new(
+                "last_name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ), // full name for company examples
+            ColumnSchema::new(
+                "department".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
             ColumnSchema::new("dept_id".to_string(), DataType::Integer, true), // for company examples
-            ColumnSchema::new("title".to_string(), DataType::Varchar { max_length: Some(100) }, false),
+            ColumnSchema::new(
+                "title".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
             ColumnSchema::new("salary".to_string(), DataType::Float { precision: 53 }, false),
-            ColumnSchema::new("hire_date".to_string(), DataType::Varchar { max_length: Some(20) }, true), // for datetime examples
+            ColumnSchema::new(
+                "hire_date".to_string(),
+                DataType::Varchar { max_length: Some(20) },
+                true,
+            ), // for datetime examples
             ColumnSchema::new("manager_id".to_string(), DataType::Integer, true), // nullable
         ],
     );
@@ -393,166 +469,305 @@ fn create_employees_db() -> Database {
 
     // Insert departments
     let departments_table = db.get_table_mut("departments").unwrap();
-    departments_table.insert(Row::new(vec![
-        SqlValue::Integer(1), SqlValue::Varchar("Engineering".to_string()), SqlValue::Varchar("San Francisco".to_string()),
-    ])).unwrap();
-    departments_table.insert(Row::new(vec![
-        SqlValue::Integer(2), SqlValue::Varchar("Sales".to_string()), SqlValue::Varchar("New York".to_string()),
-    ])).unwrap();
-    departments_table.insert(Row::new(vec![
-        SqlValue::Integer(3), SqlValue::Varchar("Marketing".to_string()), SqlValue::Varchar("Los Angeles".to_string()),
-    ])).unwrap();
-    departments_table.insert(Row::new(vec![
-        SqlValue::Integer(4), SqlValue::Varchar("Human Resources".to_string()), SqlValue::Varchar("Chicago".to_string()),
-    ])).unwrap();
-    departments_table.insert(Row::new(vec![
-        SqlValue::Integer(5), SqlValue::Varchar("Operations".to_string()), SqlValue::Varchar("Seattle".to_string()),
-    ])).unwrap();
+    departments_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Engineering".to_string()),
+            SqlValue::Varchar("San Francisco".to_string()),
+        ]))
+        .unwrap();
+    departments_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Sales".to_string()),
+            SqlValue::Varchar("New York".to_string()),
+        ]))
+        .unwrap();
+    departments_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(3),
+            SqlValue::Varchar("Marketing".to_string()),
+            SqlValue::Varchar("Los Angeles".to_string()),
+        ]))
+        .unwrap();
+    departments_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(4),
+            SqlValue::Varchar("Human Resources".to_string()),
+            SqlValue::Varchar("Chicago".to_string()),
+        ]))
+        .unwrap();
+    departments_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(5),
+            SqlValue::Varchar("Operations".to_string()),
+            SqlValue::Varchar("Seattle".to_string()),
+        ]))
+        .unwrap();
 
     // Insert projects
     let projects_table = db.get_table_mut("projects").unwrap();
-    projects_table.insert(Row::new(vec![
-        SqlValue::Integer(1), SqlValue::Varchar("Cloud Migration".to_string()), SqlValue::Integer(1), SqlValue::Integer(500000),
-    ])).unwrap();
-    projects_table.insert(Row::new(vec![
-        SqlValue::Integer(2), SqlValue::Varchar("Mobile App".to_string()), SqlValue::Integer(1), SqlValue::Integer(350000),
-    ])).unwrap();
-    projects_table.insert(Row::new(vec![
-        SqlValue::Integer(3), SqlValue::Varchar("Data Analytics Platform".to_string()), SqlValue::Integer(1), SqlValue::Integer(220000),
-    ])).unwrap();
-    projects_table.insert(Row::new(vec![
-        SqlValue::Integer(4), SqlValue::Varchar("Marketing Campaign".to_string()), SqlValue::Integer(3), SqlValue::Integer(150000),
-    ])).unwrap();
-    projects_table.insert(Row::new(vec![
-        SqlValue::Integer(5), SqlValue::Varchar("Brand Redesign".to_string()), SqlValue::Integer(3), SqlValue::Integer(125000),
-    ])).unwrap();
-    projects_table.insert(Row::new(vec![
-        SqlValue::Integer(6), SqlValue::Varchar("CRM Implementation".to_string()), SqlValue::Integer(2), SqlValue::Integer(150000),
-    ])).unwrap();
-    projects_table.insert(Row::new(vec![
-        SqlValue::Integer(7), SqlValue::Varchar("HR System Upgrade".to_string()), SqlValue::Integer(4), SqlValue::Integer(75000),
-    ])).unwrap();
-    projects_table.insert(Row::new(vec![
-        SqlValue::Integer(8), SqlValue::Varchar("Warehouse Automation".to_string()), SqlValue::Integer(5), SqlValue::Integer(410000),
-    ])).unwrap();
+    projects_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Cloud Migration".to_string()),
+            SqlValue::Integer(1),
+            SqlValue::Integer(500000),
+        ]))
+        .unwrap();
+    projects_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Mobile App".to_string()),
+            SqlValue::Integer(1),
+            SqlValue::Integer(350000),
+        ]))
+        .unwrap();
+    projects_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(3),
+            SqlValue::Varchar("Data Analytics Platform".to_string()),
+            SqlValue::Integer(1),
+            SqlValue::Integer(220000),
+        ]))
+        .unwrap();
+    projects_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(4),
+            SqlValue::Varchar("Marketing Campaign".to_string()),
+            SqlValue::Integer(3),
+            SqlValue::Integer(150000),
+        ]))
+        .unwrap();
+    projects_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(5),
+            SqlValue::Varchar("Brand Redesign".to_string()),
+            SqlValue::Integer(3),
+            SqlValue::Integer(125000),
+        ]))
+        .unwrap();
+    projects_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(6),
+            SqlValue::Varchar("CRM Implementation".to_string()),
+            SqlValue::Integer(2),
+            SqlValue::Integer(150000),
+        ]))
+        .unwrap();
+    projects_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(7),
+            SqlValue::Varchar("HR System Upgrade".to_string()),
+            SqlValue::Integer(4),
+            SqlValue::Integer(75000),
+        ]))
+        .unwrap();
+    projects_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(8),
+            SqlValue::Varchar("Warehouse Automation".to_string()),
+            SqlValue::Integer(5),
+            SqlValue::Integer(410000),
+        ]))
+        .unwrap();
 
     let employees_table = db.get_table_mut("employees").unwrap();
-    
+
     // Insert employees data matching expected results
     // From string-2 expected: Alice Johnson, Bob Smith, Carol White, David Brown, Eve Martinez, Frank Wilson, Grace Taylor, Henry Anderson
-    employees_table.insert(Row::new(vec![
-        SqlValue::Integer(1),
-        SqlValue::Integer(1),
-        SqlValue::Varchar("Alice".to_string()),
-        SqlValue::Varchar("Johnson".to_string()),
-        SqlValue::Varchar("Alice Johnson".to_string()),
-        SqlValue::Varchar("Engineering".to_string()),
-        SqlValue::Integer(1),
-        SqlValue::Varchar("Senior Engineer".to_string()),
-        SqlValue::Float(95000.0),
-        SqlValue::Varchar("2020-01-15".to_string()),
-        SqlValue::Null,
-    ])).unwrap();
-    
-    employees_table.insert(Row::new(vec![
-        SqlValue::Integer(2), SqlValue::Integer(2),
-        SqlValue::Varchar("Bob".to_string()), SqlValue::Varchar("Smith".to_string()),
-        SqlValue::Varchar("Bob Smith".to_string()),
-        SqlValue::Varchar("Sales".to_string()), SqlValue::Integer(2),
-        SqlValue::Varchar("Sales Manager".to_string()), SqlValue::Float(85000.0),
-        SqlValue::Varchar("2019-03-22".to_string()), SqlValue::Null,
-    ])).unwrap();
-    
-    employees_table.insert(Row::new(vec![
-        SqlValue::Integer(3), SqlValue::Integer(3),
-        SqlValue::Varchar("Carol".to_string()), SqlValue::Varchar("White".to_string()),
-        SqlValue::Varchar("Carol White".to_string()),
-        SqlValue::Varchar("Engineering".to_string()), SqlValue::Integer(1),
-        SqlValue::Varchar("Engineer".to_string()), SqlValue::Float(75000.0),
-        SqlValue::Varchar("2021-06-10".to_string()), SqlValue::Integer(1),
-    ])).unwrap();
-    
-    employees_table.insert(Row::new(vec![
-        SqlValue::Integer(4), SqlValue::Integer(4),
-        SqlValue::Varchar("David".to_string()), SqlValue::Varchar("Brown".to_string()),
-        SqlValue::Varchar("David Brown".to_string()),
-        SqlValue::Varchar("Marketing".to_string()), SqlValue::Integer(3),
-        SqlValue::Varchar("Marketing Specialist".to_string()), SqlValue::Float(65000.0),
-        SqlValue::Varchar("2022-01-05".to_string()), SqlValue::Integer(7),
-    ])).unwrap();
-    
-    employees_table.insert(Row::new(vec![
-        SqlValue::Integer(5), SqlValue::Integer(5),
-        SqlValue::Varchar("Eve".to_string()), SqlValue::Varchar("Martinez".to_string()),
-        SqlValue::Varchar("Eve Martinez".to_string()),
-        SqlValue::Varchar("Engineering".to_string()), SqlValue::Integer(1),
-        SqlValue::Varchar("Senior Engineer".to_string()), SqlValue::Float(110000.0),
-        SqlValue::Varchar("2018-09-12".to_string()), SqlValue::Null,
-    ])).unwrap();
-    
-    employees_table.insert(Row::new(vec![
-        SqlValue::Integer(6), SqlValue::Integer(6),
-        SqlValue::Varchar("Frank".to_string()), SqlValue::Varchar("Wilson".to_string()),
-        SqlValue::Varchar("Frank Wilson".to_string()),
-        SqlValue::Varchar("Sales".to_string()), SqlValue::Integer(2),
-        SqlValue::Varchar("Sales Representative".to_string()), SqlValue::Float(55000.0),
-        SqlValue::Varchar("2021-11-20".to_string()), SqlValue::Integer(2),
-    ])).unwrap();
-    
-    employees_table.insert(Row::new(vec![
-        SqlValue::Integer(7), SqlValue::Integer(7),
-        SqlValue::Varchar("Grace".to_string()), SqlValue::Varchar("Taylor".to_string()),
-        SqlValue::Varchar("Grace Taylor".to_string()),
-        SqlValue::Varchar("Marketing".to_string()), SqlValue::Integer(3),
-        SqlValue::Varchar("Marketing Manager".to_string()), SqlValue::Float(90000.0),
-        SqlValue::Varchar("2019-07-08".to_string()), SqlValue::Null,
-    ])).unwrap();
-    
-    employees_table.insert(Row::new(vec![
-        SqlValue::Integer(8), SqlValue::Integer(8),
-        SqlValue::Varchar("Henry".to_string()), SqlValue::Varchar("Anderson".to_string()),
-        SqlValue::Varchar("Henry Anderson".to_string()),
-        SqlValue::Varchar("Engineering".to_string()), SqlValue::Integer(1),
-        SqlValue::Varchar("Engineer".to_string()), SqlValue::Float(80000.0),
-        SqlValue::Varchar("2020-12-01".to_string()), SqlValue::Integer(1),
-    ])).unwrap();
-    
+    employees_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Alice".to_string()),
+            SqlValue::Varchar("Johnson".to_string()),
+            SqlValue::Varchar("Alice Johnson".to_string()),
+            SqlValue::Varchar("Engineering".to_string()),
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Senior Engineer".to_string()),
+            SqlValue::Float(95000.0),
+            SqlValue::Varchar("2020-01-15".to_string()),
+            SqlValue::Null,
+        ]))
+        .unwrap();
+
+    employees_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Bob".to_string()),
+            SqlValue::Varchar("Smith".to_string()),
+            SqlValue::Varchar("Bob Smith".to_string()),
+            SqlValue::Varchar("Sales".to_string()),
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Sales Manager".to_string()),
+            SqlValue::Float(85000.0),
+            SqlValue::Varchar("2019-03-22".to_string()),
+            SqlValue::Null,
+        ]))
+        .unwrap();
+
+    employees_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(3),
+            SqlValue::Integer(3),
+            SqlValue::Varchar("Carol".to_string()),
+            SqlValue::Varchar("White".to_string()),
+            SqlValue::Varchar("Carol White".to_string()),
+            SqlValue::Varchar("Engineering".to_string()),
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Engineer".to_string()),
+            SqlValue::Float(75000.0),
+            SqlValue::Varchar("2021-06-10".to_string()),
+            SqlValue::Integer(1),
+        ]))
+        .unwrap();
+
+    employees_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(4),
+            SqlValue::Integer(4),
+            SqlValue::Varchar("David".to_string()),
+            SqlValue::Varchar("Brown".to_string()),
+            SqlValue::Varchar("David Brown".to_string()),
+            SqlValue::Varchar("Marketing".to_string()),
+            SqlValue::Integer(3),
+            SqlValue::Varchar("Marketing Specialist".to_string()),
+            SqlValue::Float(65000.0),
+            SqlValue::Varchar("2022-01-05".to_string()),
+            SqlValue::Integer(7),
+        ]))
+        .unwrap();
+
+    employees_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(5),
+            SqlValue::Integer(5),
+            SqlValue::Varchar("Eve".to_string()),
+            SqlValue::Varchar("Martinez".to_string()),
+            SqlValue::Varchar("Eve Martinez".to_string()),
+            SqlValue::Varchar("Engineering".to_string()),
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Senior Engineer".to_string()),
+            SqlValue::Float(110000.0),
+            SqlValue::Varchar("2018-09-12".to_string()),
+            SqlValue::Null,
+        ]))
+        .unwrap();
+
+    employees_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(6),
+            SqlValue::Integer(6),
+            SqlValue::Varchar("Frank".to_string()),
+            SqlValue::Varchar("Wilson".to_string()),
+            SqlValue::Varchar("Frank Wilson".to_string()),
+            SqlValue::Varchar("Sales".to_string()),
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Sales Representative".to_string()),
+            SqlValue::Float(55000.0),
+            SqlValue::Varchar("2021-11-20".to_string()),
+            SqlValue::Integer(2),
+        ]))
+        .unwrap();
+
+    employees_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(7),
+            SqlValue::Integer(7),
+            SqlValue::Varchar("Grace".to_string()),
+            SqlValue::Varchar("Taylor".to_string()),
+            SqlValue::Varchar("Grace Taylor".to_string()),
+            SqlValue::Varchar("Marketing".to_string()),
+            SqlValue::Integer(3),
+            SqlValue::Varchar("Marketing Manager".to_string()),
+            SqlValue::Float(90000.0),
+            SqlValue::Varchar("2019-07-08".to_string()),
+            SqlValue::Null,
+        ]))
+        .unwrap();
+
+    employees_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(8),
+            SqlValue::Integer(8),
+            SqlValue::Varchar("Henry".to_string()),
+            SqlValue::Varchar("Anderson".to_string()),
+            SqlValue::Varchar("Henry Anderson".to_string()),
+            SqlValue::Varchar("Engineering".to_string()),
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Engineer".to_string()),
+            SqlValue::Float(80000.0),
+            SqlValue::Varchar("2020-12-01".to_string()),
+            SqlValue::Integer(1),
+        ]))
+        .unwrap();
+
     // Add additional employees with 'a' in first_name for string-7
-    employees_table.insert(Row::new(vec![
-        SqlValue::Integer(9), SqlValue::Integer(9),
-        SqlValue::Varchar("Maria".to_string()), SqlValue::Varchar("Clark".to_string()),
-        SqlValue::Varchar("Maria Clark".to_string()),
-        SqlValue::Varchar("Sales".to_string()), SqlValue::Integer(2),
-        SqlValue::Varchar("Sales Representative".to_string()), SqlValue::Float(58000.0),
-        SqlValue::Varchar("2022-04-15".to_string()), SqlValue::Integer(2),
-    ])).unwrap();
-    
-    employees_table.insert(Row::new(vec![
-        SqlValue::Integer(10), SqlValue::Integer(10),
-        SqlValue::Varchar("Nathan".to_string()), SqlValue::Varchar("Lewis".to_string()),
-        SqlValue::Varchar("Nathan Lewis".to_string()),
-        SqlValue::Varchar("Engineering".to_string()), SqlValue::Integer(1),
-        SqlValue::Varchar("Senior Engineer".to_string()), SqlValue::Float(105000.0),
-        SqlValue::Varchar("2019-05-18".to_string()), SqlValue::Integer(5),
-    ])).unwrap();
-    
-    employees_table.insert(Row::new(vec![
-        SqlValue::Integer(11), SqlValue::Integer(11),
-        SqlValue::Varchar("Olivia".to_string()), SqlValue::Varchar("Walker".to_string()),
-        SqlValue::Varchar("Olivia Walker".to_string()),
-        SqlValue::Varchar("Marketing".to_string()), SqlValue::Integer(3),
-        SqlValue::Varchar("Marketing Specialist".to_string()), SqlValue::Float(67000.0),
-        SqlValue::Varchar("2021-08-22".to_string()), SqlValue::Integer(7),
-    ])).unwrap();
-    
-    employees_table.insert(Row::new(vec![
-        SqlValue::Integer(12), SqlValue::Integer(12),
-        SqlValue::Varchar("Paul".to_string()), SqlValue::Varchar("Hall".to_string()),
-        SqlValue::Varchar("Paul Hall".to_string()),
-        SqlValue::Varchar("Sales".to_string()), SqlValue::Integer(2),
-        SqlValue::Varchar("Sales Representative".to_string()), SqlValue::Float(56000.0),
-        SqlValue::Varchar("2023-02-10".to_string()), SqlValue::Integer(2),
-    ])).unwrap();
+    employees_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(9),
+            SqlValue::Integer(9),
+            SqlValue::Varchar("Maria".to_string()),
+            SqlValue::Varchar("Clark".to_string()),
+            SqlValue::Varchar("Maria Clark".to_string()),
+            SqlValue::Varchar("Sales".to_string()),
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Sales Representative".to_string()),
+            SqlValue::Float(58000.0),
+            SqlValue::Varchar("2022-04-15".to_string()),
+            SqlValue::Integer(2),
+        ]))
+        .unwrap();
+
+    employees_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(10),
+            SqlValue::Integer(10),
+            SqlValue::Varchar("Nathan".to_string()),
+            SqlValue::Varchar("Lewis".to_string()),
+            SqlValue::Varchar("Nathan Lewis".to_string()),
+            SqlValue::Varchar("Engineering".to_string()),
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Senior Engineer".to_string()),
+            SqlValue::Float(105000.0),
+            SqlValue::Varchar("2019-05-18".to_string()),
+            SqlValue::Integer(5),
+        ]))
+        .unwrap();
+
+    employees_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(11),
+            SqlValue::Integer(11),
+            SqlValue::Varchar("Olivia".to_string()),
+            SqlValue::Varchar("Walker".to_string()),
+            SqlValue::Varchar("Olivia Walker".to_string()),
+            SqlValue::Varchar("Marketing".to_string()),
+            SqlValue::Integer(3),
+            SqlValue::Varchar("Marketing Specialist".to_string()),
+            SqlValue::Float(67000.0),
+            SqlValue::Varchar("2021-08-22".to_string()),
+            SqlValue::Integer(7),
+        ]))
+        .unwrap();
+
+    employees_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(12),
+            SqlValue::Integer(12),
+            SqlValue::Varchar("Paul".to_string()),
+            SqlValue::Varchar("Hall".to_string()),
+            SqlValue::Varchar("Paul Hall".to_string()),
+            SqlValue::Varchar("Sales".to_string()),
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Sales Representative".to_string()),
+            SqlValue::Float(56000.0),
+            SqlValue::Varchar("2023-02-10".to_string()),
+            SqlValue::Integer(2),
+        ]))
+        .unwrap();
 
     db
 }
@@ -566,8 +781,16 @@ fn create_university_db() -> Database {
         "students".to_string(),
         vec![
             ColumnSchema::new("student_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
-            ColumnSchema::new("major".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
+            ColumnSchema::new(
+                "major".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
             ColumnSchema::new("gpa".to_string(), DataType::Float { precision: 53 }, false),
         ],
     );
@@ -578,8 +801,16 @@ fn create_university_db() -> Database {
         "courses".to_string(),
         vec![
             ColumnSchema::new("course_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("course_name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
-            ColumnSchema::new("department".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new(
+                "course_name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
+            ColumnSchema::new(
+                "department".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
             ColumnSchema::new("credits".to_string(), DataType::Integer, false),
         ],
     );
@@ -592,7 +823,11 @@ fn create_university_db() -> Database {
             ColumnSchema::new("student_id".to_string(), DataType::Integer, false),
             ColumnSchema::new("course_id".to_string(), DataType::Integer, false),
             ColumnSchema::new("grade".to_string(), DataType::Varchar { max_length: Some(2) }, true), // nullable
-            ColumnSchema::new("semester".to_string(), DataType::Varchar { max_length: Some(20) }, false),
+            ColumnSchema::new(
+                "semester".to_string(),
+                DataType::Varchar { max_length: Some(20) },
+                false,
+            ),
         ],
     );
     db.create_table(enrollments_schema).unwrap();
@@ -613,12 +848,14 @@ fn create_university_db() -> Database {
             10 => ("Jack Robinson", "Physics", 3.1_f32),
             _ => ("Student", "Computer Science", 3.0_f32 + (i as f32 % 10.0) / 10.0),
         };
-        students_table.insert(Row::new(vec![
-            SqlValue::Integer(i),
-            SqlValue::Varchar(name.to_string()),
-            SqlValue::Varchar(major.to_string()),
-            SqlValue::Float(gpa),
-        ])).unwrap();
+        students_table
+            .insert(Row::new(vec![
+                SqlValue::Integer(i),
+                SqlValue::Varchar(name.to_string()),
+                SqlValue::Varchar(major.to_string()),
+                SqlValue::Float(gpa),
+            ]))
+            .unwrap();
     }
 
     // Insert courses
@@ -634,55 +871,65 @@ fn create_university_db() -> Database {
         (302, "Electromagnetism", "Physics", 4),
         (303, "Quantum Mechanics", "Physics", 3),
     ];
-    
+
     for (id, name, dept, credits) in course_data {
-        courses_table.insert(Row::new(vec![
-            SqlValue::Integer(id),
-            SqlValue::Varchar(name.to_string()),
-            SqlValue::Varchar(dept.to_string()),
-            SqlValue::Integer(credits),
-        ])).unwrap();
+        courses_table
+            .insert(Row::new(vec![
+                SqlValue::Integer(id),
+                SqlValue::Varchar(name.to_string()),
+                SqlValue::Varchar(dept.to_string()),
+                SqlValue::Integer(credits),
+            ]))
+            .unwrap();
     }
 
     // Insert enrollments - matching grade distribution from uni-4:
     // A: 30, B: 27, C: 18, D: 6, F: 2 (total: 83 non-NULL grades)
     let enrollments_table = db.get_table_mut("enrollments").unwrap();
-    
-    let grade_distribution = vec![
-        ("A", 30), ("B", 27), ("C", 18), ("D", 6), ("F", 2),
-    ];
-    
+
+    let grade_distribution = vec![("A", 30), ("B", 27), ("C", 18), ("D", 6), ("F", 2)];
+
     let mut enrollment_id = 0;
     for (grade, count) in grade_distribution {
         for _ in 0..count {
             let student_id = (enrollment_id % 20) + 1;
             let course_id = match enrollment_id % 9 {
-                0 => 101, 1 => 102, 2 => 103,
-                3 => 201, 4 => 202, 5 => 203,
-                6 => 301, 7 => 302, _ => 303,
+                0 => 101,
+                1 => 102,
+                2 => 103,
+                3 => 201,
+                4 => 202,
+                5 => 203,
+                6 => 301,
+                7 => 302,
+                _ => 303,
             };
-            
-            enrollments_table.insert(Row::new(vec![
-                SqlValue::Integer(student_id),
-                SqlValue::Integer(course_id),
-                SqlValue::Varchar(grade.to_string()),
-                SqlValue::Varchar("Fall 2024".to_string()),
-            ])).unwrap();
-            
+
+            enrollments_table
+                .insert(Row::new(vec![
+                    SqlValue::Integer(student_id),
+                    SqlValue::Integer(course_id),
+                    SqlValue::Varchar(grade.to_string()),
+                    SqlValue::Varchar("Fall 2024".to_string()),
+                ]))
+                .unwrap();
+
             enrollment_id += 1;
         }
     }
-    
+
     // Add some NULL grades (in progress courses)
     for i in 0..10 {
         let student_id = (i % 20) + 1;
         let course_id = 101 + (i % 3);
-        enrollments_table.insert(Row::new(vec![
-            SqlValue::Integer(student_id),
-            SqlValue::Integer(course_id),
-            SqlValue::Null,
-            SqlValue::Varchar("Spring 2025".to_string()),
-        ])).unwrap();
+        enrollments_table
+            .insert(Row::new(vec![
+                SqlValue::Integer(student_id),
+                SqlValue::Integer(course_id),
+                SqlValue::Null,
+                SqlValue::Varchar("Spring 2025".to_string()),
+            ]))
+            .unwrap();
     }
 
     db
@@ -706,36 +953,38 @@ fn load_database(db_name: &str) -> Option<Database> {
 
 #[test]
 fn test_web_demo_examples_with_expected_results() {
-    let examples = parse_example_files()
-        .expect("Failed to parse example files");
-    
+    let examples = parse_example_files().expect("Failed to parse example files");
+
     println!("\n📊 Found {} examples total", examples.len());
-    
-    let examples_with_expected: Vec<_> = examples.iter()
+
+    let examples_with_expected: Vec<_> = examples
+        .iter()
         .filter(|ex| ex.expected_count.is_some() || ex.expected_rows.is_some())
         .collect();
-    
+
     println!("✅ Found {} examples with expected results\n", examples_with_expected.len());
-    
+
     let mut passed = 0;
     let mut failed = 0;
     let mut skipped = 0;
-    
+
     for example in &examples_with_expected {
         // Load database
         let db = match load_database(&example.database) {
             Some(db) => db,
             None => {
-                println!("⏭️  SKIP: {} - database '{}' not implemented", 
-                    example.id, example.database);
+                println!(
+                    "⏭️  SKIP: {} - database '{}' not implemented",
+                    example.id, example.database
+                );
                 skipped += 1;
                 continue;
             }
         };
-        
+
         // Extract query without comments
         let query = extract_query(&example.sql);
-        
+
         // Parse and execute query
         let executor = SelectExecutor::new(&db);
         let stmt = match Parser::parse_sql(&query) {
@@ -751,7 +1000,7 @@ fn test_web_demo_examples_with_expected_results() {
                 continue;
             }
         };
-        
+
         let result = match executor.execute(&stmt) {
             Ok(rows) => rows,
             Err(e) => {
@@ -760,24 +1009,28 @@ fn test_web_demo_examples_with_expected_results() {
                 continue;
             }
         };
-        
+
         // Validate expected count
         if let Some(expected_count) = example.expected_count {
             if result.len() != expected_count {
-                println!("❌ FAIL: {} - expected {} rows, got {}", 
-                    example.id, expected_count, result.len());
+                println!(
+                    "❌ FAIL: {} - expected {} rows, got {}",
+                    example.id,
+                    expected_count,
+                    result.len()
+                );
                 failed += 1;
                 continue;
             }
         }
-        
+
         // TODO: Validate expected row data
         // For now, just check count
-        
+
         println!("✅ PASS: {} - {} rows", example.id, result.len());
         passed += 1;
     }
-    
+
     println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     println!("📊 Test Summary");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -785,13 +1038,13 @@ fn test_web_demo_examples_with_expected_results() {
     println!("❌ Failed:  {}", failed);
     println!("⏭️  Skipped: {}", skipped);
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
-    
+
     // For now, we require at least some tests to pass
     // Known issues:
     // - basic-2: Type coercion issue (Float > Integer comparison)
     // - join-1: Requires fuller database population (20 products vs 15)
     assert!(passed >= 3, "Expected at least 3 examples to pass, got {}", passed);
-    
+
     // TODO: Make this stricter once type coercion and database population are complete
     // assert_eq!(failed, 0, "{} examples failed validation", failed);
 }

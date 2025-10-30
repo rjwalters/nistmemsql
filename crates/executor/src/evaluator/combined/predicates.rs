@@ -1,8 +1,7 @@
-///! Predicate evaluation for combined expressions (BETWEEN, LIKE, IN)
-
-use crate::errors::ExecutorError;
 use super::super::core::{CombinedExpressionEvaluator, ExpressionEvaluator};
 use super::super::pattern::like_match;
+///! Predicate evaluation for combined expressions (BETWEEN, LIKE, IN)
+use crate::errors::ExecutorError;
 
 impl<'a> CombinedExpressionEvaluator<'a> {
     /// Evaluate BETWEEN predicate: expr BETWEEN low AND high
@@ -218,7 +217,11 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             }
 
             // Compare using equality
-            let eq_result = ExpressionEvaluator::eval_binary_op_static(&expr_val, &ast::BinaryOperator::Equal, &value)?;
+            let eq_result = ExpressionEvaluator::eval_binary_op_static(
+                &expr_val,
+                &ast::BinaryOperator::Equal,
+                &value,
+            )?;
 
             // If we found a match, return TRUE (or FALSE if negated)
             if matches!(eq_result, types::SqlValue::Boolean(true)) {
@@ -260,18 +263,14 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         let string_val = self.eval(string, row)?;
 
         match (&substring_val, &string_val) {
-            (types::SqlValue::Null, _) | (_, types::SqlValue::Null) => {
-                Ok(types::SqlValue::Null)
-            }
+            (types::SqlValue::Null, _) | (_, types::SqlValue::Null) => Ok(types::SqlValue::Null),
             (
                 types::SqlValue::Varchar(needle) | types::SqlValue::Character(needle),
                 types::SqlValue::Varchar(haystack) | types::SqlValue::Character(haystack),
-            ) => {
-                match haystack.find(needle.as_str()) {
-                    Some(pos) => Ok(types::SqlValue::Integer((pos + 1) as i64)),
-                    None => Ok(types::SqlValue::Integer(0)),
-                }
-            }
+            ) => match haystack.find(needle.as_str()) {
+                Some(pos) => Ok(types::SqlValue::Integer((pos + 1) as i64)),
+                None => Ok(types::SqlValue::Integer(0)),
+            },
             _ => Err(ExecutorError::TypeMismatch {
                 left: substring_val.clone(),
                 op: "POSITION".to_string(),

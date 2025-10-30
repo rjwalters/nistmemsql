@@ -4,8 +4,8 @@
 // These tests use the internal storage::Database and executor directly
 // to bypass WASM-specific types and test the core parsing/execution path
 
-use parser::Parser;
 use executor::{CreateTableExecutor, InsertExecutor, SelectExecutor};
+use parser::Parser;
 use storage::Database;
 
 #[test]
@@ -40,8 +40,11 @@ fn test_insert_with_escaped_quotes() {
     ];
 
     for (i, insert_sql) in inserts.iter().enumerate() {
-        let stmt = Parser::parse_sql(insert_sql)
-            .expect(&format!("Failed to parse INSERT #{}: {}", i + 1, insert_sql));
+        let stmt = Parser::parse_sql(insert_sql).expect(&format!(
+            "Failed to parse INSERT #{}: {}",
+            i + 1,
+            insert_sql
+        ));
 
         match stmt {
             ast::Statement::Insert(insert_stmt) => {
@@ -66,18 +69,16 @@ fn test_insert_with_escaped_quotes() {
     };
 
     // Verify we got 5 rows
-    assert_eq!(
-        rows.len(),
-        5,
-        "Expected 5 rows, got {}",
-        rows.len()
-    );
+    assert_eq!(rows.len(), 5, "Expected 5 rows, got {}", rows.len());
 
     // Verify product #4 has the correct name with apostrophe
     let product_name_4 = &rows[3].values[1]; // product_name is column index 1
     match product_name_4 {
         types::SqlValue::Varchar(name) => {
-            assert_eq!(name, "Chef Anton's Cajun Seasoning", "Product #4 name should contain apostrophe");
+            assert_eq!(
+                name, "Chef Anton's Cajun Seasoning",
+                "Product #4 name should contain apostrophe"
+            );
         }
         _ => panic!("Expected Varchar for product_name"),
     }

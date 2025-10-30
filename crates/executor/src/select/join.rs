@@ -176,9 +176,15 @@ pub(super) fn nested_loop_right_outer_join(
     // Then we need to reorder columns to put left first, right second
 
     // Get the right column count before moving
-    let right_col_count = right.schema.table_schemas.values().next()
+    let right_col_count = right
+        .schema
+        .table_schemas
+        .values()
+        .next()
         .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
-        .1.columns.len();
+        .1
+        .columns
+        .len();
 
     // Do LEFT OUTER JOIN with swapped sides
     let swapped_result = nested_loop_left_outer_join(right, left, condition, database)?;
@@ -188,14 +194,18 @@ pub(super) fn nested_loop_right_outer_join(
     // We need to reverse this to left first, then right
 
     // Reorder rows: move left columns (currently at positions right_col_count..) to front
-    let reordered_rows: Vec<storage::Row> = swapped_result.rows.iter().map(|row| {
-        let mut new_values = Vec::new();
-        // Add left columns (currently at end)
-        new_values.extend_from_slice(&row.values[right_col_count..]);
-        // Add right columns (currently at start)
-        new_values.extend_from_slice(&row.values[0..right_col_count]);
-        storage::Row::new(new_values)
-    }).collect();
+    let reordered_rows: Vec<storage::Row> = swapped_result
+        .rows
+        .iter()
+        .map(|row| {
+            let mut new_values = Vec::new();
+            // Add left columns (currently at end)
+            new_values.extend_from_slice(&row.values[right_col_count..]);
+            // Add right columns (currently at start)
+            new_values.extend_from_slice(&row.values[0..right_col_count]);
+            storage::Row::new(new_values)
+        })
+        .collect();
 
     Ok(FromResult { schema: swapped_result.schema, rows: reordered_rows })
 }
@@ -224,9 +234,15 @@ pub(super) fn nested_loop_full_outer_join(
         .1
         .clone();
 
-    let left_column_count = left.schema.table_schemas.values().next()
+    let left_column_count = left
+        .schema
+        .table_schemas
+        .values()
+        .next()
         .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
-        .1.columns.len();
+        .1
+        .columns
+        .len();
     let right_column_count = right_schema.columns.len();
 
     // Combine schemas

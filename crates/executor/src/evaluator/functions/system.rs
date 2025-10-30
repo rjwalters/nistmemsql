@@ -10,9 +10,7 @@ use crate::errors::ExecutorError;
 /// VERSION() - Return database version
 pub(super) fn version(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if !args.is_empty() {
-        return Err(ExecutorError::UnsupportedFeature(
-            "VERSION takes no arguments".to_string(),
-        ));
+        return Err(ExecutorError::UnsupportedFeature("VERSION takes no arguments".to_string()));
     }
 
     // Get version from Cargo.toml at compile time
@@ -21,11 +19,12 @@ pub(super) fn version(args: &[types::SqlValue]) -> Result<types::SqlValue, Execu
 }
 
 /// DATABASE() / SCHEMA() - Return current database name
-pub(super) fn database(args: &[types::SqlValue], name: &str) -> Result<types::SqlValue, ExecutorError> {
+pub(super) fn database(
+    args: &[types::SqlValue],
+    name: &str,
+) -> Result<types::SqlValue, ExecutorError> {
     if !args.is_empty() {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("{} takes no arguments", name),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!("{} takes no arguments", name)));
     }
 
     // In current implementation, return default database name
@@ -36,9 +35,7 @@ pub(super) fn database(args: &[types::SqlValue], name: &str) -> Result<types::Sq
 /// USER() / CURRENT_USER() - Return current user
 pub(super) fn user(args: &[types::SqlValue], name: &str) -> Result<types::SqlValue, ExecutorError> {
     if !args.is_empty() {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("{} takes no arguments", name),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!("{} takes no arguments", name)));
     }
 
     // In current implementation, return default user

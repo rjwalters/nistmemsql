@@ -34,7 +34,7 @@ impl CombinedSchema {
             .map(|(name, data_type)| catalog::ColumnSchema {
                 name,
                 data_type,
-                nullable: true, // Derived table columns are always nullable
+                nullable: true,      // Derived table columns are always nullable
                 default_value: None, // Derived table columns have no defaults
             })
             .collect();

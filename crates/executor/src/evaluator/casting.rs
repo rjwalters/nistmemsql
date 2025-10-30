@@ -43,13 +43,11 @@ pub(crate) fn to_f64(value: &types::SqlValue) -> Result<f64, ExecutorError> {
         types::SqlValue::Integer(n) => Ok(*n as f64),
         types::SqlValue::Smallint(n) => Ok(*n as f64),
         types::SqlValue::Bigint(n) => Ok(*n as f64),
-        types::SqlValue::Numeric(s) => {
-            s.parse::<f64>().map_err(|_| ExecutorError::TypeMismatch {
-                left: value.clone(),
-                op: "numeric_conversion".to_string(),
-                right: types::SqlValue::Null,
-            })
-        }
+        types::SqlValue::Numeric(s) => s.parse::<f64>().map_err(|_| ExecutorError::TypeMismatch {
+            left: value.clone(),
+            op: "numeric_conversion".to_string(),
+            right: types::SqlValue::Null,
+        }),
         _ => Err(ExecutorError::TypeMismatch {
             left: value.clone(),
             op: "numeric_conversion".to_string(),
@@ -78,12 +76,12 @@ pub(crate) fn cast_value(
             SqlValue::Integer(n) => Ok(SqlValue::Integer(*n)),
             SqlValue::Smallint(n) => Ok(SqlValue::Integer(*n as i64)),
             SqlValue::Bigint(n) => Ok(SqlValue::Integer(*n)),
-            SqlValue::Varchar(s) => s.parse::<i64>().map(SqlValue::Integer).map_err(|_| {
-                ExecutorError::CastError {
+            SqlValue::Varchar(s) => {
+                s.parse::<i64>().map(SqlValue::Integer).map_err(|_| ExecutorError::CastError {
                     from_type: format!("{:?}", value),
                     to_type: "INTEGER".to_string(),
-                }
-            }),
+                })
+            }
             _ => Err(ExecutorError::CastError {
                 from_type: format!("{:?}", value),
                 to_type: "INTEGER".to_string(),
@@ -95,12 +93,12 @@ pub(crate) fn cast_value(
             SqlValue::Smallint(n) => Ok(SqlValue::Smallint(*n)),
             SqlValue::Integer(n) => Ok(SqlValue::Smallint(*n as i16)),
             SqlValue::Bigint(n) => Ok(SqlValue::Smallint(*n as i16)),
-            SqlValue::Varchar(s) => s.parse::<i16>().map(SqlValue::Smallint).map_err(|_| {
-                ExecutorError::CastError {
+            SqlValue::Varchar(s) => {
+                s.parse::<i16>().map(SqlValue::Smallint).map_err(|_| ExecutorError::CastError {
                     from_type: format!("{:?}", value),
                     to_type: "SMALLINT".to_string(),
-                }
-            }),
+                })
+            }
             _ => Err(ExecutorError::CastError {
                 from_type: format!("{:?}", value),
                 to_type: "SMALLINT".to_string(),
@@ -112,12 +110,12 @@ pub(crate) fn cast_value(
             SqlValue::Bigint(n) => Ok(SqlValue::Bigint(*n)),
             SqlValue::Integer(n) => Ok(SqlValue::Bigint(*n)),
             SqlValue::Smallint(n) => Ok(SqlValue::Bigint(*n as i64)),
-            SqlValue::Varchar(s) => s.parse::<i64>().map(SqlValue::Bigint).map_err(|_| {
-                ExecutorError::CastError {
+            SqlValue::Varchar(s) => {
+                s.parse::<i64>().map(SqlValue::Bigint).map_err(|_| ExecutorError::CastError {
                     from_type: format!("{:?}", value),
                     to_type: "BIGINT".to_string(),
-                }
-            }),
+                })
+            }
             _ => Err(ExecutorError::CastError {
                 from_type: format!("{:?}", value),
                 to_type: "BIGINT".to_string(),
@@ -132,12 +130,12 @@ pub(crate) fn cast_value(
             SqlValue::Integer(n) => Ok(SqlValue::Float(*n as f32)),
             SqlValue::Smallint(n) => Ok(SqlValue::Float(*n as f32)),
             SqlValue::Bigint(n) => Ok(SqlValue::Float(*n as f32)),
-            SqlValue::Varchar(s) => s.parse::<f32>().map(SqlValue::Float).map_err(|_| {
-                ExecutorError::CastError {
+            SqlValue::Varchar(s) => {
+                s.parse::<f32>().map(SqlValue::Float).map_err(|_| ExecutorError::CastError {
                     from_type: format!("{:?}", value),
                     to_type: "FLOAT".to_string(),
-                }
-            }),
+                })
+            }
             _ => Err(ExecutorError::CastError {
                 from_type: format!("{:?}", value),
                 to_type: "FLOAT".to_string(),
@@ -152,12 +150,12 @@ pub(crate) fn cast_value(
             SqlValue::Integer(n) => Ok(SqlValue::Double(*n as f64)),
             SqlValue::Smallint(n) => Ok(SqlValue::Double(*n as f64)),
             SqlValue::Bigint(n) => Ok(SqlValue::Double(*n as f64)),
-            SqlValue::Varchar(s) => s.parse::<f64>().map(SqlValue::Double).map_err(|_| {
-                ExecutorError::CastError {
+            SqlValue::Varchar(s) => {
+                s.parse::<f64>().map(SqlValue::Double).map_err(|_| ExecutorError::CastError {
                     from_type: format!("{:?}", value),
                     to_type: "DOUBLE PRECISION".to_string(),
-                }
-            }),
+                })
+            }
             _ => Err(ExecutorError::CastError {
                 from_type: format!("{:?}", value),
                 to_type: "DOUBLE PRECISION".to_string(),

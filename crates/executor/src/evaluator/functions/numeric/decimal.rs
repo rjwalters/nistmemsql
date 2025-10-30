@@ -8,9 +8,10 @@ use types::SqlValue;
 /// FORMAT(number, decimal_places) - Format number with thousand separators
 pub fn format(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 2 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("FORMAT requires exactly 2 arguments, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "FORMAT requires exactly 2 arguments, got {}",
+            args.len()
+        )));
     }
 
     match (&args[0], &args[1]) {
@@ -26,26 +27,24 @@ pub fn format(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
                 SqlValue::Float(f) => *f as f64,
                 SqlValue::Double(f) => *f,
                 SqlValue::Real(f) => *f as f64,
-                SqlValue::Numeric(s) => {
-                    s.parse::<f64>().map_err(|_| {
-                        ExecutorError::UnsupportedFeature(
-                            format!("Cannot parse numeric value: {}", s)
-                        )
-                    })?
-                }
+                SqlValue::Numeric(s) => s.parse::<f64>().map_err(|_| {
+                    ExecutorError::UnsupportedFeature(format!("Cannot parse numeric value: {}", s))
+                })?,
                 val => {
-                    return Err(ExecutorError::UnsupportedFeature(
-                        format!("FORMAT requires numeric argument, got {:?}", val),
-                    ))
+                    return Err(ExecutorError::UnsupportedFeature(format!(
+                        "FORMAT requires numeric argument, got {:?}",
+                        val
+                    )))
                 }
             };
 
             let formatted = format_number(num, decimals);
             Ok(SqlValue::Varchar(formatted))
         }
-        (number, decimals) => Err(ExecutorError::UnsupportedFeature(
-            format!("FORMAT requires (number, integer) arguments, got {:?} and {:?}", number, decimals),
-        )),
+        (number, decimals) => Err(ExecutorError::UnsupportedFeature(format!(
+            "FORMAT requires (number, integer) arguments, got {:?} and {:?}",
+            number, decimals
+        ))),
     }
 }
 
@@ -91,14 +90,11 @@ fn format_number(n: f64, decimals: usize) -> String {
 
 /// Helper to add thousand separators to integer string
 fn add_thousand_separators(s: &str) -> String {
-    s.chars()
-        .rev()
-        .enumerate()
-        .fold(String::new(), |acc, (i, c)| {
-            if i > 0 && i % 3 == 0 {
-                format!("{},{}", c, acc)
-            } else {
-                format!("{}{}", c, acc)
-            }
-        })
+    s.chars().rev().enumerate().fold(String::new(), |acc, (i, c)| {
+        if i > 0 && i % 3 == 0 {
+            format!("{},{}", c, acc)
+        } else {
+            format!("{}{}", c, acc)
+        }
+    })
 }

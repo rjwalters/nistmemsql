@@ -114,10 +114,7 @@ impl Database {
         table.insert(row.clone())?;
 
         // Record the change for transaction rollback
-        self.record_change(TransactionChange::Insert {
-            table_name: table_name.to_string(),
-            row,
-        });
+        self.record_change(TransactionChange::Insert { table_name: table_name.to_string(), row });
 
         Ok(())
     }
@@ -257,10 +254,7 @@ impl Database {
                 Err(StorageError::TransactionError("No active transaction".to_string()))
             }
             TransactionState::Active { savepoints, changes, .. } => {
-                let savepoint = Savepoint {
-                    name,
-                    snapshot_index: changes.len(),
-                };
+                let savepoint = Savepoint { name, snapshot_index: changes.len() };
                 savepoints.push(savepoint);
                 Ok(())
             }
@@ -275,8 +269,10 @@ impl Database {
             }
             TransactionState::Active { savepoints, changes, .. } => {
                 // Find the savepoint
-                let savepoint_idx = savepoints.iter().position(|sp| sp.name == name)
-                    .ok_or_else(|| StorageError::TransactionError(format!("Savepoint '{}' not found", name)))?;
+                let savepoint_idx =
+                    savepoints.iter().position(|sp| sp.name == name).ok_or_else(|| {
+                        StorageError::TransactionError(format!("Savepoint '{}' not found", name))
+                    })?;
 
                 let snapshot_index = savepoints[savepoint_idx].snapshot_index;
 
@@ -305,8 +301,10 @@ impl Database {
                 Err(StorageError::TransactionError("No active transaction".to_string()))
             }
             TransactionState::Active { savepoints, .. } => {
-                let savepoint_idx = savepoints.iter().position(|sp| sp.name == name)
-                    .ok_or_else(|| StorageError::TransactionError(format!("Savepoint '{}' not found", name)))?;
+                let savepoint_idx =
+                    savepoints.iter().position(|sp| sp.name == name).ok_or_else(|| {
+                        StorageError::TransactionError(format!("Savepoint '{}' not found", name))
+                    })?;
 
                 // Remove the savepoint
                 savepoints.remove(savepoint_idx);
@@ -321,13 +319,15 @@ impl Database {
         match change {
             TransactionChange::Insert { table_name, row } => {
                 // Remove the inserted row
-                let table = self.get_table_mut(&table_name)
+                let table = self
+                    .get_table_mut(&table_name)
                     .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
                 table.remove_row(&row)?;
             }
             TransactionChange::Update { table_name, old_row, new_row: _ } => {
                 // Restore the old row (this is simplified - real implementation would need row IDs)
-                let table = self.get_table_mut(&table_name)
+                let table = self
+                    .get_table_mut(&table_name)
                     .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
                 // For now, just remove the new row and re-insert old (simplified)
                 table.remove_row(&old_row)?;
@@ -335,7 +335,8 @@ impl Database {
             }
             TransactionChange::Delete { table_name, row } => {
                 // Re-insert the deleted row
-                let table = self.get_table_mut(&table_name)
+                let table = self
+                    .get_table_mut(&table_name)
                     .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
                 table.insert(row)?;
             }

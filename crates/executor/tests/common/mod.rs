@@ -1,8 +1,8 @@
 //! Common test utilities for executor tests
 
+use catalog;
 use executor::ExpressionEvaluator;
 use storage;
-use catalog;
 use types;
 
 /// Creates a test evaluator with a simple schema for testing.
@@ -10,9 +10,7 @@ use types;
 pub fn create_test_evaluator() -> (ExpressionEvaluator<'static>, storage::Row) {
     let schema = Box::leak(Box::new(catalog::TableSchema::new(
         "test".to_string(),
-        vec![
-            catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-        ],
+        vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
     )));
 
     let evaluator = ExpressionEvaluator::new(schema);

@@ -1,7 +1,7 @@
 //! Common Table Expression (CTE) handling for SELECT queries
 
-use std::collections::HashMap;
 use crate::errors::ExecutorError;
+use std::collections::HashMap;
 
 /// CTE result: (schema, rows)
 pub(super) type CteResult = (catalog::TableSchema, Vec<storage::Row>);
@@ -14,7 +14,10 @@ pub(super) fn execute_ctes<F>(
     executor: F,
 ) -> Result<HashMap<String, CteResult>, ExecutorError>
 where
-    F: Fn(&ast::SelectStmt, &HashMap<String, CteResult>) -> Result<Vec<storage::Row>, ExecutorError>,
+    F: Fn(
+        &ast::SelectStmt,
+        &HashMap<String, CteResult>,
+    ) -> Result<Vec<storage::Row>, ExecutorError>,
 {
     let mut cte_results = HashMap::new();
 
@@ -45,13 +48,11 @@ pub(super) fn derive_cte_schema(
         // Get data types from first row (if available)
         if let Some(first_row) = rows.first() {
             if first_row.values.len() != column_names.len() {
-                return Err(ExecutorError::UnsupportedFeature(
-                    format!(
-                        "CTE column count mismatch: specified {} columns but query returned {}",
-                        column_names.len(),
-                        first_row.values.len()
-                    ),
-                ));
+                return Err(ExecutorError::UnsupportedFeature(format!(
+                    "CTE column count mismatch: specified {} columns but query returned {}",
+                    column_names.len(),
+                    first_row.values.len()
+                )));
             }
 
             let columns = column_names
@@ -99,7 +100,9 @@ pub(super) fn derive_cte_schema(
                             } else {
                                 // Try to extract name from expression
                                 match expr {
-                                    ast::Expression::ColumnRef { table: _, column } => column.clone(),
+                                    ast::Expression::ColumnRef { table: _, column } => {
+                                        column.clone()
+                                    }
                                     _ => format!("col{}", i),
                                 }
                             }
@@ -130,10 +133,7 @@ pub(super) fn infer_type_from_value(value: &types::SqlValue) -> types::DataType 
         types::SqlValue::Boolean(_) => types::DataType::Boolean,
         types::SqlValue::Float(_) => types::DataType::Float { precision: 53 },
         types::SqlValue::Double(_) => types::DataType::DoublePrecision,
-        types::SqlValue::Numeric(_) => types::DataType::Numeric {
-            precision: 10,
-            scale: 2,
-        },
+        types::SqlValue::Numeric(_) => types::DataType::Numeric { precision: 10, scale: 2 },
         types::SqlValue::Real(_) => types::DataType::Real,
         types::SqlValue::Smallint(_) => types::DataType::Smallint,
         types::SqlValue::Bigint(_) => types::DataType::Bigint,

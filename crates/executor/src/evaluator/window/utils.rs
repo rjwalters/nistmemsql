@@ -14,7 +14,9 @@ pub fn evaluate_expression(expr: &Expression, row: &Row) -> Result<SqlValue, Str
             // For now, try parsing column name as index (e.g., "0", "1")
             // Or use first column if it's not a number
             if let Ok(index) = column.parse::<usize>() {
-                row.get(index).cloned().ok_or_else(|| format!("Column index {} out of bounds", index))
+                row.get(index)
+                    .cloned()
+                    .ok_or_else(|| format!("Column index {} out of bounds", index))
             } else {
                 // Fallback: assume first column
                 row.get(0).cloned().ok_or_else(|| "Row has no columns".to_string())

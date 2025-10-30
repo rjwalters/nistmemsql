@@ -1,8 +1,8 @@
 //! Set operations (UNION, INTERSECT, EXCEPT) for SELECT queries
 
-use std::collections::{HashMap, HashSet};
-use crate::errors::ExecutorError;
 use super::helpers::apply_distinct;
+use crate::errors::ExecutorError;
+use std::collections::{HashMap, HashSet};
 
 /// Apply a set operation (UNION, INTERSECT, EXCEPT) to two result sets
 pub(super) fn apply_set_operation(
@@ -59,8 +59,7 @@ pub(super) fn apply_set_operation(
                 Ok(result)
             } else {
                 // INTERSECT (DISTINCT): return unique rows that appear in both
-                let right_set: HashSet<_> =
-                    right.iter().map(|row| row.values.clone()).collect();
+                let right_set: HashSet<_> = right.iter().map(|row| row.values.clone()).collect();
 
                 let mut result = Vec::new();
                 let mut seen = HashSet::new();
@@ -103,8 +102,7 @@ pub(super) fn apply_set_operation(
                 Ok(result)
             } else {
                 // EXCEPT (DISTINCT): return unique rows from left that don't appear in right
-                let right_set: HashSet<_> =
-                    right.iter().map(|row| row.values.clone()).collect();
+                let right_set: HashSet<_> = right.iter().map(|row| row.values.clone()).collect();
 
                 let mut result = Vec::new();
                 let mut seen = HashSet::new();
