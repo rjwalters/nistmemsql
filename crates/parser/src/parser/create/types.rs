@@ -110,6 +110,7 @@ impl Parser {
                 }
             }
             "DATE" => Ok(types::DataType::Date),
+            "NAME" => Ok(types::DataType::Name),
             "TIME" => {
                 // Parse optional WITH TIME ZONE or WITHOUT TIME ZONE
                 let with_timezone = self.parse_timezone_modifier()?;

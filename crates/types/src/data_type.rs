@@ -27,6 +27,7 @@ pub enum DataType {
     Character { length: usize },
     Varchar { max_length: Option<usize> },  // None = default length (255)
     CharacterLargeObject, // CLOB
+    Name,                 // NAME type for SQL identifiers (SQL:1999), maps to VARCHAR(128)
 
     // Boolean type (SQL:1999)
     Boolean,
@@ -62,6 +63,11 @@ impl DataType {
 
             // VARCHAR with different lengths are compatible
             (DataType::Varchar { .. }, DataType::Varchar { .. }) => true,
+
+            // NAME is compatible with VARCHAR and other NAME types (both are strings)
+            (DataType::Name, DataType::Name) => true,
+            (DataType::Name, DataType::Varchar { .. }) => true,
+            (DataType::Varchar { .. }, DataType::Name) => true,
 
             // For now, different types are not compatible
             // TODO: Add proper SQL:1999 type coercion rules
