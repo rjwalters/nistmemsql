@@ -767,4 +767,3 @@ fn setup_test_table(db: &mut Database) {
             other => panic!("Expected ConstraintViolation, got {:?}", other),
         }
     }
-
