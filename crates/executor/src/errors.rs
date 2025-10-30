@@ -25,6 +25,7 @@ pub enum ExecutorError {
     CastError { from_type: String, to_type: String },
     ConstraintViolation(String),
     CannotDropColumn(String),
+    Other(String),
 }
 
 impl std::fmt::Display for ExecutorError {
@@ -87,6 +88,7 @@ impl std::fmt::Display for ExecutorError {
             ExecutorError::CannotDropColumn(msg) => {
                 write!(f, "Cannot drop column: {}", msg)
             }
+            ExecutorError::Other(msg) => write!(f, "{}", msg),
         }
     }
 }
@@ -113,11 +115,42 @@ impl From<catalog::CatalogError> for ExecutorError {
                 ExecutorError::StorageError(format!("Role '{}' already exists", name))
             }
             catalog::CatalogError::RoleNotFound(name) => ExecutorError::RoleNotFound(name),
+            // Advanced SQL:1999 objects
+            catalog::CatalogError::DomainAlreadyExists(name) => {
+                ExecutorError::Other(format!("Domain '{}' already exists", name))
+            }
+            catalog::CatalogError::DomainNotFound(name) => {
+                ExecutorError::Other(format!("Domain '{}' not found", name))
+            }
+            catalog::CatalogError::SequenceAlreadyExists(name) => {
+                ExecutorError::Other(format!("Sequence '{}' already exists", name))
+            }
+            catalog::CatalogError::SequenceNotFound(name) => {
+                ExecutorError::Other(format!("Sequence '{}' not found", name))
+            }
             catalog::CatalogError::TypeAlreadyExists(name) => {
                 ExecutorError::TypeAlreadyExists(name)
             }
             catalog::CatalogError::TypeNotFound(name) => ExecutorError::TypeNotFound(name),
             catalog::CatalogError::TypeInUse(name) => ExecutorError::TypeInUse(name),
+            catalog::CatalogError::CollationAlreadyExists(name) => {
+                ExecutorError::Other(format!("Collation '{}' already exists", name))
+            }
+            catalog::CatalogError::CollationNotFound(name) => {
+                ExecutorError::Other(format!("Collation '{}' not found", name))
+            }
+            catalog::CatalogError::CharacterSetAlreadyExists(name) => {
+                ExecutorError::Other(format!("Character set '{}' already exists", name))
+            }
+            catalog::CatalogError::CharacterSetNotFound(name) => {
+                ExecutorError::Other(format!("Character set '{}' not found", name))
+            }
+            catalog::CatalogError::TranslationAlreadyExists(name) => {
+                ExecutorError::Other(format!("Translation '{}' already exists", name))
+            }
+            catalog::CatalogError::TranslationNotFound(name) => {
+                ExecutorError::Other(format!("Translation '{}' not found", name))
+            }
         }
     }
 }

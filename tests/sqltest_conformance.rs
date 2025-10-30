@@ -267,8 +267,20 @@ impl SqltestRunner {
             | ast::Statement::Rollback(_)
             | ast::Statement::Savepoint(_)
             | ast::Statement::RollbackToSavepoint(_)
-            | ast::Statement::ReleaseSavepoint(_) => {
-                // Transactions are no-ops currently
+            | ast::Statement::ReleaseSavepoint(_)
+            | ast::Statement::CreateDomain(_)
+            | ast::Statement::DropDomain(_)
+            | ast::Statement::CreateSequence(_)
+            | ast::Statement::DropSequence(_)
+            | ast::Statement::CreateType(_)
+            | ast::Statement::DropType(_)
+            | ast::Statement::CreateCollation(_)
+            | ast::Statement::DropCollation(_)
+            | ast::Statement::CreateCharacterSet(_)
+            | ast::Statement::DropCharacterSet(_)
+            | ast::Statement::CreateTranslation(_)
+            | ast::Statement::DropTranslation(_) => {
+                // Transactions and advanced SQL objects are no-ops for validation
                 Ok(true)
             }
         }

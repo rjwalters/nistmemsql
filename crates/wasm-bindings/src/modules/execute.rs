@@ -168,27 +168,124 @@ impl Database {
                 serde_wasm_bindgen::to_value(&result)
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
-            ast::Statement::CreateType(create_type_stmt) => {
-                let message = executor::TypeExecutor::execute_create_type(&create_type_stmt, &mut self.db)
+            // Advanced SQL:1999 objects
+            ast::Statement::CreateDomain(stmt) => {
+                executor::advanced_objects::execute_create_domain(&stmt, &mut self.db)
                     .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
-
                 let result = ExecuteResult {
                     rows_affected: 0,
-                    message,
+                    message: format!("Domain '{}' created successfully", stmt.domain_name),
                 };
-
                 serde_wasm_bindgen::to_value(&result)
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
-            ast::Statement::DropType(drop_type_stmt) => {
-                let message = executor::TypeExecutor::execute_drop_type(&drop_type_stmt, &mut self.db)
+            ast::Statement::DropDomain(stmt) => {
+                executor::advanced_objects::execute_drop_domain(&stmt, &mut self.db)
                     .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
-
                 let result = ExecuteResult {
                     rows_affected: 0,
-                    message,
+                    message: format!("Domain '{}' dropped successfully", stmt.domain_name),
                 };
-
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
+            ast::Statement::CreateSequence(stmt) => {
+                executor::advanced_objects::execute_create_sequence(&stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message: format!("Sequence '{}' created successfully", stmt.sequence_name),
+                };
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
+            ast::Statement::DropSequence(stmt) => {
+                executor::advanced_objects::execute_drop_sequence(&stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message: format!("Sequence '{}' dropped successfully", stmt.sequence_name),
+                };
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
+            ast::Statement::CreateType(stmt) => {
+                executor::advanced_objects::execute_create_type(&stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message: format!("Type '{}' created successfully", stmt.type_name),
+                };
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
+            ast::Statement::DropType(stmt) => {
+                executor::advanced_objects::execute_drop_type(&stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message: format!("Type '{}' dropped successfully", stmt.type_name),
+                };
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
+            ast::Statement::CreateCollation(stmt) => {
+                executor::advanced_objects::execute_create_collation(&stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message: format!("Collation '{}' created successfully", stmt.collation_name),
+                };
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
+            ast::Statement::DropCollation(stmt) => {
+                executor::advanced_objects::execute_drop_collation(&stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message: format!("Collation '{}' dropped successfully", stmt.collation_name),
+                };
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
+            ast::Statement::CreateCharacterSet(stmt) => {
+                executor::advanced_objects::execute_create_character_set(&stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message: format!("Character set '{}' created successfully", stmt.charset_name),
+                };
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
+            ast::Statement::DropCharacterSet(stmt) => {
+                executor::advanced_objects::execute_drop_character_set(&stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message: format!("Character set '{}' dropped successfully", stmt.charset_name),
+                };
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
+            ast::Statement::CreateTranslation(stmt) => {
+                executor::advanced_objects::execute_create_translation(&stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message: format!("Translation '{}' created successfully", stmt.translation_name),
+                };
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
+            ast::Statement::DropTranslation(stmt) => {
+                executor::advanced_objects::execute_drop_translation(&stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message: format!("Translation '{}' dropped successfully", stmt.translation_name),
+                };
                 serde_wasm_bindgen::to_value(&result)
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
