@@ -20,7 +20,7 @@ fn test_parse_alter_table_add_column() {
                     assert_eq!(add.table_name, "users");
                     assert_eq!(add.column_def.name, "email");
                     match add.column_def.data_type {
-                        types::DataType::Varchar { max_length: 100 } => {} // Success
+                        types::DataType::Varchar { max_length: Some(100) } => {} // Success
                         _ => panic!("Expected VARCHAR(100) data type"),
                     }
                     assert!(add.column_def.nullable); // NULL by default

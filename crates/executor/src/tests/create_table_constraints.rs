@@ -20,7 +20,7 @@ fn test_create_table_with_column_primary_key() {
             },
             ColumnDef {
                 name: "name".to_string(),
-                data_type: DataType::Varchar { max_length: 100 },
+                data_type: DataType::Varchar { max_length: Some(100) },
                 nullable: true,
                 constraints: vec![],
             },
@@ -106,7 +106,7 @@ fn test_create_table_with_column_unique_constraint() {
             },
             ColumnDef {
                 name: "email".to_string(),
-                data_type: DataType::Varchar { max_length: 100 },
+                data_type: DataType::Varchar { max_length: Some(100) },
                 nullable: false,
                 constraints: vec![ColumnConstraint::Unique],
             },
@@ -130,13 +130,13 @@ fn test_create_table_with_table_unique_constraint() {
         columns: vec![
             ColumnDef {
                 name: "first_name".to_string(),
-                data_type: DataType::Varchar { max_length: 50 },
+                data_type: DataType::Varchar { max_length: Some(50) },
                 nullable: false,
                 constraints: vec![],
             },
             ColumnDef {
                 name: "last_name".to_string(),
-                data_type: DataType::Varchar { max_length: 50 },
+                data_type: DataType::Varchar { max_length: Some(50) },
                 nullable: false,
                 constraints: vec![],
             },

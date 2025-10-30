@@ -492,7 +492,7 @@ impl<'a> SelectExecutor<'a> {
                     };
                     result_columns.push(catalog::ColumnSchema::new(
                         column_name,
-                        types::DataType::Varchar { max_length: 255 }, // Placeholder type
+                        types::DataType::Varchar { max_length: Some(255) }, // Placeholder type
                         true,
                     ));
                 }

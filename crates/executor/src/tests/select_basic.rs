@@ -13,7 +13,7 @@ fn test_select_star() {
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new(
                 "name".to_string(),
-                types::DataType::Varchar { max_length: 100 },
+                types::DataType::Varchar { max_length: Some(100) },
                 true,
             ),
         ],
@@ -68,7 +68,7 @@ fn test_select_specific_columns() {
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new(
                 "name".to_string(),
-                types::DataType::Varchar { max_length: 100 },
+                types::DataType::Varchar { max_length: Some(100) },
                 true,
             ),
             catalog::ColumnSchema::new("age".to_string(), types::DataType::Integer, false),

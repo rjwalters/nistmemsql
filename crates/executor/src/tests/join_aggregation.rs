@@ -12,7 +12,7 @@ fn setup_join_test_data(db: &mut Database) {
         "departments".to_string(),
         vec![
             catalog::ColumnSchema::new("dept_id".to_string(), DataType::Integer, false),
-            catalog::ColumnSchema::new("dept_name".to_string(), DataType::Varchar { max_length: 50 }, false),
+            catalog::ColumnSchema::new("dept_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
         ],
     );
     db.create_table(dept_schema).unwrap();
@@ -22,7 +22,7 @@ fn setup_join_test_data(db: &mut Database) {
         "employees".to_string(),
         vec![
             catalog::ColumnSchema::new("emp_id".to_string(), DataType::Integer, false),
-            catalog::ColumnSchema::new("emp_name".to_string(), DataType::Varchar { max_length: 50 }, false),
+            catalog::ColumnSchema::new("emp_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
             catalog::ColumnSchema::new("dept_id".to_string(), DataType::Integer, false),
             catalog::ColumnSchema::new("salary".to_string(), DataType::Integer, false),
         ],

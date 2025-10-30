@@ -25,7 +25,7 @@ pub enum DataType {
 
     // Character string types
     Character { length: usize },
-    Varchar { max_length: usize },
+    Varchar { max_length: Option<usize> },  // None = default length (255)
     CharacterLargeObject, // CLOB
 
     // Boolean type (SQL:1999)

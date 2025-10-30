@@ -675,7 +675,7 @@ use types::SqlValue;
                 },
                 ColumnDef {
                     name: "name".to_string(),
-                    data_type: types::DataType::Varchar { max_length: 255 },
+                    data_type: types::DataType::Varchar { max_length: Some(255) },
                     nullable: true,
                     constraints: vec![],
                 },
@@ -693,7 +693,7 @@ use types::SqlValue;
     fn test_column_def() {
         let col = ColumnDef {
             name: "email".to_string(),
-            data_type: types::DataType::Varchar { max_length: 100 },
+            data_type: types::DataType::Varchar { max_length: Some(100) },
             nullable: false,
             constraints: vec![],
         };

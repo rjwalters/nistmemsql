@@ -21,7 +21,7 @@ fn test_parse_create_table_basic() {
                 _ => panic!("Expected Integer data type"),
             }
             match create.columns[1].data_type {
-                types::DataType::Varchar { max_length: 100 } => {} // Success
+                types::DataType::Varchar { max_length: Some(100) } => {} // Success
                 _ => panic!("Expected VARCHAR(100) data type"),
             }
         }

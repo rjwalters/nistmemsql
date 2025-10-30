@@ -27,7 +27,7 @@ fn make_users_table() -> storage::Database {
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new(
                 "name".to_string(),
-                types::DataType::Varchar { max_length: 100 },
+                types::DataType::Varchar { max_length: Some(100) },
                 true,
             ),
         ],
