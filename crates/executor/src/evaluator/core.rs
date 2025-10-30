@@ -120,6 +120,29 @@ impl<'a> ExpressionEvaluator<'a> {
             (Character(a), Concat, Varchar(b)) => Ok(Varchar(format!("{}{}", a, b))),
             (Character(a), Concat, Character(b)) => Ok(Varchar(format!("{}{}", a, b))),
 
+            // Temporal type comparisons (DATE, TIME, TIMESTAMP)
+            // ISO 8601 format strings sort correctly lexicographically
+            (Date(a), Equal, Date(b)) => Ok(Boolean(a == b)),
+            (Date(a), NotEqual, Date(b)) => Ok(Boolean(a != b)),
+            (Date(a), LessThan, Date(b)) => Ok(Boolean(a < b)),
+            (Date(a), LessThanOrEqual, Date(b)) => Ok(Boolean(a <= b)),
+            (Date(a), GreaterThan, Date(b)) => Ok(Boolean(a > b)),
+            (Date(a), GreaterThanOrEqual, Date(b)) => Ok(Boolean(a >= b)),
+
+            (Time(a), Equal, Time(b)) => Ok(Boolean(a == b)),
+            (Time(a), NotEqual, Time(b)) => Ok(Boolean(a != b)),
+            (Time(a), LessThan, Time(b)) => Ok(Boolean(a < b)),
+            (Time(a), LessThanOrEqual, Time(b)) => Ok(Boolean(a <= b)),
+            (Time(a), GreaterThan, Time(b)) => Ok(Boolean(a > b)),
+            (Time(a), GreaterThanOrEqual, Time(b)) => Ok(Boolean(a >= b)),
+
+            (Timestamp(a), Equal, Timestamp(b)) => Ok(Boolean(a == b)),
+            (Timestamp(a), NotEqual, Timestamp(b)) => Ok(Boolean(a != b)),
+            (Timestamp(a), LessThan, Timestamp(b)) => Ok(Boolean(a < b)),
+            (Timestamp(a), LessThanOrEqual, Timestamp(b)) => Ok(Boolean(a <= b)),
+            (Timestamp(a), GreaterThan, Timestamp(b)) => Ok(Boolean(a > b)),
+            (Timestamp(a), GreaterThanOrEqual, Timestamp(b)) => Ok(Boolean(a >= b)),
+
             // Boolean comparisons
             (Boolean(a), Equal, Boolean(b)) => Ok(Boolean(a == b)),
             (Boolean(a), NotEqual, Boolean(b)) => Ok(Boolean(a != b)),
