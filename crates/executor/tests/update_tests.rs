@@ -10,11 +10,11 @@ fn setup_test_table(db: &mut Database) {
         "employees".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 50 }, false),
+            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
             ColumnSchema::new("salary".to_string(), DataType::Integer, true),
             ColumnSchema::new(
                 "department".to_string(),
-                DataType::Varchar { max_length: 50 },
+                DataType::Varchar { max_length: Some(50) },
                 true,
             ),
         ],
@@ -313,7 +313,7 @@ fn setup_test_table(db: &mut Database) {
                 catalog::ColumnSchema::new("id".to_string(), DataType::Integer, false),
                 catalog::ColumnSchema::new(
                     "name".to_string(),
-                    DataType::Varchar { max_length: 50 },
+                    DataType::Varchar { max_length: Some(50) },
                     true,
                 ),
             ],
@@ -377,7 +377,7 @@ fn setup_test_table(db: &mut Database) {
                 catalog::ColumnSchema::new("id".to_string(), DataType::Integer, false),
                 catalog::ColumnSchema::new(
                     "name".to_string(),
-                    DataType::Varchar { max_length: 50 },
+                    DataType::Varchar { max_length: Some(50) },
                     true,
                 ),
             ],
@@ -440,7 +440,7 @@ fn setup_test_table(db: &mut Database) {
                 catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
                 catalog::ColumnSchema::new(
                     "email".to_string(),
-                    types::DataType::Varchar { max_length: 50 },
+                    types::DataType::Varchar { max_length: Some(50) },
                     true,
                 ),
             ],
@@ -506,7 +506,7 @@ fn setup_test_table(db: &mut Database) {
                 catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
                 catalog::ColumnSchema::new(
                     "email".to_string(),
-                    types::DataType::Varchar { max_length: 50 },
+                    types::DataType::Varchar { max_length: Some(50) },
                     true,
                 ),
             ],
@@ -573,7 +573,7 @@ fn setup_test_table(db: &mut Database) {
                 catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
                 catalog::ColumnSchema::new(
                     "email".to_string(),
-                    types::DataType::Varchar { max_length: 50 },
+                    types::DataType::Varchar { max_length: Some(50) },
                     true, // nullable
                 ),
             ],
@@ -658,12 +658,12 @@ fn setup_test_table(db: &mut Database) {
                 catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
                 catalog::ColumnSchema::new(
                     "first_name".to_string(),
-                    types::DataType::Varchar { max_length: 50 },
+                    types::DataType::Varchar { max_length: Some(50) },
                     true,
                 ),
                 catalog::ColumnSchema::new(
                     "last_name".to_string(),
-                    types::DataType::Varchar { max_length: 50 },
+                    types::DataType::Varchar { max_length: Some(50) },
                     true,
                 ),
             ],

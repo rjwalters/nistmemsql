@@ -38,7 +38,7 @@ impl DeleteExecutor {
     ///     "users".to_string(),
     ///     vec![
     ///         ColumnSchema::new("id".to_string(), DataType::Integer, false),
-    ///         ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 50 }, false),
+    ///         ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
     ///     ],
     /// );
     /// db.create_table(schema).unwrap();
@@ -208,7 +208,7 @@ mod tests {
             "users".to_string(),
             vec![
                 ColumnSchema::new("id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 50 }, false),
+                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
                 ColumnSchema::new("active".to_string(), DataType::Boolean, false),
             ],
         );
@@ -445,7 +445,7 @@ mod tests {
             "employees".to_string(),
             vec![
                 ColumnSchema::new("id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 50 }, false),
+                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
                 ColumnSchema::new("dept_id".to_string(), DataType::Integer, false),
             ],
         );
@@ -547,7 +547,7 @@ mod tests {
             "employees".to_string(),
             vec![
                 ColumnSchema::new("id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 50 }, false),
+                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
                 ColumnSchema::new("dept_id".to_string(), DataType::Integer, false),
             ],
         );
@@ -640,7 +640,7 @@ mod tests {
             "employees".to_string(),
             vec![
                 ColumnSchema::new("id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 50 }, false),
+                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
                 ColumnSchema::new("salary".to_string(), DataType::Integer, false),
             ],
         );
@@ -741,7 +741,7 @@ mod tests {
             "employees".to_string(),
             vec![
                 ColumnSchema::new("id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 50 }, false),
+                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
                 ColumnSchema::new("dept_id".to_string(), DataType::Integer, false),
             ],
         );
@@ -814,7 +814,7 @@ mod tests {
             "items".to_string(),
             vec![
                 ColumnSchema::new("id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 50 }, false),
+                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
                 ColumnSchema::new("price".to_string(), DataType::Integer, false),
             ],
         );
@@ -954,7 +954,7 @@ mod tests {
             "inactive_customers".to_string(),
             vec![
                 ColumnSchema::new("customer_id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("status".to_string(), DataType::Varchar { max_length: 20 }, false),
+                ColumnSchema::new("status".to_string(), DataType::Varchar { max_length: Some(20) }, false),
             ],
         );
         db.create_table(customer_schema).unwrap();
@@ -1035,7 +1035,7 @@ mod tests {
             "employees".to_string(),
             vec![
                 ColumnSchema::new("id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 50 }, false),
+                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
                 ColumnSchema::new("salary".to_string(), DataType::Integer, false),
             ],
         );

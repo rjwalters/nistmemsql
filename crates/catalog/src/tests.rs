@@ -16,7 +16,7 @@ mod catalog_tests {
             ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
             ColumnSchema::new(
                 "name".to_string(),
-                types::DataType::Varchar { max_length: 100 },
+                types::DataType::Varchar { max_length: Some(100) },
                 true,
             ),
         ];
@@ -31,7 +31,7 @@ mod catalog_tests {
             ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
             ColumnSchema::new(
                 "name".to_string(),
-                types::DataType::Varchar { max_length: 100 },
+                types::DataType::Varchar { max_length: Some(100) },
                 true,
             ),
         ];
@@ -51,7 +51,7 @@ mod catalog_tests {
             ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
             ColumnSchema::new(
                 "name".to_string(),
-                types::DataType::Varchar { max_length: 100 },
+                types::DataType::Varchar { max_length: Some(100) },
                 true,
             ),
         ];
@@ -190,7 +190,7 @@ mod catalog_tests {
             ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
             ColumnSchema::new(
                 "email".to_string(),
-                types::DataType::Varchar { max_length: 255 },
+                types::DataType::Varchar { max_length: Some(255) },
                 true,
             ),
         ];

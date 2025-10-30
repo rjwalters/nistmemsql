@@ -27,7 +27,7 @@ fn create_test_database() -> Database {
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
             ColumnSchema::new(
                 "name".to_string(),
-                DataType::Varchar { max_length: 50 },
+                DataType::Varchar { max_length: Some(50) },
                 false,
             ),
             ColumnSchema::new("age".to_string(), DataType::Integer, false),

@@ -22,7 +22,7 @@ fn setup_customers_orders_db() -> Database {
         "customers".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 50 }, false),
+            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
             ColumnSchema::new("active".to_string(), DataType::Boolean, false),
         ],
     );
@@ -280,7 +280,7 @@ fn test_delete_with_nested_exists() {
         "users".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 50 }, false),
+            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
         ],
     );
     db.create_table(users_schema).unwrap();

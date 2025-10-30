@@ -18,7 +18,7 @@ fn test_table_creation() {
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new(
                 "name".to_string(),
-                types::DataType::Varchar { max_length: 100 },
+                types::DataType::Varchar { max_length: Some(100) },
                 true,
             ),
         ],
@@ -36,7 +36,7 @@ fn test_table_insert() {
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new(
                 "name".to_string(),
-                types::DataType::Varchar { max_length: 100 },
+                types::DataType::Varchar { max_length: Some(100) },
                 true,
             ),
         ],
@@ -61,7 +61,7 @@ fn test_table_insert_wrong_column_count() {
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new(
                 "name".to_string(),
-                types::DataType::Varchar { max_length: 100 },
+                types::DataType::Varchar { max_length: Some(100) },
                 true,
             ),
         ],
@@ -204,7 +204,7 @@ fn test_debug_info() {
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new(
                 "name".to_string(),
-                types::DataType::Varchar { max_length: 100 },
+                types::DataType::Varchar { max_length: Some(100) },
                 true,
             ),
         ],
@@ -236,7 +236,7 @@ fn test_dump_table() {
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new(
                 "name".to_string(),
-                types::DataType::Varchar { max_length: 100 },
+                types::DataType::Varchar { max_length: Some(100) },
                 true,
             ),
         ],

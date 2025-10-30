@@ -312,7 +312,7 @@ fn test_cast_with_column_reference_fails() {
                     table: None,
                     column: "id".to_string(),
                 }),
-                data_type: types::DataType::Varchar { max_length: 255 },
+                data_type: types::DataType::Varchar { max_length: Some(255) },
             },
             alias: None,
         }],

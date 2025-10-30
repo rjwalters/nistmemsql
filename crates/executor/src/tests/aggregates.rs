@@ -719,7 +719,7 @@ fn test_min_max_on_strings() {
         "names".to_string(),
         vec![
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: 50 }, false),
+            catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(50) }, false),
         ],
     );
     db.create_table(schema).unwrap();
@@ -955,7 +955,7 @@ fn test_aggregate_with_case_expression() {
         "transactions".to_string(),
         vec![
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("type".to_string(), types::DataType::Varchar { max_length: 10 }, false),
+            catalog::ColumnSchema::new("type".to_string(), types::DataType::Varchar { max_length: Some(10) }, false),
             catalog::ColumnSchema::new("amount".to_string(), types::DataType::Integer, false),
         ],
     );

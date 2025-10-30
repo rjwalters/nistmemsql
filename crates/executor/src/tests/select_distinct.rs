@@ -13,7 +13,7 @@ fn test_distinct_removes_duplicate_rows() {
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new(
                 "category".to_string(),
-                types::DataType::Varchar { max_length: 50 },
+                types::DataType::Varchar { max_length: Some(50) },
                 false,
             ),
         ],
@@ -103,7 +103,7 @@ fn test_distinct_with_multiple_columns() {
             catalog::ColumnSchema::new("customer_id".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new(
                 "status".to_string(),
-                types::DataType::Varchar { max_length: 20 },
+                types::DataType::Varchar { max_length: Some(20) },
                 false,
             ),
         ],
@@ -189,7 +189,7 @@ fn test_distinct_with_null_values() {
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new(
                 "description".to_string(),
-                types::DataType::Varchar { max_length: 100 },
+                types::DataType::Varchar { max_length: Some(100) },
                 true, // nullable
             ),
         ],
@@ -257,7 +257,7 @@ fn test_distinct_false_preserves_duplicates() {
         "products".to_string(),
         vec![catalog::ColumnSchema::new(
             "category".to_string(),
-            types::DataType::Varchar { max_length: 50 },
+            types::DataType::Varchar { max_length: Some(50) },
             false,
         )],
     );
@@ -311,7 +311,7 @@ fn test_distinct_with_where_clause() {
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new(
                 "role".to_string(),
-                types::DataType::Varchar { max_length: 20 },
+                types::DataType::Varchar { max_length: Some(20) },
                 false,
             ),
         ],
@@ -392,7 +392,7 @@ fn test_distinct_with_order_by() {
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new(
                 "category".to_string(),
-                types::DataType::Varchar { max_length: 50 },
+                types::DataType::Varchar { max_length: Some(50) },
                 false,
             ),
         ],

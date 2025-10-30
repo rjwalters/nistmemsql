@@ -71,7 +71,7 @@ pub(super) fn derive_cte_schema(
                 .map(|name| {
                     catalog::ColumnSchema::new(
                         name.clone(),
-                        types::DataType::Varchar { max_length: 255 },
+                        types::DataType::Varchar { max_length: Some(255) },
                         true,
                     )
                 })
@@ -123,9 +123,9 @@ pub(super) fn derive_cte_schema(
 /// Infer data type from a SQL value
 pub(super) fn infer_type_from_value(value: &types::SqlValue) -> types::DataType {
     match value {
-        types::SqlValue::Null => types::DataType::Varchar { max_length: 255 }, // default
+        types::SqlValue::Null => types::DataType::Varchar { max_length: Some(255) }, // default
         types::SqlValue::Integer(_) => types::DataType::Integer,
-        types::SqlValue::Varchar(_) => types::DataType::Varchar { max_length: 255 },
+        types::SqlValue::Varchar(_) => types::DataType::Varchar { max_length: Some(255) },
         types::SqlValue::Character(_) => types::DataType::Character { length: 1 },
         types::SqlValue::Boolean(_) => types::DataType::Boolean,
         types::SqlValue::Float(_) => types::DataType::Float { precision: 53 },
@@ -137,9 +137,9 @@ pub(super) fn infer_type_from_value(value: &types::SqlValue) -> types::DataType 
         types::SqlValue::Real(_) => types::DataType::Real,
         types::SqlValue::Smallint(_) => types::DataType::Smallint,
         types::SqlValue::Bigint(_) => types::DataType::Bigint,
-        types::SqlValue::Date(_) => types::DataType::Varchar { max_length: 255 }, // TODO: proper date type
-        types::SqlValue::Time(_) => types::DataType::Varchar { max_length: 255 }, // TODO: proper time type
-        types::SqlValue::Timestamp(_) => types::DataType::Varchar { max_length: 255 }, // TODO: proper timestamp type
-        types::SqlValue::Interval(_) => types::DataType::Varchar { max_length: 255 }, // TODO: proper interval type
+        types::SqlValue::Date(_) => types::DataType::Varchar { max_length: Some(255) }, // TODO: proper date type
+        types::SqlValue::Time(_) => types::DataType::Varchar { max_length: Some(255) }, // TODO: proper time type
+        types::SqlValue::Timestamp(_) => types::DataType::Varchar { max_length: Some(255) }, // TODO: proper timestamp type
+        types::SqlValue::Interval(_) => types::DataType::Varchar { max_length: Some(255) }, // TODO: proper interval type
     }
 }

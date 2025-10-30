@@ -42,7 +42,7 @@ pub enum DataType {
 
     // Character string types
     Character { length: usize },
-    Varchar { max_length: usize },
+    Varchar { max_length: Option<usize> },  // None = default length (255)
     CharacterLargeObject, // CLOB
 
     // Boolean type (SQL:1999)
@@ -142,7 +142,7 @@ impl SqlValue {
             SqlValue::Real(_) => DataType::Real,
             SqlValue::Double(_) => DataType::DoublePrecision,
             SqlValue::Character(s) => DataType::Character { length: s.len() },
-            SqlValue::Varchar(_) => DataType::Varchar { max_length: usize::MAX }, // Unknown length
+            SqlValue::Varchar(_) => DataType::Varchar { max_length: None }, // Unknown/unlimited length
             SqlValue::Boolean(_) => DataType::Boolean,
             SqlValue::Date(_) => DataType::Date,
             SqlValue::Time(_) => DataType::Time { with_timezone: false },

@@ -12,7 +12,7 @@ fn setup_test_table(db: &mut Database) {
         "users".to_string(),
         vec![
             catalog::ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            catalog::ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 50 }, true),
+            catalog::ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, true),
         ],
     );
     db.create_table(schema).unwrap();

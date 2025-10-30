@@ -31,8 +31,8 @@ fn create_products_schema() -> TableSchema {
         "products".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 100 }, true),
-            ColumnSchema::new("code".to_string(), DataType::Varchar { max_length: 50 }, true),
+            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new("code".to_string(), DataType::Varchar { max_length: Some(50) }, true),
         ],
     )
 }
@@ -121,7 +121,7 @@ fn test_like_null_handling() {
         "test_nulls".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("value".to_string(), DataType::Varchar { max_length: 50 }, true),
+            ColumnSchema::new("value".to_string(), DataType::Varchar { max_length: Some(50) }, true),
         ],
     );
     let mut db = Database::new();
@@ -156,7 +156,7 @@ fn create_customers_schema() -> TableSchema {
         "customers".to_string(),
         vec![
             ColumnSchema::new("customer_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 100 }, false),
+            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
         ],
     )
 }
@@ -300,7 +300,7 @@ fn create_mixed_types_schema() -> TableSchema {
         "mixed_data".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("text_num".to_string(), DataType::Varchar { max_length: 50 }, true),
+            ColumnSchema::new("text_num".to_string(), DataType::Varchar { max_length: Some(50) }, true),
             ColumnSchema::new("int_val".to_string(), DataType::Integer, true),
             ColumnSchema::new("float_val".to_string(), DataType::DoublePrecision, true),
         ],
@@ -533,7 +533,7 @@ fn test_cast_null_value() {
         "null_test".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("nullable_val".to_string(), DataType::Varchar { max_length: 50 }, true),
+            ColumnSchema::new("nullable_val".to_string(), DataType::Varchar { max_length: Some(50) }, true),
         ],
     );
     let mut db = Database::new();

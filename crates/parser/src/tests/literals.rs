@@ -339,7 +339,7 @@ fn test_parse_cast_integer_to_varchar() {
                     match expr {
                         ast::Expression::Cast { expr: _, data_type } => {
                             match data_type {
-                                types::DataType::Varchar { max_length: 10 } => {} // Success
+                                types::DataType::Varchar { max_length: Some(10) } => {} // Success
                                 _ => panic!("Expected VARCHAR(10), got {:?}", data_type),
                             }
                         }

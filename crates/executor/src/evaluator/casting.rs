@@ -181,16 +181,20 @@ pub(crate) fn cast_value(
                 _ => {
                     return Err(ExecutorError::CastError {
                         from_type: format!("{:?}", value),
-                        to_type: format!("VARCHAR({})", max_length),
+                        to_type: match max_length {
+                            Some(len) => format!("VARCHAR({})", len),
+                            None => "VARCHAR".to_string(),
+                        },
                     })
                 }
             };
 
-            // Truncate if exceeds max_length
-            if string_val.len() > *max_length {
-                Ok(SqlValue::Varchar(string_val[..*max_length].to_string()))
-            } else {
-                Ok(SqlValue::Varchar(string_val))
+            // Truncate if exceeds max_length (when specified)
+            match max_length {
+                Some(len) if string_val.len() > *len => {
+                    Ok(SqlValue::Varchar(string_val[..*len].to_string()))
+                }
+                _ => Ok(SqlValue::Varchar(string_val)),
             }
         }
 

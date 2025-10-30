@@ -289,7 +289,7 @@ fn test_order_by_with_window_function() {
         "employees".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 50 }, false),
+            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
             ColumnSchema::new("salary".to_string(), DataType::Integer, false),
         ],
     );
@@ -349,7 +349,7 @@ fn test_order_by_with_window_function_not_in_select() {
         "employees".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: 50 }, false),
+            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
             ColumnSchema::new("salary".to_string(), DataType::Integer, false),
         ],
     );

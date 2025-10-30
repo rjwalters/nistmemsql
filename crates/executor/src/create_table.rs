@@ -41,7 +41,7 @@ impl CreateTableExecutor {
     ///         },
     ///         ColumnDef {
     ///             name: "name".to_string(),
-    ///             data_type: DataType::Varchar { max_length: 255 },
+    ///             data_type: DataType::Varchar { max_length: Some(255) },
     ///             nullable: true,
     ///             constraints: vec![],
     ///         },
@@ -123,7 +123,7 @@ mod tests {
                 ColumnDef { name: "id".to_string(), data_type: DataType::Integer, nullable: false, constraints: vec![] },
                 ColumnDef {
                     name: "name".to_string(),
-                    data_type: DataType::Varchar { max_length: 255 },
+                    data_type: DataType::Varchar { max_length: Some(255) },
                     nullable: true, constraints: vec![],
                 },
             ],
@@ -155,7 +155,7 @@ mod tests {
                 },
                 ColumnDef {
                     name: "name".to_string(),
-                    data_type: DataType::Varchar { max_length: 100 },
+                    data_type: DataType::Varchar { max_length: Some(100) },
                     nullable: false,
                     constraints: vec![],
                 },
@@ -173,7 +173,7 @@ mod tests {
                 },
                 ColumnDef {
                     name: "description".to_string(),
-                    data_type: DataType::Varchar { max_length: 500 },
+                    data_type: DataType::Varchar { max_length: Some(500) },
                     nullable: true, // Optional field
                     constraints: vec![],
                 },
@@ -226,7 +226,7 @@ mod tests {
                 ColumnDef { name: "id".to_string(), data_type: DataType::Integer, nullable: false, constraints: vec![] },
                 ColumnDef {
                     name: "middle_name".to_string(),
-                    data_type: DataType::Varchar { max_length: 50 },
+                    data_type: DataType::Varchar { max_length: Some(50) },
                     nullable: true, // Nullable field
                     constraints: vec![],
                 },

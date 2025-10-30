@@ -137,7 +137,7 @@ fn test_select_with_or_condition() {
         "items".to_string(),
         vec![
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("category".to_string(), types::DataType::Varchar { max_length: 50 }, false),
+            catalog::ColumnSchema::new("category".to_string(), types::DataType::Varchar { max_length: Some(50) }, false),
         ],
     );
     db.create_table(schema).unwrap();

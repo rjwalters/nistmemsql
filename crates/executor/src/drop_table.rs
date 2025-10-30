@@ -188,7 +188,7 @@ mod tests {
                 },
                 ColumnDef {
                     name: "name".to_string(),
-                    data_type: DataType::Varchar { max_length: 100 },
+                    data_type: DataType::Varchar { max_length: Some(100) },
                     nullable: false,
                     constraints: vec![],
                 },

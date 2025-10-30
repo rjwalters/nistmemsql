@@ -139,23 +139,29 @@ impl Parser {
                 Ok(types::DataType::Interval { start_field, end_field })
             }
             "VARCHAR" => {
-                // Parse VARCHAR(n)
-                self.expect_token(Token::LParen)?;
-                let max_length = match self.peek() {
-                    Token::Number(n) => {
-                        let len = n.parse::<usize>().map_err(|_| ParseError {
-                            message: "Invalid VARCHAR length".to_string(),
-                        })?;
-                        self.advance();
-                        len
-                    }
-                    _ => {
-                        return Err(ParseError {
-                            message: "Expected number after VARCHAR(".to_string(),
-                        })
-                    }
+                // Parse VARCHAR or VARCHAR(n)
+                // Length is optional - if not specified, defaults to None (unlimited)
+                let max_length = if matches!(self.peek(), Token::LParen) {
+                    self.advance(); // consume LParen
+                    let len = match self.peek() {
+                        Token::Number(n) => {
+                            let len = n.parse::<usize>().map_err(|_| ParseError {
+                                message: "Invalid VARCHAR length".to_string(),
+                            })?;
+                            self.advance();
+                            len
+                        }
+                        _ => {
+                            return Err(ParseError {
+                                message: "Expected number after VARCHAR(".to_string(),
+                            })
+                        }
+                    };
+                    self.expect_token(Token::RParen)?;
+                    Some(len)
+                } else {
+                    None // No length specified, use default
                 };
-                self.expect_token(Token::RParen)?;
                 Ok(types::DataType::Varchar { max_length })
             }
             "CHAR" | "CHARACTER" => {

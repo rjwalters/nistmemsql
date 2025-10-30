@@ -13,7 +13,7 @@ use ast;
                 catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
                 catalog::ColumnSchema::new(
                     "name".to_string(),
-                    types::DataType::Varchar { max_length: 50 },
+                    types::DataType::Varchar { max_length: Some(50) },
                     false,
                 ),
             ],
@@ -106,7 +106,7 @@ use ast;
                 catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
                 catalog::ColumnSchema::new(
                     "name".to_string(),
-                    types::DataType::Varchar { max_length: 50 },
+                    types::DataType::Varchar { max_length: Some(50) },
                     true, // nullable
                 ),
             ],
@@ -366,7 +366,7 @@ use ast;
             "test_types".to_string(),
             vec![
                 catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-                catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: 50 }, true),
+                catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(50) }, true),
                 catalog::ColumnSchema::new("active".to_string(), types::DataType::Boolean, true),
                 catalog::ColumnSchema::new("score".to_string(), types::DataType::Float { precision: 53 }, true),
             ],
@@ -418,7 +418,7 @@ use ast;
             "users".to_string(),
             vec![
                 catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-                catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: 50 }, true),
+                catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(50) }, true),
             ],
             vec!["id".to_string()],
         );
@@ -485,7 +485,7 @@ use ast;
                 catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
                 catalog::ColumnSchema::new(
                     "name".to_string(),
-                    types::DataType::Varchar { max_length: 50 },
+                    types::DataType::Varchar { max_length: Some(50) },
                     false,
                 ),
                 catalog::ColumnSchema::new("age".to_string(), types::DataType::Integer, true),
@@ -528,7 +528,7 @@ use ast;
                 catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
                 catalog::ColumnSchema::new(
                     "name".to_string(),
-                    types::DataType::Varchar { max_length: 50 },
+                    types::DataType::Varchar { max_length: Some(50) },
                     true,
                 ),
             ],
@@ -640,7 +640,7 @@ use ast;
                 catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
                 catalog::ColumnSchema::new(
                     "name".to_string(),
-                    types::DataType::Varchar { max_length: 50 },
+                    types::DataType::Varchar { max_length: Some(50) },
                     true,
                 ),
             ],
@@ -677,7 +677,7 @@ use ast;
                 catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
                 catalog::ColumnSchema::new(
                     "email".to_string(),
-                    types::DataType::Varchar { max_length: 50 },
+                    types::DataType::Varchar { max_length: Some(50) },
                     true,
                 ),
             ],
@@ -729,7 +729,7 @@ use ast;
                 catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
                 catalog::ColumnSchema::new(
                     "email".to_string(),
-                    types::DataType::Varchar { max_length: 50 },
+                    types::DataType::Varchar { max_length: Some(50) },
                     true,
                 ),
             ],
@@ -829,12 +829,12 @@ use ast;
                 catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
                 catalog::ColumnSchema::new(
                     "email".to_string(),
-                    types::DataType::Varchar { max_length: 50 },
+                    types::DataType::Varchar { max_length: Some(50) },
                     true,
                 ),
                 catalog::ColumnSchema::new(
                     "username".to_string(),
-                    types::DataType::Varchar { max_length: 50 },
+                    types::DataType::Varchar { max_length: Some(50) },
                     true,
                 ),
             ],
@@ -1226,7 +1226,7 @@ use ast;
             "users_backup".to_string(),
             vec![
                 catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-                catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: 50 }, true),
+                catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(50) }, true),
             ],
         );
         db.create_table(schema).unwrap();
@@ -1289,7 +1289,7 @@ use ast;
             "active_users".to_string(),
             vec![
                 catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-                catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: 50 }, true),
+                catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(50) }, true),
             ],
         );
         db.create_table(schema).unwrap();
@@ -1353,7 +1353,7 @@ use ast;
             "wrong_table".to_string(),
             vec![
                 catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-                catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: 50 }, true),
+                catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(50) }, true),
                 catalog::ColumnSchema::new("extra".to_string(), types::DataType::Integer, true),
             ],
         );

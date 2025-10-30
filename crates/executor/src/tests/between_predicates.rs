@@ -11,7 +11,7 @@ fn test_between_integer() {
         "users".to_string(),
         vec![
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: 100 }, false),
+            catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(100) }, false),
             catalog::ColumnSchema::new("age".to_string(), types::DataType::Integer, false),
         ],
     );
@@ -104,7 +104,7 @@ fn test_not_between() {
         "products".to_string(),
         vec![
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: 100 }, false),
+            catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(100) }, false),
             catalog::ColumnSchema::new("price".to_string(), types::DataType::Integer, false),
         ],
     );

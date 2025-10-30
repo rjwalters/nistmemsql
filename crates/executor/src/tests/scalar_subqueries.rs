@@ -20,7 +20,7 @@ fn test_scalar_subquery_in_where_clause() {
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new(
                 "name".to_string(),
-                types::DataType::Varchar { max_length: 100 },
+                types::DataType::Varchar { max_length: Some(100) },
                 false,
             ),
             catalog::ColumnSchema::new("salary".to_string(), types::DataType::Integer, false),
@@ -125,7 +125,7 @@ fn test_scalar_subquery_in_select_list() {
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new(
                 "name".to_string(),
-                types::DataType::Varchar { max_length: 100 },
+                types::DataType::Varchar { max_length: Some(100) },
                 false,
             ),
             catalog::ColumnSchema::new("salary".to_string(), types::DataType::Integer, false),
@@ -359,7 +359,7 @@ fn test_scalar_subquery_error_multiple_columns() {
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new(
                 "name".to_string(),
-                types::DataType::Varchar { max_length: 100 },
+                types::DataType::Varchar { max_length: Some(100) },
                 false,
             ),
         ],
@@ -446,12 +446,12 @@ fn test_correlated_subquery_basic() {
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new(
                 "name".to_string(),
-                types::DataType::Varchar { max_length: 100 },
+                types::DataType::Varchar { max_length: Some(100) },
                 false,
             ),
             catalog::ColumnSchema::new(
                 "department".to_string(),
-                types::DataType::Varchar { max_length: 50 },
+                types::DataType::Varchar { max_length: Some(50) },
                 false,
             ),
             catalog::ColumnSchema::new("salary".to_string(), types::DataType::Integer, false),
