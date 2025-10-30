@@ -12,9 +12,7 @@ fn execute_query(db: &Database, query: &str) -> Result<Vec<Row>, String> {
     };
 
     let executor = SelectExecutor::new(db);
-    executor
-        .execute(&select_stmt)
-        .map_err(|e| format!("Execution error: {:?}", e))
+    executor.execute(&select_stmt).map_err(|e| format!("Execution error: {:?}", e))
 }
 
 fn create_test_database() -> Database {
@@ -77,29 +75,17 @@ fn create_test_database() -> Database {
 
     db.insert_row(
         "orders",
-        Row::new(vec![
-            SqlValue::Integer(101),
-            SqlValue::Integer(1),
-            SqlValue::Integer(100),
-        ]),
+        Row::new(vec![SqlValue::Integer(101), SqlValue::Integer(1), SqlValue::Integer(100)]),
     )
     .unwrap();
     db.insert_row(
         "orders",
-        Row::new(vec![
-            SqlValue::Integer(102),
-            SqlValue::Integer(2),
-            SqlValue::Integer(200),
-        ]),
+        Row::new(vec![SqlValue::Integer(102), SqlValue::Integer(2), SqlValue::Integer(200)]),
     )
     .unwrap();
     db.insert_row(
         "orders",
-        Row::new(vec![
-            SqlValue::Integer(103),
-            SqlValue::Integer(1),
-            SqlValue::Integer(150),
-        ]),
+        Row::new(vec![SqlValue::Integer(103), SqlValue::Integer(1), SqlValue::Integer(150)]),
     )
     .unwrap();
 
@@ -233,10 +219,7 @@ fn test_cte_with_column_aliases() {
 
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Integer(1));
-    assert_eq!(
-        results[0].values[1],
-        SqlValue::Varchar("Alice".to_string())
-    );
+    assert_eq!(results[0].values[1], SqlValue::Varchar("Alice".to_string()));
 }
 
 #[test]

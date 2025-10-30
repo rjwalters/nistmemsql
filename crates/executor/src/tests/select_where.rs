@@ -106,13 +106,19 @@ fn test_select_with_and_condition() {
         from: Some(ast::FromClause::Table { name: "products".to_string(), alias: None }),
         where_clause: Some(ast::Expression::BinaryOp {
             left: Box::new(ast::Expression::BinaryOp {
-                left: Box::new(ast::Expression::ColumnRef { table: None, column: "price".to_string() }),
+                left: Box::new(ast::Expression::ColumnRef {
+                    table: None,
+                    column: "price".to_string(),
+                }),
                 op: ast::BinaryOperator::GreaterThan,
                 right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(50))),
             }),
             op: ast::BinaryOperator::And,
             right: Box::new(ast::Expression::BinaryOp {
-                left: Box::new(ast::Expression::ColumnRef { table: None, column: "stock".to_string() }),
+                left: Box::new(ast::Expression::ColumnRef {
+                    table: None,
+                    column: "stock".to_string(),
+                }),
                 op: ast::BinaryOperator::GreaterThan,
                 right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(0))),
             }),
@@ -137,7 +143,11 @@ fn test_select_with_or_condition() {
         "items".to_string(),
         vec![
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("category".to_string(), types::DataType::Varchar { max_length: Some(50) }, false),
+            catalog::ColumnSchema::new(
+                "category".to_string(),
+                types::DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -176,15 +186,25 @@ fn test_select_with_or_condition() {
         from: Some(ast::FromClause::Table { name: "items".to_string(), alias: None }),
         where_clause: Some(ast::Expression::BinaryOp {
             left: Box::new(ast::Expression::BinaryOp {
-                left: Box::new(ast::Expression::ColumnRef { table: None, column: "category".to_string() }),
+                left: Box::new(ast::Expression::ColumnRef {
+                    table: None,
+                    column: "category".to_string(),
+                }),
                 op: ast::BinaryOperator::Equal,
-                right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("electronics".to_string()))),
+                right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "electronics".to_string(),
+                ))),
             }),
             op: ast::BinaryOperator::Or,
             right: Box::new(ast::Expression::BinaryOp {
-                left: Box::new(ast::Expression::ColumnRef { table: None, column: "category".to_string() }),
+                left: Box::new(ast::Expression::ColumnRef {
+                    table: None,
+                    column: "category".to_string(),
+                }),
                 op: ast::BinaryOperator::Equal,
-                right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("books".to_string()))),
+                right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "books".to_string(),
+                ))),
             }),
         }),
         group_by: None,

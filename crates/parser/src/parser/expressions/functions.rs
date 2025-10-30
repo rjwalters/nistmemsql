@@ -104,7 +104,7 @@ impl Parser {
             // Check if this is followed by FROM keyword
             if matches!(self.peek(), Token::Keyword(Keyword::From)) {
                 self.advance(); // consume FROM
-                // first_expr is the removal_char, now parse the string
+                                // first_expr is the removal_char, now parse the string
                 removal_char = Some(Box::new(first_expr));
                 let string = self.parse_primary_expression()?;
 
@@ -130,10 +130,8 @@ impl Parser {
 
         // Check if this is an aggregate function
         let function_name_upper = first.to_uppercase();
-        let is_aggregate = matches!(
-            function_name_upper.as_str(),
-            "COUNT" | "SUM" | "AVG" | "MIN" | "MAX"
-        );
+        let is_aggregate =
+            matches!(function_name_upper.as_str(), "COUNT" | "SUM" | "AVG" | "MIN" | "MAX");
 
         // Parse optional DISTINCT for aggregate functions
         let distinct = if is_aggregate && matches!(self.peek(), Token::Keyword(Keyword::Distinct)) {
@@ -155,10 +153,7 @@ impl Parser {
             self.advance(); // consume '*'
             self.expect_token(Token::RParen)?;
             // Represent * as a special wildcard expression
-            args.push(ast::Expression::ColumnRef {
-                table: None,
-                column: "*".to_string(),
-            });
+            args.push(ast::Expression::ColumnRef { table: None, column: "*".to_string() });
         } else {
             // Parse comma-separated argument list
             loop {
@@ -193,11 +188,7 @@ impl Parser {
 
         // Return appropriate expression type
         if is_aggregate {
-            Ok(Some(ast::Expression::AggregateFunction {
-                name: first,
-                distinct,
-                args,
-            }))
+            Ok(Some(ast::Expression::AggregateFunction { name: first, distinct, args }))
         } else {
             Ok(Some(ast::Expression::Function { name: first, args }))
         }
@@ -214,25 +205,16 @@ impl Parser {
         match name_upper.as_str() {
             // Ranking functions
             "ROW_NUMBER" | "RANK" | "DENSE_RANK" | "NTILE" => {
-                ast::WindowFunctionSpec::Ranking {
-                    name: name_upper,
-                    args,
-                }
+                ast::WindowFunctionSpec::Ranking { name: name_upper, args }
             }
 
             // Value functions
             "LAG" | "LEAD" | "FIRST_VALUE" | "LAST_VALUE" => {
-                ast::WindowFunctionSpec::Value {
-                    name: name_upper,
-                    args,
-                }
+                ast::WindowFunctionSpec::Value { name: name_upper, args }
             }
 
             // Aggregate functions (SUM, AVG, COUNT, MIN, MAX, etc.)
-            _ => ast::WindowFunctionSpec::Aggregate {
-                name: name_upper,
-                args,
-            },
+            _ => ast::WindowFunctionSpec::Aggregate { name: name_upper, args },
         }
     }
 
@@ -248,11 +230,7 @@ impl Parser {
         // Check for empty OVER()
         if matches!(self.peek(), Token::RParen) {
             self.advance();
-            return Ok(ast::WindowSpec {
-                partition_by,
-                order_by,
-                frame,
-            });
+            return Ok(ast::WindowSpec { partition_by, order_by, frame });
         }
 
         // Parse PARTITION BY clause
@@ -303,20 +281,13 @@ impl Parser {
         }
 
         // Parse frame clause (ROWS/RANGE)
-        if matches!(
-            self.peek(),
-            Token::Keyword(Keyword::Rows) | Token::Keyword(Keyword::Range)
-        ) {
+        if matches!(self.peek(), Token::Keyword(Keyword::Rows) | Token::Keyword(Keyword::Range)) {
             frame = Some(self.parse_frame_clause()?);
         }
 
         self.expect_token(Token::RParen)?;
 
-        Ok(ast::WindowSpec {
-            partition_by,
-            order_by,
-            frame,
-        })
+        Ok(ast::WindowSpec { partition_by, order_by, frame })
     }
 
     /// Parse frame clause (ROWS/RANGE BETWEEN ... AND ...)
@@ -351,20 +322,12 @@ impl Parser {
 
             let end = self.parse_frame_bound()?;
 
-            Ok(ast::WindowFrame {
-                unit,
-                start,
-                end: Some(end),
-            })
+            Ok(ast::WindowFrame { unit, start, end: Some(end) })
         } else {
             // Single bound (defaults to CURRENT ROW as end)
             let start = self.parse_frame_bound()?;
 
-            Ok(ast::WindowFrame {
-                unit,
-                start,
-                end: None,
-            })
+            Ok(ast::WindowFrame { unit, start, end: None })
         }
     }
 
@@ -394,8 +357,8 @@ impl Parser {
 
             Token::Keyword(Keyword::Current) => {
                 self.advance(); // consume CURRENT
-                // Expect ROW (note: not ROWS, this is "CURRENT ROW" singular)
-                // We need to match against an identifier "ROW" since there's no Keyword::Row
+                                // Expect ROW (note: not ROWS, this is "CURRENT ROW" singular)
+                                // We need to match against an identifier "ROW" since there's no Keyword::Row
                 if let Token::Identifier(ref id) = self.peek() {
                     if id.to_uppercase() == "ROW" {
                         self.advance();

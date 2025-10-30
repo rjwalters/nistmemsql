@@ -2,7 +2,9 @@ use super::*;
 
 impl Parser {
     /// Parse identifier-based expressions (column references, qualified names)
-    pub(super) fn parse_identifier_expression(&mut self) -> Result<Option<ast::Expression>, ParseError> {
+    pub(super) fn parse_identifier_expression(
+        &mut self,
+    ) -> Result<Option<ast::Expression>, ParseError> {
         match self.peek() {
             Token::Identifier(id) => {
                 let first = id.clone();
@@ -13,7 +15,7 @@ impl Parser {
                     // This is handled by parse_function_call, return None
                     // We need to rewind
                     self.position -= 1;
-                    return Ok(None);
+                    Ok(None)
                 }
                 // Check for qualified column reference (table.column)
                 else if matches!(self.peek(), Token::Symbol('.')) {

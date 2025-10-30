@@ -14,9 +14,7 @@ pub fn numeric_to_f64(val: &SqlValue) -> Result<f64, ExecutorError> {
         SqlValue::Float(f) => Ok(*f as f64),
         SqlValue::Double(f) => Ok(*f),
         SqlValue::Real(f) => Ok(*f as f64),
-        _ => Err(ExecutorError::UnsupportedFeature(
-            format!("Cannot convert {:?} to numeric", val),
-        )),
+        _ => Err(ExecutorError::UnsupportedFeature(format!("Cannot convert {:?} to numeric", val))),
     }
 }
 
@@ -25,15 +23,14 @@ pub fn numeric_to_f64(val: &SqlValue) -> Result<f64, ExecutorError> {
 /// Note: POW is an alias for POWER
 pub fn power(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 2 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("POWER requires exactly 2 arguments, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "POWER requires exactly 2 arguments, got {}",
+            args.len()
+        )));
     }
 
     match (&args[0], &args[1]) {
-        (SqlValue::Null, _) | (_, SqlValue::Null) => {
-            Ok(SqlValue::Null)
-        }
+        (SqlValue::Null, _) | (_, SqlValue::Null) => Ok(SqlValue::Null),
         (SqlValue::Integer(base), SqlValue::Integer(exp)) => {
             if *exp >= 0 && *exp <= i32::MAX as i64 {
                 Ok(SqlValue::Double((*base as f64).powi(*exp as i32)))
@@ -41,12 +38,8 @@ pub fn power(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
                 Ok(SqlValue::Double((*base as f64).powf(*exp as f64)))
             }
         }
-        (SqlValue::Float(base), SqlValue::Float(exp)) => {
-            Ok(SqlValue::Float(base.powf(*exp)))
-        }
-        (SqlValue::Double(base), SqlValue::Double(exp)) => {
-            Ok(SqlValue::Double(base.powf(*exp)))
-        }
+        (SqlValue::Float(base), SqlValue::Float(exp)) => Ok(SqlValue::Float(base.powf(*exp))),
+        (SqlValue::Double(base), SqlValue::Double(exp)) => Ok(SqlValue::Double(base.powf(*exp))),
         (base, exp) => {
             // Try to convert to f64
             let base_f64 = numeric_to_f64(base)?;
@@ -60,36 +53,31 @@ pub fn power(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// SQL:1999 Section 6.27: Numeric value functions
 pub fn sqrt(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("SQRT requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "SQRT requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
         SqlValue::Null => Ok(SqlValue::Null),
         SqlValue::Integer(n) => {
             if *n < 0 {
-                Err(ExecutorError::UnsupportedFeature(
-                    "SQRT of negative number".to_string(),
-                ))
+                Err(ExecutorError::UnsupportedFeature("SQRT of negative number".to_string()))
             } else {
                 Ok(SqlValue::Double((*n as f64).sqrt()))
             }
         }
         SqlValue::Float(f) => {
             if *f < 0.0 {
-                Err(ExecutorError::UnsupportedFeature(
-                    "SQRT of negative number".to_string(),
-                ))
+                Err(ExecutorError::UnsupportedFeature("SQRT of negative number".to_string()))
             } else {
                 Ok(SqlValue::Float(f.sqrt()))
             }
         }
         SqlValue::Double(f) => {
             if *f < 0.0 {
-                Err(ExecutorError::UnsupportedFeature(
-                    "SQRT of negative number".to_string(),
-                ))
+                Err(ExecutorError::UnsupportedFeature("SQRT of negative number".to_string()))
             } else {
                 Ok(SqlValue::Double(f.sqrt()))
             }
@@ -97,9 +85,7 @@ pub fn sqrt(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         val => {
             let f = numeric_to_f64(val)?;
             if f < 0.0 {
-                Err(ExecutorError::UnsupportedFeature(
-                    "SQRT of negative number".to_string(),
-                ))
+                Err(ExecutorError::UnsupportedFeature("SQRT of negative number".to_string()))
             } else {
                 Ok(SqlValue::Double(f.sqrt()))
             }
@@ -111,9 +97,10 @@ pub fn sqrt(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// SQL:1999 Section 6.27: Numeric value functions
 pub fn exp(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("EXP requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "EXP requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
@@ -130,9 +117,10 @@ pub fn exp(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// Note: LOG is an alias for LN
 pub fn ln(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("LN requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "LN requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
@@ -140,9 +128,7 @@ pub fn ln(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         val => {
             let x = numeric_to_f64(val)?;
             if x <= 0.0 {
-                Err(ExecutorError::UnsupportedFeature(
-                    "LN of non-positive number".to_string(),
-                ))
+                Err(ExecutorError::UnsupportedFeature("LN of non-positive number".to_string()))
             } else {
                 Ok(SqlValue::Double(x.ln()))
             }
@@ -153,9 +139,10 @@ pub fn ln(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// LOG10(x) - Base-10 logarithm
 pub fn log10(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("LOG10 requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "LOG10 requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
@@ -163,9 +150,7 @@ pub fn log10(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         val => {
             let x = numeric_to_f64(val)?;
             if x <= 0.0 {
-                Err(ExecutorError::UnsupportedFeature(
-                    "LOG10 of non-positive number".to_string(),
-                ))
+                Err(ExecutorError::UnsupportedFeature("LOG10 of non-positive number".to_string()))
             } else {
                 Ok(SqlValue::Double(x.log10()))
             }

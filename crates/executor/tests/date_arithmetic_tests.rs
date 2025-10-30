@@ -1,10 +1,10 @@
 //! Tests for date arithmetic functions (DATEDIFF, DATE_ADD, DATE_SUB, EXTRACT, AGE)
 
+use ast;
+use catalog;
 use executor::ExpressionEvaluator;
 use storage;
-use catalog;
 use types;
-use ast;
 
 fn create_test_evaluator() -> (ExpressionEvaluator<'static>, storage::Row) {
     let schema = Box::leak(Box::new(catalog::TableSchema::new(

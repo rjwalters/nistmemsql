@@ -34,11 +34,7 @@ pub(crate) fn eval_unary_op(
         (Minus, SqlValue::Double(n)) => Ok(SqlValue::Double(-n)),
         (Minus, SqlValue::Numeric(s)) => {
             // Negate numeric string: if starts with -, remove it; otherwise add -
-            let negated = if s.starts_with('-') {
-                s[1..].to_string()
-            } else {
-                format!("-{}", s)
-            };
+            let negated = if s.starts_with('-') { s[1..].to_string() } else { format!("-{}", s) };
             Ok(SqlValue::Numeric(negated))
         }
 
@@ -58,8 +54,9 @@ pub(crate) fn eval_unary_op(
         }),
 
         // Other unary operators (NOT, IS NULL, etc.) are handled elsewhere
-        _ => Err(ExecutorError::UnsupportedExpression(
-            format!("Unary operator {:?} not supported in this context", op),
-        )),
+        _ => Err(ExecutorError::UnsupportedExpression(format!(
+            "Unary operator {:?} not supported in this context",
+            op
+        ))),
     }
 }

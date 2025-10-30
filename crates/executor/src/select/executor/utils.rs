@@ -12,9 +12,7 @@ impl<'a> SelectExecutor<'a> {
                 self.expression_references_column(left) || self.expression_references_column(right)
             }
 
-            ast::Expression::UnaryOp { expr, .. } => {
-                self.expression_references_column(expr)
-            }
+            ast::Expression::UnaryOp { expr, .. } => self.expression_references_column(expr),
 
             ast::Expression::Function { args, .. } => {
                 args.iter().any(|arg| self.expression_references_column(arg))
@@ -24,9 +22,7 @@ impl<'a> SelectExecutor<'a> {
                 args.iter().any(|arg| self.expression_references_column(arg))
             }
 
-            ast::Expression::IsNull { expr, .. } => {
-                self.expression_references_column(expr)
-            }
+            ast::Expression::IsNull { expr, .. } => self.expression_references_column(expr),
 
             ast::Expression::InList { expr, values, .. } => {
                 self.expression_references_column(expr)
@@ -39,23 +35,15 @@ impl<'a> SelectExecutor<'a> {
                     || self.expression_references_column(high)
             }
 
-            ast::Expression::Cast { expr, .. } => {
-                self.expression_references_column(expr)
-            }
+            ast::Expression::Cast { expr, .. } => self.expression_references_column(expr),
 
             ast::Expression::Position { substring, string } => {
                 self.expression_references_column(substring)
                     || self.expression_references_column(string)
             }
 
-            ast::Expression::Trim {
-                removal_char,
-                string,
-                ..
-            } => {
-                removal_char
-                    .as_ref()
-                    .map_or(false, |e| self.expression_references_column(e))
+            ast::Expression::Trim { removal_char, string, .. } => {
+                removal_char.as_ref().map_or(false, |e| self.expression_references_column(e))
                     || self.expression_references_column(string)
             }
 
@@ -76,7 +64,8 @@ impl<'a> SelectExecutor<'a> {
             ast::Expression::Case { operand, when_clauses, else_result } => {
                 operand.as_ref().map_or(false, |e| self.expression_references_column(e))
                     || when_clauses.iter().any(|(cond, res)| {
-                        self.expression_references_column(cond) || self.expression_references_column(res)
+                        self.expression_references_column(cond)
+                            || self.expression_references_column(res)
                     })
                     || else_result.as_ref().map_or(false, |e| self.expression_references_column(e))
             }

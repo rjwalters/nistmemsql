@@ -1,8 +1,8 @@
 //! Schema - Named collection of database objects
 
-use std::collections::HashMap;
 use crate::errors::CatalogError;
 use crate::table::TableSchema;
+use std::collections::HashMap;
 
 /// A schema - named collection of database objects (tables, views, etc.)
 #[derive(Debug, Clone)]
@@ -15,10 +15,7 @@ pub struct Schema {
 impl Schema {
     /// Create a new empty schema
     pub fn new(name: String) -> Self {
-        Schema {
-            name,
-            tables: HashMap::new(),
-        }
+        Schema { name, tables: HashMap::new() }
     }
 
     /// Create a table in this schema

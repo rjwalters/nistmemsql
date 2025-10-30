@@ -1,10 +1,10 @@
 //! Tests for new scalar functions (numeric and string functions)
 
+use ast;
+use catalog;
 use executor::ExpressionEvaluator;
 use storage;
-use catalog;
 use types;
-use ast;
 
 fn create_test_evaluator() -> (ExpressionEvaluator<'static>, storage::Row) {
     // Create a simple schema
@@ -12,15 +12,16 @@ fn create_test_evaluator() -> (ExpressionEvaluator<'static>, storage::Row) {
         "test".to_string(),
         vec![
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("amount".to_string(), types::DataType::DoublePrecision, true),
+            catalog::ColumnSchema::new(
+                "amount".to_string(),
+                types::DataType::DoublePrecision,
+                true,
+            ),
         ],
     )));
 
     let evaluator = ExpressionEvaluator::new(schema);
-    let row = storage::Row::new(vec![
-        types::SqlValue::Integer(1),
-        types::SqlValue::Double(3.7),
-    ]);
+    let row = storage::Row::new(vec![types::SqlValue::Integer(1), types::SqlValue::Double(3.7)]);
 
     (evaluator, row)
 }

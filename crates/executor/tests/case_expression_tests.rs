@@ -10,7 +10,11 @@ fn create_test_schema() -> TableSchema {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("status".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new(
+                "status".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
             ColumnSchema::new("value".to_string(), DataType::Integer, false),
         ],
     )

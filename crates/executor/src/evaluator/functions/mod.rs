@@ -113,9 +113,6 @@ pub(super) fn eval_scalar_function(
         "USER" | "CURRENT_USER" => system::user(args, name),
 
         // Unknown function
-        _ => Err(ExecutorError::UnsupportedFeature(format!(
-            "Unknown function: {}",
-            name
-        ))),
+        _ => Err(ExecutorError::UnsupportedFeature(format!("Unknown function: {}", name))),
     }
 }

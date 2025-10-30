@@ -9,9 +9,10 @@ use types::SqlValue;
 /// SQL:1999 Section 6.27: Numeric value functions
 pub fn round(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.is_empty() || args.len() > 2 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("ROUND requires 1 or 2 arguments, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "ROUND requires 1 or 2 arguments, got {}",
+            args.len()
+        )));
     }
 
     let value = &args[0];
@@ -20,9 +21,10 @@ pub fn round(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             SqlValue::Integer(p) => *p as i32,
             SqlValue::Null => return Ok(SqlValue::Null),
             val => {
-                return Err(ExecutorError::UnsupportedFeature(
-                    format!("ROUND precision must be integer, got {:?}", val),
-                ))
+                return Err(ExecutorError::UnsupportedFeature(format!(
+                    "ROUND precision must be integer, got {:?}",
+                    val
+                )))
             }
         }
     } else {
@@ -44,9 +46,10 @@ pub fn round(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             let multiplier = 10_f32.powi(precision);
             Ok(SqlValue::Real((f * multiplier).round() / multiplier))
         }
-        val => Err(ExecutorError::UnsupportedFeature(
-            format!("ROUND requires numeric argument, got {:?}", val),
-        )),
+        val => Err(ExecutorError::UnsupportedFeature(format!(
+            "ROUND requires numeric argument, got {:?}",
+            val
+        ))),
     }
 }
 
@@ -54,9 +57,10 @@ pub fn round(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// SQL:1999 Section 6.27: Numeric value functions
 pub fn floor(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("FLOOR requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "FLOOR requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
@@ -65,9 +69,10 @@ pub fn floor(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         SqlValue::Float(f) => Ok(SqlValue::Float(f.floor())),
         SqlValue::Double(f) => Ok(SqlValue::Double(f.floor())),
         SqlValue::Real(f) => Ok(SqlValue::Real(f.floor())),
-        val => Err(ExecutorError::UnsupportedFeature(
-            format!("FLOOR requires numeric argument, got {:?}", val),
-        )),
+        val => Err(ExecutorError::UnsupportedFeature(format!(
+            "FLOOR requires numeric argument, got {:?}",
+            val
+        ))),
     }
 }
 
@@ -76,9 +81,10 @@ pub fn floor(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// Note: CEILING is an alias for CEIL
 pub fn ceil(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("CEIL requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "CEIL requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
@@ -87,8 +93,9 @@ pub fn ceil(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         SqlValue::Float(f) => Ok(SqlValue::Float(f.ceil())),
         SqlValue::Double(f) => Ok(SqlValue::Double(f.ceil())),
         SqlValue::Real(f) => Ok(SqlValue::Real(f.ceil())),
-        val => Err(ExecutorError::UnsupportedFeature(
-            format!("CEIL requires numeric argument, got {:?}", val),
-        )),
+        val => Err(ExecutorError::UnsupportedFeature(format!(
+            "CEIL requires numeric argument, got {:?}",
+            val
+        ))),
     }
 }

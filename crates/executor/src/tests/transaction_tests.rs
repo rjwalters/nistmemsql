@@ -1,10 +1,10 @@
 //! Tests for transaction functionality (BEGIN, COMMIT, ROLLBACK)
 
-use crate::{BeginTransactionExecutor, CommitExecutor, RollbackExecutor, InsertExecutor};
-use storage::Database;
-use catalog::TableSchema;
-use types::{DataType, SqlValue};
+use crate::{BeginTransactionExecutor, CommitExecutor, InsertExecutor, RollbackExecutor};
 use ast::{BeginStmt, CommitStmt, InsertStmt, RollbackStmt};
+use catalog::TableSchema;
+use storage::Database;
+use types::{DataType, SqlValue};
 
 fn setup_test_table(db: &mut Database) {
     // CREATE TABLE users (id INTEGER NOT NULL, name VARCHAR(50))
@@ -12,7 +12,11 @@ fn setup_test_table(db: &mut Database) {
         "users".to_string(),
         vec![
             catalog::ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            catalog::ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, true),
+            catalog::ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                true,
+            ),
         ],
     );
     db.create_table(schema).unwrap();

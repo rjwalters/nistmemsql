@@ -67,9 +67,8 @@ fn test_parse_create_table_various_types() {
 
 #[test]
 fn test_parse_create_table_integer_types() {
-    let result = Parser::parse_sql(
-        "CREATE TABLE numbers (small SMALLINT, medium INTEGER, big BIGINT);"
-    );
+    let result =
+        Parser::parse_sql("CREATE TABLE numbers (small SMALLINT, medium INTEGER, big BIGINT);");
     assert!(result.is_ok(), "Should parse integer types");
     let stmt = result.unwrap();
 
@@ -98,9 +97,7 @@ fn test_parse_create_table_integer_types() {
 
 #[test]
 fn test_parse_create_table_float_types() {
-    let result = Parser::parse_sql(
-        "CREATE TABLE floats (a FLOAT, b REAL, c DOUBLE PRECISION);"
-    );
+    let result = Parser::parse_sql("CREATE TABLE floats (a FLOAT, b REAL, c DOUBLE PRECISION);");
     assert!(result.is_ok(), "Should parse floating point types");
     let stmt = result.unwrap();
 
@@ -146,9 +143,8 @@ fn test_parse_create_table_double_without_precision() {
 
 #[test]
 fn test_parse_create_table_numeric_with_precision_and_scale() {
-    let result = Parser::parse_sql(
-        "CREATE TABLE prices (amount NUMERIC(10, 2), total DECIMAL(15, 4));"
-    );
+    let result =
+        Parser::parse_sql("CREATE TABLE prices (amount NUMERIC(10, 2), total DECIMAL(15, 4));");
     assert!(result.is_ok(), "Should parse NUMERIC with precision and scale");
     let stmt = result.unwrap();
 
@@ -198,12 +194,16 @@ fn test_parse_create_table_numeric_without_parameters() {
             // Should default to (38, 0) per SQL standard
             match create.columns[0].data_type {
                 types::DataType::Numeric { precision: 38, scale: 0 } => {} // Success
-                _ => panic!("Expected NUMERIC(38, 0) default, got {:?}", create.columns[0].data_type),
+                _ => {
+                    panic!("Expected NUMERIC(38, 0) default, got {:?}", create.columns[0].data_type)
+                }
             }
 
             match create.columns[1].data_type {
                 types::DataType::Numeric { precision: 38, scale: 0 } => {} // Success
-                _ => panic!("Expected NUMERIC(38, 0) default, got {:?}", create.columns[1].data_type),
+                _ => {
+                    panic!("Expected NUMERIC(38, 0) default, got {:?}", create.columns[1].data_type)
+                }
             }
         }
         _ => panic!("Expected CREATE TABLE statement"),
@@ -220,7 +220,9 @@ fn test_parse_create_table_time_without_timezone() {
         ast::Statement::CreateTable(create) => {
             match create.columns[0].data_type {
                 types::DataType::Time { with_timezone: false } => {} // Success
-                _ => panic!("Expected TIME without timezone, got {:?}", create.columns[0].data_type),
+                _ => {
+                    panic!("Expected TIME without timezone, got {:?}", create.columns[0].data_type)
+                }
             }
         }
         _ => panic!("Expected CREATE TABLE statement"),
@@ -254,7 +256,9 @@ fn test_parse_create_table_time_without_timezone_explicit() {
         ast::Statement::CreateTable(create) => {
             match create.columns[0].data_type {
                 types::DataType::Time { with_timezone: false } => {} // Success
-                _ => panic!("Expected TIME WITHOUT TIME ZONE, got {:?}", create.columns[0].data_type),
+                _ => {
+                    panic!("Expected TIME WITHOUT TIME ZONE, got {:?}", create.columns[0].data_type)
+                }
             }
         }
         _ => panic!("Expected CREATE TABLE statement"),
@@ -268,7 +272,7 @@ fn test_parse_create_table_timestamp_types() {
             created TIMESTAMP,
             modified TIMESTAMP WITH TIME ZONE,
             deleted TIMESTAMP WITHOUT TIME ZONE
-        );"
+        );",
     );
     assert!(result.is_ok(), "Should parse all TIMESTAMP variants");
     let stmt = result.unwrap();
@@ -279,17 +283,26 @@ fn test_parse_create_table_timestamp_types() {
 
             match create.columns[0].data_type {
                 types::DataType::Timestamp { with_timezone: false } => {} // Default
-                _ => panic!("Expected TIMESTAMP without timezone, got {:?}", create.columns[0].data_type),
+                _ => panic!(
+                    "Expected TIMESTAMP without timezone, got {:?}",
+                    create.columns[0].data_type
+                ),
             }
 
             match create.columns[1].data_type {
                 types::DataType::Timestamp { with_timezone: true } => {} // Success
-                _ => panic!("Expected TIMESTAMP WITH TIME ZONE, got {:?}", create.columns[1].data_type),
+                _ => panic!(
+                    "Expected TIMESTAMP WITH TIME ZONE, got {:?}",
+                    create.columns[1].data_type
+                ),
             }
 
             match create.columns[2].data_type {
                 types::DataType::Timestamp { with_timezone: false } => {} // Success
-                _ => panic!("Expected TIMESTAMP WITHOUT TIME ZONE, got {:?}", create.columns[2].data_type),
+                _ => panic!(
+                    "Expected TIMESTAMP WITHOUT TIME ZONE, got {:?}",
+                    create.columns[2].data_type
+                ),
             }
         }
         _ => panic!("Expected CREATE TABLE statement"),
@@ -306,7 +319,7 @@ fn test_parse_create_table_interval_single_field() {
             hours INTERVAL HOUR,
             minutes INTERVAL MINUTE,
             seconds INTERVAL SECOND
-        );"
+        );",
     );
     assert!(result.is_ok(), "Should parse single-field intervals");
     let stmt = result.unwrap();
@@ -374,15 +387,13 @@ fn test_parse_create_table_interval_year_to_month() {
     let stmt = result.unwrap();
 
     match stmt {
-        ast::Statement::CreateTable(create) => {
-            match &create.columns[0].data_type {
-                types::DataType::Interval { start_field, end_field } => {
-                    assert!(matches!(start_field, types::IntervalField::Year));
-                    assert!(matches!(end_field, Some(types::IntervalField::Month)));
-                }
-                _ => panic!("Expected INTERVAL YEAR TO MONTH, got {:?}", create.columns[0].data_type),
+        ast::Statement::CreateTable(create) => match &create.columns[0].data_type {
+            types::DataType::Interval { start_field, end_field } => {
+                assert!(matches!(start_field, types::IntervalField::Year));
+                assert!(matches!(end_field, Some(types::IntervalField::Month)));
             }
-        }
+            _ => panic!("Expected INTERVAL YEAR TO MONTH, got {:?}", create.columns[0].data_type),
+        },
         _ => panic!("Expected CREATE TABLE statement"),
     }
 }
@@ -394,15 +405,13 @@ fn test_parse_create_table_interval_day_to_second() {
     let stmt = result.unwrap();
 
     match stmt {
-        ast::Statement::CreateTable(create) => {
-            match &create.columns[0].data_type {
-                types::DataType::Interval { start_field, end_field } => {
-                    assert!(matches!(start_field, types::IntervalField::Day));
-                    assert!(matches!(end_field, Some(types::IntervalField::Second)));
-                }
-                _ => panic!("Expected INTERVAL DAY TO SECOND, got {:?}", create.columns[0].data_type),
+        ast::Statement::CreateTable(create) => match &create.columns[0].data_type {
+            types::DataType::Interval { start_field, end_field } => {
+                assert!(matches!(start_field, types::IntervalField::Day));
+                assert!(matches!(end_field, Some(types::IntervalField::Second)));
             }
-        }
+            _ => panic!("Expected INTERVAL DAY TO SECOND, got {:?}", create.columns[0].data_type),
+        },
         _ => panic!("Expected CREATE TABLE statement"),
     }
 }
@@ -425,7 +434,7 @@ fn test_parse_create_table_all_phase2_types() {
             meeting TIME WITH TIME ZONE,
             created TIMESTAMP,
             age INTERVAL YEAR TO MONTH
-        );"
+        );",
     );
     assert!(result.is_ok(), "Should parse all Phase 2 types together");
     let stmt = result.unwrap();
@@ -445,7 +454,8 @@ fn test_parse_create_table_all_phase2_types() {
 
 #[test]
 fn test_parse_create_table_with_primary_key() {
-    let result = Parser::parse_sql("CREATE TABLE users (id INTEGER PRIMARY KEY, name VARCHAR(100));");
+    let result =
+        Parser::parse_sql("CREATE TABLE users (id INTEGER PRIMARY KEY, name VARCHAR(100));");
     assert!(result.is_ok(), "Should parse column-level PRIMARY KEY");
     let stmt = result.unwrap();
 
@@ -484,7 +494,8 @@ fn test_parse_create_table_with_unique() {
 
 #[test]
 fn test_parse_create_table_with_check_constraint() {
-    let result = Parser::parse_sql("CREATE TABLE products (price NUMERIC(10, 2) CHECK (price > 0));");
+    let result =
+        Parser::parse_sql("CREATE TABLE products (price NUMERIC(10, 2) CHECK (price > 0));");
     assert!(result.is_ok(), "Should parse CHECK constraint");
     let stmt = result.unwrap();
 
@@ -502,7 +513,8 @@ fn test_parse_create_table_with_check_constraint() {
 
 #[test]
 fn test_parse_create_table_with_references() {
-    let result = Parser::parse_sql("CREATE TABLE orders (customer_id INTEGER REFERENCES customers(id));");
+    let result =
+        Parser::parse_sql("CREATE TABLE orders (customer_id INTEGER REFERENCES customers(id));");
     assert!(result.is_ok(), "Should parse REFERENCES constraint");
     let stmt = result.unwrap();
 
@@ -510,7 +522,10 @@ fn test_parse_create_table_with_references() {
         ast::Statement::CreateTable(create) => {
             assert_eq!(create.columns[0].constraints.len(), 1);
             match &create.columns[0].constraints[0] {
-                ast::ColumnConstraint { kind: ast::ColumnConstraintKind::References { table, column }, .. } => {
+                ast::ColumnConstraint {
+                    kind: ast::ColumnConstraintKind::References { table, column },
+                    ..
+                } => {
                     assert_eq!(table, "customers");
                     assert_eq!(column, "id");
                 }
@@ -529,7 +544,7 @@ fn test_parse_create_table_with_table_level_primary_key() {
             product_id INTEGER,
             quantity INTEGER,
             PRIMARY KEY (order_id, product_id)
-        );"
+        );",
     );
     assert!(result.is_ok(), "Should parse table-level PRIMARY KEY");
     let stmt = result.unwrap();
@@ -538,7 +553,10 @@ fn test_parse_create_table_with_table_level_primary_key() {
         ast::Statement::CreateTable(create) => {
             assert_eq!(create.table_constraints.len(), 1);
             match &create.table_constraints[0] {
-                ast::TableConstraint { kind: ast::TableConstraintKind::PrimaryKey { columns }, .. } => {
+                ast::TableConstraint {
+                    kind: ast::TableConstraintKind::PrimaryKey { columns },
+                    ..
+                } => {
                     assert_eq!(columns.len(), 2);
                     assert_eq!(columns[0], "order_id");
                     assert_eq!(columns[1], "product_id");
@@ -557,7 +575,7 @@ fn test_parse_create_table_with_foreign_key() {
             id INTEGER PRIMARY KEY,
             customer_id INTEGER,
             FOREIGN KEY (customer_id) REFERENCES customers(id)
-        );"
+        );",
     );
     assert!(result.is_ok(), "Should parse FOREIGN KEY constraint");
     let stmt = result.unwrap();
@@ -566,11 +584,15 @@ fn test_parse_create_table_with_foreign_key() {
         ast::Statement::CreateTable(create) => {
             assert_eq!(create.table_constraints.len(), 1);
             match &create.table_constraints[0] {
-                ast::TableConstraint { kind: ast::TableConstraintKind::ForeignKey {
-                    columns,
-                    references_table,
-                    references_columns,
-                }, .. } => {
+                ast::TableConstraint {
+                    kind:
+                        ast::TableConstraintKind::ForeignKey {
+                            columns,
+                            references_table,
+                            references_columns,
+                        },
+                    ..
+                } => {
                     assert_eq!(columns.len(), 1);
                     assert_eq!(columns[0], "customer_id");
                     assert_eq!(references_table, "customers");
@@ -592,7 +614,7 @@ fn test_parse_create_table_with_table_level_unique() {
             email VARCHAR(100),
             username VARCHAR(50),
             UNIQUE (email, username)
-        );"
+        );",
     );
     assert!(result.is_ok(), "Should parse table-level UNIQUE constraint");
     let stmt = result.unwrap();
@@ -601,7 +623,9 @@ fn test_parse_create_table_with_table_level_unique() {
         ast::Statement::CreateTable(create) => {
             assert_eq!(create.table_constraints.len(), 1);
             match &create.table_constraints[0] {
-                ast::TableConstraint { kind: ast::TableConstraintKind::Unique { columns }, .. } => {
+                ast::TableConstraint {
+                    kind: ast::TableConstraintKind::Unique { columns }, ..
+                } => {
                     assert_eq!(columns.len(), 2);
                     assert_eq!(columns[0], "email");
                     assert_eq!(columns[1], "username");
@@ -620,7 +644,7 @@ fn test_parse_create_table_with_table_level_check() {
             price NUMERIC(10, 2),
             discount NUMERIC(10, 2),
             CHECK (discount < price)
-        );"
+        );",
     );
     assert!(result.is_ok(), "Should parse table-level CHECK constraint");
     let stmt = result.unwrap();
@@ -644,7 +668,7 @@ fn test_parse_northwind_categories_table() {
             CategoryID INTEGER PRIMARY KEY,
             CategoryName VARCHAR(15),
             Description VARCHAR(255)
-        );"
+        );",
     );
     assert!(result.is_ok(), "Should parse northwind Categories table");
     let stmt = result.unwrap();
@@ -672,7 +696,7 @@ fn test_parse_create_table_with_multiple_constraints() {
             email VARCHAR(100) UNIQUE,
             salary NUMERIC(10, 2) CHECK (salary > 0),
             department_id INTEGER REFERENCES departments(id)
-        );"
+        );",
     );
     assert!(result.is_ok(), "Should parse multiple column constraints");
     let stmt = result.unwrap();
@@ -722,7 +746,7 @@ fn test_parse_northwind_products_table() {
             category_id INTEGER,
             unit_price DECIMAL(10, 2),
             FOREIGN KEY (category_id) REFERENCES categories(category_id)
-        );"
+        );",
     );
     assert!(result.is_ok(), "Should parse northwind products table with FOREIGN KEY");
     let stmt = result.unwrap();
@@ -747,11 +771,15 @@ fn test_parse_northwind_products_table() {
             // Table has FOREIGN KEY constraint
             assert_eq!(create.table_constraints.len(), 1);
             match &create.table_constraints[0] {
-                ast::TableConstraint { kind: ast::TableConstraintKind::ForeignKey {
-                    columns,
-                    references_table,
-                    references_columns,
-                }, .. } => {
+                ast::TableConstraint {
+                    kind:
+                        ast::TableConstraintKind::ForeignKey {
+                            columns,
+                            references_table,
+                            references_columns,
+                        },
+                    ..
+                } => {
                     assert_eq!(columns.len(), 1);
                     assert_eq!(columns[0], "category_id");
                     assert_eq!(references_table, "categories");

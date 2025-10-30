@@ -13,7 +13,7 @@ use storage::Database;
 #[derive(Debug, Deserialize, Clone)]
 struct YamlTest {
     id: String,
-    #[allow(dead_code)]  // Present in YAML but not used in our code
+    #[allow(dead_code)] // Present in YAML but not used in our code
     feature: String,
     #[serde(default)]
     sql: SqlField,
@@ -57,8 +57,8 @@ struct TestResults {
     failed: usize,
     errors: usize,
     total: usize,
-    failed_tests: Vec<(String, String)>,  // (test_id, sql)
-    error_tests: Vec<(String, String, String)>,  // (test_id, sql, error_msg)
+    failed_tests: Vec<(String, String)>,        // (test_id, sql)
+    error_tests: Vec<(String, String, String)>, // (test_id, sql, error_msg)
 }
 
 impl TestResults {
@@ -134,7 +134,10 @@ impl SqltestRunner {
         let mut results = TestResults::default();
         let mut db = Database::new();
 
-        println!("\n🧪 Running {} SQL:1999 conformance tests from upstream YAML files...\n", self.tests.len());
+        println!(
+            "\n🧪 Running {} SQL:1999 conformance tests from upstream YAML files...\n",
+            self.tests.len()
+        );
 
         for test_case in &self.tests {
             match self.run_test(&mut db, test_case) {
@@ -181,9 +184,7 @@ impl SqltestRunner {
         match stmt {
             ast::Statement::Select(select_stmt) => {
                 let executor = SelectExecutor::new(db);
-                executor
-                    .execute(&select_stmt)
-                    .map_err(|e| format!("Execution error: {:?}", e))?;
+                executor.execute(&select_stmt).map_err(|e| format!("Execution error: {:?}", e))?;
                 Ok(true)
             }
             ast::Statement::CreateTable(create_stmt) => {
@@ -250,8 +251,8 @@ impl SqltestRunner {
 
 #[test]
 fn run_sql1999_conformance_suite() {
-    let runner = SqltestRunner::load()
-        .expect("Failed to load YAML test files from third_party/sqltest");
+    let runner =
+        SqltestRunner::load().expect("Failed to load YAML test files from third_party/sqltest");
 
     let results = runner.run_all();
 
@@ -288,10 +289,8 @@ fn run_sql1999_conformance_suite() {
         }).collect::<Vec<_>>(),
     });
 
-    fs::write(
-        "target/sqltest_results.json",
-        serde_json::to_string_pretty(&results_json).unwrap()
-    ).ok();
+    fs::write("target/sqltest_results.json", serde_json::to_string_pretty(&results_json).unwrap())
+        .ok();
 
     // Assert we have some passing tests (not expecting 100% initially)
     assert!(results.passed > 0, "No tests passed! Pass rate: {:.1}%", results.pass_rate());

@@ -26,9 +26,7 @@ pub fn year(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             }
             match parts[0].parse::<i64>() {
                 Ok(year) => Ok(SqlValue::Integer(year)),
-                Err(_) => Err(ExecutorError::UnsupportedFeature(
-                    "Invalid year value".to_string(),
-                )),
+                Err(_) => Err(ExecutorError::UnsupportedFeature("Invalid year value".to_string())),
             }
         }
         _ => Err(ExecutorError::UnsupportedFeature(
@@ -59,9 +57,7 @@ pub fn month(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             }
             match parts[1].parse::<i64>() {
                 Ok(month) => Ok(SqlValue::Integer(month)),
-                Err(_) => Err(ExecutorError::UnsupportedFeature(
-                    "Invalid month value".to_string(),
-                )),
+                Err(_) => Err(ExecutorError::UnsupportedFeature("Invalid month value".to_string())),
             }
         }
         _ => Err(ExecutorError::UnsupportedFeature(
@@ -92,9 +88,7 @@ pub fn day(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             }
             match parts[2].parse::<i64>() {
                 Ok(day) => Ok(SqlValue::Integer(day)),
-                Err(_) => Err(ExecutorError::UnsupportedFeature(
-                    "Invalid day value".to_string(),
-                )),
+                Err(_) => Err(ExecutorError::UnsupportedFeature("Invalid day value".to_string())),
             }
         }
         _ => Err(ExecutorError::UnsupportedFeature(
@@ -124,9 +118,7 @@ pub fn hour(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             }
             match parts[0].parse::<i64>() {
                 Ok(hour) => Ok(SqlValue::Integer(hour)),
-                Err(_) => Err(ExecutorError::UnsupportedFeature(
-                    "Invalid hour value".to_string(),
-                )),
+                Err(_) => Err(ExecutorError::UnsupportedFeature("Invalid hour value".to_string())),
             }
         }
         SqlValue::Timestamp(s) => {
@@ -140,9 +132,7 @@ pub fn hour(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             }
             match parts[0].parse::<i64>() {
                 Ok(hour) => Ok(SqlValue::Integer(hour)),
-                Err(_) => Err(ExecutorError::UnsupportedFeature(
-                    "Invalid hour value".to_string(),
-                )),
+                Err(_) => Err(ExecutorError::UnsupportedFeature("Invalid hour value".to_string())),
             }
         }
         _ => Err(ExecutorError::UnsupportedFeature(
@@ -172,9 +162,9 @@ pub fn minute(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             }
             match parts[1].parse::<i64>() {
                 Ok(minute) => Ok(SqlValue::Integer(minute)),
-                Err(_) => Err(ExecutorError::UnsupportedFeature(
-                    "Invalid minute value".to_string(),
-                )),
+                Err(_) => {
+                    Err(ExecutorError::UnsupportedFeature("Invalid minute value".to_string()))
+                }
             }
         }
         SqlValue::Timestamp(s) => {
@@ -188,9 +178,9 @@ pub fn minute(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             }
             match parts[1].parse::<i64>() {
                 Ok(minute) => Ok(SqlValue::Integer(minute)),
-                Err(_) => Err(ExecutorError::UnsupportedFeature(
-                    "Invalid minute value".to_string(),
-                )),
+                Err(_) => {
+                    Err(ExecutorError::UnsupportedFeature("Invalid minute value".to_string()))
+                }
             }
         }
         _ => Err(ExecutorError::UnsupportedFeature(
@@ -220,9 +210,9 @@ pub fn second(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             }
             match parts[2].parse::<i64>() {
                 Ok(second) => Ok(SqlValue::Integer(second)),
-                Err(_) => Err(ExecutorError::UnsupportedFeature(
-                    "Invalid second value".to_string(),
-                )),
+                Err(_) => {
+                    Err(ExecutorError::UnsupportedFeature("Invalid second value".to_string()))
+                }
             }
         }
         SqlValue::Timestamp(s) => {
@@ -236,9 +226,9 @@ pub fn second(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             }
             match parts[2].parse::<i64>() {
                 Ok(second) => Ok(SqlValue::Integer(second)),
-                Err(_) => Err(ExecutorError::UnsupportedFeature(
-                    "Invalid second value".to_string(),
-                )),
+                Err(_) => {
+                    Err(ExecutorError::UnsupportedFeature("Invalid second value".to_string()))
+                }
             }
         }
         _ => Err(ExecutorError::UnsupportedFeature(

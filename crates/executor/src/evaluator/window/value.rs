@@ -6,7 +6,7 @@ use ast::Expression;
 use types::SqlValue;
 
 use super::partitioning::Partition;
-use super::utils::{evaluate_expression, evaluate_default_value};
+use super::utils::{evaluate_default_value, evaluate_expression};
 
 /// Evaluate LAG() value window function
 ///

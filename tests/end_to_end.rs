@@ -25,7 +25,11 @@ fn create_users_schema() -> TableSchema {
         "users".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
             ColumnSchema::new("age".to_string(), DataType::Integer, false),
         ],
     )
@@ -138,7 +142,11 @@ fn test_e2e_distinct() {
     let schema = TableSchema::new(
         "people".to_string(),
         vec![
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
             ColumnSchema::new("age".to_string(), DataType::Integer, false),
         ],
     );
@@ -174,7 +182,11 @@ fn test_e2e_group_by_count() {
     let schema = TableSchema::new(
         "sales".to_string(),
         vec![
-            ColumnSchema::new("product".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new(
+                "product".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
             ColumnSchema::new("quantity".to_string(), DataType::Integer, false),
         ],
     );
@@ -487,21 +499,9 @@ fn test_e2e_numeric_comparison() {
     let mut db = Database::new();
     db.create_table(schema).unwrap();
 
-    db.insert_row(
-        "numbers",
-        Row::new(vec![SqlValue::Integer(1), SqlValue::Smallint(10)]),
-    )
-    .unwrap();
-    db.insert_row(
-        "numbers",
-        Row::new(vec![SqlValue::Integer(2), SqlValue::Smallint(20)]),
-    )
-    .unwrap();
-    db.insert_row(
-        "numbers",
-        Row::new(vec![SqlValue::Integer(3), SqlValue::Smallint(30)]),
-    )
-    .unwrap();
+    db.insert_row("numbers", Row::new(vec![SqlValue::Integer(1), SqlValue::Smallint(10)])).unwrap();
+    db.insert_row("numbers", Row::new(vec![SqlValue::Integer(2), SqlValue::Smallint(20)])).unwrap();
+    db.insert_row("numbers", Row::new(vec![SqlValue::Integer(3), SqlValue::Smallint(30)])).unwrap();
 
     // Test comparison with new types
     let results =
@@ -523,11 +523,7 @@ fn test_e2e_char_type() {
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
             ColumnSchema::new("code".to_string(), DataType::Character { length: 5 }, false),
-            ColumnSchema::new(
-                "name".to_string(),
-                DataType::Character { length: 10 },
-                false,
-            ),
+            ColumnSchema::new("name".to_string(), DataType::Character { length: 10 }, false),
         ],
     );
 
@@ -539,7 +535,7 @@ fn test_e2e_char_type() {
         "codes",
         Row::new(vec![
             SqlValue::Integer(1),
-            SqlValue::Character("ABC".to_string()),   // Will be padded to "ABC  " (5 chars)
+            SqlValue::Character("ABC".to_string()), // Will be padded to "ABC  " (5 chars)
             SqlValue::Character("Hello".to_string()), // Will be padded to "Hello     " (10 chars)
         ]),
     )
@@ -601,7 +597,11 @@ fn test_e2e_like_pattern_matching() {
         "products".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
         ],
     );
 
@@ -642,25 +642,29 @@ fn test_e2e_like_pattern_matching() {
     assert_eq!(results[0].values[0], SqlValue::Integer(2));
 
     // Test LIKE with 'contains' pattern (%Gadget%)
-    let results = execute_select(&db, "SELECT id FROM products WHERE name LIKE '%Gadget%'").unwrap();
+    let results =
+        execute_select(&db, "SELECT id FROM products WHERE name LIKE '%Gadget%'").unwrap();
     assert_eq!(results.len(), 2, "Should match '%Gadget%'");
     assert_eq!(results[0].values[0], SqlValue::Integer(2));
     assert_eq!(results[1].values[0], SqlValue::Integer(4));
 
     // Test NOT LIKE
-    let results = execute_select(&db, "SELECT id FROM products WHERE name NOT LIKE '%Gadget%'").unwrap();
+    let results =
+        execute_select(&db, "SELECT id FROM products WHERE name NOT LIKE '%Gadget%'").unwrap();
     assert_eq!(results.len(), 2, "Should NOT match '%Gadget%'");
     assert_eq!(results[0].values[0], SqlValue::Integer(1));
     assert_eq!(results[1].values[0], SqlValue::Integer(3));
 
     // Test LIKE with underscore wildcard (Widget ____)
     // 'Widget ____' = 11 chars, matches "Widget Mini" (11 chars) but not "Widget Pro" (10 chars)
-    let results = execute_select(&db, "SELECT id FROM products WHERE name LIKE 'Widget ____'").unwrap();
+    let results =
+        execute_select(&db, "SELECT id FROM products WHERE name LIKE 'Widget ____'").unwrap();
     assert_eq!(results.len(), 1, "Should match 'Widget ____' (only Mini)");
     assert_eq!(results[0].values[0], SqlValue::Integer(3));
 
     // Test exact match
-    let results = execute_select(&db, "SELECT id FROM products WHERE name LIKE 'Widget Pro'").unwrap();
+    let results =
+        execute_select(&db, "SELECT id FROM products WHERE name LIKE 'Widget Pro'").unwrap();
     assert_eq!(results.len(), 1, "Should match exact 'Widget Pro'");
     assert_eq!(results[0].values[0], SqlValue::Integer(1));
 }
@@ -676,8 +680,16 @@ fn test_e2e_in_list_predicate() {
         "products".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
-            ColumnSchema::new("category".to_string(), DataType::Varchar { max_length: Some(20) }, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
+            ColumnSchema::new(
+                "category".to_string(),
+                DataType::Varchar { max_length: Some(20) },
+                false,
+            ),
             ColumnSchema::new("price".to_string(), DataType::Integer, false),
         ],
     );
@@ -745,7 +757,8 @@ fn test_e2e_in_list_predicate() {
     assert_eq!(results[2].values[0], SqlValue::Varchar("Hammer".to_string()));
 
     // Test 2: IN with string list
-    let results = execute_select(&db, "SELECT name FROM products WHERE category IN ('hardware')").unwrap();
+    let results =
+        execute_select(&db, "SELECT name FROM products WHERE category IN ('hardware')").unwrap();
     assert_eq!(results.len(), 2);
     assert_eq!(results[0].values[0], SqlValue::Varchar("Tool".to_string()));
     assert_eq!(results[1].values[0], SqlValue::Varchar("Hammer".to_string()));
@@ -763,13 +776,18 @@ fn test_e2e_in_list_predicate() {
     assert_eq!(results[0].values[0], SqlValue::Varchar("Gadget".to_string()));
 
     // Test 5: IN with expressions
-    let results = execute_select(&db, "SELECT name FROM products WHERE price IN (50, 100 + 100)").unwrap();
+    let results =
+        execute_select(&db, "SELECT name FROM products WHERE price IN (50, 100 + 100)").unwrap();
     assert_eq!(results.len(), 2);
     assert_eq!(results[0].values[0], SqlValue::Varchar("Gadget".to_string()));
     assert_eq!(results[1].values[0], SqlValue::Varchar("Tool".to_string()));
 
     // Test 6: IN combined with AND
-    let results = execute_select(&db, "SELECT name FROM products WHERE category IN ('electronics') AND price > 150").unwrap();
+    let results = execute_select(
+        &db,
+        "SELECT name FROM products WHERE category IN ('electronics') AND price > 150",
+    )
+    .unwrap();
     assert_eq!(results.len(), 2);
     assert_eq!(results[0].values[0], SqlValue::Varchar("Gadget".to_string()));
     assert_eq!(results[1].values[0], SqlValue::Varchar("Device".to_string()));
@@ -790,7 +808,11 @@ fn test_e2e_exists_predicate() {
         "customers".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
         ],
     );
 
@@ -842,11 +864,9 @@ fn test_e2e_exists_predicate() {
     .unwrap();
 
     // Test 1: Simple EXISTS - check if there are any orders
-    let results = execute_select(
-        &db,
-        "SELECT name FROM customers WHERE EXISTS (SELECT 1 FROM orders)",
-    )
-    .unwrap();
+    let results =
+        execute_select(&db, "SELECT name FROM customers WHERE EXISTS (SELECT 1 FROM orders)")
+            .unwrap();
     assert_eq!(results.len(), 3, "All customers should be returned when orders exist");
 
     // Test 2: NOT EXISTS with empty table - all customers should match
@@ -912,8 +932,16 @@ fn test_e2e_coalesce_and_nullif() {
         "users".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
-            ColumnSchema::new("nickname".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
+            ColumnSchema::new(
+                "nickname".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
             ColumnSchema::new("balance".to_string(), DataType::Integer, false),
         ],
     );
@@ -954,55 +982,79 @@ fn test_e2e_coalesce_and_nullif() {
     .unwrap();
 
     // Test 1: COALESCE with non-NULL value
-    let results = execute_select(&db, "SELECT COALESCE(nickname, 'Unknown') FROM users WHERE id = 1").unwrap();
+    let results =
+        execute_select(&db, "SELECT COALESCE(nickname, 'Unknown') FROM users WHERE id = 1")
+            .unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Varchar("Ally".to_string()));
 
     // Test 2: COALESCE with NULL value - returns second argument
-    let results = execute_select(&db, "SELECT COALESCE(nickname, 'Unknown') FROM users WHERE id = 2").unwrap();
+    let results =
+        execute_select(&db, "SELECT COALESCE(nickname, 'Unknown') FROM users WHERE id = 2")
+            .unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Varchar("Unknown".to_string()));
 
     // Test 3: COALESCE with multiple arguments
-    let results = execute_select(&db, "SELECT COALESCE(nickname, name, 'Default') FROM users WHERE id = 2").unwrap();
+    let results =
+        execute_select(&db, "SELECT COALESCE(nickname, name, 'Default') FROM users WHERE id = 2")
+            .unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(results[0].values[0], SqlValue::Varchar("Bob".to_string()), "Should return name when nickname is NULL");
+    assert_eq!(
+        results[0].values[0],
+        SqlValue::Varchar("Bob".to_string()),
+        "Should return name when nickname is NULL"
+    );
 
     // Test 4: COALESCE all NULL - returns NULL
-    let results = execute_select(&db, "SELECT COALESCE(NULL, NULL, NULL) FROM users WHERE id = 1").unwrap();
+    let results =
+        execute_select(&db, "SELECT COALESCE(NULL, NULL, NULL) FROM users WHERE id = 1").unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Null);
 
     // Test 5: NULLIF when values are equal - returns NULL
     let results = execute_select(&db, "SELECT NULLIF(balance, 0) FROM users WHERE id = 2").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(results[0].values[0], SqlValue::Null, "NULLIF should return NULL when values are equal");
+    assert_eq!(
+        results[0].values[0],
+        SqlValue::Null,
+        "NULLIF should return NULL when values are equal"
+    );
 
     // Test 6: NULLIF when values are not equal - returns first value
     let results = execute_select(&db, "SELECT NULLIF(balance, 0) FROM users WHERE id = 1").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(results[0].values[0], SqlValue::Integer(100), "NULLIF should return first value when not equal");
+    assert_eq!(
+        results[0].values[0],
+        SqlValue::Integer(100),
+        "NULLIF should return first value when not equal"
+    );
 
     // Test 7: NULLIF with NULL input
-    let results = execute_select(&db, "SELECT NULLIF(nickname, 'test') FROM users WHERE id = 2").unwrap();
+    let results =
+        execute_select(&db, "SELECT NULLIF(nickname, 'test') FROM users WHERE id = 2").unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Null, "NULLIF with NULL first arg returns NULL");
 
     // Test 8: Combined COALESCE and NULLIF
     // Use NULLIF to convert 0 balance to NULL, then COALESCE to provide default
-    let results = execute_select(&db, "SELECT COALESCE(NULLIF(balance, 0), 999) FROM users").unwrap();
+    let results =
+        execute_select(&db, "SELECT COALESCE(NULLIF(balance, 0), 999) FROM users").unwrap();
     assert_eq!(results.len(), 3);
     assert_eq!(results[0].values[0], SqlValue::Integer(100)); // Alice: 100 != 0
     assert_eq!(results[1].values[0], SqlValue::Integer(999)); // Bob: 0 becomes NULL, COALESCE to 999
     assert_eq!(results[2].values[0], SqlValue::Integer(200)); // Charlie: 200 != 0
 
     // Test 9: COALESCE in WHERE clause
-    let results = execute_select(&db, "SELECT name FROM users WHERE COALESCE(nickname, name) = 'Bob'").unwrap();
+    let results =
+        execute_select(&db, "SELECT name FROM users WHERE COALESCE(nickname, name) = 'Bob'")
+            .unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Varchar("Bob".to_string()));
 
     // Test 10: NULLIF with string comparison
-    let results = execute_select(&db, "SELECT NULLIF(name, 'Alice') FROM users WHERE id = 1").unwrap();
+    let results =
+        execute_select(&db, "SELECT NULLIF(name, 'Alice') FROM users WHERE id = 1").unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Null, "NULLIF('Alice', 'Alice') should return NULL");
 }
@@ -1016,7 +1068,11 @@ fn test_e2e_quantified_comparisons() {
         "employees".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
             ColumnSchema::new("salary".to_string(), DataType::Integer, false),
             ColumnSchema::new("dept_id".to_string(), DataType::Integer, false),
         ],
@@ -1026,11 +1082,56 @@ fn test_e2e_quantified_comparisons() {
     // Insert test data
     // Department 1: salaries 50000, 60000, 70000
     // Department 2: salaries 80000, 90000
-    db.insert_row("employees", Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string()), SqlValue::Integer(50000), SqlValue::Integer(1)])).unwrap();
-    db.insert_row("employees", Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string()), SqlValue::Integer(60000), SqlValue::Integer(1)])).unwrap();
-    db.insert_row("employees", Row::new(vec![SqlValue::Integer(3), SqlValue::Varchar("Charlie".to_string()), SqlValue::Integer(70000), SqlValue::Integer(1)])).unwrap();
-    db.insert_row("employees", Row::new(vec![SqlValue::Integer(4), SqlValue::Varchar("David".to_string()), SqlValue::Integer(80000), SqlValue::Integer(2)])).unwrap();
-    db.insert_row("employees", Row::new(vec![SqlValue::Integer(5), SqlValue::Varchar("Eve".to_string()), SqlValue::Integer(90000), SqlValue::Integer(2)])).unwrap();
+    db.insert_row(
+        "employees",
+        Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Alice".to_string()),
+            SqlValue::Integer(50000),
+            SqlValue::Integer(1),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "employees",
+        Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Bob".to_string()),
+            SqlValue::Integer(60000),
+            SqlValue::Integer(1),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "employees",
+        Row::new(vec![
+            SqlValue::Integer(3),
+            SqlValue::Varchar("Charlie".to_string()),
+            SqlValue::Integer(70000),
+            SqlValue::Integer(1),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "employees",
+        Row::new(vec![
+            SqlValue::Integer(4),
+            SqlValue::Varchar("David".to_string()),
+            SqlValue::Integer(80000),
+            SqlValue::Integer(2),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "employees",
+        Row::new(vec![
+            SqlValue::Integer(5),
+            SqlValue::Varchar("Eve".to_string()),
+            SqlValue::Integer(90000),
+            SqlValue::Integer(2),
+        ]),
+    )
+    .unwrap();
 
     // Test 1: > ALL - salary greater than all dept 1 salaries
     // Only David (80000) and Eve (90000) have salary > ALL dept 1 salaries (50000, 60000, 70000)
@@ -1137,7 +1238,11 @@ fn test_e2e_set_operations() {
         "table_a".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
         ],
     );
     db.create_table(table_a_schema).unwrap();
@@ -1146,29 +1251,69 @@ fn test_e2e_set_operations() {
         "table_b".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
         ],
     );
     db.create_table(table_b_schema).unwrap();
 
     // Insert data: table_a has 1, 2, 3, 4; table_b has 3, 4, 5, 6
-    db.insert_row("table_a", Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())])).unwrap();
-    db.insert_row("table_a", Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())])).unwrap();
-    db.insert_row("table_a", Row::new(vec![SqlValue::Integer(3), SqlValue::Varchar("Charlie".to_string())])).unwrap();
-    db.insert_row("table_a", Row::new(vec![SqlValue::Integer(4), SqlValue::Varchar("David".to_string())])).unwrap();
+    db.insert_row(
+        "table_a",
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
+    )
+    .unwrap();
+    db.insert_row(
+        "table_a",
+        Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())]),
+    )
+    .unwrap();
+    db.insert_row(
+        "table_a",
+        Row::new(vec![SqlValue::Integer(3), SqlValue::Varchar("Charlie".to_string())]),
+    )
+    .unwrap();
+    db.insert_row(
+        "table_a",
+        Row::new(vec![SqlValue::Integer(4), SqlValue::Varchar("David".to_string())]),
+    )
+    .unwrap();
 
-    db.insert_row("table_b", Row::new(vec![SqlValue::Integer(3), SqlValue::Varchar("Charlie".to_string())])).unwrap();
-    db.insert_row("table_b", Row::new(vec![SqlValue::Integer(4), SqlValue::Varchar("David".to_string())])).unwrap();
-    db.insert_row("table_b", Row::new(vec![SqlValue::Integer(5), SqlValue::Varchar("Eve".to_string())])).unwrap();
-    db.insert_row("table_b", Row::new(vec![SqlValue::Integer(6), SqlValue::Varchar("Frank".to_string())])).unwrap();
+    db.insert_row(
+        "table_b",
+        Row::new(vec![SqlValue::Integer(3), SqlValue::Varchar("Charlie".to_string())]),
+    )
+    .unwrap();
+    db.insert_row(
+        "table_b",
+        Row::new(vec![SqlValue::Integer(4), SqlValue::Varchar("David".to_string())]),
+    )
+    .unwrap();
+    db.insert_row(
+        "table_b",
+        Row::new(vec![SqlValue::Integer(5), SqlValue::Varchar("Eve".to_string())]),
+    )
+    .unwrap();
+    db.insert_row(
+        "table_b",
+        Row::new(vec![SqlValue::Integer(6), SqlValue::Varchar("Frank".to_string())]),
+    )
+    .unwrap();
 
     // Test 1: UNION (distinct) - should return 1,2,3,4,5,6
-    let results = execute_select(&db, "SELECT id FROM table_a UNION SELECT id FROM table_b;").unwrap();
+    let results =
+        execute_select(&db, "SELECT id FROM table_a UNION SELECT id FROM table_b;").unwrap();
     assert_eq!(results.len(), 6);
-    let ids: Vec<i64> = results.iter().map(|r| match &r.values[0] {
-        SqlValue::Integer(i) => *i,
-        _ => panic!("Expected integer"),
-    }).collect();
+    let ids: Vec<i64> = results
+        .iter()
+        .map(|r| match &r.values[0] {
+            SqlValue::Integer(i) => *i,
+            _ => panic!("Expected integer"),
+        })
+        .collect();
     assert!(ids.contains(&1));
     assert!(ids.contains(&2));
     assert!(ids.contains(&3));
@@ -1177,31 +1322,44 @@ fn test_e2e_set_operations() {
     assert!(ids.contains(&6));
 
     // Test 2: UNION ALL - should return 8 rows (4+4)
-    let results = execute_select(&db, "SELECT id FROM table_a UNION ALL SELECT id FROM table_b;").unwrap();
+    let results =
+        execute_select(&db, "SELECT id FROM table_a UNION ALL SELECT id FROM table_b;").unwrap();
     assert_eq!(results.len(), 8);
 
     // Test 3: INTERSECT (distinct) - should return only 3 and 4
-    let results = execute_select(&db, "SELECT id FROM table_a INTERSECT SELECT id FROM table_b;").unwrap();
+    let results =
+        execute_select(&db, "SELECT id FROM table_a INTERSECT SELECT id FROM table_b;").unwrap();
     assert_eq!(results.len(), 2);
-    let ids: Vec<i64> = results.iter().map(|r| match &r.values[0] {
-        SqlValue::Integer(i) => *i,
-        _ => panic!("Expected integer"),
-    }).collect();
+    let ids: Vec<i64> = results
+        .iter()
+        .map(|r| match &r.values[0] {
+            SqlValue::Integer(i) => *i,
+            _ => panic!("Expected integer"),
+        })
+        .collect();
     assert!(ids.contains(&3));
     assert!(ids.contains(&4));
 
     // Test 4: EXCEPT (distinct) - should return only 1 and 2
-    let results = execute_select(&db, "SELECT id FROM table_a EXCEPT SELECT id FROM table_b;").unwrap();
+    let results =
+        execute_select(&db, "SELECT id FROM table_a EXCEPT SELECT id FROM table_b;").unwrap();
     assert_eq!(results.len(), 2);
-    let ids: Vec<i64> = results.iter().map(|r| match &r.values[0] {
-        SqlValue::Integer(i) => *i,
-        _ => panic!("Expected integer"),
-    }).collect();
+    let ids: Vec<i64> = results
+        .iter()
+        .map(|r| match &r.values[0] {
+            SqlValue::Integer(i) => *i,
+            _ => panic!("Expected integer"),
+        })
+        .collect();
     assert!(ids.contains(&1));
     assert!(ids.contains(&2));
 
     // Test 5: Multiple UNION operations
-    db.insert_row("table_a", Row::new(vec![SqlValue::Integer(7), SqlValue::Varchar("Grace".to_string())])).unwrap();
+    db.insert_row(
+        "table_a",
+        Row::new(vec![SqlValue::Integer(7), SqlValue::Varchar("Grace".to_string())]),
+    )
+    .unwrap();
     let results = execute_select(&db,
         "SELECT id FROM table_a WHERE id <= 2 UNION SELECT id FROM table_a WHERE id >= 4 UNION SELECT id FROM table_b WHERE id = 3;"
     ).unwrap();
@@ -1211,29 +1369,36 @@ fn test_e2e_set_operations() {
     // Test 6: UNION with ORDER BY
     let results = execute_select(&db, "SELECT id FROM table_a WHERE id <= 3 UNION SELECT id FROM table_b WHERE id >= 5 ORDER BY id;").unwrap();
     assert_eq!(results.len(), 5); // 1,2,3,5,6
-    // Verify ordering
-    let ids: Vec<i64> = results.iter().map(|r| match &r.values[0] {
-        SqlValue::Integer(i) => *i,
-        _ => panic!("Expected integer"),
-    }).collect();
+                                  // Verify ordering
+    let ids: Vec<i64> = results
+        .iter()
+        .map(|r| match &r.values[0] {
+            SqlValue::Integer(i) => *i,
+            _ => panic!("Expected integer"),
+        })
+        .collect();
     assert_eq!(ids, vec![1, 2, 3, 5, 6]);
 
     // Test 7: Set operation with WHERE clauses
-    let results = execute_select(&db,
-        "SELECT name FROM table_a WHERE id < 3 UNION SELECT name FROM table_b WHERE id > 5;"
-    ).unwrap();
+    let results = execute_select(
+        &db,
+        "SELECT name FROM table_a WHERE id < 3 UNION SELECT name FROM table_b WHERE id > 5;",
+    )
+    .unwrap();
     assert_eq!(results.len(), 3); // Alice, Bob, Frank
 
     // Test 8: INTERSECT ALL with duplicates
     // Create tables with duplicate values
-    let dup_a_schema = TableSchema::new("dup_a".to_string(), vec![
-        ColumnSchema::new("val".to_string(), DataType::Integer, false),
-    ]);
+    let dup_a_schema = TableSchema::new(
+        "dup_a".to_string(),
+        vec![ColumnSchema::new("val".to_string(), DataType::Integer, false)],
+    );
     db.create_table(dup_a_schema).unwrap();
 
-    let dup_b_schema = TableSchema::new("dup_b".to_string(), vec![
-        ColumnSchema::new("val".to_string(), DataType::Integer, false),
-    ]);
+    let dup_b_schema = TableSchema::new(
+        "dup_b".to_string(),
+        vec![ColumnSchema::new("val".to_string(), DataType::Integer, false)],
+    );
     db.create_table(dup_b_schema).unwrap();
 
     // dup_a: 1, 1, 2, 2, 2
@@ -1249,17 +1414,21 @@ fn test_e2e_set_operations() {
     db.insert_row("dup_b", Row::new(vec![SqlValue::Integer(2)])).unwrap();
 
     // INTERSECT ALL should return: 1 (once), 2 (twice)
-    let results = execute_select(&db, "SELECT val FROM dup_a INTERSECT ALL SELECT val FROM dup_b;").unwrap();
+    let results =
+        execute_select(&db, "SELECT val FROM dup_a INTERSECT ALL SELECT val FROM dup_b;").unwrap();
     assert_eq!(results.len(), 3);
 
     // Test 9: EXCEPT ALL with duplicates
     // dup_a: 1, 1, 2, 2, 2
     // dup_b: 1, 2, 2
     // EXCEPT ALL should return: 1 (once), 2 (once)
-    let results = execute_select(&db, "SELECT val FROM dup_a EXCEPT ALL SELECT val FROM dup_b;").unwrap();
+    let results =
+        execute_select(&db, "SELECT val FROM dup_a EXCEPT ALL SELECT val FROM dup_b;").unwrap();
     assert_eq!(results.len(), 2);
 
     // Test 10: UNION with LIMIT
-    let results = execute_select(&db, "SELECT id FROM table_a UNION SELECT id FROM table_b LIMIT 3;").unwrap();
+    let results =
+        execute_select(&db, "SELECT id FROM table_a UNION SELECT id FROM table_b LIMIT 3;")
+            .unwrap();
     assert_eq!(results.len(), 3);
 }

@@ -1,9 +1,8 @@
-///! Special expression forms (CASE, CAST, Function calls)
-
-use crate::errors::ExecutorError;
-use super::super::core::{CombinedExpressionEvaluator, ExpressionEvaluator};
 use super::super::casting::cast_value;
+use super::super::core::{CombinedExpressionEvaluator, ExpressionEvaluator};
 use super::super::functions::eval_scalar_function;
+///! Special expression forms (CASE, CAST, Function calls)
+use crate::errors::ExecutorError;
 
 impl<'a> CombinedExpressionEvaluator<'a> {
     /// Evaluate CASE expression
@@ -90,5 +89,51 @@ impl<'a> CombinedExpressionEvaluator<'a> {
     ) -> Result<types::SqlValue, ExecutorError> {
         let val = self.eval(expr, row)?;
         super::super::expressions::operators::eval_unary_op(op, &val)
+    }
+
+    /// Evaluate TRIM expression
+    pub(super) fn eval_trim(
+        &self,
+        position: &Option<ast::TrimPosition>,
+        removal_char: &types::SqlValue,
+        string_value: &types::SqlValue,
+    ) -> Result<types::SqlValue, ExecutorError> {
+        use ast::TrimPosition;
+
+        // Handle NULL input
+        if matches!(string_value, types::SqlValue::Null) {
+            return Ok(types::SqlValue::Null);
+        }
+
+        // Extract string and character to remove
+        let s = match string_value {
+            types::SqlValue::Varchar(s) => s,
+            types::SqlValue::Character(s) => s,
+            _ => {
+                return Err(ExecutorError::UnsupportedFeature(
+                    "TRIM requires string argument".to_string(),
+                ))
+            }
+        };
+
+        let trim_char = match removal_char {
+            types::SqlValue::Varchar(c) if c.len() == 1 => c.chars().next().unwrap(),
+            types::SqlValue::Character(c) if c.len() == 1 => c.chars().next().unwrap(),
+            types::SqlValue::Varchar(c) if c == " " => ' ',
+            _ => {
+                return Err(ExecutorError::UnsupportedFeature(
+                    "TRIM removal character must be single character".to_string(),
+                ))
+            }
+        };
+
+        // Apply trim based on position
+        let result = match position.as_ref().unwrap_or(&TrimPosition::Both) {
+            TrimPosition::Both => s.trim_matches(trim_char).to_string(),
+            TrimPosition::Leading => s.trim_start_matches(trim_char).to_string(),
+            TrimPosition::Trailing => s.trim_end_matches(trim_char).to_string(),
+        };
+
+        Ok(types::SqlValue::Varchar(result))
     }
 }

@@ -6,14 +6,13 @@
  *
  * Usage: cargo run --example batch_results_generator [--filter category]
  */
-
 use catalog::{ColumnSchema, TableSchema};
 use parser::Parser;
+use regex::Regex;
+use std::env;
+use std::fs;
 use storage::{Database, Row};
 use types::{DataType, SqlValue};
-use regex::Regex;
-use std::fs;
-use std::env;
 
 // Import database creation functions from test file
 // (We'll inline them for now since we can't easily import from tests)
@@ -30,8 +29,16 @@ mod db_setup {
             "categories".to_string(),
             vec![
                 ColumnSchema::new("category_id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("category_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
-                ColumnSchema::new("description".to_string(), DataType::Varchar { max_length: Some(200) }, false),
+                ColumnSchema::new(
+                    "category_name".to_string(),
+                    DataType::Varchar { max_length: Some(50) },
+                    false,
+                ),
+                ColumnSchema::new(
+                    "description".to_string(),
+                    DataType::Varchar { max_length: Some(200) },
+                    false,
+                ),
             ],
         );
         db.create_table(categories_schema).unwrap();
@@ -41,9 +48,17 @@ mod db_setup {
             "products".to_string(),
             vec![
                 ColumnSchema::new("product_id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("product_name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
+                ColumnSchema::new(
+                    "product_name".to_string(),
+                    DataType::Varchar { max_length: Some(100) },
+                    false,
+                ),
                 ColumnSchema::new("category_id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("unit_price".to_string(), DataType::Float { precision: 53 }, false),
+                ColumnSchema::new(
+                    "unit_price".to_string(),
+                    DataType::Float { precision: 53 },
+                    false,
+                ),
                 ColumnSchema::new("units_in_stock".to_string(), DataType::Integer, false),
                 ColumnSchema::new("units_on_order".to_string(), DataType::Integer, false),
             ],
@@ -63,11 +78,13 @@ mod db_setup {
         ];
 
         for (id, name, desc) in categories_data {
-            categories_table.insert(Row::new(vec![
-                SqlValue::Integer(id),
-                SqlValue::Varchar(name.to_string()),
-                SqlValue::Varchar(desc.to_string()),
-            ])).unwrap();
+            categories_table
+                .insert(Row::new(vec![
+                    SqlValue::Integer(id),
+                    SqlValue::Varchar(name.to_string()),
+                    SqlValue::Varchar(desc.to_string()),
+                ]))
+                .unwrap();
         }
 
         // Insert products
@@ -96,14 +113,16 @@ mod db_setup {
         ];
 
         for (id, name, cat_id, price, stock, on_order) in products_data {
-            products_table.insert(Row::new(vec![
-                SqlValue::Integer(id),
-                SqlValue::Varchar(name.to_string()),
-                SqlValue::Integer(cat_id),
-                SqlValue::Float(price),
-                SqlValue::Integer(stock),
-                SqlValue::Integer(on_order),
-            ])).unwrap();
+            products_table
+                .insert(Row::new(vec![
+                    SqlValue::Integer(id),
+                    SqlValue::Varchar(name.to_string()),
+                    SqlValue::Integer(cat_id),
+                    SqlValue::Float(price),
+                    SqlValue::Integer(stock),
+                    SqlValue::Integer(on_order),
+                ]))
+                .unwrap();
         }
 
         db
@@ -118,9 +137,21 @@ mod db_setup {
             "employees".to_string(),
             vec![
                 ColumnSchema::new("employee_id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("first_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
-                ColumnSchema::new("last_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
-                ColumnSchema::new("department".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+                ColumnSchema::new(
+                    "first_name".to_string(),
+                    DataType::Varchar { max_length: Some(50) },
+                    false,
+                ),
+                ColumnSchema::new(
+                    "last_name".to_string(),
+                    DataType::Varchar { max_length: Some(50) },
+                    false,
+                ),
+                ColumnSchema::new(
+                    "department".to_string(),
+                    DataType::Varchar { max_length: Some(50) },
+                    false,
+                ),
                 ColumnSchema::new("salary".to_string(), DataType::Float { precision: 53 }, false),
             ],
         );
@@ -137,8 +168,16 @@ mod db_setup {
             "students".to_string(),
             vec![
                 ColumnSchema::new("student_id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
-                ColumnSchema::new("major".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+                ColumnSchema::new(
+                    "name".to_string(),
+                    DataType::Varchar { max_length: Some(100) },
+                    false,
+                ),
+                ColumnSchema::new(
+                    "major".to_string(),
+                    DataType::Varchar { max_length: Some(50) },
+                    false,
+                ),
                 ColumnSchema::new("gpa".to_string(), DataType::Float { precision: 53 }, false),
             ],
         );
@@ -149,8 +188,16 @@ mod db_setup {
             "courses".to_string(),
             vec![
                 ColumnSchema::new("course_id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("course_name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
-                ColumnSchema::new("department".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+                ColumnSchema::new(
+                    "course_name".to_string(),
+                    DataType::Varchar { max_length: Some(100) },
+                    false,
+                ),
+                ColumnSchema::new(
+                    "department".to_string(),
+                    DataType::Varchar { max_length: Some(50) },
+                    false,
+                ),
                 ColumnSchema::new("credits".to_string(), DataType::Integer, false),
             ],
         );
@@ -162,8 +209,16 @@ mod db_setup {
             vec![
                 ColumnSchema::new("student_id".to_string(), DataType::Integer, false),
                 ColumnSchema::new("course_id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("grade".to_string(), DataType::Varchar { max_length: Some(2) }, true),
-                ColumnSchema::new("semester".to_string(), DataType::Varchar { max_length: Some(20) }, false),
+                ColumnSchema::new(
+                    "grade".to_string(),
+                    DataType::Varchar { max_length: Some(2) },
+                    true,
+                ),
+                ColumnSchema::new(
+                    "semester".to_string(),
+                    DataType::Varchar { max_length: Some(20) },
+                    false,
+                ),
             ],
         );
         db.create_table(enrollments_schema).unwrap();
@@ -184,12 +239,14 @@ mod db_setup {
                 10 => ("Jack Robinson", "Physics", 3.1_f32),
                 _ => ("Student", "Computer Science", 3.0_f32 + (i as f32 % 10.0) / 10.0),
             };
-            students_table.insert(Row::new(vec![
-                SqlValue::Integer(i),
-                SqlValue::Varchar(name.to_string()),
-                SqlValue::Varchar(major.to_string()),
-                SqlValue::Float(gpa),
-            ])).unwrap();
+            students_table
+                .insert(Row::new(vec![
+                    SqlValue::Integer(i),
+                    SqlValue::Varchar(name.to_string()),
+                    SqlValue::Varchar(major.to_string()),
+                    SqlValue::Float(gpa),
+                ]))
+                .unwrap();
         }
 
         // Insert courses
@@ -207,36 +264,44 @@ mod db_setup {
         ];
 
         for (id, name, dept, credits) in course_data {
-            courses_table.insert(Row::new(vec![
-                SqlValue::Integer(id),
-                SqlValue::Varchar(name.to_string()),
-                SqlValue::Varchar(dept.to_string()),
-                SqlValue::Integer(credits),
-            ])).unwrap();
+            courses_table
+                .insert(Row::new(vec![
+                    SqlValue::Integer(id),
+                    SqlValue::Varchar(name.to_string()),
+                    SqlValue::Varchar(dept.to_string()),
+                    SqlValue::Integer(credits),
+                ]))
+                .unwrap();
         }
 
         // Insert enrollments
         let enrollments_table = db.get_table_mut("enrollments").unwrap();
-        let grade_distribution = vec![
-            ("A", 30), ("B", 27), ("C", 18), ("D", 6), ("F", 2),
-        ];
+        let grade_distribution = vec![("A", 30), ("B", 27), ("C", 18), ("D", 6), ("F", 2)];
 
         let mut enrollment_id = 0;
         for (grade, count) in grade_distribution {
             for _ in 0..count {
                 let student_id = (enrollment_id % 20) + 1;
                 let course_id = match enrollment_id % 9 {
-                    0 => 101, 1 => 102, 2 => 103,
-                    3 => 201, 4 => 202, 5 => 203,
-                    6 => 301, 7 => 302, _ => 303,
+                    0 => 101,
+                    1 => 102,
+                    2 => 103,
+                    3 => 201,
+                    4 => 202,
+                    5 => 203,
+                    6 => 301,
+                    7 => 302,
+                    _ => 303,
                 };
 
-                enrollments_table.insert(Row::new(vec![
-                    SqlValue::Integer(student_id),
-                    SqlValue::Integer(course_id),
-                    SqlValue::Varchar(grade.to_string()),
-                    SqlValue::Varchar("Fall 2024".to_string()),
-                ])).unwrap();
+                enrollments_table
+                    .insert(Row::new(vec![
+                        SqlValue::Integer(student_id),
+                        SqlValue::Integer(course_id),
+                        SqlValue::Varchar(grade.to_string()),
+                        SqlValue::Varchar("Fall 2024".to_string()),
+                    ]))
+                    .unwrap();
 
                 enrollment_id += 1;
             }
@@ -246,12 +311,14 @@ mod db_setup {
         for i in 0..10 {
             let student_id = (i % 20) + 1;
             let course_id = 101 + (i % 3);
-            enrollments_table.insert(Row::new(vec![
-                SqlValue::Integer(student_id),
-                SqlValue::Integer(course_id),
-                SqlValue::Null,
-                SqlValue::Varchar("Spring 2025".to_string()),
-            ])).unwrap();
+            enrollments_table
+                .insert(Row::new(vec![
+                    SqlValue::Integer(student_id),
+                    SqlValue::Integer(course_id),
+                    SqlValue::Null,
+                    SqlValue::Varchar("Spring 2025".to_string()),
+                ]))
+                .unwrap();
         }
 
         db
@@ -319,7 +386,7 @@ fn format_value(value: &SqlValue) -> String {
             } else {
                 f.to_string()
             }
-        },
+        }
         SqlValue::Varchar(s) => s.clone(),
         SqlValue::Boolean(b) => b.to_string(),
         SqlValue::Null => "NULL".to_string(),
@@ -379,13 +446,11 @@ fn main() {
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
     // Read examples.ts
-    let content = fs::read_to_string("web-demo/src/data/examples.ts")
-        .expect("Failed to read examples.ts");
+    let content =
+        fs::read_to_string("web-demo/src/data/examples.ts").expect("Failed to read examples.ts");
 
     let examples = parse_examples(&content);
-    let missing: Vec<_> = examples.iter()
-        .filter(|ex| !ex.has_expected)
-        .collect();
+    let missing: Vec<_> = examples.iter().filter(|ex| !ex.has_expected).collect();
 
     println!("📊 Total examples: {}", examples.len());
     println!("✅ With expected results: {}", examples.len() - missing.len());
@@ -442,31 +507,34 @@ fn main() {
                 match executor.execute(select_stmt) {
                     Ok(rows) => {
                         // Extract column names
-                        let column_names: Vec<String> = select_stmt.select_list
+                        let column_names: Vec<String> = select_stmt
+                            .select_list
                             .iter()
                             .enumerate()
                             .map(|(i, item)| match item {
-                                ast::SelectItem::Expression { alias: Some(alias), .. } => alias.clone(),
+                                ast::SelectItem::Expression { alias: Some(alias), .. } => {
+                                    alias.clone()
+                                }
                                 ast::SelectItem::Expression { alias: None, expr } => {
                                     // Try to extract column name from expression
                                     match expr {
                                         ast::Expression::ColumnRef { column, .. } => column.clone(),
                                         _ => format!("col{}", i + 1),
                                     }
-                                },
+                                }
                                 ast::SelectItem::Wildcard => "*".to_string(),
                             })
                             .collect();
 
                         Some((rows, column_names))
-                    },
+                    }
                     Err(e) => {
                         println!("⏭️  SKIP: Execution error - {:?}\n", e);
                         skipped += 1;
                         continue;
                     }
                 }
-            },
+            }
             _ => {
                 println!("⏭️  SKIP: Not a SELECT statement\n");
                 skipped += 1;

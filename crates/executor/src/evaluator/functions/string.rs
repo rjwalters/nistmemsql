@@ -12,18 +12,20 @@ use crate::errors::ExecutorError;
 /// SQL:1999 Section 6.29: String value functions
 pub(super) fn upper(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("UPPER requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "UPPER requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
         types::SqlValue::Null => Ok(types::SqlValue::Null),
         types::SqlValue::Varchar(s) => Ok(types::SqlValue::Varchar(s.to_uppercase())),
         types::SqlValue::Character(s) => Ok(types::SqlValue::Varchar(s.to_uppercase())),
-        val => Err(ExecutorError::UnsupportedFeature(
-            format!("UPPER requires string argument, got {:?}", val),
-        )),
+        val => Err(ExecutorError::UnsupportedFeature(format!(
+            "UPPER requires string argument, got {:?}",
+            val
+        ))),
     }
 }
 
@@ -31,18 +33,20 @@ pub(super) fn upper(args: &[types::SqlValue]) -> Result<types::SqlValue, Executo
 /// SQL:1999 Section 6.29: String value functions
 pub(super) fn lower(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("LOWER requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "LOWER requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
         types::SqlValue::Null => Ok(types::SqlValue::Null),
         types::SqlValue::Varchar(s) => Ok(types::SqlValue::Varchar(s.to_lowercase())),
         types::SqlValue::Character(s) => Ok(types::SqlValue::Varchar(s.to_lowercase())),
-        val => Err(ExecutorError::UnsupportedFeature(
-            format!("LOWER requires string argument, got {:?}", val),
-        )),
+        val => Err(ExecutorError::UnsupportedFeature(format!(
+            "LOWER requires string argument, got {:?}",
+            val
+        ))),
     }
 }
 
@@ -51,9 +55,10 @@ pub(super) fn lower(args: &[types::SqlValue]) -> Result<types::SqlValue, Executo
 /// start is 1-based (SQL standard), length is optional
 pub(super) fn substring(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if args.len() < 2 || args.len() > 3 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("SUBSTRING requires 2 or 3 arguments, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "SUBSTRING requires 2 or 3 arguments, got {}",
+            args.len()
+        )));
     }
 
     let string_val = &args[0];
@@ -73,9 +78,10 @@ pub(super) fn substring(args: &[types::SqlValue]) -> Result<types::SqlValue, Exe
         types::SqlValue::Varchar(s) => s.as_str(),
         types::SqlValue::Character(s) => s.as_str(),
         _ => {
-            return Err(ExecutorError::UnsupportedFeature(
-                format!("SUBSTRING requires string argument, got {:?}", string_val),
-            ))
+            return Err(ExecutorError::UnsupportedFeature(format!(
+                "SUBSTRING requires string argument, got {:?}",
+                string_val
+            )))
         }
     };
 
@@ -83,9 +89,10 @@ pub(super) fn substring(args: &[types::SqlValue]) -> Result<types::SqlValue, Exe
     let start = match start_val {
         types::SqlValue::Integer(n) => *n,
         _ => {
-            return Err(ExecutorError::UnsupportedFeature(
-                format!("SUBSTRING start position must be integer, got {:?}", start_val),
-            ))
+            return Err(ExecutorError::UnsupportedFeature(format!(
+                "SUBSTRING start position must be integer, got {:?}",
+                start_val
+            )))
         }
     };
 
@@ -94,9 +101,10 @@ pub(super) fn substring(args: &[types::SqlValue]) -> Result<types::SqlValue, Exe
         match len_val {
             types::SqlValue::Integer(n) => Some(*n),
             _ => {
-                return Err(ExecutorError::UnsupportedFeature(
-                    format!("SUBSTRING length must be integer, got {:?}", len_val),
-                ))
+                return Err(ExecutorError::UnsupportedFeature(format!(
+                    "SUBSTRING length must be integer, got {:?}",
+                    len_val
+                )))
             }
         }
     } else {
@@ -137,39 +145,45 @@ pub(super) fn substring(args: &[types::SqlValue]) -> Result<types::SqlValue, Exe
 /// SQL:1999 Section 6.29: String value functions
 pub(super) fn trim(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("TRIM requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "TRIM requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
         types::SqlValue::Null => Ok(types::SqlValue::Null),
         types::SqlValue::Varchar(s) => Ok(types::SqlValue::Varchar(s.trim().to_string())),
-        types::SqlValue::Character(s) => {
-            Ok(types::SqlValue::Varchar(s.trim().to_string()))
-        }
-        val => Err(ExecutorError::UnsupportedFeature(
-            format!("TRIM requires string argument, got {:?}", val),
-        )),
+        types::SqlValue::Character(s) => Ok(types::SqlValue::Varchar(s.trim().to_string())),
+        val => Err(ExecutorError::UnsupportedFeature(format!(
+            "TRIM requires string argument, got {:?}",
+            val
+        ))),
     }
 }
 
 /// CHAR_LENGTH(string) / CHARACTER_LENGTH(string) - Return string length
 /// SQL:1999 Section 6.29: String value functions
-pub(super) fn char_length(args: &[types::SqlValue], name: &str) -> Result<types::SqlValue, ExecutorError> {
+pub(super) fn char_length(
+    args: &[types::SqlValue],
+    name: &str,
+) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("{} requires exactly 1 argument, got {}", name, args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "{} requires exactly 1 argument, got {}",
+            name,
+            args.len()
+        )));
     }
 
     match &args[0] {
         types::SqlValue::Null => Ok(types::SqlValue::Null),
         types::SqlValue::Varchar(s) => Ok(types::SqlValue::Integer(s.len() as i64)),
         types::SqlValue::Character(s) => Ok(types::SqlValue::Integer(s.len() as i64)),
-        val => Err(ExecutorError::UnsupportedFeature(
-            format!("{} requires string argument, got {:?}", name, val),
-        )),
+        val => Err(ExecutorError::UnsupportedFeature(format!(
+            "{} requires string argument, got {:?}",
+            name, val
+        ))),
     }
 }
 
@@ -180,18 +194,20 @@ pub(super) fn char_length(args: &[types::SqlValue], name: &str) -> Result<types:
 /// - Multi-byte characters: 2-4 bytes each
 pub(super) fn octet_length(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("OCTET_LENGTH requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "OCTET_LENGTH requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
         types::SqlValue::Null => Ok(types::SqlValue::Null),
         types::SqlValue::Varchar(s) => Ok(types::SqlValue::Integer(s.len() as i64)),
         types::SqlValue::Character(s) => Ok(types::SqlValue::Integer(s.len() as i64)),
-        val => Err(ExecutorError::UnsupportedFeature(
-            format!("OCTET_LENGTH requires string argument, got {:?}", val),
-        )),
+        val => Err(ExecutorError::UnsupportedFeature(format!(
+            "OCTET_LENGTH requires string argument, got {:?}",
+            val
+        ))),
     }
 }
 
@@ -216,9 +232,10 @@ pub(super) fn concat(args: &[types::SqlValue]) -> Result<types::SqlValue, Execut
             }
             types::SqlValue::Integer(n) => result.push_str(&n.to_string()),
             val => {
-                return Err(ExecutorError::UnsupportedFeature(
-                    format!("CONCAT cannot convert {:?} to string", val),
-                ))
+                return Err(ExecutorError::UnsupportedFeature(format!(
+                    "CONCAT cannot convert {:?} to string",
+                    val
+                )))
             }
         }
     }
@@ -228,9 +245,10 @@ pub(super) fn concat(args: &[types::SqlValue]) -> Result<types::SqlValue, Execut
 /// LENGTH(str) - Alias for CHAR_LENGTH
 pub(super) fn length(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("LENGTH requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "LENGTH requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
@@ -238,9 +256,10 @@ pub(super) fn length(args: &[types::SqlValue]) -> Result<types::SqlValue, Execut
         types::SqlValue::Varchar(s) | types::SqlValue::Character(s) => {
             Ok(types::SqlValue::Integer(s.len() as i64))
         }
-        val => Err(ExecutorError::UnsupportedFeature(
-            format!("LENGTH requires string argument, got {:?}", val),
-        )),
+        val => Err(ExecutorError::UnsupportedFeature(format!(
+            "LENGTH requires string argument, got {:?}",
+            val
+        ))),
     }
 }
 
@@ -249,15 +268,14 @@ pub(super) fn length(args: &[types::SqlValue]) -> Result<types::SqlValue, Execut
 /// Note: This is called as POSITION('sub', 'string') in our implementation
 pub(super) fn position(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 2 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("POSITION requires exactly 2 arguments, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "POSITION requires exactly 2 arguments, got {}",
+            args.len()
+        )));
     }
 
     match (&args[0], &args[1]) {
-        (types::SqlValue::Null, _) | (_, types::SqlValue::Null) => {
-            Ok(types::SqlValue::Null)
-        }
+        (types::SqlValue::Null, _) | (_, types::SqlValue::Null) => Ok(types::SqlValue::Null),
         (
             types::SqlValue::Varchar(needle) | types::SqlValue::Character(needle),
             types::SqlValue::Varchar(haystack) | types::SqlValue::Character(haystack),
@@ -268,9 +286,10 @@ pub(super) fn position(args: &[types::SqlValue]) -> Result<types::SqlValue, Exec
                 None => Ok(types::SqlValue::Integer(0)),
             }
         }
-        (a, b) => Err(ExecutorError::UnsupportedFeature(
-            format!("POSITION requires string arguments, got {:?} and {:?}", a, b),
-        )),
+        (a, b) => Err(ExecutorError::UnsupportedFeature(format!(
+            "POSITION requires string arguments, got {:?} and {:?}",
+            a, b
+        ))),
     }
 }
 
@@ -278,9 +297,10 @@ pub(super) fn position(args: &[types::SqlValue]) -> Result<types::SqlValue, Exec
 /// SQL:1999 Section 6.29: String value functions
 pub(super) fn replace(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 3 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("REPLACE requires exactly 3 arguments, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "REPLACE requires exactly 3 arguments, got {}",
+            args.len()
+        )));
     }
 
     match (&args[0], &args[1], &args[2]) {
@@ -292,21 +312,20 @@ pub(super) fn replace(args: &[types::SqlValue]) -> Result<types::SqlValue, Execu
             types::SqlValue::Varchar(from) | types::SqlValue::Character(from),
             types::SqlValue::Varchar(to) | types::SqlValue::Character(to),
         ) => Ok(types::SqlValue::Varchar(text.replace(from.as_str(), to.as_str()))),
-        (a, b, c) => Err(ExecutorError::UnsupportedFeature(
-            format!(
-                "REPLACE requires string arguments, got {:?}, {:?}, {:?}",
-                a, b, c
-            ),
-        )),
+        (a, b, c) => Err(ExecutorError::UnsupportedFeature(format!(
+            "REPLACE requires string arguments, got {:?}, {:?}, {:?}",
+            a, b, c
+        ))),
     }
 }
 
 /// REVERSE(string) - Reverse a string
 pub(super) fn reverse(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("REVERSE requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "REVERSE requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
@@ -314,24 +333,24 @@ pub(super) fn reverse(args: &[types::SqlValue]) -> Result<types::SqlValue, Execu
         types::SqlValue::Varchar(s) | types::SqlValue::Character(s) => {
             Ok(types::SqlValue::Varchar(s.chars().rev().collect()))
         }
-        val => Err(ExecutorError::UnsupportedFeature(
-            format!("REVERSE requires string argument, got {:?}", val),
-        )),
+        val => Err(ExecutorError::UnsupportedFeature(format!(
+            "REVERSE requires string argument, got {:?}",
+            val
+        ))),
     }
 }
 
 /// LEFT(string, n) - Leftmost n characters
 pub(super) fn left(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 2 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("LEFT requires exactly 2 arguments, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "LEFT requires exactly 2 arguments, got {}",
+            args.len()
+        )));
     }
 
     match (&args[0], &args[1]) {
-        (types::SqlValue::Null, _) | (_, types::SqlValue::Null) => {
-            Ok(types::SqlValue::Null)
-        }
+        (types::SqlValue::Null, _) | (_, types::SqlValue::Null) => Ok(types::SqlValue::Null),
         (
             types::SqlValue::Varchar(s) | types::SqlValue::Character(s),
             types::SqlValue::Integer(n),
@@ -344,24 +363,24 @@ pub(super) fn left(args: &[types::SqlValue]) -> Result<types::SqlValue, Executor
                 Ok(types::SqlValue::Varchar(result))
             }
         }
-        (a, b) => Err(ExecutorError::UnsupportedFeature(
-            format!("LEFT requires string and integer arguments, got {:?} and {:?}", a, b),
-        )),
+        (a, b) => Err(ExecutorError::UnsupportedFeature(format!(
+            "LEFT requires string and integer arguments, got {:?} and {:?}",
+            a, b
+        ))),
     }
 }
 
 /// RIGHT(string, n) - Rightmost n characters
 pub(super) fn right(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 2 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("RIGHT requires exactly 2 arguments, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "RIGHT requires exactly 2 arguments, got {}",
+            args.len()
+        )));
     }
 
     match (&args[0], &args[1]) {
-        (types::SqlValue::Null, _) | (_, types::SqlValue::Null) => {
-            Ok(types::SqlValue::Null)
-        }
+        (types::SqlValue::Null, _) | (_, types::SqlValue::Null) => Ok(types::SqlValue::Null),
         (
             types::SqlValue::Varchar(s) | types::SqlValue::Character(s),
             types::SqlValue::Integer(n),
@@ -380,12 +399,10 @@ pub(super) fn right(args: &[types::SqlValue]) -> Result<types::SqlValue, Executo
                 }
             }
         }
-        (a, b) => Err(ExecutorError::UnsupportedFeature(
-            format!(
-                "RIGHT requires string and integer arguments, got {:?} and {:?}",
-                a, b
-            ),
-        )),
+        (a, b) => Err(ExecutorError::UnsupportedFeature(format!(
+            "RIGHT requires string and integer arguments, got {:?} and {:?}",
+            a, b
+        ))),
     }
 }
 
@@ -393,25 +410,27 @@ pub(super) fn right(args: &[types::SqlValue]) -> Result<types::SqlValue, Executo
 /// MySQL/Oracle function - returns first occurrence position
 pub(super) fn instr(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 2 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("INSTR requires exactly 2 arguments, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "INSTR requires exactly 2 arguments, got {}",
+            args.len()
+        )));
     }
 
     match (&args[0], &args[1]) {
         (types::SqlValue::Null, _) | (_, types::SqlValue::Null) => Ok(types::SqlValue::Null),
-        (types::SqlValue::Varchar(haystack) | types::SqlValue::Character(haystack),
-         types::SqlValue::Varchar(needle) | types::SqlValue::Character(needle)) => {
+        (
+            types::SqlValue::Varchar(haystack) | types::SqlValue::Character(haystack),
+            types::SqlValue::Varchar(needle) | types::SqlValue::Character(needle),
+        ) => {
             // Find returns 0-indexed position, convert to 1-indexed
             // Return 0 if not found (SQL convention)
-            let position = haystack.find(needle.as_str())
-                .map(|pos| (pos + 1) as i64)
-                .unwrap_or(0);
+            let position = haystack.find(needle.as_str()).map(|pos| (pos + 1) as i64).unwrap_or(0);
             Ok(types::SqlValue::Integer(position))
         }
-        (haystack, needle) => Err(ExecutorError::UnsupportedFeature(
-            format!("INSTR requires string arguments, got {:?} and {:?}", haystack, needle),
-        )),
+        (haystack, needle) => Err(ExecutorError::UnsupportedFeature(format!(
+            "INSTR requires string arguments, got {:?} and {:?}",
+            haystack, needle
+        ))),
     }
 }
 
@@ -419,15 +438,18 @@ pub(super) fn instr(args: &[types::SqlValue]) -> Result<types::SqlValue, Executo
 /// Note: Arguments reversed compared to INSTR (needle, haystack vs haystack, needle)
 pub(super) fn locate(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if args.len() < 2 || args.len() > 3 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("LOCATE requires 2 or 3 arguments, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "LOCATE requires 2 or 3 arguments, got {}",
+            args.len()
+        )));
     }
 
     match (&args[0], &args[1]) {
         (types::SqlValue::Null, _) | (_, types::SqlValue::Null) => Ok(types::SqlValue::Null),
-        (types::SqlValue::Varchar(needle) | types::SqlValue::Character(needle),
-         types::SqlValue::Varchar(haystack) | types::SqlValue::Character(haystack)) => {
+        (
+            types::SqlValue::Varchar(needle) | types::SqlValue::Character(needle),
+            types::SqlValue::Varchar(haystack) | types::SqlValue::Character(haystack),
+        ) => {
             // Optional start position (1-indexed, default to 1)
             let start_pos = if args.len() == 3 {
                 match &args[2] {
@@ -437,9 +459,10 @@ pub(super) fn locate(args: &[types::SqlValue]) -> Result<types::SqlValue, Execut
                     }
                     types::SqlValue::Null => return Ok(types::SqlValue::Null),
                     val => {
-                        return Err(ExecutorError::UnsupportedFeature(
-                            format!("LOCATE start position must be integer, got {:?}", val),
-                        ))
+                        return Err(ExecutorError::UnsupportedFeature(format!(
+                            "LOCATE start position must be integer, got {:?}",
+                            val
+                        )))
                     }
                 }
             } else {
@@ -457,8 +480,9 @@ pub(super) fn locate(args: &[types::SqlValue]) -> Result<types::SqlValue, Execut
 
             Ok(types::SqlValue::Integer(position))
         }
-        (needle, haystack) => Err(ExecutorError::UnsupportedFeature(
-            format!("LOCATE requires string arguments, got {:?} and {:?}", needle, haystack),
-        )),
+        (needle, haystack) => Err(ExecutorError::UnsupportedFeature(format!(
+            "LOCATE requires string arguments, got {:?} and {:?}",
+            needle, haystack
+        ))),
     }
 }

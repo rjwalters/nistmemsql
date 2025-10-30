@@ -58,16 +58,21 @@ impl Table {
     /// - Pad with spaces if too short
     /// - Truncate if too long
     fn normalize_char_value(value: &str, length: usize) -> String {
+        use std::cmp::Ordering;
         let current_len = value.len();
-        if current_len < length {
-            // Pad with spaces to the right
-            format!("{:width$}", value, width = length)
-        } else if current_len > length {
-            // Truncate to fixed length
-            value[..length].to_string()
-        } else {
-            // Exact length - no change needed
-            value.to_string()
+        match current_len.cmp(&length) {
+            Ordering::Less => {
+                // Pad with spaces to the right
+                format!("{:width$}", value, width = length)
+            }
+            Ordering::Greater => {
+                // Truncate to fixed length
+                value[..length].to_string()
+            }
+            Ordering::Equal => {
+                // Exact length - no change needed
+                value.to_string()
+            }
         }
     }
 
@@ -111,11 +116,11 @@ impl Table {
     /// Returns number of rows deleted
     pub fn delete_where<F>(&mut self, predicate: F) -> usize
     where
-    F: Fn(&Row) -> bool,
+        F: Fn(&Row) -> bool,
     {
-    let initial_count = self.rows.len();
-    self.rows.retain(|row| !predicate(row));
-    initial_count - self.rows.len()
+        let initial_count = self.rows.len();
+        self.rows.retain(|row| !predicate(row));
+        initial_count - self.rows.len()
     }
 
     /// Remove a specific row (used for transaction undo)

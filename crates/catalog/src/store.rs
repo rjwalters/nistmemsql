@@ -14,10 +14,7 @@ pub struct Catalog {
 impl Catalog {
     /// Create a new empty catalog.
     pub fn new() -> Self {
-        let mut catalog = Catalog {
-            schemas: HashMap::new(),
-            current_schema: "public".to_string(),
-        };
+        let mut catalog = Catalog { schemas: HashMap::new(), current_schema: "public".to_string() };
 
         // Create the default "public" schema
         catalog.schemas.insert("public".to_string(), Schema::new("public".to_string()));
@@ -27,15 +24,23 @@ impl Catalog {
 
     /// Create a table schema in the current schema.
     pub fn create_table(&mut self, schema: TableSchema) -> Result<(), CatalogError> {
-        let current_schema = self.schemas.get_mut(&self.current_schema)
+        let current_schema = self
+            .schemas
+            .get_mut(&self.current_schema)
             .ok_or_else(|| CatalogError::SchemaNotFound(self.current_schema.clone()))?;
 
         current_schema.create_table(schema)
     }
 
     /// Create a table schema in a specific schema.
-    pub fn create_table_in_schema(&mut self, schema_name: &str, schema: TableSchema) -> Result<(), CatalogError> {
-        let target_schema = self.schemas.get_mut(schema_name)
+    pub fn create_table_in_schema(
+        &mut self,
+        schema_name: &str,
+        schema: TableSchema,
+    ) -> Result<(), CatalogError> {
+        let target_schema = self
+            .schemas
+            .get_mut(schema_name)
             .ok_or_else(|| CatalogError::SchemaNotFound(schema_name.to_string()))?;
 
         target_schema.create_table(schema)
@@ -45,33 +50,35 @@ impl Catalog {
     pub fn get_table(&self, name: &str) -> Option<&TableSchema> {
         // Parse qualified name: schema.table or just table
         if let Some((schema_name, table_name)) = name.split_once('.') {
-            self.schemas.get(schema_name)
-                .and_then(|schema| schema.get_table(table_name))
+            self.schemas.get(schema_name).and_then(|schema| schema.get_table(table_name))
         } else {
             // Use current schema for unqualified names
-            self.schemas.get(&self.current_schema)
-                .and_then(|schema| schema.get_table(name))
+            self.schemas.get(&self.current_schema).and_then(|schema| schema.get_table(name))
         }
     }
 
     /// Drop a table schema (supports qualified names like "schema.table").
     pub fn drop_table(&mut self, name: &str) -> Result<(), CatalogError> {
         // Parse qualified name: schema.table or just table
-        let (schema_name, table_name) = if let Some((schema_part, table_part)) = name.split_once('.') {
-            (schema_part.to_string(), table_part)
-        } else {
-            (self.current_schema.clone(), name)
-        };
+        let (schema_name, table_name) =
+            if let Some((schema_part, table_part)) = name.split_once('.') {
+                (schema_part.to_string(), table_part)
+            } else {
+                (self.current_schema.clone(), name)
+            };
 
-        let schema = self.schemas.get_mut(&schema_name)
-            .ok_or_else(|| CatalogError::SchemaNotFound(schema_name))?;
+        let schema = self
+            .schemas
+            .get_mut(&schema_name)
+            .ok_or(CatalogError::SchemaNotFound(schema_name))?;
 
         schema.drop_table(table_name)
     }
 
     /// List all table names in the current schema.
     pub fn list_tables(&self) -> Vec<String> {
-        self.schemas.get(&self.current_schema)
+        self.schemas
+            .get(&self.current_schema)
             .map(|schema| schema.list_tables())
             .unwrap_or_default()
     }
@@ -112,8 +119,8 @@ impl Catalog {
             return Err(CatalogError::SchemaNotEmpty("public".to_string()));
         }
 
-        let schema = self.schemas.get(name)
-            .ok_or_else(|| CatalogError::SchemaNotFound(name.to_string()))?;
+        let schema =
+            self.schemas.get(name).ok_or_else(|| CatalogError::SchemaNotFound(name.to_string()))?;
 
         if !cascade && !schema.is_empty() {
             return Err(CatalogError::SchemaNotEmpty(name.to_string()));

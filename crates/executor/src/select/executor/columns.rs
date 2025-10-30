@@ -23,7 +23,8 @@ impl<'a> SelectExecutor<'a> {
 
                         for (_table_name, (start_index, schema)) in &from_res.schema.table_schemas {
                             for (col_idx, col_schema) in schema.columns.iter().enumerate() {
-                                table_columns.push((start_index + col_idx, col_schema.name.clone()));
+                                table_columns
+                                    .push((start_index + col_idx, col_schema.name.clone()));
                             }
                         }
 

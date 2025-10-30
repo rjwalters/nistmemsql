@@ -1,9 +1,9 @@
 //! Predicate evaluation methods (BETWEEN, LIKE, IN, POSITION)
 
-use crate::errors::ExecutorError;
-use super::super::core::ExpressionEvaluator;
 use super::super::casting::cast_value;
+use super::super::core::ExpressionEvaluator;
 use super::super::pattern::like_match;
+use crate::errors::ExecutorError;
 
 impl<'a> ExpressionEvaluator<'a> {
     /// Evaluate BETWEEN predicate
@@ -19,29 +19,17 @@ impl<'a> ExpressionEvaluator<'a> {
         let low_val = self.eval(low, row)?;
         let high_val = self.eval(high, row)?;
 
-        let ge_low = self.eval_binary_op(
-            &expr_val,
-            &ast::BinaryOperator::GreaterThanOrEqual,
-            &low_val,
-        )?;
+        let ge_low =
+            self.eval_binary_op(&expr_val, &ast::BinaryOperator::GreaterThanOrEqual, &low_val)?;
 
-        let le_high = self.eval_binary_op(
-            &expr_val,
-            &ast::BinaryOperator::LessThanOrEqual,
-            &high_val,
-        )?;
+        let le_high =
+            self.eval_binary_op(&expr_val, &ast::BinaryOperator::LessThanOrEqual, &high_val)?;
 
         if negated {
-            let lt_low = self.eval_binary_op(
-                &expr_val,
-                &ast::BinaryOperator::LessThan,
-                &low_val,
-            )?;
-            let gt_high = self.eval_binary_op(
-                &expr_val,
-                &ast::BinaryOperator::GreaterThan,
-                &high_val,
-            )?;
+            let lt_low =
+                self.eval_binary_op(&expr_val, &ast::BinaryOperator::LessThan, &low_val)?;
+            let gt_high =
+                self.eval_binary_op(&expr_val, &ast::BinaryOperator::GreaterThan, &high_val)?;
             self.eval_binary_op(&lt_low, &ast::BinaryOperator::Or, &gt_high)
         } else {
             self.eval_binary_op(&ge_low, &ast::BinaryOperator::And, &le_high)
@@ -70,18 +58,14 @@ impl<'a> ExpressionEvaluator<'a> {
         let string_val = self.eval(string, row)?;
 
         match (&substring_val, &string_val) {
-            (types::SqlValue::Null, _) | (_, types::SqlValue::Null) => {
-                Ok(types::SqlValue::Null)
-            }
+            (types::SqlValue::Null, _) | (_, types::SqlValue::Null) => Ok(types::SqlValue::Null),
             (
                 types::SqlValue::Varchar(needle) | types::SqlValue::Character(needle),
                 types::SqlValue::Varchar(haystack) | types::SqlValue::Character(haystack),
-            ) => {
-                match haystack.find(needle.as_str()) {
-                    Some(pos) => Ok(types::SqlValue::Integer((pos + 1) as i64)),
-                    None => Ok(types::SqlValue::Integer(0)),
-                }
-            }
+            ) => match haystack.find(needle.as_str()) {
+                Some(pos) => Ok(types::SqlValue::Integer((pos + 1) as i64)),
+                None => Ok(types::SqlValue::Integer(0)),
+            },
             _ => Err(ExecutorError::TypeMismatch {
                 left: substring_val.clone(),
                 op: "POSITION".to_string(),

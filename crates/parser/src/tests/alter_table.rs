@@ -40,16 +40,14 @@ fn test_parse_alter_table_drop_column() {
     let stmt = result.unwrap();
 
     match stmt {
-        ast::Statement::AlterTable(alter) => {
-            match alter {
-                ast::AlterTableStmt::DropColumn(drop) => {
-                    assert_eq!(drop.table_name, "users");
-                    assert_eq!(drop.column_name, "email");
-                    assert!(!drop.if_exists);
-                }
-                _ => panic!("Expected DROP COLUMN"),
+        ast::Statement::AlterTable(alter) => match alter {
+            ast::AlterTableStmt::DropColumn(drop) => {
+                assert_eq!(drop.table_name, "users");
+                assert_eq!(drop.column_name, "email");
+                assert!(!drop.if_exists);
             }
-        }
+            _ => panic!("Expected DROP COLUMN"),
+        },
         _ => panic!("Expected ALTER TABLE statement"),
     }
 }
@@ -61,16 +59,14 @@ fn test_parse_alter_table_drop_column_if_exists() {
     let stmt = result.unwrap();
 
     match stmt {
-        ast::Statement::AlterTable(alter) => {
-            match alter {
-                ast::AlterTableStmt::DropColumn(drop) => {
-                    assert_eq!(drop.table_name, "users");
-                    assert_eq!(drop.column_name, "email");
-                    assert!(drop.if_exists);
-                }
-                _ => panic!("Expected DROP COLUMN"),
+        ast::Statement::AlterTable(alter) => match alter {
+            ast::AlterTableStmt::DropColumn(drop) => {
+                assert_eq!(drop.table_name, "users");
+                assert_eq!(drop.column_name, "email");
+                assert!(drop.if_exists);
             }
-        }
+            _ => panic!("Expected DROP COLUMN"),
+        },
         _ => panic!("Expected ALTER TABLE statement"),
     }
 }
@@ -82,20 +78,16 @@ fn test_parse_alter_table_alter_column_set_not_null() {
     let stmt = result.unwrap();
 
     match stmt {
-        ast::Statement::AlterTable(alter) => {
-            match alter {
-                ast::AlterTableStmt::AlterColumn(alter_col) => {
-                    match alter_col {
-                        ast::AlterColumnStmt::SetNotNull { table_name, column_name } => {
-                            assert_eq!(table_name, "users");
-                            assert_eq!(column_name, "email");
-                        }
-                        _ => panic!("Expected SET NOT NULL"),
-                    }
+        ast::Statement::AlterTable(alter) => match alter {
+            ast::AlterTableStmt::AlterColumn(alter_col) => match alter_col {
+                ast::AlterColumnStmt::SetNotNull { table_name, column_name } => {
+                    assert_eq!(table_name, "users");
+                    assert_eq!(column_name, "email");
                 }
-                _ => panic!("Expected ALTER COLUMN"),
-            }
-        }
+                _ => panic!("Expected SET NOT NULL"),
+            },
+            _ => panic!("Expected ALTER COLUMN"),
+        },
         _ => panic!("Expected ALTER TABLE statement"),
     }
 }
@@ -107,20 +99,16 @@ fn test_parse_alter_table_alter_column_drop_not_null() {
     let stmt = result.unwrap();
 
     match stmt {
-        ast::Statement::AlterTable(alter) => {
-            match alter {
-                ast::AlterTableStmt::AlterColumn(alter_col) => {
-                    match alter_col {
-                        ast::AlterColumnStmt::DropNotNull { table_name, column_name } => {
-                            assert_eq!(table_name, "users");
-                            assert_eq!(column_name, "email");
-                        }
-                        _ => panic!("Expected DROP NOT NULL"),
-                    }
+        ast::Statement::AlterTable(alter) => match alter {
+            ast::AlterTableStmt::AlterColumn(alter_col) => match alter_col {
+                ast::AlterColumnStmt::DropNotNull { table_name, column_name } => {
+                    assert_eq!(table_name, "users");
+                    assert_eq!(column_name, "email");
                 }
-                _ => panic!("Expected ALTER COLUMN"),
-            }
-        }
+                _ => panic!("Expected DROP NOT NULL"),
+            },
+            _ => panic!("Expected ALTER COLUMN"),
+        },
         _ => panic!("Expected ALTER TABLE statement"),
     }
 }

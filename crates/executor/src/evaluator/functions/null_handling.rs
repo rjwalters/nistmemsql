@@ -26,9 +26,10 @@ pub(super) fn coalesce(args: &[types::SqlValue]) -> Result<types::SqlValue, Exec
 /// SQL:1999 Section 6.13: NULLIF expression
 pub(super) fn nullif(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 2 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("NULLIF requires exactly 2 arguments, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "NULLIF requires exactly 2 arguments, got {}",
+            args.len()
+        )));
     }
 
     let val1 = &args[0];

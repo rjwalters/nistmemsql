@@ -8,9 +8,10 @@ use crate::errors::ExecutorError;
 /// SQL:1999 Section 6.12: Type conversions
 pub(super) fn to_number(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("TO_NUMBER requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "TO_NUMBER requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
@@ -26,14 +27,16 @@ pub(super) fn to_number(args: &[types::SqlValue]) -> Result<types::SqlValue, Exe
                 // Parse as floating point
                 Ok(types::SqlValue::Double(n))
             } else {
-                Err(ExecutorError::UnsupportedFeature(
-                    format!("TO_NUMBER: Invalid numeric string '{}'", s),
-                ))
+                Err(ExecutorError::UnsupportedFeature(format!(
+                    "TO_NUMBER: Invalid numeric string '{}'",
+                    s
+                )))
             }
         }
-        val => Err(ExecutorError::UnsupportedFeature(
-            format!("TO_NUMBER requires string argument, got {:?}", val),
-        )),
+        val => Err(ExecutorError::UnsupportedFeature(format!(
+            "TO_NUMBER requires string argument, got {:?}",
+            val
+        ))),
     }
 }
 
@@ -41,15 +44,14 @@ pub(super) fn to_number(args: &[types::SqlValue]) -> Result<types::SqlValue, Exe
 /// SQL:1999 Section 6.12: Type conversions
 pub(super) fn to_date(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 2 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("TO_DATE requires exactly 2 arguments (string, format), got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "TO_DATE requires exactly 2 arguments (string, format), got {}",
+            args.len()
+        )));
     }
 
     match (&args[0], &args[1]) {
-        (types::SqlValue::Null, _) | (_, types::SqlValue::Null) => {
-            Ok(types::SqlValue::Null)
-        }
+        (types::SqlValue::Null, _) | (_, types::SqlValue::Null) => Ok(types::SqlValue::Null),
         (
             types::SqlValue::Varchar(input) | types::SqlValue::Character(input),
             types::SqlValue::Varchar(format) | types::SqlValue::Character(format),
@@ -57,9 +59,10 @@ pub(super) fn to_date(args: &[types::SqlValue]) -> Result<types::SqlValue, Execu
             let date = super::super::date_format::parse_date(input, format)?;
             Ok(types::SqlValue::Date(date.format("%Y-%m-%d").to_string()))
         }
-        (input, format) => Err(ExecutorError::UnsupportedFeature(
-            format!("TO_DATE requires string arguments, got {:?} and {:?}", input, format),
-        )),
+        (input, format) => Err(ExecutorError::UnsupportedFeature(format!(
+            "TO_DATE requires string arguments, got {:?} and {:?}",
+            input, format
+        ))),
     }
 }
 
@@ -67,15 +70,14 @@ pub(super) fn to_date(args: &[types::SqlValue]) -> Result<types::SqlValue, Execu
 /// SQL:1999 Section 6.12: Type conversions
 pub(super) fn to_timestamp(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 2 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("TO_TIMESTAMP requires exactly 2 arguments (string, format), got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "TO_TIMESTAMP requires exactly 2 arguments (string, format), got {}",
+            args.len()
+        )));
     }
 
     match (&args[0], &args[1]) {
-        (types::SqlValue::Null, _) | (_, types::SqlValue::Null) => {
-            Ok(types::SqlValue::Null)
-        }
+        (types::SqlValue::Null, _) | (_, types::SqlValue::Null) => Ok(types::SqlValue::Null),
         (
             types::SqlValue::Varchar(input) | types::SqlValue::Character(input),
             types::SqlValue::Varchar(format) | types::SqlValue::Character(format),
@@ -83,9 +85,10 @@ pub(super) fn to_timestamp(args: &[types::SqlValue]) -> Result<types::SqlValue, 
             let timestamp = super::super::date_format::parse_timestamp(input, format)?;
             Ok(types::SqlValue::Timestamp(timestamp.format("%Y-%m-%d %H:%M:%S").to_string()))
         }
-        (input, format) => Err(ExecutorError::UnsupportedFeature(
-            format!("TO_TIMESTAMP requires string arguments, got {:?} and {:?}", input, format),
-        )),
+        (input, format) => Err(ExecutorError::UnsupportedFeature(format!(
+            "TO_TIMESTAMP requires string arguments, got {:?} and {:?}",
+            input, format
+        ))),
     }
 }
 
@@ -93,18 +96,20 @@ pub(super) fn to_timestamp(args: &[types::SqlValue]) -> Result<types::SqlValue, 
 /// SQL:1999 Section 6.12: Type conversions
 pub(super) fn to_char(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 2 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("TO_CHAR requires exactly 2 arguments (value, format), got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "TO_CHAR requires exactly 2 arguments (value, format), got {}",
+            args.len()
+        )));
     }
 
     let format_str = match &args[1] {
         types::SqlValue::Varchar(s) | types::SqlValue::Character(s) => s,
         types::SqlValue::Null => return Ok(types::SqlValue::Null),
         val => {
-            return Err(ExecutorError::UnsupportedFeature(
-                format!("TO_CHAR format must be string, got {:?}", val),
-            ))
+            return Err(ExecutorError::UnsupportedFeature(format!(
+                "TO_CHAR format must be string, got {:?}",
+                val
+            )))
         }
     };
 
@@ -114,28 +119,26 @@ pub(super) fn to_char(args: &[types::SqlValue]) -> Result<types::SqlValue, Execu
         // Date/Time formatting
         types::SqlValue::Date(date_str) => {
             use chrono::NaiveDate;
-            let date = NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
-                .map_err(|e| ExecutorError::UnsupportedFeature(
-                    format!("Invalid date format: {}", e)
-                ))?;
+            let date = NaiveDate::parse_from_str(date_str, "%Y-%m-%d").map_err(|e| {
+                ExecutorError::UnsupportedFeature(format!("Invalid date format: {}", e))
+            })?;
             let formatted = super::super::date_format::format_date(&date, format_str)?;
             Ok(types::SqlValue::Varchar(formatted))
         }
         types::SqlValue::Timestamp(ts_str) => {
             use chrono::NaiveDateTime;
-            let timestamp = NaiveDateTime::parse_from_str(ts_str, "%Y-%m-%d %H:%M:%S")
-                .map_err(|e| ExecutorError::UnsupportedFeature(
-                    format!("Invalid timestamp format: {}", e)
-                ))?;
+            let timestamp =
+                NaiveDateTime::parse_from_str(ts_str, "%Y-%m-%d %H:%M:%S").map_err(|e| {
+                    ExecutorError::UnsupportedFeature(format!("Invalid timestamp format: {}", e))
+                })?;
             let formatted = super::super::date_format::format_timestamp(&timestamp, format_str)?;
             Ok(types::SqlValue::Varchar(formatted))
         }
         types::SqlValue::Time(time_str) => {
             use chrono::NaiveTime;
-            let time = NaiveTime::parse_from_str(time_str, "%H:%M:%S")
-                .map_err(|e| ExecutorError::UnsupportedFeature(
-                    format!("Invalid time format: {}", e)
-                ))?;
+            let time = NaiveTime::parse_from_str(time_str, "%H:%M:%S").map_err(|e| {
+                ExecutorError::UnsupportedFeature(format!("Invalid time format: {}", e))
+            })?;
             let formatted = super::super::date_format::format_time(&time, format_str)?;
             Ok(types::SqlValue::Varchar(formatted))
         }
@@ -166,9 +169,9 @@ pub(super) fn to_char(args: &[types::SqlValue]) -> Result<types::SqlValue, Execu
             Ok(types::SqlValue::Varchar(formatted))
         }
 
-        val => Err(ExecutorError::UnsupportedFeature(
-            format!("TO_CHAR cannot format type {:?}", val),
-        )),
+        val => {
+            Err(ExecutorError::UnsupportedFeature(format!("TO_CHAR cannot format type {:?}", val)))
+        }
     }
 }
 
@@ -178,9 +181,10 @@ pub(super) fn to_char(args: &[types::SqlValue]) -> Result<types::SqlValue, Execu
 /// This function receives [value, DataType] as arguments
 pub(super) fn cast(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 2 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("CAST requires exactly 2 arguments (value, target_type), got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "CAST requires exactly 2 arguments (value, target_type), got {}",
+            args.len()
+        )));
     }
 
     // The second argument should be a DataType wrapped in a SqlValue
@@ -188,9 +192,12 @@ pub(super) fn cast(args: &[types::SqlValue]) -> Result<types::SqlValue, Executor
     // This is a simplified implementation - ideally the parser would pass DataType directly
     let target_type_str = match &args[1] {
         types::SqlValue::Varchar(s) | types::SqlValue::Character(s) => s.to_uppercase(),
-        val => return Err(ExecutorError::UnsupportedFeature(
-            format!("CAST target type must be string, got {:?}", val),
-        )),
+        val => {
+            return Err(ExecutorError::UnsupportedFeature(format!(
+                "CAST target type must be string, got {:?}",
+                val
+            )))
+        }
     };
 
     // Map string to DataType
@@ -204,9 +211,12 @@ pub(super) fn cast(args: &[types::SqlValue]) -> Result<types::SqlValue, Executor
         "DATE" => types::DataType::Date,
         "TIME" => types::DataType::Time { with_timezone: false },
         "TIMESTAMP" => types::DataType::Timestamp { with_timezone: false },
-        _ => return Err(ExecutorError::UnsupportedFeature(
-            format!("CAST to type '{}' not supported", target_type_str),
-        )),
+        _ => {
+            return Err(ExecutorError::UnsupportedFeature(format!(
+                "CAST to type '{}' not supported",
+                target_type_str
+            )))
+        }
     };
 
     // Use the existing cast_value function from casting module

@@ -29,22 +29,22 @@ pub(super) fn execute_from_clause<'a, F>(
 where
     F: Fn(&ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> + Copy,
 {
-    eprintln!("DEBUG FROM CLAUSE: {:?}", match from {
-        ast::FromClause::Table { name, alias } => format!("Table({:?}, {:?})", name, alias),
-        ast::FromClause::Join { join_type, .. } => format!("Join({:?})", join_type),
-        ast::FromClause::Subquery { alias, .. } => format!("Subquery({:?})", alias),
-    });
+    eprintln!(
+        "DEBUG FROM CLAUSE: {:?}",
+        match from {
+            ast::FromClause::Table { name, alias } => format!("Table({:?}, {:?})", name, alias),
+            ast::FromClause::Join { join_type, .. } => format!("Join({:?})", join_type),
+            ast::FromClause::Subquery { alias, .. } => format!("Subquery({:?})", alias),
+        }
+    );
 
     match from {
         ast::FromClause::Table { name, alias } => {
             execute_table_scan(name, alias.as_ref(), cte_results, database)
         }
-        ast::FromClause::Join {
-            left,
-            right,
-            join_type,
-            condition,
-        } => execute_join(left, right, join_type, condition, cte_results, database, execute_subquery),
+        ast::FromClause::Join { left, right, join_type, condition } => {
+            execute_join(left, right, join_type, condition, cte_results, database, execute_subquery)
+        }
         ast::FromClause::Subquery { query, alias } => {
             execute_derived_table(query, alias, execute_subquery)
         }
@@ -62,7 +62,10 @@ fn execute_table_scan(
     if let Some((cte_schema, cte_rows)) = cte_results.get(table_name) {
         // Use CTE result
         let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
-        eprintln!("DEBUG SCAN CTE: table_name={}, alias={:?}, effective_name={}", table_name, alias, effective_name);
+        eprintln!(
+            "DEBUG SCAN CTE: table_name={}, alias={:?}, effective_name={}",
+            table_name, alias, effective_name
+        );
         let schema = CombinedSchema::from_table(effective_name, cte_schema.clone());
         let rows = cte_rows.clone();
         Ok(FromResult { schema, rows })
@@ -73,7 +76,10 @@ fn execute_table_scan(
             .ok_or_else(|| ExecutorError::TableNotFound(table_name.to_string()))?;
 
         let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
-        eprintln!("DEBUG SCAN TABLE: table_name={}, alias={:?}, effective_name={}", table_name, alias, effective_name);
+        eprintln!(
+            "DEBUG SCAN TABLE: table_name={}, alias={:?}, effective_name={}",
+            table_name, alias, effective_name
+        );
         let schema = CombinedSchema::from_table(effective_name, table.schema.clone());
         let rows = table.scan().to_vec();
 
@@ -98,14 +104,23 @@ where
 
     // Execute left and right sides recursively
     let left_result = execute_from_clause(left, cte_results, database, execute_subquery)?;
-    eprintln!("DEBUG JOIN: left schema keys={:?}", left_result.schema.table_schemas.keys().collect::<Vec<_>>());
+    eprintln!(
+        "DEBUG JOIN: left schema keys={:?}",
+        left_result.schema.table_schemas.keys().collect::<Vec<_>>()
+    );
 
     let right_result = execute_from_clause(right, cte_results, database, execute_subquery)?;
-    eprintln!("DEBUG JOIN: right schema keys={:?}", right_result.schema.table_schemas.keys().collect::<Vec<_>>());
+    eprintln!(
+        "DEBUG JOIN: right schema keys={:?}",
+        right_result.schema.table_schemas.keys().collect::<Vec<_>>()
+    );
 
     // Perform nested loop join
     let result = nested_loop_join(left_result, right_result, join_type, condition, database)?;
-    eprintln!("DEBUG JOIN: result schema keys={:?}", result.schema.table_schemas.keys().collect::<Vec<_>>());
+    eprintln!(
+        "DEBUG JOIN: result schema keys={:?}",
+        result.schema.table_schemas.keys().collect::<Vec<_>>()
+    );
     Ok(result)
 }
 
@@ -142,10 +157,7 @@ where
                     // No rows, no columns from wildcard
                 }
             }
-            ast::SelectItem::Expression {
-                expr: _,
-                alias: col_alias,
-            } => {
+            ast::SelectItem::Expression { expr: _, alias: col_alias } => {
                 // Use alias if provided, otherwise generate column name
                 let col_name = if let Some(a) = col_alias {
                     a.clone()

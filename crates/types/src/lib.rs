@@ -42,8 +42,8 @@ pub enum DataType {
 
     // Character string types
     Character { length: usize },
-    Varchar { max_length: Option<usize> },  // None = default length (255)
-    CharacterLargeObject, // CLOB
+    Varchar { max_length: Option<usize> }, // None = default length (255)
+    CharacterLargeObject,                  // CLOB
 
     // Boolean type (SQL:1999)
     Boolean,
@@ -56,10 +56,7 @@ pub enum DataType {
     // Interval types
     // Single field: INTERVAL YEAR, INTERVAL MONTH, etc. (end_field is None)
     // Multi-field: INTERVAL YEAR TO MONTH, INTERVAL DAY TO SECOND, etc.
-    Interval {
-        start_field: IntervalField,
-        end_field: Option<IntervalField>,
-    },
+    Interval { start_field: IntervalField, end_field: Option<IntervalField> },
 
     // Binary types
     BinaryLargeObject, // BLOB
@@ -298,4 +295,3 @@ impl fmt::Display for SqlValue {
         }
     }
 }
-

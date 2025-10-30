@@ -375,10 +375,7 @@ fn test_sum_with_nulls() {
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Function {
                 name: "SUM".to_string(),
-                args: vec![ast::Expression::ColumnRef {
-                    table: None,
-                    column: "value".to_string(),
-                }],
+                args: vec![ast::Expression::ColumnRef { table: None, column: "value".to_string() }],
             },
             alias: None,
         }],
@@ -432,10 +429,7 @@ fn test_avg_function() {
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Function {
                 name: "AVG".to_string(),
-                args: vec![ast::Expression::ColumnRef {
-                    table: None,
-                    column: "score".to_string(),
-                }],
+                args: vec![ast::Expression::ColumnRef { table: None, column: "score".to_string() }],
             },
             alias: None,
         }],
@@ -489,10 +483,7 @@ fn test_min_function() {
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Function {
                 name: "MIN".to_string(),
-                args: vec![ast::Expression::ColumnRef {
-                    table: None,
-                    column: "temp".to_string(),
-                }],
+                args: vec![ast::Expression::ColumnRef { table: None, column: "temp".to_string() }],
             },
             alias: None,
         }],
@@ -545,10 +536,7 @@ fn test_max_function() {
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Function {
                 name: "MAX".to_string(),
-                args: vec![ast::Expression::ColumnRef {
-                    table: None,
-                    column: "temp".to_string(),
-                }],
+                args: vec![ast::Expression::ColumnRef { table: None, column: "temp".to_string() }],
             },
             alias: None,
         }],
@@ -665,10 +653,7 @@ fn test_count_column_all_nulls() {
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Function {
                 name: "COUNT".to_string(),
-                args: vec![ast::Expression::ColumnRef {
-                    table: None,
-                    column: "value".to_string(),
-                }],
+                args: vec![ast::Expression::ColumnRef { table: None, column: "value".to_string() }],
             },
             alias: None,
         }],
@@ -719,7 +704,11 @@ fn test_min_max_on_strings() {
         "names".to_string(),
         vec![
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(50) }, false),
+            catalog::ColumnSchema::new(
+                "name".to_string(),
+                types::DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -758,10 +747,7 @@ fn test_min_max_on_strings() {
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Function {
                 name: "MIN".to_string(),
-                args: vec![ast::Expression::ColumnRef {
-                    table: None,
-                    column: "name".to_string(),
-                }],
+                args: vec![ast::Expression::ColumnRef { table: None, column: "name".to_string() }],
             },
             alias: None,
         }],
@@ -786,10 +772,7 @@ fn test_min_max_on_strings() {
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Function {
                 name: "MAX".to_string(),
-                args: vec![ast::Expression::ColumnRef {
-                    table: None,
-                    column: "name".to_string(),
-                }],
+                args: vec![ast::Expression::ColumnRef { table: None, column: "name".to_string() }],
             },
             alias: None,
         }],
@@ -815,7 +798,11 @@ fn test_avg_precision_decimal() {
         "prices".to_string(),
         vec![
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("price".to_string(), types::DataType::Numeric { precision: 10, scale: 2 }, false),
+            catalog::ColumnSchema::new(
+                "price".to_string(),
+                types::DataType::Numeric { precision: 10, scale: 2 },
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -852,10 +839,7 @@ fn test_avg_precision_decimal() {
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Function {
                 name: "AVG".to_string(),
-                args: vec![ast::Expression::ColumnRef {
-                    table: None,
-                    column: "price".to_string(),
-                }],
+                args: vec![ast::Expression::ColumnRef { table: None, column: "price".to_string() }],
             },
             alias: None,
         }],
@@ -888,7 +872,11 @@ fn test_sum_mixed_numeric_types() {
         "mixed_amounts".to_string(),
         vec![
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("amount".to_string(), types::DataType::Numeric { precision: 10, scale: 2 }, false),
+            catalog::ColumnSchema::new(
+                "amount".to_string(),
+                types::DataType::Numeric { precision: 10, scale: 2 },
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
@@ -955,7 +943,11 @@ fn test_aggregate_with_case_expression() {
         "transactions".to_string(),
         vec![
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("type".to_string(), types::DataType::Varchar { max_length: Some(10) }, false),
+            catalog::ColumnSchema::new(
+                "type".to_string(),
+                types::DataType::Varchar { max_length: Some(10) },
+                false,
+            ),
             catalog::ColumnSchema::new("amount".to_string(), types::DataType::Integer, false),
         ],
     );
@@ -1006,14 +998,15 @@ fn test_aggregate_with_case_expression() {
                                 column: "type".to_string(),
                             }),
                             op: ast::BinaryOperator::Equal,
-                            right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("credit".to_string()))),
+                            right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                                "credit".to_string(),
+                            ))),
                         },
-                        ast::Expression::ColumnRef {
-                            table: None,
-                            column: "amount".to_string(),
-                        },
+                        ast::Expression::ColumnRef { table: None, column: "amount".to_string() },
                     )],
-                    else_result: Some(Box::new(ast::Expression::Literal(types::SqlValue::Integer(0)))),
+                    else_result: Some(Box::new(ast::Expression::Literal(
+                        types::SqlValue::Integer(0),
+                    ))),
                 }],
             },
             alias: None,

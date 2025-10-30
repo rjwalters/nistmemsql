@@ -51,19 +51,13 @@ impl DropTableExecutor {
     /// let result = DropTableExecutor::execute(&stmt, &mut db);
     /// assert!(result.is_ok());
     /// ```
-    pub fn execute(
-        stmt: &DropTableStmt,
-        database: &mut Database,
-    ) -> Result<String, ExecutorError> {
+    pub fn execute(stmt: &DropTableStmt, database: &mut Database) -> Result<String, ExecutorError> {
         // Check if table exists
         let table_exists = database.catalog.table_exists(&stmt.table_name);
 
         // If IF EXISTS is specified and table doesn't exist, succeed silently
         if stmt.if_exists && !table_exists {
-            return Ok(format!(
-                "Table '{}' does not exist (IF EXISTS specified)",
-                stmt.table_name
-            ));
+            return Ok(format!("Table '{}' does not exist (IF EXISTS specified)", stmt.table_name));
         }
 
         // If table doesn't exist and IF EXISTS is not specified, return error
@@ -84,8 +78,8 @@ impl DropTableExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ast::{ColumnDef, CreateTableStmt};
     use crate::CreateTableExecutor;
+    use ast::{ColumnDef, CreateTableStmt};
     use types::DataType;
 
     #[test]
@@ -122,8 +116,7 @@ mod tests {
     fn test_drop_nonexistent_table_without_if_exists() {
         let mut db = Database::new();
 
-        let drop_stmt =
-            DropTableStmt { table_name: "nonexistent".to_string(), if_exists: false };
+        let drop_stmt = DropTableStmt { table_name: "nonexistent".to_string(), if_exists: false };
 
         let result = DropTableExecutor::execute(&drop_stmt, &mut db);
         assert!(result.is_err());
@@ -138,10 +131,7 @@ mod tests {
 
         let result = DropTableExecutor::execute(&drop_stmt, &mut db);
         assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            "Table 'nonexistent' does not exist (IF EXISTS specified)"
-        );
+        assert_eq!(result.unwrap(), "Table 'nonexistent' does not exist (IF EXISTS specified)");
     }
 
     #[test]

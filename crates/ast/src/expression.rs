@@ -91,19 +91,13 @@ pub enum Expression {
     /// CAST expression
     /// Example: CAST(value AS INTEGER)
     /// Example: CAST('123' AS NUMERIC(10, 2))
-    Cast {
-        expr: Box<Expression>,
-        data_type: types::DataType,
-    },
+    Cast { expr: Box<Expression>, data_type: types::DataType },
 
     /// POSITION expression
     /// Example: POSITION('lo' IN 'hello')
     /// SQL:1999 Section 6.29: String value functions
     /// Returns 1-indexed position of substring in string, or 0 if not found
-    Position {
-        substring: Box<Expression>,
-        string: Box<Expression>,
-    },
+    Position { substring: Box<Expression>, string: Box<Expression> },
 
     /// TRIM expression
     /// Example: TRIM(BOTH 'x' FROM 'xxxhelloxxx')
@@ -154,10 +148,7 @@ pub enum Expression {
     /// Example: ROW_NUMBER() OVER (PARTITION BY dept ORDER BY salary DESC)
     /// Example: SUM(amount) OVER (ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)
     /// Applies a function over a window of rows related to the current row
-    WindowFunction {
-        function: WindowFunctionSpec,
-        over: WindowSpec,
-    },
+    WindowFunction { function: WindowFunctionSpec, over: WindowSpec },
 }
 
 /// Quantifier for quantified comparisons

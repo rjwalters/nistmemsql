@@ -70,19 +70,13 @@ fn test_storage_error_display() {
 
 #[test]
 fn test_subquery_returned_multiple_rows_display() {
-    let error = ExecutorError::SubqueryReturnedMultipleRows {
-        expected: 1,
-        actual: 5,
-    };
+    let error = ExecutorError::SubqueryReturnedMultipleRows { expected: 1, actual: 5 };
     assert_eq!(error.to_string(), "Scalar subquery returned 5 rows, expected 1");
 }
 
 #[test]
 fn test_subquery_column_count_mismatch_display() {
-    let error = ExecutorError::SubqueryColumnCountMismatch {
-        expected: 1,
-        actual: 3,
-    };
+    let error = ExecutorError::SubqueryColumnCountMismatch { expected: 1, actual: 3 };
     assert_eq!(error.to_string(), "Subquery returned 3 columns, expected 1");
 }
 

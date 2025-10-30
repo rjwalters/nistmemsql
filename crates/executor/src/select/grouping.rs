@@ -12,34 +12,25 @@ pub(super) enum AggregateAccumulator {
 }
 
 impl AggregateAccumulator {
-    pub(super) fn new(function_name: &str, distinct: bool) -> Result<Self, crate::errors::ExecutorError> {
+    pub(super) fn new(
+        function_name: &str,
+        distinct: bool,
+    ) -> Result<Self, crate::errors::ExecutorError> {
         match function_name.to_uppercase().as_str() {
-            "COUNT" => Ok(AggregateAccumulator::Count {
-                count: 0,
-                distinct,
-                seen: HashSet::new()
-            }),
+            "COUNT" => Ok(AggregateAccumulator::Count { count: 0, distinct, seen: HashSet::new() }),
             "SUM" => Ok(AggregateAccumulator::Sum {
                 sum: types::SqlValue::Integer(0),
                 distinct,
-                seen: HashSet::new()
+                seen: HashSet::new(),
             }),
             "AVG" => Ok(AggregateAccumulator::Avg {
                 sum: types::SqlValue::Integer(0),
                 count: 0,
                 distinct,
-                seen: HashSet::new()
+                seen: HashSet::new(),
             }),
-            "MIN" => Ok(AggregateAccumulator::Min {
-                value: None,
-                distinct,
-                seen: HashSet::new()
-            }),
-            "MAX" => Ok(AggregateAccumulator::Max {
-                value: None,
-                distinct,
-                seen: HashSet::new()
-            }),
+            "MIN" => Ok(AggregateAccumulator::Min { value: None, distinct, seen: HashSet::new() }),
+            "MAX" => Ok(AggregateAccumulator::Max { value: None, distinct, seen: HashSet::new() }),
             _ => Err(crate::errors::ExecutorError::UnsupportedExpression(format!(
                 "Unknown aggregate function: {}",
                 function_name
@@ -116,7 +107,9 @@ impl AggregateAccumulator {
                 }
 
                 match value {
-                    types::SqlValue::Integer(_) | types::SqlValue::Varchar(_) | types::SqlValue::Boolean(_) => {
+                    types::SqlValue::Integer(_)
+                    | types::SqlValue::Varchar(_)
+                    | types::SqlValue::Boolean(_) => {
                         if let Some(ref current) = current_min {
                             if compare_sql_values(value, current) == Ordering::Less {
                                 *current_min = Some(value.clone());
@@ -142,7 +135,9 @@ impl AggregateAccumulator {
                 }
 
                 match value {
-                    types::SqlValue::Integer(_) | types::SqlValue::Varchar(_) | types::SqlValue::Boolean(_) => {
+                    types::SqlValue::Integer(_)
+                    | types::SqlValue::Varchar(_)
+                    | types::SqlValue::Boolean(_) => {
                         if let Some(ref current) = current_max {
                             if compare_sql_values(value, current) == Ordering::Greater {
                                 *current_max = Some(value.clone());
@@ -168,8 +163,12 @@ impl AggregateAccumulator {
                     divide_sql_value(sum, *count)
                 }
             }
-            AggregateAccumulator::Min { value, .. } => value.clone().unwrap_or(types::SqlValue::Null),
-            AggregateAccumulator::Max { value, .. } => value.clone().unwrap_or(types::SqlValue::Null),
+            AggregateAccumulator::Min { value, .. } => {
+                value.clone().unwrap_or(types::SqlValue::Null)
+            }
+            AggregateAccumulator::Max { value, .. } => {
+                value.clone().unwrap_or(types::SqlValue::Null)
+            }
         }
     }
 }
@@ -207,9 +206,7 @@ fn add_sql_values(a: &types::SqlValue, b: &types::SqlValue) -> types::SqlValue {
 /// Divide a SqlValue by an integer count, handling Integer and Numeric types
 fn divide_sql_value(value: &types::SqlValue, count: i64) -> types::SqlValue {
     match value {
-        types::SqlValue::Integer(sum) => {
-            types::SqlValue::Integer(sum / count)
-        }
+        types::SqlValue::Integer(sum) => types::SqlValue::Integer(sum / count),
         types::SqlValue::Numeric(sum) => {
             let sum_f64 = sum.parse::<f64>().unwrap_or(0.0);
             let avg = sum_f64 / (count as f64);

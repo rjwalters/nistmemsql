@@ -1,7 +1,9 @@
 //! Transaction tests including SAVEPOINT functionality
 
 use catalog::{ColumnSchema, TableSchema};
-use executor::{BeginTransactionExecutor, CommitExecutor, SavepointExecutor, RollbackToSavepointExecutor};
+use executor::{
+    BeginTransactionExecutor, CommitExecutor, RollbackToSavepointExecutor, SavepointExecutor,
+};
 use storage::Database;
 use types::{DataType, SqlValue};
 
