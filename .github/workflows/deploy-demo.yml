@@ -63,8 +63,8 @@ jobs:
         run: cargo test --test sqltest_conformance --release -- --nocapture
         continue-on-error: true
 
-      # Generate dynamic badge data
-      - name: Generate badge JSON
+      # Generate dynamic badge data and HTML conformance report
+      - name: Generate badge JSON and conformance report
         run: |
           # Create badges directory
           mkdir -p badges
@@ -102,6 +102,11 @@ jobs:
 
           echo "Generated badge with pass rate: ${PASS_RATE}% (color: $COLOR)"
 
+          # Generate HTML conformance report
+          chmod +x scripts/generate_conformance_html.sh
+          ./scripts/generate_conformance_html.sh
+          echo "Generated HTML conformance report"
+
       # Prepare deployment directory
       - name: Prepare deployment
         run: |
@@ -113,6 +118,12 @@ jobs:
 
           # Copy badges to subdirectory
           cp -r badges deploy/badges
+
+          # Copy conformance report to root of deployment
+          if [ -f conformance-report.html ]; then
+            cp conformance-report.html deploy/conformance.html
+            echo "Copied conformance report to deploy/conformance.html"
+          fi
 
           echo "Deployment directory contents:"
           ls -la deploy/

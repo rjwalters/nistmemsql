@@ -4,7 +4,7 @@
 [![Tests](https://github.com/rjwalters/nistmemsql/actions/workflows/test.yml/badge.svg)](https://github.com/rjwalters/nistmemsql/actions/workflows/test.yml)
 [![Demo](https://img.shields.io/badge/demo-live-success)](https://rjwalters.github.io/nistmemsql/)
 [![Coverage](https://img.shields.io/badge/coverage-84%25-green)](https://github.com/rjwalters/nistmemsql)
-[![SQL:1999 Conformance](https://img.shields.io/endpoint?url=https://rjwalters.github.io/nistmemsql/badges/sql1999-conformance.json)](https://github.com/rjwalters/nistmemsql/blob/main/docs/SQL1999_CONFORMANCE.md)
+[![SQL:1999 Conformance](https://img.shields.io/endpoint?url=https://rjwalters.github.io/nistmemsql/badges/sql1999-conformance.json)](https://rjwalters.github.io/nistmemsql/conformance.html)
 
 > **An open-source, NIST-testable SQL:1999 database implementation in Rust**
 
@@ -73,7 +73,7 @@ We use comprehensive test suites to track SQL:1999 compliance:
 | SQL:1999 Core | 100 tests | 42% | 🟡 In Progress |
 | End-to-End | 836 tests | ~90% | ✅ Strong |
 
-**See [SQL:1999 Conformance Report](docs/SQL1999_CONFORMANCE.md) for detailed breakdown.**
+**See [SQL:1999 Conformance Report](https://rjwalters.github.io/nistmemsql/conformance.html) for detailed breakdown.**
 
 ### Running Tests
 
