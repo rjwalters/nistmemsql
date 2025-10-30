@@ -6,7 +6,7 @@ impl Parser {
         &mut self,
     ) -> Result<Option<ast::Expression>, ParseError> {
         match self.peek() {
-            Token::Identifier(id) => {
+            Token::Identifier(id) | Token::DelimitedIdentifier(id) => {
                 let first = id.clone();
                 self.advance();
 
@@ -21,7 +21,7 @@ impl Parser {
                 else if matches!(self.peek(), Token::Symbol('.')) {
                     self.advance(); // consume '.'
                     match self.peek() {
-                        Token::Identifier(col) => {
+                        Token::Identifier(col) | Token::DelimitedIdentifier(col) => {
                             let column = col.clone();
                             self.advance();
                             Ok(Some(ast::Expression::ColumnRef { table: Some(first), column }))

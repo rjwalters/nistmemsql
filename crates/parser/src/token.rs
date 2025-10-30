@@ -9,9 +9,11 @@ pub enum Token {
     Keyword(Keyword),
     /// Identifier (table name, column name, etc.)
     Identifier(String),
+    /// Delimited identifier ("columnName" - case-sensitive, can use reserved words)
+    DelimitedIdentifier(String),
     /// Numeric literal (42, 3.14, etc.)
     Number(String),
-    /// String literal ('hello', "world")
+    /// String literal ('hello')
     String(String),
     /// Single character symbols (+, -, *, /, =, <, >, etc.)
     Symbol(char),
@@ -34,6 +36,7 @@ impl fmt::Display for Token {
         match self {
             Token::Keyword(kw) => write!(f, "Keyword({})", kw),
             Token::Identifier(id) => write!(f, "Identifier({})", id),
+            Token::DelimitedIdentifier(id) => write!(f, "DelimitedIdentifier(\"{}\")", id),
             Token::Number(n) => write!(f, "Number({})", n),
             Token::String(s) => write!(f, "String('{}')", s),
             Token::Symbol(c) => write!(f, "Symbol({})", c),
