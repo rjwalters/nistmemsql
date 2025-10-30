@@ -12,32 +12,32 @@ fn test_window_demo_count_over() {
 
     // Create employees table
     let schema = TableSchema::new(
-        "employees".to_string(),
+        "EMPLOYEES".to_string(),
         vec![
-            ColumnSchema::new("employee_id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("EMPLOYEE_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "first_name".to_string(),
+                "FIRST_NAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
             ColumnSchema::new(
-                "last_name".to_string(),
+                "LAST_NAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
             ColumnSchema::new(
-                "department".to_string(),
+                "DEPARTMENT".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
-            ColumnSchema::new("salary".to_string(), DataType::Integer, false),
+            ColumnSchema::new("SALARY".to_string(), DataType::Integer, false),
         ],
     );
     db.create_table(schema).unwrap();
 
     // Insert test data
     use storage::Row;
-    let table = db.get_table_mut("employees").unwrap();
+    let table = db.get_table_mut("EMPLOYEES").unwrap();
     table
         .insert(Row::new(vec![
             SqlValue::Integer(1),
@@ -100,27 +100,27 @@ fn test_window_demo_running_total() {
 
     // Create employees table
     let schema = TableSchema::new(
-        "employees".to_string(),
+        "EMPLOYEES".to_string(),
         vec![
-            ColumnSchema::new("employee_id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("EMPLOYEE_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "first_name".to_string(),
+                "FIRST_NAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
             ColumnSchema::new(
-                "last_name".to_string(),
+                "LAST_NAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
-            ColumnSchema::new("salary".to_string(), DataType::Integer, false),
+            ColumnSchema::new("SALARY".to_string(), DataType::Integer, false),
         ],
     );
     db.create_table(schema).unwrap();
 
     // Insert test data
     use storage::Row;
-    let table = db.get_table_mut("employees").unwrap();
+    let table = db.get_table_mut("EMPLOYEES").unwrap();
     table
         .insert(Row::new(vec![
             SqlValue::Integer(1),
@@ -180,32 +180,32 @@ fn test_window_demo_partitioned_avg() {
 
     // Create employees table
     let schema = TableSchema::new(
-        "employees".to_string(),
+        "EMPLOYEES".to_string(),
         vec![
-            ColumnSchema::new("employee_id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("EMPLOYEE_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "first_name".to_string(),
+                "FIRST_NAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
             ColumnSchema::new(
-                "last_name".to_string(),
+                "LAST_NAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
             ColumnSchema::new(
-                "department".to_string(),
+                "DEPARTMENT".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
-            ColumnSchema::new("salary".to_string(), DataType::Integer, false),
+            ColumnSchema::new("SALARY".to_string(), DataType::Integer, false),
         ],
     );
     db.create_table(schema).unwrap();
 
     // Insert test data with 2 departments
     use storage::Row;
-    let table = db.get_table_mut("employees").unwrap();
+    let table = db.get_table_mut("EMPLOYEES").unwrap();
     table
         .insert(Row::new(vec![
             SqlValue::Integer(1),
