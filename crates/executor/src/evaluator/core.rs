@@ -107,12 +107,24 @@ impl<'a> ExpressionEvaluator<'a> {
             // String comparisons (VARCHAR and CHAR are compatible)
             (Varchar(a), Equal, Varchar(b)) => Ok(Boolean(a == b)),
             (Varchar(a), NotEqual, Varchar(b)) => Ok(Boolean(a != b)),
+            (Varchar(a), LessThan, Varchar(b)) => Ok(Boolean(a < b)),
+            (Varchar(a), LessThanOrEqual, Varchar(b)) => Ok(Boolean(a <= b)),
+            (Varchar(a), GreaterThan, Varchar(b)) => Ok(Boolean(a > b)),
+            (Varchar(a), GreaterThanOrEqual, Varchar(b)) => Ok(Boolean(a >= b)),
             (Character(a), Equal, Character(b)) => Ok(Boolean(a == b)),
             (Character(a), NotEqual, Character(b)) => Ok(Boolean(a != b)),
+            (Character(a), LessThan, Character(b)) => Ok(Boolean(a < b)),
+            (Character(a), LessThanOrEqual, Character(b)) => Ok(Boolean(a <= b)),
+            (Character(a), GreaterThan, Character(b)) => Ok(Boolean(a > b)),
+            (Character(a), GreaterThanOrEqual, Character(b)) => Ok(Boolean(a >= b)),
 
             // Cross-type string comparisons (CHAR vs VARCHAR)
             (Character(a), Equal, Varchar(b)) | (Varchar(b), Equal, Character(a)) => Ok(Boolean(a == b)),
             (Character(a), NotEqual, Varchar(b)) | (Varchar(b), NotEqual, Character(a)) => Ok(Boolean(a != b)),
+            (Character(a), LessThan, Varchar(b)) | (Varchar(b), GreaterThan, Character(a)) => Ok(Boolean(a < b)),
+            (Character(a), LessThanOrEqual, Varchar(b)) | (Varchar(b), GreaterThanOrEqual, Character(a)) => Ok(Boolean(a <= b)),
+            (Character(a), GreaterThan, Varchar(b)) | (Varchar(b), LessThan, Character(a)) => Ok(Boolean(a > b)),
+            (Character(a), GreaterThanOrEqual, Varchar(b)) | (Varchar(b), LessThanOrEqual, Character(a)) => Ok(Boolean(a >= b)),
 
             // String concatenation (||)
             (Varchar(a), Concat, Varchar(b)) => Ok(Varchar(format!("{}{}", a, b))),
