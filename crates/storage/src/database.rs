@@ -80,21 +80,49 @@ impl Database {
             .create_table(schema.clone())
             .map_err(|e| StorageError::CatalogError(e.to_string()))?;
 
+        // Store with fully qualified name (schema.table)
+        let current_schema = self.catalog.get_current_schema();
+        let qualified_name = format!("{}.{}", current_schema, table_name);
+
         // Create empty table
         let table = Table::new(schema);
-        self.tables.insert(table_name, table);
+        self.tables.insert(qualified_name, table);
 
         Ok(())
     }
 
     /// Get a table for reading
     pub fn get_table(&self, name: &str) -> Option<&Table> {
-        self.tables.get(name)
+        // Try as fully qualified name first
+        if let Some(table) = self.tables.get(name) {
+            return Some(table);
+        }
+
+        // If not found and name is unqualified, try with current schema prefix
+        if !name.contains('.') {
+            let current_schema = self.catalog.get_current_schema();
+            let qualified_name = format!("{}.{}", current_schema, name);
+            return self.tables.get(&qualified_name);
+        }
+
+        None
     }
 
     /// Get a table for writing
     pub fn get_table_mut(&mut self, name: &str) -> Option<&mut Table> {
-        self.tables.get_mut(name)
+        // Try as fully qualified name first
+        if self.tables.contains_key(name) {
+            return self.tables.get_mut(name);
+        }
+
+        // If not found and name is unqualified, try with current schema prefix
+        if !name.contains('.') {
+            let current_schema = self.catalog.get_current_schema().to_string();
+            let qualified_name = format!("{}.{}", current_schema, name);
+            return self.tables.get_mut(&qualified_name);
+        }
+
+        None
     }
 
     /// Drop a table
@@ -102,8 +130,15 @@ impl Database {
         // Remove from catalog
         self.catalog.drop_table(name).map_err(|e| StorageError::CatalogError(e.to_string()))?;
 
-        // Remove table data
-        self.tables.remove(name);
+        // Remove table data - try exact name first, then try with schema prefix
+        if !self.tables.remove(name).is_some() {
+            // If not found and name is unqualified, try with current schema prefix
+            if !name.contains('.') {
+                let current_schema = self.catalog.get_current_schema();
+                let qualified_name = format!("{}.{}", current_schema, name);
+                self.tables.remove(&qualified_name);
+            }
+        }
 
         Ok(())
     }
