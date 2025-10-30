@@ -16,14 +16,15 @@ impl Parser {
                 }
                 name
             }
-            // Allow LEFT and RIGHT keywords as function names
-            // These are reserved for LEFT JOIN and RIGHT JOIN but can also be functions
-            Token::Keyword(Keyword::Left) | Token::Keyword(Keyword::Right) => {
+            // Allow LEFT, RIGHT, and SCHEMA keywords as function names
+            // These are reserved keywords but can also be functions
+            Token::Keyword(Keyword::Left) | Token::Keyword(Keyword::Right) | Token::Keyword(Keyword::Schema) => {
                 // Peek ahead to see if this is followed by '('
                 // Don't consume the keyword unless we're sure it's a function
                 let keyword_name = match self.peek() {
                     Token::Keyword(Keyword::Left) => "LEFT",
                     Token::Keyword(Keyword::Right) => "RIGHT",
+                    Token::Keyword(Keyword::Schema) => "SCHEMA",
                     _ => unreachable!(),
                 };
 
