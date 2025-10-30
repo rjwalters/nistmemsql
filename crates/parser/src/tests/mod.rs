@@ -22,6 +22,7 @@ mod predicates;
 mod quantified;
 mod select;
 mod set_operations;
+mod string_functions;
 mod subquery;
 mod transaction;
 mod update;

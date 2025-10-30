@@ -243,6 +243,8 @@ impl Lexer {
             "TRAILING" => Token::Keyword(Keyword::Trailing),
             // Data type keywords
             "VARYING" => Token::Keyword(Keyword::Varying),
+            // SUBSTRING function keywords
+            "FOR" => Token::Keyword(Keyword::For),
             _ => Token::Identifier(text),
         };
 

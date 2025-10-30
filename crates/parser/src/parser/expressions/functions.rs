@@ -128,6 +128,47 @@ impl Parser {
             }
         }
 
+        // Special case for SUBSTRING(string FROM start [FOR length])
+        // SQL:1999 standard syntax - alternative to comma syntax
+        if first.to_uppercase() == "SUBSTRING" {
+            // Parse the string expression
+            let string_expr = self.parse_expression()?;
+
+            // Check which syntax: comma or FROM keyword
+            let (start_expr, length_expr) = if self.try_consume_keyword(Keyword::From) {
+                // FROM/FOR syntax: SUBSTRING(string FROM start [FOR length])
+                let start = self.parse_expression()?;
+                let length = if self.try_consume_keyword(Keyword::For) {
+                    Some(self.parse_expression()?)
+                } else {
+                    None
+                };
+                (start, length)
+            } else {
+                // Comma syntax: SUBSTRING(string, start [, length])
+                self.expect_token(Token::Comma)?;
+                let start = self.parse_expression()?;
+                let length = if matches!(self.peek(), Token::Comma) {
+                    self.advance(); // consume comma
+                    Some(self.parse_expression()?)
+                } else {
+                    None
+                };
+                (start, length)
+            };
+
+            self.expect_token(Token::RParen)?;
+
+            // For SUBSTRING, we represent it as a function call with 2 or 3 arguments
+            // The executor will handle the semantics
+            let mut args = vec![string_expr, start_expr];
+            if let Some(length) = length_expr {
+                args.push(length);
+            }
+
+            return Ok(Some(ast::Expression::Function { name: first, args }));
+        }
+
         // Check if this is an aggregate function
         let function_name_upper = first.to_uppercase();
         let is_aggregate = matches!(

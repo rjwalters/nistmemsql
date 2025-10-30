@@ -108,6 +108,8 @@ pub enum Keyword {
     Trailing,
     // Data type keywords
     Varying,
+    // SUBSTRING function keywords
+    For,
 }
 
 impl fmt::Display for Keyword {
@@ -207,6 +209,7 @@ impl fmt::Display for Keyword {
             Keyword::Leading => "LEADING",
             Keyword::Trailing => "TRAILING",
             Keyword::Varying => "VARYING",
+            Keyword::For => "FOR",
         };
         write!(f, "{}", keyword_str)
     }
