@@ -22,10 +22,8 @@ fn execute_create_table(db: &mut Database, sql: &str) -> Result<String, String> 
     let stmt = Parser::parse_sql(sql).map_err(|e| format!("Parse error: {:?}", e))?;
 
     match stmt {
-        Statement::CreateTable(create_stmt) => {
-            CreateTableExecutor::execute(&create_stmt, db)
-                .map_err(|e| format!("Execution error: {:?}", e))
-        }
+        Statement::CreateTable(create_stmt) => CreateTableExecutor::execute(&create_stmt, db)
+            .map_err(|e| format!("Execution error: {:?}", e)),
         other => Err(format!("Expected CREATE TABLE statement, got {:?}", other)),
     }
 }
@@ -128,16 +126,18 @@ fn test_case_sensitive_column_names() {
 
     // Create table with both quoted and unquoted column names
     // "firstName" preserves case, lastName normalized to LASTNAME
-    execute_create_table(&mut db, r#"CREATE TABLE employees ("firstName" VARCHAR(50), lastName VARCHAR(50))"#).unwrap();
+    execute_create_table(
+        &mut db,
+        r#"CREATE TABLE employees ("firstName" VARCHAR(50), lastName VARCHAR(50))"#,
+    )
+    .unwrap();
 
     // Insert a row
     db.insert_row(
         "EMPLOYEES",
-        Row::new(vec![
-            SqlValue::Varchar("John".to_string()),
-            SqlValue::Varchar("Doe".to_string()),
-        ])
-    ).unwrap();
+        Row::new(vec![SqlValue::Varchar("John".to_string()), SqlValue::Varchar("Doe".to_string())]),
+    )
+    .unwrap();
 
     // Query with exact case for quoted identifier
     let result1 = execute_select(&db, r#"SELECT "firstName" FROM employees"#).unwrap();
@@ -156,17 +156,15 @@ fn test_different_case_columns_are_distinct() {
     let mut db = Database::new();
 
     // Create table with two different columns that differ only in case
-    execute_create_table(&mut db, r#"CREATE TABLE data ("value" INT, "VALUE" INT, "Value" INT)"#).unwrap();
+    execute_create_table(&mut db, r#"CREATE TABLE data ("value" INT, "VALUE" INT, "Value" INT)"#)
+        .unwrap();
 
     // All three are distinct columns
     db.insert_row(
         "DATA",
-        Row::new(vec![
-            SqlValue::Integer(1),
-            SqlValue::Integer(2),
-            SqlValue::Integer(3),
-        ])
-    ).unwrap();
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(2), SqlValue::Integer(3)]),
+    )
+    .unwrap();
 
     let result1 = execute_select(&db, r#"SELECT "value" FROM data"#).unwrap();
     let result2 = execute_select(&db, r#"SELECT "VALUE" FROM data"#).unwrap();
@@ -202,7 +200,11 @@ fn test_reserved_words_as_column_names() {
     let mut db = Database::new();
 
     // Use reserved words as column names (must be quoted)
-    execute_create_table(&mut db, r#"CREATE TABLE queries ("SELECT" INT, "FROM" VARCHAR(50), "WHERE" INT)"#).unwrap();
+    execute_create_table(
+        &mut db,
+        r#"CREATE TABLE queries ("SELECT" INT, "FROM" VARCHAR(50), "WHERE" INT)"#,
+    )
+    .unwrap();
 
     db.insert_row(
         "QUERIES",
@@ -210,8 +212,9 @@ fn test_reserved_words_as_column_names() {
             SqlValue::Integer(1),
             SqlValue::Varchar("table1".to_string()),
             SqlValue::Integer(100),
-        ])
-    ).unwrap();
+        ]),
+    )
+    .unwrap();
 
     let result = execute_select(&db, r#"SELECT "SELECT", "FROM", "WHERE" FROM queries"#).unwrap();
     assert_eq!(result.len(), 1);
@@ -241,15 +244,20 @@ fn test_spaces_in_table_names() {
 fn test_spaces_in_column_names() {
     let mut db = Database::new();
 
-    execute_create_table(&mut db, r#"CREATE TABLE contacts ("First Name" VARCHAR(50), "Last Name" VARCHAR(50))"#).unwrap();
+    execute_create_table(
+        &mut db,
+        r#"CREATE TABLE contacts ("First Name" VARCHAR(50), "Last Name" VARCHAR(50))"#,
+    )
+    .unwrap();
 
     db.insert_row(
         "CONTACTS",
         Row::new(vec![
             SqlValue::Varchar("Jane".to_string()),
             SqlValue::Varchar("Smith".to_string()),
-        ])
-    ).unwrap();
+        ]),
+    )
+    .unwrap();
 
     let result = execute_select(&db, r#"SELECT "First Name", "Last Name" FROM contacts"#).unwrap();
     assert_eq!(result[0].values[0], SqlValue::Varchar("Jane".to_string()));
@@ -262,15 +270,17 @@ fn test_escaped_quotes_in_identifiers() {
 
     // Double quote inside delimited identifier is escaped with ""
     // "O""Reilly" → O"Reilly
-    execute_create_table(&mut db, r#"CREATE TABLE "O""Reilly Books" (id INT, "Book""Title" VARCHAR(100))"#).unwrap();
+    execute_create_table(
+        &mut db,
+        r#"CREATE TABLE "O""Reilly Books" (id INT, "Book""Title" VARCHAR(100))"#,
+    )
+    .unwrap();
 
     db.insert_row(
         r#"O"Reilly Books"#,
-        Row::new(vec![
-            SqlValue::Integer(1),
-            SqlValue::Varchar("Learning Rust".to_string()),
-        ])
-    ).unwrap();
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Learning Rust".to_string())]),
+    )
+    .unwrap();
 
     let result = execute_select(&db, r#"SELECT "Book""Title" FROM "O""Reilly Books""#).unwrap();
     assert_eq!(result[0].values[0], SqlValue::Varchar("Learning Rust".to_string()));
@@ -284,18 +294,21 @@ fn test_escaped_quotes_in_identifiers() {
 fn test_insert_with_delimited_identifiers() {
     let mut db = Database::new();
 
-    execute_create_table(&mut db, r#"CREATE TABLE "products" ("productId" INT, "productName" VARCHAR(50))"#).unwrap();
+    execute_create_table(
+        &mut db,
+        r#"CREATE TABLE "products" ("productId" INT, "productName" VARCHAR(50))"#,
+    )
+    .unwrap();
 
     // Parser doesn't support INSERT yet, so we use direct storage API
     db.insert_row(
         "products",
-        Row::new(vec![
-            SqlValue::Integer(100),
-            SqlValue::Varchar("Widget".to_string()),
-        ])
-    ).unwrap();
+        Row::new(vec![SqlValue::Integer(100), SqlValue::Varchar("Widget".to_string())]),
+    )
+    .unwrap();
 
-    let result = execute_select(&db, r#"SELECT "productId", "productName" FROM "products""#).unwrap();
+    let result =
+        execute_select(&db, r#"SELECT "productId", "productName" FROM "products""#).unwrap();
     assert_eq!(result[0].values[0], SqlValue::Integer(100));
     assert_eq!(result[0].values[1], SqlValue::Varchar("Widget".to_string()));
 }

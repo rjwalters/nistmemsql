@@ -67,6 +67,14 @@ fn parse_add_column(
     let column_name = parser.parse_identifier()?;
     let data_type = parser.parse_data_type()?;
 
+    // Parse optional DEFAULT clause
+    let default_value = if parser.peek_keyword(Keyword::Default) {
+        parser.advance(); // consume DEFAULT
+        Some(Box::new(parser.parse_expression()?))
+    } else {
+        None
+    };
+
     // Parse column constraints
     let mut nullable = true;
     let mut constraints = Vec::new();
@@ -89,12 +97,6 @@ fn parse_add_column(
                 constraints
                     .push(ColumnConstraint { name: None, kind: ColumnConstraintKind::Unique });
             }
-            Token::Keyword(Keyword::Default) => {
-                parser.advance();
-                // TODO: Parse default expression
-                // For now, skip the expression
-                parser.advance(); // Skip the default value
-            }
             Token::Keyword(Keyword::References) => {
                 parser.advance();
                 let ref_table = parser.parse_identifier()?;
@@ -110,7 +112,8 @@ fn parse_add_column(
         }
     }
 
-    let column_def = ColumnDef { name: column_name, data_type, nullable, constraints };
+    let column_def =
+        ColumnDef { name: column_name, data_type, nullable, constraints, default_value };
 
     Ok(AlterTableStmt::AddColumn(AddColumnStmt { table_name, column_def }))
 }

@@ -48,6 +48,14 @@ impl Parser {
             // Parse data type
             let data_type = self.parse_data_type()?;
 
+            // Parse optional DEFAULT clause
+            let default_value = if self.peek_keyword(Keyword::Default) {
+                self.advance(); // consume DEFAULT
+                Some(Box::new(self.parse_expression()?))
+            } else {
+                None
+            };
+
             // Parse column constraints (which may include NOT NULL)
             let constraints = self.parse_column_constraints()?;
 
@@ -55,7 +63,7 @@ impl Parser {
             let nullable =
                 !constraints.iter().any(|c| matches!(&c.kind, ast::ColumnConstraintKind::NotNull));
 
-            columns.push(ast::ColumnDef { name, data_type, nullable, constraints });
+            columns.push(ast::ColumnDef { name, data_type, nullable, constraints, default_value });
 
             if matches!(self.peek(), Token::Comma) {
                 self.advance();

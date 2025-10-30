@@ -38,6 +38,7 @@ impl DropTableExecutor {
     ///             data_type: DataType::Integer,
     ///             nullable: false,
     ///             constraints: vec![],
+    ///             default_value: None,
     ///         },
     ///     ],
     ///     table_constraints: vec![],
@@ -98,6 +99,7 @@ mod tests {
                 data_type: DataType::Integer,
                 nullable: false,
                 constraints: vec![],
+                default_value: None,
             }],
             table_constraints: vec![],
         };
@@ -150,6 +152,7 @@ mod tests {
                 data_type: DataType::Integer,
                 nullable: false,
                 constraints: vec![],
+                default_value: None,
             }],
             table_constraints: vec![],
         };
@@ -179,12 +182,14 @@ mod tests {
                     data_type: DataType::Integer,
                     nullable: false,
                     constraints: vec![],
+                    default_value: None,
                 },
                 ColumnDef {
                     name: "name".to_string(),
                     data_type: DataType::Varchar { max_length: Some(100) },
                     nullable: false,
                     constraints: vec![],
+                    default_value: None,
                 },
             ],
             table_constraints: vec![],
@@ -223,6 +228,7 @@ mod tests {
                 data_type: DataType::Integer,
                 nullable: false,
                 constraints: vec![],
+                default_value: None,
             }],
             table_constraints: vec![],
         };
@@ -251,6 +257,7 @@ mod tests {
                     data_type: DataType::Integer,
                     nullable: false,
                     constraints: vec![],
+                    default_value: None,
                 }],
                 table_constraints: vec![],
             };
@@ -281,6 +288,7 @@ mod tests {
                 data_type: DataType::Integer,
                 nullable: false,
                 constraints: vec![],
+                default_value: None,
             }],
             table_constraints: vec![],
         };

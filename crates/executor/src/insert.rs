@@ -115,6 +115,18 @@ impl InsertExecutor {
                 full_row_values[*col_idx] = coerced_value;
             }
 
+            // Apply DEFAULT values for unspecified columns
+            for (col_idx, col) in schema.columns.iter().enumerate() {
+                // If column is NULL and has a default value, apply it
+                if full_row_values[col_idx] == types::SqlValue::Null {
+                    if let Some(default_expr) = &col.default_value {
+                        let default_value = evaluate_default_expression(default_expr)?;
+                        let coerced_value = coerce_value(default_value, &col.data_type)?;
+                        full_row_values[col_idx] = coerced_value;
+                    }
+                }
+            }
+
             // Enforce NOT NULL constraints
             for (col_idx, col) in schema.columns.iter().enumerate() {
                 if !col.nullable && full_row_values[col_idx] == types::SqlValue::Null {
@@ -273,14 +285,8 @@ fn evaluate_insert_expression(
         ast::Expression::Default => {
             // Use column's default value, or NULL if no default is defined
             if let Some(default_expr) = &column.default_value {
-                // Evaluate the default expression (currently only supports literals)
-                match default_expr {
-                    ast::Expression::Literal(lit) => Ok(lit.clone()),
-                    _ => Err(ExecutorError::UnsupportedExpression(format!(
-                        "Complex default expressions not yet supported for column '{}'",
-                        column.name
-                    ))),
-                }
+                // Evaluate the default expression
+                evaluate_default_expression(default_expr)
             } else {
                 // No default value defined, use NULL
                 Ok(types::SqlValue::Null)
@@ -288,6 +294,44 @@ fn evaluate_insert_expression(
         }
         _ => Err(ExecutorError::UnsupportedExpression(
             "INSERT only supports literal values and DEFAULT".to_string(),
+        )),
+    }
+}
+
+/// Evaluate a DEFAULT expression to get its value
+/// Supports literals and special functions (CURRENT_DATE, CURRENT_USER, etc.)
+fn evaluate_default_expression(expr: &ast::Expression) -> Result<types::SqlValue, ExecutorError> {
+    match expr {
+        ast::Expression::Literal(lit) => Ok(lit.clone()),
+        ast::Expression::Function { name, .. } => {
+            // Evaluate special SQL functions that can be used in DEFAULT
+            match name.to_uppercase().as_str() {
+                "CURRENT_DATE" => {
+                    Ok(types::SqlValue::Date(chrono::Local::now().date_naive().to_string()))
+                }
+                "CURRENT_TIME" => {
+                    Ok(types::SqlValue::Time(chrono::Local::now().time().to_string()))
+                }
+                "CURRENT_TIMESTAMP" => {
+                    let now = chrono::Local::now();
+                    Ok(types::SqlValue::Timestamp(now.naive_local().to_string()))
+                }
+                "CURRENT_USER" | "USER" | "SESSION_USER" => {
+                    // Return current user (placeholder - would come from session context)
+                    Ok(types::SqlValue::Varchar("public".to_string()))
+                }
+                "CURRENT_ROLE" => {
+                    // Return current role (placeholder - would come from session context)
+                    Ok(types::SqlValue::Varchar("public".to_string()))
+                }
+                _ => Err(ExecutorError::UnsupportedExpression(format!(
+                    "Function '{}' not supported in DEFAULT expressions",
+                    name
+                ))),
+            }
+        }
+        _ => Err(ExecutorError::UnsupportedExpression(
+            "Only literals and functions are supported in DEFAULT expressions".to_string(),
         )),
     }
 }

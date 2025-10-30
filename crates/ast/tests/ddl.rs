@@ -14,12 +14,14 @@ fn test_create_table_statement() {
                 data_type: types::DataType::Integer,
                 nullable: false,
                 constraints: vec![],
+                default_value: None,
             },
             ColumnDef {
                 name: "name".to_string(),
                 data_type: types::DataType::Varchar { max_length: Some(255) },
                 nullable: true,
                 constraints: vec![],
+                default_value: None,
             },
         ],
         table_constraints: vec![],
@@ -38,6 +40,7 @@ fn test_column_def() {
         data_type: types::DataType::Varchar { max_length: Some(100) },
         nullable: false,
         constraints: vec![],
+        default_value: None,
     };
     assert_eq!(col.name, "email");
     assert!(!col.nullable);

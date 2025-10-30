@@ -94,7 +94,11 @@ impl Parser {
                         }
                         _ => None,
                     }
-                } else if matches!(self.peek(), Token::Identifier(_) | Token::DelimitedIdentifier(_)) && !self.is_join_keyword() {
+                } else if matches!(
+                    self.peek(),
+                    Token::Identifier(_) | Token::DelimitedIdentifier(_)
+                ) && !self.is_join_keyword()
+                {
                     // Implicit alias (no AS keyword) - but not a JOIN keyword
                     match self.peek() {
                         Token::Identifier(id) | Token::DelimitedIdentifier(id) => {
