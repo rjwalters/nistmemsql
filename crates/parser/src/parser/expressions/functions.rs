@@ -77,6 +77,10 @@ impl Parser {
         //   TRIM(BOTH 'x' FROM string)                -- remove 'x' from both sides
         //   TRIM(LEADING 'x' FROM string)             -- remove 'x' from start
         //   TRIM(TRAILING 'x' FROM string)            -- remove 'x' from end
+        //   TRIM(FROM string)                         -- remove spaces from both sides (explicit FROM)
+        //   TRIM(BOTH FROM string)                    -- remove spaces from both sides (explicit BOTH)
+        //   TRIM(LEADING FROM string)                 -- remove spaces from start (explicit LEADING)
+        //   TRIM(TRAILING FROM string)                -- remove spaces from end (explicit TRAILING)
         if first.to_uppercase() == "TRIM" {
             let mut position: Option<ast::TrimPosition> = None;
             let removal_char: Option<Box<ast::Expression>>;
@@ -96,6 +100,22 @@ impl Parser {
                     position = Some(ast::TrimPosition::Trailing);
                 }
                 _ => {}
+            }
+
+            // Check if FROM comes immediately (no removal char specified)
+            // This handles: TRIM(FROM 'foo'), TRIM(BOTH FROM 'foo'), etc.
+            if matches!(self.peek(), Token::Keyword(Keyword::From)) {
+                self.advance(); // consume FROM
+                removal_char = None; // Default to space
+                let string = self.parse_primary_expression()?;
+
+                self.expect_token(Token::RParen)?;
+
+                return Ok(Some(ast::Expression::Trim {
+                    position,
+                    removal_char,
+                    string: Box::new(string),
+                }));
             }
 
             // Try to parse the first expression (could be removal_char or string)

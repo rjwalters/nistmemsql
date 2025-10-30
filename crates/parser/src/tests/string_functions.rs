@@ -196,3 +196,127 @@ fn test_substring_syntaxes_equivalent() {
         panic!("Both should be Function expressions");
     }
 }
+
+// ========================================================================
+// TRIM Function Tests
+// ========================================================================
+
+#[test]
+fn test_trim_from_without_char() {
+    let result = Parser::parse_sql("SELECT TRIM(FROM '  foo  ')");
+    assert!(result.is_ok(), "TRIM(FROM string) should parse: {:?}", result);
+
+    let stmt = result.unwrap();
+    if let ast::Statement::Select(select) = stmt {
+        assert_eq!(select.select_list.len(), 1);
+
+        if let ast::SelectItem::Expression { expr, .. } = &select.select_list[0] {
+            if let ast::Expression::Trim { position, removal_char, string } = expr {
+                // Position should be None (defaults to BOTH)
+                assert_eq!(*position, None);
+                // removal_char should be None (defaults to space)
+                assert!(removal_char.is_none());
+                // String should be the literal
+                if let ast::Expression::Literal(types::SqlValue::Varchar(s)) = string.as_ref() {
+                    assert_eq!(s, "  foo  ");
+                } else {
+                    panic!("Expected string literal");
+                }
+            } else {
+                panic!("Expected Trim expression");
+            }
+        } else {
+            panic!("Expected Expression SelectItem");
+        }
+    } else {
+        panic!("Expected SELECT statement");
+    }
+}
+
+#[test]
+fn test_trim_both_from_without_char() {
+    let result = Parser::parse_sql("SELECT TRIM(BOTH FROM '  foo  ')");
+    assert!(result.is_ok(), "TRIM(BOTH FROM string) should parse: {:?}", result);
+
+    let stmt = result.unwrap();
+    if let ast::Statement::Select(select) = stmt {
+        if let ast::SelectItem::Expression { expr, .. } = &select.select_list[0] {
+            if let ast::Expression::Trim { position, removal_char, .. } = expr {
+                // Position should be BOTH
+                assert_eq!(*position, Some(ast::TrimPosition::Both));
+                // removal_char should be None (defaults to space)
+                assert!(removal_char.is_none());
+            } else {
+                panic!("Expected Trim expression");
+            }
+        }
+    }
+}
+
+#[test]
+fn test_trim_leading_from_without_char() {
+    let result = Parser::parse_sql("SELECT TRIM(LEADING FROM '  foo')");
+    assert!(result.is_ok(), "TRIM(LEADING FROM string) should parse: {:?}", result);
+
+    let stmt = result.unwrap();
+    if let ast::Statement::Select(select) = stmt {
+        if let ast::SelectItem::Expression { expr, .. } = &select.select_list[0] {
+            if let ast::Expression::Trim { position, removal_char, .. } = expr {
+                // Position should be LEADING
+                assert_eq!(*position, Some(ast::TrimPosition::Leading));
+                // removal_char should be None (defaults to space)
+                assert!(removal_char.is_none());
+            } else {
+                panic!("Expected Trim expression");
+            }
+        }
+    }
+}
+
+#[test]
+fn test_trim_trailing_from_without_char() {
+    let result = Parser::parse_sql("SELECT TRIM(TRAILING FROM 'foo  ')");
+    assert!(result.is_ok(), "TRIM(TRAILING FROM string) should parse: {:?}", result);
+
+    let stmt = result.unwrap();
+    if let ast::Statement::Select(select) = stmt {
+        if let ast::SelectItem::Expression { expr, .. } = &select.select_list[0] {
+            if let ast::Expression::Trim { position, removal_char, .. } = expr {
+                // Position should be TRAILING
+                assert_eq!(*position, Some(ast::TrimPosition::Trailing));
+                // removal_char should be None (defaults to space)
+                assert!(removal_char.is_none());
+            } else {
+                panic!("Expected Trim expression");
+            }
+        }
+    }
+}
+
+#[test]
+fn test_trim_with_char_still_works() {
+    // Verify existing functionality is preserved
+    let result = Parser::parse_sql("SELECT TRIM(BOTH 'x' FROM 'xfoox')");
+    assert!(result.is_ok(), "TRIM(BOTH 'x' FROM string) should still parse: {:?}", result);
+
+    let stmt = result.unwrap();
+    if let ast::Statement::Select(select) = stmt {
+        if let ast::SelectItem::Expression { expr, .. } = &select.select_list[0] {
+            if let ast::Expression::Trim { position, removal_char, .. } = expr {
+                // Position should be BOTH
+                assert_eq!(*position, Some(ast::TrimPosition::Both));
+                // removal_char should be Some('x')
+                assert!(removal_char.is_some());
+                if let Some(boxed_expr) = removal_char {
+                    if let ast::Expression::Literal(types::SqlValue::Varchar(c)) = boxed_expr.as_ref() {
+                        assert_eq!(c, "x");
+                    } else {
+                        panic!("Expected string literal for removal char");
+                    }
+                }
+            } else {
+                panic!("Expected Trim expression");
+            }
+        }
+    }
+}
