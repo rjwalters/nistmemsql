@@ -8,7 +8,7 @@ on:
   workflow_dispatch:  # Allow manual triggering
 
 permissions:
-  contents: write  # Allow pushing conformance report updates
+  contents: read  # Read-only permissions
 
 jobs:
   rust-tests:
@@ -77,18 +77,3 @@ jobs:
           name: conformance-report
           path: docs/SQL1999_CONFORMANCE.md
         if: always()
-
-      - name: Commit conformance report
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Check if there are changes to commit
-          if git diff --quiet docs/SQL1999_CONFORMANCE.md; then
-            echo "No changes to conformance report"
-          else
-            git add docs/SQL1999_CONFORMANCE.md
-            git commit -m "Update SQL:1999 conformance report [skip ci]"
-            git push
-          fi
