@@ -4,10 +4,7 @@ use storage::Row;
 use types::SqlValue;
 
 fn make_test_rows(values: Vec<i64>) -> Vec<Row> {
-    values
-        .into_iter()
-        .map(|v| Row::new(vec![SqlValue::Integer(v)]))
-        .collect()
+    values.into_iter().map(|v| Row::new(vec![SqlValue::Integer(v)])).collect()
 }
 
 // ===== ROW_NUMBER Tests =====
@@ -56,10 +53,7 @@ fn test_rank_no_ties() {
     let partition = Partition::new(make_test_rows(vec![4, 3, 2, 1]));
 
     let order_by = Some(vec![OrderByItem {
-        expr: Expression::ColumnRef {
-            table: None,
-            column: String::new(),
-        },
+        expr: Expression::ColumnRef { table: None, column: String::new() },
         direction: OrderDirection::Desc,
     }]);
 
@@ -94,10 +88,7 @@ fn test_dense_rank_with_ties() {
     let partition = Partition::new(make_test_rows(vec![95, 90, 90, 85]));
 
     let order_by = Some(vec![OrderByItem {
-        expr: Expression::ColumnRef {
-            table: None,
-            column: String::new(),
-        },
+        expr: Expression::ColumnRef { table: None, column: String::new() },
         direction: OrderDirection::Desc,
     }]);
 
@@ -117,10 +108,7 @@ fn test_dense_rank_multiple_tie_groups() {
     let partition = Partition::new(make_test_rows(vec![100, 90, 90, 80, 80, 80, 70]));
 
     let order_by = Some(vec![OrderByItem {
-        expr: Expression::ColumnRef {
-            table: None,
-            column: String::new(),
-        },
+        expr: Expression::ColumnRef { table: None, column: String::new() },
         direction: OrderDirection::Desc,
     }]);
 

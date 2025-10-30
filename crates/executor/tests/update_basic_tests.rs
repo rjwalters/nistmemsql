@@ -1,10 +1,10 @@
 mod common;
 
-use executor::{UpdateExecutor, ExecutorError};
-use storage::{Database, Row};
-use types::SqlValue;
 use ast::{Assignment, BinaryOperator, Expression, UpdateStmt};
 use common::setup_test_table;
+use executor::{ExecutorError, UpdateExecutor};
+use storage::{Database, Row};
+use types::SqlValue;
 
 #[test]
 fn test_update_all_rows() {

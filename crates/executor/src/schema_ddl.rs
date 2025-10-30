@@ -15,9 +15,9 @@ impl SchemaExecutor {
         database: &mut Database,
     ) -> Result<String, ExecutorError> {
         // Begin transaction for atomic execution
-        database
-            .begin_transaction()
-            .map_err(|e| ExecutorError::StorageError(format!("Failed to begin transaction: {}", e)))?;
+        database.begin_transaction().map_err(|e| {
+            ExecutorError::StorageError(format!("Failed to begin transaction: {}", e))
+        })?;
 
         // Execute the schema creation with transaction protection
         let result = Self::execute_create_schema_internal(stmt, database);
@@ -25,20 +25,18 @@ impl SchemaExecutor {
         // Commit or rollback based on result
         match result {
             Ok(msg) => {
-                database
-                    .commit_transaction()
-                    .map_err(|e| ExecutorError::StorageError(format!("Failed to commit transaction: {}", e)))?;
+                database.commit_transaction().map_err(|e| {
+                    ExecutorError::StorageError(format!("Failed to commit transaction: {}", e))
+                })?;
                 Ok(msg)
             }
             Err(e) => {
-                database
-                    .rollback_transaction()
-                    .map_err(|rollback_err| {
-                        ExecutorError::StorageError(format!(
-                            "Failed to rollback transaction after error: {}. Original error: {}",
-                            rollback_err, e
-                        ))
-                    })?;
+                database.rollback_transaction().map_err(|rollback_err| {
+                    ExecutorError::StorageError(format!(
+                        "Failed to rollback transaction after error: {}. Original error: {}",
+                        rollback_err, e
+                    ))
+                })?;
                 Err(e)
             }
         }
@@ -92,10 +90,7 @@ impl SchemaExecutor {
 
         let element_count = stmt.schema_elements.len();
         if element_count > 0 {
-            Ok(format!(
-                "Schema '{}' created with {} element(s)",
-                stmt.schema_name, element_count
-            ))
+            Ok(format!("Schema '{}' created with {} element(s)", stmt.schema_name, element_count))
         } else {
             Ok(format!("Schema '{}' created", stmt.schema_name))
         }
