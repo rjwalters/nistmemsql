@@ -6,6 +6,8 @@ mod case_expression;
 mod cast;
 mod create_table;
 mod cte;
+// TODO: Re-enable once datetime tests are available
+// mod datetime;
 mod delete;
 mod display;
 mod errors;
