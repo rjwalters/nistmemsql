@@ -15,6 +15,8 @@ pub struct ExpressionEvaluator<'a> {
 pub struct CombinedExpressionEvaluator<'a> {
     pub(super) schema: &'a CombinedSchema,
     pub(super) database: Option<&'a storage::Database>,
+    pub(super) outer_row: Option<&'a storage::Row>,
+    pub(super) outer_schema: Option<&'a CombinedSchema>,
     pub(super) window_mapping: Option<&'a std::collections::HashMap<WindowFunctionKey, usize>>,
 }
 
@@ -332,7 +334,13 @@ impl<'a> CombinedExpressionEvaluator<'a> {
     /// Note: Currently unused as all callers use with_database(), but kept for API completeness
     #[allow(dead_code)]
     pub(crate) fn new(schema: &'a CombinedSchema) -> Self {
-        CombinedExpressionEvaluator { schema, database: None, window_mapping: None }
+        CombinedExpressionEvaluator {
+            schema,
+            database: None,
+            outer_row: None,
+            outer_schema: None,
+            window_mapping: None,
+        }
     }
 
     /// Create a new combined expression evaluator with database reference
@@ -340,7 +348,29 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         schema: &'a CombinedSchema,
         database: &'a storage::Database,
     ) -> Self {
-        CombinedExpressionEvaluator { schema, database: Some(database), window_mapping: None }
+        CombinedExpressionEvaluator {
+            schema,
+            database: Some(database),
+            outer_row: None,
+            outer_schema: None,
+            window_mapping: None,
+        }
+    }
+
+    /// Create a new combined expression evaluator with database and outer context for correlated subqueries
+    pub(crate) fn with_database_and_outer_context(
+        schema: &'a CombinedSchema,
+        database: &'a storage::Database,
+        outer_row: &'a storage::Row,
+        outer_schema: &'a CombinedSchema,
+    ) -> Self {
+        CombinedExpressionEvaluator {
+            schema,
+            database: Some(database),
+            outer_row: Some(outer_row),
+            outer_schema: Some(outer_schema),
+            window_mapping: None,
+        }
     }
 
     /// Create a new combined expression evaluator with database and window mapping
@@ -349,6 +379,12 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         database: &'a storage::Database,
         window_mapping: &'a std::collections::HashMap<WindowFunctionKey, usize>,
     ) -> Self {
-        CombinedExpressionEvaluator { schema, database: Some(database), window_mapping: Some(window_mapping) }
+        CombinedExpressionEvaluator {
+            schema,
+            database: Some(database),
+            outer_row: None,
+            outer_schema: None,
+            window_mapping: Some(window_mapping),
+        }
     }
 }
