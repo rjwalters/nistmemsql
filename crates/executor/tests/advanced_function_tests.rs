@@ -121,7 +121,7 @@ fn test_sign_zero() {
 fn test_pi_function() {
     let (evaluator, row) = create_test_evaluator();
 
-    let expr = ast::Expression::Function { name: "PI".to_string(), args: vec![] };
+    let expr = ast::Expression::Function { name: "PI".to_string(), args: vec![], character_unit: None };
     let result = evaluator.eval(&expr, &row).unwrap();
 
     if let types::SqlValue::Double(val) = result {
@@ -424,7 +424,7 @@ fn test_trig_with_pi() {
     // SIN(PI()) should be approximately 0
     let expr = ast::Expression::Function {
         name: "SIN".to_string(),
-        args: vec![ast::Expression::Function { name: "PI".to_string(), args: vec![] }],
+        args: vec![ast::Expression::Function { name: "PI".to_string(), args: vec![], character_unit: None }],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();

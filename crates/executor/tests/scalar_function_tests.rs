@@ -437,6 +437,7 @@ fn test_upper_left_nested() {
             ],
             character_unit: None,
         }],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("HEL".to_string()));

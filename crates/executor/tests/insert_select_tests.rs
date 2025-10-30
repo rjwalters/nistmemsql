@@ -254,6 +254,7 @@ fn test_insert_from_select_with_aggregates() {
                         table: None,
                         column: "amount".to_string(),
                     }],
+                character_unit: None,
                 },
                 alias: None,
             },

@@ -20,7 +20,7 @@ use types;
 fn test_current_date_format() {
     let (evaluator, row) = create_test_evaluator();
 
-    let expr = ast::Expression::Function { name: "CURRENT_DATE".to_string(), args: vec![] };
+    let expr = ast::Expression::Function { name: "CURRENT_DATE".to_string(), args: vec![], character_unit: None };
     let result = evaluator.eval(&expr, &row).unwrap();
 
     // Verify it returns a Date type with YYYY-MM-DD format
@@ -41,7 +41,7 @@ fn test_current_date_format() {
 fn test_curdate_alias() {
     let (evaluator, row) = create_test_evaluator();
 
-    let expr = ast::Expression::Function { name: "CURDATE".to_string(), args: vec![] };
+    let expr = ast::Expression::Function { name: "CURDATE".to_string(), args: vec![], character_unit: None };
     let result = evaluator.eval(&expr, &row).unwrap();
 
     // Verify CURDATE is an alias for CURRENT_DATE
@@ -52,7 +52,7 @@ fn test_curdate_alias() {
 fn test_current_time_format() {
     let (evaluator, row) = create_test_evaluator();
 
-    let expr = ast::Expression::Function { name: "CURRENT_TIME".to_string(), args: vec![] };
+    let expr = ast::Expression::Function { name: "CURRENT_TIME".to_string(), args: vec![], character_unit: None };
     let result = evaluator.eval(&expr, &row).unwrap();
 
     // Verify it returns a Time type with HH:MM:SS format
@@ -73,7 +73,7 @@ fn test_current_time_format() {
 fn test_curtime_alias() {
     let (evaluator, row) = create_test_evaluator();
 
-    let expr = ast::Expression::Function { name: "CURTIME".to_string(), args: vec![] };
+    let expr = ast::Expression::Function { name: "CURTIME".to_string(), args: vec![], character_unit: None };
     let result = evaluator.eval(&expr, &row).unwrap();
 
     // Verify CURTIME is an alias for CURRENT_TIME
@@ -84,7 +84,7 @@ fn test_curtime_alias() {
 fn test_current_timestamp_format() {
     let (evaluator, row) = create_test_evaluator();
 
-    let expr = ast::Expression::Function { name: "CURRENT_TIMESTAMP".to_string(), args: vec![] };
+    let expr = ast::Expression::Function { name: "CURRENT_TIMESTAMP".to_string(), args: vec![], character_unit: None };
     let result = evaluator.eval(&expr, &row).unwrap();
 
     // Verify it returns a Timestamp type with YYYY-MM-DD HH:MM:SS format
@@ -108,7 +108,7 @@ fn test_current_timestamp_format() {
 fn test_now_alias() {
     let (evaluator, row) = create_test_evaluator();
 
-    let expr = ast::Expression::Function { name: "NOW".to_string(), args: vec![] };
+    let expr = ast::Expression::Function { name: "NOW".to_string(), args: vec![], character_unit: None };
     let result = evaluator.eval(&expr, &row).unwrap();
 
     // Verify NOW is an alias for CURRENT_TIMESTAMP
@@ -562,7 +562,7 @@ fn test_extract_from_current_date() {
     // YEAR(CURRENT_DATE) should return current year as integer
     let expr = ast::Expression::Function {
         name: "YEAR".to_string(),
-        args: vec![ast::Expression::Function { name: "CURRENT_DATE".to_string(), args: vec![] }],
+        args: vec![ast::Expression::Function { name: "CURRENT_DATE".to_string(), args: vec![], character_unit: None }],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
@@ -583,7 +583,7 @@ fn test_extract_from_current_timestamp() {
     // HOUR(NOW()) should return current hour as integer
     let expr = ast::Expression::Function {
         name: "HOUR".to_string(),
-        args: vec![ast::Expression::Function { name: "NOW".to_string(), args: vec![] }],
+        args: vec![ast::Expression::Function { name: "NOW".to_string(), args: vec![], character_unit: None }],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
