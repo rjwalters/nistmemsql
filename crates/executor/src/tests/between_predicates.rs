@@ -11,7 +11,11 @@ fn test_between_integer() {
         "users".to_string(),
         vec![
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(100) }, false),
+            catalog::ColumnSchema::new(
+                "name".to_string(),
+                types::DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
             catalog::ColumnSchema::new("age".to_string(), types::DataType::Integer, false),
         ],
     );
@@ -104,7 +108,11 @@ fn test_not_between() {
         "products".to_string(),
         vec![
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(100) }, false),
+            catalog::ColumnSchema::new(
+                "name".to_string(),
+                types::DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
             catalog::ColumnSchema::new("price".to_string(), types::DataType::Integer, false),
         ],
     );
@@ -178,25 +186,16 @@ fn test_between_boundary_inclusive() {
     // Create test table
     let schema = catalog::TableSchema::new(
         "data".to_string(),
-        vec![catalog::ColumnSchema::new(
-            "value".to_string(),
-            types::DataType::Integer,
-            false,
-        )],
+        vec![catalog::ColumnSchema::new("value".to_string(), types::DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
 
     // Insert boundary and middle values
-    db.insert_row("data", storage::Row::new(vec![types::SqlValue::Integer(9)]))
-        .unwrap();
-    db.insert_row("data", storage::Row::new(vec![types::SqlValue::Integer(10)]))
-        .unwrap(); // Lower boundary
-    db.insert_row("data", storage::Row::new(vec![types::SqlValue::Integer(15)]))
-        .unwrap(); // Middle
-    db.insert_row("data", storage::Row::new(vec![types::SqlValue::Integer(20)]))
-        .unwrap(); // Upper boundary
-    db.insert_row("data", storage::Row::new(vec![types::SqlValue::Integer(21)]))
-        .unwrap();
+    db.insert_row("data", storage::Row::new(vec![types::SqlValue::Integer(9)])).unwrap();
+    db.insert_row("data", storage::Row::new(vec![types::SqlValue::Integer(10)])).unwrap(); // Lower boundary
+    db.insert_row("data", storage::Row::new(vec![types::SqlValue::Integer(15)])).unwrap(); // Middle
+    db.insert_row("data", storage::Row::new(vec![types::SqlValue::Integer(20)])).unwrap(); // Upper boundary
+    db.insert_row("data", storage::Row::new(vec![types::SqlValue::Integer(21)])).unwrap();
 
     // Test: BETWEEN is inclusive of boundaries
     let executor = SelectExecutor::new(&db);
@@ -285,8 +284,14 @@ fn test_between_with_column_references() {
         from: Some(ast::FromClause::Table { name: "ranges".to_string(), alias: None }),
         where_clause: Some(ast::Expression::Between {
             expr: Box::new(ast::Expression::ColumnRef { table: None, column: "value".to_string() }),
-            low: Box::new(ast::Expression::ColumnRef { table: None, column: "min_val".to_string() }),
-            high: Box::new(ast::Expression::ColumnRef { table: None, column: "max_val".to_string() }),
+            low: Box::new(ast::Expression::ColumnRef {
+                table: None,
+                column: "min_val".to_string(),
+            }),
+            high: Box::new(ast::Expression::ColumnRef {
+                table: None,
+                column: "max_val".to_string(),
+            }),
             negated: false,
         }),
         group_by: None,

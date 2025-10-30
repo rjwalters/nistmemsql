@@ -1,3 +1,4 @@
+use catalog::{ColumnSchema, TableSchema};
 /**
  * Query Runner for Web Demo Examples
  *
@@ -7,14 +8,12 @@
  *
  * Usage: cargo run --example query_runner
  */
-
 use executor::SelectExecutor;
 use parser::Parser;
-use storage::Database;
-use catalog::{ColumnSchema, TableSchema};
-use types::{DataType, SqlValue};
-use storage::Row;
 use std::env;
+use storage::Database;
+use storage::Row;
+use types::{DataType, SqlValue};
 
 fn create_northwind_db() -> Database {
     let mut db = Database::new();
@@ -24,8 +23,16 @@ fn create_northwind_db() -> Database {
         "categories".to_string(),
         vec![
             ColumnSchema::new("category_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("category_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
-            ColumnSchema::new("description".to_string(), DataType::Varchar { max_length: Some(200) }, false),
+            ColumnSchema::new(
+                "category_name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
+            ColumnSchema::new(
+                "description".to_string(),
+                DataType::Varchar { max_length: Some(200) },
+                false,
+            ),
         ],
     );
     db.create_table(categories_schema).unwrap();
@@ -35,7 +42,11 @@ fn create_northwind_db() -> Database {
         "products".to_string(),
         vec![
             ColumnSchema::new("product_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("product_name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
+            ColumnSchema::new(
+                "product_name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
             ColumnSchema::new("category_id".to_string(), DataType::Integer, false),
             ColumnSchema::new("unit_price".to_string(), DataType::Float { precision: 53 }, false),
             ColumnSchema::new("units_in_stock".to_string(), DataType::Integer, false),
@@ -46,46 +57,64 @@ fn create_northwind_db() -> Database {
 
     // Insert categories
     let categories_table = db.get_table_mut("categories").unwrap();
-    categories_table.insert(Row::new(vec![
-        SqlValue::Integer(1),
-        SqlValue::Varchar("Beverages".to_string()),
-        SqlValue::Varchar("Soft drinks, coffees, teas, beers, and ales".to_string()),
-    ])).unwrap();
-    categories_table.insert(Row::new(vec![
-        SqlValue::Integer(2),
-        SqlValue::Varchar("Condiments".to_string()),
-        SqlValue::Varchar("Sweet and savory sauces, relishes, spreads, and seasonings".to_string()),
-    ])).unwrap();
-    categories_table.insert(Row::new(vec![
-        SqlValue::Integer(3),
-        SqlValue::Varchar("Confections".to_string()),
-        SqlValue::Varchar("Desserts, candies, and sweet breads".to_string()),
-    ])).unwrap();
-    categories_table.insert(Row::new(vec![
-        SqlValue::Integer(4),
-        SqlValue::Varchar("Dairy Products".to_string()),
-        SqlValue::Varchar("Cheeses".to_string()),
-    ])).unwrap();
-    categories_table.insert(Row::new(vec![
-        SqlValue::Integer(5),
-        SqlValue::Varchar("Grains/Cereals".to_string()),
-        SqlValue::Varchar("Breads, crackers, pasta, and cereal".to_string()),
-    ])).unwrap();
-    categories_table.insert(Row::new(vec![
-        SqlValue::Integer(6),
-        SqlValue::Varchar("Meat/Poultry".to_string()),
-        SqlValue::Varchar("Prepared meats".to_string()),
-    ])).unwrap();
-    categories_table.insert(Row::new(vec![
-        SqlValue::Integer(7),
-        SqlValue::Varchar("Produce".to_string()),
-        SqlValue::Varchar("Dried fruit and bean curd".to_string()),
-    ])).unwrap();
-    categories_table.insert(Row::new(vec![
-        SqlValue::Integer(8),
-        SqlValue::Varchar("Seafood".to_string()),
-        SqlValue::Varchar("Seaweed and fish".to_string()),
-    ])).unwrap();
+    categories_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Beverages".to_string()),
+            SqlValue::Varchar("Soft drinks, coffees, teas, beers, and ales".to_string()),
+        ]))
+        .unwrap();
+    categories_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Condiments".to_string()),
+            SqlValue::Varchar(
+                "Sweet and savory sauces, relishes, spreads, and seasonings".to_string(),
+            ),
+        ]))
+        .unwrap();
+    categories_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(3),
+            SqlValue::Varchar("Confections".to_string()),
+            SqlValue::Varchar("Desserts, candies, and sweet breads".to_string()),
+        ]))
+        .unwrap();
+    categories_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(4),
+            SqlValue::Varchar("Dairy Products".to_string()),
+            SqlValue::Varchar("Cheeses".to_string()),
+        ]))
+        .unwrap();
+    categories_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(5),
+            SqlValue::Varchar("Grains/Cereals".to_string()),
+            SqlValue::Varchar("Breads, crackers, pasta, and cereal".to_string()),
+        ]))
+        .unwrap();
+    categories_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(6),
+            SqlValue::Varchar("Meat/Poultry".to_string()),
+            SqlValue::Varchar("Prepared meats".to_string()),
+        ]))
+        .unwrap();
+    categories_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(7),
+            SqlValue::Varchar("Produce".to_string()),
+            SqlValue::Varchar("Dried fruit and bean curd".to_string()),
+        ]))
+        .unwrap();
+    categories_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(8),
+            SqlValue::Varchar("Seafood".to_string()),
+            SqlValue::Varchar("Seaweed and fish".to_string()),
+        ]))
+        .unwrap();
 
     // Insert products
     let products_table = db.get_table_mut("products").unwrap();
@@ -113,14 +142,16 @@ fn create_northwind_db() -> Database {
     ];
 
     for (id, name, cat_id, price, stock, on_order) in products_data {
-        products_table.insert(Row::new(vec![
-            SqlValue::Integer(id),
-            SqlValue::Varchar(name.to_string()),
-            SqlValue::Integer(cat_id),
-            SqlValue::Float(price),
-            SqlValue::Integer(stock),
-            SqlValue::Integer(on_order),
-        ])).unwrap();
+        products_table
+            .insert(Row::new(vec![
+                SqlValue::Integer(id),
+                SqlValue::Varchar(name.to_string()),
+                SqlValue::Integer(cat_id),
+                SqlValue::Float(price),
+                SqlValue::Integer(stock),
+                SqlValue::Integer(on_order),
+            ]))
+            .unwrap();
     }
 
     db
@@ -136,7 +167,7 @@ fn format_value(value: &SqlValue) -> String {
             } else {
                 f.to_string()
             }
-        },
+        }
         SqlValue::Varchar(s) => s.clone(),
         SqlValue::Boolean(b) => b.to_string(),
         SqlValue::Null => "NULL".to_string(),
@@ -205,21 +236,22 @@ fn run_query(db: &Database, query: &str) {
         match executor.execute(&select_stmt) {
             Ok(result) => {
                 // Extract column names from the SELECT statement
-                let column_names: Vec<String> = select_stmt.select_list
+                let column_names: Vec<String> = select_stmt
+                    .select_list
                     .iter()
                     .enumerate()
-                    .map(|(i, item)| {
-                        match item {
-                            ast::SelectItem::Expression { alias: Some(alias), .. } => alias.clone(),
-                            ast::SelectItem::Expression { alias: None, .. } => format!("column{}", i + 1),
-                            ast::SelectItem::Wildcard => "*".to_string(),
+                    .map(|(i, item)| match item {
+                        ast::SelectItem::Expression { alias: Some(alias), .. } => alias.clone(),
+                        ast::SelectItem::Expression { alias: None, .. } => {
+                            format!("column{}", i + 1)
                         }
+                        ast::SelectItem::Wildcard => "*".to_string(),
                     })
                     .collect();
 
                 let formatted = format_result_as_expected(&result, &column_names);
                 println!("{}", formatted);
-            },
+            }
             Err(e) => {
                 println!("-- ⏭️ SKIP: Execution error - {:?}", e);
             }

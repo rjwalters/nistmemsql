@@ -19,12 +19,15 @@ pub use alter::AlterTableExecutor;
 pub use create_table::CreateTableExecutor;
 pub use delete::DeleteExecutor;
 pub use drop_table::DropTableExecutor;
-pub use schema_ddl::SchemaExecutor;
 pub use errors::ExecutorError;
 pub use evaluator::ExpressionEvaluator;
 pub use insert::InsertExecutor;
+pub use schema_ddl::SchemaExecutor;
 pub use select::{SelectExecutor, SelectResult};
-pub use transaction::{BeginTransactionExecutor, CommitExecutor, ReleaseSavepointExecutor, RollbackExecutor, RollbackToSavepointExecutor, SavepointExecutor};
+pub use transaction::{
+    BeginTransactionExecutor, CommitExecutor, ReleaseSavepointExecutor, RollbackExecutor,
+    RollbackToSavepointExecutor, SavepointExecutor,
+};
 pub use update::UpdateExecutor;
 
 #[cfg(test)]

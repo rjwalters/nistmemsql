@@ -1,7 +1,7 @@
 //! Main evaluation entry point and basic expression types
 
-use crate::errors::ExecutorError;
 use super::super::core::ExpressionEvaluator;
+use crate::errors::ExecutorError;
 use types::SqlValue;
 
 impl<'a> ExpressionEvaluator<'a> {
@@ -16,16 +16,12 @@ impl<'a> ExpressionEvaluator<'a> {
             ast::Expression::Literal(val) => Ok(val.clone()),
 
             // DEFAULT keyword - not allowed in SELECT/WHERE expressions
-            ast::Expression::Default => {
-                Err(ExecutorError::UnsupportedExpression(
-                    "DEFAULT keyword is only valid in INSERT VALUES and UPDATE SET clauses".to_string()
-                ))
-            }
+            ast::Expression::Default => Err(ExecutorError::UnsupportedExpression(
+                "DEFAULT keyword is only valid in INSERT VALUES and UPDATE SET clauses".to_string(),
+            )),
 
             // Column reference - look up column index and get value from row
-            ast::Expression::ColumnRef { table: _, column } => {
-                self.eval_column_ref(column, row)
-            }
+            ast::Expression::ColumnRef { table: _, column } => self.eval_column_ref(column, row),
 
             // Binary operations
             ast::Expression::BinaryOp { left, op, right } => {
@@ -45,9 +41,7 @@ impl<'a> ExpressionEvaluator<'a> {
             }
 
             // Scalar subquery
-            ast::Expression::ScalarSubquery(subquery) => {
-                self.eval_scalar_subquery(subquery, row)
-            }
+            ast::Expression::ScalarSubquery(subquery) => self.eval_scalar_subquery(subquery, row),
 
             // BETWEEN predicate
             ast::Expression::Between { expr, low, high, negated } => {
@@ -55,9 +49,7 @@ impl<'a> ExpressionEvaluator<'a> {
             }
 
             // CAST expression
-            ast::Expression::Cast { expr, data_type } => {
-                self.eval_cast(expr, data_type, row)
-            }
+            ast::Expression::Cast { expr, data_type } => self.eval_cast(expr, data_type, row),
 
             // POSITION expression
             ast::Expression::Position { substring, string } => {
@@ -65,11 +57,9 @@ impl<'a> ExpressionEvaluator<'a> {
             }
 
             // TRIM expression
-            ast::Expression::Trim {
-                position,
-                removal_char,
-                string,
-            } => self.eval_trim(position, removal_char, string, row),
+            ast::Expression::Trim { position, removal_char, string } => {
+                self.eval_trim(position, removal_char, string, row)
+            }
 
             // LIKE pattern matching
             ast::Expression::Like { expr, pattern, negated } => {
@@ -92,9 +82,7 @@ impl<'a> ExpressionEvaluator<'a> {
             }
 
             // Function call
-            ast::Expression::Function { name, args } => {
-                self.eval_function(name, args, row)
-            }
+            ast::Expression::Function { name, args } => self.eval_function(name, args, row),
 
             // Current date/time functions
             ast::Expression::CurrentDate => {

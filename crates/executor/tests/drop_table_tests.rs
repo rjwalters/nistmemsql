@@ -69,10 +69,7 @@ fn test_drop_table_if_exists_when_not_exists() {
         assert_eq!(stmt.if_exists, true);
         let result = DropTableExecutor::execute(&stmt, &mut db);
         assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            "Table 'nonexistent' does not exist (IF EXISTS specified)"
-        );
+        assert_eq!(result.unwrap(), "Table 'nonexistent' does not exist (IF EXISTS specified)");
     }
 }
 

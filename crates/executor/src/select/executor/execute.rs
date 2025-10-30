@@ -14,9 +14,7 @@ impl<'a> SelectExecutor<'a> {
     pub fn execute(&self, stmt: &ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> {
         // Execute CTEs if present
         let cte_results = if let Some(with_clause) = &stmt.with_clause {
-            execute_ctes(with_clause, |query, cte_ctx| {
-                self.execute_with_ctes(query, cte_ctx)
-            })?
+            execute_ctes(with_clause, |query, cte_ctx| self.execute_with_ctes(query, cte_ctx))?
         } else {
             HashMap::new()
         };
@@ -26,13 +24,14 @@ impl<'a> SelectExecutor<'a> {
     }
 
     /// Execute a SELECT statement and return both columns and rows
-    pub fn execute_with_columns(&self, stmt: &ast::SelectStmt) -> Result<SelectResult, ExecutorError> {
+    pub fn execute_with_columns(
+        &self,
+        stmt: &ast::SelectStmt,
+    ) -> Result<SelectResult, ExecutorError> {
         // First, get the FROM result to access the schema
         let from_result = if let Some(from_clause) = &stmt.from {
             let cte_results = if let Some(with_clause) = &stmt.with_clause {
-                execute_ctes(with_clause, |query, cte_ctx| {
-                    self.execute_with_ctes(query, cte_ctx)
-                })?
+                execute_ctes(with_clause, |query, cte_ctx| self.execute_with_ctes(query, cte_ctx))?
             } else {
                 HashMap::new()
             };

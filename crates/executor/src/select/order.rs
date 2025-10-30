@@ -8,7 +8,8 @@ use crate::evaluator::CombinedExpressionEvaluator;
 use super::grouping::compare_sql_values;
 
 /// Row with optional sort keys for ORDER BY
-pub(super) type RowWithSortKeys = (storage::Row, Option<Vec<(types::SqlValue, ast::OrderDirection)>>);
+pub(super) type RowWithSortKeys =
+    (storage::Row, Option<Vec<(types::SqlValue, ast::OrderDirection)>>);
 
 /// Apply ORDER BY sorting to rows
 ///

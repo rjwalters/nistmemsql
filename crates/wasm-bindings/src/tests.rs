@@ -35,16 +35,15 @@ mod tests {
             }
 
             // Parse the SQL
-            let stmt = parser::Parser::parse_sql(trimmed)
-                .map_err(|e| {
-                    // Show first 100 chars of SQL for debugging
-                    let sql_preview = if trimmed.len() > 100 {
-                        format!("{}...", &trimmed[..100])
-                    } else {
-                        trimmed.to_string()
-                    };
-                    format!("Parse error in '{}': {:?}", sql_preview, e)
-                })?;
+            let stmt = parser::Parser::parse_sql(trimmed).map_err(|e| {
+                // Show first 100 chars of SQL for debugging
+                let sql_preview = if trimmed.len() > 100 {
+                    format!("{}...", &trimmed[..100])
+                } else {
+                    trimmed.to_string()
+                };
+                format!("Parse error in '{}': {:?}", sql_preview, e)
+            })?;
 
             // Execute based on statement type
             match stmt {
@@ -62,7 +61,8 @@ mod tests {
                 }
                 ast::Statement::Select(select_stmt) => {
                     let select_executor = executor::SelectExecutor::new(db);
-                    select_executor.execute(&select_stmt)
+                    select_executor
+                        .execute(&select_stmt)
                         .map_err(|e| format!("Select error: {:?}", e))?;
                 }
                 ast::Statement::Update(update_stmt) => {
@@ -100,7 +100,9 @@ mod tests {
                 let northwind_sql = include_str!("../../../web-demo/examples/northwind.sql");
                 match execute_sql(&mut db, northwind_sql) {
                     Ok(_) => (db, None),
-                    Err(e) => (storage::Database::new(), Some(format!("northwind DB load failed: {}", e))),
+                    Err(e) => {
+                        (storage::Database::new(), Some(format!("northwind DB load failed: {}", e)))
+                    }
                 }
             }
             "employees" => {
@@ -108,7 +110,9 @@ mod tests {
                 let employees_sql = include_str!("../../../web-demo/examples/employees.sql");
                 match execute_sql(&mut db, employees_sql) {
                     Ok(_) => (db, None),
-                    Err(e) => (storage::Database::new(), Some(format!("employees DB load failed: {}", e))),
+                    Err(e) => {
+                        (storage::Database::new(), Some(format!("employees DB load failed: {}", e)))
+                    }
                 }
             }
             // All other databases (empty, company, university, etc.) start as empty
@@ -151,18 +155,27 @@ mod tests {
                             if let Some(sql_end) = sql_start.rfind("',") {
                                 let sql = &sql_start[..sql_end];
                                 if !database.is_empty() && !sql.is_empty() {
-                                    examples.push((id.to_string(), database.clone(), sql.to_string()));
+                                    examples.push((
+                                        id.to_string(),
+                                        database.clone(),
+                                        sql.to_string(),
+                                    ));
                                 }
                                 break;
                             }
                         }
                         // Check for backtick multi-line SQL
-                        else if let Some(first_line_start) = lines[j].strip_prefix("        sql: `") {
+                        else if let Some(first_line_start) =
+                            lines[j].strip_prefix("        sql: `")
+                        {
                             // Multi-line SQL in backticks
                             let mut sql_lines = Vec::new();
 
                             // Check if SQL starts on the same line
-                            if !first_line_start.is_empty() && !first_line_start.ends_with("`,") && !first_line_start.ends_with("`") {
+                            if !first_line_start.is_empty()
+                                && !first_line_start.ends_with("`,")
+                                && !first_line_start.ends_with("`")
+                            {
                                 // SQL starts on same line as `sql: ``, add it
                                 sql_lines.push(first_line_start);
                             }
@@ -173,7 +186,10 @@ mod tests {
                                 let line = lines[k];
                                 if line.ends_with("`,") || line.ends_with("`") {
                                     // Check if there's SQL on the closing line before the backtick
-                                    let line_trimmed = line.trim_end_matches("`,").trim_end_matches("`").trim_end();
+                                    let line_trimmed = line
+                                        .trim_end_matches("`,")
+                                        .trim_end_matches("`")
+                                        .trim_end();
                                     if !line_trimmed.is_empty() {
                                         sql_lines.push(line_trimmed);
                                     }
@@ -204,18 +220,11 @@ mod tests {
         let examples = parse_examples();
 
         // Should have parsed examples
-        assert!(
-            examples.len() > 50,
-            "Should parse at least 50 examples, got {}",
-            examples.len()
-        );
+        assert!(examples.len() > 50, "Should parse at least 50 examples, got {}", examples.len());
 
         // Verify we got the first few examples we know exist
         let ids: Vec<&String> = examples.iter().map(|(id, _, _)| id).collect();
-        assert!(
-            ids.contains(&&"basic-1".to_string()),
-            "Should have basic-1"
-        );
+        assert!(ids.contains(&&"basic-1".to_string()), "Should have basic-1");
         assert!(ids.contains(&&"join-1".to_string()), "Should have join-1");
 
         // Debug: print basic-2 SQL
@@ -237,10 +246,15 @@ mod tests {
         }
 
         // Check for known unsupported features
-        if sql_upper.contains("WITH ") && (sql_upper.contains(" AS (") || sql_upper.contains(" AS(")) {
+        if sql_upper.contains("WITH ")
+            && (sql_upper.contains(" AS (") || sql_upper.contains(" AS("))
+        {
             return Some("Common Table Expressions (CTEs)");
         }
-        if sql_upper.contains(" UNION ") || sql_upper.contains(" INTERSECT ") || sql_upper.contains(" EXCEPT ") {
+        if sql_upper.contains(" UNION ")
+            || sql_upper.contains(" INTERSECT ")
+            || sql_upper.contains(" EXCEPT ")
+        {
             return Some("SET operations (UNION/INTERSECT/EXCEPT)");
         }
         if sql_upper.contains("ALTER TABLE") || sql_upper.contains("DROP INDEX") {
@@ -250,10 +264,16 @@ mod tests {
             return Some("pipe character (possibly unsupported syntax)");
         }
         // Aggregate functions with GROUP BY or multi-column aggregates
-        if (sql_upper.contains("COUNT(") || sql_upper.contains("AVG(") || sql_upper.contains("SUM(")
-            || sql_upper.contains("MIN(") || sql_upper.contains("MAX("))
-            && (sql_upper.contains("GROUP BY") || sql_upper.matches("COUNT(").count() > 1
-                || sql_upper.contains("AVG(") || sql_upper.contains("SUM(")) {
+        if (sql_upper.contains("COUNT(")
+            || sql_upper.contains("AVG(")
+            || sql_upper.contains("SUM(")
+            || sql_upper.contains("MIN(")
+            || sql_upper.contains("MAX("))
+            && (sql_upper.contains("GROUP BY")
+                || sql_upper.matches("COUNT(").count() > 1
+                || sql_upper.contains("AVG(")
+                || sql_upper.contains("SUM("))
+        {
             return Some("Aggregate functions with GROUP BY or multiple aggregates");
         }
         // Subqueries
@@ -264,7 +284,10 @@ mod tests {
         if sql_upper.contains("RECURSIVE") {
             return Some("Recursive CTEs");
         }
-        if sql_upper.contains("EXTRACT(") || sql_upper.contains("DATE_PART(") || sql_upper.contains("YEAR(") {
+        if sql_upper.contains("EXTRACT(")
+            || sql_upper.contains("DATE_PART(")
+            || sql_upper.contains("YEAR(")
+        {
             return Some("Date/time extraction functions");
         }
 
@@ -310,13 +333,17 @@ mod tests {
         eprintln!("\n=== Examples Test Summary ===");
         eprintln!("✅ Passed: {}", passed_examples);
         eprintln!("⏭️  Skipped: {} (use unsupported SQL features)", skipped_examples.len());
-        eprintln!("⚠️  Database issues: {} (required DB failed to load)", database_load_failures.len());
+        eprintln!(
+            "⚠️  Database issues: {} (required DB failed to load)",
+            database_load_failures.len()
+        );
         eprintln!("❌ Failed: {} (unexpected errors)", failed_examples.len());
         eprintln!("📊 Total: {}", examples.len());
 
         if !skipped_examples.is_empty() {
             eprintln!("\nSkipped examples (unsupported SQL features):");
-            let mut skipped_by_feature: std::collections::HashMap<&str, Vec<&str>> = std::collections::HashMap::new();
+            let mut skipped_by_feature: std::collections::HashMap<&str, Vec<&str>> =
+                std::collections::HashMap::new();
             for (id, feature) in &skipped_examples {
                 skipped_by_feature.entry(*feature).or_insert_with(Vec::new).push(id.as_str());
             }
@@ -328,13 +355,18 @@ mod tests {
         if !database_load_failures.is_empty() {
             eprintln!("\nDatabase load issues (parser limitations with CREATE TABLE constraints):");
             eprintln!("  Note: These examples require northwind/employees databases");
-            eprintln!("  Parser doesn't yet support PRIMARY KEY, NOT NULL, UNIQUE, CHECK in CREATE TABLE");
+            eprintln!(
+                "  Parser doesn't yet support PRIMARY KEY, NOT NULL, UNIQUE, CHECK in CREATE TABLE"
+            );
             eprintln!("  Count: {} examples affected", database_load_failures.len());
         }
 
         // Report unexpected failures (but don't fail test - this is informational)
         if !failed_examples.is_empty() {
-            eprintln!("\n⚠️  {} examples with supported features had errors:", failed_examples.len());
+            eprintln!(
+                "\n⚠️  {} examples with supported features had errors:",
+                failed_examples.len()
+            );
             for (id, err) in &failed_examples {
                 eprintln!("  ❌ {}: {}", id, err);
             }
@@ -343,12 +375,19 @@ mod tests {
 
         // Success message
         if passed_examples > 0 {
-            eprintln!("\n✅ All {} examples with fully supported features passed!", passed_examples);
+            eprintln!(
+                "\n✅ All {} examples with fully supported features passed!",
+                passed_examples
+            );
         } else {
             eprintln!("\n📝 Summary:");
             eprintln!("   - Test infrastructure is working correctly");
-            eprintln!("   - All 73 examples are categorized (passed/skipped/database issues/errors)");
-            eprintln!("   - Main blocker for more passing tests: issue #214 (CREATE TABLE constraints)");
+            eprintln!(
+                "   - All 73 examples are categorized (passed/skipped/database issues/errors)"
+            );
+            eprintln!(
+                "   - Main blocker for more passing tests: issue #214 (CREATE TABLE constraints)"
+            );
             eprintln!("   - Once constraints are supported, 14+ examples will be unblocked");
         }
     }

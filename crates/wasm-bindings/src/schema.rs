@@ -3,8 +3,8 @@
 //! This module provides methods to inspect database schema:
 //! listing tables and describing table structures.
 
+use crate::{ColumnInfo, Database, TableSchema};
 use wasm_bindgen::prelude::*;
-use crate::{Database, TableSchema, ColumnInfo};
 
 impl Database {
     /// Lists all table names in the database

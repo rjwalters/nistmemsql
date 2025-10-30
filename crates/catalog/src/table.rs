@@ -29,7 +29,11 @@ impl TableSchema {
     }
 
     /// Create a table schema with a primary key
-    pub fn with_primary_key(name: String, columns: Vec<ColumnSchema>, primary_key: Vec<String>) -> Self {
+    pub fn with_primary_key(
+        name: String,
+        columns: Vec<ColumnSchema>,
+        primary_key: Vec<String>,
+    ) -> Self {
         TableSchema {
             name,
             columns,
@@ -126,10 +130,7 @@ impl TableSchema {
     /// Get the indices of primary key columns
     pub fn get_primary_key_indices(&self) -> Option<Vec<usize>> {
         self.primary_key.as_ref().map(|pk_cols| {
-            pk_cols
-                .iter()
-                .filter_map(|col_name| self.get_column_index(col_name))
-                .collect()
+            pk_cols.iter().filter_map(|col_name| self.get_column_index(col_name)).collect()
         })
     }
 
@@ -172,9 +173,12 @@ impl TableSchema {
         }
 
         // Remove from unique constraints
-        self.unique_constraints = self.unique_constraints.iter()
+        self.unique_constraints = self
+            .unique_constraints
+            .iter()
             .filter_map(|constraint| {
-                let filtered: Vec<String> = constraint.iter()
+                let filtered: Vec<String> = constraint
+                    .iter()
                     .filter(|col_name| *col_name != &removed_column.name)
                     .cloned()
                     .collect();
@@ -202,7 +206,11 @@ impl TableSchema {
     }
 
     /// Set nullable property for a column by index
-    pub fn set_column_nullable(&mut self, index: usize, nullable: bool) -> Result<(), crate::CatalogError> {
+    pub fn set_column_nullable(
+        &mut self,
+        index: usize,
+        nullable: bool,
+    ) -> Result<(), crate::CatalogError> {
         if index >= self.columns.len() {
             return Err(crate::CatalogError::ColumnNotFound("index out of bounds".to_string()));
         }

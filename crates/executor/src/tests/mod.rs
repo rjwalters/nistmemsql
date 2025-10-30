@@ -13,13 +13,14 @@
 //! - `comparison_ops`: Comparison operator tests
 //! - `between_predicates`: BETWEEN predicate execution tests
 
-mod aggregates;
 mod aggregate_distinct;
+mod aggregates;
 mod between_predicates;
 mod case_bug;
 mod comparison_ops;
 mod error_display;
 mod expression_eval;
+mod join_aggregation;
 mod limit_offset;
 mod scalar_subqueries;
 mod select_basic;
@@ -28,5 +29,4 @@ mod select_joins;
 mod select_where;
 mod select_window_aggregate;
 mod select_without_from;
-mod join_aggregation;
 mod transaction_tests;

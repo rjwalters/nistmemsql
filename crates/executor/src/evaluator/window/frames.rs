@@ -2,7 +2,7 @@
 //!
 //! Calculates frame boundaries (ROWS mode) for window function evaluation.
 
-use ast::{FrameBound, FrameUnit, OrderByItem, WindowFrame, Expression};
+use ast::{Expression, FrameBound, FrameUnit, OrderByItem, WindowFrame};
 use std::ops::Range;
 use types::SqlValue;
 
@@ -52,7 +52,9 @@ pub fn calculate_frame(
 
     // Calculate end boundary
     let end_idx = match &frame.end {
-        Some(end_bound) => calculate_frame_boundary(end_bound, current_row_idx, partition_size, false),
+        Some(end_bound) => {
+            calculate_frame_boundary(end_bound, current_row_idx, partition_size, false)
+        }
         None => current_row_idx + 1, // Default: CURRENT ROW (inclusive, so +1 for Range)
     };
 

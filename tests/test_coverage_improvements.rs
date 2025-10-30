@@ -31,7 +31,11 @@ fn create_products_schema() -> TableSchema {
         "products".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
             ColumnSchema::new("code".to_string(), DataType::Varchar { max_length: Some(50) }, true),
         ],
     )
@@ -78,7 +82,8 @@ fn test_like_percent_wildcard() {
     db.create_table(schema).unwrap();
     insert_sample_products(&mut db);
 
-    let results = execute_select(&db, "SELECT name FROM products WHERE name LIKE 'Apple%'").unwrap();
+    let results =
+        execute_select(&db, "SELECT name FROM products WHERE name LIKE 'Apple%'").unwrap();
     assert_eq!(results.len(), 3);
 }
 
@@ -89,7 +94,8 @@ fn test_like_underscore_wildcard() {
     db.create_table(schema).unwrap();
     insert_sample_products(&mut db);
 
-    let results = execute_select(&db, "SELECT code FROM products WHERE code LIKE 'APPL-_0_'").unwrap();
+    let results =
+        execute_select(&db, "SELECT code FROM products WHERE code LIKE 'APPL-_0_'").unwrap();
     assert_eq!(results.len(), 3);
 }
 
@@ -111,7 +117,8 @@ fn test_not_like() {
     db.create_table(schema).unwrap();
     insert_sample_products(&mut db);
 
-    let results = execute_select(&db, "SELECT name FROM products WHERE name NOT LIKE 'Apple%'").unwrap();
+    let results =
+        execute_select(&db, "SELECT name FROM products WHERE name NOT LIKE 'Apple%'").unwrap();
     assert_eq!(results.len(), 2);
 }
 
@@ -121,18 +128,20 @@ fn test_like_null_handling() {
         "test_nulls".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("value".to_string(), DataType::Varchar { max_length: Some(50) }, true),
+            ColumnSchema::new(
+                "value".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                true,
+            ),
         ],
     );
     let mut db = Database::new();
     db.create_table(schema).unwrap();
-    
-    db.insert_row("test_nulls", Row::new(vec![
-        SqlValue::Integer(1),
-        SqlValue::Null,
-    ])).unwrap();
 
-    let results = execute_select(&db, "SELECT id FROM test_nulls WHERE value LIKE '%test%'").unwrap();
+    db.insert_row("test_nulls", Row::new(vec![SqlValue::Integer(1), SqlValue::Null])).unwrap();
+
+    let results =
+        execute_select(&db, "SELECT id FROM test_nulls WHERE value LIKE '%test%'").unwrap();
     assert_eq!(results.len(), 0);
 }
 
@@ -156,7 +165,11 @@ fn create_customers_schema() -> TableSchema {
         "customers".to_string(),
         vec![
             ColumnSchema::new("customer_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
         ],
     )
 }
@@ -166,38 +179,41 @@ fn setup_customers_orders_db() -> Database {
     db.create_table(create_customers_schema()).unwrap();
     db.create_table(create_orders_schema()).unwrap();
 
-    db.insert_row("customers", Row::new(vec![
-        SqlValue::Integer(1),
-        SqlValue::Varchar("Alice".to_string()),
-    ])).unwrap();
-    
-    db.insert_row("customers", Row::new(vec![
-        SqlValue::Integer(2),
-        SqlValue::Varchar("Bob".to_string()),
-    ])).unwrap();
-    
-    db.insert_row("customers", Row::new(vec![
-        SqlValue::Integer(3),
-        SqlValue::Varchar("Charlie".to_string()),
-    ])).unwrap();
+    db.insert_row(
+        "customers",
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
+    )
+    .unwrap();
 
-    db.insert_row("orders", Row::new(vec![
-        SqlValue::Integer(101),
-        SqlValue::Integer(1),
-        SqlValue::Integer(100),
-    ])).unwrap();
-    
-    db.insert_row("orders", Row::new(vec![
-        SqlValue::Integer(102),
-        SqlValue::Integer(1),
-        SqlValue::Integer(200),
-    ])).unwrap();
-    
-    db.insert_row("orders", Row::new(vec![
-        SqlValue::Integer(103),
-        SqlValue::Integer(3),
-        SqlValue::Integer(150),
-    ])).unwrap();
+    db.insert_row(
+        "customers",
+        Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())]),
+    )
+    .unwrap();
+
+    db.insert_row(
+        "customers",
+        Row::new(vec![SqlValue::Integer(3), SqlValue::Varchar("Charlie".to_string())]),
+    )
+    .unwrap();
+
+    db.insert_row(
+        "orders",
+        Row::new(vec![SqlValue::Integer(101), SqlValue::Integer(1), SqlValue::Integer(100)]),
+    )
+    .unwrap();
+
+    db.insert_row(
+        "orders",
+        Row::new(vec![SqlValue::Integer(102), SqlValue::Integer(1), SqlValue::Integer(200)]),
+    )
+    .unwrap();
+
+    db.insert_row(
+        "orders",
+        Row::new(vec![SqlValue::Integer(103), SqlValue::Integer(3), SqlValue::Integer(150)]),
+    )
+    .unwrap();
 
     db
 }
@@ -208,9 +224,10 @@ fn test_exists_predicate() {
 
     let results = execute_select(
         &db,
-        "SELECT name FROM customers WHERE EXISTS (SELECT 1 FROM orders WHERE customer_id = 1)"
-    ).unwrap();
-    
+        "SELECT name FROM customers WHERE EXISTS (SELECT 1 FROM orders WHERE customer_id = 1)",
+    )
+    .unwrap();
+
     assert_eq!(results.len(), 3);
 }
 
@@ -220,9 +237,10 @@ fn test_not_exists_predicate() {
 
     let results = execute_select(
         &db,
-        "SELECT name FROM customers WHERE NOT EXISTS (SELECT 1 FROM orders WHERE amount > 10000)"
-    ).unwrap();
-    
+        "SELECT name FROM customers WHERE NOT EXISTS (SELECT 1 FROM orders WHERE amount > 10000)",
+    )
+    .unwrap();
+
     assert_eq!(results.len(), 3);
 }
 
@@ -238,7 +256,7 @@ fn test_any_quantifier() {
         &db,
         "SELECT name FROM customers WHERE customer_id = ANY (SELECT customer_id FROM orders WHERE amount > 150)"
     ).unwrap();
-    
+
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Varchar("Alice".to_string()));
 }
@@ -251,7 +269,7 @@ fn test_all_quantifier() {
         &db,
         "SELECT name FROM customers WHERE customer_id <> ALL (SELECT customer_id FROM orders WHERE amount < 150)"
     ).unwrap();
-    
+
     assert!(results.len() >= 1);
 }
 
@@ -261,9 +279,10 @@ fn test_some_quantifier() {
 
     let results = execute_select(
         &db,
-        "SELECT name FROM customers WHERE customer_id = SOME (SELECT customer_id FROM orders)"
-    ).unwrap();
-    
+        "SELECT name FROM customers WHERE customer_id = SOME (SELECT customer_id FROM orders)",
+    )
+    .unwrap();
+
     assert_eq!(results.len(), 2);
 }
 
@@ -275,7 +294,7 @@ fn test_any_with_greater_than() {
         &db,
         "SELECT order_id FROM orders WHERE amount > ANY (SELECT amount FROM orders WHERE customer_id = 1)"
     ).unwrap();
-    
+
     assert!(results.len() >= 1);
 }
 
@@ -287,7 +306,7 @@ fn test_all_with_less_than() {
         &db,
         "SELECT order_id FROM orders WHERE amount < ALL (SELECT amount FROM orders WHERE customer_id = 1)"
     ).unwrap();
-    
+
     assert_eq!(results.len(), 0);
 }
 
@@ -300,7 +319,11 @@ fn create_mixed_types_schema() -> TableSchema {
         "mixed_data".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("text_num".to_string(), DataType::Varchar { max_length: Some(50) }, true),
+            ColumnSchema::new(
+                "text_num".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                true,
+            ),
             ColumnSchema::new("int_val".to_string(), DataType::Integer, true),
             ColumnSchema::new("float_val".to_string(), DataType::DoublePrecision, true),
         ],
@@ -311,19 +334,27 @@ fn setup_mixed_types_db() -> Database {
     let mut db = Database::new();
     db.create_table(create_mixed_types_schema()).unwrap();
 
-    db.insert_row("mixed_data", Row::new(vec![
-        SqlValue::Integer(1),
-        SqlValue::Varchar("123".to_string()),
-        SqlValue::Integer(456),
-        SqlValue::Double(78.9),
-    ])).unwrap();
+    db.insert_row(
+        "mixed_data",
+        Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Varchar("123".to_string()),
+            SqlValue::Integer(456),
+            SqlValue::Double(78.9),
+        ]),
+    )
+    .unwrap();
 
-    db.insert_row("mixed_data", Row::new(vec![
-        SqlValue::Integer(2),
-        SqlValue::Varchar("999".to_string()),
-        SqlValue::Integer(111),
-        SqlValue::Double(22.3),
-    ])).unwrap();
+    db.insert_row(
+        "mixed_data",
+        Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Varchar("999".to_string()),
+            SqlValue::Integer(111),
+            SqlValue::Double(22.3),
+        ]),
+    )
+    .unwrap();
 
     db
 }
@@ -332,11 +363,10 @@ fn setup_mixed_types_db() -> Database {
 fn test_cast_varchar_to_integer() {
     let db = setup_mixed_types_db();
 
-    let results = execute_select(
-        &db,
-        "SELECT CAST(text_num AS INTEGER) FROM mixed_data WHERE id = 1"
-    ).unwrap();
-    
+    let results =
+        execute_select(&db, "SELECT CAST(text_num AS INTEGER) FROM mixed_data WHERE id = 1")
+            .unwrap();
+
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Integer(123));
 }
@@ -345,11 +375,10 @@ fn test_cast_varchar_to_integer() {
 fn test_cast_integer_to_varchar() {
     let db = setup_mixed_types_db();
 
-    let results = execute_select(
-        &db,
-        "SELECT CAST(int_val AS VARCHAR(50)) FROM mixed_data WHERE id = 1"
-    ).unwrap();
-    
+    let results =
+        execute_select(&db, "SELECT CAST(int_val AS VARCHAR(50)) FROM mixed_data WHERE id = 1")
+            .unwrap();
+
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Varchar("456".to_string()));
 }
@@ -360,9 +389,10 @@ fn test_cast_varchar_to_double() {
 
     let results = execute_select(
         &db,
-        "SELECT CAST(text_num AS DOUBLE PRECISION) FROM mixed_data WHERE id = 1"
-    ).unwrap();
-    
+        "SELECT CAST(text_num AS DOUBLE PRECISION) FROM mixed_data WHERE id = 1",
+    )
+    .unwrap();
+
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Double(123.0));
 }
@@ -371,11 +401,9 @@ fn test_cast_varchar_to_double() {
 fn test_cast_integer_to_double() {
     let db = setup_mixed_types_db();
 
-    let results = execute_select(
-        &db,
-        "SELECT CAST(int_val AS DOUBLE) FROM mixed_data WHERE id = 1"
-    ).unwrap();
-    
+    let results =
+        execute_select(&db, "SELECT CAST(int_val AS DOUBLE) FROM mixed_data WHERE id = 1").unwrap();
+
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Double(456.0));
 }
@@ -384,11 +412,10 @@ fn test_cast_integer_to_double() {
 fn test_cast_to_smallint() {
     let db = setup_mixed_types_db();
 
-    let results = execute_select(
-        &db,
-        "SELECT CAST(int_val AS SMALLINT) FROM mixed_data WHERE id = 2"
-    ).unwrap();
-    
+    let results =
+        execute_select(&db, "SELECT CAST(int_val AS SMALLINT) FROM mixed_data WHERE id = 2")
+            .unwrap();
+
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Smallint(111));
 }
@@ -397,11 +424,9 @@ fn test_cast_to_smallint() {
 fn test_cast_to_bigint() {
     let db = setup_mixed_types_db();
 
-    let results = execute_select(
-        &db,
-        "SELECT CAST(int_val AS BIGINT) FROM mixed_data WHERE id = 1"
-    ).unwrap();
-    
+    let results =
+        execute_select(&db, "SELECT CAST(int_val AS BIGINT) FROM mixed_data WHERE id = 1").unwrap();
+
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Bigint(456));
 }
@@ -410,11 +435,9 @@ fn test_cast_to_bigint() {
 fn test_cast_to_float() {
     let db = setup_mixed_types_db();
 
-    let results = execute_select(
-        &db,
-        "SELECT CAST(int_val AS FLOAT) FROM mixed_data WHERE id = 1"
-    ).unwrap();
-    
+    let results =
+        execute_select(&db, "SELECT CAST(int_val AS FLOAT) FROM mixed_data WHERE id = 1").unwrap();
+
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Float(456.0));
 }
@@ -431,7 +454,7 @@ fn test_like_with_exists() {
         &db,
         "SELECT name FROM customers WHERE name LIKE 'A%' AND EXISTS (SELECT 1 FROM orders WHERE amount > 100)"
     ).unwrap();
-    
+
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Varchar("Alice".to_string()));
 }
@@ -440,11 +463,10 @@ fn test_like_with_exists() {
 fn test_cast_in_where_clause() {
     let db = setup_mixed_types_db();
 
-    let results = execute_select(
-        &db,
-        "SELECT id FROM mixed_data WHERE CAST(text_num AS INTEGER) > 500"
-    ).unwrap();
-    
+    let results =
+        execute_select(&db, "SELECT id FROM mixed_data WHERE CAST(text_num AS INTEGER) > 500")
+            .unwrap();
+
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Integer(2));
 }
@@ -458,9 +480,10 @@ fn test_multiple_predicates_combined() {
 
     let results = execute_select(
         &db,
-        "SELECT name FROM products WHERE name LIKE '%Apple%' AND code NOT LIKE 'APPL-2%'"
-    ).unwrap();
-    
+        "SELECT name FROM products WHERE name LIKE '%Apple%' AND code NOT LIKE 'APPL-2%'",
+    )
+    .unwrap();
+
     assert_eq!(results.len(), 2);
 }
 
@@ -472,7 +495,7 @@ fn test_quantified_comparison_with_cast() {
         &db,
         "SELECT id FROM mixed_data WHERE CAST(text_num AS INTEGER) > ALL (SELECT int_val FROM mixed_data WHERE id > 100)"
     ).unwrap();
-    
+
     assert_eq!(results.len(), 2);
 }
 
@@ -486,9 +509,10 @@ fn test_exists_empty_subquery() {
 
     let results = execute_select(
         &db,
-        "SELECT name FROM customers WHERE EXISTS (SELECT * FROM orders WHERE amount > 10000)"
-    ).unwrap();
-    
+        "SELECT name FROM customers WHERE EXISTS (SELECT * FROM orders WHERE amount > 10000)",
+    )
+    .unwrap();
+
     assert_eq!(results.len(), 0);
 }
 
@@ -500,7 +524,7 @@ fn test_all_empty_subquery() {
         &db,
         "SELECT name FROM customers WHERE customer_id > ALL (SELECT customer_id FROM orders WHERE amount > 10000)"
     ).unwrap();
-    
+
     assert_eq!(results.len(), 3);
 }
 
@@ -512,7 +536,7 @@ fn test_any_empty_subquery() {
         &db,
         "SELECT name FROM customers WHERE customer_id = ANY (SELECT customer_id FROM orders WHERE amount > 10000)"
     ).unwrap();
-    
+
     assert_eq!(results.len(), 0);
 }
 
@@ -523,7 +547,8 @@ fn test_like_exact_match() {
     db.create_table(schema).unwrap();
     insert_sample_products(&mut db);
 
-    let results = execute_select(&db, "SELECT name FROM products WHERE name LIKE 'Apple iPhone'").unwrap();
+    let results =
+        execute_select(&db, "SELECT name FROM products WHERE name LIKE 'Apple iPhone'").unwrap();
     assert_eq!(results.len(), 1);
 }
 
@@ -533,18 +558,20 @@ fn test_cast_null_value() {
         "null_test".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("nullable_val".to_string(), DataType::Varchar { max_length: Some(50) }, true),
+            ColumnSchema::new(
+                "nullable_val".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                true,
+            ),
         ],
     );
     let mut db = Database::new();
     db.create_table(schema).unwrap();
-    
-    db.insert_row("null_test", Row::new(vec![
-        SqlValue::Integer(1),
-        SqlValue::Null,
-    ])).unwrap();
 
-    let results = execute_select(&db, "SELECT CAST(nullable_val AS INTEGER) FROM null_test").unwrap();
+    db.insert_row("null_test", Row::new(vec![SqlValue::Integer(1), SqlValue::Null])).unwrap();
+
+    let results =
+        execute_select(&db, "SELECT CAST(nullable_val AS INTEGER) FROM null_test").unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].values[0], SqlValue::Null);
 }

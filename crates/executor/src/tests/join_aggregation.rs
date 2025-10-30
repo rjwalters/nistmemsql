@@ -1,10 +1,10 @@
 //! Tests for GROUP BY with JOIN operations and aggregate functions
 
 use crate::SelectExecutor;
-use storage::Database;
-use catalog::TableSchema;
-use types::{DataType, SqlValue};
 use ast::SelectStmt;
+use catalog::TableSchema;
+use storage::Database;
+use types::{DataType, SqlValue};
 
 fn setup_join_test_data(db: &mut Database) {
     // Create departments table
@@ -12,7 +12,11 @@ fn setup_join_test_data(db: &mut Database) {
         "departments".to_string(),
         vec![
             catalog::ColumnSchema::new("dept_id".to_string(), DataType::Integer, false),
-            catalog::ColumnSchema::new("dept_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            catalog::ColumnSchema::new(
+                "dept_name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
         ],
     );
     db.create_table(dept_schema).unwrap();
@@ -22,7 +26,11 @@ fn setup_join_test_data(db: &mut Database) {
         "employees".to_string(),
         vec![
             catalog::ColumnSchema::new("emp_id".to_string(), DataType::Integer, false),
-            catalog::ColumnSchema::new("emp_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            catalog::ColumnSchema::new(
+                "emp_name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
             catalog::ColumnSchema::new("dept_id".to_string(), DataType::Integer, false),
             catalog::ColumnSchema::new("salary".to_string(), DataType::Integer, false),
         ],
@@ -32,27 +40,21 @@ fn setup_join_test_data(db: &mut Database) {
     // Insert departments using direct database API
     db.insert_row(
         "departments",
-        storage::Row::new(vec![
-            SqlValue::Integer(1),
-            SqlValue::Varchar("Engineering".to_string()),
-        ]),
-    ).unwrap();
-    
+        storage::Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Engineering".to_string())]),
+    )
+    .unwrap();
+
     db.insert_row(
         "departments",
-        storage::Row::new(vec![
-            SqlValue::Integer(2),
-            SqlValue::Varchar("Sales".to_string()),
-        ]),
-    ).unwrap();
-    
+        storage::Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Sales".to_string())]),
+    )
+    .unwrap();
+
     db.insert_row(
         "departments",
-        storage::Row::new(vec![
-            SqlValue::Integer(3),
-            SqlValue::Varchar("HR".to_string()),
-        ]),
-    ).unwrap();
+        storage::Row::new(vec![SqlValue::Integer(3), SqlValue::Varchar("HR".to_string())]),
+    )
+    .unwrap();
 
     // Insert employees
     db.insert_row(
@@ -63,8 +65,9 @@ fn setup_join_test_data(db: &mut Database) {
             SqlValue::Integer(1), // Engineering
             SqlValue::Integer(95000),
         ]),
-    ).unwrap();
-    
+    )
+    .unwrap();
+
     db.insert_row(
         "employees",
         storage::Row::new(vec![
@@ -73,8 +76,9 @@ fn setup_join_test_data(db: &mut Database) {
             SqlValue::Integer(1), // Engineering
             SqlValue::Integer(87000),
         ]),
-    ).unwrap();
-    
+    )
+    .unwrap();
+
     db.insert_row(
         "employees",
         storage::Row::new(vec![
@@ -83,8 +87,9 @@ fn setup_join_test_data(db: &mut Database) {
             SqlValue::Integer(2), // Sales
             SqlValue::Integer(75000),
         ]),
-    ).unwrap();
-    
+    )
+    .unwrap();
+
     db.insert_row(
         "employees",
         storage::Row::new(vec![
@@ -93,8 +98,9 @@ fn setup_join_test_data(db: &mut Database) {
             SqlValue::Integer(2), // Sales
             SqlValue::Integer(72000),
         ]),
-    ).unwrap();
-    
+    )
+    .unwrap();
+
     db.insert_row(
         "employees",
         storage::Row::new(vec![
@@ -103,7 +109,8 @@ fn setup_join_test_data(db: &mut Database) {
             SqlValue::Integer(3), // HR
             SqlValue::Integer(65000),
         ]),
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 #[test]
@@ -169,7 +176,7 @@ fn test_inner_join_with_group_by_count() {
             column: "dept_name".to_string(),
         }]),
         having: None,
-        order_by: None,  // ORDER BY with aggregate aliases not yet supported
+        order_by: None, // ORDER BY with aggregate aliases not yet supported
         limit: None,
         offset: None,
     };
@@ -184,10 +191,22 @@ fn test_inner_join_with_group_by_count() {
 
     // Verify the results (Engineering: 2, Sales: 2, HR: 1)
     // Order is not guaranteed without ORDER BY, so we'll find each department
-    let eng_row = result.rows.iter().find(|r| r.get(0).unwrap() == &SqlValue::Varchar("Engineering".to_string())).unwrap();
-    let sales_row = result.rows.iter().find(|r| r.get(0).unwrap() == &SqlValue::Varchar("Sales".to_string())).unwrap();
-    let hr_row = result.rows.iter().find(|r| r.get(0).unwrap() == &SqlValue::Varchar("HR".to_string())).unwrap();
-    
+    let eng_row = result
+        .rows
+        .iter()
+        .find(|r| r.get(0).unwrap() == &SqlValue::Varchar("Engineering".to_string()))
+        .unwrap();
+    let sales_row = result
+        .rows
+        .iter()
+        .find(|r| r.get(0).unwrap() == &SqlValue::Varchar("Sales".to_string()))
+        .unwrap();
+    let hr_row = result
+        .rows
+        .iter()
+        .find(|r| r.get(0).unwrap() == &SqlValue::Varchar("HR".to_string()))
+        .unwrap();
+
     assert_eq!(eng_row.get(1).unwrap(), &SqlValue::Integer(2));
     assert_eq!(sales_row.get(1).unwrap(), &SqlValue::Integer(2));
     assert_eq!(hr_row.get(1).unwrap(), &SqlValue::Integer(1));
@@ -256,7 +275,7 @@ fn test_left_join_with_group_by_avg_salary() {
             column: "dept_name".to_string(),
         }]),
         having: None,
-        order_by: None,  // ORDER BY with aggregate aliases not yet supported
+        order_by: None, // ORDER BY with aggregate aliases not yet supported
         limit: None,
         offset: None,
     };
@@ -267,9 +286,21 @@ fn test_left_join_with_group_by_avg_salary() {
     assert_eq!(result.rows.len(), 3);
 
     // Verify each department - order not guaranteed
-    let engineering_row = result.rows.iter().find(|r| r.get(0).unwrap() == &SqlValue::Varchar("Engineering".to_string())).unwrap();
-    let sales_row = result.rows.iter().find(|r| r.get(0).unwrap() == &SqlValue::Varchar("Sales".to_string())).unwrap();
-    let hr_row = result.rows.iter().find(|r| r.get(0).unwrap() == &SqlValue::Varchar("HR".to_string())).unwrap();
+    let engineering_row = result
+        .rows
+        .iter()
+        .find(|r| r.get(0).unwrap() == &SqlValue::Varchar("Engineering".to_string()))
+        .unwrap();
+    let sales_row = result
+        .rows
+        .iter()
+        .find(|r| r.get(0).unwrap() == &SqlValue::Varchar("Sales".to_string()))
+        .unwrap();
+    let hr_row = result
+        .rows
+        .iter()
+        .find(|r| r.get(0).unwrap() == &SqlValue::Varchar("HR".to_string()))
+        .unwrap();
 
     // Engineering: (95000 + 87000) / 2 = 91000
     assert_eq!(engineering_row.get(1).unwrap(), &SqlValue::Integer(91000));
@@ -464,9 +495,11 @@ fn test_join_group_by_multiple_aggregates() {
     assert_eq!(result.rows.len(), 3);
 
     // Verify Engineering: count=2, min=87000, max=95000
-    let engineering_row = result.rows.iter().find(|row| {
-        row.get(0).unwrap() == &SqlValue::Varchar("Engineering".to_string())
-    }).unwrap();
+    let engineering_row = result
+        .rows
+        .iter()
+        .find(|row| row.get(0).unwrap() == &SqlValue::Varchar("Engineering".to_string()))
+        .unwrap();
     assert_eq!(engineering_row.get(1).unwrap(), &SqlValue::Integer(2)); // COUNT(*)
     assert_eq!(engineering_row.get(2).unwrap(), &SqlValue::Integer(87000)); // MIN(salary)
     assert_eq!(engineering_row.get(3).unwrap(), &SqlValue::Integer(95000)); // MAX(salary)

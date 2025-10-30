@@ -18,9 +18,7 @@ use super::utils::evaluate_expression;
 /// Example: [1, 2, 3, 4, 5] regardless of duplicate values
 pub fn evaluate_row_number(partition: &Partition) -> Vec<SqlValue> {
     // ROW_NUMBER is simple: just assign 1, 2, 3, ... to each row
-    (1..=partition.len())
-        .map(|n| SqlValue::Integer(n as i64))
-        .collect()
+    (1..=partition.len()).map(|n| SqlValue::Integer(n as i64)).collect()
 }
 
 /// Evaluate RANK() window function
@@ -52,7 +50,8 @@ pub fn evaluate_rank(partition: &Partition, order_by: &Option<Vec<OrderByItem>>)
             let mut values_differ = false;
             for order_item in order_items {
                 let val_curr = evaluate_expression(&order_item.expr, row).unwrap_or(SqlValue::Null);
-                let val_prev = evaluate_expression(&order_item.expr, prev_row).unwrap_or(SqlValue::Null);
+                let val_prev =
+                    evaluate_expression(&order_item.expr, prev_row).unwrap_or(SqlValue::Null);
 
                 if compare_values(&val_curr, &val_prev) != Ordering::Equal {
                     values_differ = true;
@@ -82,7 +81,10 @@ pub fn evaluate_rank(partition: &Partition, order_by: &Option<Vec<OrderByItem>>)
 /// Example for scores [95, 90, 90, 85]: ranks are [1, 2, 2, 3]
 ///
 /// Requires ORDER BY clause - partitions must be pre-sorted.
-pub fn evaluate_dense_rank(partition: &Partition, order_by: &Option<Vec<OrderByItem>>) -> Vec<SqlValue> {
+pub fn evaluate_dense_rank(
+    partition: &Partition,
+    order_by: &Option<Vec<OrderByItem>>,
+) -> Vec<SqlValue> {
     // DENSE_RANK requires ORDER BY
     if order_by.is_none() || order_by.as_ref().unwrap().is_empty() {
         // Without ORDER BY, all rows get rank 1
@@ -102,7 +104,8 @@ pub fn evaluate_dense_rank(partition: &Partition, order_by: &Option<Vec<OrderByI
             let mut values_differ = false;
             for order_item in order_items {
                 let val_curr = evaluate_expression(&order_item.expr, row).unwrap_or(SqlValue::Null);
-                let val_prev = evaluate_expression(&order_item.expr, prev_row).unwrap_or(SqlValue::Null);
+                let val_prev =
+                    evaluate_expression(&order_item.expr, prev_row).unwrap_or(SqlValue::Null);
 
                 if compare_values(&val_curr, &val_prev) != Ordering::Equal {
                     values_differ = true;
@@ -165,11 +168,8 @@ pub fn evaluate_ntile(partition: &Partition, n: i64) -> Result<Vec<SqlValue>, St
 
         // Calculate size of current bucket
         // First 'remainder' buckets get (base_size + 1) rows
-        let bucket_size = if (current_bucket as usize) <= remainder {
-            base_size + 1
-        } else {
-            base_size
-        };
+        let bucket_size =
+            if (current_bucket as usize) <= remainder { base_size + 1 } else { base_size };
 
         // Move to next bucket if current one is full
         if rows_in_current_bucket >= bucket_size {

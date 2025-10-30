@@ -33,19 +33,20 @@ pub fn current_time(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         match &args[0] {
             SqlValue::Integer(n) if *n >= 0 && *n <= 9 => Some(*n as u32),
             SqlValue::Integer(n) => {
-                return Err(ExecutorError::UnsupportedFeature(
-                    format!("CURRENT_TIME precision must be 0-9, got {}", n)
-                ));
+                return Err(ExecutorError::UnsupportedFeature(format!(
+                    "CURRENT_TIME precision must be 0-9, got {}",
+                    n
+                )));
             }
             _ => {
                 return Err(ExecutorError::UnsupportedFeature(
-                    "CURRENT_TIME precision must be an integer between 0 and 9".to_string()
+                    "CURRENT_TIME precision must be an integer between 0 and 9".to_string(),
                 ));
             }
         }
     } else {
         return Err(ExecutorError::UnsupportedFeature(
-            "CURRENT_TIME takes 0 or 1 arguments".to_string()
+            "CURRENT_TIME takes 0 or 1 arguments".to_string(),
         ));
     };
 
@@ -74,19 +75,20 @@ pub fn current_timestamp(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         match &args[0] {
             SqlValue::Integer(n) if *n >= 0 && *n <= 9 => Some(*n as u32),
             SqlValue::Integer(n) => {
-                return Err(ExecutorError::UnsupportedFeature(
-                    format!("CURRENT_TIMESTAMP precision must be 0-9, got {}", n)
-                ));
+                return Err(ExecutorError::UnsupportedFeature(format!(
+                    "CURRENT_TIMESTAMP precision must be 0-9, got {}",
+                    n
+                )));
             }
             _ => {
                 return Err(ExecutorError::UnsupportedFeature(
-                    "CURRENT_TIMESTAMP precision must be an integer between 0 and 9".to_string()
+                    "CURRENT_TIMESTAMP precision must be an integer between 0 and 9".to_string(),
                 ));
             }
         }
     } else {
         return Err(ExecutorError::UnsupportedFeature(
-            "CURRENT_TIMESTAMP takes 0 or 1 arguments".to_string()
+            "CURRENT_TIMESTAMP takes 0 or 1 arguments".to_string(),
         ));
     };
 

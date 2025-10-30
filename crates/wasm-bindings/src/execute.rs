@@ -3,8 +3,8 @@
 //! This module handles data manipulation (INSERT, UPDATE, DELETE) and
 //! transaction control (BEGIN, COMMIT, ROLLBACK, SAVEPOINT) operations.
 
-use wasm_bindgen::prelude::*;
 use crate::{Database, ExecuteResult};
+use wasm_bindgen::prelude::*;
 
 impl Database {
     /// Executes a DDL or DML statement (CREATE TABLE, INSERT, UPDATE, DELETE)
@@ -32,10 +32,7 @@ impl Database {
                 let message = executor::DropTableExecutor::execute(&drop_stmt, &mut self.db)
                     .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
-                let result = ExecuteResult {
-                    rows_affected: 0,
-                    message,
-                };
+                let result = ExecuteResult { rows_affected: 0, message };
 
                 serde_wasm_bindgen::to_value(&result)
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
@@ -61,13 +58,11 @@ impl Database {
                 Err(JsValue::from_str("Use query() method for SELECT statements"))
             }
             ast::Statement::BeginTransaction(begin_stmt) => {
-                let message = executor::BeginTransactionExecutor::execute(&begin_stmt, &mut self.db)
-                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+                let message =
+                    executor::BeginTransactionExecutor::execute(&begin_stmt, &mut self.db)
+                        .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
-                let result = ExecuteResult {
-                    rows_affected: 0,
-                    message,
-                };
+                let result = ExecuteResult { rows_affected: 0, message };
 
                 serde_wasm_bindgen::to_value(&result)
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
@@ -76,10 +71,7 @@ impl Database {
                 let message = executor::CommitExecutor::execute(&commit_stmt, &mut self.db)
                     .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
-                let result = ExecuteResult {
-                    rows_affected: 0,
-                    message,
-                };
+                let result = ExecuteResult { rows_affected: 0, message };
 
                 serde_wasm_bindgen::to_value(&result)
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
@@ -88,46 +80,37 @@ impl Database {
                 let message = executor::RollbackExecutor::execute(&rollback_stmt, &mut self.db)
                     .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
-                let result = ExecuteResult {
-                    rows_affected: 0,
-                    message,
-                };
+                let result = ExecuteResult { rows_affected: 0, message };
 
                 serde_wasm_bindgen::to_value(&result)
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
             ast::Statement::Savepoint(savepoint_stmt) => {
-                let message = executor::SavepointExecutor::execute(&savepoint_stmt, &mut self.db)
-                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+                let message =
+                    executor::SavepointExecutor::execute(&savepoint_stmt, &mut self.db)
+                        .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
-                let result = ExecuteResult {
-                    rows_affected: 0,
-                    message,
-                };
+                let result = ExecuteResult { rows_affected: 0, message };
 
                 serde_wasm_bindgen::to_value(&result)
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
             ast::Statement::RollbackToSavepoint(rollback_to_stmt) => {
-                let message = executor::RollbackToSavepointExecutor::execute(&rollback_to_stmt, &mut self.db)
-                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+                let message =
+                    executor::RollbackToSavepointExecutor::execute(&rollback_to_stmt, &mut self.db)
+                        .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
-                let result = ExecuteResult {
-                    rows_affected: 0,
-                    message,
-                };
+                let result = ExecuteResult { rows_affected: 0, message };
 
                 serde_wasm_bindgen::to_value(&result)
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
             ast::Statement::ReleaseSavepoint(release_stmt) => {
-                let message = executor::ReleaseSavepointExecutor::execute(&release_stmt, &mut self.db)
-                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+                let message =
+                    executor::ReleaseSavepointExecutor::execute(&release_stmt, &mut self.db)
+                        .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
-                let result = ExecuteResult {
-                    rows_affected: 0,
-                    message,
-                };
+                let result = ExecuteResult { rows_affected: 0, message };
 
                 serde_wasm_bindgen::to_value(&result)
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))

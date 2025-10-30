@@ -1,9 +1,9 @@
 //! Test that window function examples from web demo work
 
+use catalog::{ColumnSchema, TableSchema};
 use executor::SelectExecutor;
 use parser::Parser;
 use storage::Database;
-use catalog::{ColumnSchema, TableSchema};
 use types::{DataType, SqlValue};
 
 #[test]
@@ -15,9 +15,21 @@ fn test_window_demo_count_over() {
         "employees".to_string(),
         vec![
             ColumnSchema::new("employee_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("first_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
-            ColumnSchema::new("last_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
-            ColumnSchema::new("department".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new(
+                "first_name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
+            ColumnSchema::new(
+                "last_name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
+            ColumnSchema::new(
+                "department".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
             ColumnSchema::new("salary".to_string(), DataType::Integer, false),
         ],
     );
@@ -26,27 +38,33 @@ fn test_window_demo_count_over() {
     // Insert test data
     use storage::Row;
     let table = db.get_table_mut("employees").unwrap();
-    table.insert(Row::new(vec![
-        SqlValue::Integer(1),
-        SqlValue::Varchar("Alice".to_string()),
-        SqlValue::Varchar("Smith".to_string()),
-        SqlValue::Varchar("Engineering".to_string()),
-        SqlValue::Integer(100000),
-    ])).unwrap();
-    table.insert(Row::new(vec![
-        SqlValue::Integer(2),
-        SqlValue::Varchar("Bob".to_string()),
-        SqlValue::Varchar("Jones".to_string()),
-        SqlValue::Varchar("Sales".to_string()),
-        SqlValue::Integer(80000),
-    ])).unwrap();
-    table.insert(Row::new(vec![
-        SqlValue::Integer(3),
-        SqlValue::Varchar("Carol".to_string()),
-        SqlValue::Varchar("Davis".to_string()),
-        SqlValue::Varchar("Engineering".to_string()),
-        SqlValue::Integer(95000),
-    ])).unwrap();
+    table
+        .insert(Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Alice".to_string()),
+            SqlValue::Varchar("Smith".to_string()),
+            SqlValue::Varchar("Engineering".to_string()),
+            SqlValue::Integer(100000),
+        ]))
+        .unwrap();
+    table
+        .insert(Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Bob".to_string()),
+            SqlValue::Varchar("Jones".to_string()),
+            SqlValue::Varchar("Sales".to_string()),
+            SqlValue::Integer(80000),
+        ]))
+        .unwrap();
+    table
+        .insert(Row::new(vec![
+            SqlValue::Integer(3),
+            SqlValue::Varchar("Carol".to_string()),
+            SqlValue::Varchar("Davis".to_string()),
+            SqlValue::Varchar("Engineering".to_string()),
+            SqlValue::Integer(95000),
+        ]))
+        .unwrap();
 
     // Test window-1: COUNT(*) OVER - Total Row Count
     let query = r#"SELECT
@@ -85,8 +103,16 @@ fn test_window_demo_running_total() {
         "employees".to_string(),
         vec![
             ColumnSchema::new("employee_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("first_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
-            ColumnSchema::new("last_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new(
+                "first_name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
+            ColumnSchema::new(
+                "last_name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
             ColumnSchema::new("salary".to_string(), DataType::Integer, false),
         ],
     );
@@ -95,24 +121,30 @@ fn test_window_demo_running_total() {
     // Insert test data
     use storage::Row;
     let table = db.get_table_mut("employees").unwrap();
-    table.insert(Row::new(vec![
-        SqlValue::Integer(1),
-        SqlValue::Varchar("Alice".to_string()),
-        SqlValue::Varchar("Smith".to_string()),
-        SqlValue::Integer(100),
-    ])).unwrap();
-    table.insert(Row::new(vec![
-        SqlValue::Integer(2),
-        SqlValue::Varchar("Bob".to_string()),
-        SqlValue::Varchar("Jones".to_string()),
-        SqlValue::Integer(200),
-    ])).unwrap();
-    table.insert(Row::new(vec![
-        SqlValue::Integer(3),
-        SqlValue::Varchar("Carol".to_string()),
-        SqlValue::Varchar("Davis".to_string()),
-        SqlValue::Integer(300),
-    ])).unwrap();
+    table
+        .insert(Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Alice".to_string()),
+            SqlValue::Varchar("Smith".to_string()),
+            SqlValue::Integer(100),
+        ]))
+        .unwrap();
+    table
+        .insert(Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Bob".to_string()),
+            SqlValue::Varchar("Jones".to_string()),
+            SqlValue::Integer(200),
+        ]))
+        .unwrap();
+    table
+        .insert(Row::new(vec![
+            SqlValue::Integer(3),
+            SqlValue::Varchar("Carol".to_string()),
+            SqlValue::Varchar("Davis".to_string()),
+            SqlValue::Integer(300),
+        ]))
+        .unwrap();
 
     // Test window-2: Running Total with ORDER BY
     let query = r#"SELECT
@@ -151,9 +183,21 @@ fn test_window_demo_partitioned_avg() {
         "employees".to_string(),
         vec![
             ColumnSchema::new("employee_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("first_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
-            ColumnSchema::new("last_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
-            ColumnSchema::new("department".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new(
+                "first_name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
+            ColumnSchema::new(
+                "last_name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
+            ColumnSchema::new(
+                "department".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
             ColumnSchema::new("salary".to_string(), DataType::Integer, false),
         ],
     );
@@ -162,27 +206,33 @@ fn test_window_demo_partitioned_avg() {
     // Insert test data with 2 departments
     use storage::Row;
     let table = db.get_table_mut("employees").unwrap();
-    table.insert(Row::new(vec![
-        SqlValue::Integer(1),
-        SqlValue::Varchar("Alice".to_string()),
-        SqlValue::Varchar("Smith".to_string()),
-        SqlValue::Varchar("Engineering".to_string()),
-        SqlValue::Integer(100),
-    ])).unwrap();
-    table.insert(Row::new(vec![
-        SqlValue::Integer(2),
-        SqlValue::Varchar("Bob".to_string()),
-        SqlValue::Varchar("Jones".to_string()),
-        SqlValue::Varchar("Sales".to_string()),
-        SqlValue::Integer(200),
-    ])).unwrap();
-    table.insert(Row::new(vec![
-        SqlValue::Integer(3),
-        SqlValue::Varchar("Carol".to_string()),
-        SqlValue::Varchar("Davis".to_string()),
-        SqlValue::Varchar("Engineering".to_string()),
-        SqlValue::Integer(300),
-    ])).unwrap();
+    table
+        .insert(Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Alice".to_string()),
+            SqlValue::Varchar("Smith".to_string()),
+            SqlValue::Varchar("Engineering".to_string()),
+            SqlValue::Integer(100),
+        ]))
+        .unwrap();
+    table
+        .insert(Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Bob".to_string()),
+            SqlValue::Varchar("Jones".to_string()),
+            SqlValue::Varchar("Sales".to_string()),
+            SqlValue::Integer(200),
+        ]))
+        .unwrap();
+    table
+        .insert(Row::new(vec![
+            SqlValue::Integer(3),
+            SqlValue::Varchar("Carol".to_string()),
+            SqlValue::Varchar("Davis".to_string()),
+            SqlValue::Varchar("Engineering".to_string()),
+            SqlValue::Integer(300),
+        ]))
+        .unwrap();
 
     // Test window-3: Partitioned Averages
     let query = r#"SELECT

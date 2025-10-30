@@ -1,7 +1,6 @@
-///! Subquery evaluation for combined expressions
-
-use crate::errors::ExecutorError;
 use super::super::core::{CombinedExpressionEvaluator, ExpressionEvaluator};
+///! Subquery evaluation for combined expressions
+use crate::errors::ExecutorError;
 
 impl<'a> CombinedExpressionEvaluator<'a> {
     /// Evaluate scalar subquery - must return exactly one row and one column
@@ -17,8 +16,10 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         // Execute the subquery with outer context for correlated subqueries
         // Pass the entire CombinedSchema to preserve alias information
         let select_executor = if self.schema.table_schemas.len() >= 1 {
-            eprintln!("DEBUG eval_scalar_subquery: Passing outer context with tables {:?}",
-                     self.schema.table_schemas.keys().collect::<Vec<_>>());
+            eprintln!(
+                "DEBUG eval_scalar_subquery: Passing outer context with tables {:?}",
+                self.schema.table_schemas.keys().collect::<Vec<_>>()
+            );
             crate::select::SelectExecutor::new_with_outer_context(database, row, self.schema)
         } else {
             eprintln!("DEBUG eval_scalar_subquery: No outer context (no tables)");
@@ -47,10 +48,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         if rows.is_empty() {
             Ok(types::SqlValue::Null)
         } else {
-            rows[0]
-                .get(0)
-                .cloned()
-                .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })
+            rows[0].get(0).cloned().ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })
         }
     }
 
@@ -149,10 +147,13 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                     }
 
                     // Evaluate comparison
-                    let cmp_result = ExpressionEvaluator::eval_binary_op_static(&left_val, op, right_val)?;
+                    let cmp_result =
+                        ExpressionEvaluator::eval_binary_op_static(&left_val, op, right_val)?;
 
                     match cmp_result {
-                        types::SqlValue::Boolean(false) => return Ok(types::SqlValue::Boolean(false)),
+                        types::SqlValue::Boolean(false) => {
+                            return Ok(types::SqlValue::Boolean(false))
+                        }
                         types::SqlValue::Null => has_null = true,
                         _ => {} // TRUE, continue checking
                     }
@@ -191,10 +192,13 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                     }
 
                     // Evaluate comparison
-                    let cmp_result = ExpressionEvaluator::eval_binary_op_static(&left_val, op, right_val)?;
+                    let cmp_result =
+                        ExpressionEvaluator::eval_binary_op_static(&left_val, op, right_val)?;
 
                     match cmp_result {
-                        types::SqlValue::Boolean(true) => return Ok(types::SqlValue::Boolean(true)),
+                        types::SqlValue::Boolean(true) => {
+                            return Ok(types::SqlValue::Boolean(true))
+                        }
                         types::SqlValue::Null => has_null = true,
                         _ => {} // FALSE, continue checking
                     }
@@ -252,9 +256,8 @@ impl<'a> CombinedExpressionEvaluator<'a> {
 
         // Check each row from subquery
         for subquery_row in &rows {
-            let subquery_val = subquery_row
-                .get(0)
-                .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
+            let subquery_val =
+                subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
 
             // Track if we encounter NULL
             if matches!(subquery_val, types::SqlValue::Null) {

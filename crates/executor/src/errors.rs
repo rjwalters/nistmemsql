@@ -27,10 +27,16 @@ impl std::fmt::Display for ExecutorError {
             ExecutorError::TableNotFound(name) => write!(f, "Table '{}' not found", name),
             ExecutorError::TableAlreadyExists(name) => write!(f, "Table '{}' already exists", name),
             ExecutorError::ColumnNotFound(name) => write!(f, "Column '{}' not found", name),
-            ExecutorError::ColumnAlreadyExists(name) => write!(f, "Column '{}' already exists", name),
+            ExecutorError::ColumnAlreadyExists(name) => {
+                write!(f, "Column '{}' already exists", name)
+            }
             ExecutorError::SchemaNotFound(name) => write!(f, "Schema '{}' not found", name),
-            ExecutorError::SchemaAlreadyExists(name) => write!(f, "Schema '{}' already exists", name),
-            ExecutorError::SchemaNotEmpty(name) => write!(f, "Cannot drop schema '{}': schema is not empty", name),
+            ExecutorError::SchemaAlreadyExists(name) => {
+                write!(f, "Schema '{}' already exists", name)
+            }
+            ExecutorError::SchemaNotEmpty(name) => {
+                write!(f, "Cannot drop schema '{}': schema is not empty", name)
+            }
             ExecutorError::ColumnIndexOutOfBounds { index } => {
                 write!(f, "Column index {} out of bounds", index)
             }
@@ -68,12 +74,18 @@ impl std::error::Error for ExecutorError {}
 impl From<catalog::CatalogError> for ExecutorError {
     fn from(err: catalog::CatalogError) -> Self {
         match err {
-            catalog::CatalogError::TableAlreadyExists(name) => ExecutorError::TableAlreadyExists(name),
+            catalog::CatalogError::TableAlreadyExists(name) => {
+                ExecutorError::TableAlreadyExists(name)
+            }
             catalog::CatalogError::TableNotFound(name) => ExecutorError::TableNotFound(name),
-            catalog::CatalogError::ColumnAlreadyExists(name) => ExecutorError::ColumnAlreadyExists(name),
+            catalog::CatalogError::ColumnAlreadyExists(name) => {
+                ExecutorError::ColumnAlreadyExists(name)
+            }
             catalog::CatalogError::ColumnNotFound(name) => ExecutorError::ColumnNotFound(name),
             catalog::CatalogError::SchemaNotFound(name) => ExecutorError::SchemaNotFound(name),
-            catalog::CatalogError::SchemaAlreadyExists(name) => ExecutorError::SchemaAlreadyExists(name),
+            catalog::CatalogError::SchemaAlreadyExists(name) => {
+                ExecutorError::SchemaAlreadyExists(name)
+            }
             catalog::CatalogError::SchemaNotEmpty(name) => ExecutorError::SchemaNotEmpty(name),
         }
     }

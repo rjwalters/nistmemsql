@@ -10,7 +10,11 @@ fn create_test_schema() -> TableSchema {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("status".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new(
+                "status".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
             ColumnSchema::new("value".to_string(), DataType::Integer, false),
         ],
     )
@@ -29,15 +33,11 @@ fn test_simple_case_basic_match() {
         })),
         when_clauses: vec![
             ast::CaseWhen {
-                conditions: vec![
-                    Expression::Literal(SqlValue::Varchar("active".to_string())),
-                ],
+                conditions: vec![Expression::Literal(SqlValue::Varchar("active".to_string()))],
                 result: Expression::Literal(SqlValue::Varchar("Active User".to_string())),
             },
             ast::CaseWhen {
-                conditions: vec![
-                    Expression::Literal(SqlValue::Varchar("inactive".to_string())),
-                ],
+                conditions: vec![Expression::Literal(SqlValue::Varchar("inactive".to_string()))],
                 result: Expression::Literal(SqlValue::Varchar("Inactive User".to_string())),
             },
         ],
@@ -83,14 +83,10 @@ fn test_simple_case_null_handling() {
             table: None,
             column: "status".to_string(),
         })),
-        when_clauses: vec![
-            ast::CaseWhen {
-                conditions: vec![
-                    Expression::Literal(SqlValue::Null),
-                ],
-                result: Expression::Literal(SqlValue::Varchar("Null Status".to_string())),
-            },
-        ],
+        when_clauses: vec![ast::CaseWhen {
+            conditions: vec![Expression::Literal(SqlValue::Null)],
+            result: Expression::Literal(SqlValue::Varchar("Null Status".to_string())),
+        }],
         else_result: Some(Box::new(Expression::Literal(SqlValue::Varchar("Not Null".to_string())))),
     };
 
@@ -110,29 +106,25 @@ fn test_searched_case_basic() {
         operand: None, // Searched CASE
         when_clauses: vec![
             ast::CaseWhen {
-                conditions: vec![
-                    Expression::BinaryOp {
-                        op: ast::BinaryOperator::LessThan,
-                        left: Box::new(Expression::ColumnRef {
-                            table: None,
-                            column: "value".to_string(),
-                        }),
-                        right: Box::new(Expression::Literal(SqlValue::Integer(50))),
-                    },
-                ],
+                conditions: vec![Expression::BinaryOp {
+                    op: ast::BinaryOperator::LessThan,
+                    left: Box::new(Expression::ColumnRef {
+                        table: None,
+                        column: "value".to_string(),
+                    }),
+                    right: Box::new(Expression::Literal(SqlValue::Integer(50))),
+                }],
                 result: Expression::Literal(SqlValue::Varchar("Low".to_string())),
             },
             ast::CaseWhen {
-                conditions: vec![
-                    Expression::BinaryOp {
-                        op: ast::BinaryOperator::LessThan,
-                        left: Box::new(Expression::ColumnRef {
-                            table: None,
-                            column: "value".to_string(),
-                        }),
-                        right: Box::new(Expression::Literal(SqlValue::Integer(100))),
-                    },
-                ],
+                conditions: vec![Expression::BinaryOp {
+                    op: ast::BinaryOperator::LessThan,
+                    left: Box::new(Expression::ColumnRef {
+                        table: None,
+                        column: "value".to_string(),
+                    }),
+                    right: Box::new(Expression::Literal(SqlValue::Integer(100))),
+                }],
                 result: Expression::Literal(SqlValue::Varchar("Medium".to_string())),
             },
         ],
@@ -176,14 +168,10 @@ fn test_searched_case_null_condition() {
     // NULL condition should be FALSE, not TRUE
     let case_expr = Expression::Case {
         operand: None,
-        when_clauses: vec![
-            ast::CaseWhen {
-                conditions: vec![
-                    Expression::Literal(SqlValue::Null),
-                ],
-                result: Expression::Literal(SqlValue::Varchar("yes".to_string())),
-            },
-        ],
+        when_clauses: vec![ast::CaseWhen {
+            conditions: vec![Expression::Literal(SqlValue::Null)],
+            result: Expression::Literal(SqlValue::Varchar("yes".to_string())),
+        }],
         else_result: Some(Box::new(Expression::Literal(SqlValue::Varchar("no".to_string())))),
     };
 
@@ -208,15 +196,11 @@ fn test_case_no_else_defaults_to_null() {
         operand: Some(Box::new(Expression::ColumnRef { table: None, column: "value".to_string() })),
         when_clauses: vec![
             ast::CaseWhen {
-                conditions: vec![
-                    Expression::Literal(SqlValue::Integer(1)),
-                ],
+                conditions: vec![Expression::Literal(SqlValue::Integer(1))],
                 result: Expression::Literal(SqlValue::Varchar("one".to_string())),
             },
             ast::CaseWhen {
-                conditions: vec![
-                    Expression::Literal(SqlValue::Integer(2)),
-                ],
+                conditions: vec![Expression::Literal(SqlValue::Integer(2))],
                 result: Expression::Literal(SqlValue::Varchar("two".to_string())),
             },
         ],
@@ -243,15 +227,11 @@ fn test_case_lazy_evaluation() {
         operand: Some(Box::new(Expression::ColumnRef { table: None, column: "value".to_string() })),
         when_clauses: vec![
             ast::CaseWhen {
-                conditions: vec![
-                    Expression::Literal(SqlValue::Integer(1)),
-                ],
+                conditions: vec![Expression::Literal(SqlValue::Integer(1))],
                 result: Expression::Literal(SqlValue::Varchar("first".to_string())),
             },
             ast::CaseWhen {
-                conditions: vec![
-                    Expression::Literal(SqlValue::Integer(1)),
-                ],
+                conditions: vec![Expression::Literal(SqlValue::Integer(1))],
                 result: Expression::Literal(SqlValue::Varchar("second".to_string())),
             },
         ],
@@ -277,20 +257,15 @@ fn test_case_comma_separated_matching_first() {
 
     // CASE value WHEN 2, 3, 4 THEN 'match' ELSE 'no' END
     let case_expr = Expression::Case {
-        operand: Some(Box::new(Expression::ColumnRef {
-            table: None,
-            column: "value".to_string(),
-        })),
-        when_clauses: vec![
-            ast::CaseWhen {
-                conditions: vec![
-                    Expression::Literal(SqlValue::Integer(2)),
-                    Expression::Literal(SqlValue::Integer(3)),
-                    Expression::Literal(SqlValue::Integer(4)),
-                ],
-                result: Expression::Literal(SqlValue::Varchar("match".to_string())),
-            },
-        ],
+        operand: Some(Box::new(Expression::ColumnRef { table: None, column: "value".to_string() })),
+        when_clauses: vec![ast::CaseWhen {
+            conditions: vec![
+                Expression::Literal(SqlValue::Integer(2)),
+                Expression::Literal(SqlValue::Integer(3)),
+                Expression::Literal(SqlValue::Integer(4)),
+            ],
+            result: Expression::Literal(SqlValue::Varchar("match".to_string())),
+        }],
         else_result: Some(Box::new(Expression::Literal(SqlValue::Varchar("no".to_string())))),
     };
 
@@ -311,20 +286,15 @@ fn test_case_comma_separated_matching_last() {
 
     // CASE value WHEN 2, 3, 4 THEN 'match' ELSE 'no' END
     let case_expr = Expression::Case {
-        operand: Some(Box::new(Expression::ColumnRef {
-            table: None,
-            column: "value".to_string(),
-        })),
-        when_clauses: vec![
-            ast::CaseWhen {
-                conditions: vec![
-                    Expression::Literal(SqlValue::Integer(2)),
-                    Expression::Literal(SqlValue::Integer(3)),
-                    Expression::Literal(SqlValue::Integer(4)),
-                ],
-                result: Expression::Literal(SqlValue::Varchar("match".to_string())),
-            },
-        ],
+        operand: Some(Box::new(Expression::ColumnRef { table: None, column: "value".to_string() })),
+        when_clauses: vec![ast::CaseWhen {
+            conditions: vec![
+                Expression::Literal(SqlValue::Integer(2)),
+                Expression::Literal(SqlValue::Integer(3)),
+                Expression::Literal(SqlValue::Integer(4)),
+            ],
+            result: Expression::Literal(SqlValue::Varchar("match".to_string())),
+        }],
         else_result: Some(Box::new(Expression::Literal(SqlValue::Varchar("no".to_string())))),
     };
 
@@ -345,20 +315,15 @@ fn test_case_comma_separated_no_match() {
 
     // CASE value WHEN 2, 3, 4 THEN 'match' ELSE 'no' END
     let case_expr = Expression::Case {
-        operand: Some(Box::new(Expression::ColumnRef {
-            table: None,
-            column: "value".to_string(),
-        })),
-        when_clauses: vec![
-            ast::CaseWhen {
-                conditions: vec![
-                    Expression::Literal(SqlValue::Integer(2)),
-                    Expression::Literal(SqlValue::Integer(3)),
-                    Expression::Literal(SqlValue::Integer(4)),
-                ],
-                result: Expression::Literal(SqlValue::Varchar("match".to_string())),
-            },
-        ],
+        operand: Some(Box::new(Expression::ColumnRef { table: None, column: "value".to_string() })),
+        when_clauses: vec![ast::CaseWhen {
+            conditions: vec![
+                Expression::Literal(SqlValue::Integer(2)),
+                Expression::Literal(SqlValue::Integer(3)),
+                Expression::Literal(SqlValue::Integer(4)),
+            ],
+            result: Expression::Literal(SqlValue::Varchar("match".to_string())),
+        }],
         else_result: Some(Box::new(Expression::Literal(SqlValue::Varchar("no".to_string())))),
     };
 
@@ -380,19 +345,14 @@ fn test_case_comma_separated_duplicate_values() {
 
     // CASE value WHEN 2, 2 THEN 1 ELSE 1 END (duplicate values allowed)
     let case_expr = Expression::Case {
-        operand: Some(Box::new(Expression::ColumnRef {
-            table: None,
-            column: "value".to_string(),
-        })),
-        when_clauses: vec![
-            ast::CaseWhen {
-                conditions: vec![
-                    Expression::Literal(SqlValue::Integer(2)),
-                    Expression::Literal(SqlValue::Integer(2)),
-                ],
-                result: Expression::Literal(SqlValue::Integer(1)),
-            },
-        ],
+        operand: Some(Box::new(Expression::ColumnRef { table: None, column: "value".to_string() })),
+        when_clauses: vec![ast::CaseWhen {
+            conditions: vec![
+                Expression::Literal(SqlValue::Integer(2)),
+                Expression::Literal(SqlValue::Integer(2)),
+            ],
+            result: Expression::Literal(SqlValue::Integer(1)),
+        }],
         else_result: Some(Box::new(Expression::Literal(SqlValue::Integer(1)))),
     };
 
@@ -413,19 +373,14 @@ fn test_case_comma_separated_with_null() {
 
     // CASE value WHEN 2, 2 THEN 1 ELSE NULL END
     let case_expr = Expression::Case {
-        operand: Some(Box::new(Expression::ColumnRef {
-            table: None,
-            column: "value".to_string(),
-        })),
-        when_clauses: vec![
-            ast::CaseWhen {
-                conditions: vec![
-                    Expression::Literal(SqlValue::Integer(2)),
-                    Expression::Literal(SqlValue::Integer(2)),
-                ],
-                result: Expression::Literal(SqlValue::Integer(1)),
-            },
-        ],
+        operand: Some(Box::new(Expression::ColumnRef { table: None, column: "value".to_string() })),
+        when_clauses: vec![ast::CaseWhen {
+            conditions: vec![
+                Expression::Literal(SqlValue::Integer(2)),
+                Expression::Literal(SqlValue::Integer(2)),
+            ],
+            result: Expression::Literal(SqlValue::Integer(1)),
+        }],
         else_result: Some(Box::new(Expression::Literal(SqlValue::Null))),
     };
 
@@ -450,16 +405,14 @@ fn test_case_comma_separated_varchar() {
             table: None,
             column: "status".to_string(),
         })),
-        when_clauses: vec![
-            ast::CaseWhen {
-                conditions: vec![
-                    Expression::Literal(SqlValue::Varchar("active".to_string())),
-                    Expression::Literal(SqlValue::Varchar("pending".to_string())),
-                    Expression::Literal(SqlValue::Varchar("new".to_string())),
-                ],
-                result: Expression::Literal(SqlValue::Varchar("open".to_string())),
-            },
-        ],
+        when_clauses: vec![ast::CaseWhen {
+            conditions: vec![
+                Expression::Literal(SqlValue::Varchar("active".to_string())),
+                Expression::Literal(SqlValue::Varchar("pending".to_string())),
+                Expression::Literal(SqlValue::Varchar("new".to_string())),
+            ],
+            result: Expression::Literal(SqlValue::Varchar("open".to_string())),
+        }],
         else_result: Some(Box::new(Expression::Literal(SqlValue::Varchar("closed".to_string())))),
     };
 

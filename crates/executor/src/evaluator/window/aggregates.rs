@@ -52,7 +52,6 @@ where
         }
     }
 
-
     SqlValue::Integer(count)
 }
 
@@ -74,7 +73,6 @@ where
     let mut sum = 0i64;
     let mut has_value = false;
 
-
     for idx in frame.clone() {
         if idx >= partition.len() {
             break;
@@ -89,11 +87,10 @@ where
                     has_value = true;
                 }
                 SqlValue::Null => {} // Ignore NULL
-                _ => {}             // Ignore non-integer values
+                _ => {}              // Ignore non-integer values
             }
         }
     }
-
 
     if has_value {
         SqlValue::Integer(sum)
@@ -135,7 +132,7 @@ where
                     count += 1;
                 }
                 SqlValue::Null => {} // Ignore NULL
-                _ => {}             // Ignore non-integer values
+                _ => {}              // Ignore non-integer values
             }
         }
     }

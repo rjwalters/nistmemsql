@@ -10,16 +10,29 @@ pub enum Expression {
     Literal(SqlValue),
 
     /// Column reference (id, users.id)
-    ColumnRef { table: Option<String>, column: String },
+    ColumnRef {
+        table: Option<String>,
+        column: String,
+    },
 
     /// Binary operation (a + b, x = y, p AND q)
-    BinaryOp { op: BinaryOperator, left: Box<Expression>, right: Box<Expression> },
+    BinaryOp {
+        op: BinaryOperator,
+        left: Box<Expression>,
+        right: Box<Expression>,
+    },
 
     /// Unary operation (NOT x, -5)
-    UnaryOp { op: UnaryOperator, expr: Box<Expression> },
+    UnaryOp {
+        op: UnaryOperator,
+        expr: Box<Expression>,
+    },
 
     /// Function call (UPPER(x), SUBSTRING(x, 1, 3))
-    Function { name: String, args: Vec<Expression> },
+    Function {
+        name: String,
+        args: Vec<Expression>,
+    },
 
     /// Aggregate function call (COUNT, SUM, AVG, MIN, MAX)
     /// SQL:1999 Section 6.16: Set functions
@@ -155,8 +168,12 @@ pub enum Expression {
     /// CURRENT_TIME[(precision)] - Returns current time with optional precision
     /// CURRENT_TIMESTAMP[(precision)] - Returns current timestamp with optional precision
     CurrentDate,
-    CurrentTime { precision: Option<u32> },
-    CurrentTimestamp { precision: Option<u32> },
+    CurrentTime {
+        precision: Option<u32>,
+    },
+    CurrentTimestamp {
+        precision: Option<u32>,
+    },
 
     /// DEFAULT keyword - represents default value for column
     /// Used in INSERT and UPDATE statements
