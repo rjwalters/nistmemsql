@@ -171,6 +171,8 @@ impl Lexer {
             "RIGHT" => Token::Keyword(Keyword::Right),
             "INNER" => Token::Keyword(Keyword::Inner),
             "OUTER" => Token::Keyword(Keyword::Outer),
+            "CROSS" => Token::Keyword(Keyword::Cross),
+            "FULL" => Token::Keyword(Keyword::Full),
             "ON" => Token::Keyword(Keyword::On),
             "GROUP" => Token::Keyword(Keyword::Group),
             "BY" => Token::Keyword(Keyword::By),

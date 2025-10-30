@@ -17,13 +17,36 @@ impl<'a> CombinedExpressionEvaluator<'a> {
 
             // Column reference - look up column index (with optional table qualifier)
             ast::Expression::ColumnRef { table, column } => {
-                let col_index = self
-                    .schema
-                    .get_column_index(table.as_deref(), column)
-                    .ok_or_else(|| ExecutorError::ColumnNotFound(column.clone()))?;
-                row.get(col_index)
-                    .cloned()
-                    .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: col_index })
+                eprintln!("DEBUG CombinedExpr ColumnRef: table={:?}, column={}, inner_schema_tables={:?}",
+                         table, column, self.schema.table_schemas.keys().collect::<Vec<_>>());
+
+                // Try to resolve in inner schema first
+                if let Some(col_index) = self.schema.get_column_index(table.as_deref(), column) {
+                    eprintln!("DEBUG CombinedExpr: Found in INNER schema at index {}", col_index);
+                    return row.get(col_index)
+                        .cloned()
+                        .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: col_index });
+                }
+
+                // If not found in inner schema and outer context exists, try outer schema
+                if let (Some(outer_row), Some(outer_schema)) = (self.outer_row, self.outer_schema) {
+                    eprintln!("DEBUG CombinedExpr: Not in inner, checking OUTER schema, outer_tables={:?}",
+                             outer_schema.table_schemas.keys().collect::<Vec<_>>());
+                    if let Some(col_index) = outer_schema.get_column_index(table.as_deref(), column) {
+                        eprintln!("DEBUG CombinedExpr: Found in OUTER schema at index {}", col_index);
+                        return outer_row.get(col_index)
+                            .cloned()
+                            .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: col_index });
+                    } else {
+                        eprintln!("DEBUG CombinedExpr: NOT FOUND in outer schema");
+                    }
+                } else {
+                    eprintln!("DEBUG CombinedExpr: No outer context available");
+                }
+
+                // Column not found in either schema
+                eprintln!("DEBUG CombinedExpr: Column NOT FOUND in any schema");
+                Err(ExecutorError::ColumnNotFound(column.clone()))
             }
 
             // Binary operations

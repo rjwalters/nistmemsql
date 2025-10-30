@@ -8,14 +8,22 @@ impl<'a> CombinedExpressionEvaluator<'a> {
     pub(super) fn eval_scalar_subquery(
         &self,
         subquery: &ast::SelectStmt,
-        _row: &storage::Row,
+        row: &storage::Row,
     ) -> Result<types::SqlValue, ExecutorError> {
         let database = self.database.ok_or(ExecutorError::UnsupportedFeature(
             "Subquery execution requires database reference".to_string(),
         ))?;
 
-        // Execute the subquery using SelectExecutor
-        let select_executor = crate::select::SelectExecutor::new(database);
+        // Execute the subquery with outer context for correlated subqueries
+        // Pass the entire CombinedSchema to preserve alias information
+        let select_executor = if self.schema.table_schemas.len() >= 1 {
+            eprintln!("DEBUG eval_scalar_subquery: Passing outer context with tables {:?}",
+                     self.schema.table_schemas.keys().collect::<Vec<_>>());
+            crate::select::SelectExecutor::new_with_outer_context(database, row, self.schema)
+        } else {
+            eprintln!("DEBUG eval_scalar_subquery: No outer context (no tables)");
+            crate::select::SelectExecutor::new(database)
+        };
         let rows = select_executor.execute(subquery)?;
 
         // SQL:1999 Section 7.9: Scalar subquery must return exactly 1 row
@@ -55,14 +63,18 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         &self,
         subquery: &ast::SelectStmt,
         negated: bool,
-        _row: &storage::Row,
+        row: &storage::Row,
     ) -> Result<types::SqlValue, ExecutorError> {
         let database = self.database.ok_or(ExecutorError::UnsupportedFeature(
             "EXISTS requires database reference".to_string(),
         ))?;
 
-        // Execute the subquery using SelectExecutor
-        let select_executor = crate::select::SelectExecutor::new(database);
+        // Execute the subquery with outer context
+        let select_executor = if self.schema.table_schemas.len() >= 1 {
+            crate::select::SelectExecutor::new_with_outer_context(database, row, self.schema)
+        } else {
+            crate::select::SelectExecutor::new(database)
+        };
         let rows = select_executor.execute(subquery)?;
 
         // Check if subquery returned any rows
@@ -93,8 +105,12 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         // Evaluate the left-hand expression
         let left_val = self.eval(expr, row)?;
 
-        // Execute the subquery using SelectExecutor
-        let select_executor = crate::select::SelectExecutor::new(database);
+        // Execute the subquery with outer context
+        let select_executor = if self.schema.table_schemas.len() >= 1 {
+            crate::select::SelectExecutor::new_with_outer_context(database, row, self.schema)
+        } else {
+            crate::select::SelectExecutor::new(database)
+        };
         let rows = select_executor.execute(subquery)?;
 
         // Empty subquery special cases:
@@ -224,8 +240,12 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             });
         }
 
-        // Execute the subquery
-        let select_executor = crate::select::SelectExecutor::new(database);
+        // Execute the subquery with outer context
+        let select_executor = if self.schema.table_schemas.len() >= 1 {
+            crate::select::SelectExecutor::new_with_outer_context(database, row, self.schema)
+        } else {
+            crate::select::SelectExecutor::new(database)
+        };
         let rows = select_executor.execute(subquery)?;
 
         let mut found_null = false;

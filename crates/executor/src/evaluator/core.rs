@@ -14,6 +14,8 @@ pub struct ExpressionEvaluator<'a> {
 pub struct CombinedExpressionEvaluator<'a> {
     pub(super) schema: &'a CombinedSchema,
     pub(super) database: Option<&'a storage::Database>,
+    pub(super) outer_row: Option<&'a storage::Row>,
+    pub(super) outer_schema: Option<&'a CombinedSchema>,
 }
 
 impl<'a> ExpressionEvaluator<'a> {
@@ -330,7 +332,12 @@ impl<'a> CombinedExpressionEvaluator<'a> {
     /// Note: Currently unused as all callers use with_database(), but kept for API completeness
     #[allow(dead_code)]
     pub(crate) fn new(schema: &'a CombinedSchema) -> Self {
-        CombinedExpressionEvaluator { schema, database: None }
+        CombinedExpressionEvaluator {
+            schema,
+            database: None,
+            outer_row: None,
+            outer_schema: None,
+        }
     }
 
     /// Create a new combined expression evaluator with database reference
@@ -338,6 +345,26 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         schema: &'a CombinedSchema,
         database: &'a storage::Database,
     ) -> Self {
-        CombinedExpressionEvaluator { schema, database: Some(database) }
+        CombinedExpressionEvaluator {
+            schema,
+            database: Some(database),
+            outer_row: None,
+            outer_schema: None,
+        }
+    }
+
+    /// Create a new combined expression evaluator with database and outer context for correlated subqueries
+    pub(crate) fn with_database_and_outer_context(
+        schema: &'a CombinedSchema,
+        database: &'a storage::Database,
+        outer_row: &'a storage::Row,
+        outer_schema: &'a CombinedSchema,
+    ) -> Self {
+        CombinedExpressionEvaluator {
+            schema,
+            database: Some(database),
+            outer_row: Some(outer_row),
+            outer_schema: Some(outer_schema),
+        }
     }
 }
