@@ -24,8 +24,6 @@ impl<'a> SelectExecutor<'a> {
         outer_row: &'a storage::Row,
         outer_schema: &'a crate::schema::CombinedSchema,
     ) -> Self {
-        eprintln!("DEBUG SelectExecutor::new_with_outer_context: outer_tables={:?}, row.values={}",
-                 outer_schema.table_schemas.keys().collect::<Vec<_>>(), outer_row.values.len());
         SelectExecutor {
             database,
             _outer_row: Some(outer_row),
