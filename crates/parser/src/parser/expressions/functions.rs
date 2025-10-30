@@ -69,6 +69,65 @@ impl Parser {
             }));
         }
 
+        // Special case for TRIM([position] [removal_char FROM] string)
+        // SQL:1999 standard syntax
+        // Forms:
+        //   TRIM(string)                              -- remove spaces from both sides
+        //   TRIM('x' FROM string)                     -- remove 'x' from both sides
+        //   TRIM(BOTH 'x' FROM string)                -- remove 'x' from both sides
+        //   TRIM(LEADING 'x' FROM string)             -- remove 'x' from start
+        //   TRIM(TRAILING 'x' FROM string)            -- remove 'x' from end
+        if first.to_uppercase() == "TRIM" {
+            let mut position: Option<ast::TrimPosition> = None;
+            let removal_char: Option<Box<ast::Expression>>;
+
+            // Check for BOTH/LEADING/TRAILING keywords
+            match self.peek() {
+                Token::Keyword(Keyword::Both) => {
+                    self.advance();
+                    position = Some(ast::TrimPosition::Both);
+                }
+                Token::Keyword(Keyword::Leading) => {
+                    self.advance();
+                    position = Some(ast::TrimPosition::Leading);
+                }
+                Token::Keyword(Keyword::Trailing) => {
+                    self.advance();
+                    position = Some(ast::TrimPosition::Trailing);
+                }
+                _ => {}
+            }
+
+            // Try to parse the first expression (could be removal_char or string)
+            let first_expr = self.parse_primary_expression()?;
+
+            // Check if this is followed by FROM keyword
+            if matches!(self.peek(), Token::Keyword(Keyword::From)) {
+                self.advance(); // consume FROM
+                // first_expr is the removal_char, now parse the string
+                removal_char = Some(Box::new(first_expr));
+                let string = self.parse_primary_expression()?;
+
+                self.expect_token(Token::RParen)?;
+
+                return Ok(Some(ast::Expression::Trim {
+                    position,
+                    removal_char,
+                    string: Box::new(string),
+                }));
+            } else {
+                // No FROM keyword, so first_expr is the string
+                // removal_char defaults to None (which means space)
+                self.expect_token(Token::RParen)?;
+
+                return Ok(Some(ast::Expression::Trim {
+                    position,
+                    removal_char: None,
+                    string: Box::new(first_expr),
+                }));
+            }
+        }
+
         // Check if this is an aggregate function
         let function_name_upper = first.to_uppercase();
         let is_aggregate = matches!(

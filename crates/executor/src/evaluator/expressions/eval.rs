@@ -57,6 +57,13 @@ impl<'a> ExpressionEvaluator<'a> {
                 self.eval_position(substring, string, row)
             }
 
+            // TRIM expression
+            ast::Expression::Trim {
+                position,
+                removal_char,
+                string,
+            } => self.eval_trim(position, removal_char, string, row),
+
             // LIKE pattern matching
             ast::Expression::Like { expr, pattern, negated } => {
                 self.eval_like(expr, pattern, *negated, row)

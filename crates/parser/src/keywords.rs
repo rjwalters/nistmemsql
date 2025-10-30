@@ -100,6 +100,10 @@ pub enum Keyword {
     Savepoint,
     Release,
     To,
+    // TRIM function keywords
+    Both,
+    Leading,
+    Trailing,
 }
 
 impl fmt::Display for Keyword {
@@ -193,6 +197,9 @@ impl fmt::Display for Keyword {
             Keyword::Savepoint => "SAVEPOINT",
             Keyword::Release => "RELEASE",
             Keyword::To => "TO",
+            Keyword::Both => "BOTH",
+            Keyword::Leading => "LEADING",
+            Keyword::Trailing => "TRAILING",
         };
         write!(f, "{}", keyword_str)
     }

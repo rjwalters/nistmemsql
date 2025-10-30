@@ -105,6 +105,19 @@ pub enum Expression {
         string: Box<Expression>,
     },
 
+    /// TRIM expression
+    /// Example: TRIM(BOTH 'x' FROM 'xxxhelloxxx')
+    /// Example: TRIM(LEADING '0' FROM '00042')
+    /// Example: TRIM(TRAILING '.' FROM 'test...')
+    /// Example: TRIM('x' FROM 'xxxhelloxxx') -- defaults to BOTH
+    /// Example: TRIM('  hello  ') -- defaults to BOTH ' '
+    /// SQL:1999 Section 6.29: String value functions
+    Trim {
+        position: Option<TrimPosition>,
+        removal_char: Option<Box<Expression>>,
+        string: Box<Expression>,
+    },
+
     /// LIKE pattern matching
     /// Example: name LIKE 'John%'
     /// Example: email NOT LIKE '%spam%'
@@ -229,4 +242,16 @@ pub enum FrameBound {
 
     /// UNBOUNDED FOLLOWING - end of partition
     UnboundedFollowing,
+}
+
+/// TRIM position specification
+/// Determines which side(s) to trim characters from
+#[derive(Debug, Clone, PartialEq)]
+pub enum TrimPosition {
+    /// BOTH - trim from both leading and trailing (default)
+    Both,
+    /// LEADING - trim from start of string only
+    Leading,
+    /// TRAILING - trim from end of string only
+    Trailing,
 }
