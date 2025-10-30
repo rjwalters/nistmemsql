@@ -13,6 +13,13 @@ export interface QueryExample {
   sql: string
   description: string
   sqlFeatures: string[]
+  // Enhanced metadata (Step 2 additions)
+  difficulty?: 'beginner' | 'intermediate' | 'advanced'
+  useCase?: 'analytics' | 'admin' | 'development' | 'reports' | 'data-quality'
+  performanceNotes?: string
+  executionTimeMs?: number
+  relatedExamples?: string[] // IDs of related examples
+  tags?: string[] // Searchable tags
 }
 
 export interface ExampleCategory {
@@ -2680,6 +2687,1404 @@ LIMIT 10;
 -- ⏭️ SKIP: Window functions with OVER clause not yet fully integrated with executor`,
         description: 'Calculate each product price as percentage of total',
         sqlFeatures: ['SUM', 'OVER', 'ROUND', 'Percentage calculations', 'Business analytics'],
+      },
+    ],
+  },
+  // ========================================
+  // NEW CATEGORIES (Step 2)
+  // ========================================
+  {
+    id: 'business-intelligence',
+    title: 'Business Intelligence Queries',
+    description: 'Real-world analytics scenarios: YoY growth, RFM analysis, sales funnels',
+    queries: [
+      {
+        id: 'bi-1',
+        title: 'Year-over-Year Growth Analysis',
+        database: 'northwind',
+        sql: `-- Compare order counts by year
+SELECT
+  CAST(EXTRACT(YEAR FROM order_date) AS INTEGER) AS year,
+  COUNT(*) AS order_count,
+  LAG(COUNT(*)) OVER (ORDER BY EXTRACT(YEAR FROM order_date)) AS prev_year_count,
+  CASE
+    WHEN LAG(COUNT(*)) OVER (ORDER BY EXTRACT(YEAR FROM order_date)) IS NOT NULL
+    THEN ROUND(
+      (COUNT(*) - LAG(COUNT(*)) OVER (ORDER BY EXTRACT(YEAR FROM order_date))) * 100.0 /
+      LAG(COUNT(*)) OVER (ORDER BY EXTRACT(YEAR FROM order_date)),
+      2
+    )
+    ELSE NULL
+  END AS yoy_growth_pct
+FROM orders
+WHERE order_date IS NOT NULL
+GROUP BY EXTRACT(YEAR FROM order_date)
+ORDER BY year;
+-- EXPECTED: Year-over-year comparison with growth percentages
+-- (Shows business growth trends)`,
+        description: 'Calculate year-over-year growth in order volume',
+        sqlFeatures: ['EXTRACT', 'LAG', 'OVER', 'CASE', 'Window functions', 'Date functions'],
+        difficulty: 'intermediate',
+        useCase: 'analytics',
+        tags: ['yoy', 'growth', 'trends', 'business-metrics'],
+        relatedExamples: ['aggregate-1', 'window-1'],
+      },
+      {
+        id: 'bi-2',
+        title: 'Customer Segmentation (RFM Analysis)',
+        database: 'northwind',
+        sql: `-- RFM: Recency, Frequency, Monetary analysis
+WITH customer_rfm AS (
+  SELECT
+    customer_id,
+    MAX(order_date) AS last_order_date,
+    COUNT(*) AS order_frequency,
+    SUM(COALESCE(unit_price * quantity * (1 - discount), 0)) AS monetary_value
+  FROM orders o
+  LEFT JOIN order_details od ON o.order_id = od.order_id
+  WHERE o.order_date IS NOT NULL
+  GROUP BY customer_id
+)
+SELECT
+  customer_id,
+  last_order_date,
+  order_frequency,
+  ROUND(monetary_value, 2) AS total_spent,
+  CASE
+    WHEN order_frequency >= 5 AND monetary_value >= 1000 THEN 'VIP'
+    WHEN order_frequency >= 3 AND monetary_value >= 500 THEN 'Loyal'
+    WHEN order_frequency >= 2 THEN 'Regular'
+    ELSE 'Occasional'
+  END AS customer_segment
+FROM customer_rfm
+ORDER BY monetary_value DESC
+LIMIT 20;
+-- EXPECTED: Top 20 customers with RFM segments
+-- (Identifies high-value customer segments)`,
+        description: 'Segment customers by purchase behavior (RFM model)',
+        sqlFeatures: ['CTE', 'Aggregates', 'CASE', 'Segmentation'],
+        difficulty: 'advanced',
+        useCase: 'analytics',
+        tags: ['rfm', 'segmentation', 'customer-value', 'crm'],
+        relatedExamples: ['cte-1', 'aggregate-1'],
+      },
+      {
+        id: 'bi-3',
+        title: 'Sales Funnel Analysis',
+        database: 'northwind',
+        sql: `-- Analyze sales by product category with conversion metrics
+WITH category_sales AS (
+  SELECT
+    c.category_name,
+    COUNT(DISTINCT p.product_id) AS total_products,
+    COUNT(DISTINCT od.order_id) AS orders_count,
+    SUM(od.quantity) AS units_sold,
+    SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue
+  FROM categories c
+  LEFT JOIN products p ON c.category_id = p.category_id
+  LEFT JOIN order_details od ON p.product_id = od.product_id
+  GROUP BY c.category_name
+)
+SELECT
+  category_name,
+  total_products,
+  orders_count,
+  units_sold,
+  ROUND(revenue, 2) AS total_revenue,
+  ROUND(revenue / NULLIF(total_products, 0), 2) AS revenue_per_product,
+  ROUND(units_sold::DECIMAL / NULLIF(orders_count, 0), 2) AS avg_units_per_order
+FROM category_sales
+ORDER BY total_revenue DESC;
+-- EXPECTED: Category performance with funnel metrics
+-- (Shows conversion efficiency by category)`,
+        description: 'Analyze sales funnel metrics by product category',
+        sqlFeatures: ['CTE', 'JOINs', 'Aggregates', 'NULLIF', 'Business metrics'],
+        difficulty: 'intermediate',
+        useCase: 'analytics',
+        tags: ['funnel', 'conversion', 'sales-metrics', 'category-analysis'],
+        relatedExamples: ['join-1', 'aggregate-1'],
+      },
+      {
+        id: 'bi-4',
+        title: 'Cohort Analysis',
+        database: 'northwind',
+        sql: `-- Analyze customer retention by order cohort
+WITH first_orders AS (
+  SELECT
+    customer_id,
+    MIN(order_date) AS first_order_date,
+    DATE_TRUNC('month', MIN(order_date)) AS cohort_month
+  FROM orders
+  WHERE order_date IS NOT NULL
+  GROUP BY customer_id
+),
+cohort_data AS (
+  SELECT
+    fo.cohort_month,
+    DATE_TRUNC('month', o.order_date) AS order_month,
+    COUNT(DISTINCT o.customer_id) AS customers
+  FROM first_orders fo
+  JOIN orders o ON fo.customer_id = o.customer_id
+  WHERE o.order_date IS NOT NULL
+  GROUP BY fo.cohort_month, DATE_TRUNC('month', o.order_date)
+)
+SELECT
+  cohort_month,
+  order_month,
+  customers,
+  ROUND(
+    customers * 100.0 / FIRST_VALUE(customers) OVER (
+      PARTITION BY cohort_month
+      ORDER BY order_month
+    ),
+    2
+  ) AS retention_pct
+FROM cohort_data
+ORDER BY cohort_month, order_month
+LIMIT 25;
+-- EXPECTED: Customer retention by cohort over time
+-- (Shows how well each cohort is retained)`,
+        description: 'Track customer retention over time using cohort analysis',
+        sqlFeatures: ['CTE', 'DATE_TRUNC', 'FIRST_VALUE', 'Window functions', 'Cohort analysis'],
+        difficulty: 'advanced',
+        useCase: 'analytics',
+        tags: ['cohort', 'retention', 'customer-lifetime-value', 'churn'],
+        relatedExamples: ['cte-1', 'window-1'],
+      },
+      {
+        id: 'bi-5',
+        title: 'Product Affinity Analysis',
+        database: 'northwind',
+        sql: `-- Find products frequently purchased together
+WITH product_pairs AS (
+  SELECT
+    od1.product_id AS product_a,
+    od2.product_id AS product_b,
+    COUNT(DISTINCT od1.order_id) AS co_occurrence
+  FROM order_details od1
+  JOIN order_details od2 ON od1.order_id = od2.order_id
+    AND od1.product_id < od2.product_id
+  GROUP BY od1.product_id, od2.product_id
+  HAVING COUNT(DISTINCT od1.order_id) >= 3
+)
+SELECT
+  p1.product_name AS product_a_name,
+  p2.product_name AS product_b_name,
+  pp.co_occurrence AS times_bought_together,
+  ROUND(
+    pp.co_occurrence * 100.0 / (
+      SELECT COUNT(DISTINCT order_id) FROM order_details WHERE product_id = pp.product_a
+    ),
+    2
+  ) AS affinity_pct
+FROM product_pairs pp
+JOIN products p1 ON pp.product_a = p1.product_id
+JOIN products p2 ON pp.product_b = p2.product_id
+ORDER BY times_bought_together DESC
+LIMIT 15;
+-- EXPECTED: Product pairs with high purchase correlation
+-- (Useful for cross-selling and recommendations)`,
+        description: 'Identify products frequently purchased together (market basket analysis)',
+        sqlFeatures: ['Self-join', 'CTE', 'Subquery', 'Market basket analysis'],
+        difficulty: 'advanced',
+        useCase: 'analytics',
+        tags: ['affinity', 'cross-sell', 'market-basket', 'recommendations'],
+        relatedExamples: ['join-5', 'subquery-1'],
+      },
+      {
+        id: 'bi-6',
+        title: 'ABC Analysis (Inventory Classification)',
+        database: 'northwind',
+        sql: `-- Classify products by revenue contribution (ABC analysis)
+WITH product_revenue AS (
+  SELECT
+    p.product_id,
+    p.product_name,
+    SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue
+  FROM products p
+  LEFT JOIN order_details od ON p.product_id = od.product_id
+  GROUP BY p.product_id, p.product_name
+),
+revenue_totals AS (
+  SELECT
+    product_id,
+    product_name,
+    revenue,
+    SUM(revenue) OVER () AS total_revenue,
+    SUM(revenue) OVER (ORDER BY revenue DESC) AS cumulative_revenue
+  FROM product_revenue
+)
+SELECT
+  product_name,
+  ROUND(revenue, 2) AS product_revenue,
+  ROUND(revenue * 100.0 / total_revenue, 2) AS pct_of_total,
+  ROUND(cumulative_revenue * 100.0 / total_revenue, 2) AS cumulative_pct,
+  CASE
+    WHEN cumulative_revenue * 100.0 / total_revenue <= 70 THEN 'A'
+    WHEN cumulative_revenue * 100.0 / total_revenue <= 90 THEN 'B'
+    ELSE 'C'
+  END AS abc_class
+FROM revenue_totals
+WHERE revenue > 0
+ORDER BY revenue DESC;
+-- EXPECTED: Products classified by revenue contribution (A/B/C)
+-- (A = top 70%, B = next 20%, C = remaining 10%)`,
+        description: 'Classify products by revenue contribution using ABC analysis',
+        sqlFeatures: ['CTE', 'Window functions', 'SUM OVER', 'Classification'],
+        difficulty: 'advanced',
+        useCase: 'analytics',
+        tags: ['abc-analysis', 'pareto', 'inventory', 'revenue-analysis'],
+        relatedExamples: ['window-1', 'cte-1'],
+      },
+      {
+        id: 'bi-7',
+        title: 'Pareto Analysis (80/20 Rule)',
+        database: 'northwind',
+        sql: `-- Find products contributing to 80% of revenue (Pareto principle)
+WITH ranked_products AS (
+  SELECT
+    p.product_name,
+    SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue,
+    SUM(SUM(od.unit_price * od.quantity * (1 - od.discount)))
+      OVER (ORDER BY SUM(od.unit_price * od.quantity * (1 - od.discount)) DESC) AS cumulative_revenue,
+    SUM(SUM(od.unit_price * od.quantity * (1 - od.discount))) OVER () AS total_revenue
+  FROM products p
+  JOIN order_details od ON p.product_id = od.product_id
+  GROUP BY p.product_name
+)
+SELECT
+  product_name,
+  ROUND(revenue, 2) AS revenue,
+  ROUND(cumulative_revenue, 2) AS cumulative_revenue,
+  ROUND(cumulative_revenue * 100.0 / total_revenue, 2) AS cumulative_pct,
+  CASE
+    WHEN cumulative_revenue * 100.0 / total_revenue <= 80 THEN 'Top 80%'
+    ELSE 'Remaining 20%'
+  END AS pareto_group
+FROM ranked_products
+ORDER BY revenue DESC;
+-- EXPECTED: Products with cumulative revenue percentages
+-- (Identifies vital few vs useful many)`,
+        description: 'Apply Pareto principle to identify top revenue contributors',
+        sqlFeatures: ['CTE', 'Window functions', 'Cumulative sums', 'Pareto analysis'],
+        difficulty: 'intermediate',
+        useCase: 'analytics',
+        tags: ['pareto', '80-20', 'revenue-contribution', 'vital-few'],
+        relatedExamples: ['bi-6', 'window-1'],
+      },
+    ],
+  },
+  {
+    id: 'data-quality',
+    title: 'Data Quality Checks',
+    description: 'Common data validation patterns: duplicates, orphans, NULL analysis',
+    queries: [
+      {
+        id: 'dq-1',
+        title: 'Finding Duplicate Records',
+        database: 'northwind',
+        sql: `-- Find products with duplicate names
+SELECT
+  product_name,
+  COUNT(*) AS occurrence_count,
+  STRING_AGG(CAST(product_id AS TEXT), ', ') AS product_ids
+FROM products
+GROUP BY product_name
+HAVING COUNT(*) > 1
+ORDER BY occurrence_count DESC;
+-- EXPECTED: Products with duplicate names (if any)
+-- (Should return 0 rows if data is clean)`,
+        description: 'Detect duplicate product names in the database',
+        sqlFeatures: ['GROUP BY', 'HAVING', 'COUNT', 'STRING_AGG', 'Duplicate detection'],
+        difficulty: 'beginner',
+        useCase: 'data-quality',
+        tags: ['duplicates', 'validation', 'data-cleansing', 'integrity'],
+        relatedExamples: ['aggregate-1'],
+      },
+      {
+        id: 'dq-2',
+        title: 'Identifying Orphaned Records',
+        database: 'northwind',
+        sql: `-- Find order details without corresponding orders
+SELECT
+  od.order_id,
+  od.product_id,
+  od.quantity,
+  CASE WHEN o.order_id IS NULL THEN 'ORPHAN' ELSE 'OK' END AS status
+FROM order_details od
+LEFT JOIN orders o ON od.order_id = o.order_id
+WHERE o.order_id IS NULL
+LIMIT 10;
+-- EXPECTED: Orphaned order details (should be empty)
+-- (Indicates referential integrity issues)`,
+        description: 'Detect order details without parent orders (referential integrity check)',
+        sqlFeatures: ['LEFT JOIN', 'IS NULL', 'Referential integrity', 'Orphan detection'],
+        difficulty: 'beginner',
+        useCase: 'data-quality',
+        tags: ['orphans', 'referential-integrity', 'foreign-keys', 'data-quality'],
+        relatedExamples: ['join-2'],
+      },
+      {
+        id: 'dq-3',
+        title: 'NULL Pattern Analysis',
+        database: 'northwind',
+        sql: `-- Analyze NULL patterns across product columns
+SELECT
+  'unit_price' AS column_name,
+  COUNT(*) AS total_rows,
+  COUNT(unit_price) AS non_null_count,
+  COUNT(*) - COUNT(unit_price) AS null_count,
+  ROUND((COUNT(*) - COUNT(unit_price)) * 100.0 / COUNT(*), 2) AS null_percentage
+FROM products
+UNION ALL
+SELECT
+  'units_in_stock',
+  COUNT(*),
+  COUNT(units_in_stock),
+  COUNT(*) - COUNT(units_in_stock),
+  ROUND((COUNT(*) - COUNT(units_in_stock)) * 100.0 / COUNT(*), 2)
+FROM products
+UNION ALL
+SELECT
+  'units_on_order',
+  COUNT(*),
+  COUNT(units_on_order),
+  COUNT(*) - COUNT(units_on_order),
+  ROUND((COUNT(*) - COUNT(units_on_order)) * 100.0 / COUNT(*), 2)
+FROM products
+ORDER BY null_percentage DESC;
+-- EXPECTED: NULL statistics for each column
+-- (Helps identify data completeness issues)`,
+        description: 'Analyze NULL value patterns across multiple columns',
+        sqlFeatures: ['UNION ALL', 'COUNT', 'NULL analysis', 'Data profiling'],
+        difficulty: 'intermediate',
+        useCase: 'data-quality',
+        tags: ['null-analysis', 'data-profiling', 'completeness', 'quality-metrics'],
+        relatedExamples: ['aggregate-1', 'union-1'],
+      },
+      {
+        id: 'dq-4',
+        title: 'Data Consistency Checks',
+        database: 'northwind',
+        sql: `-- Find products with illogical stock levels
+SELECT
+  product_id,
+  product_name,
+  unit_price,
+  units_in_stock,
+  units_on_order,
+  CASE
+    WHEN unit_price IS NULL THEN 'Missing price'
+    WHEN unit_price < 0 THEN 'Negative price'
+    WHEN unit_price = 0 THEN 'Zero price'
+    WHEN units_in_stock IS NULL THEN 'Missing stock'
+    WHEN units_in_stock < 0 THEN 'Negative stock'
+    WHEN units_on_order IS NULL THEN 'Missing on_order'
+    WHEN units_on_order < 0 THEN 'Negative on_order'
+    ELSE 'OK'
+  END AS data_issue
+FROM products
+WHERE
+  unit_price IS NULL OR unit_price <= 0 OR
+  units_in_stock IS NULL OR units_in_stock < 0 OR
+  units_on_order IS NULL OR units_on_order < 0
+ORDER BY product_id;
+-- EXPECTED: Products with data consistency issues
+-- (Validates business rules and constraints)`,
+        description: 'Validate business rules for product data consistency',
+        sqlFeatures: ['CASE', 'NULL checks', 'Data validation', 'Business rules'],
+        difficulty: 'intermediate',
+        useCase: 'data-quality',
+        tags: ['consistency', 'validation', 'business-rules', 'constraints'],
+        relatedExamples: ['case-1'],
+      },
+      {
+        id: 'dq-5',
+        title: 'Referential Integrity Validation',
+        database: 'northwind',
+        sql: `-- Comprehensive referential integrity check
+WITH integrity_checks AS (
+  SELECT 'Products missing category' AS check_name, COUNT(*) AS violation_count
+  FROM products p
+  LEFT JOIN categories c ON p.category_id = c.category_id
+  WHERE p.category_id IS NOT NULL AND c.category_id IS NULL
+  UNION ALL
+  SELECT 'Order details missing product', COUNT(*)
+  FROM order_details od
+  LEFT JOIN products p ON od.product_id = p.product_id
+  WHERE od.product_id IS NOT NULL AND p.product_id IS NULL
+  UNION ALL
+  SELECT 'Order details missing order', COUNT(*)
+  FROM order_details od
+  LEFT JOIN orders o ON od.order_id = o.order_id
+  WHERE od.order_id IS NOT NULL AND o.order_id IS NULL
+)
+SELECT
+  check_name,
+  violation_count,
+  CASE
+    WHEN violation_count = 0 THEN 'PASS'
+    ELSE 'FAIL'
+  END AS status
+FROM integrity_checks
+ORDER BY violation_count DESC;
+-- EXPECTED: Referential integrity check results
+-- (All checks should show 0 violations)`,
+        description: 'Comprehensive validation of foreign key relationships',
+        sqlFeatures: ['CTE', 'UNION ALL', 'LEFT JOIN', 'Referential integrity'],
+        difficulty: 'intermediate',
+        useCase: 'data-quality',
+        tags: ['referential-integrity', 'foreign-keys', 'validation', 'constraints'],
+        relatedExamples: ['dq-2', 'cte-1'],
+      },
+      {
+        id: 'dq-6',
+        title: 'Outlier Detection',
+        database: 'northwind',
+        sql: `-- Detect price outliers using statistical methods
+WITH price_stats AS (
+  SELECT
+    AVG(unit_price) AS mean_price,
+    STDDEV(unit_price) AS stddev_price
+  FROM products
+  WHERE unit_price IS NOT NULL
+)
+SELECT
+  p.product_id,
+  p.product_name,
+  p.unit_price,
+  ROUND(ps.mean_price, 2) AS mean_price,
+  ROUND(ps.stddev_price, 2) AS stddev_price,
+  ROUND((p.unit_price - ps.mean_price) / NULLIF(ps.stddev_price, 0), 2) AS z_score,
+  CASE
+    WHEN ABS((p.unit_price - ps.mean_price) / NULLIF(ps.stddev_price, 0)) > 2
+    THEN 'OUTLIER'
+    ELSE 'NORMAL'
+  END AS outlier_status
+FROM products p
+CROSS JOIN price_stats ps
+WHERE p.unit_price IS NOT NULL
+  AND ABS((p.unit_price - ps.mean_price) / NULLIF(ps.stddev_price, 0)) > 2
+ORDER BY ABS((p.unit_price - ps.mean_price) / NULLIF(ps.stddev_price, 0)) DESC;
+-- EXPECTED: Products with prices >2 standard deviations from mean
+-- (Statistical outlier detection)`,
+        description: 'Identify price outliers using Z-score statistical method',
+        sqlFeatures: ['CTE', 'STDDEV', 'AVG', 'CROSS JOIN', 'Statistical analysis'],
+        difficulty: 'advanced',
+        useCase: 'data-quality',
+        tags: ['outliers', 'statistics', 'z-score', 'anomaly-detection'],
+        relatedExamples: ['aggregate-1', 'cte-1'],
+      },
+    ],
+  },
+  {
+    id: 'advanced-multi-feature',
+    title: 'Advanced Multi-Feature Examples',
+    description: 'Complex queries combining CTEs, window functions, JOINs, and subqueries',
+    queries: [
+      {
+        id: 'adv-1',
+        title: 'CTEs + Window Functions + JOINs',
+        database: 'northwind',
+        sql: `-- Complex reporting: Category performance with rankings
+WITH category_metrics AS (
+  SELECT
+    c.category_id,
+    c.category_name,
+    COUNT(DISTINCT p.product_id) AS product_count,
+    COUNT(DISTINCT od.order_id) AS order_count,
+    SUM(od.quantity) AS units_sold,
+    SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue
+  FROM categories c
+  LEFT JOIN products p ON c.category_id = p.category_id
+  LEFT JOIN order_details od ON p.product_id = od.product_id
+  GROUP BY c.category_id, c.category_name
+)
+SELECT
+  category_name,
+  product_count,
+  order_count,
+  units_sold,
+  ROUND(revenue, 2) AS revenue,
+  RANK() OVER (ORDER BY revenue DESC) AS revenue_rank,
+  ROUND(revenue * 100.0 / SUM(revenue) OVER (), 2) AS revenue_share_pct,
+  ROUND(AVG(revenue) OVER (), 2) AS avg_category_revenue,
+  CASE
+    WHEN revenue > AVG(revenue) OVER () THEN 'Above Average'
+    ELSE 'Below Average'
+  END AS performance
+FROM category_metrics
+ORDER BY revenue DESC;
+-- EXPECTED: Category performance with rankings and benchmarks
+-- (Combines multiple SQL:1999 features for comprehensive analysis)`,
+        description: 'Comprehensive category analysis combining CTEs, window functions, and JOINs',
+        sqlFeatures: ['CTE', 'Window functions', 'RANK', 'Multiple JOINs', 'Complex aggregation'],
+        difficulty: 'advanced',
+        useCase: 'reports',
+        tags: ['complex-query', 'multi-feature', 'reporting', 'advanced-analytics'],
+        relatedExamples: ['cte-1', 'window-1', 'join-1'],
+      },
+      {
+        id: 'adv-2',
+        title: 'Recursive CTEs + Aggregates',
+        database: 'empty',
+        sql: `-- Hierarchical rollup using recursive CTE
+WITH RECURSIVE org_hierarchy AS (
+  -- Base case: top-level managers
+  SELECT
+    1 AS employee_id,
+    'CEO' AS name,
+    NULL::INTEGER AS manager_id,
+    1 AS level,
+    CAST('CEO' AS TEXT) AS path
+  UNION ALL
+  SELECT
+    2, 'VP Sales', 1, 2, 'CEO > VP Sales'
+  UNION ALL
+  SELECT
+    3, 'VP Engineering', 1, 2, 'CEO > VP Engineering'
+  UNION ALL
+  SELECT
+    4, 'Sales Rep 1', 2, 3, 'CEO > VP Sales > Sales Rep 1'
+  UNION ALL
+  SELECT
+    5, 'Sales Rep 2', 2, 3, 'CEO > VP Sales > Sales Rep 2'
+  UNION ALL
+  SELECT
+    6, 'Engineer 1', 3, 3, 'CEO > VP Engineering > Engineer 1'
+)
+SELECT
+  level,
+  COUNT(*) AS employee_count,
+  STRING_AGG(name, ', ') AS employees,
+  AVG(level) OVER () AS avg_org_depth
+FROM org_hierarchy
+GROUP BY level
+ORDER BY level;
+-- EXPECTED: Organizational hierarchy with level-wise aggregation
+-- (Demonstrates recursive CTEs with hierarchical data)`,
+        description: 'Hierarchical data rollup using recursive CTEs and aggregation',
+        sqlFeatures: ['Recursive CTE', 'Aggregates', 'STRING_AGG', 'Hierarchical queries'],
+        difficulty: 'advanced',
+        useCase: 'development',
+        tags: ['recursive', 'hierarchy', 'organizational-structure', 'tree-queries'],
+        relatedExamples: ['recursive-1', 'cte-1'],
+      },
+      {
+        id: 'adv-3',
+        title: 'Subqueries in Multiple Contexts',
+        database: 'northwind',
+        sql: `-- Subqueries in SELECT, FROM, WHERE, and HAVING clauses
+SELECT
+  p.product_name,
+  p.unit_price,
+  -- Subquery in SELECT
+  (SELECT AVG(unit_price) FROM products) AS overall_avg_price,
+  -- Subquery in SELECT with correlation
+  (SELECT COUNT(*) FROM order_details od WHERE od.product_id = p.product_id) AS times_ordered,
+  -- Calculated field
+  ROUND(p.unit_price / (SELECT AVG(unit_price) FROM products), 2) AS price_vs_avg
+FROM products p
+-- Subquery in WHERE
+WHERE p.unit_price > (SELECT AVG(unit_price) FROM products)
+  AND p.category_id IN (
+    -- Subquery returning multiple values
+    SELECT category_id FROM categories WHERE category_name LIKE '%Co%'
+  )
+  AND EXISTS (
+    -- Correlated subquery in WHERE
+    SELECT 1 FROM order_details od WHERE od.product_id = p.product_id
+  )
+ORDER BY p.unit_price DESC
+LIMIT 10;
+-- EXPECTED: Premium products from specific categories with order history
+-- (Demonstrates subqueries in multiple SQL contexts)`,
+        description: 'Use subqueries in SELECT, FROM, WHERE, and EXISTS clauses',
+        sqlFeatures: ['Scalar subquery', 'Correlated subquery', 'EXISTS', 'IN subquery'],
+        difficulty: 'advanced',
+        useCase: 'development',
+        tags: ['subqueries', 'correlated', 'exists', 'multi-context'],
+        relatedExamples: ['subquery-1', 'subquery-2', 'subquery-3'],
+      },
+      {
+        id: 'adv-4',
+        title: 'Window Functions + CASE Expressions',
+        database: 'northwind',
+        sql: `-- Conditional analytics using window functions and CASE
+SELECT
+  product_name,
+  category_id,
+  unit_price,
+  units_in_stock,
+  -- Window function with CASE for conditional aggregation
+  SUM(CASE WHEN unit_price > 20 THEN 1 ELSE 0 END)
+    OVER (PARTITION BY category_id) AS premium_products_in_category,
+  -- Multiple window functions
+  AVG(unit_price) OVER (PARTITION BY category_id) AS category_avg_price,
+  RANK() OVER (PARTITION BY category_id ORDER BY unit_price DESC) AS price_rank_in_category,
+  -- Complex CASE with window function results
+  CASE
+    WHEN unit_price > AVG(unit_price) OVER (PARTITION BY category_id) * 1.5
+      THEN 'Premium'
+    WHEN unit_price > AVG(unit_price) OVER (PARTITION BY category_id)
+      THEN 'Above Average'
+    WHEN unit_price > AVG(unit_price) OVER (PARTITION BY category_id) * 0.5
+      THEN 'Average'
+    ELSE 'Budget'
+  END AS price_tier,
+  -- Stock status
+  CASE
+    WHEN units_in_stock = 0 THEN 'Out of Stock'
+    WHEN units_in_stock < 10 THEN 'Low Stock'
+    ELSE 'In Stock'
+  END AS stock_status
+FROM products
+WHERE unit_price IS NOT NULL
+ORDER BY category_id, price_rank_in_category
+LIMIT 30;
+-- EXPECTED: Products with conditional analytics and tiering
+-- (Shows power of combining window functions with CASE)`,
+        description: 'Combine window functions with CASE expressions for conditional analytics',
+        sqlFeatures: ['Window functions', 'CASE', 'Conditional aggregation', 'Multiple OVER clauses'],
+        difficulty: 'advanced',
+        useCase: 'analytics',
+        tags: ['window-functions', 'case-expressions', 'conditional-logic', 'tiering'],
+        relatedExamples: ['window-1', 'case-1'],
+      },
+      {
+        id: 'adv-5',
+        title: 'Multiple CTEs with Cross-References',
+        database: 'northwind',
+        sql: `-- Complex analysis using multiple interconnected CTEs
+WITH product_sales AS (
+  SELECT
+    product_id,
+    SUM(quantity) AS total_quantity,
+    SUM(unit_price * quantity * (1 - discount)) AS total_revenue
+  FROM order_details
+  GROUP BY product_id
+),
+category_sales AS (
+  SELECT
+    p.category_id,
+    SUM(ps.total_revenue) AS category_revenue
+  FROM product_sales ps
+  JOIN products p ON ps.product_id = p.product_id
+  GROUP BY p.category_id
+),
+product_analysis AS (
+  SELECT
+    p.product_id,
+    p.product_name,
+    p.category_id,
+    ps.total_quantity,
+    ps.total_revenue,
+    cs.category_revenue
+  FROM products p
+  JOIN product_sales ps ON p.product_id = ps.product_id
+  JOIN category_sales cs ON p.category_id = cs.category_id
+)
+SELECT
+  product_name,
+  total_quantity AS units_sold,
+  ROUND(total_revenue, 2) AS product_revenue,
+  ROUND(category_revenue, 2) AS category_total,
+  ROUND(total_revenue * 100.0 / category_revenue, 2) AS pct_of_category_revenue,
+  RANK() OVER (PARTITION BY category_id ORDER BY total_revenue DESC) AS rank_in_category
+FROM product_analysis
+WHERE total_revenue > 0
+ORDER BY category_id, rank_in_category
+LIMIT 20;
+-- EXPECTED: Products with category context and rankings
+-- (Multiple CTEs building on each other for layered analysis)`,
+        description: 'Multiple CTEs that reference each other for layered analysis',
+        sqlFeatures: ['Multiple CTEs', 'CTE chaining', 'Window functions', 'Complex JOINs'],
+        difficulty: 'advanced',
+        useCase: 'analytics',
+        tags: ['cte-chaining', 'layered-analysis', 'complex-queries', 'data-pipeline'],
+        relatedExamples: ['cte-1', 'cte-2', 'window-1'],
+      },
+    ],
+  },
+  {
+    id: 'sql1999-standards',
+    title: 'SQL:1999 Standards Showcase',
+    description: 'Demonstrate SQL:1999 specific features and standards compliance',
+    queries: [
+      {
+        id: 'std-1',
+        title: 'CASE Expression (SQL:1999)',
+        database: 'northwind',
+        sql: `-- SQL:1999 simple and searched CASE expressions
+SELECT
+  product_name,
+  unit_price,
+  -- Simple CASE
+  CASE category_id
+    WHEN 1 THEN 'Beverages'
+    WHEN 2 THEN 'Condiments'
+    WHEN 3 THEN 'Confections'
+    ELSE 'Other'
+  END AS category_simple,
+  -- Searched CASE
+  CASE
+    WHEN unit_price >= 50 THEN 'Premium'
+    WHEN unit_price >= 20 THEN 'Standard'
+    WHEN unit_price >= 10 THEN 'Economy'
+    ELSE 'Budget'
+  END AS price_tier,
+  -- CASE in aggregate
+  SUM(CASE WHEN unit_price > 20 THEN 1 ELSE 0 END) OVER () AS premium_count
+FROM products
+LIMIT 15;
+-- EXPECTED: Products with CASE expressions demonstrating SQL:1999 syntax
+-- (Shows both simple and searched CASE forms)`,
+        description: 'Demonstrate SQL:1999 CASE expressions (simple and searched forms)',
+        sqlFeatures: ['CASE', 'Simple CASE', 'Searched CASE', 'SQL:1999 standard'],
+        difficulty: 'beginner',
+        useCase: 'development',
+        tags: ['sql1999', 'case-expression', 'conditional-logic', 'standards'],
+        relatedExamples: ['case-1'],
+      },
+      {
+        id: 'std-2',
+        title: 'Common Table Expressions (SQL:1999)',
+        database: 'northwind',
+        sql: `-- SQL:1999 WITH clause (CTEs)
+WITH expensive_products AS (
+  SELECT * FROM products WHERE unit_price > 30
+),
+product_orders AS (
+  SELECT
+    ep.product_id,
+    ep.product_name,
+    ep.unit_price,
+    COUNT(od.order_id) AS order_count
+  FROM expensive_products ep
+  LEFT JOIN order_details od ON ep.product_id = od.product_id
+  GROUP BY ep.product_id, ep.product_name, ep.unit_price
+)
+SELECT
+  product_name,
+  unit_price,
+  order_count,
+  CASE
+    WHEN order_count > 20 THEN 'High Demand'
+    WHEN order_count > 10 THEN 'Medium Demand'
+    WHEN order_count > 0 THEN 'Low Demand'
+    ELSE 'No Orders'
+  END AS demand_level
+FROM product_orders
+ORDER BY order_count DESC;
+-- EXPECTED: Expensive products with order demand classification
+-- (SQL:1999 WITH clause for improved readability)`,
+        description: 'Use SQL:1999 Common Table Expressions (WITH clause)',
+        sqlFeatures: ['CTE', 'WITH', 'SQL:1999 standard', 'Query modularity'],
+        difficulty: 'intermediate',
+        useCase: 'development',
+        tags: ['sql1999', 'cte', 'with-clause', 'standards'],
+        relatedExamples: ['cte-1'],
+      },
+      {
+        id: 'std-3',
+        title: 'Window Functions (SQL:1999)',
+        database: 'northwind',
+        sql: `-- SQL:1999 window functions (OVER clause)
+SELECT
+  product_name,
+  category_id,
+  unit_price,
+  -- ROW_NUMBER (SQL:1999)
+  ROW_NUMBER() OVER (PARTITION BY category_id ORDER BY unit_price DESC) AS row_num,
+  -- RANK (SQL:1999)
+  RANK() OVER (PARTITION BY category_id ORDER BY unit_price DESC) AS price_rank,
+  -- DENSE_RANK (SQL:1999)
+  DENSE_RANK() OVER (PARTITION BY category_id ORDER BY unit_price DESC) AS dense_rank,
+  -- Aggregate window function
+  AVG(unit_price) OVER (PARTITION BY category_id) AS category_avg_price,
+  -- Running total
+  SUM(unit_price) OVER (PARTITION BY category_id ORDER BY unit_price DESC) AS running_total
+FROM products
+WHERE unit_price IS NOT NULL
+ORDER BY category_id, price_rank
+LIMIT 20;
+-- EXPECTED: Products with various SQL:1999 window functions
+-- (Demonstrates ranking and aggregate window functions)`,
+        description: 'Demonstrate SQL:1999 window functions (OVER clause)',
+        sqlFeatures: ['Window functions', 'ROW_NUMBER', 'RANK', 'DENSE_RANK', 'OVER', 'SQL:1999'],
+        difficulty: 'intermediate',
+        useCase: 'analytics',
+        tags: ['sql1999', 'window-functions', 'over-clause', 'ranking'],
+        relatedExamples: ['window-1', 'window-2'],
+      },
+      {
+        id: 'std-4',
+        title: 'BOOLEAN Data Type (SQL:1999)',
+        database: 'empty',
+        sql: `-- SQL:1999 BOOLEAN type and operations
+CREATE TEMPORARY TABLE features (
+  feature_name TEXT,
+  is_enabled BOOLEAN,
+  is_premium BOOLEAN
+);
+
+INSERT INTO features VALUES
+  ('Dark Mode', TRUE, FALSE),
+  ('Export', TRUE, TRUE),
+  ('Analytics', FALSE, TRUE),
+  ('API Access', TRUE, TRUE);
+
+SELECT
+  feature_name,
+  is_enabled,
+  is_premium,
+  -- Boolean expressions
+  is_enabled AND is_premium AS enabled_premium,
+  is_enabled OR is_premium AS enabled_or_premium,
+  NOT is_enabled AS disabled,
+  -- CASE with BOOLEAN
+  CASE
+    WHEN is_enabled AND is_premium THEN 'Premium Active'
+    WHEN is_enabled THEN 'Basic Active'
+    WHEN is_premium THEN 'Premium Disabled'
+    ELSE 'Basic Disabled'
+  END AS status
+FROM features
+ORDER BY feature_name;
+-- EXPECTED: Features with boolean operations
+-- (SQL:1999 BOOLEAN type with AND/OR/NOT)`,
+        description: 'Use SQL:1999 BOOLEAN data type and boolean operations',
+        sqlFeatures: ['BOOLEAN', 'Boolean algebra', 'AND', 'OR', 'NOT', 'SQL:1999'],
+        difficulty: 'beginner',
+        useCase: 'development',
+        tags: ['sql1999', 'boolean', 'data-types', 'logic'],
+        relatedExamples: ['datatype-1'],
+      },
+      {
+        id: 'std-5',
+        title: 'Standards-Compliant Date Functions',
+        database: 'northwind',
+        sql: `-- SQL:1999 date/time functions
+SELECT
+  order_id,
+  order_date,
+  -- EXTRACT (SQL:1999)
+  EXTRACT(YEAR FROM order_date) AS order_year,
+  EXTRACT(MONTH FROM order_date) AS order_month,
+  EXTRACT(DAY FROM order_date) AS order_day,
+  -- Date arithmetic
+  order_date + INTERVAL '30 days' AS due_date,
+  CURRENT_DATE - order_date AS days_since_order,
+  -- Date truncation
+  DATE_TRUNC('month', order_date) AS order_month_start,
+  DATE_TRUNC('year', order_date) AS order_year_start
+FROM orders
+WHERE order_date IS NOT NULL
+ORDER BY order_date DESC
+LIMIT 15;
+-- EXPECTED: Orders with SQL:1999 date/time manipulations
+-- (Standards-compliant date operations)`,
+        description: 'Use SQL:1999 standards-compliant date/time functions',
+        sqlFeatures: ['EXTRACT', 'INTERVAL', 'DATE_TRUNC', 'Date functions', 'SQL:1999'],
+        difficulty: 'intermediate',
+        useCase: 'development',
+        tags: ['sql1999', 'date-functions', 'temporal', 'standards'],
+        relatedExamples: ['datetime-1'],
+      },
+      {
+        id: 'std-6',
+        title: 'NULLIF and COALESCE (SQL:1999)',
+        database: 'northwind',
+        sql: `-- SQL:1999 NULL handling functions
+SELECT
+  product_name,
+  unit_price,
+  units_in_stock,
+  units_on_order,
+  -- COALESCE (SQL:1999)
+  COALESCE(units_in_stock, 0) AS stock_or_zero,
+  COALESCE(units_on_order, 0) AS on_order_or_zero,
+  -- NULLIF (SQL:1999)
+  NULLIF(units_in_stock, 0) AS stock_null_if_zero,
+  -- Practical example: avoid division by zero
+  ROUND(
+    unit_price / NULLIF(COALESCE(units_in_stock, 0), 0),
+    2
+  ) AS price_per_stock_unit,
+  -- Combining both
+  COALESCE(
+    NULLIF(units_in_stock, 0)::TEXT,
+    'Out of Stock'
+  ) AS stock_display
+FROM products
+WHERE unit_price IS NOT NULL
+ORDER BY product_id
+LIMIT 15;
+-- EXPECTED: Products with NULL handling demonstrations
+-- (SQL:1999 functions for NULL value handling)`,
+        description: 'Demonstrate SQL:1999 NULLIF and COALESCE functions',
+        sqlFeatures: ['NULLIF', 'COALESCE', 'NULL handling', 'SQL:1999'],
+        difficulty: 'intermediate',
+        useCase: 'development',
+        tags: ['sql1999', 'null-handling', 'coalesce', 'nullif'],
+        relatedExamples: ['null-1'],
+      },
+    ],
+  },
+  {
+    id: 'performance-patterns',
+    title: 'Performance Patterns',
+    description: 'Educational comparisons of efficient vs inefficient query patterns',
+    queries: [
+      {
+        id: 'perf-1',
+        title: 'Efficient: Set-Based vs Iterative',
+        database: 'northwind',
+        sql: `-- EFFICIENT: Set-based operation (processes all rows at once)
+SELECT
+  category_id,
+  COUNT(*) AS product_count,
+  AVG(unit_price) AS avg_price,
+  MAX(unit_price) AS max_price,
+  MIN(unit_price) AS min_price
+FROM products
+WHERE unit_price IS NOT NULL
+GROUP BY category_id
+ORDER BY category_id;
+-- EXPECTED: Category statistics computed in one pass
+-- (Set-based operations are typically 10-100x faster than row-by-row)
+--
+-- INEFFICIENT alternative would be:
+-- - Cursor iterating through categories
+-- - Separate query for each category
+-- - Manual aggregation in application code`,
+        description: 'Demonstrate efficient set-based operations (vs row-by-row processing)',
+        sqlFeatures: ['Aggregates', 'GROUP BY', 'Set-based operations', 'Performance'],
+        difficulty: 'beginner',
+        useCase: 'development',
+        performanceNotes: 'Set-based operations are 10-100x faster than iterative approaches',
+        tags: ['performance', 'set-based', 'optimization', 'best-practices'],
+        relatedExamples: ['aggregate-1'],
+      },
+      {
+        id: 'perf-2',
+        title: 'JOIN vs Subquery Performance',
+        database: 'northwind',
+        sql: `-- EFFICIENT: JOIN (optimizer can choose best strategy)
+SELECT
+  p.product_name,
+  p.unit_price,
+  c.category_name
+FROM products p
+JOIN categories c ON p.category_id = c.category_id
+WHERE p.unit_price > 20
+ORDER BY p.unit_price DESC
+LIMIT 10;
+-- EXPECTED: Top 10 expensive products with category names
+-- (JOINs typically perform better than correlated subqueries)
+--
+-- LESS EFFICIENT alternative:
+-- SELECT
+--   product_name,
+--   unit_price,
+--   (SELECT category_name FROM categories c
+--    WHERE c.category_id = p.category_id) AS category_name
+-- FROM products p
+-- WHERE unit_price > 20
+-- (Correlated subquery executes once per row)`,
+        description: 'Compare JOIN vs correlated subquery performance',
+        sqlFeatures: ['JOIN', 'Subquery comparison', 'Query optimization'],
+        difficulty: 'intermediate',
+        useCase: 'development',
+        performanceNotes: 'JOINs allow optimizer flexibility; correlated subqueries may execute once per row',
+        tags: ['performance', 'join-vs-subquery', 'optimization', 'query-patterns'],
+        relatedExamples: ['join-1', 'subquery-1'],
+      },
+      {
+        id: 'perf-3',
+        title: 'Index-Friendly Query Patterns',
+        database: 'northwind',
+        sql: `-- INDEX-FRIENDLY: Uses SARGable predicates
+SELECT product_id, product_name, unit_price
+FROM products
+WHERE unit_price >= 20 AND unit_price <= 50
+ORDER BY unit_price
+LIMIT 10;
+-- EXPECTED: Products in price range 20-50
+-- (Range scan on unit_price index is efficient)
+--
+-- INDEX-UNFRIENDLY alternatives:
+-- WHERE unit_price * 1.1 > 22          (function on indexed column)
+-- WHERE LOWER(product_name) = 'chai'   (function on indexed column)
+-- WHERE product_name LIKE '%tea%'      (leading wildcard)
+--
+-- These prevent index usage and force full table scans`,
+        description: 'Demonstrate index-friendly (SARGable) vs index-unfriendly queries',
+        sqlFeatures: ['WHERE', 'Index optimization', 'SARGable predicates'],
+        difficulty: 'intermediate',
+        useCase: 'development',
+        performanceNotes: 'SARGable predicates enable index usage; functions on columns prevent it',
+        tags: ['performance', 'indexes', 'sargable', 'optimization'],
+        relatedExamples: ['basic-2'],
+      },
+      {
+        id: 'perf-4',
+        title: 'Efficient Aggregation with CTEs',
+        database: 'northwind',
+        sql: `-- EFFICIENT: Pre-aggregate data in CTE, then join
+WITH order_totals AS (
+  SELECT
+    order_id,
+    SUM(unit_price * quantity * (1 - discount)) AS order_total
+  FROM order_details
+  GROUP BY order_id
+)
+SELECT
+  o.order_id,
+  o.customer_id,
+  o.order_date,
+  ROUND(ot.order_total, 2) AS order_total
+FROM orders o
+JOIN order_totals ot ON o.order_id = ot.order_id
+WHERE o.order_date IS NOT NULL
+ORDER BY ot.order_total DESC
+LIMIT 10;
+-- EXPECTED: Top 10 orders by total value
+-- (CTE allows one-time aggregation, then efficient JOIN)
+--
+-- LESS EFFICIENT: Correlated subquery in SELECT
+-- Would recalculate order total for each row`,
+        description: 'Use CTEs for efficient pre-aggregation',
+        sqlFeatures: ['CTE', 'Pre-aggregation', 'JOIN', 'Performance optimization'],
+        difficulty: 'intermediate',
+        useCase: 'development',
+        performanceNotes: 'CTE pre-aggregates once; correlated subqueries repeat for each row',
+        tags: ['performance', 'cte', 'aggregation', 'optimization'],
+        relatedExamples: ['cte-1', 'aggregate-1'],
+      },
+      {
+        id: 'perf-5',
+        title: 'Avoiding SELECT *',
+        database: 'northwind',
+        sql: `-- EFFICIENT: Select only needed columns
+SELECT
+  order_id,
+  customer_id,
+  order_date,
+  shipped_date
+FROM orders
+WHERE order_date >= '1997-01-01'
+  AND order_date < '1998-01-01'
+ORDER BY order_date
+LIMIT 15;
+-- EXPECTED: 1997 orders with specific columns
+-- (Reduces I/O, network transfer, and memory usage)
+--
+-- INEFFICIENT alternative:
+-- SELECT * FROM orders WHERE ...
+-- - Transfers unnecessary data
+-- - Uses more memory
+-- - Can prevent covering index usage
+-- - Breaks if schema changes`,
+        description: 'Select specific columns instead of SELECT *',
+        sqlFeatures: ['SELECT', 'Column selection', 'Performance best practices'],
+        difficulty: 'beginner',
+        useCase: 'development',
+        performanceNotes: 'Explicit column lists reduce I/O and enable covering indexes',
+        tags: ['performance', 'select-star', 'best-practices', 'optimization'],
+        relatedExamples: ['basic-1'],
+      },
+      {
+        id: 'perf-6',
+        title: 'Efficient LIMIT with ORDER BY',
+        database: 'northwind',
+        sql: `-- EFFICIENT: LIMIT with ORDER BY on indexed column
+SELECT
+  product_id,
+  product_name,
+  unit_price
+FROM products
+WHERE category_id = 1
+ORDER BY unit_price DESC
+LIMIT 5;
+-- EXPECTED: Top 5 most expensive beverages
+-- (Database can stop after finding first 5 rows)
+--
+-- LESS EFFICIENT patterns:
+-- 1. Large LIMIT without WHERE clause (scans many rows)
+-- 2. ORDER BY on unindexed column (full sort required)
+-- 3. OFFSET without LIMIT (still processes skipped rows)
+--
+-- TIP: For pagination, use WHERE with indexed columns
+-- instead of large OFFSET values`,
+        description: 'Efficient use of LIMIT with ORDER BY for top-N queries',
+        sqlFeatures: ['LIMIT', 'ORDER BY', 'Top-N optimization'],
+        difficulty: 'beginner',
+        useCase: 'development',
+        performanceNotes: 'LIMIT allows early termination; large OFFSETs still process skipped rows',
+        tags: ['performance', 'limit', 'top-n', 'pagination'],
+        relatedExamples: ['basic-1', 'basic-2'],
+      },
+    ],
+  },
+  {
+    id: 'report-templates',
+    title: 'Report Templates',
+    description: 'Production-ready report queries for common business needs',
+    queries: [
+      {
+        id: 'rpt-1',
+        title: 'Monthly Sales Summary Report',
+        database: 'northwind',
+        sql: `-- Monthly sales summary with key metrics
+WITH monthly_data AS (
+  SELECT
+    DATE_TRUNC('month', o.order_date) AS month,
+    COUNT(DISTINCT o.order_id) AS order_count,
+    COUNT(DISTINCT o.customer_id) AS customer_count,
+    SUM(od.quantity) AS units_sold,
+    SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue
+  FROM orders o
+  JOIN order_details od ON o.order_id = od.order_id
+  WHERE o.order_date IS NOT NULL
+  GROUP BY DATE_TRUNC('month', o.order_date)
+)
+SELECT
+  TO_CHAR(month, 'YYYY-MM') AS month,
+  order_count,
+  customer_count,
+  units_sold,
+  ROUND(revenue, 2) AS revenue,
+  ROUND(revenue / order_count, 2) AS avg_order_value,
+  ROUND(revenue / customer_count, 2) AS revenue_per_customer,
+  LAG(revenue) OVER (ORDER BY month) AS prev_month_revenue,
+  ROUND(
+    (revenue - LAG(revenue) OVER (ORDER BY month)) * 100.0 /
+    NULLIF(LAG(revenue) OVER (ORDER BY month), 0),
+    2
+  ) AS mom_growth_pct
+FROM monthly_data
+ORDER BY month;
+-- EXPECTED: Monthly sales KPIs with month-over-month growth
+-- (Ready-to-use executive summary report)`,
+        description: 'Complete monthly sales summary with KPIs and growth metrics',
+        sqlFeatures: ['CTE', 'DATE_TRUNC', 'Aggregates', 'LAG', 'Period-over-period'],
+        difficulty: 'intermediate',
+        useCase: 'reports',
+        tags: ['monthly-report', 'kpi', 'executive-summary', 'sales-metrics'],
+        relatedExamples: ['bi-1', 'window-1'],
+      },
+      {
+        id: 'rpt-2',
+        title: 'Top N Per Group Report',
+        database: 'northwind',
+        sql: `-- Top 3 products per category by revenue
+WITH product_revenue AS (
+  SELECT
+    p.product_id,
+    p.product_name,
+    p.category_id,
+    c.category_name,
+    SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue,
+    SUM(od.quantity) AS units_sold,
+    COUNT(DISTINCT od.order_id) AS order_count
+  FROM products p
+  JOIN categories c ON p.category_id = c.category_id
+  LEFT JOIN order_details od ON p.product_id = od.product_id
+  GROUP BY p.product_id, p.product_name, p.category_id, c.category_name
+),
+ranked_products AS (
+  SELECT
+    category_name,
+    product_name,
+    revenue,
+    units_sold,
+    order_count,
+    ROW_NUMBER() OVER (PARTITION BY category_id ORDER BY revenue DESC) AS rank
+  FROM product_revenue
+  WHERE revenue > 0
+)
+SELECT
+  category_name,
+  rank,
+  product_name,
+  ROUND(revenue, 2) AS revenue,
+  units_sold,
+  order_count,
+  ROUND(revenue / units_sold, 2) AS avg_price_per_unit
+FROM ranked_products
+WHERE rank <= 3
+ORDER BY category_name, rank;
+-- EXPECTED: Top 3 products per category with metrics
+-- (Classic "top N per group" business report)`,
+        description: 'Top performers by category (classic top-N-per-group pattern)',
+        sqlFeatures: ['CTE', 'ROW_NUMBER', 'PARTITION BY', 'Top-N per group'],
+        difficulty: 'intermediate',
+        useCase: 'reports',
+        tags: ['top-n-per-group', 'ranking', 'category-analysis', 'product-performance'],
+        relatedExamples: ['window-2', 'cte-1'],
+      },
+      {
+        id: 'rpt-3',
+        title: 'Running Totals and Cumulative Sums',
+        database: 'northwind',
+        sql: `-- Daily order volume with running totals
+WITH daily_orders AS (
+  SELECT
+    DATE(order_date) AS order_day,
+    COUNT(*) AS daily_order_count,
+    SUM(
+      (SELECT SUM(unit_price * quantity * (1 - discount))
+       FROM order_details od
+       WHERE od.order_id = o.order_id)
+    ) AS daily_revenue
+  FROM orders o
+  WHERE order_date >= '1997-01-01' AND order_date < '1997-02-01'
+  GROUP BY DATE(order_date)
+)
+SELECT
+  order_day,
+  daily_order_count,
+  ROUND(daily_revenue, 2) AS daily_revenue,
+  SUM(daily_order_count) OVER (ORDER BY order_day) AS cumulative_orders,
+  ROUND(SUM(daily_revenue) OVER (ORDER BY order_day), 2) AS cumulative_revenue,
+  ROUND(AVG(daily_revenue) OVER (
+    ORDER BY order_day
+    ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+  ), 2) AS seven_day_avg_revenue
+FROM daily_orders
+ORDER BY order_day;
+-- EXPECTED: Daily metrics with running totals and moving averages
+-- (Useful for tracking progress toward goals)`,
+        description: 'Daily metrics with running totals and moving averages',
+        sqlFeatures: ['CTE', 'Window functions', 'Running totals', 'Moving averages', 'ROWS BETWEEN'],
+        difficulty: 'advanced',
+        useCase: 'reports',
+        tags: ['running-total', 'cumulative', 'moving-average', 'time-series'],
+        relatedExamples: ['window-1', 'window-5'],
+      },
+      {
+        id: 'rpt-4',
+        title: 'Period-over-Period Comparison',
+        database: 'northwind',
+        sql: `-- Quarter-over-quarter sales comparison
+WITH quarterly_sales AS (
+  SELECT
+    EXTRACT(YEAR FROM o.order_date) AS year,
+    EXTRACT(QUARTER FROM o.order_date) AS quarter,
+    COUNT(DISTINCT o.order_id) AS order_count,
+    SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue
+  FROM orders o
+  JOIN order_details od ON o.order_id = od.order_id
+  WHERE o.order_date IS NOT NULL
+  GROUP BY EXTRACT(YEAR FROM o.order_date), EXTRACT(QUARTER FROM o.order_date)
+)
+SELECT
+  year,
+  quarter,
+  order_count,
+  ROUND(revenue, 2) AS revenue,
+  LAG(revenue) OVER (ORDER BY year, quarter) AS prev_quarter_revenue,
+  ROUND(
+    revenue - LAG(revenue) OVER (ORDER BY year, quarter),
+    2
+  ) AS revenue_change,
+  ROUND(
+    (revenue - LAG(revenue) OVER (ORDER BY year, quarter)) * 100.0 /
+    NULLIF(LAG(revenue) OVER (ORDER BY year, quarter), 0),
+    2
+  ) AS pct_change,
+  LAG(revenue, 4) OVER (ORDER BY year, quarter) AS same_quarter_last_year,
+  ROUND(
+    (revenue - LAG(revenue, 4) OVER (ORDER BY year, quarter)) * 100.0 /
+    NULLIF(LAG(revenue, 4) OVER (ORDER BY year, quarter), 0),
+    2
+  ) AS yoy_pct_change
+FROM quarterly_sales
+ORDER BY year, quarter;
+-- EXPECTED: Quarterly sales with QoQ and YoY comparisons
+-- (Essential for financial and executive reporting)`,
+        description: 'Quarterly sales with quarter-over-quarter and year-over-year comparisons',
+        sqlFeatures: ['CTE', 'EXTRACT', 'LAG', 'Period comparisons', 'Window functions'],
+        difficulty: 'advanced',
+        useCase: 'reports',
+        tags: ['period-comparison', 'qoq', 'yoy', 'quarterly-report', 'trends'],
+        relatedExamples: ['bi-1', 'window-1'],
+      },
+      {
+        id: 'rpt-5',
+        title: 'Pivot Table Simulation',
+        database: 'northwind',
+        sql: `-- Simulate pivot table: categories × quarters
+WITH quarterly_category_sales AS (
+  SELECT
+    c.category_name,
+    EXTRACT(YEAR FROM o.order_date) AS year,
+    EXTRACT(QUARTER FROM o.order_date) AS quarter,
+    SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue
+  FROM categories c
+  JOIN products p ON c.category_id = p.category_id
+  JOIN order_details od ON p.product_id = od.product_id
+  JOIN orders o ON od.order_id = o.order_id
+  WHERE o.order_date >= '1997-01-01' AND o.order_date < '1998-01-01'
+  GROUP BY c.category_name, EXTRACT(YEAR FROM o.order_date), EXTRACT(QUARTER FROM o.order_date)
+)
+SELECT
+  category_name,
+  ROUND(SUM(CASE WHEN quarter = 1 THEN revenue ELSE 0 END), 2) AS q1_1997,
+  ROUND(SUM(CASE WHEN quarter = 2 THEN revenue ELSE 0 END), 2) AS q2_1997,
+  ROUND(SUM(CASE WHEN quarter = 3 THEN revenue ELSE 0 END), 2) AS q3_1997,
+  ROUND(SUM(CASE WHEN quarter = 4 THEN revenue ELSE 0 END), 2) AS q4_1997,
+  ROUND(SUM(revenue), 2) AS total_1997
+FROM quarterly_category_sales
+GROUP BY category_name
+ORDER BY total_1997 DESC;
+-- EXPECTED: Category revenue by quarter (pivot table format)
+-- (Matrix view: rows = categories, columns = quarters)`,
+        description: 'Simulate pivot table using CASE and GROUP BY (categories by quarters)',
+        sqlFeatures: ['CTE', 'CASE', 'Conditional aggregation', 'Pivot simulation'],
+        difficulty: 'advanced',
+        useCase: 'reports',
+        tags: ['pivot-table', 'crosstab', 'matrix-report', 'conditional-aggregation'],
+        relatedExamples: ['aggregate-1', 'case-1'],
+      },
+      {
+        id: 'rpt-6',
+        title: 'Executive Dashboard Summary',
+        database: 'northwind',
+        sql: `-- High-level KPI dashboard for executives
+WITH kpis AS (
+  SELECT
+    COUNT(DISTINCT o.order_id) AS total_orders,
+    COUNT(DISTINCT o.customer_id) AS total_customers,
+    COUNT(DISTINCT p.product_id) AS total_products,
+    SUM(od.quantity) AS total_units_sold,
+    SUM(od.unit_price * od.quantity * (1 - od.discount)) AS total_revenue,
+    AVG(od.unit_price * od.quantity * (1 - od.discount)) AS avg_order_line_value
+  FROM orders o
+  JOIN order_details od ON o.order_id = od.order_id
+  JOIN products p ON od.product_id = p.product_id
+  WHERE o.order_date IS NOT NULL
+)
+SELECT
+  'Total Orders' AS metric,
+  total_orders::TEXT AS value
+FROM kpis
+UNION ALL SELECT 'Total Customers', total_customers::TEXT FROM kpis
+UNION ALL SELECT 'Total Products Sold', total_products::TEXT FROM kpis
+UNION ALL SELECT 'Total Units Sold', total_units_sold::TEXT FROM kpis
+UNION ALL SELECT 'Total Revenue', '$' || ROUND(total_revenue, 2)::TEXT FROM kpis
+UNION ALL SELECT 'Avg Order Line Value', '$' || ROUND(avg_order_line_value, 2)::TEXT FROM kpis
+UNION ALL SELECT 'Avg Revenue per Customer', '$' || ROUND(total_revenue / total_customers, 2)::TEXT FROM kpis
+UNION ALL SELECT 'Avg Revenue per Order', '$' || ROUND(total_revenue / total_orders, 2)::TEXT FROM kpis;
+-- EXPECTED: Key business metrics in dashboard format
+-- (Single view of most important KPIs)`,
+        description: 'Executive dashboard with key business metrics and KPIs',
+        sqlFeatures: ['CTE', 'UNION ALL', 'Aggregates', 'KPI reporting'],
+        difficulty: 'intermediate',
+        useCase: 'reports',
+        tags: ['dashboard', 'kpi', 'executive-summary', 'metrics'],
+        relatedExamples: ['aggregate-1', 'union-1'],
       },
     ],
   },

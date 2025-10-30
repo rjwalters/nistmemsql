@@ -3,6 +3,9 @@ import { exampleCategories, type QueryExample } from '../data/examples'
 
 interface ExamplesState {
   expandedCategories: Set<string>
+  searchQuery: string
+  difficultyFilter: string // 'all' | 'beginner' | 'intermediate' | 'advanced'
+  useCaseFilter: string // 'all' | 'analytics' | 'admin' | 'development' | 'reports' | 'data-quality'
 }
 
 export interface ExampleSelectEvent {
@@ -20,6 +23,9 @@ export class ExamplesComponent extends Component<ExamplesState> {
   constructor() {
     super('#examples', {
       expandedCategories: new Set(['basic']), // Expand 'basic' category by default
+      searchQuery: '',
+      difficultyFilter: 'all',
+      useCaseFilter: 'all',
     })
   }
 
@@ -55,8 +61,73 @@ export class ExamplesComponent extends Component<ExamplesState> {
     }
   }
 
+  /**
+   * Update search query
+   */
+  setSearchQuery(query: string): void {
+    this.setState({ searchQuery: query.toLowerCase() })
+  }
+
+  /**
+   * Update difficulty filter
+   */
+  setDifficultyFilter(difficulty: string): void {
+    this.setState({ difficultyFilter: difficulty })
+  }
+
+  /**
+   * Update use case filter
+   */
+  setUseCaseFilter(useCase: string): void {
+    this.setState({ useCaseFilter: useCase })
+  }
+
+  /**
+   * Filter examples based on current filters
+   */
+  private matchesFilters(example: QueryExample): boolean {
+    const { searchQuery, difficultyFilter, useCaseFilter } = this.state
+
+    // Search filter
+    if (searchQuery) {
+      const searchLower = searchQuery
+      const matchesTitle = example.title.toLowerCase().includes(searchLower)
+      const matchesDescription = example.description.toLowerCase().includes(searchLower)
+      const matchesFeatures = example.sqlFeatures.some(f => f.toLowerCase().includes(searchLower))
+      const matchesTags = example.tags?.some(t => t.toLowerCase().includes(searchLower)) || false
+
+      if (!matchesTitle && !matchesDescription && !matchesFeatures && !matchesTags) {
+        return false
+      }
+    }
+
+    // Difficulty filter
+    if (difficultyFilter !== 'all' && example.difficulty !== difficultyFilter) {
+      return false
+    }
+
+    // Use case filter
+    if (useCaseFilter !== 'all' && example.useCase !== useCaseFilter) {
+      return false
+    }
+
+    return true
+  }
+
+  /**
+   * Get filtered examples for a category
+   */
+  private getFilteredQueries(queries: QueryExample[]): QueryExample[] {
+    return queries.filter(q => this.matchesFilters(q))
+  }
+
   protected render(): void {
-    const { expandedCategories } = this.state
+    const { expandedCategories, searchQuery, difficultyFilter, useCaseFilter } = this.state
+
+    // Get filtered count
+    const filteredCount = exampleCategories.reduce((sum, cat) => {
+      return sum + this.getFilteredQueries(cat.queries).length
+    }, 0)
 
     this.element.innerHTML = `
       <div class="bg-background rounded-lg shadow-lg border border-border">
@@ -65,11 +136,66 @@ export class ExamplesComponent extends Component<ExamplesState> {
             SQL:1999 Examples
           </h2>
           <p class="text-xs text-muted mt-1">
-            ${this.getTotalExampleCount()} queries across ${exampleCategories.length} categories
+            ${filteredCount} of ${this.getTotalExampleCount()} queries across ${exampleCategories.length} categories
           </p>
         </div>
 
-        <div class="divide-y divide-border overflow-y-auto max-h-[80vh]">
+        <!-- Filters -->
+        <div class="px-4 py-3 border-b border-border bg-card/30 space-y-3">
+          <!-- Search -->
+          <div>
+            <input
+              type="text"
+              id="example-search"
+              placeholder="Search examples..."
+              value="${this.escapeHtml(searchQuery)}"
+              class="w-full px-3 py-2 text-sm border border-border rounded bg-background text-foreground placeholder-muted focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <!-- Filters Row -->
+          <div class="flex flex-wrap gap-2">
+            <!-- Difficulty Filter -->
+            <div class="flex-1 min-w-[150px]">
+              <select
+                id="difficulty-filter"
+                class="w-full px-3 py-2 text-sm border border-border rounded bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all" ${difficultyFilter === 'all' ? 'selected' : ''}>All Difficulties</option>
+                <option value="beginner" ${difficultyFilter === 'beginner' ? 'selected' : ''}>Beginner</option>
+                <option value="intermediate" ${difficultyFilter === 'intermediate' ? 'selected' : ''}>Intermediate</option>
+                <option value="advanced" ${difficultyFilter === 'advanced' ? 'selected' : ''}>Advanced</option>
+              </select>
+            </div>
+
+            <!-- Use Case Filter -->
+            <div class="flex-1 min-w-[150px]">
+              <select
+                id="usecase-filter"
+                class="w-full px-3 py-2 text-sm border border-border rounded bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all" ${useCaseFilter === 'all' ? 'selected' : ''}>All Use Cases</option>
+                <option value="analytics" ${useCaseFilter === 'analytics' ? 'selected' : ''}>Analytics</option>
+                <option value="reports" ${useCaseFilter === 'reports' ? 'selected' : ''}>Reports</option>
+                <option value="development" ${useCaseFilter === 'development' ? 'selected' : ''}>Development</option>
+                <option value="data-quality" ${useCaseFilter === 'data-quality' ? 'selected' : ''}>Data Quality</option>
+                <option value="admin" ${useCaseFilter === 'admin' ? 'selected' : ''}>Admin</option>
+              </select>
+            </div>
+
+            <!-- Clear Filters -->
+            ${searchQuery || difficultyFilter !== 'all' || useCaseFilter !== 'all' ? `
+              <button
+                id="clear-filters"
+                class="px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded transition-colors"
+              >
+                Clear Filters
+              </button>
+            ` : ''}
+          </div>
+        </div>
+
+        <div class="divide-y divide-border overflow-y-auto max-h-[60vh]">
           ${exampleCategories.map(category => this.renderCategory(category, expandedCategories)).join('')}
         </div>
       </div>
@@ -85,6 +211,12 @@ export class ExamplesComponent extends Component<ExamplesState> {
 
   private renderCategory(category: typeof exampleCategories[0], expandedCategories: Set<string>): string {
     const isExpanded = expandedCategories.has(category.id)
+    const filteredQueries = this.getFilteredQueries(category.queries)
+
+    // Hide category if no queries match filters
+    if (filteredQueries.length === 0) {
+      return ''
+    }
 
     return `
       <div class="category-section">
@@ -104,7 +236,7 @@ export class ExamplesComponent extends Component<ExamplesState> {
           </div>
           <div class="ml-2 flex items-center gap-2">
             <span class="text-xs bg-card px-2 py-1 rounded">
-              ${category.queries.length}
+              ${filteredQueries.length}${filteredQueries.length !== category.queries.length ? `/${category.queries.length}` : ''}
             </span>
             <span class="text-muted">${isExpanded ? '▼' : '▶'}</span>
           </div>
@@ -112,7 +244,7 @@ export class ExamplesComponent extends Component<ExamplesState> {
 
         ${isExpanded ? `
           <div id="category-${this.escapeHtml(category.id)}" class="bg-card/30">
-            ${category.queries.map(query => this.renderQuery(query)).join('')}
+            ${filteredQueries.map(query => this.renderQuery(query)).join('')}
           </div>
         ` : ''}
       </div>
@@ -128,8 +260,20 @@ export class ExamplesComponent extends Component<ExamplesState> {
       >
         <div class="flex items-start justify-between gap-2">
           <div class="flex-1 min-w-0">
-            <div class="font-medium text-sm text-foreground">
-              ${this.escapeHtml(query.title)}
+            <div class="flex items-center gap-2 flex-wrap">
+              <div class="font-medium text-sm text-foreground">
+                ${this.escapeHtml(query.title)}
+              </div>
+              ${query.difficulty ? `
+                <span class="text-xs px-2 py-0.5 rounded ${this.getDifficultyBadgeClass(query.difficulty)}">
+                  ${query.difficulty}
+                </span>
+              ` : ''}
+              ${query.useCase ? `
+                <span class="text-xs px-2 py-0.5 rounded ${this.getUseCaseBadgeClass(query.useCase)}">
+                  ${this.formatUseCase(query.useCase)}
+                </span>
+              ` : ''}
             </div>
             <div class="text-xs text-muted mt-1">
               ${this.escapeHtml(query.description)}
@@ -159,6 +303,40 @@ export class ExamplesComponent extends Component<ExamplesState> {
     `
   }
 
+  private getDifficultyBadgeClass(difficulty: string): string {
+    switch (difficulty) {
+      case 'beginner':
+        return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+      case 'intermediate':
+        return 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
+      case 'advanced':
+        return 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+      default:
+        return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+    }
+  }
+
+  private getUseCaseBadgeClass(useCase: string): string {
+    switch (useCase) {
+      case 'analytics':
+        return 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+      case 'reports':
+        return 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+      case 'development':
+        return 'bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200'
+      case 'data-quality':
+        return 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200'
+      case 'admin':
+        return 'bg-pink-100 dark:bg-pink-900 text-pink-800 dark:text-pink-200'
+      default:
+        return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+    }
+  }
+
+  private formatUseCase(useCase: string): string {
+    return useCase.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+  }
+
   private getDatabaseLabel(database: string): string {
     switch (database) {
       case 'northwind':
@@ -186,6 +364,45 @@ export class ExamplesComponent extends Component<ExamplesState> {
   }
 
   private setupEventListeners(): void {
+    // Search input
+    const searchInput = document.getElementById('example-search') as HTMLInputElement
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const target = e.target as HTMLInputElement
+        this.setSearchQuery(target.value)
+      })
+    }
+
+    // Difficulty filter
+    const difficultyFilter = document.getElementById('difficulty-filter') as HTMLSelectElement
+    if (difficultyFilter) {
+      difficultyFilter.addEventListener('change', (e) => {
+        const target = e.target as HTMLSelectElement
+        this.setDifficultyFilter(target.value)
+      })
+    }
+
+    // Use case filter
+    const useCaseFilter = document.getElementById('usecase-filter') as HTMLSelectElement
+    if (useCaseFilter) {
+      useCaseFilter.addEventListener('change', (e) => {
+        const target = e.target as HTMLSelectElement
+        this.setUseCaseFilter(target.value)
+      })
+    }
+
+    // Clear filters button
+    const clearButton = document.getElementById('clear-filters')
+    if (clearButton) {
+      clearButton.addEventListener('click', () => {
+        this.setState({
+          searchQuery: '',
+          difficultyFilter: 'all',
+          useCaseFilter: 'all',
+        })
+      })
+    }
+
     // Category toggle listeners
     const categoryToggles = this.element.querySelectorAll('.category-toggle')
     categoryToggles.forEach(toggle => {
