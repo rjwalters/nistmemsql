@@ -10,6 +10,19 @@ pub enum CatalogError {
     SchemaNotEmpty(String),
     RoleAlreadyExists(String),
     RoleNotFound(String),
+    // Advanced SQL:1999 objects
+    DomainAlreadyExists(String),
+    DomainNotFound(String),
+    SequenceAlreadyExists(String),
+    SequenceNotFound(String),
+    TypeAlreadyExists(String),
+    TypeNotFound(String),
+    CollationAlreadyExists(String),
+    CollationNotFound(String),
+    CharacterSetAlreadyExists(String),
+    CharacterSetNotFound(String),
+    TranslationAlreadyExists(String),
+    TranslationNotFound(String),
 }
 
 impl std::fmt::Display for CatalogError {
@@ -34,6 +47,36 @@ impl std::fmt::Display for CatalogError {
                 write!(f, "Role '{}' already exists", name)
             }
             CatalogError::RoleNotFound(name) => write!(f, "Role '{}' not found", name),
+            CatalogError::DomainAlreadyExists(name) => {
+                write!(f, "Domain '{}' already exists", name)
+            }
+            CatalogError::DomainNotFound(name) => write!(f, "Domain '{}' not found", name),
+            CatalogError::SequenceAlreadyExists(name) => {
+                write!(f, "Sequence '{}' already exists", name)
+            }
+            CatalogError::SequenceNotFound(name) => write!(f, "Sequence '{}' not found", name),
+            CatalogError::TypeAlreadyExists(name) => {
+                write!(f, "Type '{}' already exists", name)
+            }
+            CatalogError::TypeNotFound(name) => write!(f, "Type '{}' not found", name),
+            CatalogError::CollationAlreadyExists(name) => {
+                write!(f, "Collation '{}' already exists", name)
+            }
+            CatalogError::CollationNotFound(name) => {
+                write!(f, "Collation '{}' not found", name)
+            }
+            CatalogError::CharacterSetAlreadyExists(name) => {
+                write!(f, "Character set '{}' already exists", name)
+            }
+            CatalogError::CharacterSetNotFound(name) => {
+                write!(f, "Character set '{}' not found", name)
+            }
+            CatalogError::TranslationAlreadyExists(name) => {
+                write!(f, "Translation '{}' already exists", name)
+            }
+            CatalogError::TranslationNotFound(name) => {
+                write!(f, "Translation '{}' not found", name)
+            }
         }
     }
 }
