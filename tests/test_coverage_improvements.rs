@@ -28,15 +28,15 @@ fn execute_select(db: &Database, sql: &str) -> Result<Vec<Row>, String> {
 
 fn create_products_schema() -> TableSchema {
     TableSchema::new(
-        "products".to_string(),
+        "PRODUCTS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "name".to_string(),
+                "NAME".to_string(),
                 DataType::Varchar { max_length: Some(100) },
                 true,
             ),
-            ColumnSchema::new("code".to_string(), DataType::Varchar { max_length: Some(50) }, true),
+            ColumnSchema::new("CODE".to_string(), DataType::Varchar { max_length: Some(50) }, true),
         ],
     )
 }
@@ -71,7 +71,7 @@ fn insert_sample_products(db: &mut Database) {
     ];
 
     for row in rows {
-        db.insert_row("products", row).unwrap();
+        db.insert_row("PRODUCTS", row).unwrap();
     }
 }
 
@@ -125,11 +125,11 @@ fn test_not_like() {
 #[test]
 fn test_like_null_handling() {
     let schema = TableSchema::new(
-        "test_nulls".to_string(),
+        "TEST_NULLS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "value".to_string(),
+                "VALUE".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 true,
             ),
@@ -138,7 +138,7 @@ fn test_like_null_handling() {
     let mut db = Database::new();
     db.create_table(schema).unwrap();
 
-    db.insert_row("test_nulls", Row::new(vec![SqlValue::Integer(1), SqlValue::Null])).unwrap();
+    db.insert_row("TEST_NULLS", Row::new(vec![SqlValue::Integer(1), SqlValue::Null])).unwrap();
 
     let results =
         execute_select(&db, "SELECT id FROM test_nulls WHERE value LIKE '%test%'").unwrap();
@@ -151,22 +151,22 @@ fn test_like_null_handling() {
 
 fn create_orders_schema() -> TableSchema {
     TableSchema::new(
-        "orders".to_string(),
+        "ORDERS".to_string(),
         vec![
-            ColumnSchema::new("order_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("customer_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("amount".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ORDER_ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("CUSTOMER_ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("AMOUNT".to_string(), DataType::Integer, false),
         ],
     )
 }
 
 fn create_customers_schema() -> TableSchema {
     TableSchema::new(
-        "customers".to_string(),
+        "CUSTOMERS".to_string(),
         vec![
-            ColumnSchema::new("customer_id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("CUSTOMER_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "name".to_string(),
+                "NAME".to_string(),
                 DataType::Varchar { max_length: Some(100) },
                 false,
             ),
@@ -180,37 +180,37 @@ fn setup_customers_orders_db() -> Database {
     db.create_table(create_orders_schema()).unwrap();
 
     db.insert_row(
-        "customers",
+        "CUSTOMERS",
         Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
     )
     .unwrap();
 
     db.insert_row(
-        "customers",
+        "CUSTOMERS",
         Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())]),
     )
     .unwrap();
 
     db.insert_row(
-        "customers",
+        "CUSTOMERS",
         Row::new(vec![SqlValue::Integer(3), SqlValue::Varchar("Charlie".to_string())]),
     )
     .unwrap();
 
     db.insert_row(
-        "orders",
+        "ORDERS",
         Row::new(vec![SqlValue::Integer(101), SqlValue::Integer(1), SqlValue::Integer(100)]),
     )
     .unwrap();
 
     db.insert_row(
-        "orders",
+        "ORDERS",
         Row::new(vec![SqlValue::Integer(102), SqlValue::Integer(1), SqlValue::Integer(200)]),
     )
     .unwrap();
 
     db.insert_row(
-        "orders",
+        "ORDERS",
         Row::new(vec![SqlValue::Integer(103), SqlValue::Integer(3), SqlValue::Integer(150)]),
     )
     .unwrap();
@@ -316,16 +316,16 @@ fn test_all_with_less_than() {
 
 fn create_mixed_types_schema() -> TableSchema {
     TableSchema::new(
-        "mixed_data".to_string(),
+        "MIXED_DATA".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "text_num".to_string(),
+                "TEXT_NUM".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 true,
             ),
-            ColumnSchema::new("int_val".to_string(), DataType::Integer, true),
-            ColumnSchema::new("float_val".to_string(), DataType::DoublePrecision, true),
+            ColumnSchema::new("INT_VAL".to_string(), DataType::Integer, true),
+            ColumnSchema::new("FLOAT_VAL".to_string(), DataType::DoublePrecision, true),
         ],
     )
 }
@@ -335,7 +335,7 @@ fn setup_mixed_types_db() -> Database {
     db.create_table(create_mixed_types_schema()).unwrap();
 
     db.insert_row(
-        "mixed_data",
+        "MIXED_DATA",
         Row::new(vec![
             SqlValue::Integer(1),
             SqlValue::Varchar("123".to_string()),
@@ -346,7 +346,7 @@ fn setup_mixed_types_db() -> Database {
     .unwrap();
 
     db.insert_row(
-        "mixed_data",
+        "MIXED_DATA",
         Row::new(vec![
             SqlValue::Integer(2),
             SqlValue::Varchar("999".to_string()),
@@ -555,11 +555,11 @@ fn test_like_exact_match() {
 #[test]
 fn test_cast_null_value() {
     let schema = TableSchema::new(
-        "null_test".to_string(),
+        "NULL_TEST".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "nullable_val".to_string(),
+                "NULLABLE_VAL".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 true,
             ),
@@ -568,7 +568,7 @@ fn test_cast_null_value() {
     let mut db = Database::new();
     db.create_table(schema).unwrap();
 
-    db.insert_row("null_test", Row::new(vec![SqlValue::Integer(1), SqlValue::Null])).unwrap();
+    db.insert_row("NULL_TEST", Row::new(vec![SqlValue::Integer(1), SqlValue::Null])).unwrap();
 
     let results =
         execute_select(&db, "SELECT CAST(nullable_val AS INTEGER) FROM null_test").unwrap();
