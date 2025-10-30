@@ -173,11 +173,10 @@ fn test_parse_select_current_date() {
                 ast::SelectItem::Expression { expr, alias } => {
                     assert!(alias.is_none());
                     match expr {
-                        ast::Expression::Function { name, args } => {
-                            assert_eq!(name, "CURRENT_DATE");
-                            assert!(args.is_empty());
+                        ast::Expression::CurrentDate => {
+                            // CURRENT_DATE is now a dedicated expression variant
                         }
-                        _ => panic!("Expected Function, got {:?}", expr),
+                        _ => panic!("Expected CurrentDate, got {:?}", expr),
                     }
                 }
                 _ => panic!("Expected Expression select item"),
@@ -201,11 +200,11 @@ fn test_parse_select_current_time() {
                 ast::SelectItem::Expression { expr, alias } => {
                     assert!(alias.is_none());
                     match expr {
-                        ast::Expression::Function { name, args } => {
-                            assert_eq!(name, "CURRENT_TIME");
-                            assert!(args.is_empty());
+                        ast::Expression::CurrentTime { precision } => {
+                            // CURRENT_TIME is now a dedicated expression variant with optional precision
+                            assert_eq!(*precision, None);
                         }
-                        _ => panic!("Expected Function, got {:?}", expr),
+                        _ => panic!("Expected CurrentTime, got {:?}", expr),
                     }
                 }
                 _ => panic!("Expected Expression select item"),
@@ -229,11 +228,11 @@ fn test_parse_select_current_timestamp() {
                 ast::SelectItem::Expression { expr, alias } => {
                     assert!(alias.is_none());
                     match expr {
-                        ast::Expression::Function { name, args } => {
-                            assert_eq!(name, "CURRENT_TIMESTAMP");
-                            assert!(args.is_empty());
+                        ast::Expression::CurrentTimestamp { precision } => {
+                            // CURRENT_TIMESTAMP is now a dedicated expression variant with optional precision
+                            assert_eq!(*precision, None);
                         }
-                        _ => panic!("Expected Function, got {:?}", expr),
+                        _ => panic!("Expected CurrentTimestamp, got {:?}", expr),
                     }
                 }
                 _ => panic!("Expected Expression select item"),
