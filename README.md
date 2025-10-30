@@ -4,7 +4,7 @@
 [![Tests](https://github.com/rjwalters/nistmemsql/actions/workflows/test.yml/badge.svg)](https://github.com/rjwalters/nistmemsql/actions/workflows/test.yml)
 [![Demo](https://img.shields.io/badge/demo-live-success)](https://rjwalters.github.io/nistmemsql/)
 [![Coverage](https://img.shields.io/badge/coverage-86%25-green)](https://github.com/rjwalters/nistmemsql)
-[![SQL:1999 CORE](https://img.shields.io/badge/SQL%3A1999%20CORE-95.1%25-brightgreen)](https://rjwalters.github.io/nistmemsql/conformance.html)
+[![SQL:1999 CORE](https://img.shields.io/badge/SQL%3A1999%20CORE-95.3%25-brightgreen)](https://rjwalters.github.io/nistmemsql/conformance.html)
 
 > **An open-source, NIST-testable SQL:1999 database implementation in Rust**
 
@@ -43,11 +43,11 @@ Every line of code, every test, every piece of documentation in this repository 
 **What we've built** (in ~6 days, Oct 25-30, 2024):
 - 📊 **47,000+ lines** of production Rust code
 - ✅ **1,300+ passing tests** with 86% coverage
-- 🎯 **95.1% SQL:1999 Core compliance** (703/739 tests passing)
+- 🎯 **95.3% SQL:1999 Core compliance** (704/739 tests passing)
 - 🚀 **Full WASM compilation** with live browser demo
 - 📝 **Complete documentation** (you're reading it)
-- 🏗️ **80+ merged PRs** via AI Builder/Judge workflow
-- 🔒 **Security model** with GRANT/REVOKE and roles
+- 🏗️ **85+ merged PRs** via AI Builder/Judge workflow
+- 🔒 **Complete security model** with privilege enforcement
 
 **The challenge**: Can AI build a NIST-compatible SQL database from scratch? The answer is becoming clear: **Yes, and faster than expected.**
 
@@ -71,21 +71,22 @@ We use comprehensive test suites to track SQL:1999 compliance:
 | Suite | Tests | Pass Rate | Status |
 |-------|-------|-----------|--------|
 | SQLLogicTest | 2 baseline | 100% | ✅ Passing |
-| SQL:1999 sqltest | 739 tests | **95.1%** (703 passing) | 🟢 Excellent - Near Complete! |
+| SQL:1999 sqltest | 739 tests | **95.3%** (704 passing) | 🟢 Excellent - Near Complete! |
 | End-to-End | 1,306+ tests | 100% | ✅ Strong |
 
-**Recent Improvements** (Oct 30, 2024): **+8.5% conformance gain!** (86.6% → 95.1%)
-- ✅ **GRANT/REVOKE security** - Full privilege management system (#484, #485, #486, #499, #500, #501)
+**Recent Improvements** (Oct 30, 2024): **+8.7% conformance gain!** (86.6% → 95.3%)
+- ✅ **Complete security model** - Full privilege enforcement (#507, #508)
+- ✅ **Access control** - SELECT, INSERT, UPDATE, DELETE enforcement (#508)
+- ✅ **Delimited identifiers** - End-to-end support with bug fixes (#507)
+- ✅ **GRANT/REVOKE** - Complete privilege management (#484-#486, #499-#501, #503-#506)
 - ✅ **CREATE/DROP ROLE** - Role-based security foundation (#471, #483)
 - ✅ **CREATE SCHEMA enhancements** - Embedded elements support (#468, #488, #492)
-- ✅ **Quoted identifiers** - Delimited identifier support (#465, #479)
+- ✅ **Quoted identifiers** - Parser and storage support (#465, #479)
 - ✅ **DEFAULT keyword** - INSERT/UPDATE DEFAULT values (#464)
 - ✅ **Type aliases** - CHARACTER, CHARACTER VARYING (#462)
-- ✅ **CAST improvements** - TIME to TIMESTAMP conversion (#467, #481)
-- ✅ **String function enhancements** - USING CHARACTERS/OCTETS (#466, #482)
 - ✅ **Code quality** - Zero clippy warnings (#493, #494, #496, #498)
 
-**Next Focus**: Targeting 98%+ conformance (remaining ~36 errors)
+**Next Focus**: Targeting 98%+ conformance (remaining ~35 errors)
 - CREATE TYPE, DOMAIN, SEQUENCE support
 - Additional DEFAULT context support
 - Advanced DDL features
@@ -132,14 +133,14 @@ This isn't a toy project. A fully SQL:1999 compliant database is a **massive und
 This repository is that experiment, documented in real-time:
 
 **Current Results** (Oct 30, 2024 - Day 6):
-- ✅ **95.1% SQL:1999 conformance** (703/739 tests passing on sqltest suite)
+- ✅ **95.3% SQL:1999 conformance** (704/739 tests passing on sqltest suite)
 - ✅ **1,306+ unit/integration tests passing** (100%)
 - ✅ Complete query engine with JOINs, subqueries, CTEs, aggregates, window functions
 - ✅ Full transaction support with SAVEPOINT, all constraints enforced
-- ✅ **Security model** with GRANT/REVOKE and role-based permissions
+- ✅ **Complete security model** with privilege enforcement on all operations
 - ✅ 50+ built-in functions (string, date/time, math)
 - ✅ Live web demo running in browser via WASM
-- 📈 **+8.5% conformance gain** in Day 6 (86.6% → 95.1%)
+- 📈 **+8.7% conformance gain** in Day 6 (86.6% → 95.3%)
 - 📈 **Near Core completion** - 95%+ achieved, targeting 98%+
 
 **The Open Question**: Can Claude Code achieve **FULL SQL:1999 compliance**—something no database has ever accomplished? That would require months more work, implementing ~400+ features including procedural SQL, triggers, advanced types, and the information schema.
@@ -164,13 +165,13 @@ This isn't just about databases. It's about understanding what's now possible wi
 
 ### SQL:1999 Conformance Progress
 
-**Current Conformance**: **95.1%** (703/739 tests passing on sqltest suite)
+**Current Conformance**: **95.3%** (704/739 tests passing on sqltest suite)
 
 **Recent Progress**:
 - **Days 1-5** (Oct 25-29): Reached 77% → Foundation built
-- **Day 6** (Oct 30): **+8.5% gain** → 95.1% conformance
-- **Major Milestones**: Transactions ✅, Constraints ✅, Schema Management ✅, Security Model ✅
-- **Achievement**: **Near Core compliance** - 95%+ reached
+- **Day 6** (Oct 30): **+8.7% gain** → 95.3% conformance
+- **Major Milestones**: Transactions ✅, Constraints ✅, Schema Management ✅, Security Model ✅ (Complete!)
+- **Achievement**: **Near Core compliance** - 95%+ reached, security fully enforced
 - **Focus**: Remaining DDL features (CREATE TYPE, DOMAIN, SEQUENCE) to reach 98%+
 
 ### Progress Breakdown by Category
@@ -190,15 +191,15 @@ This isn't just about databases. It's about understanding what's now possible wi
 | DDL | 50% (5/10) | CREATE TABLE, DROP TABLE, CREATE/DROP/SET SCHEMA, ALTER TABLE (ADD/DROP/MODIFY COLUMN), CREATE/DROP ROLE | 🟢 Advanced |
 | Constraints | 100% (5/5 enforced) | NOT NULL, PRIMARY KEY, UNIQUE, CHECK, FOREIGN KEY enforced ✅ (35+ tests) | ✅ Complete |
 | Transactions | 100% (4/4) | BEGIN, COMMIT, ROLLBACK, SAVEPOINT ✅ (nested transactions) | ✅ Complete |
-| Security | 80% | CREATE/DROP ROLE, GRANT (all privileges + specific), REVOKE ✅ | 🟢 Advanced |
+| Security | 100% | CREATE/DROP ROLE, GRANT, REVOKE, Privilege Enforcement (all operations) ✅ | ✅ Complete |
 | Web Demo Validation | 30% | Automated test infrastructure ✅, Expected results for 19 examples ✅ | 🟡 In Progress |
-| Conformance Tests | 95.1% | 703/739 sqltest tests passing ✅ | ✅ Excellent |
+| Conformance Tests | 95.3% | 704/739 sqltest tests passing ✅ | ✅ Excellent |
 
 ### Achievement: 95%+ Core Compliance Reached
 
 **Actual Results**:
-- 6 days elapsed → **95.1% conformance achieved**
-- Day 6 velocity: **+8.5% gain** (largest single-day improvement)
+- 6 days elapsed → **95.3% conformance achieved**
+- Day 6 velocity: **+8.7% gain** (largest single-day improvement)
 - Average velocity: **~15-16% per day**
 - **Ahead of schedule**: Originally projected 7-8 days for 90%+
 
@@ -228,7 +229,7 @@ This isn't just about databases. It's about understanding what's now possible wi
 - **DML**: INSERT (single-row, multi-row, INSERT...SELECT), UPDATE, DELETE
 - **DDL**: CREATE TABLE, DROP TABLE, CREATE/DROP SCHEMA, SET SCHEMA, ALTER TABLE (ADD/DROP/MODIFY COLUMN), CREATE/DROP ROLE
 - **Transactions**: BEGIN, COMMIT, ROLLBACK, SAVEPOINT ✅ (nested transactions with full rollback support)
-- **Security**: CREATE/DROP ROLE, GRANT (ALL PRIVILEGES, specific privileges, multiple grantees), REVOKE
+- **Security**: CREATE/DROP ROLE, GRANT, REVOKE, Full Privilege Enforcement ✅ (SELECT, INSERT, UPDATE, DELETE access control)
 
 **Predicates & Operators** ✅
 - **Comparison**: =, <>, <, >, <=, >=
@@ -312,11 +313,19 @@ This isn't just about databases. It's about understanding what's now possible wi
 
 **Day 6 (Oct 30)** - ✅ **COMPLETED** - Security Model & SQL Standard Compliance
 - [x] CREATE/DROP ROLE (#471, #483)
-- [x] GRANT statement - Phase 2.1-2.3 (#484, #485, #486, #499, #500, #501)
+- [x] GRANT statement - Complete (#484, #485, #486, #499, #500, #501, #503)
   - [x] GRANT SELECT/INSERT/UPDATE/DELETE
   - [x] GRANT ALL PRIVILEGES
   - [x] Multiple privileges and grantees
-- [x] REVOKE statement (#473)
+  - [x] WITH GRANT OPTION support
+  - [x] Schema privilege support
+- [x] REVOKE statement - Complete (#473, #506)
+- [x] Access control enforcement - Complete (#508)
+  - [x] SELECT privilege enforcement
+  - [x] INSERT privilege enforcement
+  - [x] UPDATE privilege enforcement
+  - [x] DELETE privilege enforcement
+- [x] Delimited identifiers - End-to-end (#507)
 - [x] CREATE SCHEMA with embedded elements (#468, #488, #492)
 - [x] Quoted identifiers support (#465, #479)
 - [x] DEFAULT keyword in INSERT/UPDATE (#464)
@@ -324,7 +333,7 @@ This isn't just about databases. It's about understanding what's now possible wi
 - [x] CAST improvements - TIME to TIMESTAMP (#467, #481)
 - [x] USING CHARACTERS/OCTETS clause (#466, #482)
 - [x] Zero clippy warnings achieved (#493, #494, #496, #498)
-- [x] **95.1% conformance reached** (703/739 tests passing)
+- [x] **95.3% conformance reached** (704/739 tests passing)
 
 **Day 7 (Oct 31)** - Advanced DDL & Optimization
 - [ ] View query expansion and execution
@@ -351,9 +360,9 @@ Core compliance is about SQL language semantics, not client protocols.
 ### To Core SQL:1999 Compliance
 
 **Project Started**: Saturday, October 25, 2024
-**Current Status**: Day 6 (Oct 30) - **95.1% conformance** → **Near Core Completion!** 🚀
+**Current Status**: Day 6 (Oct 30) - **95.3% conformance** → **Near Core Completion!** 🚀
 **Demonstrated Velocity**: Exceeded expectations - 95%+ in 6 days
-**Achievement**: Core SQL:1999 compliance essentially reached
+**Achievement**: Core SQL:1999 compliance essentially reached, security model complete
 
 **Days 1-4 Completed** ✅ **Phase 4: Window Functions & Advanced SQL (Complete!)**
 - Query engine (SELECT with JOINs, subqueries, aggregates)
@@ -570,15 +579,15 @@ See [WORK_PLAN.md](WORK_PLAN.md) for current priorities.
 
 - **Language**: Rust 🦀
 - **Architecture**: 7-crate workspace
-- **Tests**: 1,306+ unit/integration tests passing (100%), 703/739 conformance tests (95.1%)
+- **Tests**: 1,306+ unit/integration tests passing (100%), 704/739 conformance tests (95.3%)
 - **Coverage**: ~86%
 - **LOC**: ~47,000+
 - **Project Type**: AI-powered SQL:1999 compliance demonstration
 - **Started**: October 25, 2024
 - **Current Day**: Day 6 (Oct 30, 2024)
-- **Progress**: **95.1% SQL:1999 conformance** (703/739 tests)
-- **Recent Gain**: **+8.5%** conformance in Day 6 (largest single-day improvement)
-- **Achievement**: **Near Core compliance** - 95%+ reached
+- **Progress**: **95.3% SQL:1999 conformance** (704/739 tests)
+- **Recent Gain**: **+8.7%** conformance in Day 6 (largest single-day improvement)
+- **Achievement**: **Near Core compliance** - 95%+ reached, security model complete
 - **Next Target**: 98%+ conformance via remaining DDL features
 - **Approach**: Test-Driven Development with sqltest conformance suite
 - **Orchestration**: Loom AI framework
@@ -645,11 +654,11 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 **Current Focus**: Reaching 98%+ SQL:1999 Core conformance
 - **Day 6** (Oct 30, 2024)
-- **95.1% conformance** (703/739 tests passing)
-- **+8.5% gain** in Day 6 (largest single-day improvement)
-- **Achievement**: Near Core compliance reached
+- **95.3% conformance** (704/739 tests passing)
+- **+8.7% gain** in Day 6 (largest single-day improvement)
+- **Achievement**: Near Core compliance reached, security model complete
 - **Next Target**: 98%+ via CREATE TYPE, DOMAIN, SEQUENCE support
-- **Strategy**: Data-driven prioritization based on remaining 36 test failures
+- **Strategy**: Data-driven prioritization based on remaining 35 test failures
 
 **Ultimate Goal**: Complete SQL:1999 Core compliance, then pursue FULL compliance
 
