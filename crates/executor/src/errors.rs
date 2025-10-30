@@ -7,6 +7,7 @@ pub enum ExecutorError {
     SchemaNotFound(String),
     SchemaAlreadyExists(String),
     SchemaNotEmpty(String),
+    RoleNotFound(String),
     ColumnIndexOutOfBounds { index: usize },
     TypeMismatch { left: types::SqlValue, op: String, right: types::SqlValue },
     DivisionByZero,
@@ -37,6 +38,7 @@ impl std::fmt::Display for ExecutorError {
             ExecutorError::SchemaNotEmpty(name) => {
                 write!(f, "Cannot drop schema '{}': schema is not empty", name)
             }
+            ExecutorError::RoleNotFound(name) => write!(f, "Role '{}' not found", name),
             ExecutorError::ColumnIndexOutOfBounds { index } => {
                 write!(f, "Column index {} out of bounds", index)
             }
@@ -90,9 +92,7 @@ impl From<catalog::CatalogError> for ExecutorError {
             catalog::CatalogError::RoleAlreadyExists(name) => {
                 ExecutorError::StorageError(format!("Role '{}' already exists", name))
             }
-            catalog::CatalogError::RoleNotFound(name) => {
-                ExecutorError::StorageError(format!("Role '{}' not found", name))
-            }
+            catalog::CatalogError::RoleNotFound(name) => ExecutorError::RoleNotFound(name),
         }
     }
 }

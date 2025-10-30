@@ -59,7 +59,7 @@ fn test_group_by_with_count() {
                     name: "COUNT".to_string(),
                     args: vec![ast::Expression::Wildcard],
                     character_unit: None,
-            },
+                },
                 alias: None,
             },
         ],

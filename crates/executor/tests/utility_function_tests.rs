@@ -211,7 +211,11 @@ fn test_format_negative() {
 #[test]
 fn test_version() {
     let (evaluator, row) = create_test_evaluator();
-    let expr = ast::Expression::Function { name: "VERSION".to_string(), args: vec![], character_unit: None };
+    let expr = ast::Expression::Function {
+        name: "VERSION".to_string(),
+        args: vec![],
+        character_unit: None,
+    };
     let result = evaluator.eval(&expr, &row).unwrap();
     match result {
         types::SqlValue::Varchar(s) => {
@@ -232,7 +236,11 @@ fn test_version() {
 #[test]
 fn test_database() {
     let (evaluator, row) = create_test_evaluator();
-    let expr = ast::Expression::Function { name: "DATABASE".to_string(), args: vec![], character_unit: None };
+    let expr = ast::Expression::Function {
+        name: "DATABASE".to_string(),
+        args: vec![],
+        character_unit: None,
+    };
     let result = evaluator.eval(&expr, &row).unwrap();
     match result {
         types::SqlValue::Varchar(s) => {
@@ -248,7 +256,11 @@ fn test_database() {
 #[test]
 fn test_schema_alias() {
     let (evaluator, row) = create_test_evaluator();
-    let expr = ast::Expression::Function { name: "SCHEMA".to_string(), args: vec![], character_unit: None };
+    let expr = ast::Expression::Function {
+        name: "SCHEMA".to_string(),
+        args: vec![],
+        character_unit: None,
+    };
     let result = evaluator.eval(&expr, &row).unwrap();
     // SCHEMA is an alias for DATABASE
     assert!(matches!(result, types::SqlValue::Varchar(_) | types::SqlValue::Null));
@@ -261,7 +273,8 @@ fn test_schema_alias() {
 #[test]
 fn test_user() {
     let (evaluator, row) = create_test_evaluator();
-    let expr = ast::Expression::Function { name: "USER".to_string(), args: vec![], character_unit: None };
+    let expr =
+        ast::Expression::Function { name: "USER".to_string(), args: vec![], character_unit: None };
     let result = evaluator.eval(&expr, &row).unwrap();
     match result {
         types::SqlValue::Varchar(s) => {
@@ -274,7 +287,11 @@ fn test_user() {
 #[test]
 fn test_current_user_alias() {
     let (evaluator, row) = create_test_evaluator();
-    let expr = ast::Expression::Function { name: "CURRENT_USER".to_string(), args: vec![], character_unit: None };
+    let expr = ast::Expression::Function {
+        name: "CURRENT_USER".to_string(),
+        args: vec![],
+        character_unit: None,
+    };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert!(matches!(result, types::SqlValue::Varchar(_)));
 }

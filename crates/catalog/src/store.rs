@@ -183,9 +183,9 @@ impl Catalog {
         object: &str,
         priv_type: &ast::PrivilegeType,
     ) -> bool {
-        self.privilege_grants.iter().any(|g| {
-            g.grantee == grantee && g.object == object && g.privilege == *priv_type
-        })
+        self.privilege_grants
+            .iter()
+            .any(|g| g.grantee == grantee && g.object == object && g.privilege == *priv_type)
     }
 
     /// Get all grants for a specific grantee.

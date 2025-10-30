@@ -70,10 +70,7 @@ fn derive_expression_name_impl(expr: &ast::Expression) -> String {
             let args_str = if args.is_empty() {
                 "*".to_string()
             } else {
-                args.iter()
-                    .map(derive_expression_name_impl)
-                    .collect::<Vec<_>>()
-                    .join(", ")
+                args.iter().map(derive_expression_name_impl).collect::<Vec<_>>().join(", ")
             };
             format!("{}({})", name, args_str)
         }
@@ -83,10 +80,7 @@ fn derive_expression_name_impl(expr: &ast::Expression) -> String {
             let args_str = if args.is_empty() {
                 "*".to_string()
             } else {
-                args.iter()
-                    .map(derive_expression_name_impl)
-                    .collect::<Vec<_>>()
-                    .join(", ")
+                args.iter().map(derive_expression_name_impl).collect::<Vec<_>>().join(", ")
             };
             format!("{}({}{})", name, distinct_str, args_str)
         }

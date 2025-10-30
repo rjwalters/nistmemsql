@@ -11,15 +11,30 @@ pub struct GrantExecutor;
 impl GrantExecutor {
     /// Execute GRANT statement
     ///
-    /// Phase 2.3: Supports ALL PRIVILEGES expansion
+    /// Phase 2.6: Supports validation and conformance
     pub fn execute_grant(
         stmt: &GrantStmt,
         database: &mut Database,
     ) -> Result<String, ExecutorError> {
-        // Verify the table exists
-        let table_name = &stmt.object_name;
-        if !database.catalog.table_exists(table_name) {
-            return Err(ExecutorError::TableNotFound(table_name.clone()));
+        // Validate object exists based on object type
+        match stmt.object_type {
+            ObjectType::Table => {
+                if !database.catalog.table_exists(&stmt.object_name) {
+                    return Err(ExecutorError::TableNotFound(stmt.object_name.clone()));
+                }
+            }
+            ObjectType::Schema => {
+                if !database.catalog.schema_exists(&stmt.object_name) {
+                    return Err(ExecutorError::SchemaNotFound(stmt.object_name.clone()));
+                }
+            }
+        }
+
+        // Validate all grantees (roles) exist
+        for grantee in &stmt.grantees {
+            if !database.catalog.role_exists(grantee) {
+                return Err(ExecutorError::RoleNotFound(grantee.clone()));
+            }
         }
 
         // Expand ALL PRIVILEGES based on object type
@@ -57,16 +72,9 @@ impl GrantExecutor {
         }
 
         let grantees_str = stmt.grantees.join(", ");
-        let privileges_str = stmt
-            .privileges
-            .iter()
-            .map(|p| format!("{:?}", p))
-            .collect::<Vec<_>>()
-            .join(", ");
+        let privileges_str =
+            stmt.privileges.iter().map(|p| format!("{:?}", p)).collect::<Vec<_>>().join(", ");
 
-        Ok(format!(
-            "Granted {} on {} to {}",
-            privileges_str, table_name, grantees_str
-        ))
+        Ok(format!("Granted {} on {} to {}", privileges_str, stmt.object_name, grantees_str))
     }
 }

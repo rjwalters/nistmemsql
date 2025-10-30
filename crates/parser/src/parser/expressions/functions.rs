@@ -18,7 +18,9 @@ impl Parser {
             }
             // Allow LEFT, RIGHT, and SCHEMA keywords as function names
             // These are reserved keywords but can also be functions
-            Token::Keyword(Keyword::Left) | Token::Keyword(Keyword::Right) | Token::Keyword(Keyword::Schema) => {
+            Token::Keyword(Keyword::Left)
+            | Token::Keyword(Keyword::Right)
+            | Token::Keyword(Keyword::Schema) => {
                 // Peek ahead to see if this is followed by '('
                 // Don't consume the keyword unless we're sure it's a function
                 let keyword_name = match self.peek() {
@@ -250,16 +252,17 @@ impl Parser {
         }
 
         // Parse optional USING clause for string functions
-        let character_unit = if matches!(function_name_upper.as_str(), "CHARACTER_LENGTH" | "CHAR_LENGTH") {
-            if matches!(self.peek(), Token::Keyword(Keyword::Using)) {
-                self.advance(); // consume USING
-                Some(self.parse_character_unit()?)
+        let character_unit =
+            if matches!(function_name_upper.as_str(), "CHARACTER_LENGTH" | "CHAR_LENGTH") {
+                if matches!(self.peek(), Token::Keyword(Keyword::Using)) {
+                    self.advance(); // consume USING
+                    Some(self.parse_character_unit()?)
+                } else {
+                    None
+                }
             } else {
                 None
-            }
-        } else {
-            None
-        };
+            };
 
         // Check for OVER clause (window function)
         if matches!(self.peek(), Token::Keyword(Keyword::Over)) {

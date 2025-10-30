@@ -79,9 +79,11 @@ fn test_substring_both_syntaxes_equivalent() {
 fn test_trim_from_no_char() {
     let (evaluator, row) = create_test_evaluator();
     let expr = ast::Expression::Trim {
-        position: None, // Defaults to BOTH
+        position: None,     // Defaults to BOTH
         removal_char: None, // Defaults to space
-        string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("  hello  ".to_string()))),
+        string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+            "  hello  ".to_string(),
+        ))),
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("hello".to_string()));
@@ -93,7 +95,9 @@ fn test_trim_both_from_no_char() {
     let expr = ast::Expression::Trim {
         position: Some(ast::TrimPosition::Both),
         removal_char: None, // Defaults to space
-        string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("  hello  ".to_string()))),
+        string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+            "  hello  ".to_string(),
+        ))),
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("hello".to_string()));
@@ -105,7 +109,9 @@ fn test_trim_leading_from_no_char() {
     let expr = ast::Expression::Trim {
         position: Some(ast::TrimPosition::Leading),
         removal_char: None, // Defaults to space
-        string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("  hello  ".to_string()))),
+        string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+            "  hello  ".to_string(),
+        ))),
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("hello  ".to_string()));
@@ -117,7 +123,9 @@ fn test_trim_trailing_from_no_char() {
     let expr = ast::Expression::Trim {
         position: Some(ast::TrimPosition::Trailing),
         removal_char: None, // Defaults to space
-        string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("  hello  ".to_string()))),
+        string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+            "  hello  ".to_string(),
+        ))),
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("  hello".to_string()));
@@ -165,7 +173,9 @@ fn test_trim_with_char_still_works() {
     let (evaluator, row) = create_test_evaluator();
     let expr = ast::Expression::Trim {
         position: Some(ast::TrimPosition::Both),
-        removal_char: Some(Box::new(ast::Expression::Literal(types::SqlValue::Varchar("x".to_string())))),
+        removal_char: Some(Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+            "x".to_string(),
+        )))),
         string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("xfoox".to_string()))),
     };
     let result = evaluator.eval(&expr, &row).unwrap();

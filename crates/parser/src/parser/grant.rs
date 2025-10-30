@@ -86,14 +86,12 @@ fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>
                 parser.advance();
                 PrivilegeType::Delete
             }
-            _ => {
-                return Err(ParseError {
-                    message: format!(
-                        "Expected privilege keyword (SELECT, INSERT, UPDATE, DELETE, ALL), found {:?}",
-                        parser.peek()
-                    ),
-                })
-            }
+            _ => return Err(ParseError {
+                message: format!(
+                    "Expected privilege keyword (SELECT, INSERT, UPDATE, DELETE, ALL), found {:?}",
+                    parser.peek()
+                ),
+            }),
         };
 
         privileges.push(priv_type);
