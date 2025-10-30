@@ -345,6 +345,55 @@ fn test_length_with_null() {
     assert_eq!(result, types::SqlValue::Null);
 }
 
+#[test]
+fn test_octet_length_ascii() {
+    let (evaluator, row) = create_test_evaluator();
+
+    let expr = ast::Expression::Function {
+        name: "OCTET_LENGTH".to_string(),
+        args: vec![ast::Expression::Literal(types::SqlValue::Varchar("foo".to_string()))],
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+    assert_eq!(result, types::SqlValue::Integer(3));
+}
+
+#[test]
+fn test_octet_length_empty_string() {
+    let (evaluator, row) = create_test_evaluator();
+
+    let expr = ast::Expression::Function {
+        name: "OCTET_LENGTH".to_string(),
+        args: vec![ast::Expression::Literal(types::SqlValue::Varchar("".to_string()))],
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+    assert_eq!(result, types::SqlValue::Integer(0));
+}
+
+#[test]
+fn test_octet_length_multibyte() {
+    let (evaluator, row) = create_test_evaluator();
+
+    // Emoji is 4 bytes in UTF-8
+    let expr = ast::Expression::Function {
+        name: "OCTET_LENGTH".to_string(),
+        args: vec![ast::Expression::Literal(types::SqlValue::Varchar("🦀".to_string()))],
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+    assert_eq!(result, types::SqlValue::Integer(4));
+}
+
+#[test]
+fn test_octet_length_with_null() {
+    let (evaluator, row) = create_test_evaluator();
+
+    let expr = ast::Expression::Function {
+        name: "OCTET_LENGTH".to_string(),
+        args: vec![ast::Expression::Literal(types::SqlValue::Null)],
+    };
+    let result = evaluator.eval(&expr, &row).unwrap();
+    assert_eq!(result, types::SqlValue::Null);
+}
+
 // ==================== NESTED FUNCTION TESTS ====================
 
 #[test]
