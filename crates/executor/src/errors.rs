@@ -8,6 +8,7 @@ pub enum ExecutorError {
     SchemaAlreadyExists(String),
     SchemaNotEmpty(String),
     RoleNotFound(String),
+    DependentPrivilegesExist(String),
     ColumnIndexOutOfBounds { index: usize },
     TypeMismatch { left: types::SqlValue, op: String, right: types::SqlValue },
     DivisionByZero,
@@ -39,6 +40,9 @@ impl std::fmt::Display for ExecutorError {
                 write!(f, "Cannot drop schema '{}': schema is not empty", name)
             }
             ExecutorError::RoleNotFound(name) => write!(f, "Role '{}' not found", name),
+            ExecutorError::DependentPrivilegesExist(msg) => {
+                write!(f, "Dependent privileges exist: {}", msg)
+            }
             ExecutorError::ColumnIndexOutOfBounds { index } => {
                 write!(f, "Column index {} out of bounds", index)
             }

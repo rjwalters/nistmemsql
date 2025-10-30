@@ -11,6 +11,7 @@ mod expressions;
 mod grant;
 mod helpers;
 mod insert;
+mod revoke;
 mod role;
 mod schema;
 mod select;
@@ -159,6 +160,10 @@ impl Parser {
                 let grant_stmt = self.parse_grant_statement()?;
                 Ok(ast::Statement::Grant(grant_stmt))
             }
+            Token::Keyword(Keyword::Revoke) => {
+                let revoke_stmt = self.parse_revoke_statement()?;
+                Ok(ast::Statement::Revoke(revoke_stmt))
+            }
             _ => {
                 Err(ParseError { message: format!("Expected statement, found {:?}", self.peek()) })
             }
@@ -222,6 +227,11 @@ impl Parser {
     /// Parse GRANT statement
     pub fn parse_grant_statement(&mut self) -> Result<ast::GrantStmt, ParseError> {
         grant::parse_grant(self)
+    }
+
+    /// Parse REVOKE statement
+    pub fn parse_revoke_statement(&mut self) -> Result<ast::RevokeStmt, ParseError> {
+        revoke::parse_revoke(self)
     }
 
     /// Parse CREATE ROLE statement

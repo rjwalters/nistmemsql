@@ -22,6 +22,7 @@ mod literals;
 mod null_functions;
 mod predicates;
 mod quantified;
+mod revoke;
 mod role;
 mod schema;
 mod select;

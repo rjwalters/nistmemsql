@@ -9,6 +9,7 @@ mod dml;
 mod expression;
 mod grant;
 mod operators;
+mod revoke;
 mod select;
 mod statement;
 
@@ -26,6 +27,7 @@ pub use expression::{
 };
 pub use grant::{GrantStmt, ObjectType, PrivilegeType};
 pub use operators::{BinaryOperator, UnaryOperator};
+pub use revoke::{CascadeOption, RevokeStmt};
 pub use select::{
     CommonTableExpr, FromClause, JoinType, OrderByItem, OrderDirection, SelectItem, SelectStmt,
     SetOperation, SetOperator,

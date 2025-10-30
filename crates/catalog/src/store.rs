@@ -198,6 +198,62 @@ impl Catalog {
         self.privilege_grants.iter().filter(|g| g.object == object).collect()
     }
 
+    /// Get all privilege grants.
+    pub fn get_all_grants(&self) -> &[PrivilegeGrant] {
+        &self.privilege_grants
+    }
+
+    /// Remove privilege grants matching the given criteria.
+    ///
+    /// Returns the number of grants removed.
+    pub fn remove_grants(
+        &mut self,
+        object: &str,
+        grantee: &str,
+        privilege: &ast::PrivilegeType,
+        grant_option_only: bool,
+    ) -> usize {
+        let initial_len = self.privilege_grants.len();
+
+        if grant_option_only {
+            // Only remove the grant option, not the privilege itself
+            for grant in self.privilege_grants.iter_mut() {
+                if grant.object == object
+                    && grant.grantee == grantee
+                    && grant.privilege == *privilege
+                {
+                    grant.with_grant_option = false;
+                }
+            }
+            // Return 0 since we didn't remove any grants, just modified them
+            0
+        } else {
+            // Remove the entire grant
+            self.privilege_grants.retain(|g| {
+                !(g.object == object && g.grantee == grantee && g.privilege == *privilege)
+            });
+
+            initial_len - self.privilege_grants.len()
+        }
+    }
+
+    /// Check if there are dependent grants (grants made by the grantee with grant option).
+    ///
+    /// Used for RESTRICT behavior - errors if dependent grants exist.
+    pub fn has_dependent_grants(
+        &self,
+        object: &str,
+        grantee: &str,
+        privilege: &ast::PrivilegeType,
+    ) -> bool {
+        // Check if the grantee has granted this privilege to others
+        self.privilege_grants.iter().any(|g| {
+            g.object == object
+                && g.grantor == grantee
+                && g.privilege == *privilege
+        })
+    }
+
     // ============================================================================
     // Role Management Methods
     // ============================================================================
