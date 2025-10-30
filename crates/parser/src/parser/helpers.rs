@@ -125,4 +125,12 @@ impl Parser {
             Ok(first_part)
         }
     }
+
+    /// Consume tokens until semicolon or EOF is reached.
+    /// Used for minimal stub implementations that skip optional clauses.
+    pub(super) fn consume_until_semicolon_or_eof(&mut self) {
+        while !matches!(self.peek(), Token::Semicolon | Token::Eof) {
+            self.advance();
+        }
+    }
 }

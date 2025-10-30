@@ -3,6 +3,7 @@ use crate::lexer::Lexer;
 use crate::token::Token;
 use std::fmt;
 
+mod advanced_objects;
 mod alter;
 mod create;
 mod delete;
@@ -71,48 +72,70 @@ impl Parser {
                 let delete_stmt = self.parse_delete_statement()?;
                 Ok(ast::Statement::Delete(delete_stmt))
             }
-            Token::Keyword(Keyword::Create) => match self.peek_next_keyword(Keyword::Table) {
-                true => {
-                    let create_stmt = self.parse_create_table_statement()?;
-                    Ok(ast::Statement::CreateTable(create_stmt))
+            Token::Keyword(Keyword::Create) => {
+                if self.peek_next_keyword(Keyword::Table) {
+                    Ok(ast::Statement::CreateTable(self.parse_create_table_statement()?))
+                } else if self.peek_next_keyword(Keyword::Schema) {
+                    Ok(ast::Statement::CreateSchema(self.parse_create_schema_statement()?))
+                } else if self.peek_next_keyword(Keyword::Role) {
+                    Ok(ast::Statement::CreateRole(self.parse_create_role_statement()?))
+                } else if self.peek_next_keyword(Keyword::Domain) {
+                    Ok(ast::Statement::CreateDomain(self.parse_create_domain_statement()?))
+                } else if self.peek_next_keyword(Keyword::Sequence) {
+                    Ok(ast::Statement::CreateSequence(self.parse_create_sequence_statement()?))
+                } else if self.peek_next_keyword(Keyword::Type) {
+                    Ok(ast::Statement::CreateType(self.parse_create_type_statement()?))
+                } else if self.peek_next_keyword(Keyword::Collation) {
+                    Ok(ast::Statement::CreateCollation(
+                        self.parse_create_collation_statement()?,
+                    ))
+                } else if self.peek_next_keyword(Keyword::Character) {
+                    Ok(ast::Statement::CreateCharacterSet(
+                        self.parse_create_character_set_statement()?,
+                    ))
+                } else if self.peek_next_keyword(Keyword::Translation) {
+                    Ok(ast::Statement::CreateTranslation(
+                        self.parse_create_translation_statement()?,
+                    ))
+                } else {
+                    Err(ParseError {
+                        message:
+                            "Expected TABLE, SCHEMA, ROLE, DOMAIN, SEQUENCE, TYPE, COLLATION, CHARACTER, or TRANSLATION after CREATE"
+                                .to_string(),
+                    })
                 }
-                false => match self.peek_next_keyword(Keyword::Schema) {
-                    true => {
-                        let create_stmt = self.parse_create_schema_statement()?;
-                        Ok(ast::Statement::CreateSchema(create_stmt))
-                    }
-                    false => match self.peek_next_keyword(Keyword::Role) {
-                        true => {
-                            let create_stmt = self.parse_create_role_statement()?;
-                            Ok(ast::Statement::CreateRole(create_stmt))
-                        }
-                        false => Err(ParseError {
-                            message: "Expected TABLE, SCHEMA, or ROLE after CREATE".to_string(),
-                        }),
-                    },
-                },
-            },
-            Token::Keyword(Keyword::Drop) => match self.peek_next_keyword(Keyword::Table) {
-                true => {
-                    let drop_stmt = self.parse_drop_table_statement()?;
-                    Ok(ast::Statement::DropTable(drop_stmt))
+            }
+            Token::Keyword(Keyword::Drop) => {
+                if self.peek_next_keyword(Keyword::Table) {
+                    Ok(ast::Statement::DropTable(self.parse_drop_table_statement()?))
+                } else if self.peek_next_keyword(Keyword::Schema) {
+                    Ok(ast::Statement::DropSchema(self.parse_drop_schema_statement()?))
+                } else if self.peek_next_keyword(Keyword::Role) {
+                    Ok(ast::Statement::DropRole(self.parse_drop_role_statement()?))
+                } else if self.peek_next_keyword(Keyword::Domain) {
+                    Ok(ast::Statement::DropDomain(self.parse_drop_domain_statement()?))
+                } else if self.peek_next_keyword(Keyword::Sequence) {
+                    Ok(ast::Statement::DropSequence(self.parse_drop_sequence_statement()?))
+                } else if self.peek_next_keyword(Keyword::Type) {
+                    Ok(ast::Statement::DropType(self.parse_drop_type_statement()?))
+                } else if self.peek_next_keyword(Keyword::Collation) {
+                    Ok(ast::Statement::DropCollation(self.parse_drop_collation_statement()?))
+                } else if self.peek_next_keyword(Keyword::Character) {
+                    Ok(ast::Statement::DropCharacterSet(
+                        self.parse_drop_character_set_statement()?,
+                    ))
+                } else if self.peek_next_keyword(Keyword::Translation) {
+                    Ok(ast::Statement::DropTranslation(
+                        self.parse_drop_translation_statement()?,
+                    ))
+                } else {
+                    Err(ParseError {
+                        message:
+                            "Expected TABLE, SCHEMA, ROLE, DOMAIN, SEQUENCE, TYPE, COLLATION, CHARACTER, or TRANSLATION after DROP"
+                                .to_string(),
+                    })
                 }
-                false => match self.peek_next_keyword(Keyword::Schema) {
-                    true => {
-                        let drop_stmt = self.parse_drop_schema_statement()?;
-                        Ok(ast::Statement::DropSchema(drop_stmt))
-                    }
-                    false => match self.peek_next_keyword(Keyword::Role) {
-                        true => {
-                            let drop_stmt = self.parse_drop_role_statement()?;
-                            Ok(ast::Statement::DropRole(drop_stmt))
-                        }
-                        false => Err(ParseError {
-                            message: "Expected TABLE, SCHEMA, or ROLE after DROP".to_string(),
-                        }),
-                    },
-                },
-            },
+            }
             Token::Keyword(Keyword::Alter) => {
                 let alter_stmt = self.parse_alter_table_statement()?;
                 Ok(ast::Statement::AlterTable(alter_stmt))
@@ -242,5 +265,87 @@ impl Parser {
     /// Parse DROP ROLE statement
     pub fn parse_drop_role_statement(&mut self) -> Result<ast::DropRoleStmt, ParseError> {
         role::parse_drop_role(self)
+    }
+
+    // ========================================================================
+    // Advanced SQL Object Parsers (SQL:1999)
+    // ========================================================================
+
+    /// Parse CREATE DOMAIN statement
+    pub fn parse_create_domain_statement(
+        &mut self,
+    ) -> Result<ast::CreateDomainStmt, ParseError> {
+        advanced_objects::parse_create_domain(self)
+    }
+
+    /// Parse DROP DOMAIN statement
+    pub fn parse_drop_domain_statement(&mut self) -> Result<ast::DropDomainStmt, ParseError> {
+        advanced_objects::parse_drop_domain(self)
+    }
+
+    /// Parse CREATE SEQUENCE statement
+    pub fn parse_create_sequence_statement(
+        &mut self,
+    ) -> Result<ast::CreateSequenceStmt, ParseError> {
+        advanced_objects::parse_create_sequence(self)
+    }
+
+    /// Parse DROP SEQUENCE statement
+    pub fn parse_drop_sequence_statement(
+        &mut self,
+    ) -> Result<ast::DropSequenceStmt, ParseError> {
+        advanced_objects::parse_drop_sequence(self)
+    }
+
+    /// Parse CREATE TYPE statement
+    pub fn parse_create_type_statement(&mut self) -> Result<ast::CreateTypeStmt, ParseError> {
+        advanced_objects::parse_create_type(self)
+    }
+
+    /// Parse DROP TYPE statement
+    pub fn parse_drop_type_statement(&mut self) -> Result<ast::DropTypeStmt, ParseError> {
+        advanced_objects::parse_drop_type(self)
+    }
+
+    /// Parse CREATE COLLATION statement
+    pub fn parse_create_collation_statement(
+        &mut self,
+    ) -> Result<ast::CreateCollationStmt, ParseError> {
+        advanced_objects::parse_create_collation(self)
+    }
+
+    /// Parse DROP COLLATION statement
+    pub fn parse_drop_collation_statement(
+        &mut self,
+    ) -> Result<ast::DropCollationStmt, ParseError> {
+        advanced_objects::parse_drop_collation(self)
+    }
+
+    /// Parse CREATE CHARACTER SET statement
+    pub fn parse_create_character_set_statement(
+        &mut self,
+    ) -> Result<ast::CreateCharacterSetStmt, ParseError> {
+        advanced_objects::parse_create_character_set(self)
+    }
+
+    /// Parse DROP CHARACTER SET statement
+    pub fn parse_drop_character_set_statement(
+        &mut self,
+    ) -> Result<ast::DropCharacterSetStmt, ParseError> {
+        advanced_objects::parse_drop_character_set(self)
+    }
+
+    /// Parse CREATE TRANSLATION statement
+    pub fn parse_create_translation_statement(
+        &mut self,
+    ) -> Result<ast::CreateTranslationStmt, ParseError> {
+        advanced_objects::parse_create_translation(self)
+    }
+
+    /// Parse DROP TRANSLATION statement
+    pub fn parse_drop_translation_statement(
+        &mut self,
+    ) -> Result<ast::DropTranslationStmt, ParseError> {
+        advanced_objects::parse_drop_translation(self)
     }
 }

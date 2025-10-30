@@ -127,6 +127,13 @@ pub enum Keyword {
     // REVOKE keywords
     Revoke,
     Granted,
+    // Advanced SQL object keywords
+    Domain,
+    Sequence,
+    Type,
+    Collation,
+    Character,
+    Translation,
 }
 
 impl fmt::Display for Keyword {
@@ -240,6 +247,12 @@ impl fmt::Display for Keyword {
             Keyword::Option => "OPTION",
             Keyword::Revoke => "REVOKE",
             Keyword::Granted => "GRANTED",
+            Keyword::Domain => "DOMAIN",
+            Keyword::Sequence => "SEQUENCE",
+            Keyword::Type => "TYPE",
+            Keyword::Collation => "COLLATION",
+            Keyword::Character => "CHARACTER",
+            Keyword::Translation => "TRANSLATION",
         };
         write!(f, "{}", keyword_str)
     }
