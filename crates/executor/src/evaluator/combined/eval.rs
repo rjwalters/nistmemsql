@@ -153,21 +153,6 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 }
             }
 
-            // TRIM expression
-            ast::Expression::Trim { position, removal_char, string } => {
-                // Evaluate the string expression
-                let string_value = self.eval(string, row)?;
-
-                // Evaluate optional removal_char (defaults to space)
-                let char_to_remove = if let Some(char_expr) = removal_char {
-                    self.eval(char_expr, row)?
-                } else {
-                    types::SqlValue::Varchar(" ".to_string())
-                };
-
-                // Call TRIM function with position and character
-                self.eval_trim(position, &char_to_remove, &string_value)
-            }
 
             // Unsupported expressions
             _ => Err(ExecutorError::UnsupportedExpression(format!("{:?}", expr))),
