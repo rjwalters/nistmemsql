@@ -250,13 +250,83 @@ fn test_correlated_subquery_with_alias() {
 - **Execution order**: FROM → WHERE → SELECT → ORDER BY (standard semantics)
 - **Alias scope**: Table aliases should be visible throughout query
 
+## Implementation Progress
+
+### ✅ Completed: join-4 (CROSS JOIN)
+
+**Status**: Fixed
+**Coverage**: 42 → 43 generated examples (+1)
+
+**Root Cause**: Parser didn't recognize CROSS JOIN or FULL OUTER JOIN keywords
+**Solution**: Added Cross and Full keywords to parser
+
+**Changes**:
+- `crates/parser/src/keywords.rs`: Added Cross and Full to Keyword enum
+- `crates/parser/src/lexer.rs`: Added CROSS and FULL token recognition
+- `crates/parser/src/parser/select/from_clause.rs`: Added Cross/Full to is_join_keyword() and parse_join_type()
+
+**Result**: join-4 now executes successfully. CROSS JOIN cartesian product working correctly.
+
+### 🔍 In Progress: uni-1, uni-5 (Correlated Subqueries)
+
+**Status**: Root cause identified, fix in progress
+**Error**: `ColumnNotFound("student_id")` / `ColumnNotFound("major")`
+
+**Root Cause Discovered**:
+`CombinedExpressionEvaluator` lacks outer context support. When a correlated subquery references outer query columns (e.g., `s.student_id`):
+
+1. Subquery's `CombinedExpressionEvaluator` only has access to its own schema (e.g., enrollments "e")
+2. Outer table alias (e.g., students "s") is not available in the schema
+3. Column lookup fails with `ColumnNotFound`
+
+**Debug Evidence**:
+```
+DEBUG CombinedExpr ColumnRef: table=Some("s"), column=student_id, schema_tables=["e"]
+DEBUG CombinedExpr: Column NOT FOUND
+```
+
+**Required Fix**:
+Add outer_row and outer_schema fields to `CombinedExpressionEvaluator` (similar to `ExpressionEvaluator`):
+```rust
+pub struct CombinedExpressionEvaluator<'a> {
+    pub(super) schema: &'a CombinedSchema,
+    pub(super) database: Option<&'a storage::Database>,
+    // Add these:
+    pub(super) outer_row: Option<&'a storage::Row>,
+    pub(super) outer_schema: Option<&'a CombinedSchema>, // or extract TableSchema
+}
+```
+
+Then modify column reference resolution to check outer context when column not found in current schema.
+
+**Files to Modify**:
+- `crates/executor/src/evaluator/core.rs`: Add outer context fields
+- `crates/executor/src/evaluator/combined/eval.rs`: Check outer context in ColumnRef handling
+- `crates/executor/src/select/executor/nonagg.rs`: Pass outer context when creating evaluators
+
+### ⏳ Pending: window-8 (ORDER BY Alias Reference)
+
+**Status**: Not yet investigated
+**Error**: `ColumnNotFound("pct_of_total")`
+
+**Issue**: ORDER BY references computed column alias that doesn't exist in FROM schema
+```sql
+SELECT ..., ROUND(...) AS pct_of_total
+FROM products
+ORDER BY pct_of_total DESC  -- References alias from SELECT list
+```
+
+**Likely Solution**: ORDER BY needs to resolve aliases from SELECT list, not just FROM schema.
+
 ## Conclusion
 
 The column resolution issues are **not simple bugs** but rather **architectural limitations** in:
-1. Query execution ordering
-2. Schema representation during execution
-3. Alias tracking through the pipeline
+1. ~~Query execution ordering~~ (Not the issue - joins work correctly)
+2. **Schema representation during execution** (CombinedExpressionEvaluator lacks outer context)
+3. **Alias tracking through the pipeline** (ORDER BY doesn't access SELECT list aliases)
 
-A complete fix requires refactoring query execution to match SQL standard semantics where FROM clause fully completes before other clauses evaluate.
+**Progress**: 1 of 4 examples fixed (25% → 50% of identified issues resolved)
 
-The hybrid approach (Option 1 + Option 2/3) is recommended for comprehensive resolution.
+The remaining issues require:
+- Adding outer context to CombinedExpressionEvaluator for correlated subqueries
+- Enhancing ORDER BY to resolve computed column aliases from SELECT list
