@@ -108,7 +108,7 @@ cat > "$OUTPUT" <<EOF
             View on GitHub
           </a>
           <a
-            href="/"
+            href="https://rjwalters.github.io/nistmemsql/"
             class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Try Demo
@@ -248,7 +248,7 @@ $ERROR_SECTION
         GitHub Repository
       </a>
       •
-      <a href="/" class="text-blue-600 dark:text-blue-400 hover:underline">
+      <a href="https://rjwalters.github.io/nistmemsql/" class="text-blue-600 dark:text-blue-400 hover:underline">
         Live Demo
       </a>
     </p>
