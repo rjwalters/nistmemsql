@@ -173,9 +173,7 @@ fn test_parse_select_current_date() {
                 ast::SelectItem::Expression { expr, alias } => {
                     assert!(alias.is_none());
                     match expr {
-                        ast::Expression::CurrentDate => {
-                            // CURRENT_DATE is now a dedicated expression variant
-                        }
+                        ast::Expression::CurrentDate => {}
                         _ => panic!("Expected CurrentDate, got {:?}", expr),
                     }
                 }
@@ -201,7 +199,6 @@ fn test_parse_select_current_time() {
                     assert!(alias.is_none());
                     match expr {
                         ast::Expression::CurrentTime { precision } => {
-                            // CURRENT_TIME is now a dedicated expression variant with optional precision
                             assert_eq!(*precision, None);
                         }
                         _ => panic!("Expected CurrentTime, got {:?}", expr),
@@ -229,7 +226,6 @@ fn test_parse_select_current_timestamp() {
                     assert!(alias.is_none());
                     match expr {
                         ast::Expression::CurrentTimestamp { precision } => {
-                            // CURRENT_TIMESTAMP is now a dedicated expression variant with optional precision
                             assert_eq!(*precision, None);
                         }
                         _ => panic!("Expected CurrentTimestamp, got {:?}", expr),

@@ -13,6 +13,9 @@
 //! - `aggregate_edge_case_tests`: Decimal precision, mixed types, CASE expressions
 //! - `aggregate_distinct`: DISTINCT aggregation tests
 //! - `select_joins`: JOIN operation tests
+//! - `scalar_subquery_basic_tests`: Basic scalar subquery execution tests
+//! - `scalar_subquery_error_tests`: Scalar subquery error handling tests
+//! - `scalar_subquery_correlated_tests`: Correlated scalar subquery tests
 //! - `error_display`: ExecutorError Display implementation tests
 //! - `comparison_ops`: Comparison operator tests
 //! - `between_predicates`: BETWEEN predicate execution tests
@@ -30,6 +33,9 @@ mod error_display;
 mod expression_eval;
 mod join_aggregation;
 mod limit_offset;
+mod scalar_subquery_basic_tests;
+mod scalar_subquery_error_tests;
+mod scalar_subquery_correlated_tests;
 mod select_basic;
 mod select_distinct;
 mod select_joins;
