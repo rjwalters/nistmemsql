@@ -51,13 +51,7 @@ pub fn parse_grant(parser: &mut crate::Parser) -> Result<GrantStmt, ParseError> 
         false
     };
 
-    Ok(GrantStmt {
-        privileges,
-        object_type,
-        object_name,
-        grantees,
-        with_grant_option,
-    })
+    Ok(GrantStmt { privileges, object_type, object_name, grantees, with_grant_option })
 }
 
 /// Parse a comma-separated list of privileges

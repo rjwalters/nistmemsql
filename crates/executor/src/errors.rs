@@ -9,6 +9,7 @@ pub enum ExecutorError {
     SchemaNotEmpty(String),
     RoleNotFound(String),
     DependentPrivilegesExist(String),
+    PermissionDenied { role: String, privilege: String, object: String },
     ColumnIndexOutOfBounds { index: usize },
     TypeMismatch { left: types::SqlValue, op: String, right: types::SqlValue },
     DivisionByZero,
@@ -42,6 +43,13 @@ impl std::fmt::Display for ExecutorError {
             ExecutorError::RoleNotFound(name) => write!(f, "Role '{}' not found", name),
             ExecutorError::DependentPrivilegesExist(msg) => {
                 write!(f, "Dependent privileges exist: {}", msg)
+            }
+            ExecutorError::PermissionDenied { role, privilege, object } => {
+                write!(
+                    f,
+                    "Permission denied: role '{}' lacks {} privilege on {}",
+                    role, privilege, object
+                )
             }
             ExecutorError::ColumnIndexOutOfBounds { index } => {
                 write!(f, "Column index {} out of bounds", index)

@@ -8,6 +8,7 @@
 use std::collections::HashMap;
 
 use crate::errors::ExecutorError;
+use crate::privilege_checker::PrivilegeChecker;
 use crate::schema::CombinedSchema;
 
 use super::cte::CteResult;
@@ -70,6 +71,9 @@ fn execute_table_scan(
         let rows = cte_rows.clone();
         Ok(FromResult { schema, rows })
     } else {
+        // Check SELECT privilege on the table
+        PrivilegeChecker::check_select(database, table_name)?;
+
         // Use database table
         let table = database
             .get_table(table_name)

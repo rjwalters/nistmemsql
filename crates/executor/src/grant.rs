@@ -47,10 +47,7 @@ impl GrantExecutor {
                     PrivilegeType::Delete,
                     PrivilegeType::References,
                 ],
-                ObjectType::Schema => vec![
-                    PrivilegeType::Usage,
-                    PrivilegeType::Create,
-                ],
+                ObjectType::Schema => vec![PrivilegeType::Usage, PrivilegeType::Create],
             }
         } else {
             stmt.privileges.clone()

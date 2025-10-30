@@ -5,6 +5,7 @@ use storage::Database;
 
 use crate::errors::ExecutorError;
 use crate::evaluator::ExpressionEvaluator;
+use crate::privilege_checker::PrivilegeChecker;
 
 use super::integrity::check_no_child_references;
 
@@ -72,6 +73,9 @@ impl DeleteExecutor {
     /// assert_eq!(count, 1);
     /// ```
     pub fn execute(stmt: &DeleteStmt, database: &mut Database) -> Result<usize, ExecutorError> {
+        // Check DELETE privilege on the table
+        PrivilegeChecker::check_delete(database, &stmt.table_name)?;
+
         // Check table exists
         if !database.catalog.table_exists(&stmt.table_name) {
             return Err(ExecutorError::TableNotFound(stmt.table_name.clone()));

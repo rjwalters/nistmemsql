@@ -5,6 +5,7 @@ use catalog::{ColumnSchema, TableSchema};
 use storage::Database;
 
 use crate::errors::ExecutorError;
+use crate::privilege_checker::PrivilegeChecker;
 
 /// Executor for CREATE TABLE statements
 pub struct CreateTableExecutor;
@@ -62,6 +63,9 @@ impl CreateTableExecutor {
             } else {
                 (database.catalog.get_current_schema().to_string(), stmt.table_name.clone())
             };
+
+        // Check CREATE privilege on the schema
+        PrivilegeChecker::check_create(database, &schema_name)?;
 
         // Check if table already exists in the target schema
         let qualified_name = format!("{}.{}", schema_name, table_name);

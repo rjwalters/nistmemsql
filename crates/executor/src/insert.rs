@@ -1,4 +1,5 @@
 use crate::errors::ExecutorError;
+use crate::privilege_checker::PrivilegeChecker;
 
 /// Executor for INSERT statements
 pub struct InsertExecutor;
@@ -10,6 +11,9 @@ impl InsertExecutor {
         db: &mut storage::Database,
         stmt: &ast::InsertStmt,
     ) -> Result<usize, ExecutorError> {
+        // Check INSERT privilege on the table
+        PrivilegeChecker::check_insert(db, &stmt.table_name)?;
+
         // Get table schema from catalog (clone to avoid borrow issues)
         let schema = db
             .catalog

@@ -4,6 +4,7 @@ use ast::DropTableStmt;
 use storage::Database;
 
 use crate::errors::ExecutorError;
+use crate::privilege_checker::PrivilegeChecker;
 
 /// Executor for DROP TABLE statements
 pub struct DropTableExecutor;
@@ -64,6 +65,9 @@ impl DropTableExecutor {
         if !table_exists {
             return Err(ExecutorError::TableNotFound(stmt.table_name.clone()));
         }
+
+        // Check DROP privilege on the table
+        PrivilegeChecker::check_drop(database, &stmt.table_name)?;
 
         // Drop the table from storage (this also removes from catalog)
         database

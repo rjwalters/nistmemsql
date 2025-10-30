@@ -247,11 +247,9 @@ impl Catalog {
         privilege: &ast::PrivilegeType,
     ) -> bool {
         // Check if the grantee has granted this privilege to others
-        self.privilege_grants.iter().any(|g| {
-            g.object == object
-                && g.grantor == grantee
-                && g.privilege == *privilege
-        })
+        self.privilege_grants
+            .iter()
+            .any(|g| g.object == object && g.grantor == grantee && g.privilege == *privilege)
     }
 
     // ============================================================================

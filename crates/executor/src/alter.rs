@@ -1,6 +1,7 @@
 //! ALTER TABLE executor
 
 use crate::errors::ExecutorError;
+use crate::privilege_checker::PrivilegeChecker;
 use ast::*;
 use catalog::ColumnSchema;
 use storage::Database;
@@ -15,6 +16,21 @@ impl AlterTableExecutor {
         stmt: &AlterTableStmt,
         database: &mut Database,
     ) -> Result<String, ExecutorError> {
+        // Get table name from the statement and check ALTER privilege
+        let table_name = match stmt {
+            AlterTableStmt::AddColumn(s) => &s.table_name,
+            AlterTableStmt::DropColumn(s) => &s.table_name,
+            AlterTableStmt::AlterColumn(s) => match s {
+                AlterColumnStmt::SetDefault { table_name, .. } => table_name,
+                AlterColumnStmt::DropDefault { table_name, .. } => table_name,
+                AlterColumnStmt::SetNotNull { table_name, .. } => table_name,
+                AlterColumnStmt::DropNotNull { table_name, .. } => table_name,
+            },
+            AlterTableStmt::AddConstraint(s) => &s.table_name,
+            AlterTableStmt::DropConstraint(s) => &s.table_name,
+        };
+        PrivilegeChecker::check_alter(database, table_name)?;
+
         match stmt {
             AlterTableStmt::AddColumn(add_column) => Self::execute_add_column(add_column, database),
             AlterTableStmt::DropColumn(drop_column) => {
