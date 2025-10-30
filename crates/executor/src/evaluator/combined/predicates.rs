@@ -100,6 +100,92 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         Ok(types::SqlValue::Boolean(result))
     }
 
+    /// Evaluate TRIM expression: TRIM([position] [removal_char FROM] string)
+    pub(super) fn eval_trim(
+        &self,
+        position: &Option<ast::TrimPosition>,
+        removal_char: &Option<Box<ast::Expression>>,
+        string: &ast::Expression,
+        row: &storage::Row,
+    ) -> Result<types::SqlValue, ExecutorError> {
+        let string_val = self.eval(string, row)?;
+
+        // Handle NULL string
+        if matches!(string_val, types::SqlValue::Null) {
+            return Ok(types::SqlValue::Null);
+        }
+
+        // Extract the string value
+        let s = match &string_val {
+            types::SqlValue::Varchar(s) | types::SqlValue::Character(s) => s.as_str(),
+            _ => {
+                return Err(ExecutorError::TypeMismatch {
+                    left: string_val.clone(),
+                    op: "TRIM".to_string(),
+                    right: types::SqlValue::Null,
+                })
+            }
+        };
+
+        // Determine the character(s) to remove
+        let char_to_remove: String = if let Some(removal_expr) = removal_char {
+            let removal_val = self.eval(removal_expr, row)?;
+
+            // Handle NULL removal character
+            if matches!(removal_val, types::SqlValue::Null) {
+                return Ok(types::SqlValue::Null);
+            }
+
+            match removal_val {
+                types::SqlValue::Varchar(c) | types::SqlValue::Character(c) => c,
+                _ => {
+                    return Err(ExecutorError::TypeMismatch {
+                        left: removal_val.clone(),
+                        op: "TRIM".to_string(),
+                        right: string_val.clone(),
+                    })
+                }
+            }
+        } else {
+            " ".to_string() // Default to space
+        };
+
+        let char_to_remove_str = char_to_remove.as_str();
+
+        // Apply trimming based on position (default is Both)
+        let result = match position.as_ref().unwrap_or(&ast::TrimPosition::Both) {
+            ast::TrimPosition::Both => {
+                // Trim from both sides
+                let mut result = s;
+                while result.starts_with(char_to_remove_str) && !result.is_empty() {
+                    result = &result[char_to_remove_str.len()..];
+                }
+                while result.ends_with(char_to_remove_str) && !result.is_empty() {
+                    result = &result[..result.len() - char_to_remove_str.len()];
+                }
+                result.to_string()
+            }
+            ast::TrimPosition::Leading => {
+                // Trim from start only
+                let mut result = s;
+                while result.starts_with(char_to_remove_str) && !result.is_empty() {
+                    result = &result[char_to_remove_str.len()..];
+                }
+                result.to_string()
+            }
+            ast::TrimPosition::Trailing => {
+                // Trim from end only
+                let mut result = s;
+                while result.ends_with(char_to_remove_str) && !result.is_empty() {
+                    result = &result[..result.len() - char_to_remove_str.len()];
+                }
+                result.to_string()
+            }
+        };
+
+        Ok(types::SqlValue::Varchar(result))
+    }
+
     /// Evaluate IN operator with value list: expr IN (val1, val2, ...)
     /// SQL:1999 Section 8.4: IN predicate
     /// Returns TRUE if expr equals any value in the list
