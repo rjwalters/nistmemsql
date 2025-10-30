@@ -14,16 +14,24 @@ pub(super) type RowWithSortKeys = (storage::Row, Option<Vec<(types::SqlValue, as
 ///
 /// Evaluates ORDER BY expressions for each row and sorts them according to the specified
 /// directions (ASC/DESC). Supports multi-column sorting with stable sort behavior.
+///
+/// ORDER BY can reference:
+/// - Columns from the FROM clause
+/// - Aliases from the SELECT list
+/// - Arbitrary expressions
 pub(super) fn apply_order_by(
     mut rows: Vec<RowWithSortKeys>,
     order_by: &[ast::OrderByItem],
     evaluator: &CombinedExpressionEvaluator,
+    select_list: &[ast::SelectItem],
 ) -> Result<Vec<RowWithSortKeys>, ExecutorError> {
     // Evaluate ORDER BY expressions for each row
     for (row, sort_keys) in &mut rows {
         let mut keys = Vec::new();
         for order_item in order_by {
-            let key_value = evaluator.eval(&order_item.expr, row)?;
+            // Check if ORDER BY expression is a SELECT list alias
+            let expr_to_eval = resolve_order_by_alias(&order_item.expr, select_list);
+            let key_value = evaluator.eval(expr_to_eval, row)?;
             keys.push((key_value, order_item.direction.clone()));
         }
         *sort_keys = Some(keys);
@@ -48,4 +56,30 @@ pub(super) fn apply_order_by(
     });
 
     Ok(rows)
+}
+
+/// Resolve ORDER BY expression that might be a SELECT list alias
+///
+/// If the ORDER BY expression is a simple column reference (without table qualifier)
+/// and it matches a SELECT list alias, return the SELECT list expression.
+/// Otherwise, return the original ORDER BY expression.
+fn resolve_order_by_alias<'a>(
+    order_expr: &'a ast::Expression,
+    select_list: &'a [ast::SelectItem],
+) -> &'a ast::Expression {
+    // Check if ORDER BY expression is a simple column reference (no table qualifier)
+    if let ast::Expression::ColumnRef { table: None, column } = order_expr {
+        // Search for matching alias in SELECT list
+        for item in select_list {
+            if let ast::SelectItem::Expression { expr, alias: Some(alias_name) } = item {
+                if alias_name == column {
+                    // Found matching alias, use the SELECT list expression
+                    return expr;
+                }
+            }
+        }
+    }
+
+    // Not an alias or no match found, use the original expression
+    order_expr
 }

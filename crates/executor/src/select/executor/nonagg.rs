@@ -61,7 +61,7 @@ impl<'a> SelectExecutor<'a> {
 
         // Apply ORDER BY sorting if present
         if let Some(order_by) = &stmt.order_by {
-            result_rows = apply_order_by(result_rows, order_by, &evaluator)?;
+            result_rows = apply_order_by(result_rows, order_by, &evaluator, &stmt.select_list)?;
         }
 
         // Project columns from the sorted rows
