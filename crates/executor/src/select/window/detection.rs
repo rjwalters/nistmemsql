@@ -1,0 +1,38 @@
+//! Window function detection helpers
+
+use ast::{Expression, SelectItem};
+
+/// Check if SELECT list contains any window functions
+pub(in crate::select) fn has_window_functions(select_list: &[SelectItem]) -> bool {
+    select_list.iter().any(|item| match item {
+        SelectItem::Expression { expr, .. } => expression_has_window_function(expr),
+        SelectItem::Wildcard => false,
+    })
+}
+
+/// Check if an expression contains a window function
+pub(in crate::select) fn expression_has_window_function(expr: &Expression) -> bool {
+    match expr {
+        Expression::WindowFunction { .. } => true,
+        Expression::BinaryOp { left, right, .. } => {
+            expression_has_window_function(left) || expression_has_window_function(right)
+        }
+        Expression::UnaryOp { expr, .. } => expression_has_window_function(expr),
+        Expression::Function { args, .. } => {
+            args.iter().any(|arg| expression_has_window_function(arg))
+        }
+        Expression::Case {
+            when_clauses,
+            else_result,
+            ..
+        } => {
+            when_clauses.iter().any(|when_clause| {
+                when_clause.conditions.iter().any(|cond| expression_has_window_function(cond))
+                    || expression_has_window_function(&when_clause.result)
+            }) || else_result
+                .as_ref()
+                .map_or(false, |e| expression_has_window_function(e))
+        }
+        _ => false,
+    }
+}
