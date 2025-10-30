@@ -1549,3 +1549,82 @@ use ast;
         let table = db.get_table("test_cv_nolen").unwrap();
         assert_eq!(table.row_count(), 1);
     }
+
+    #[test]
+    fn test_insert_with_default_value() {
+        let mut db = storage::Database::new();
+
+        // CREATE TABLE users (id INT DEFAULT 999, name VARCHAR(50))
+        let mut id_column = catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false);
+        id_column.default_value = Some(ast::Expression::Literal(types::SqlValue::Integer(999)));
+
+        let schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![
+                id_column,
+                catalog::ColumnSchema::new(
+                    "name".to_string(),
+                    types::DataType::Varchar { max_length: Some(50) },
+                    false,
+                ),
+            ],
+        );
+        db.create_table(schema).unwrap();
+
+        // INSERT INTO users (id, name) VALUES (DEFAULT, 'Alice')
+        let stmt = ast::InsertStmt {
+            table_name: "users".to_string(),
+            columns: vec!["id".to_string(), "name".to_string()],
+            source: ast::InsertSource::Values(vec![vec![
+                ast::Expression::Default,
+                ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
+            ]]),
+        };
+
+        let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
+        assert_eq!(rows, 1);
+
+        // Verify default value was used
+        let table = db.get_table("users").unwrap();
+        let row = &table.scan()[0];
+        assert_eq!(row.get(0), Some(&types::SqlValue::Integer(999)));
+        assert_eq!(row.get(1), Some(&types::SqlValue::Varchar("Alice".to_string())));
+    }
+
+    #[test]
+    fn test_insert_default_no_default_value_defined() {
+        let mut db = storage::Database::new();
+
+        // CREATE TABLE users (id INT, name VARCHAR(50)) -- no default for id
+        let schema = catalog::TableSchema::new(
+            "users".to_string(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, true), // nullable
+                catalog::ColumnSchema::new(
+                    "name".to_string(),
+                    types::DataType::Varchar { max_length: Some(50) },
+                    false,
+                ),
+            ],
+        );
+        db.create_table(schema).unwrap();
+
+        // INSERT INTO users (id, name) VALUES (DEFAULT, 'Alice')
+        let stmt = ast::InsertStmt {
+            table_name: "users".to_string(),
+            columns: vec!["id".to_string(), "name".to_string()],
+            source: ast::InsertSource::Values(vec![vec![
+                ast::Expression::Default,
+                ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
+            ]]),
+        };
+
+        let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
+        assert_eq!(rows, 1);
+
+        // Verify NULL was used when no default is defined
+        let table = db.get_table("users").unwrap();
+        let row = &table.scan()[0];
+        assert_eq!(row.get(0), Some(&types::SqlValue::Null));
+        assert_eq!(row.get(1), Some(&types::SqlValue::Varchar("Alice".to_string())));
+    }

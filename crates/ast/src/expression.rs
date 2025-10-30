@@ -9,6 +9,10 @@ pub enum Expression {
     /// Literal value (42, 'hello', TRUE, NULL)
     Literal(SqlValue),
 
+    /// DEFAULT keyword (used in INSERT VALUES and UPDATE SET)
+    /// Represents the column's default value
+    Default,
+
     /// Column reference (id, users.id)
     ColumnRef { table: Option<String>, column: String },
 

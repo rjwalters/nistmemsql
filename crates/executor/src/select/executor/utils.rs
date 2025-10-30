@@ -7,6 +7,7 @@ impl<'a> SelectExecutor<'a> {
     pub(super) fn expression_references_column(&self, expr: &ast::Expression) -> bool {
         match expr {
             ast::Expression::ColumnRef { .. } => true,
+            ast::Expression::Default => false, // DEFAULT doesn't reference columns
 
             ast::Expression::BinaryOp { left, right, .. } => {
                 self.expression_references_column(left) || self.expression_references_column(right)

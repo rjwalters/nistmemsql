@@ -35,6 +35,7 @@ impl CombinedSchema {
                 name,
                 data_type,
                 nullable: true, // Derived table columns are always nullable
+                default_value: None, // Derived table columns have no defaults
             })
             .collect();
 

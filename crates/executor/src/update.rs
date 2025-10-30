@@ -115,8 +115,30 @@ impl UpdateExecutor {
                         .get_column_index(&assignment.column)
                         .ok_or_else(|| ExecutorError::ColumnNotFound(assignment.column.clone()))?;
 
-                    // Evaluate new value expression against ORIGINAL row
-                    let new_value = evaluator.eval(&assignment.value, row)?;
+                    // Evaluate new value expression
+                    // Handle DEFAULT specially before evaluating other expressions
+                    let new_value = match &assignment.value {
+                        ast::Expression::Default => {
+                            // Use column's default value, or NULL if no default is defined
+                            let column = &schema.columns[col_index];
+                            if let Some(default_expr) = &column.default_value {
+                                // Evaluate the default expression (currently only supports literals)
+                                match default_expr {
+                                    ast::Expression::Literal(lit) => lit.clone(),
+                                    _ => return Err(ExecutorError::UnsupportedExpression(
+                                        format!("Complex default expressions not yet supported for column '{}'", column.name)
+                                    ))
+                                }
+                            } else {
+                                // No default value defined, use NULL
+                                types::SqlValue::Null
+                            }
+                        }
+                        _ => {
+                            // Evaluate other expressions against ORIGINAL row
+                            evaluator.eval(&assignment.value, row)?
+                        }
+                    };
 
                     // Update column in new row
                     new_row

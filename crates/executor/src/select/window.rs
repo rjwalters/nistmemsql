@@ -447,6 +447,7 @@ fn collect_window_functions_from_expression(
         Expression::WindowFunction { function, over } => {
             window_functions.push((function.clone(), over.clone()));
         }
+        Expression::Default => {} // DEFAULT has no window functions
         Expression::BinaryOp { left, right, .. } => {
             collect_window_functions_from_expression(left, window_functions);
             collect_window_functions_from_expression(right, window_functions);
