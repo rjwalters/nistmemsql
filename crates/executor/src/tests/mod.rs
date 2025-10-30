@@ -6,15 +6,24 @@
 //! - `select_basic`: Basic SELECT tests (wildcards, columns, ORDER BY)
 //! - `select_where`: WHERE clause filtering tests
 //! - `select_distinct`: DISTINCT keyword tests for duplicate removal
-//! - `aggregates`: Aggregate functions (COUNT, SUM, GROUP BY, HAVING)
+//! - `aggregate_count_sum_avg_tests`: COUNT, SUM, AVG functions with NULL handling
+//! - `aggregate_min_max_tests`: MIN, MAX functions on integers and strings
+//! - `aggregate_group_by_tests`: GROUP BY clause with aggregates
+//! - `aggregate_having_tests`: HAVING clause filtering
+//! - `aggregate_edge_case_tests`: Decimal precision, mixed types, CASE expressions
+//! - `aggregate_distinct`: DISTINCT aggregation tests
 //! - `select_joins`: JOIN operation tests
 //! - `scalar_subqueries`: Scalar subquery execution tests
 //! - `error_display`: ExecutorError Display implementation tests
 //! - `comparison_ops`: Comparison operator tests
 //! - `between_predicates`: BETWEEN predicate execution tests
 
+mod aggregate_count_sum_avg_tests;
 mod aggregate_distinct;
-mod aggregates;
+mod aggregate_edge_case_tests;
+mod aggregate_group_by_tests;
+mod aggregate_having_tests;
+mod aggregate_min_max_tests;
 mod between_predicates;
 mod case_bug;
 mod comparison_ops;
