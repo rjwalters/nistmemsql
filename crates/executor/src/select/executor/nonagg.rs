@@ -18,10 +18,13 @@ impl<'a> SelectExecutor<'a> {
         from_result: FromResult,
     ) -> Result<Vec<storage::Row>, ExecutorError> {
         let FromResult { schema, rows } = from_result;
+        eprintln!("DEBUG NONAGG: schema keys={:?}, row count={}", schema.table_schemas.keys().collect::<Vec<_>>(), rows.len());
         let evaluator = CombinedExpressionEvaluator::with_database(&schema, self.database);
 
         // Apply WHERE clause filter
+        eprintln!("DEBUG NONAGG: About to apply WHERE filter");
         let mut filtered_rows = apply_where_filter_combined(rows, stmt.where_clause.as_ref(), &evaluator)?;
+        eprintln!("DEBUG NONAGG: WHERE filter complete, {} rows", filtered_rows.len());
 
         // Check if SELECT list has window functions
         let has_windows = has_window_functions(&stmt.select_list);
