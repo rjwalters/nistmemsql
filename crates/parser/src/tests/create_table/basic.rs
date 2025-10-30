@@ -12,10 +12,10 @@ fn test_parse_create_table_basic() {
 
     match stmt {
         ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "users");
+            assert_eq!(create.table_name, "USERS");
             assert_eq!(create.columns.len(), 2);
-            assert_eq!(create.columns[0].name, "id");
-            assert_eq!(create.columns[1].name, "name");
+            assert_eq!(create.columns[0].name, "ID");
+            assert_eq!(create.columns[1].name, "NAME");
             match create.columns[0].data_type {
                 types::DataType::Integer => {} // Success
                 _ => panic!("Expected Integer data type"),
@@ -38,7 +38,7 @@ fn test_parse_create_table_various_types() {
 
     match stmt {
         ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "test");
+            assert_eq!(create.table_name, "TEST");
             assert_eq!(create.columns.len(), 4);
             match create.columns[0].data_type {
                 types::DataType::Integer => {} // Success

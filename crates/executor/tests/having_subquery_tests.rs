@@ -11,18 +11,18 @@ fn setup_test_database() -> storage::Database {
 
     // Sales table
     let sales_schema = catalog::TableSchema::new(
-        "sales".to_string(),
+        "SALES".to_string(),
         vec![
-            catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("dept".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("amount".to_string(), types::DataType::Integer, false),
+            catalog::ColumnSchema::new("ID".to_string(), types::DataType::Integer, false),
+            catalog::ColumnSchema::new("DEPT".to_string(), types::DataType::Integer, false),
+            catalog::ColumnSchema::new("AMOUNT".to_string(), types::DataType::Integer, false),
         ],
     );
     db.create_table(sales_schema).unwrap();
 
     // Insert sales data
     db.insert_row(
-        "sales",
+        "SALES",
         storage::Row::new(vec![
             types::SqlValue::Integer(1),
             types::SqlValue::Integer(1), // dept 1
@@ -31,7 +31,7 @@ fn setup_test_database() -> storage::Database {
     )
     .unwrap();
     db.insert_row(
-        "sales",
+        "SALES",
         storage::Row::new(vec![
             types::SqlValue::Integer(2),
             types::SqlValue::Integer(1), // dept 1
@@ -40,7 +40,7 @@ fn setup_test_database() -> storage::Database {
     )
     .unwrap();
     db.insert_row(
-        "sales",
+        "SALES",
         storage::Row::new(vec![
             types::SqlValue::Integer(3),
             types::SqlValue::Integer(2), // dept 2
@@ -49,7 +49,7 @@ fn setup_test_database() -> storage::Database {
     )
     .unwrap();
     db.insert_row(
-        "sales",
+        "SALES",
         storage::Row::new(vec![
             types::SqlValue::Integer(4),
             types::SqlValue::Integer(2), // dept 2
@@ -58,7 +58,7 @@ fn setup_test_database() -> storage::Database {
     )
     .unwrap();
     db.insert_row(
-        "sales",
+        "SALES",
         storage::Row::new(vec![
             types::SqlValue::Integer(5),
             types::SqlValue::Integer(3), // dept 3
@@ -69,11 +69,11 @@ fn setup_test_database() -> storage::Database {
 
     // Targets table for comparison
     let targets_schema = catalog::TableSchema::new(
-        "targets".to_string(),
+        "TARGETS".to_string(),
         vec![
-            catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+            catalog::ColumnSchema::new("ID".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new(
-                "target_amount".to_string(),
+                "TARGET_AMOUNT".to_string(),
                 types::DataType::Integer,
                 false,
             ),
@@ -83,7 +83,7 @@ fn setup_test_database() -> storage::Database {
 
     // Insert target data
     db.insert_row(
-        "targets",
+        "TARGETS",
         storage::Row::new(vec![types::SqlValue::Integer(1), types::SqlValue::Integer(200)]),
     )
     .unwrap();

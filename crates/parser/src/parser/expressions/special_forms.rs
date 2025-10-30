@@ -64,12 +64,8 @@ impl Parser {
                     Ok(Some(ast::Expression::Function {
                         name: function_name.to_string(),
                         args: vec![],
-<<<<<<< HEAD
-                    }))
-=======
                         character_unit: None,
-                    }));
->>>>>>> origin/main
+                    }))
                 } else {
                     Err(ParseError {
                         message: format!(

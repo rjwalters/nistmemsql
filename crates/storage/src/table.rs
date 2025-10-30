@@ -59,12 +59,7 @@ impl Table {
     /// - Truncate if too long
     fn normalize_char_value(value: &str, length: usize) -> String {
         use std::cmp::Ordering;
-<<<<<<< HEAD
-        let current_len = value.len();
-        match current_len.cmp(&length) {
-=======
         match value.len().cmp(&length) {
->>>>>>> origin/main
             Ordering::Less => {
                 // Pad with spaces to the right
                 format!("{:width$}", value, width = length)

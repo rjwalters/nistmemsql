@@ -22,15 +22,15 @@ fn execute_select(db: &Database, sql: &str) -> Result<Vec<Row>, String> {
 
 fn create_users_schema() -> TableSchema {
     TableSchema::new(
-        "users".to_string(),
+        "USERS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "name".to_string(),
+                "NAME".to_string(),
                 DataType::Varchar { max_length: Some(100) },
                 true,
             ),
-            ColumnSchema::new("age".to_string(), DataType::Integer, false),
+            ColumnSchema::new("AGE".to_string(), DataType::Integer, false),
         ],
     )
 }
@@ -65,7 +65,7 @@ fn insert_sample_users(db: &mut Database) {
     ];
 
     for row in rows {
-        db.insert_row("users", row).unwrap();
+        db.insert_row("USERS", row).unwrap();
     }
 }
 
@@ -140,14 +140,14 @@ fn test_e2e_select_with_complex_where() {
 fn test_e2e_distinct() {
     // Create table with duplicate ages
     let schema = TableSchema::new(
-        "people".to_string(),
+        "PEOPLE".to_string(),
         vec![
             ColumnSchema::new(
                 "name".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
-            ColumnSchema::new("age".to_string(), DataType::Integer, false),
+            ColumnSchema::new("AGE".to_string(), DataType::Integer, false),
         ],
     );
 
@@ -156,17 +156,17 @@ fn test_e2e_distinct() {
 
     // Insert rows with duplicate ages
     db.insert_row(
-        "people",
+        "PEOPLE",
         Row::new(vec![SqlValue::Varchar("Alice".to_string()), SqlValue::Integer(25)]),
     )
     .unwrap();
     db.insert_row(
-        "people",
+        "PEOPLE",
         Row::new(vec![SqlValue::Varchar("Bob".to_string()), SqlValue::Integer(30)]),
     )
     .unwrap();
     db.insert_row(
-        "people",
+        "PEOPLE",
         Row::new(vec![SqlValue::Varchar("Charlie".to_string()), SqlValue::Integer(25)]),
     )
     .unwrap();
@@ -180,14 +180,14 @@ fn test_e2e_distinct() {
 #[test]
 fn test_e2e_group_by_count() {
     let schema = TableSchema::new(
-        "sales".to_string(),
+        "SALES".to_string(),
         vec![
             ColumnSchema::new(
-                "product".to_string(),
+                "PRODUCT".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
-            ColumnSchema::new("quantity".to_string(), DataType::Integer, false),
+            ColumnSchema::new("QUANTITY".to_string(), DataType::Integer, false),
         ],
     );
 
@@ -195,17 +195,17 @@ fn test_e2e_group_by_count() {
     db.create_table(schema).unwrap();
 
     db.insert_row(
-        "sales",
+        "SALES",
         Row::new(vec![SqlValue::Varchar("Apple".to_string()), SqlValue::Integer(10)]),
     )
     .unwrap();
     db.insert_row(
-        "sales",
+        "SALES",
         Row::new(vec![SqlValue::Varchar("Banana".to_string()), SqlValue::Integer(5)]),
     )
     .unwrap();
     db.insert_row(
-        "sales",
+        "SALES",
         Row::new(vec![SqlValue::Varchar("Apple".to_string()), SqlValue::Integer(15)]),
     )
     .unwrap();
@@ -251,10 +251,10 @@ fn test_e2e_limit_offset() {
 #[test]
 fn test_e2e_smallint_type() {
     let schema = TableSchema::new(
-        "numbers".to_string(),
+        "NUMBERS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("small_val".to_string(), DataType::Smallint, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("SMALL_VAL".to_string(), DataType::Smallint, false),
         ],
     );
 
@@ -262,9 +262,9 @@ fn test_e2e_smallint_type() {
     db.create_table(schema).unwrap();
 
     // Insert SMALLINT values
-    db.insert_row("numbers", Row::new(vec![SqlValue::Integer(1), SqlValue::Smallint(100)]))
+    db.insert_row("NUMBERS", Row::new(vec![SqlValue::Integer(1), SqlValue::Smallint(100)]))
         .unwrap();
-    db.insert_row("numbers", Row::new(vec![SqlValue::Integer(2), SqlValue::Smallint(-50)]))
+    db.insert_row("NUMBERS", Row::new(vec![SqlValue::Integer(2), SqlValue::Smallint(-50)]))
         .unwrap();
 
     let results = execute_select(&db, "SELECT small_val FROM numbers").unwrap();
@@ -276,10 +276,10 @@ fn test_e2e_smallint_type() {
 #[test]
 fn test_e2e_bigint_type() {
     let schema = TableSchema::new(
-        "numbers".to_string(),
+        "NUMBERS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("big_val".to_string(), DataType::Bigint, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("BIG_VAL".to_string(), DataType::Bigint, false),
         ],
     );
 
@@ -288,12 +288,12 @@ fn test_e2e_bigint_type() {
 
     // Insert BIGINT values
     db.insert_row(
-        "numbers",
+        "NUMBERS",
         Row::new(vec![SqlValue::Integer(1), SqlValue::Bigint(9_223_372_036_854_775_807)]),
     )
     .unwrap();
     db.insert_row(
-        "numbers",
+        "NUMBERS",
         Row::new(vec![SqlValue::Integer(2), SqlValue::Bigint(-9_223_372_036_854_775_808)]),
     )
     .unwrap();
@@ -307,19 +307,19 @@ fn test_e2e_bigint_type() {
 #[test]
 fn test_e2e_float_type() {
     let schema = TableSchema::new(
-        "measurements".to_string(),
+        "MEASUREMENTS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("value".to_string(), DataType::Float { precision: 53 }, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("VALUE".to_string(), DataType::Float { precision: 53 }, false),
         ],
     );
 
     let mut db = Database::new();
     db.create_table(schema).unwrap();
 
-    db.insert_row("measurements", Row::new(vec![SqlValue::Integer(1), SqlValue::Float(3.14)]))
+    db.insert_row("MEASUREMENTS", Row::new(vec![SqlValue::Integer(1), SqlValue::Float(3.14)]))
         .unwrap();
-    db.insert_row("measurements", Row::new(vec![SqlValue::Integer(2), SqlValue::Float(-2.71)]))
+    db.insert_row("MEASUREMENTS", Row::new(vec![SqlValue::Integer(2), SqlValue::Float(-2.71)]))
         .unwrap();
 
     let results = execute_select(&db, "SELECT value FROM measurements").unwrap();
@@ -331,19 +331,19 @@ fn test_e2e_float_type() {
 #[test]
 fn test_e2e_real_type() {
     let schema = TableSchema::new(
-        "measurements".to_string(),
+        "MEASUREMENTS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("value".to_string(), DataType::Real, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("VALUE".to_string(), DataType::Real, false),
         ],
     );
 
     let mut db = Database::new();
     db.create_table(schema).unwrap();
 
-    db.insert_row("measurements", Row::new(vec![SqlValue::Integer(1), SqlValue::Real(1.23)]))
+    db.insert_row("MEASUREMENTS", Row::new(vec![SqlValue::Integer(1), SqlValue::Real(1.23)]))
         .unwrap();
-    db.insert_row("measurements", Row::new(vec![SqlValue::Integer(2), SqlValue::Real(4.56)]))
+    db.insert_row("MEASUREMENTS", Row::new(vec![SqlValue::Integer(2), SqlValue::Real(4.56)]))
         .unwrap();
 
     let results = execute_select(&db, "SELECT value FROM measurements").unwrap();
@@ -355,10 +355,10 @@ fn test_e2e_real_type() {
 #[test]
 fn test_e2e_double_precision_type() {
     let schema = TableSchema::new(
-        "measurements".to_string(),
+        "MEASUREMENTS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("value".to_string(), DataType::DoublePrecision, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("VALUE".to_string(), DataType::DoublePrecision, false),
         ],
     );
 
@@ -366,12 +366,12 @@ fn test_e2e_double_precision_type() {
     db.create_table(schema).unwrap();
 
     db.insert_row(
-        "measurements",
+        "MEASUREMENTS",
         Row::new(vec![SqlValue::Integer(1), SqlValue::Double(3.141592653589793)]),
     )
     .unwrap();
     db.insert_row(
-        "measurements",
+        "MEASUREMENTS",
         Row::new(vec![SqlValue::Integer(2), SqlValue::Double(2.718281828459045)]),
     )
     .unwrap();
@@ -385,11 +385,11 @@ fn test_e2e_double_precision_type() {
 #[test]
 fn test_e2e_numeric_type() {
     let schema = TableSchema::new(
-        "financials".to_string(),
+        "FINANCIALS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "amount".to_string(),
+                "AMOUNT".to_string(),
                 DataType::Numeric { precision: 10, scale: 2 },
                 false,
             ),
@@ -400,12 +400,12 @@ fn test_e2e_numeric_type() {
     db.create_table(schema).unwrap();
 
     db.insert_row(
-        "financials",
+        "FINANCIALS",
         Row::new(vec![SqlValue::Integer(1), SqlValue::Numeric("123.45".to_string())]),
     )
     .unwrap();
     db.insert_row(
-        "financials",
+        "FINANCIALS",
         Row::new(vec![SqlValue::Integer(2), SqlValue::Numeric("999.99".to_string())]),
     )
     .unwrap();
@@ -419,11 +419,11 @@ fn test_e2e_numeric_type() {
 #[test]
 fn test_e2e_decimal_type() {
     let schema = TableSchema::new(
-        "products".to_string(),
+        "PRODUCTS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "price".to_string(),
+                "PRICE".to_string(),
                 DataType::Decimal { precision: 8, scale: 2 },
                 false,
             ),
@@ -434,12 +434,12 @@ fn test_e2e_decimal_type() {
     db.create_table(schema).unwrap();
 
     db.insert_row(
-        "products",
+        "PRODUCTS",
         Row::new(vec![SqlValue::Integer(1), SqlValue::Numeric("19.99".to_string())]),
     )
     .unwrap();
     db.insert_row(
-        "products",
+        "PRODUCTS",
         Row::new(vec![SqlValue::Integer(2), SqlValue::Numeric("49.95".to_string())]),
     )
     .unwrap();
@@ -453,14 +453,14 @@ fn test_e2e_decimal_type() {
 #[test]
 fn test_e2e_all_numeric_types_together() {
     let schema = TableSchema::new(
-        "all_numbers".to_string(),
+        "ALL_NUMBERS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("s".to_string(), DataType::Smallint, false),
-            ColumnSchema::new("b".to_string(), DataType::Bigint, false),
-            ColumnSchema::new("f".to_string(), DataType::Float { precision: 53 }, false),
-            ColumnSchema::new("r".to_string(), DataType::Real, false),
-            ColumnSchema::new("d".to_string(), DataType::DoublePrecision, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("S".to_string(), DataType::Smallint, false),
+            ColumnSchema::new("B".to_string(), DataType::Bigint, false),
+            ColumnSchema::new("F".to_string(), DataType::Float { precision: 53 }, false),
+            ColumnSchema::new("R".to_string(), DataType::Real, false),
+            ColumnSchema::new("D".to_string(), DataType::DoublePrecision, false),
         ],
     );
 
@@ -468,7 +468,7 @@ fn test_e2e_all_numeric_types_together() {
     db.create_table(schema).unwrap();
 
     db.insert_row(
-        "all_numbers",
+        "ALL_NUMBERS",
         Row::new(vec![
             SqlValue::Integer(1),
             SqlValue::Smallint(100),
@@ -489,19 +489,19 @@ fn test_e2e_all_numeric_types_together() {
 #[test]
 fn test_e2e_numeric_comparison() {
     let schema = TableSchema::new(
-        "numbers".to_string(),
+        "NUMBERS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("small_val".to_string(), DataType::Smallint, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("SMALL_VAL".to_string(), DataType::Smallint, false),
         ],
     );
 
     let mut db = Database::new();
     db.create_table(schema).unwrap();
 
-    db.insert_row("numbers", Row::new(vec![SqlValue::Integer(1), SqlValue::Smallint(10)])).unwrap();
-    db.insert_row("numbers", Row::new(vec![SqlValue::Integer(2), SqlValue::Smallint(20)])).unwrap();
-    db.insert_row("numbers", Row::new(vec![SqlValue::Integer(3), SqlValue::Smallint(30)])).unwrap();
+    db.insert_row("NUMBERS", Row::new(vec![SqlValue::Integer(1), SqlValue::Smallint(10)])).unwrap();
+    db.insert_row("NUMBERS", Row::new(vec![SqlValue::Integer(2), SqlValue::Smallint(20)])).unwrap();
+    db.insert_row("NUMBERS", Row::new(vec![SqlValue::Integer(3), SqlValue::Smallint(30)])).unwrap();
 
     // Test comparison with new types
     let results =
@@ -519,11 +519,11 @@ fn test_e2e_numeric_comparison() {
 fn test_e2e_char_type() {
     // Test CHAR fixed-length type with space padding behavior
     let schema = TableSchema::new(
-        "codes".to_string(),
+        "CODES".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("code".to_string(), DataType::Character { length: 5 }, false),
-            ColumnSchema::new("name".to_string(), DataType::Character { length: 10 }, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("CODE".to_string(), DataType::Character { length: 5 }, false),
+            ColumnSchema::new("NAME".to_string(), DataType::Character { length: 10 }, false),
         ],
     );
 
@@ -532,7 +532,7 @@ fn test_e2e_char_type() {
 
     // Insert CHAR values - should pad short strings with spaces
     db.insert_row(
-        "codes",
+        "CODES",
         Row::new(vec![
             SqlValue::Integer(1),
             SqlValue::Character("ABC".to_string()), // Will be padded to "ABC  " (5 chars)
@@ -542,7 +542,7 @@ fn test_e2e_char_type() {
     .unwrap();
 
     db.insert_row(
-        "codes",
+        "CODES",
         Row::new(vec![
             SqlValue::Integer(2),
             SqlValue::Character("12345".to_string()), // Exact length (5 chars)
@@ -552,7 +552,7 @@ fn test_e2e_char_type() {
     .unwrap();
 
     db.insert_row(
-        "codes",
+        "CODES",
         Row::new(vec![
             SqlValue::Integer(3),
             SqlValue::Character("TOOLONG".to_string()), // Will be truncated to "TOOLO" (5 chars)
@@ -594,11 +594,11 @@ fn test_e2e_char_type() {
 fn test_e2e_like_pattern_matching() {
     // Test LIKE pattern matching with wildcards
     let schema = TableSchema::new(
-        "products".to_string(),
+        "PRODUCTS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "name".to_string(),
+                "NAME".to_string(),
                 DataType::Varchar { max_length: Some(100) },
                 false,
             ),
@@ -610,22 +610,22 @@ fn test_e2e_like_pattern_matching() {
 
     // Insert test data
     db.insert_row(
-        "products",
+        "PRODUCTS",
         Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Widget Pro".to_string())]),
     )
     .unwrap();
     db.insert_row(
-        "products",
+        "PRODUCTS",
         Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Gadget Plus".to_string())]),
     )
     .unwrap();
     db.insert_row(
-        "products",
+        "PRODUCTS",
         Row::new(vec![SqlValue::Integer(3), SqlValue::Varchar("Widget Mini".to_string())]),
     )
     .unwrap();
     db.insert_row(
-        "products",
+        "PRODUCTS",
         Row::new(vec![SqlValue::Integer(4), SqlValue::Varchar("Super Gadget".to_string())]),
     )
     .unwrap();
@@ -677,20 +677,20 @@ fn test_e2e_like_pattern_matching() {
 fn test_e2e_in_list_predicate() {
     // Test IN predicate with value lists
     let schema = TableSchema::new(
-        "products".to_string(),
+        "PRODUCTS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "name".to_string(),
+                "NAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
             ColumnSchema::new(
-                "category".to_string(),
+                "CATEGORY".to_string(),
                 DataType::Varchar { max_length: Some(20) },
                 false,
             ),
-            ColumnSchema::new("price".to_string(), DataType::Integer, false),
+            ColumnSchema::new("PRICE".to_string(), DataType::Integer, false),
         ],
     );
 
@@ -699,7 +699,7 @@ fn test_e2e_in_list_predicate() {
 
     // Insert test data
     db.insert_row(
-        "products",
+        "PRODUCTS",
         Row::new(vec![
             SqlValue::Integer(1),
             SqlValue::Varchar("Widget".to_string()),
@@ -709,7 +709,7 @@ fn test_e2e_in_list_predicate() {
     )
     .unwrap();
     db.insert_row(
-        "products",
+        "PRODUCTS",
         Row::new(vec![
             SqlValue::Integer(2),
             SqlValue::Varchar("Gadget".to_string()),
@@ -719,7 +719,7 @@ fn test_e2e_in_list_predicate() {
     )
     .unwrap();
     db.insert_row(
-        "products",
+        "PRODUCTS",
         Row::new(vec![
             SqlValue::Integer(3),
             SqlValue::Varchar("Tool".to_string()),
@@ -729,7 +729,7 @@ fn test_e2e_in_list_predicate() {
     )
     .unwrap();
     db.insert_row(
-        "products",
+        "PRODUCTS",
         Row::new(vec![
             SqlValue::Integer(4),
             SqlValue::Varchar("Device".to_string()),
@@ -739,7 +739,7 @@ fn test_e2e_in_list_predicate() {
     )
     .unwrap();
     db.insert_row(
-        "products",
+        "PRODUCTS",
         Row::new(vec![
             SqlValue::Integer(5),
             SqlValue::Varchar("Hammer".to_string()),
@@ -805,11 +805,11 @@ fn test_e2e_in_list_predicate() {
 fn test_e2e_exists_predicate() {
     // Test EXISTS predicate with correlated and non-correlated subqueries
     let customers_schema = TableSchema::new(
-        "customers".to_string(),
+        "CUSTOMERS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "name".to_string(),
+                "NAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
@@ -817,11 +817,11 @@ fn test_e2e_exists_predicate() {
     );
 
     let orders_schema = TableSchema::new(
-        "orders".to_string(),
+        "ORDERS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("customer_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("total".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("CUSTOMER_ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("TOTAL".to_string(), DataType::Integer, false),
         ],
     );
 
@@ -831,34 +831,34 @@ fn test_e2e_exists_predicate() {
 
     // Insert customers
     db.insert_row(
-        "customers",
+        "CUSTOMERS",
         Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
     )
     .unwrap();
     db.insert_row(
-        "customers",
+        "CUSTOMERS",
         Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())]),
     )
     .unwrap();
     db.insert_row(
-        "customers",
+        "CUSTOMERS",
         Row::new(vec![SqlValue::Integer(3), SqlValue::Varchar("Charlie".to_string())]),
     )
     .unwrap();
 
     // Insert orders (only for customer 1 and 2)
     db.insert_row(
-        "orders",
+        "ORDERS",
         Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(1), SqlValue::Integer(100)]),
     )
     .unwrap();
     db.insert_row(
-        "orders",
+        "ORDERS",
         Row::new(vec![SqlValue::Integer(2), SqlValue::Integer(1), SqlValue::Integer(200)]),
     )
     .unwrap();
     db.insert_row(
-        "orders",
+        "ORDERS",
         Row::new(vec![SqlValue::Integer(3), SqlValue::Integer(2), SqlValue::Integer(150)]),
     )
     .unwrap();
@@ -871,8 +871,8 @@ fn test_e2e_exists_predicate() {
 
     // Test 2: NOT EXISTS with empty table - all customers should match
     let empty_schema = TableSchema::new(
-        "empty_table".to_string(),
-        vec![ColumnSchema::new("dummy".to_string(), DataType::Integer, false)],
+        "EMPTY_TABLE".to_string(),
+        vec![ColumnSchema::new("DUMMY".to_string(), DataType::Integer, false)],
     );
     db.create_table(empty_schema).unwrap();
 
@@ -929,20 +929,20 @@ fn test_e2e_exists_predicate() {
 fn test_e2e_coalesce_and_nullif() {
     // Test COALESCE and NULLIF scalar functions
     let schema = TableSchema::new(
-        "users".to_string(),
+        "USERS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "name".to_string(),
+                "NAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
             ColumnSchema::new(
-                "nickname".to_string(),
+                "NICKNAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
-            ColumnSchema::new("balance".to_string(), DataType::Integer, false),
+            ColumnSchema::new("BALANCE".to_string(), DataType::Integer, false),
         ],
     );
 
@@ -951,7 +951,7 @@ fn test_e2e_coalesce_and_nullif() {
 
     // Insert test data with some NULL values
     db.insert_row(
-        "users",
+        "USERS",
         Row::new(vec![
             SqlValue::Integer(1),
             SqlValue::Varchar("Alice".to_string()),
@@ -961,7 +961,7 @@ fn test_e2e_coalesce_and_nullif() {
     )
     .unwrap();
     db.insert_row(
-        "users",
+        "USERS",
         Row::new(vec![
             SqlValue::Integer(2),
             SqlValue::Varchar("Bob".to_string()),
@@ -971,7 +971,7 @@ fn test_e2e_coalesce_and_nullif() {
     )
     .unwrap();
     db.insert_row(
-        "users",
+        "USERS",
         Row::new(vec![
             SqlValue::Integer(3),
             SqlValue::Varchar("Charlie".to_string()),
@@ -1065,16 +1065,16 @@ fn test_e2e_quantified_comparisons() {
 
     // Create employees table: id, name, salary, dept_id
     let employees_schema = TableSchema::new(
-        "employees".to_string(),
+        "EMPLOYEES".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "name".to_string(),
+                "NAME".to_string(),
                 DataType::Varchar { max_length: Some(100) },
                 false,
             ),
-            ColumnSchema::new("salary".to_string(), DataType::Integer, false),
-            ColumnSchema::new("dept_id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("SALARY".to_string(), DataType::Integer, false),
+            ColumnSchema::new("DEPT_ID".to_string(), DataType::Integer, false),
         ],
     );
     db.create_table(employees_schema.clone()).unwrap();
@@ -1083,7 +1083,7 @@ fn test_e2e_quantified_comparisons() {
     // Department 1: salaries 50000, 60000, 70000
     // Department 2: salaries 80000, 90000
     db.insert_row(
-        "employees",
+        "EMPLOYEES",
         Row::new(vec![
             SqlValue::Integer(1),
             SqlValue::Varchar("Alice".to_string()),
@@ -1093,7 +1093,7 @@ fn test_e2e_quantified_comparisons() {
     )
     .unwrap();
     db.insert_row(
-        "employees",
+        "EMPLOYEES",
         Row::new(vec![
             SqlValue::Integer(2),
             SqlValue::Varchar("Bob".to_string()),
@@ -1103,7 +1103,7 @@ fn test_e2e_quantified_comparisons() {
     )
     .unwrap();
     db.insert_row(
-        "employees",
+        "EMPLOYEES",
         Row::new(vec![
             SqlValue::Integer(3),
             SqlValue::Varchar("Charlie".to_string()),
@@ -1113,7 +1113,7 @@ fn test_e2e_quantified_comparisons() {
     )
     .unwrap();
     db.insert_row(
-        "employees",
+        "EMPLOYEES",
         Row::new(vec![
             SqlValue::Integer(4),
             SqlValue::Varchar("David".to_string()),
@@ -1123,7 +1123,7 @@ fn test_e2e_quantified_comparisons() {
     )
     .unwrap();
     db.insert_row(
-        "employees",
+        "EMPLOYEES",
         Row::new(vec![
             SqlValue::Integer(5),
             SqlValue::Varchar("Eve".to_string()),
@@ -1235,11 +1235,11 @@ fn test_e2e_set_operations() {
 
     // Create two tables with overlapping data
     let table_a_schema = TableSchema::new(
-        "table_a".to_string(),
+        "TABLE_A".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "name".to_string(),
+                "NAME".to_string(),
                 DataType::Varchar { max_length: Some(100) },
                 false,
             ),
@@ -1248,11 +1248,11 @@ fn test_e2e_set_operations() {
     db.create_table(table_a_schema).unwrap();
 
     let table_b_schema = TableSchema::new(
-        "table_b".to_string(),
+        "TABLE_B".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "name".to_string(),
+                "NAME".to_string(),
                 DataType::Varchar { max_length: Some(100) },
                 false,
             ),
@@ -1262,43 +1262,43 @@ fn test_e2e_set_operations() {
 
     // Insert data: table_a has 1, 2, 3, 4; table_b has 3, 4, 5, 6
     db.insert_row(
-        "table_a",
+        "TABLE_A",
         Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
     )
     .unwrap();
     db.insert_row(
-        "table_a",
+        "TABLE_A",
         Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())]),
     )
     .unwrap();
     db.insert_row(
-        "table_a",
+        "TABLE_A",
         Row::new(vec![SqlValue::Integer(3), SqlValue::Varchar("Charlie".to_string())]),
     )
     .unwrap();
     db.insert_row(
-        "table_a",
+        "TABLE_A",
         Row::new(vec![SqlValue::Integer(4), SqlValue::Varchar("David".to_string())]),
     )
     .unwrap();
 
     db.insert_row(
-        "table_b",
+        "TABLE_B",
         Row::new(vec![SqlValue::Integer(3), SqlValue::Varchar("Charlie".to_string())]),
     )
     .unwrap();
     db.insert_row(
-        "table_b",
+        "TABLE_B",
         Row::new(vec![SqlValue::Integer(4), SqlValue::Varchar("David".to_string())]),
     )
     .unwrap();
     db.insert_row(
-        "table_b",
+        "TABLE_B",
         Row::new(vec![SqlValue::Integer(5), SqlValue::Varchar("Eve".to_string())]),
     )
     .unwrap();
     db.insert_row(
-        "table_b",
+        "TABLE_B",
         Row::new(vec![SqlValue::Integer(6), SqlValue::Varchar("Frank".to_string())]),
     )
     .unwrap();
@@ -1356,7 +1356,7 @@ fn test_e2e_set_operations() {
 
     // Test 5: Multiple UNION operations
     db.insert_row(
-        "table_a",
+        "TABLE_A",
         Row::new(vec![SqlValue::Integer(7), SqlValue::Varchar("Grace".to_string())]),
     )
     .unwrap();
@@ -1390,28 +1390,28 @@ fn test_e2e_set_operations() {
     // Test 8: INTERSECT ALL with duplicates
     // Create tables with duplicate values
     let dup_a_schema = TableSchema::new(
-        "dup_a".to_string(),
-        vec![ColumnSchema::new("val".to_string(), DataType::Integer, false)],
+        "DUP_A".to_string(),
+        vec![ColumnSchema::new("VAL".to_string(), DataType::Integer, false)],
     );
     db.create_table(dup_a_schema).unwrap();
 
     let dup_b_schema = TableSchema::new(
-        "dup_b".to_string(),
-        vec![ColumnSchema::new("val".to_string(), DataType::Integer, false)],
+        "DUP_B".to_string(),
+        vec![ColumnSchema::new("VAL".to_string(), DataType::Integer, false)],
     );
     db.create_table(dup_b_schema).unwrap();
 
     // dup_a: 1, 1, 2, 2, 2
-    db.insert_row("dup_a", Row::new(vec![SqlValue::Integer(1)])).unwrap();
-    db.insert_row("dup_a", Row::new(vec![SqlValue::Integer(1)])).unwrap();
-    db.insert_row("dup_a", Row::new(vec![SqlValue::Integer(2)])).unwrap();
-    db.insert_row("dup_a", Row::new(vec![SqlValue::Integer(2)])).unwrap();
-    db.insert_row("dup_a", Row::new(vec![SqlValue::Integer(2)])).unwrap();
+    db.insert_row("DUP_A", Row::new(vec![SqlValue::Integer(1)])).unwrap();
+    db.insert_row("DUP_A", Row::new(vec![SqlValue::Integer(1)])).unwrap();
+    db.insert_row("DUP_A", Row::new(vec![SqlValue::Integer(2)])).unwrap();
+    db.insert_row("DUP_A", Row::new(vec![SqlValue::Integer(2)])).unwrap();
+    db.insert_row("DUP_A", Row::new(vec![SqlValue::Integer(2)])).unwrap();
 
     // dup_b: 1, 2, 2
-    db.insert_row("dup_b", Row::new(vec![SqlValue::Integer(1)])).unwrap();
-    db.insert_row("dup_b", Row::new(vec![SqlValue::Integer(2)])).unwrap();
-    db.insert_row("dup_b", Row::new(vec![SqlValue::Integer(2)])).unwrap();
+    db.insert_row("DUP_B", Row::new(vec![SqlValue::Integer(1)])).unwrap();
+    db.insert_row("DUP_B", Row::new(vec![SqlValue::Integer(2)])).unwrap();
+    db.insert_row("DUP_B", Row::new(vec![SqlValue::Integer(2)])).unwrap();
 
     // INTERSECT ALL should return: 1 (once), 2 (twice)
     let results =

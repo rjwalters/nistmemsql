@@ -63,10 +63,10 @@ impl Parser {
         }
     }
 
-    /// Parse an identifier token.
+    /// Parse an identifier token (regular or delimited).
     pub(super) fn parse_identifier(&mut self) -> Result<String, ParseError> {
         match self.peek() {
-            Token::Identifier(name) => {
+            Token::Identifier(name) | Token::DelimitedIdentifier(name) => {
                 let identifier = name.clone();
                 self.advance();
                 Ok(identifier)
@@ -99,7 +99,7 @@ impl Parser {
     pub(super) fn parse_qualified_identifier(&mut self) -> Result<String, ParseError> {
         // Parse first identifier
         let first_part = match self.peek() {
-            Token::Identifier(name) => {
+            Token::Identifier(name) | Token::DelimitedIdentifier(name) => {
                 let identifier = name.clone();
                 self.advance();
                 identifier
@@ -111,7 +111,7 @@ impl Parser {
         if self.peek() == &Token::Symbol('.') {
             self.advance(); // consume the dot
             let second_part = match self.peek() {
-                Token::Identifier(name) => {
+                Token::Identifier(name) | Token::DelimitedIdentifier(name) => {
                     let identifier = name.clone();
                     self.advance();
                     identifier

@@ -1,11 +1,5 @@
 mod common;
 
-<<<<<<< HEAD
-use executor::{UpdateExecutor, ExecutorError};
-use storage::{Database, Row};
-use types::{DataType, SqlValue};
-=======
->>>>>>> origin/main
 use ast::{Assignment, BinaryOperator, Expression, UpdateStmt};
 use catalog::{ColumnSchema, TableSchema};
 use common::setup_test_table;

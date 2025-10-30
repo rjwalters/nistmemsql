@@ -5,7 +5,7 @@ impl Parser {
     pub(super) fn parse_function_call(&mut self) -> Result<Option<ast::Expression>, ParseError> {
         // Try to match either an identifier or specific keywords that can be function names
         let function_name = match self.peek() {
-            Token::Identifier(id) => {
+            Token::Identifier(id) | Token::DelimitedIdentifier(id) => {
                 let name = id.clone();
                 self.advance();
                 // Check if followed by '('
