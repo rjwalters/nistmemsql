@@ -259,6 +259,9 @@ impl Lexer {
             "USING" => Token::Keyword(Keyword::Using),
             // SUBSTRING function keywords
             "FOR" => Token::Keyword(Keyword::For),
+            // GRANT keywords
+            "GRANT" => Token::Keyword(Keyword::Grant),
+            "PRIVILEGES" => Token::Keyword(Keyword::Privileges),
             // Role management keywords
             "ROLE" => Token::Keyword(Keyword::Role),
             _ => Token::Identifier(upper_text),  // Regular identifiers are normalized to uppercase

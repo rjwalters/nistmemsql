@@ -7,6 +7,7 @@
 mod ddl;
 mod dml;
 mod expression;
+mod grant;
 mod operators;
 mod select;
 mod statement;
@@ -23,6 +24,7 @@ pub use expression::{
     CaseWhen, CharacterUnit, Expression, FrameBound, FrameUnit, Quantifier, TrimPosition,
     WindowFrame, WindowFunctionSpec, WindowSpec,
 };
+pub use grant::{GrantStmt, ObjectType, PrivilegeType};
 pub use operators::{BinaryOperator, UnaryOperator};
 pub use select::{
     CommonTableExpr, FromClause, JoinType, OrderByItem, OrderDirection, SelectItem, SelectStmt,

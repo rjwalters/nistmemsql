@@ -119,6 +119,9 @@ pub enum Keyword {
     CurrentDate,
     CurrentTime,
     CurrentTimestamp,
+    // GRANT keywords
+    Grant,
+    Privileges,
 }
 
 impl fmt::Display for Keyword {
@@ -226,6 +229,8 @@ impl fmt::Display for Keyword {
             Keyword::CurrentDate => "CURRENT_DATE",
             Keyword::CurrentTime => "CURRENT_TIME",
             Keyword::CurrentTimestamp => "CURRENT_TIMESTAMP",
+            Keyword::Grant => "GRANT",
+            Keyword::Privileges => "PRIVILEGES",
         };
         write!(f, "{}", keyword_str)
     }
