@@ -82,6 +82,11 @@ impl Parser {
 
                 Ok(Some(ast::Expression::Exists { subquery: Box::new(subquery), negated: false }))
             }
+            // DEFAULT keyword: DEFAULT
+            Token::Keyword(Keyword::Default) => {
+                self.advance(); // consume DEFAULT
+                Ok(Some(ast::Expression::Default))
+            }
             // NOT keyword - could be NOT EXISTS or unary NOT
             Token::Keyword(Keyword::Not) => {
                 self.advance(); // consume NOT

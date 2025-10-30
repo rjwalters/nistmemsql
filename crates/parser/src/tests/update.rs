@@ -37,3 +37,39 @@ fn test_parse_update_multiple_columns() {
         _ => panic!("Expected UPDATE statement"),
     }
 }
+
+#[test]
+fn test_parse_update_with_default() {
+    let result = Parser::parse_sql("UPDATE users SET name = DEFAULT WHERE id = 1;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Update(update) => {
+            assert_eq!(update.table_name, "users");
+            assert_eq!(update.assignments.len(), 1);
+            assert_eq!(update.assignments[0].column, "name");
+            // Value should be DEFAULT
+            assert!(matches!(update.assignments[0].value, ast::Expression::Default));
+        }
+        _ => panic!("Expected UPDATE statement"),
+    }
+}
+
+#[test]
+fn test_parse_update_multiple_defaults() {
+    let result = Parser::parse_sql("UPDATE users SET name = DEFAULT, age = DEFAULT;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Update(update) => {
+            assert_eq!(update.table_name, "users");
+            assert_eq!(update.assignments.len(), 2);
+            // Both values should be DEFAULT
+            assert!(matches!(update.assignments[0].value, ast::Expression::Default));
+            assert!(matches!(update.assignments[1].value, ast::Expression::Default));
+        }
+        _ => panic!("Expected UPDATE statement"),
+    }
+}

@@ -107,8 +107,8 @@ impl InsertExecutor {
             let mut full_row_values = vec![types::SqlValue::Null; schema.columns.len()];
 
             for (expr, (col_idx, data_type)) in value_exprs.iter().zip(target_column_info.iter()) {
-                // Evaluate expression (only literals supported initially)
-                let value = evaluate_literal_expression(expr)?;
+                // Evaluate expression (literals and DEFAULT)
+                let value = evaluate_insert_expression(expr, &schema.columns[*col_idx])?;
 
                 // Type check and coerce: ensure value matches column type
                 let coerced_value = coerce_value(value, data_type)?;
@@ -268,12 +268,31 @@ impl InsertExecutor {
     }
 }
 
-/// Evaluate a literal expression to SqlValue
-fn evaluate_literal_expression(expr: &ast::Expression) -> Result<types::SqlValue, ExecutorError> {
+/// Evaluate an INSERT expression to SqlValue
+/// Supports literals and DEFAULT keyword
+fn evaluate_insert_expression(
+    expr: &ast::Expression,
+    column: &catalog::ColumnSchema,
+) -> Result<types::SqlValue, ExecutorError> {
     match expr {
         ast::Expression::Literal(lit) => Ok(lit.clone()),
+        ast::Expression::Default => {
+            // Use column's default value, or NULL if no default is defined
+            if let Some(default_expr) = &column.default_value {
+                // Evaluate the default expression (currently only supports literals)
+                match default_expr {
+                    ast::Expression::Literal(lit) => Ok(lit.clone()),
+                    _ => Err(ExecutorError::UnsupportedExpression(
+                        format!("Complex default expressions not yet supported for column '{}'", column.name)
+                    ))
+                }
+            } else {
+                // No default value defined, use NULL
+                Ok(types::SqlValue::Null)
+            }
+        }
         _ => Err(ExecutorError::UnsupportedExpression(
-            "INSERT only supports literal values".to_string(),
+            "INSERT only supports literal values and DEFAULT".to_string(),
         )),
     }
 }

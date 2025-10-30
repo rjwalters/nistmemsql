@@ -15,6 +15,13 @@ impl<'a> ExpressionEvaluator<'a> {
             // Literals - just return the value
             ast::Expression::Literal(val) => Ok(val.clone()),
 
+            // DEFAULT keyword - not allowed in SELECT/WHERE expressions
+            ast::Expression::Default => {
+                Err(ExecutorError::UnsupportedExpression(
+                    "DEFAULT keyword is only valid in INSERT VALUES and UPDATE SET clauses".to_string()
+                ))
+            }
+
             // Column reference - look up column index and get value from row
             ast::Expression::ColumnRef { table: _, column } => {
                 self.eval_column_ref(column, row)
