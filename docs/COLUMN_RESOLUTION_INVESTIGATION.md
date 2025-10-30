@@ -318,15 +318,72 @@ ORDER BY pct_of_total DESC  -- References alias from SELECT list
 
 **Likely Solution**: ORDER BY needs to resolve aliases from SELECT list, not just FROM schema.
 
+## Final Implementation Results
+
+**Status**: ✅ 3 of 4 examples fixed (75% complete)
+
+### ✅ Completed Fixes:
+
+#### 1. join-4: CROSS JOIN Support
+- **Root Cause**: Parser didn't recognize CROSS JOIN or FULL OUTER JOIN keywords
+- **Solution**: Added `Cross` and `Full` keywords to parser (lexer + keyword enum + join parsing)
+- **Files Modified**:
+  - `crates/parser/src/keywords.rs`
+  - `crates/parser/src/lexer.rs`
+  - `crates/parser/src/parser/select/from_clause.rs`
+- **Result**: join-4 executes successfully with 21 rows
+
+#### 2. uni-1 & uni-5: Correlated Subqueries
+- **Root Cause**: CombinedExpressionEvaluator lacked outer context support; TableSchema lost alias information
+- **Solution**:
+  - Changed SelectExecutor to accept CombinedSchema for outer context (preserves alias mappings)
+  - Added `outer_row` and `outer_schema` fields to CombinedExpressionEvaluator
+  - Implemented cascading column resolution: inner schema → outer schema
+  - Updated all subquery evaluation paths (eval_scalar_subquery, eval_exists, eval_quantified, eval_in_subquery)
+- **Files Modified**:
+  - `crates/executor/src/select/executor/builder.rs`
+  - `crates/executor/src/evaluator/core.rs`
+  - `crates/executor/src/evaluator/combined/eval.rs`
+  - `crates/executor/src/evaluator/combined/subqueries.rs`
+  - `crates/executor/src/evaluator/expressions/subqueries.rs`
+  - `crates/executor/src/select/executor/nonagg.rs`
+  - `crates/executor/src/select/executor/aggregation.rs`
+- **Result**:
+  - uni-1 executes successfully with 10 rows (expected output matches)
+  - uni-5 executes successfully with 0 rows
+
+### 🟨 Partially Fixed:
+
+#### 3. window-8: ORDER BY Alias Reference
+- **Progress**: ORDER BY alias resolution implemented and working
+- **Solution Implemented**:
+  - Added `resolve_order_by_alias()` helper function
+  - Modified `apply_order_by()` to resolve SELECT list aliases
+  - ORDER BY can now reference computed column aliases
+- **Files Modified**:
+  - `crates/executor/src/select/order.rs`
+  - `crates/executor/src/select/executor/nonagg.rs`
+- **Current Status**: Error changed from `ColumnNotFound("pct_of_total")` to `UnsupportedExpression(WindowFunction...)`
+- **Remaining Issue**: ORDER BY tries to re-evaluate window function expressions instead of using pre-computed window_mapping results
+- **What's Needed**: Window function results need to be cached/referenced, not re-evaluated
+
+### Impact:
+
+- **Generated Examples**: 23 → 24 (+1, with 3 fully fixed)
+- **Test Results**: All executor unit tests pass
+- **Code Quality**: Implementation follows existing patterns and SQL standard semantics
+
+### Technical Achievements:
+
+The outer context implementation is the most significant:
+- Enables correlated subqueries throughout the query executor
+- Properly handles table aliases in nested query contexts
+- Provides foundation for complex SQL patterns (EXISTS, IN with subqueries, scalar subqueries)
+
 ## Conclusion
 
-The column resolution issues are **not simple bugs** but rather **architectural limitations** in:
-1. ~~Query execution ordering~~ (Not the issue - joins work correctly)
-2. **Schema representation during execution** (CombinedExpressionEvaluator lacks outer context)
-3. **Alias tracking through the pipeline** (ORDER BY doesn't access SELECT list aliases)
-
-**Progress**: 1 of 4 examples fixed (25% → 50% of identified issues resolved)
-
-The remaining issues require:
-- Adding outer context to CombinedExpressionEvaluator for correlated subqueries
-- Enhancing ORDER BY to resolve computed column aliases from SELECT list
+The column resolution issues were **architectural limitations** that required:
+1. ✅ Parser enhancement for CROSS JOIN syntax
+2. ✅ Complete outer context implementation for CombinedExpressionEvaluator
+3. ✅ ORDER BY alias resolution from SELECT list
+4. 🟨 Window function result caching (partial - needs follow-up)
