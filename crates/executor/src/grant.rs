@@ -11,15 +11,24 @@ pub struct GrantExecutor;
 impl GrantExecutor {
     /// Execute GRANT statement
     ///
-    /// Phase 2.3: Supports ALL PRIVILEGES expansion
+    /// Phase 2.5: Supports SCHEMA object type with USAGE and CREATE privileges
     pub fn execute_grant(
         stmt: &GrantStmt,
         database: &mut Database,
     ) -> Result<String, ExecutorError> {
-        // Verify the table exists
-        let table_name = &stmt.object_name;
-        if !database.catalog.table_exists(table_name) {
-            return Err(ExecutorError::TableNotFound(table_name.clone()));
+        // Verify the object exists (table or schema)
+        let object_name = &stmt.object_name;
+        match stmt.object_type {
+            ObjectType::Table => {
+                if !database.catalog.table_exists(object_name) {
+                    return Err(ExecutorError::TableNotFound(object_name.clone()));
+                }
+            }
+            ObjectType::Schema => {
+                if !database.catalog.schema_exists(object_name) {
+                    return Err(ExecutorError::SchemaNotFound(object_name.clone()));
+                }
+            }
         }
 
         // Expand ALL PRIVILEGES based on object type
@@ -34,7 +43,7 @@ impl GrantExecutor {
                 ],
                 ObjectType::Schema => vec![
                     PrivilegeType::Usage,
-                    // Future: add CREATE when schema support is complete
+                    PrivilegeType::Create,
                 ],
             }
         } else {
@@ -66,7 +75,7 @@ impl GrantExecutor {
 
         Ok(format!(
             "Granted {} on {} to {}",
-            privileges_str, table_name, grantees_str
+            privileges_str, object_name, grantees_str
         ))
     }
 }

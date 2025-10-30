@@ -18,6 +18,8 @@ pub enum PrivilegeType {
     References,
     /// USAGE privilege (schema/sequence usage)
     Usage,
+    /// CREATE privilege (create objects in schema)
+    Create,
     /// EXECUTE privilege (function/procedure execution)
     Execute,
     /// ALL PRIVILEGES (all applicable privileges for the object type)

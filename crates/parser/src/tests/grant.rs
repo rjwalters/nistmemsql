@@ -173,3 +173,132 @@ fn test_parse_grant_all_case_insensitive() {
         other => panic!("Expected Grant statement, got {:?}", other),
     }
 }
+
+// Phase 2.5: Schema privilege tests
+
+#[test]
+fn test_parse_grant_usage_on_schema() {
+    let sql = "GRANT USAGE ON SCHEMA public TO user_role";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 1);
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::Usage);
+            assert_eq!(grant_stmt.object_type, ast::ObjectType::Schema);
+            assert_eq!(grant_stmt.object_name.to_string(), "PUBLIC");
+            assert_eq!(grant_stmt.grantees, vec!["USER_ROLE"]);
+            assert!(!grant_stmt.with_grant_option);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_create_on_schema() {
+    let sql = "GRANT CREATE ON SCHEMA public TO admin_role";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 1);
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::Create);
+            assert_eq!(grant_stmt.object_type, ast::ObjectType::Schema);
+            assert_eq!(grant_stmt.object_name.to_string(), "PUBLIC");
+            assert_eq!(grant_stmt.grantees, vec!["ADMIN_ROLE"]);
+            assert!(!grant_stmt.with_grant_option);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_usage_and_create_on_schema() {
+    let sql = "GRANT USAGE, CREATE ON SCHEMA myschema TO developer";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 2);
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::Usage);
+            assert_eq!(grant_stmt.privileges[1], ast::PrivilegeType::Create);
+            assert_eq!(grant_stmt.object_type, ast::ObjectType::Schema);
+            assert_eq!(grant_stmt.object_name.to_string(), "MYSCHEMA");
+            assert_eq!(grant_stmt.grantees, vec!["DEVELOPER"]);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_all_on_schema() {
+    let sql = "GRANT ALL PRIVILEGES ON SCHEMA public TO admin_role";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 1);
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::AllPrivileges);
+            assert_eq!(grant_stmt.object_type, ast::ObjectType::Schema);
+            assert_eq!(grant_stmt.object_name.to_string(), "PUBLIC");
+            assert_eq!(grant_stmt.grantees, vec!["ADMIN_ROLE"]);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+// Phase 2.4: WITH GRANT OPTION tests
+
+#[test]
+fn test_parse_grant_with_grant_option() {
+    let sql = "GRANT SELECT ON TABLE users TO manager WITH GRANT OPTION";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::Select);
+            assert_eq!(grant_stmt.object_type, ast::ObjectType::Table);
+            assert_eq!(grant_stmt.object_name.to_string(), "USERS");
+            assert_eq!(grant_stmt.grantees, vec!["MANAGER"]);
+            assert!(grant_stmt.with_grant_option);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_without_grant_option() {
+    let sql = "GRANT SELECT ON TABLE users TO manager";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.with_grant_option, false);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_schema_with_grant_option() {
+    let sql = "GRANT USAGE ON SCHEMA public TO user_role WITH GRANT OPTION";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::Usage);
+            assert_eq!(grant_stmt.object_type, ast::ObjectType::Schema);
+            assert_eq!(grant_stmt.object_name.to_string(), "PUBLIC");
+            assert_eq!(grant_stmt.grantees, vec!["USER_ROLE"]);
+            assert!(grant_stmt.with_grant_option);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
