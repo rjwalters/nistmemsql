@@ -37,11 +37,7 @@ pub fn parse_create_schema(parser: &mut crate::Parser) -> Result<CreateSchemaStm
         }
     }
 
-    Ok(CreateSchemaStmt {
-        schema_name,
-        if_not_exists,
-        schema_elements,
-    })
+    Ok(CreateSchemaStmt { schema_name, if_not_exists, schema_elements })
 }
 
 /// Parse DROP SCHEMA statement
