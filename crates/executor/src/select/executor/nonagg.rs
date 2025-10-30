@@ -18,10 +18,30 @@ impl<'a> SelectExecutor<'a> {
         from_result: FromResult,
     ) -> Result<Vec<storage::Row>, ExecutorError> {
         let FromResult { schema, rows } = from_result;
-        let evaluator = CombinedExpressionEvaluator::with_database(&schema, self.database);
+        eprintln!("DEBUG NONAGG: schema keys={:?}, row count={}", schema.table_schemas.keys().collect::<Vec<_>>(), rows.len());
+        eprintln!("DEBUG NONAGG: outer_row={}, outer_schema={:?}",
+                 self._outer_row.is_some(),
+                 self._outer_schema.map(|s| s.table_schemas.keys().collect::<Vec<_>>()));
+
+        // Create evaluator with outer context if available (outer schema is already a CombinedSchema)
+        let evaluator = if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
+            eprintln!("DEBUG NONAGG: Creating evaluator WITH outer context, outer tables={:?}",
+                     outer_schema.table_schemas.keys().collect::<Vec<_>>());
+            CombinedExpressionEvaluator::with_database_and_outer_context(
+                &schema,
+                self.database,
+                outer_row,
+                outer_schema
+            )
+        } else {
+            eprintln!("DEBUG NONAGG: Creating evaluator WITHOUT outer context");
+            CombinedExpressionEvaluator::with_database(&schema, self.database)
+        };
 
         // Apply WHERE clause filter
+        eprintln!("DEBUG NONAGG: About to apply WHERE filter");
         let mut filtered_rows = apply_where_filter_combined(rows, stmt.where_clause.as_ref(), &evaluator)?;
+        eprintln!("DEBUG NONAGG: WHERE filter complete, {} rows", filtered_rows.len());
 
         // Check if SELECT list has window functions
         let has_windows = has_window_functions(&stmt.select_list);
@@ -41,7 +61,7 @@ impl<'a> SelectExecutor<'a> {
 
         // Apply ORDER BY sorting if present
         if let Some(order_by) = &stmt.order_by {
-            result_rows = apply_order_by(result_rows, order_by, &evaluator)?;
+            result_rows = apply_order_by(result_rows, order_by, &evaluator, &stmt.select_list)?;
         }
 
         // Project columns from the sorted rows

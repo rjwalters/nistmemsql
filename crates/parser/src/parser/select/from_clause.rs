@@ -124,6 +124,8 @@ impl Parser {
                 | Token::Keyword(Keyword::Inner)
                 | Token::Keyword(Keyword::Left)
                 | Token::Keyword(Keyword::Right)
+                | Token::Keyword(Keyword::Cross)
+                | Token::Keyword(Keyword::Full)
         )
     }
 
@@ -156,6 +158,20 @@ impl Parser {
                 }
                 self.expect_keyword(Keyword::Join)?;
                 Ok(ast::JoinType::RightOuter)
+            }
+            Token::Keyword(Keyword::Cross) => {
+                self.advance();
+                self.expect_keyword(Keyword::Join)?;
+                Ok(ast::JoinType::Cross)
+            }
+            Token::Keyword(Keyword::Full) => {
+                self.advance();
+                // Optional OUTER keyword
+                if self.peek_keyword(Keyword::Outer) {
+                    self.consume_keyword(Keyword::Outer)?;
+                }
+                self.expect_keyword(Keyword::Join)?;
+                Ok(ast::JoinType::FullOuter)
             }
             _ => Err(ParseError { message: "Expected JOIN keyword".to_string() }),
         }
