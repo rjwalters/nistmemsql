@@ -16,8 +16,8 @@ impl<'a> ExpressionEvaluator<'a> {
             ast::Expression::Literal(val) => Ok(val.clone()),
 
             // Column reference - look up column index and get value from row
-            ast::Expression::ColumnRef { table, column } => {
-                self.eval_column_ref(table.as_deref(), column, row)
+            ast::Expression::ColumnRef { table: _, column } => {
+                self.eval_column_ref(column, row)
             }
 
             // Binary operations
@@ -113,47 +113,10 @@ impl<'a> ExpressionEvaluator<'a> {
     /// Evaluate column reference
     fn eval_column_ref(
         &self,
-        table: Option<&str>,
         column: &str,
         row: &storage::Row,
     ) -> Result<types::SqlValue, ExecutorError> {
-        // When a table qualifier is provided, we try to match it against schema names.
-        // However, since TableSchema only stores the base table name (not aliases),
-        // and correlated subqueries may use aliases (e.g., "SELECT ... FROM students s WHERE EXISTS (SELECT ... WHERE e.id = s.id)"),
-        // we fall back to unqualified lookup if an exact match isn't found.
-
-        if let Some(table_name) = table {
-            // Try outer schema first if it matches the table qualifier
-            if let (Some(outer_row), Some(outer_schema)) = (self.outer_row, self.outer_schema) {
-                if outer_schema.name == table_name {
-                    if let Some(col_index) = outer_schema.get_column_index(column) {
-                        return outer_row
-                            .get(col_index)
-                            .cloned()
-                            .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: col_index });
-                    }
-                    // Table matched but column not found
-                    return Err(ExecutorError::ColumnNotFound(format!("{}.{}", table_name, column)));
-                }
-            }
-
-            // Try inner schema if it matches the table qualifier
-            if self.schema.name == table_name {
-                if let Some(col_index) = self.schema.get_column_index(column) {
-                    return row
-                        .get(col_index)
-                        .cloned()
-                        .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: col_index });
-                }
-                // Table matched but column not found
-                return Err(ExecutorError::ColumnNotFound(format!("{}.{}", table_name, column)));
-            }
-
-            // Table qualifier doesn't match schema names exactly - might be an alias
-            // Fall through to try unqualified lookup below
-        }
-
-        // No table qualifier (or qualifier didn't match) - try to resolve in inner schema first
+        // Try to resolve in inner schema first
         if let Some(col_index) = self.schema.get_column_index(column) {
             return row
                 .get(col_index)
@@ -172,11 +135,6 @@ impl<'a> ExpressionEvaluator<'a> {
         }
 
         // Column not found in either schema
-        let error_msg = if let Some(table_name) = table {
-            format!("{}.{}", table_name, column)
-        } else {
-            column.to_string()
-        };
-        Err(ExecutorError::ColumnNotFound(error_msg))
+        Err(ExecutorError::ColumnNotFound(column.to_string()))
     }
 }
