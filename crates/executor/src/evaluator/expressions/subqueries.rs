@@ -29,10 +29,15 @@ impl<'a> ExpressionEvaluator<'a> {
             });
         }
 
+        // Convert TableSchema to CombinedSchema for outer context
+        let outer_combined = crate::schema::CombinedSchema::from_table(
+            self.schema.name.clone(),
+            self.schema.clone()
+        );
         let select_executor = crate::select::SelectExecutor::new_with_outer_context(
             database,
             row,
-            self.schema,
+            &outer_combined,
         );
         let rows = select_executor.execute(subquery)?;
 
@@ -69,10 +74,15 @@ impl<'a> ExpressionEvaluator<'a> {
             "Subquery execution requires database reference".to_string(),
         ))?;
 
+        // Convert TableSchema to CombinedSchema for outer context
+        let outer_combined = crate::schema::CombinedSchema::from_table(
+            self.schema.name.clone(),
+            self.schema.clone()
+        );
         let select_executor = crate::select::SelectExecutor::new_with_outer_context(
             database,
             row,
-            self.schema,
+            &outer_combined,
         );
         let rows = select_executor.execute(subquery)?;
 
@@ -111,10 +121,15 @@ impl<'a> ExpressionEvaluator<'a> {
             "EXISTS requires database reference".to_string(),
         ))?;
 
+        // Convert TableSchema to CombinedSchema for outer context
+        let outer_combined = crate::schema::CombinedSchema::from_table(
+            self.schema.name.clone(),
+            self.schema.clone()
+        );
         let select_executor = crate::select::SelectExecutor::new_with_outer_context(
             database,
             row,
-            self.schema,
+            &outer_combined,
         );
         let rows = select_executor.execute(subquery)?;
 
@@ -143,10 +158,15 @@ impl<'a> ExpressionEvaluator<'a> {
             return Ok(types::SqlValue::Null);
         }
 
+        // Convert TableSchema to CombinedSchema for outer context
+        let outer_combined = crate::schema::CombinedSchema::from_table(
+            self.schema.name.clone(),
+            self.schema.clone()
+        );
         let select_executor = crate::select::SelectExecutor::new_with_outer_context(
             database,
             row,
-            self.schema,
+            &outer_combined,
         );
         let rows = select_executor.execute(subquery)?;
 
