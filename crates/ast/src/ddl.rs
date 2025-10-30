@@ -158,3 +158,15 @@ pub struct DropSchemaStmt {
 pub struct SetSchemaStmt {
     pub schema_name: String,
 }
+
+/// CREATE ROLE statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreateRoleStmt {
+    pub role_name: String,
+}
+
+/// DROP ROLE statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropRoleStmt {
+    pub role_name: String,
+}

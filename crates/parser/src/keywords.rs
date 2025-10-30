@@ -102,6 +102,8 @@ pub enum Keyword {
     Savepoint,
     Release,
     To,
+    // Role management keywords
+    Role,
     // TRIM function keywords
     Both,
     Leading,
@@ -211,6 +213,7 @@ impl fmt::Display for Keyword {
             Keyword::Savepoint => "SAVEPOINT",
             Keyword::Release => "RELEASE",
             Keyword::To => "TO",
+            Keyword::Role => "ROLE",
             Keyword::Both => "BOTH",
             Keyword::Leading => "LEADING",
             Keyword::Trailing => "TRAILING",
