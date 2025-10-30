@@ -23,6 +23,7 @@ pub struct Savepoint {
 
 /// Transaction state
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum TransactionState {
     /// No active transaction
     None,

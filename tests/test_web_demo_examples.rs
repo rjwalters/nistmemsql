@@ -17,6 +17,7 @@ use types::{DataType, SqlValue};
 #[derive(Debug, Clone)]
 struct WebDemoExample {
     id: String,
+    #[allow(dead_code)]
     title: String,
     database: String,
     sql: String,
@@ -83,6 +84,9 @@ fn parse_expected_results(sql: &str) -> (Option<Vec<Vec<String>>>, Option<usize>
     let mut expected_rows = Vec::new();
     let mut expected_count = None;
 
+    // Compile regex once outside the loop
+    let row_count_re = Regex::new(r"--\s*\((\d+)\s+rows?\)").ok();
+
     for line in lines {
         let trimmed = line.trim();
 
@@ -93,14 +97,14 @@ fn parse_expected_results(sql: &str) -> (Option<Vec<Vec<String>>>, Option<usize>
         }
 
         // Check for row count pattern: "-- (N rows)"
-        if let Some(cap) =
-            Regex::new(r"--\s*\((\d+)\s+rows?\)").ok().and_then(|re| re.captures(trimmed))
-        {
-            if let Ok(count) = cap.get(1).unwrap().as_str().parse::<usize>() {
-                expected_count = Some(count);
+        if let Some(ref re) = row_count_re {
+            if let Some(cap) = re.captures(trimmed) {
+                if let Ok(count) = cap.get(1).unwrap().as_str().parse::<usize>() {
+                    expected_count = Some(count);
+                }
+                in_expected_block = false;
+                continue;
             }
-            in_expected_block = false;
-            continue;
         }
 
         // Parse table rows in expected block

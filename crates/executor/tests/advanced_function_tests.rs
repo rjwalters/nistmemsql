@@ -1,5 +1,8 @@
 //! Tests for advanced scalar functions (math, trigonometry, and conditional functions)
 
+// Allow approximate constants in tests - these are test data values, not mathematical constants
+#![allow(clippy::approx_constant)]
+
 mod common;
 
 use common::create_test_evaluator;

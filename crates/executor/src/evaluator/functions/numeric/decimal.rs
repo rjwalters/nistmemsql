@@ -71,9 +71,8 @@ fn format_number(n: f64, decimals: usize) -> String {
     let decimal_part = if parts.len() > 1 { parts[1] } else { "" };
 
     // Add thousand separators to integer part
-    let with_commas = if integer_part.starts_with('-') {
+    let with_commas = if let Some(positive_part) = integer_part.strip_prefix('-') {
         // Handle negative numbers
-        let positive_part = &integer_part[1..];
         let formatted_positive = add_thousand_separators(positive_part);
         format!("-{}", formatted_positive)
     } else {

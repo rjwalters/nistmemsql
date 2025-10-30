@@ -220,6 +220,7 @@ impl SelectExecutor<'_> {
     }
 
     /// Evaluate quantified comparison (ALL/ANY/SOME) with subquery in aggregate context
+    #[allow(clippy::too_many_arguments)]
     pub(in crate::select::executor) fn evaluate_quantified_comparison_with_aggregates(
         &self,
         left_expr: &ast::Expression,

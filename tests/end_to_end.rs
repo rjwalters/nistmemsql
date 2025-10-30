@@ -2,6 +2,9 @@
 //!
 //! These tests exercise the full pipeline: parse SQL → execute → verify results.
 
+// Allow approximate constants in tests - these are test data values, not mathematical constants
+#![allow(clippy::approx_constant)]
+
 use catalog::{ColumnSchema, TableSchema};
 use executor::SelectExecutor;
 use parser::Parser;

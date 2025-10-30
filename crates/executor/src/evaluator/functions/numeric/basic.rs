@@ -43,22 +43,18 @@ pub fn sign(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     match &args[0] {
         SqlValue::Null => Ok(SqlValue::Null),
         SqlValue::Integer(n) => {
-            let sign = if *n < 0 {
-                -1
-            } else if *n > 0 {
-                1
-            } else {
-                0
+            let sign = match n.cmp(&0) {
+                std::cmp::Ordering::Less => -1,
+                std::cmp::Ordering::Greater => 1,
+                std::cmp::Ordering::Equal => 0,
             };
             Ok(SqlValue::Integer(sign))
         }
         SqlValue::Bigint(n) => {
-            let sign = if *n < 0 {
-                -1
-            } else if *n > 0 {
-                1
-            } else {
-                0
+            let sign = match n.cmp(&0) {
+                std::cmp::Ordering::Less => -1,
+                std::cmp::Ordering::Greater => 1,
+                std::cmp::Ordering::Equal => 0,
             };
             Ok(SqlValue::Bigint(sign))
         }

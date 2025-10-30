@@ -33,11 +33,11 @@ impl Default for SqlField {
     }
 }
 
-impl SqlField {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for SqlField {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SqlField::Single(s) => s.clone(),
-            SqlField::Multiple(v) => v.join("; "),
+            SqlField::Single(s) => write!(f, "{}", s),
+            SqlField::Multiple(v) => write!(f, "{}", v.join("; ")),
         }
     }
 }
