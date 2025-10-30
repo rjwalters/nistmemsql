@@ -6,37 +6,47 @@ use super::*;
 
 #[test]
 fn test_parse_all_with_greater_than() {
-    let result = Parser::parse_sql("SELECT * FROM employees WHERE salary > ALL (SELECT salary FROM dept WHERE dept_id = 10);");
+    let result = Parser::parse_sql(
+        "SELECT * FROM employees WHERE salary > ALL (SELECT salary FROM dept WHERE dept_id = 10);",
+    );
     assert!(result.is_ok(), "ALL with > should parse: {:?}", result);
 }
 
 #[test]
 fn test_parse_all_with_less_than() {
-    let result = Parser::parse_sql("SELECT * FROM products WHERE price < ALL (SELECT price FROM competitors);");
+    let result = Parser::parse_sql(
+        "SELECT * FROM products WHERE price < ALL (SELECT price FROM competitors);",
+    );
     assert!(result.is_ok(), "ALL with < should parse: {:?}", result);
 }
 
 #[test]
 fn test_parse_all_with_equals() {
-    let result = Parser::parse_sql("SELECT * FROM orders WHERE quantity = ALL (SELECT quantity FROM inventory);");
+    let result = Parser::parse_sql(
+        "SELECT * FROM orders WHERE quantity = ALL (SELECT quantity FROM inventory);",
+    );
     assert!(result.is_ok(), "ALL with = should parse: {:?}", result);
 }
 
 #[test]
 fn test_parse_all_with_not_equals() {
-    let result = Parser::parse_sql("SELECT * FROM users WHERE status <> ALL (SELECT status FROM blacklist);");
+    let result = Parser::parse_sql(
+        "SELECT * FROM users WHERE status <> ALL (SELECT status FROM blacklist);",
+    );
     assert!(result.is_ok(), "ALL with <> should parse: {:?}", result);
 }
 
 #[test]
 fn test_parse_all_with_greater_or_equal() {
-    let result = Parser::parse_sql("SELECT * FROM items WHERE rating >= ALL (SELECT rating FROM reviews);");
+    let result =
+        Parser::parse_sql("SELECT * FROM items WHERE rating >= ALL (SELECT rating FROM reviews);");
     assert!(result.is_ok(), "ALL with >= should parse: {:?}", result);
 }
 
 #[test]
 fn test_parse_all_with_less_or_equal() {
-    let result = Parser::parse_sql("SELECT * FROM bids WHERE amount <= ALL (SELECT amount FROM max_bids);");
+    let result =
+        Parser::parse_sql("SELECT * FROM bids WHERE amount <= ALL (SELECT amount FROM max_bids);");
     assert!(result.is_ok(), "ALL with <= should parse: {:?}", result);
 }
 
@@ -46,25 +56,32 @@ fn test_parse_all_with_less_or_equal() {
 
 #[test]
 fn test_parse_any_with_greater_than() {
-    let result = Parser::parse_sql("SELECT * FROM employees WHERE salary > ANY (SELECT salary FROM dept WHERE dept_id = 10);");
+    let result = Parser::parse_sql(
+        "SELECT * FROM employees WHERE salary > ANY (SELECT salary FROM dept WHERE dept_id = 10);",
+    );
     assert!(result.is_ok(), "ANY with > should parse: {:?}", result);
 }
 
 #[test]
 fn test_parse_any_with_less_than() {
-    let result = Parser::parse_sql("SELECT * FROM products WHERE price < ANY (SELECT price FROM competitors);");
+    let result = Parser::parse_sql(
+        "SELECT * FROM products WHERE price < ANY (SELECT price FROM competitors);",
+    );
     assert!(result.is_ok(), "ANY with < should parse: {:?}", result);
 }
 
 #[test]
 fn test_parse_any_with_equals() {
-    let result = Parser::parse_sql("SELECT * FROM orders WHERE status = ANY (SELECT status FROM valid_statuses);");
+    let result = Parser::parse_sql(
+        "SELECT * FROM orders WHERE status = ANY (SELECT status FROM valid_statuses);",
+    );
     assert!(result.is_ok(), "ANY with = should parse: {:?}", result);
 }
 
 #[test]
 fn test_parse_any_with_not_equals() {
-    let result = Parser::parse_sql("SELECT * FROM users WHERE role <> ANY (SELECT role FROM admin_roles);");
+    let result =
+        Parser::parse_sql("SELECT * FROM users WHERE role <> ANY (SELECT role FROM admin_roles);");
     assert!(result.is_ok(), "ANY with <> should parse: {:?}", result);
 }
 
@@ -74,19 +91,25 @@ fn test_parse_any_with_not_equals() {
 
 #[test]
 fn test_parse_some_with_greater_than() {
-    let result = Parser::parse_sql("SELECT * FROM employees WHERE salary > SOME (SELECT salary FROM dept WHERE dept_id = 10);");
+    let result = Parser::parse_sql(
+        "SELECT * FROM employees WHERE salary > SOME (SELECT salary FROM dept WHERE dept_id = 10);",
+    );
     assert!(result.is_ok(), "SOME with > should parse: {:?}", result);
 }
 
 #[test]
 fn test_parse_some_with_less_than() {
-    let result = Parser::parse_sql("SELECT * FROM products WHERE price < SOME (SELECT price FROM competitors);");
+    let result = Parser::parse_sql(
+        "SELECT * FROM products WHERE price < SOME (SELECT price FROM competitors);",
+    );
     assert!(result.is_ok(), "SOME with < should parse: {:?}", result);
 }
 
 #[test]
 fn test_parse_some_with_equals() {
-    let result = Parser::parse_sql("SELECT * FROM orders WHERE quantity = SOME (SELECT quantity FROM inventory);");
+    let result = Parser::parse_sql(
+        "SELECT * FROM orders WHERE quantity = SOME (SELECT quantity FROM inventory);",
+    );
     assert!(result.is_ok(), "SOME with = should parse: {:?}", result);
 }
 
@@ -105,7 +128,7 @@ fn test_parse_quantified_with_complex_subquery() {
 #[test]
 fn test_parse_quantified_in_where_with_and() {
     let result = Parser::parse_sql(
-        "SELECT * FROM products WHERE price < ANY (SELECT price FROM competitors) AND stock > 0;"
+        "SELECT * FROM products WHERE price < ANY (SELECT price FROM competitors) AND stock > 0;",
     );
     assert!(result.is_ok(), "Quantified with AND should parse: {:?}", result);
 }
@@ -137,7 +160,7 @@ fn test_parse_multiple_quantified_comparisons() {
 #[test]
 fn test_parse_quantified_with_arithmetic() {
     let result = Parser::parse_sql(
-        "SELECT * FROM products WHERE price * 0.9 < ANY (SELECT price FROM competitors);"
+        "SELECT * FROM products WHERE price * 0.9 < ANY (SELECT price FROM competitors);",
     );
     assert!(result.is_ok(), "Quantified with arithmetic should parse: {:?}", result);
 }
@@ -173,14 +196,19 @@ fn test_parse_all_any_some_are_case_insensitive() {
 
     for sql in sql_variants {
         let result = Parser::parse_sql(sql);
-        assert!(result.is_ok(), "Case-insensitive quantifier should parse: {} -> {:?}", sql, result);
+        assert!(
+            result.is_ok(),
+            "Case-insensitive quantifier should parse: {} -> {:?}",
+            sql,
+            result
+        );
     }
 }
 
 #[test]
 fn test_parse_quantified_with_parenthesized_expression() {
     let result = Parser::parse_sql(
-        "SELECT * FROM employees WHERE (salary * 1.1) > ALL (SELECT salary FROM dept);"
+        "SELECT * FROM employees WHERE (salary * 1.1) > ALL (SELECT salary FROM dept);",
     );
     assert!(result.is_ok(), "Quantified with parenthesized expr should parse: {:?}", result);
 }

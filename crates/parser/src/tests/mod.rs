@@ -6,8 +6,11 @@ mod case_expression;
 mod cast;
 mod create_table;
 mod cte;
+<<<<<<< HEAD
 // TODO: Re-enable once datetime tests are available
 // mod datetime;
+=======
+>>>>>>> 4105a98 (refactor: Split delete.rs into focused submodules)
 mod delete;
 mod display;
 mod errors;

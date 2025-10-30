@@ -184,8 +184,11 @@ fn test_substring_syntaxes_equivalent() {
     };
 
     // Both should be Function expressions with same args
-    if let (ast::Expression::Function { name: name1, args: args1 },
-            ast::Expression::Function { name: name2, args: args2 }) = (comma_expr, from_for_expr) {
+    if let (
+        ast::Expression::Function { name: name1, args: args1 },
+        ast::Expression::Function { name: name2, args: args2 },
+    ) = (comma_expr, from_for_expr)
+    {
         assert_eq!(name1.to_uppercase(), name2.to_uppercase());
         assert_eq!(args1.len(), args2.len());
         assert_eq!(args1.len(), 3);

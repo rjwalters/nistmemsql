@@ -22,14 +22,12 @@ fn test_parse_date_literal() {
         ast::Statement::Select(select) => {
             assert_eq!(select.select_list.len(), 1);
             match &select.select_list[0] {
-                ast::SelectItem::Expression { expr, alias: _ } => {
-                    match expr {
-                        ast::Expression::Literal(types::SqlValue::Date(s)) => {
-                            assert_eq!(s, "2024-01-01");
-                        }
-                        _ => panic!("Expected DATE literal, got {:?}", expr),
+                ast::SelectItem::Expression { expr, alias: _ } => match expr {
+                    ast::Expression::Literal(types::SqlValue::Date(s)) => {
+                        assert_eq!(s, "2024-01-01");
                     }
-                }
+                    _ => panic!("Expected DATE literal, got {:?}", expr),
+                },
                 _ => panic!("Expected expression"),
             }
         }
@@ -80,14 +78,12 @@ fn test_parse_time_literal() {
         ast::Statement::Select(select) => {
             assert_eq!(select.select_list.len(), 1);
             match &select.select_list[0] {
-                ast::SelectItem::Expression { expr, alias: _ } => {
-                    match expr {
-                        ast::Expression::Literal(types::SqlValue::Time(s)) => {
-                            assert_eq!(s, "14:30:00");
-                        }
-                        _ => panic!("Expected TIME literal, got {:?}", expr),
+                ast::SelectItem::Expression { expr, alias: _ } => match expr {
+                    ast::Expression::Literal(types::SqlValue::Time(s)) => {
+                        assert_eq!(s, "14:30:00");
                     }
-                }
+                    _ => panic!("Expected TIME literal, got {:?}", expr),
+                },
                 _ => panic!("Expected expression"),
             }
         }
@@ -114,19 +110,15 @@ fn test_parse_time_literal_with_fractional_seconds() {
 
     let stmt = result.unwrap();
     match stmt {
-        ast::Statement::Select(select) => {
-            match &select.select_list[0] {
-                ast::SelectItem::Expression { expr, alias: _ } => {
-                    match expr {
-                        ast::Expression::Literal(types::SqlValue::Time(s)) => {
-                            assert_eq!(s, "14:30:00.123");
-                        }
-                        _ => panic!("Expected TIME literal"),
-                    }
+        ast::Statement::Select(select) => match &select.select_list[0] {
+            ast::SelectItem::Expression { expr, alias: _ } => match expr {
+                ast::Expression::Literal(types::SqlValue::Time(s)) => {
+                    assert_eq!(s, "14:30:00.123");
                 }
-                _ => panic!("Expected expression"),
-            }
-        }
+                _ => panic!("Expected TIME literal"),
+            },
+            _ => panic!("Expected expression"),
+        },
         _ => panic!("Expected SELECT statement"),
     }
 }
@@ -145,14 +137,12 @@ fn test_parse_timestamp_literal() {
         ast::Statement::Select(select) => {
             assert_eq!(select.select_list.len(), 1);
             match &select.select_list[0] {
-                ast::SelectItem::Expression { expr, alias: _ } => {
-                    match expr {
-                        ast::Expression::Literal(types::SqlValue::Timestamp(s)) => {
-                            assert_eq!(s, "2024-01-01 14:30:00");
-                        }
-                        _ => panic!("Expected TIMESTAMP literal, got {:?}", expr),
+                ast::SelectItem::Expression { expr, alias: _ } => match expr {
+                    ast::Expression::Literal(types::SqlValue::Timestamp(s)) => {
+                        assert_eq!(s, "2024-01-01 14:30:00");
                     }
-                }
+                    _ => panic!("Expected TIMESTAMP literal, got {:?}", expr),
+                },
                 _ => panic!("Expected expression"),
             }
         }
@@ -167,19 +157,15 @@ fn test_parse_timestamp_literal_with_fractional_seconds() {
 
     let stmt = result.unwrap();
     match stmt {
-        ast::Statement::Select(select) => {
-            match &select.select_list[0] {
-                ast::SelectItem::Expression { expr, alias: _ } => {
-                    match expr {
-                        ast::Expression::Literal(types::SqlValue::Timestamp(s)) => {
-                            assert_eq!(s, "2024-01-01 14:30:00.123456");
-                        }
-                        _ => panic!("Expected TIMESTAMP literal"),
-                    }
+        ast::Statement::Select(select) => match &select.select_list[0] {
+            ast::SelectItem::Expression { expr, alias: _ } => match expr {
+                ast::Expression::Literal(types::SqlValue::Timestamp(s)) => {
+                    assert_eq!(s, "2024-01-01 14:30:00.123456");
                 }
-                _ => panic!("Expected expression"),
-            }
-        }
+                _ => panic!("Expected TIMESTAMP literal"),
+            },
+            _ => panic!("Expected expression"),
+        },
         _ => panic!("Expected SELECT statement"),
     }
 }
@@ -187,7 +173,7 @@ fn test_parse_timestamp_literal_with_fractional_seconds() {
 #[test]
 fn test_parse_timestamp_literal_in_insert() {
     let result = Parser::parse_sql(
-        "INSERT INTO logs (id, created) VALUES (1, TIMESTAMP '2024-01-01 12:00:00');"
+        "INSERT INTO logs (id, created) VALUES (1, TIMESTAMP '2024-01-01 12:00:00');",
     );
     assert!(result.is_ok(), "TIMESTAMP in INSERT should parse: {:?}", result);
 }
@@ -206,14 +192,12 @@ fn test_parse_interval_year_literal() {
         ast::Statement::Select(select) => {
             assert_eq!(select.select_list.len(), 1);
             match &select.select_list[0] {
-                ast::SelectItem::Expression { expr, alias: _ } => {
-                    match expr {
-                        ast::Expression::Literal(types::SqlValue::Interval(s)) => {
-                            assert_eq!(s, "5 YEAR");
-                        }
-                        _ => panic!("Expected INTERVAL literal, got {:?}", expr),
+                ast::SelectItem::Expression { expr, alias: _ } => match expr {
+                    ast::Expression::Literal(types::SqlValue::Interval(s)) => {
+                        assert_eq!(s, "5 YEAR");
                     }
-                }
+                    _ => panic!("Expected INTERVAL literal, got {:?}", expr),
+                },
                 _ => panic!("Expected expression"),
             }
         }
@@ -246,19 +230,15 @@ fn test_parse_interval_year_to_month_literal() {
 
     let stmt = result.unwrap();
     match stmt {
-        ast::Statement::Select(select) => {
-            match &select.select_list[0] {
-                ast::SelectItem::Expression { expr, alias: _ } => {
-                    match expr {
-                        ast::Expression::Literal(types::SqlValue::Interval(s)) => {
-                            assert_eq!(s, "1-6 YEAR TO MONTH");
-                        }
-                        _ => panic!("Expected INTERVAL literal"),
-                    }
+        ast::Statement::Select(select) => match &select.select_list[0] {
+            ast::SelectItem::Expression { expr, alias: _ } => match expr {
+                ast::Expression::Literal(types::SqlValue::Interval(s)) => {
+                    assert_eq!(s, "1-6 YEAR TO MONTH");
                 }
-                _ => panic!("Expected expression"),
-            }
-        }
+                _ => panic!("Expected INTERVAL literal"),
+            },
+            _ => panic!("Expected expression"),
+        },
         _ => panic!("Expected SELECT statement"),
     }
 }
@@ -276,19 +256,15 @@ fn test_parse_interval_day_to_second_literal() {
 
     let stmt = result.unwrap();
     match stmt {
-        ast::Statement::Select(select) => {
-            match &select.select_list[0] {
-                ast::SelectItem::Expression { expr, alias: _ } => {
-                    match expr {
-                        ast::Expression::Literal(types::SqlValue::Interval(s)) => {
-                            assert_eq!(s, "5 12:30:45 DAY TO SECOND");
-                        }
-                        _ => panic!("Expected INTERVAL literal"),
-                    }
+        ast::Statement::Select(select) => match &select.select_list[0] {
+            ast::SelectItem::Expression { expr, alias: _ } => match expr {
+                ast::Expression::Literal(types::SqlValue::Interval(s)) => {
+                    assert_eq!(s, "5 12:30:45 DAY TO SECOND");
                 }
-                _ => panic!("Expected expression"),
-            }
-        }
+                _ => panic!("Expected INTERVAL literal"),
+            },
+            _ => panic!("Expected expression"),
+        },
         _ => panic!("Expected SELECT statement"),
     }
 }
@@ -300,7 +276,7 @@ fn test_parse_interval_day_to_second_literal() {
 #[test]
 fn test_parse_mixed_date_time_literals() {
     let result = Parser::parse_sql(
-        "SELECT DATE '2024-01-01', TIME '14:30:00', TIMESTAMP '2024-01-01 14:30:00';"
+        "SELECT DATE '2024-01-01', TIME '14:30:00', TIMESTAMP '2024-01-01 14:30:00';",
     );
     assert!(result.is_ok(), "Mixed date/time literals should parse: {:?}", result);
 

@@ -182,9 +182,7 @@ fn test_parse_cast_to_timestamp() {
 
 #[test]
 fn test_parse_cast_in_where_clause() {
-    let result = Parser::parse_sql(
-        "SELECT * FROM users WHERE CAST(age AS VARCHAR(10)) = '25';"
-    );
+    let result = Parser::parse_sql("SELECT * FROM users WHERE CAST(age AS VARCHAR(10)) = '25';");
     assert!(result.is_ok(), "CAST in WHERE should parse: {:?}", result);
 }
 
@@ -196,9 +194,8 @@ fn test_parse_cast_nested_expression() {
 
 #[test]
 fn test_parse_multiple_casts() {
-    let result = Parser::parse_sql(
-        "SELECT CAST(a AS INTEGER), CAST(b AS VARCHAR(20)), CAST(c AS FLOAT);"
-    );
+    let result =
+        Parser::parse_sql("SELECT CAST(a AS INTEGER), CAST(b AS VARCHAR(20)), CAST(c AS FLOAT);");
     assert!(result.is_ok(), "Multiple CASTs should parse: {:?}", result);
 
     let stmt = result.unwrap();

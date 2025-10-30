@@ -14,9 +14,7 @@ fn test_parse_cte_basic() {
 
 #[test]
 fn test_parse_cte_simple() {
-    let result = Parser::parse_sql(
-        "WITH cte AS (SELECT id FROM users) SELECT * FROM cte;"
-    );
+    let result = Parser::parse_sql("WITH cte AS (SELECT id FROM users) SELECT * FROM cte;");
     assert!(result.is_ok(), "Simple CTE should parse: {:?}", result);
 }
 
@@ -31,7 +29,7 @@ fn test_parse_cte_multiple() {
 #[test]
 fn test_parse_cte_with_column_list() {
     let result = Parser::parse_sql(
-        "WITH cte (user_id, user_name) AS (SELECT id, name FROM users) SELECT * FROM cte;"
+        "WITH cte (user_id, user_name) AS (SELECT id, name FROM users) SELECT * FROM cte;",
     );
     assert!(result.is_ok(), "CTE with column list should parse: {:?}", result);
 }
@@ -124,7 +122,7 @@ fn test_parse_cte_complex_query() {
         SELECT region, product, SUM(amount) AS product_sales
         FROM orders
         WHERE region IN (SELECT region FROM top_regions)
-        GROUP BY region, product;"
+        GROUP BY region, product;",
     );
     assert!(result.is_ok(), "Complex multi-CTE query should parse: {:?}", result);
 }
@@ -146,7 +144,7 @@ fn test_parse_cte_case_insensitive() {
 #[test]
 fn test_parse_cte_with_distinct() {
     let result = Parser::parse_sql(
-        "WITH unique_regions AS (SELECT DISTINCT region FROM sales) SELECT * FROM unique_regions;"
+        "WITH unique_regions AS (SELECT DISTINCT region FROM sales) SELECT * FROM unique_regions;",
     );
     assert!(result.is_ok(), "CTE with DISTINCT should parse: {:?}", result);
 }
@@ -169,9 +167,7 @@ fn test_parse_cte_with_subquery_in_cte() {
 
 #[test]
 fn test_parse_cte_empty_column_list() {
-    let result = Parser::parse_sql(
-        "WITH cte () AS (SELECT id FROM users) SELECT * FROM cte;"
-    );
+    let result = Parser::parse_sql("WITH cte () AS (SELECT id FROM users) SELECT * FROM cte;");
     // Empty column list should fail
     assert!(result.is_err(), "CTE with empty column list should fail to parse");
 }

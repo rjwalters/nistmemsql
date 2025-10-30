@@ -38,7 +38,8 @@ fn test_parse_in_with_integer_list() {
 
 #[test]
 fn test_parse_in_with_string_list() {
-    let result = Parser::parse_sql("SELECT * FROM users WHERE name IN ('Alice', 'Bob', 'Charlie');");
+    let result =
+        Parser::parse_sql("SELECT * FROM users WHERE name IN ('Alice', 'Bob', 'Charlie');");
     assert!(result.is_ok(), "IN with string list should parse: {:?}", result);
 }
 
@@ -56,7 +57,8 @@ fn test_parse_in_with_single_value() {
 
 #[test]
 fn test_parse_not_in_with_value_list() {
-    let result = Parser::parse_sql("SELECT * FROM users WHERE status NOT IN ('inactive', 'banned');");
+    let result =
+        Parser::parse_sql("SELECT * FROM users WHERE status NOT IN ('inactive', 'banned');");
     assert!(result.is_ok(), "NOT IN with value list should parse: {:?}", result);
 
     let stmt = result.unwrap();
@@ -83,7 +85,7 @@ fn test_parse_in_with_expressions() {
 #[test]
 fn test_parse_in_list_with_and() {
     let result = Parser::parse_sql(
-        "SELECT * FROM users WHERE age > 18 AND status IN ('active', 'pending');"
+        "SELECT * FROM users WHERE age > 18 AND status IN ('active', 'pending');",
     );
     assert!(result.is_ok(), "IN list with AND should parse: {:?}", result);
 }
@@ -91,16 +93,15 @@ fn test_parse_in_list_with_and() {
 #[test]
 fn test_parse_in_list_with_or() {
     let result = Parser::parse_sql(
-        "SELECT * FROM products WHERE category IN ('electronics', 'computers') OR price < 100;"
+        "SELECT * FROM products WHERE category IN ('electronics', 'computers') OR price < 100;",
     );
     assert!(result.is_ok(), "IN list with OR should parse: {:?}", result);
 }
 
 #[test]
 fn test_parse_multiple_in_lists() {
-    let result = Parser::parse_sql(
-        "SELECT * FROM data WHERE type IN ('A', 'B') AND status IN (1, 2, 3);"
-    );
+    let result =
+        Parser::parse_sql("SELECT * FROM data WHERE type IN ('A', 'B') AND status IN (1, 2, 3);");
     assert!(result.is_ok(), "Multiple IN lists should parse: {:?}", result);
 }
 
@@ -113,14 +114,15 @@ fn test_parse_in_empty_list_should_error() {
 
 #[test]
 fn test_parse_in_list_with_null() {
-    let result = Parser::parse_sql("SELECT * FROM users WHERE status IN ('active', NULL, 'pending');");
+    let result =
+        Parser::parse_sql("SELECT * FROM users WHERE status IN ('active', NULL, 'pending');");
     assert!(result.is_ok(), "IN list with NULL should parse: {:?}", result);
 }
 
 #[test]
 fn test_parse_in_list_complex_expression() {
     let result = Parser::parse_sql(
-        "SELECT * FROM orders WHERE (customer_id IN (1, 2, 3) AND total > 100) OR status = 'vip';"
+        "SELECT * FROM orders WHERE (customer_id IN (1, 2, 3) AND total > 100) OR status = 'vip';",
     );
     assert!(result.is_ok(), "Complex expression with IN list should parse: {:?}", result);
 }
