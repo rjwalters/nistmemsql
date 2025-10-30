@@ -26,7 +26,10 @@ impl Parser {
                     args: vec![],
                 }))
             }
-            // CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP (legacy multi-token form)
+            // CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP (multi-token form)
+            // The lexer tokenizes CURRENT_DATE as two tokens when CURRENT is a keyword:
+            //   Token::Keyword(Current) + Token::Identifier("_DATE")
+            // This branch handles that tokenization pattern.
             Token::Keyword(Keyword::Current) => {
                 self.advance(); // consume CURRENT
 
