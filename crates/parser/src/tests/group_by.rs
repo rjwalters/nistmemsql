@@ -26,7 +26,8 @@ fn test_parse_group_by_single_column() {
 
 #[test]
 fn test_parse_group_by_multiple_columns() {
-    let result = Parser::parse_sql("SELECT dept, user_role, COUNT(*) FROM users GROUP BY dept, user_role;");
+    let result =
+        Parser::parse_sql("SELECT dept, user_role, COUNT(*) FROM users GROUP BY dept, user_role;");
     assert!(result.is_ok());
     let stmt = result.unwrap();
 

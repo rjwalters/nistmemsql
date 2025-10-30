@@ -18,9 +18,7 @@ pub(in crate::select) fn expression_has_window_function(expr: &Expression) -> bo
             expression_has_window_function(left) || expression_has_window_function(right)
         }
         Expression::UnaryOp { expr, .. } => expression_has_window_function(expr),
-        Expression::Function { args, .. } => {
-            args.iter().any(expression_has_window_function)
-        }
+        Expression::Function { args, .. } => args.iter().any(expression_has_window_function),
         Expression::Case { when_clauses, else_result, .. } => {
             when_clauses.iter().any(|when_clause| {
                 when_clause.conditions.iter().any(expression_has_window_function)

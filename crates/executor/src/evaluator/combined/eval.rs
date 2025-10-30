@@ -128,7 +128,9 @@ impl CombinedExpressionEvaluator<'_> {
             ast::Expression::IsNull { expr, negated } => self.eval_is_null(expr, *negated, row),
 
             // Function expressions - handle scalar functions (not aggregates)
-            ast::Expression::Function { name, args, character_unit: _ } => self.eval_function(name, args, row),
+            ast::Expression::Function { name, args, character_unit: _ } => {
+                self.eval_function(name, args, row)
+            }
 
             // Current date/time functions
             ast::Expression::CurrentDate => {
@@ -154,9 +156,10 @@ impl CombinedExpressionEvaluator<'_> {
                     let key = WindowFunctionKey::from_expression(function, over);
                     if let Some(&col_idx) = mapping.get(&key) {
                         // Extract the pre-computed value from the appended column
-                        let value = row.values.get(col_idx).cloned().ok_or({
-                            ExecutorError::ColumnIndexOutOfBounds { index: col_idx }
-                        })?;
+                        let value =
+                            row.values.get(col_idx).cloned().ok_or({
+                                ExecutorError::ColumnIndexOutOfBounds { index: col_idx }
+                            })?;
                         Ok(value)
                     } else {
                         Err(ExecutorError::UnsupportedExpression(format!(

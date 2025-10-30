@@ -23,6 +23,9 @@ fn test_grant_select_on_table() {
     );
     db.create_table(schema).unwrap();
 
+    // Create the role
+    db.catalog.create_role("manager".to_string()).unwrap();
+
     // Grant SELECT privilege
     let grant_stmt = ast::GrantStmt {
         privileges: vec![ast::PrivilegeType::Select],
@@ -62,9 +65,10 @@ fn test_grant_on_qualified_table() {
             ),
         ],
     );
-    db.catalog
-        .create_table_in_schema("myschema", schema)
-        .unwrap();
+    db.catalog.create_table_in_schema("myschema", schema).unwrap();
+
+    // Create the role
+    db.catalog.create_role("clerk".to_string()).unwrap();
 
     // Grant SELECT privilege with qualified name
     let grant_stmt = ast::GrantStmt {
@@ -116,6 +120,10 @@ fn test_grant_to_multiple_grantees() {
     );
     db.create_table(schema).unwrap();
 
+    // Create the roles
+    db.catalog.create_role("manager".to_string()).unwrap();
+    db.catalog.create_role("clerk".to_string()).unwrap();
+
     // Grant SELECT privilege to multiple users
     let grant_stmt = ast::GrantStmt {
         privileges: vec![ast::PrivilegeType::Select],
@@ -156,6 +164,9 @@ fn test_grant_multiple_privileges() {
         ],
     );
     db.create_table(schema).unwrap();
+
+    // Create the role
+    db.catalog.create_role("manager".to_string()).unwrap();
 
     // Grant multiple privileges to a single grantee
     let grant_stmt = ast::GrantStmt {
@@ -206,6 +217,10 @@ fn test_grant_matrix_multiple_privileges_and_grantees() {
     );
     db.create_table(schema).unwrap();
 
+    // Create the roles
+    db.catalog.create_role("r1".to_string()).unwrap();
+    db.catalog.create_role("r2".to_string()).unwrap();
+
     // Grant multiple privileges to multiple grantees
     // This should create 2 privileges × 2 grantees = 4 grant records
     let grant_stmt = ast::GrantStmt {
@@ -248,6 +263,9 @@ fn test_grant_all_four_privilege_types() {
         vec![ColumnSchema::new("id".to_string(), DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
+
+    // Create the role
+    db.catalog.create_role("admin".to_string()).unwrap();
 
     // Grant all four privilege types
     let grant_stmt = ast::GrantStmt {
@@ -303,6 +321,9 @@ fn test_grant_all_privileges_expands_to_table_privileges() {
     );
     db.create_table(schema).unwrap();
 
+    // Create the role
+    db.catalog.create_role("manager".to_string()).unwrap();
+
     // Grant ALL PRIVILEGES
     let grant_stmt = ast::GrantStmt {
         privileges: vec![ast::PrivilegeType::AllPrivileges],
@@ -351,6 +372,10 @@ fn test_grant_all_privileges_to_multiple_grantees() {
         ],
     );
     db.create_table(schema).unwrap();
+
+    // Create the roles
+    db.catalog.create_role("manager".to_string()).unwrap();
+    db.catalog.create_role("clerk".to_string()).unwrap();
 
     // Grant ALL PRIVILEGES to multiple grantees
     let grant_stmt = ast::GrantStmt {
@@ -419,6 +444,9 @@ fn test_grant_usage_on_schema() {
     // Create a schema
     db.catalog.create_schema("app_schema".to_string()).unwrap();
 
+    // Create the role
+    db.catalog.create_role("user_role".to_string()).unwrap();
+
     // Grant USAGE privilege on schema
     let grant_stmt = ast::GrantStmt {
         privileges: vec![ast::PrivilegeType::Usage],
@@ -445,6 +473,9 @@ fn test_grant_create_on_schema() {
     // Create a schema
     db.catalog.create_schema("admin_schema".to_string()).unwrap();
 
+    // Create the role
+    db.catalog.create_role("admin_role".to_string()).unwrap();
+
     // Grant CREATE privilege on schema
     let grant_stmt = ast::GrantStmt {
         privileges: vec![ast::PrivilegeType::Create],
@@ -470,6 +501,9 @@ fn test_grant_all_privileges_on_schema_expands_correctly() {
 
     // Create a schema
     db.catalog.create_schema("myschema".to_string()).unwrap();
+
+    // Create the role
+    db.catalog.create_role("developer".to_string()).unwrap();
 
     // Grant ALL PRIVILEGES on schema
     let grant_stmt = ast::GrantStmt {
@@ -501,36 +535,14 @@ fn test_grant_all_privileges_on_schema_expands_correctly() {
 }
 
 #[test]
-fn test_grant_on_nonexistent_schema() {
-    let mut db = Database::new();
-
-    // Try to grant on a schema that doesn't exist
-    let grant_stmt = ast::GrantStmt {
-        privileges: vec![ast::PrivilegeType::Usage],
-        object_type: ast::ObjectType::Schema,
-        object_name: "nonexistent_schema".to_string(),
-        grantees: vec!["user_role".to_string()],
-        with_grant_option: false,
-    };
-
-    let result = GrantExecutor::execute_grant(&grant_stmt, &mut db);
-    assert!(result.is_err(), "Should fail when schema doesn't exist");
-
-    // Verify it's the correct error type
-    match result {
-        Err(executor::ExecutorError::SchemaNotFound(name)) => {
-            assert_eq!(name, "nonexistent_schema", "Error should reference the correct schema");
-        }
-        _ => panic!("Expected SchemaNotFound error, got {:?}", result),
-    }
-}
-
-#[test]
 fn test_grant_schema_with_grant_option() {
     let mut db = Database::new();
 
     // Create a schema
     db.catalog.create_schema("power_schema".to_string()).unwrap();
+
+    // Create the role
+    db.catalog.create_role("power_user".to_string()).unwrap();
 
     // Grant USAGE privilege with GRANT OPTION
     let grant_stmt = ast::GrantStmt {
@@ -570,6 +582,10 @@ fn test_grant_multiple_schema_privileges_to_multiple_grantees() {
 
     // Create a schema
     db.catalog.create_schema("shared".to_string()).unwrap();
+
+    // Create the roles
+    db.catalog.create_role("dev1".to_string()).unwrap();
+    db.catalog.create_role("dev2".to_string()).unwrap();
 
     // Grant both USAGE and CREATE to multiple grantees
     let grant_stmt = ast::GrantStmt {
@@ -615,6 +631,9 @@ fn test_grant_with_grant_option_stored_in_catalog() {
     );
     db.create_table(schema).unwrap();
 
+    // Create the role
+    db.catalog.create_role("manager".to_string()).unwrap();
+
     // Grant SELECT privilege WITH GRANT OPTION
     let grant_stmt = ast::GrantStmt {
         privileges: vec![ast::PrivilegeType::Select],
@@ -630,10 +649,7 @@ fn test_grant_with_grant_option_stored_in_catalog() {
     // Verify the with_grant_option flag was stored correctly
     let grants = db.catalog.get_grants_for_grantee("manager");
     assert_eq!(grants.len(), 1, "Should have exactly one grant");
-    assert!(
-        grants[0].with_grant_option,
-        "with_grant_option should be true"
-    );
+    assert!(grants[0].with_grant_option, "with_grant_option should be true");
 }
 
 #[test]
@@ -646,6 +662,9 @@ fn test_grant_without_grant_option_stored_in_catalog() {
         vec![ColumnSchema::new("id".to_string(), DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
+
+    // Create the role
+    db.catalog.create_role("clerk".to_string()).unwrap();
 
     // Grant SELECT privilege WITHOUT GRANT OPTION
     let grant_stmt = ast::GrantStmt {
@@ -662,10 +681,7 @@ fn test_grant_without_grant_option_stored_in_catalog() {
     // Verify the with_grant_option flag was stored correctly
     let grants = db.catalog.get_grants_for_grantee("clerk");
     assert_eq!(grants.len(), 1, "Should have exactly one grant");
-    assert!(
-        !grants[0].with_grant_option,
-        "with_grant_option should be false"
-    );
+    assert!(!grants[0].with_grant_option, "with_grant_option should be false");
 }
 
 #[test]
@@ -678,6 +694,9 @@ fn test_grant_all_privileges_with_grant_option_on_table() {
         vec![ColumnSchema::new("id".to_string(), DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
+
+    // Create the role
+    db.catalog.create_role("admin".to_string()).unwrap();
 
     // Grant ALL PRIVILEGES WITH GRANT OPTION
     let grant_stmt = ast::GrantStmt {
@@ -693,11 +712,7 @@ fn test_grant_all_privileges_with_grant_option_on_table() {
 
     // Verify all expanded privileges have with_grant_option = true
     let grants = db.catalog.get_grants_for_grantee("admin");
-    assert_eq!(
-        grants.len(),
-        5,
-        "ALL PRIVILEGES should expand to 5 table privileges"
-    );
+    assert_eq!(grants.len(), 5, "ALL PRIVILEGES should expand to 5 table privileges");
 
     // All 5 grants should have with_grant_option = true
     for grant in grants {
@@ -718,6 +733,10 @@ fn test_grant_multiple_grantees_with_grant_option() {
         vec![ColumnSchema::new("id".to_string(), DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
+
+    // Create the roles
+    db.catalog.create_role("manager".to_string()).unwrap();
+    db.catalog.create_role("clerk".to_string()).unwrap();
 
     // Grant SELECT privilege to multiple grantees WITH GRANT OPTION
     let grant_stmt = ast::GrantStmt {
@@ -744,5 +763,129 @@ fn test_grant_multiple_grantees_with_grant_option() {
     assert!(
         clerk_grants[0].with_grant_option,
         "Clerk's grant should have with_grant_option = true"
+    );
+}
+
+// ============================================================================
+// Phase 2.6: Edge case and validation tests
+// ============================================================================
+
+#[test]
+fn test_grant_to_nonexistent_role() {
+    let mut db = Database::new();
+
+    // Create a test table
+    let schema = TableSchema::new(
+        "users".to_string(),
+        vec![ColumnSchema::new("id".to_string(), DataType::Integer, false)],
+    );
+    db.create_table(schema).unwrap();
+
+    // Try to grant to a role that doesn't exist
+    let grant_stmt = ast::GrantStmt {
+        privileges: vec![ast::PrivilegeType::Select],
+        object_type: ast::ObjectType::Table,
+        object_name: "users".to_string(),
+        grantees: vec!["nonexistent_role".to_string()],
+        with_grant_option: false,
+    };
+
+    let result = GrantExecutor::execute_grant(&grant_stmt, &mut db);
+    assert!(result.is_err(), "Should fail when role doesn't exist");
+
+    match result {
+        Err(executor::ExecutorError::RoleNotFound(name)) => {
+            assert_eq!(name, "nonexistent_role", "Error should report the missing role");
+        }
+        _ => panic!("Expected RoleNotFound error, got {:?}", result),
+    }
+}
+
+#[test]
+fn test_grant_on_nonexistent_schema() {
+    let mut db = Database::new();
+
+    // Create the role so we test schema validation, not role validation
+    db.catalog.create_role("manager".to_string()).unwrap();
+
+    // Try to grant on a schema that doesn't exist
+    let grant_stmt = ast::GrantStmt {
+        privileges: vec![ast::PrivilegeType::Usage],
+        object_type: ast::ObjectType::Schema,
+        object_name: "nonexistent_schema".to_string(),
+        grantees: vec!["manager".to_string()],
+        with_grant_option: false,
+    };
+
+    let result = GrantExecutor::execute_grant(&grant_stmt, &mut db);
+    assert!(result.is_err(), "Should fail when schema doesn't exist");
+
+    match result {
+        Err(executor::ExecutorError::SchemaNotFound(name)) => {
+            assert_eq!(name, "nonexistent_schema", "Error should report the missing schema");
+        }
+        _ => panic!("Expected SchemaNotFound error, got {:?}", result),
+    }
+}
+
+#[test]
+fn test_grant_on_schema_with_existing_role() {
+    let mut db = Database::new();
+
+    // Create a schema
+    db.catalog.create_schema("myschema".to_string()).unwrap();
+
+    // Create a role
+    db.catalog.create_role("developer".to_string()).unwrap();
+
+    // Grant USAGE on schema
+    let grant_stmt = ast::GrantStmt {
+        privileges: vec![ast::PrivilegeType::Usage],
+        object_type: ast::ObjectType::Schema,
+        object_name: "myschema".to_string(),
+        grantees: vec!["developer".to_string()],
+        with_grant_option: false,
+    };
+
+    let result = GrantExecutor::execute_grant(&grant_stmt, &mut db);
+    assert!(result.is_ok(), "Should succeed when both schema and role exist: {:?}", result.err());
+
+    // Verify the privilege was stored
+    assert!(
+        db.catalog.has_privilege("developer", "myschema", &ast::PrivilegeType::Usage),
+        "Developer should have USAGE privilege on schema"
+    );
+}
+
+#[test]
+fn test_grant_multiple_privileges_one_invalid_role() {
+    let mut db = Database::new();
+
+    // Create a test table
+    let schema = TableSchema::new(
+        "orders".to_string(),
+        vec![ColumnSchema::new("id".to_string(), DataType::Integer, false)],
+    );
+    db.create_table(schema).unwrap();
+
+    // Create only one of the two roles
+    db.catalog.create_role("manager".to_string()).unwrap();
+
+    // Try to grant to both a valid and invalid role
+    let grant_stmt = ast::GrantStmt {
+        privileges: vec![ast::PrivilegeType::Select],
+        object_type: ast::ObjectType::Table,
+        object_name: "orders".to_string(),
+        grantees: vec!["manager".to_string(), "invalid_role".to_string()],
+        with_grant_option: false,
+    };
+
+    let result = GrantExecutor::execute_grant(&grant_stmt, &mut db);
+    assert!(result.is_err(), "Should fail when any role doesn't exist");
+
+    // Verify no privileges were granted (transaction-like behavior)
+    assert!(
+        !db.catalog.has_privilege("manager", "orders", &ast::PrivilegeType::Select),
+        "No privileges should be granted when validation fails"
     );
 }

@@ -14,9 +14,7 @@ fn expression_references_column(expr: &ast::Expression) -> bool {
 
         ast::Expression::UnaryOp { expr, .. } => expression_references_column(expr),
 
-        ast::Expression::Function { args, .. } => {
-            args.iter().any(expression_references_column)
-        }
+        ast::Expression::Function { args, .. } => args.iter().any(expression_references_column),
 
         ast::Expression::AggregateFunction { args, .. } => {
             args.iter().any(expression_references_column)
@@ -25,8 +23,7 @@ fn expression_references_column(expr: &ast::Expression) -> bool {
         ast::Expression::IsNull { expr, .. } => expression_references_column(expr),
 
         ast::Expression::InList { expr, values, .. } => {
-            expression_references_column(expr)
-                || values.iter().any(expression_references_column)
+            expression_references_column(expr) || values.iter().any(expression_references_column)
         }
 
         ast::Expression::Between { expr, low, high, .. } => {
@@ -38,8 +35,7 @@ fn expression_references_column(expr: &ast::Expression) -> bool {
         ast::Expression::Cast { expr, .. } => expression_references_column(expr),
 
         ast::Expression::Position { substring, string, character_unit: _ } => {
-            expression_references_column(substring)
-                || expression_references_column(string)
+            expression_references_column(substring) || expression_references_column(string)
         }
 
         ast::Expression::Trim { removal_char, string, .. } => {
@@ -48,8 +44,7 @@ fn expression_references_column(expr: &ast::Expression) -> bool {
         }
 
         ast::Expression::Like { expr, pattern, .. } => {
-            expression_references_column(expr)
-                || expression_references_column(pattern)
+            expression_references_column(expr) || expression_references_column(pattern)
         }
 
         ast::Expression::In { expr, .. } => {
@@ -57,17 +52,12 @@ fn expression_references_column(expr: &ast::Expression) -> bool {
             expression_references_column(expr)
         }
 
-        ast::Expression::QuantifiedComparison { expr, .. } => {
-            expression_references_column(expr)
-        }
+        ast::Expression::QuantifiedComparison { expr, .. } => expression_references_column(expr),
 
         ast::Expression::Case { operand, when_clauses, else_result } => {
             operand.as_ref().is_some_and(|e| expression_references_column(e))
                 || when_clauses.iter().any(|when_clause| {
-                    when_clause
-                        .conditions
-                        .iter()
-                        .any(expression_references_column)
+                    when_clause.conditions.iter().any(expression_references_column)
                         || expression_references_column(&when_clause.result)
                 })
                 || else_result.as_ref().is_some_and(|e| expression_references_column(e))
@@ -84,9 +74,10 @@ fn expression_references_column(expr: &ast::Expression) -> bool {
             };
 
             // Check PARTITION BY and ORDER BY clauses
-            let partition_references = over.partition_by.as_ref().is_some_and(|exprs| {
-                exprs.iter().any(expression_references_column)
-            });
+            let partition_references = over
+                .partition_by
+                .as_ref()
+                .is_some_and(|exprs| exprs.iter().any(expression_references_column));
 
             let order_references = over.order_by.as_ref().is_some_and(|items| {
                 items.iter().any(|item| expression_references_column(&item.expr))

@@ -266,7 +266,7 @@ impl Lexer {
             "OPTION" => Token::Keyword(Keyword::Option),
             // Role management keywords
             "ROLE" => Token::Keyword(Keyword::Role),
-            _ => Token::Identifier(upper_text),  // Regular identifiers are normalized to uppercase
+            _ => Token::Identifier(upper_text), // Regular identifiers are normalized to uppercase
         };
 
         Ok(token)
@@ -492,7 +492,8 @@ mod tests {
 
         for (input, expected) in test_cases {
             let mut lexer = Lexer::new(input);
-            let tokens = lexer.tokenize().unwrap_or_else(|_| panic!("Failed to tokenize: {}", input));
+            let tokens =
+                lexer.tokenize().unwrap_or_else(|_| panic!("Failed to tokenize: {}", input));
 
             // Should have exactly 2 tokens: the number and EOF
             assert_eq!(tokens.len(), 2, "Input: {}", input);
@@ -513,7 +514,8 @@ mod tests {
 
         for (input, expected) in test_cases {
             let mut lexer = Lexer::new(input);
-            let tokens = lexer.tokenize().unwrap_or_else(|_| panic!("Failed to tokenize: {}", input));
+            let tokens =
+                lexer.tokenize().unwrap_or_else(|_| panic!("Failed to tokenize: {}", input));
 
             assert_eq!(tokens.len(), 2, "Input: {}", input);
 

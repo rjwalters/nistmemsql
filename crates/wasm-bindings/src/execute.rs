@@ -116,8 +116,9 @@ impl Database {
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
             ast::Statement::CreateRole(create_role_stmt) => {
-                let message = executor::RoleExecutor::execute_create_role(&create_role_stmt, &mut self.db)
-                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+                let message =
+                    executor::RoleExecutor::execute_create_role(&create_role_stmt, &mut self.db)
+                        .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult { rows_affected: 0, message };
 
@@ -125,8 +126,9 @@ impl Database {
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
             ast::Statement::DropRole(drop_role_stmt) => {
-                let message = executor::RoleExecutor::execute_drop_role(&drop_role_stmt, &mut self.db)
-                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+                let message =
+                    executor::RoleExecutor::execute_drop_role(&drop_role_stmt, &mut self.db)
+                        .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult { rows_affected: 0, message };
 

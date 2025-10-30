@@ -82,7 +82,9 @@ impl ExpressionEvaluator<'_> {
             }
 
             // Function call
-            ast::Expression::Function { name, args, character_unit: _ } => self.eval_function(name, args, row),
+            ast::Expression::Function { name, args, character_unit: _ } => {
+                self.eval_function(name, args, row)
+            }
 
             // Current date/time functions
             ast::Expression::CurrentDate => {

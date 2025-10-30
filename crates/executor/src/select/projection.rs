@@ -86,8 +86,7 @@ pub(super) fn evaluate_expression_with_windows(
         Expression::UnaryOp { expr: inner, op } => {
             // Similar substitution for unary operations
             let inner_substituted = substitute_window_functions(inner, row, window_mapping)?;
-            let new_expr =
-                Expression::UnaryOp { expr: Box::new(inner_substituted), op: *op };
+            let new_expr = Expression::UnaryOp { expr: Box::new(inner_substituted), op: *op };
             evaluator.eval(&new_expr, row)
         }
         _ => {
@@ -139,7 +138,11 @@ fn substitute_window_functions(
                 .iter()
                 .map(|arg| substitute_window_functions(arg, row, window_mapping))
                 .collect();
-            Ok(Expression::Function { name: name.clone(), args: substituted_args?, character_unit: character_unit.clone() })
+            Ok(Expression::Function {
+                name: name.clone(),
+                args: substituted_args?,
+                character_unit: character_unit.clone(),
+            })
         }
         Expression::Case { operand, when_clauses, else_result } => {
             let subst_operand = operand

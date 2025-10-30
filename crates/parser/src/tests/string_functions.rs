@@ -308,7 +308,9 @@ fn test_trim_with_char_still_works() {
                 // removal_char should be Some('x')
                 assert!(removal_char.is_some());
                 if let Some(boxed_expr) = removal_char {
-                    if let ast::Expression::Literal(types::SqlValue::Varchar(c)) = boxed_expr.as_ref() {
+                    if let ast::Expression::Literal(types::SqlValue::Varchar(c)) =
+                        boxed_expr.as_ref()
+                    {
                         assert_eq!(c, "x");
                     } else {
                         panic!("Expected string literal for removal char");
