@@ -183,3 +183,43 @@ fn test_parse_char_without_modifier_still_works() {
         _ => panic!("Expected CREATE TABLE statement"),
     }
 }
+
+#[test]
+fn test_parse_char_without_length() {
+    let result = Parser::parse_sql("CREATE TABLE t (A CHAR);");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "t");
+            assert_eq!(create.columns.len(), 1);
+            assert_eq!(create.columns[0].name, "A");
+            match create.columns[0].data_type {
+                types::DataType::Character { length: 1 } => {} // Success - defaults to 1
+                _ => panic!("Expected CHAR(1) data type"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_character_without_length() {
+    let result = Parser::parse_sql("CREATE TABLE t (A CHARACTER);");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "t");
+            assert_eq!(create.columns.len(), 1);
+            assert_eq!(create.columns[0].name, "A");
+            match create.columns[0].data_type {
+                types::DataType::Character { length: 1 } => {} // Success - defaults to 1
+                _ => panic!("Expected CHARACTER(1) data type"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
