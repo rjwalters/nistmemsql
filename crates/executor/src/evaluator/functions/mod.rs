@@ -44,6 +44,7 @@ pub(super) fn eval_scalar_function(
         "SUBSTR" => string::substring(args), // Alias for SUBSTRING
         "TRIM" => string::trim(args),
         "CHAR_LENGTH" | "CHARACTER_LENGTH" => string::char_length(args, name),
+        "OCTET_LENGTH" => string::octet_length(args),
         "CONCAT" => string::concat(args),
         "LENGTH" => string::length(args),
         "POSITION" => string::position(args),
