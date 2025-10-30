@@ -1,8 +1,7 @@
-///! Predicate evaluation for combined expressions (BETWEEN, LIKE, IN)
-
-use crate::errors::ExecutorError;
 use super::super::core::{CombinedExpressionEvaluator, ExpressionEvaluator};
 use super::super::pattern::like_match;
+///! Predicate evaluation for combined expressions (BETWEEN, LIKE, IN)
+use crate::errors::ExecutorError;
 
 impl<'a> CombinedExpressionEvaluator<'a> {
     /// Evaluate BETWEEN predicate: expr BETWEEN low AND high
@@ -218,7 +217,11 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             }
 
             // Compare using equality
-            let eq_result = ExpressionEvaluator::eval_binary_op_static(&expr_val, &ast::BinaryOperator::Equal, &value)?;
+            let eq_result = ExpressionEvaluator::eval_binary_op_static(
+                &expr_val,
+                &ast::BinaryOperator::Equal,
+                &value,
+            )?;
 
             // If we found a match, return TRUE (or FALSE if negated)
             if matches!(eq_result, types::SqlValue::Boolean(true)) {

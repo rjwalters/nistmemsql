@@ -4,7 +4,9 @@ use crate::keywords::Keyword;
 use crate::parser::ParseError;
 
 /// Parse BEGIN [TRANSACTION] or START TRANSACTION statement
-pub(super) fn parse_begin_statement(parser: &mut super::Parser) -> Result<ast::BeginStmt, ParseError> {
+pub(super) fn parse_begin_statement(
+    parser: &mut super::Parser,
+) -> Result<ast::BeginStmt, ParseError> {
     // Consume BEGIN or START
     if parser.peek_keyword(Keyword::Begin) {
         parser.consume_keyword(Keyword::Begin)?;
@@ -23,7 +25,9 @@ pub(super) fn parse_begin_statement(parser: &mut super::Parser) -> Result<ast::B
 }
 
 /// Parse COMMIT statement
-pub(super) fn parse_commit_statement(parser: &mut super::Parser) -> Result<ast::CommitStmt, ParseError> {
+pub(super) fn parse_commit_statement(
+    parser: &mut super::Parser,
+) -> Result<ast::CommitStmt, ParseError> {
     // Consume COMMIT
     parser.consume_keyword(Keyword::Commit)?;
 
@@ -31,7 +35,9 @@ pub(super) fn parse_commit_statement(parser: &mut super::Parser) -> Result<ast::
 }
 
 /// Parse ROLLBACK statement
-pub(super) fn parse_rollback_statement(parser: &mut super::Parser) -> Result<ast::RollbackStmt, ParseError> {
+pub(super) fn parse_rollback_statement(
+    parser: &mut super::Parser,
+) -> Result<ast::RollbackStmt, ParseError> {
     // Consume ROLLBACK
     parser.consume_keyword(Keyword::Rollback)?;
 
@@ -39,7 +45,9 @@ pub(super) fn parse_rollback_statement(parser: &mut super::Parser) -> Result<ast
 }
 
 /// Parse SAVEPOINT statement
-pub(super) fn parse_savepoint_statement(parser: &mut super::Parser) -> Result<ast::SavepointStmt, ParseError> {
+pub(super) fn parse_savepoint_statement(
+    parser: &mut super::Parser,
+) -> Result<ast::SavepointStmt, ParseError> {
     // Consume SAVEPOINT
     parser.consume_keyword(Keyword::Savepoint)?;
 
@@ -50,14 +58,20 @@ pub(super) fn parse_savepoint_statement(parser: &mut super::Parser) -> Result<as
             parser.advance();
             savepoint_name
         }
-        _ => return Err(ParseError { message: "Expected savepoint name after SAVEPOINT".to_string() }),
+        _ => {
+            return Err(ParseError {
+                message: "Expected savepoint name after SAVEPOINT".to_string(),
+            })
+        }
     };
 
     Ok(ast::SavepointStmt { name })
 }
 
 /// Parse ROLLBACK TO SAVEPOINT statement
-pub(super) fn parse_rollback_to_savepoint_statement(parser: &mut super::Parser) -> Result<ast::RollbackToSavepointStmt, ParseError> {
+pub(super) fn parse_rollback_to_savepoint_statement(
+    parser: &mut super::Parser,
+) -> Result<ast::RollbackToSavepointStmt, ParseError> {
     // Consume ROLLBACK
     parser.consume_keyword(Keyword::Rollback)?;
 
@@ -74,14 +88,20 @@ pub(super) fn parse_rollback_to_savepoint_statement(parser: &mut super::Parser) 
             parser.advance();
             savepoint_name
         }
-        _ => return Err(ParseError { message: "Expected savepoint name after ROLLBACK TO SAVEPOINT".to_string() }),
+        _ => {
+            return Err(ParseError {
+                message: "Expected savepoint name after ROLLBACK TO SAVEPOINT".to_string(),
+            })
+        }
     };
 
     Ok(ast::RollbackToSavepointStmt { name })
 }
 
 /// Parse RELEASE SAVEPOINT statement
-pub(super) fn parse_release_savepoint_statement(parser: &mut super::Parser) -> Result<ast::ReleaseSavepointStmt, ParseError> {
+pub(super) fn parse_release_savepoint_statement(
+    parser: &mut super::Parser,
+) -> Result<ast::ReleaseSavepointStmt, ParseError> {
     // Consume RELEASE
     parser.consume_keyword(Keyword::Release)?;
 
@@ -95,7 +115,11 @@ pub(super) fn parse_release_savepoint_statement(parser: &mut super::Parser) -> R
             parser.advance();
             savepoint_name
         }
-        _ => return Err(ParseError { message: "Expected savepoint name after RELEASE SAVEPOINT".to_string() }),
+        _ => {
+            return Err(ParseError {
+                message: "Expected savepoint name after RELEASE SAVEPOINT".to_string(),
+            })
+        }
     };
 
     Ok(ast::ReleaseSavepointStmt { name })

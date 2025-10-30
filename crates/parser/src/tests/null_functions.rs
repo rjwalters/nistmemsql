@@ -30,7 +30,8 @@ fn test_parse_coalesce_with_null() {
 
 #[test]
 fn test_parse_coalesce_in_where() {
-    let result = Parser::parse_sql("SELECT * FROM users WHERE COALESCE(status, 'active') = 'active';");
+    let result =
+        Parser::parse_sql("SELECT * FROM users WHERE COALESCE(status, 'active') = 'active';");
     assert!(result.is_ok(), "COALESCE in WHERE should parse: {:?}", result);
 }
 
@@ -97,14 +98,15 @@ fn test_parse_nullif_nested() {
 
 #[test]
 fn test_parse_coalesce_and_nullif_combined() {
-    let result = Parser::parse_sql("SELECT COALESCE(NULLIF(status, 'unknown'), 'active') FROM users;");
+    let result =
+        Parser::parse_sql("SELECT COALESCE(NULLIF(status, 'unknown'), 'active') FROM users;");
     assert!(result.is_ok(), "COALESCE with NULLIF should parse: {:?}", result);
 }
 
 #[test]
 fn test_parse_nullif_in_case() {
     let result = Parser::parse_sql(
-        "SELECT CASE WHEN NULLIF(balance, 0) = NULL THEN 'zero' ELSE 'non-zero' END FROM accounts;"
+        "SELECT CASE WHEN NULLIF(balance, 0) = NULL THEN 'zero' ELSE 'non-zero' END FROM accounts;",
     );
     assert!(result.is_ok(), "NULLIF in CASE should parse: {:?}", result);
 }

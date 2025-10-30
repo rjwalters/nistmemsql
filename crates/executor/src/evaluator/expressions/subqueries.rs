@@ -1,7 +1,7 @@
 //! Subquery evaluation methods
 
-use crate::errors::ExecutorError;
 use super::super::core::ExpressionEvaluator;
+use crate::errors::ExecutorError;
 
 impl<'a> ExpressionEvaluator<'a> {
     /// Evaluate IN subquery predicate
@@ -32,20 +32,16 @@ impl<'a> ExpressionEvaluator<'a> {
         // Convert TableSchema to CombinedSchema for outer context
         let outer_combined = crate::schema::CombinedSchema::from_table(
             self.schema.name.clone(),
-            self.schema.clone()
+            self.schema.clone(),
         );
-        let select_executor = crate::select::SelectExecutor::new_with_outer_context(
-            database,
-            row,
-            &outer_combined,
-        );
+        let select_executor =
+            crate::select::SelectExecutor::new_with_outer_context(database, row, &outer_combined);
         let rows = select_executor.execute(subquery)?;
 
         let mut found_null = false;
         for subquery_row in &rows {
-            let subquery_val = subquery_row
-                .get(0)
-                .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
+            let subquery_val =
+                subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
 
             if matches!(subquery_val, types::SqlValue::Null) {
                 found_null = true;
@@ -77,13 +73,10 @@ impl<'a> ExpressionEvaluator<'a> {
         // Convert TableSchema to CombinedSchema for outer context
         let outer_combined = crate::schema::CombinedSchema::from_table(
             self.schema.name.clone(),
-            self.schema.clone()
+            self.schema.clone(),
         );
-        let select_executor = crate::select::SelectExecutor::new_with_outer_context(
-            database,
-            row,
-            &outer_combined,
-        );
+        let select_executor =
+            crate::select::SelectExecutor::new_with_outer_context(database, row, &outer_combined);
         let rows = select_executor.execute(subquery)?;
 
         if rows.len() > 1 {
@@ -103,10 +96,7 @@ impl<'a> ExpressionEvaluator<'a> {
         if rows.is_empty() {
             Ok(types::SqlValue::Null)
         } else {
-            rows[0]
-                .get(0)
-                .cloned()
-                .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })
+            rows[0].get(0).cloned().ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })
         }
     }
 
@@ -124,13 +114,10 @@ impl<'a> ExpressionEvaluator<'a> {
         // Convert TableSchema to CombinedSchema for outer context
         let outer_combined = crate::schema::CombinedSchema::from_table(
             self.schema.name.clone(),
-            self.schema.clone()
+            self.schema.clone(),
         );
-        let select_executor = crate::select::SelectExecutor::new_with_outer_context(
-            database,
-            row,
-            &outer_combined,
-        );
+        let select_executor =
+            crate::select::SelectExecutor::new_with_outer_context(database, row, &outer_combined);
         let rows = select_executor.execute(subquery)?;
 
         let has_rows = !rows.is_empty();
@@ -161,13 +148,10 @@ impl<'a> ExpressionEvaluator<'a> {
         // Convert TableSchema to CombinedSchema for outer context
         let outer_combined = crate::schema::CombinedSchema::from_table(
             self.schema.name.clone(),
-            self.schema.clone()
+            self.schema.clone(),
         );
-        let select_executor = crate::select::SelectExecutor::new_with_outer_context(
-            database,
-            row,
-            &outer_combined,
-        );
+        let select_executor =
+            crate::select::SelectExecutor::new_with_outer_context(database, row, &outer_combined);
         let rows = select_executor.execute(subquery)?;
 
         if rows.is_empty() {
@@ -196,7 +180,9 @@ impl<'a> ExpressionEvaluator<'a> {
                     let cmp_result = self.eval_binary_op(&left_val, op, right_val)?;
 
                     match cmp_result {
-                        types::SqlValue::Boolean(false) => return Ok(types::SqlValue::Boolean(false)),
+                        types::SqlValue::Boolean(false) => {
+                            return Ok(types::SqlValue::Boolean(false))
+                        }
                         types::SqlValue::Null => has_null = true,
                         _ => {}
                     }
@@ -228,7 +214,9 @@ impl<'a> ExpressionEvaluator<'a> {
                     let cmp_result = self.eval_binary_op(&left_val, op, right_val)?;
 
                     match cmp_result {
-                        types::SqlValue::Boolean(true) => return Ok(types::SqlValue::Boolean(true)),
+                        types::SqlValue::Boolean(true) => {
+                            return Ok(types::SqlValue::Boolean(true))
+                        }
                         types::SqlValue::Null => has_null = true,
                         _ => {}
                     }

@@ -9,9 +9,10 @@ use types::SqlValue;
 /// SQL:1999 Section 6.27: Numeric value functions
 pub fn abs(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("ABS requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "ABS requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
@@ -22,9 +23,10 @@ pub fn abs(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         SqlValue::Float(n) => Ok(SqlValue::Float(n.abs())),
         SqlValue::Double(n) => Ok(SqlValue::Double(n.abs())),
         SqlValue::Real(n) => Ok(SqlValue::Real(n.abs())),
-        val => Err(ExecutorError::UnsupportedFeature(
-            format!("ABS requires numeric argument, got {:?}", val),
-        )),
+        val => Err(ExecutorError::UnsupportedFeature(format!(
+            "ABS requires numeric argument, got {:?}",
+            val
+        ))),
     }
 }
 
@@ -32,9 +34,10 @@ pub fn abs(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// SQL:1999 Section 6.27: Numeric value functions
 pub fn sign(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("SIGN requires exactly 1 argument, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "SIGN requires exactly 1 argument, got {}",
+            args.len()
+        )));
     }
 
     match &args[0] {
@@ -89,9 +92,10 @@ pub fn sign(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             };
             Ok(SqlValue::Real(sign))
         }
-        val => Err(ExecutorError::UnsupportedFeature(
-            format!("SIGN requires numeric argument, got {:?}", val),
-        )),
+        val => Err(ExecutorError::UnsupportedFeature(format!(
+            "SIGN requires numeric argument, got {:?}",
+            val
+        ))),
     }
 }
 
@@ -99,9 +103,10 @@ pub fn sign(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// SQL:1999 Section 6.27: Numeric value functions
 pub fn mod_fn(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 2 {
-        return Err(ExecutorError::UnsupportedFeature(
-            format!("MOD requires exactly 2 arguments, got {}", args.len()),
-        ));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "MOD requires exactly 2 arguments, got {}",
+            args.len()
+        )));
     }
 
     match (&args[0], &args[1]) {

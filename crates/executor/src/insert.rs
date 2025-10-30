@@ -69,12 +69,7 @@ impl InsertExecutor {
                 select_result
                     .rows
                     .into_iter()
-                    .map(|row| {
-                        row.values
-                            .into_iter()
-                            .map(ast::Expression::Literal)
-                            .collect()
-                    })
+                    .map(|row| row.values.into_iter().map(ast::Expression::Literal).collect())
                     .collect()
             }
         };
@@ -129,17 +124,12 @@ impl InsertExecutor {
             // Enforce PRIMARY KEY constraint (uniqueness)
             if let Some(pk_indices) = schema.get_primary_key_indices() {
                 // Extract primary key values from the new row
-                let new_pk_values: Vec<types::SqlValue> = pk_indices
-                    .iter()
-                    .map(|&idx| full_row_values[idx].clone())
-                    .collect();
+                let new_pk_values: Vec<types::SqlValue> =
+                    pk_indices.iter().map(|&idx| full_row_values[idx].clone()).collect();
 
                 // Check for duplicates within the batch of rows being inserted
                 if primary_key_values.contains(&new_pk_values) {
-                    let pk_col_names: Vec<String> = schema.primary_key
-                        .as_ref()
-                        .unwrap()
-                        .clone();
+                    let pk_col_names: Vec<String> = schema.primary_key.as_ref().unwrap().clone();
                     return Err(ExecutorError::ConstraintViolation(format!(
                         "PRIMARY KEY constraint violated: duplicate key value for ({})",
                         pk_col_names.join(", ")
@@ -147,7 +137,8 @@ impl InsertExecutor {
                 }
 
                 // Check if any existing row has the same primary key
-                let table = db.get_table(&stmt.table_name)
+                let table = db
+                    .get_table(&stmt.table_name)
                     .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
 
                 for existing_row in table.scan() {
@@ -157,10 +148,8 @@ impl InsertExecutor {
                         .collect();
 
                     if new_pk_values == existing_pk_values {
-                        let pk_col_names: Vec<String> = schema.primary_key
-                            .as_ref()
-                            .unwrap()
-                            .clone();
+                        let pk_col_names: Vec<String> =
+                            schema.primary_key.as_ref().unwrap().clone();
                         return Err(ExecutorError::ConstraintViolation(format!(
                             "PRIMARY KEY constraint violated: duplicate key value for ({})",
                             pk_col_names.join(", ")
@@ -176,10 +165,8 @@ impl InsertExecutor {
             let unique_constraint_indices = schema.get_unique_constraint_indices();
             for (constraint_idx, unique_indices) in unique_constraint_indices.iter().enumerate() {
                 // Extract unique constraint values from the new row
-                let new_unique_values: Vec<types::SqlValue> = unique_indices
-                    .iter()
-                    .map(|&idx| full_row_values[idx].clone())
-                    .collect();
+                let new_unique_values: Vec<types::SqlValue> =
+                    unique_indices.iter().map(|&idx| full_row_values[idx].clone()).collect();
 
                 // Skip if any value in the unique constraint is NULL
                 // (NULL != NULL in SQL, so multiple NULLs are allowed)
@@ -189,7 +176,8 @@ impl InsertExecutor {
 
                 // Check for duplicates within the batch of rows being inserted
                 if unique_constraint_values[constraint_idx].contains(&new_unique_values) {
-                    let unique_col_names: Vec<String> = schema.unique_constraints[constraint_idx].clone();
+                    let unique_col_names: Vec<String> =
+                        schema.unique_constraints[constraint_idx].clone();
                     return Err(ExecutorError::ConstraintViolation(format!(
                         "UNIQUE constraint violated: duplicate value for ({})",
                         unique_col_names.join(", ")
@@ -197,7 +185,8 @@ impl InsertExecutor {
                 }
 
                 // Check if any existing row has the same unique constraint values
-                let table = db.get_table(&stmt.table_name)
+                let table = db
+                    .get_table(&stmt.table_name)
                     .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
 
                 for existing_row in table.scan() {
@@ -212,7 +201,8 @@ impl InsertExecutor {
                     }
 
                     if new_unique_values == existing_unique_values {
-                        let unique_col_names: Vec<String> = schema.unique_constraints[constraint_idx].clone();
+                        let unique_col_names: Vec<String> =
+                            schema.unique_constraints[constraint_idx].clone();
                         return Err(ExecutorError::ConstraintViolation(format!(
                             "UNIQUE constraint violated: duplicate value for ({})",
                             unique_col_names.join(", ")
@@ -331,48 +321,54 @@ fn coerce_value(
 
         // Numeric literal → Float/Real/Double
         (SqlValue::Numeric(s), DataType::Float { .. }) => {
-            s.parse::<f32>()
-                .map(SqlValue::Float)
-                .map_err(|_| ExecutorError::UnsupportedExpression(format!(
-                    "Cannot convert numeric '{}' to Float", s
-                )))
+            s.parse::<f32>().map(SqlValue::Float).map_err(|_| {
+                ExecutorError::UnsupportedExpression(format!(
+                    "Cannot convert numeric '{}' to Float",
+                    s
+                ))
+            })
         }
         (SqlValue::Numeric(s), DataType::Real) => {
-            s.parse::<f32>()
-                .map(SqlValue::Real)
-                .map_err(|_| ExecutorError::UnsupportedExpression(format!(
-                    "Cannot convert numeric '{}' to Real", s
-                )))
+            s.parse::<f32>().map(SqlValue::Real).map_err(|_| {
+                ExecutorError::UnsupportedExpression(format!(
+                    "Cannot convert numeric '{}' to Real",
+                    s
+                ))
+            })
         }
         (SqlValue::Numeric(s), DataType::DoublePrecision) => {
-            s.parse::<f64>()
-                .map(SqlValue::Double)
-                .map_err(|_| ExecutorError::UnsupportedExpression(format!(
-                    "Cannot convert numeric '{}' to DoublePrecision", s
-                )))
+            s.parse::<f64>().map(SqlValue::Double).map_err(|_| {
+                ExecutorError::UnsupportedExpression(format!(
+                    "Cannot convert numeric '{}' to DoublePrecision",
+                    s
+                ))
+            })
         }
 
         // Numeric literal → Integer types
         (SqlValue::Numeric(s), DataType::Integer) => {
-            s.parse::<i64>()
-                .map(SqlValue::Integer)
-                .map_err(|_| ExecutorError::UnsupportedExpression(format!(
-                    "Cannot convert numeric '{}' to Integer (must be whole number)", s
-                )))
+            s.parse::<i64>().map(SqlValue::Integer).map_err(|_| {
+                ExecutorError::UnsupportedExpression(format!(
+                    "Cannot convert numeric '{}' to Integer (must be whole number)",
+                    s
+                ))
+            })
         }
         (SqlValue::Numeric(s), DataType::Smallint) => {
-            s.parse::<i16>()
-                .map(SqlValue::Smallint)
-                .map_err(|_| ExecutorError::UnsupportedExpression(format!(
-                    "Cannot convert numeric '{}' to Smallint (must be whole number)", s
-                )))
+            s.parse::<i16>().map(SqlValue::Smallint).map_err(|_| {
+                ExecutorError::UnsupportedExpression(format!(
+                    "Cannot convert numeric '{}' to Smallint (must be whole number)",
+                    s
+                ))
+            })
         }
         (SqlValue::Numeric(s), DataType::Bigint) => {
-            s.parse::<i64>()
-                .map(SqlValue::Bigint)
-                .map_err(|_| ExecutorError::UnsupportedExpression(format!(
-                    "Cannot convert numeric '{}' to Bigint (must be whole number)", s
-                )))
+            s.parse::<i64>().map(SqlValue::Bigint).map_err(|_| {
+                ExecutorError::UnsupportedExpression(format!(
+                    "Cannot convert numeric '{}' to Bigint (must be whole number)",
+                    s
+                ))
+            })
         }
 
         // Integer → Float types (safe widening conversion)
@@ -394,14 +390,14 @@ fn coerce_value(
         // Varchar ↔ Character conversions
         (SqlValue::Varchar(s), DataType::Character { length }) => {
             let s = if s.len() > *length {
-                s[..*length].to_string()  // Truncate
+                s[..*length].to_string() // Truncate
             } else {
-                format!("{:width$}", s, width = length)  // Pad with spaces
+                format!("{:width$}", s, width = length) // Pad with spaces
             };
             Ok(SqlValue::Character(s))
         }
         (SqlValue::Character(s), DataType::Varchar { .. }) => {
-            Ok(SqlValue::Varchar(s.trim_end().to_string()))  // Remove trailing spaces
+            Ok(SqlValue::Varchar(s.trim_end().to_string())) // Remove trailing spaces
         }
 
         // Type mismatch
@@ -425,11 +421,8 @@ fn validate_foreign_key_constraints(
 
     for fk in &schema.foreign_keys {
         // Extract FK values from the new row
-        let fk_values: Vec<types::SqlValue> = fk
-            .column_indices
-            .iter()
-            .map(|&idx| row_values[idx].clone())
-            .collect();
+        let fk_values: Vec<types::SqlValue> =
+            fk.column_indices.iter().map(|&idx| row_values[idx].clone()).collect();
 
         // If any part of the foreign key is NULL, the constraint is not violated.
         if fk_values.iter().any(|v| v.is_null()) {
@@ -445,9 +438,7 @@ fn validate_foreign_key_constraints(
             fk.parent_column_indices
                 .iter()
                 .zip(&fk_values)
-                .all(|(&parent_idx, fk_val)| {
-                    parent_row.get(parent_idx) == Some(fk_val)
-                })
+                .all(|(&parent_idx, fk_val)| parent_row.get(parent_idx) == Some(fk_val))
         });
 
         if !key_exists {
@@ -462,4 +453,3 @@ fn validate_foreign_key_constraints(
 
     Ok(())
 }
-

@@ -194,10 +194,7 @@ fn test_column_reference_without_from_fails() {
         set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
-            expr: ast::Expression::ColumnRef {
-                table: None,
-                column: "some_column".to_string(),
-            },
+            expr: ast::Expression::ColumnRef { table: None, column: "some_column".to_string() },
             alias: None,
         }],
         from: None,
@@ -350,7 +347,9 @@ fn test_like_with_column_reference_fails() {
                     table: None,
                     column: "name".to_string(),
                 }),
-                pattern: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("A%".to_string()))),
+                pattern: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "A%".to_string(),
+                ))),
                 negated: false,
             },
             alias: None,

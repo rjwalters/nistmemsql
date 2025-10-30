@@ -299,7 +299,8 @@ impl Lexer {
                 // Verify we got at least one exponent digit
                 if self.position == exp_start {
                     return Err(LexerError {
-                        message: "Invalid scientific notation: expected digits after 'E'".to_string(),
+                        message: "Invalid scientific notation: expected digits after 'E'"
+                            .to_string(),
                         position: self.position,
                     });
                 }
@@ -336,7 +337,10 @@ impl Lexer {
             }
         }
 
-        Err(LexerError { message: "Unterminated string literal".to_string(), position: self.position })
+        Err(LexerError {
+            message: "Unterminated string literal".to_string(),
+            position: self.position,
+        })
     }
 
     /// Skip whitespace characters.
@@ -421,7 +425,7 @@ mod tests {
             (".2E+2", ".2E+2"),
             ("2E10", "2E10"),
             ("2.E-5", "2.E-5"),
-            ("2.5e10", "2.5e10"),  // lowercase e
+            ("2.5e10", "2.5e10"), // lowercase e
             (".5E2", ".5E2"),
             ("123.456E-78", "123.456E-78"),
         ];
@@ -445,11 +449,7 @@ mod tests {
     #[test]
     fn test_decimal_point_start() {
         // Test numbers starting with decimal point
-        let test_cases = vec![
-            (".5", ".5"),
-            (".123", ".123"),
-            (".2E+2", ".2E+2"),
-        ];
+        let test_cases = vec![(".5", ".5"), (".123", ".123"), (".2E+2", ".2E+2")];
 
         for (input, expected) in test_cases {
             let mut lexer = Lexer::new(input);
@@ -468,9 +468,9 @@ mod tests {
     fn test_invalid_scientific_notation() {
         // Test invalid E-notation should fail
         let invalid_cases = vec![
-            "2E",      // No exponent digits
-            "2E+",     // No exponent digits after sign
-            "2E-",     // No exponent digits after sign
+            "2E",  // No exponent digits
+            "2E+", // No exponent digits after sign
+            "2E-", // No exponent digits after sign
         ];
 
         for input in invalid_cases {

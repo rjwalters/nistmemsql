@@ -1,10 +1,10 @@
 use super::*;
 
 // Submodules
-mod operators;
-mod literals;
-mod identifiers;
 mod functions;
+mod identifiers;
+mod literals;
+mod operators;
 mod special_forms;
 mod subqueries;
 

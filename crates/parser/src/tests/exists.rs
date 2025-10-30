@@ -7,7 +7,7 @@ use super::*;
 #[test]
 fn test_parse_exists_simple() {
     let result = Parser::parse_sql(
-        "SELECT * FROM customers WHERE EXISTS (SELECT * FROM orders WHERE customer_id = 1);"
+        "SELECT * FROM customers WHERE EXISTS (SELECT * FROM orders WHERE customer_id = 1);",
     );
     assert!(result.is_ok(), "Simple EXISTS should parse: {:?}", result);
 
@@ -32,7 +32,7 @@ fn test_parse_exists_simple() {
 #[test]
 fn test_parse_not_exists() {
     let result = Parser::parse_sql(
-        "SELECT * FROM customers WHERE NOT EXISTS (SELECT * FROM orders WHERE customer_id = 1);"
+        "SELECT * FROM customers WHERE NOT EXISTS (SELECT * FROM orders WHERE customer_id = 1);",
     );
     assert!(result.is_ok(), "NOT EXISTS should parse: {:?}", result);
 
@@ -61,9 +61,7 @@ fn test_parse_exists_with_correlated_subquery() {
 #[test]
 fn test_parse_exists_with_select_1() {
     // Common idiom: SELECT 1 in EXISTS (doesn't matter what's selected)
-    let result = Parser::parse_sql(
-        "SELECT * FROM customers WHERE EXISTS (SELECT 1 FROM orders);"
-    );
+    let result = Parser::parse_sql("SELECT * FROM customers WHERE EXISTS (SELECT 1 FROM orders);");
     assert!(result.is_ok(), "EXISTS with SELECT 1 should parse: {:?}", result);
 }
 
@@ -88,7 +86,7 @@ fn test_parse_multiple_exists() {
     let result = Parser::parse_sql(
         "SELECT * FROM customers WHERE
          EXISTS (SELECT 1 FROM orders WHERE customer_id = 1) AND
-         EXISTS (SELECT 1 FROM payments WHERE customer_id = 1);"
+         EXISTS (SELECT 1 FROM payments WHERE customer_id = 1);",
     );
     assert!(result.is_ok(), "Multiple EXISTS should parse: {:?}", result);
 }
@@ -110,7 +108,7 @@ fn test_parse_nested_exists() {
             SELECT 1 FROM orders WHERE customer_id = 1 AND EXISTS (
                 SELECT 1 FROM order_items WHERE order_id = orders.id
             )
-        );"
+        );",
     );
     assert!(result.is_ok(), "Nested EXISTS should parse: {:?}", result);
 }
@@ -123,7 +121,7 @@ fn test_parse_exists_with_complex_subquery() {
             WHERE customer_id = customers.id
             AND total > 100
             AND status IN ('shipped', 'delivered')
-        );"
+        );",
     );
     assert!(result.is_ok(), "EXISTS with complex subquery should parse: {:?}", result);
 }
@@ -134,16 +132,15 @@ fn test_parse_not_exists_anti_join_pattern() {
     let result = Parser::parse_sql(
         "SELECT * FROM customers c WHERE NOT EXISTS (
             SELECT 1 FROM orders o WHERE o.customer_id = c.id
-        );"
+        );",
     );
     assert!(result.is_ok(), "NOT EXISTS anti-join pattern should parse: {:?}", result);
 }
 
 #[test]
 fn test_parse_exists_parenthesized() {
-    let result = Parser::parse_sql(
-        "SELECT * FROM customers WHERE (EXISTS (SELECT 1 FROM orders));"
-    );
+    let result =
+        Parser::parse_sql("SELECT * FROM customers WHERE (EXISTS (SELECT 1 FROM orders));");
     assert!(result.is_ok(), "Parenthesized EXISTS should parse: {:?}", result);
 }
 
@@ -155,7 +152,7 @@ fn test_parse_exists_with_group_by() {
             WHERE customer_id = customers.id
             GROUP BY order_date
             HAVING COUNT(*) > 5
-        );"
+        );",
     );
     assert!(result.is_ok(), "EXISTS with GROUP BY should parse: {:?}", result);
 }

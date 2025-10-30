@@ -8,7 +8,10 @@ use crate::select::helpers::{apply_distinct, apply_limit_offset};
 use crate::select::join::FromResult;
 use crate::select::order::{apply_order_by, RowWithSortKeys};
 use crate::select::projection::project_row_combined;
-use crate::select::window::{evaluate_window_functions, has_window_functions, expression_has_window_function, collect_order_by_window_functions, evaluate_order_by_window_functions};
+use crate::select::window::{
+    collect_order_by_window_functions, evaluate_order_by_window_functions,
+    evaluate_window_functions, expression_has_window_function, has_window_functions,
+};
 
 impl<'a> SelectExecutor<'a> {
     /// Execute SELECT without aggregation
@@ -20,32 +23,37 @@ impl<'a> SelectExecutor<'a> {
         let FromResult { schema, rows } = from_result;
 
         // Create evaluator with outer context if available (outer schema is already a CombinedSchema)
-        let evaluator = if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
-            CombinedExpressionEvaluator::with_database_and_outer_context(
-                &schema,
-                self.database,
-                outer_row,
-                outer_schema
-            )
-        } else {
-            CombinedExpressionEvaluator::with_database(&schema, self.database)
-        };
+        let evaluator =
+            if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
+                CombinedExpressionEvaluator::with_database_and_outer_context(
+                    &schema,
+                    self.database,
+                    outer_row,
+                    outer_schema,
+                )
+            } else {
+                CombinedExpressionEvaluator::with_database(&schema, self.database)
+            };
 
         // Apply WHERE clause filter
-        let mut filtered_rows = apply_where_filter_combined(rows, stmt.where_clause.as_ref(), &evaluator)?;
+        let mut filtered_rows =
+            apply_where_filter_combined(rows, stmt.where_clause.as_ref(), &evaluator)?;
 
         // Check if SELECT list has window functions
         let has_select_windows = has_window_functions(&stmt.select_list);
 
         // Check if ORDER BY has window functions
-        let has_order_by_windows = stmt.order_by.as_ref()
+        let has_order_by_windows = stmt
+            .order_by
+            .as_ref()
             .map(|order_by| order_by.iter().any(|item| expression_has_window_function(&item.expr)))
             .unwrap_or(false);
 
         // If there are window functions, evaluate them first
         // Window functions operate on the filtered result set
         let mut window_mapping = if has_select_windows {
-            let (rows_with_windows, mapping) = evaluate_window_functions(filtered_rows, &stmt.select_list, &evaluator)?;
+            let (rows_with_windows, mapping) =
+                evaluate_window_functions(filtered_rows, &stmt.select_list, &evaluator)?;
             filtered_rows = rows_with_windows;
             Some(mapping)
         } else {
@@ -54,14 +62,16 @@ impl<'a> SelectExecutor<'a> {
 
         // If ORDER BY has window functions, evaluate those too
         if has_order_by_windows {
-            let order_by_window_functions = collect_order_by_window_functions(stmt.order_by.as_ref().unwrap());
+            let order_by_window_functions =
+                collect_order_by_window_functions(stmt.order_by.as_ref().unwrap());
             if !order_by_window_functions.is_empty() {
-                let (rows_with_order_by_windows, order_by_mapping) = evaluate_order_by_window_functions(
-                    filtered_rows,
-                    order_by_window_functions,
-                    &evaluator,
-                    window_mapping.as_ref(),
-                )?;
+                let (rows_with_order_by_windows, order_by_mapping) =
+                    evaluate_order_by_window_functions(
+                        filtered_rows,
+                        order_by_window_functions,
+                        &evaluator,
+                        window_mapping.as_ref(),
+                    )?;
                 filtered_rows = rows_with_order_by_windows;
 
                 // Merge mappings
@@ -74,23 +84,30 @@ impl<'a> SelectExecutor<'a> {
         }
 
         // Convert to RowWithSortKeys format
-        let mut result_rows: Vec<RowWithSortKeys> = filtered_rows.into_iter().map(|row| (row, None)).collect();
+        let mut result_rows: Vec<RowWithSortKeys> =
+            filtered_rows.into_iter().map(|row| (row, None)).collect();
 
         // Apply ORDER BY sorting if present
         if let Some(order_by) = &stmt.order_by {
             // Create evaluator with window mapping for ORDER BY (if window functions are present)
             let order_by_evaluator = if let Some(ref mapping) = window_mapping {
-                CombinedExpressionEvaluator::with_database_and_windows(&schema, self.database, mapping)
+                CombinedExpressionEvaluator::with_database_and_windows(
+                    &schema,
+                    self.database,
+                    mapping,
+                )
             } else {
                 CombinedExpressionEvaluator::with_database(&schema, self.database)
             };
-            result_rows = apply_order_by(result_rows, order_by, &order_by_evaluator, &stmt.select_list)?;
+            result_rows =
+                apply_order_by(result_rows, order_by, &order_by_evaluator, &stmt.select_list)?;
         }
 
         // Project columns from the sorted rows
         let mut final_rows = Vec::new();
         for (row, _) in result_rows {
-            let projected_row = project_row_combined(&row, &stmt.select_list, &evaluator, &window_mapping)?;
+            let projected_row =
+                project_row_combined(&row, &stmt.select_list, &evaluator, &window_mapping)?;
             final_rows.push(projected_row);
         }
 

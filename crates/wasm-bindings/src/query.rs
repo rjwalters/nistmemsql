@@ -2,8 +2,8 @@
 //!
 //! This module handles SELECT query execution and result serialization.
 
-use wasm_bindgen::prelude::*;
 use crate::{Database, QueryResult};
+use wasm_bindgen::prelude::*;
 
 impl Database {
     /// Executes a SELECT query and returns results as JSON
@@ -39,21 +39,15 @@ impl Database {
                         types::SqlValue::Integer(i) => serde_json::Value::Number((*i).into()),
                         types::SqlValue::Smallint(i) => serde_json::Value::Number((*i).into()),
                         types::SqlValue::Bigint(i) => serde_json::Value::Number((*i).into()),
-                        types::SqlValue::Float(f) => {
-                            serde_json::Number::from_f64(*f as f64)
-                                .map(serde_json::Value::Number)
-                                .unwrap_or(serde_json::Value::Null)
-                        }
-                        types::SqlValue::Real(f) => {
-                            serde_json::Number::from_f64(*f as f64)
-                                .map(serde_json::Value::Number)
-                                .unwrap_or(serde_json::Value::Null)
-                        }
-                        types::SqlValue::Double(f) => {
-                            serde_json::Number::from_f64(*f)
-                                .map(serde_json::Value::Number)
-                                .unwrap_or(serde_json::Value::Null)
-                        }
+                        types::SqlValue::Float(f) => serde_json::Number::from_f64(*f as f64)
+                            .map(serde_json::Value::Number)
+                            .unwrap_or(serde_json::Value::Null),
+                        types::SqlValue::Real(f) => serde_json::Number::from_f64(*f as f64)
+                            .map(serde_json::Value::Number)
+                            .unwrap_or(serde_json::Value::Null),
+                        types::SqlValue::Double(f) => serde_json::Number::from_f64(*f)
+                            .map(serde_json::Value::Number)
+                            .unwrap_or(serde_json::Value::Null),
                         types::SqlValue::Varchar(s) | types::SqlValue::Character(s) => {
                             serde_json::Value::String(s.clone())
                         }

@@ -1,9 +1,9 @@
 //! Test that Northwind database JOIN examples work correctly
 
+use catalog::{ColumnSchema, TableSchema};
 use executor::SelectExecutor;
 use parser::Parser;
 use storage::Database;
-use catalog::{ColumnSchema, TableSchema};
 use types::{DataType, SqlValue};
 
 fn create_northwind_db() -> Database {
@@ -14,8 +14,16 @@ fn create_northwind_db() -> Database {
         "categories".to_string(),
         vec![
             ColumnSchema::new("category_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("category_name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
-            ColumnSchema::new("description".to_string(), DataType::Varchar { max_length: Some(200) }, false),
+            ColumnSchema::new(
+                "category_name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
+            ColumnSchema::new(
+                "description".to_string(),
+                DataType::Varchar { max_length: Some(200) },
+                false,
+            ),
         ],
     );
     db.create_table(categories_schema).unwrap();
@@ -25,7 +33,11 @@ fn create_northwind_db() -> Database {
         "products".to_string(),
         vec![
             ColumnSchema::new("product_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("product_name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
+            ColumnSchema::new(
+                "product_name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
             ColumnSchema::new("category_id".to_string(), DataType::Integer, false),
             ColumnSchema::new("unit_price".to_string(), DataType::Float { precision: 53 }, false),
             ColumnSchema::new("units_in_stock".to_string(), DataType::Integer, false),
@@ -36,52 +48,66 @@ fn create_northwind_db() -> Database {
     // Insert categories
     use storage::Row;
     let categories_table = db.get_table_mut("categories").unwrap();
-    categories_table.insert(Row::new(vec![
-        SqlValue::Integer(1),
-        SqlValue::Varchar("Beverages".to_string()),
-        SqlValue::Varchar("Soft drinks, coffees, teas, beers, and ales".to_string()),
-    ])).unwrap();
-    categories_table.insert(Row::new(vec![
-        SqlValue::Integer(2),
-        SqlValue::Varchar("Condiments".to_string()),
-        SqlValue::Varchar("Sweet and savory sauces".to_string()),
-    ])).unwrap();
-    categories_table.insert(Row::new(vec![
-        SqlValue::Integer(3),
-        SqlValue::Varchar("Confections".to_string()),
-        SqlValue::Varchar("Desserts, candies, and sweet breads".to_string()),
-    ])).unwrap();
+    categories_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Beverages".to_string()),
+            SqlValue::Varchar("Soft drinks, coffees, teas, beers, and ales".to_string()),
+        ]))
+        .unwrap();
+    categories_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Condiments".to_string()),
+            SqlValue::Varchar("Sweet and savory sauces".to_string()),
+        ]))
+        .unwrap();
+    categories_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(3),
+            SqlValue::Varchar("Confections".to_string()),
+            SqlValue::Varchar("Desserts, candies, and sweet breads".to_string()),
+        ]))
+        .unwrap();
 
     // Insert products
     let products_table = db.get_table_mut("products").unwrap();
-    products_table.insert(Row::new(vec![
-        SqlValue::Integer(1),
-        SqlValue::Varchar("Chai".to_string()),
-        SqlValue::Integer(1),
-        SqlValue::Float(18.0),
-        SqlValue::Integer(39),
-    ])).unwrap();
-    products_table.insert(Row::new(vec![
-        SqlValue::Integer(2),
-        SqlValue::Varchar("Chang".to_string()),
-        SqlValue::Integer(1),
-        SqlValue::Float(19.0),
-        SqlValue::Integer(17),
-    ])).unwrap();
-    products_table.insert(Row::new(vec![
-        SqlValue::Integer(3),
-        SqlValue::Varchar("Aniseed Syrup".to_string()),
-        SqlValue::Integer(2),
-        SqlValue::Float(10.0),
-        SqlValue::Integer(13),
-    ])).unwrap();
-    products_table.insert(Row::new(vec![
-        SqlValue::Integer(16),
-        SqlValue::Varchar("Pavlova".to_string()),
-        SqlValue::Integer(3),
-        SqlValue::Float(17.45),
-        SqlValue::Integer(29),
-    ])).unwrap();
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Chai".to_string()),
+            SqlValue::Integer(1),
+            SqlValue::Float(18.0),
+            SqlValue::Integer(39),
+        ]))
+        .unwrap();
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Chang".to_string()),
+            SqlValue::Integer(1),
+            SqlValue::Float(19.0),
+            SqlValue::Integer(17),
+        ]))
+        .unwrap();
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(3),
+            SqlValue::Varchar("Aniseed Syrup".to_string()),
+            SqlValue::Integer(2),
+            SqlValue::Float(10.0),
+            SqlValue::Integer(13),
+        ]))
+        .unwrap();
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(16),
+            SqlValue::Varchar("Pavlova".to_string()),
+            SqlValue::Integer(3),
+            SqlValue::Float(17.45),
+            SqlValue::Integer(29),
+        ]))
+        .unwrap();
 
     db
 }
@@ -183,13 +209,16 @@ fn test_products_by_category_aggregate() {
         assert_eq!(result.len(), 3);
 
         // Beverages should have 2 products
-        let beverages_row = result.iter().find(|row| {
-            if let SqlValue::Varchar(name) = &row.values[0] {
-                name == "Beverages"
-            } else {
-                false
-            }
-        }).expect("Should find Beverages category");
+        let beverages_row = result
+            .iter()
+            .find(|row| {
+                if let SqlValue::Varchar(name) = &row.values[0] {
+                    name == "Beverages"
+                } else {
+                    false
+                }
+            })
+            .expect("Should find Beverages category");
 
         assert_eq!(beverages_row.values[1], SqlValue::Integer(2));
 

@@ -18,7 +18,8 @@ pub(super) fn project_row_combined(
                 if let Some(mapping) = window_mapping {
                     if !mapping.is_empty() {
                         // Find the minimum window column index to know where base columns end
-                        let min_window_col = mapping.values().min().copied().unwrap_or(row.values.len());
+                        let min_window_col =
+                            mapping.values().min().copied().unwrap_or(row.values.len());
                         values.extend(row.values[..min_window_col].iter().cloned());
                     } else {
                         values.extend(row.values.iter().cloned());
@@ -57,15 +58,15 @@ pub(super) fn evaluate_expression_with_windows(
             let key = WindowFunctionKey::from_expression(function, over);
             if let Some(&col_idx) = window_mapping.get(&key) {
                 // Extract the pre-computed value from the appended column
-                let value = row.values
-                    .get(col_idx)
-                    .cloned()
-                    .ok_or_else(|| crate::errors::ExecutorError::ColumnIndexOutOfBounds { index: col_idx })?;
+                let value = row.values.get(col_idx).cloned().ok_or_else(|| {
+                    crate::errors::ExecutorError::ColumnIndexOutOfBounds { index: col_idx }
+                })?;
                 Ok(value)
             } else {
-                Err(crate::errors::ExecutorError::UnsupportedExpression(
-                    format!("Window function not found in mapping: {:?}", expr),
-                ))
+                Err(crate::errors::ExecutorError::UnsupportedExpression(format!(
+                    "Window function not found in mapping: {:?}",
+                    expr
+                )))
             }
         }
         Expression::BinaryOp { left, right, op } => {
@@ -85,10 +86,8 @@ pub(super) fn evaluate_expression_with_windows(
         Expression::UnaryOp { expr: inner, op } => {
             // Similar substitution for unary operations
             let inner_substituted = substitute_window_functions(inner, row, window_mapping)?;
-            let new_expr = Expression::UnaryOp {
-                expr: Box::new(inner_substituted),
-                op: op.clone(),
-            };
+            let new_expr =
+                Expression::UnaryOp { expr: Box::new(inner_substituted), op: op.clone() };
             evaluator.eval(&new_expr, row)
         }
         _ => {
@@ -111,16 +110,15 @@ fn substitute_window_functions(
             // Look up the pre-computed value and convert to a literal expression
             let key = WindowFunctionKey::from_expression(function, over);
             if let Some(&col_idx) = window_mapping.get(&key) {
-                let value = row
-                    .values
-                    .get(col_idx)
-                    .cloned()
-                    .ok_or_else(|| crate::errors::ExecutorError::ColumnIndexOutOfBounds { index: col_idx })?;
+                let value = row.values.get(col_idx).cloned().ok_or_else(|| {
+                    crate::errors::ExecutorError::ColumnIndexOutOfBounds { index: col_idx }
+                })?;
                 Ok(Expression::Literal(value))
             } else {
-                Err(crate::errors::ExecutorError::UnsupportedExpression(
-                    format!("Window function not found in mapping: {:?}", expr),
-                ))
+                Err(crate::errors::ExecutorError::UnsupportedExpression(format!(
+                    "Window function not found in mapping: {:?}",
+                    expr
+                )))
             }
         }
         Expression::BinaryOp { left, right, op } => {
@@ -134,41 +132,32 @@ fn substitute_window_functions(
         }
         Expression::UnaryOp { expr: inner, op } => {
             let inner_sub = substitute_window_functions(inner, row, window_mapping)?;
-            Ok(Expression::UnaryOp {
-                expr: Box::new(inner_sub),
-                op: op.clone(),
-            })
+            Ok(Expression::UnaryOp { expr: Box::new(inner_sub), op: op.clone() })
         }
         Expression::Function { name, args } => {
             let substituted_args: Result<Vec<_>, _> = args
                 .iter()
                 .map(|arg| substitute_window_functions(arg, row, window_mapping))
                 .collect();
-            Ok(Expression::Function {
-                name: name.clone(),
-                args: substituted_args?,
-            })
+            Ok(Expression::Function { name: name.clone(), args: substituted_args? })
         }
-        Expression::Case {
-            operand,
-            when_clauses,
-            else_result,
-        } => {
+        Expression::Case { operand, when_clauses, else_result } => {
             let subst_operand = operand
                 .as_ref()
                 .map(|op| substitute_window_functions(op, row, window_mapping))
                 .transpose()?
                 .map(Box::new);
 
-            let subst_when: Result<Vec<(ast::Expression, ast::Expression)>, crate::ExecutorError> = when_clauses
-                .iter()
-                .map(|(cond, result)| {
-                    Ok((
-                        substitute_window_functions(cond, row, window_mapping)?,
-                        substitute_window_functions(result, row, window_mapping)?,
-                    ))
-                })
-                .collect();
+            let subst_when: Result<Vec<(ast::Expression, ast::Expression)>, crate::ExecutorError> =
+                when_clauses
+                    .iter()
+                    .map(|(cond, result)| {
+                        Ok((
+                            substitute_window_functions(cond, row, window_mapping)?,
+                            substitute_window_functions(result, row, window_mapping)?,
+                        ))
+                    })
+                    .collect();
 
             let subst_else = else_result
                 .as_ref()

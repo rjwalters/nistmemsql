@@ -7,7 +7,6 @@
 ///! - `special` - CASE expressions, CAST, and function calls
 ///!
 ///! The evaluator uses the shared binary operation logic from `core::ExpressionEvaluator`.
-
 mod eval;
 mod predicates;
 mod special;

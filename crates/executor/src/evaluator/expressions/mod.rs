@@ -8,7 +8,7 @@
 //! - `operators` - Operator evaluation (unary +/-)
 
 mod eval;
+pub(crate) mod operators;
 mod predicates;
 mod special;
 mod subqueries;
-pub(crate) mod operators;

@@ -42,27 +42,18 @@ impl WindowFunctionKey {
         // Add function name and args
         match function {
             WindowFunctionSpec::Aggregate { name, args } => {
-                let args_str = args
-                    .iter()
-                    .map(|expr| format!("{:?}", expr))
-                    .collect::<Vec<_>>()
-                    .join(",");
+                let args_str =
+                    args.iter().map(|expr| format!("{:?}", expr)).collect::<Vec<_>>().join(",");
                 key_parts.push(format!("{}({})", name, args_str));
             }
             WindowFunctionSpec::Ranking { name, args } => {
-                let args_str = args
-                    .iter()
-                    .map(|expr| format!("{:?}", expr))
-                    .collect::<Vec<_>>()
-                    .join(",");
+                let args_str =
+                    args.iter().map(|expr| format!("{:?}", expr)).collect::<Vec<_>>().join(",");
                 key_parts.push(format!("{}({})", name, args_str));
             }
             WindowFunctionSpec::Value { name, args } => {
-                let args_str = args
-                    .iter()
-                    .map(|expr| format!("{:?}", expr))
-                    .collect::<Vec<_>>()
-                    .join(",");
+                let args_str =
+                    args.iter().map(|expr| format!("{:?}", expr)).collect::<Vec<_>>().join(",");
                 key_parts.push(format!("{}({})", name, args_str));
             }
         }
@@ -119,16 +110,10 @@ pub(super) fn expression_has_window_function(expr: &Expression) -> bool {
         Expression::Function { args, .. } => {
             args.iter().any(|arg| expression_has_window_function(arg))
         }
-        Expression::Case {
-            when_clauses,
-            else_result,
-            ..
-        } => {
+        Expression::Case { when_clauses, else_result, .. } => {
             when_clauses.iter().any(|(cond, result)| {
                 expression_has_window_function(cond) || expression_has_window_function(result)
-            }) || else_result
-                .as_ref()
-                .map_or(false, |e| expression_has_window_function(e))
+            }) || else_result.as_ref().map_or(false, |e| expression_has_window_function(e))
         }
         _ => false,
     }
@@ -181,10 +166,8 @@ pub(super) fn evaluate_window_functions(
         window_results.push(values);
 
         // Build mapping: WindowFunctionKey -> column index
-        let key = WindowFunctionKey::from_expression(
-            &win_func.function_spec,
-            &win_func.window_spec,
-        );
+        let key =
+            WindowFunctionKey::from_expression(&win_func.function_spec, &win_func.window_spec);
         let col_idx = base_column_count + idx;
         window_mapping.insert(key, col_idx);
     }
@@ -200,7 +183,9 @@ pub(super) fn evaluate_window_functions(
 }
 
 /// Collect all window functions from SELECT list
-fn collect_window_functions(select_list: &[SelectItem]) -> Result<Vec<WindowFunctionInfo>, ExecutorError> {
+fn collect_window_functions(
+    select_list: &[SelectItem],
+) -> Result<Vec<WindowFunctionInfo>, ExecutorError> {
     let mut window_functions = Vec::new();
 
     for (idx, item) in select_list.iter().enumerate() {
@@ -241,11 +226,7 @@ fn collect_from_expression(
                 collect_from_expression(arg, select_index, window_functions)?;
             }
         }
-        Expression::Case {
-            when_clauses,
-            else_result,
-            ..
-        } => {
+        Expression::Case { when_clauses, else_result, .. } => {
             for (cond, result) in when_clauses {
                 collect_from_expression(cond, select_index, window_functions)?;
                 collect_from_expression(result, select_index, window_functions)?;
@@ -298,7 +279,9 @@ fn evaluate_single_window_function(
         )?;
 
         // Pair each result with its original index
-        for (result, &original_idx) in partition_results.iter().zip(partition.original_indices.iter()) {
+        for (result, &original_idx) in
+            partition_results.iter().zip(partition.original_indices.iter())
+        {
             results_with_indices.push((original_idx, result.clone()));
         }
     }
@@ -321,18 +304,11 @@ fn evaluate_window_function_for_partition(
     frame_spec: &Option<ast::WindowFrame>,
     evaluator: &CombinedExpressionEvaluator,
 ) -> Result<Vec<SqlValue>, ExecutorError> {
-
     // Handle ranking functions (they don't use frames)
     let results = match func_name.to_uppercase().as_str() {
-        "ROW_NUMBER" => {
-            crate::evaluator::window::evaluate_row_number(partition)
-        }
-        "RANK" => {
-            crate::evaluator::window::evaluate_rank(partition, order_by)
-        }
-        "DENSE_RANK" => {
-            crate::evaluator::window::evaluate_dense_rank(partition, order_by)
-        }
+        "ROW_NUMBER" => crate::evaluator::window::evaluate_row_number(partition),
+        "RANK" => crate::evaluator::window::evaluate_rank(partition, order_by),
+        "DENSE_RANK" => crate::evaluator::window::evaluate_dense_rank(partition, order_by),
         "NTILE" => {
             if args.is_empty() {
                 return Err(ExecutorError::UnsupportedExpression(
@@ -343,11 +319,14 @@ fn evaluate_window_function_for_partition(
             let n_value = evaluator.eval(&args[0], &partition.rows[0])?;
             let n = match n_value {
                 types::SqlValue::Integer(n) => n,
-                _ => return Err(ExecutorError::UnsupportedExpression(
-                    "NTILE argument must be an integer".to_string(),
-                )),
+                _ => {
+                    return Err(ExecutorError::UnsupportedExpression(
+                        "NTILE argument must be an integer".to_string(),
+                    ))
+                }
             };
-            crate::evaluator::window::evaluate_ntile(partition, n).map_err(|e| ExecutorError::UnsupportedExpression(e))?
+            crate::evaluator::window::evaluate_ntile(partition, n)
+                .map_err(|e| ExecutorError::UnsupportedExpression(e))?
         }
         _ => {
             // Handle aggregate functions that use frames
@@ -365,57 +344,58 @@ fn evaluate_window_function_for_partition(
 
                 // Evaluate the aggregate function over the frame
                 let value = match func_name.to_uppercase().as_str() {
-            "COUNT" => {
-                // COUNT(*) or COUNT(expr)
-                // Check if arg is the special "*" column reference
-                let arg_expr = if args.is_empty() {
-                    None
-                } else if matches!(&args[0], Expression::ColumnRef { column, .. } if column == "*") {
-                    None  // COUNT(*) should count all rows
-                } else {
-                    Some(&args[0])
+                    "COUNT" => {
+                        // COUNT(*) or COUNT(expr)
+                        // Check if arg is the special "*" column reference
+                        let arg_expr = if args.is_empty() {
+                            None
+                        } else if matches!(&args[0], Expression::ColumnRef { column, .. } if column == "*")
+                        {
+                            None // COUNT(*) should count all rows
+                        } else {
+                            Some(&args[0])
+                        };
+                        evaluate_count_window(partition, &frame, arg_expr, eval_fn)
+                    }
+                    "SUM" => {
+                        if args.is_empty() {
+                            return Err(ExecutorError::UnsupportedExpression(
+                                "SUM requires an argument".to_string(),
+                            ));
+                        }
+                        evaluate_sum_window(partition, &frame, &args[0], eval_fn)
+                    }
+                    "AVG" => {
+                        if args.is_empty() {
+                            return Err(ExecutorError::UnsupportedExpression(
+                                "AVG requires an argument".to_string(),
+                            ));
+                        }
+                        evaluate_avg_window(partition, &frame, &args[0], eval_fn)
+                    }
+                    "MIN" => {
+                        if args.is_empty() {
+                            return Err(ExecutorError::UnsupportedExpression(
+                                "MIN requires an argument".to_string(),
+                            ));
+                        }
+                        evaluate_min_window(partition, &frame, &args[0], eval_fn)
+                    }
+                    "MAX" => {
+                        if args.is_empty() {
+                            return Err(ExecutorError::UnsupportedExpression(
+                                "MAX requires an argument".to_string(),
+                            ));
+                        }
+                        evaluate_max_window(partition, &frame, &args[0], eval_fn)
+                    }
+                    _ => {
+                        return Err(ExecutorError::UnsupportedExpression(format!(
+                            "Unsupported window function: {}",
+                            func_name
+                        )))
+                    }
                 };
-                evaluate_count_window(partition, &frame, arg_expr, eval_fn)
-            }
-            "SUM" => {
-                if args.is_empty() {
-                    return Err(ExecutorError::UnsupportedExpression(
-                        "SUM requires an argument".to_string(),
-                    ));
-                }
-                evaluate_sum_window(partition, &frame, &args[0], eval_fn)
-            }
-            "AVG" => {
-                if args.is_empty() {
-                    return Err(ExecutorError::UnsupportedExpression(
-                        "AVG requires an argument".to_string(),
-                    ));
-                }
-                evaluate_avg_window(partition, &frame, &args[0], eval_fn)
-            }
-            "MIN" => {
-                if args.is_empty() {
-                    return Err(ExecutorError::UnsupportedExpression(
-                        "MIN requires an argument".to_string(),
-                    ));
-                }
-                evaluate_min_window(partition, &frame, &args[0], eval_fn)
-            }
-            "MAX" => {
-                if args.is_empty() {
-                    return Err(ExecutorError::UnsupportedExpression(
-                        "MAX requires an argument".to_string(),
-                    ));
-                }
-                evaluate_max_window(partition, &frame, &args[0], eval_fn)
-            }
-            _ => {
-                return Err(ExecutorError::UnsupportedExpression(format!(
-                    "Unsupported window function: {}",
-                    func_name
-                )))
-            }
-        };
 
                 results.push(value);
             }
@@ -428,7 +408,9 @@ fn evaluate_window_function_for_partition(
 }
 
 /// Collect window functions from ORDER BY expressions
-pub(super) fn collect_order_by_window_functions(order_by: &[ast::OrderByItem]) -> Vec<(WindowFunctionSpec, ast::WindowSpec)> {
+pub(super) fn collect_order_by_window_functions(
+    order_by: &[ast::OrderByItem],
+) -> Vec<(WindowFunctionSpec, ast::WindowSpec)> {
     let mut window_functions = Vec::new();
 
     for item in order_by {
@@ -460,11 +442,7 @@ fn collect_window_functions_from_expression(
                 collect_window_functions_from_expression(arg, window_functions);
             }
         }
-        Expression::Case {
-            when_clauses,
-            else_result,
-            ..
-        } => {
+        Expression::Case { when_clauses, else_result, .. } => {
             for (cond, result) in when_clauses {
                 collect_window_functions_from_expression(cond, window_functions);
                 collect_window_functions_from_expression(result, window_functions);
@@ -498,17 +476,15 @@ fn collect_window_functions_from_expression(
             collect_window_functions_from_expression(substring, window_functions);
             collect_window_functions_from_expression(string, window_functions);
         }
-        Expression::Trim {
-            removal_char,
-            string,
-            ..
-        } => {
+        Expression::Trim { removal_char, string, .. } => {
             if let Some(removal_char) = removal_char {
                 collect_window_functions_from_expression(removal_char, window_functions);
             }
             collect_window_functions_from_expression(string, window_functions);
         }
-        Expression::Exists { .. } | Expression::ScalarSubquery(_) | Expression::QuantifiedComparison { .. } => {
+        Expression::Exists { .. }
+        | Expression::ScalarSubquery(_)
+        | Expression::QuantifiedComparison { .. } => {
             // These don't contain window functions in their expressions
         }
         Expression::AggregateFunction { .. } => {
@@ -535,9 +511,8 @@ pub(super) fn evaluate_order_by_window_functions(
     }
 
     // Build mapping from existing functions to avoid duplicates
-    let existing_keys: std::collections::HashSet<_> = existing_mapping
-        .map(|m| m.keys().collect())
-        .unwrap_or_default();
+    let existing_keys: std::collections::HashSet<_> =
+        existing_mapping.map(|m| m.keys().collect()).unwrap_or_default();
 
     let mut window_results: Vec<Vec<SqlValue>> = Vec::new();
     let mut window_mapping = HashMap::new();

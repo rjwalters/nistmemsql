@@ -24,14 +24,12 @@ struct NistMemSqlDB {
 
 impl NistMemSqlDB {
     fn new() -> Self {
-        Self {
-            db: Database::new(),
-        }
+        Self { db: Database::new() }
     }
 
     fn execute_sql(&mut self, sql: &str) -> Result<DBOutput<DefaultColumnType>, TestError> {
-        let stmt = Parser::parse_sql(sql)
-            .map_err(|e| TestError(format!("Parse error: {:?}", e)))?;
+        let stmt =
+            Parser::parse_sql(sql).map_err(|e| TestError(format!("Parse error: {:?}", e)))?;
 
         match stmt {
             ast::Statement::Select(select_stmt) => {
@@ -88,9 +86,9 @@ impl NistMemSqlDB {
             }
             ast::Statement::BeginTransaction(_)
             | ast::Statement::Commit(_)
-            | ast::Statement::Rollback(_) 
-            | ast::Statement::Savepoint(_) 
-            | ast::Statement::RollbackToSavepoint(_) 
+            | ast::Statement::Rollback(_)
+            | ast::Statement::Savepoint(_)
+            | ast::Statement::RollbackToSavepoint(_)
             | ast::Statement::ReleaseSavepoint(_) => Ok(DBOutput::StatementComplete(0)),
         }
     }
@@ -100,10 +98,7 @@ impl NistMemSqlDB {
         rows: Vec<storage::Row>,
     ) -> Result<DBOutput<DefaultColumnType>, TestError> {
         if rows.is_empty() {
-            return Ok(DBOutput::Rows {
-                types: vec![],
-                rows: vec![],
-            });
+            return Ok(DBOutput::Rows { types: vec![], rows: vec![] });
         }
 
         let types: Vec<DefaultColumnType> = rows[0]
@@ -130,18 +125,10 @@ impl NistMemSqlDB {
 
         let formatted_rows: Vec<Vec<String>> = rows
             .iter()
-            .map(|row| {
-                row.values
-                    .iter()
-                    .map(|val| self.format_sql_value(val))
-                    .collect()
-            })
+            .map(|row| row.values.iter().map(|val| self.format_sql_value(val)).collect())
             .collect();
 
-        Ok(DBOutput::Rows {
-            types,
-            rows: formatted_rows,
-        })
+        Ok(DBOutput::Rows { types, rows: formatted_rows })
     }
 
     fn format_sql_value(&self, value: &SqlValue) -> String {
@@ -167,9 +154,10 @@ impl NistMemSqlDB {
             SqlValue::Varchar(s) | SqlValue::Character(s) => s.clone(),
             SqlValue::Boolean(b) => if *b { "1" } else { "0" }.to_string(),
             SqlValue::Null => "NULL".to_string(),
-            SqlValue::Date(d) | SqlValue::Time(d) | SqlValue::Timestamp(d) | SqlValue::Interval(d) => {
-                d.clone()
-            }
+            SqlValue::Date(d)
+            | SqlValue::Time(d)
+            | SqlValue::Timestamp(d)
+            | SqlValue::Interval(d) => d.clone(),
         }
     }
 }
@@ -210,9 +198,7 @@ SELECT x FROM test WHERE y = 4
 3
 "#;
 
-    tester
-        .run_script(script)
-        .expect("Basic SELECT test should pass");
+    tester.run_script(script).expect("Basic SELECT test should pass");
 }
 
 #[tokio::test]
@@ -236,7 +222,5 @@ SELECT 4 * 5
 20
 "#;
 
-    tester
-        .run_script(script)
-        .expect("Arithmetic test should pass");
+    tester.run_script(script).expect("Arithmetic test should pass");
 }

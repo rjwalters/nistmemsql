@@ -4,18 +4,16 @@
 //! - String utilities: SUBSTR, INSTR, LOCATE, FORMAT
 //! - System functions: VERSION, DATABASE, USER
 
+use ast;
+use catalog;
 use executor::ExpressionEvaluator;
 use storage;
-use catalog;
 use types;
-use ast;
 
 fn create_test_evaluator() -> (ExpressionEvaluator<'static>, storage::Row) {
     let schema = Box::leak(Box::new(catalog::TableSchema::new(
         "test".to_string(),
-        vec![
-            catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-        ],
+        vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
     )));
 
     let evaluator = ExpressionEvaluator::new(schema);
@@ -215,14 +213,15 @@ fn test_format_negative() {
 #[test]
 fn test_version() {
     let (evaluator, row) = create_test_evaluator();
-    let expr = ast::Expression::Function {
-        name: "VERSION".to_string(),
-        args: vec![],
-    };
+    let expr = ast::Expression::Function { name: "VERSION".to_string(), args: vec![] };
     let result = evaluator.eval(&expr, &row).unwrap();
     match result {
         types::SqlValue::Varchar(s) => {
-            assert!(s.starts_with("NistMemSQL"), "VERSION should start with 'NistMemSQL', got: {}", s);
+            assert!(
+                s.starts_with("NistMemSQL"),
+                "VERSION should start with 'NistMemSQL', got: {}",
+                s
+            );
         }
         _ => panic!("VERSION should return Varchar"),
     }
@@ -235,10 +234,7 @@ fn test_version() {
 #[test]
 fn test_database() {
     let (evaluator, row) = create_test_evaluator();
-    let expr = ast::Expression::Function {
-        name: "DATABASE".to_string(),
-        args: vec![],
-    };
+    let expr = ast::Expression::Function { name: "DATABASE".to_string(), args: vec![] };
     let result = evaluator.eval(&expr, &row).unwrap();
     match result {
         types::SqlValue::Varchar(s) => {
@@ -254,10 +250,7 @@ fn test_database() {
 #[test]
 fn test_schema_alias() {
     let (evaluator, row) = create_test_evaluator();
-    let expr = ast::Expression::Function {
-        name: "SCHEMA".to_string(),
-        args: vec![],
-    };
+    let expr = ast::Expression::Function { name: "SCHEMA".to_string(), args: vec![] };
     let result = evaluator.eval(&expr, &row).unwrap();
     // SCHEMA is an alias for DATABASE
     assert!(matches!(result, types::SqlValue::Varchar(_) | types::SqlValue::Null));
@@ -270,10 +263,7 @@ fn test_schema_alias() {
 #[test]
 fn test_user() {
     let (evaluator, row) = create_test_evaluator();
-    let expr = ast::Expression::Function {
-        name: "USER".to_string(),
-        args: vec![],
-    };
+    let expr = ast::Expression::Function { name: "USER".to_string(), args: vec![] };
     let result = evaluator.eval(&expr, &row).unwrap();
     match result {
         types::SqlValue::Varchar(s) => {
@@ -286,10 +276,7 @@ fn test_user() {
 #[test]
 fn test_current_user_alias() {
     let (evaluator, row) = create_test_evaluator();
-    let expr = ast::Expression::Function {
-        name: "CURRENT_USER".to_string(),
-        args: vec![],
-    };
+    let expr = ast::Expression::Function { name: "CURRENT_USER".to_string(), args: vec![] };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert!(matches!(result, types::SqlValue::Varchar(_)));
 }

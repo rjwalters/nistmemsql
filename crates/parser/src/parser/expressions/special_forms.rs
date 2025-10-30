@@ -104,7 +104,10 @@ impl Parser {
                     // Expect closing parenthesis
                     self.expect_token(Token::RParen)?;
 
-                    Ok(Some(ast::Expression::Exists { subquery: Box::new(subquery), negated: true }))
+                    Ok(Some(ast::Expression::Exists {
+                        subquery: Box::new(subquery),
+                        negated: true,
+                    }))
                 } else {
                     // It's a unary NOT operator on another expression
                     // Parse the inner expression

@@ -2,10 +2,10 @@ use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
 // Module declarations
-mod query;
-mod execute;
-mod schema;
 mod examples;
+mod execute;
+mod query;
+mod schema;
 #[cfg(test)]
 mod tests;
 

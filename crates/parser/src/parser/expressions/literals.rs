@@ -66,7 +66,9 @@ impl Parser {
                     Token::String(s) => {
                         let timestamp_str = s.clone();
                         self.advance();
-                        Ok(Some(ast::Expression::Literal(types::SqlValue::Timestamp(timestamp_str))))
+                        Ok(Some(ast::Expression::Literal(types::SqlValue::Timestamp(
+                            timestamp_str,
+                        ))))
                     }
                     _ => Err(ParseError {
                         message: "Expected string literal after TIMESTAMP keyword".to_string(),

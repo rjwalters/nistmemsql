@@ -148,7 +148,8 @@ impl UpdateExecutor {
 
                 // Enforce NOT NULL constraints on the updated row
                 for (col_idx, col) in schema.columns.iter().enumerate() {
-                    let value = new_row.get(col_idx)
+                    let value = new_row
+                        .get(col_idx)
                         .ok_or_else(|| ExecutorError::ColumnIndexOutOfBounds { index: col_idx })?;
 
                     if !col.nullable && *value == types::SqlValue::Null {
@@ -162,10 +163,8 @@ impl UpdateExecutor {
                 // Enforce PRIMARY KEY constraint (uniqueness)
                 if let Some(pk_indices) = schema.get_primary_key_indices() {
                     // Extract primary key values from the updated row
-                    let new_pk_values: Vec<&types::SqlValue> = pk_indices
-                        .iter()
-                        .filter_map(|&idx| new_row.get(idx))
-                        .collect();
+                    let new_pk_values: Vec<&types::SqlValue> =
+                        pk_indices.iter().filter_map(|&idx| new_row.get(idx)).collect();
 
                     // Check if any OTHER row has the same primary key
                     for (other_idx, other_row) in table.scan().iter().enumerate() {
@@ -174,16 +173,12 @@ impl UpdateExecutor {
                             continue;
                         }
 
-                        let other_pk_values: Vec<&types::SqlValue> = pk_indices
-                            .iter()
-                            .filter_map(|&idx| other_row.get(idx))
-                            .collect();
+                        let other_pk_values: Vec<&types::SqlValue> =
+                            pk_indices.iter().filter_map(|&idx| other_row.get(idx)).collect();
 
                         if new_pk_values == other_pk_values {
-                            let pk_col_names: Vec<String> = schema.primary_key
-                                .as_ref()
-                                .unwrap()
-                                .clone();
+                            let pk_col_names: Vec<String> =
+                                schema.primary_key.as_ref().unwrap().clone();
                             return Err(ExecutorError::ConstraintViolation(format!(
                                 "PRIMARY KEY constraint violated: duplicate key value for ({})",
                                 pk_col_names.join(", ")
@@ -194,12 +189,11 @@ impl UpdateExecutor {
 
                 // Enforce UNIQUE constraints
                 let unique_constraint_indices = schema.get_unique_constraint_indices();
-                for (constraint_idx, unique_indices) in unique_constraint_indices.iter().enumerate() {
+                for (constraint_idx, unique_indices) in unique_constraint_indices.iter().enumerate()
+                {
                     // Extract unique constraint values from the updated row
-                    let new_unique_values: Vec<&types::SqlValue> = unique_indices
-                        .iter()
-                        .filter_map(|&idx| new_row.get(idx))
-                        .collect();
+                    let new_unique_values: Vec<&types::SqlValue> =
+                        unique_indices.iter().filter_map(|&idx| new_row.get(idx)).collect();
 
                     // Skip if any value in the unique constraint is NULL
                     // (NULL != NULL in SQL, so multiple NULLs are allowed)
@@ -214,10 +208,8 @@ impl UpdateExecutor {
                             continue;
                         }
 
-                        let other_unique_values: Vec<&types::SqlValue> = unique_indices
-                            .iter()
-                            .filter_map(|&idx| other_row.get(idx))
-                            .collect();
+                        let other_unique_values: Vec<&types::SqlValue> =
+                            unique_indices.iter().filter_map(|&idx| other_row.get(idx)).collect();
 
                         // Skip if any existing value is NULL
                         if other_unique_values.iter().any(|v| **v == types::SqlValue::Null) {
@@ -225,7 +217,8 @@ impl UpdateExecutor {
                         }
 
                         if new_unique_values == other_unique_values {
-                            let unique_col_names: Vec<String> = schema.unique_constraints[constraint_idx].clone();
+                            let unique_col_names: Vec<String> =
+                                schema.unique_constraints[constraint_idx].clone();
                             return Err(ExecutorError::ConstraintViolation(format!(
                                 "UNIQUE constraint violated: duplicate value for ({})",
                                 unique_col_names.join(", ")
@@ -293,11 +286,8 @@ fn validate_foreign_key_constraints(
 
     for fk in &schema.foreign_keys {
         // Extract FK values from the new row
-        let fk_values: Vec<types::SqlValue> = fk
-            .column_indices
-            .iter()
-            .map(|&idx| row_values[idx].clone())
-            .collect();
+        let fk_values: Vec<types::SqlValue> =
+            fk.column_indices.iter().map(|&idx| row_values[idx].clone()).collect();
 
         // If any part of the foreign key is NULL, the constraint is not violated.
         if fk_values.iter().any(|v| v.is_null()) {
@@ -313,9 +303,7 @@ fn validate_foreign_key_constraints(
             fk.parent_column_indices
                 .iter()
                 .zip(&fk_values)
-                .all(|(&parent_idx, fk_val)| {
-                    parent_row.get(parent_idx) == Some(fk_val)
-                })
+                .all(|(&parent_idx, fk_val)| parent_row.get(parent_idx) == Some(fk_val))
         });
 
         if !key_exists {
@@ -348,10 +336,8 @@ fn check_no_child_references(
         None => return Ok(()),
     };
 
-    let parent_key_values: Vec<types::SqlValue> = pk_indices
-        .iter()
-        .map(|&idx| parent_row.values[idx].clone())
-        .collect();
+    let parent_key_values: Vec<types::SqlValue> =
+        pk_indices.iter().map(|&idx| parent_row.values[idx].clone()).collect();
 
     // Scan all tables in the database to find foreign keys that reference this table.
     for table_name in db.catalog.list_tables() {
@@ -365,11 +351,8 @@ fn check_no_child_references(
             // Check if any row in the child table references the parent row.
             let child_table = db.get_table(&table_name).unwrap();
             let has_references = child_table.scan().iter().any(|child_row| {
-                let child_fk_values: Vec<types::SqlValue> = fk
-                    .column_indices
-                    .iter()
-                    .map(|&idx| child_row.values[idx].clone())
-                    .collect();
+                let child_fk_values: Vec<types::SqlValue> =
+                    fk.column_indices.iter().map(|&idx| child_row.values[idx].clone()).collect();
                 child_fk_values == parent_key_values
             });
 
@@ -385,4 +368,3 @@ fn check_no_child_references(
 
     Ok(())
 }
-

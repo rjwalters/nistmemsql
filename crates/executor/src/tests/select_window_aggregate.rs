@@ -25,25 +25,13 @@ fn create_test_db() -> Database {
     let table = db.get_table_mut("sales").unwrap();
     use storage::Row;
     table
-        .insert(Row::new(vec![
-            SqlValue::Integer(1),
-            SqlValue::Integer(100),
-            SqlValue::Integer(1),
-        ]))
+        .insert(Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(100), SqlValue::Integer(1)]))
         .unwrap();
     table
-        .insert(Row::new(vec![
-            SqlValue::Integer(2),
-            SqlValue::Integer(200),
-            SqlValue::Integer(2),
-        ]))
+        .insert(Row::new(vec![SqlValue::Integer(2), SqlValue::Integer(200), SqlValue::Integer(2)]))
         .unwrap();
     table
-        .insert(Row::new(vec![
-            SqlValue::Integer(3),
-            SqlValue::Integer(300),
-            SqlValue::Integer(3),
-        ]))
+        .insert(Row::new(vec![SqlValue::Integer(3), SqlValue::Integer(300), SqlValue::Integer(3)]))
         .unwrap();
 
     db
@@ -248,10 +236,34 @@ fn test_window_function_with_partition_by() {
     // Insert test data - 2 departments
     use storage::Row;
     let table = db.get_table_mut("employees").unwrap();
-    table.insert(Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(1), SqlValue::Integer(50000)])).unwrap();
-    table.insert(Row::new(vec![SqlValue::Integer(2), SqlValue::Integer(1), SqlValue::Integer(60000)])).unwrap();
-    table.insert(Row::new(vec![SqlValue::Integer(3), SqlValue::Integer(2), SqlValue::Integer(70000)])).unwrap();
-    table.insert(Row::new(vec![SqlValue::Integer(4), SqlValue::Integer(2), SqlValue::Integer(80000)])).unwrap();
+    table
+        .insert(Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Integer(1),
+            SqlValue::Integer(50000),
+        ]))
+        .unwrap();
+    table
+        .insert(Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Integer(1),
+            SqlValue::Integer(60000),
+        ]))
+        .unwrap();
+    table
+        .insert(Row::new(vec![
+            SqlValue::Integer(3),
+            SqlValue::Integer(2),
+            SqlValue::Integer(70000),
+        ]))
+        .unwrap();
+    table
+        .insert(Row::new(vec![
+            SqlValue::Integer(4),
+            SqlValue::Integer(2),
+            SqlValue::Integer(80000),
+        ]))
+        .unwrap();
 
     let executor = SelectExecutor::new(&db);
 
@@ -289,7 +301,11 @@ fn test_order_by_with_window_function() {
         "employees".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
             ColumnSchema::new("salary".to_string(), DataType::Integer, false),
         ],
     );
@@ -297,21 +313,27 @@ fn test_order_by_with_window_function() {
     db.create_table(schema).unwrap();
 
     let table = db.get_table_mut("employees").unwrap();
-    table.insert(Row::new(vec![
-        SqlValue::Integer(1),
-        SqlValue::Varchar("Alice".to_string()),
-        SqlValue::Integer(50000),
-    ])).unwrap();
-    table.insert(Row::new(vec![
-        SqlValue::Integer(2),
-        SqlValue::Varchar("Bob".to_string()),
-        SqlValue::Integer(60000),
-    ])).unwrap();
-    table.insert(Row::new(vec![
-        SqlValue::Integer(3),
-        SqlValue::Varchar("Charlie".to_string()),
-        SqlValue::Integer(70000),
-    ])).unwrap();
+    table
+        .insert(Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Alice".to_string()),
+            SqlValue::Integer(50000),
+        ]))
+        .unwrap();
+    table
+        .insert(Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Bob".to_string()),
+            SqlValue::Integer(60000),
+        ]))
+        .unwrap();
+    table
+        .insert(Row::new(vec![
+            SqlValue::Integer(3),
+            SqlValue::Varchar("Charlie".to_string()),
+            SqlValue::Integer(70000),
+        ]))
+        .unwrap();
 
     let executor = SelectExecutor::new(&db);
 
@@ -349,7 +371,11 @@ fn test_order_by_with_window_function_not_in_select() {
         "employees".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
             ColumnSchema::new("salary".to_string(), DataType::Integer, false),
         ],
     );
@@ -357,21 +383,27 @@ fn test_order_by_with_window_function_not_in_select() {
     db.create_table(schema).unwrap();
 
     let table = db.get_table_mut("employees").unwrap();
-    table.insert(Row::new(vec![
-        SqlValue::Integer(1),
-        SqlValue::Varchar("Alice".to_string()),
-        SqlValue::Integer(50000),
-    ])).unwrap();
-    table.insert(Row::new(vec![
-        SqlValue::Integer(2),
-        SqlValue::Varchar("Bob".to_string()),
-        SqlValue::Integer(60000),
-    ])).unwrap();
-    table.insert(Row::new(vec![
-        SqlValue::Integer(3),
-        SqlValue::Varchar("Charlie".to_string()),
-        SqlValue::Integer(70000),
-    ])).unwrap();
+    table
+        .insert(Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Alice".to_string()),
+            SqlValue::Integer(50000),
+        ]))
+        .unwrap();
+    table
+        .insert(Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Bob".to_string()),
+            SqlValue::Integer(60000),
+        ]))
+        .unwrap();
+    table
+        .insert(Row::new(vec![
+            SqlValue::Integer(3),
+            SqlValue::Varchar("Charlie".to_string()),
+            SqlValue::Integer(70000),
+        ]))
+        .unwrap();
 
     let executor = SelectExecutor::new(&db);
 

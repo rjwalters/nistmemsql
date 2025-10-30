@@ -56,7 +56,10 @@ fn test_column_names_with_alias() {
     let db = create_test_database();
     let executor = SelectExecutor::new(&db);
 
-    let stmt = parser::Parser::parse_sql("SELECT name AS employee_name, salary AS annual_salary FROM employees").unwrap();
+    let stmt = parser::Parser::parse_sql(
+        "SELECT name AS employee_name, salary AS annual_salary FROM employees",
+    )
+    .unwrap();
     if let ast::Statement::Select(select_stmt) = stmt {
         let result = executor.execute_with_columns(&select_stmt).unwrap();
         assert_eq!(result.columns, vec!["employee_name", "annual_salary"]);
@@ -120,7 +123,8 @@ fn test_column_names_mixed() {
     let db = create_test_database();
     let executor = SelectExecutor::new(&db);
 
-    let stmt = parser::Parser::parse_sql("SELECT id, name AS emp_name, salary * 12 FROM employees").unwrap();
+    let stmt = parser::Parser::parse_sql("SELECT id, name AS emp_name, salary * 12 FROM employees")
+        .unwrap();
     if let ast::Statement::Select(select_stmt) = stmt {
         let result = executor.execute_with_columns(&select_stmt).unwrap();
         assert_eq!(result.columns.len(), 3);
@@ -139,7 +143,8 @@ fn test_column_names_function_with_alias() {
     let db = create_test_database();
     let executor = SelectExecutor::new(&db);
 
-    let stmt = parser::Parser::parse_sql("SELECT COUNT(*) AS total_employees FROM employees").unwrap();
+    let stmt =
+        parser::Parser::parse_sql("SELECT COUNT(*) AS total_employees FROM employees").unwrap();
     if let ast::Statement::Select(select_stmt) = stmt {
         let result = executor.execute_with_columns(&select_stmt).unwrap();
         assert_eq!(result.columns, vec!["total_employees"]);

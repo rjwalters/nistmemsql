@@ -56,11 +56,12 @@ impl CreateTableExecutor {
         database: &mut Database,
     ) -> Result<String, ExecutorError> {
         // Parse qualified table name (schema.table or just table)
-        let (schema_name, table_name) = if let Some((schema_part, table_part)) = stmt.table_name.split_once('.') {
-            (schema_part.to_string(), table_part.to_string())
-        } else {
-            (database.catalog.get_current_schema().to_string(), stmt.table_name.clone())
-        };
+        let (schema_name, table_name) =
+            if let Some((schema_part, table_part)) = stmt.table_name.split_once('.') {
+                (schema_part.to_string(), table_part.to_string())
+            } else {
+                (database.catalog.get_current_schema().to_string(), stmt.table_name.clone())
+            };
 
         // Check if table already exists in the target schema
         let qualified_name = format!("{}.{}", schema_name, table_name);
@@ -85,17 +86,22 @@ impl CreateTableExecutor {
         let needs_schema_switch = schema_name != original_schema;
 
         if needs_schema_switch {
-            database.catalog.set_current_schema(&schema_name)
+            database
+                .catalog
+                .set_current_schema(&schema_name)
                 .map_err(|e| ExecutorError::StorageError(format!("Schema error: {:?}", e)))?;
         }
 
         // Create table using Database API (handles both catalog and storage)
-        let result = database.create_table(table_schema)
+        let result = database
+            .create_table(table_schema)
             .map_err(|e| ExecutorError::StorageError(e.to_string()));
 
         // Restore original schema if we switched
         if needs_schema_switch {
-            database.catalog.set_current_schema(&original_schema)
+            database
+                .catalog
+                .set_current_schema(&original_schema)
                 .map_err(|e| ExecutorError::StorageError(format!("Schema error: {:?}", e)))?;
         }
 
@@ -120,14 +126,21 @@ mod tests {
         let stmt = CreateTableStmt {
             table_name: "users".to_string(),
             columns: vec![
-                ColumnDef { name: "id".to_string(), data_type: DataType::Integer, nullable: false, constraints: vec![] },
+                ColumnDef {
+                    name: "id".to_string(),
+                    data_type: DataType::Integer,
+                    nullable: false,
+                    constraints: vec![],
+                },
                 ColumnDef {
                     name: "name".to_string(),
                     data_type: DataType::Varchar { max_length: Some(255) },
-                    nullable: true, constraints: vec![],
+                    nullable: true,
+                    constraints: vec![],
                 },
             ],
-        table_constraints: vec![], };
+            table_constraints: vec![],
+        };
 
         let result = CreateTableExecutor::execute(&stmt, &mut db);
         assert!(result.is_ok());
@@ -178,7 +191,8 @@ mod tests {
                     constraints: vec![],
                 },
             ],
-        table_constraints: vec![], };
+            table_constraints: vec![],
+        };
 
         let result = CreateTableExecutor::execute(&stmt, &mut db);
         assert!(result.is_ok());
@@ -204,7 +218,8 @@ mod tests {
                 nullable: false,
                 constraints: vec![],
             }],
-        table_constraints: vec![], };
+            table_constraints: vec![],
+        };
 
         // First creation succeeds
         let result = CreateTableExecutor::execute(&stmt, &mut db);
@@ -223,7 +238,12 @@ mod tests {
         let stmt = CreateTableStmt {
             table_name: "employees".to_string(),
             columns: vec![
-                ColumnDef { name: "id".to_string(), data_type: DataType::Integer, nullable: false, constraints: vec![] },
+                ColumnDef {
+                    name: "id".to_string(),
+                    data_type: DataType::Integer,
+                    nullable: false,
+                    constraints: vec![],
+                },
                 ColumnDef {
                     name: "middle_name".to_string(),
                     data_type: DataType::Varchar { max_length: Some(50) },
@@ -237,7 +257,8 @@ mod tests {
                     constraints: vec![],
                 },
             ],
-        table_constraints: vec![], };
+            table_constraints: vec![],
+        };
 
         let result = CreateTableExecutor::execute(&stmt, &mut db);
         assert!(result.is_ok());
@@ -256,7 +277,8 @@ mod tests {
         let stmt = CreateTableStmt {
             table_name: "empty_table".to_string(),
             columns: vec![], // Empty columns
-        table_constraints: vec![], };
+            table_constraints: vec![],
+        };
 
         // Should succeed (though not very useful)
         let result = CreateTableExecutor::execute(&stmt, &mut db);
@@ -279,7 +301,8 @@ mod tests {
                 nullable: false,
                 constraints: vec![],
             }],
-        table_constraints: vec![], };
+            table_constraints: vec![],
+        };
         CreateTableExecutor::execute(&stmt1, &mut db).unwrap();
 
         // Create second table
@@ -291,7 +314,8 @@ mod tests {
                 nullable: false,
                 constraints: vec![],
             }],
-        table_constraints: vec![], };
+            table_constraints: vec![],
+        };
         CreateTableExecutor::execute(&stmt2, &mut db).unwrap();
 
         // Verify both tables exist
@@ -313,7 +337,8 @@ mod tests {
                 nullable: false,
                 constraints: vec![],
             }],
-        table_constraints: vec![], };
+            table_constraints: vec![],
+        };
 
         let result = CreateTableExecutor::execute(&stmt, &mut db);
         assert!(result.is_ok());
@@ -332,7 +357,8 @@ mod tests {
                 nullable: false,
                 constraints: vec![],
             }],
-        table_constraints: vec![], };
+            table_constraints: vec![],
+        };
         CreateTableExecutor::execute(&stmt1, &mut db).unwrap();
 
         // Try to create "users" (different case)
@@ -344,7 +370,8 @@ mod tests {
                 nullable: false,
                 constraints: vec![],
             }],
-        table_constraints: vec![], };
+            table_constraints: vec![],
+        };
 
         // Behavior depends on catalog's case sensitivity
         // Just verify it either succeeds or fails gracefully

@@ -51,28 +51,37 @@ impl<'a> SelectExecutor<'a> {
             }
         };
 
-        eprintln!("DEBUG AGG: schema keys={:?}", from_result.schema.table_schemas.keys().collect::<Vec<_>>());
-        eprintln!("DEBUG AGG: outer_row={}, outer_schema={:?}",
-                 self._outer_row.is_some(),
-                 self._outer_schema.map(|s| s.table_schemas.keys().collect::<Vec<_>>()));
+        eprintln!(
+            "DEBUG AGG: schema keys={:?}",
+            from_result.schema.table_schemas.keys().collect::<Vec<_>>()
+        );
+        eprintln!(
+            "DEBUG AGG: outer_row={}, outer_schema={:?}",
+            self._outer_row.is_some(),
+            self._outer_schema.map(|s| s.table_schemas.keys().collect::<Vec<_>>())
+        );
 
         // Create evaluator with outer context if available (outer schema is already a CombinedSchema)
-        let evaluator = if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
-            eprintln!("DEBUG AGG: Creating evaluator WITH outer context, outer tables={:?}",
-                     outer_schema.table_schemas.keys().collect::<Vec<_>>());
-            CombinedExpressionEvaluator::with_database_and_outer_context(
-                &from_result.schema,
-                self.database,
-                outer_row,
-                outer_schema
-            )
-        } else {
-            eprintln!("DEBUG AGG: Creating evaluator WITHOUT outer context");
-            CombinedExpressionEvaluator::with_database(&from_result.schema, self.database)
-        };
+        let evaluator =
+            if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
+                eprintln!(
+                    "DEBUG AGG: Creating evaluator WITH outer context, outer tables={:?}",
+                    outer_schema.table_schemas.keys().collect::<Vec<_>>()
+                );
+                CombinedExpressionEvaluator::with_database_and_outer_context(
+                    &from_result.schema,
+                    self.database,
+                    outer_row,
+                    outer_schema,
+                )
+            } else {
+                eprintln!("DEBUG AGG: Creating evaluator WITHOUT outer context");
+                CombinedExpressionEvaluator::with_database(&from_result.schema, self.database)
+            };
 
         // Apply WHERE clause to filter joined rows
-        let filtered_rows = apply_where_filter_combined(from_result.rows, stmt.where_clause.as_ref(), &evaluator)?;
+        let filtered_rows =
+            apply_where_filter_combined(from_result.rows, stmt.where_clause.as_ref(), &evaluator)?;
 
         // Group rows
         let groups = if let Some(group_by_exprs) = &stmt.group_by {
@@ -167,9 +176,10 @@ impl<'a> SelectExecutor<'a> {
             }
 
             // Binary operation - recursively evaluate both sides
-            ast::Expression::BinaryOp { left, op, right } => {
-                self.evaluate_binary_op_with_aggregates(left, op, right, group_rows, _group_key, evaluator)
-            }
+            ast::Expression::BinaryOp { left, op, right } => self
+                .evaluate_binary_op_with_aggregates(
+                    left, op, right, group_rows, _group_key, evaluator,
+                ),
 
             // Scalar subquery - delegate to evaluator
             ast::Expression::ScalarSubquery(_) | ast::Expression::Exists { .. } => {
@@ -177,13 +187,16 @@ impl<'a> SelectExecutor<'a> {
             }
 
             // IN with subquery - special handling for aggregate left-hand side
-            ast::Expression::In { expr: left_expr, subquery, negated } => {
-                self.evaluate_in_predicate_with_aggregates(left_expr, subquery, *negated, group_rows, _group_key, evaluator)
-            }
+            ast::Expression::In { expr: left_expr, subquery, negated } => self
+                .evaluate_in_predicate_with_aggregates(
+                    left_expr, subquery, *negated, group_rows, _group_key, evaluator,
+                ),
 
             // Quantified comparison - special handling for aggregate left-hand side
             ast::Expression::QuantifiedComparison { expr: left_expr, op, quantifier, subquery } => {
-                self.evaluate_quantified_comparison_with_aggregates(left_expr, op, quantifier, subquery, group_rows, _group_key, evaluator)
+                self.evaluate_quantified_comparison_with_aggregates(
+                    left_expr, op, quantifier, subquery, group_rows, _group_key, evaluator,
+                )
             }
 
             // Other expressions that might contain subqueries or be useful in HAVING:
@@ -222,12 +235,8 @@ impl<'a> SelectExecutor<'a> {
     ) -> Result<types::SqlValue, ExecutorError> {
         // Extract name, distinct, and args from either variant
         let (name, distinct, args) = match expr {
-            ast::Expression::AggregateFunction { name, distinct, args } => {
-                (name, *distinct, args)
-            }
-            ast::Expression::Function { name, args } => {
-                (name, false, args)
-            }
+            ast::Expression::AggregateFunction { name, distinct, args } => (name, *distinct, args),
+            ast::Expression::Function { name, args } => (name, false, args),
             _ => unreachable!("evaluate_aggregate_function called with non-aggregate expression"),
         };
 
@@ -245,7 +254,7 @@ impl<'a> SelectExecutor<'a> {
                 // COUNT(*) - count all rows (DISTINCT not allowed with *)
                 if distinct {
                     return Err(ExecutorError::UnsupportedExpression(
-                        "COUNT(DISTINCT *) is not valid SQL".to_string()
+                        "COUNT(DISTINCT *) is not valid SQL".to_string(),
                     ));
                 }
                 for _ in group_rows {
@@ -316,7 +325,8 @@ impl<'a> SelectExecutor<'a> {
         evaluator: &CombinedExpressionEvaluator,
     ) -> Result<types::SqlValue, ExecutorError> {
         // Evaluate left-hand expression (which may be an aggregate)
-        let left_val = self.evaluate_with_aggregates(left_expr, group_rows, group_key, evaluator)?;
+        let left_val =
+            self.evaluate_with_aggregates(left_expr, group_rows, group_key, evaluator)?;
 
         // Execute subquery to get values to compare against
         let database = self.database;
@@ -340,9 +350,8 @@ impl<'a> SelectExecutor<'a> {
 
         // Check each row from subquery
         for subquery_row in &rows {
-            let subquery_val = subquery_row
-                .get(0)
-                .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
+            let subquery_val =
+                subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
 
             // Track if we encounter NULL
             if matches!(subquery_val, types::SqlValue::Null) {
@@ -376,7 +385,8 @@ impl<'a> SelectExecutor<'a> {
         evaluator: &CombinedExpressionEvaluator,
     ) -> Result<types::SqlValue, ExecutorError> {
         // Evaluate left-hand expression (which may be an aggregate)
-        let left_val = self.evaluate_with_aggregates(left_expr, group_rows, group_key, evaluator)?;
+        let left_val =
+            self.evaluate_with_aggregates(left_expr, group_rows, group_key, evaluator)?;
 
         // Execute subquery
         let database = self.database;
@@ -418,7 +428,9 @@ impl<'a> SelectExecutor<'a> {
                     let cmp_result = temp_evaluator.eval_binary_op(&left_val, op, right_val)?;
 
                     match cmp_result {
-                        types::SqlValue::Boolean(false) => return Ok(types::SqlValue::Boolean(false)),
+                        types::SqlValue::Boolean(false) => {
+                            return Ok(types::SqlValue::Boolean(false))
+                        }
                         types::SqlValue::Null => has_null = true,
                         _ => {}
                     }
@@ -453,7 +465,9 @@ impl<'a> SelectExecutor<'a> {
                     let cmp_result = temp_evaluator.eval_binary_op(&left_val, op, right_val)?;
 
                     match cmp_result {
-                        types::SqlValue::Boolean(true) => return Ok(types::SqlValue::Boolean(true)),
+                        types::SqlValue::Boolean(true) => {
+                            return Ok(types::SqlValue::Boolean(true))
+                        }
                         types::SqlValue::Null => has_null = true,
                         _ => {}
                     }
@@ -517,7 +531,8 @@ impl<'a> SelectExecutor<'a> {
         let result_evaluator = CombinedExpressionEvaluator::new(&result_schema);
 
         // Evaluate ORDER BY expressions and attach sort keys to rows
-        let mut rows_with_keys: Vec<(storage::Row, Vec<(types::SqlValue, ast::OrderDirection)>)> = Vec::new();
+        let mut rows_with_keys: Vec<(storage::Row, Vec<(types::SqlValue, ast::OrderDirection)>)> =
+            Vec::new();
         for row in rows {
             let mut sort_keys = Vec::new();
             for order_item in order_by {

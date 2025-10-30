@@ -348,10 +348,7 @@ fn test_unbounded_following() {
                 ast::Expression::WindowFunction { over, .. } => {
                     let frame = over.frame.as_ref().unwrap();
                     assert_eq!(frame.start, ast::FrameBound::CurrentRow);
-                    assert_eq!(
-                        frame.end.as_ref().unwrap(),
-                        &ast::FrameBound::UnboundedFollowing
-                    );
+                    assert_eq!(frame.end.as_ref().unwrap(), &ast::FrameBound::UnboundedFollowing);
                 }
                 _ => panic!("Expected WindowFunction"),
             },

@@ -1,8 +1,7 @@
+use super::super::core::{CombinedExpressionEvaluator, ExpressionEvaluator};
 ///! Main evaluation entry point for combined expressions
-
 use crate::errors::ExecutorError;
 use crate::select::WindowFunctionKey;
-use super::super::core::{CombinedExpressionEvaluator, ExpressionEvaluator};
 
 impl<'a> CombinedExpressionEvaluator<'a> {
     /// Evaluate an expression in the context of a combined row
@@ -27,13 +26,18 @@ impl<'a> CombinedExpressionEvaluator<'a> {
 
             // Column reference - look up column index (with optional table qualifier)
             ast::Expression::ColumnRef { table, column } => {
-                eprintln!("DEBUG CombinedExpr ColumnRef: table={:?}, column={}, inner_schema_tables={:?}",
-                         table, column, self.schema.table_schemas.keys().collect::<Vec<_>>());
+                eprintln!(
+                    "DEBUG CombinedExpr ColumnRef: table={:?}, column={}, inner_schema_tables={:?}",
+                    table,
+                    column,
+                    self.schema.table_schemas.keys().collect::<Vec<_>>()
+                );
 
                 // Try to resolve in inner schema first
                 if let Some(col_index) = self.schema.get_column_index(table.as_deref(), column) {
                     eprintln!("DEBUG CombinedExpr: Found in INNER schema at index {}", col_index);
-                    return row.get(col_index)
+                    return row
+                        .get(col_index)
                         .cloned()
                         .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: col_index });
                 }
@@ -42,9 +46,14 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 if let (Some(outer_row), Some(outer_schema)) = (self.outer_row, self.outer_schema) {
                     eprintln!("DEBUG CombinedExpr: Not in inner, checking OUTER schema, outer_tables={:?}",
                              outer_schema.table_schemas.keys().collect::<Vec<_>>());
-                    if let Some(col_index) = outer_schema.get_column_index(table.as_deref(), column) {
-                        eprintln!("DEBUG CombinedExpr: Found in OUTER schema at index {}", col_index);
-                        return outer_row.get(col_index)
+                    if let Some(col_index) = outer_schema.get_column_index(table.as_deref(), column)
+                    {
+                        eprintln!(
+                            "DEBUG CombinedExpr: Found in OUTER schema at index {}",
+                            col_index
+                        );
+                        return outer_row
+                            .get(col_index)
                             .cloned()
                             .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: col_index });
                     } else {
@@ -77,9 +86,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             }
 
             // Scalar subquery - must return exactly one row and one column
-            ast::Expression::ScalarSubquery(subquery) => {
-                self.eval_scalar_subquery(subquery, row)
-            }
+            ast::Expression::ScalarSubquery(subquery) => self.eval_scalar_subquery(subquery, row),
 
             // BETWEEN predicate: expr BETWEEN low AND high
             ast::Expression::Between { expr, low, high, negated } => {
@@ -87,9 +94,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             }
 
             // CAST expression: CAST(expr AS data_type)
-            ast::Expression::Cast { expr, data_type } => {
-                self.eval_cast(expr, data_type, row)
-            }
+            ast::Expression::Cast { expr, data_type } => self.eval_cast(expr, data_type, row),
 
             // TRIM expression: TRIM([position] [removal_char FROM] string)
             ast::Expression::Trim { position, removal_char, string } => {
@@ -117,19 +122,13 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             }
 
             // IS NULL / IS NOT NULL
-            ast::Expression::IsNull { expr, negated } => {
-                self.eval_is_null(expr, *negated, row)
-            }
+            ast::Expression::IsNull { expr, negated } => self.eval_is_null(expr, *negated, row),
 
             // Function expressions - handle scalar functions (not aggregates)
-            ast::Expression::Function { name, args } => {
-                self.eval_function(name, args, row)
-            }
+            ast::Expression::Function { name, args } => self.eval_function(name, args, row),
 
             // Unary operations (delegate to shared function)
-            ast::Expression::UnaryOp { op, expr } => {
-                self.eval_unary(op, expr, row)
-            }
+            ast::Expression::UnaryOp { op, expr } => self.eval_unary(op, expr, row),
 
             // Window functions - look up pre-computed values
             ast::Expression::WindowFunction { function, over } => {
@@ -137,21 +136,37 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                     let key = WindowFunctionKey::from_expression(function, over);
                     if let Some(&col_idx) = mapping.get(&key) {
                         // Extract the pre-computed value from the appended column
-                        let value = row.values
-                            .get(col_idx)
-                            .cloned()
-                            .ok_or_else(|| ExecutorError::ColumnIndexOutOfBounds { index: col_idx })?;
+                        let value = row.values.get(col_idx).cloned().ok_or_else(|| {
+                            ExecutorError::ColumnIndexOutOfBounds { index: col_idx }
+                        })?;
                         Ok(value)
                     } else {
-                        Err(ExecutorError::UnsupportedExpression(
-                            format!("Window function not found in mapping: {:?}", expr),
-                        ))
+                        Err(ExecutorError::UnsupportedExpression(format!(
+                            "Window function not found in mapping: {:?}",
+                            expr
+                        )))
                     }
                 } else {
                     Err(ExecutorError::UnsupportedExpression(
                         "Window functions require window mapping context".to_string(),
                     ))
                 }
+            }
+
+            // TRIM expression
+            ast::Expression::Trim { position, removal_char, string } => {
+                // Evaluate the string expression
+                let string_value = self.eval(string, row)?;
+
+                // Evaluate optional removal_char (defaults to space)
+                let char_to_remove = if let Some(char_expr) = removal_char {
+                    self.eval(char_expr, row)?
+                } else {
+                    types::SqlValue::Varchar(" ".to_string())
+                };
+
+                // Call TRIM function with position and character
+                self.eval_trim(position, &char_to_remove, &string_value)
             }
 
             // Unsupported expressions

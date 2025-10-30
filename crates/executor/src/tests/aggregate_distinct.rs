@@ -74,10 +74,7 @@ fn test_count_distinct_basic() {
             },
             alias: None,
         }],
-        from: Some(ast::FromClause::Table {
-            name: "sales".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "sales".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -126,10 +123,7 @@ fn test_count_distinct_vs_count_all() {
                 alias: None,
             },
         ],
-        from: Some(ast::FromClause::Table {
-            name: "sales".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "sales".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -165,10 +159,7 @@ fn test_sum_distinct() {
             },
             alias: None,
         }],
-        from: Some(ast::FromClause::Table {
-            name: "sales".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "sales".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -217,10 +208,7 @@ fn test_sum_distinct_vs_sum_all() {
                 alias: None,
             },
         ],
-        from: Some(ast::FromClause::Table {
-            name: "sales".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "sales".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -258,10 +246,7 @@ fn test_avg_distinct() {
             },
             alias: None,
         }],
-        from: Some(ast::FromClause::Table {
-            name: "sales".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "sales".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -297,10 +282,7 @@ fn test_min_distinct() {
             },
             alias: None,
         }],
-        from: Some(ast::FromClause::Table {
-            name: "sales".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "sales".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -336,10 +318,7 @@ fn test_max_distinct() {
             },
             alias: None,
         }],
-        from: Some(ast::FromClause::Table {
-            name: "sales".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "sales".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -368,16 +347,11 @@ fn test_count_distinct_with_nulls() {
     db.create_table(schema).unwrap();
 
     // Insert values including NULLs: 1, 1, 2, NULL, NULL
-    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Integer(1)]))
-        .unwrap();
-    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Integer(1)]))
-        .unwrap();
-    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Integer(2)]))
-        .unwrap();
-    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Null]))
-        .unwrap();
-    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Null]))
-        .unwrap();
+    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Integer(1)])).unwrap();
+    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Integer(1)])).unwrap();
+    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Integer(2)])).unwrap();
+    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Null])).unwrap();
+    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Null])).unwrap();
 
     let executor = SelectExecutor::new(&db);
 
@@ -390,17 +364,11 @@ fn test_count_distinct_with_nulls() {
             expr: ast::Expression::AggregateFunction {
                 name: "COUNT".to_string(),
                 distinct: true,
-                args: vec![ast::Expression::ColumnRef {
-                    table: None,
-                    column: "val".to_string(),
-                }],
+                args: vec![ast::Expression::ColumnRef { table: None, column: "val".to_string() }],
             },
             alias: None,
         }],
-        from: Some(ast::FromClause::Table {
-            name: "test".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -420,21 +388,14 @@ fn test_distinct_all_same_value() {
     let mut db = storage::Database::new();
     let schema = catalog::TableSchema::new(
         "test".to_string(),
-        vec![catalog::ColumnSchema::new(
-            "val".to_string(),
-            types::DataType::Integer,
-            false,
-        )],
+        vec![catalog::ColumnSchema::new("val".to_string(), types::DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
 
     // Insert same value 3 times
-    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Integer(42)]))
-        .unwrap();
-    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Integer(42)]))
-        .unwrap();
-    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Integer(42)]))
-        .unwrap();
+    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Integer(42)])).unwrap();
+    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Integer(42)])).unwrap();
+    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Integer(42)])).unwrap();
 
     let executor = SelectExecutor::new(&db);
 
@@ -467,10 +428,7 @@ fn test_distinct_all_same_value() {
                 alias: None,
             },
         ],
-        from: Some(ast::FromClause::Table {
-            name: "test".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -492,11 +450,7 @@ fn test_distinct_empty_table() {
     let mut db = storage::Database::new();
     let schema = catalog::TableSchema::new(
         "empty_test".to_string(),
-        vec![catalog::ColumnSchema::new(
-            "val".to_string(),
-            types::DataType::Integer,
-            true,
-        )],
+        vec![catalog::ColumnSchema::new("val".to_string(), types::DataType::Integer, true)],
     );
     db.create_table(schema).unwrap();
 
@@ -531,10 +485,7 @@ fn test_distinct_empty_table() {
                 alias: None,
             },
         ],
-        from: Some(ast::FromClause::Table {
-            name: "empty_test".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "empty_test".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,

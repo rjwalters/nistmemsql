@@ -34,10 +34,7 @@ pub enum ColumnConstraintKind {
     PrimaryKey,
     Unique,
     Check(Box<Expression>),
-    References {
-        table: String,
-        column: String,
-    },
+    References { table: String, column: String },
 }
 
 /// Table-level constraint
@@ -50,20 +47,10 @@ pub struct TableConstraint {
 /// Table constraint types
 #[derive(Debug, Clone, PartialEq)]
 pub enum TableConstraintKind {
-    PrimaryKey {
-        columns: Vec<String>,
-    },
-    ForeignKey {
-        columns: Vec<String>,
-        references_table: String,
-        references_columns: Vec<String>,
-    },
-    Unique {
-        columns: Vec<String>,
-    },
-    Check {
-        expr: Box<Expression>,
-    },
+    PrimaryKey { columns: Vec<String> },
+    ForeignKey { columns: Vec<String>, references_table: String, references_columns: Vec<String> },
+    Unique { columns: Vec<String> },
+    Check { expr: Box<Expression> },
 }
 
 /// DROP TABLE statement
@@ -113,23 +100,10 @@ pub struct DropColumnStmt {
 /// ALTER COLUMN operation
 #[derive(Debug, Clone, PartialEq)]
 pub enum AlterColumnStmt {
-    SetDefault {
-        table_name: String,
-        column_name: String,
-        default: Expression,
-    },
-    DropDefault {
-        table_name: String,
-        column_name: String,
-    },
-    SetNotNull {
-        table_name: String,
-        column_name: String,
-    },
-    DropNotNull {
-        table_name: String,
-        column_name: String,
-    },
+    SetDefault { table_name: String, column_name: String, default: Expression },
+    DropDefault { table_name: String, column_name: String },
+    SetNotNull { table_name: String, column_name: String },
+    DropNotNull { table_name: String, column_name: String },
 }
 
 /// ADD CONSTRAINT operation
