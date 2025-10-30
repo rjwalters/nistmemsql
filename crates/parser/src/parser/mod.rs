@@ -7,6 +7,7 @@ mod advanced_objects;
 mod alter;
 mod create;
 mod delete;
+mod domain;
 mod drop;
 mod expressions;
 mod grant;
@@ -271,16 +272,16 @@ impl Parser {
     // Advanced SQL Object Parsers (SQL:1999)
     // ========================================================================
 
-    /// Parse CREATE DOMAIN statement
+    /// Parse CREATE DOMAIN statement (uses full implementation from domain module)
     pub fn parse_create_domain_statement(
         &mut self,
     ) -> Result<ast::CreateDomainStmt, ParseError> {
-        advanced_objects::parse_create_domain(self)
+        domain::parse_create_domain(self)
     }
 
-    /// Parse DROP DOMAIN statement
+    /// Parse DROP DOMAIN statement (uses full implementation from domain module)
     pub fn parse_drop_domain_statement(&mut self) -> Result<ast::DropDomainStmt, ParseError> {
-        advanced_objects::parse_drop_domain(self)
+        domain::parse_drop_domain(self)
     }
 
     /// Parse CREATE SEQUENCE statement

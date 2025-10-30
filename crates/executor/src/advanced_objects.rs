@@ -1,20 +1,11 @@
-//! Executor for advanced SQL:1999 objects (DOMAIN, SEQUENCE, TYPE, COLLATION, etc.)
+//! Executor for advanced SQL:1999 objects (SEQUENCE, TYPE, COLLATION, etc.)
+//! Note: DOMAIN has a full implementation in domain_ddl module
 
 use crate::errors::ExecutorError;
 use ast::*;
 use storage::Database;
 
-/// Execute CREATE DOMAIN statement
-pub fn execute_create_domain(stmt: &CreateDomainStmt, db: &mut Database) -> Result<(), ExecutorError> {
-    db.catalog.create_domain(stmt.domain_name.clone())?;
-    Ok(())
-}
-
-/// Execute DROP DOMAIN statement
-pub fn execute_drop_domain(stmt: &DropDomainStmt, db: &mut Database) -> Result<(), ExecutorError> {
-    db.catalog.drop_domain(&stmt.domain_name)?;
-    Ok(())
-}
+// DOMAIN functions are in domain_ddl module with full implementation
 
 /// Execute CREATE SEQUENCE statement
 pub fn execute_create_sequence(

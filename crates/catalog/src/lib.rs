@@ -5,6 +5,7 @@
 
 mod advanced_objects;
 mod column;
+mod domain;
 pub mod errors;
 mod foreign_key;
 mod privilege;
@@ -16,6 +17,7 @@ pub use advanced_objects::{
     CharacterSet, Collation, Domain, Sequence, Translation, UserDefinedType,
 };
 pub use column::ColumnSchema;
+pub use domain::{DomainConstraintDef, DomainDefinition};
 pub use errors::CatalogError;
 pub use foreign_key::{ForeignKeyConstraint, ReferentialAction};
 pub use privilege::PrivilegeGrant;
