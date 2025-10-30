@@ -1,65 +1,11 @@
-use ast::{Assignment, BinaryOperator, Expression, UpdateStmt};
-use catalog::{ColumnSchema, TableSchema};
-use executor::{ExecutorError, UpdateExecutor};
+mod common;
+
+use executor::{UpdateExecutor, ExecutorError};
 use storage::{Database, Row};
-use types::{DataType, SqlValue};
+use types::SqlValue;
+use ast::{Assignment, BinaryOperator, Expression, UpdateStmt};
+use common::setup_test_table;
 
-fn setup_test_table(db: &mut Database) {
-    // Create table schema
-    let schema = TableSchema::new(
-        "employees".to_string(),
-        vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new(
-                "name".to_string(),
-                DataType::Varchar { max_length: Some(50) },
-                false,
-            ),
-            ColumnSchema::new("salary".to_string(), DataType::Integer, true),
-            ColumnSchema::new(
-                "department".to_string(),
-                DataType::Varchar { max_length: Some(50) },
-                true,
-            ),
-        ],
-    );
-
-    db.create_table(schema).unwrap();
-
-    // Insert test data
-    db.insert_row(
-        "employees",
-        Row::new(vec![
-            SqlValue::Integer(1),
-            SqlValue::Varchar("Alice".to_string()),
-            SqlValue::Integer(45000),
-            SqlValue::Varchar("Engineering".to_string()),
-        ]),
-    )
-    .unwrap();
-
-    db.insert_row(
-        "employees",
-        Row::new(vec![
-            SqlValue::Integer(2),
-            SqlValue::Varchar("Bob".to_string()),
-            SqlValue::Integer(48000),
-            SqlValue::Varchar("Engineering".to_string()),
-        ]),
-    )
-    .unwrap();
-
-    db.insert_row(
-        "employees",
-        Row::new(vec![
-            SqlValue::Integer(3),
-            SqlValue::Varchar("Charlie".to_string()),
-            SqlValue::Integer(42000),
-            SqlValue::Varchar("Sales".to_string()),
-        ]),
-    )
-    .unwrap();
-}
 #[test]
 fn test_update_all_rows() {
     let mut db = Database::new();
