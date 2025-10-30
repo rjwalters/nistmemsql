@@ -124,10 +124,6 @@ impl<'a> ExpressionEvaluator<'a> {
             ast::Expression::AggregateFunction { .. } => Err(ExecutorError::UnsupportedExpression(
                 "Aggregate functions should be evaluated in aggregation context".to_string(),
             )),
-
-            ast::Expression::Default => Err(ExecutorError::UnsupportedExpression(
-                "DEFAULT keyword is only valid in INSERT and UPDATE statements".to_string(),
-            )),
         }
     }
 
