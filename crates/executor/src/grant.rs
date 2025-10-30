@@ -11,7 +11,7 @@ pub struct GrantExecutor;
 impl GrantExecutor {
     /// Execute GRANT statement
     ///
-    /// For Phase 2.1: Only supports GRANT SELECT ON TABLE table_name TO role_name
+    /// Phase 2.3: Supports ALL PRIVILEGES expansion
     pub fn execute_grant(
         stmt: &GrantStmt,
         database: &mut Database,
@@ -22,9 +22,28 @@ impl GrantExecutor {
             return Err(ExecutorError::TableNotFound(table_name.clone()));
         }
 
+        // Expand ALL PRIVILEGES based on object type
+        let expanded_privileges = if stmt.privileges.contains(&PrivilegeType::AllPrivileges) {
+            match stmt.object_type {
+                ObjectType::Table => vec![
+                    PrivilegeType::Select,
+                    PrivilegeType::Insert,
+                    PrivilegeType::Update,
+                    PrivilegeType::Delete,
+                    PrivilegeType::References,
+                ],
+                ObjectType::Schema => vec![
+                    PrivilegeType::Usage,
+                    // Future: add CREATE when schema support is complete
+                ],
+            }
+        } else {
+            stmt.privileges.clone()
+        };
+
         // For each grantee and privilege, create a grant
         for grantee in &stmt.grantees {
-            for privilege in &stmt.privileges {
+            for privilege in &expanded_privileges {
                 let grant = PrivilegeGrant {
                     object: stmt.object_name.clone(),
                     object_type: stmt.object_type.clone(),

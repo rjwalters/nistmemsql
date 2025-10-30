@@ -284,3 +284,128 @@ fn test_grant_all_four_privilege_types() {
         "Admin should have DELETE privilege"
     );
 }
+
+#[test]
+fn test_grant_all_privileges_expands_to_table_privileges() {
+    let mut db = Database::new();
+
+    // Create a test table
+    let schema = TableSchema::new(
+        "users".to_string(),
+        vec![
+            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
+        ],
+    );
+    db.create_table(schema).unwrap();
+
+    // Grant ALL PRIVILEGES
+    let grant_stmt = ast::GrantStmt {
+        privileges: vec![ast::PrivilegeType::AllPrivileges],
+        object_type: ast::ObjectType::Table,
+        object_name: "users".to_string(),
+        grantees: vec!["manager".to_string()],
+        with_grant_option: false,
+    };
+
+    let result = GrantExecutor::execute_grant(&grant_stmt, &mut db);
+    assert!(result.is_ok(), "Failed to execute GRANT ALL: {:?}", result.err());
+
+    // Verify all 5 table privileges were granted (SELECT, INSERT, UPDATE, DELETE, REFERENCES)
+    assert!(
+        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::Select),
+        "Manager should have SELECT privilege"
+    );
+    assert!(
+        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::Insert),
+        "Manager should have INSERT privilege"
+    );
+    assert!(
+        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::Update),
+        "Manager should have UPDATE privilege"
+    );
+    assert!(
+        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::Delete),
+        "Manager should have DELETE privilege"
+    );
+    assert!(
+        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::References),
+        "Manager should have REFERENCES privilege"
+    );
+}
+
+#[test]
+fn test_grant_all_privileges_to_multiple_grantees() {
+    let mut db = Database::new();
+
+    // Create a test table
+    let schema = TableSchema::new(
+        "orders".to_string(),
+        vec![
+            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("amount".to_string(), DataType::Integer, false),
+        ],
+    );
+    db.create_table(schema).unwrap();
+
+    // Grant ALL PRIVILEGES to multiple grantees
+    let grant_stmt = ast::GrantStmt {
+        privileges: vec![ast::PrivilegeType::AllPrivileges],
+        object_type: ast::ObjectType::Table,
+        object_name: "orders".to_string(),
+        grantees: vec!["manager".to_string(), "clerk".to_string()],
+        with_grant_option: false,
+    };
+
+    let result = GrantExecutor::execute_grant(&grant_stmt, &mut db);
+    assert!(result.is_ok(), "Failed to execute GRANT ALL: {:?}", result.err());
+
+    // Verify both grantees received all privileges
+    // Manager should have all 5 privileges
+    assert!(
+        db.catalog.has_privilege("manager", "orders", &ast::PrivilegeType::Select),
+        "Manager should have SELECT"
+    );
+    assert!(
+        db.catalog.has_privilege("manager", "orders", &ast::PrivilegeType::Insert),
+        "Manager should have INSERT"
+    );
+    assert!(
+        db.catalog.has_privilege("manager", "orders", &ast::PrivilegeType::Update),
+        "Manager should have UPDATE"
+    );
+    assert!(
+        db.catalog.has_privilege("manager", "orders", &ast::PrivilegeType::Delete),
+        "Manager should have DELETE"
+    );
+    assert!(
+        db.catalog.has_privilege("manager", "orders", &ast::PrivilegeType::References),
+        "Manager should have REFERENCES"
+    );
+
+    // Clerk should have all 5 privileges
+    assert!(
+        db.catalog.has_privilege("clerk", "orders", &ast::PrivilegeType::Select),
+        "Clerk should have SELECT"
+    );
+    assert!(
+        db.catalog.has_privilege("clerk", "orders", &ast::PrivilegeType::Insert),
+        "Clerk should have INSERT"
+    );
+    assert!(
+        db.catalog.has_privilege("clerk", "orders", &ast::PrivilegeType::Update),
+        "Clerk should have UPDATE"
+    );
+    assert!(
+        db.catalog.has_privilege("clerk", "orders", &ast::PrivilegeType::Delete),
+        "Clerk should have DELETE"
+    );
+    assert!(
+        db.catalog.has_privilege("clerk", "orders", &ast::PrivilegeType::References),
+        "Clerk should have REFERENCES"
+    );
+}

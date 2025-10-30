@@ -121,3 +121,55 @@ fn test_parse_grant_multiple_privileges_and_grantees() {
         other => panic!("Expected Grant statement, got {:?}", other),
     }
 }
+
+#[test]
+fn test_parse_grant_all_privileges_with_keyword() {
+    let sql = "GRANT ALL PRIVILEGES ON TABLE users TO manager";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 1);
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::AllPrivileges);
+            assert_eq!(grant_stmt.object_type, ast::ObjectType::Table);
+            assert_eq!(grant_stmt.object_name.to_string(), "USERS");
+            assert_eq!(grant_stmt.grantees, vec!["MANAGER"]);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_all_without_privileges_keyword() {
+    let sql = "GRANT ALL ON TABLE users TO manager";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 1);
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::AllPrivileges);
+            assert_eq!(grant_stmt.object_type, ast::ObjectType::Table);
+            assert_eq!(grant_stmt.object_name.to_string(), "USERS");
+            assert_eq!(grant_stmt.grantees, vec!["MANAGER"]);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_all_case_insensitive() {
+    let sql = "grant all on table employees to clerk";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::AllPrivileges);
+            assert_eq!(grant_stmt.object_name.to_string(), "EMPLOYEES");
+            assert_eq!(grant_stmt.grantees, vec!["CLERK"]);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
