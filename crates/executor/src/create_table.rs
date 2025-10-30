@@ -39,15 +39,18 @@ impl CreateTableExecutor {
     ///             data_type: DataType::Integer,
     ///             nullable: false,
     ///             constraints: vec![],
+    ///             default_value: None,
     ///         },
     ///         ColumnDef {
     ///             name: "name".to_string(),
     ///             data_type: DataType::Varchar { max_length: Some(255) },
     ///             nullable: true,
     ///             constraints: vec![],
+    ///             default_value: None,
     ///         },
     ///     ],
-    /// table_constraints: vec![], };
+    ///     table_constraints: vec![],
+    /// };
     ///
     /// let result = CreateTableExecutor::execute(&stmt, &mut db);
     /// assert!(result.is_ok());
@@ -77,8 +80,11 @@ impl CreateTableExecutor {
         let columns: Vec<ColumnSchema> = stmt
             .columns
             .iter()
-            .map(|col_def| {
-                ColumnSchema::new(col_def.name.clone(), col_def.data_type.clone(), col_def.nullable)
+            .map(|col_def| ColumnSchema {
+                name: col_def.name.clone(),
+                data_type: col_def.data_type.clone(),
+                nullable: col_def.nullable,
+                default_value: col_def.default_value.as_ref().map(|expr| (**expr).clone()),
             })
             .collect();
 
@@ -135,12 +141,14 @@ mod tests {
                     data_type: DataType::Integer,
                     nullable: false,
                     constraints: vec![],
+                    default_value: None,
                 },
                 ColumnDef {
                     name: "name".to_string(),
                     data_type: DataType::Varchar { max_length: Some(255) },
                     nullable: true,
                     constraints: vec![],
+                    default_value: None,
                 },
             ],
             table_constraints: vec![],
@@ -169,30 +177,35 @@ mod tests {
                     data_type: DataType::Integer,
                     nullable: false,
                     constraints: vec![],
+                    default_value: None,
                 },
                 ColumnDef {
                     name: "name".to_string(),
                     data_type: DataType::Varchar { max_length: Some(100) },
                     nullable: false,
                     constraints: vec![],
+                    default_value: None,
                 },
                 ColumnDef {
                     name: "price".to_string(),
                     data_type: DataType::Integer, // Using Integer for price (could be Decimal in future)
                     nullable: false,
                     constraints: vec![],
+                    default_value: None,
                 },
                 ColumnDef {
                     name: "in_stock".to_string(),
                     data_type: DataType::Boolean,
                     nullable: false,
                     constraints: vec![],
+                    default_value: None,
                 },
                 ColumnDef {
                     name: "description".to_string(),
                     data_type: DataType::Varchar { max_length: Some(500) },
                     nullable: true, // Optional field
                     constraints: vec![],
+                    default_value: None,
                 },
             ],
             table_constraints: vec![],
@@ -221,6 +234,7 @@ mod tests {
                 data_type: DataType::Integer,
                 nullable: false,
                 constraints: vec![],
+                default_value: None,
             }],
             table_constraints: vec![],
         };
@@ -247,18 +261,21 @@ mod tests {
                     data_type: DataType::Integer,
                     nullable: false,
                     constraints: vec![],
+                    default_value: None,
                 },
                 ColumnDef {
                     name: "middle_name".to_string(),
                     data_type: DataType::Varchar { max_length: Some(50) },
                     nullable: true, // Nullable field
                     constraints: vec![],
+                    default_value: None,
                 },
                 ColumnDef {
                     name: "manager_id".to_string(),
                     data_type: DataType::Integer,
                     nullable: true, // Nullable foreign key
                     constraints: vec![],
+                    default_value: None,
                 },
             ],
             table_constraints: vec![],
@@ -304,6 +321,7 @@ mod tests {
                 data_type: DataType::Integer,
                 nullable: false,
                 constraints: vec![],
+                default_value: None,
             }],
             table_constraints: vec![],
         };
@@ -317,6 +335,7 @@ mod tests {
                 data_type: DataType::Integer,
                 nullable: false,
                 constraints: vec![],
+                default_value: None,
             }],
             table_constraints: vec![],
         };
@@ -340,6 +359,7 @@ mod tests {
                 data_type: DataType::Integer,
                 nullable: false,
                 constraints: vec![],
+                default_value: None,
             }],
             table_constraints: vec![],
         };
@@ -360,6 +380,7 @@ mod tests {
                 data_type: DataType::Integer,
                 nullable: false,
                 constraints: vec![],
+                default_value: None,
             }],
             table_constraints: vec![],
         };
@@ -373,6 +394,7 @@ mod tests {
                 data_type: DataType::Integer,
                 nullable: false,
                 constraints: vec![],
+                default_value: None,
             }],
             table_constraints: vec![],
         };
