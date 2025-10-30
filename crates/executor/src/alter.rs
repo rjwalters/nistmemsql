@@ -41,7 +41,7 @@ impl AlterTableExecutor {
 
         // Add default value (or NULL) to all existing rows
         let default_value = if let Some(_default_constraint) = stmt.column_def.constraints.iter()
-            .find(|c| matches!(c, ColumnConstraint::Check(_))) {
+            .find(|c| matches!(&c.kind, ColumnConstraintKind::Check(_))) {
             // TODO: Handle default values properly
             SqlValue::Null
         } else {

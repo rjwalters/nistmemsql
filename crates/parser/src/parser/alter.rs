@@ -78,11 +78,17 @@ fn parse_add_column(parser: &mut crate::Parser, table_name: String) -> Result<Al
             Token::Keyword(Keyword::Primary) => {
                 parser.advance();
                 parser.expect_keyword(Keyword::Key)?;
-                constraints.push(ColumnConstraint::PrimaryKey);
+                constraints.push(ColumnConstraint {
+                    name: None,
+                    kind: ColumnConstraintKind::PrimaryKey,
+                });
             }
             Token::Keyword(Keyword::Unique) => {
                 parser.advance();
-                constraints.push(ColumnConstraint::Unique);
+                constraints.push(ColumnConstraint {
+                    name: None,
+                    kind: ColumnConstraintKind::Unique,
+                });
             }
             Token::Keyword(Keyword::Default) => {
                 parser.advance();
@@ -96,9 +102,12 @@ fn parse_add_column(parser: &mut crate::Parser, table_name: String) -> Result<Al
                 parser.expect_token(crate::token::Token::LParen)?;
                 let ref_column = parser.parse_identifier()?;
                 parser.expect_token(crate::token::Token::RParen)?;
-                constraints.push(ColumnConstraint::References {
-                    table: ref_table,
-                    column: ref_column,
+                constraints.push(ColumnConstraint {
+                    name: None,
+                    kind: ColumnConstraintKind::References {
+                        table: ref_table,
+                        column: ref_column,
+                    },
                 });
             }
             _ => break,
@@ -203,13 +212,15 @@ fn parse_add_constraint(parser: &mut crate::Parser, table_name: String) -> Resul
 
     // TODO: Parse constraint type (PRIMARY KEY, UNIQUE, etc.)
     // For now, create a placeholder
-    let constraint = TableConstraint::PrimaryKey {
-        columns: vec!["placeholder".to_string()],
+    let constraint = TableConstraint {
+        name: constraint_name,
+        kind: TableConstraintKind::PrimaryKey {
+            columns: vec!["placeholder".to_string()],
+        },
     };
 
     Ok(AlterTableStmt::AddConstraint(AddConstraintStmt {
         table_name,
-        constraint_name,
         constraint,
     }))
 }

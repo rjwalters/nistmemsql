@@ -22,7 +22,15 @@ pub struct ColumnDef {
 
 /// Column-level constraint
 #[derive(Debug, Clone, PartialEq)]
-pub enum ColumnConstraint {
+pub struct ColumnConstraint {
+    pub name: Option<String>,
+    pub kind: ColumnConstraintKind,
+}
+
+/// Column constraint types
+#[derive(Debug, Clone, PartialEq)]
+pub enum ColumnConstraintKind {
+    NotNull,
     PrimaryKey,
     Unique,
     Check(Box<Expression>),
@@ -34,7 +42,14 @@ pub enum ColumnConstraint {
 
 /// Table-level constraint
 #[derive(Debug, Clone, PartialEq)]
-pub enum TableConstraint {
+pub struct TableConstraint {
+    pub name: Option<String>,
+    pub kind: TableConstraintKind,
+}
+
+/// Table constraint types
+#[derive(Debug, Clone, PartialEq)]
+pub enum TableConstraintKind {
     PrimaryKey {
         columns: Vec<String>,
     },
@@ -121,7 +136,6 @@ pub enum AlterColumnStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub struct AddConstraintStmt {
     pub table_name: String,
-    pub constraint_name: Option<String>,
     pub constraint: TableConstraint,
 }
 
