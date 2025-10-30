@@ -97,10 +97,7 @@ impl DeleteExecutor {
         let mut rows_and_indices_to_delete: Vec<(usize, storage::Row)> = Vec::new();
         for (index, row) in table.scan().iter().enumerate() {
             let should_delete = if let Some(ref where_expr) = stmt.where_clause {
-                match evaluator.eval(where_expr, row) {
-                    Ok(types::SqlValue::Boolean(true)) => true,
-                    _ => false,
-                }
+                matches!(evaluator.eval(where_expr, row), Ok(types::SqlValue::Boolean(true)))
             } else {
                 true
             };
@@ -118,9 +115,6 @@ impl DeleteExecutor {
         // Extract just the indices
         let indices_to_delete: std::collections::HashSet<usize> =
             rows_and_indices_to_delete.iter().map(|(idx, _)| *idx).collect();
-
-        // Drop evaluator to release database borrow
-        drop(evaluator);
 
         // Step 4: Actually delete the rows (now we can borrow mutably)
         let table_mut = database

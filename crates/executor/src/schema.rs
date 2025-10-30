@@ -2,17 +2,17 @@ use std::collections::HashMap;
 
 /// Represents the combined schema from multiple tables (for JOINs)
 #[derive(Debug, Clone)]
-pub(crate) struct CombinedSchema {
+pub struct CombinedSchema {
     /// Map from table name to (start_index, TableSchema)
     /// start_index is where this table's columns begin in the combined row
-    pub(crate) table_schemas: HashMap<String, (usize, catalog::TableSchema)>,
+    pub table_schemas: HashMap<String, (usize, catalog::TableSchema)>,
     /// Total number of columns across all tables
-    pub(crate) total_columns: usize,
+    pub total_columns: usize,
 }
 
 impl CombinedSchema {
     /// Create a new combined schema from a single table
-    pub(crate) fn from_table(table_name: String, schema: catalog::TableSchema) -> Self {
+    pub fn from_table(table_name: String, schema: catalog::TableSchema) -> Self {
         let total_columns = schema.columns.len();
         let mut table_schemas = HashMap::new();
         table_schemas.insert(table_name, (0, schema));
@@ -20,7 +20,7 @@ impl CombinedSchema {
     }
 
     /// Create a new combined schema from a derived table (subquery result)
-    pub(crate) fn from_derived_table(
+    pub fn from_derived_table(
         alias: String,
         column_names: Vec<String>,
         column_types: Vec<types::DataType>,
@@ -53,7 +53,7 @@ impl CombinedSchema {
     }
 
     /// Combine two schemas (for JOIN operations)
-    pub(crate) fn combine(
+    pub fn combine(
         left: CombinedSchema,
         right_table: String,
         right_schema: catalog::TableSchema,
@@ -66,7 +66,7 @@ impl CombinedSchema {
     }
 
     /// Look up a column by name (optionally qualified with table name)
-    pub(crate) fn get_column_index(&self, table: Option<&str>, column: &str) -> Option<usize> {
+    pub fn get_column_index(&self, table: Option<&str>, column: &str) -> Option<usize> {
         if let Some(table_name) = table {
             // Qualified column reference (table.column)
             if let Some((start_index, schema)) = self.table_schemas.get(table_name) {

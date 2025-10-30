@@ -1,7 +1,6 @@
 mod common;
 
 use ast::{Assignment, BinaryOperator, Expression, UpdateStmt};
-use catalog::{ColumnSchema, TableSchema};
 use common::setup_test_table;
 use executor::{ExecutorError, UpdateExecutor};
 use storage::{Database, Row};

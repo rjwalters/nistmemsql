@@ -1,7 +1,7 @@
 //! Test utilities and validation tests for WASM bindings
 
 #[cfg(test)]
-mod tests {
+mod wasm_tests {
     use super::super::*;
 
     #[test]
@@ -138,8 +138,8 @@ mod tests {
 
                     // Look for database (within next 5 lines)
                     let mut database = String::new();
-                    for j in (i + 1)..(i + 6).min(lines.len()) {
-                        if let Some(db_line) = lines[j].strip_prefix("        database: '") {
+                    for line in lines.iter().skip(i + 1).take(5) {
+                        if let Some(db_line) = line.strip_prefix("        database: '") {
                             if let Some(db_end) = db_line.find("'") {
                                 database = db_line[..db_end].to_string();
                                 break;
