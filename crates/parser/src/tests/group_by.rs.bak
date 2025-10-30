@@ -1,0 +1,133 @@
+use super::*;
+
+// ========================================================================
+// GROUP BY and HAVING Tests
+// ========================================================================
+
+#[test]
+fn test_parse_group_by_single_column() {
+    let result = Parser::parse_sql("SELECT name, COUNT(*) FROM users GROUP BY name;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Select(select) => {
+            assert!(select.group_by.is_some());
+            let group_by = select.group_by.unwrap();
+            assert_eq!(group_by.len(), 1);
+            match &group_by[0] {
+                ast::Expression::ColumnRef { column, .. } if column == "name" => {}
+                _ => panic!("Expected column reference 'name'"),
+            }
+        }
+        _ => panic!("Expected SELECT"),
+    }
+}
+
+#[test]
+fn test_parse_group_by_multiple_columns() {
+    let result = Parser::parse_sql("SELECT dept, role, COUNT(*) FROM users GROUP BY dept, role;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Select(select) => {
+            assert!(select.group_by.is_some());
+            let group_by = select.group_by.unwrap();
+            assert_eq!(group_by.len(), 2);
+            match &group_by[0] {
+                ast::Expression::ColumnRef { column, .. } if column == "dept" => {}
+                _ => panic!("Expected column reference 'dept'"),
+            }
+            match &group_by[1] {
+                ast::Expression::ColumnRef { column, .. } if column == "role" => {}
+                _ => panic!("Expected column reference 'role'"),
+            }
+        }
+        _ => panic!("Expected SELECT"),
+    }
+}
+
+#[test]
+fn test_parse_having_clause() {
+    let result =
+        Parser::parse_sql("SELECT name, COUNT(*) FROM users GROUP BY name HAVING COUNT(*) > 5;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Select(select) => {
+            assert!(select.group_by.is_some());
+            assert!(select.having.is_some());
+
+            // HAVING should contain a comparison expression
+            match select.having.as_ref().unwrap() {
+                ast::Expression::BinaryOp { op, .. } => {
+                    assert_eq!(*op, ast::BinaryOperator::GreaterThan);
+                }
+                _ => panic!("Expected comparison in HAVING clause"),
+            }
+        }
+        _ => panic!("Expected SELECT"),
+    }
+}
+
+#[test]
+fn test_parse_group_by_with_where_and_having() {
+    let result = Parser::parse_sql(
+        "SELECT dept, COUNT(*) FROM users WHERE active = true GROUP BY dept HAVING COUNT(*) > 10;",
+    );
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Select(select) => {
+            // Should have WHERE, GROUP BY, and HAVING
+            assert!(select.where_clause.is_some());
+            assert!(select.group_by.is_some());
+            assert!(select.having.is_some());
+        }
+        _ => panic!("Expected SELECT"),
+    }
+}
+
+#[test]
+fn test_parse_group_by_qualified_columns() {
+    let result = Parser::parse_sql("SELECT u.dept, COUNT(*) FROM users u GROUP BY u.dept;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Select(select) => {
+            assert!(select.group_by.is_some());
+            let group_by = select.group_by.unwrap();
+            assert_eq!(group_by.len(), 1);
+            match &group_by[0] {
+                ast::Expression::ColumnRef { table, column } => {
+                    assert_eq!(table.as_ref().unwrap(), "u");
+                    assert_eq!(column, "dept");
+                }
+                _ => panic!("Expected qualified column reference"),
+            }
+        }
+        _ => panic!("Expected SELECT"),
+    }
+}
+
+#[test]
+fn test_parse_group_by_with_order_by() {
+    let result = Parser::parse_sql(
+        "SELECT name, COUNT(*) as cnt FROM users GROUP BY name ORDER BY cnt DESC;",
+    );
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Select(select) => {
+            // Should have both GROUP BY and ORDER BY
+            assert!(select.group_by.is_some());
+            assert!(select.order_by.is_some());
+        }
+        _ => panic!("Expected SELECT"),
+    }
+}

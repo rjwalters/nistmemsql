@@ -8,6 +8,8 @@ pub enum CatalogError {
     SchemaAlreadyExists(String),
     SchemaNotFound(String),
     SchemaNotEmpty(String),
+    RoleAlreadyExists(String),
+    RoleNotFound(String),
 }
 
 impl std::fmt::Display for CatalogError {
@@ -28,6 +30,10 @@ impl std::fmt::Display for CatalogError {
             CatalogError::SchemaNotEmpty(name) => {
                 write!(f, "Schema '{}' is not empty", name)
             }
+            CatalogError::RoleAlreadyExists(name) => {
+                write!(f, "Role '{}' already exists", name)
+            }
+            CatalogError::RoleNotFound(name) => write!(f, "Role '{}' not found", name),
         }
     }
 }

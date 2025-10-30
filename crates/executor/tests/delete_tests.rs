@@ -19,33 +19,33 @@ fn setup_customers_orders_db() -> Database {
 
     // Create customers table
     let customers_schema = TableSchema::new(
-        "customers".to_string(),
+        "CUSTOMERS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "name".to_string(),
+                "NAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
-            ColumnSchema::new("active".to_string(), DataType::Boolean, false),
+            ColumnSchema::new("ACTIVE".to_string(), DataType::Boolean, false),
         ],
     );
     db.create_table(customers_schema).unwrap();
 
     // Create orders table
     let orders_schema = TableSchema::new(
-        "orders".to_string(),
+        "ORDERS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("customer_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("total".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("CUSTOMER_ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("TOTAL".to_string(), DataType::Integer, false),
         ],
     );
     db.create_table(orders_schema).unwrap();
 
     // Insert customers
     db.insert_row(
-        "customers",
+        "CUSTOMERS",
         Row::new(vec![
             SqlValue::Integer(1),
             SqlValue::Varchar("Alice".to_string()),
@@ -55,7 +55,7 @@ fn setup_customers_orders_db() -> Database {
     .unwrap();
 
     db.insert_row(
-        "customers",
+        "CUSTOMERS",
         Row::new(vec![
             SqlValue::Integer(2),
             SqlValue::Varchar("Bob".to_string()),
@@ -65,7 +65,7 @@ fn setup_customers_orders_db() -> Database {
     .unwrap();
 
     db.insert_row(
-        "customers",
+        "CUSTOMERS",
         Row::new(vec![
             SqlValue::Integer(3),
             SqlValue::Varchar("Charlie".to_string()),
@@ -75,7 +75,7 @@ fn setup_customers_orders_db() -> Database {
     .unwrap();
 
     db.insert_row(
-        "customers",
+        "CUSTOMERS",
         Row::new(vec![
             SqlValue::Integer(4),
             SqlValue::Varchar("Diana".to_string()),
@@ -86,7 +86,7 @@ fn setup_customers_orders_db() -> Database {
 
     // Insert orders - Alice and Bob have orders, Charlie and Diana don't
     db.insert_row(
-        "orders",
+        "ORDERS",
         Row::new(vec![
             SqlValue::Integer(101),
             SqlValue::Integer(1), // Alice
@@ -96,7 +96,7 @@ fn setup_customers_orders_db() -> Database {
     .unwrap();
 
     db.insert_row(
-        "orders",
+        "ORDERS",
         Row::new(vec![
             SqlValue::Integer(102),
             SqlValue::Integer(1), // Alice
@@ -106,7 +106,7 @@ fn setup_customers_orders_db() -> Database {
     .unwrap();
 
     db.insert_row(
-        "orders",
+        "ORDERS",
         Row::new(vec![
             SqlValue::Integer(103),
             SqlValue::Integer(2), // Bob
@@ -133,7 +133,7 @@ fn test_delete_with_exists_correlated() {
         assert_eq!(deleted, 2, "Should delete 2 customers with orders");
 
         // Verify only Charlie and Diana remain (no orders)
-        let customers = db.get_table("customers").unwrap();
+        let customers = db.get_table("CUSTOMERS").unwrap();
         assert_eq!(customers.row_count(), 2);
 
         let remaining_ids: Vec<i64> = customers
@@ -164,7 +164,7 @@ fn test_delete_with_not_exists_correlated() {
         assert_eq!(deleted, 2, "Should delete 2 customers without orders");
 
         // Verify only Alice and Bob remain (have orders)
-        let customers = db.get_table("customers").unwrap();
+        let customers = db.get_table("CUSTOMERS").unwrap();
         assert_eq!(customers.row_count(), 2);
 
         let remaining_ids: Vec<i64> = customers
@@ -194,7 +194,7 @@ fn test_delete_with_exists_empty_result() {
         assert_eq!(deleted, 0, "Should delete 0 customers (EXISTS returns false)");
 
         // All 4 customers should remain
-        let customers = db.get_table("customers").unwrap();
+        let customers = db.get_table("CUSTOMERS").unwrap();
         assert_eq!(customers.row_count(), 4);
     } else {
         panic!("Expected DELETE statement");
@@ -215,7 +215,7 @@ fn test_delete_with_not_exists_empty_result() {
         assert_eq!(deleted, 4, "Should delete all 4 customers (NOT EXISTS returns true)");
 
         // No customers should remain
-        let customers = db.get_table("customers").unwrap();
+        let customers = db.get_table("CUSTOMERS").unwrap();
         assert_eq!(customers.row_count(), 0);
     } else {
         panic!("Expected DELETE statement");
@@ -237,7 +237,7 @@ fn test_delete_with_exists_and_other_conditions() {
         assert_eq!(deleted, 2, "Should delete 2 active customers with orders");
 
         // Verify Charlie and Diana remain
-        let customers = db.get_table("customers").unwrap();
+        let customers = db.get_table("CUSTOMERS").unwrap();
         assert_eq!(customers.row_count(), 2);
 
         let remaining_ids: Vec<i64> = customers
@@ -266,7 +266,7 @@ fn test_delete_with_exists_uncorrelated() {
         let deleted = DeleteExecutor::execute(&delete_stmt, &mut db).unwrap();
         assert_eq!(deleted, 4, "Should delete all customers (uncorrelated EXISTS is TRUE)");
 
-        let customers = db.get_table("customers").unwrap();
+        let customers = db.get_table("CUSTOMERS").unwrap();
         assert_eq!(customers.row_count(), 0);
     } else {
         panic!("Expected DELETE statement");
@@ -288,7 +288,7 @@ fn test_delete_with_exists_complex_subquery() {
         assert_eq!(deleted, 1, "Should delete 1 customer with order > 150");
 
         // Verify Bob, Charlie, and Diana remain
-        let customers = db.get_table("customers").unwrap();
+        let customers = db.get_table("CUSTOMERS").unwrap();
         assert_eq!(customers.row_count(), 3);
 
         let remaining_ids: Vec<i64> = customers
@@ -313,11 +313,11 @@ fn test_delete_with_nested_exists() {
 
     // Create tables for nested EXISTS test
     let users_schema = TableSchema::new(
-        "users".to_string(),
+        "USERS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "name".to_string(),
+                "NAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
@@ -326,38 +326,38 @@ fn test_delete_with_nested_exists() {
     db.create_table(users_schema).unwrap();
 
     let posts_schema = TableSchema::new(
-        "posts".to_string(),
+        "POSTS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("user_id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("USER_ID".to_string(), DataType::Integer, false),
         ],
     );
     db.create_table(posts_schema).unwrap();
 
     let comments_schema = TableSchema::new(
-        "comments".to_string(),
+        "COMMENTS".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("post_id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("POST_ID".to_string(), DataType::Integer, false),
         ],
     );
     db.create_table(comments_schema).unwrap();
 
     // Insert test data
     db.insert_row(
-        "users",
+        "USERS",
         Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
     )
     .unwrap();
     db.insert_row(
-        "users",
+        "USERS",
         Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())]),
     )
     .unwrap();
 
-    db.insert_row("posts", Row::new(vec![SqlValue::Integer(101), SqlValue::Integer(1)])).unwrap();
+    db.insert_row("POSTS", Row::new(vec![SqlValue::Integer(101), SqlValue::Integer(1)])).unwrap();
 
-    db.insert_row("comments", Row::new(vec![SqlValue::Integer(1001), SqlValue::Integer(101)]))
+    db.insert_row("COMMENTS", Row::new(vec![SqlValue::Integer(1001), SqlValue::Integer(101)]))
         .unwrap();
 
     // DELETE FROM users WHERE EXISTS (SELECT 1 FROM posts WHERE user_id = users.id AND EXISTS (SELECT 1 FROM comments WHERE post_id = posts.id))
@@ -369,7 +369,7 @@ fn test_delete_with_nested_exists() {
         let deleted = DeleteExecutor::execute(&delete_stmt, &mut db).unwrap();
         assert_eq!(deleted, 1, "Should delete 1 user with posts that have comments");
 
-        let users = db.get_table("users").unwrap();
+        let users = db.get_table("USERS").unwrap();
         assert_eq!(users.row_count(), 1);
 
         let remaining_id =
@@ -395,7 +395,7 @@ fn test_delete_with_or_exists() {
         assert_eq!(deleted, 3, "Should delete 3 customers (Charlie + Alice + Bob)");
 
         // Only Diana should remain
-        let customers = db.get_table("customers").unwrap();
+        let customers = db.get_table("CUSTOMERS").unwrap();
         assert_eq!(customers.row_count(), 1);
 
         let remaining_id =

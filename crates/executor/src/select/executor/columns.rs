@@ -59,7 +59,7 @@ impl SelectExecutor<'_> {
     pub(super) fn derive_expression_name(&self, expr: &ast::Expression) -> String {
         match expr {
             ast::Expression::ColumnRef { table: _, column } => column.clone(),
-            ast::Expression::Function { name, args } => {
+            ast::Expression::Function { name, args, character_unit: _ } => {
                 // For functions, use name(args) format
                 let args_str = if args.is_empty() {
                     "*".to_string()

@@ -1,10 +1,11 @@
 mod common;
 
-use executor::{UpdateExecutor, ExecutorError};
+use ast::{Assignment, BinaryOperator, Expression, UpdateStmt};
+use catalog::{ColumnSchema, TableSchema};
+use common::setup_test_table;
+use executor::{ExecutorError, UpdateExecutor};
 use storage::{Database, Row};
 use types::{DataType, SqlValue};
-use ast::{Assignment, BinaryOperator, Expression, UpdateStmt};
-use common::setup_test_table;
 
 #[test]
 fn test_update_not_null_constraint_violation() {

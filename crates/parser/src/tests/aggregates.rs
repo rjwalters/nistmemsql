@@ -44,7 +44,7 @@ fn test_parse_count_column() {
                     assert!(!(*distinct));
                     assert_eq!(args.len(), 1);
                     match &args[0] {
-                        ast::Expression::ColumnRef { column, .. } if column == "id" => {}
+                        ast::Expression::ColumnRef { column, .. } if column == "ID" => {}
                         _ => panic!("Expected column reference"),
                     }
                 }
@@ -149,7 +149,7 @@ fn test_parse_aggregate_with_alias() {
                     }
                     _ => panic!("Expected aggregate function"),
                 }
-                assert_eq!(alias.as_ref().unwrap(), "total");
+                assert_eq!(alias.as_ref().unwrap(), "TOTAL");
             }
             _ => panic!("Expected expression with alias"),
         },

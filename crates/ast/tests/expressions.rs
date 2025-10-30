@@ -73,7 +73,7 @@ fn test_binary_operation_equality() {
 
 #[test]
 fn test_function_call_count_star() {
-    let expr = Expression::Function { name: "COUNT".to_string(), args: vec![Expression::Wildcard] };
+    let expr = Expression::Function { name: "COUNT".to_string(), args: vec![Expression::Wildcard], character_unit: None };
 
     match expr {
         Expression::Function { name, .. } if name == "COUNT" => {} // Success

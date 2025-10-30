@@ -96,7 +96,7 @@ impl CombinedExpressionEvaluator<'_> {
             ast::Expression::Cast { expr, data_type } => self.eval_cast(expr, data_type, row),
 
             // POSITION expression: POSITION(substring IN string)
-            ast::Expression::Position { substring, string } => {
+            ast::Expression::Position { substring, string, character_unit: _ } => {
                 self.eval_position(substring, string, row)
             }
 
@@ -128,7 +128,7 @@ impl CombinedExpressionEvaluator<'_> {
             ast::Expression::IsNull { expr, negated } => self.eval_is_null(expr, *negated, row),
 
             // Function expressions - handle scalar functions (not aggregates)
-            ast::Expression::Function { name, args } => self.eval_function(name, args, row),
+            ast::Expression::Function { name, args, character_unit: _ } => self.eval_function(name, args, row),
 
             // Current date/time functions
             ast::Expression::CurrentDate => {

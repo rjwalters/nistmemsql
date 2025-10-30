@@ -13,6 +13,7 @@ fn test_abs_positive() {
     let expr = ast::Expression::Function {
         name: "ABS".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Double(-5.2))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Double(5.2));
@@ -25,6 +26,7 @@ fn test_abs_integer() {
     let expr = ast::Expression::Function {
         name: "ABS".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(-42))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(42));
@@ -37,6 +39,7 @@ fn test_round_basic() {
     let expr = ast::Expression::Function {
         name: "ROUND".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Double(3.7))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Double(4.0));
@@ -52,6 +55,7 @@ fn test_round_with_precision() {
             ast::Expression::Literal(types::SqlValue::Double(3.14159)),
             ast::Expression::Literal(types::SqlValue::Integer(2)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Double(3.14));
@@ -64,6 +68,7 @@ fn test_floor_function() {
     let expr = ast::Expression::Function {
         name: "FLOOR".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Double(3.9))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Double(3.0));
@@ -76,6 +81,7 @@ fn test_ceil_function() {
     let expr = ast::Expression::Function {
         name: "CEIL".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Double(3.1))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Double(4.0));
@@ -88,6 +94,7 @@ fn test_ceiling_function() {
     let expr = ast::Expression::Function {
         name: "CEILING".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Double(3.1))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Double(4.0));
@@ -103,6 +110,7 @@ fn test_mod_function() {
             ast::Expression::Literal(types::SqlValue::Integer(17)),
             ast::Expression::Literal(types::SqlValue::Integer(5)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(2));
@@ -118,6 +126,7 @@ fn test_power_function() {
             ast::Expression::Literal(types::SqlValue::Integer(2)),
             ast::Expression::Literal(types::SqlValue::Integer(3)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Double(8.0));
@@ -133,6 +142,7 @@ fn test_pow_alias() {
             ast::Expression::Literal(types::SqlValue::Integer(5)),
             ast::Expression::Literal(types::SqlValue::Integer(2)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Double(25.0));
@@ -145,6 +155,7 @@ fn test_sqrt_function() {
     let expr = ast::Expression::Function {
         name: "SQRT".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(16))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Double(4.0));
@@ -163,6 +174,7 @@ fn test_concat_function() {
             ast::Expression::Literal(types::SqlValue::Varchar(" ".to_string())),
             ast::Expression::Literal(types::SqlValue::Varchar("World".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("Hello World".to_string()));
@@ -178,6 +190,7 @@ fn test_concat_with_integer() {
             ast::Expression::Literal(types::SqlValue::Varchar("ID:".to_string())),
             ast::Expression::Literal(types::SqlValue::Integer(42)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("ID:42".to_string()));
@@ -190,6 +203,7 @@ fn test_length_function() {
     let expr = ast::Expression::Function {
         name: "LENGTH".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Varchar("Hello".to_string()))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(5));
@@ -205,6 +219,7 @@ fn test_position_function() {
             ast::Expression::Literal(types::SqlValue::Varchar("lo".to_string())),
             ast::Expression::Literal(types::SqlValue::Varchar("Hello".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(4)); // 'lo' starts at position 4 (1-indexed)
@@ -220,6 +235,7 @@ fn test_position_not_found() {
             ast::Expression::Literal(types::SqlValue::Varchar("xyz".to_string())),
             ast::Expression::Literal(types::SqlValue::Varchar("Hello".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(0)); // Not found returns 0
@@ -236,6 +252,7 @@ fn test_replace_function() {
             ast::Expression::Literal(types::SqlValue::Varchar("World".to_string())),
             ast::Expression::Literal(types::SqlValue::Varchar("Rust".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("Hello Rust".to_string()));
@@ -248,6 +265,7 @@ fn test_reverse_function() {
     let expr = ast::Expression::Function {
         name: "REVERSE".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Varchar("Hello".to_string()))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("olleH".to_string()));
@@ -263,6 +281,7 @@ fn test_left_function() {
             ast::Expression::Literal(types::SqlValue::Varchar("Hello".to_string())),
             ast::Expression::Literal(types::SqlValue::Integer(3)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("Hel".to_string()));
@@ -278,6 +297,7 @@ fn test_right_function() {
             ast::Expression::Literal(types::SqlValue::Varchar("Hello".to_string())),
             ast::Expression::Literal(types::SqlValue::Integer(3)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("llo".to_string()));
@@ -292,6 +312,7 @@ fn test_abs_with_null() {
     let expr = ast::Expression::Function {
         name: "ABS".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Null)],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Null);
@@ -307,6 +328,7 @@ fn test_concat_with_null() {
             ast::Expression::Literal(types::SqlValue::Varchar("Hello".to_string())),
             ast::Expression::Literal(types::SqlValue::Null),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Null); // NULL in concat makes result NULL
@@ -319,6 +341,7 @@ fn test_length_with_null() {
     let expr = ast::Expression::Function {
         name: "LENGTH".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Null)],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Null);
@@ -331,6 +354,7 @@ fn test_octet_length_ascii() {
     let expr = ast::Expression::Function {
         name: "OCTET_LENGTH".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Varchar("foo".to_string()))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(3));
@@ -343,6 +367,7 @@ fn test_octet_length_empty_string() {
     let expr = ast::Expression::Function {
         name: "OCTET_LENGTH".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Varchar("".to_string()))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(0));
@@ -356,6 +381,7 @@ fn test_octet_length_multibyte() {
     let expr = ast::Expression::Function {
         name: "OCTET_LENGTH".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Varchar("🦀".to_string()))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(4));
@@ -368,6 +394,7 @@ fn test_octet_length_with_null() {
     let expr = ast::Expression::Function {
         name: "OCTET_LENGTH".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Null)],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Null);
@@ -385,7 +412,9 @@ fn test_nested_functions() {
         args: vec![ast::Expression::Function {
             name: "ROUND".to_string(),
             args: vec![ast::Expression::Literal(types::SqlValue::Double(-3.7))],
+            character_unit: None,
         }],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Double(4.0));
@@ -404,7 +433,9 @@ fn test_upper_left_nested() {
                 ast::Expression::Literal(types::SqlValue::Varchar("hello".to_string())),
                 ast::Expression::Literal(types::SqlValue::Integer(3)),
             ],
+            character_unit: None,
         }],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("HEL".to_string()));

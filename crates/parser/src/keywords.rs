@@ -102,6 +102,8 @@ pub enum Keyword {
     Savepoint,
     Release,
     To,
+    // Role management keywords
+    Role,
     // TRIM function keywords
     Both,
     Leading,
@@ -110,6 +112,7 @@ pub enum Keyword {
     Varying,
     Characters,
     Octets,
+    Using,
     // SUBSTRING function keywords
     For,
     // Current date/time function keywords
@@ -211,12 +214,14 @@ impl fmt::Display for Keyword {
             Keyword::Savepoint => "SAVEPOINT",
             Keyword::Release => "RELEASE",
             Keyword::To => "TO",
+            Keyword::Role => "ROLE",
             Keyword::Both => "BOTH",
             Keyword::Leading => "LEADING",
             Keyword::Trailing => "TRAILING",
             Keyword::Varying => "VARYING",
             Keyword::Characters => "CHARACTERS",
             Keyword::Octets => "OCTETS",
+            Keyword::Using => "USING",
             Keyword::For => "FOR",
             Keyword::CurrentDate => "CURRENT_DATE",
             Keyword::CurrentTime => "CURRENT_TIME",

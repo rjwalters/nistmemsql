@@ -18,7 +18,7 @@ use common::create_test_evaluator;
 fn test_current_date_format() {
     let (evaluator, row) = create_test_evaluator();
 
-    let expr = ast::Expression::Function { name: "CURRENT_DATE".to_string(), args: vec![] };
+    let expr = ast::Expression::Function { name: "CURRENT_DATE".to_string(), args: vec![], character_unit: None };
     let result = evaluator.eval(&expr, &row).unwrap();
 
     // Verify it returns a Date type with YYYY-MM-DD format
@@ -39,7 +39,7 @@ fn test_current_date_format() {
 fn test_curdate_alias() {
     let (evaluator, row) = create_test_evaluator();
 
-    let expr = ast::Expression::Function { name: "CURDATE".to_string(), args: vec![] };
+    let expr = ast::Expression::Function { name: "CURDATE".to_string(), args: vec![], character_unit: None };
     let result = evaluator.eval(&expr, &row).unwrap();
 
     // Verify CURDATE is an alias for CURRENT_DATE
@@ -50,7 +50,7 @@ fn test_curdate_alias() {
 fn test_current_time_format() {
     let (evaluator, row) = create_test_evaluator();
 
-    let expr = ast::Expression::Function { name: "CURRENT_TIME".to_string(), args: vec![] };
+    let expr = ast::Expression::Function { name: "CURRENT_TIME".to_string(), args: vec![], character_unit: None };
     let result = evaluator.eval(&expr, &row).unwrap();
 
     // Verify it returns a Time type with HH:MM:SS format
@@ -71,7 +71,7 @@ fn test_current_time_format() {
 fn test_curtime_alias() {
     let (evaluator, row) = create_test_evaluator();
 
-    let expr = ast::Expression::Function { name: "CURTIME".to_string(), args: vec![] };
+    let expr = ast::Expression::Function { name: "CURTIME".to_string(), args: vec![], character_unit: None };
     let result = evaluator.eval(&expr, &row).unwrap();
 
     // Verify CURTIME is an alias for CURRENT_TIME
@@ -82,7 +82,7 @@ fn test_curtime_alias() {
 fn test_current_timestamp_format() {
     let (evaluator, row) = create_test_evaluator();
 
-    let expr = ast::Expression::Function { name: "CURRENT_TIMESTAMP".to_string(), args: vec![] };
+    let expr = ast::Expression::Function { name: "CURRENT_TIMESTAMP".to_string(), args: vec![], character_unit: None };
     let result = evaluator.eval(&expr, &row).unwrap();
 
     // Verify it returns a Timestamp type with YYYY-MM-DD HH:MM:SS format
@@ -106,7 +106,7 @@ fn test_current_timestamp_format() {
 fn test_now_alias() {
     let (evaluator, row) = create_test_evaluator();
 
-    let expr = ast::Expression::Function { name: "NOW".to_string(), args: vec![] };
+    let expr = ast::Expression::Function { name: "NOW".to_string(), args: vec![], character_unit: None };
     let result = evaluator.eval(&expr, &row).unwrap();
 
     // Verify NOW is an alias for CURRENT_TIMESTAMP
@@ -122,6 +122,7 @@ fn test_current_time_precision_0() {
     let expr = ast::Expression::Function {
         name: "CURRENT_TIME".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(0))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
 
@@ -147,6 +148,7 @@ fn test_current_time_precision_3() {
     let expr = ast::Expression::Function {
         name: "CURRENT_TIME".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(3))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
 
@@ -168,6 +170,7 @@ fn test_current_time_precision_6() {
     let expr = ast::Expression::Function {
         name: "CURRENT_TIME".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(6))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
 
@@ -189,6 +192,7 @@ fn test_current_time_precision_9() {
     let expr = ast::Expression::Function {
         name: "CURRENT_TIME".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(9))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
 
@@ -210,6 +214,7 @@ fn test_current_time_precision_invalid_high() {
     let expr = ast::Expression::Function {
         name: "CURRENT_TIME".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(10))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row);
 
@@ -226,6 +231,7 @@ fn test_current_time_precision_invalid_negative() {
     let expr = ast::Expression::Function {
         name: "CURRENT_TIME".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(-1))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row);
 
@@ -240,6 +246,7 @@ fn test_current_timestamp_precision_0() {
     let expr = ast::Expression::Function {
         name: "CURRENT_TIMESTAMP".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(0))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
 
@@ -265,6 +272,7 @@ fn test_current_timestamp_precision_3() {
     let expr = ast::Expression::Function {
         name: "CURRENT_TIMESTAMP".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(3))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
 
@@ -286,6 +294,7 @@ fn test_current_timestamp_precision_6() {
     let expr = ast::Expression::Function {
         name: "CURRENT_TIMESTAMP".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(6))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
 
@@ -307,6 +316,7 @@ fn test_current_timestamp_precision_invalid() {
     let expr = ast::Expression::Function {
         name: "CURRENT_TIMESTAMP".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(10))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row);
 
@@ -324,6 +334,7 @@ fn test_current_time_too_many_args() {
             ast::Expression::Literal(types::SqlValue::Integer(3)),
             ast::Expression::Literal(types::SqlValue::Integer(5)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row);
 
@@ -340,6 +351,7 @@ fn test_year_from_date() {
     let expr = ast::Expression::Function {
         name: "YEAR".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Date("2024-03-15".to_string()))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(2024));
@@ -354,6 +366,7 @@ fn test_year_from_timestamp() {
         args: vec![ast::Expression::Literal(types::SqlValue::Timestamp(
             "2024-03-15 14:30:45".to_string(),
         ))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(2024));
@@ -366,6 +379,7 @@ fn test_year_with_null() {
     let expr = ast::Expression::Function {
         name: "YEAR".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Null)],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Null);
@@ -378,6 +392,7 @@ fn test_month_from_date() {
     let expr = ast::Expression::Function {
         name: "MONTH".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Date("2024-03-15".to_string()))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(3));
@@ -392,6 +407,7 @@ fn test_month_from_timestamp() {
         args: vec![ast::Expression::Literal(types::SqlValue::Timestamp(
             "2024-12-25 14:30:45".to_string(),
         ))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(12));
@@ -404,6 +420,7 @@ fn test_day_from_date() {
     let expr = ast::Expression::Function {
         name: "DAY".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Date("2024-03-15".to_string()))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(15));
@@ -418,6 +435,7 @@ fn test_day_from_timestamp() {
         args: vec![ast::Expression::Literal(types::SqlValue::Timestamp(
             "2024-03-27 14:30:45".to_string(),
         ))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(27));
@@ -432,6 +450,7 @@ fn test_hour_from_time() {
     let expr = ast::Expression::Function {
         name: "HOUR".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Time("14:30:45".to_string()))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(14));
@@ -446,6 +465,7 @@ fn test_hour_from_timestamp() {
         args: vec![ast::Expression::Literal(types::SqlValue::Timestamp(
             "2024-03-15 23:59:59".to_string(),
         ))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(23));
@@ -458,6 +478,7 @@ fn test_minute_from_time() {
     let expr = ast::Expression::Function {
         name: "MINUTE".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Time("14:30:45".to_string()))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(30));
@@ -472,6 +493,7 @@ fn test_minute_from_timestamp() {
         args: vec![ast::Expression::Literal(types::SqlValue::Timestamp(
             "2024-03-15 14:45:30".to_string(),
         ))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(45));
@@ -484,6 +506,7 @@ fn test_second_from_time() {
     let expr = ast::Expression::Function {
         name: "SECOND".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Time("14:30:45".to_string()))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(45));
@@ -498,6 +521,7 @@ fn test_second_from_timestamp() {
         args: vec![ast::Expression::Literal(types::SqlValue::Timestamp(
             "2024-03-15 14:30:59".to_string(),
         ))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(59));
@@ -515,6 +539,7 @@ fn test_extraction_functions_with_null() {
         let expr = ast::Expression::Function {
             name: func_name.to_string(),
             args: vec![ast::Expression::Literal(types::SqlValue::Null)],
+            character_unit: None,
         };
         let result = evaluator.eval(&expr, &row).unwrap();
         assert_eq!(
@@ -535,7 +560,8 @@ fn test_extract_from_current_date() {
     // YEAR(CURRENT_DATE) should return current year as integer
     let expr = ast::Expression::Function {
         name: "YEAR".to_string(),
-        args: vec![ast::Expression::Function { name: "CURRENT_DATE".to_string(), args: vec![] }],
+        args: vec![ast::Expression::Function { name: "CURRENT_DATE".to_string(), args: vec![], character_unit: None }],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
 
@@ -555,7 +581,8 @@ fn test_extract_from_current_timestamp() {
     // HOUR(NOW()) should return current hour as integer
     let expr = ast::Expression::Function {
         name: "HOUR".to_string(),
-        args: vec![ast::Expression::Function { name: "NOW".to_string(), args: vec![] }],
+        args: vec![ast::Expression::Function { name: "NOW".to_string(), args: vec![], character_unit: None }],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
 
@@ -578,6 +605,7 @@ fn test_multiple_extractions() {
     let year_expr = ast::Expression::Function {
         name: "YEAR".to_string(),
         args: vec![ast::Expression::Literal(timestamp.clone())],
+        character_unit: None,
     };
     let year_result = evaluator.eval(&year_expr, &row).unwrap();
     assert_eq!(year_result, types::SqlValue::Integer(2024));
@@ -586,6 +614,7 @@ fn test_multiple_extractions() {
     let month_expr = ast::Expression::Function {
         name: "MONTH".to_string(),
         args: vec![ast::Expression::Literal(timestamp.clone())],
+        character_unit: None,
     };
     let month_result = evaluator.eval(&month_expr, &row).unwrap();
     assert_eq!(month_result, types::SqlValue::Integer(12));
@@ -594,6 +623,7 @@ fn test_multiple_extractions() {
     let day_expr = ast::Expression::Function {
         name: "DAY".to_string(),
         args: vec![ast::Expression::Literal(timestamp.clone())],
+        character_unit: None,
     };
     let day_result = evaluator.eval(&day_expr, &row).unwrap();
     assert_eq!(day_result, types::SqlValue::Integer(25));
@@ -602,6 +632,7 @@ fn test_multiple_extractions() {
     let hour_expr = ast::Expression::Function {
         name: "HOUR".to_string(),
         args: vec![ast::Expression::Literal(timestamp.clone())],
+        character_unit: None,
     };
     let hour_result = evaluator.eval(&hour_expr, &row).unwrap();
     assert_eq!(hour_result, types::SqlValue::Integer(23));
@@ -610,6 +641,7 @@ fn test_multiple_extractions() {
     let minute_expr = ast::Expression::Function {
         name: "MINUTE".to_string(),
         args: vec![ast::Expression::Literal(timestamp.clone())],
+        character_unit: None,
     };
     let minute_result = evaluator.eval(&minute_expr, &row).unwrap();
     assert_eq!(minute_result, types::SqlValue::Integer(59));
@@ -618,6 +650,7 @@ fn test_multiple_extractions() {
     let second_expr = ast::Expression::Function {
         name: "SECOND".to_string(),
         args: vec![ast::Expression::Literal(timestamp)],
+        character_unit: None,
     };
     let second_result = evaluator.eval(&second_expr, &row).unwrap();
     assert_eq!(second_result, types::SqlValue::Integer(58));

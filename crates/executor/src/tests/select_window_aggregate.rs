@@ -10,19 +10,20 @@ fn create_test_db() -> Database {
     let mut db = Database::new();
 
     // Create a simple test table
+    // Table and column names must be uppercase to match SQL identifier normalization
     let schema = TableSchema::new(
-        "sales".to_string(),
+        "SALES".to_string(),
         vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("amount".to_string(), DataType::Integer, false),
-            ColumnSchema::new("day".to_string(), DataType::Integer, false),
+            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("AMOUNT".to_string(), DataType::Integer, false),
+            ColumnSchema::new("DAY".to_string(), DataType::Integer, false),
         ],
     );
 
     db.create_table(schema).unwrap();
 
     // Insert test data
-    let table = db.get_table_mut("sales").unwrap();
+    let table = db.get_table_mut("SALES").unwrap();
     use storage::Row;
     table
         .insert(Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(100), SqlValue::Integer(1)]))
@@ -223,11 +224,11 @@ fn test_window_function_with_partition_by() {
 
     // Create table with department data
     let schema = TableSchema::new(
-        "employees".to_string(),
+        "EMPLOYEES".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("dept".to_string(), DataType::Integer, false),
-            ColumnSchema::new("salary".to_string(), DataType::Integer, false),
+            ColumnSchema::new("DEPT".to_string(), DataType::Integer, false),
+            ColumnSchema::new("SALARY".to_string(), DataType::Integer, false),
         ],
     );
 
@@ -235,7 +236,7 @@ fn test_window_function_with_partition_by() {
 
     // Insert test data - 2 departments
     use storage::Row;
-    let table = db.get_table_mut("employees").unwrap();
+    let table = db.get_table_mut("EMPLOYEES").unwrap();
     table
         .insert(Row::new(vec![
             SqlValue::Integer(1),
@@ -298,21 +299,21 @@ fn test_order_by_with_window_function() {
 
     // Create employees table
     let schema = TableSchema::new(
-        "employees".to_string(),
+        "EMPLOYEES".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "name".to_string(),
+                "NAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
-            ColumnSchema::new("salary".to_string(), DataType::Integer, false),
+            ColumnSchema::new("SALARY".to_string(), DataType::Integer, false),
         ],
     );
 
     db.create_table(schema).unwrap();
 
-    let table = db.get_table_mut("employees").unwrap();
+    let table = db.get_table_mut("EMPLOYEES").unwrap();
     table
         .insert(Row::new(vec![
             SqlValue::Integer(1),
@@ -368,21 +369,21 @@ fn test_order_by_with_window_function_not_in_select() {
 
     // Create employees table
     let schema = TableSchema::new(
-        "employees".to_string(),
+        "EMPLOYEES".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "name".to_string(),
+                "NAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
-            ColumnSchema::new("salary".to_string(), DataType::Integer, false),
+            ColumnSchema::new("SALARY".to_string(), DataType::Integer, false),
         ],
     );
 
     db.create_table(schema).unwrap();
 
-    let table = db.get_table_mut("employees").unwrap();
+    let table = db.get_table_mut("EMPLOYEES").unwrap();
     table
         .insert(Row::new(vec![
             SqlValue::Integer(1),

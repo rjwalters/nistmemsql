@@ -16,7 +16,7 @@ fn test_parse_group_by_single_column() {
             let group_by = select.group_by.unwrap();
             assert_eq!(group_by.len(), 1);
             match &group_by[0] {
-                ast::Expression::ColumnRef { column, .. } if column == "name" => {}
+                ast::Expression::ColumnRef { column, .. } if column == "NAME" => {}
                 _ => panic!("Expected column reference 'name'"),
             }
         }
@@ -26,7 +26,7 @@ fn test_parse_group_by_single_column() {
 
 #[test]
 fn test_parse_group_by_multiple_columns() {
-    let result = Parser::parse_sql("SELECT dept, role, COUNT(*) FROM users GROUP BY dept, role;");
+    let result = Parser::parse_sql("SELECT dept, user_role, COUNT(*) FROM users GROUP BY dept, user_role;");
     assert!(result.is_ok());
     let stmt = result.unwrap();
 
@@ -36,12 +36,12 @@ fn test_parse_group_by_multiple_columns() {
             let group_by = select.group_by.unwrap();
             assert_eq!(group_by.len(), 2);
             match &group_by[0] {
-                ast::Expression::ColumnRef { column, .. } if column == "dept" => {}
+                ast::Expression::ColumnRef { column, .. } if column == "DEPT" => {}
                 _ => panic!("Expected column reference 'dept'"),
             }
             match &group_by[1] {
-                ast::Expression::ColumnRef { column, .. } if column == "role" => {}
-                _ => panic!("Expected column reference 'role'"),
+                ast::Expression::ColumnRef { column, .. } if column == "USER_ROLE" => {}
+                _ => panic!("Expected column reference 'user_role'"),
             }
         }
         _ => panic!("Expected SELECT"),
@@ -104,8 +104,8 @@ fn test_parse_group_by_qualified_columns() {
             assert_eq!(group_by.len(), 1);
             match &group_by[0] {
                 ast::Expression::ColumnRef { table, column } => {
-                    assert_eq!(table.as_ref().unwrap(), "u");
-                    assert_eq!(column, "dept");
+                    assert_eq!(table.as_ref().unwrap(), "U");
+                    assert_eq!(column, "DEPT");
                 }
                 _ => panic!("Expected qualified column reference"),
             }
