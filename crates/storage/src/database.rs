@@ -30,6 +30,8 @@ pub enum TransactionState {
     Active {
         /// Transaction ID for debugging
         id: u64,
+        /// Original catalog snapshot for full rollback
+        original_catalog: catalog::Catalog,
         /// Original table snapshots for full rollback
         original_tables: HashMap<String, Table>,
         /// Stack of savepoints (newest at end)
@@ -181,7 +183,8 @@ impl Database {
     pub fn begin_transaction(&mut self) -> Result<(), StorageError> {
         match self.transaction_state {
             TransactionState::None => {
-                // Create snapshots of all current tables
+                // Create snapshots of catalog and all current tables
+                let original_catalog = self.catalog.clone();
                 let mut original_tables = HashMap::new();
                 for (name, table) in &self.tables {
                     original_tables.insert(name.clone(), table.clone());
@@ -192,6 +195,7 @@ impl Database {
 
                 self.transaction_state = TransactionState::Active {
                     id: transaction_id,
+                    original_catalog,
                     original_tables,
                     savepoints: Vec::new(),
                     changes: Vec::new(),
@@ -225,8 +229,9 @@ impl Database {
             TransactionState::None => {
                 Err(StorageError::TransactionError("No active transaction to rollback".to_string()))
             }
-            TransactionState::Active { original_tables, .. } => {
-                // Restore all tables from snapshots
+            TransactionState::Active { original_catalog, original_tables, .. } => {
+                // Restore catalog and all tables from snapshots
+                self.catalog = original_catalog.clone();
                 self.tables = original_tables.clone();
                 self.transaction_state = TransactionState::None;
                 Ok(())

@@ -103,6 +103,7 @@ fn test_update_with_scalar_subquery_max_aggregate() {
             expr: Expression::Function {
                 name: "MAX".to_string(),
                 args: vec![Expression::ColumnRef { table: None, column: "amount".to_string() }],
+                character_unit: None,
             },
             alias: None,
         }],
@@ -170,6 +171,7 @@ fn test_update_with_scalar_subquery_min_aggregate() {
             expr: Expression::Function {
                 name: "MIN".to_string(),
                 args: vec![Expression::ColumnRef { table: None, column: "amount".to_string() }],
+                character_unit: None,
             },
             alias: None,
         }],
@@ -237,6 +239,7 @@ fn test_update_with_scalar_subquery_avg_aggregate() {
             expr: Expression::Function {
                 name: "AVG".to_string(),
                 args: vec![Expression::ColumnRef { table: None, column: "amount".to_string() }],
+                character_unit: None,
             },
             alias: None,
         }],
@@ -434,6 +437,7 @@ fn test_update_with_multiple_subqueries() {
             expr: Expression::Function {
                 name: "MIN".to_string(),
                 args: vec![Expression::ColumnRef { table: None, column: "amount".to_string() }],
+                character_unit: None,
             },
             alias: None,
         }],
@@ -454,6 +458,7 @@ fn test_update_with_multiple_subqueries() {
             expr: Expression::Function {
                 name: "MAX".to_string(),
                 args: vec![Expression::ColumnRef { table: None, column: "amount".to_string() }],
+                character_unit: None,
             },
             alias: None,
         }],
@@ -1033,6 +1038,7 @@ fn test_update_where_scalar_subquery_less_than() {
             expr: Expression::Function {
                 name: "AVG".to_string(),
                 args: vec![Expression::ColumnRef { table: None, column: "salary".to_string() }],
+                character_unit: None,
             },
             alias: None,
         }],
@@ -1240,6 +1246,7 @@ fn test_update_where_subquery_with_aggregate() {
             expr: Expression::Function {
                 name: "MAX".to_string(),
                 args: vec![Expression::ColumnRef { table: None, column: "price".to_string() }],
+                character_unit: None,
             },
             alias: None,
         }],

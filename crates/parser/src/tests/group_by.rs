@@ -26,7 +26,7 @@ fn test_parse_group_by_single_column() {
 
 #[test]
 fn test_parse_group_by_multiple_columns() {
-    let result = Parser::parse_sql("SELECT dept, role, COUNT(*) FROM users GROUP BY dept, role;");
+    let result = Parser::parse_sql("SELECT dept, user_role, COUNT(*) FROM users GROUP BY dept, user_role;");
     assert!(result.is_ok());
     let stmt = result.unwrap();
 
@@ -40,8 +40,8 @@ fn test_parse_group_by_multiple_columns() {
                 _ => panic!("Expected column reference 'dept'"),
             }
             match &group_by[1] {
-                ast::Expression::ColumnRef { column, .. } if column == "ROLE" => {}
-                _ => panic!("Expected column reference 'role'"),
+                ast::Expression::ColumnRef { column, .. } if column == "USER_ROLE" => {}
+                _ => panic!("Expected column reference 'user_role'"),
             }
         }
         _ => panic!("Expected SELECT"),

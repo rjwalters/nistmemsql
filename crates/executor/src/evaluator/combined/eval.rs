@@ -95,7 +95,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             ast::Expression::Cast { expr, data_type } => self.eval_cast(expr, data_type, row),
 
             // POSITION expression: POSITION(substring IN string)
-            ast::Expression::Position { substring, string } => {
+            ast::Expression::Position { substring, string, character_unit: _ } => {
                 self.eval_position(substring, string, row)
             }
 
@@ -127,7 +127,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             ast::Expression::IsNull { expr, negated } => self.eval_is_null(expr, *negated, row),
 
             // Function expressions - handle scalar functions (not aggregates)
-            ast::Expression::Function { name, args } => self.eval_function(name, args, row),
+            ast::Expression::Function { name, args, character_unit: _ } => self.eval_function(name, args, row),
 
             // Current date/time functions
             ast::Expression::CurrentDate => {
@@ -168,21 +168,6 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                         "Window functions require window mapping context".to_string(),
                     ))
                 }
-            }
-
-            // TRIM expression - handle position and custom removal character
-            ast::Expression::Trim { position, removal_char, string } => {
-                let string_val = self.eval(string, row)?;
-                let removal_val = if let Some(removal) = removal_char {
-                    Some(self.eval(removal, row)?)
-                } else {
-                    None
-                };
-                super::super::functions::string::trim_advanced(
-                    string_val,
-                    position.clone(),
-                    removal_val,
-                )
             }
 
             // Unsupported expressions

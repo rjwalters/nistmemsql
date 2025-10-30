@@ -38,7 +38,7 @@ impl<'a> SelectExecutor<'a> {
 
             ast::Expression::Cast { expr, .. } => self.expression_references_column(expr),
 
-            ast::Expression::Position { substring, string } => {
+            ast::Expression::Position { substring, string, character_unit: _ } => {
                 self.expression_references_column(substring)
                     || self.expression_references_column(string)
             }
@@ -104,7 +104,6 @@ impl<'a> SelectExecutor<'a> {
             ast::Expression::CurrentDate => false,
             ast::Expression::CurrentTime { .. } => false,
             ast::Expression::CurrentTimestamp { .. } => false,
-            ast::Expression::Default => false, // DEFAULT keyword doesn't reference columns
         }
     }
 }

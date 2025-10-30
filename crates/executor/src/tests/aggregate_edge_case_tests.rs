@@ -54,6 +54,7 @@ fn test_avg_precision_decimal() {
             expr: ast::Expression::Function {
                 name: "AVG".to_string(),
                 args: vec![ast::Expression::ColumnRef { table: None, column: "price".to_string() }],
+                character_unit: None,
             },
             alias: None,
         }],
@@ -131,6 +132,7 @@ fn test_sum_mixed_numeric_types() {
                     table: None,
                     column: "amount".to_string(),
                 }],
+                character_unit: None,
             },
             alias: None,
         }],
@@ -225,6 +227,7 @@ fn test_aggregate_with_case_expression() {
                         types::SqlValue::Integer(0),
                     ))),
                 }],
+                character_unit: None,
             },
             alias: None,
         }],

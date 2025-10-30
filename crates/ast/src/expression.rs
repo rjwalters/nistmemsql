@@ -32,6 +32,7 @@ pub enum Expression {
     Function {
         name: String,
         args: Vec<Expression>,
+        character_unit: Option<CharacterUnit>,
     },
 
     /// Aggregate function call (COUNT, SUM, AVG, MIN, MAX)
@@ -111,11 +112,13 @@ pub enum Expression {
 
     /// POSITION expression
     /// Example: POSITION('lo' IN 'hello')
+    /// Example: POSITION('lo' IN 'hello' USING CHARACTERS)
     /// SQL:1999 Section 6.29: String value functions
     /// Returns 1-indexed position of substring in string, or 0 if not found
     Position {
         substring: Box<Expression>,
         string: Box<Expression>,
+        character_unit: Option<CharacterUnit>,
     },
 
     /// TRIM expression
@@ -297,4 +300,15 @@ pub enum TrimPosition {
     Leading,
     /// TRAILING - trim from end of string only
     Trailing,
+}
+
+/// Character measurement unit for string functions
+/// SQL:1999 Section 6.29: String value functions
+/// Used in USING clause for CHARACTER_LENGTH, SUBSTRING, POSITION
+#[derive(Debug, Clone, PartialEq)]
+pub enum CharacterUnit {
+    /// USING CHARACTERS - character-based measurement (default)
+    Characters,
+    /// USING OCTETS - byte-based measurement
+    Octets,
 }

@@ -24,8 +24,8 @@ fn test_scalar_subquery_error_multiple_rows() {
 
     // Build subquery that returns multiple rows: SELECT id FROM employees
     let subquery = Box::new(ast::SelectStmt {
-            with_clause: None,
-            set_operation: None,
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::ColumnRef { table: None, column: "id".to_string() },
@@ -103,8 +103,8 @@ fn test_scalar_subquery_error_multiple_columns() {
 
     // Build subquery that returns multiple columns: SELECT id, name FROM employees
     let subquery = Box::new(ast::SelectStmt {
-            with_clause: None,
-            set_operation: None,
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![
             ast::SelectItem::Expression {
