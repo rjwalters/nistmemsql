@@ -138,3 +138,149 @@ fn test_grant_to_multiple_grantees() {
         "Clerk should have SELECT privilege"
     );
 }
+
+#[test]
+fn test_grant_multiple_privileges() {
+    let mut db = Database::new();
+
+    // Create a test table
+    let schema = TableSchema::new(
+        "users".to_string(),
+        vec![
+            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
+        ],
+    );
+    db.create_table(schema).unwrap();
+
+    // Grant multiple privileges to a single grantee
+    let grant_stmt = ast::GrantStmt {
+        privileges: vec![
+            ast::PrivilegeType::Select,
+            ast::PrivilegeType::Insert,
+            ast::PrivilegeType::Update,
+        ],
+        object_type: ast::ObjectType::Table,
+        object_name: "users".to_string(),
+        grantees: vec!["manager".to_string()],
+        with_grant_option: false,
+    };
+
+    let result = GrantExecutor::execute_grant(&grant_stmt, &mut db);
+    assert!(result.is_ok(), "Failed to execute GRANT: {:?}", result.err());
+
+    // Verify all privileges were stored
+    assert!(
+        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::Select),
+        "Manager should have SELECT privilege"
+    );
+    assert!(
+        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::Insert),
+        "Manager should have INSERT privilege"
+    );
+    assert!(
+        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::Update),
+        "Manager should have UPDATE privilege"
+    );
+}
+
+#[test]
+fn test_grant_matrix_multiple_privileges_and_grantees() {
+    let mut db = Database::new();
+
+    // Create a test table
+    let schema = TableSchema::new(
+        "products".to_string(),
+        vec![
+            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
+        ],
+    );
+    db.create_table(schema).unwrap();
+
+    // Grant multiple privileges to multiple grantees
+    // This should create 2 privileges × 2 grantees = 4 grant records
+    let grant_stmt = ast::GrantStmt {
+        privileges: vec![ast::PrivilegeType::Select, ast::PrivilegeType::Insert],
+        object_type: ast::ObjectType::Table,
+        object_name: "products".to_string(),
+        grantees: vec!["r1".to_string(), "r2".to_string()],
+        with_grant_option: false,
+    };
+
+    let result = GrantExecutor::execute_grant(&grant_stmt, &mut db);
+    assert!(result.is_ok(), "Failed to execute GRANT: {:?}", result.err());
+
+    // Verify all 4 combinations (2 privileges × 2 grantees)
+    assert!(
+        db.catalog.has_privilege("r1", "products", &ast::PrivilegeType::Select),
+        "r1 should have SELECT privilege"
+    );
+    assert!(
+        db.catalog.has_privilege("r1", "products", &ast::PrivilegeType::Insert),
+        "r1 should have INSERT privilege"
+    );
+    assert!(
+        db.catalog.has_privilege("r2", "products", &ast::PrivilegeType::Select),
+        "r2 should have SELECT privilege"
+    );
+    assert!(
+        db.catalog.has_privilege("r2", "products", &ast::PrivilegeType::Insert),
+        "r2 should have INSERT privilege"
+    );
+}
+
+#[test]
+fn test_grant_all_four_privilege_types() {
+    let mut db = Database::new();
+
+    // Create a test table
+    let schema = TableSchema::new(
+        "data".to_string(),
+        vec![ColumnSchema::new("id".to_string(), DataType::Integer, false)],
+    );
+    db.create_table(schema).unwrap();
+
+    // Grant all four privilege types
+    let grant_stmt = ast::GrantStmt {
+        privileges: vec![
+            ast::PrivilegeType::Select,
+            ast::PrivilegeType::Insert,
+            ast::PrivilegeType::Update,
+            ast::PrivilegeType::Delete,
+        ],
+        object_type: ast::ObjectType::Table,
+        object_name: "data".to_string(),
+        grantees: vec!["admin".to_string()],
+        with_grant_option: false,
+    };
+
+    let result = GrantExecutor::execute_grant(&grant_stmt, &mut db);
+    assert!(result.is_ok(), "Failed to execute GRANT: {:?}", result.err());
+
+    // Verify all four privileges were stored
+    assert!(
+        db.catalog.has_privilege("admin", "data", &ast::PrivilegeType::Select),
+        "Admin should have SELECT privilege"
+    );
+    assert!(
+        db.catalog.has_privilege("admin", "data", &ast::PrivilegeType::Insert),
+        "Admin should have INSERT privilege"
+    );
+    assert!(
+        db.catalog.has_privilege("admin", "data", &ast::PrivilegeType::Update),
+        "Admin should have UPDATE privilege"
+    );
+    assert!(
+        db.catalog.has_privilege("admin", "data", &ast::PrivilegeType::Delete),
+        "Admin should have DELETE privilege"
+    );
+}
