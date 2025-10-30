@@ -236,6 +236,13 @@ pub(crate) fn cast_value(
         Timestamp { .. } => match value {
             SqlValue::Timestamp(s) => Ok(SqlValue::Timestamp(s.clone())),
             SqlValue::Date(s) => Ok(SqlValue::Timestamp(format!("{} 00:00:00", s))),
+            SqlValue::Time(time_str) => {
+                // SQL:1999: CAST(TIME AS TIMESTAMP) uses current date + time value
+                use chrono::Local;
+                let now = Local::now();
+                let date_str = now.format("%Y-%m-%d").to_string();
+                Ok(SqlValue::Timestamp(format!("{} {}", date_str, time_str)))
+            }
             SqlValue::Varchar(s) => Ok(SqlValue::Timestamp(s.clone())),
             _ => Err(ExecutorError::CastError {
                 from_type: format!("{:?}", value),
