@@ -1,9 +1,65 @@
 use super::*;
 
 impl Parser {
-    /// Parse special SQL forms (CASE, CAST, EXISTS, NOT EXISTS)
+    /// Parse special SQL forms (CASE, CAST, EXISTS, NOT EXISTS, CURRENT_DATE/TIME/TIMESTAMP)
     pub(super) fn parse_special_form(&mut self) -> Result<Option<ast::Expression>, ParseError> {
         match self.peek() {
+            // CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP (as identifiers)
+            Token::Identifier(ref id) if id.to_uppercase() == "CURRENT_DATE" => {
+                self.advance();
+                Ok(Some(ast::Expression::Function {
+                    name: "CURRENT_DATE".to_string(),
+                    args: vec![],
+                }))
+            }
+            Token::Identifier(ref id) if id.to_uppercase() == "CURRENT_TIME" => {
+                self.advance();
+                Ok(Some(ast::Expression::Function {
+                    name: "CURRENT_TIME".to_string(),
+                    args: vec![],
+                }))
+            }
+            Token::Identifier(ref id) if id.to_uppercase() == "CURRENT_TIMESTAMP" => {
+                self.advance();
+                Ok(Some(ast::Expression::Function {
+                    name: "CURRENT_TIMESTAMP".to_string(),
+                    args: vec![],
+                }))
+            }
+            // CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP (legacy multi-token form)
+            Token::Keyword(Keyword::Current) => {
+                self.advance(); // consume CURRENT
+
+                // Check for underscore followed by DATE/TIME/TIMESTAMP
+                if let Token::Identifier(ref id) = self.peek() {
+                    let function_name = match id.to_uppercase().as_str() {
+                        "_DATE" => {
+                            self.advance(); // consume _DATE
+                            "CURRENT_DATE"
+                        }
+                        "_TIME" => {
+                            self.advance(); // consume _TIME
+                            "CURRENT_TIME"
+                        }
+                        "_TIMESTAMP" => {
+                            self.advance(); // consume _TIMESTAMP
+                            "CURRENT_TIMESTAMP"
+                        }
+                        _ => return Err(ParseError {
+                            message: format!("Expected DATE, TIME, or TIMESTAMP after CURRENT, found {}", id),
+                        }),
+                    };
+
+                    return Ok(Some(ast::Expression::Function {
+                        name: function_name.to_string(),
+                        args: vec![],
+                    }));
+                } else {
+                    return Err(ParseError {
+                        message: format!("Expected identifier after CURRENT, found {:?}", self.peek()),
+                    });
+                }
+            }
             // CAST expression: CAST(expr AS data_type)
             // CASE expression: both simple and searched forms
             Token::Keyword(Keyword::Case) => {

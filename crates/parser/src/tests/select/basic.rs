@@ -159,3 +159,87 @@ fn test_parse_select_columns() {
         _ => panic!("Expected SELECT statement"),
     }
 }
+
+#[test]
+fn test_parse_select_current_date() {
+    let result = Parser::parse_sql("SELECT CURRENT_DATE;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Select(select) => {
+            assert_eq!(select.select_list.len(), 1);
+            match &select.select_list[0] {
+                ast::SelectItem::Expression { expr, alias } => {
+                    assert!(alias.is_none());
+                    match expr {
+                        ast::Expression::Function { name, args } => {
+                            assert_eq!(name, "CURRENT_DATE");
+                            assert!(args.is_empty());
+                        }
+                        _ => panic!("Expected Function, got {:?}", expr),
+                    }
+                }
+                _ => panic!("Expected Expression select item"),
+            }
+            assert!(select.from.is_none());
+        }
+        _ => panic!("Expected SELECT statement"),
+    }
+}
+
+#[test]
+fn test_parse_select_current_time() {
+    let result = Parser::parse_sql("SELECT CURRENT_TIME;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Select(select) => {
+            assert_eq!(select.select_list.len(), 1);
+            match &select.select_list[0] {
+                ast::SelectItem::Expression { expr, alias } => {
+                    assert!(alias.is_none());
+                    match expr {
+                        ast::Expression::Function { name, args } => {
+                            assert_eq!(name, "CURRENT_TIME");
+                            assert!(args.is_empty());
+                        }
+                        _ => panic!("Expected Function, got {:?}", expr),
+                    }
+                }
+                _ => panic!("Expected Expression select item"),
+            }
+            assert!(select.from.is_none());
+        }
+        _ => panic!("Expected SELECT statement"),
+    }
+}
+
+#[test]
+fn test_parse_select_current_timestamp() {
+    let result = Parser::parse_sql("SELECT CURRENT_TIMESTAMP;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Select(select) => {
+            assert_eq!(select.select_list.len(), 1);
+            match &select.select_list[0] {
+                ast::SelectItem::Expression { expr, alias } => {
+                    assert!(alias.is_none());
+                    match expr {
+                        ast::Expression::Function { name, args } => {
+                            assert_eq!(name, "CURRENT_TIMESTAMP");
+                            assert!(args.is_empty());
+                        }
+                        _ => panic!("Expected Function, got {:?}", expr),
+                    }
+                }
+                _ => panic!("Expected Expression select item"),
+            }
+            assert!(select.from.is_none());
+        }
+        _ => panic!("Expected SELECT statement"),
+    }
+}
