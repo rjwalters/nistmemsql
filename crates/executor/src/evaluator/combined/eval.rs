@@ -82,6 +82,11 @@ impl<'a> CombinedExpressionEvaluator<'a> {
                 self.eval_cast(expr, data_type, row)
             }
 
+            // TRIM expression: TRIM([position] [removal_char FROM] string)
+            ast::Expression::Trim { position, removal_char, string } => {
+                self.eval_trim(position, removal_char, string, row)
+            }
+
             // LIKE pattern matching: expr LIKE pattern
             ast::Expression::Like { expr, pattern, negated } => {
                 self.eval_like(expr, pattern, *negated, row)
