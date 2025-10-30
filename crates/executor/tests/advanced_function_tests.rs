@@ -1,10 +1,11 @@
 //! Tests for advanced scalar functions (math, trigonometry, and conditional functions)
 
+// Allow approximate constants in tests - these are test data values, not mathematical constants
+#![allow(clippy::approx_constant)]
+
 mod common;
 
-use ast;
 use common::create_test_evaluator;
-use types;
 
 // ==================== ADVANCED MATH FUNCTIONS ====================
 
@@ -15,6 +16,7 @@ fn test_exp_function() {
     let expr = ast::Expression::Function {
         name: "EXP".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(1))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
 
@@ -33,6 +35,7 @@ fn test_ln_function() {
     let expr = ast::Expression::Function {
         name: "LN".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Double(2.718281828))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
 
@@ -51,6 +54,7 @@ fn test_log_alias() {
     let expr = ast::Expression::Function {
         name: "LOG".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Double(2.718281828))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
 
@@ -69,6 +73,7 @@ fn test_log10_function() {
     let expr = ast::Expression::Function {
         name: "LOG10".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(100))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Double(2.0)); // log10(100) = 2
@@ -81,6 +86,7 @@ fn test_sign_positive() {
     let expr = ast::Expression::Function {
         name: "SIGN".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(42))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(1));
@@ -93,6 +99,7 @@ fn test_sign_negative() {
     let expr = ast::Expression::Function {
         name: "SIGN".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(-42))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(-1));
@@ -105,6 +112,7 @@ fn test_sign_zero() {
     let expr = ast::Expression::Function {
         name: "SIGN".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(0))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(0));
@@ -114,7 +122,7 @@ fn test_sign_zero() {
 fn test_pi_function() {
     let (evaluator, row) = create_test_evaluator();
 
-    let expr = ast::Expression::Function { name: "PI".to_string(), args: vec![] };
+    let expr = ast::Expression::Function { name: "PI".to_string(), args: vec![], character_unit: None };
     let result = evaluator.eval(&expr, &row).unwrap();
 
     if let types::SqlValue::Double(val) = result {
@@ -134,6 +142,7 @@ fn test_sin_function() {
     let expr = ast::Expression::Function {
         name: "SIN".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(0))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Double(0.0));
@@ -147,6 +156,7 @@ fn test_cos_function() {
     let expr = ast::Expression::Function {
         name: "COS".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(0))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Double(1.0));
@@ -160,6 +170,7 @@ fn test_tan_function() {
     let expr = ast::Expression::Function {
         name: "TAN".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(0))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Double(0.0));
@@ -173,6 +184,7 @@ fn test_asin_function() {
     let expr = ast::Expression::Function {
         name: "ASIN".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Double(0.5))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
 
@@ -191,6 +203,7 @@ fn test_acos_function() {
     let expr = ast::Expression::Function {
         name: "ACOS".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Double(0.5))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
 
@@ -209,6 +222,7 @@ fn test_atan_function() {
     let expr = ast::Expression::Function {
         name: "ATAN".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(1))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
 
@@ -230,6 +244,7 @@ fn test_atan2_function() {
             ast::Expression::Literal(types::SqlValue::Integer(1)),
             ast::Expression::Literal(types::SqlValue::Integer(1)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
 
@@ -248,6 +263,7 @@ fn test_radians_function() {
     let expr = ast::Expression::Function {
         name: "RADIANS".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Integer(180))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
 
@@ -266,6 +282,7 @@ fn test_degrees_function() {
     let expr = ast::Expression::Function {
         name: "DEGREES".to_string(),
         args: vec![ast::Expression::Literal(types::SqlValue::Double(std::f64::consts::PI))],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
 
@@ -290,6 +307,7 @@ fn test_greatest_integers() {
             ast::Expression::Literal(types::SqlValue::Integer(3)),
             ast::Expression::Literal(types::SqlValue::Integer(7)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(10));
@@ -306,6 +324,7 @@ fn test_greatest_with_null() {
             ast::Expression::Literal(types::SqlValue::Null),
             ast::Expression::Literal(types::SqlValue::Integer(10)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(10)); // NULL is ignored
@@ -323,6 +342,7 @@ fn test_least_integers() {
             ast::Expression::Literal(types::SqlValue::Integer(3)),
             ast::Expression::Literal(types::SqlValue::Integer(7)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(3));
@@ -339,6 +359,7 @@ fn test_least_with_null() {
             ast::Expression::Literal(types::SqlValue::Null),
             ast::Expression::Literal(types::SqlValue::Integer(3)),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(3)); // NULL is ignored
@@ -355,6 +376,7 @@ fn test_if_true_condition() {
             ast::Expression::Literal(types::SqlValue::Varchar("yes".to_string())),
             ast::Expression::Literal(types::SqlValue::Varchar("no".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("yes".to_string()));
@@ -371,6 +393,7 @@ fn test_if_false_condition() {
             ast::Expression::Literal(types::SqlValue::Varchar("yes".to_string())),
             ast::Expression::Literal(types::SqlValue::Varchar("no".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("no".to_string()));
@@ -387,6 +410,7 @@ fn test_if_null_condition() {
             ast::Expression::Literal(types::SqlValue::Varchar("yes".to_string())),
             ast::Expression::Literal(types::SqlValue::Varchar("no".to_string())),
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Varchar("no".to_string())); // NULL treated as false
@@ -401,7 +425,8 @@ fn test_trig_with_pi() {
     // SIN(PI()) should be approximately 0
     let expr = ast::Expression::Function {
         name: "SIN".to_string(),
-        args: vec![ast::Expression::Function { name: "PI".to_string(), args: vec![] }],
+        args: vec![ast::Expression::Function { name: "PI".to_string(), args: vec![], character_unit: None }],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
 
@@ -422,7 +447,9 @@ fn test_radians_degrees_roundtrip() {
         args: vec![ast::Expression::Function {
             name: "RADIANS".to_string(),
             args: vec![ast::Expression::Literal(types::SqlValue::Integer(90))],
+            character_unit: None,
         }],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
 
@@ -443,7 +470,9 @@ fn test_exp_ln_roundtrip() {
         args: vec![ast::Expression::Function {
             name: "EXP".to_string(),
             args: vec![ast::Expression::Literal(types::SqlValue::Integer(2))],
+            character_unit: None,
         }],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
 
@@ -465,12 +494,15 @@ fn test_greatest_with_abs() {
             ast::Expression::Function {
                 name: "ABS".to_string(),
                 args: vec![ast::Expression::Literal(types::SqlValue::Integer(-5))],
+                character_unit: None,
             },
             ast::Expression::Function {
                 name: "ABS".to_string(),
                 args: vec![ast::Expression::Literal(types::SqlValue::Integer(3))],
+                character_unit: None,
             },
         ],
+        character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(5));

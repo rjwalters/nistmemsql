@@ -22,6 +22,8 @@ mod literals;
 mod null_functions;
 mod predicates;
 mod quantified;
+mod role;
+mod schema;
 mod select;
 mod set_operations;
 mod string_functions;

@@ -15,7 +15,7 @@ use crate::select::grouping::group_rows;
 use crate::select::helpers::{apply_distinct, apply_limit_offset};
 use std::collections::HashMap;
 
-impl<'a> SelectExecutor<'a> {
+impl SelectExecutor<'_> {
     /// Execute SELECT with aggregation/GROUP BY
     pub(in crate::select::executor) fn execute_with_aggregation(
         &self,

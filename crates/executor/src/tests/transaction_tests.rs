@@ -395,7 +395,7 @@ fn test_multiple_transactions() {
     let table = db.get_table("users").unwrap();
     assert_eq!(table.row_count(), 1);
 
-    let rows: Vec<_> = table.scan().into_iter().collect();
+    let rows: Vec<_> = table.scan().iter().collect();
     let first_row = &rows[0];
     assert_eq!(first_row.get(0).unwrap(), &SqlValue::Integer(1));
     assert_eq!(first_row.get(1).unwrap(), &SqlValue::Varchar("Alice".to_string()));

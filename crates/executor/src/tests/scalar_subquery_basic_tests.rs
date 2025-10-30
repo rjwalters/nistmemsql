@@ -58,8 +58,8 @@ fn test_scalar_subquery_in_where_clause() {
 
     // Build subquery: SELECT AVG(salary) FROM employees
     let subquery = Box::new(ast::SelectStmt {
-            with_clause: None,
-            set_operation: None,
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Function {
@@ -68,6 +68,7 @@ fn test_scalar_subquery_in_where_clause() {
                     table: None,
                     column: "salary".to_string(),
                 }],
+                character_unit: None,
             },
             alias: None,
         }],
@@ -154,8 +155,8 @@ fn test_scalar_subquery_in_select_list() {
 
     // Build subquery: SELECT MAX(salary) FROM employees
     let subquery = Box::new(ast::SelectStmt {
-            with_clause: None,
-            set_operation: None,
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Function {
@@ -164,6 +165,7 @@ fn test_scalar_subquery_in_select_list() {
                     table: None,
                     column: "salary".to_string(),
                 }],
+                character_unit: None,
             },
             alias: None,
         }],
@@ -234,8 +236,8 @@ fn test_scalar_subquery_returns_null_when_empty() {
 
     // Build subquery that returns no rows: SELECT id FROM employees WHERE id = 999
     let subquery = Box::new(ast::SelectStmt {
-            with_clause: None,
-            set_operation: None,
+        with_clause: None,
+        set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::ColumnRef { table: None, column: "id".to_string() },

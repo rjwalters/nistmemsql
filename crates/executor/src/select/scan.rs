@@ -20,10 +20,10 @@ use super::join::{nested_loop_join, FromResult};
 /// - CTEs (Common Table Expressions)
 /// - JOIN operations (INNER, LEFT, RIGHT, FULL)
 /// - Derived tables (subqueries with alias)
-pub(super) fn execute_from_clause<'a, F>(
+pub(super) fn execute_from_clause<F>(
     from: &ast::FromClause,
     cte_results: &HashMap<String, CteResult>,
-    database: &'a storage::Database,
+    database: &storage::Database,
     execute_subquery: F,
 ) -> Result<FromResult, ExecutorError>
 where

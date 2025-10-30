@@ -14,14 +14,15 @@ mod statement;
 
 pub use ddl::{
     AddColumnStmt, AddConstraintStmt, AlterColumnStmt, AlterTableStmt, BeginStmt, ColumnConstraint,
-    ColumnConstraintKind, ColumnDef, CommitStmt, CreateSchemaStmt, CreateTableStmt, DropColumnStmt,
-    DropConstraintStmt, DropSchemaStmt, DropTableStmt, ReleaseSavepointStmt, RollbackStmt,
-    RollbackToSavepointStmt, SavepointStmt, SetSchemaStmt, TableConstraint, TableConstraintKind,
+    ColumnConstraintKind, ColumnDef, CommitStmt, CreateRoleStmt, CreateSchemaStmt, CreateTableStmt,
+    DropColumnStmt, DropConstraintStmt, DropRoleStmt, DropSchemaStmt, DropTableStmt,
+    ReleaseSavepointStmt, RollbackStmt, RollbackToSavepointStmt, SavepointStmt, SchemaElement,
+    SetSchemaStmt, TableConstraint, TableConstraintKind,
 };
 pub use dml::{Assignment, DeleteStmt, InsertSource, InsertStmt, UpdateStmt};
 pub use expression::{
-    CaseWhen, Expression, FrameBound, FrameUnit, Quantifier, TrimPosition, WindowFrame,
-    WindowFunctionSpec, WindowSpec,
+    CaseWhen, CharacterUnit, Expression, FrameBound, FrameUnit, Quantifier, TrimPosition,
+    WindowFrame, WindowFunctionSpec, WindowSpec,
 };
 pub use grant::{GrantStmt, ObjectType, PrivilegeType};
 pub use operators::{BinaryOperator, UnaryOperator};

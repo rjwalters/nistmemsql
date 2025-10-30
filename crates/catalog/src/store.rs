@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::errors::CatalogError;
 use crate::privilege::PrivilegeGrant;
@@ -11,6 +11,7 @@ pub struct Catalog {
     schemas: HashMap<String, Schema>,
     current_schema: String,
     privilege_grants: Vec<PrivilegeGrant>,
+    roles: HashSet<String>,
 }
 
 impl Catalog {
@@ -20,6 +21,7 @@ impl Catalog {
             schemas: HashMap::new(),
             current_schema: "public".to_string(),
             privilege_grants: Vec::new(),
+            roles: HashSet::new(),
         };
 
         // Create the default "public" schema
@@ -76,7 +78,7 @@ impl Catalog {
         let schema = self
             .schemas
             .get_mut(&schema_name)
-            .ok_or_else(|| CatalogError::SchemaNotFound(schema_name))?;
+            .ok_or(CatalogError::SchemaNotFound(schema_name.clone()))?;
 
         schema.drop_table(table_name)
     }
@@ -194,6 +196,38 @@ impl Catalog {
     /// Get all grants for a specific object.
     pub fn get_grants_for_object(&self, object: &str) -> Vec<&PrivilegeGrant> {
         self.privilege_grants.iter().filter(|g| g.object == object).collect()
+    }
+
+    // ============================================================================
+    // Role Management Methods
+    // ============================================================================
+
+    /// Create a new role.
+    pub fn create_role(&mut self, name: String) -> Result<(), CatalogError> {
+        if self.roles.contains(&name) {
+            return Err(CatalogError::RoleAlreadyExists(name));
+        }
+        self.roles.insert(name);
+        Ok(())
+    }
+
+    /// Drop a role.
+    pub fn drop_role(&mut self, name: &str) -> Result<(), CatalogError> {
+        if !self.roles.contains(name) {
+            return Err(CatalogError::RoleNotFound(name.to_string()));
+        }
+        self.roles.remove(name);
+        Ok(())
+    }
+
+    /// Check if a role exists.
+    pub fn role_exists(&self, name: &str) -> bool {
+        self.roles.contains(name)
+    }
+
+    /// List all roles.
+    pub fn list_roles(&self) -> Vec<String> {
+        self.roles.iter().cloned().collect()
     }
 }
 

@@ -97,7 +97,7 @@ fn evaluate_window_function_for_partition(
                 }
             };
             crate::evaluator::window::evaluate_ntile(partition, n)
-                .map_err(|e| ExecutorError::UnsupportedExpression(e))?
+                .map_err(ExecutorError::UnsupportedExpression)?
         }
         _ => {
             // Handle aggregate functions that use frames
@@ -118,9 +118,8 @@ fn evaluate_window_function_for_partition(
                     "COUNT" => {
                         // COUNT(*) or COUNT(expr)
                         // Check if arg is the special "*" column reference
-                        let arg_expr = if args.is_empty() {
-                            None
-                        } else if matches!(&args[0], Expression::ColumnRef { column, .. } if column == "*")
+                        let arg_expr = if args.is_empty()
+                            || matches!(&args[0], Expression::ColumnRef { column, .. } if column == "*")
                         {
                             None // COUNT(*) should count all rows
                         } else {

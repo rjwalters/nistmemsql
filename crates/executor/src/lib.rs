@@ -10,6 +10,7 @@ pub mod errors;
 pub mod evaluator;
 mod grant;
 mod insert;
+mod role_ddl;
 mod schema;
 mod schema_ddl;
 mod select;
@@ -24,6 +25,7 @@ pub use errors::ExecutorError;
 pub use evaluator::ExpressionEvaluator;
 pub use grant::GrantExecutor;
 pub use insert::InsertExecutor;
+pub use role_ddl::RoleExecutor;
 pub use schema_ddl::SchemaExecutor;
 pub use select::{SelectExecutor, SelectResult};
 pub use transaction::{

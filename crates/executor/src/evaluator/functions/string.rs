@@ -143,6 +143,7 @@ pub(super) fn substring(args: &[types::SqlValue]) -> Result<types::SqlValue, Exe
 
 /// TRIM(string) - Remove leading and trailing spaces
 /// SQL:1999 Section 6.29: String value functions
+#[allow(dead_code)] // Reserved for future use when basic TRIM needs to be exposed
 pub(super) fn trim(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 1 {
         return Err(ExecutorError::UnsupportedFeature(format!(
@@ -165,6 +166,7 @@ pub(super) fn trim(args: &[types::SqlValue]) -> Result<types::SqlValue, Executor
 /// TRIM with position and custom character support
 /// Supports TRIM(BOTH/LEADING/TRAILING 'x' FROM 'string')
 /// SQL:1999 Section 6.29: String value functions
+#[allow(dead_code)] // Currently called via eval_trim method, may be used directly in future
 pub(crate) fn trim_advanced(
     string_val: types::SqlValue,
     position: Option<ast::TrimPosition>,

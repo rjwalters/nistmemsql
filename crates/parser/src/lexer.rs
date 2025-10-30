@@ -120,7 +120,8 @@ impl Lexer {
                 self.advance();
                 Ok(Token::Symbol(symbol))
             }
-            '\'' | '"' => self.tokenize_string(),
+            '\'' => self.tokenize_string(),
+            '"' => self.tokenize_delimited_identifier(),
             '0'..='9' => self.tokenize_number(),
             'a'..='z' | 'A'..='Z' | '_' => self.tokenize_identifier_or_keyword(),
             _ => Err(LexerError {
@@ -233,6 +234,13 @@ impl Lexer {
             "ROLLBACK" => Token::Keyword(Keyword::Rollback),
             "START" => Token::Keyword(Keyword::Start),
             "TRANSACTION" => Token::Keyword(Keyword::Transaction),
+            // Schema keywords
+            "SCHEMA" => Token::Keyword(Keyword::Schema),
+            "CASCADE" => Token::Keyword(Keyword::Cascade),
+            "RESTRICT" => Token::Keyword(Keyword::Restrict),
+            "SAVEPOINT" => Token::Keyword(Keyword::Savepoint),
+            "RELEASE" => Token::Keyword(Keyword::Release),
+            "TO" => Token::Keyword(Keyword::To),
             // Constraint keywords
             "PRIMARY" => Token::Keyword(Keyword::Primary),
             "FOREIGN" => Token::Keyword(Keyword::Foreign),
@@ -248,13 +256,15 @@ impl Lexer {
             "VARYING" => Token::Keyword(Keyword::Varying),
             "CHARACTERS" => Token::Keyword(Keyword::Characters),
             "OCTETS" => Token::Keyword(Keyword::Octets),
+            "USING" => Token::Keyword(Keyword::Using),
             // SUBSTRING function keywords
             "FOR" => Token::Keyword(Keyword::For),
             // GRANT keywords
             "GRANT" => Token::Keyword(Keyword::Grant),
             "PRIVILEGES" => Token::Keyword(Keyword::Privileges),
-            "TO" => Token::Keyword(Keyword::To),
-            _ => Token::Identifier(text),
+            // Role management keywords
+            "ROLE" => Token::Keyword(Keyword::Role),
+            _ => Token::Identifier(upper_text),  // Regular identifiers are normalized to uppercase
         };
 
         Ok(token)
@@ -320,7 +330,7 @@ impl Lexer {
         Ok(Token::Number(number))
     }
 
-    /// Tokenize a string literal enclosed in single or double quotes.
+    /// Tokenize a string literal enclosed in single quotes.
     /// Supports SQL-standard escaped quotes (e.g., 'O''Reilly' becomes "O'Reilly")
     fn tokenize_string(&mut self) -> Result<Token, LexerError> {
         let quote = self.current_char();
@@ -348,6 +358,45 @@ impl Lexer {
 
         Err(LexerError {
             message: "Unterminated string literal".to_string(),
+            position: self.position,
+        })
+    }
+
+    /// Tokenize a delimited identifier enclosed in double quotes.
+    /// Delimited identifiers are case-sensitive and can contain reserved words.
+    /// Supports SQL-standard escaped quotes (e.g., "O""Reilly" becomes O"Reilly)
+    fn tokenize_delimited_identifier(&mut self) -> Result<Token, LexerError> {
+        self.advance(); // Skip opening quote
+
+        let mut identifier = String::new();
+        while !self.is_eof() {
+            let ch = self.current_char();
+            if ch == '"' {
+                self.advance();
+                // Check for escaped quote ("")
+                if !self.is_eof() && self.current_char() == '"' {
+                    // Escaped quote - add a single quote to the identifier
+                    identifier.push('"');
+                    self.advance();
+                } else {
+                    // End of delimited identifier
+                    // Reject empty delimited identifiers
+                    if identifier.is_empty() {
+                        return Err(LexerError {
+                            message: "Empty delimited identifier is not allowed".to_string(),
+                            position: self.position,
+                        });
+                    }
+                    return Ok(Token::DelimitedIdentifier(identifier));
+                }
+            } else {
+                identifier.push(ch);
+                self.advance();
+            }
+        }
+
+        Err(LexerError {
+            message: "Unterminated delimited identifier".to_string(),
             position: self.position,
         })
     }
@@ -441,7 +490,7 @@ mod tests {
 
         for (input, expected) in test_cases {
             let mut lexer = Lexer::new(input);
-            let tokens = lexer.tokenize().expect(&format!("Failed to tokenize: {}", input));
+            let tokens = lexer.tokenize().unwrap_or_else(|_| panic!("Failed to tokenize: {}", input));
 
             // Should have exactly 2 tokens: the number and EOF
             assert_eq!(tokens.len(), 2, "Input: {}", input);
@@ -462,7 +511,7 @@ mod tests {
 
         for (input, expected) in test_cases {
             let mut lexer = Lexer::new(input);
-            let tokens = lexer.tokenize().expect(&format!("Failed to tokenize: {}", input));
+            let tokens = lexer.tokenize().unwrap_or_else(|_| panic!("Failed to tokenize: {}", input));
 
             assert_eq!(tokens.len(), 2, "Input: {}", input);
 

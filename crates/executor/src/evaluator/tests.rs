@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+mod evaluator_tests {
     use super::super::ExpressionEvaluator;
     use crate::errors::ExecutorError;
     use catalog::{ColumnSchema, TableSchema};

@@ -5,7 +5,7 @@ use crate::errors::ExecutorError;
 use crate::evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator};
 use crate::select::grouping::AggregateAccumulator;
 
-impl<'a> SelectExecutor<'a> {
+impl SelectExecutor<'_> {
     /// Evaluate an expression in the context of aggregation
     #[allow(clippy::only_used_in_recursion)]
     pub(in crate::select::executor) fn evaluate_with_aggregates(
@@ -82,7 +82,7 @@ impl<'a> SelectExecutor<'a> {
         // Extract name, distinct, and args from either variant
         let (name, distinct, args) = match expr {
             ast::Expression::AggregateFunction { name, distinct, args } => (name, *distinct, args),
-            ast::Expression::Function { name, args } => (name, false, args),
+            ast::Expression::Function { name, args, character_unit: _ } => (name, false, args),
             _ => unreachable!("evaluate_aggregate_function called with non-aggregate expression"),
         };
 
@@ -220,6 +220,7 @@ impl<'a> SelectExecutor<'a> {
     }
 
     /// Evaluate quantified comparison (ALL/ANY/SOME) with subquery in aggregate context
+    #[allow(clippy::too_many_arguments)]
     pub(in crate::select::executor) fn evaluate_quantified_comparison_with_aggregates(
         &self,
         left_expr: &ast::Expression,

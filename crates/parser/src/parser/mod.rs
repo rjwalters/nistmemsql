@@ -11,6 +11,7 @@ mod expressions;
 mod grant;
 mod helpers;
 mod insert;
+mod role;
 mod schema;
 mod select;
 mod transaction;
@@ -79,9 +80,15 @@ impl Parser {
                         let create_stmt = self.parse_create_schema_statement()?;
                         Ok(ast::Statement::CreateSchema(create_stmt))
                     }
-                    false => Err(ParseError {
-                        message: "Expected TABLE or SCHEMA after CREATE".to_string(),
-                    }),
+                    false => match self.peek_next_keyword(Keyword::Role) {
+                        true => {
+                            let create_stmt = self.parse_create_role_statement()?;
+                            Ok(ast::Statement::CreateRole(create_stmt))
+                        }
+                        false => Err(ParseError {
+                            message: "Expected TABLE, SCHEMA, or ROLE after CREATE".to_string(),
+                        }),
+                    },
                 },
             },
             Token::Keyword(Keyword::Drop) => match self.peek_next_keyword(Keyword::Table) {
@@ -94,9 +101,15 @@ impl Parser {
                         let drop_stmt = self.parse_drop_schema_statement()?;
                         Ok(ast::Statement::DropSchema(drop_stmt))
                     }
-                    false => Err(ParseError {
-                        message: "Expected TABLE or SCHEMA after DROP".to_string(),
-                    }),
+                    false => match self.peek_next_keyword(Keyword::Role) {
+                        true => {
+                            let drop_stmt = self.parse_drop_role_statement()?;
+                            Ok(ast::Statement::DropRole(drop_stmt))
+                        }
+                        false => Err(ParseError {
+                            message: "Expected TABLE, SCHEMA, or ROLE after DROP".to_string(),
+                        }),
+                    },
                 },
             },
             Token::Keyword(Keyword::Alter) => {
@@ -209,5 +222,15 @@ impl Parser {
     /// Parse GRANT statement
     pub fn parse_grant_statement(&mut self) -> Result<ast::GrantStmt, ParseError> {
         grant::parse_grant(self)
+    }
+
+    /// Parse CREATE ROLE statement
+    pub fn parse_create_role_statement(&mut self) -> Result<ast::CreateRoleStmt, ParseError> {
+        role::parse_create_role(self)
+    }
+
+    /// Parse DROP ROLE statement
+    pub fn parse_drop_role_statement(&mut self) -> Result<ast::DropRoleStmt, ParseError> {
+        role::parse_drop_role(self)
     }
 }

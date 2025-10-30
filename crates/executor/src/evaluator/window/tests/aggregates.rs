@@ -4,10 +4,7 @@ use storage::Row;
 use types::SqlValue;
 
 fn make_test_rows(values: Vec<i64>) -> Vec<Row> {
-    values
-        .into_iter()
-        .map(|v| Row::new(vec![SqlValue::Integer(v)]))
-        .collect()
+    values.into_iter().map(|v| Row::new(vec![SqlValue::Integer(v)])).collect()
 }
 
 // ===== COUNT Tests =====
@@ -41,10 +38,7 @@ fn test_count_expr_window() {
     let partition = Partition::new(make_test_rows(vec![10, 20, 30]));
     let frame = 0..3;
 
-    let expr = Expression::ColumnRef {
-        table: None,
-        column: "0".to_string(),
-    };
+    let expr = Expression::ColumnRef { table: None, column: "0".to_string() };
 
     let result = evaluate_count_window(&partition, &frame, Some(&expr), evaluate_expression);
 
@@ -59,10 +53,7 @@ fn test_sum_window_running_total() {
     // SUM for running total
     let partition = Partition::new(make_test_rows(vec![10, 20, 30, 40, 50]));
 
-    let expr = Expression::ColumnRef {
-        table: None,
-        column: "0".to_string(),
-    };
+    let expr = Expression::ColumnRef { table: None, column: "0".to_string() };
 
     // Running total at position 2: sum of rows 0, 1, 2
     let frame = 0..3; // 10 + 20 + 30 = 60
@@ -76,10 +67,7 @@ fn test_sum_window_moving() {
     // SUM over 3-row moving window
     let partition = Partition::new(make_test_rows(vec![5, 10, 15, 20, 25]));
 
-    let expr = Expression::ColumnRef {
-        table: None,
-        column: "0".to_string(),
-    };
+    let expr = Expression::ColumnRef { table: None, column: "0".to_string() };
 
     // Frame: rows 2, 3, 4 (values 15, 20, 25)
     let frame = 2..5;
@@ -92,10 +80,7 @@ fn test_sum_window_moving() {
 fn test_sum_window_empty_frame() {
     let partition = Partition::new(make_test_rows(vec![10, 20, 30]));
 
-    let expr = Expression::ColumnRef {
-        table: None,
-        column: "0".to_string(),
-    };
+    let expr = Expression::ColumnRef { table: None, column: "0".to_string() };
 
     // Empty frame
     let frame = 0..0;
@@ -111,10 +96,7 @@ fn test_avg_window_simple() {
     // AVG over entire partition
     let partition = Partition::new(make_test_rows(vec![10, 20, 30, 40, 50]));
 
-    let expr = Expression::ColumnRef {
-        table: None,
-        column: "0".to_string(),
-    };
+    let expr = Expression::ColumnRef { table: None, column: "0".to_string() };
 
     let frame = 0..5;
     let result = evaluate_avg_window(&partition, &frame, &expr, evaluate_expression);
@@ -128,10 +110,7 @@ fn test_avg_window_moving() {
     // 3-row moving average
     let partition = Partition::new(make_test_rows(vec![10, 20, 30, 40, 50]));
 
-    let expr = Expression::ColumnRef {
-        table: None,
-        column: "0".to_string(),
-    };
+    let expr = Expression::ColumnRef { table: None, column: "0".to_string() };
 
     // Frame: rows 1, 2, 3 (values 20, 30, 40)
     let frame = 1..4;
@@ -145,10 +124,7 @@ fn test_avg_window_moving() {
 fn test_avg_window_empty_frame() {
     let partition = Partition::new(make_test_rows(vec![10, 20, 30]));
 
-    let expr = Expression::ColumnRef {
-        table: None,
-        column: "0".to_string(),
-    };
+    let expr = Expression::ColumnRef { table: None, column: "0".to_string() };
 
     // Empty frame
     let frame = 0..0;
@@ -164,10 +140,7 @@ fn test_min_window_partition() {
     // MIN over entire partition
     let partition = Partition::new(make_test_rows(vec![50, 20, 80, 10, 40]));
 
-    let expr = Expression::ColumnRef {
-        table: None,
-        column: "0".to_string(),
-    };
+    let expr = Expression::ColumnRef { table: None, column: "0".to_string() };
 
     let frame = 0..5;
     let result = evaluate_min_window(&partition, &frame, &expr, evaluate_expression);
@@ -180,10 +153,7 @@ fn test_min_window_moving() {
     // MIN in 3-row window
     let partition = Partition::new(make_test_rows(vec![50, 20, 80, 10, 40]));
 
-    let expr = Expression::ColumnRef {
-        table: None,
-        column: "0".to_string(),
-    };
+    let expr = Expression::ColumnRef { table: None, column: "0".to_string() };
 
     // Frame: rows 1, 2, 3 (values 20, 80, 10)
     let frame = 1..4;
@@ -196,10 +166,7 @@ fn test_min_window_moving() {
 fn test_min_window_empty_frame() {
     let partition = Partition::new(make_test_rows(vec![10, 20, 30]));
 
-    let expr = Expression::ColumnRef {
-        table: None,
-        column: "0".to_string(),
-    };
+    let expr = Expression::ColumnRef { table: None, column: "0".to_string() };
 
     // Empty frame
     let frame = 0..0;
@@ -215,10 +182,7 @@ fn test_max_window_partition() {
     // MAX over entire partition
     let partition = Partition::new(make_test_rows(vec![50, 20, 80, 10, 40]));
 
-    let expr = Expression::ColumnRef {
-        table: None,
-        column: "0".to_string(),
-    };
+    let expr = Expression::ColumnRef { table: None, column: "0".to_string() };
 
     let frame = 0..5;
     let result = evaluate_max_window(&partition, &frame, &expr, evaluate_expression);
@@ -231,10 +195,7 @@ fn test_max_window_moving() {
     // MAX in 3-row window
     let partition = Partition::new(make_test_rows(vec![50, 20, 80, 10, 40]));
 
-    let expr = Expression::ColumnRef {
-        table: None,
-        column: "0".to_string(),
-    };
+    let expr = Expression::ColumnRef { table: None, column: "0".to_string() };
 
     // Frame: rows 2, 3, 4 (values 80, 10, 40)
     let frame = 2..5;
@@ -247,10 +208,7 @@ fn test_max_window_moving() {
 fn test_max_window_empty_frame() {
     let partition = Partition::new(make_test_rows(vec![10, 20, 30]));
 
-    let expr = Expression::ColumnRef {
-        table: None,
-        column: "0".to_string(),
-    };
+    let expr = Expression::ColumnRef { table: None, column: "0".to_string() };
 
     // Empty frame
     let frame = 0..0;
@@ -266,10 +224,7 @@ fn test_frame_at_partition_boundaries() {
     // Test frame behavior at partition start and end
     let partition = Partition::new(make_test_rows(vec![10, 20, 30, 40, 50]));
 
-    let expr = Expression::ColumnRef {
-        table: None,
-        column: "0".to_string(),
-    };
+    let expr = Expression::ColumnRef { table: None, column: "0".to_string() };
 
     // Frame extends beyond partition end
     let frame = 3..10; // Should clamp to 3..5

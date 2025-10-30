@@ -14,7 +14,7 @@ fn test_drop_table_basic() {
         CreateTableExecutor::execute(&stmt, &mut db).unwrap();
     }
 
-    assert!(db.catalog.table_exists("users"));
+    assert!(db.catalog.table_exists("USERS"));
 
     // Drop the table
     let drop_sql = "DROP TABLE users;";
@@ -23,12 +23,12 @@ fn test_drop_table_basic() {
     if let ast::Statement::DropTable(stmt) = drop_stmt {
         let result = DropTableExecutor::execute(&stmt, &mut db);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "Table 'users' dropped successfully");
+        assert_eq!(result.unwrap(), "Table 'USERS' dropped successfully");
     }
 
     // Verify table is gone
-    assert!(!db.catalog.table_exists("users"));
-    assert!(db.get_table("users").is_none());
+    assert!(!db.catalog.table_exists("USERS"));
+    assert!(db.get_table("USERS").is_none());
 }
 
 #[test]
@@ -48,10 +48,10 @@ fn test_drop_table_if_exists_when_exists() {
     let drop_stmt = Parser::parse_sql(drop_sql).unwrap();
 
     if let ast::Statement::DropTable(stmt) = drop_stmt {
-        assert_eq!(stmt.if_exists, true);
+        assert!(stmt.if_exists);
         let result = DropTableExecutor::execute(&stmt, &mut db);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "Table 'products' dropped successfully");
+        assert_eq!(result.unwrap(), "Table 'PRODUCTS' dropped successfully");
     }
 
     assert!(!db.catalog.table_exists("products"));
@@ -66,10 +66,10 @@ fn test_drop_table_if_exists_when_not_exists() {
     let drop_stmt = Parser::parse_sql(drop_sql).unwrap();
 
     if let ast::Statement::DropTable(stmt) = drop_stmt {
-        assert_eq!(stmt.if_exists, true);
+        assert!(stmt.if_exists);
         let result = DropTableExecutor::execute(&stmt, &mut db);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "Table 'nonexistent' does not exist (IF EXISTS specified)");
+        assert_eq!(result.unwrap(), "Table 'NONEXISTENT' does not exist (IF EXISTS specified)");
     }
 }
 
@@ -82,7 +82,7 @@ fn test_drop_table_without_if_exists_error() {
     let drop_stmt = Parser::parse_sql(drop_sql).unwrap();
 
     if let ast::Statement::DropTable(stmt) = drop_stmt {
-        assert_eq!(stmt.if_exists, false);
+        assert!(!stmt.if_exists);
         let result = DropTableExecutor::execute(&stmt, &mut db);
         assert!(result.is_err());
         assert!(matches!(result, Err(ExecutorError::TableNotFound(_))));
@@ -110,7 +110,7 @@ fn test_drop_table_with_data() {
     }
 
     // Verify data exists
-    assert_eq!(db.get_table("orders").unwrap().row_count(), 2);
+    assert_eq!(db.get_table("ORDERS").unwrap().row_count(), 2);
 
     // Drop table
     let drop_sql = "DROP TABLE orders;";
@@ -122,8 +122,8 @@ fn test_drop_table_with_data() {
     }
 
     // Verify table and data are gone
-    assert!(!db.catalog.table_exists("orders"));
-    assert!(db.get_table("orders").is_none());
+    assert!(!db.catalog.table_exists("ORDERS"));
+    assert!(db.get_table("ORDERS").is_none());
 }
 
 #[test]
@@ -146,7 +146,7 @@ fn test_drop_and_recreate_table() {
         InsertExecutor::execute(&mut db, &stmt).unwrap();
     }
 
-    assert_eq!(db.get_table("temp").unwrap().row_count(), 1);
+    assert_eq!(db.get_table("TEMP").unwrap().row_count(), 1);
 
     // Drop table
     let drop_sql = "DROP TABLE temp;";
@@ -165,9 +165,9 @@ fn test_drop_and_recreate_table() {
     }
 
     // New table should be empty
-    assert!(db.catalog.table_exists("temp"));
-    assert_eq!(db.get_table("temp").unwrap().row_count(), 0);
-    assert_eq!(db.get_table("temp").unwrap().schema.column_count(), 2);
+    assert!(db.catalog.table_exists("TEMP"));
+    assert_eq!(db.get_table("TEMP").unwrap().row_count(), 0);
+    assert_eq!(db.get_table("TEMP").unwrap().schema.column_count(), 2);
 }
 
 #[test]
@@ -255,8 +255,8 @@ fn test_drop_table_if_exists_parser() {
     let drop_stmt = Parser::parse_sql(drop_sql).unwrap();
 
     if let ast::Statement::DropTable(stmt) = drop_stmt {
-        assert_eq!(stmt.table_name, "mytable");
-        assert_eq!(stmt.if_exists, true);
+        assert_eq!(stmt.table_name, "MYTABLE");
+        assert!(stmt.if_exists);
     } else {
         panic!("Expected DropTable statement");
     }
@@ -269,8 +269,8 @@ fn test_drop_table_without_if_exists_parser() {
     let drop_stmt = Parser::parse_sql(drop_sql).unwrap();
 
     if let ast::Statement::DropTable(stmt) = drop_stmt {
-        assert_eq!(stmt.table_name, "mytable");
-        assert_eq!(stmt.if_exists, false);
+        assert_eq!(stmt.table_name, "MYTABLE");
+        assert!(!stmt.if_exists);
     } else {
         panic!("Expected DropTable statement");
     }
@@ -293,12 +293,12 @@ fn test_drop_table_with_underscores() {
     let drop_stmt = Parser::parse_sql(drop_sql).unwrap();
 
     if let ast::Statement::DropTable(stmt) = drop_stmt {
-        assert_eq!(stmt.table_name, "user_profiles");
+        assert_eq!(stmt.table_name, "USER_PROFILES");
         let result = DropTableExecutor::execute(&stmt, &mut db);
         assert!(result.is_ok());
     }
 
-    assert!(!db.catalog.table_exists("user_profiles"));
+    assert!(!db.catalog.table_exists("USER_PROFILES"));
 }
 
 #[test]
@@ -325,7 +325,7 @@ fn test_drop_table_integration_workflow() {
     }
 
     // 3. Verify data
-    assert_eq!(db.get_table("customers").unwrap().row_count(), 3);
+    assert_eq!(db.get_table("CUSTOMERS").unwrap().row_count(), 3);
 
     // 4. Drop table
     let drop_sql = "DROP TABLE customers;";
@@ -334,11 +334,11 @@ fn test_drop_table_integration_workflow() {
     if let ast::Statement::DropTable(stmt) = drop_stmt {
         let result = DropTableExecutor::execute(&stmt, &mut db);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "Table 'customers' dropped successfully");
+        assert_eq!(result.unwrap(), "Table 'CUSTOMERS' dropped successfully");
     }
 
     // 5. Verify table is completely gone
-    assert!(!db.catalog.table_exists("customers"));
-    assert!(db.get_table("customers").is_none());
+    assert!(!db.catalog.table_exists("CUSTOMERS"));
+    assert!(db.get_table("CUSTOMERS").is_none());
     assert_eq!(db.list_tables().len(), 0);
 }

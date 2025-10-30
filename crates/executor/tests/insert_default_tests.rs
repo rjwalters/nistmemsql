@@ -1,9 +1,6 @@
-use ast;
-use catalog;
-use executor::{ExecutorError, InsertExecutor};
-use storage;
-use types;
+use executor::InsertExecutor;
 
+#[allow(dead_code)] // Test helper - may be used in future tests
 fn setup_test_table(db: &mut storage::Database) {
     // CREATE TABLE users (id INT, name VARCHAR(50))
     let schema = catalog::TableSchema::new(

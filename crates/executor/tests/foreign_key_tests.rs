@@ -23,5 +23,5 @@ fn test_foreign_key_enforcement_exists() {
     "#;
 
     // This is a basic smoke test - if we get here, the basic FK infrastructure is working
-    assert!(true);
+    // No assertion needed - test passes if no error occurs
 }

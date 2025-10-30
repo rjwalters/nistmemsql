@@ -4,7 +4,7 @@ use super::builder::SelectExecutor;
 use crate::errors::ExecutorError;
 use crate::select::join::FromResult;
 
-impl<'a> SelectExecutor<'a> {
+impl SelectExecutor<'_> {
     /// Derive column names from SELECT list
     pub(super) fn derive_column_names(
         &self,
@@ -21,7 +21,7 @@ impl<'a> SelectExecutor<'a> {
                         // Get all column names in order from the combined schema
                         let mut table_columns: Vec<(usize, String)> = Vec::new();
 
-                        for (_table_name, (start_index, schema)) in &from_res.schema.table_schemas {
+                        for (start_index, schema) in from_res.schema.table_schemas.values() {
                             for (col_idx, col_schema) in schema.columns.iter().enumerate() {
                                 table_columns
                                     .push((start_index + col_idx, col_schema.name.clone()));
@@ -57,62 +57,67 @@ impl<'a> SelectExecutor<'a> {
 
     /// Derive a column name from an expression
     pub(super) fn derive_expression_name(&self, expr: &ast::Expression) -> String {
-        match expr {
-            ast::Expression::ColumnRef { table: _, column } => column.clone(),
-            ast::Expression::Function { name, args } => {
-                // For functions, use name(args) format
-                let args_str = if args.is_empty() {
-                    "*".to_string()
-                } else {
-                    args.iter()
-                        .map(|arg| self.derive_expression_name(arg))
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                };
-                format!("{}({})", name, args_str)
-            }
-            ast::Expression::AggregateFunction { name, distinct, args } => {
-                // For aggregate functions, use name(DISTINCT args) format
-                let distinct_str = if *distinct { "DISTINCT " } else { "" };
-                let args_str = if args.is_empty() {
-                    "*".to_string()
-                } else {
-                    args.iter()
-                        .map(|arg| self.derive_expression_name(arg))
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                };
-                format!("{}({}{})", name, distinct_str, args_str)
-            }
-            ast::Expression::BinaryOp { left, op, right } => {
-                // For binary operations, create descriptive name
-                format!(
-                    "({} {} {})",
-                    self.derive_expression_name(left),
-                    match op {
-                        ast::BinaryOperator::Plus => "+",
-                        ast::BinaryOperator::Minus => "-",
-                        ast::BinaryOperator::Multiply => "*",
-                        ast::BinaryOperator::Divide => "/",
-                        ast::BinaryOperator::Equal => "=",
-                        ast::BinaryOperator::NotEqual => "!=",
-                        ast::BinaryOperator::LessThan => "<",
-                        ast::BinaryOperator::LessThanOrEqual => "<=",
-                        ast::BinaryOperator::GreaterThan => ">",
-                        ast::BinaryOperator::GreaterThanOrEqual => ">=",
-                        ast::BinaryOperator::And => "AND",
-                        ast::BinaryOperator::Or => "OR",
-                        ast::BinaryOperator::Concat => "||",
-                        _ => "?",
-                    },
-                    self.derive_expression_name(right)
-                )
-            }
-            ast::Expression::Literal(val) => {
-                // For literals, use the value representation
-                format!("{:?}", val)
-            }
-            _ => "?column?".to_string(), // Default for other expression types
+        derive_expression_name_impl(expr)
+    }
+}
+
+/// Helper function to derive a column name from an expression
+fn derive_expression_name_impl(expr: &ast::Expression) -> String {
+    match expr {
+        ast::Expression::ColumnRef { table: _, column } => column.clone(),
+        ast::Expression::Function { name, args, character_unit: _ } => {
+            // For functions, use name(args) format
+            let args_str = if args.is_empty() {
+                "*".to_string()
+            } else {
+                args.iter()
+                    .map(derive_expression_name_impl)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            };
+            format!("{}({})", name, args_str)
         }
+        ast::Expression::AggregateFunction { name, distinct, args } => {
+            // For aggregate functions, use name(DISTINCT args) format
+            let distinct_str = if *distinct { "DISTINCT " } else { "" };
+            let args_str = if args.is_empty() {
+                "*".to_string()
+            } else {
+                args.iter()
+                    .map(derive_expression_name_impl)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            };
+            format!("{}({}{})", name, distinct_str, args_str)
+        }
+        ast::Expression::BinaryOp { left, op, right } => {
+            // For binary operations, create descriptive name
+            format!(
+                "({} {} {})",
+                derive_expression_name_impl(left),
+                match op {
+                    ast::BinaryOperator::Plus => "+",
+                    ast::BinaryOperator::Minus => "-",
+                    ast::BinaryOperator::Multiply => "*",
+                    ast::BinaryOperator::Divide => "/",
+                    ast::BinaryOperator::Equal => "=",
+                    ast::BinaryOperator::NotEqual => "!=",
+                    ast::BinaryOperator::LessThan => "<",
+                    ast::BinaryOperator::LessThanOrEqual => "<=",
+                    ast::BinaryOperator::GreaterThan => ">",
+                    ast::BinaryOperator::GreaterThanOrEqual => ">=",
+                    ast::BinaryOperator::And => "AND",
+                    ast::BinaryOperator::Or => "OR",
+                    ast::BinaryOperator::Concat => "||",
+                    _ => "?",
+                },
+                derive_expression_name_impl(right)
+            )
+        }
+        ast::Expression::Literal(val) => {
+            // For literals, use the value representation
+            format!("{:?}", val)
+        }
+        _ => "?column?".to_string(), // Default for other expression types
     }
 }

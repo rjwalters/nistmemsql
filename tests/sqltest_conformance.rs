@@ -33,11 +33,11 @@ impl Default for SqlField {
     }
 }
 
-impl SqlField {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for SqlField {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SqlField::Single(s) => s.clone(),
-            SqlField::Multiple(v) => v.join("; "),
+            SqlField::Single(s) => write!(f, "{}", s),
+            SqlField::Multiple(v) => write!(f, "{}", v.join("; ")),
         }
     }
 }
@@ -234,6 +234,16 @@ impl SqltestRunner {
             }
             ast::Statement::Grant(grant_stmt) => {
                 executor::GrantExecutor::execute_grant(&grant_stmt, db)
+                    .map_err(|e| format!("Execution error: {:?}", e))?;
+                Ok(true)
+            }
+            ast::Statement::CreateRole(create_role_stmt) => {
+                executor::RoleExecutor::execute_create_role(&create_role_stmt, db)
+                    .map_err(|e| format!("Execution error: {:?}", e))?;
+                Ok(true)
+            }
+            ast::Statement::DropRole(drop_role_stmt) => {
+                executor::RoleExecutor::execute_drop_role(&drop_role_stmt, db)
                     .map_err(|e| format!("Execution error: {:?}", e))?;
                 Ok(true)
             }
