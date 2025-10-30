@@ -18,7 +18,30 @@ pub fn parse_create_schema(parser: &mut crate::Parser) -> Result<CreateSchemaStm
 
     let schema_name = parser.parse_qualified_identifier()?;
 
-    Ok(CreateSchemaStmt { schema_name, if_not_exists })
+    // Parse optional schema elements (CREATE TABLE, etc.)
+    let mut schema_elements = Vec::new();
+    while parser.peek_keyword(Keyword::Create) {
+        // Look ahead to see what kind of CREATE statement this is
+        let saved_position = parser.position;
+        parser.advance(); // Skip CREATE keyword
+
+        if parser.peek_keyword(Keyword::Table) {
+            // Reset to before CREATE and parse the full CREATE TABLE statement
+            parser.position = saved_position;
+            let table_stmt = parser.parse_create_table_statement()?;
+            schema_elements.push(ast::SchemaElement::CreateTable(table_stmt));
+        } else {
+            // Unsupported schema element - restore and break
+            parser.position = saved_position;
+            break;
+        }
+    }
+
+    Ok(CreateSchemaStmt {
+        schema_name,
+        if_not_exists,
+        schema_elements,
+    })
 }
 
 /// Parse DROP SCHEMA statement
