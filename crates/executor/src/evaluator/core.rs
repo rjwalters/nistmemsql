@@ -1,5 +1,6 @@
 use crate::errors::ExecutorError;
 use crate::schema::CombinedSchema;
+use crate::select::WindowFunctionKey;
 use super::casting::{is_exact_numeric, is_approximate_numeric, to_i64, to_f64};
 
 /// Evaluates expressions in the context of a row
@@ -14,6 +15,7 @@ pub struct ExpressionEvaluator<'a> {
 pub struct CombinedExpressionEvaluator<'a> {
     pub(super) schema: &'a CombinedSchema,
     pub(super) database: Option<&'a storage::Database>,
+    pub(super) window_mapping: Option<&'a std::collections::HashMap<WindowFunctionKey, usize>>,
 }
 
 impl<'a> ExpressionEvaluator<'a> {
@@ -330,7 +332,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
     /// Note: Currently unused as all callers use with_database(), but kept for API completeness
     #[allow(dead_code)]
     pub(crate) fn new(schema: &'a CombinedSchema) -> Self {
-        CombinedExpressionEvaluator { schema, database: None }
+        CombinedExpressionEvaluator { schema, database: None, window_mapping: None }
     }
 
     /// Create a new combined expression evaluator with database reference
@@ -338,6 +340,15 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         schema: &'a CombinedSchema,
         database: &'a storage::Database,
     ) -> Self {
-        CombinedExpressionEvaluator { schema, database: Some(database) }
+        CombinedExpressionEvaluator { schema, database: Some(database), window_mapping: None }
+    }
+
+    /// Create a new combined expression evaluator with database and window mapping
+    pub(crate) fn with_database_and_windows(
+        schema: &'a CombinedSchema,
+        database: &'a storage::Database,
+        window_mapping: &'a std::collections::HashMap<WindowFunctionKey, usize>,
+    ) -> Self {
+        CombinedExpressionEvaluator { schema, database: Some(database), window_mapping: Some(window_mapping) }
     }
 }

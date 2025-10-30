@@ -23,6 +23,7 @@ pub(super) fn apply_order_by(
     for (row, sort_keys) in &mut rows {
         let mut keys = Vec::new();
         for order_item in order_by {
+            // Evaluator handles window functions via window_mapping if present
             let key_value = evaluator.eval(&order_item.expr, row)?;
             keys.push((key_value, order_item.direction.clone()));
         }

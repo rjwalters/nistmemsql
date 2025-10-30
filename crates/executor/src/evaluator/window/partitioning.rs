@@ -10,11 +10,18 @@ use types::SqlValue;
 #[derive(Debug, Clone)]
 pub struct Partition {
     pub rows: Vec<Row>,
+    /// Original indices of rows before partitioning/sorting
+    pub original_indices: Vec<usize>,
 }
 
 impl Partition {
     pub fn new(rows: Vec<Row>) -> Self {
-        Self { rows }
+        let original_indices = (0..rows.len()).collect();
+        Self { rows, original_indices }
+    }
+
+    pub fn with_indices(rows: Vec<Row>, original_indices: Vec<usize>) -> Self {
+        Self { rows, original_indices }
     }
 
     pub fn len(&self) -> usize {
@@ -48,10 +55,11 @@ where
     }
 
     // Group rows by partition key values (use BTreeMap for deterministic ordering)
-    let mut partitions_map: std::collections::BTreeMap<Vec<String>, Vec<Row>> =
+    // Track original indices through partitioning
+    let mut partitions_map: std::collections::BTreeMap<Vec<String>, Vec<(usize, Row)>> =
         std::collections::BTreeMap::new();
 
-    for row in rows {
+    for (original_idx, row) in rows.into_iter().enumerate() {
         // Evaluate partition expressions for this row
         let mut partition_key = Vec::new();
 
@@ -61,9 +69,14 @@ where
             partition_key.push(format!("{:?}", value));
         }
 
-        partitions_map.entry(partition_key).or_default().push(row);
+        partitions_map.entry(partition_key).or_default().push((original_idx, row));
     }
 
-    // Convert HashMap to Vec<Partition>
-    partitions_map.into_values().map(Partition::new).collect()
+    // Convert HashMap to Vec<Partition>, preserving original indices
+    partitions_map.into_values()
+        .map(|rows_with_indices| {
+            let (indices, rows): (Vec<_>, Vec<_>) = rows_with_indices.into_iter().unzip();
+            Partition::with_indices(rows, indices)
+        })
+        .collect()
 }

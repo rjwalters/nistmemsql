@@ -12,6 +12,8 @@ mod scan;
 mod set_operations;
 mod window;
 
+pub use window::WindowFunctionKey;
+
 
 /// Result of a SELECT query including column metadata
 pub struct SelectResult {
