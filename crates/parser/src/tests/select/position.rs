@@ -92,7 +92,7 @@ fn test_parse_position_with_column() {
                         );
                         assert_eq!(
                             **string,
-                            ast::Expression::ColumnRef { table: None, column: "name".to_string() }
+                            ast::Expression::ColumnRef { table: None, column: "NAME".to_string() }
                         );
                     }
                     _ => panic!("Expected Position expression"),
@@ -122,14 +122,14 @@ fn test_parse_position_both_columns() {
                             **substring,
                             ast::Expression::ColumnRef {
                                 table: None,
-                                column: "needle".to_string()
+                                column: "NEEDLE".to_string()
                             }
                         );
                         assert_eq!(
                             **string,
                             ast::Expression::ColumnRef {
                                 table: None,
-                                column: "haystack".to_string()
+                                column: "HAYSTACK".to_string()
                             }
                         );
                     }

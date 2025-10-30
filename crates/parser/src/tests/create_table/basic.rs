@@ -38,7 +38,7 @@ fn test_parse_create_table_various_types() {
 
     match stmt {
         ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "test");
+            assert_eq!(create.table_name, "TEST");
             assert_eq!(create.columns.len(), 4);
             match create.columns[0].data_type {
                 types::DataType::Integer => {} // Success

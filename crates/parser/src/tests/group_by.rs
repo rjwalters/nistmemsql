@@ -105,7 +105,7 @@ fn test_parse_group_by_qualified_columns() {
             match &group_by[0] {
                 ast::Expression::ColumnRef { table, column } => {
                     assert_eq!(table.as_ref().unwrap(), "U");
-                    assert_eq!(column, "dept");
+                    assert_eq!(column, "DEPT");
                 }
                 _ => panic!("Expected qualified column reference"),
             }

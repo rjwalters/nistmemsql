@@ -18,9 +18,9 @@ fn test_parse_northwind_categories_table() {
 
     match stmt {
         ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_name, "Categories");
+            assert_eq!(create.table_name, "CATEGORIES");
             assert_eq!(create.columns.len(), 3);
-            assert_eq!(create.columns[0].name, "CategoryID");
+            assert_eq!(create.columns[0].name, "CATEGORYID");
             assert_eq!(create.columns[0].constraints.len(), 1);
             assert!(matches!(
                 create.columns[0].constraints[0],
