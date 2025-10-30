@@ -7,11 +7,11 @@ use ast::*;
 
 /// Parse GRANT statement
 ///
-/// Phase 2.4: Supports WITH GRANT OPTION
+/// Phase 2.5: Supports TABLE and SCHEMA object types with WITH GRANT OPTION
 ///
 /// Grammar:
 /// ```text
-/// GRANT privilege_list ON TABLE table_name TO grantee_list [WITH GRANT OPTION]
+/// GRANT privilege_list ON [TABLE | SCHEMA] object_name TO grantee_list [WITH GRANT OPTION]
 /// ```
 pub fn parse_grant(parser: &mut crate::Parser) -> Result<GrantStmt, ParseError> {
     parser.expect_keyword(Keyword::Grant)?;
@@ -20,7 +20,18 @@ pub fn parse_grant(parser: &mut crate::Parser) -> Result<GrantStmt, ParseError> 
     let privileges = parse_privilege_list(parser)?;
 
     parser.expect_keyword(Keyword::On)?;
-    parser.expect_keyword(Keyword::Table)?;
+
+    // Detect TABLE vs SCHEMA (defaults to TABLE if not specified)
+    let object_type = if parser.peek() == &Token::Keyword(Keyword::Table) {
+        parser.advance(); // consume TABLE
+        ObjectType::Table
+    } else if parser.peek() == &Token::Keyword(Keyword::Schema) {
+        parser.advance(); // consume SCHEMA
+        ObjectType::Schema
+    } else {
+        // Default to TABLE if not specified (SQL standard behavior)
+        ObjectType::Table
+    };
 
     // Parse object name (supports qualified names like "schema.table")
     let object_name = parser.parse_qualified_identifier()?;
@@ -42,7 +53,7 @@ pub fn parse_grant(parser: &mut crate::Parser) -> Result<GrantStmt, ParseError> 
 
     Ok(GrantStmt {
         privileges,
-        object_type: ObjectType::Table,
+        object_type,
         object_name,
         grantees,
         with_grant_option,
@@ -51,7 +62,7 @@ pub fn parse_grant(parser: &mut crate::Parser) -> Result<GrantStmt, ParseError> 
 
 /// Parse a comma-separated list of privileges
 ///
-/// Supports: SELECT, INSERT, UPDATE, DELETE, ALL [PRIVILEGES]
+/// Supports: SELECT, INSERT, UPDATE, DELETE, USAGE, CREATE, ALL [PRIVILEGES]
 fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>, ParseError> {
     // Check for ALL [PRIVILEGES] syntax
     if parser.peek() == &Token::Keyword(Keyword::All) {
@@ -86,10 +97,18 @@ fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>
                 parser.advance();
                 PrivilegeType::Delete
             }
+            Token::Keyword(Keyword::Usage) => {
+                parser.advance();
+                PrivilegeType::Usage
+            }
+            Token::Keyword(Keyword::Create) => {
+                parser.advance();
+                PrivilegeType::Create
+            }
             _ => {
                 return Err(ParseError {
                     message: format!(
-                        "Expected privilege keyword (SELECT, INSERT, UPDATE, DELETE, ALL), found {:?}",
+                        "Expected privilege keyword (SELECT, INSERT, UPDATE, DELETE, USAGE, CREATE, ALL), found {:?}",
                         parser.peek()
                     ),
                 })
