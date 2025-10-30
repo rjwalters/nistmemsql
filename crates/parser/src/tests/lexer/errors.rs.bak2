@@ -1,0 +1,12 @@
+use super::super::*;
+
+// ============================================================================
+
+#[test]
+fn test_tokenize_invalid_character() {
+    let mut lexer = Lexer::new("SELECT @");
+    let result = lexer.tokenize();
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(err.message.contains("Unexpected character"));
+}
