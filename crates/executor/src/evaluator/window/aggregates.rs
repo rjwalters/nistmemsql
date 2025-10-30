@@ -29,9 +29,6 @@ where
 {
     let mut count = 0i64;
 
-    eprintln!("DEBUG COUNT: frame={:?}, partition.len()={}, arg_expr.is_none()={}",
-              frame, partition.len(), arg_expr.is_none());
-
     for idx in frame.clone() {
         if idx >= partition.len() {
             break;
