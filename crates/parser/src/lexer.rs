@@ -250,6 +250,8 @@ impl Lexer {
             "OCTETS" => Token::Keyword(Keyword::Octets),
             // SUBSTRING function keywords
             "FOR" => Token::Keyword(Keyword::For),
+            // Role management keywords
+            "ROLE" => Token::Keyword(Keyword::Role),
             _ => Token::Identifier(text),
         };
 

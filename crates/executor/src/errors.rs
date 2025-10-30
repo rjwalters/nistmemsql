@@ -87,6 +87,12 @@ impl From<catalog::CatalogError> for ExecutorError {
                 ExecutorError::SchemaAlreadyExists(name)
             }
             catalog::CatalogError::SchemaNotEmpty(name) => ExecutorError::SchemaNotEmpty(name),
+            catalog::CatalogError::RoleAlreadyExists(name) => {
+                ExecutorError::StorageError(format!("Role '{}' already exists", name))
+            }
+            catalog::CatalogError::RoleNotFound(name) => {
+                ExecutorError::StorageError(format!("Role '{}' not found", name))
+            }
         }
     }
 }

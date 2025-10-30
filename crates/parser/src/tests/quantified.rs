@@ -81,7 +81,7 @@ fn test_parse_any_with_equals() {
 #[test]
 fn test_parse_any_with_not_equals() {
     let result =
-        Parser::parse_sql("SELECT * FROM users WHERE role <> ANY (SELECT role FROM admin_roles);");
+        Parser::parse_sql("SELECT * FROM users WHERE user_role <> ANY (SELECT user_role FROM admin_roles);");
     assert!(result.is_ok(), "ANY with <> should parse: {:?}", result);
 }
 
