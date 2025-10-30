@@ -493,6 +493,20 @@ fn collect_window_functions_from_expression(
         Expression::IsNull { expr, .. } => {
             collect_window_functions_from_expression(expr, window_functions);
         }
+        Expression::Position { substring, string } => {
+            collect_window_functions_from_expression(substring, window_functions);
+            collect_window_functions_from_expression(string, window_functions);
+        }
+        Expression::Trim {
+            removal_char,
+            string,
+            ..
+        } => {
+            if let Some(removal_char) = removal_char {
+                collect_window_functions_from_expression(removal_char, window_functions);
+            }
+            collect_window_functions_from_expression(string, window_functions);
+        }
         Expression::Exists { .. } | Expression::ScalarSubquery(_) | Expression::QuantifiedComparison { .. } => {
             // These don't contain window functions in their expressions
         }
@@ -502,7 +516,7 @@ fn collect_window_functions_from_expression(
         Expression::Wildcard => {
             // Wildcard doesn't contain window functions
         }
-        Expression::Literal(_) | Expression::ColumnRef { .. } | Expression::Position { .. } => {
+        Expression::Literal(_) | Expression::ColumnRef { .. } => {
             // These are leaf nodes
         }
     }
