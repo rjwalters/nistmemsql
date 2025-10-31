@@ -5,6 +5,7 @@
 
 use catalog::{ColumnSchema, TableSchema};
 use regex::Regex;
+use serde_json;
 use std::fs;
 use std::path::Path;
 use storage::{Database, Row};
@@ -22,52 +23,84 @@ pub struct WebDemoExample {
     pub expected_count: Option<usize>,
 }
 
-/// Parse all TypeScript example files and extract SQL examples
+/// Parse all JSON example files and extract SQL examples
 pub fn parse_example_files() -> Result<Vec<WebDemoExample>, Box<dyn std::error::Error>> {
-    let mut examples = Vec::new();
+let mut examples = Vec::new();
 
-    let example_files = vec!["web-demo/src/data/examples.ts"];
-
-    for file_path in example_files {
-        if Path::new(file_path).exists() {
-            let content = fs::read_to_string(file_path)?;
-            examples.extend(parse_typescript_examples(&content)?);
-        }
+// Look for JSON files in the examples directory
+let examples_dir = Path::new("web-demo/src/data/examples");
+    if examples_dir.exists() {
+        for entry in fs::read_dir(examples_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) == Some("json") {
+        if let Some(file_name) = path.file_stem().and_then(|s| s.to_str()) {
+        // Skip non-category files
+            if file_name == "types" || file_name == "loader" {
+            continue;
     }
-
-    Ok(examples)
+let content = fs::read_to_string(&path)?;
+examples.extend(parse_json_examples(&content, file_name)?);
+}
+}
+}
 }
 
-/// Parse TypeScript content to extract QueryExample objects
-fn parse_typescript_examples(
+Ok(examples)
+}
+
+/// Parse JSON content to extract example objects
+fn parse_json_examples(
     content: &str,
+_category_name: &str,
 ) -> Result<Vec<WebDemoExample>, Box<dyn std::error::Error>> {
     let mut examples = Vec::new();
 
-    // Regex to match QueryExample objects in TypeScript
-    // This is a simplified parser that looks for the pattern:
-    // {
-    //   id: 'example-id',
-    //   title: 'Example Title',
-    //   database: 'northwind',
-    //   sql: `SQL CONTENT`,
-    //   ...
-    // }
+// Parse the JSON
+let json: serde_json::Value = serde_json::from_str(content)?;
+let category_obj = json.as_object().ok_or("JSON root must be an object")?;
 
-    let example_pattern = Regex::new(
-        r#"(?s)\{\s*id:\s*['"]([^'"]+)['"],\s*title:\s*['"]([^'"]+)['"],\s*database:\s*['"]([^'"]+)['"],\s*sql:\s*`([^`]+)`"#,
-    )?;
+for (example_id, example_value) in category_obj {
+    let example_obj = example_value.as_object().ok_or(format!("Example {} must be an object", example_id))?;
 
-    for cap in example_pattern.captures_iter(content) {
-        let id = cap.get(1).unwrap().as_str().to_string();
-        let title = cap.get(2).unwrap().as_str().to_string();
-        let database = cap.get(3).unwrap().as_str().to_string();
-        let sql = cap.get(4).unwrap().as_str().to_string();
+    let sql = example_obj.get("sql")
+    .and_then(|v| v.as_str())
+        .ok_or(format!("Example {} missing sql field", example_id))?
+            .to_string();
 
-        // Parse expected results from SQL comments
-        let (expected_rows, expected_count) = parse_expected_results(&sql);
+    let title = example_obj.get("title")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| format!("Example {}", example_id));
 
-        examples.push(WebDemoExample { id, title, database, sql, expected_rows, expected_count });
+        let database = example_obj.get("database")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "northwind".to_string());
+
+// Parse expected results from JSON or SQL comments
+        let expected_rows = example_obj.get("expectedRows")
+    .and_then(|v| v.as_array())
+    .map(|arr| arr.iter()
+                .filter_map(|row| row.as_array())
+        .map(|row| row.iter()
+                .filter_map(|cell| cell.as_str().map(|s| s.to_string()))
+                    .collect())
+            .collect()
+            );
+
+        let expected_count = example_obj.get("expectedCount")
+            .and_then(|v| v.as_u64())
+            .map(|n| n as usize);
+
+        examples.push(WebDemoExample {
+            id: example_id.clone(),
+            title,
+            database,
+            sql,
+            expected_rows,
+            expected_count,
+        });
     }
 
     Ok(examples)
@@ -147,6 +180,23 @@ pub fn extract_query(sql: &str) -> String {
         .join("\n")
         .trim()
         .to_string()
+}
+
+/// Extract database name from SQL by looking for table references
+/// This is a heuristic since we don't have the metadata in JSON
+fn extract_database_from_sql(sql: &str) -> Option<String> {
+    // Look for common database indicators in the SQL
+    let sql_lower = sql.to_lowercase();
+    if sql_lower.contains("employees") || sql_lower.contains("dept_id") || sql_lower.contains("manager_id") {
+        Some("employees".to_string())
+    } else if sql_lower.contains("students") || sql_lower.contains("courses") || sql_lower.contains("enrollments") {
+        Some("university".to_string())
+    } else if sql_lower.contains("departments") || sql_lower.contains("projects") {
+        Some("company".to_string())
+    } else {
+        // Default to northwind
+        Some("northwind".to_string())
+    }
 }
 
 /// Create a Northwind database for testing

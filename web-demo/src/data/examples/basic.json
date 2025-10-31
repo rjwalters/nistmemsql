@@ -1,0 +1,68 @@
+{
+  "basic-1": {
+    "title": "Simple SELECT",
+    "database": "northwind",
+    "sql": "SELECT * FROM products LIMIT 5;",
+    "expectedRows": [
+      ["1", "Chai", "1", "18.0", "39", "0"],
+      ["2", "Chang", "1", "19.0", "17", "40"],
+      ["3", "Aniseed Syrup", "2", "10.0", "13", "70"],
+      ["4", "Chef Anton's Cajun Seasoning", "2", "22.0", "53", "0"],
+      ["5", "Chef Anton's Gumbo Mix", "2", "21.35", "0", "0"]
+    ],
+    "expectedCount": 5
+  },
+  "basic-2": {
+    "title": "WHERE clause filtering",
+    "database": "northwind",
+    "sql": "SELECT product_name, unit_price\nFROM products\nWHERE unit_price > 20\nORDER BY unit_price DESC;",
+    "expectedRows": [
+      ["Mishi Kobe Niku", "97.0"],
+      ["Sir Rodney's Marmalade", "81.0"],
+      ["Carnarvon Tigers", "62.5"],
+      ["Northwoods Cranberry Sauce", "40.0"],
+      ["Alice Mutton", "39.0"],
+      ["Queso Manchego La Pastora", "38.0"],
+      ["Ikura", "31.0"],
+      ["Grandma's Boysenberry Spread", "25.0"],
+      ["Tofu", "23.25"],
+      ["Chef Anton's Cajun Seasoning", "22.0"],
+      ["Queso Cabrales", "21.0"],
+      ["Chef Anton's Gumbo Mix", "21.35"]
+    ],
+    "expectedCount": 12
+  },
+  "basic-3": {
+    "title": "Column aliases",
+    "database": "northwind",
+    "sql": "SELECT\n  product_name AS name,\n  unit_price AS price,\n  unit_price * 1.2 AS price_with_tax\nFROM products\nLIMIT 10;",
+    "expectedRows": [
+      ["Chai", "18.0", "21.6"],
+      ["Chang", "19.0", "22.8"],
+      ["Aniseed Syrup", "10.0", "12.0"],
+      ["Chef Anton's Cajun Seasoning", "22.0", "26.4"],
+      ["Chef Anton's Gumbo Mix", "21.35", "25.62"],
+      ["Grandma's Boysenberry Spread", "25.0", "30.0"],
+      ["Uncle Bob's Organic Dried Pears", "30.0", "36.0"],
+      ["Northwoods Cranberry Sauce", "40.0", "48.0"],
+      ["Mishi Kobe Niku", "97.0", "116.4"],
+      ["Ikura", "31.0", "37.2"]
+    ],
+    "expectedCount": 10
+  },
+  "basic-4": {
+    "title": "DISTINCT values",
+    "database": "northwind",
+    "sql": "SELECT DISTINCT category_id\nFROM products\nORDER BY category_id;",
+    "expectedRows": [
+      ["1"],
+      ["2"],
+      ["3"],
+      ["4"],
+      ["6"],
+      ["7"],
+      ["8"]
+    ],
+    "expectedCount": 7
+  }
+}

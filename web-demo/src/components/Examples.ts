@@ -431,7 +431,7 @@ export class ExamplesComponent extends Component<ExamplesState> {
 
   private findExampleById(id: string): QueryExample | undefined {
     for (const category of exampleCategories) {
-      const example = category.queries.find(q => q.id === id)
+      const example = category.queries.find((q: QueryExample) => q.id === id)
       if (example) {
         return example
       }
