@@ -62,11 +62,11 @@ def group_benchmarks_by_test(benchmarks: List[Dict]) -> Dict[str, Dict[str, Dict
 
 
 def format_time(seconds: float) -> Tuple[float, str]:
-    """Format time with appropriate unit (ms, ¼s, ns)."""
+    """Format time with appropriate unit (ms, us, ns)."""
     if seconds >= 0.001:
         return seconds * 1000, "ms"
     elif seconds >= 0.000001:
-        return seconds * 1000000, "¼s"
+        return seconds * 1000000, "us"
     else:
         return seconds * 1000000000, "ns"
 
@@ -105,9 +105,9 @@ def generate_comparison_table(grouped: Dict[str, Dict[str, Dict]]) -> str:
         if ratio <= 1.5:
             status = " Good"
         elif ratio <= 3.0:
-            status = "Ë Fair"
+            status = "ï¿½ Fair"
         else:
-            status = "  Slow"
+            status = "ï¿½ Slow"
 
         lines.append(
             f"| {test_name} | "
