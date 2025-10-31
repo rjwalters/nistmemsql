@@ -295,3 +295,34 @@ fn test_domain_with_default_current_date() {
         panic!("Expected CreateDomain statement");
     }
 }
+#[test]
+fn test_domain_create_drop_recreate_sequence() {
+    let mut db = Database::new();
+
+    // Step 1: CREATE DOMAIN
+    let sql1 = "CREATE DOMAIN DOMAIN1 AS INTEGER";
+    let stmt1 = Parser::parse_sql(sql1).expect("Failed to parse CREATE");
+    if let Statement::CreateDomain(create_stmt) = stmt1 {
+        let result = DomainExecutor::execute_create_domain(&create_stmt, &mut db);
+        assert!(result.is_ok(), "First CREATE failed: {:?}", result);
+        assert!(db.catalog.domain_exists("DOMAIN1"), "Domain should exist after CREATE");
+    }
+
+    // Step 2: DROP DOMAIN
+    let sql2 = "DROP DOMAIN DOMAIN1";
+    let stmt2 = Parser::parse_sql(sql2).expect("Failed to parse DROP");
+    if let Statement::DropDomain(drop_stmt) = stmt2 {
+        let result = DomainExecutor::execute_drop_domain(&drop_stmt, &mut db);
+        assert!(result.is_ok(), "DROP failed: {:?}", result);
+        assert!(!db.catalog.domain_exists("DOMAIN1"), "Domain should not exist after DROP");
+    }
+
+    // Step 3: CREATE DOMAIN again (same name)
+    let sql3 = "CREATE DOMAIN DOMAIN1 AS INTEGER";
+    let stmt3 = Parser::parse_sql(sql3).expect("Failed to parse second CREATE");
+    if let Statement::CreateDomain(create_stmt) = stmt3 {
+        let result = DomainExecutor::execute_create_domain(&create_stmt, &mut db);
+        assert!(result.is_ok(), "Second CREATE failed (domain should have been dropped): {:?}", result);
+        assert!(db.catalog.domain_exists("DOMAIN1"), "Domain should exist after second CREATE");
+    }
+}

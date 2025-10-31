@@ -132,7 +132,6 @@ impl SqltestRunner {
     /// Run all conformance tests
     fn run_all(&self) -> TestResults {
         let mut results = TestResults::default();
-        let mut db = Database::new();
 
         println!(
             "\n🧪 Running {} SQL:1999 conformance tests from upstream YAML files...\n",
@@ -140,6 +139,8 @@ impl SqltestRunner {
         );
 
         for test_case in &self.tests {
+            // Create a fresh database for each test to ensure isolation
+            let mut db = Database::new();
             match self.run_test(&mut db, test_case) {
                 Ok(true) => {
                     results.record_pass();
