@@ -1,6 +1,6 @@
-//! Tests for basic web demo SQL examples
+//! Tests for join web demo SQL examples
 //!
-//! This test suite validates basic SQL examples (SELECT, INSERT, UPDATE, DDL, DML operations)
+//! This test suite validates SQL join examples (INNER JOIN, LEFT JOIN, RIGHT JOIN, FULL JOIN, CROSS JOIN)
 //! from the web demo by parsing the TypeScript example files and executing queries.
 
 mod common;
@@ -12,34 +12,36 @@ use executor::SelectExecutor;
 use parser::Parser;
 use ast;
 
-/// Test basic SQL examples from web demo
-/// Includes examples with IDs: basic*, dml*, ddl*, data*
+/// Test join SQL examples from web demo
+/// Includes examples with IDs: join*, inner*, left*, right*, full*, cross*
 #[test]
-fn test_basic_sql_examples() {
+fn test_join_sql_examples() {
     // Parse all examples from web demo
     let examples = parse_example_files().expect("Failed to parse example files");
 
-    // Filter for basic examples (basic, dml, ddl, data prefixes)
-    let basic_examples: Vec<&WebDemoExample> = examples
+    // Filter for join examples
+    let join_examples: Vec<&WebDemoExample> = examples
         .iter()
         .filter(|ex| {
-            ex.id.starts_with("basic")
-                || ex.id.starts_with("dml")
-                || ex.id.starts_with("ddl")
-                || ex.id.starts_with("data")
+            ex.id.starts_with("join")
+                || ex.id.starts_with("inner")
+                || ex.id.starts_with("left")
+                || ex.id.starts_with("right")
+                || ex.id.starts_with("full")
+                || ex.id.starts_with("cross")
         })
         .collect();
 
     assert!(
-        !basic_examples.is_empty(),
-        "No basic examples found - check web demo examples file exists"
+        !join_examples.is_empty(),
+        "No join examples found - check web demo examples file exists"
     );
 
     let mut passed = 0;
     let mut failed = 0;
     let mut skipped = 0;
 
-    for example in &basic_examples {
+    for example in &join_examples {
         // Load the appropriate database
         let db = match load_database(&example.database) {
             Some(db) => db,
@@ -63,23 +65,14 @@ fn test_basic_sql_examples() {
             }
         };
 
-        // Execute the query based on statement type
+        // Execute the query (join queries are SELECT statements)
         let result = match stmt {
             ast::Statement::Select(select_stmt) => {
                 let executor = SelectExecutor::new(&db);
                 executor.execute(&select_stmt)
             }
-            ast::Statement::CreateTable { .. }
-            | ast::Statement::Insert { .. }
-            | ast::Statement::Update { .. }
-            | ast::Statement::Delete { .. } => {
-                // For DDL/DML statements, just check they parse successfully
-                println!("✓  {}: DDL/DML statement parsed successfully", example.id);
-                passed += 1;
-                continue;
-            }
             _ => {
-                println!("⚠️  Skipping {}: Unsupported statement type", example.id);
+                println!("⚠️  Skipping {}: Not a SELECT statement", example.id);
                 skipped += 1;
                 continue;
             }
@@ -100,7 +93,7 @@ fn test_basic_sql_examples() {
                     }
                 }
 
-                // TODO: Validate expected row data
+                // TODO: Validate expected row data for more precise validation
                 // For now, just check count (matching original test behavior)
 
                 println!("✓  {}: Passed ({} rows)", example.id, rows.len());
@@ -114,20 +107,20 @@ fn test_basic_sql_examples() {
     }
 
     // Print summary
-    println!("\n=== Basic Examples Test Summary ===");
-    println!("Total:   {}", basic_examples.len());
+    println!("\n=== Join Examples Test Summary ===");
+    println!("Total:   {}", join_examples.len());
     println!("Passed:  {}", passed);
     println!("Failed:  {}", failed);
     println!("Skipped: {}", skipped);
-    println!("===================================\n");
+    println!("==================================\n");
 
     // For now, we require at least some tests to pass
     assert!(
         passed >= 1,
-        "Expected at least 1 basic example to pass, got {}",
+        "Expected at least 1 join example to pass, got {}",
         passed
     );
 
-    // TODO: Make this stricter once all basic features are complete
-    // assert_eq!(failed, 0, "{} basic example(s) failed", failed);
+    // TODO: Make this stricter once all join features are complete
+    // assert_eq!(failed, 0, "{} join example(s) failed", failed);
 }
