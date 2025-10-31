@@ -63,7 +63,7 @@ We use comprehensive test suites to track SQL:1999 compliance:
 ### Test Suites
 - **sqltest**: 739 BNF-driven tests from SQL:1999 standard (upstream-recommended)
 - **Custom tests**: 2,000+ end-to-end integration tests for specific features
-- **SQLLogicTest**: Framework integrated (2 baseline tests currently)
+- **SQLLogicTest**: ~5.9 million tests from official SQLite corpus (623 test files)
 
 ### Current Conformance Status
 
@@ -71,9 +71,10 @@ We use comprehensive test suites to track SQL:1999 compliance:
 |-------|-------|--------|
 | SQL:1999 sqltest | 739 tests | 🟢 95.4% (705 passing) |
 | Custom E2E Tests | 2,000+ tests | ✅ Passing (note: some compilation errors exist) |
-| SQLLogicTest | 2 baseline | ✅ 100% Passing |
+| SQLLogicTest | 623 test files (~5.9M tests) | 🔄 Integrated (baseline verification passing) |
 
 **Recent Progress** (As of Oct 31, 2024):
+- ✅ **SQLLogicTest integration** - Added ~5.9M tests via dolthub/sqllogictest submodule
 - ✅ **Near-complete SQL:1999 conformance** - significant progress from 85% to 95%+
 - ✅ **Complete security model** - Full privilege enforcement (#507, #508)
 - ✅ **Access control** - SELECT, INSERT, UPDATE, DELETE enforcement (#508)
@@ -97,9 +98,14 @@ cargo coverage
 # Run SQL:1999 conformance tests
 cargo test --test sqltest_conformance -- --nocapture
 
-# Run SQLLogicTest baseline
-cargo test --test sqllogictest_runner
+# Run SQLLogicTest baseline verification
+cargo test --test sqllogictest_basic
+
+# Run comprehensive SQLLogicTest suite (623 files, takes hours)
+cargo test --test sqllogictest_suite -- --nocapture
 ```
+
+**Note**: The comprehensive SQLLogicTest suite contains ~5.9 million individual test cases across 623 files. Running the full suite takes several hours. Use the basic verification test for quick validation.
 
 ---
 
