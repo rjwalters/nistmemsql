@@ -71,7 +71,17 @@ impl Parser {
                 self.advance();
                 Ok(identifier)
             }
-            _ => Err(ParseError { message: "Expected identifier".to_string() }),
+            Token::Keyword(kw) => {
+                Err(ParseError {
+                    message: format!(
+                        "Expected identifier, found reserved keyword '{}'. Use delimited identifiers (e.g., \"{}\") to use keywords as names, or choose a different identifier.",
+                        kw, kw
+                    ),
+                })
+            }
+            _ => Err(ParseError {
+                message: format!("Expected identifier, found {:?}", self.peek())
+            }),
         }
     }
 

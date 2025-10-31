@@ -253,3 +253,138 @@ fn test_parse_error_select_with_just_comma() {
     let result = Parser::parse_sql("SELECT id, , name FROM users");
     assert!(result.is_err(), "Should fail with consecutive commas");
 }
+
+// Tests for improved error messages when reserved keywords are used as identifiers
+
+#[test]
+fn test_keyword_in_select_into() {
+    // SELECT INTO uses parse_identifier() for the target table name
+    let result = Parser::parse_sql("SELECT * INTO select FROM users");
+    assert!(result.is_err(), "Should fail when using SELECT as INTO target");
+    let error_msg = result.unwrap_err().to_string();
+    assert!(
+        error_msg.contains("reserved keyword"),
+        "Error should mention 'reserved keyword', got: {}",
+        error_msg
+    );
+    assert!(
+        error_msg.contains("SELECT") || error_msg.contains("Select"),
+        "Error should mention the keyword SELECT, got: {}",
+        error_msg
+    );
+    assert!(
+        error_msg.contains("delimited identifiers"),
+        "Error should suggest delimited identifiers, got: {}",
+        error_msg
+    );
+}
+
+#[test]
+fn test_keyword_in_next_value_for() {
+    // NEXT VALUE FOR uses parse_identifier() for the sequence name
+    let result = Parser::parse_sql("SELECT NEXT VALUE FOR select");
+    assert!(result.is_err(), "Should fail when using SELECT as sequence name");
+    let error_msg = result.unwrap_err().to_string();
+    assert!(
+        error_msg.contains("reserved keyword"),
+        "Error should mention 'reserved keyword', got: {}",
+        error_msg
+    );
+    assert!(
+        error_msg.contains("SELECT") || error_msg.contains("Select"),
+        "Error should mention the keyword SELECT, got: {}",
+        error_msg
+    );
+}
+
+#[test]
+fn test_keyword_table_in_select_into() {
+    let result = Parser::parse_sql("SELECT * INTO table FROM users");
+    assert!(result.is_err(), "Should fail when using TABLE as INTO target");
+    let error_msg = result.unwrap_err().to_string();
+    assert!(
+        error_msg.contains("reserved keyword"),
+        "Error should mention 'reserved keyword', got: {}",
+        error_msg
+    );
+    assert!(
+        error_msg.contains("TABLE") || error_msg.contains("Table"),
+        "Error should mention the keyword TABLE, got: {}",
+        error_msg
+    );
+}
+
+#[test]
+fn test_keyword_where_in_next_value_for() {
+    let result = Parser::parse_sql("SELECT NEXT VALUE FOR where");
+    assert!(result.is_err(), "Should fail when using WHERE as sequence name");
+    let error_msg = result.unwrap_err().to_string();
+    assert!(
+        error_msg.contains("reserved keyword"),
+        "Error should mention 'reserved keyword', got: {}",
+        error_msg
+    );
+}
+
+#[test]
+fn test_keyword_from_in_select_into() {
+    let result = Parser::parse_sql("SELECT * INTO from FROM users");
+    assert!(result.is_err(), "Should fail when using FROM as INTO target");
+    let error_msg = result.unwrap_err().to_string();
+    assert!(
+        error_msg.contains("reserved keyword"),
+        "Error should mention 'reserved keyword', got: {}",
+        error_msg
+    );
+}
+
+#[test]
+fn test_keyword_join_in_next_value_for() {
+    let result = Parser::parse_sql("SELECT NEXT VALUE FOR join");
+    assert!(result.is_err(), "Should fail when using JOIN as sequence name");
+    let error_msg = result.unwrap_err().to_string();
+    assert!(
+        error_msg.contains("reserved keyword"),
+        "Error should mention 'reserved keyword', got: {}",
+        error_msg
+    );
+}
+
+#[test]
+fn test_delimited_keyword_in_select_into_works() {
+    // Delimited identifiers should allow using keywords
+    let result = Parser::parse_sql("SELECT * INTO \"select\" FROM users");
+    assert!(
+        result.is_ok(),
+        "Should succeed with delimited keyword identifier in SELECT INTO, got error: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_delimited_keyword_in_next_value_for_works() {
+    // Delimited identifiers should allow using keywords
+    let result = Parser::parse_sql("SELECT NEXT VALUE FOR \"table\"");
+    assert!(
+        result.is_ok(),
+        "Should succeed with delimited keyword in NEXT VALUE FOR, got error: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_error_message_includes_suggestion() {
+    // Verify the complete error message format
+    let result = Parser::parse_sql("SELECT * INTO where FROM users");
+    assert!(result.is_err());
+    let error_msg = result.unwrap_err().to_string();
+
+    // Should have all three parts:
+    // 1. "reserved keyword"
+    // 2. The specific keyword (WHERE)
+    // 3. Suggestion to use delimited identifiers
+    assert!(error_msg.contains("reserved keyword"), "Missing 'reserved keyword' in: {}", error_msg);
+    assert!(error_msg.contains("WHERE") || error_msg.contains("Where"), "Missing keyword name in: {}", error_msg);
+    assert!(error_msg.contains("delimited identifiers") || error_msg.contains("\""),
+            "Missing suggestion in: {}", error_msg);
+}
