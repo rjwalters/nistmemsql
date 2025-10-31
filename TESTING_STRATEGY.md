@@ -220,9 +220,10 @@ tests/sql1999/
 - Metrics: total tests, passed, failed, errors, pass rate percentage
 
 **Current Metrics** (739 tests):
-- **85.7% pass rate** (633 passing, 106 errors)
+- **85.4% pass rate** (631 passing, 108 errors)
 - Strong conformance across Core SQL:1999 features
-- Remaining gaps: Need to analyze 106 test failures for patterns and prioritization
+- Recent regression: PR #685 broke 3 previously passing tests
+- Remaining gaps: Need to analyze 108 test failures for patterns and prioritization
 
 ### Future Compliance Matrix (Planned)
 

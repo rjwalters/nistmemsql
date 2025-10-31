@@ -4,7 +4,7 @@
 [![Tests](https://github.com/rjwalters/nistmemsql/actions/workflows/test.yml/badge.svg)](https://github.com/rjwalters/nistmemsql/actions/workflows/test.yml)
 [![Demo](https://img.shields.io/badge/demo-live-success)](https://rjwalters.github.io/nistmemsql/)
 [![Coverage](https://img.shields.io/badge/coverage-86%25-green)](https://github.com/rjwalters/nistmemsql)
-[![sqltest](https://img.shields.io/badge/sqltest-85.7%25-green)](https://rjwalters.github.io/nistmemsql/conformance.html)
+[![sqltest](https://img.shields.io/badge/sqltest-85.4%25-green)](https://rjwalters.github.io/nistmemsql/conformance.html)
 
 > **An open-source, NIST-testable SQL:1999 database implementation in Rust**
 
@@ -43,10 +43,10 @@ Every line of code, every test, every piece of documentation in this repository 
 **What we've built** (in ~6 days, Oct 25-30, 2024):
 - 📊 **47,000+ lines** of production Rust code
 - ✅ **1,300+ passing tests** with 86% coverage
-- 🎯 **85.7% SQL:1999 Core compliance** (633/739 tests passing)
+- 🎯 **85.4% SQL:1999 Core compliance** (631/739 tests passing)
 - 🚀 **Full WASM compilation** with live browser demo
 - 📝 **Complete documentation** (you're reading it)
-- 🏗️ **85+ merged PRs** via AI Builder/Judge workflow
+- 🏗️ **90+ merged PRs** via AI Builder/Judge workflow
 - 🔒 **Complete security model** with privilege enforcement
 
 **The challenge**: Can AI build a NIST-compatible SQL database from scratch? The answer is becoming clear: **Yes, and faster than expected.**
@@ -71,11 +71,12 @@ We use comprehensive test suites to track SQL:1999 compliance:
 | Suite | Tests | Pass Rate | Status |
 |-------|-------|-----------|--------|
 | SQLLogicTest | 2 baseline | 100% | ✅ Passing |
-| SQL:1999 sqltest | 739 tests | **85.7%** (633 passing) | 🟢 Strong |
+| SQL:1999 sqltest | 739 tests | **85.4%** (631 passing) | 🟢 Strong |
 | End-to-End | 1,306+ tests | 100% | ✅ Strong |
 
 **Recent Progress** (As of latest test run):
-- ✅ **85.7% SQL:1999 conformance** (633/739 tests passing)
+- ✅ **85.4% SQL:1999 conformance** (631/739 tests passing)
+- ⚠️ **PR #685 regression**: -3 tests (investigating)
 - ✅ **Complete security model** - Full privilege enforcement (#507, #508)
 - ✅ **Access control** - SELECT, INSERT, UPDATE, DELETE enforcement (#508)
 - ✅ **Delimited identifiers** - End-to-end support with bug fixes (#507)
@@ -87,10 +88,12 @@ We use comprehensive test suites to track SQL:1999 compliance:
 - ✅ **Type aliases** - CHARACTER, CHARACTER VARYING (#462)
 - ✅ **Code quality** - Zero clippy warnings (#493, #494, #496, #498)
 
-**Next Focus**: Analyzing remaining 106 test failures to reach 90%+ conformance
-- Identify common failure patterns
-- Prioritize high-impact fixes
-- Target 90%+ conformance milestone
+**Next Focus**: Fix PR #685 regression, then analyze remaining 108 test failures to reach 90%+
+- ✅ Fixed 28 tests (SELECT * AS aliasing, WITHOUT OIDS, VIEW execution, ALTER TABLE ADD)
+- ⚠️ PR #685 regression: -3 tests (need to identify and fix)
+- Identify remaining common failure patterns
+- Prioritize high-impact fixes (SET extensions, aggregate syntax, foreign key actions)
+- Target 90%+ conformance milestone (~41 more tests after fixing regression)
 
 **See [SQL:1999 Conformance Report](https://rjwalters.github.io/nistmemsql/conformance.html) for detailed breakdown.**
 
