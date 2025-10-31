@@ -36,6 +36,8 @@ pub struct SelectStmt {
     pub with_clause: Option<Vec<CommonTableExpr>>,
     pub distinct: bool,
     pub select_list: Vec<SelectItem>,
+    /// Optional INTO clause for SELECT INTO statements (SQL:1999 Feature E111)
+    pub into_table: Option<String>,
     pub from: Option<FromClause>,
     pub where_clause: Option<Expression>,
     pub group_by: Option<Vec<Expression>>,
@@ -60,6 +62,8 @@ pub struct SetOperation {
 pub enum SelectItem {
     /// SELECT *
     Wildcard,
+    /// SELECT table.* or SELECT alias.*
+    QualifiedWildcard { qualifier: String },
     /// SELECT expr [AS alias]
     Expression { expr: Expression, alias: Option<String> },
 }

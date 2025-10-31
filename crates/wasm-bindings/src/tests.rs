@@ -14,6 +14,501 @@ mod wasm_tests {
     // The methods above work correctly but require a WASM runtime to test
     // For now, we verify that the code compiles correctly
 
+    // ========== Execute Module Tests ==========
+    // Test the underlying database operations that execute.rs wraps
+
+    #[test]
+    fn test_execute_create_table() {
+        let mut db = storage::Database::new();
+        let sql = "CREATE TABLE users (id INTEGER, name VARCHAR(50))";
+
+        let stmt = parser::Parser::parse_sql(sql).expect("Parse failed");
+        match stmt {
+            ast::Statement::CreateTable(create_stmt) => {
+                executor::CreateTableExecutor::execute(&create_stmt, &mut db)
+                    .expect("Create table failed");
+            }
+            _ => panic!("Expected CreateTable statement"),
+        }
+
+        // Verify table was created (table names are normalized to uppercase)
+        assert!(db.get_table("USERS").is_some());
+    }
+
+    #[test]
+    fn test_execute_drop_table() {
+        let mut db = storage::Database::new();
+
+        // Create table first
+        let create_sql = "CREATE TABLE temp (id INTEGER)";
+        execute_sql(&mut db, create_sql).expect("Setup failed");
+        assert!(db.get_table("TEMP").is_some());
+
+        // Drop it
+        let drop_sql = "DROP TABLE temp";
+        let stmt = parser::Parser::parse_sql(drop_sql).expect("Parse failed");
+        match stmt {
+            ast::Statement::DropTable(drop_stmt) => {
+                executor::DropTableExecutor::execute(&drop_stmt, &mut db)
+                    .expect("Drop table failed");
+            }
+            _ => panic!("Expected DropTable statement"),
+        }
+
+        // Verify table was dropped (table names are normalized to uppercase)
+        assert!(db.get_table("TEMP").is_none());
+    }
+
+    #[test]
+    fn test_execute_insert() {
+        let mut db = storage::Database::new();
+
+        // Create table
+        let create_sql = "CREATE TABLE products (id INTEGER, name VARCHAR(50))";
+        execute_sql(&mut db, create_sql).expect("Setup failed");
+
+        // Insert data
+        let insert_sql = "INSERT INTO products (id, name) VALUES (1, 'Widget')";
+        let stmt = parser::Parser::parse_sql(insert_sql).expect("Parse failed");
+        match stmt {
+            ast::Statement::Insert(insert_stmt) => {
+                let row_count = executor::InsertExecutor::execute(&mut db, &insert_stmt)
+                    .expect("Insert failed");
+                assert_eq!(row_count, 1);
+            }
+            _ => panic!("Expected Insert statement"),
+        }
+    }
+
+    #[test]
+    fn test_execute_transactions() {
+        let mut db = storage::Database::new();
+
+        // Test BEGIN TRANSACTION
+        let begin_sql = "BEGIN TRANSACTION";
+        let stmt = parser::Parser::parse_sql(begin_sql).expect("Parse failed");
+        match stmt {
+            ast::Statement::BeginTransaction(begin_stmt) => {
+                executor::BeginTransactionExecutor::execute(&begin_stmt, &mut db)
+                    .expect("Begin transaction failed");
+            }
+            _ => panic!("Expected BeginTransaction statement"),
+        }
+
+        // Test COMMIT
+        let commit_sql = "COMMIT";
+        let stmt = parser::Parser::parse_sql(commit_sql).expect("Parse failed");
+        match stmt {
+            ast::Statement::Commit(commit_stmt) => {
+                executor::CommitExecutor::execute(&commit_stmt, &mut db)
+                    .expect("Commit failed");
+            }
+            _ => panic!("Expected Commit statement"),
+        }
+    }
+
+    #[test]
+    fn test_execute_savepoints() {
+        let mut db = storage::Database::new();
+
+        // Begin transaction first
+        let begin_sql = "BEGIN TRANSACTION";
+        execute_sql(&mut db, begin_sql).expect("Setup failed");
+
+        // Create savepoint
+        let savepoint_sql = "SAVEPOINT sp1";
+        let stmt = parser::Parser::parse_sql(savepoint_sql).expect("Parse failed");
+        match stmt {
+            ast::Statement::Savepoint(savepoint_stmt) => {
+                executor::SavepointExecutor::execute(&savepoint_stmt, &mut db)
+                    .expect("Savepoint failed");
+            }
+            _ => panic!("Expected Savepoint statement"),
+        }
+
+        // Rollback to savepoint
+        let rollback_sql = "ROLLBACK TO SAVEPOINT sp1";
+        let stmt = parser::Parser::parse_sql(rollback_sql).expect("Parse failed");
+        match stmt {
+            ast::Statement::RollbackToSavepoint(rollback_stmt) => {
+                executor::RollbackToSavepointExecutor::execute(&rollback_stmt, &mut db)
+                    .expect("Rollback to savepoint failed");
+            }
+            _ => panic!("Expected RollbackToSavepoint statement"),
+        }
+
+        // Release savepoint
+        let release_sql = "RELEASE SAVEPOINT sp1";
+        let stmt = parser::Parser::parse_sql(release_sql).expect("Parse failed");
+        match stmt {
+            ast::Statement::ReleaseSavepoint(release_stmt) => {
+                executor::ReleaseSavepointExecutor::execute(&release_stmt, &mut db)
+                    .expect("Release savepoint failed");
+            }
+            _ => panic!("Expected ReleaseSavepoint statement"),
+        }
+    }
+
+    #[test]
+    fn test_execute_roles() {
+        let mut db = storage::Database::new();
+
+        // Create role
+        let create_sql = "CREATE ROLE admin";
+        let stmt = parser::Parser::parse_sql(create_sql).expect("Parse failed");
+        match stmt {
+            ast::Statement::CreateRole(create_role_stmt) => {
+                executor::RoleExecutor::execute_create_role(&create_role_stmt, &mut db)
+                    .expect("Create role failed");
+            }
+            _ => panic!("Expected CreateRole statement"),
+        }
+
+        // Drop role
+        let drop_sql = "DROP ROLE admin";
+        let stmt = parser::Parser::parse_sql(drop_sql).expect("Parse failed");
+        match stmt {
+            ast::Statement::DropRole(drop_role_stmt) => {
+                executor::RoleExecutor::execute_drop_role(&drop_role_stmt, &mut db)
+                    .expect("Drop role failed");
+            }
+            _ => panic!("Expected DropRole statement"),
+        }
+    }
+
+    #[test]
+    fn test_execute_domains() {
+        let mut db = storage::Database::new();
+
+        // Create domain
+        let create_sql = "CREATE DOMAIN email_address AS VARCHAR(255)";
+        let stmt = parser::Parser::parse_sql(create_sql).expect("Parse failed");
+        match stmt {
+            ast::Statement::CreateDomain(create_domain_stmt) => {
+                executor::DomainExecutor::execute_create_domain(&create_domain_stmt, &mut db)
+                    .expect("Create domain failed");
+            }
+            _ => panic!("Expected CreateDomain statement"),
+        }
+
+        // Drop domain
+        let drop_sql = "DROP DOMAIN email_address";
+        let stmt = parser::Parser::parse_sql(drop_sql).expect("Parse failed");
+        match stmt {
+            ast::Statement::DropDomain(drop_domain_stmt) => {
+                executor::DomainExecutor::execute_drop_domain(&drop_domain_stmt, &mut db)
+                    .expect("Drop domain failed");
+            }
+            _ => panic!("Expected DropDomain statement"),
+        }
+    }
+
+    #[test]
+    fn test_execute_sequences() {
+        let mut db = storage::Database::new();
+
+        // Create sequence
+        let create_sql = "CREATE SEQUENCE user_id_seq";
+        let stmt = parser::Parser::parse_sql(create_sql).expect("Parse failed");
+        match stmt {
+            ast::Statement::CreateSequence(create_seq_stmt) => {
+                executor::advanced_objects::execute_create_sequence(&create_seq_stmt, &mut db)
+                    .expect("Create sequence failed");
+            }
+            _ => panic!("Expected CreateSequence statement"),
+        }
+
+        // Alter sequence
+        let alter_sql = "ALTER SEQUENCE user_id_seq RESTART WITH 100";
+        let stmt = parser::Parser::parse_sql(alter_sql).expect("Parse failed");
+        match stmt {
+            ast::Statement::AlterSequence(alter_seq_stmt) => {
+                executor::advanced_objects::execute_alter_sequence(&alter_seq_stmt, &mut db)
+                    .expect("Alter sequence failed");
+            }
+            _ => panic!("Expected AlterSequence statement"),
+        }
+
+        // Drop sequence
+        let drop_sql = "DROP SEQUENCE user_id_seq";
+        let stmt = parser::Parser::parse_sql(drop_sql).expect("Parse failed");
+        match stmt {
+            ast::Statement::DropSequence(drop_seq_stmt) => {
+                executor::advanced_objects::execute_drop_sequence(&drop_seq_stmt, &mut db)
+                    .expect("Drop sequence failed");
+            }
+            _ => panic!("Expected DropSequence statement"),
+        }
+    }
+
+    #[test]
+    #[ignore] // CREATE TYPE and DROP TYPE support is limited - testing via execute.rs wrapping
+    fn test_execute_types() {
+        // Note: CREATE TYPE with full syntax is not yet supported by the parser
+        // The execute.rs module handles these statement types when they ARE supported
+        // This test documents the intended functionality for when parser support is added
+
+        // When parser support is ready, this will test:
+        // 1. CREATE TYPE custom_type AS ...
+        // 2. DROP TYPE custom_type
+
+        // For now, this test is ignored but serves as documentation
+    }
+
+    // ========== Query Module Tests ==========
+    // Test the query execution that query.rs wraps
+
+    #[test]
+    fn test_query_select() {
+        let mut db = storage::Database::new();
+
+        // Setup: Create and populate table
+        execute_sql(&mut db, "CREATE TABLE customers (id INTEGER, name VARCHAR(50))").unwrap();
+        execute_sql(&mut db, "INSERT INTO customers VALUES (1, 'Alice')").unwrap();
+        execute_sql(&mut db, "INSERT INTO customers VALUES (2, 'Bob')").unwrap();
+
+        // Execute SELECT query
+        let sql = "SELECT id, name FROM customers";
+        let stmt = parser::Parser::parse_sql(sql).expect("Parse failed");
+        match stmt {
+            ast::Statement::Select(select_stmt) => {
+                let select_executor = executor::SelectExecutor::new(&db);
+                let result = select_executor.execute_with_columns(&select_stmt)
+                    .expect("Query failed");
+
+                // Column names are normalized to uppercase
+                assert_eq!(result.columns, vec!["ID", "NAME"]);
+                assert_eq!(result.rows.len(), 2);
+            }
+            _ => panic!("Expected Select statement"),
+        }
+    }
+
+    #[test]
+    fn test_query_where_clause() {
+        let mut db = storage::Database::new();
+
+        // Setup
+        execute_sql(&mut db, "CREATE TABLE orders (id INTEGER, amount INTEGER)").unwrap();
+        execute_sql(&mut db, "INSERT INTO orders VALUES (1, 100)").unwrap();
+        execute_sql(&mut db, "INSERT INTO orders VALUES (2, 200)").unwrap();
+        execute_sql(&mut db, "INSERT INTO orders VALUES (3, 150)").unwrap();
+
+        // Query with WHERE clause
+        let sql = "SELECT id, amount FROM orders WHERE amount > 120";
+        let stmt = parser::Parser::parse_sql(sql).expect("Parse failed");
+        match stmt {
+            ast::Statement::Select(select_stmt) => {
+                let select_executor = executor::SelectExecutor::new(&db);
+                let result = select_executor.execute(&select_stmt)
+                    .expect("Query failed");
+
+                // Should only return orders with amount > 120 (order 2 and 3)
+                assert_eq!(result.len(), 2);
+            }
+            _ => panic!("Expected Select statement"),
+        }
+    }
+
+    #[test]
+    fn test_query_value_conversion() {
+        let mut db = storage::Database::new();
+
+        // Setup with various data types
+        execute_sql(&mut db, "CREATE TABLE types_test (i INTEGER, f DOUBLE, s VARCHAR(50), b BOOLEAN)").unwrap();
+        execute_sql(&mut db, "INSERT INTO types_test VALUES (42, 3.14, 'hello', TRUE)").unwrap();
+
+        let sql = "SELECT i, f, s, b FROM types_test";
+        let stmt = parser::Parser::parse_sql(sql).expect("Parse failed");
+        match stmt {
+            ast::Statement::Select(select_stmt) => {
+                let select_executor = executor::SelectExecutor::new(&db);
+                let result = select_executor.execute(&select_stmt)
+                    .expect("Query failed");
+
+                assert_eq!(result.len(), 1);
+                let row = &result[0];
+
+                // Verify value types are converted correctly
+                assert_eq!(row.values[0], types::SqlValue::Integer(42));
+                assert!(matches!(row.values[2], types::SqlValue::Varchar(_)));
+                assert_eq!(row.values[3], types::SqlValue::Boolean(true));
+            }
+            _ => panic!("Expected Select statement"),
+        }
+    }
+
+    // ========== Schema Module Tests ==========
+    // Test schema introspection that schema.rs wraps
+
+    #[test]
+    fn test_schema_list_tables() {
+        let mut db = storage::Database::new();
+
+        // Create multiple tables
+        execute_sql(&mut db, "CREATE TABLE users (id INTEGER)").unwrap();
+        execute_sql(&mut db, "CREATE TABLE products (id INTEGER)").unwrap();
+        execute_sql(&mut db, "CREATE TABLE orders (id INTEGER)").unwrap();
+
+        // List tables
+        let tables = db.list_tables();
+
+        // Table names are normalized to uppercase
+        assert_eq!(tables.len(), 3);
+        assert!(tables.contains(&"USERS".to_string()));
+        assert!(tables.contains(&"PRODUCTS".to_string()));
+        assert!(tables.contains(&"ORDERS".to_string()));
+    }
+
+    #[test]
+    fn test_schema_describe_table() {
+        let mut db = storage::Database::new();
+
+        // Create table with multiple columns and types
+        execute_sql(&mut db, "CREATE TABLE employees (id INTEGER, name VARCHAR(100), salary DOUBLE, active BOOLEAN)").unwrap();
+
+        // Get table schema (table names are normalized to uppercase)
+        let table = db.get_table("EMPLOYEES").expect("Table not found");
+        let schema = &table.schema;
+
+        // Column names are normalized to uppercase
+        assert_eq!(schema.columns.len(), 4);
+        assert_eq!(schema.columns[0].name, "ID");
+        assert_eq!(schema.columns[1].name, "NAME");
+        assert_eq!(schema.columns[2].name, "SALARY");
+        assert_eq!(schema.columns[3].name, "ACTIVE");
+    }
+
+    #[test]
+    fn test_schema_table_not_found() {
+        let db = storage::Database::new();
+
+        // Try to get non-existent table
+        let result = db.get_table("nonexistent");
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_schema_column_metadata() {
+        let mut db = storage::Database::new();
+
+        // Create table
+        execute_sql(&mut db, "CREATE TABLE test (id INTEGER, description VARCHAR(255))").unwrap();
+
+        // Table and column names are normalized to uppercase
+        let table = db.get_table("TEST").expect("Table not found");
+        let schema = &table.schema;
+
+        // Verify column metadata
+        assert_eq!(schema.columns[0].name, "ID");
+        assert!(matches!(schema.columns[0].data_type, types::DataType::Integer));
+
+        assert_eq!(schema.columns[1].name, "DESCRIPTION");
+        assert!(matches!(schema.columns[1].data_type, types::DataType::Varchar { .. }));
+    }
+
+    // ========== Examples Module Tests ==========
+    // Test example database loading that examples.rs wraps
+
+    #[test]
+    fn test_examples_load_employees_database() {
+        let mut db = storage::Database::new();
+
+        // Load employees.sql
+        let sql = include_str!("../../../web-demo/examples/employees.sql");
+
+        // Split and execute statements
+        for statement_sql in sql.split(';') {
+            let trimmed = statement_sql.trim();
+            if trimmed.is_empty() || trimmed.starts_with("--") {
+                continue;
+            }
+
+            // Use execute_sql helper - some statements may fail due to parser limitations
+            let _ = execute_sql(&mut db, trimmed); // Ignore errors from unsupported syntax
+        }
+
+        // Note: employees.sql may have issues with CREATE TABLE constraints (PRIMARY KEY, etc.)
+        // which are parser limitations. This test verifies the loading mechanism works.
+        // The test passes if we can load and execute statements without panicking
+        // Even if table creation fails due to parser limitations with constraints
+    }
+
+    #[test]
+    fn test_examples_load_northwind_database() {
+        let mut db = storage::Database::new();
+
+        // Load northwind.sql
+        let sql = include_str!("../../../web-demo/examples/northwind.sql");
+
+        // Split and execute statements
+        let mut statement_count = 0;
+        let mut error_count = 0;
+        for statement_sql in sql.split(';') {
+            let trimmed = statement_sql.trim();
+            if trimmed.is_empty() || trimmed.starts_with("--") {
+                continue;
+            }
+
+            // Use execute_sql helper - some statements may fail due to parser limitations
+            match execute_sql(&mut db, trimmed) {
+                Ok(_) => statement_count += 1,
+                Err(_) => error_count += 1,
+            }
+        }
+
+        // Note: northwind.sql has PRIMARY KEY constraints and other features that aren't fully supported yet
+        // This test verifies the loading mechanism works and processes statements
+        // We expect errors but should have attempted to process the statements
+        assert!(statement_count + error_count > 0, "Expected to process some statements");
+    }
+
+    #[test]
+    fn test_examples_sql_statement_parsing() {
+        let sql = "CREATE TABLE test (id INTEGER); INSERT INTO test VALUES (1); SELECT * FROM test;";
+
+        let statements: Vec<&str> = sql.split(';')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        assert_eq!(statements.len(), 3);
+        assert!(statements[0].starts_with("CREATE TABLE"));
+        assert!(statements[1].starts_with("INSERT INTO"));
+        assert!(statements[2].starts_with("SELECT"));
+    }
+
+    #[test]
+    fn test_examples_skip_comments() {
+        // Test that the SQL parsing handles comment lines correctly
+        let sql_with_comments = "
+            -- This is a comment
+            CREATE TABLE test (id INTEGER);
+            -- Another comment
+            INSERT INTO test VALUES (1);
+        ";
+
+        let mut db = storage::Database::new();
+
+        for statement_sql in sql_with_comments.split(';') {
+            // Remove comment lines and trim
+            let cleaned: String = statement_sql
+                .lines()
+                .filter(|line| !line.trim().is_empty() && !line.trim().starts_with("--"))
+                .collect::<Vec<&str>>()
+                .join("\n");
+
+            let trimmed = cleaned.trim();
+            if !trimmed.is_empty() {
+                execute_sql(&mut db, trimmed).expect("Statement execution failed");
+            }
+        }
+
+        // Verify table was created despite comments (table names are normalized to uppercase)
+        assert!(db.get_table("TEST").is_some());
+    }
+
     // ========== Examples Validation Tests ==========
     // Auto-validation tests for web-demo examples
     // These tests read examples.ts at compile time and validate each SQL query

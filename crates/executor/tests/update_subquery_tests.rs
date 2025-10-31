@@ -32,6 +32,7 @@ fn test_update_with_scalar_subquery_single_value() {
 
     // UPDATE employees SET salary = (SELECT max_salary FROM config)
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
 
         distinct: false,
@@ -39,6 +40,7 @@ fn test_update_with_scalar_subquery_single_value() {
             expr: Expression::ColumnRef { table: None, column: "max_salary".to_string() },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "config".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -97,6 +99,7 @@ fn test_update_with_scalar_subquery_max_aggregate() {
 
     // UPDATE employees SET salary = (SELECT MAX(amount) FROM salaries)
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
@@ -107,6 +110,7 @@ fn test_update_with_scalar_subquery_max_aggregate() {
             },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "salaries".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -165,6 +169,7 @@ fn test_update_with_scalar_subquery_min_aggregate() {
 
     // UPDATE products SET price = (SELECT MIN(amount) FROM prices)
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
@@ -175,6 +180,7 @@ fn test_update_with_scalar_subquery_min_aggregate() {
             },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "prices".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -233,6 +239,7 @@ fn test_update_with_scalar_subquery_avg_aggregate() {
 
     // UPDATE employees SET salary = (SELECT AVG(amount) FROM salaries)
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
@@ -243,6 +250,7 @@ fn test_update_with_scalar_subquery_avg_aggregate() {
             },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "salaries".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -300,6 +308,7 @@ fn test_update_with_scalar_subquery_returns_null() {
 
     // UPDATE employees SET salary = (SELECT max_salary FROM config)
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
 
         distinct: false,
@@ -307,6 +316,7 @@ fn test_update_with_scalar_subquery_returns_null() {
             expr: Expression::ColumnRef { table: None, column: "max_salary".to_string() },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "config".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -362,6 +372,7 @@ fn test_update_with_scalar_subquery_empty_result() {
 
     // UPDATE employees SET salary = (SELECT max_salary FROM config) -- returns NULL
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
 
         distinct: false,
@@ -369,6 +380,7 @@ fn test_update_with_scalar_subquery_empty_result() {
             expr: Expression::ColumnRef { table: None, column: "max_salary".to_string() },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "config".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -431,6 +443,7 @@ fn test_update_with_multiple_subqueries() {
 
     // UPDATE employees SET min_sal = (SELECT MIN(amount) FROM salaries), max_sal = (SELECT MAX(amount) FROM salaries)
     let min_subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
@@ -441,6 +454,7 @@ fn test_update_with_multiple_subqueries() {
             },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "salaries".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -452,6 +466,7 @@ fn test_update_with_multiple_subqueries() {
     });
 
     let max_subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
@@ -462,6 +477,7 @@ fn test_update_with_multiple_subqueries() {
             },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "salaries".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -526,6 +542,7 @@ fn test_update_with_subquery_multiple_rows_error() {
 
     // UPDATE employees SET salary = (SELECT amount FROM salaries) -- ERROR: multiple rows
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
 
         distinct: false,
@@ -533,6 +550,7 @@ fn test_update_with_subquery_multiple_rows_error() {
             expr: Expression::ColumnRef { table: None, column: "amount".to_string() },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "salaries".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -594,6 +612,7 @@ fn test_update_with_subquery_multiple_columns_error() {
 
     // UPDATE employees SET salary = (SELECT min_amt, max_amt FROM salaries) -- ERROR: 2 columns
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
 
         distinct: false,
@@ -607,6 +626,7 @@ fn test_update_with_subquery_multiple_columns_error() {
                 alias: None,
             },
         ],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "salaries".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -669,6 +689,7 @@ fn test_update_with_subquery_updates_multiple_rows() {
 
     // UPDATE employees SET salary = (SELECT base_salary FROM config) -- all rows
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
 
         distinct: false,
@@ -676,6 +697,7 @@ fn test_update_with_subquery_updates_multiple_rows() {
             expr: Expression::ColumnRef { table: None, column: "base_salary".to_string() },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "config".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -735,6 +757,7 @@ fn test_update_with_subquery_and_where_clause() {
 
     // UPDATE employees SET salary = (SELECT max_salary FROM config) WHERE id = 1
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
 
         distinct: false,
@@ -742,6 +765,7 @@ fn test_update_with_subquery_and_where_clause() {
             expr: Expression::ColumnRef { table: None, column: "max_salary".to_string() },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "config".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -819,12 +843,14 @@ fn test_update_where_in_subquery() {
 
     // Build subquery: SELECT dept_id FROM active_depts
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::ColumnRef { table: None, column: "dept_id".to_string() },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "active_depts".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -896,12 +922,14 @@ fn test_update_where_not_in_subquery() {
 
     // Subquery
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::ColumnRef { table: None, column: "dept_id".to_string() },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "active_depts".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -965,12 +993,14 @@ fn test_update_where_scalar_subquery_equal() {
 
     // Subquery: SELECT min_salary FROM config
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::ColumnRef { table: None, column: "min_salary".to_string() },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "config".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -1032,6 +1062,7 @@ fn test_update_where_scalar_subquery_less_than() {
 
     // Subquery: SELECT AVG(salary) FROM employees
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
@@ -1042,6 +1073,7 @@ fn test_update_where_scalar_subquery_less_than() {
             },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "employees".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -1105,12 +1137,14 @@ fn test_update_where_subquery_empty_result() {
 
     // Subquery returns empty result
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::ColumnRef { table: None, column: "dept_id".to_string() },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "inactive_depts".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -1169,12 +1203,14 @@ fn test_update_where_subquery_returns_null() {
 
     // Subquery returns NULL (empty result)
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::ColumnRef { table: None, column: "max_salary".to_string() },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "config".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -1240,6 +1276,7 @@ fn test_update_where_subquery_with_aggregate() {
 
     // Subquery: SELECT MAX(price) FROM items
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
@@ -1250,6 +1287,7 @@ fn test_update_where_subquery_with_aggregate() {
             },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "items".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -1326,12 +1364,14 @@ fn test_update_where_complex_subquery_condition() {
 
     // Subquery: SELECT dept_id FROM departments WHERE budget > 80000
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::ColumnRef { table: None, column: "dept_id".to_string() },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "departments".to_string(), alias: None }),
         where_clause: Some(Expression::BinaryOp {
             left: Box::new(Expression::ColumnRef { table: None, column: "budget".to_string() }),
@@ -1411,12 +1451,14 @@ fn test_update_where_multiple_rows_in_subquery() {
 
     // Subquery returns multiple rows (valid for IN)
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::ColumnRef { table: None, column: "dept_id".to_string() },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "active_depts".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -1495,12 +1537,14 @@ fn test_update_where_and_set_both_use_subqueries() {
 
     // SET subquery
     let set_subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::ColumnRef { table: None, column: "target".to_string() },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "salary_targets".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -1513,12 +1557,14 @@ fn test_update_where_and_set_both_use_subqueries() {
 
     // WHERE subquery
     let where_subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: Expression::ColumnRef { table: None, column: "dept_id".to_string() },
             alias: None,
         }],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "active_depts".to_string(), alias: None }),
         where_clause: None,
         group_by: None,

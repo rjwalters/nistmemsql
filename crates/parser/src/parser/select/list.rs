@@ -22,6 +22,30 @@ impl Parser {
 
     /// Parse a single SELECT item
     pub(crate) fn parse_select_item(&mut self) -> Result<ast::SelectItem, ParseError> {
+        // Check for qualified wildcard (table.* or alias.*)
+        let saved_position = self.position;
+        let qualifier = if let Token::Identifier(ref qualifier) | Token::DelimitedIdentifier(ref qualifier) = self.peek() {
+            Some(qualifier.clone())
+        } else {
+            None
+        };
+
+        if let Some(qualifier) = qualifier {
+            self.advance(); // consume identifier
+
+            if matches!(self.peek(), Token::Symbol('.')) {
+                self.advance(); // consume dot
+
+                if matches!(self.peek(), Token::Symbol('*')) {
+                    self.advance(); // consume asterisk
+                    return Ok(ast::SelectItem::QualifiedWildcard { qualifier });
+                }
+            }
+        }
+
+        // Not a qualified wildcard, backtrack
+        self.position = saved_position;
+
         // Check for wildcard (*)
         if matches!(self.peek(), Token::Symbol('*')) {
             self.advance();

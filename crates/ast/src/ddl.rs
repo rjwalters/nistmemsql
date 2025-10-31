@@ -3,6 +3,15 @@
 use crate::Expression;
 use types::DataType;
 
+/// Referential action for foreign key constraints
+#[derive(Debug, Clone, PartialEq)]
+pub enum ReferentialAction {
+    NoAction,
+    Cascade,
+    SetNull,
+    SetDefault,
+}
+
 /// CREATE TABLE statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct CreateTableStmt {
@@ -35,7 +44,12 @@ pub enum ColumnConstraintKind {
     PrimaryKey,
     Unique,
     Check(Box<Expression>),
-    References { table: String, column: String },
+    References {
+        table: String,
+        column: String,
+        on_delete: Option<ReferentialAction>,
+        on_update: Option<ReferentialAction>,
+    },
 }
 
 /// Table-level constraint
@@ -49,7 +63,13 @@ pub struct TableConstraint {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TableConstraintKind {
     PrimaryKey { columns: Vec<String> },
-    ForeignKey { columns: Vec<String>, references_table: String, references_columns: Vec<String> },
+    ForeignKey {
+        columns: Vec<String>,
+        references_table: String,
+        references_columns: Vec<String>,
+        on_delete: Option<ReferentialAction>,
+        on_update: Option<ReferentialAction>,
+    },
     Unique { columns: Vec<String> },
     Check { expr: Box<Expression> },
 }
@@ -166,6 +186,32 @@ pub struct DropSchemaStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub struct SetSchemaStmt {
     pub schema_name: String,
+}
+
+/// SET CATALOG statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct SetCatalogStmt {
+    pub catalog_name: String,
+}
+
+/// SET NAMES statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct SetNamesStmt {
+    pub charset_name: String,
+    pub collation: Option<String>,
+}
+
+/// SET TIME ZONE statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct SetTimeZoneStmt {
+    pub zone: TimeZoneSpec,
+}
+
+/// Time zone specification for SET TIME ZONE
+#[derive(Debug, Clone, PartialEq)]
+pub enum TimeZoneSpec {
+    Local,
+    Interval(String), // e.g., "+05:00"
 }
 
 /// CREATE ROLE statement

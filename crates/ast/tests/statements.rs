@@ -11,6 +11,7 @@ fn test_create_select_statement() {
         with_clause: None,
         distinct: false,
         select_list: vec![SelectItem::Wildcard],
+        into_table: None,
         from: None,
         where_clause: None,
         group_by: None,

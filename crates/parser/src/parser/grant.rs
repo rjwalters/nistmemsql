@@ -21,7 +21,7 @@ pub fn parse_grant(parser: &mut crate::Parser) -> Result<GrantStmt, ParseError> 
 
     parser.expect_keyword(Keyword::On)?;
 
-    // Detect TABLE vs SCHEMA (defaults to TABLE if not specified)
+    // Detect TABLE vs SCHEMA (with context-aware defaults)
     let object_type = if parser.peek() == &Token::Keyword(Keyword::Table) {
         parser.advance(); // consume TABLE
         ObjectType::Table
@@ -29,8 +29,14 @@ pub fn parse_grant(parser: &mut crate::Parser) -> Result<GrantStmt, ParseError> 
         parser.advance(); // consume SCHEMA
         ObjectType::Schema
     } else {
-        // Default to TABLE if not specified (SQL standard behavior)
-        ObjectType::Table
+        // When no object type is specified, infer from privilege type
+        // USAGE privilege defaults to Schema (SQL:1999 E081-09)
+        // Other privileges default to Table (SQL standard behavior)
+        if privileges.contains(&PrivilegeType::Usage) {
+            ObjectType::Schema
+        } else {
+            ObjectType::Table
+        }
     };
 
     // Parse object name (supports qualified names like "schema.table")
@@ -85,11 +91,19 @@ fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>
             }
             Token::Keyword(Keyword::Update) => {
                 parser.advance();
-                PrivilegeType::Update
+                // Check for optional column list
+                let columns = parse_optional_column_list(parser)?;
+                PrivilegeType::Update(columns)
             }
             Token::Keyword(Keyword::Delete) => {
                 parser.advance();
                 PrivilegeType::Delete
+            }
+            Token::Keyword(Keyword::References) => {
+                parser.advance();
+                // Check for optional column list
+                let columns = parse_optional_column_list(parser)?;
+                PrivilegeType::References(columns)
             }
             Token::Keyword(Keyword::Usage) => {
                 parser.advance();
@@ -114,7 +128,7 @@ fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>
             _ => {
                 return Err(ParseError {
                     message: format!(
-                        "Expected privilege keyword (SELECT, INSERT, UPDATE, DELETE, USAGE, CREATE, EXECUTE, TRIGGER, UNDER, ALL), found {:?}",
+                        "Expected privilege keyword (SELECT, INSERT, UPDATE, DELETE, REFERENCES, USAGE, CREATE, EXECUTE, TRIGGER, UNDER, ALL), found {:?}",
                         parser.peek()
                     ),
                 })
@@ -132,6 +146,32 @@ fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>
     }
 
     Ok(privileges)
+}
+
+/// Parse optional column list for UPDATE/REFERENCES privileges
+///
+/// If next token is '(', parses column list and returns Some(vec).
+/// Otherwise returns None for table-level privilege.
+fn parse_optional_column_list(parser: &mut crate::Parser) -> Result<Option<Vec<String>>, ParseError> {
+    if parser.peek() == &Token::LParen {
+        parser.advance(); // consume '('
+
+        // Parse comma-separated column list
+        let columns = parse_identifier_list(parser)?;
+
+        // Expect closing ')'
+        if parser.peek() != &Token::RParen {
+            return Err(ParseError {
+                message: format!("Expected ')' after column list, found {:?}", parser.peek()),
+            });
+        }
+        parser.advance(); // consume ')'
+
+        Ok(Some(columns))
+    } else {
+        // No column list - table-level privilege
+        Ok(None)
+    }
 }
 
 /// Parse a comma-separated list of identifiers

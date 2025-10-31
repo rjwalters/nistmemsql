@@ -144,6 +144,42 @@ impl Database {
                 serde_wasm_bindgen::to_value(&result)
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
+            ast::Statement::SetCatalog(set_stmt) => {
+                let message = executor::SchemaExecutor::execute_set_catalog(&set_stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message,
+                };
+
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
+            ast::Statement::SetNames(set_stmt) => {
+                let message = executor::SchemaExecutor::execute_set_names(&set_stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message,
+                };
+
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
+            ast::Statement::SetTimeZone(set_stmt) => {
+                let message = executor::SchemaExecutor::execute_set_time_zone(&set_stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message,
+                };
+
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
             ast::Statement::Grant(grant_stmt) => {
                 let message = executor::GrantExecutor::execute_grant(&grant_stmt, &mut self.db)
                     .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
