@@ -21,9 +21,7 @@ use ast::*;
 ///
 /// Syntax: CREATE SEQUENCE sequence_name [START WITH n] [INCREMENT BY n]
 /// Minimal implementation: CREATE SEQUENCE sequence_name
-pub fn parse_create_sequence(
-    parser: &mut crate::Parser,
-) -> Result<CreateSequenceStmt, ParseError> {
+pub fn parse_create_sequence(parser: &mut crate::Parser) -> Result<CreateSequenceStmt, ParseError> {
     parser.expect_keyword(Keyword::Create)?;
     parser.expect_keyword(Keyword::Sequence)?;
 

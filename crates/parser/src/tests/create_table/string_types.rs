@@ -283,7 +283,10 @@ fn test_parse_char_varing_equivalence() {
     let varchar_stmt = varchar_result.unwrap();
 
     match (varing_stmt, varchar_stmt) {
-        (ast::Statement::CreateTable(varing_create), ast::Statement::CreateTable(varchar_create)) => {
+        (
+            ast::Statement::CreateTable(varing_create),
+            ast::Statement::CreateTable(varchar_create),
+        ) => {
             // Both should produce the same data type
             assert_eq!(varing_create.columns[0].data_type, varchar_create.columns[0].data_type);
         }
