@@ -32,7 +32,7 @@ fn test_check_select_with_privilege() {
     let grant = PrivilegeGrant {
         object: "test_table".to_string(),
         object_type: ObjectType::Table,
-        privilege: PrivilegeType::Select,
+        privilege: PrivilegeType::Select(None),
         grantee: "user1".to_string(),
         grantor: "admin".to_string(),
         with_grant_option: false,
@@ -104,7 +104,7 @@ fn test_check_insert_with_privilege() {
     let grant = PrivilegeGrant {
         object: "test_table".to_string(),
         object_type: ObjectType::Table,
-        privilege: PrivilegeType::Insert,
+        privilege: PrivilegeType::Insert(None),
         grantee: "user1".to_string(),
         grantor: "admin".to_string(),
         with_grant_option: false,
@@ -424,7 +424,7 @@ fn test_hierarchical_privilege_checks() {
     let grant = PrivilegeGrant {
         object: "test_table".to_string(),
         object_type: ObjectType::Table,
-        privilege: PrivilegeType::Select,
+        privilege: PrivilegeType::Select(None),
         grantee: "user1".to_string(),
         grantor: "admin".to_string(),
         with_grant_option: false,
@@ -496,7 +496,7 @@ fn test_role_based_privileges() {
     let grant = PrivilegeGrant {
         object: "test_table".to_string(),
         object_type: ObjectType::Table,
-        privilege: PrivilegeType::Select,
+        privilege: PrivilegeType::Select(None),
         grantee: "role1".to_string(),
         grantor: "admin".to_string(),
         with_grant_option: false,

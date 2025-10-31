@@ -130,11 +130,15 @@ fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>
         let priv_type = match parser.peek() {
             Token::Keyword(Keyword::Select) => {
                 parser.advance();
-                PrivilegeType::Select
+                // Check for optional column list (SQL:1999 Feature F031-03)
+                let columns = parse_optional_column_list(parser)?;
+                PrivilegeType::Select(columns)
             }
             Token::Keyword(Keyword::Insert) => {
                 parser.advance();
-                PrivilegeType::Insert
+                // Check for optional column list (SQL:1999 Feature F031-03)
+                let columns = parse_optional_column_list(parser)?;
+                PrivilegeType::Insert(columns)
             }
             Token::Keyword(Keyword::Update) => {
                 parser.advance();

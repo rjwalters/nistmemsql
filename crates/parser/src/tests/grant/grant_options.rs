@@ -13,7 +13,7 @@ fn test_parse_grant_with_grant_option() {
 
     match result.unwrap() {
         Statement::Grant(grant_stmt) => {
-            assert_eq!(grant_stmt.privileges[0], PrivilegeType::Select);
+            assert_eq!(grant_stmt.privileges[0], PrivilegeType::Select(None));
             assert_eq!(grant_stmt.object_type, ObjectType::Table);
             assert_eq!(grant_stmt.object_name.to_string(), "USERS");
             assert_eq!(grant_stmt.grantees, vec!["MANAGER"]);

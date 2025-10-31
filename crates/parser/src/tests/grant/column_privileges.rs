@@ -94,7 +94,7 @@ fn test_parse_grant_mixed_table_and_column_privileges() {
     match result.unwrap() {
         Statement::Grant(grant_stmt) => {
             assert_eq!(grant_stmt.privileges.len(), 3);
-            assert_eq!(grant_stmt.privileges[0], PrivilegeType::Select);
+            assert_eq!(grant_stmt.privileges[0], PrivilegeType::Select(None));
             assert_eq!(
                 grant_stmt.privileges[1],
                 PrivilegeType::Update(Some(vec!["SALARY".to_string()]))
@@ -183,6 +183,148 @@ fn test_parse_grant_references_table_level() {
     match result.unwrap() {
         Statement::Grant(grant_stmt) => {
             assert_eq!(grant_stmt.privileges[0], PrivilegeType::References(None));
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_select_column_single() {
+    // SQL:1999 Feature F031-03: Column-level SELECT privilege
+    let sql = "GRANT SELECT(name) ON TABLE users TO analyst";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 1);
+            assert_eq!(
+                grant_stmt.privileges[0],
+                PrivilegeType::Select(Some(vec!["NAME".to_string()]))
+            );
+            assert_eq!(grant_stmt.object_name.to_string(), "USERS");
+            assert_eq!(grant_stmt.grantees, vec!["ANALYST"]);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_select_columns_multiple() {
+    // SQL:1999 Feature F031-03: Multiple columns in SELECT privilege
+    let sql = "GRANT SELECT(id, name, email) ON TABLE users TO analyst";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 1);
+            assert_eq!(
+                grant_stmt.privileges[0],
+                PrivilegeType::Select(Some(vec![
+                    "ID".to_string(),
+                    "NAME".to_string(),
+                    "EMAIL".to_string()
+                ]))
+            );
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_insert_column_single() {
+    // SQL:1999 Feature F031-03: Column-level INSERT privilege
+    let sql = "GRANT INSERT(name) ON TABLE users TO data_entry";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 1);
+            assert_eq!(
+                grant_stmt.privileges[0],
+                PrivilegeType::Insert(Some(vec!["NAME".to_string()]))
+            );
+            assert_eq!(grant_stmt.object_name.to_string(), "USERS");
+            assert_eq!(grant_stmt.grantees, vec!["DATA_ENTRY"]);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_insert_columns_multiple() {
+    // SQL:1999 Feature F031-03: Multiple columns in INSERT privilege
+    let sql = "GRANT INSERT(id, name, email) ON TABLE users TO data_entry";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 1);
+            assert_eq!(
+                grant_stmt.privileges[0],
+                PrivilegeType::Insert(Some(vec![
+                    "ID".to_string(),
+                    "NAME".to_string(),
+                    "EMAIL".to_string()
+                ]))
+            );
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_select_table_level() {
+    // Test that SELECT without columns still works (table-level privilege)
+    let sql = "GRANT SELECT ON TABLE users TO analyst";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges[0], PrivilegeType::Select(None));
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_insert_table_level() {
+    // Test that INSERT without columns still works (table-level privilege)
+    let sql = "GRANT INSERT ON TABLE users TO data_entry";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges[0], PrivilegeType::Insert(None));
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_mixed_select_insert_column_privileges() {
+    // Test mixing table-level and column-level SELECT/INSERT privileges
+    let sql = "GRANT SELECT(id, name), INSERT(email), UPDATE ON TABLE users TO manager";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 3);
+            assert_eq!(
+                grant_stmt.privileges[0],
+                PrivilegeType::Select(Some(vec!["ID".to_string(), "NAME".to_string()]))
+            );
+            assert_eq!(
+                grant_stmt.privileges[1],
+                PrivilegeType::Insert(Some(vec!["EMAIL".to_string()]))
+            );
+            assert_eq!(grant_stmt.privileges[2], PrivilegeType::Update(None));
         }
         other => panic!("Expected Grant statement, got {:?}", other),
     }

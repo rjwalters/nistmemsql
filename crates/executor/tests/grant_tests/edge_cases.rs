@@ -18,7 +18,7 @@ fn test_grant_to_nonexistent_role() {
 
     // Try to grant to a role that doesn't exist
     let grant_stmt = ast::GrantStmt {
-        privileges: vec![ast::PrivilegeType::Select],
+        privileges: vec![ast::PrivilegeType::Select(None)],
         object_type: ast::ObjectType::Table,
         object_name: "users".to_string(),
         grantees: vec!["nonexistent_role".to_string()],
@@ -108,7 +108,7 @@ fn test_grant_multiple_privileges_one_invalid_role() {
 
     // Try to grant to both a valid and invalid role
     let grant_stmt = ast::GrantStmt {
-        privileges: vec![ast::PrivilegeType::Select],
+        privileges: vec![ast::PrivilegeType::Select(None)],
         object_type: ast::ObjectType::Table,
         object_name: "orders".to_string(),
         grantees: vec!["manager".to_string(), "invalid_role".to_string()],
@@ -120,7 +120,7 @@ fn test_grant_multiple_privileges_one_invalid_role() {
 
     // Verify no privileges were granted (transaction-like behavior)
     assert!(
-        !db.catalog.has_privilege("manager", "orders", &ast::PrivilegeType::Select),
+        !db.catalog.has_privilege("manager", "orders", &ast::PrivilegeType::Select(None)),
         "No privileges should be granted when validation fails"
     );
 }
