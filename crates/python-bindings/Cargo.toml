@@ -1,0 +1,22 @@
+[package]
+name = "nistmemsql-py"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "nistmemsql"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { workspace = true }
+
+# Internal crates
+types = { path = "../types" }
+ast = { path = "../ast" }
+parser = { path = "../parser" }
+executor = { path = "../executor" }
+storage = { path = "../storage" }
+catalog = { path = "../catalog" }

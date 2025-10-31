@@ -471,6 +471,60 @@ npm install
 npm run dev
 ```
 
+### Python Usage
+
+The database is also available as a Python library with DB-API 2.0 compatible interface:
+
+```bash
+# Build and install Python bindings (requires Python 3.8+, Rust)
+pip install maturin
+maturin develop
+
+# Use in Python
+python3
+```
+
+```python
+import nistmemsql
+
+# Create database connection
+db = nistmemsql.connect()
+cursor = db.cursor()
+
+# Create table and insert data
+cursor.execute("CREATE TABLE users (id INTEGER, name VARCHAR(50))")
+cursor.execute("INSERT INTO users VALUES (1, 'Alice')")
+cursor.execute("INSERT INTO users VALUES (2, 'Bob')")
+
+# Query data
+cursor.execute("SELECT * FROM users")
+rows = cursor.fetchall()
+for row in rows:
+    print(row)  # (1, 'Alice'), (2, 'Bob')
+
+# Close connections
+cursor.close()
+db.close()
+```
+
+**Python API Features**:
+- DB-API 2.0 compatible interface
+- Support for all SQL:1999 features
+- Type conversion (Rust → Python)
+- `fetchone()`, `fetchall()`, `fetchmany()`
+- Custom exception types
+- Full transaction support
+
+**Run Tests**:
+```bash
+python3 crates/python-bindings/tests/test_basic.py
+```
+
+**Benchmark Performance**:
+```bash
+python3 benchmarks/python_overhead.py
+```
+
 ### Interactive SQL Shell
 
 ```bash
