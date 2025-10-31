@@ -324,3 +324,17 @@ pub struct DropViewStmt {
     pub if_exists: bool,
     pub cascade: bool,
 }
+
+/// CREATE ASSERTION statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreateAssertionStmt {
+    pub assertion_name: String,
+    pub check_condition: Box<Expression>,
+}
+
+/// DROP ASSERTION statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropAssertionStmt {
+    pub assertion_name: String,
+    pub cascade: bool, // true for CASCADE, false for RESTRICT
+}
