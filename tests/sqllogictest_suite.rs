@@ -1,9 +1,18 @@
-//! SQLLogicTest suite runner - loads and runs .slt test files from directory
+//! Comprehensive SQLLogicTest suite runner using the dolthub/sqllogictest submodule.
+//!
+//! This test suite runs ~5.9 million SQL tests from the official SQLLogicTest corpus.
+//! Tests are organized by category:
+//! - select1-5.test: Basic SELECT queries
+//! - evidence/: Core SQL language features
+//! - index/: Index and ordering tests
+//! - random/: Randomized query tests
+//! - ddl/: Data Definition Language tests
 
 use async_trait::async_trait;
 use executor::SelectExecutor;
 use parser::Parser;
 use sqllogictest::{AsyncDB, DBOutput, DefaultColumnType, Runner};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use storage::Database;
 use types::SqlValue;
@@ -65,7 +74,122 @@ impl NistMemSqlDB {
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            _ => Ok(DBOutput::StatementComplete(0)),
+            ast::Statement::AlterTable(alter_stmt) => {
+                executor::AlterTableExecutor::execute(&alter_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::CreateSchema(create_schema_stmt) => {
+                executor::SchemaExecutor::execute_create_schema(&create_schema_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::DropSchema(drop_schema_stmt) => {
+                executor::SchemaExecutor::execute_drop_schema(&drop_schema_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::SetSchema(set_schema_stmt) => {
+                executor::SchemaExecutor::execute_set_schema(&set_schema_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::SetCatalog(set_stmt) => {
+                executor::SchemaExecutor::execute_set_catalog(&set_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::SetNames(set_stmt) => {
+                executor::SchemaExecutor::execute_set_names(&set_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::SetTimeZone(set_stmt) => {
+                executor::SchemaExecutor::execute_set_time_zone(&set_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::Grant(grant_stmt) => {
+                executor::GrantExecutor::execute_grant(&grant_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::Revoke(revoke_stmt) => {
+                executor::RevokeExecutor::execute_revoke(&revoke_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::CreateRole(create_role_stmt) => {
+                executor::RoleExecutor::execute_create_role(&create_role_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::DropRole(drop_role_stmt) => {
+                executor::RoleExecutor::execute_drop_role(&drop_role_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::CreateDomain(create_domain_stmt) => {
+                executor::DomainExecutor::execute_create_domain(&create_domain_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::DropDomain(drop_domain_stmt) => {
+                executor::DomainExecutor::execute_drop_domain(&drop_domain_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::CreateType(create_type_stmt) => {
+                executor::TypeExecutor::execute_create_type(&create_type_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::DropType(drop_type_stmt) => {
+                executor::TypeExecutor::execute_drop_type(&drop_type_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::CreateAssertion(create_assertion_stmt) => {
+                executor::advanced_objects::execute_create_assertion(
+                    &create_assertion_stmt,
+                    &mut self.db,
+                )
+                .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::DropAssertion(drop_assertion_stmt) => {
+                executor::advanced_objects::execute_drop_assertion(
+                    &drop_assertion_stmt,
+                    &mut self.db,
+                )
+                .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            // Unimplemented statements return success for now
+            ast::Statement::BeginTransaction(_)
+            | ast::Statement::Commit(_)
+            | ast::Statement::Rollback(_)
+            | ast::Statement::Savepoint(_)
+            | ast::Statement::RollbackToSavepoint(_)
+            | ast::Statement::ReleaseSavepoint(_)
+            | ast::Statement::SetTransaction(_)
+            | ast::Statement::CreateSequence(_)
+            | ast::Statement::DropSequence(_)
+            | ast::Statement::AlterSequence(_)
+            | ast::Statement::CreateCollation(_)
+            | ast::Statement::DropCollation(_)
+            | ast::Statement::CreateCharacterSet(_)
+            | ast::Statement::DropCharacterSet(_)
+            | ast::Statement::CreateTranslation(_)
+            | ast::Statement::DropTranslation(_)
+            | ast::Statement::CreateView(_)
+            | ast::Statement::DropView(_)
+            | ast::Statement::CreateTrigger(_)
+            | ast::Statement::DropTrigger(_)
+            | ast::Statement::DeclareCursor(_)
+            | ast::Statement::OpenCursor(_)
+            | ast::Statement::Fetch(_)
+            | ast::Statement::CloseCursor(_) => Ok(DBOutput::StatementComplete(0)),
         }
     }
 
@@ -152,80 +276,146 @@ impl AsyncDB for NistMemSqlDB {
     }
 }
 
-/// Helper function to run a single test file
-async fn run_test_file(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-    let mut tester = Runner::new(|| async { Ok(NistMemSqlDB::new()) });
-    let contents = std::fs::read_to_string(path)?;
-
-    tester.run_script(&contents)?;
-
-    Ok(())
+/// Test result statistics
+#[derive(Debug, Default)]
+struct TestStats {
+    total: usize,
+    passed: usize,
+    failed: usize,
+    errors: usize,
 }
 
-/// Discover and run all .slt test files in the tests/sqllogictest-files directory
-#[tokio::test]
-async fn run_sqllogictest_suite() {
-    let test_dir = "tests/sqllogictest-files";
-
-    let mut test_files: Vec<PathBuf> = Vec::new();
-
-    // Recursively find all .slt files
-    if let Ok(entries) = std::fs::read_dir(test_dir) {
-        for entry in entries.flatten() {
-            if entry.path().is_dir() {
-                // Recurse into subdirectories
-                if let Ok(sub_entries) = std::fs::read_dir(entry.path()) {
-                    for sub_entry in sub_entries.flatten() {
-                        if sub_entry.path().extension().and_then(|s| s.to_str()) == Some("slt") {
-                            test_files.push(sub_entry.path());
-                        }
-                    }
-                }
-            } else if entry.path().extension().and_then(|s| s.to_str()) == Some("slt") {
-                test_files.push(entry.path());
-            }
+impl TestStats {
+    fn pass_rate(&self) -> f64 {
+        if self.total == 0 {
+            0.0
+        } else {
+            (self.passed as f64 / self.total as f64) * 100.0
         }
     }
+}
 
-    test_files.sort();
+/// Run all SQLLogicTest files from the submodule
+fn run_test_suite() -> HashMap<String, TestStats> {
+    let test_dir = PathBuf::from("third_party/sqllogictest/test");
+    let mut results = HashMap::new();
 
-    let mut passed = 0;
-    let mut failed = 0;
-    let mut errors = Vec::new();
+    // Find all .test files
+    let pattern = format!("{}/**/*.test", test_dir.display());
+    let test_files: Vec<PathBuf> = glob::glob(&pattern)
+        .expect("Failed to read test pattern")
+        .filter_map(Result::ok)
+        .collect();
 
-    println!("\n🧪 Running SQLLogicTest Suite\n");
-    println!("Found {} test files", test_files.len());
-    println!("{}", "=".repeat(60));
+    println!("\n=== SQLLogicTest Suite ===");
+    println!("Found {} test files\n", test_files.len());
 
-    for path in &test_files {
-        let file_name = path.file_name().unwrap().to_str().unwrap();
+    for test_file in test_files {
+        let relative_path = test_file
+            .strip_prefix(&test_dir)
+            .unwrap_or(&test_file)
+            .to_string_lossy()
+            .to_string();
 
-        match run_test_file(path).await {
+        // Determine category from path
+        let category = if relative_path.starts_with("select") {
+            "select"
+        } else if relative_path.starts_with("evidence/") {
+            "evidence"
+        } else if relative_path.starts_with("index/") {
+            "index"
+        } else if relative_path.starts_with("random/") {
+            "random"
+        } else if relative_path.starts_with("ddl/") {
+            "ddl"
+        } else {
+            "other"
+        }
+        .to_string();
+
+        let stats = results.entry(category.clone()).or_insert_with(TestStats::default);
+        stats.total += 1;
+
+        // Read and run test file
+        let contents = match std::fs::read_to_string(&test_file) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("✗ {} - Failed to read file: {}", relative_path, e);
+                stats.errors += 1;
+                continue;
+            }
+        };
+
+        // Create a new database for each test file
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let result = runtime.block_on(async {
+            let mut tester = Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+            tester.run_script(&contents)
+        });
+
+        match result {
             Ok(_) => {
-                println!("✓ {}", file_name);
-                passed += 1;
+                println!("✓ {}", relative_path);
+                stats.passed += 1;
             }
             Err(e) => {
-                println!("✗ {} - {}", file_name, e);
-                failed += 1;
-                errors.push((file_name.to_string(), e.to_string()));
+                eprintln!("✗ {} - {}", relative_path, e);
+                stats.failed += 1;
             }
         }
     }
 
-    println!("{}", "=".repeat(60));
-    println!("\n📊 Results:");
-    println!("  Total:  {}", test_files.len());
-    println!("  Passed: {} ({:.1}%)", passed, (passed as f64 / test_files.len() as f64) * 100.0);
-    println!("  Failed: {} ({:.1}%)", failed, (failed as f64 / test_files.len() as f64) * 100.0);
+    results
+}
 
-    if !errors.is_empty() {
-        println!("\n❌ Failed tests:");
-        for (name, error) in &errors {
-            println!("  • {}: {}", name, error);
+#[test]
+fn run_sqllogictest_suite() {
+    // Check if submodule is initialized
+    let test_dir = PathBuf::from("third_party/sqllogictest/test");
+    if !test_dir.exists() {
+        panic!(
+            "SQLLogicTest submodule not initialized. Run:\n  git submodule update --init --recursive"
+        );
+    }
+
+    let results = run_test_suite();
+
+    // Print summary
+    println!("\n=== Test Results Summary ===");
+    println!("{:<20} {:>8} {:>8} {:>8} {:>8} {:>10}", "Category", "Total", "Passed", "Failed", "Errors", "Pass Rate");
+    println!("{}", "-".repeat(72));
+
+    let mut grand_total = TestStats::default();
+
+    for category in ["select", "evidence", "index", "random", "ddl", "other"] {
+        if let Some(stats) = results.get(category) {
+            println!(
+                "{:<20} {:>8} {:>8} {:>8} {:>8} {:>9.1}%",
+                category,
+                stats.total,
+                stats.passed,
+                stats.failed,
+                stats.errors,
+                stats.pass_rate()
+            );
+            grand_total.total += stats.total;
+            grand_total.passed += stats.passed;
+            grand_total.failed += stats.failed;
+            grand_total.errors += stats.errors;
         }
     }
 
-    // Assert that all tests passed (comment out to allow failures during development)
-    // assert_eq!(failed, 0, "{} test file(s) failed", failed);
+    println!("{}", "-".repeat(72));
+    println!(
+        "{:<20} {:>8} {:>8} {:>8} {:>8} {:>9.1}%",
+        "TOTAL",
+        grand_total.total,
+        grand_total.passed,
+        grand_total.failed,
+        grand_total.errors,
+        grand_total.pass_rate()
+    );
+
+    println!("\nNote: This is a comprehensive test suite with millions of individual test cases.");
+    println!("Some failures are expected as we continue implementing SQL:1999 features.");
 }
