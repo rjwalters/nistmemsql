@@ -18,19 +18,19 @@ pyo3::create_exception!(nistmemsql, ProgrammingError, DatabaseError);
 /// Converts a Rust SqlValue to a Python object
 fn sqlvalue_to_py(py: Python, value: &types::SqlValue) -> PyResult<PyObject> {
     Ok(match value {
-        types::SqlValue::Integer(i) => i.to_object(py),
-        types::SqlValue::Smallint(i) => i.to_object(py),
-        types::SqlValue::Bigint(i) => i.to_object(py),
-        types::SqlValue::Float(f) => (*f as f64).to_object(py),
-        types::SqlValue::Real(f) => (*f as f64).to_object(py),
-        types::SqlValue::Double(f) => f.to_object(py),
-        types::SqlValue::Varchar(s) | types::SqlValue::Character(s) => s.to_object(py),
-        types::SqlValue::Boolean(b) => b.to_object(py),
+        types::SqlValue::Integer(i) => (*i).into_pyobject(py)?.into_any().unbind(),
+        types::SqlValue::Smallint(i) => (*i).into_pyobject(py)?.into_any().unbind(),
+        types::SqlValue::Bigint(i) => (*i).into_pyobject(py)?.into_any().unbind(),
+        types::SqlValue::Float(f) => (*f as f64).into_pyobject(py)?.into_any().unbind(),
+        types::SqlValue::Real(f) => (*f as f64).into_pyobject(py)?.into_any().unbind(),
+        types::SqlValue::Double(f) => (*f).into_pyobject(py)?.into_any().unbind(),
+        types::SqlValue::Varchar(s) | types::SqlValue::Character(s) => s.into_pyobject(py)?.into_any().unbind(),
+        types::SqlValue::Boolean(b) => b.into_pyobject(py)?.to_owned().into_any().unbind(),
         types::SqlValue::Numeric(s)
         | types::SqlValue::Date(s)
         | types::SqlValue::Time(s)
         | types::SqlValue::Timestamp(s)
-        | types::SqlValue::Interval(s) => s.to_object(py),
+        | types::SqlValue::Interval(s) => s.into_pyobject(py)?.into_any().unbind(),
         types::SqlValue::Null => py.None(),
     })
 }
@@ -222,10 +222,10 @@ impl Cursor {
             Some(QueryResultData::Select { rows, .. }) => {
                 let result_list = PyList::empty(py);
                 for row in rows {
-                    let py_row = PyTuple::new(
-                        py,
-                        row.values.iter().map(|v| sqlvalue_to_py(py, v).unwrap()),
-                    );
+                    let py_values: Vec<PyObject> = row.values.iter()
+                        .map(|v| sqlvalue_to_py(py, v).unwrap())
+                        .collect();
+                    let py_row = PyTuple::new(py, py_values)?;
                     result_list.append(py_row)?;
                 }
                 Ok(result_list.into())
@@ -248,10 +248,10 @@ impl Cursor {
                     Ok(py.None())
                 } else {
                     let row = rows.remove(0);
-                    let py_row = PyTuple::new(
-                        py,
-                        row.values.iter().map(|v| sqlvalue_to_py(py, v).unwrap()),
-                    );
+                    let py_values: Vec<PyObject> = row.values.iter()
+                        .map(|v| sqlvalue_to_py(py, v).unwrap())
+                        .collect();
+                    let py_row = PyTuple::new(py, py_values)?;
                     Ok(py_row.into())
                 }
             }
@@ -280,10 +280,10 @@ impl Cursor {
                         break;
                     }
                     let row = rows.remove(0);
-                    let py_row = PyTuple::new(
-                        py,
-                        row.values.iter().map(|v| sqlvalue_to_py(py, v).unwrap()),
-                    );
+                    let py_values: Vec<PyObject> = row.values.iter()
+                        .map(|v| sqlvalue_to_py(py, v).unwrap())
+                        .collect();
+                    let py_row = PyTuple::new(py, py_values)?;
                     result_list.append(py_row)?;
                 }
 
@@ -327,12 +327,12 @@ fn connect() -> PyResult<Database> {
 
 /// Python module initialization
 #[pymodule]
-fn nistmemsql(_py: Python, m: &PyModule) -> PyResult<()> {
+fn nistmemsql(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(connect, m)?)?;
     m.add_class::<Database>()?;
     m.add_class::<Cursor>()?;
-    m.add("DatabaseError", _py.get_type::<DatabaseError>())?;
-    m.add("OperationalError", _py.get_type::<OperationalError>())?;
-    m.add("ProgrammingError", _py.get_type::<ProgrammingError>())?;
+    m.add("DatabaseError", m.py().get_type::<DatabaseError>())?;
+    m.add("OperationalError", m.py().get_type::<OperationalError>())?;
+    m.add("ProgrammingError", m.py().get_type::<ProgrammingError>())?;
     Ok(())
 }

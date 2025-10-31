@@ -13,7 +13,7 @@ parser = { path = "crates/parser" }
 
 [dev-dependencies]
 regex = "1.10"
-sqllogictest = "0.21"
+sqllogictest = "0.28"
 async-trait = "0.1"
 tokio = { version = "1", features = ["rt", "macros"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -43,4 +43,4 @@ repository = "https://github.com/rjwalters/nistmemsql"
 
 [workspace.dependencies]
 # Will add dependencies as needed for each phase
-pyo3 = { version = "0.20", features = ["extension-module"] }
+pyo3 = { version = "0.27", features = ["extension-module"] }
