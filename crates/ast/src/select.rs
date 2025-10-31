@@ -62,15 +62,10 @@ pub struct SetOperation {
 pub enum SelectItem {
     /// SELECT * [AS (col1, col2, ...)]
     /// SQL:1999 Feature E051-07: Derived column lists
-    Wildcard {
-        alias: Option<Vec<String>>,
-    },
+    Wildcard { alias: Option<Vec<String>> },
     /// SELECT table.* [AS (col1, col2, ...)] or SELECT alias.* [AS (col1, col2, ...)]
     /// SQL:1999 Feature E051-08: Correlation names in FROM clause with derived column lists
-    QualifiedWildcard {
-        qualifier: String,
-        alias: Option<Vec<String>>,
-    },
+    QualifiedWildcard { qualifier: String, alias: Option<Vec<String>> },
     /// SELECT expr [AS alias]
     Expression { expr: Expression, alias: Option<String> },
 }

@@ -384,7 +384,14 @@ fn test_error_message_includes_suggestion() {
     // 2. The specific keyword (WHERE)
     // 3. Suggestion to use delimited identifiers
     assert!(error_msg.contains("reserved keyword"), "Missing 'reserved keyword' in: {}", error_msg);
-    assert!(error_msg.contains("WHERE") || error_msg.contains("Where"), "Missing keyword name in: {}", error_msg);
-    assert!(error_msg.contains("delimited identifiers") || error_msg.contains("\""),
-            "Missing suggestion in: {}", error_msg);
+    assert!(
+        error_msg.contains("WHERE") || error_msg.contains("Where"),
+        "Missing keyword name in: {}",
+        error_msg
+    );
+    assert!(
+        error_msg.contains("delimited identifiers") || error_msg.contains("\""),
+        "Missing suggestion in: {}",
+        error_msg
+    );
 }

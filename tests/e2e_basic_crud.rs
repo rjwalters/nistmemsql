@@ -17,9 +17,7 @@ fn execute_select(db: &Database, sql: &str) -> Result<Vec<Row>, String> {
     };
 
     let executor = SelectExecutor::new(db);
-    executor
-        .execute(&select_stmt)
-        .map_err(|e| format!("Execution error: {:?}", e))
+    executor.execute(&select_stmt).map_err(|e| format!("Execution error: {:?}", e))
 }
 
 fn create_users_schema() -> TableSchema {
@@ -29,9 +27,7 @@ fn create_users_schema() -> TableSchema {
             ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
                 "NAME".to_string(),
-                DataType::Varchar {
-                    max_length: Some(100),
-                },
+                DataType::Varchar { max_length: Some(100) },
                 true,
             ),
             ColumnSchema::new("AGE".to_string(), DataType::Integer, false),
@@ -85,10 +81,7 @@ fn test_e2e_select_star() {
 
     // Verify first row
     assert_eq!(results[0].values[0], SqlValue::Integer(1));
-    assert_eq!(
-        results[0].values[1],
-        SqlValue::Varchar("Alice".to_string())
-    );
+    assert_eq!(results[0].values[1], SqlValue::Varchar("Alice".to_string()));
     assert_eq!(results[0].values[2], SqlValue::Integer(25));
 }
 
@@ -104,10 +97,7 @@ fn test_e2e_select_specific_columns() {
 
     // Verify structure: should have 2 columns (name, age)
     assert_eq!(results[0].values.len(), 2);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("Alice".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("Alice".to_string()));
     assert_eq!(results[0].values[1], SqlValue::Integer(25));
 }
 
@@ -120,10 +110,7 @@ fn test_e2e_select_with_where() {
 
     let results = execute_select(&db, "SELECT name FROM users WHERE age > 25").unwrap();
     assert_eq!(results.len(), 2);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("Charlie".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("Charlie".to_string()));
     assert_eq!(results[1].values[0], SqlValue::Varchar("Eve".to_string()));
 }
 
@@ -137,12 +124,6 @@ fn test_e2e_select_with_complex_where() {
     let results =
         execute_select(&db, "SELECT name FROM users WHERE age > 20 AND age < 30").unwrap();
     assert_eq!(results.len(), 2);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("Alice".to_string())
-    );
-    assert_eq!(
-        results[1].values[0],
-        SqlValue::Varchar("Diana".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("Alice".to_string()));
+    assert_eq!(results[1].values[0], SqlValue::Varchar("Diana".to_string()));
 }

@@ -91,14 +91,19 @@ fn execute_table_scan(
         // Since views can have arbitrary SELECT expressions, we derive column types from the first row
         let columns = if !select_result.rows.is_empty() {
             let first_row = &select_result.rows[0];
-            select_result.columns.iter().zip(&first_row.values).map(|(name, value)| {
-                catalog::ColumnSchema {
-                    name: name.clone(),
-                    data_type: value.get_type(),
-                    nullable: true, // Views return nullable columns by default
-                    default_value: None,
-                }
-            }).collect()
+            select_result
+                .columns
+                .iter()
+                .zip(&first_row.values)
+                .map(|(name, value)| {
+                    catalog::ColumnSchema {
+                        name: name.clone(),
+                        data_type: value.get_type(),
+                        nullable: true, // Views return nullable columns by default
+                        default_value: None,
+                    }
+                })
+                .collect()
         } else {
             // For empty views, create columns without specific types
             // This is a limitation but views with no rows are edge cases

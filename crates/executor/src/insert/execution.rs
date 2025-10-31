@@ -70,7 +70,8 @@ pub fn execute_insert(
 
         for (expr, (col_idx, data_type)) in value_exprs.iter().zip(target_column_info.iter()) {
             // Evaluate expression (literals and DEFAULT)
-            let value = super::defaults::evaluate_insert_expression(expr, &schema.columns[*col_idx])?;
+            let value =
+                super::defaults::evaluate_insert_expression(expr, &schema.columns[*col_idx])?;
 
             // Type check and coerce: ensure value matches column type
             let coerced_value = super::validation::coerce_value(value, data_type)?;
@@ -82,7 +83,11 @@ pub fn execute_insert(
         super::defaults::apply_default_values(&schema, &mut full_row_values)?;
 
         // Enforce NOT NULL constraints
-        super::constraints::enforce_not_null_constraints(&schema, &stmt.table_name, &full_row_values)?;
+        super::constraints::enforce_not_null_constraints(
+            &schema,
+            &stmt.table_name,
+            &full_row_values,
+        )?;
 
         // Enforce PRIMARY KEY constraint (uniqueness)
         super::constraints::enforce_primary_key_constraint(
@@ -126,7 +131,11 @@ pub fn execute_insert(
 
         // Enforce FOREIGN KEY constraints (child table)
         if !schema.foreign_keys.is_empty() {
-            super::foreign_keys::validate_foreign_key_constraints(db, &stmt.table_name, &full_row_values)?;
+            super::foreign_keys::validate_foreign_key_constraints(
+                db,
+                &stmt.table_name,
+                &full_row_values,
+            )?;
         }
 
         // Store validated row for insertion
@@ -137,9 +146,8 @@ pub fn execute_insert(
     let mut rows_inserted = 0;
     for full_row_values in validated_rows {
         let row = storage::Row::new(full_row_values);
-        db.insert_row(&stmt.table_name, row).map_err(|e| {
-            ExecutorError::UnsupportedExpression(format!("Storage error: {}", e))
-        })?;
+        db.insert_row(&stmt.table_name, row)
+            .map_err(|e| ExecutorError::UnsupportedExpression(format!("Storage error: {}", e)))?;
         rows_inserted += 1;
     }
 
