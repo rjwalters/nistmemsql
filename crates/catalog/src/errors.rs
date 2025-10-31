@@ -30,6 +30,10 @@ pub enum CatalogError {
     TriggerNotFound(String),
     AssertionAlreadyExists(String),
     AssertionNotFound(String),
+    FunctionAlreadyExists(String),
+    FunctionNotFound(String),
+    ProcedureAlreadyExists(String),
+    ProcedureNotFound(String),
 }
 
 impl std::fmt::Display for CatalogError {
@@ -104,6 +108,18 @@ impl std::fmt::Display for CatalogError {
             }
             CatalogError::AssertionNotFound(name) => {
                 write!(f, "Assertion '{}' not found", name)
+            }
+            CatalogError::FunctionAlreadyExists(name) => {
+                write!(f, "Function '{}' already exists", name)
+            }
+            CatalogError::FunctionNotFound(name) => {
+                write!(f, "Function '{}' not found", name)
+            }
+            CatalogError::ProcedureAlreadyExists(name) => {
+                write!(f, "Procedure '{}' already exists", name)
+            }
+            CatalogError::ProcedureNotFound(name) => {
+                write!(f, "Procedure '{}' not found", name)
             }
         }
     }
