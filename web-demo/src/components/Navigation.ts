@@ -32,19 +32,19 @@ export class NavigationComponent extends Component<NavigationState> {
       {
         id: 'terminal',
         label: 'SQL Terminal Demo',
-        href: '/nistmemsql/',
+        href: './',
         icon: this.getTerminalIcon(),
       },
       {
         id: 'conformance',
         label: 'SQL Test Compliance Report',
-        href: '/nistmemsql/conformance.html',
+        href: 'conformance.html',
         icon: this.getConformanceIcon(),
       },
       {
         id: 'benchmarks',
         label: 'Benchmark Data',
-        href: '/nistmemsql/benchmarks.html',
+        href: 'benchmarks.html',
         icon: this.getBenchmarkIcon(),
       },
       {
@@ -70,13 +70,10 @@ export class NavigationComponent extends Component<NavigationState> {
         // Create a wrapper for the theme toggle
         const wrapper = document.createElement('div')
         wrapper.id = 'theme-toggle'
-        // Append wrapper to DOM BEFORE creating the component
+        // Append wrapper to DOM
         themeToggleContainer.appendChild(wrapper)
-        // Use requestAnimationFrame to ensure DOM element is fully attached
-        requestAnimationFrame(() => {
-          // Now create the component - it will find the #theme-toggle element
-          new ThemeToggleComponent(this.themeSystem!)
-        })
+        // Create the theme toggle component
+        new ThemeToggleComponent(this.themeSystem!)
       }
     }
   }
