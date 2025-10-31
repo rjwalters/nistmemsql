@@ -12,8 +12,7 @@
 //! - **schema_operations** - DDL operations (CREATE/DROP for tables, roles, domains, sequences)
 //! - **query_tests** - Query execution (SELECT, WHERE clauses, data type conversion)
 //! - **schema_introspection** - Schema inspection (list tables, describe tables, column metadata)
-//! - **example_loading** - Sample database loading (northwind, employees)
-//! - **examples_validation** - Automated validation of web-demo example queries
+//! - **examples_validation** - Sample database loading and automated validation of web-demo example queries
 //! - **helpers** - Shared test utilities and helper functions
 //!
 //! ## Test Coverage
