@@ -141,6 +141,7 @@ pub enum Keyword {
     Character,
     Translation,
     View,
+    Assertion,
     // SEQUENCE specific keywords
     Increment,
     Minvalue,
@@ -173,8 +174,6 @@ pub enum Keyword {
     Read,
     Only,
     Of,
-    // Assertion keywords (SQL:1999)
-    Assertion,
 }
 
 impl fmt::Display for Keyword {
@@ -300,6 +299,7 @@ impl fmt::Display for Keyword {
             Keyword::Character => "CHARACTER",
             Keyword::Translation => "TRANSLATION",
             Keyword::View => "VIEW",
+            Keyword::Assertion => "ASSERTION",
             Keyword::Increment => "INCREMENT",
             Keyword::Minvalue => "MINVALUE",
             Keyword::Maxvalue => "MAXVALUE",
@@ -327,7 +327,6 @@ impl fmt::Display for Keyword {
             Keyword::Read => "READ",
             Keyword::Only => "ONLY",
             Keyword::Of => "OF",
-            Keyword::Assertion => "ASSERTION",
         };
         write!(f, "{}", keyword_str)
     }

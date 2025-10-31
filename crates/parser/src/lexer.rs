@@ -284,6 +284,7 @@ impl Lexer {
             "CHARACTER" => Token::Keyword(Keyword::Character),
             "TRANSLATION" => Token::Keyword(Keyword::Translation),
             "VIEW" => Token::Keyword(Keyword::View),
+            "ASSERTION" => Token::Keyword(Keyword::Assertion),
             // SEQUENCE specific keywords
             "INCREMENT" => Token::Keyword(Keyword::Increment),
             "MINVALUE" => Token::Keyword(Keyword::Minvalue),
@@ -314,8 +315,6 @@ impl Lexer {
             "READ" => Token::Keyword(Keyword::Read),
             "ONLY" => Token::Keyword(Keyword::Only),
             "OF" => Token::Keyword(Keyword::Of),
-            // Assertion keywords (SQL:1999)
-            "ASSERTION" => Token::Keyword(Keyword::Assertion),
             _ => Token::Identifier(upper_text), // Regular identifiers are normalized to uppercase
         };
 
