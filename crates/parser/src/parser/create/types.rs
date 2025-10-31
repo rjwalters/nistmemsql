@@ -178,8 +178,26 @@ impl Parser {
             }
             "CHAR" | "CHARACTER" => {
                 // Check for VARYING keyword (CHARACTER VARYING = VARCHAR)
-                if self.try_consume_keyword(Keyword::Varying) {
-                    // Parse as VARCHAR (CHARACTER VARYING)
+                // Also support deprecated VARING identifier (SQL:1999 conformance tests)
+                let is_varying = self.try_consume_keyword(Keyword::Varying);
+                let is_varing = if !is_varying {
+                    // Check for VARING as identifier (deprecated SQL:1999 variant)
+                    if let Token::Identifier(next) = self.peek() {
+                        if next.to_uppercase() == "VARING" {
+                            self.advance(); // consume VARING
+                            true
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
+                if is_varying || is_varing {
+                    // Parse as VARCHAR (CHARACTER VARYING or CHAR VARING)
                     let max_length = if self.peek() == &Token::LParen {
                         self.advance();
                         let len = match self.peek() {

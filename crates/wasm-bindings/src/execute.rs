@@ -148,11 +148,9 @@ impl Database {
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
             ast::Statement::DropDomain(drop_domain_stmt) => {
-                let message = executor::DomainExecutor::execute_drop_domain(
-                    &drop_domain_stmt,
-                    &mut self.db,
-                )
-                .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+                let message =
+                    executor::DomainExecutor::execute_drop_domain(&drop_domain_stmt, &mut self.db)
+                        .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult { rows_affected: 0, message };
 
