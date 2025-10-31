@@ -22,7 +22,10 @@ impl TypeExecutor {
             ast::TypeDefinition::Structured { attributes } => {
                 let catalog_attrs = attributes
                     .iter()
-                    .map(|attr| TypeAttribute { name: attr.name.clone(), data_type: attr.data_type.clone() })
+                    .map(|attr| TypeAttribute {
+                        name: attr.name.clone(),
+                        data_type: attr.data_type.clone(),
+                    })
                     .collect();
                 TypeDefinitionKind::Structured { attributes: catalog_attrs }
             }

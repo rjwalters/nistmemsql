@@ -322,7 +322,11 @@ fn test_domain_create_drop_recreate_sequence() {
     let stmt3 = Parser::parse_sql(sql3).expect("Failed to parse second CREATE");
     if let Statement::CreateDomain(create_stmt) = stmt3 {
         let result = DomainExecutor::execute_create_domain(&create_stmt, &mut db);
-        assert!(result.is_ok(), "Second CREATE failed (domain should have been dropped): {:?}", result);
+        assert!(
+            result.is_ok(),
+            "Second CREATE failed (domain should have been dropped): {:?}",
+            result
+        );
         assert!(db.catalog.domain_exists("DOMAIN1"), "Domain should exist after second CREATE");
     }
 }

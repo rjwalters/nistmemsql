@@ -267,6 +267,10 @@ impl Lexer {
             // REVOKE keywords
             "REVOKE" => Token::Keyword(Keyword::Revoke),
             "GRANTED" => Token::Keyword(Keyword::Granted),
+            // Advanced privilege keywords
+            "EXECUTE" => Token::Keyword(Keyword::Execute),
+            "TRIGGER" => Token::Keyword(Keyword::Trigger),
+            "UNDER" => Token::Keyword(Keyword::Under),
             // Role management keywords
             "ROLE" => Token::Keyword(Keyword::Role),
             // Advanced SQL object keywords

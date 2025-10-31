@@ -85,7 +85,7 @@ pub fn parse_revoke(parser: &mut crate::Parser) -> Result<RevokeStmt, ParseError
 
 /// Parse a comma-separated list of privileges
 ///
-/// Supports: SELECT, INSERT, UPDATE, DELETE, USAGE, CREATE, ALL [PRIVILEGES]
+/// Supports: SELECT, INSERT, UPDATE, DELETE, USAGE, CREATE, EXECUTE, TRIGGER, UNDER, ALL [PRIVILEGES]
 fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>, ParseError> {
     // Check for ALL [PRIVILEGES] syntax
     if parser.peek() == &Token::Keyword(Keyword::All) {
@@ -132,10 +132,22 @@ fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>
                 parser.advance();
                 PrivilegeType::References
             }
+            Token::Keyword(Keyword::Execute) => {
+                parser.advance();
+                PrivilegeType::Execute
+            }
+            Token::Keyword(Keyword::Trigger) => {
+                parser.advance();
+                PrivilegeType::Trigger
+            }
+            Token::Keyword(Keyword::Under) => {
+                parser.advance();
+                PrivilegeType::Under
+            }
             _ => {
                 return Err(ParseError {
                     message: format!(
-                        "Expected privilege keyword (SELECT, INSERT, UPDATE, DELETE, REFERENCES, USAGE, CREATE, ALL), found {:?}",
+                        "Expected privilege keyword (SELECT, INSERT, UPDATE, DELETE, REFERENCES, USAGE, CREATE, EXECUTE, TRIGGER, UNDER, ALL), found {:?}",
                         parser.peek()
                     ),
                 })
