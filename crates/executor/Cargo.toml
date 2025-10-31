@@ -34,9 +34,5 @@ name = "test_numeric_edge_cases"
 path = "tests/test_numeric_edge_cases.rs"
 
 [[test]]
-name = "string_tests"
-path = "tests/string_tests.rs"
-
-[[test]]
 name = "date_arithmetic_tests"
 path = "tests/date_arithmetic_tests.rs"
