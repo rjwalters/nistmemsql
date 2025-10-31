@@ -56,10 +56,7 @@ fn test_create_assertion_statement() {
         assertion_name: "valid_balance".to_string(),
         check_condition: Box::new(Expression::BinaryOp {
             op: BinaryOperator::GreaterThanOrEqual,
-            left: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "balance".to_string(),
-            }),
+            left: Box::new(Expression::ColumnRef { table: None, column: "balance".to_string() }),
             right: Box::new(Expression::Literal(types::SqlValue::Integer(0))),
         }),
     });

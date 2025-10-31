@@ -299,31 +299,31 @@ impl Parser {
     /// Parse optional timezone modifier (WITH TIME ZONE or WITHOUT TIME ZONE)
     /// Returns true if WITH TIME ZONE, false if WITHOUT TIME ZONE or no modifier
     pub(in crate::parser) fn parse_timezone_modifier(&mut self) -> Result<bool, ParseError> {
-    // Check for WITH keyword
-    if matches!(self.peek(), Token::Keyword(Keyword::With)) {
-    self.advance(); // consume WITH
-
-        // Expect TIME keyword
-    self.expect_keyword(Keyword::Time)?;
-
-    // Expect ZONE keyword
-    self.expect_keyword(Keyword::Zone)?;
-    return Ok(true); // WITH TIME ZONE
-    }
-
-    // Check for WITHOUT keyword
-        if matches!(self.peek(), Token::Keyword(Keyword::Without)) {
-    self.advance(); // consume WITHOUT
+        // Check for WITH keyword
+        if matches!(self.peek(), Token::Keyword(Keyword::With)) {
+            self.advance(); // consume WITH
 
             // Expect TIME keyword
-    self.expect_keyword(Keyword::Time)?;
+            self.expect_keyword(Keyword::Time)?;
 
-    // Expect ZONE keyword
-    self.expect_keyword(Keyword::Zone)?;
-    return Ok(false); // WITHOUT TIME ZONE
-    }
+            // Expect ZONE keyword
+            self.expect_keyword(Keyword::Zone)?;
+            return Ok(true); // WITH TIME ZONE
+        }
 
-    // No timezone modifier - default to WITHOUT TIME ZONE
-    Ok(false)
+        // Check for WITHOUT keyword
+        if matches!(self.peek(), Token::Keyword(Keyword::Without)) {
+            self.advance(); // consume WITHOUT
+
+            // Expect TIME keyword
+            self.expect_keyword(Keyword::Time)?;
+
+            // Expect ZONE keyword
+            self.expect_keyword(Keyword::Zone)?;
+            return Ok(false); // WITHOUT TIME ZONE
+        }
+
+        // No timezone modifier - default to WITHOUT TIME ZONE
+        Ok(false)
     }
 }

@@ -25,73 +25,75 @@ pub struct WebDemoExample {
 
 /// Parse all JSON example files and extract SQL examples
 pub fn parse_example_files() -> Result<Vec<WebDemoExample>, Box<dyn std::error::Error>> {
-let mut examples = Vec::new();
+    let mut examples = Vec::new();
 
-// Look for JSON files in the examples directory
-let examples_dir = Path::new("web-demo/src/data/examples");
+    // Look for JSON files in the examples directory
+    let examples_dir = Path::new("web-demo/src/data/examples");
     if examples_dir.exists() {
         for entry in fs::read_dir(examples_dir)? {
             let entry = entry?;
             let path = entry.path();
             if path.extension().and_then(|s| s.to_str()) == Some("json") {
-        if let Some(file_name) = path.file_stem().and_then(|s| s.to_str()) {
-        // Skip non-category files
-            if file_name == "types" || file_name == "loader" {
-            continue;
+                if let Some(file_name) = path.file_stem().and_then(|s| s.to_str()) {
+                    // Skip non-category files
+                    if file_name == "types" || file_name == "loader" {
+                        continue;
+                    }
+                    let content = fs::read_to_string(&path)?;
+                    examples.extend(parse_json_examples(&content, file_name)?);
+                }
+            }
+        }
     }
-let content = fs::read_to_string(&path)?;
-examples.extend(parse_json_examples(&content, file_name)?);
-}
-}
-}
-}
 
-Ok(examples)
+    Ok(examples)
 }
 
 /// Parse JSON content to extract example objects
 fn parse_json_examples(
     content: &str,
-_category_name: &str,
+    _category_name: &str,
 ) -> Result<Vec<WebDemoExample>, Box<dyn std::error::Error>> {
     let mut examples = Vec::new();
 
-// Parse the JSON
-let json: serde_json::Value = serde_json::from_str(content)?;
-let category_obj = json.as_object().ok_or("JSON root must be an object")?;
+    // Parse the JSON
+    let json: serde_json::Value = serde_json::from_str(content)?;
+    let category_obj = json.as_object().ok_or("JSON root must be an object")?;
 
-for (example_id, example_value) in category_obj {
-    let example_obj = example_value.as_object().ok_or(format!("Example {} must be an object", example_id))?;
+    for (example_id, example_value) in category_obj {
+        let example_obj =
+            example_value.as_object().ok_or(format!("Example {} must be an object", example_id))?;
 
-    let sql = example_obj.get("sql")
-    .and_then(|v| v.as_str())
-        .ok_or(format!("Example {} missing sql field", example_id))?
+        let sql = example_obj
+            .get("sql")
+            .and_then(|v| v.as_str())
+            .ok_or(format!("Example {} missing sql field", example_id))?
             .to_string();
 
-    let title = example_obj.get("title")
+        let title = example_obj
+            .get("title")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
             .unwrap_or_else(|| format!("Example {}", example_id));
 
-        let database = example_obj.get("database")
+        let database = example_obj
+            .get("database")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
             .unwrap_or_else(|| "northwind".to_string());
 
-// Parse expected results from JSON or SQL comments
-        let expected_rows = example_obj.get("expectedRows")
-    .and_then(|v| v.as_array())
-    .map(|arr| arr.iter()
+        // Parse expected results from JSON or SQL comments
+        let expected_rows = example_obj.get("expectedRows").and_then(|v| v.as_array()).map(|arr| {
+            arr.iter()
                 .filter_map(|row| row.as_array())
-        .map(|row| row.iter()
-                .filter_map(|cell| cell.as_str().map(|s| s.to_string()))
-                    .collect())
-            .collect()
-            );
+                .map(|row| {
+                    row.iter().filter_map(|cell| cell.as_str().map(|s| s.to_string())).collect()
+                })
+                .collect()
+        });
 
-        let expected_count = example_obj.get("expectedCount")
-            .and_then(|v| v.as_u64())
-            .map(|n| n as usize);
+        let expected_count =
+            example_obj.get("expectedCount").and_then(|v| v.as_u64()).map(|n| n as usize);
 
         examples.push(WebDemoExample {
             id: example_id.clone(),
@@ -187,9 +189,15 @@ pub fn extract_query(sql: &str) -> String {
 fn extract_database_from_sql(sql: &str) -> Option<String> {
     // Look for common database indicators in the SQL
     let sql_lower = sql.to_lowercase();
-    if sql_lower.contains("employees") || sql_lower.contains("dept_id") || sql_lower.contains("manager_id") {
+    if sql_lower.contains("employees")
+        || sql_lower.contains("dept_id")
+        || sql_lower.contains("manager_id")
+    {
         Some("employees".to_string())
-    } else if sql_lower.contains("students") || sql_lower.contains("courses") || sql_lower.contains("enrollments") {
+    } else if sql_lower.contains("students")
+        || sql_lower.contains("courses")
+        || sql_lower.contains("enrollments")
+    {
         Some("university".to_string())
     } else if sql_lower.contains("departments") || sql_lower.contains("projects") {
         Some("company".to_string())

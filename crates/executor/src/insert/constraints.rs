@@ -46,10 +46,8 @@ pub fn enforce_primary_key_constraint(
             .ok_or_else(|| ExecutorError::TableNotFound(table_name.to_string()))?;
 
         for existing_row in table.scan() {
-            let existing_pk_values: Vec<types::SqlValue> = pk_indices
-                .iter()
-                .filter_map(|&idx| existing_row.get(idx).cloned())
-                .collect();
+            let existing_pk_values: Vec<types::SqlValue> =
+                pk_indices.iter().filter_map(|&idx| existing_row.get(idx).cloned()).collect();
 
             if new_pk_values == existing_pk_values {
                 let pk_col_names: Vec<String> = schema.primary_key.as_ref().unwrap().clone();
@@ -101,10 +99,8 @@ pub fn enforce_unique_constraints(
             .ok_or_else(|| ExecutorError::TableNotFound(table_name.to_string()))?;
 
         for existing_row in table.scan() {
-            let existing_unique_values: Vec<types::SqlValue> = unique_indices
-                .iter()
-                .filter_map(|&idx| existing_row.get(idx).cloned())
-                .collect();
+            let existing_unique_values: Vec<types::SqlValue> =
+                unique_indices.iter().filter_map(|&idx| existing_row.get(idx).cloned()).collect();
 
             // Skip if any existing value is NULL
             if existing_unique_values.iter().any(|v| *v == types::SqlValue::Null) {

@@ -235,10 +235,8 @@ impl super::Catalog {
         if self.collations.contains_key(&name) {
             return Err(CatalogError::CollationAlreadyExists(name));
         }
-        self.collations.insert(
-            name.clone(),
-            Collation::new(name, character_set, source_collation, pad_space),
-        );
+        self.collations
+            .insert(name.clone(), Collation::new(name, character_set, source_collation, pad_space));
         Ok(())
     }
 

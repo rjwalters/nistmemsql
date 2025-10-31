@@ -5,13 +5,14 @@
 use crate::{
     AlterSequenceStmt, AlterTableStmt, BeginStmt, CloseCursorStmt, CommitStmt, CreateAssertionStmt,
     CreateCharacterSetStmt, CreateCollationStmt, CreateDomainStmt, CreateRoleStmt,
-    CreateSchemaStmt, CreateSequenceStmt, CreateTableStmt, CreateTranslationStmt, CreateTriggerStmt,
-    CreateTypeStmt, CreateViewStmt, DeclareCursorStmt, DeleteStmt, DropAssertionStmt,
-    DropCharacterSetStmt, DropCollationStmt, DropDomainStmt, DropRoleStmt, DropSchemaStmt,
-    DropSequenceStmt, DropTableStmt, DropTranslationStmt, DropTriggerStmt, DropTypeStmt,
-    DropViewStmt, FetchStmt, GrantStmt, InsertStmt, OpenCursorStmt, ReleaseSavepointStmt, RevokeStmt, RollbackStmt,
-    RollbackToSavepointStmt, SavepointStmt, SelectStmt, SetCatalogStmt, SetNamesStmt,
-    SetSchemaStmt, SetTimeZoneStmt, SetTransactionStmt, UpdateStmt,
+    CreateSchemaStmt, CreateSequenceStmt, CreateTableStmt, CreateTranslationStmt,
+    CreateTriggerStmt, CreateTypeStmt, CreateViewStmt, DeclareCursorStmt, DeleteStmt,
+    DropAssertionStmt, DropCharacterSetStmt, DropCollationStmt, DropDomainStmt, DropRoleStmt,
+    DropSchemaStmt, DropSequenceStmt, DropTableStmt, DropTranslationStmt, DropTriggerStmt,
+    DropTypeStmt, DropViewStmt, FetchStmt, GrantStmt, InsertStmt, OpenCursorStmt,
+    ReleaseSavepointStmt, RevokeStmt, RollbackStmt, RollbackToSavepointStmt, SavepointStmt,
+    SelectStmt, SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt, SetTransactionStmt,
+    UpdateStmt,
 };
 
 // ============================================================================

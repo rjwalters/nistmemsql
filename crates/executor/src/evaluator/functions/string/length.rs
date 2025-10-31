@@ -48,7 +48,9 @@ pub(in crate::evaluator::functions) fn char_length(
 /// Returns byte length, not character count. For UTF-8:
 /// - ASCII characters: 1 byte each
 /// - Multi-byte characters: 2-4 bytes each
-pub(in crate::evaluator::functions) fn octet_length(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
+pub(in crate::evaluator::functions) fn octet_length(
+    args: &[types::SqlValue],
+) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 1 {
         return Err(ExecutorError::UnsupportedFeature(format!(
             "OCTET_LENGTH requires exactly 1 argument, got {}",
@@ -69,7 +71,9 @@ pub(in crate::evaluator::functions) fn octet_length(args: &[types::SqlValue]) ->
 
 /// LENGTH(str) - Alias for byte length (commonly used)
 /// Note: In many SQL implementations, LENGTH returns byte count
-pub(in crate::evaluator::functions) fn length(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
+pub(in crate::evaluator::functions) fn length(
+    args: &[types::SqlValue],
+) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 1 {
         return Err(ExecutorError::UnsupportedFeature(format!(
             "LENGTH requires exactly 1 argument, got {}",

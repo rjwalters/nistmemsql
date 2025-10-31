@@ -372,9 +372,9 @@ pub struct DropCharacterSetStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub struct CreateTranslationStmt {
     pub translation_name: String,
-    pub source_charset: Option<String>,       // FOR source_charset
-    pub target_charset: Option<String>,       // TO target_charset
-    pub translation_source: Option<String>,   // FROM translation_source
+    pub source_charset: Option<String>,     // FOR source_charset
+    pub target_charset: Option<String>,     // TO target_charset
+    pub translation_source: Option<String>, // FROM translation_source
 }
 
 /// DROP TRANSLATION statement
