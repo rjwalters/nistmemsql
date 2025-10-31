@@ -88,10 +88,20 @@ impl UpdateExecutor {
 
         for (row_index, row) in table.scan().iter().enumerate() {
             // Check WHERE clause
-            let should_update = if let Some(ref where_expr) = stmt.where_clause {
-                let result = evaluator.eval(where_expr, row)?;
-                // SQL semantics: only TRUE (not NULL) causes update
-                matches!(result, types::SqlValue::Boolean(true))
+            let should_update = if let Some(ref where_clause) = stmt.where_clause {
+                match where_clause {
+                    ast::WhereClause::Condition(where_expr) => {
+                        let result = evaluator.eval(where_expr, row)?;
+                        // SQL semantics: only TRUE (not NULL) causes update
+                        matches!(result, types::SqlValue::Boolean(true))
+                    }
+                    ast::WhereClause::CurrentOf(_cursor_name) => {
+                        // TODO: Implement cursor support - for now return error
+                        return Err(ExecutorError::UnsupportedFeature(
+                            "WHERE CURRENT OF cursor is not yet implemented".to_string(),
+                        ));
+                    }
+                }
             } else {
                 true // No WHERE clause = update all rows
             };

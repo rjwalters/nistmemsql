@@ -55,7 +55,14 @@ impl Parser {
         // Parse optional WHERE clause
         let where_clause = if self.peek_keyword(Keyword::Where) {
             self.consume_keyword(Keyword::Where)?;
-            Some(self.parse_expression()?)
+            // Check for WHERE CURRENT OF cursor_name
+            if self.try_consume_keyword(Keyword::Current) {
+                self.expect_keyword(Keyword::Of)?;
+                let cursor_name = self.parse_identifier()?;
+                Some(ast::WhereClause::CurrentOf(cursor_name))
+            } else {
+                Some(ast::WhereClause::Condition(self.parse_expression()?))
+            }
         } else {
             None
         };
