@@ -65,16 +65,19 @@ export class NavigationComponent extends Component<NavigationState> {
 
     // Initialize theme toggle if themeSystem is provided
     if (this.themeSystem) {
-      const themeToggleContainer = this.element.querySelector('#theme-toggle-nav') as HTMLDivElement
-      if (themeToggleContainer) {
-        // Create a wrapper for the theme toggle
-        const wrapper = document.createElement('div')
-        wrapper.id = 'theme-toggle'
-        // Append wrapper to DOM
-        themeToggleContainer.appendChild(wrapper)
-        // Create the theme toggle component
-        new ThemeToggleComponent(this.themeSystem!)
-      }
+      // Use setTimeout to ensure DOM is fully updated
+      setTimeout(() => {
+        const themeToggleContainer = this.element.querySelector('#theme-toggle-nav') as HTMLDivElement
+        if (themeToggleContainer) {
+          // Create a wrapper for the theme toggle
+          const wrapper = document.createElement('div')
+          wrapper.id = 'theme-toggle'
+          // Append wrapper to DOM
+          themeToggleContainer.appendChild(wrapper)
+          // Create the theme toggle component
+          new ThemeToggleComponent(this.themeSystem!)
+        }
+      }, 0)
     }
   }
 
