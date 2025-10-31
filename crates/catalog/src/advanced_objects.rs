@@ -128,12 +128,19 @@ impl UserDefinedType {
 #[derive(Debug, Clone, Default)]
 pub struct Collation {
     pub name: String,
-    // TODO: Add locale, pad_attribute when implementing full functionality
+    pub character_set: Option<String>,    // FOR character_set
+    pub source_collation: Option<String>, // FROM source_collation
+    pub pad_space: Option<bool>,          // PAD SPACE (true) | NO PAD (false)
 }
 
 impl Collation {
-    pub fn new(name: String) -> Self {
-        Collation { name }
+    pub fn new(
+        name: String,
+        character_set: Option<String>,
+        source_collation: Option<String>,
+        pad_space: Option<bool>,
+    ) -> Self {
+        Collation { name, character_set, source_collation, pad_space }
     }
 }
 
@@ -141,12 +148,13 @@ impl Collation {
 #[derive(Debug, Clone, Default)]
 pub struct CharacterSet {
     pub name: String,
-    // TODO: Add encoding details when implementing full functionality
+    pub source: Option<String>,    // GET source
+    pub collation: Option<String>, // COLLATE FROM collation
 }
 
 impl CharacterSet {
-    pub fn new(name: String) -> Self {
-        CharacterSet { name }
+    pub fn new(name: String, source: Option<String>, collation: Option<String>) -> Self {
+        CharacterSet { name, source, collation }
     }
 }
 
@@ -154,11 +162,18 @@ impl CharacterSet {
 #[derive(Debug, Clone, Default)]
 pub struct Translation {
     pub name: String,
-    // TODO: Add from_charset, to_charset when implementing full functionality
+    pub source_charset: Option<String>,       // FOR source_charset
+    pub target_charset: Option<String>,       // TO target_charset
+    pub translation_source: Option<String>,   // FROM translation_source
 }
 
 impl Translation {
-    pub fn new(name: String) -> Self {
-        Translation { name }
+    pub fn new(
+        name: String,
+        source_charset: Option<String>,
+        target_charset: Option<String>,
+        translation_source: Option<String>,
+    ) -> Self {
+        Translation { name, source_charset, target_charset, translation_source }
     }
 }
