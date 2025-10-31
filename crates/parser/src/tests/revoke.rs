@@ -36,7 +36,7 @@ fn test_revoke_multiple_privileges() {
     assert_eq!(stmt.privileges.len(), 3);
     assert!(stmt.privileges.contains(&PrivilegeType::Select));
     assert!(stmt.privileges.contains(&PrivilegeType::Insert));
-    assert!(stmt.privileges.contains(&PrivilegeType::Update));
+    assert!(stmt.privileges.contains(&PrivilegeType::Update(None)));
     assert_eq!(stmt.grantees, vec!["CLERK"]);
 }
 
@@ -169,7 +169,7 @@ fn test_revoke_references_privilege() {
     let sql = "REVOKE REFERENCES ON TABLE parent_table FROM child_schema";
     let stmt = parse_revoke(sql);
 
-    assert_eq!(stmt.privileges, vec![PrivilegeType::References]);
+    assert_eq!(stmt.privileges, vec![PrivilegeType::References(None)]);
     assert_eq!(stmt.object_name, "PARENT_TABLE");
 }
 

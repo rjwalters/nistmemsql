@@ -91,11 +91,19 @@ fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>
             }
             Token::Keyword(Keyword::Update) => {
                 parser.advance();
-                PrivilegeType::Update
+                // Check for optional column list
+                let columns = parse_optional_column_list(parser)?;
+                PrivilegeType::Update(columns)
             }
             Token::Keyword(Keyword::Delete) => {
                 parser.advance();
                 PrivilegeType::Delete
+            }
+            Token::Keyword(Keyword::References) => {
+                parser.advance();
+                // Check for optional column list
+                let columns = parse_optional_column_list(parser)?;
+                PrivilegeType::References(columns)
             }
             Token::Keyword(Keyword::Usage) => {
                 parser.advance();
@@ -105,14 +113,10 @@ fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>
                 parser.advance();
                 PrivilegeType::Create
             }
-            Token::Keyword(Keyword::References) => {
-                parser.advance();
-                PrivilegeType::References
-            }
             _ => {
                 return Err(ParseError {
                     message: format!(
-                        "Expected privilege keyword (SELECT, INSERT, UPDATE, DELETE, USAGE, CREATE, REFERENCES, ALL), found {:?}",
+                        "Expected privilege keyword (SELECT, INSERT, UPDATE, DELETE, REFERENCES, USAGE, CREATE, ALL), found {:?}",
                         parser.peek()
                     ),
                 })
