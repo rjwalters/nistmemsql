@@ -21,6 +21,7 @@ fn test_grant_to_nonexistent_role() {
         privileges: vec![ast::PrivilegeType::Select(None)],
         object_type: ast::ObjectType::Table,
         object_name: "users".to_string(),
+        for_type_name: None,
         grantees: vec!["nonexistent_role".to_string()],
         with_grant_option: false,
     };
@@ -48,6 +49,7 @@ fn test_grant_on_nonexistent_schema() {
         privileges: vec![ast::PrivilegeType::Usage],
         object_type: ast::ObjectType::Schema,
         object_name: "nonexistent_schema".to_string(),
+        for_type_name: None,
         grantees: vec!["manager".to_string()],
         with_grant_option: false,
     };
@@ -78,6 +80,7 @@ fn test_grant_on_schema_with_existing_role() {
         privileges: vec![ast::PrivilegeType::Usage],
         object_type: ast::ObjectType::Schema,
         object_name: "myschema".to_string(),
+        for_type_name: None,
         grantees: vec!["developer".to_string()],
         with_grant_option: false,
     };
@@ -111,6 +114,7 @@ fn test_grant_multiple_privileges_one_invalid_role() {
         privileges: vec![ast::PrivilegeType::Select(None)],
         object_type: ast::ObjectType::Table,
         object_name: "orders".to_string(),
+        for_type_name: None,
         grantees: vec!["manager".to_string(), "invalid_role".to_string()],
         with_grant_option: false,
     };

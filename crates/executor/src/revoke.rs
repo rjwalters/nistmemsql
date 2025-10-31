@@ -27,8 +27,18 @@ impl RevokeExecutor {
                     return Err(ExecutorError::SchemaNotFound(stmt.object_name.clone()));
                 }
             }
+            // SQL:1999 Feature F031: New object types
+            // Accept without validation - implementations are future work
+            ObjectType::Domain
+            | ObjectType::Collation
+            | ObjectType::CharacterSet
+            | ObjectType::Translation
+            | ObjectType::Type
+            | ObjectType::Sequence => {
+                // No validation - these objects are stubbed for conformance
+            }
             // Functions (SQL:1999 Feature P001)
-            ObjectType::Function => {
+            ObjectType::Function | ObjectType::SpecificFunction => {
                 // Validate function exists (don't create stubs on REVOKE)
                 if !database.catalog.function_exists(&stmt.object_name) {
                     return Err(ExecutorError::Other(format!(
@@ -38,7 +48,7 @@ impl RevokeExecutor {
                 }
             }
             // Procedures (SQL:1999 Feature P001)
-            ObjectType::Procedure => {
+            ObjectType::Procedure | ObjectType::SpecificProcedure => {
                 // Validate procedure exists (don't create stubs on REVOKE)
                 if !database.catalog.procedure_exists(&stmt.object_name) {
                     return Err(ExecutorError::Other(format!(
@@ -48,7 +58,7 @@ impl RevokeExecutor {
                 }
             }
             // Routine (generic term for function or procedure)
-            ObjectType::Routine => {
+            ObjectType::Routine | ObjectType::SpecificRoutine => {
                 // Check if either function or procedure exists
                 if !database.catalog.function_exists(&stmt.object_name)
                     && !database.catalog.procedure_exists(&stmt.object_name)
@@ -88,6 +98,14 @@ impl RevokeExecutor {
                     PrivilegeType::References(None),
                 ],
                 ObjectType::Schema => vec![PrivilegeType::Usage, PrivilegeType::Create],
+                // USAGE-only objects (domains, collations, character sets, translations, types, sequences)
+                // ALL PRIVILEGES on these objects means USAGE privilege
+                ObjectType::Domain
+                | ObjectType::Collation
+                | ObjectType::CharacterSet
+                | ObjectType::Translation
+                | ObjectType::Type
+                | ObjectType::Sequence => vec![PrivilegeType::Usage],
                 // Callable objects (functions, procedures, routines, methods)
                 // ALL PRIVILEGES on callable objects means EXECUTE privilege
                 ObjectType::Function
@@ -96,7 +114,10 @@ impl RevokeExecutor {
                 | ObjectType::Method
                 | ObjectType::ConstructorMethod
                 | ObjectType::StaticMethod
-                | ObjectType::InstanceMethod => vec![PrivilegeType::Execute],
+                | ObjectType::InstanceMethod
+                | ObjectType::SpecificFunction
+                | ObjectType::SpecificProcedure
+                | ObjectType::SpecificRoutine => vec![PrivilegeType::Execute],
             }
         } else {
             stmt.privileges.clone()

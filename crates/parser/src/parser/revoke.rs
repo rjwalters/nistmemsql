@@ -11,8 +11,12 @@ use ast::*;
 ///
 /// Grammar:
 /// ```text
-/// REVOKE [GRANT OPTION FOR] privilege_list ON [TABLE | SCHEMA | FUNCTION | PROCEDURE | ROUTINE | METHOD | CONSTRUCTOR METHOD | STATIC METHOD | INSTANCE METHOD] object_name
+/// REVOKE [GRANT OPTION FOR] privilege_list ON [object_type] object_name [FOR type_name]
 /// FROM grantee_list [GRANTED BY grantor] [CASCADE | RESTRICT]
+///
+/// object_type ::= TABLE | SCHEMA | DOMAIN | COLLATION | CHARACTER SET | TRANSLATION | TYPE | SEQUENCE
+///               | FUNCTION | PROCEDURE | ROUTINE | METHOD | CONSTRUCTOR METHOD | STATIC METHOD | INSTANCE METHOD
+///               | SPECIFIC FUNCTION | SPECIFIC PROCEDURE | SPECIFIC ROUTINE
 /// ```
 pub fn parse_revoke(parser: &mut crate::Parser) -> Result<RevokeStmt, ParseError> {
     parser.expect_keyword(Keyword::Revoke)?;
@@ -33,35 +37,75 @@ pub fn parse_revoke(parser: &mut crate::Parser) -> Result<RevokeStmt, ParseError
     parser.expect_keyword(Keyword::On)?;
 
     // Parse object type (TABLE, SCHEMA, FUNCTION, PROCEDURE, etc.)
-    let object_type = if parser.peek() == &Token::Keyword(Keyword::Table) {
-        parser.advance(); // consume TABLE
+    let object_type = if parser.peek() == &Token::Keyword(Keyword::Specific) {
+        parser.advance(); // consume SPECIFIC
+        // SPECIFIC FUNCTION | SPECIFIC PROCEDURE | SPECIFIC ROUTINE
+        if parser.peek() == &Token::Keyword(Keyword::Function) {
+            parser.advance();
+            ObjectType::SpecificFunction
+        } else if parser.peek() == &Token::Keyword(Keyword::Procedure) {
+            parser.advance();
+            ObjectType::SpecificProcedure
+        } else if parser.peek() == &Token::Keyword(Keyword::Routine) {
+            parser.advance();
+            ObjectType::SpecificRoutine
+        } else {
+            return Err(ParseError {
+                message: format!(
+                    "Expected FUNCTION, PROCEDURE, or ROUTINE after SPECIFIC, found {:?}",
+                    parser.peek()
+                ),
+            });
+        }
+    } else if parser.peek() == &Token::Keyword(Keyword::Table) {
+        parser.advance();
         ObjectType::Table
     } else if parser.peek() == &Token::Keyword(Keyword::Schema) {
-        parser.advance(); // consume SCHEMA
+        parser.advance();
         ObjectType::Schema
+    } else if parser.peek() == &Token::Keyword(Keyword::Domain) {
+        parser.advance();
+        ObjectType::Domain
+    } else if parser.peek() == &Token::Keyword(Keyword::Collation) {
+        parser.advance();
+        ObjectType::Collation
+    } else if parser.peek() == &Token::Keyword(Keyword::Character) {
+        parser.advance();
+        // CHARACTER SET
+        parser.expect_keyword(Keyword::Set)?;
+        ObjectType::CharacterSet
+    } else if parser.peek() == &Token::Keyword(Keyword::Translation) {
+        parser.advance();
+        ObjectType::Translation
+    } else if parser.peek() == &Token::Keyword(Keyword::Type) {
+        parser.advance();
+        ObjectType::Type
+    } else if parser.peek() == &Token::Keyword(Keyword::Sequence) {
+        parser.advance();
+        ObjectType::Sequence
     } else if parser.peek() == &Token::Keyword(Keyword::Function) {
-        parser.advance(); // consume FUNCTION
+        parser.advance();
         ObjectType::Function
     } else if parser.peek() == &Token::Keyword(Keyword::Procedure) {
-        parser.advance(); // consume PROCEDURE
+        parser.advance();
         ObjectType::Procedure
     } else if parser.peek() == &Token::Keyword(Keyword::Routine) {
-        parser.advance(); // consume ROUTINE
+        parser.advance();
         ObjectType::Routine
     } else if parser.peek() == &Token::Keyword(Keyword::Constructor) {
-        parser.advance(); // consume CONSTRUCTOR
-        parser.expect_keyword(Keyword::Method)?; // expect METHOD after CONSTRUCTOR
+        parser.advance();
+        parser.expect_keyword(Keyword::Method)?;
         ObjectType::ConstructorMethod
     } else if parser.peek() == &Token::Keyword(Keyword::Static) {
-        parser.advance(); // consume STATIC
-        parser.expect_keyword(Keyword::Method)?; // expect METHOD after STATIC
+        parser.advance();
+        parser.expect_keyword(Keyword::Method)?;
         ObjectType::StaticMethod
     } else if parser.peek() == &Token::Keyword(Keyword::Instance) {
-        parser.advance(); // consume INSTANCE
-        parser.expect_keyword(Keyword::Method)?; // expect METHOD after INSTANCE
+        parser.advance();
+        parser.expect_keyword(Keyword::Method)?;
         ObjectType::InstanceMethod
     } else if parser.peek() == &Token::Keyword(Keyword::Method) {
-        parser.advance(); // consume METHOD
+        parser.advance();
         ObjectType::Method
     } else {
         // Default to TABLE if not specified (SQL standard behavior)
@@ -70,6 +114,14 @@ pub fn parse_revoke(parser: &mut crate::Parser) -> Result<RevokeStmt, ParseError
 
     // Parse object name (supports qualified names like "schema.table")
     let object_name = parser.parse_qualified_identifier()?;
+
+    // Parse optional FOR type_name (for methods and routines on user-defined types)
+    let for_type_name = if parser.peek() == &Token::Keyword(Keyword::For) {
+        parser.advance(); // consume FOR
+        Some(parser.parse_qualified_identifier()?)
+    } else {
+        None
+    };
 
     parser.expect_keyword(Keyword::From)?;
 
@@ -101,6 +153,7 @@ pub fn parse_revoke(parser: &mut crate::Parser) -> Result<RevokeStmt, ParseError
         privileges,
         object_type,
         object_name,
+        for_type_name,
         grantees,
         granted_by,
         cascade_option,
