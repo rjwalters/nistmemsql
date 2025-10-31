@@ -81,7 +81,10 @@ jobs:
 
       # Run benchmarks
       - name: Install benchmark dependencies
-        run: pip install -r benchmarks/requirements.txt
+        run: |
+          # Install requirements except nistmemsql (already installed from wheel)
+          grep -v "^nistmemsql" benchmarks/requirements.txt > /tmp/requirements-ci.txt
+          pip install -r /tmp/requirements-ci.txt
 
       - name: Run benchmarks
         working-directory: benchmarks
