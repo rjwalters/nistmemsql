@@ -207,3 +207,103 @@ fn test_revoke_grant_option_for_references() {
     assert_eq!(stmt.object_name, "PRODUCTS");
     assert_eq!(stmt.grantees, vec!["ADMIN"]);
 }
+
+// Issue #561: REVOKE on FUNCTION, PROCEDURE, ROUTINE objects
+
+#[test]
+fn test_revoke_execute_on_function() {
+    let sql = "REVOKE EXECUTE ON FUNCTION my_func FROM user_role";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Revoke(revoke_stmt) => {
+            assert_eq!(revoke_stmt.privileges.len(), 1);
+            assert_eq!(revoke_stmt.privileges[0], ast::PrivilegeType::Execute);
+            assert_eq!(revoke_stmt.object_type, ast::ObjectType::Function);
+            assert_eq!(revoke_stmt.object_name.to_string(), "MY_FUNC");
+            assert_eq!(revoke_stmt.grantees, vec!["USER_ROLE"]);
+        }
+        other => panic!("Expected Revoke statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_revoke_execute_on_procedure() {
+    let sql = "REVOKE EXECUTE ON PROCEDURE proc_name FROM user1";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Revoke(revoke_stmt) => {
+            assert_eq!(revoke_stmt.privileges[0], ast::PrivilegeType::Execute);
+            assert_eq!(revoke_stmt.object_type, ast::ObjectType::Procedure);
+            assert_eq!(revoke_stmt.object_name.to_string(), "PROC_NAME");
+        }
+        other => panic!("Expected Revoke statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_revoke_execute_on_routine() {
+    let sql = "REVOKE EXECUTE ON ROUTINE routine_name FROM user1";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Revoke(revoke_stmt) => {
+            assert_eq!(revoke_stmt.privileges[0], ast::PrivilegeType::Execute);
+            assert_eq!(revoke_stmt.object_type, ast::ObjectType::Routine);
+            assert_eq!(revoke_stmt.object_name.to_string(), "ROUTINE_NAME");
+        }
+        other => panic!("Expected Revoke statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_revoke_execute_on_method() {
+    let sql = "REVOKE EXECUTE ON METHOD method_name FROM user1";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Revoke(revoke_stmt) => {
+            assert_eq!(revoke_stmt.privileges[0], ast::PrivilegeType::Execute);
+            assert_eq!(revoke_stmt.object_type, ast::ObjectType::Method);
+            assert_eq!(revoke_stmt.object_name.to_string(), "METHOD_NAME");
+        }
+        other => panic!("Expected Revoke statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_revoke_execute_cascade() {
+    let sql = "REVOKE EXECUTE ON FUNCTION my_func FROM user1 CASCADE";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Revoke(revoke_stmt) => {
+            assert_eq!(revoke_stmt.privileges[0], ast::PrivilegeType::Execute);
+            assert_eq!(revoke_stmt.object_type, ast::ObjectType::Function);
+            assert_eq!(revoke_stmt.cascade_option, ast::CascadeOption::Cascade);
+        }
+        other => panic!("Expected Revoke statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_revoke_execute_restrict() {
+    let sql = "REVOKE EXECUTE ON PROCEDURE proc_name FROM user1 RESTRICT";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Revoke(revoke_stmt) => {
+            assert_eq!(revoke_stmt.privileges[0], ast::PrivilegeType::Execute);
+            assert_eq!(revoke_stmt.object_type, ast::ObjectType::Procedure);
+            assert_eq!(revoke_stmt.cascade_option, ast::CascadeOption::Restrict);
+        }
+        other => panic!("Expected Revoke statement, got {:?}", other),
+    }
+}
