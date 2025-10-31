@@ -29,12 +29,12 @@ jobs:
           cache: 'pip'
           cache-dependency-path: benchmarks/requirements.txt
 
-      - name: Install maturin
-        run: pip install maturin
-
-      - name: Build Python bindings
-        working-directory: crates/python-bindings
-        run: maturin develop --release
+      - name: Build and install Python bindings
+        run: |
+          pip install maturin
+          cd crates/python-bindings
+          maturin build --release
+          pip install target/wheels/*.whl
 
       - name: Install benchmark dependencies
         run: pip install -r benchmarks/requirements.txt
