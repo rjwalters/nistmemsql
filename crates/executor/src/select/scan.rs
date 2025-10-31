@@ -147,8 +147,8 @@ where
     let mut col_index = 0;
     for item in &query.select_list {
         match item {
-            ast::SelectItem::Wildcard => {
-                // For SELECT *, expand to all columns from the result rows
+            ast::SelectItem::Wildcard | ast::SelectItem::QualifiedWildcard { .. } => {
+                // For SELECT * or SELECT table.*, expand to all columns from the result rows
                 // Since we executed the subquery, the rows tell us how many columns there are
                 if let Some(first_row) = rows.first() {
                     for (j, value) in first_row.values.iter().enumerate() {

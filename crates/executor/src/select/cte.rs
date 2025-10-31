@@ -93,7 +93,7 @@ pub(super) fn derive_cte_schema(
 
                     // Extract column name from SELECT item
                     let col_name = match item {
-                        ast::SelectItem::Wildcard => format!("col{}", i),
+                        ast::SelectItem::Wildcard | ast::SelectItem::QualifiedWildcard { .. } => format!("col{}", i),
                         ast::SelectItem::Expression { expr, alias } => {
                             if let Some(a) = alias {
                                 a.clone()

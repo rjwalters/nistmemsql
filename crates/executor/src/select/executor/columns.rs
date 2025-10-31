@@ -40,6 +40,24 @@ impl SelectExecutor<'_> {
                         ));
                     }
                 }
+                ast::SelectItem::QualifiedWildcard { qualifier } => {
+                    // SELECT table.* or SELECT alias.* - expand to columns from specific table/alias
+                    if let Some(from_res) = from_result {
+                        // Find the table/alias in the schema
+                        if let Some((_start_index, schema)) = from_res.schema.table_schemas.get(qualifier) {
+                            // Add all column names from this table in order
+                            for col_schema in &schema.columns {
+                                column_names.push(col_schema.name.clone());
+                            }
+                        } else {
+                            return Err(ExecutorError::TableNotFound(qualifier.clone()));
+                        }
+                    } else {
+                        return Err(ExecutorError::UnsupportedFeature(
+                            "SELECT table.* without FROM not supported".to_string(),
+                        ));
+                    }
+                }
                 ast::SelectItem::Expression { expr, alias } => {
                     // If there's an alias, use it
                     if let Some(alias_name) = alias {

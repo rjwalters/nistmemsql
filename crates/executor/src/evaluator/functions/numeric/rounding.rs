@@ -99,3 +99,51 @@ pub fn ceil(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         ))),
     }
 }
+
+/// TRUNCATE(x [, precision]) - Truncate to specified decimal places (towards zero)
+/// SQL:1999 Section 6.27: Numeric value functions
+pub fn truncate(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
+    if args.is_empty() || args.len() > 2 {
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "TRUNCATE requires 1 or 2 arguments, got {}",
+            args.len()
+        )));
+    }
+
+    let value = &args[0];
+    let precision = if args.len() == 2 {
+        match &args[1] {
+            SqlValue::Integer(p) => *p as i32,
+            SqlValue::Null => return Ok(SqlValue::Null),
+            val => {
+                return Err(ExecutorError::UnsupportedFeature(format!(
+                    "TRUNCATE precision must be integer, got {:?}",
+                    val
+                )))
+            }
+        }
+    } else {
+        0
+    };
+
+    match value {
+        SqlValue::Null => Ok(SqlValue::Null),
+        SqlValue::Integer(n) => Ok(SqlValue::Integer(*n)),
+        SqlValue::Float(f) => {
+            let multiplier = 10_f32.powi(precision);
+            Ok(SqlValue::Float((f * multiplier).trunc() / multiplier))
+        }
+        SqlValue::Double(f) => {
+            let multiplier = 10_f64.powi(precision);
+            Ok(SqlValue::Double((f * multiplier).trunc() / multiplier))
+        }
+        SqlValue::Real(f) => {
+            let multiplier = 10_f32.powi(precision);
+            Ok(SqlValue::Real((f * multiplier).trunc() / multiplier))
+        }
+        val => Err(ExecutorError::UnsupportedFeature(format!(
+            "TRUNCATE requires numeric argument, got {:?}",
+            val
+        ))),
+    }
+}
