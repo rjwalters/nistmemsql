@@ -161,6 +161,7 @@ impl NistMemSqlDB {
             | ast::Statement::Savepoint(_)
             | ast::Statement::RollbackToSavepoint(_)
             | ast::Statement::ReleaseSavepoint(_)
+            | ast::Statement::SetTransaction(_)
             | ast::Statement::CreateSequence(_)
             | ast::Statement::DropSequence(_)
             | ast::Statement::AlterSequence(_)
@@ -174,9 +175,10 @@ impl NistMemSqlDB {
             | ast::Statement::DropView(_)
             | ast::Statement::CreateTrigger(_)
             | ast::Statement::DropTrigger(_)
-            | ast::Statement::CreateAssertion(_)
-            | ast::Statement::DropAssertion(_)
-            | ast::Statement::DeclareCursor(_) => Ok(DBOutput::StatementComplete(0)),
+            | ast::Statement::DeclareCursor(_)
+            | ast::Statement::OpenCursor(_)
+            | ast::Statement::Fetch(_)
+            | ast::Statement::CloseCursor(_) => Ok(DBOutput::StatementComplete(0)),
         }
     }
 
@@ -256,6 +258,10 @@ impl AsyncDB for NistMemSqlDB {
 
     async fn run(&mut self, sql: &str) -> Result<DBOutput<Self::ColumnType>, Self::Error> {
         self.execute_sql(sql)
+    }
+
+    async fn shutdown(&mut self) {
+        // No cleanup needed for in-memory database
     }
 }
 
