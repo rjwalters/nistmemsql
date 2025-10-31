@@ -181,7 +181,7 @@ impl Parser {
                 let release_stmt = self.parse_release_savepoint_statement()?;
                 Ok(ast::Statement::ReleaseSavepoint(release_stmt))
             }
-            Token::Keyword(Keyword::Set) => match self.peek_keyword(Keyword::Schema) {
+            Token::Keyword(Keyword::Set) => match self.peek_next_keyword(Keyword::Schema) {
                 true => {
                     let set_stmt = self.parse_set_schema_statement()?;
                     Ok(ast::Statement::SetSchema(set_stmt))

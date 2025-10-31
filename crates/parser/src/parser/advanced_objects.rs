@@ -42,56 +42,24 @@ pub fn parse_create_sequence(parser: &mut crate::Parser) -> Result<CreateSequenc
     loop {
         if parser.try_consume_keyword(Keyword::Start) {
             parser.expect_keyword(Keyword::With)?;
-            let num_str = match parser.peek() {
-                Token::Number(n) => n.clone(),
-                _ => {
-                    return Err(ParseError {
-                        message: "Expected number after START WITH".to_string(),
-                    })
-                }
-            };
-            parser.advance();
+            let num_str = parser.parse_signed_number()?;
             start_with = Some(num_str.parse::<i64>().map_err(|_| ParseError {
                 message: format!("Invalid START WITH value: {}", num_str),
             })?);
         } else if parser.try_consume_keyword(Keyword::Increment) {
             parser.expect_keyword(Keyword::By)?;
-            let num_str = match parser.peek() {
-                Token::Number(n) => n.clone(),
-                _ => {
-                    return Err(ParseError {
-                        message: "Expected number after INCREMENT BY".to_string(),
-                    })
-                }
-            };
-            parser.advance();
+            let num_str = parser.parse_signed_number()?;
             increment_by = num_str.parse::<i64>().map_err(|_| ParseError {
                 message: format!("Invalid INCREMENT BY value: {}", num_str),
             })?;
         } else if parser.try_consume_keyword(Keyword::Minvalue) {
-            let num_str = match parser.peek() {
-                Token::Number(n) => n.clone(),
-                _ => {
-                    return Err(ParseError {
-                        message: "Expected number after MINVALUE".to_string(),
-                    })
-                }
-            };
-            parser.advance();
+            let num_str = parser.parse_signed_number()?;
             min_value =
                 Some(num_str.parse::<i64>().map_err(|_| ParseError {
                     message: format!("Invalid MINVALUE: {}", num_str),
                 })?);
         } else if parser.try_consume_keyword(Keyword::Maxvalue) {
-            let num_str = match parser.peek() {
-                Token::Number(n) => n.clone(),
-                _ => {
-                    return Err(ParseError {
-                        message: "Expected number after MAXVALUE".to_string(),
-                    })
-                }
-            };
-            parser.advance();
+            let num_str = parser.parse_signed_number()?;
             max_value =
                 Some(num_str.parse::<i64>().map_err(|_| ParseError {
                     message: format!("Invalid MAXVALUE: {}", num_str),
