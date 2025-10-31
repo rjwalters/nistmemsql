@@ -20,7 +20,7 @@
 //! - `comparison_ops`: Comparison operator tests
 //! - `between_predicates`: BETWEEN predicate execution tests
 //! - `operator_edge_cases`: Unary operators, NULL propagation, complex nested expressions
-//! - `predicate_variations`: IN/NOT IN, LIKE/NOT LIKE, POSITION, TRIM, CAST tests
+//! - `predicate_tests`: IN/NOT IN, LIKE/NOT LIKE, BETWEEN, POSITION, TRIM, CAST tests (organized by type)
 //! - `privilege_checker_tests`: Privilege enforcement tests
 
 mod aggregate_count_sum_avg_tests;
@@ -37,7 +37,7 @@ mod expression_eval;
 mod join_aggregation;
 mod limit_offset;
 mod operator_edge_cases;
-mod predicate_variations;
+mod predicate_tests;
 mod privilege_checker_tests;
 mod scalar_subquery_basic_tests;
 mod scalar_subquery_correlated_tests;

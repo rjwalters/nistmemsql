@@ -11,7 +11,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::advanced_objects::{CharacterSet, Collation, Sequence, Translation};
+use crate::advanced_objects::{Assertion, CharacterSet, Collation, Sequence, Translation};
 use crate::domain::DomainDefinition;
 use crate::privilege::PrivilegeGrant;
 use crate::schema::Schema;
@@ -42,6 +42,7 @@ pub struct Catalog {
     pub(crate) translations: HashMap<String, Translation>,
     pub(crate) views: HashMap<String, ViewDefinition>,
     pub(crate) triggers: HashMap<String, TriggerDefinition>,
+    pub(crate) assertions: HashMap<String, Assertion>,
     // Session state (SQL:1999 session configuration)
     pub(crate) current_catalog: Option<String>,
     pub(crate) current_charset: String,
@@ -65,6 +66,7 @@ impl Catalog {
             translations: HashMap::new(),
             views: HashMap::new(),
             triggers: HashMap::new(),
+            assertions: HashMap::new(),
             // Session defaults (SQL:1999)
             current_catalog: None,
             current_charset: "UTF8".to_string(),
