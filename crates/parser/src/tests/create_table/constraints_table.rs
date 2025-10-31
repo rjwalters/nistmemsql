@@ -105,8 +105,8 @@ fn test_parse_create_table_with_foreign_key_on_delete_update() {
                         },
                     ..
                 } => {
-                    assert_eq!(table, "parent");
-                    assert_eq!(col, "id");
+                    assert_eq!(table, "PARENT");
+                    assert_eq!(col, "ID");
                     assert_eq!(on_delete, &Some(ast::ReferentialAction::Cascade));
                     assert_eq!(on_update, &Some(ast::ReferentialAction::SetNull));
                 }

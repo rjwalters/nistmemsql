@@ -158,16 +158,16 @@ fn create_northwind_db() -> Database {
 
     // Create categories table
     let categories_schema = TableSchema::new(
-        "categories".to_string(),
+        "CATEGORIES".to_string(),
         vec![
-            ColumnSchema::new("category_id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("CATEGORY_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "category_name".to_string(),
+                "CATEGORY_NAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
             ColumnSchema::new(
-                "description".to_string(),
+                "DESCRIPTION".to_string(),
                 DataType::Varchar { max_length: Some(200) },
                 false,
             ),
@@ -177,24 +177,24 @@ fn create_northwind_db() -> Database {
 
     // Create products table
     let products_schema = TableSchema::new(
-        "products".to_string(),
+        "PRODUCTS".to_string(),
         vec![
-            ColumnSchema::new("product_id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("PRODUCT_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "product_name".to_string(),
+                "PRODUCT_NAME".to_string(),
                 DataType::Varchar { max_length: Some(100) },
                 false,
             ),
-            ColumnSchema::new("category_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("unit_price".to_string(), DataType::Float { precision: 53 }, false),
-            ColumnSchema::new("units_in_stock".to_string(), DataType::Integer, false),
-            ColumnSchema::new("units_on_order".to_string(), DataType::Integer, false),
+            ColumnSchema::new("CATEGORY_ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("UNIT_PRICE".to_string(), DataType::Float { precision: 53 }, false),
+            ColumnSchema::new("UNITS_IN_STOCK".to_string(), DataType::Integer, false),
+            ColumnSchema::new("UNITS_ON_ORDER".to_string(), DataType::Integer, false),
         ],
     );
     db.create_table(products_schema).unwrap();
 
     // Insert sample data
-    let categories_table = db.get_table_mut("categories").unwrap();
+    let categories_table = db.get_table_mut("CATEGORIES").unwrap();
     categories_table
         .insert(Row::new(vec![
             SqlValue::Integer(1),
@@ -217,7 +217,7 @@ fn create_northwind_db() -> Database {
         ]))
         .unwrap();
 
-    let products_table = db.get_table_mut("products").unwrap();
+    let products_table = db.get_table_mut("PRODUCTS").unwrap();
 
     // Insert products - matching the expected results in examples
     products_table
@@ -395,16 +395,16 @@ fn create_employees_db() -> Database {
 
     // Create departments table for company examples
     let departments_schema = TableSchema::new(
-        "departments".to_string(),
+        "DEPARTMENTS".to_string(),
         vec![
-            ColumnSchema::new("dept_id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("DEPT_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "dept_name".to_string(),
+                "DEPT_NAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
             ColumnSchema::new(
-                "location".to_string(),
+                "LOCATION".to_string(),
                 DataType::Varchar { max_length: Some(100) },
                 true,
             ),
@@ -414,65 +414,65 @@ fn create_employees_db() -> Database {
 
     // Create projects table for company examples
     let projects_schema = TableSchema::new(
-        "projects".to_string(),
+        "PROJECTS".to_string(),
         vec![
-            ColumnSchema::new("project_id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("PROJECT_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "project_name".to_string(),
+                "PROJECT_NAME".to_string(),
                 DataType::Varchar { max_length: Some(100) },
                 false,
             ),
-            ColumnSchema::new("dept_id".to_string(), DataType::Integer, true),
-            ColumnSchema::new("budget".to_string(), DataType::Integer, false),
+            ColumnSchema::new("DEPT_ID".to_string(), DataType::Integer, true),
+            ColumnSchema::new("BUDGET".to_string(), DataType::Integer, false),
         ],
     );
     db.create_table(projects_schema).unwrap();
 
     // Create employees table
     let employees_schema = TableSchema::new(
-        "employees".to_string(),
+        "EMPLOYEES".to_string(),
         vec![
-            ColumnSchema::new("employee_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("emp_id".to_string(), DataType::Integer, false), // alias for company examples
+            ColumnSchema::new("EMPLOYEE_ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("EMP_ID".to_string(), DataType::Integer, false), // alias for company examples
             ColumnSchema::new(
-                "first_name".to_string(),
+                "FIRST_NAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
             ColumnSchema::new(
-                "last_name".to_string(),
+                "LAST_NAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
             ColumnSchema::new(
-                "name".to_string(),
+                "NAME".to_string(),
                 DataType::Varchar { max_length: Some(100) },
                 false,
             ), // full name for company examples
             ColumnSchema::new(
-                "department".to_string(),
+                "DEPARTMENT".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
-            ColumnSchema::new("dept_id".to_string(), DataType::Integer, true), // for company examples
+            ColumnSchema::new("DEPT_ID".to_string(), DataType::Integer, true), // for company examples
             ColumnSchema::new(
-                "title".to_string(),
+                "TITLE".to_string(),
                 DataType::Varchar { max_length: Some(100) },
                 false,
             ),
-            ColumnSchema::new("salary".to_string(), DataType::Float { precision: 53 }, false),
+            ColumnSchema::new("SALARY".to_string(), DataType::Float { precision: 53 }, false),
             ColumnSchema::new(
-                "hire_date".to_string(),
+                "HIRE_DATE".to_string(),
                 DataType::Varchar { max_length: Some(20) },
                 true,
             ), // for datetime examples
-            ColumnSchema::new("manager_id".to_string(), DataType::Integer, true), // nullable
+            ColumnSchema::new("MANAGER_ID".to_string(), DataType::Integer, true), // nullable
         ],
     );
     db.create_table(employees_schema).unwrap();
 
     // Insert departments
-    let departments_table = db.get_table_mut("departments").unwrap();
+    let departments_table = db.get_table_mut("DEPARTMENTS").unwrap();
     departments_table
         .insert(Row::new(vec![
             SqlValue::Integer(1),
@@ -510,7 +510,7 @@ fn create_employees_db() -> Database {
         .unwrap();
 
     // Insert projects
-    let projects_table = db.get_table_mut("projects").unwrap();
+    let projects_table = db.get_table_mut("PROJECTS").unwrap();
     projects_table
         .insert(Row::new(vec![
             SqlValue::Integer(1),
@@ -576,7 +576,7 @@ fn create_employees_db() -> Database {
         ]))
         .unwrap();
 
-    let employees_table = db.get_table_mut("employees").unwrap();
+    let employees_table = db.get_table_mut("EMPLOYEES").unwrap();
 
     // Insert employees data matching expected results
     // From string-2 expected: Alice Johnson, Bob Smith, Carol White, David Brown, Eve Martinez, Frank Wilson, Grace Taylor, Henry Anderson
@@ -782,53 +782,53 @@ fn create_university_db() -> Database {
 
     // Create students table
     let students_schema = TableSchema::new(
-        "students".to_string(),
+        "STUDENTS".to_string(),
         vec![
-            ColumnSchema::new("student_id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("STUDENT_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "name".to_string(),
+                "NAME".to_string(),
                 DataType::Varchar { max_length: Some(100) },
                 false,
             ),
             ColumnSchema::new(
-                "major".to_string(),
+                "MAJOR".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
-            ColumnSchema::new("gpa".to_string(), DataType::Float { precision: 53 }, false),
+            ColumnSchema::new("GPA".to_string(), DataType::Float { precision: 53 }, false),
         ],
     );
     db.create_table(students_schema).unwrap();
 
     // Create courses table
     let courses_schema = TableSchema::new(
-        "courses".to_string(),
+        "COURSES".to_string(),
         vec![
-            ColumnSchema::new("course_id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("COURSE_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
-                "course_name".to_string(),
+                "COURSE_NAME".to_string(),
                 DataType::Varchar { max_length: Some(100) },
                 false,
             ),
             ColumnSchema::new(
-                "department".to_string(),
+                "DEPARTMENT".to_string(),
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
-            ColumnSchema::new("credits".to_string(), DataType::Integer, false),
+            ColumnSchema::new("CREDITS".to_string(), DataType::Integer, false),
         ],
     );
     db.create_table(courses_schema).unwrap();
 
     // Create enrollments table
     let enrollments_schema = TableSchema::new(
-        "enrollments".to_string(),
+        "ENROLLMENTS".to_string(),
         vec![
-            ColumnSchema::new("student_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("course_id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("grade".to_string(), DataType::Varchar { max_length: Some(2) }, true), // nullable
+            ColumnSchema::new("STUDENT_ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("COURSE_ID".to_string(), DataType::Integer, false),
+            ColumnSchema::new("GRADE".to_string(), DataType::Varchar { max_length: Some(2) }, true), // nullable
             ColumnSchema::new(
-                "semester".to_string(),
+                "SEMESTER".to_string(),
                 DataType::Varchar { max_length: Some(20) },
                 false,
             ),
@@ -837,7 +837,7 @@ fn create_university_db() -> Database {
     db.create_table(enrollments_schema).unwrap();
 
     // Insert students
-    let students_table = db.get_table_mut("students").unwrap();
+    let students_table = db.get_table_mut("STUDENTS").unwrap();
     for i in 1..=20 {
         let (name, major, gpa) = match i {
             1 => ("Alice Johnson", "Computer Science", 3.8_f32),
@@ -863,7 +863,7 @@ fn create_university_db() -> Database {
     }
 
     // Insert courses
-    let courses_table = db.get_table_mut("courses").unwrap();
+    let courses_table = db.get_table_mut("COURSES").unwrap();
     let course_data = vec![
         (101, "Introduction to Programming", "Computer Science", 4),
         (102, "Data Structures", "Computer Science", 4),
@@ -889,7 +889,7 @@ fn create_university_db() -> Database {
 
     // Insert enrollments - matching grade distribution from uni-4:
     // A: 30, B: 27, C: 18, D: 6, F: 2 (total: 83 non-NULL grades)
-    let enrollments_table = db.get_table_mut("enrollments").unwrap();
+    let enrollments_table = db.get_table_mut("ENROLLMENTS").unwrap();
 
     let grade_distribution = vec![("A", 30), ("B", 27), ("C", 18), ("D", 6), ("F", 2)];
 
