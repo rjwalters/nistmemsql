@@ -61,17 +61,17 @@ Want to see how? Check out the [Loom documentation](https://github.com/loomhq/lo
 We use comprehensive test suites to track SQL:1999 compliance:
 
 ### Test Suites
-- **SQLLogicTest**: 7M+ tests from SQLite/DuckDB for core SQL correctness
-- **sqltest**: BNF-driven tests from SQL standard (upstream-recommended)
-- **Custom tests**: End-to-end integration tests for specific features
+- **sqltest**: 739 BNF-driven tests from SQL:1999 standard (upstream-recommended)
+- **Custom tests**: 2,000+ end-to-end integration tests for specific features
+- **SQLLogicTest**: Framework integrated (2 baseline tests currently)
 
 ### Current Conformance Status
 
 | Suite | Tests | Status |
 |-------|-------|--------|
+| SQL:1999 sqltest | 739 tests | 🟢 95.4% (705 passing) |
+| Custom E2E Tests | 2,000+ tests | ✅ Passing (note: some compilation errors exist) |
 | SQLLogicTest | 2 baseline | ✅ 100% Passing |
-| SQL:1999 sqltest | 739 tests | 🟢 Near-complete (see badge) |
-| End-to-End | 2,051 tests | ✅ 100% Passing |
 
 **Recent Progress** (As of Oct 31, 2024):
 - ✅ **Near-complete SQL:1999 conformance** - significant progress from 85% to 95%+
