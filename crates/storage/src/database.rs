@@ -141,7 +141,7 @@ impl Database {
         self.catalog.drop_table(name).map_err(|e| StorageError::CatalogError(e.to_string()))?;
 
         // Remove table data - try exact name first, then try with schema prefix
-        if !self.tables.remove(name).is_some() {
+        if self.tables.remove(name).is_none() {
             // If not found and name is unqualified, try with current schema prefix
             if !name.contains('.') {
                 let current_schema = self.catalog.get_current_schema();

@@ -276,6 +276,14 @@ impl Lexer {
             "COLLATION" => Token::Keyword(Keyword::Collation),
             "CHARACTER" => Token::Keyword(Keyword::Character),
             "TRANSLATION" => Token::Keyword(Keyword::Translation),
+            // SEQUENCE specific keywords
+            "INCREMENT" => Token::Keyword(Keyword::Increment),
+            "MINVALUE" => Token::Keyword(Keyword::Minvalue),
+            "MAXVALUE" => Token::Keyword(Keyword::Maxvalue),
+            "CYCLE" => Token::Keyword(Keyword::Cycle),
+            "NO" => Token::Keyword(Keyword::No),
+            "RESTART" => Token::Keyword(Keyword::Restart),
+            "NEXT" => Token::Keyword(Keyword::Next),
             _ => Token::Identifier(upper_text), // Regular identifiers are normalized to uppercase
         };
 

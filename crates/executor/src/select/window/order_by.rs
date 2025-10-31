@@ -104,6 +104,9 @@ fn collect_window_functions_from_expression(
         | Expression::CurrentTimestamp { .. } => {
             // Current date/time functions don't contain window functions
         }
+        Expression::NextValue { .. } => {
+            // Sequence expressions don't contain window functions
+        }
     }
 }
 

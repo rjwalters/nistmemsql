@@ -126,6 +126,21 @@ impl ExpressionEvaluator<'_> {
             ast::Expression::AggregateFunction { .. } => Err(ExecutorError::UnsupportedExpression(
                 "Aggregate functions should be evaluated in aggregation context".to_string(),
             )),
+
+            // NEXT VALUE FOR sequence expression
+            // TODO: Implement proper sequence evaluation
+            // This requires mutable access to the catalog to advance sequences.
+            // Current architecture has immutable database references in evaluator.
+            // Solutions:
+            // 1. Use RefCell<Sequence> for interior mutability in catalog
+            // 2. Handle NEXT VALUE FOR at statement execution level (INSERT/SELECT)
+            // 3. Change evaluator to accept mutable database reference
+            ast::Expression::NextValue { sequence_name } => {
+                Err(ExecutorError::UnsupportedExpression(format!(
+                    "NEXT VALUE FOR {} not yet implemented - requires mutable catalog access",
+                    sequence_name
+                )))
+            }
         }
     }
 

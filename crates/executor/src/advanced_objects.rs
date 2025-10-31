@@ -12,7 +12,14 @@ pub fn execute_create_sequence(
     stmt: &CreateSequenceStmt,
     db: &mut Database,
 ) -> Result<(), ExecutorError> {
-    db.catalog.create_sequence(stmt.sequence_name.clone())?;
+    db.catalog.create_sequence(
+        stmt.sequence_name.clone(),
+        stmt.start_with,
+        stmt.increment_by,
+        stmt.min_value,
+        stmt.max_value,
+        stmt.cycle,
+    )?;
     Ok(())
 }
 
@@ -21,7 +28,24 @@ pub fn execute_drop_sequence(
     stmt: &DropSequenceStmt,
     db: &mut Database,
 ) -> Result<(), ExecutorError> {
+    // TODO: Handle CASCADE to remove sequence dependencies from columns
     db.catalog.drop_sequence(&stmt.sequence_name)?;
+    Ok(())
+}
+
+/// Execute ALTER SEQUENCE statement
+pub fn execute_alter_sequence(
+    stmt: &AlterSequenceStmt,
+    db: &mut Database,
+) -> Result<(), ExecutorError> {
+    db.catalog.alter_sequence(
+        &stmt.sequence_name,
+        stmt.restart_with,
+        stmt.increment_by,
+        stmt.min_value,
+        stmt.max_value,
+        stmt.cycle,
+    )?;
     Ok(())
 }
 
@@ -32,23 +56,27 @@ pub fn execute_create_type(stmt: &CreateTypeStmt, db: &mut Database) -> Result<(
     // Convert AST TypeDefinition to Catalog TypeDefinitionKind
     let catalog_def = match &stmt.definition {
         ast::TypeDefinition::Distinct { base_type } => {
-            TypeDefinitionKind::Distinct { base_type: base_type.clone() }
+            TypeDefinitionKind::Distinct {
+                base_type: base_type.clone(),
+            }
         }
         ast::TypeDefinition::Structured { attributes } => {
             let catalog_attrs = attributes
                 .iter()
                 .map(|attr| TypeAttribute {
                     name: attr.name.clone(),
-                    data_type: attr.data_type.clone()
+                    data_type: attr.data_type.clone(),
                 })
                 .collect();
-            TypeDefinitionKind::Structured { attributes: catalog_attrs }
+            TypeDefinitionKind::Structured {
+                attributes: catalog_attrs,
+            }
         }
     };
 
     let type_def = TypeDefinition {
         name: stmt.type_name.clone(),
-        definition: catalog_def
+        definition: catalog_def,
     };
 
     db.catalog.create_type(type_def)?;
