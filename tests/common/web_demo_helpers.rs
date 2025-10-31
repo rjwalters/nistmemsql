@@ -213,6 +213,34 @@ pub fn create_northwind_db() -> Database {
             SqlValue::Varchar("Desserts and candies".to_string()),
         ]))
         .unwrap();
+    categories_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(4),
+            SqlValue::Varchar("Dairy Products".to_string()),
+            SqlValue::Varchar("Cheeses".to_string()),
+        ]))
+        .unwrap();
+    categories_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(6),
+            SqlValue::Varchar("Meat/Poultry".to_string()),
+            SqlValue::Varchar("Prepared meats".to_string()),
+        ]))
+        .unwrap();
+    categories_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(7),
+            SqlValue::Varchar("Produce".to_string()),
+            SqlValue::Varchar("Dried fruit and bean curd".to_string()),
+        ]))
+        .unwrap();
+    categories_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(8),
+            SqlValue::Varchar("Seafood".to_string()),
+            SqlValue::Varchar("Seaweed and fish".to_string()),
+        ]))
+        .unwrap();
 
     let products_table = db.get_table_mut("PRODUCTS").unwrap();
 
@@ -380,6 +408,62 @@ pub fn create_northwind_db() -> Database {
             SqlValue::Float(21.0),
             SqlValue::Integer(22),
             SqlValue::Integer(30),
+        ]))
+        .unwrap();
+
+    // Add products for categories 4, 6, 7, 8 to ensure DISTINCT returns 7 categories
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(16),
+            SqlValue::Varchar("Pavlova".to_string()),
+            SqlValue::Integer(3),
+            SqlValue::Float(17.45),
+            SqlValue::Integer(29),
+            SqlValue::Integer(0),
+        ]))
+        .unwrap();
+
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(17),
+            SqlValue::Varchar("Raclette Courdavault".to_string()),
+            SqlValue::Integer(4),
+            SqlValue::Float(15.0),
+            SqlValue::Integer(79),
+            SqlValue::Integer(0),
+        ]))
+        .unwrap();
+
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(18),
+            SqlValue::Varchar("Perth Pasties".to_string()),
+            SqlValue::Integer(6),
+            SqlValue::Float(12.8),
+            SqlValue::Integer(0),
+            SqlValue::Integer(0),
+        ]))
+        .unwrap();
+
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(19),
+            SqlValue::Varchar("Manjimup Dried Apples".to_string()),
+            SqlValue::Integer(7),
+            SqlValue::Float(18.0),
+            SqlValue::Integer(20),
+            SqlValue::Integer(0),
+        ]))
+        .unwrap();
+
+    products_table
+        .insert(Row::new(vec![
+            SqlValue::Integer(20),
+            SqlValue::Varchar("Inlagd Sill".to_string()),
+            SqlValue::Integer(8),
+            SqlValue::Float(19.0),
+            SqlValue::Integer(112),
+            SqlValue::Integer(0),
         ]))
         .unwrap();
 
