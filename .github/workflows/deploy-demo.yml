@@ -106,17 +106,19 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
-          cache-dependency-path: benchmarks/requirements.txt
+
+      - name: Install uv
+        if: hashFiles('benchmark_results.json') == ''
+        uses: astral-sh/setup-uv@v3
 
       # Build and install Python bindings
       - name: Build and install Python bindings
         if: hashFiles('benchmark_results.json') == ''
         run: |
-          pip install maturin
+          uv pip install --system maturin
           cd crates/python-bindings
           maturin build --release
-          pip install ../../target/wheels/nistmemsql_py-*.whl
+          uv pip install --system ../../target/wheels/nistmemsql_py-*.whl
 
       # Run benchmarks
       - name: Install benchmark dependencies
@@ -124,7 +126,7 @@ jobs:
         run: |
           # Install requirements except nistmemsql (already installed from wheel)
           grep -v "^nistmemsql" benchmarks/requirements.txt > /tmp/requirements-ci.txt
-          pip install -r /tmp/requirements-ci.txt
+          uv pip install --system -r /tmp/requirements-ci.txt
 
       - name: Run benchmarks
         if: hashFiles('benchmark_results.json') == ''
