@@ -103,90 +103,89 @@ pub fn setup_example_database(db_name: &str) -> (storage::Database, Option<Strin
     }
 }
 
-/// Parse examples.ts to extract SQL queries for testing
+/// Parse JSON example files to extract SQL queries for testing
 /// Returns: Vec<(id, database, sql)>
 pub fn parse_examples() -> Vec<(String, String, String)> {
-    let examples_ts = include_str!("../../../../web-demo/src/data/examples.ts");
+    let mut all_examples = Vec::new();
 
-    let mut examples = Vec::new();
-    let lines: Vec<&str> = examples_ts.lines().collect();
+    // Load all JSON example files
+    let example_files = vec![
+        ("basic", include_str!("../../../../web-demo/src/data/examples/basic.json")),
+        ("joins", include_str!("../../../../web-demo/src/data/examples/joins.json")),
+        ("subqueries", include_str!("../../../../web-demo/src/data/examples/subqueries.json")),
+        ("aggregates", include_str!("../../../../web-demo/src/data/examples/aggregates.json")),
+        ("window", include_str!("../../../../web-demo/src/data/examples/window.json")),
+        ("datetime", include_str!("../../../../web-demo/src/data/examples/datetime.json")),
+        ("string", include_str!("../../../../web-demo/src/data/examples/string.json")),
+        ("math", include_str!("../../../../web-demo/src/data/examples/math.json")),
+        ("case", include_str!("../../../../web-demo/src/data/examples/case.json")),
+        ("null-handling", include_str!("../../../../web-demo/src/data/examples/null-handling.json")),
+        ("set", include_str!("../../../../web-demo/src/data/examples/set.json")),
+        ("recursive", include_str!("../../../../web-demo/src/data/examples/recursive.json")),
+        ("ddl", include_str!("../../../../web-demo/src/data/examples/ddl.json")),
+        ("dml", include_str!("../../../../web-demo/src/data/examples/dml.json")),
+        ("patterns", include_str!("../../../../web-demo/src/data/examples/patterns.json")),
+        ("data-quality", include_str!("../../../../web-demo/src/data/examples/data-quality.json")),
+        ("performance-patterns", include_str!("../../../../web-demo/src/data/examples/performance-patterns.json")),
+        ("business-intelligence", include_str!("../../../../web-demo/src/data/examples/business-intelligence.json")),
+        ("report-templates", include_str!("../../../../web-demo/src/data/examples/report-templates.json")),
+        ("advanced-multi-feature", include_str!("../../../../web-demo/src/data/examples/advanced-multi-feature.json")),
+        ("sql1999-standards", include_str!("../../../../web-demo/src/data/examples/sql1999-standards.json")),
+        ("company", include_str!("../../../../web-demo/src/data/examples/company.json")),
+        ("university", include_str!("../../../../web-demo/src/data/examples/university.json")),
+    ];
 
-    let mut i = 0;
-    while i < lines.len() {
-        // Look for example id
-        if let Some(id_line) = lines[i].strip_prefix("        id: '") {
-            if let Some(id_end) = id_line.find("'") {
-                let id = &id_line[..id_end];
-
-                // Look for database (within next 5 lines)
-                let mut database = String::new();
-                for line in lines.iter().skip(i + 1).take(5) {
-                    if let Some(db_line) = line.strip_prefix("        database: '") {
-                        if let Some(db_end) = db_line.find("'") {
-                            database = db_line[..db_end].to_string();
-                            break;
-                        }
-                    }
-                }
-
-                // Look for SQL (within next 15 lines)
-                for j in (i + 1)..(i + 15).min(lines.len()) {
-                    // Check for single-quote single-line SQL
-                    if let Some(sql_start) = lines[j].strip_prefix("        sql: '") {
-                        // Single-line SQL in single quotes
-                        if let Some(sql_end) = sql_start.rfind("',") {
-                            let sql = &sql_start[..sql_end];
-                            if !database.is_empty() && !sql.is_empty() {
-                                examples.push((id.to_string(), database.clone(), sql.to_string()));
-                            }
-                            break;
-                        }
-                    }
-                    // Check for backtick multi-line SQL
-                    else if let Some(first_line_start) = lines[j].strip_prefix("        sql: `") {
-                        // Multi-line SQL in backticks
-                        let mut sql_lines = Vec::new();
-
-                        // Check if SQL starts on the same line
-                        if !first_line_start.is_empty()
-                            && !first_line_start.ends_with("`,")
-                            && !first_line_start.ends_with("`")
-                        {
-                            // SQL starts on same line as `sql: ``, add it
-                            sql_lines.push(first_line_start);
-                        }
-
-                        // Collect remaining lines
-                        let mut k = j + 1;
-                        while k < lines.len() {
-                            let line = lines[k];
-                            if line.ends_with("`,") || line.ends_with("`") {
-                                // Check if there's SQL on the closing line before the backtick
-                                let line_trimmed =
-                                    line.trim_end_matches("`,").trim_end_matches("`").trim_end();
-                                if !line_trimmed.is_empty() {
-                                    sql_lines.push(line_trimmed);
-                                }
-                                break;
-                            }
-                            // Remove leading whitespace but preserve SQL formatting
-                            sql_lines.push(line.trim_start());
-                            k += 1;
-                        }
-
-                        if !database.is_empty() && !sql_lines.is_empty() {
-                            let sql = sql_lines.join("\n");
-                            examples.push((id.to_string(), database.clone(), sql));
-                        }
-                        break;
-                    }
-                }
-            }
+    for (_category_name, json_content) in example_files {
+        if let Ok(examples) = parse_json_examples(json_content) {
+            all_examples.extend(examples);
         }
-        i += 1;
     }
 
-    examples
+    all_examples
+}
+
+/// Parse a single JSON example file
+fn parse_json_examples(content: &str) -> Result<Vec<(String, String, String)>, Box<dyn std::error::Error>> {
+    let mut examples = Vec::new();
+
+    // Parse the JSON
+    let json: serde_json::Value = serde_json::from_str(content)?;
+    let category_obj = json.as_object().ok_or("JSON root must be an object")?;
+
+    for (example_id, example_value) in category_obj {
+        let example_obj = example_value
+            .as_object()
+            .ok_or(format!("Example {} must be an object", example_id))?;
+
+        let sql = example_obj
+            .get("sql")
+            .and_then(|v| v.as_str())
+            .ok_or(format!("Example {} missing sql field", example_id))?
+            .to_string();
+
+        let database = example_obj
+            .get("database")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "northwind".to_string());
+
+        // Clean SQL by removing expected results comments
+        let cleaned_sql = extract_query(&sql);
+
+        examples.push((example_id.clone(), database, cleaned_sql));
+    }
+
+    Ok(examples)
+}
+
+/// Extract just the SQL query without expected result comments
+fn extract_query(sql: &str) -> String {
+    sql.lines()
+        .take_while(|line| !line.trim().contains("-- EXPECTED"))
+        .collect::<Vec<_>>()
+        .join("\n")
+        .trim()
+        .to_string()
 }
 
 /// Check if an example uses known unsupported SQL features
