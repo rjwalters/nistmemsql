@@ -28,13 +28,13 @@ impl Parser {
 
         // Parse optional second ON clause (if not already parsed above)
         if self.peek_keyword(Keyword::On) {
-        self.advance(); // consume ON
-        if self.peek_keyword(Keyword::Delete) {
-        self.advance(); // consume DELETE
-        on_delete = Some(self.parse_referential_action()?);
-        } else if self.peek_keyword(Keyword::Update) {
-        self.advance(); // consume UPDATE
-            on_update = Some(self.parse_referential_action()?);
+            self.advance(); // consume ON
+            if self.peek_keyword(Keyword::Delete) {
+                self.advance(); // consume DELETE
+                on_delete = Some(self.parse_referential_action()?);
+            } else if self.peek_keyword(Keyword::Update) {
+                self.advance(); // consume UPDATE
+                on_update = Some(self.parse_referential_action()?);
             } else {
                 return Err(ParseError {
                     message: "Expected DELETE or UPDATE after ON".to_string(),

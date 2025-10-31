@@ -51,10 +51,8 @@ fn test_drop_assertion_success() {
     advanced_objects::execute_create_assertion(&create_stmt, &mut db).unwrap();
 
     // Drop it
-    let drop_stmt = ast::DropAssertionStmt {
-        assertion_name: "valid_balance".to_string(),
-        cascade: false,
-    };
+    let drop_stmt =
+        ast::DropAssertionStmt { assertion_name: "valid_balance".to_string(), cascade: false };
     let result = advanced_objects::execute_drop_assertion(&drop_stmt, &mut db);
 
     assert!(result.is_ok());
@@ -73,10 +71,8 @@ fn test_drop_assertion_with_cascade() {
     advanced_objects::execute_create_assertion(&create_stmt, &mut db).unwrap();
 
     // Drop with CASCADE
-    let drop_stmt = ast::DropAssertionStmt {
-        assertion_name: "valid_data".to_string(),
-        cascade: true,
-    };
+    let drop_stmt =
+        ast::DropAssertionStmt { assertion_name: "valid_data".to_string(), cascade: true };
     let result = advanced_objects::execute_drop_assertion(&drop_stmt, &mut db);
 
     assert!(result.is_ok());
@@ -86,10 +82,8 @@ fn test_drop_assertion_with_cascade() {
 #[test]
 fn test_drop_assertion_not_found() {
     let mut db = Database::new();
-    let drop_stmt = ast::DropAssertionStmt {
-        assertion_name: "nonexistent".to_string(),
-        cascade: false,
-    };
+    let drop_stmt =
+        ast::DropAssertionStmt { assertion_name: "nonexistent".to_string(), cascade: false };
 
     let result = advanced_objects::execute_drop_assertion(&drop_stmt, &mut db);
     assert!(result.is_err());
@@ -120,10 +114,8 @@ fn test_create_drop_round_trip() {
     assert_eq!(assertion.unwrap().name, "positive_values");
 
     // Drop it
-    let drop_stmt = ast::DropAssertionStmt {
-        assertion_name: "positive_values".to_string(),
-        cascade: false,
-    };
+    let drop_stmt =
+        ast::DropAssertionStmt { assertion_name: "positive_values".to_string(), cascade: false };
     advanced_objects::execute_drop_assertion(&drop_stmt, &mut db).unwrap();
 
     // Verify it's gone
@@ -151,10 +143,8 @@ fn test_multiple_assertions() {
     }
 
     // Drop one
-    let drop_stmt = ast::DropAssertionStmt {
-        assertion_name: "check_age".to_string(),
-        cascade: false,
-    };
+    let drop_stmt =
+        ast::DropAssertionStmt { assertion_name: "check_age".to_string(), cascade: false };
     advanced_objects::execute_drop_assertion(&drop_stmt, &mut db).unwrap();
 
     // Verify check_age is gone, others still exist

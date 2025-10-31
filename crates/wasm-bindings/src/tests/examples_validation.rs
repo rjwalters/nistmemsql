@@ -3,18 +3,16 @@
 //! This module validates SQL examples from the web-demo by parsing examples.ts
 //! and executing each query to ensure they work correctly.
 
-use super::helpers::{execute_sql, parse_examples, setup_example_database, uses_unsupported_features};
+use super::helpers::{
+    execute_sql, parse_examples, setup_example_database, uses_unsupported_features,
+};
 
 #[test]
 fn test_examples_parsing() {
     let examples = parse_examples();
 
     // Should have parsed examples
-    assert!(
-        examples.len() > 50,
-        "Should parse at least 50 examples, got {}",
-        examples.len()
-    );
+    assert!(examples.len() > 50, "Should parse at least 50 examples, got {}", examples.len());
 
     // Verify we got the first few examples we know exist
     let ids: Vec<&String> = examples.iter().map(|(id, _, _)| id).collect();
@@ -68,14 +66,8 @@ fn test_all_examples_execute_without_errors() {
     // Print summary
     eprintln!("\n=== Examples Test Summary ===");
     eprintln!("✅ Passed: {}", passed_examples);
-    eprintln!(
-        "⏭️  Skipped: {} (use unsupported SQL features)",
-        skipped_examples.len()
-    );
-    eprintln!(
-        "⚠️  Database issues: {} (required DB failed to load)",
-        database_load_failures.len()
-    );
+    eprintln!("⏭️  Skipped: {} (use unsupported SQL features)", skipped_examples.len());
+    eprintln!("⚠️  Database issues: {} (required DB failed to load)", database_load_failures.len());
     eprintln!("❌ Failed: {} (unexpected errors)", failed_examples.len());
     eprintln!("📊 Total: {}", examples.len());
 
@@ -84,10 +76,7 @@ fn test_all_examples_execute_without_errors() {
         let mut skipped_by_feature: std::collections::HashMap<&str, Vec<&str>> =
             std::collections::HashMap::new();
         for (id, feature) in &skipped_examples {
-            skipped_by_feature
-                .entry(*feature)
-                .or_default()
-                .push(id.as_str());
+            skipped_by_feature.entry(*feature).or_default().push(id.as_str());
         }
         for (feature, ids) in skipped_by_feature {
             eprintln!("  {} ({}): {}", feature, ids.len(), ids.join(", "));
@@ -100,36 +89,27 @@ fn test_all_examples_execute_without_errors() {
         eprintln!(
             "  Parser doesn't yet support PRIMARY KEY, NOT NULL, UNIQUE, CHECK in CREATE TABLE"
         );
-        eprintln!(
-            "  Count: {} examples affected",
-            database_load_failures.len()
-        );
+        eprintln!("  Count: {} examples affected", database_load_failures.len());
     }
 
     // Report unexpected failures (but don't fail test - this is informational)
     if !failed_examples.is_empty() {
-        eprintln!(
-            "\n⚠️  {} examples with supported features had errors:",
-            failed_examples.len()
-        );
+        eprintln!("\n⚠️  {} examples with supported features had errors:", failed_examples.len());
         for (id, err) in &failed_examples {
             eprintln!("  ❌ {}: {}", id, err);
         }
-        eprintln!("\n  Note: These are examples that need table setup or have SQL compatibility issues.");
+        eprintln!(
+            "\n  Note: These are examples that need table setup or have SQL compatibility issues."
+        );
     }
 
     // Success message
     if passed_examples > 0 {
-        eprintln!(
-            "\n✅ All {} examples with fully supported features passed!",
-            passed_examples
-        );
+        eprintln!("\n✅ All {} examples with fully supported features passed!", passed_examples);
     } else {
         eprintln!("\n📝 Summary:");
         eprintln!("   - Test infrastructure is working correctly");
-        eprintln!(
-            "   - All 73 examples are categorized (passed/skipped/database issues/errors)"
-        );
+        eprintln!("   - All 73 examples are categorized (passed/skipped/database issues/errors)");
         eprintln!(
             "   - Main blocker for more passing tests: issue #214 (CREATE TABLE constraints)"
         );
@@ -150,10 +130,8 @@ fn test_examples_have_database_specified() {
     }
 
     if !missing_db_examples.is_empty() {
-        let mut error_msg = format!(
-            "\n{} examples missing database specification:\n\n",
-            missing_db_examples.len()
-        );
+        let mut error_msg =
+            format!("\n{} examples missing database specification:\n\n", missing_db_examples.len());
         for id in &missing_db_examples {
             error_msg.push_str(&format!("  ❌ {}\n", id));
         }

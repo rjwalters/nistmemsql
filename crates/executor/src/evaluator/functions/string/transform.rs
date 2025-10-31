@@ -6,7 +6,9 @@ use crate::errors::ExecutorError;
 
 /// REPLACE(string, from, to) - Replace occurrences
 /// SQL:1999 Section 6.29: String value functions
-pub(in crate::evaluator::functions) fn replace(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
+pub(in crate::evaluator::functions) fn replace(
+    args: &[types::SqlValue],
+) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 3 {
         return Err(ExecutorError::UnsupportedFeature(format!(
             "REPLACE requires exactly 3 arguments, got {}",
@@ -31,7 +33,9 @@ pub(in crate::evaluator::functions) fn replace(args: &[types::SqlValue]) -> Resu
 }
 
 /// REVERSE(string) - Reverse a string
-pub(in crate::evaluator::functions) fn reverse(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
+pub(in crate::evaluator::functions) fn reverse(
+    args: &[types::SqlValue],
+) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 1 {
         return Err(ExecutorError::UnsupportedFeature(format!(
             "REVERSE requires exactly 1 argument, got {}",

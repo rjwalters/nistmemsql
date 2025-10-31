@@ -44,3 +44,7 @@ repository = "https://github.com/rjwalters/nistmemsql"
 [workspace.dependencies]
 # Will add dependencies as needed for each phase
 pyo3 = { version = "0.27", features = ["extension-module"] }
+
+[[test]]
+name = "e2e_data_types"
+path = "tests/e2e_data_types/mod.rs"
