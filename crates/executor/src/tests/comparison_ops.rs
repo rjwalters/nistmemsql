@@ -17,6 +17,7 @@ fn test_greater_than_comparison() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -52,6 +53,7 @@ fn test_less_than_comparison() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -88,6 +90,7 @@ fn test_not_equal_comparison() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -125,6 +128,7 @@ fn test_less_than_or_equal_comparison() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,

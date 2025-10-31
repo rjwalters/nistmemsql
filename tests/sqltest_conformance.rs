@@ -152,7 +152,11 @@ impl SqltestRunner {
                     eprintln!("\n❌ FAIL: {} - {}", test_case.id, test_case.sql);
                 }
                 Err(e) => {
-                    results.record_error(test_case.id.clone(), test_case.sql.to_string(), e.clone());
+                    results.record_error(
+                        test_case.id.clone(),
+                        test_case.sql.to_string(),
+                        e.clone(),
+                    );
                     print!("E");
                     eprintln!("\n⚠️  ERROR: {} - {}\n   {}", test_case.id, test_case.sql, e);
                 }
@@ -171,9 +175,7 @@ impl SqltestRunner {
     /// Run a single test case
     fn run_test(&self, db: &mut Database, test_case: &TestCase) -> Result<bool, String> {
         match &test_case.sql {
-            SqlField::Single(sql) => {
-                self.run_single_statement(db, sql, test_case.expect_success)
-            }
+            SqlField::Single(sql) => self.run_single_statement(db, sql, test_case.expect_success),
             SqlField::Multiple(statements) => {
                 // Execute each statement in sequence
                 for (idx, sql) in statements.iter().enumerate() {
@@ -186,7 +188,12 @@ impl SqltestRunner {
     }
 
     /// Run a single SQL statement
-    fn run_single_statement(&self, db: &mut Database, sql: &str, expect_success: bool) -> Result<bool, String> {
+    fn run_single_statement(
+        &self,
+        db: &mut Database,
+        sql: &str,
+        expect_success: bool,
+    ) -> Result<bool, String> {
         // Parse the SQL
         let parse_result = Parser::parse_sql(sql);
 

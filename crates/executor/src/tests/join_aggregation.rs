@@ -126,6 +126,7 @@ fn test_inner_join_with_group_by_count() {
     // GROUP BY d.dept_name
     // ORDER BY emp_count DESC
     let select_stmt = SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -226,6 +227,7 @@ fn test_left_join_with_group_by_avg_salary() {
     // GROUP BY d.dept_name
     // ORDER BY avg_salary DESC
     let select_stmt = SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -327,6 +329,7 @@ fn test_join_group_by_with_having() {
     // GROUP BY d.dept_name
     // HAVING COUNT(e.emp_id) >= 2
     let select_stmt = SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -421,6 +424,7 @@ fn test_join_group_by_multiple_aggregates() {
     // INNER JOIN employees e ON d.dept_id = e.dept_id
     // GROUP BY d.dept_name
     let select_stmt = SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
