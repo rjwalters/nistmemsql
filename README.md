@@ -3,7 +3,7 @@
 [![CI and Deploy](https://github.com/rjwalters/nistmemsql/actions/workflows/ci-and-deploy.yml/badge.svg)](https://github.com/rjwalters/nistmemsql/actions/workflows/ci-and-deploy.yml)
 [![Demo](https://img.shields.io/badge/demo-live-success)](https://rjwalters.github.io/nistmemsql/)
 [![Coverage](https://img.shields.io/badge/coverage-86%25-green)](https://github.com/rjwalters/nistmemsql)
-[![sqltest](https://img.shields.io/badge/sqltest-89.4%25-green)](https://rjwalters.github.io/nistmemsql/conformance.html)
+[![sqltest](https://img.shields.io/badge/sqltest-95.4%25-brightgreen)](https://rjwalters.github.io/nistmemsql/conformance.html)
 
 > **An open-source, NIST-testable SQL:1999 database implementation in Rust**
 
@@ -42,7 +42,7 @@ Every line of code, every test, every piece of documentation in this repository 
 **What we've built** (in ~1 week, Oct 25-31, 2024):
 - 📊 **64,000+ lines** of production Rust code
 - ✅ **2,000+ passing tests** with 86% coverage
-- 🎯 **89.4% SQL:1999 Core compliance** (661/739 tests passing)
+- 🎯 **95.4% SQL:1999 Core compliance** (705/739 tests passing)
 - 🚀 **Full WASM compilation** with live browser demo
 - 📝 **Complete documentation** (you're reading it)
 - 🏗️ **90+ merged PRs** via AI Builder/Judge workflow
@@ -70,12 +70,12 @@ We use comprehensive test suites to track SQL:1999 compliance:
 | Suite | Tests | Pass Rate | Status |
 |-------|-------|-----------|--------|
 | SQLLogicTest | 2 baseline | 100% | ✅ Passing |
-| SQL:1999 sqltest | 739 tests | **89.4%** (661 passing) | 🟢 Strong |
+| SQL:1999 sqltest | 739 tests | **95.4%** (705 passing) | 🟢 Strong |
 | End-to-End | 2,051 tests | 100% | ✅ Strong |
 
 **Recent Progress** (As of Oct 31, 2024):
-- ✅ **89.4% SQL:1999 conformance** (661/739 tests passing - up from 85.4%!)
-- ✅ **+30 tests passing** - significant progress toward 90%+ goal
+- ✅ **95.4% SQL:1999 conformance** (705/739 tests passing - up from 85.4%!)
+- ✅ **+72 tests passing** - significant progress reaching 95%+ milestone
 - ✅ **Complete security model** - Full privilege enforcement (#507, #508)
 - ✅ **Access control** - SELECT, INSERT, UPDATE, DELETE enforcement (#508)
 - ✅ **Delimited identifiers** - End-to-end support with bug fixes (#507)
@@ -87,12 +87,12 @@ We use comprehensive test suites to track SQL:1999 compliance:
 - ✅ **Type aliases** - CHARACTER, CHARACTER VARYING (#462)
 - ✅ **Code quality** - Zero clippy warnings (#493, #494, #496, #498)
 
-**Next Focus**: Push toward 95%+ conformance
-- ✅ **89.4% achieved** - exceeded initial 85% target
-- 📊 Only 78 tests remaining to reach 95%
+**Next Focus**: Push toward 98%+ conformance
+- ✅ **95.4% achieved** - exceeded 95% target milestone!
+- 📊 Only 34 errors remaining to reach 98%+
 - Analyze remaining failures for common patterns
-- Prioritize high-impact fixes (SET extensions, aggregate syntax, foreign key actions)
-- Target: 95%+ conformance milestone
+- Prioritize high-impact fixes (cursor operations, ROLE usage patterns, table type handling)
+- Target: 98%+ conformance milestone
 
 **See [SQL:1999 Conformance Report](https://rjwalters.github.io/nistmemsql/conformance.html) for detailed breakdown.**
 
@@ -136,15 +136,15 @@ This isn't a toy project. A fully SQL:1999 compliant database is a **massive und
 This repository is that experiment, documented in real-time:
 
 **Current Results** (As of latest test run):
-- ✅ **89.4% SQL:1999 conformance** (661/739 tests passing on sqltest suite)
+- ✅ **95.4% SQL:1999 conformance** (705/739 tests passing on sqltest suite)
 - ✅ **2,000+ unit/integration tests passing** (100%)
 - ✅ Complete query engine with JOINs, subqueries, CTEs, aggregates, window functions
 - ✅ Full transaction support with SAVEPOINT, all constraints enforced
 - ✅ **Complete security model** with privilege enforcement on all operations
 - ✅ 50+ built-in functions (string, date/time, math)
 - ✅ Live web demo running in browser via WASM
-- 📈 **Strong conformance** - 89.4% achieved, targeting 95%+ milestone
-- 🎯 **78 remaining test failures** to analyze and address
+- 📈 **Excellent conformance** - 95.4% achieved, targeting 98%+ milestone
+- 🎯 **34 remaining errors** to analyze and address
 
 **The Open Question**: Can Claude Code achieve **FULL SQL:1999 compliance**—something no database has ever accomplished? That would require months more work, implementing ~400+ features including procedural SQL, triggers, advanced types, and the information schema.
 
@@ -168,14 +168,15 @@ This isn't just about databases. It's about understanding what's now possible wi
 
 ### SQL:1999 Conformance Progress
 
-**Current Conformance**: **85.7%** (633/739 tests passing on sqltest suite)
+**Current Conformance**: **95.4%** (705/739 tests passing on sqltest suite)
 
 **Progress Overview**:
 - **Foundation** (Days 1-5): Core query engine, transactions, constraints implemented
 - **Security Model** (Day 6): GRANT/REVOKE, privilege enforcement complete
-- **Major Milestones**: Transactions ✅, Constraints ✅, Schema Management ✅, Security Model ✅
-- **Achievement**: **Strong Core compliance** - 85.7% reached, solid foundation established
-- **Focus**: Analyzing 106 remaining test failures to reach 90%+ milestone
+- **Extended SQL Objects** (Day 7): GRANT/REVOKE support for additional object types
+- **Major Milestones**: Transactions ✅, Constraints ✅, Schema Management ✅, Security Model ✅, Extended Privileges ✅
+- **Achievement**: **Excellent Core compliance** - 95.4% reached, strong foundation established
+- **Focus**: Analyzing 34 remaining errors to reach 98%+ milestone
 
 ### Progress Breakdown by Category
 
@@ -196,15 +197,15 @@ This isn't just about databases. It's about understanding what's now possible wi
 | Transactions | 100% (4/4) | BEGIN, COMMIT, ROLLBACK, SAVEPOINT ✅ (nested transactions) | ✅ Complete |
 | Security | 100% | CREATE/DROP ROLE, GRANT, REVOKE, Privilege Enforcement (all operations) ✅ | ✅ Complete |
 | Web Demo Validation | 30% | Automated test infrastructure ✅, Expected results for 19 examples ✅ | 🟡 In Progress |
-| Conformance Tests | 85.7% | 633/739 sqltest tests passing ✅ | 🟢 Strong |
+| Conformance Tests | 95.4% | 705/739 sqltest tests passing ✅ | 🟢 Excellent |
 
-### Achievement: Strong Core Compliance Foundation
+### Achievement: Excellent Core Compliance Foundation
 
 **Current Results**:
-- **85.7% conformance achieved** (633/739 tests passing)
-- **106 remaining test failures** to analyze and address
+- **95.4% conformance achieved** (705/739 tests passing)
+- **34 remaining errors** to analyze and address
 - **Solid foundation**: Core query engine, transactions, constraints, security complete
-- **Next milestone**: 90%+ conformance
+- **Next milestone**: 98%+ conformance
 
 **AI-Powered Development Advantages**:
 - Parallel feature implementation via Loom orchestration
@@ -363,9 +364,9 @@ Core compliance is about SQL language semantics, not client protocols.
 ### To Core SQL:1999 Compliance
 
 **Project Started**: Saturday, October 25, 2024
-**Current Status**: **85.7% conformance** (633/739 tests passing)
-**Achievement**: Strong foundation with core query engine, transactions, constraints, and security model complete
-**Next Milestone**: 90%+ conformance - analyzing remaining 106 test failures
+**Current Status**: **95.4% conformance** (705/739 tests passing)
+**Achievement**: Excellent foundation with core query engine, transactions, constraints, and security model complete
+**Next Milestone**: 98%+ conformance - analyzing remaining 34 errors
 
 **Days 1-4 Completed** ✅ **Phase 4: Window Functions & Advanced SQL (Complete!)**
 - Query engine (SELECT with JOINs, subqueries, aggregates)
@@ -636,14 +637,14 @@ See [WORK_PLAN.md](WORK_PLAN.md) for current priorities.
 
 - **Language**: Rust 🦀
 - **Architecture**: 7-crate workspace
-- **Tests**: 1,306+ unit/integration tests passing (100%), 633/739 conformance tests (85.7%)
+- **Tests**: 2,000+ unit/integration tests passing (100%), 705/739 conformance tests (95.4%)
 - **Coverage**: ~86%
-- **LOC**: ~47,000+
+- **LOC**: ~64,000+
 - **Project Type**: AI-powered SQL:1999 compliance demonstration
 - **Started**: October 25, 2024
-- **Progress**: **85.7% SQL:1999 conformance** (633/739 tests passing)
-- **Achievement**: Strong foundation - core query engine, transactions, constraints, security model complete
-- **Next Target**: 90%+ conformance - analyzing 106 remaining test failures
+- **Progress**: **95.4% SQL:1999 conformance** (705/739 tests passing)
+- **Achievement**: Excellent foundation - core query engine, transactions, constraints, security model complete
+- **Next Target**: 98%+ conformance - analyzing 34 remaining errors
 - **Approach**: Test-Driven Development with sqltest conformance suite
 - **Orchestration**: Loom AI framework
 
@@ -707,11 +708,11 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 ---
 
-**Current Focus**: Reaching 90%+ SQL:1999 Core conformance
-- **85.7% conformance** (633/739 tests passing)
-- **Achievement**: Strong foundation - core query engine, transactions, constraints, security model complete
-- **Next Target**: 90%+ conformance milestone
-- **Strategy**: Analyze remaining 106 test failures to identify high-impact fixes
+**Current Focus**: Reaching 98%+ SQL:1999 Core conformance
+- **95.4% conformance** (705/739 tests passing)
+- **Achievement**: Excellent foundation - core query engine, transactions, constraints, security model complete
+- **Next Target**: 98%+ conformance milestone
+- **Strategy**: Analyze remaining 34 errors to identify high-impact fixes
 - **Priority**: Data-driven approach based on failure patterns
 
 **Ultimate Goal**: Complete SQL:1999 Core compliance, then pursue FULL compliance
