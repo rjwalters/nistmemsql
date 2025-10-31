@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Performance Benchmarks - NIST MemSQL</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div id="app" class="min-h-screen bg-surface-light dark:bg-surface-dark">
+    <!-- Header -->
+    <header class="bg-background shadow-md border-b border-border">
+      <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center flex-wrap gap-4">
+        <div class="flex items-center gap-4">
+          <h1 class="text-3xl font-bold text-primary-light dark:text-primary-dark">
+            NIST MemSQL - Performance Benchmarks
+          </h1>
+        </div>
+        <div class="flex items-center gap-3">
+          <a
+            href="/"
+            class="px-4 py-2 text-sm font-medium text-foreground bg-card hover:bg-card/80 rounded-lg transition-colors"
+          >
+            ← Back to Demo
+          </a>
+          <a
+            href="https://github.com/rjwalters/nistmemsql"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="p-2 rounded-lg bg-card text-foreground hover:bg-card/80 transition-colors"
+            aria-label="View source code on GitHub"
+          >
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+            </svg>
+          </a>
+          <div id="theme-toggle"></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-6">
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-background rounded-lg shadow-lg p-6 border border-border">
+          <h3 class="text-sm font-medium text-muted mb-2">Average Performance</h3>
+          <p id="avg-speedup" class="text-3xl font-bold text-primary-light dark:text-primary-dark">
+            Loading...
+          </p>
+          <p class="text-sm text-muted mt-1">vs SQLite</p>
+        </div>
+        <div class="bg-background rounded-lg shadow-lg p-6 border border-border">
+          <h3 class="text-sm font-medium text-muted mb-2">Operations Tested</h3>
+          <p id="ops-tested" class="text-3xl font-bold text-primary-light dark:text-primary-dark">
+            -
+          </p>
+          <p class="text-sm text-muted mt-1">micro-benchmarks</p>
+        </div>
+        <div class="bg-background rounded-lg shadow-lg p-6 border border-border">
+          <h3 class="text-sm font-medium text-muted mb-2">Last Updated</h3>
+          <p id="last-updated" class="text-3xl font-bold text-primary-light dark:text-primary-dark">
+            -
+          </p>
+          <p class="text-sm text-muted mt-1">from main branch</p>
+        </div>
+      </div>
+
+      <!-- Benchmark Results Table -->
+      <div class="bg-background rounded-lg shadow-lg p-6 border border-border mb-8">
+        <h2 class="text-2xl font-semibold text-foreground mb-4">
+          Benchmark Results
+        </h2>
+        <div class="overflow-x-auto">
+          <table id="results-table" class="w-full text-sm text-left">
+            <thead class="text-xs uppercase bg-card text-muted border-b border-border">
+              <tr>
+                <th class="px-4 py-3">Operation</th>
+                <th class="px-4 py-3 text-right">nistmemsql</th>
+                <th class="px-4 py-3 text-right">SQLite</th>
+                <th class="px-4 py-3 text-right">Speedup</th>
+                <th class="px-4 py-3 text-center">Winner</th>
+              </tr>
+            </thead>
+            <tbody id="results-tbody" class="divide-y divide-border">
+              <tr>
+                <td colspan="5" class="px-4 py-8 text-center text-muted">
+                  Loading benchmark results...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Performance Chart -->
+      <div class="bg-background rounded-lg shadow-lg p-6 border border-border mb-8">
+        <h2 class="text-2xl font-semibold text-foreground mb-4">
+          Performance Comparison
+        </h2>
+        <div class="relative" style="height: 400px;">
+          <canvas id="performance-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Methodology -->
+      <div class="bg-background rounded-lg shadow-lg p-6 border border-border">
+        <h2 class="text-2xl font-semibold text-foreground mb-4">
+          Methodology
+        </h2>
+        <div class="prose prose-sm dark:prose-invert max-w-none text-foreground">
+          <ul class="space-y-2 text-muted">
+            <li><strong>Hardware:</strong> GitHub Actions runners (ubuntu-latest, 2-core CPU)</li>
+            <li><strong>Python:</strong> 3.11</li>
+            <li><strong>Framework:</strong> pytest-benchmark v4.0.0</li>
+            <li><strong>Iterations:</strong> Minimum 5 rounds with warmup enabled</li>
+            <li><strong>Data:</strong> Deterministic test data for reproducibility</li>
+            <li><strong>Comparison:</strong> Head-to-head on identical hardware</li>
+          </ul>
+          <p class="mt-4 text-muted">
+            All benchmarks measure end-to-end query execution time including parsing,
+            execution, and result fetching. Both databases run in-memory to eliminate
+            disk I/O variance. Results are automatically updated on every commit to the
+            main branch.
+          </p>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-12 text-center text-sm text-muted pb-6">
+      <p>NIST MemSQL - SQL:1999 Database in WebAssembly</p>
+      <p class="text-xs mt-1">Benchmarks run automatically via GitHub Actions</p>
+    </footer>
+  </div>
+
+  <script type="module" src="/src/benchmarks.ts"></script>
+</body>
+</html>
