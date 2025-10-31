@@ -40,6 +40,9 @@ pub enum DataType {
     // Binary types
     BinaryLargeObject, // BLOB
 
+    // User-defined types (SQL:1999)
+    UserDefined { type_name: String },
+
     // Special type for NULL
     Null,
 }
@@ -68,6 +71,11 @@ impl DataType {
             (DataType::Name, DataType::Name) => true,
             (DataType::Name, DataType::Varchar { .. }) => true,
             (DataType::Varchar { .. }, DataType::Name) => true,
+
+            // User-defined types are only compatible with the same type name
+            (DataType::UserDefined { type_name: t1 }, DataType::UserDefined { type_name: t2 }) => {
+                t1 == t2
+            }
 
             // For now, different types are not compatible
             // TODO: Add proper SQL:1999 type coercion rules

@@ -8,6 +8,9 @@ pub enum ExecutorError {
     SchemaAlreadyExists(String),
     SchemaNotEmpty(String),
     RoleNotFound(String),
+    TypeNotFound(String),
+    TypeAlreadyExists(String),
+    TypeInUse(String),
     DependentPrivilegesExist(String),
     PermissionDenied { role: String, privilege: String, object: String },
     ColumnIndexOutOfBounds { index: usize },
@@ -42,6 +45,11 @@ impl std::fmt::Display for ExecutorError {
                 write!(f, "Cannot drop schema '{}': schema is not empty", name)
             }
             ExecutorError::RoleNotFound(name) => write!(f, "Role '{}' not found", name),
+            ExecutorError::TypeNotFound(name) => write!(f, "Type '{}' not found", name),
+            ExecutorError::TypeAlreadyExists(name) => write!(f, "Type '{}' already exists", name),
+            ExecutorError::TypeInUse(name) => {
+                write!(f, "Cannot drop type '{}': type is still in use", name)
+            }
             ExecutorError::DependentPrivilegesExist(msg) => {
                 write!(f, "Dependent privileges exist: {}", msg)
             }
@@ -107,7 +115,7 @@ impl From<catalog::CatalogError> for ExecutorError {
                 ExecutorError::StorageError(format!("Role '{}' already exists", name))
             }
             catalog::CatalogError::RoleNotFound(name) => ExecutorError::RoleNotFound(name),
-            // Advanced SQL:1999 objects - forward as generic errors for now
+            // Advanced SQL:1999 objects
             catalog::CatalogError::DomainAlreadyExists(name) => {
                 ExecutorError::Other(format!("Domain '{}' already exists", name))
             }
@@ -121,11 +129,10 @@ impl From<catalog::CatalogError> for ExecutorError {
                 ExecutorError::Other(format!("Sequence '{}' not found", name))
             }
             catalog::CatalogError::TypeAlreadyExists(name) => {
-                ExecutorError::Other(format!("Type '{}' already exists", name))
+                ExecutorError::TypeAlreadyExists(name)
             }
-            catalog::CatalogError::TypeNotFound(name) => {
-                ExecutorError::Other(format!("Type '{}' not found", name))
-            }
+            catalog::CatalogError::TypeNotFound(name) => ExecutorError::TypeNotFound(name),
+            catalog::CatalogError::TypeInUse(name) => ExecutorError::TypeInUse(name),
             catalog::CatalogError::CollationAlreadyExists(name) => {
                 ExecutorError::Other(format!("Collation '{}' already exists", name))
             }

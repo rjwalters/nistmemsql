@@ -25,15 +25,40 @@ pub fn execute_drop_sequence(
     Ok(())
 }
 
-/// Execute CREATE TYPE statement
+/// Execute CREATE TYPE statement (comprehensive implementation)
 pub fn execute_create_type(stmt: &CreateTypeStmt, db: &mut Database) -> Result<(), ExecutorError> {
-    db.catalog.create_type(stmt.type_name.clone())?;
+    use catalog::{TypeAttribute, TypeDefinition, TypeDefinitionKind};
+
+    // Convert AST TypeDefinition to Catalog TypeDefinitionKind
+    let catalog_def = match &stmt.definition {
+        ast::TypeDefinition::Distinct { base_type } => {
+            TypeDefinitionKind::Distinct { base_type: base_type.clone() }
+        }
+        ast::TypeDefinition::Structured { attributes } => {
+            let catalog_attrs = attributes
+                .iter()
+                .map(|attr| TypeAttribute {
+                    name: attr.name.clone(),
+                    data_type: attr.data_type.clone()
+                })
+                .collect();
+            TypeDefinitionKind::Structured { attributes: catalog_attrs }
+        }
+    };
+
+    let type_def = TypeDefinition {
+        name: stmt.type_name.clone(),
+        definition: catalog_def
+    };
+
+    db.catalog.create_type(type_def)?;
     Ok(())
 }
 
-/// Execute DROP TYPE statement
+/// Execute DROP TYPE statement (comprehensive implementation with CASCADE/RESTRICT)
 pub fn execute_drop_type(stmt: &DropTypeStmt, db: &mut Database) -> Result<(), ExecutorError> {
-    db.catalog.drop_type(&stmt.type_name)?;
+    let cascade = matches!(stmt.behavior, DropBehavior::Cascade);
+    db.catalog.drop_type(&stmt.type_name, cascade)?;
     Ok(())
 }
 

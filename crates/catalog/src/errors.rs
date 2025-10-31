@@ -17,6 +17,7 @@ pub enum CatalogError {
     SequenceNotFound(String),
     TypeAlreadyExists(String),
     TypeNotFound(String),
+    TypeInUse(String),
     CollationAlreadyExists(String),
     CollationNotFound(String),
     CharacterSetAlreadyExists(String),
@@ -59,6 +60,9 @@ impl std::fmt::Display for CatalogError {
                 write!(f, "Type '{}' already exists", name)
             }
             CatalogError::TypeNotFound(name) => write!(f, "Type '{}' not found", name),
+            CatalogError::TypeInUse(name) => {
+                write!(f, "Type '{}' is still in use by one or more tables", name)
+            }
             CatalogError::CollationAlreadyExists(name) => {
                 write!(f, "Collation '{}' already exists", name)
             }

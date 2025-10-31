@@ -12,6 +12,7 @@ mod privilege;
 mod schema;
 mod store;
 mod table;
+mod type_definition;
 
 pub use advanced_objects::{
     CharacterSet, Collation, Domain, Sequence, Translation, UserDefinedType,
@@ -24,6 +25,7 @@ pub use privilege::PrivilegeGrant;
 pub use schema::Schema;
 pub use store::Catalog;
 pub use table::TableSchema;
+pub use type_definition::{TypeAttribute, TypeDefinition, TypeDefinitionKind};
 
 #[cfg(test)]
 mod tests;
