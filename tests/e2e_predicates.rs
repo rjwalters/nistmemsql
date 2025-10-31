@@ -17,9 +17,7 @@ fn execute_select(db: &Database, sql: &str) -> Result<Vec<Row>, String> {
     };
 
     let executor = SelectExecutor::new(db);
-    executor
-        .execute(&select_stmt)
-        .map_err(|e| format!("Execution error: {:?}", e))
+    executor.execute(&select_stmt).map_err(|e| format!("Execution error: {:?}", e))
 }
 
 // ========================================================================
@@ -35,9 +33,7 @@ fn test_e2e_like_pattern_matching() {
             ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
                 "NAME".to_string(),
-                DataType::Varchar {
-                    max_length: Some(100),
-                },
+                DataType::Varchar { max_length: Some(100) },
                 false,
             ),
         ],
@@ -49,34 +45,22 @@ fn test_e2e_like_pattern_matching() {
     // Insert test data
     db.insert_row(
         "PRODUCTS",
-        Row::new(vec![
-            SqlValue::Integer(1),
-            SqlValue::Varchar("Widget Pro".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Widget Pro".to_string())]),
     )
     .unwrap();
     db.insert_row(
         "PRODUCTS",
-        Row::new(vec![
-            SqlValue::Integer(2),
-            SqlValue::Varchar("Gadget Plus".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Gadget Plus".to_string())]),
     )
     .unwrap();
     db.insert_row(
         "PRODUCTS",
-        Row::new(vec![
-            SqlValue::Integer(3),
-            SqlValue::Varchar("Widget Mini".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(3), SqlValue::Varchar("Widget Mini".to_string())]),
     )
     .unwrap();
     db.insert_row(
         "PRODUCTS",
-        Row::new(vec![
-            SqlValue::Integer(4),
-            SqlValue::Varchar("Super Gadget".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(4), SqlValue::Varchar("Super Gadget".to_string())]),
     )
     .unwrap();
 
@@ -132,16 +116,12 @@ fn test_e2e_in_list_predicate() {
             ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
                 "NAME".to_string(),
-                DataType::Varchar {
-                    max_length: Some(50),
-                },
+                DataType::Varchar { max_length: Some(50) },
                 false,
             ),
             ColumnSchema::new(
                 "CATEGORY".to_string(),
-                DataType::Varchar {
-                    max_length: Some(20),
-                },
+                DataType::Varchar { max_length: Some(20) },
                 false,
             ),
             ColumnSchema::new("PRICE".to_string(), DataType::Integer, false),
@@ -208,30 +188,21 @@ fn test_e2e_in_list_predicate() {
     assert_eq!(results.len(), 3);
     assert_eq!(results[0].values[0], SqlValue::Varchar("Widget".to_string()));
     assert_eq!(results[1].values[0], SqlValue::Varchar("Tool".to_string()));
-    assert_eq!(
-        results[2].values[0],
-        SqlValue::Varchar("Hammer".to_string())
-    );
+    assert_eq!(results[2].values[0], SqlValue::Varchar("Hammer".to_string()));
 
     // Test 2: IN with string list
     let results =
         execute_select(&db, "SELECT name FROM products WHERE category IN ('hardware')").unwrap();
     assert_eq!(results.len(), 2);
     assert_eq!(results[0].values[0], SqlValue::Varchar("Tool".to_string()));
-    assert_eq!(
-        results[1].values[0],
-        SqlValue::Varchar("Hammer".to_string())
-    );
+    assert_eq!(results[1].values[0], SqlValue::Varchar("Hammer".to_string()));
 
     // Test 3: NOT IN
     let results = execute_select(&db, "SELECT name FROM products WHERE id NOT IN (2, 4)").unwrap();
     assert_eq!(results.len(), 3);
     assert_eq!(results[0].values[0], SqlValue::Varchar("Widget".to_string()));
     assert_eq!(results[1].values[0], SqlValue::Varchar("Tool".to_string()));
-    assert_eq!(
-        results[2].values[0],
-        SqlValue::Varchar("Hammer".to_string())
-    );
+    assert_eq!(results[2].values[0], SqlValue::Varchar("Hammer".to_string()));
 
     // Test 4: IN with single value
     let results = execute_select(&db, "SELECT name FROM products WHERE id IN (2)").unwrap();
@@ -273,9 +244,7 @@ fn test_e2e_exists_predicate() {
             ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
                 "NAME".to_string(),
-                DataType::Varchar {
-                    max_length: Some(50),
-                },
+                DataType::Varchar { max_length: Some(50) },
                 false,
             ),
         ],
@@ -297,55 +266,34 @@ fn test_e2e_exists_predicate() {
     // Insert customers
     db.insert_row(
         "CUSTOMERS",
-        Row::new(vec![
-            SqlValue::Integer(1),
-            SqlValue::Varchar("Alice".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
     )
     .unwrap();
     db.insert_row(
         "CUSTOMERS",
-        Row::new(vec![
-            SqlValue::Integer(2),
-            SqlValue::Varchar("Bob".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())]),
     )
     .unwrap();
     db.insert_row(
         "CUSTOMERS",
-        Row::new(vec![
-            SqlValue::Integer(3),
-            SqlValue::Varchar("Charlie".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(3), SqlValue::Varchar("Charlie".to_string())]),
     )
     .unwrap();
 
     // Insert orders (only for customer 1 and 2)
     db.insert_row(
         "ORDERS",
-        Row::new(vec![
-            SqlValue::Integer(1),
-            SqlValue::Integer(1),
-            SqlValue::Integer(100),
-        ]),
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(1), SqlValue::Integer(100)]),
     )
     .unwrap();
     db.insert_row(
         "ORDERS",
-        Row::new(vec![
-            SqlValue::Integer(2),
-            SqlValue::Integer(1),
-            SqlValue::Integer(200),
-        ]),
+        Row::new(vec![SqlValue::Integer(2), SqlValue::Integer(1), SqlValue::Integer(200)]),
     )
     .unwrap();
     db.insert_row(
         "ORDERS",
-        Row::new(vec![
-            SqlValue::Integer(3),
-            SqlValue::Integer(2),
-            SqlValue::Integer(150),
-        ]),
+        Row::new(vec![SqlValue::Integer(3), SqlValue::Integer(2), SqlValue::Integer(150)]),
     )
     .unwrap();
 
@@ -353,20 +301,12 @@ fn test_e2e_exists_predicate() {
     let results =
         execute_select(&db, "SELECT name FROM customers WHERE EXISTS (SELECT 1 FROM orders)")
             .unwrap();
-    assert_eq!(
-        results.len(),
-        3,
-        "All customers should be returned when orders exist"
-    );
+    assert_eq!(results.len(), 3, "All customers should be returned when orders exist");
 
     // Test 2: NOT EXISTS with empty table - all customers should match
     let empty_schema = TableSchema::new(
         "EMPTY_TABLE".to_string(),
-        vec![ColumnSchema::new(
-            "DUMMY".to_string(),
-            DataType::Integer,
-            false,
-        )],
+        vec![ColumnSchema::new("DUMMY".to_string(), DataType::Integer, false)],
     );
     db.create_table(empty_schema).unwrap();
 
@@ -375,11 +315,7 @@ fn test_e2e_exists_predicate() {
         "SELECT name FROM customers WHERE NOT EXISTS (SELECT 1 FROM empty_table)",
     )
     .unwrap();
-    assert_eq!(
-        results.len(),
-        3,
-        "All customers should match when NOT EXISTS on empty table"
-    );
+    assert_eq!(results.len(), 3, "All customers should match when NOT EXISTS on empty table");
 
     // Test 3: EXISTS with WHERE condition in subquery
     let results = execute_select(
@@ -387,11 +323,7 @@ fn test_e2e_exists_predicate() {
         "SELECT name FROM customers WHERE EXISTS (SELECT 1 FROM orders WHERE total > 150)",
     )
     .unwrap();
-    assert_eq!(
-        results.len(),
-        3,
-        "All customers returned when orders with total > 150 exist"
-    );
+    assert_eq!(results.len(), 3, "All customers returned when orders with total > 150 exist");
 
     // Test 4: NOT EXISTS with matching rows
     let results = execute_select(
@@ -399,11 +331,7 @@ fn test_e2e_exists_predicate() {
         "SELECT name FROM customers WHERE NOT EXISTS (SELECT 1 FROM orders WHERE total > 150)",
     )
     .unwrap();
-    assert_eq!(
-        results.len(),
-        0,
-        "No customers when orders with total > 150 exist"
-    );
+    assert_eq!(results.len(), 0, "No customers when orders with total > 150 exist");
 
     // Test 5: EXISTS combined with AND
     let results = execute_select(
@@ -411,16 +339,9 @@ fn test_e2e_exists_predicate() {
         "SELECT name FROM customers WHERE id > 1 AND EXISTS (SELECT 1 FROM orders)",
     )
     .unwrap();
-    assert_eq!(
-        results.len(),
-        2,
-        "Should find customers with id > 1 when orders exist"
-    );
+    assert_eq!(results.len(), 2, "Should find customers with id > 1 when orders exist");
     assert_eq!(results[0].values[0], SqlValue::Varchar("Bob".to_string()));
-    assert_eq!(
-        results[1].values[0],
-        SqlValue::Varchar("Charlie".to_string())
-    );
+    assert_eq!(results[1].values[0], SqlValue::Varchar("Charlie".to_string()));
 
     // Test 6: EXISTS combined with OR
     let results = execute_select(
@@ -428,11 +349,7 @@ fn test_e2e_exists_predicate() {
         "SELECT name FROM customers WHERE id = 3 OR EXISTS (SELECT 1 FROM orders)",
     )
     .unwrap();
-    assert_eq!(
-        results.len(),
-        3,
-        "Should find all customers (either id=3 or orders exist)"
-    );
+    assert_eq!(results.len(), 3, "Should find all customers (either id=3 or orders exist)");
 
     // Note: Correlated subqueries with table aliases (e.g., WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id))
     // are not yet fully supported and will be added in a future update.

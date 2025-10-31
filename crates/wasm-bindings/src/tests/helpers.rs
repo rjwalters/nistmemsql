@@ -1,6 +1,5 @@
 //! Helper functions for WASM API tests
 
-
 /// Helper to execute SQL (handles multi-statement SQL like loading database schemas)
 pub fn execute_sql(db: &mut storage::Database, sql: &str) -> Result<(), String> {
     // Split by semicolons to handle multiple statements
@@ -83,10 +82,9 @@ pub fn setup_example_database(db_name: &str) -> (storage::Database, Option<Strin
             let northwind_sql = include_str!("../../../../web-demo/examples/northwind.sql");
             match execute_sql(&mut db, northwind_sql) {
                 Ok(_) => (db, None),
-                Err(e) => (
-                    storage::Database::new(),
-                    Some(format!("northwind DB load failed: {}", e)),
-                ),
+                Err(e) => {
+                    (storage::Database::new(), Some(format!("northwind DB load failed: {}", e)))
+                }
             }
         }
         "employees" => {
@@ -94,10 +92,9 @@ pub fn setup_example_database(db_name: &str) -> (storage::Database, Option<Strin
             let employees_sql = include_str!("../../../../web-demo/examples/employees.sql");
             match execute_sql(&mut db, employees_sql) {
                 Ok(_) => (db, None),
-                Err(e) => (
-                    storage::Database::new(),
-                    Some(format!("employees DB load failed: {}", e)),
-                ),
+                Err(e) => {
+                    (storage::Database::new(), Some(format!("employees DB load failed: {}", e)))
+                }
             }
         }
         // All other databases (empty, company, university, etc.) start as empty
@@ -140,11 +137,7 @@ pub fn parse_examples() -> Vec<(String, String, String)> {
                         if let Some(sql_end) = sql_start.rfind("',") {
                             let sql = &sql_start[..sql_end];
                             if !database.is_empty() && !sql.is_empty() {
-                                examples.push((
-                                    id.to_string(),
-                                    database.clone(),
-                                    sql.to_string(),
-                                ));
+                                examples.push((id.to_string(), database.clone(), sql.to_string()));
                             }
                             break;
                         }
@@ -169,10 +162,8 @@ pub fn parse_examples() -> Vec<(String, String, String)> {
                             let line = lines[k];
                             if line.ends_with("`,") || line.ends_with("`") {
                                 // Check if there's SQL on the closing line before the backtick
-                                let line_trimmed = line
-                                    .trim_end_matches("`,")
-                                    .trim_end_matches("`")
-                                    .trim_end();
+                                let line_trimmed =
+                                    line.trim_end_matches("`,").trim_end_matches("`").trim_end();
                                 if !line_trimmed.is_empty() {
                                     sql_lines.push(line_trimmed);
                                 }

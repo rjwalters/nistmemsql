@@ -83,36 +83,36 @@ pub(super) fn derive_cte_schema(
     } else {
         // No explicit column names - infer from query SELECT list
         if let Some(first_row) = rows.first() {
-            let columns =
-                cte.query
-                    .select_list
-                    .iter()
-                    .enumerate()
-                    .map(|(i, item)| {
-                        let data_type = infer_type_from_value(&first_row.values[i]);
+            let columns = cte
+                .query
+                .select_list
+                .iter()
+                .enumerate()
+                .map(|(i, item)| {
+                    let data_type = infer_type_from_value(&first_row.values[i]);
 
-                        // Extract column name from SELECT item
-                        let col_name = match item {
-                            ast::SelectItem::Wildcard { .. }
-                            | ast::SelectItem::QualifiedWildcard { .. } => format!("col{}", i),
-                            ast::SelectItem::Expression { expr, alias } => {
-                                if let Some(a) = alias {
-                                    a.clone()
-                                } else {
-                                    // Try to extract name from expression
-                                    match expr {
-                                        ast::Expression::ColumnRef { table: _, column } => {
-                                            column.clone()
-                                        }
-                                        _ => format!("col{}", i),
+                    // Extract column name from SELECT item
+                    let col_name = match item {
+                        ast::SelectItem::Wildcard { .. }
+                        | ast::SelectItem::QualifiedWildcard { .. } => format!("col{}", i),
+                        ast::SelectItem::Expression { expr, alias } => {
+                            if let Some(a) = alias {
+                                a.clone()
+                            } else {
+                                // Try to extract name from expression
+                                match expr {
+                                    ast::Expression::ColumnRef { table: _, column } => {
+                                        column.clone()
                                     }
+                                    _ => format!("col{}", i),
                                 }
                             }
-                        };
+                        }
+                    };
 
-                        catalog::ColumnSchema::new(col_name, data_type, true) // nullable
-                    })
-                    .collect();
+                    catalog::ColumnSchema::new(col_name, data_type, true) // nullable
+                })
+                .collect();
 
             Ok(catalog::TableSchema::new(cte.name.clone(), columns))
         } else {

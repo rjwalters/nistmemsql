@@ -17,9 +17,7 @@ fn execute_select(db: &Database, sql: &str) -> Result<Vec<Row>, String> {
     };
 
     let executor = SelectExecutor::new(db);
-    executor
-        .execute(&select_stmt)
-        .map_err(|e| format!("Execution error: {:?}", e))
+    executor.execute(&select_stmt).map_err(|e| format!("Execution error: {:?}", e))
 }
 
 // ========================================================================
@@ -35,16 +33,12 @@ fn test_e2e_coalesce_and_nullif() {
             ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
                 "NAME".to_string(),
-                DataType::Varchar {
-                    max_length: Some(50),
-                },
+                DataType::Varchar { max_length: Some(50) },
                 false,
             ),
             ColumnSchema::new(
                 "NICKNAME".to_string(),
-                DataType::Varchar {
-                    max_length: Some(50),
-                },
+                DataType::Varchar { max_length: Some(50) },
                 false,
             ),
             ColumnSchema::new("BALANCE".to_string(), DataType::Integer, false),
@@ -98,10 +92,7 @@ fn test_e2e_coalesce_and_nullif() {
         execute_select(&db, "SELECT COALESCE(nickname, 'Unknown') FROM users WHERE id = 2")
             .unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("Unknown".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("Unknown".to_string()));
 
     // Test 3: COALESCE with multiple arguments
     let results =
@@ -142,11 +133,7 @@ fn test_e2e_coalesce_and_nullif() {
     let results =
         execute_select(&db, "SELECT NULLIF(nickname, 'test') FROM users WHERE id = 2").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Null,
-        "NULLIF with NULL first arg returns NULL"
-    );
+    assert_eq!(results[0].values[0], SqlValue::Null, "NULLIF with NULL first arg returns NULL");
 
     // Test 8: Combined COALESCE and NULLIF
     // Use NULLIF to convert 0 balance to NULL, then COALESCE to provide default
@@ -168,9 +155,5 @@ fn test_e2e_coalesce_and_nullif() {
     let results =
         execute_select(&db, "SELECT NULLIF(name, 'Alice') FROM users WHERE id = 1").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Null,
-        "NULLIF('Alice', 'Alice') should return NULL"
-    );
+    assert_eq!(results[0].values[0], SqlValue::Null, "NULLIF('Alice', 'Alice') should return NULL");
 }

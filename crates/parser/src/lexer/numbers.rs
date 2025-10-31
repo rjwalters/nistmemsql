@@ -1,5 +1,5 @@
-use crate::token::Token;
 use super::{Lexer, LexerError};
+use crate::token::Token;
 
 impl Lexer {
     /// Tokenize a number literal.
