@@ -230,7 +230,7 @@ fn test_revoke_execute_on_function() {
 
 #[test]
 fn test_revoke_execute_on_procedure() {
-    let sql = "REVOKE EXECUTE ON PROCEDURE proc_name FROM role";
+    let sql = "REVOKE EXECUTE ON PROCEDURE proc_name FROM user1";
     let result = Parser::parse_sql(sql);
     assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
 
@@ -246,7 +246,7 @@ fn test_revoke_execute_on_procedure() {
 
 #[test]
 fn test_revoke_execute_on_routine() {
-    let sql = "REVOKE EXECUTE ON ROUTINE routine_name FROM role";
+    let sql = "REVOKE EXECUTE ON ROUTINE routine_name FROM user1";
     let result = Parser::parse_sql(sql);
     assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
 
@@ -262,7 +262,7 @@ fn test_revoke_execute_on_routine() {
 
 #[test]
 fn test_revoke_execute_on_method() {
-    let sql = "REVOKE EXECUTE ON METHOD method_name FROM role";
+    let sql = "REVOKE EXECUTE ON METHOD method_name FROM user1";
     let result = Parser::parse_sql(sql);
     assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
 
@@ -278,7 +278,7 @@ fn test_revoke_execute_on_method() {
 
 #[test]
 fn test_revoke_execute_cascade() {
-    let sql = "REVOKE EXECUTE ON FUNCTION my_func FROM role CASCADE";
+    let sql = "REVOKE EXECUTE ON FUNCTION my_func FROM user1 CASCADE";
     let result = Parser::parse_sql(sql);
     assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
 
@@ -294,7 +294,7 @@ fn test_revoke_execute_cascade() {
 
 #[test]
 fn test_revoke_execute_restrict() {
-    let sql = "REVOKE EXECUTE ON PROCEDURE proc_name FROM role RESTRICT";
+    let sql = "REVOKE EXECUTE ON PROCEDURE proc_name FROM user1 RESTRICT";
     let result = Parser::parse_sql(sql);
     assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
 
