@@ -20,7 +20,7 @@ fn test_revoke_basic_select() {
     let stmt = parse_revoke(sql);
 
     assert!(!stmt.grant_option_for);
-    assert_eq!(stmt.privileges, vec![PrivilegeType::Select]);
+    assert_eq!(stmt.privileges, vec![PrivilegeType::Select(None)]);
     assert_eq!(stmt.object_type, ObjectType::Table);
     assert_eq!(stmt.object_name, "USERS");
     assert_eq!(stmt.grantees, vec!["MANAGER"]);
@@ -34,8 +34,8 @@ fn test_revoke_multiple_privileges() {
     let stmt = parse_revoke(sql);
 
     assert_eq!(stmt.privileges.len(), 3);
-    assert!(stmt.privileges.contains(&PrivilegeType::Select));
-    assert!(stmt.privileges.contains(&PrivilegeType::Insert));
+    assert!(stmt.privileges.contains(&PrivilegeType::Select(None)));
+    assert!(stmt.privileges.contains(&PrivilegeType::Insert(None)));
     assert!(stmt.privileges.contains(&PrivilegeType::Update(None)));
     assert_eq!(stmt.grantees, vec!["CLERK"]);
 }
@@ -45,7 +45,7 @@ fn test_revoke_multiple_grantees() {
     let sql = "REVOKE SELECT ON TABLE data FROM user1, user2, user3";
     let stmt = parse_revoke(sql);
 
-    assert_eq!(stmt.privileges, vec![PrivilegeType::Select]);
+    assert_eq!(stmt.privileges, vec![PrivilegeType::Select(None)]);
     assert_eq!(stmt.grantees, vec!["USER1", "USER2", "USER3"]);
 }
 
@@ -72,7 +72,7 @@ fn test_revoke_with_cascade() {
     let sql = "REVOKE SELECT ON TABLE accounts FROM manager CASCADE";
     let stmt = parse_revoke(sql);
 
-    assert_eq!(stmt.privileges, vec![PrivilegeType::Select]);
+    assert_eq!(stmt.privileges, vec![PrivilegeType::Select(None)]);
     assert_eq!(stmt.grantees, vec!["MANAGER"]);
     assert_eq!(stmt.cascade_option, CascadeOption::Cascade);
 }
@@ -82,7 +82,7 @@ fn test_revoke_with_restrict() {
     let sql = "REVOKE INSERT ON TABLE orders FROM clerk RESTRICT";
     let stmt = parse_revoke(sql);
 
-    assert_eq!(stmt.privileges, vec![PrivilegeType::Insert]);
+    assert_eq!(stmt.privileges, vec![PrivilegeType::Insert(None)]);
     assert_eq!(stmt.grantees, vec!["CLERK"]);
     assert_eq!(stmt.cascade_option, CascadeOption::Restrict);
 }
@@ -93,7 +93,7 @@ fn test_revoke_grant_option_for() {
     let stmt = parse_revoke(sql);
 
     assert!(stmt.grant_option_for);
-    assert_eq!(stmt.privileges, vec![PrivilegeType::Select]);
+    assert_eq!(stmt.privileges, vec![PrivilegeType::Select(None)]);
     assert_eq!(stmt.grantees, vec!["MANAGER"]);
 }
 
@@ -102,7 +102,7 @@ fn test_revoke_granted_by() {
     let sql = "REVOKE SELECT ON TABLE data FROM analyst GRANTED BY admin";
     let stmt = parse_revoke(sql);
 
-    assert_eq!(stmt.privileges, vec![PrivilegeType::Select]);
+    assert_eq!(stmt.privileges, vec![PrivilegeType::Select(None)]);
     assert_eq!(stmt.grantees, vec!["ANALYST"]);
     assert_eq!(stmt.granted_by, Some("ADMIN".to_string()));
 }
@@ -146,8 +146,8 @@ fn test_revoke_complex_combination() {
 
     assert!(stmt.grant_option_for);
     assert_eq!(stmt.privileges.len(), 2);
-    assert!(stmt.privileges.contains(&PrivilegeType::Select));
-    assert!(stmt.privileges.contains(&PrivilegeType::Insert));
+    assert!(stmt.privileges.contains(&PrivilegeType::Select(None)));
+    assert!(stmt.privileges.contains(&PrivilegeType::Insert(None)));
     assert_eq!(stmt.object_type, ObjectType::Table);
     assert_eq!(stmt.object_name, "SENSITIVE_DATA");
     assert_eq!(stmt.grantees, vec!["ROLE1", "ROLE2"]);

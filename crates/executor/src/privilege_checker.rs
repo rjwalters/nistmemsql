@@ -7,12 +7,12 @@ pub struct PrivilegeChecker;
 impl PrivilegeChecker {
     /// Check if current role has SELECT privilege on table
     pub fn check_select(db: &Database, table_name: &str) -> Result<(), ExecutorError> {
-        Self::check_privilege(db, table_name, &ast::PrivilegeType::Select, "SELECT")
+        Self::check_privilege(db, table_name, &ast::PrivilegeType::Select(None), "SELECT")
     }
 
     /// Check if current role has INSERT privilege on table
     pub fn check_insert(db: &Database, table_name: &str) -> Result<(), ExecutorError> {
-        Self::check_privilege(db, table_name, &ast::PrivilegeType::Insert, "INSERT")
+        Self::check_privilege(db, table_name, &ast::PrivilegeType::Insert(None), "INSERT")
     }
 
     /// Check if current role has UPDATE privilege on table

@@ -33,7 +33,7 @@ fn test_grant_specific_privilege() {
 
     // Grant SELECT privilege
     let grant_stmt = GrantStmt {
-        privileges: vec![PrivilegeType::Select],
+        privileges: vec![PrivilegeType::Select(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         grantees: vec!["user1".to_string()],
@@ -42,7 +42,7 @@ fn test_grant_specific_privilege() {
     let result = GrantExecutor::execute_grant(&grant_stmt, &mut db).unwrap();
 
     // Verify grant
-    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
+    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select(None)));
     assert!(result.contains("Granted"));
 }
 
@@ -79,8 +79,8 @@ fn test_grant_all_privileges_table() {
     GrantExecutor::execute_grant(&grant_stmt, &mut db).unwrap();
 
     // Verify all table privileges granted
-    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
-    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Insert));
+    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select(None)));
+    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Insert(None)));
     assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Update(None)));
     assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Delete));
     assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::References(None)));
@@ -135,7 +135,7 @@ fn test_grant_with_grant_option() {
 
     // Grant SELECT with GRANT OPTION
     let grant_stmt = GrantStmt {
-        privileges: vec![PrivilegeType::Select],
+        privileges: vec![PrivilegeType::Select(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         grantees: vec!["user1".to_string()],
@@ -144,11 +144,11 @@ fn test_grant_with_grant_option() {
     GrantExecutor::execute_grant(&grant_stmt, &mut db).unwrap();
 
     // Verify both privilege and grant option granted
-    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
+    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select(None)));
     let grants = db.catalog.get_grants_for_grantee("user1");
     let grant = grants
         .iter()
-        .find(|g| g.object == "test_table" && g.privilege == PrivilegeType::Select)
+        .find(|g| g.object == "test_table" && g.privilege == PrivilegeType::Select(None))
         .unwrap();
     assert!(grant.with_grant_option);
 }
@@ -177,7 +177,7 @@ fn test_grant_multiple_privileges() {
 
     // Grant multiple privileges
     let grant_stmt = GrantStmt {
-        privileges: vec![PrivilegeType::Select, PrivilegeType::Insert, PrivilegeType::Update(None)],
+        privileges: vec![PrivilegeType::Select(None), PrivilegeType::Insert(None), PrivilegeType::Update(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         grantees: vec!["user1".to_string()],
@@ -186,8 +186,8 @@ fn test_grant_multiple_privileges() {
     GrantExecutor::execute_grant(&grant_stmt, &mut db).unwrap();
 
     // Verify all privileges granted
-    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
-    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Insert));
+    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select(None)));
+    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Insert(None)));
     assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Update(None)));
     // Not granted
     assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Delete));
@@ -219,7 +219,7 @@ fn test_grant_multiple_grantees() {
 
     // Grant to multiple grantees
     let grant_stmt = GrantStmt {
-        privileges: vec![PrivilegeType::Select],
+        privileges: vec![PrivilegeType::Select(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         grantees: vec!["user1".to_string(), "user2".to_string(), "user3".to_string()],
@@ -228,9 +228,9 @@ fn test_grant_multiple_grantees() {
     GrantExecutor::execute_grant(&grant_stmt, &mut db).unwrap();
 
     // Verify all grantees have privilege
-    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
-    assert!(db.catalog.has_privilege("user2", "test_table", &PrivilegeType::Select));
-    assert!(db.catalog.has_privilege("user3", "test_table", &PrivilegeType::Select));
+    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select(None)));
+    assert!(db.catalog.has_privilege("user2", "test_table", &PrivilegeType::Select(None)));
+    assert!(db.catalog.has_privilege("user3", "test_table", &PrivilegeType::Select(None)));
 }
 
 #[test]
@@ -279,7 +279,7 @@ fn test_grant_to_non_existent_role() {
 
     // Try to grant to non-existent role
     let grant_stmt = GrantStmt {
-        privileges: vec![PrivilegeType::Select],
+        privileges: vec![PrivilegeType::Select(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         grantees: vec!["non_existent_role".to_string()],
@@ -300,7 +300,7 @@ fn test_grant_on_non_existent_table() {
 
     // Try to grant on non-existent table
     let grant_stmt = GrantStmt {
-        privileges: vec![PrivilegeType::Select],
+        privileges: vec![PrivilegeType::Select(None)],
         object_type: ObjectType::Table,
         object_name: "non_existent_table".to_string(),
         grantees: vec!["user1".to_string()],
@@ -357,7 +357,7 @@ fn test_grant_idempotent() {
 
     // Grant same privilege twice (should be idempotent)
     let grant_stmt = GrantStmt {
-        privileges: vec![PrivilegeType::Select],
+        privileges: vec![PrivilegeType::Select(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         grantees: vec!["user1".to_string()],
@@ -368,7 +368,7 @@ fn test_grant_idempotent() {
     let result = GrantExecutor::execute_grant(&grant_stmt, &mut db).unwrap();
 
     // Should succeed both times
-    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
+    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select(None)));
     assert!(result.contains("Granted"));
 }
 

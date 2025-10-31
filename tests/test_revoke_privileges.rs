@@ -34,7 +34,7 @@ fn test_revoke_specific_privilege() {
 
     // Grant privileges first
     let grant_stmt = GrantStmt {
-        privileges: vec![PrivilegeType::Select],
+        privileges: vec![PrivilegeType::Select(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         grantees: vec!["user1".to_string()],
@@ -43,11 +43,11 @@ fn test_revoke_specific_privilege() {
     GrantExecutor::execute_grant(&grant_stmt, &mut db).unwrap();
 
     // Verify grant exists
-    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
+    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select(None)));
 
     // Revoke the privilege
     let revoke_stmt = RevokeStmt {
-        privileges: vec![PrivilegeType::Select],
+        privileges: vec![PrivilegeType::Select(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         grantees: vec!["user1".to_string()],
@@ -58,7 +58,7 @@ fn test_revoke_specific_privilege() {
     let result = RevokeExecutor::execute_revoke(&revoke_stmt, &mut db).unwrap();
 
     // Verify privilege was revoked
-    assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
+    assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select(None)));
     assert!(result.contains("Revoked"));
 }
 
@@ -95,8 +95,8 @@ fn test_revoke_all_privileges() {
     GrantExecutor::execute_grant(&grant_stmt, &mut db).unwrap();
 
     // Verify all privileges granted
-    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
-    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Insert));
+    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select(None)));
+    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Insert(None)));
     assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Update(None)));
     assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Delete));
     assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::References(None)));
@@ -114,8 +114,8 @@ fn test_revoke_all_privileges() {
     RevokeExecutor::execute_revoke(&revoke_stmt, &mut db).unwrap();
 
     // Verify all privileges revoked
-    assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
-    assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Insert));
+    assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select(None)));
+    assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Insert(None)));
     assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Update(None)));
     assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Delete));
     assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::References(None)));
@@ -146,7 +146,7 @@ fn test_revoke_with_grant_option_for() {
 
     // Grant with GRANT OPTION
     let grant_stmt = GrantStmt {
-        privileges: vec![PrivilegeType::Select],
+        privileges: vec![PrivilegeType::Select(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         grantees: vec!["user1".to_string()],
@@ -155,17 +155,17 @@ fn test_revoke_with_grant_option_for() {
     GrantExecutor::execute_grant(&grant_stmt, &mut db).unwrap();
 
     // Verify both privilege and grant option exist
-    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
+    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select(None)));
     let grants = db.catalog.get_grants_for_grantee("user1");
     let grant = grants
         .iter()
-        .find(|g| g.object == "test_table" && g.privilege == PrivilegeType::Select)
+        .find(|g| g.object == "test_table" && g.privilege == PrivilegeType::Select(None))
         .unwrap();
     assert!(grant.with_grant_option);
 
     // Revoke GRANT OPTION FOR (not the privilege itself)
     let revoke_stmt = RevokeStmt {
-        privileges: vec![PrivilegeType::Select],
+        privileges: vec![PrivilegeType::Select(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         grantees: vec!["user1".to_string()],
@@ -176,11 +176,11 @@ fn test_revoke_with_grant_option_for() {
     let result = RevokeExecutor::execute_revoke(&revoke_stmt, &mut db).unwrap();
 
     // Verify grant option was revoked but privilege remains
-    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
+    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select(None)));
     let grants = db.catalog.get_grants_for_grantee("user1");
     let grant = grants
         .iter()
-        .find(|g| g.object == "test_table" && g.privilege == PrivilegeType::Select)
+        .find(|g| g.object == "test_table" && g.privilege == PrivilegeType::Select(None))
         .unwrap();
     assert!(!grant.with_grant_option);
     assert!(result.contains("Revoked grant option for"));
@@ -212,7 +212,7 @@ fn test_revoke_cascade_behavior() {
 
     // Grant SELECT to user1 WITH GRANT OPTION
     let grant_stmt1 = GrantStmt {
-        privileges: vec![PrivilegeType::Select],
+        privileges: vec![PrivilegeType::Select(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         grantees: vec!["user1".to_string()],
@@ -222,7 +222,7 @@ fn test_revoke_cascade_behavior() {
 
     // user1 grants SELECT to user2
     let grant_stmt2 = GrantStmt {
-        privileges: vec![PrivilegeType::Select],
+        privileges: vec![PrivilegeType::Select(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         grantees: vec!["user2".to_string()],
@@ -233,13 +233,13 @@ fn test_revoke_cascade_behavior() {
     GrantExecutor::execute_grant(&grant_stmt2, &mut db).unwrap();
 
     // Verify both users have privilege
-    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
-    assert!(db.catalog.has_privilege("user2", "test_table", &PrivilegeType::Select));
+    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select(None)));
+    assert!(db.catalog.has_privilege("user2", "test_table", &PrivilegeType::Select(None)));
 
     // Reset to admin role and revoke CASCADE from user1
     db.set_role(Some("admin".to_string()));
     let revoke_stmt = RevokeStmt {
-        privileges: vec![PrivilegeType::Select],
+        privileges: vec![PrivilegeType::Select(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         grantees: vec!["user1".to_string()],
@@ -250,8 +250,8 @@ fn test_revoke_cascade_behavior() {
     RevokeExecutor::execute_revoke(&revoke_stmt, &mut db).unwrap();
 
     // Verify CASCADE: both user1 and user2 privileges revoked
-    assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
-    assert!(!db.catalog.has_privilege("user2", "test_table", &PrivilegeType::Select));
+    assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select(None)));
+    assert!(!db.catalog.has_privilege("user2", "test_table", &PrivilegeType::Select(None)));
 }
 
 #[test]
@@ -280,7 +280,7 @@ fn test_revoke_restrict_with_dependent_grants() {
 
     // Grant SELECT to user1 WITH GRANT OPTION
     let grant_stmt1 = GrantStmt {
-        privileges: vec![PrivilegeType::Select],
+        privileges: vec![PrivilegeType::Select(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         grantees: vec!["user1".to_string()],
@@ -290,7 +290,7 @@ fn test_revoke_restrict_with_dependent_grants() {
 
     // user1 grants SELECT to user2
     let grant_stmt2 = GrantStmt {
-        privileges: vec![PrivilegeType::Select],
+        privileges: vec![PrivilegeType::Select(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         grantees: vec!["user2".to_string()],
@@ -302,7 +302,7 @@ fn test_revoke_restrict_with_dependent_grants() {
     // Reset to admin and try to revoke RESTRICT from user1 (should fail)
     db.set_role(Some("admin".to_string()));
     let revoke_stmt = RevokeStmt {
-        privileges: vec![PrivilegeType::Select],
+        privileges: vec![PrivilegeType::Select(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         grantees: vec!["user1".to_string()],
@@ -342,7 +342,7 @@ fn test_revoke_multiple_grantees() {
 
     // Grant SELECT to all users
     let grant_stmt = GrantStmt {
-        privileges: vec![PrivilegeType::Select],
+        privileges: vec![PrivilegeType::Select(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         grantees: vec!["user1".to_string(), "user2".to_string(), "user3".to_string()],
@@ -351,13 +351,13 @@ fn test_revoke_multiple_grantees() {
     GrantExecutor::execute_grant(&grant_stmt, &mut db).unwrap();
 
     // Verify all have privilege
-    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
-    assert!(db.catalog.has_privilege("user2", "test_table", &PrivilegeType::Select));
-    assert!(db.catalog.has_privilege("user3", "test_table", &PrivilegeType::Select));
+    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select(None)));
+    assert!(db.catalog.has_privilege("user2", "test_table", &PrivilegeType::Select(None)));
+    assert!(db.catalog.has_privilege("user3", "test_table", &PrivilegeType::Select(None)));
 
     // Revoke from multiple grantees at once
     let revoke_stmt = RevokeStmt {
-        privileges: vec![PrivilegeType::Select],
+        privileges: vec![PrivilegeType::Select(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         grantees: vec!["user1".to_string(), "user3".to_string()],
@@ -368,9 +368,9 @@ fn test_revoke_multiple_grantees() {
     RevokeExecutor::execute_revoke(&revoke_stmt, &mut db).unwrap();
 
     // Verify selective revoke
-    assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
-    assert!(db.catalog.has_privilege("user2", "test_table", &PrivilegeType::Select)); // not revoked
-    assert!(!db.catalog.has_privilege("user3", "test_table", &PrivilegeType::Select));
+    assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select(None)));
+    assert!(db.catalog.has_privilege("user2", "test_table", &PrivilegeType::Select(None))); // not revoked
+    assert!(!db.catalog.has_privilege("user3", "test_table", &PrivilegeType::Select(None)));
 }
 
 #[test]
@@ -397,7 +397,7 @@ fn test_revoke_non_existent_privilege() {
 
     // Try to revoke privilege that was never granted
     let revoke_stmt = RevokeStmt {
-        privileges: vec![PrivilegeType::Select],
+        privileges: vec![PrivilegeType::Select(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         grantees: vec!["user1".to_string()],
@@ -432,7 +432,7 @@ fn test_revoke_from_non_existent_role() {
 
     // Try to revoke from non-existent role
     let revoke_stmt = RevokeStmt {
-        privileges: vec![PrivilegeType::Select],
+        privileges: vec![PrivilegeType::Select(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         grantees: vec!["non_existent_role".to_string()],
@@ -458,7 +458,7 @@ fn test_revoke_from_non_existent_table() {
 
     // Try to revoke from non-existent table
     let revoke_stmt = RevokeStmt {
-        privileges: vec![PrivilegeType::Select],
+        privileges: vec![PrivilegeType::Select(None)],
         object_type: ObjectType::Table,
         object_name: "non_existent_table".to_string(),
         grantees: vec!["user1".to_string()],

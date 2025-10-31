@@ -21,7 +21,7 @@ fn test_grant_with_grant_option_stored_in_catalog() {
 
     // Grant SELECT privilege WITH GRANT OPTION
     let grant_stmt = ast::GrantStmt {
-        privileges: vec![ast::PrivilegeType::Select],
+        privileges: vec![ast::PrivilegeType::Select(None)],
         object_type: ast::ObjectType::Table,
         object_name: "users".to_string(),
         grantees: vec!["manager".to_string()],
@@ -53,7 +53,7 @@ fn test_grant_without_grant_option_stored_in_catalog() {
 
     // Grant SELECT privilege WITHOUT GRANT OPTION
     let grant_stmt = ast::GrantStmt {
-        privileges: vec![ast::PrivilegeType::Select],
+        privileges: vec![ast::PrivilegeType::Select(None)],
         object_type: ast::ObjectType::Table,
         object_name: "users".to_string(),
         grantees: vec!["clerk".to_string()],
@@ -125,7 +125,7 @@ fn test_grant_multiple_grantees_with_grant_option() {
 
     // Grant SELECT privilege to multiple grantees WITH GRANT OPTION
     let grant_stmt = ast::GrantStmt {
-        privileges: vec![ast::PrivilegeType::Select],
+        privileges: vec![ast::PrivilegeType::Select(None)],
         object_type: ast::ObjectType::Table,
         object_name: "orders".to_string(),
         grantees: vec!["manager".to_string(), "clerk".to_string()],

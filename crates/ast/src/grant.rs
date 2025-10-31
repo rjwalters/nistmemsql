@@ -7,9 +7,11 @@
 #[derive(Debug, Clone, PartialEq)]
 pub enum PrivilegeType {
     /// SELECT privilege (read access)
-    Select,
+    /// Optional column list for column-level SELECT privileges (SQL:1999 Feature F031-03)
+    Select(Option<Vec<String>>),
     /// INSERT privilege (write access)
-    Insert,
+    /// Optional column list for column-level INSERT privileges (SQL:1999 Feature F031-03)
+    Insert(Option<Vec<String>>),
     /// UPDATE privilege (modify access)
     /// Optional column list for column-level UPDATE privileges (SQL:1999 Feature E081-05)
     Update(Option<Vec<String>>),

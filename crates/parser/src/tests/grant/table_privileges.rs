@@ -17,7 +17,7 @@ fn test_parse_grant_select_on_table() {
     let grant = parse_grant("GRANT SELECT ON TABLE users TO manager");
     assert_grant_structure(
         &grant,
-        &[PrivilegeType::Select],
+        &[PrivilegeType::Select(None)],
         ObjectType::Table,
         "USERS",
         &["MANAGER"],
@@ -30,7 +30,7 @@ fn test_parse_grant_multiple_privileges() {
     let grant = parse_grant("GRANT SELECT, INSERT, UPDATE ON TABLE users TO manager");
     assert_privileges(
         &grant,
-        &[PrivilegeType::Select, PrivilegeType::Insert, PrivilegeType::Update(None)],
+        &[PrivilegeType::Select(None), PrivilegeType::Insert(None), PrivilegeType::Update(None)],
     );
     assert_object(&grant, ObjectType::Table, "USERS");
     assert_grantees(&grant, &["MANAGER"]);
@@ -42,8 +42,8 @@ fn test_parse_grant_all_privilege_types() {
     assert_privileges(
         &grant,
         &[
-            PrivilegeType::Select,
-            PrivilegeType::Insert,
+            PrivilegeType::Select(None),
+            PrivilegeType::Insert(None),
             PrivilegeType::Update(None),
             PrivilegeType::Delete,
         ],
@@ -79,7 +79,7 @@ fn test_parse_grant_references_on_table() {
 #[test]
 fn test_parse_grant_references_combined_with_select() {
     let grant = parse_grant("GRANT REFERENCES, SELECT ON TABLE products TO buyer");
-    assert_privileges(&grant, &[PrivilegeType::References(None), PrivilegeType::Select]);
+    assert_privileges(&grant, &[PrivilegeType::References(None), PrivilegeType::Select(None)]);
     assert_object(&grant, ObjectType::Table, "PRODUCTS");
     assert_grantees(&grant, &["BUYER"]);
 }

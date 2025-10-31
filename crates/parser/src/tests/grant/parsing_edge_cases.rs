@@ -48,7 +48,7 @@ fn test_parse_grant_multiple_grantees() {
     match result.unwrap() {
         Statement::Grant(grant_stmt) => {
             assert_eq!(grant_stmt.privileges.len(), 1);
-            assert_eq!(grant_stmt.privileges[0], PrivilegeType::Select);
+            assert_eq!(grant_stmt.privileges[0], PrivilegeType::Select(None));
             assert_eq!(grant_stmt.grantees.len(), 3);
             assert_eq!(grant_stmt.grantees, vec!["ROLE1", "ROLE2", "ROLE3"]);
         }
@@ -65,8 +65,8 @@ fn test_parse_grant_multiple_privileges_and_grantees() {
     match result.unwrap() {
         Statement::Grant(grant_stmt) => {
             assert_eq!(grant_stmt.privileges.len(), 2);
-            assert_eq!(grant_stmt.privileges[0], PrivilegeType::Select);
-            assert_eq!(grant_stmt.privileges[1], PrivilegeType::Insert);
+            assert_eq!(grant_stmt.privileges[0], PrivilegeType::Select(None));
+            assert_eq!(grant_stmt.privileges[1], PrivilegeType::Insert(None));
             assert_eq!(grant_stmt.grantees.len(), 2);
             assert_eq!(grant_stmt.grantees, vec!["R1", "R2"]);
         }
@@ -103,7 +103,7 @@ fn test_parse_grant_select_implicit_table() {
 
     match result.unwrap() {
         Statement::Grant(grant_stmt) => {
-            assert_eq!(grant_stmt.privileges[0], PrivilegeType::Select);
+            assert_eq!(grant_stmt.privileges[0], PrivilegeType::Select(None));
             assert_eq!(grant_stmt.object_type, ObjectType::Table);
             assert_eq!(grant_stmt.object_name.to_string(), "USERS");
             assert_eq!(grant_stmt.grantees, vec!["MANAGER"]);
@@ -140,7 +140,7 @@ fn test_parse_grant_insert_implicit_table() {
 
     match result.unwrap() {
         Statement::Grant(grant_stmt) => {
-            assert_eq!(grant_stmt.privileges[0], PrivilegeType::Insert);
+            assert_eq!(grant_stmt.privileges[0], PrivilegeType::Insert(None));
             assert_eq!(grant_stmt.object_type, ObjectType::Table);
             assert_eq!(grant_stmt.object_name.to_string(), "ORDERS");
         }

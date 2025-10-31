@@ -91,8 +91,8 @@ impl GrantExecutor {
         let expanded_privileges = if stmt.privileges.contains(&PrivilegeType::AllPrivileges) {
             match stmt.object_type {
                 ObjectType::Table => vec![
-                    PrivilegeType::Select,
-                    PrivilegeType::Insert,
+                    PrivilegeType::Select(None),
+                    PrivilegeType::Insert(None),
                     PrivilegeType::Update(None),
                     PrivilegeType::Delete,
                     PrivilegeType::References(None),

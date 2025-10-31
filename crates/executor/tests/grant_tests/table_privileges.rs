@@ -28,7 +28,7 @@ fn test_grant_select_on_table() {
 
     // Grant SELECT privilege
     let grant_stmt = ast::GrantStmt {
-        privileges: vec![ast::PrivilegeType::Select],
+        privileges: vec![ast::PrivilegeType::Select(None)],
         object_type: ast::ObjectType::Table,
         object_name: "users".to_string(),
         grantees: vec!["manager".to_string()],
@@ -40,7 +40,7 @@ fn test_grant_select_on_table() {
 
     // Verify the privilege was stored
     assert!(
-        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::Select),
+        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::Select(None)),
         "Privilege was not stored in catalog"
     );
 }
@@ -72,7 +72,7 @@ fn test_grant_on_qualified_table() {
 
     // Grant SELECT privilege with qualified name
     let grant_stmt = ast::GrantStmt {
-        privileges: vec![ast::PrivilegeType::Select],
+        privileges: vec![ast::PrivilegeType::Select(None)],
         object_type: ast::ObjectType::Table,
         object_name: "myschema.products".to_string(),
         grantees: vec!["clerk".to_string()],
@@ -84,7 +84,7 @@ fn test_grant_on_qualified_table() {
 
     // Verify the privilege was stored
     assert!(
-        db.catalog.has_privilege("clerk", "myschema.products", &ast::PrivilegeType::Select),
+        db.catalog.has_privilege("clerk", "myschema.products", &ast::PrivilegeType::Select(None)),
         "Privilege was not stored in catalog"
     );
 }
@@ -95,7 +95,7 @@ fn test_grant_on_nonexistent_table() {
 
     // Try to grant on a table that doesn't exist
     let grant_stmt = ast::GrantStmt {
-        privileges: vec![ast::PrivilegeType::Select],
+        privileges: vec![ast::PrivilegeType::Select(None)],
         object_type: ast::ObjectType::Table,
         object_name: "nonexistent".to_string(),
         grantees: vec!["manager".to_string()],
@@ -126,7 +126,7 @@ fn test_grant_to_multiple_grantees() {
 
     // Grant SELECT privilege to multiple users
     let grant_stmt = ast::GrantStmt {
-        privileges: vec![ast::PrivilegeType::Select],
+        privileges: vec![ast::PrivilegeType::Select(None)],
         object_type: ast::ObjectType::Table,
         object_name: "orders".to_string(),
         grantees: vec!["manager".to_string(), "clerk".to_string()],
@@ -138,11 +138,11 @@ fn test_grant_to_multiple_grantees() {
 
     // Verify both users have the privilege
     assert!(
-        db.catalog.has_privilege("manager", "orders", &ast::PrivilegeType::Select),
+        db.catalog.has_privilege("manager", "orders", &ast::PrivilegeType::Select(None)),
         "Manager should have SELECT privilege"
     );
     assert!(
-        db.catalog.has_privilege("clerk", "orders", &ast::PrivilegeType::Select),
+        db.catalog.has_privilege("clerk", "orders", &ast::PrivilegeType::Select(None)),
         "Clerk should have SELECT privilege"
     );
 }
@@ -171,8 +171,8 @@ fn test_grant_multiple_privileges() {
     // Grant multiple privileges to a single grantee
     let grant_stmt = ast::GrantStmt {
         privileges: vec![
-            ast::PrivilegeType::Select,
-            ast::PrivilegeType::Insert,
+            ast::PrivilegeType::Select(None),
+            ast::PrivilegeType::Insert(None),
             ast::PrivilegeType::Update(None),
         ],
         object_type: ast::ObjectType::Table,
@@ -186,11 +186,11 @@ fn test_grant_multiple_privileges() {
 
     // Verify all privileges were stored
     assert!(
-        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::Select),
+        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::Select(None)),
         "Manager should have SELECT privilege"
     );
     assert!(
-        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::Insert),
+        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::Insert(None)),
         "Manager should have INSERT privilege"
     );
     assert!(
@@ -224,7 +224,7 @@ fn test_grant_matrix_multiple_privileges_and_grantees() {
     // Grant multiple privileges to multiple grantees
     // This should create 2 privileges × 2 grantees = 4 grant records
     let grant_stmt = ast::GrantStmt {
-        privileges: vec![ast::PrivilegeType::Select, ast::PrivilegeType::Insert],
+        privileges: vec![ast::PrivilegeType::Select(None), ast::PrivilegeType::Insert(None)],
         object_type: ast::ObjectType::Table,
         object_name: "products".to_string(),
         grantees: vec!["r1".to_string(), "r2".to_string()],
@@ -236,19 +236,19 @@ fn test_grant_matrix_multiple_privileges_and_grantees() {
 
     // Verify all 4 combinations (2 privileges × 2 grantees)
     assert!(
-        db.catalog.has_privilege("r1", "products", &ast::PrivilegeType::Select),
+        db.catalog.has_privilege("r1", "products", &ast::PrivilegeType::Select(None)),
         "r1 should have SELECT privilege"
     );
     assert!(
-        db.catalog.has_privilege("r1", "products", &ast::PrivilegeType::Insert),
+        db.catalog.has_privilege("r1", "products", &ast::PrivilegeType::Insert(None)),
         "r1 should have INSERT privilege"
     );
     assert!(
-        db.catalog.has_privilege("r2", "products", &ast::PrivilegeType::Select),
+        db.catalog.has_privilege("r2", "products", &ast::PrivilegeType::Select(None)),
         "r2 should have SELECT privilege"
     );
     assert!(
-        db.catalog.has_privilege("r2", "products", &ast::PrivilegeType::Insert),
+        db.catalog.has_privilege("r2", "products", &ast::PrivilegeType::Insert(None)),
         "r2 should have INSERT privilege"
     );
 }
@@ -270,8 +270,8 @@ fn test_grant_all_four_privilege_types() {
     // Grant all four privilege types
     let grant_stmt = ast::GrantStmt {
         privileges: vec![
-            ast::PrivilegeType::Select,
-            ast::PrivilegeType::Insert,
+            ast::PrivilegeType::Select(None),
+            ast::PrivilegeType::Insert(None),
             ast::PrivilegeType::Update(None),
             ast::PrivilegeType::Delete,
         ],
@@ -286,11 +286,11 @@ fn test_grant_all_four_privilege_types() {
 
     // Verify all four privileges were stored
     assert!(
-        db.catalog.has_privilege("admin", "data", &ast::PrivilegeType::Select),
+        db.catalog.has_privilege("admin", "data", &ast::PrivilegeType::Select(None)),
         "Admin should have SELECT privilege"
     );
     assert!(
-        db.catalog.has_privilege("admin", "data", &ast::PrivilegeType::Insert),
+        db.catalog.has_privilege("admin", "data", &ast::PrivilegeType::Insert(None)),
         "Admin should have INSERT privilege"
     );
     assert!(
@@ -338,11 +338,11 @@ fn test_grant_all_privileges_expands_to_table_privileges() {
 
     // Verify all 5 table privileges were granted (SELECT, INSERT, UPDATE, DELETE, REFERENCES)
     assert!(
-        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::Select),
+        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::Select(None)),
         "Manager should have SELECT privilege"
     );
     assert!(
-        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::Insert),
+        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::Insert(None)),
         "Manager should have INSERT privilege"
     );
     assert!(
@@ -392,11 +392,11 @@ fn test_grant_all_privileges_to_multiple_grantees() {
     // Verify both grantees received all privileges
     // Manager should have all 5 privileges
     assert!(
-        db.catalog.has_privilege("manager", "orders", &ast::PrivilegeType::Select),
+        db.catalog.has_privilege("manager", "orders", &ast::PrivilegeType::Select(None)),
         "Manager should have SELECT"
     );
     assert!(
-        db.catalog.has_privilege("manager", "orders", &ast::PrivilegeType::Insert),
+        db.catalog.has_privilege("manager", "orders", &ast::PrivilegeType::Insert(None)),
         "Manager should have INSERT"
     );
     assert!(
@@ -414,11 +414,11 @@ fn test_grant_all_privileges_to_multiple_grantees() {
 
     // Clerk should have all 5 privileges
     assert!(
-        db.catalog.has_privilege("clerk", "orders", &ast::PrivilegeType::Select),
+        db.catalog.has_privilege("clerk", "orders", &ast::PrivilegeType::Select(None)),
         "Clerk should have SELECT"
     );
     assert!(
-        db.catalog.has_privilege("clerk", "orders", &ast::PrivilegeType::Insert),
+        db.catalog.has_privilege("clerk", "orders", &ast::PrivilegeType::Insert(None)),
         "Clerk should have INSERT"
     );
     assert!(
