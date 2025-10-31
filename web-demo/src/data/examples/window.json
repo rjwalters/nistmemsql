@@ -1,0 +1,102 @@
+{
+  "window-1": {
+    "title": "COUNT(*) OVER - Total Row Count",
+    "database": "employees",
+    "sql": "SELECT\n  first_name || ' ' || last_name AS employee,\n  department,\n  salary,\n  COUNT(*) OVER () AS total_employees\nFROM employees\nLIMIT 10;\n-- ⏭️ SKIP: Requires employees database - not yet implemented in test environment",
+    "description": "Add total count to each row without GROUP BY collapse",
+    "sqlFeatures": [
+      "COUNT",
+      "OVER",
+      "Window functions"
+    ]
+  },
+  "window-2": {
+    "title": "Running Total with ORDER BY",
+    "database": "employees",
+    "sql": "SELECT\n  first_name || ' ' || last_name AS employee,\n  salary,\n  SUM(salary) OVER (ORDER BY employee_id) AS running_total\nFROM employees\nORDER BY employee_id\nLIMIT 10;\n-- ⏭️ SKIP: Requires employees database - not yet implemented in test environment",
+    "description": "Calculate cumulative salary sum ordered by employee ID",
+    "sqlFeatures": [
+      "SUM",
+      "OVER",
+      "ORDER BY",
+      "Running totals"
+    ]
+  },
+  "window-3": {
+    "title": "Partitioned Averages",
+    "database": "employees",
+    "sql": "SELECT\n  department,\n  first_name || ' ' || last_name AS employee,\n  salary,\n  AVG(salary) OVER (PARTITION BY department) AS dept_avg_salary\nFROM employees\nORDER BY department, salary DESC\nLIMIT 15;\n-- ⏭️ SKIP: Requires employees database - not yet implemented in test environment",
+    "description": "Calculate average salary per department for each employee",
+    "sqlFeatures": [
+      "AVG",
+      "OVER",
+      "PARTITION BY",
+      "Partitioned aggregates"
+    ]
+  },
+  "window-4": {
+    "title": "MIN and MAX in Windows",
+    "database": "northwind",
+    "sql": "SELECT\n  product_name,\n  category_id,\n  unit_price,\n  MIN(unit_price) OVER (PARTITION BY category_id) AS category_min,\n  MAX(unit_price) OVER (PARTITION BY category_id) AS category_max\nFROM products\nWHERE category_id IN (1, 2, 3)\nORDER BY category_id, unit_price;\n-- ⏭️ SKIP: Window functions with OVER clause not yet fully integrated with executor;",
+    "description": "Find min and max prices within each product category",
+    "sqlFeatures": [
+      "MIN",
+      "MAX",
+      "OVER",
+      "PARTITION BY"
+    ]
+  },
+  "window-5": {
+    "title": "Moving Average with Frame",
+    "database": "employees",
+    "sql": "SELECT\n  employee_id,\n  salary,\n  AVG(salary) OVER (\n    ORDER BY employee_id\n    ROWS BETWEEN 2 PRECEDING AND CURRENT ROW\n  ) AS moving_avg_3\nFROM employees\nORDER BY employee_id\nLIMIT 15;\n-- ⏭️ SKIP: Requires employees database - window frames (ROWS BETWEEN) not yet implemented",
+    "description": "Calculate 3-row moving average of salaries",
+    "sqlFeatures": [
+      "AVG",
+      "OVER",
+      "ROWS BETWEEN",
+      "Moving frame",
+      "Window frames"
+    ]
+  },
+  "window-6": {
+    "title": "Window Function in Expression",
+    "database": "employees",
+    "sql": "SELECT\n  department,\n  first_name || ' ' || last_name AS employee,\n  salary,\n  AVG(salary) OVER (PARTITION BY department) AS dept_avg,\n  salary - AVG(salary) OVER (PARTITION BY department) AS diff_from_avg\nFROM employees\nORDER BY department, diff_from_avg DESC\nLIMIT 15;\n-- ⏭️ SKIP: Requires employees database - not yet implemented in test environment",
+    "description": "Calculate salary deviation from department average",
+    "sqlFeatures": [
+      "AVG",
+      "OVER",
+      "PARTITION BY",
+      "Window functions in expressions"
+    ]
+  },
+  "window-7": {
+    "title": "Multiple Window Functions",
+    "database": "employees",
+    "sql": "SELECT\n  department,\n  COUNT(*) OVER (PARTITION BY department) AS dept_headcount,\n  AVG(salary) OVER (PARTITION BY department) AS dept_avg_salary,\n  MIN(salary) OVER (PARTITION BY department) AS dept_min_salary,\n  MAX(salary) OVER (PARTITION BY department) AS dept_max_salary\nFROM employees\nORDER BY department\nLIMIT 15;\n-- ⏭️ SKIP: Requires employees database - not yet implemented in test environment",
+    "description": "Multiple aggregate window functions in one query",
+    "sqlFeatures": [
+      "COUNT",
+      "AVG",
+      "MIN",
+      "MAX",
+      "OVER",
+      "PARTITION BY",
+      "Multiple window functions"
+    ]
+  },
+  "window-8": {
+    "title": "Percentage of Total",
+    "database": "northwind",
+    "sql": "SELECT\n  product_name,\n  unit_price,\n  SUM(unit_price) OVER () AS total_price,\n  ROUND(unit_price * 100.0 / SUM(unit_price) OVER (), 2) AS pct_of_total\nFROM products\nWHERE unit_price IS NOT NULL\nORDER BY pct_of_total DESC\nLIMIT 10;\n-- ⏭️ SKIP: Window functions with OVER clause not yet fully integrated with executor",
+    "description": "Calculate each product price as percentage of total",
+    "sqlFeatures": [
+      "SUM",
+      "OVER",
+      "ROUND",
+      "Percentage calculations",
+      "Business analytics"
+    ]
+  }
+}

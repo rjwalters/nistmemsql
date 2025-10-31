@@ -1,0 +1,36 @@
+{
+  "case-1": {
+    "title": "Simple CASE",
+    "database": "northwind",
+    "sql": "SELECT\n  product_name,\n  unit_price,\n  CASE\n    WHEN unit_price < 10 THEN 'Budget'\n    WHEN unit_price < 50 THEN 'Standard'\n    ELSE 'Premium'\n  END as price_category\nFROM products\nORDER BY unit_price;",
+    "description": "Categorize products by price range",
+    "sqlFeatures": [
+      "CASE",
+      "WHEN",
+      "ELSE",
+      "END"
+    ]
+  },
+  "case-2": {
+    "title": "CASE in aggregation",
+    "database": "employees",
+    "sql": "SELECT\n  department,\n  COUNT(*) as total_employees,\n  COUNT(CASE WHEN salary > 100000 THEN 1 END) as high_earners,\n  COUNT(CASE WHEN salary <= 100000 THEN 1 END) as other_earners\nFROM employees\nGROUP BY department\nORDER BY department;\n-- ⏭️ SKIP: Requires employees database with salary data - not yet implemented in test environment",
+    "description": "Conditional counting using CASE expressions",
+    "sqlFeatures": [
+      "CASE",
+      "COUNT",
+      "GROUP BY"
+    ]
+  },
+  "case-3": {
+    "title": "Multiple CASE expressions",
+    "database": "employees",
+    "sql": "SELECT\n  first_name || ' ' || last_name as employee,\n  salary,\n  CASE\n    WHEN salary >= 200000 THEN 'Executive'\n    WHEN salary >= 140000 THEN 'Senior Management'\n    WHEN salary >= 100000 THEN 'Management'\n    ELSE 'Staff'\n  END as pay_grade,\n  CASE\n    WHEN department = 'Engineering' THEN 'Tech'\n    WHEN department = 'Sales' THEN 'Revenue'\n    ELSE 'Operations'\n  END as division\nFROM employees\nORDER BY salary DESC\nLIMIT 10;\n-- ⏭️ SKIP: Requires employees database with detailed employee data - not yet implemented in test environment",
+    "description": "Multiple CASE statements for complex categorization",
+    "sqlFeatures": [
+      "CASE",
+      "String concatenation",
+      "LIMIT"
+    ]
+  }
+}

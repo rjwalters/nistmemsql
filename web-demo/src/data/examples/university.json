@@ -1,0 +1,73 @@
+{
+  "uni-1": {
+    "title": "Student GPA Calculation",
+    "database": "university",
+    "sql": "SELECT s.name, s.major, s.gpa AS declared_gpa,\n       (SELECT AVG(CASE\n           WHEN e.grade = 'A' THEN 4.0\n           WHEN e.grade = 'B' THEN 3.0\n           WHEN e.grade = 'C' THEN 2.0\n           WHEN e.grade = 'D' THEN 1.0\n           WHEN e.grade = 'F' THEN 0.0\n       END)\n        FROM enrollments e\n        WHERE e.student_id = s.student_id AND e.grade IS NOT NULL) AS calculated_gpa\nFROM students s\nLIMIT 10;",
+    "description": "Calculate GPA from enrollments using correlated subquery",
+    "sqlFeatures": [
+      "Correlated subquery",
+      "CASE",
+      "AVG",
+      "NULL handling"
+    ]
+  },
+  "uni-2": {
+    "title": "Course Enrollment Statistics",
+    "database": "university",
+    "sql": "SELECT c.course_name, c.department, COUNT(e.student_id) AS enrollment_count\nFROM courses c\nLEFT JOIN enrollments e ON c.course_id = e.course_id\nGROUP BY c.course_name, c.department\nORDER BY enrollment_count DESC;",
+    "description": "Count enrollments by course with LEFT JOIN",
+    "sqlFeatures": [
+      "LEFT JOIN",
+      "COUNT",
+      "GROUP BY",
+      "ORDER BY"
+    ]
+  },
+  "uni-3": {
+    "title": "Department Analysis",
+    "database": "university",
+    "sql": "SELECT c.department,\n       COUNT(DISTINCT s.student_id) AS student_count,\n       COUNT(DISTINCT c.course_id) AS course_count,\n       AVG(s.gpa) AS avg_student_gpa\nFROM courses c\nJOIN enrollments e ON c.course_id = e.course_id\nJOIN students s ON e.student_id = s.student_id\nGROUP BY c.department\nORDER BY student_count DESC;",
+    "description": "Multi-table JOIN to analyze departments",
+    "sqlFeatures": [
+      "Multi-table JOIN",
+      "COUNT DISTINCT",
+      "AVG",
+      "GROUP BY"
+    ]
+  },
+  "uni-4": {
+    "title": "Grade Distribution",
+    "database": "university",
+    "sql": "SELECT grade, COUNT(*) AS count\nFROM enrollments\nWHERE grade IS NOT NULL\nGROUP BY grade\nORDER BY grade;",
+    "description": "Count enrollments by grade (excluding NULLs)",
+    "sqlFeatures": [
+      "COUNT",
+      "GROUP BY",
+      "WHERE",
+      "NULL filtering"
+    ]
+  },
+  "uni-5": {
+    "title": "High-Performing Students",
+    "database": "university",
+    "sql": "SELECT s.name, s.major, s.gpa\nFROM students s\nWHERE s.gpa > (\n    SELECT AVG(s2.gpa)\n    FROM students s2\n    WHERE s2.major = s.major AND s2.gpa IS NOT NULL\n)\nORDER BY s.gpa DESC;",
+    "description": "Students with GPA above their major average",
+    "sqlFeatures": [
+      "Correlated subquery",
+      "AVG",
+      "WHERE",
+      "NULL handling"
+    ]
+  },
+  "uni-6": {
+    "title": "Courses with No Enrollments",
+    "database": "university",
+    "sql": "SELECT c.course_name, c.department\nFROM courses c\nLEFT JOIN enrollments e ON c.course_id = e.course_id\nWHERE e.student_id IS NULL;",
+    "description": "Find courses with zero enrollment using LEFT JOIN",
+    "sqlFeatures": [
+      "LEFT JOIN",
+      "WHERE",
+      "NULL filtering"
+    ]
+  }
+}

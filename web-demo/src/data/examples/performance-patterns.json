@@ -1,0 +1,145 @@
+{
+  "perf-1": {
+    "title": "Efficient: Set-Based vs Iterative",
+    "database": "northwind",
+    "sql": "-- EFFICIENT: Set-based operation (processes all rows at once)\nSELECT\n  category_id,\n  COUNT(*) AS product_count,\n  AVG(unit_price) AS avg_price,\n  MAX(unit_price) AS max_price,\n  MIN(unit_price) AS min_price\nFROM products\nWHERE unit_price IS NOT NULL\nGROUP BY category_id\nORDER BY category_id;",
+    "description": "Demonstrate efficient set-based operations (vs row-by-row processing)",
+    "sqlFeatures": [
+      "Aggregates",
+      "GROUP BY",
+      "Set-based operations",
+      "Performance"
+    ],
+    "difficulty": "beginner",
+    "useCase": "development",
+    "performanceNotes": "Set-based operations are 10-100x faster than iterative approaches",
+    "relatedExamples": [
+      "aggregate-1"
+    ],
+    "tags": [
+      "performance",
+      "set-based",
+      "optimization",
+      "best-practices"
+    ]
+  },
+  "perf-2": {
+    "title": "JOIN vs Subquery Performance",
+    "database": "northwind",
+    "sql": "-- EFFICIENT: JOIN (optimizer can choose best strategy)\nSELECT\n  p.product_name,\n  p.unit_price,\n  c.category_name\nFROM products p\nJOIN categories c ON p.category_id = c.category_id\nWHERE p.unit_price > 20\nORDER BY p.unit_price DESC\nLIMIT 10;",
+    "description": "Compare JOIN vs correlated subquery performance",
+    "sqlFeatures": [
+      "JOIN",
+      "Subquery comparison",
+      "Query optimization"
+    ],
+    "difficulty": "intermediate",
+    "useCase": "development",
+    "performanceNotes": "JOINs allow optimizer flexibility; correlated subqueries may execute once per row",
+    "relatedExamples": [
+      "join-1",
+      "subquery-1"
+    ],
+    "tags": [
+      "performance",
+      "join-vs-subquery",
+      "optimization",
+      "query-patterns"
+    ]
+  },
+  "perf-3": {
+    "title": "Index-Friendly Query Patterns",
+    "database": "northwind",
+    "sql": "-- INDEX-FRIENDLY: Uses SARGable predicates\nSELECT product_id, product_name, unit_price\nFROM products\nWHERE unit_price >= 20 AND unit_price <= 50\nORDER BY unit_price\nLIMIT 10;",
+    "description": "Demonstrate index-friendly (SARGable) vs index-unfriendly queries",
+    "sqlFeatures": [
+      "WHERE",
+      "Index optimization",
+      "SARGable predicates"
+    ],
+    "difficulty": "intermediate",
+    "useCase": "development",
+    "performanceNotes": "SARGable predicates enable index usage; functions on columns prevent it",
+    "relatedExamples": [
+      "basic-2"
+    ],
+    "tags": [
+      "performance",
+      "indexes",
+      "sargable",
+      "optimization"
+    ]
+  },
+  "perf-4": {
+    "title": "Efficient Aggregation with CTEs",
+    "database": "northwind",
+    "sql": "-- EFFICIENT: Pre-aggregate data in CTE, then join\nWITH order_totals AS (\n  SELECT\n    order_id,\n    SUM(unit_price * quantity * (1 - discount)) AS order_total\n  FROM order_details\n  GROUP BY order_id\n)\nSELECT\n  o.order_id,\n  o.customer_id,\n  o.order_date,\n  ROUND(ot.order_total, 2) AS order_total\nFROM orders o\nJOIN order_totals ot ON o.order_id = ot.order_id\nWHERE o.order_date IS NOT NULL\nORDER BY ot.order_total DESC\nLIMIT 10;",
+    "description": "Use CTEs for efficient pre-aggregation",
+    "sqlFeatures": [
+      "CTE",
+      "Pre-aggregation",
+      "JOIN",
+      "Performance optimization"
+    ],
+    "difficulty": "intermediate",
+    "useCase": "development",
+    "performanceNotes": "CTE pre-aggregates once; correlated subqueries repeat for each row",
+    "relatedExamples": [
+      "cte-1",
+      "aggregate-1"
+    ],
+    "tags": [
+      "performance",
+      "cte",
+      "aggregation",
+      "optimization"
+    ]
+  },
+  "perf-5": {
+    "title": "Avoiding SELECT *",
+    "database": "northwind",
+    "sql": "-- EFFICIENT: Select only needed columns\nSELECT\n  order_id,\n  customer_id,\n  order_date,\n  shipped_date\nFROM orders\nWHERE order_date >= '1997-01-01'\n  AND order_date < '1998-01-01'\nORDER BY order_date\nLIMIT 15;",
+    "description": "Select specific columns instead of SELECT *",
+    "sqlFeatures": [
+      "SELECT",
+      "Column selection",
+      "Performance best practices"
+    ],
+    "difficulty": "beginner",
+    "useCase": "development",
+    "performanceNotes": "Explicit column lists reduce I/O and enable covering indexes",
+    "relatedExamples": [
+      "basic-1"
+    ],
+    "tags": [
+      "performance",
+      "select-star",
+      "best-practices",
+      "optimization"
+    ]
+  },
+  "perf-6": {
+    "title": "Efficient LIMIT with ORDER BY",
+    "database": "northwind",
+    "sql": "-- EFFICIENT: LIMIT with ORDER BY on indexed column\nSELECT\n  product_id,\n  product_name,\n  unit_price\nFROM products\nWHERE category_id = 1\nORDER BY unit_price DESC\nLIMIT 5;",
+    "description": "Efficient use of LIMIT with ORDER BY for top-N queries",
+    "sqlFeatures": [
+      "LIMIT",
+      "ORDER BY",
+      "Top-N optimization"
+    ],
+    "difficulty": "beginner",
+    "useCase": "development",
+    "performanceNotes": "LIMIT allows early termination; large OFFSETs still process skipped rows",
+    "relatedExamples": [
+      "basic-1",
+      "basic-2"
+    ],
+    "tags": [
+      "performance",
+      "limit",
+      "top-n",
+      "pagination"
+    ]
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "string-1": {
+    "title": "Text Case Conversion",
+    "database": "northwind",
+    "sql": "SELECT\n  product_name,\n  UPPER(product_name) AS uppercase,\n  LOWER(product_name) AS lowercase\nFROM products\nLIMIT 5;",
+    "description": "Convert text to uppercase and lowercase",
+    "sqlFeatures": [
+      "UPPER",
+      "LOWER"
+    ]
+  },
+  "string-2": {
+    "title": "String Extraction",
+    "database": "employees",
+    "sql": "SELECT\n  first_name,\n  last_name,\n  SUBSTRING(first_name, 1, 1) AS first_initial,\n  LENGTH(last_name) AS last_name_length\nFROM employees\nLIMIT 8;",
+    "description": "Extract substrings and measure string length",
+    "sqlFeatures": [
+      "SUBSTRING",
+      "LENGTH"
+    ]
+  },
+  "string-3": {
+    "title": "Text Trimming",
+    "database": "northwind",
+    "sql": "SELECT\n  '  ' || product_name || '  ' AS padded,\n  TRIM('  ' || product_name || '  ') AS trimmed,\n  LENGTH('  ' || product_name || '  ') AS padded_length,\n  LENGTH(TRIM('  ' || product_name || '  ')) AS trimmed_length\nFROM products\nLIMIT 5;",
+    "description": "Remove leading and trailing whitespace",
+    "sqlFeatures": [
+      "TRIM",
+      "LENGTH",
+      "||"
+    ]
+  },
+  "string-4": {
+    "title": "String Concatenation",
+    "database": "employees",
+    "sql": "SELECT\n  first_name,\n  last_name,\n  first_name || ' ' || last_name AS full_name,\n  CONCAT(last_name, ', ', first_name) AS formatted_name\nFROM employees\nLIMIT 8;",
+    "description": "Combine strings using || operator and CONCAT function",
+    "sqlFeatures": [
+      "CONCAT",
+      "||"
+    ]
+  },
+  "string-5": {
+    "title": "LEFT and RIGHT Extraction",
+    "database": "northwind",
+    "sql": "SELECT\n  product_name,\n  LEFT(product_name, 5) AS first_5_chars,\n  RIGHT(product_name, 5) AS last_5_chars\nFROM products\nWHERE LENGTH(product_name) >= 10\nLIMIT 6;",
+    "description": "Extract characters from start and end of strings",
+    "sqlFeatures": [
+      "LEFT",
+      "RIGHT",
+      "LENGTH"
+    ]
+  },
+  "string-6": {
+    "title": "String Replacement",
+    "database": "northwind",
+    "sql": "SELECT\n  product_name,\n  REPLACE(product_name, 'a', '@') AS replaced,\n  REPLACE(product_name, ' ', '_') AS underscored\nFROM products\nWHERE product_name LIKE '%a%'\nLIMIT 6;",
+    "description": "Replace characters or substrings within text",
+    "sqlFeatures": [
+      "REPLACE",
+      "LIKE"
+    ]
+  },
+  "string-7": {
+    "title": "String Search",
+    "database": "employees",
+    "sql": "SELECT\n  first_name,\n  last_name,\n  POSITION('a' IN LOWER(first_name)) AS first_a_position,\n  POSITION('e' IN LOWER(last_name)) AS first_e_position\nFROM employees\nWHERE POSITION('a' IN LOWER(first_name)) > 0\nLIMIT 8;",
+    "description": "Find position of substring within text",
+    "sqlFeatures": [
+      "POSITION",
+      "LOWER"
+    ]
+  },
+  "string-8": {
+    "title": "Text Reversal",
+    "database": "northwind",
+    "sql": "SELECT\n  product_name,\n  REVERSE(product_name) AS reversed,\n  UPPER(REVERSE(product_name)) AS reversed_upper\nFROM products\nLIMIT 5;",
+    "description": "Reverse string character order",
+    "sqlFeatures": [
+      "REVERSE",
+      "UPPER"
+    ]
+  }
+}

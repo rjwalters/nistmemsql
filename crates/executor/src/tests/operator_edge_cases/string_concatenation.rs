@@ -61,15 +61,15 @@ fn test_string_concat_multiple() {
                 ))),
             }),
             op: ast::BinaryOperator::Concat,
-            right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
-                " ".to_string(),
-            ))),
+            right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(" ".to_string()))),
         }),
         op: ast::BinaryOperator::Concat,
-        right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
-            "World".to_string(),
-        ))),
+        right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("World".to_string()))),
     };
 
-    assert_expression_result(&db, expr, types::SqlValue::Varchar("Hello Beautiful World".to_string()));
+    assert_expression_result(
+        &db,
+        expr,
+        types::SqlValue::Varchar("Hello Beautiful World".to_string()),
+    );
 }

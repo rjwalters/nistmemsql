@@ -16,10 +16,7 @@ pub fn create_select_stmt(expr: ast::Expression, alias: &str) -> ast::SelectStmt
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Expression {
-            expr,
-            alias: Some(alias.to_string()),
-        }],
+        select_list: vec![ast::SelectItem::Expression { expr, alias: Some(alias.to_string()) }],
         from: None,
         where_clause: None,
         group_by: None,
