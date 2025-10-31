@@ -19,6 +19,7 @@
 //! - `error_display`: ExecutorError Display implementation tests
 //! - `comparison_ops`: Comparison operator tests
 //! - `between_predicates`: BETWEEN predicate execution tests
+//! - `privilege_checker_tests`: Privilege enforcement tests
 
 mod aggregate_count_sum_avg_tests;
 mod aggregate_distinct;
@@ -43,3 +44,4 @@ mod select_where;
 mod select_window_aggregate;
 mod select_without_from;
 mod transaction_tests;
+mod privilege_checker_tests;
