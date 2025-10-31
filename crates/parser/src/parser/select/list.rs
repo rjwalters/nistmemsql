@@ -28,7 +28,7 @@ impl Parser {
         }
 
         self.consume_keyword(Keyword::As)?;
-        self.expect_token(Token::Symbol('('))?;
+        self.expect_token(Token::LParen)?;
 
         let mut columns = Vec::new();
         loop {
@@ -51,7 +51,7 @@ impl Parser {
             }
         }
 
-        self.expect_token(Token::Symbol(')'))?;
+        self.expect_token(Token::RParen)?;
 
         if columns.is_empty() {
             return Err(ParseError { message: "Derived column list cannot be empty".to_string() });
