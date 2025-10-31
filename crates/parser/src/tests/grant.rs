@@ -407,3 +407,77 @@ fn test_parse_grant_insert_implicit_table() {
         other => panic!("Expected Grant statement, got {:?}", other),
     }
 }
+
+// SQL:1999 Core Feature E081-06: REFERENCES privilege (table-level)
+
+#[test]
+fn test_parse_grant_references_on_table() {
+    let sql = "GRANT REFERENCES ON TABLE users TO manager";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 1);
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::References);
+            assert_eq!(grant_stmt.object_type, ast::ObjectType::Table);
+            assert_eq!(grant_stmt.object_name.to_string(), "USERS");
+            assert_eq!(grant_stmt.grantees, vec!["MANAGER"]);
+            assert!(!grant_stmt.with_grant_option);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_references_case_insensitive() {
+    let sql = "grant references on table employees to clerk";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 1);
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::References);
+            assert_eq!(grant_stmt.object_name.to_string(), "EMPLOYEES");
+            assert_eq!(grant_stmt.grantees, vec!["CLERK"]);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_references_combined_with_select() {
+    let sql = "GRANT REFERENCES, SELECT ON TABLE products TO buyer";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 2);
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::References);
+            assert_eq!(grant_stmt.privileges[1], ast::PrivilegeType::Select);
+            assert_eq!(grant_stmt.object_name.to_string(), "PRODUCTS");
+            assert_eq!(grant_stmt.grantees, vec!["BUYER"]);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_references_with_grant_option() {
+    let sql = "GRANT REFERENCES ON TABLE orders TO manager WITH GRANT OPTION";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::References);
+            assert_eq!(grant_stmt.object_type, ast::ObjectType::Table);
+            assert_eq!(grant_stmt.object_name.to_string(), "ORDERS");
+            assert_eq!(grant_stmt.grantees, vec!["MANAGER"]);
+            assert!(grant_stmt.with_grant_option);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
