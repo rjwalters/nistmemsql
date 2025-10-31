@@ -81,6 +81,7 @@ fn test_between_integer() {
             low: Box::new(ast::Expression::Literal(types::SqlValue::Integer(28))),
             high: Box::new(ast::Expression::Literal(types::SqlValue::Integer(36))),
             negated: false,
+            symmetric: false,
         }),
         group_by: None,
         having: None,
@@ -163,6 +164,7 @@ fn test_not_between() {
             low: Box::new(ast::Expression::Literal(types::SqlValue::Integer(10))),
             high: Box::new(ast::Expression::Literal(types::SqlValue::Integer(20))),
             negated: true, // NOT BETWEEN
+            symmetric: false,
         }),
         group_by: None,
         having: None,
@@ -185,17 +187,17 @@ fn test_between_boundary_inclusive() {
 
     // Create test table
     let schema = catalog::TableSchema::new(
-        "data".to_string(),
-        vec![catalog::ColumnSchema::new("value".to_string(), types::DataType::Integer, false)],
+        "DATA".to_string(),
+        vec![catalog::ColumnSchema::new("VALUE".to_string(), types::DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
 
     // Insert boundary and middle values
-    db.insert_row("data", storage::Row::new(vec![types::SqlValue::Integer(9)])).unwrap();
-    db.insert_row("data", storage::Row::new(vec![types::SqlValue::Integer(10)])).unwrap(); // Lower boundary
-    db.insert_row("data", storage::Row::new(vec![types::SqlValue::Integer(15)])).unwrap(); // Middle
-    db.insert_row("data", storage::Row::new(vec![types::SqlValue::Integer(20)])).unwrap(); // Upper boundary
-    db.insert_row("data", storage::Row::new(vec![types::SqlValue::Integer(21)])).unwrap();
+    db.insert_row("DATA", storage::Row::new(vec![types::SqlValue::Integer(9)])).unwrap();
+    db.insert_row("DATA", storage::Row::new(vec![types::SqlValue::Integer(10)])).unwrap(); // Lower boundary
+    db.insert_row("DATA", storage::Row::new(vec![types::SqlValue::Integer(15)])).unwrap(); // Middle
+    db.insert_row("DATA", storage::Row::new(vec![types::SqlValue::Integer(20)])).unwrap(); // Upper boundary
+    db.insert_row("DATA", storage::Row::new(vec![types::SqlValue::Integer(21)])).unwrap();
 
     // Test: BETWEEN is inclusive of boundaries
     let executor = SelectExecutor::new(&db);
@@ -204,12 +206,13 @@ fn test_between_boundary_inclusive() {
         set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Wildcard],
-        from: Some(ast::FromClause::Table { name: "data".to_string(), alias: None }),
+        from: Some(ast::FromClause::Table { name: "DATA".to_string(), alias: None }),
         where_clause: Some(ast::Expression::Between {
-            expr: Box::new(ast::Expression::ColumnRef { table: None, column: "value".to_string() }),
+            expr: Box::new(ast::Expression::ColumnRef { table: None, column: "VALUE".to_string() }),
             low: Box::new(ast::Expression::Literal(types::SqlValue::Integer(10))),
             high: Box::new(ast::Expression::Literal(types::SqlValue::Integer(20))),
             negated: false,
+            symmetric: false,
         }),
         group_by: None,
         having: None,
@@ -235,7 +238,7 @@ fn test_between_with_column_references() {
     let schema = catalog::TableSchema::new(
         "ranges".to_string(),
         vec![
-            catalog::ColumnSchema::new("value".to_string(), types::DataType::Integer, false),
+            catalog::ColumnSchema::new("VALUE".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new("min_val".to_string(), types::DataType::Integer, false),
             catalog::ColumnSchema::new("max_val".to_string(), types::DataType::Integer, false),
         ],
@@ -278,12 +281,12 @@ fn test_between_with_column_references() {
         set_operation: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
-            expr: ast::Expression::ColumnRef { table: None, column: "value".to_string() },
+            expr: ast::Expression::ColumnRef { table: None, column: "VALUE".to_string() },
             alias: None,
         }],
         from: Some(ast::FromClause::Table { name: "ranges".to_string(), alias: None }),
         where_clause: Some(ast::Expression::Between {
-            expr: Box::new(ast::Expression::ColumnRef { table: None, column: "value".to_string() }),
+            expr: Box::new(ast::Expression::ColumnRef { table: None, column: "VALUE".to_string() }),
             low: Box::new(ast::Expression::ColumnRef {
                 table: None,
                 column: "min_val".to_string(),
@@ -293,6 +296,7 @@ fn test_between_with_column_references() {
                 column: "max_val".to_string(),
             }),
             negated: false,
+            symmetric: false,
         }),
         group_by: None,
         having: None,
@@ -310,4 +314,264 @@ fn test_between_with_column_references() {
     assert_eq!(result.len(), 2);
     assert_eq!(result[0].values[0], types::SqlValue::Integer(5));
     assert_eq!(result[1].values[0], types::SqlValue::Integer(8));
+}
+
+#[test]
+fn test_between_symmetric_swaps_bounds() {
+    let mut db = storage::Database::new();
+
+    // Create test table
+    let schema = catalog::TableSchema::new(
+        "NUMBERS".to_string(),
+        vec![catalog::ColumnSchema::new(
+            "VALUE".to_string(),
+            types::DataType::Integer,
+            false,
+        )],
+    );
+    db.create_table(schema).unwrap();
+
+    // Insert test data: values from 1 to 10
+    for i in 1..=10 {
+        db.insert_row(
+            "NUMBERS",
+            storage::Row::new(vec![types::SqlValue::Integer(i)]),
+        )
+        .unwrap();
+    }
+
+    // Test: WHERE value BETWEEN SYMMETRIC 10 AND 1
+    // Should match values 1 through 10 (swaps bounds since 10 > 1)
+    let sql = "SELECT value FROM numbers WHERE value BETWEEN SYMMETRIC 10 AND 1";
+    let ast = parser::Parser::parse_sql(sql).unwrap();
+    let executor = SelectExecutor::new(&db);
+
+    if let ast::Statement::Select(stmt) = ast {
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 10, "SYMMETRIC should swap 10 AND 1 to 1 AND 10");
+        for (i, row) in result.iter().enumerate() {
+            assert_eq!(row.values[0], types::SqlValue::Integer((i + 1) as i64));
+        }
+    } else {
+        panic!("Expected SELECT statement");
+    }
+}
+
+#[test]
+fn test_between_asymmetric_does_not_swap() {
+    let mut db = storage::Database::new();
+
+    // Create test table
+    let schema = catalog::TableSchema::new(
+        "NUMBERS".to_string(),
+        vec![catalog::ColumnSchema::new(
+            "VALUE".to_string(),
+            types::DataType::Integer,
+            false,
+        )],
+    );
+    db.create_table(schema).unwrap();
+
+    // Insert test data
+    for i in 1..=10 {
+        db.insert_row(
+            "NUMBERS",
+            storage::Row::new(vec![types::SqlValue::Integer(i)]),
+        )
+        .unwrap();
+    }
+
+    // Test: WHERE value BETWEEN ASYMMETRIC 10 AND 1
+    // Should match nothing (10 <= value <= 1 is impossible)
+    let sql = "SELECT value FROM numbers WHERE value BETWEEN ASYMMETRIC 10 AND 1";
+    let ast = parser::Parser::parse_sql(sql).unwrap();
+    let executor = SelectExecutor::new(&db);
+
+    if let ast::Statement::Select(stmt) = ast {
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(
+            result.len(),
+            0,
+            "ASYMMETRIC should NOT swap bounds, so 10 <= value <= 1 matches nothing"
+        );
+    } else {
+        panic!("Expected SELECT statement");
+    }
+}
+
+#[test]
+fn test_between_default_is_asymmetric() {
+    let mut db = storage::Database::new();
+
+    // Create test table
+    let schema = catalog::TableSchema::new(
+        "NUMBERS".to_string(),
+        vec![catalog::ColumnSchema::new(
+            "VALUE".to_string(),
+            types::DataType::Integer,
+            false,
+        )],
+    );
+    db.create_table(schema).unwrap();
+
+    // Insert test data
+    for i in 1..=10 {
+        db.insert_row(
+            "NUMBERS",
+            storage::Row::new(vec![types::SqlValue::Integer(i)]),
+        )
+        .unwrap();
+    }
+
+    // Test: BETWEEN without modifier should behave like ASYMMETRIC
+    let sql1 = "SELECT value FROM numbers WHERE value BETWEEN 1 AND 10";
+    let sql2 = "SELECT value FROM numbers WHERE value BETWEEN ASYMMETRIC 1 AND 10";
+
+    let ast1 = parser::Parser::parse_sql(sql1).unwrap();
+    let ast2 = parser::Parser::parse_sql(sql2).unwrap();
+    let executor = SelectExecutor::new(&db);
+
+    let result1 = if let ast::Statement::Select(stmt) = ast1 {
+        executor.execute(&stmt).unwrap()
+    } else {
+        panic!("Expected SELECT statement");
+    };
+
+    let result2 = if let ast::Statement::Select(stmt) = ast2 {
+        executor.execute(&stmt).unwrap()
+    } else {
+        panic!("Expected SELECT statement");
+    };
+
+    assert_eq!(
+        result1.len(),
+        result2.len(),
+        "BETWEEN default should be same as ASYMMETRIC"
+    );
+    assert_eq!(result1, result2, "Results should be identical");
+}
+
+#[test]
+fn test_symmetric_with_equal_bounds() {
+    let mut db = storage::Database::new();
+
+    // Create test table
+    let schema = catalog::TableSchema::new(
+        "NUMBERS".to_string(),
+        vec![catalog::ColumnSchema::new(
+            "VALUE".to_string(),
+            types::DataType::Integer,
+            false,
+        )],
+    );
+    db.create_table(schema).unwrap();
+
+    // Insert test data
+    for i in 1..=10 {
+        db.insert_row(
+            "NUMBERS",
+            storage::Row::new(vec![types::SqlValue::Integer(i)]),
+        )
+        .unwrap();
+    }
+
+    // Test: WHERE value BETWEEN SYMMETRIC 5 AND 5
+    // Should match only value = 5
+    let sql = "SELECT value FROM numbers WHERE value BETWEEN SYMMETRIC 5 AND 5";
+    let ast = parser::Parser::parse_sql(sql).unwrap();
+    let executor = SelectExecutor::new(&db);
+
+    if let ast::Statement::Select(stmt) = ast {
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].values[0], types::SqlValue::Integer(5));
+    } else {
+        panic!("Expected SELECT statement");
+    }
+}
+
+#[test]
+fn test_not_between_symmetric() {
+    let mut db = storage::Database::new();
+
+    // Create test table
+    let schema = catalog::TableSchema::new(
+        "NUMBERS".to_string(),
+        vec![catalog::ColumnSchema::new(
+            "VALUE".to_string(),
+            types::DataType::Integer,
+            false,
+        )],
+    );
+    db.create_table(schema).unwrap();
+
+    // Insert test data
+    for i in 1..=10 {
+        db.insert_row(
+            "NUMBERS",
+            storage::Row::new(vec![types::SqlValue::Integer(i)]),
+        )
+        .unwrap();
+    }
+
+    // Test: WHERE value NOT BETWEEN SYMMETRIC 8 AND 2
+    // Should match values < 2 OR > 8 (after swapping to 2 AND 8)
+    // So should match: 1, 9, 10
+    let sql = "SELECT value FROM numbers WHERE value NOT BETWEEN SYMMETRIC 8 AND 2";
+    let ast = parser::Parser::parse_sql(sql).unwrap();
+    let executor = SelectExecutor::new(&db);
+
+    if let ast::Statement::Select(stmt) = ast {
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0].values[0], types::SqlValue::Integer(1));
+        assert_eq!(result[1].values[0], types::SqlValue::Integer(9));
+        assert_eq!(result[2].values[0], types::SqlValue::Integer(10));
+    } else {
+        panic!("Expected SELECT statement");
+    }
+}
+
+#[test]
+fn test_symmetric_with_null() {
+    let mut db = storage::Database::new();
+
+    // Create test table
+    let schema = catalog::TableSchema::new(
+        "DATA".to_string(),
+        vec![catalog::ColumnSchema::new(
+            "VALUE".to_string(),
+            types::DataType::Integer,
+            true, // nullable
+        )],
+    );
+    db.create_table(schema).unwrap();
+
+    // Insert test data including NULL
+    db.insert_row("DATA", storage::Row::new(vec![types::SqlValue::Null]))
+        .unwrap();
+    db.insert_row(
+        "DATA",
+        storage::Row::new(vec![types::SqlValue::Integer(5)]),
+    )
+    .unwrap();
+    db.insert_row(
+        "DATA",
+        storage::Row::new(vec![types::SqlValue::Integer(15)]),
+    )
+    .unwrap();
+
+    // Test: WHERE value BETWEEN SYMMETRIC 1 AND 10
+    // NULL should not match
+    let sql = "SELECT value FROM data WHERE value BETWEEN SYMMETRIC 1 AND 10";
+    let ast = parser::Parser::parse_sql(sql).unwrap();
+    let executor = SelectExecutor::new(&db);
+
+    if let ast::Statement::Select(stmt) = ast {
+        let result = executor.execute(&stmt).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].values[0], types::SqlValue::Integer(5));
+    } else {
+        panic!("Expected SELECT statement");
+    }
 }
