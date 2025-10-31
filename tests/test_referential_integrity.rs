@@ -7,71 +7,12 @@
 //! - ON UPDATE actions: CASCADE, SET NULL, SET DEFAULT, NO ACTION, RESTRICT
 //! - Edge cases: circular FKs, self-referential tables, multi-column FKs, NULL values
 
+mod common;
+
 use catalog::{ColumnSchema, ForeignKeyConstraint, ReferentialAction, TableSchema};
-use executor::DeleteExecutor;
-use parser::Parser;
+use common::referential_integrity_fixtures::{create_child_table, create_parent_table, execute_delete};
 use storage::{Database, Row};
 use types::{DataType, SqlValue};
-
-// ========================================================================
-// Helper Functions
-// ========================================================================
-
-/// Create a parent table with a primary key
-fn create_parent_table(db: &mut Database, table_name: &str) {
-    let schema = TableSchema::with_primary_key(
-        table_name.to_string(),
-        vec![
-            ColumnSchema::new("ID".to_string(), DataType::Integer, false),
-            ColumnSchema::new("NAME".to_string(), DataType::Varchar { max_length: Some(50) }, true),
-        ],
-        vec!["ID".to_string()],
-    );
-    db.create_table(schema).unwrap();
-}
-
-/// Create a child table with a foreign key constraint
-fn create_child_table(
-    db: &mut Database,
-    table_name: &str,
-    parent_table: &str,
-    on_delete: ReferentialAction,
-    on_update: ReferentialAction,
-) {
-    let columns = vec![
-        ColumnSchema::new("ID".to_string(), DataType::Integer, false),
-        ColumnSchema::new("PARENT_ID".to_string(), DataType::Integer, true),
-        ColumnSchema::new("DATA".to_string(), DataType::Varchar { max_length: Some(50) }, true),
-    ];
-
-    let fk = ForeignKeyConstraint {
-        name: Some(format!("FK_{}_{}", table_name, parent_table)),
-        column_names: vec!["PARENT_ID".to_string()],
-        column_indices: vec![1],
-        parent_table: parent_table.to_string(),
-        parent_column_names: vec!["ID".to_string()],
-        parent_column_indices: vec![0],
-        on_delete: on_delete.clone(),
-        on_update: on_update.clone(),
-    };
-
-    let mut schema =
-        TableSchema::with_primary_key(table_name.to_string(), columns, vec!["ID".to_string()]);
-    schema.foreign_keys.push(fk);
-
-    db.create_table(schema).unwrap();
-}
-
-/// Execute DELETE statement and return number of rows deleted
-fn execute_delete(db: &mut Database, sql: &str) -> Result<usize, String> {
-    let stmt = Parser::parse_sql(sql).map_err(|e| format!("Parse error: {:?}", e))?;
-
-    match stmt {
-        ast::Statement::Delete(delete_stmt) => DeleteExecutor::execute(&delete_stmt, db)
-            .map_err(|e| format!("Execution error: {:?}", e)),
-        other => Err(format!("Expected DELETE statement, got {:?}", other)),
-    }
-}
 
 // ========================================================================
 // Phase 1: ON DELETE Actions - Basic Tests
