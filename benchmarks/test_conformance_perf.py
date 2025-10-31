@@ -5,6 +5,7 @@ Measure execution time for SQL:1999 conformance tests to understand
 performance impact of standards compliance features.
 """
 import pytest
+import sqlite3
 import time
 
 
