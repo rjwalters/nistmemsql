@@ -249,3 +249,112 @@ fn test_alter_table_add_named_check_with_keyword() {
         _ => panic!("Expected ALTER TABLE statement"),
     }
 }
+
+// ========================================================================
+// ALTER TABLE ADD Column (without COLUMN keyword) Tests
+// SQL:1999 Feature F031-04 - COLUMN keyword is optional
+// ========================================================================
+
+#[test]
+fn test_alter_table_add_column_without_column_keyword() {
+    // SQL:1999 allows ADD <column_name> <data_type> without COLUMN keyword
+    let result = Parser::parse_sql("ALTER TABLE t1 ADD col1 INT;");
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::AlterTable(alter) => match alter {
+            ast::AlterTableStmt::AddColumn(add) => {
+                assert_eq!(add.table_name, "T1");
+                assert_eq!(add.column_def.name, "COL1");
+                match add.column_def.data_type {
+                    types::DataType::Integer => {} // Success
+                    _ => panic!("Expected INTEGER data type"),
+                }
+                assert!(add.column_def.nullable); // NULL by default
+                assert!(add.column_def.constraints.is_empty());
+            }
+            _ => panic!("Expected ADD COLUMN"),
+        },
+        _ => panic!("Expected ALTER TABLE statement"),
+    }
+}
+
+#[test]
+fn test_alter_table_add_column_bare_with_varchar() {
+    let result = Parser::parse_sql("ALTER TABLE users ADD email VARCHAR(100);");
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::AlterTable(alter) => match alter {
+            ast::AlterTableStmt::AddColumn(add) => {
+                assert_eq!(add.table_name, "USERS");
+                assert_eq!(add.column_def.name, "EMAIL");
+                match add.column_def.data_type {
+                    types::DataType::Varchar { max_length: Some(100) } => {} // Success
+                    _ => panic!("Expected VARCHAR(100) data type"),
+                }
+            }
+            _ => panic!("Expected ADD COLUMN"),
+        },
+        _ => panic!("Expected ALTER TABLE statement"),
+    }
+}
+
+#[test]
+fn test_alter_table_add_column_bare_with_not_null() {
+    let result = Parser::parse_sql("ALTER TABLE t1 ADD col1 INT NOT NULL;");
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::AlterTable(alter) => match alter {
+            ast::AlterTableStmt::AddColumn(add) => {
+                assert_eq!(add.table_name, "T1");
+                assert_eq!(add.column_def.name, "COL1");
+                assert!(!add.column_def.nullable); // NOT NULL specified
+            }
+            _ => panic!("Expected ADD COLUMN"),
+        },
+        _ => panic!("Expected ALTER TABLE statement"),
+    }
+}
+
+#[test]
+fn test_alter_table_add_column_bare_with_default() {
+    let result = Parser::parse_sql("ALTER TABLE t1 ADD status VARCHAR(50) DEFAULT 'active';");
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::AlterTable(alter) => match alter {
+            ast::AlterTableStmt::AddColumn(add) => {
+                assert_eq!(add.table_name, "T1");
+                assert_eq!(add.column_def.name, "STATUS");
+                assert!(add.column_def.default_value.is_some());
+            }
+            _ => panic!("Expected ADD COLUMN"),
+        },
+        _ => panic!("Expected ALTER TABLE statement"),
+    }
+}
+
+#[test]
+fn test_alter_table_add_column_keyword_still_works() {
+    // Ensure backward compatibility - COLUMN keyword still works
+    let result = Parser::parse_sql("ALTER TABLE t1 ADD COLUMN col1 INT;");
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::AlterTable(alter) => match alter {
+            ast::AlterTableStmt::AddColumn(add) => {
+                assert_eq!(add.table_name, "T1");
+                assert_eq!(add.column_def.name, "COL1");
+            }
+            _ => panic!("Expected ADD COLUMN"),
+        },
+        _ => panic!("Expected ALTER TABLE statement"),
+    }
+}

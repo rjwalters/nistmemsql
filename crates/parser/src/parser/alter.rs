@@ -31,8 +31,11 @@ pub fn parse_alter_table(parser: &mut crate::Parser) -> Result<AlterTableStmt, P
                     | Keyword::Primary
                     | Keyword::Foreign,
                 ) => parse_add_constraint(parser, table_name),
+                // SQL:1999 allows ADD COLUMN without the COLUMN keyword
+                // If we see an identifier, treat it as a bare column addition
+                Token::Identifier(_) => parse_add_column(parser, table_name),
                 _ => Err(ParseError {
-                    message: "Expected COLUMN, CONSTRAINT, or constraint type after ADD"
+                    message: "Expected COLUMN, constraint keyword, or column name after ADD"
                         .to_string(),
                 }),
             }
