@@ -281,6 +281,7 @@ fn test_between_with_column_reference_fails() {
                 low: Box::new(ast::Expression::Literal(types::SqlValue::Integer(10))),
                 high: Box::new(ast::Expression::Literal(types::SqlValue::Integer(20))),
                 negated: false,
+                symmetric: false,
             },
             alias: None,
         }],

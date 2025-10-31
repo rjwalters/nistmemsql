@@ -44,8 +44,8 @@ impl ExpressionEvaluator<'_> {
             ast::Expression::ScalarSubquery(subquery) => self.eval_scalar_subquery(subquery, row),
 
             // BETWEEN predicate
-            ast::Expression::Between { expr, low, high, negated } => {
-                self.eval_between(expr, low, high, *negated, row)
+            ast::Expression::Between { expr, low, high, negated, symmetric } => {
+                self.eval_between(expr, low, high, *negated, *symmetric, row)
             }
 
             // CAST expression
