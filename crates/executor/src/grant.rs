@@ -28,8 +28,38 @@ impl GrantExecutor {
                     return Err(ExecutorError::SchemaNotFound(stmt.object_name.clone()));
                 }
             }
+            // SQL:1999 Feature F031-03: Domain privileges
+            // Accept without validation - full domain implementation is future work
+            ObjectType::Domain => {
+                // No validation - domains track privileges for conformance
+            }
+            // SQL:1999 Feature F031-06: Collation privileges
+            // Accept without validation - full collation implementation is future work
+            ObjectType::Collation => {
+                // No validation - collations track privileges for conformance
+            }
+            // SQL:1999 Feature F031-08: Character set privileges
+            // Accept without validation - full character set implementation is future work
+            ObjectType::CharacterSet => {
+                // No validation - character sets track privileges for conformance
+            }
+            // SQL:1999 Feature F031-09: Translation privileges
+            // Accept without validation - full translation implementation is future work
+            ObjectType::Translation => {
+                // No validation - translations track privileges for conformance
+            }
+            // SQL:1999 Feature F031-10: Type privileges
+            // Accept without validation - full UDT implementation is future work
+            ObjectType::Type => {
+                // No validation - user-defined types track privileges for conformance
+            }
+            // SQL:1999 Feature F031-11: Sequence privileges
+            // Accept without validation - full sequence implementation is future work
+            ObjectType::Sequence => {
+                // No validation - sequences track privileges for conformance
+            }
             // Functions (SQL:1999 Feature P001)
-            ObjectType::Function => {
+            ObjectType::Function | ObjectType::SpecificFunction => {
                 // Create stub if it doesn't exist (for privilege tracking)
                 if !database.catalog.function_exists(&stmt.object_name) {
                     database
@@ -42,7 +72,7 @@ impl GrantExecutor {
                 }
             }
             // Procedures (SQL:1999 Feature P001)
-            ObjectType::Procedure => {
+            ObjectType::Procedure | ObjectType::SpecificProcedure => {
                 // Create stub if it doesn't exist (for privilege tracking)
                 if !database.catalog.procedure_exists(&stmt.object_name) {
                     database
@@ -55,7 +85,7 @@ impl GrantExecutor {
                 }
             }
             // Routine (generic term for function or procedure)
-            ObjectType::Routine => {
+            ObjectType::Routine | ObjectType::SpecificRoutine => {
                 // Try function first, create if neither exists
                 if !database.catalog.function_exists(&stmt.object_name)
                     && !database.catalog.procedure_exists(&stmt.object_name)
@@ -98,6 +128,14 @@ impl GrantExecutor {
                     PrivilegeType::References(None),
                 ],
                 ObjectType::Schema => vec![PrivilegeType::Usage, PrivilegeType::Create],
+                // USAGE-only objects (domains, collations, character sets, translations, types, sequences)
+                // ALL PRIVILEGES on these objects means USAGE privilege
+                ObjectType::Domain
+                | ObjectType::Collation
+                | ObjectType::CharacterSet
+                | ObjectType::Translation
+                | ObjectType::Type
+                | ObjectType::Sequence => vec![PrivilegeType::Usage],
                 // Callable objects (functions, procedures, routines, methods)
                 // ALL PRIVILEGES on callable objects means EXECUTE privilege
                 ObjectType::Function
@@ -106,7 +144,10 @@ impl GrantExecutor {
                 | ObjectType::Method
                 | ObjectType::ConstructorMethod
                 | ObjectType::StaticMethod
-                | ObjectType::InstanceMethod => vec![PrivilegeType::Execute],
+                | ObjectType::InstanceMethod
+                | ObjectType::SpecificFunction
+                | ObjectType::SpecificProcedure
+                | ObjectType::SpecificRoutine => vec![PrivilegeType::Execute],
             }
         } else {
             stmt.privileges.clone()

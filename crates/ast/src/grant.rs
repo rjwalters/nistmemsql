@@ -39,6 +39,18 @@ pub enum ObjectType {
     Table,
     /// Schema object
     Schema,
+    /// Domain object - user-defined data type with constraints (SQL:1999 Feature F031-03)
+    Domain,
+    /// Collation object - character comparison rules (SQL:1999 Feature F031-06)
+    Collation,
+    /// Character set object - character encoding definitions (SQL:1999 Feature F031-08)
+    CharacterSet,
+    /// Translation object - character set conversions (SQL:1999 Feature F031-09)
+    Translation,
+    /// Type object - user-defined types (SQL:1999 Feature F031-10)
+    Type,
+    /// Sequence object - auto-increment sequences (SQL:1999 Feature F031-11)
+    Sequence,
     /// Function object (SQL:1999 Feature P001)
     Function,
     /// Procedure object (SQL:1999 Feature P001)
@@ -53,6 +65,12 @@ pub enum ObjectType {
     StaticMethod,
     /// Instance method for user-defined types
     InstanceMethod,
+    /// Specific function - function by signature (SQL:1999 Feature F031-15)
+    SpecificFunction,
+    /// Specific procedure - procedure by signature (SQL:1999 Feature F031-16)
+    SpecificProcedure,
+    /// Specific routine - routine by signature (SQL:1999 Feature F031-17)
+    SpecificRoutine,
 }
 
 /// GRANT statement - assigns privileges to roles/users.
@@ -62,6 +80,7 @@ pub enum ObjectType {
 /// GRANT SELECT ON TABLE users TO manager;
 /// GRANT INSERT, UPDATE ON TABLE orders TO clerk;
 /// GRANT ALL PRIVILEGES ON TABLE products TO admin WITH GRANT OPTION;
+/// GRANT EXECUTE ON METHOD calculate FOR address_type TO app_role;
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct GrantStmt {
@@ -71,6 +90,8 @@ pub struct GrantStmt {
     pub object_type: ObjectType,
     /// Name of the object (table, schema, etc.) - supports qualified names like "schema.table"
     pub object_name: String,
+    /// Optional type name for method/routine objects (e.g., "FOR address_type")
+    pub for_type_name: Option<String>,
     /// List of roles/users receiving the privileges
     pub grantees: Vec<String>,
     /// Whether grantees can grant these privileges to others

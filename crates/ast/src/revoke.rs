@@ -27,6 +27,7 @@ pub enum CascadeOption {
 /// REVOKE ALL PRIVILEGES ON TABLE products FROM admin;
 /// REVOKE SELECT ON TABLE data FROM analyst CASCADE;
 /// REVOKE GRANT OPTION FOR SELECT ON TABLE reports FROM manager;
+/// REVOKE EXECUTE ON METHOD calculate FOR address_type FROM app_role;
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct RevokeStmt {
@@ -38,6 +39,8 @@ pub struct RevokeStmt {
     pub object_type: ObjectType,
     /// Name of the object (table, schema, etc.) - supports qualified names like "schema.table"
     pub object_name: String,
+    /// Optional type name for method/routine objects (e.g., "FOR address_type")
+    pub for_type_name: Option<String>,
     /// List of roles/users losing the privileges
     pub grantees: Vec<String>,
     /// Optional grantor specification (GRANTED BY clause)
