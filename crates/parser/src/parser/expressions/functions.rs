@@ -448,26 +448,22 @@ impl Parser {
             Token::Keyword(Keyword::Current) => {
                 self.advance(); // consume CURRENT
                                 // Expect ROW (note: not ROWS, this is "CURRENT ROW" singular)
-                                // We need to match against an identifier "ROW" since there's no Keyword::Row
-                if let Token::Identifier(ref id) = self.peek() {
-                    if id.to_uppercase() == "ROW" {
+                                // Accept ROW as either keyword or identifier for compatibility
+                match self.peek() {
+                    Token::Keyword(Keyword::Row) => {
                         self.advance();
                         Ok(ast::FrameBound::CurrentRow)
-                    } else {
-                        Err(ParseError {
-                            message: format!(
-                                "Expected ROW after CURRENT in frame bound, found {:?}",
-                                self.peek()
-                            ),
-                        })
                     }
-                } else {
-                    Err(ParseError {
+                    Token::Identifier(ref id) if id.to_uppercase() == "ROW" => {
+                        self.advance();
+                        Ok(ast::FrameBound::CurrentRow)
+                    }
+                    _ => Err(ParseError {
                         message: format!(
                             "Expected ROW after CURRENT in frame bound, found {:?}",
                             self.peek()
                         ),
-                    })
+                    }),
                 }
             }
 
