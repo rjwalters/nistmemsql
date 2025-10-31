@@ -5,6 +5,7 @@
 use super::super::*;
 fn make_pagination_stmt(limit: Option<usize>, offset: Option<usize>) -> ast::SelectStmt {
     ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,

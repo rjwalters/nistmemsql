@@ -94,12 +94,15 @@ pub enum Expression {
     /// BETWEEN predicate
     /// Example: WHERE age BETWEEN 18 AND 65
     /// Example: WHERE price NOT BETWEEN 10.0 AND 20.0
+    /// Example: WHERE value BETWEEN SYMMETRIC 10 AND 1
     /// Equivalent to: expr >= low AND expr <= high (or negated)
+    /// SYMMETRIC: swaps bounds if low > high before evaluation
     Between {
         expr: Box<Expression>,
         low: Box<Expression>,
         high: Box<Expression>,
-        negated: bool, // false = BETWEEN, true = NOT BETWEEN
+        negated: bool,   // false = BETWEEN, true = NOT BETWEEN
+        symmetric: bool, // false = ASYMMETRIC (default), true = SYMMETRIC
     },
 
     /// CAST expression

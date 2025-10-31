@@ -3,6 +3,15 @@
 use crate::Expression;
 use types::DataType;
 
+/// Referential action for foreign key constraints
+#[derive(Debug, Clone, PartialEq)]
+pub enum ReferentialAction {
+    NoAction,
+    Cascade,
+    SetNull,
+    SetDefault,
+}
+
 /// CREATE TABLE statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct CreateTableStmt {
@@ -35,7 +44,12 @@ pub enum ColumnConstraintKind {
     PrimaryKey,
     Unique,
     Check(Box<Expression>),
-    References { table: String, column: String },
+    References {
+        table: String,
+        column: String,
+        on_delete: Option<ReferentialAction>,
+        on_update: Option<ReferentialAction>,
+    },
 }
 
 /// Table-level constraint
@@ -49,7 +63,13 @@ pub struct TableConstraint {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TableConstraintKind {
     PrimaryKey { columns: Vec<String> },
-    ForeignKey { columns: Vec<String>, references_table: String, references_columns: Vec<String> },
+    ForeignKey {
+        columns: Vec<String>,
+        references_table: String,
+        references_columns: Vec<String>,
+        on_delete: Option<ReferentialAction>,
+        on_update: Option<ReferentialAction>,
+    },
     Unique { columns: Vec<String> },
     Check { expr: Box<Expression> },
 }
@@ -261,7 +281,6 @@ pub struct AlterSequenceStmt {
     pub max_value: Option<Option<i64>>, // None = no change, Some(None) = NO MAXVALUE, Some(Some(n)) = MAXVALUE n
     pub cycle: Option<bool>,
 }
-
 
 /// CREATE TYPE statement
 #[derive(Debug, Clone, PartialEq)]

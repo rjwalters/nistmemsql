@@ -21,7 +21,7 @@ pub use ddl::{
     CreateViewStmt, DomainConstraint, DropBehavior, DropCharacterSetStmt, DropCollationStmt,
     DropColumnStmt, DropConstraintStmt, DropDomainStmt, DropRoleStmt, DropSchemaStmt,
     DropSequenceStmt, DropTableStmt, DropTranslationStmt, DropTypeStmt, DropViewStmt,
-    ReleaseSavepointStmt, RollbackStmt, RollbackToSavepointStmt, SavepointStmt, SchemaElement,
+    ReferentialAction, ReleaseSavepointStmt, RollbackStmt, RollbackToSavepointStmt, SavepointStmt, SchemaElement,
     SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt, TableConstraint,
     TableConstraintKind, TimeZoneSpec, TypeAttribute, TypeDefinition,
 };

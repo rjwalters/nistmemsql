@@ -19,7 +19,7 @@ pub struct Catalog {
     // Advanced SQL:1999 objects
     domains: HashMap<String, DomainDefinition>,
     sequences: HashMap<String, Sequence>,
-    type_definitions: HashMap<String, TypeDefinition>,  // Comprehensive type support
+    type_definitions: HashMap<String, TypeDefinition>, // Comprehensive type support
     collations: HashMap<String, Collation>,
     character_sets: HashMap<String, CharacterSet>,
     translations: HashMap<String, Translation>,
@@ -567,9 +567,7 @@ impl Catalog {
 
     /// Get a mutable reference to a SEQUENCE for NEXT VALUE FOR
     pub fn get_sequence_mut(&mut self, name: &str) -> Result<&mut Sequence, CatalogError> {
-        self.sequences
-            .get_mut(name)
-            .ok_or_else(|| CatalogError::SequenceNotFound(name.to_string()))
+        self.sequences.get_mut(name).ok_or_else(|| CatalogError::SequenceNotFound(name.to_string()))
     }
 
     /// Create a COLLATION

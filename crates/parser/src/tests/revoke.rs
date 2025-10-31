@@ -36,7 +36,7 @@ fn test_revoke_multiple_privileges() {
     assert_eq!(stmt.privileges.len(), 3);
     assert!(stmt.privileges.contains(&PrivilegeType::Select));
     assert!(stmt.privileges.contains(&PrivilegeType::Insert));
-    assert!(stmt.privileges.contains(&PrivilegeType::Update));
+    assert!(stmt.privileges.contains(&PrivilegeType::Update(None)));
     assert_eq!(stmt.grantees, vec!["CLERK"]);
 }
 
@@ -169,6 +169,41 @@ fn test_revoke_references_privilege() {
     let sql = "REVOKE REFERENCES ON TABLE parent_table FROM child_schema";
     let stmt = parse_revoke(sql);
 
-    assert_eq!(stmt.privileges, vec![PrivilegeType::References]);
+    assert_eq!(stmt.privileges, vec![PrivilegeType::References(None)]);
     assert_eq!(stmt.object_name, "PARENT_TABLE");
+}
+
+// SQL:1999 Core Feature E081-06: REFERENCES privilege tests
+
+#[test]
+fn test_revoke_references_basic() {
+    let sql = "REVOKE REFERENCES ON TABLE users FROM manager";
+    let stmt = parse_revoke(sql);
+
+    assert_eq!(stmt.privileges, vec![PrivilegeType::References(None)]);
+    assert_eq!(stmt.object_type, ObjectType::Table);
+    assert_eq!(stmt.object_name, "USERS");
+    assert_eq!(stmt.grantees, vec!["MANAGER"]);
+}
+
+#[test]
+fn test_revoke_references_with_cascade() {
+    let sql = "REVOKE REFERENCES ON TABLE orders FROM manager CASCADE";
+    let stmt = parse_revoke(sql);
+
+    assert_eq!(stmt.privileges, vec![PrivilegeType::References(None)]);
+    assert_eq!(stmt.object_name, "ORDERS");
+    assert_eq!(stmt.grantees, vec!["MANAGER"]);
+    assert_eq!(stmt.cascade_option, CascadeOption::Cascade);
+}
+
+#[test]
+fn test_revoke_grant_option_for_references() {
+    let sql = "REVOKE GRANT OPTION FOR REFERENCES ON TABLE products FROM admin";
+    let stmt = parse_revoke(sql);
+
+    assert!(stmt.grant_option_for);
+    assert_eq!(stmt.privileges, vec![PrivilegeType::References(None)]);
+    assert_eq!(stmt.object_name, "PRODUCTS");
+    assert_eq!(stmt.grantees, vec!["ADMIN"]);
 }

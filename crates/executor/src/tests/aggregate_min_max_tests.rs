@@ -33,6 +33,7 @@ fn test_min_function() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -87,6 +88,7 @@ fn test_max_function() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -157,6 +159,7 @@ fn test_min_max_on_strings() {
 
     // Test MIN
     let stmt_min = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -183,6 +186,7 @@ fn test_min_max_on_strings() {
 
     // Test MAX
     let stmt_max = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,

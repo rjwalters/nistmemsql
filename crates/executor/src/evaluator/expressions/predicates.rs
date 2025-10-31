@@ -7,17 +7,29 @@ use crate::errors::ExecutorError;
 
 impl ExpressionEvaluator<'_> {
     /// Evaluate BETWEEN predicate
+    /// If symmetric: swaps low and high if low > high before evaluation
     pub(super) fn eval_between(
         &self,
         expr: &ast::Expression,
         low: &ast::Expression,
         high: &ast::Expression,
         negated: bool,
+        symmetric: bool,
         row: &storage::Row,
     ) -> Result<types::SqlValue, ExecutorError> {
         let expr_val = self.eval(expr, row)?;
-        let low_val = self.eval(low, row)?;
-        let high_val = self.eval(high, row)?;
+        let mut low_val = self.eval(low, row)?;
+        let mut high_val = self.eval(high, row)?;
+
+        // For SYMMETRIC: swap bounds if low > high
+        if symmetric {
+            let gt_result =
+                self.eval_binary_op(&low_val, &ast::BinaryOperator::GreaterThan, &high_val)?;
+
+            if let types::SqlValue::Boolean(true) = gt_result {
+                std::mem::swap(&mut low_val, &mut high_val);
+            }
+        }
 
         let ge_low =
             self.eval_binary_op(&expr_val, &ast::BinaryOperator::GreaterThanOrEqual, &low_val)?;

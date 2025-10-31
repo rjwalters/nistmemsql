@@ -119,6 +119,18 @@ impl Parser {
                 // It's NOT BETWEEN
                 self.consume_keyword(Keyword::Between)?;
 
+                // Check for optional ASYMMETRIC or SYMMETRIC
+                let symmetric = if self.peek_keyword(Keyword::Symmetric) {
+                    self.consume_keyword(Keyword::Symmetric)?;
+                    true
+                } else {
+                    // ASYMMETRIC is default, but can be explicitly specified
+                    if self.peek_keyword(Keyword::Asymmetric) {
+                        self.consume_keyword(Keyword::Asymmetric)?;
+                    }
+                    false
+                };
+
                 // Parse low AND high
                 let low = self.parse_additive_expression()?;
                 self.consume_keyword(Keyword::And)?;
@@ -129,6 +141,7 @@ impl Parser {
                     low: Box::new(low),
                     high: Box::new(high),
                     negated: true,
+                    symmetric,
                 });
             } else if self.peek_keyword(Keyword::Like) {
                 // It's NOT LIKE
@@ -180,6 +193,18 @@ impl Parser {
             // It's BETWEEN (not negated)
             self.consume_keyword(Keyword::Between)?;
 
+            // Check for optional ASYMMETRIC or SYMMETRIC
+            let symmetric = if self.peek_keyword(Keyword::Symmetric) {
+                self.consume_keyword(Keyword::Symmetric)?;
+                true
+            } else {
+                // ASYMMETRIC is default, but can be explicitly specified
+                if self.peek_keyword(Keyword::Asymmetric) {
+                    self.consume_keyword(Keyword::Asymmetric)?;
+                }
+                false
+            };
+
             // Parse low AND high
             let low = self.parse_additive_expression()?;
             self.consume_keyword(Keyword::And)?;
@@ -190,6 +215,7 @@ impl Parser {
                 low: Box::new(low),
                 high: Box::new(high),
                 negated: false,
+                symmetric,
             });
         } else if self.peek_keyword(Keyword::Like) {
             // It's LIKE (not negated)

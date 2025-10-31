@@ -3,6 +3,72 @@
 use super::super::*;
 
 impl Parser {
+    /// Parse ON DELETE/UPDATE referential actions
+    fn parse_referential_actions(&mut self) -> Result<(Option<ast::ReferentialAction>, Option<ast::ReferentialAction>), ParseError> {
+        let mut on_delete = None;
+        let mut on_update = None;
+
+        // Parse optional ON DELETE clause
+        if self.peek_keyword(Keyword::On) {
+            self.advance(); // consume ON
+            if self.peek_keyword(Keyword::Delete) {
+                self.advance(); // consume DELETE
+                on_delete = Some(self.parse_referential_action()?);
+            } else if self.peek_keyword(Keyword::Update) {
+                self.advance(); // consume UPDATE
+                on_update = Some(self.parse_referential_action()?);
+            } else {
+                return Err(ParseError {
+                    message: "Expected DELETE or UPDATE after ON".to_string(),
+                });
+            }
+        }
+
+        // Parse optional ON UPDATE clause (if not already parsed above)
+        if self.peek_keyword(Keyword::On) {
+            self.advance(); // consume ON
+            if self.peek_keyword(Keyword::Update) {
+                self.advance(); // consume UPDATE
+                on_update = Some(self.parse_referential_action()?);
+            } else {
+                return Err(ParseError {
+                    message: "Expected UPDATE after ON".to_string(),
+                });
+            }
+        }
+
+        Ok((on_delete, on_update))
+    }
+
+    /// Parse a single referential action (NO ACTION, CASCADE, SET NULL, SET DEFAULT)
+    fn parse_referential_action(&mut self) -> Result<ast::ReferentialAction, ParseError> {
+        if self.peek_keyword(Keyword::No) {
+            self.advance(); // consume NO
+            self.expect_keyword(Keyword::Action)?;
+            Ok(ast::ReferentialAction::NoAction)
+        } else if self.peek_keyword(Keyword::Cascade) {
+            self.advance(); // consume CASCADE
+            Ok(ast::ReferentialAction::Cascade)
+        } else if self.peek_keyword(Keyword::Set) {
+            self.advance(); // consume SET
+            if self.peek_keyword(Keyword::Null) {
+                self.advance(); // consume NULL
+                Ok(ast::ReferentialAction::SetNull)
+            } else if self.peek_keyword(Keyword::Default) {
+                self.advance(); // consume DEFAULT
+                Ok(ast::ReferentialAction::SetDefault)
+            } else {
+                return Err(ParseError {
+                    message: "Expected NULL or DEFAULT after SET".to_string(),
+                });
+            }
+        } else {
+            return Err(ParseError {
+                message: "Expected NO ACTION, CASCADE, SET NULL, or SET DEFAULT".to_string(),
+            });
+        }
+    }
+
     /// Parse column-level constraints (PRIMARY KEY, UNIQUE, CHECK, REFERENCES)
     pub(in crate::parser) fn parse_column_constraints(
         &mut self,
@@ -93,9 +159,16 @@ impl Parser {
                     };
                     self.expect_token(Token::RParen)?;
 
+                    let (on_delete, on_update) = self.parse_referential_actions()?;
+
                     constraints.push(ast::ColumnConstraint {
                         name,
-                        kind: ast::ColumnConstraintKind::References { table, column },
+                        kind: ast::ColumnConstraintKind::References {
+                            table,
+                            column,
+                            on_delete,
+                            on_update,
+                        },
                     });
                 }
                 _ => {
@@ -233,10 +306,14 @@ impl Parser {
 
                 self.expect_token(Token::RParen)?;
 
+                let (on_delete, on_update) = self.parse_referential_actions()?;
+
                 ast::TableConstraintKind::ForeignKey {
                     columns,
                     references_table,
                     references_columns,
+                    on_delete,
+                    on_update,
                 }
             }
             Token::Keyword(Keyword::Unique) => {

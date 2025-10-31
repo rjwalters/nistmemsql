@@ -8,17 +8,32 @@ impl CombinedExpressionEvaluator<'_> {
     /// Evaluate BETWEEN predicate: expr BETWEEN low AND high
     /// Equivalent to: expr >= low AND expr <= high
     /// If negated: expr < low OR expr > high
+    /// If symmetric: swaps low and high if low > high before evaluation
     pub(super) fn eval_between(
         &self,
         expr: &ast::Expression,
         low: &ast::Expression,
         high: &ast::Expression,
         negated: bool,
+        symmetric: bool,
         row: &storage::Row,
     ) -> Result<types::SqlValue, ExecutorError> {
         let expr_val = self.eval(expr, row)?;
-        let low_val = self.eval(low, row)?;
-        let high_val = self.eval(high, row)?;
+        let mut low_val = self.eval(low, row)?;
+        let mut high_val = self.eval(high, row)?;
+
+        // For SYMMETRIC: swap bounds if low > high
+        if symmetric {
+            let gt_result = ExpressionEvaluator::eval_binary_op_static(
+                &low_val,
+                &ast::BinaryOperator::GreaterThan,
+                &high_val,
+            )?;
+
+            if let types::SqlValue::Boolean(true) = gt_result {
+                std::mem::swap(&mut low_val, &mut high_val);
+            }
+        }
 
         // Check if expr >= low
         let ge_low = ExpressionEvaluator::eval_binary_op_static(
