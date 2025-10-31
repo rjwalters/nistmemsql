@@ -32,3 +32,7 @@ path = "tests/conversion_function_tests.rs"
 [[test]]
 name = "test_numeric_edge_cases"
 path = "tests/test_numeric_edge_cases.rs"
+
+[[test]]
+name = "date_arithmetic_tests"
+path = "tests/date_arithmetic_tests.rs"
