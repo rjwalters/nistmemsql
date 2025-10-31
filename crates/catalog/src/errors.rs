@@ -28,6 +28,8 @@ pub enum CatalogError {
     ViewNotFound(String),
     TriggerAlreadyExists(String),
     TriggerNotFound(String),
+    AssertionAlreadyExists(String),
+    AssertionNotFound(String),
 }
 
 impl std::fmt::Display for CatalogError {
@@ -96,6 +98,12 @@ impl std::fmt::Display for CatalogError {
             }
             CatalogError::TriggerNotFound(name) => {
                 write!(f, "Trigger '{}' not found", name)
+            }
+            CatalogError::AssertionAlreadyExists(name) => {
+                write!(f, "Assertion '{}' already exists", name)
+            }
+            CatalogError::AssertionNotFound(name) => {
+                write!(f, "Assertion '{}' not found", name)
             }
         }
     }

@@ -163,6 +163,12 @@ impl From<catalog::CatalogError> for ExecutorError {
             catalog::CatalogError::TriggerNotFound(name) => {
                 ExecutorError::Other(format!("Trigger '{}' not found", name))
             }
+            catalog::CatalogError::AssertionAlreadyExists(name) => {
+                ExecutorError::Other(format!("Assertion '{}' already exists", name))
+            }
+            catalog::CatalogError::AssertionNotFound(name) => {
+                ExecutorError::Other(format!("Assertion '{}' not found", name))
+            }
         }
     }
 }
