@@ -371,3 +371,228 @@ fn test_grant_idempotent() {
     assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
     assert!(result.contains("Granted"));
 }
+
+// ============================================================================
+// Function/Procedure Privilege Tests (Issue #678)
+// ============================================================================
+
+#[test]
+fn test_grant_execute_on_function() {
+    let mut db = Database::new();
+
+    // Create role
+    db.catalog.create_role("user1".to_string()).unwrap();
+
+    // Grant EXECUTE on function (stub will be auto-created)
+    let grant_stmt = GrantStmt {
+        privileges: vec![PrivilegeType::Execute],
+        object_type: ObjectType::Function,
+        object_name: "my_func".to_string(),
+        grantees: vec!["user1".to_string()],
+        with_grant_option: false,
+    };
+
+    let result = GrantExecutor::execute_grant(&grant_stmt, &mut db).unwrap();
+
+    // Verify privilege was granted
+    assert!(db.catalog.has_privilege("user1", "my_func", &PrivilegeType::Execute));
+    assert!(result.contains("Granted"));
+
+    // Verify function stub was created
+    assert!(db.catalog.function_exists("my_func"));
+}
+
+#[test]
+fn test_grant_execute_on_procedure() {
+    let mut db = Database::new();
+
+    // Create role
+    db.catalog.create_role("user1".to_string()).unwrap();
+
+    // Grant EXECUTE on procedure (stub will be auto-created)
+    let grant_stmt = GrantStmt {
+        privileges: vec![PrivilegeType::Execute],
+        object_type: ObjectType::Procedure,
+        object_name: "my_proc".to_string(),
+        grantees: vec!["user1".to_string()],
+        with_grant_option: false,
+    };
+
+    let result = GrantExecutor::execute_grant(&grant_stmt, &mut db).unwrap();
+
+    // Verify privilege was granted
+    assert!(db.catalog.has_privilege("user1", "my_proc", &PrivilegeType::Execute));
+    assert!(result.contains("Granted"));
+
+    // Verify procedure stub was created
+    assert!(db.catalog.procedure_exists("my_proc"));
+}
+
+#[test]
+fn test_grant_execute_on_routine() {
+    let mut db = Database::new();
+
+    // Create role
+    db.catalog.create_role("user1".to_string()).unwrap();
+
+    // Grant EXECUTE on routine (function stub will be auto-created)
+    let grant_stmt = GrantStmt {
+        privileges: vec![PrivilegeType::Execute],
+        object_type: ObjectType::Routine,
+        object_name: "my_routine".to_string(),
+        grantees: vec!["user1".to_string()],
+        with_grant_option: false,
+    };
+
+    let result = GrantExecutor::execute_grant(&grant_stmt, &mut db).unwrap();
+
+    // Verify privilege was granted
+    assert!(db.catalog.has_privilege("user1", "my_routine", &PrivilegeType::Execute));
+    assert!(result.contains("Granted"));
+
+    // Verify function stub was created (routine defaults to function)
+    assert!(db.catalog.function_exists("my_routine"));
+}
+
+#[test]
+fn test_grant_execute_on_method() {
+    let mut db = Database::new();
+
+    // Create role
+    db.catalog.create_role("user1".to_string()).unwrap();
+
+    // Grant EXECUTE on method (no stub needed, just privilege tracking)
+    let grant_stmt = GrantStmt {
+        privileges: vec![PrivilegeType::Execute],
+        object_type: ObjectType::Method,
+        object_name: "my_method".to_string(),
+        grantees: vec!["user1".to_string()],
+        with_grant_option: false,
+    };
+
+    let result = GrantExecutor::execute_grant(&grant_stmt, &mut db).unwrap();
+
+    // Verify privilege was granted
+    assert!(db.catalog.has_privilege("user1", "my_method", &PrivilegeType::Execute));
+    assert!(result.contains("Granted"));
+}
+
+#[test]
+fn test_grant_all_privileges_on_function() {
+    let mut db = Database::new();
+
+    // Create role
+    db.catalog.create_role("user1".to_string()).unwrap();
+
+    // Grant ALL PRIVILEGES on function (should expand to EXECUTE)
+    let grant_stmt = GrantStmt {
+        privileges: vec![PrivilegeType::AllPrivileges],
+        object_type: ObjectType::Function,
+        object_name: "my_func".to_string(),
+        grantees: vec!["user1".to_string()],
+        with_grant_option: false,
+    };
+
+    GrantExecutor::execute_grant(&grant_stmt, &mut db).unwrap();
+
+    // Verify EXECUTE privilege was granted
+    assert!(db.catalog.has_privilege("user1", "my_func", &PrivilegeType::Execute));
+}
+
+#[test]
+fn test_revoke_execute_from_function() {
+    let mut db = Database::new();
+
+    // Create role
+    db.catalog.create_role("user1".to_string()).unwrap();
+
+    // Grant EXECUTE privilege first
+    let grant_stmt = GrantStmt {
+        privileges: vec![PrivilegeType::Execute],
+        object_type: ObjectType::Function,
+        object_name: "my_func".to_string(),
+        grantees: vec!["user1".to_string()],
+        with_grant_option: false,
+    };
+    GrantExecutor::execute_grant(&grant_stmt, &mut db).unwrap();
+
+    // Verify privilege was granted
+    assert!(db.catalog.has_privilege("user1", "my_func", &PrivilegeType::Execute));
+
+    // Revoke EXECUTE privilege
+    let revoke_stmt = RevokeStmt {
+        grant_option_for: false,
+        privileges: vec![PrivilegeType::Execute],
+        object_type: ObjectType::Function,
+        object_name: "my_func".to_string(),
+        grantees: vec!["user1".to_string()],
+        granted_by: None,
+        cascade_option: CascadeOption::None,
+    };
+    let result = RevokeExecutor::execute_revoke(&revoke_stmt, &mut db).unwrap();
+
+    // Verify privilege was revoked
+    assert!(!db.catalog.has_privilege("user1", "my_func", &PrivilegeType::Execute));
+    assert!(result.contains("Revoked"));
+}
+
+#[test]
+fn test_revoke_execute_from_procedure() {
+    let mut db = Database::new();
+
+    // Create role
+    db.catalog.create_role("user1".to_string()).unwrap();
+
+    // Grant EXECUTE privilege first
+    let grant_stmt = GrantStmt {
+        privileges: vec![PrivilegeType::Execute],
+        object_type: ObjectType::Procedure,
+        object_name: "my_proc".to_string(),
+        grantees: vec!["user1".to_string()],
+        with_grant_option: false,
+    };
+    GrantExecutor::execute_grant(&grant_stmt, &mut db).unwrap();
+
+    // Verify privilege was granted
+    assert!(db.catalog.has_privilege("user1", "my_proc", &PrivilegeType::Execute));
+
+    // Revoke EXECUTE privilege
+    let revoke_stmt = RevokeStmt {
+        grant_option_for: false,
+        privileges: vec![PrivilegeType::Execute],
+        object_type: ObjectType::Procedure,
+        object_name: "my_proc".to_string(),
+        grantees: vec!["user1".to_string()],
+        granted_by: None,
+        cascade_option: CascadeOption::None,
+    };
+    let result = RevokeExecutor::execute_revoke(&revoke_stmt, &mut db).unwrap();
+
+    // Verify privilege was revoked
+    assert!(!db.catalog.has_privilege("user1", "my_proc", &PrivilegeType::Execute));
+    assert!(result.contains("Revoked"));
+}
+
+#[test]
+fn test_revoke_from_nonexistent_function_fails() {
+    let mut db = Database::new();
+
+    // Create role
+    db.catalog.create_role("user1".to_string()).unwrap();
+
+    // Try to revoke from function that doesn't exist
+    let revoke_stmt = RevokeStmt {
+        grant_option_for: false,
+        privileges: vec![PrivilegeType::Execute],
+        object_type: ObjectType::Function,
+        object_name: "nonexistent_func".to_string(),
+        grantees: vec!["user1".to_string()],
+        granted_by: None,
+        cascade_option: CascadeOption::None,
+    };
+
+    // Should fail with ObjectNotFound error
+    let result = RevokeExecutor::execute_revoke(&revoke_stmt, &mut db);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("not found"));
+}

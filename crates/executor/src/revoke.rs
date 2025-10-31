@@ -27,18 +27,46 @@ impl RevokeExecutor {
                     return Err(ExecutorError::SchemaNotFound(stmt.object_name.clone()));
                 }
             }
-            // Callable objects (functions, procedures, routines, methods)
-            // For now, these are accepted without validation since catalog support
-            // for these objects will be added in future work (SQL:1999 P001, S091)
-            ObjectType::Function
-            | ObjectType::Procedure
-            | ObjectType::Routine
-            | ObjectType::Method
+            // Functions (SQL:1999 Feature P001)
+            ObjectType::Function => {
+                // Validate function exists (don't create stubs on REVOKE)
+                if !database.catalog.function_exists(&stmt.object_name) {
+                    return Err(ExecutorError::Other(format!(
+                        "Function '{}' not found",
+                        stmt.object_name
+                    )));
+                }
+            }
+            // Procedures (SQL:1999 Feature P001)
+            ObjectType::Procedure => {
+                // Validate procedure exists (don't create stubs on REVOKE)
+                if !database.catalog.procedure_exists(&stmt.object_name) {
+                    return Err(ExecutorError::Other(format!(
+                        "Procedure '{}' not found",
+                        stmt.object_name
+                    )));
+                }
+            }
+            // Routine (generic term for function or procedure)
+            ObjectType::Routine => {
+                // Check if either function or procedure exists
+                if !database.catalog.function_exists(&stmt.object_name)
+                    && !database.catalog.procedure_exists(&stmt.object_name)
+                {
+                    return Err(ExecutorError::Other(format!(
+                        "Routine '{}' not found",
+                        stmt.object_name
+                    )));
+                }
+            }
+            // Methods (SQL:1999 Feature S091) - OOP SQL
+            // For now, accept without validation - full UDT implementation is future work
+            ObjectType::Method
             | ObjectType::ConstructorMethod
             | ObjectType::StaticMethod
             | ObjectType::InstanceMethod => {
-                // No validation - assume object exists
-                // TODO: Add catalog validation once function/procedure/method storage is implemented
+                // No validation - methods belong to UDTs which aren't fully implemented yet
+                // Privilege tracking works by object name alone
             }
         }
 

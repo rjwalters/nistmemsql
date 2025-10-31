@@ -193,3 +193,35 @@ impl Assertion {
         Assertion { name, check_condition }
     }
 }
+
+/// Function - Stored function stub (SQL:1999 Feature P001)
+///
+/// Minimal stub implementation for privilege tracking.
+/// Full SQL/PSM implementation (CREATE FUNCTION, execution) is future work.
+#[derive(Debug, Clone, Default)]
+pub struct Function {
+    pub name: String,
+    pub schema: String,
+}
+
+impl Function {
+    pub fn new(name: String, schema: String) -> Self {
+        Function { name, schema }
+    }
+}
+
+/// Procedure - Stored procedure stub (SQL:1999 Feature P001)
+///
+/// Minimal stub implementation for privilege tracking.
+/// Full SQL/PSM implementation (CREATE PROCEDURE, execution) is future work.
+#[derive(Debug, Clone, Default)]
+pub struct Procedure {
+    pub name: String,
+    pub schema: String,
+}
+
+impl Procedure {
+    pub fn new(name: String, schema: String) -> Self {
+        Procedure { name, schema }
+    }
+}

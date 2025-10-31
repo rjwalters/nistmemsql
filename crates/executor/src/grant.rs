@@ -28,18 +28,55 @@ impl GrantExecutor {
                     return Err(ExecutorError::SchemaNotFound(stmt.object_name.clone()));
                 }
             }
-            // Callable objects (functions, procedures, routines, methods)
-            // For now, these are accepted without validation since catalog support
-            // for these objects will be added in future work (SQL:1999 P001, S091)
-            ObjectType::Function
-            | ObjectType::Procedure
-            | ObjectType::Routine
-            | ObjectType::Method
+            // Functions (SQL:1999 Feature P001)
+            ObjectType::Function => {
+                // Create stub if it doesn't exist (for privilege tracking)
+                if !database.catalog.function_exists(&stmt.object_name) {
+                    database
+                        .catalog
+                        .create_function_stub(
+                            stmt.object_name.clone(),
+                            database.catalog.get_current_schema().to_string(),
+                        )
+                        .map_err(|e| ExecutorError::Other(e.to_string()))?;
+                }
+            }
+            // Procedures (SQL:1999 Feature P001)
+            ObjectType::Procedure => {
+                // Create stub if it doesn't exist (for privilege tracking)
+                if !database.catalog.procedure_exists(&stmt.object_name) {
+                    database
+                        .catalog
+                        .create_procedure_stub(
+                            stmt.object_name.clone(),
+                            database.catalog.get_current_schema().to_string(),
+                        )
+                        .map_err(|e| ExecutorError::Other(e.to_string()))?;
+                }
+            }
+            // Routine (generic term for function or procedure)
+            ObjectType::Routine => {
+                // Try function first, create if neither exists
+                if !database.catalog.function_exists(&stmt.object_name)
+                    && !database.catalog.procedure_exists(&stmt.object_name)
+                {
+                    database
+                        .catalog
+                        .create_function_stub(
+                            stmt.object_name.clone(),
+                            database.catalog.get_current_schema().to_string(),
+                        )
+                        .map_err(|e| ExecutorError::Other(e.to_string()))?;
+                }
+            }
+            // Methods (SQL:1999 Feature S091) - OOP SQL
+            // For now, accept without validation - full UDT implementation is future work
+            ObjectType::Method
             | ObjectType::ConstructorMethod
             | ObjectType::StaticMethod
             | ObjectType::InstanceMethod => {
-                // No validation - assume object exists
-                // TODO: Add catalog validation once function/procedure/method storage is implemented
+                // No validation - methods belong to UDTs which aren't fully implemented yet
+                // Privilege tracking works by object name alone
             }
         }
 

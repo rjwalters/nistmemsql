@@ -169,6 +169,18 @@ impl From<catalog::CatalogError> for ExecutorError {
             catalog::CatalogError::AssertionNotFound(name) => {
                 ExecutorError::Other(format!("Assertion '{}' not found", name))
             }
+            catalog::CatalogError::FunctionAlreadyExists(name) => {
+                ExecutorError::Other(format!("Function '{}' already exists", name))
+            }
+            catalog::CatalogError::FunctionNotFound(name) => {
+                ExecutorError::Other(format!("Function '{}' not found", name))
+            }
+            catalog::CatalogError::ProcedureAlreadyExists(name) => {
+                ExecutorError::Other(format!("Procedure '{}' already exists", name))
+            }
+            catalog::CatalogError::ProcedureNotFound(name) => {
+                ExecutorError::Other(format!("Procedure '{}' not found", name))
+            }
         }
     }
 }
