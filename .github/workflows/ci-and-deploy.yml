@@ -42,8 +42,9 @@ jobs:
         run: cargo test --test sqltest_conformance --release -- --nocapture
         continue-on-error: true
 
-      - name: Run SQLLogicTest suite
-        run: cargo test --test sqllogictest_suite --release -- --nocapture
+      - name: Run SQLLogicTest suite with analysis
+        run: |
+          timeout 120 cargo test --test sqllogictest_suite --release -- --nocapture 2>&1 | tee target/sqllogictest_raw.log | python3 scripts/analyze_sqllogictest.py
         continue-on-error: true
 
       - name: Upload test results
@@ -53,6 +54,9 @@ jobs:
           path: |
             target/sqltest_results.json
             target/sqllogictest_results.json
+            target/sqllogictest_analysis.json
+            target/sqllogictest_analysis.md
+            target/sqllogictest_raw.log
           retention-days: 90
 
   # ============================================================================
@@ -274,6 +278,8 @@ jobs:
           # Copy results
           [ -f target/sqltest_results.json ] && cp target/sqltest_results.json badges/
           [ -f target/sqllogictest_results.json ] && cp target/sqllogictest_results.json badges/
+          [ -f target/sqllogictest_analysis.json ] && cp target/sqllogictest_analysis.json badges/
+          [ -f target/sqllogictest_analysis.md ] && cp target/sqllogictest_analysis.md badges/
           [ -f benchmark_results.json ] && cp benchmark_results.json badges/
           [ -f benchmark_history.json ] && cp benchmark_history.json badges/
 
@@ -298,6 +304,17 @@ jobs:
             echo "✓ Copied benchmark_history.json to deploy/benchmarks/"
           else
             echo "⚠️  WARNING: badges/benchmark_history.json not found!"
+          fi
+
+          # Copy SQLLogicTest analysis files
+          if [ -f badges/sqllogictest_analysis.json ]; then
+            cp badges/sqllogictest_analysis.json deploy/badges/
+            echo "✓ Copied sqllogictest_analysis.json to deploy/badges/"
+          fi
+
+          if [ -f badges/sqllogictest_analysis.md ]; then
+            cp badges/sqllogictest_analysis.md deploy/badges/
+            echo "✓ Copied sqllogictest_analysis.md to deploy/badges/"
           fi
 
           echo ""

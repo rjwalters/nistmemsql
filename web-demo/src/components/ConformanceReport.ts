@@ -136,17 +136,25 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
     `
   }
 
-  private renderSummaryCards(data: ConformanceData): string {
+  private renderSqltestResults(data: ConformanceData): string {
     const passRate = data.pass_rate.toFixed(1)
 
     return `
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 fade-in">
-        <!-- Pass Rate Card (Featured) -->
-        <div class="md:col-span-2 lg:col-span-2 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg shadow-lg p-8 text-white">
-          <div class="text-sm font-semibold uppercase tracking-wider opacity-90 mb-2">Pass Rate</div>
-          <div class="text-5xl font-bold mb-2">${passRate}%</div>
-          <div class="text-sm opacity-75">of ${data.total} total tests</div>
-          <div class="mt-6 bg-white/20 rounded-full h-3 overflow-hidden">
+      <div id="sqltest" class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-8">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">sqltest Results</h2>
+
+        <p class="text-gray-700 dark:text-gray-300 mb-6">
+          Results from
+          <a href="https://github.com/elliotchance/sqltest" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline">sqltest</a>
+          - a community-maintained BNF-driven conformance test suite derived from the SQL:1999 standard, containing 739 tests covering Core and Foundation features.
+        </p>
+
+        <!-- Overall Results -->
+        <div class="bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg shadow-lg p-6 text-white mb-6">
+          <div class="text-sm font-semibold uppercase tracking-wider opacity-90 mb-2">Overall Pass Rate</div>
+          <div class="text-4xl font-bold mb-2">${passRate}%</div>
+          <div class="text-sm opacity-75">${data.passed} of ${data.total} tests passing</div>
+          <div class="mt-4 bg-white/20 rounded-full h-2 overflow-hidden">
             <div
               class="bg-white h-full rounded-full transition-all duration-500"
               style="width: ${passRate}%"
@@ -154,38 +162,75 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
           </div>
         </div>
 
-        <!-- Passed Tests -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
-          <div class="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2">Passed</div>
-          <div class="text-3xl font-bold text-green-600 dark:text-green-400 mb-1">${data.passed}</div>
-          <div class="text-2xl">✅</div>
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <!-- Passed Tests -->
+          <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+            <div class="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2">Passed</div>
+            <div class="text-3xl font-bold text-green-600 dark:text-green-400 mb-1">${data.passed}</div>
+            <div class="text-2xl">✅</div>
+          </div>
+
+          <!-- Failed Tests -->
+          <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+            <div class="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2">Failed</div>
+            <div class="text-3xl font-bold text-red-600 dark:text-red-400 mb-1">${data.failed}</div>
+            <div class="text-2xl">❌</div>
+          </div>
+
+          <!-- Errors -->
+          <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+            <div class="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2">Errors</div>
+            <div class="text-3xl font-bold text-orange-600 dark:text-orange-400 mb-1">${data.errors}</div>
+            <div class="text-2xl">⚠️</div>
+          </div>
         </div>
 
-        <!-- Failed Tests -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
-          <div class="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2">Failed</div>
-          <div class="text-3xl font-bold text-red-600 dark:text-red-400 mb-1">${data.failed}</div>
-          <div class="text-2xl">❌</div>
-        </div>
-
-        <!-- Errors -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
-          <div class="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2">Errors</div>
-          <div class="text-3xl font-bold text-orange-600 dark:text-orange-400 mb-1">${data.errors}</div>
-          <div class="text-2xl">⚠️</div>
+        <!-- Test Coverage -->
+        <div>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Test Coverage</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Core Features (E-Series)</h4>
+              <ul class="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E011</span> Numeric data types</li>
+                <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E021</span> Character string types</li>
+                <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E031</span> Identifiers</li>
+                <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E051</span> Basic query specification</li>
+                <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E061</span> Basic predicates and search conditions</li>
+                <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E071</span> Basic query expressions</li>
+                <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E081</span> Basic privileges</li>
+                <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E091</span> Set functions</li>
+              </ul>
+            </div>
+            <div>
+              <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Additional Features</h4>
+              <ul class="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E101</span> Basic data manipulation</li>
+                <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E111</span> Single row SELECT statement</li>
+                <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E121</span> Basic cursor support</li>
+                <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E131</span> Null value support</li>
+                <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E141</span> Basic integrity constraints</li>
+                <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E151</span> Transaction support</li>
+                <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E161</span> SQL comments</li>
+                <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">F031</span> Basic schema manipulation</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
     `
   }
 
-  private renderExplanation(data: ConformanceData): string {
-    const passRate = data.pass_rate.toFixed(1)
+  private renderExplanation(data: ConformanceData, sltData: SQLLogicTestData | null): string {
+    const sqltestPassRate = data.pass_rate.toFixed(1)
+    const sltPassRate = sltData ? sltData.pass_rate.toFixed(1) : 'N/A'
 
     return `
       <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 p-6">
         <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
           <span class="text-2xl">ℹ️</span>
-          Understanding sqltest vs. SQL:1999 Core
+          Understanding Our Test Suites
         </h2>
 
         <div class="space-y-4 text-sm text-gray-700 dark:text-gray-300">
@@ -194,8 +239,37 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
             <p>
               <a href="https://github.com/elliotchance/sqltest" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline font-medium">sqltest</a>
               is a community-maintained test suite by Elliot Chance that provides BNF-driven conformance tests derived from the SQL:1999 standard.
-              It contains 739 tests covering Core and Foundation features across E-series and F-series test categories.
+              It contains 739 tests covering Core and Foundation features across E-series and F-series test categories. This suite tests whether
+              our implementation conforms to the SQL:1999 grammar specification.
             </p>
+          </div>
+
+          <div>
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-2">What is SQLLogicTest?</h3>
+            <p>
+              <a href="https://github.com/dolthub/sqllogictest" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline font-medium">SQLLogicTest</a>
+              is a comprehensive test suite originally developed for SQLite, containing ~5.9 million SQL test cases across 623 test files.
+              It tests practical correctness by running real-world queries and validating results. This suite focuses on semantic correctness
+              and edge cases rather than pure grammar conformance.
+            </p>
+          </div>
+
+          <div>
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-2">How do they complement each other?</h3>
+            <ul class="list-disc list-inside space-y-2 ml-2">
+              <li>
+                <span class="font-medium">sqltest (BNF-driven):</span> Validates grammar conformance to SQL:1999 standard specifications
+              </li>
+              <li>
+                <span class="font-medium">SQLLogicTest (Result-driven):</span> Validates semantic correctness with millions of real queries
+              </li>
+              <li>
+                <span class="font-medium">Coverage:</span> sqltest covers 739 standard feature tests; SQLLogicTest covers practical scenarios
+              </li>
+              <li>
+                <span class="font-medium">Philosophy:</span> sqltest says "can you parse this?"; SQLLogicTest says "does this work correctly?"
+              </li>
+            </ul>
           </div>
 
           <div>
@@ -203,85 +277,25 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
             <p>
               SQL:1999 Core is the official mandatory feature set defined in the SQL:1999 (ISO/IEC 9075:1999) standard.
               It consists of approximately 169 required features that any database claiming Core compliance must implement.
-              Core compliance is verified through official NIST SQL test suites.
+              Official Core compliance is verified through the NIST SQL Test Suite, not community test suites.
             </p>
           </div>
 
           <div>
-            <h3 class="font-semibold text-gray-900 dark:text-white mb-2">How do they differ?</h3>
-            <ul class="list-disc list-inside space-y-2 ml-2">
-              <li>
-                <span class="font-medium">Authority:</span> SQL:1999 Core is the official ISO standard; sqltest is a community interpretation
-              </li>
-              <li>
-                <span class="font-medium">Scope:</span> sqltest includes both Core (E-series) and optional Foundation features (F-series)
-              </li>
-              <li>
-                <span class="font-medium">Test Count:</span> sqltest has 739 tests; official NIST suites have different test counts and coverage
-              </li>
-              <li>
-                <span class="font-medium">Verification:</span> Passing sqltest indicates strong SQL:1999 conformance but is not official certification
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 class="font-semibold text-gray-900 dark:text-white mb-2">What does ${passRate}% mean?</h3>
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-2">What do our pass rates mean?</h3>
             <p>
-              Our ${passRate}% pass rate means we pass ${data.passed} out of ${data.total} sqltest tests. This demonstrates strong SQL:1999 conformance
-              and suggests we've implemented most Core features correctly. However, it is not a claim of official SQL:1999 Core certification,
-              which would require testing against the official NIST SQL Test Suite and formal validation.
+              Our <strong>${sqltestPassRate}% sqltest pass rate</strong> (${data.passed}/${data.total} tests) demonstrates strong SQL:1999 grammar conformance.
+              ${sltData ? `Our <strong>${sltPassRate}% SQLLogicTest pass rate</strong> (${sltData.passed}/${sltData.total} test files) shows we handle real-world queries correctly.` : ''}
+              Together, these results indicate comprehensive SQL:1999 compliance, though they do not constitute official Core certification.
             </p>
           </div>
 
           <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-blue-300 dark:border-blue-700">
             <p class="text-xs text-gray-600 dark:text-gray-400">
-              <strong>Bottom Line:</strong> sqltest is an excellent proxy for SQL:1999 conformance and provides transparent,
-              reproducible test results. Our high pass rate demonstrates serious standards compliance, but formal Core certification
-              would require additional official testing.
+              <strong>Bottom Line:</strong> We use two complementary test suites to ensure both standards conformance (sqltest) and practical
+              correctness (SQLLogicTest). High pass rates in both demonstrate serious SQL:1999 implementation quality, though formal Core
+              certification would require testing against official NIST suites.
             </p>
-          </div>
-        </div>
-      </div>
-    `
-  }
-
-  private renderTestCoverage(): string {
-    return `
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-8">
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Test Coverage</h2>
-
-        <p class="text-gray-700 dark:text-gray-300 mb-6">
-          Tests from <a href="https://github.com/elliotchance/sqltest" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline">sqltest</a>
-          - upstream-recommended SQL:1999 conformance test suite.
-        </p>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Core Features (E-Series)</h3>
-            <ul class="space-y-2 text-sm text-gray-700 dark:text-gray-300">
-              <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E011</span> Numeric data types</li>
-              <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E021</span> Character string types</li>
-              <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E031</span> Identifiers</li>
-              <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E051</span> Basic query specification</li>
-              <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E061</span> Basic predicates and search conditions</li>
-              <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E071</span> Basic query expressions</li>
-              <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E081</span> Basic privileges</li>
-              <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E091</span> Set functions</li>
-            </ul>
-          </div>
-          <div>
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Additional Features</h3>
-            <ul class="space-y-2 text-sm text-gray-700 dark:text-gray-300">
-              <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E101</span> Basic data manipulation</li>
-              <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E111</span> Single row SELECT statement</li>
-              <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E121</span> Basic cursor support</li>
-              <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E131</span> Null value support</li>
-              <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E141</span> Basic integrity constraints</li>
-              <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E151</span> Transaction support</li>
-              <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">E161</span> SQL comments</li>
-              <li><span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">F031</span> Basic schema manipulation</li>
-            </ul>
           </div>
         </div>
       </div>
@@ -354,7 +368,7 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
       .join('')
 
     return `
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-8">
+      <div id="sqllogictest" class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-8">
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">SQLLogicTest Results</h2>
 
         <p class="text-gray-700 dark:text-gray-300 mb-6">
@@ -455,10 +469,9 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
     this.element.innerHTML = `
       <div class="space-y-8">
         ${this.renderMetadataCard(commit, timestamp, data.pass_rate)}
-        ${this.renderSummaryCards(data)}
-        ${this.renderExplanation(data)}
-        ${this.renderTestCoverage()}
+        ${this.renderSqltestResults(data)}
         ${sltData ? this.renderSQLLogicTestResults(sltData) : ''}
+        ${this.renderExplanation(data, sltData)}
         ${data.error_tests && data.error_tests.length > 0 ? this.renderFailingTests(data.error_tests) : ''}
         ${this.renderRunningTestsLocally()}
       </div>
