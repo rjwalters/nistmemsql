@@ -10,6 +10,7 @@ fn test_select_literal_integers() {
     let executor = SelectExecutor::new(&db);
 
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -50,6 +51,7 @@ fn test_select_literal_mixed_types() {
     let executor = SelectExecutor::new(&db);
 
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -89,6 +91,7 @@ fn test_select_arithmetic_expression() {
     let executor = SelectExecutor::new(&db);
 
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -131,6 +134,7 @@ fn test_select_function_call() {
     let executor = SelectExecutor::new(&db);
 
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -162,6 +166,7 @@ fn test_select_star_without_from_fails() {
     let executor = SelectExecutor::new(&db);
 
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -191,6 +196,7 @@ fn test_column_reference_without_from_fails() {
     let executor = SelectExecutor::new(&db);
 
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -223,6 +229,7 @@ fn test_is_null_with_column_reference_fails() {
     let executor = SelectExecutor::new(&db);
 
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -261,6 +268,7 @@ fn test_between_with_column_reference_fails() {
     let executor = SelectExecutor::new(&db);
 
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -301,6 +309,7 @@ fn test_cast_with_column_reference_fails() {
     let executor = SelectExecutor::new(&db);
 
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -339,6 +348,7 @@ fn test_like_with_column_reference_fails() {
     let executor = SelectExecutor::new(&db);
 
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -380,6 +390,7 @@ fn test_in_list_with_column_reference_fails() {
     let executor = SelectExecutor::new(&db);
 
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
