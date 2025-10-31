@@ -75,11 +75,13 @@ fn test_parse_create_table_with_references() {
             assert_eq!(create.columns[0].constraints.len(), 1);
             match &create.columns[0].constraints[0] {
                 ast::ColumnConstraint {
-                    kind: ast::ColumnConstraintKind::References { table, column },
+                    kind: ast::ColumnConstraintKind::References { table, column, on_delete, on_update },
                     ..
                 } => {
                     assert_eq!(table, "CUSTOMERS");
                     assert_eq!(column, "ID");
+                    assert!(on_delete.is_none());
+                    assert!(on_update.is_none());
                 }
                 _ => panic!("Expected REFERENCES constraint"),
             }

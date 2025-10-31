@@ -105,7 +105,12 @@ fn parse_add_column(
                 parser.expect_token(crate::token::Token::RParen)?;
                 constraints.push(ColumnConstraint {
                     name: None,
-                    kind: ColumnConstraintKind::References { table: ref_table, column: ref_column },
+                    kind: ColumnConstraintKind::References {
+                        table: ref_table,
+                        column: ref_column,
+                        on_delete: None,
+                        on_update: None,
+                    },
                 });
             }
             _ => break,
