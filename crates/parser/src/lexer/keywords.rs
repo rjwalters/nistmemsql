@@ -188,6 +188,7 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "WITHOUT" => Token::Keyword(Keyword::Without),
         "READ" => Token::Keyword(Keyword::Read),
         "ONLY" => Token::Keyword(Keyword::Only),
+        "OIDS" => Token::Keyword(Keyword::Oids),
         _ => Token::Identifier(upper_text), // Regular identifiers are normalized to uppercase
     }
 }
