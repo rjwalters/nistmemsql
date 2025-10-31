@@ -299,6 +299,11 @@ impl Lexer {
             "LOCAL" => Token::Keyword(Keyword::Local),
             "HOUR" => Token::Keyword(Keyword::Hour),
             "MINUTE" => Token::Keyword(Keyword::Minute),
+            // Internationalization keywords (SQL:1999)
+            "GET" => Token::Keyword(Keyword::Get),
+            "PAD" => Token::Keyword(Keyword::Pad),
+            "SPACE" => Token::Keyword(Keyword::Space),
+            "COLLATE" => Token::Keyword(Keyword::Collate),
             _ => Token::Identifier(upper_text), // Regular identifiers are normalized to uppercase
         };
 
