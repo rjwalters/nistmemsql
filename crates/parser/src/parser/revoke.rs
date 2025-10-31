@@ -164,10 +164,18 @@ fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>
                 parser.advance();
                 PrivilegeType::Execute
             }
+            Token::Keyword(Keyword::Trigger) => {
+                parser.advance();
+                PrivilegeType::Trigger
+            }
+            Token::Keyword(Keyword::Under) => {
+                parser.advance();
+                PrivilegeType::Under
+            }
             _ => {
                 return Err(ParseError {
                     message: format!(
-                        "Expected privilege keyword (SELECT, INSERT, UPDATE, DELETE, REFERENCES, USAGE, CREATE, EXECUTE, ALL), found {:?}",
+                        "Expected privilege keyword (SELECT, INSERT, UPDATE, DELETE, REFERENCES, USAGE, CREATE, EXECUTE, TRIGGER, UNDER, ALL), found {:?}",
                         parser.peek()
                     ),
                 })
@@ -186,9 +194,6 @@ fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>
 
     Ok(privileges)
 }
-
-/// Parse optional column list for UPDATE/REFERENCES privileges
-///
 /// If next token is '(', parses column list and returns Some(vec).
 /// Otherwise returns None for table-level privilege.
 fn parse_optional_column_list(

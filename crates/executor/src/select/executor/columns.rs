@@ -36,7 +36,7 @@ impl SelectExecutor<'_> {
                         }
                     } else {
                         return Err(ExecutorError::UnsupportedFeature(
-                            "SELECT * without FROM not supported".to_string(),
+                            "SELECT * requires FROM clause".to_string(),
                         ));
                     }
                 }

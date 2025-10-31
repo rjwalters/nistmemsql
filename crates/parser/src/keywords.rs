@@ -129,6 +129,10 @@ pub enum Keyword {
     // REVOKE keywords
     Revoke,
     Granted,
+    // Advanced privilege keywords
+    Execute,
+    Trigger,
+    Under,
     // Advanced SQL object keywords
     Domain,
     Sequence,
@@ -162,7 +166,6 @@ pub enum Keyword {
     Constructor,
     Static,
     Instance,
-    Execute,
 }
 
 impl fmt::Display for Keyword {
@@ -278,6 +281,9 @@ impl fmt::Display for Keyword {
             Keyword::Option => "OPTION",
             Keyword::Revoke => "REVOKE",
             Keyword::Granted => "GRANTED",
+            Keyword::Execute => "EXECUTE",
+            Keyword::Trigger => "TRIGGER",
+            Keyword::Under => "UNDER",
             Keyword::Domain => "DOMAIN",
             Keyword::Sequence => "SEQUENCE",
             Keyword::Type => "TYPE",
@@ -306,7 +312,6 @@ impl fmt::Display for Keyword {
             Keyword::Constructor => "CONSTRUCTOR",
             Keyword::Static => "STATIC",
             Keyword::Instance => "INSTANCE",
-            Keyword::Execute => "EXECUTE",
         };
         write!(f, "{}", keyword_str)
     }

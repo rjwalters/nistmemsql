@@ -24,6 +24,10 @@ pub enum PrivilegeType {
     Create,
     /// EXECUTE privilege (function/procedure execution)
     Execute,
+    /// TRIGGER privilege (create triggers on table)
+    Trigger,
+    /// UNDER privilege (create subtypes of user-defined type)
+    Under,
     /// ALL PRIVILEGES (all applicable privileges for the object type)
     AllPrivileges,
 }

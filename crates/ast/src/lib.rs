@@ -16,14 +16,15 @@ mod statement;
 pub use ddl::{
     AddColumnStmt, AddConstraintStmt, AlterColumnStmt, AlterSequenceStmt, AlterTableStmt,
     BeginStmt, ColumnConstraint, ColumnConstraintKind, ColumnDef, CommitStmt,
-    CreateCharacterSetStmt, CreateCollationStmt, CreateDomainStmt, CreateRoleStmt,
-    CreateSchemaStmt, CreateSequenceStmt, CreateTableStmt, CreateTranslationStmt, CreateTypeStmt,
-    CreateViewStmt, DomainConstraint, DropBehavior, DropCharacterSetStmt, DropCollationStmt,
-    DropColumnStmt, DropConstraintStmt, DropDomainStmt, DropRoleStmt, DropSchemaStmt,
-    DropSequenceStmt, DropTableStmt, DropTranslationStmt, DropTypeStmt, DropViewStmt,
-    ReferentialAction, ReleaseSavepointStmt, RollbackStmt, RollbackToSavepointStmt, SavepointStmt,
-    SchemaElement, SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt, TableConstraint,
-    TableConstraintKind, TimeZoneSpec, TypeAttribute, TypeDefinition,
+    CreateAssertionStmt, CreateCharacterSetStmt, CreateCollationStmt, CreateDomainStmt,
+    CreateRoleStmt, CreateSchemaStmt, CreateSequenceStmt, CreateTableStmt,
+    CreateTranslationStmt, CreateTypeStmt, CreateViewStmt, DomainConstraint, DropAssertionStmt,
+    DropBehavior, DropCharacterSetStmt, DropCollationStmt, DropColumnStmt, DropConstraintStmt,
+    DropDomainStmt, DropRoleStmt, DropSchemaStmt, DropSequenceStmt, DropTableStmt,
+    DropTranslationStmt, DropTypeStmt, DropViewStmt, ReferentialAction, ReleaseSavepointStmt,
+    RollbackStmt, RollbackToSavepointStmt, SavepointStmt, SchemaElement, SetCatalogStmt,
+    SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt, TableConstraint, TableConstraintKind,
+    TimeZoneSpec, TypeAttribute, TypeDefinition,
 };
 pub use dml::{Assignment, DeleteStmt, InsertSource, InsertStmt, UpdateStmt};
 pub use expression::{

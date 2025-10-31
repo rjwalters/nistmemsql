@@ -3,14 +3,14 @@
 //! This module defines the Statement enum that represents all possible SQL statements.
 
 use crate::{
-    AlterSequenceStmt, AlterTableStmt, BeginStmt, CommitStmt, CreateCharacterSetStmt,
-    CreateCollationStmt, CreateDomainStmt, CreateRoleStmt, CreateSchemaStmt, CreateSequenceStmt,
-    CreateTableStmt, CreateTranslationStmt, CreateTypeStmt, CreateViewStmt, DeleteStmt,
-    DropCharacterSetStmt, DropCollationStmt, DropDomainStmt, DropRoleStmt, DropSchemaStmt,
-    DropSequenceStmt, DropTableStmt, DropTranslationStmt, DropTypeStmt, DropViewStmt, GrantStmt,
-    InsertStmt, ReleaseSavepointStmt, RevokeStmt, RollbackStmt, RollbackToSavepointStmt,
-    SavepointStmt, SelectStmt, SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt,
-    UpdateStmt,
+    AlterSequenceStmt, AlterTableStmt, BeginStmt, CommitStmt, CreateAssertionStmt,
+    CreateCharacterSetStmt, CreateCollationStmt, CreateDomainStmt, CreateRoleStmt,
+    CreateSchemaStmt, CreateSequenceStmt, CreateTableStmt, CreateTranslationStmt, CreateTypeStmt,
+    CreateViewStmt, DeleteStmt, DropAssertionStmt, DropCharacterSetStmt, DropCollationStmt,
+    DropDomainStmt, DropRoleStmt, DropSchemaStmt, DropSequenceStmt, DropTableStmt,
+    DropTranslationStmt, DropTypeStmt, DropViewStmt, GrantStmt, InsertStmt,
+    ReleaseSavepointStmt, RevokeStmt, RollbackStmt, RollbackToSavepointStmt, SavepointStmt,
+    SelectStmt, SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt, UpdateStmt,
 };
 
 // ============================================================================
@@ -59,5 +59,7 @@ pub enum Statement {
     DropTranslation(DropTranslationStmt),
     CreateView(CreateViewStmt),
     DropView(DropViewStmt),
+    CreateAssertion(CreateAssertionStmt),
+    DropAssertion(DropAssertionStmt),
     // TODO: Add more statement types (ALTER, etc.)
 }
