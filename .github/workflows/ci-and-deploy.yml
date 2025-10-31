@@ -179,8 +179,13 @@ jobs:
       - name: Download benchmark history from gh-pages
         continue-on-error: true
         run: |
-          curl -sL https://rjwalters.github.io/nistmemsql/benchmarks/benchmark_history.json \
-            -o benchmark_history.json || echo "No existing history found"
+          if curl -sL https://rjwalters.github.io/nistmemsql/benchmarks/benchmark_history.json \
+            -o benchmark_history.json; then
+            echo "Downloaded existing benchmark history"
+          else
+            echo "No existing history found - will create new file"
+            # Don't create the file if it doesn't exist
+          fi
 
       - name: Update benchmark history
         run: |
