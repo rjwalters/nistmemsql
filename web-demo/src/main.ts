@@ -3,7 +3,7 @@ import { initTheme } from './theme'
 import { initDatabase } from './db/wasm'
 import type { Database, QueryResult, ExecuteResult } from './db/types'
 import { validateSql } from './editor/validation'
-import { ThemeToggleComponent } from './components/ThemeToggle'
+import { NavigationComponent } from './components/Navigation'
 import { ExamplesComponent } from './components/Examples'
 import type { ExampleSelectEvent } from './components/Examples'
 import { DatabaseSelectorComponent } from './components/DatabaseSelector'
@@ -111,13 +111,11 @@ function getLayoutElements(): {
   editorContainer: HTMLDivElement | null
   resultsEditorContainer: HTMLDivElement | null
   runButton: HTMLButtonElement | null
-  themeToggleContainer: HTMLDivElement | null
 } {
   return {
     editorContainer: document.querySelector<HTMLDivElement>('#editor'),
     resultsEditorContainer: document.querySelector<HTMLDivElement>('#results'),
     runButton: document.querySelector<HTMLButtonElement>('#execute-btn'),
-    themeToggleContainer: document.querySelector<HTMLDivElement>('#theme-toggle'),
   }
 }
 
@@ -211,13 +209,8 @@ async function safeInitDatabase(): Promise<Database | null> {
   }
 }
 
-function setupThemeSync(themeToggleContainer: HTMLDivElement | null, monaco: Monaco): void {
-  if (!themeToggleContainer) return
-
+function setupThemeSync(monaco: Monaco): { theme: ReturnType<typeof initTheme> } {
   const theme = initTheme()
-
-  // Initialize ThemeToggleComponent - it will populate #theme-toggle automatically
-  new ThemeToggleComponent(theme)
 
   const applyTheme = (mode: 'light' | 'dark'): void => {
     const targetTheme = mode === 'dark' ? 'vs-dark' : 'vs'
@@ -235,6 +228,8 @@ function setupThemeSync(themeToggleContainer: HTMLDivElement | null, monaco: Mon
     attributes: true,
     attributeFilter: ['class'],
   })
+
+  return { theme }
 }
 
 function isQueryResult(result: QueryResult | ExecuteResult): result is QueryResult {
@@ -424,7 +419,10 @@ async function bootstrap(): Promise<void> {
     lineNumbers: 'off',
   })
 
-  setupThemeSync(layout.themeToggleContainer, monaco)
+  const { theme } = setupThemeSync(monaco)
+
+  // Initialize Navigation component
+  new NavigationComponent('terminal', theme)
 
   const database = await safeInitDatabase()
   let tableNames: string[] = []
