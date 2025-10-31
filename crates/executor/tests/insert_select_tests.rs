@@ -50,7 +50,7 @@ fn test_insert_from_select_basic() {
     let select_stmt = ast::SelectStmt {
         with_clause: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         into_table: None,
         from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
         where_clause: None,
@@ -115,7 +115,7 @@ fn test_insert_from_select_with_where() {
     let select_stmt = ast::SelectStmt {
         with_clause: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         into_table: None,
         from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
         where_clause: Some(ast::Expression::BinaryOp {
@@ -179,7 +179,7 @@ fn test_insert_from_select_column_mismatch() {
     let select_stmt = ast::SelectStmt {
         with_clause: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         into_table: None,
         from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
         where_clause: None,
