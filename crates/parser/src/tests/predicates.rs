@@ -14,8 +14,9 @@ fn test_between_integer() {
 
         // Verify it's a BETWEEN expression
         match where_expr {
-            ast::Expression::Between { expr, low, high, negated } => {
+            ast::Expression::Between { expr, low, high, negated, symmetric } => {
                 assert!(!negated, "Should be BETWEEN, not NOT BETWEEN");
+                assert!(!symmetric, "Should be ASYMMETRIC (default)");
 
                 // Check expr is 'age'
                 match *expr {
@@ -59,8 +60,9 @@ fn test_not_between() {
         let where_expr = select.where_clause.unwrap();
 
         match where_expr {
-            ast::Expression::Between { expr, low: _, high: _, negated } => {
+            ast::Expression::Between { expr, low: _, high: _, negated, symmetric } => {
                 assert!(negated, "Should be NOT BETWEEN");
+                assert!(!symmetric, "Should be ASYMMETRIC (default)");
 
                 // Check expr is 'price'
                 match *expr {
@@ -88,8 +90,9 @@ fn test_between_with_expressions() {
         let where_expr = select.where_clause.unwrap();
 
         match where_expr {
-            ast::Expression::Between { expr, low, high, negated } => {
+            ast::Expression::Between { expr, low, high, negated, symmetric } => {
                 assert!(!negated);
+                assert!(!symmetric, "Should be ASYMMETRIC (default)");
 
                 // Verify expr is 'total'
                 match *expr {
@@ -148,5 +151,113 @@ fn test_between_with_column_references() {
             }
             _ => panic!("Expected Between expression"),
         }
+    }
+}
+
+#[test]
+fn test_between_asymmetric_explicit() {
+    let sql = "SELECT * FROM t WHERE x BETWEEN ASYMMETRIC 1 AND 5";
+    let stmt = Parser::parse_sql(sql).expect("Parse failed");
+
+    if let ast::Statement::Select(select) = stmt {
+        assert!(select.where_clause.is_some());
+        let where_expr = select.where_clause.unwrap();
+
+        match where_expr {
+            ast::Expression::Between { negated, symmetric, .. } => {
+                assert!(!negated, "Should be BETWEEN, not NOT BETWEEN");
+                assert!(!symmetric, "Should be ASYMMETRIC");
+            }
+            _ => panic!("Expected Between expression"),
+        }
+    } else {
+        panic!("Expected SELECT statement");
+    }
+}
+
+#[test]
+fn test_between_symmetric() {
+    let sql = "SELECT * FROM t WHERE x BETWEEN SYMMETRIC 1 AND 5";
+    let stmt = Parser::parse_sql(sql).expect("Parse failed");
+
+    if let ast::Statement::Select(select) = stmt {
+        assert!(select.where_clause.is_some());
+        let where_expr = select.where_clause.unwrap();
+
+        match where_expr {
+            ast::Expression::Between { expr, low, high, negated, symmetric } => {
+                assert!(!negated, "Should be BETWEEN, not NOT BETWEEN");
+                assert!(symmetric, "Should be SYMMETRIC");
+
+                // Check expr is 'x'
+                match *expr {
+                    ast::Expression::ColumnRef { column, .. } => {
+                        assert_eq!(column, "X");
+                    }
+                    _ => panic!("Expected ColumnRef for expr"),
+                }
+
+                // Check low is 1
+                match *low {
+                    ast::Expression::Literal(types::SqlValue::Integer(val)) => {
+                        assert_eq!(val, 1);
+                    }
+                    _ => panic!("Expected Integer literal for low"),
+                }
+
+                // Check high is 5
+                match *high {
+                    ast::Expression::Literal(types::SqlValue::Integer(val)) => {
+                        assert_eq!(val, 5);
+                    }
+                    _ => panic!("Expected Integer literal for high"),
+                }
+            }
+            _ => panic!("Expected Between expression"),
+        }
+    } else {
+        panic!("Expected SELECT statement");
+    }
+}
+
+#[test]
+fn test_not_between_symmetric() {
+    let sql = "SELECT * FROM t WHERE x NOT BETWEEN SYMMETRIC 10 AND 1";
+    let stmt = Parser::parse_sql(sql).expect("Parse failed");
+
+    if let ast::Statement::Select(select) = stmt {
+        assert!(select.where_clause.is_some());
+        let where_expr = select.where_clause.unwrap();
+
+        match where_expr {
+            ast::Expression::Between { negated, symmetric, .. } => {
+                assert!(negated, "Should be NOT BETWEEN");
+                assert!(symmetric, "Should be SYMMETRIC");
+            }
+            _ => panic!("Expected Between expression"),
+        }
+    } else {
+        panic!("Expected SELECT statement");
+    }
+}
+
+#[test]
+fn test_not_between_asymmetric() {
+    let sql = "SELECT * FROM t WHERE x NOT BETWEEN ASYMMETRIC 1 AND 10";
+    let stmt = Parser::parse_sql(sql).expect("Parse failed");
+
+    if let ast::Statement::Select(select) = stmt {
+        assert!(select.where_clause.is_some());
+        let where_expr = select.where_clause.unwrap();
+
+        match where_expr {
+            ast::Expression::Between { negated, symmetric, .. } => {
+                assert!(negated, "Should be NOT BETWEEN");
+                assert!(!symmetric, "Should be ASYMMETRIC");
+            }
+            _ => panic!("Expected Between expression"),
+        }
+    } else {
+        panic!("Expected SELECT statement");
     }
 }

@@ -123,4 +123,51 @@ impl SchemaExecutor {
             .map_err(|e| ExecutorError::StorageError(format!("Catalog error: {:?}", e)))?;
         Ok(format!("Current schema set to '{}'", stmt.schema_name))
     }
+
+    /// Execute SET CATALOG
+    pub fn execute_set_catalog(
+        stmt: &ast::SetCatalogStmt,
+        database: &mut Database,
+    ) -> Result<String, ExecutorError> {
+        database.catalog.set_current_catalog(Some(stmt.catalog_name.clone()));
+        Ok(format!("Current catalog set to '{}'", stmt.catalog_name))
+    }
+
+    /// Execute SET NAMES
+    pub fn execute_set_names(
+        stmt: &ast::SetNamesStmt,
+        database: &mut Database,
+    ) -> Result<String, ExecutorError> {
+        database.catalog.set_current_charset(stmt.charset_name.clone());
+
+        if let Some(ref collation) = stmt.collation {
+            database.catalog.set_current_collation(Some(collation.clone()));
+            Ok(format!(
+                "Character set set to '{}' with collation '{}'",
+                stmt.charset_name, collation
+            ))
+        } else {
+            database.catalog.set_current_collation(None);
+            Ok(format!("Character set set to '{}'", stmt.charset_name))
+        }
+    }
+
+    /// Execute SET TIME ZONE
+    pub fn execute_set_time_zone(
+        stmt: &ast::SetTimeZoneStmt,
+        database: &mut Database,
+    ) -> Result<String, ExecutorError> {
+        let timezone_str = match &stmt.zone {
+            ast::TimeZoneSpec::Local => {
+                database.catalog.set_current_timezone("LOCAL".to_string());
+                "LOCAL".to_string()
+            }
+            ast::TimeZoneSpec::Interval(interval) => {
+                database.catalog.set_current_timezone(interval.clone());
+                interval.clone()
+            }
+        };
+
+        Ok(format!("Time zone set to '{}'", timezone_str))
+    }
 }

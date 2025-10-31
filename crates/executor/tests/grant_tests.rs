@@ -173,7 +173,7 @@ fn test_grant_multiple_privileges() {
         privileges: vec![
             ast::PrivilegeType::Select,
             ast::PrivilegeType::Insert,
-            ast::PrivilegeType::Update,
+            ast::PrivilegeType::Update(None),
         ],
         object_type: ast::ObjectType::Table,
         object_name: "users".to_string(),
@@ -194,7 +194,7 @@ fn test_grant_multiple_privileges() {
         "Manager should have INSERT privilege"
     );
     assert!(
-        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::Update),
+        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::Update(None)),
         "Manager should have UPDATE privilege"
     );
 }
@@ -272,7 +272,7 @@ fn test_grant_all_four_privilege_types() {
         privileges: vec![
             ast::PrivilegeType::Select,
             ast::PrivilegeType::Insert,
-            ast::PrivilegeType::Update,
+            ast::PrivilegeType::Update(None),
             ast::PrivilegeType::Delete,
         ],
         object_type: ast::ObjectType::Table,
@@ -294,7 +294,7 @@ fn test_grant_all_four_privilege_types() {
         "Admin should have INSERT privilege"
     );
     assert!(
-        db.catalog.has_privilege("admin", "data", &ast::PrivilegeType::Update),
+        db.catalog.has_privilege("admin", "data", &ast::PrivilegeType::Update(None)),
         "Admin should have UPDATE privilege"
     );
     assert!(
@@ -346,7 +346,7 @@ fn test_grant_all_privileges_expands_to_table_privileges() {
         "Manager should have INSERT privilege"
     );
     assert!(
-        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::Update),
+        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::Update(None)),
         "Manager should have UPDATE privilege"
     );
     assert!(
@@ -354,7 +354,7 @@ fn test_grant_all_privileges_expands_to_table_privileges() {
         "Manager should have DELETE privilege"
     );
     assert!(
-        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::References),
+        db.catalog.has_privilege("manager", "users", &ast::PrivilegeType::References(None)),
         "Manager should have REFERENCES privilege"
     );
 }
@@ -400,7 +400,7 @@ fn test_grant_all_privileges_to_multiple_grantees() {
         "Manager should have INSERT"
     );
     assert!(
-        db.catalog.has_privilege("manager", "orders", &ast::PrivilegeType::Update),
+        db.catalog.has_privilege("manager", "orders", &ast::PrivilegeType::Update(None)),
         "Manager should have UPDATE"
     );
     assert!(
@@ -408,7 +408,7 @@ fn test_grant_all_privileges_to_multiple_grantees() {
         "Manager should have DELETE"
     );
     assert!(
-        db.catalog.has_privilege("manager", "orders", &ast::PrivilegeType::References),
+        db.catalog.has_privilege("manager", "orders", &ast::PrivilegeType::References(None)),
         "Manager should have REFERENCES"
     );
 
@@ -422,7 +422,7 @@ fn test_grant_all_privileges_to_multiple_grantees() {
         "Clerk should have INSERT"
     );
     assert!(
-        db.catalog.has_privilege("clerk", "orders", &ast::PrivilegeType::Update),
+        db.catalog.has_privilege("clerk", "orders", &ast::PrivilegeType::Update(None)),
         "Clerk should have UPDATE"
     );
     assert!(
@@ -430,7 +430,7 @@ fn test_grant_all_privileges_to_multiple_grantees() {
         "Clerk should have DELETE"
     );
     assert!(
-        db.catalog.has_privilege("clerk", "orders", &ast::PrivilegeType::References),
+        db.catalog.has_privilege("clerk", "orders", &ast::PrivilegeType::References(None)),
         "Clerk should have REFERENCES"
     );
 }

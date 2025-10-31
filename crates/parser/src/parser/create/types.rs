@@ -274,6 +274,8 @@ impl Parser {
     ) -> Result<types::IntervalField, ParseError> {
         let field_upper = match self.peek() {
             Token::Identifier(field) => field.to_uppercase(),
+            Token::Keyword(Keyword::Hour) => "HOUR".to_string(),
+            Token::Keyword(Keyword::Minute) => "MINUTE".to_string(),
             _ => {
                 return Err(ParseError {
                     message: "Expected interval field (YEAR, MONTH, DAY, HOUR, MINUTE, SECOND)"
@@ -314,12 +316,16 @@ impl Parser {
             if is_time {
                 self.advance(); // consume TIME
 
-                // Expect ZONE
-                if let Token::Identifier(zone) = self.peek() {
-                    if zone.to_uppercase() == "ZONE" {
-                        self.advance(); // consume ZONE
-                        return Ok(true); // WITH TIME ZONE
-                    }
+                // Expect ZONE (as keyword or identifier)
+                let is_zone = match self.peek() {
+                    Token::Keyword(Keyword::Zone) => true,
+                    Token::Identifier(zone) if zone.to_uppercase() == "ZONE" => true,
+                    _ => false,
+                };
+
+                if is_zone {
+                    self.advance(); // consume ZONE
+                    return Ok(true); // WITH TIME ZONE
                 }
                 return Err(ParseError { message: "Expected ZONE after WITH TIME".to_string() });
             }
@@ -342,12 +348,16 @@ impl Parser {
                 if is_time {
                     self.advance(); // consume TIME
 
-                    // Expect ZONE
-                    if let Token::Identifier(zone) = self.peek() {
-                        if zone.to_uppercase() == "ZONE" {
-                            self.advance(); // consume ZONE
-                            return Ok(false); // WITHOUT TIME ZONE
-                        }
+                    // Expect ZONE (as keyword or identifier)
+                    let is_zone = match self.peek() {
+                        Token::Keyword(Keyword::Zone) => true,
+                        Token::Identifier(zone) if zone.to_uppercase() == "ZONE" => true,
+                        _ => false,
+                    };
+
+                    if is_zone {
+                        self.advance(); // consume ZONE
+                        return Ok(false); // WITHOUT TIME ZONE
                     }
                     return Err(ParseError {
                         message: "Expected ZONE after WITHOUT TIME".to_string(),

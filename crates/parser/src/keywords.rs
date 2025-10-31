@@ -42,6 +42,8 @@ pub enum Keyword {
     Values,
     In,
     Between,
+    Asymmetric,
+    Symmetric,
     Like,
     Exists,
     If,
@@ -127,6 +129,10 @@ pub enum Keyword {
     // REVOKE keywords
     Revoke,
     Granted,
+    // Advanced privilege keywords
+    Execute,
+    Trigger,
+    Under,
     // Advanced SQL object keywords
     Domain,
     Sequence,
@@ -143,6 +149,15 @@ pub enum Keyword {
     No,
     Restart,
     Next,
+    // Referential action keywords
+    Action,
+    // Session configuration keywords (SQL:1999)
+    Catalog,
+    Names,
+    Zone,
+    Local,
+    Hour,
+    Minute,
 }
 
 impl fmt::Display for Keyword {
@@ -187,6 +202,8 @@ impl fmt::Display for Keyword {
             Keyword::Values => "VALUES",
             Keyword::In => "IN",
             Keyword::Between => "BETWEEN",
+            Keyword::Asymmetric => "ASYMMETRIC",
+            Keyword::Symmetric => "SYMMETRIC",
             Keyword::Like => "LIKE",
             Keyword::Exists => "EXISTS",
             Keyword::If => "IF",
@@ -256,6 +273,9 @@ impl fmt::Display for Keyword {
             Keyword::Option => "OPTION",
             Keyword::Revoke => "REVOKE",
             Keyword::Granted => "GRANTED",
+            Keyword::Execute => "EXECUTE",
+            Keyword::Trigger => "TRIGGER",
+            Keyword::Under => "UNDER",
             Keyword::Domain => "DOMAIN",
             Keyword::Sequence => "SEQUENCE",
             Keyword::Type => "TYPE",
@@ -270,6 +290,13 @@ impl fmt::Display for Keyword {
             Keyword::No => "NO",
             Keyword::Restart => "RESTART",
             Keyword::Next => "NEXT",
+            Keyword::Action => "ACTION",
+            Keyword::Catalog => "CATALOG",
+            Keyword::Names => "NAMES",
+            Keyword::Zone => "ZONE",
+            Keyword::Local => "LOCAL",
+            Keyword::Hour => "HOUR",
+            Keyword::Minute => "MINUTE",
         };
         write!(f, "{}", keyword_str)
     }

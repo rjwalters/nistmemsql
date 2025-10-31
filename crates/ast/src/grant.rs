@@ -11,17 +11,23 @@ pub enum PrivilegeType {
     /// INSERT privilege (write access)
     Insert,
     /// UPDATE privilege (modify access)
-    Update,
+    /// Optional column list for column-level UPDATE privileges (SQL:1999 Feature E081-05)
+    Update(Option<Vec<String>>),
     /// DELETE privilege (delete access)
     Delete,
     /// REFERENCES privilege (foreign key access)
-    References,
+    /// Optional column list for column-level REFERENCES privileges (SQL:1999 Feature E081-07)
+    References(Option<Vec<String>>),
     /// USAGE privilege (schema/sequence usage)
     Usage,
     /// CREATE privilege (create objects in schema)
     Create,
     /// EXECUTE privilege (function/procedure execution)
     Execute,
+    /// TRIGGER privilege (create triggers on table)
+    Trigger,
+    /// UNDER privilege (create subtypes of user-defined type)
+    Under,
     /// ALL PRIVILEGES (all applicable privileges for the object type)
     AllPrivileges,
 }

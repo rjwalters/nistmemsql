@@ -47,6 +47,7 @@ fn test_avg_precision_decimal() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -122,6 +123,7 @@ fn test_sum_mixed_numeric_types() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -199,6 +201,7 @@ fn test_aggregate_with_case_expression() {
     let executor = SelectExecutor::new(&db);
     // SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END)
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,

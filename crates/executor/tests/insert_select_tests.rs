@@ -48,7 +48,10 @@ fn test_insert_from_select_basic() {
 
     // INSERT INTO users_backup SELECT * FROM users
     let select_stmt = ast::SelectStmt {
+        with_clause: None,
+        distinct: false,
         select_list: vec![ast::SelectItem::Wildcard],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -56,8 +59,6 @@ fn test_insert_from_select_basic() {
         order_by: None,
         limit: None,
         offset: None,
-        with_clause: None,
-        distinct: false,
         set_operation: None,
     };
 
@@ -112,7 +113,10 @@ fn test_insert_from_select_with_where() {
 
     // INSERT INTO active_users SELECT * FROM users WHERE id = 1
     let select_stmt = ast::SelectStmt {
+        with_clause: None,
+        distinct: false,
         select_list: vec![ast::SelectItem::Wildcard],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
         where_clause: Some(ast::Expression::BinaryOp {
             left: Box::new(ast::Expression::ColumnRef { table: None, column: "id".to_string() }),
@@ -124,8 +128,6 @@ fn test_insert_from_select_with_where() {
         order_by: None,
         limit: None,
         offset: None,
-        with_clause: None,
-        distinct: false,
         set_operation: None,
     };
 
@@ -175,7 +177,10 @@ fn test_insert_from_select_column_mismatch() {
 
     // Try to INSERT with wrong column count
     let select_stmt = ast::SelectStmt {
+        with_clause: None,
+        distinct: false,
         select_list: vec![ast::SelectItem::Wildcard],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -183,8 +188,6 @@ fn test_insert_from_select_column_mismatch() {
         order_by: None,
         limit: None,
         offset: None,
-        with_clause: None,
-        distinct: false,
         set_operation: None,
     };
 
@@ -242,6 +245,8 @@ fn test_insert_from_select_with_aggregates() {
 
     // INSERT INTO summary SELECT SUM(amount), COUNT(*) FROM sales
     let select_stmt = ast::SelectStmt {
+        with_clause: None,
+        distinct: false,
         select_list: vec![
             ast::SelectItem::Expression {
                 expr: ast::Expression::Function {
@@ -263,6 +268,7 @@ fn test_insert_from_select_with_aggregates() {
                 alias: None,
             },
         ],
+        into_table: None,
         from: Some(ast::FromClause::Table { name: "sales".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -270,8 +276,6 @@ fn test_insert_from_select_with_aggregates() {
         order_by: None,
         limit: None,
         offset: None,
-        with_clause: None,
-        distinct: false,
         set_operation: None,
     };
 

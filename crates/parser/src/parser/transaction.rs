@@ -52,18 +52,7 @@ pub(super) fn parse_savepoint_statement(
     parser.consume_keyword(Keyword::Savepoint)?;
 
     // Parse savepoint name (identifier)
-    let name = match parser.peek() {
-        super::Token::Identifier(name) => {
-            let savepoint_name = name.clone();
-            parser.advance();
-            savepoint_name
-        }
-        _ => {
-            return Err(ParseError {
-                message: "Expected savepoint name after SAVEPOINT".to_string(),
-            })
-        }
-    };
+    let name = parser.parse_identifier()?;
 
     Ok(ast::SavepointStmt { name })
 }
@@ -82,18 +71,7 @@ pub(super) fn parse_rollback_to_savepoint_statement(
     parser.consume_keyword(Keyword::Savepoint)?;
 
     // Parse savepoint name (identifier)
-    let name = match parser.peek() {
-        super::Token::Identifier(name) => {
-            let savepoint_name = name.clone();
-            parser.advance();
-            savepoint_name
-        }
-        _ => {
-            return Err(ParseError {
-                message: "Expected savepoint name after ROLLBACK TO SAVEPOINT".to_string(),
-            })
-        }
-    };
+    let name = parser.parse_identifier()?;
 
     Ok(ast::RollbackToSavepointStmt { name })
 }
@@ -109,18 +87,7 @@ pub(super) fn parse_release_savepoint_statement(
     parser.consume_keyword(Keyword::Savepoint)?;
 
     // Parse savepoint name (identifier)
-    let name = match parser.peek() {
-        super::Token::Identifier(name) => {
-            let savepoint_name = name.clone();
-            parser.advance();
-            savepoint_name
-        }
-        _ => {
-            return Err(ParseError {
-                message: "Expected savepoint name after RELEASE SAVEPOINT".to_string(),
-            })
-        }
-    };
+    let name = parser.parse_identifier()?;
 
     Ok(ast::ReleaseSavepointStmt { name })
 }

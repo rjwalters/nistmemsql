@@ -43,9 +43,9 @@ impl GrantExecutor {
                 ObjectType::Table => vec![
                     PrivilegeType::Select,
                     PrivilegeType::Insert,
-                    PrivilegeType::Update,
+                    PrivilegeType::Update(None),
                     PrivilegeType::Delete,
-                    PrivilegeType::References,
+                    PrivilegeType::References(None),
                 ],
                 ObjectType::Schema => vec![PrivilegeType::Usage, PrivilegeType::Create],
             }
@@ -61,7 +61,7 @@ impl GrantExecutor {
                     object_type: stmt.object_type.clone(),
                     privilege: privilege.clone(),
                     grantee: grantee.clone(),
-                    grantor: "admin".to_string(), // Default for Phase 2.1
+                    grantor: database.get_current_role(),
                     with_grant_option: stmt.with_grant_option,
                 };
                 database.catalog.add_grant(grant);

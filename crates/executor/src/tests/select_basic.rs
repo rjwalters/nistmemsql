@@ -38,6 +38,7 @@ fn test_select_star() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -87,6 +88,7 @@ fn test_select_specific_columns() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -145,6 +147,7 @@ fn test_order_by_single_column_asc() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -219,6 +222,7 @@ fn test_order_by_multiple_columns() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
