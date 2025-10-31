@@ -192,22 +192,25 @@ impl Parser {
                 Ok(ast::Statement::ReleaseSavepoint(release_stmt))
             }
             Token::Keyword(Keyword::Set) => {
-                // Look ahead to determine which SET statement this is
-                if self.peek_next_keyword(Keyword::Schema) {
-                    let set_stmt = self.parse_set_schema_statement()?;
-                    Ok(ast::Statement::SetSchema(set_stmt))
-                } else if self.peek_next_keyword(Keyword::Catalog) {
-                    let set_stmt = schema::parse_set_catalog(self)?;
-                    Ok(ast::Statement::SetCatalog(set_stmt))
-                } else if self.peek_next_keyword(Keyword::Names) {
-                    let set_stmt = schema::parse_set_names(self)?;
-                    Ok(ast::Statement::SetNames(set_stmt))
-                } else if self.peek_next_keyword(Keyword::Time) {
-                    let set_stmt = schema::parse_set_time_zone(self)?;
-                    Ok(ast::Statement::SetTimeZone(set_stmt))
-                } else {
-                    Err(ParseError {
-                        message: "Expected SCHEMA, CATALOG, NAMES, or TIME ZONE after SET"
+            // Look ahead to determine which SET statement this is
+            if self.peek_next_keyword(Keyword::Schema) {
+            let set_stmt = self.parse_set_schema_statement()?;
+            Ok(ast::Statement::SetSchema(set_stmt))
+            } else if self.peek_next_keyword(Keyword::Catalog) {
+            let set_stmt = schema::parse_set_catalog(self)?;
+            Ok(ast::Statement::SetCatalog(set_stmt))
+            } else if self.peek_next_keyword(Keyword::Names) {
+            let set_stmt = schema::parse_set_names(self)?;
+            Ok(ast::Statement::SetNames(set_stmt))
+            } else if self.peek_next_keyword(Keyword::Time) {
+            let set_stmt = schema::parse_set_time_zone(self)?;
+            Ok(ast::Statement::SetTimeZone(set_stmt))
+            } else if self.peek_next_keyword(Keyword::Transaction) {
+            let set_stmt = self.parse_set_transaction_statement()?;
+            Ok(ast::Statement::SetTransaction(set_stmt))
+            } else {
+            Err(ParseError {
+                    message: "Expected SCHEMA, CATALOG, NAMES, TIME ZONE, or TRANSACTION after SET"
                             .to_string(),
                     })
                 }
@@ -223,6 +226,18 @@ impl Parser {
             Token::Keyword(Keyword::Declare) => {
                 let declare_cursor_stmt = self.parse_declare_cursor_statement()?;
                 Ok(ast::Statement::DeclareCursor(declare_cursor_stmt))
+            }
+            Token::Keyword(Keyword::Open) => {
+                let open_cursor_stmt = self.parse_open_cursor_statement()?;
+                Ok(ast::Statement::OpenCursor(open_cursor_stmt))
+            }
+            Token::Keyword(Keyword::Fetch) => {
+                let fetch_stmt = self.parse_fetch_statement()?;
+                Ok(ast::Statement::Fetch(fetch_stmt))
+            }
+            Token::Keyword(Keyword::Close) => {
+                let close_cursor_stmt = self.parse_close_cursor_statement()?;
+                Ok(ast::Statement::CloseCursor(close_cursor_stmt))
             }
             _ => {
                 Err(ParseError { message: format!("Expected statement, found {:?}", self.peek()) })
@@ -338,6 +353,56 @@ impl Parser {
     /// Parse CREATE TYPE statement
     pub fn parse_create_type_statement(&mut self) -> Result<ast::CreateTypeStmt, ParseError> {
         advanced_objects::parse_create_type(self)
+    }
+
+    /// Parse SET TRANSACTION statement
+    pub fn parse_set_transaction_statement(&mut self) -> Result<ast::SetTransactionStmt, ParseError> {
+        // SET keyword
+        self.expect_keyword(Keyword::Set)?;
+
+        // TRANSACTION keyword
+        self.expect_keyword(Keyword::Transaction)?;
+
+        // Parse optional characteristics
+        let mut isolation_level = None;
+        let mut access_mode = None;
+
+        loop {
+            if self.try_consume_keyword(Keyword::Serializable) {
+                isolation_level = Some(ast::IsolationLevel::Serializable);
+            } else if self.try_consume_keyword(Keyword::Read) {
+                if self.try_consume_keyword(Keyword::Only) {
+                    access_mode = Some(ast::TransactionAccessMode::ReadOnly);
+                } else if self.try_consume_keyword(Keyword::Write) {
+                    access_mode = Some(ast::TransactionAccessMode::ReadWrite);
+                } else {
+                    return Err(ParseError {
+                        message: "Expected ONLY or WRITE after READ".to_string(),
+                    });
+                }
+            } else if self.try_consume_keyword(Keyword::Isolation) {
+                self.expect_keyword(Keyword::Level)?;
+                if self.try_consume_keyword(Keyword::Serializable) {
+                    isolation_level = Some(ast::IsolationLevel::Serializable);
+                } else {
+                    return Err(ParseError {
+                        message: "Expected SERIALIZABLE after ISOLATION LEVEL".to_string(),
+                    });
+                }
+            } else {
+                break;
+            }
+
+            // Check for comma (more characteristics)
+            if !self.try_consume(&Token::Comma) {
+                break;
+            }
+        }
+
+        Ok(ast::SetTransactionStmt {
+            isolation_level,
+            access_mode,
+        })
     }
 
     /// Parse DROP TYPE statement

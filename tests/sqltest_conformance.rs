@@ -312,6 +312,21 @@ impl SqltestRunner {
                     .map_err(|e| format!("Execution error: {:?}", e))?;
                 Ok(true)
             }
+            ast::Statement::DropTranslation(drop_translation_stmt) => {
+                executor::advanced_objects::execute_drop_translation(&drop_translation_stmt, db)
+                    .map_err(|e| format!("Execution error: {:?}", e))?;
+                Ok(true)
+            }
+            ast::Statement::CreateView(create_view_stmt) => {
+                executor::advanced_objects::execute_create_view(&create_view_stmt, db)
+                    .map_err(|e| format!("Execution error: {:?}", e))?;
+                Ok(true)
+            }
+            ast::Statement::DropView(drop_view_stmt) => {
+                executor::advanced_objects::execute_drop_view(&drop_view_stmt, db)
+                    .map_err(|e| format!("Execution error: {:?}", e))?;
+                Ok(true)
+            }
             ast::Statement::BeginTransaction(_)
             | ast::Statement::Commit(_)
             | ast::Statement::Rollback(_)
@@ -326,14 +341,15 @@ impl SqltestRunner {
             | ast::Statement::CreateCharacterSet(_)
             | ast::Statement::DropCharacterSet(_)
             | ast::Statement::CreateTranslation(_)
-            | ast::Statement::DropTranslation(_)
-            | ast::Statement::CreateView(_)
-            | ast::Statement::DropView(_)
+            | ast::Statement::SetTransaction(_)
             | ast::Statement::CreateTrigger(_)
             | ast::Statement::DropTrigger(_)
             | ast::Statement::CreateAssertion(_)
             | ast::Statement::DropAssertion(_)
-            | ast::Statement::DeclareCursor(_) => {
+            | ast::Statement::DeclareCursor(_)
+            | ast::Statement::OpenCursor(_)
+            | ast::Statement::Fetch(_)
+            | ast::Statement::CloseCursor(_) => {
                 // Transactions, cursors, triggers, assertions, and advanced SQL objects are no-ops for validation
                 Ok(true)
             }

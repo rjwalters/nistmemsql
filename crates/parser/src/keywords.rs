@@ -190,6 +190,18 @@ pub enum Keyword {
     Read,
     Only,
     Oids,
+    Open,
+    Fetch,
+    Close,
+    Prior,
+    First,
+    Last,
+    Absolute,
+    Relative,
+    Serializable,
+    Isolation,
+    Level,
+    Write,
 }
 
 impl fmt::Display for Keyword {
@@ -357,6 +369,18 @@ impl fmt::Display for Keyword {
             Keyword::Read => "READ",
             Keyword::Only => "ONLY",
             Keyword::Oids => "OIDS",
+            Keyword::Open => "OPEN",
+            Keyword::Fetch => "FETCH",
+            Keyword::Close => "CLOSE",
+            Keyword::Prior => "PRIOR",
+            Keyword::First => "FIRST",
+            Keyword::Last => "LAST",
+            Keyword::Absolute => "ABSOLUTE",
+            Keyword::Relative => "RELATIVE",
+            Keyword::Serializable => "SERIALIZABLE",
+            Keyword::Isolation => "ISOLATION",
+            Keyword::Level => "LEVEL",
+            Keyword::Write => "WRITE",
         };
         write!(f, "{}", keyword_str)
     }

@@ -3,7 +3,7 @@
 use crate::keywords::Keyword;
 use crate::parser::{ParseError, Parser};
 use crate::token::Token;
-use ast::{CursorUpdatability, DeclareCursorStmt};
+use ast::{CloseCursorStmt, CursorUpdatability, DeclareCursorStmt, FetchOrientation, FetchStmt, OpenCursorStmt};
 
 impl Parser {
     /// Parse DECLARE CURSOR statement
@@ -78,5 +78,94 @@ impl Parser {
         };
 
         Ok(DeclareCursorStmt { cursor_name, insensitive, scroll, hold, query, updatability })
+    }
+
+    /// Parse OPEN CURSOR statement
+    ///
+    /// Syntax:
+    /// ```sql
+    /// OPEN cursor_name
+    /// ```
+    pub(super) fn parse_open_cursor_statement(
+        &mut self,
+    ) -> Result<OpenCursorStmt, ParseError> {
+        // OPEN keyword
+        self.expect_keyword(Keyword::Open)?;
+
+        // Cursor name
+        let cursor_name = self.parse_identifier()?;
+
+        Ok(OpenCursorStmt { cursor_name })
+    }
+
+    /// Parse FETCH statement
+    ///
+    /// Syntax:
+    /// ```sql
+    /// FETCH [ [ NEXT | PRIOR | FIRST | LAST | ABSOLUTE n | RELATIVE n ] FROM ] cursor_name
+    ///   [ INTO variable [, ...] ]
+    /// ```
+    pub(super) fn parse_fetch_statement(
+        &mut self,
+    ) -> Result<FetchStmt, ParseError> {
+        // FETCH keyword
+        self.expect_keyword(Keyword::Fetch)?;
+
+        // Parse orientation (optional)
+        let orientation = if self.try_consume_keyword(Keyword::Next) {
+            FetchOrientation::Next
+        } else if self.try_consume_keyword(Keyword::Prior) {
+            FetchOrientation::Prior
+        } else if self.try_consume_keyword(Keyword::First) {
+            FetchOrientation::First
+        } else if self.try_consume_keyword(Keyword::Last) {
+            FetchOrientation::Last
+        } else if self.try_consume_keyword(Keyword::Absolute) {
+            let n = self.parse_integer_literal()?;
+            FetchOrientation::Absolute(n)
+        } else if self.try_consume_keyword(Keyword::Relative) {
+            let n = self.parse_integer_literal()?;
+            FetchOrientation::Relative(n)
+        } else {
+            FetchOrientation::Next // default
+        };
+
+        // Optional FROM keyword
+        self.try_consume_keyword(Keyword::From);
+
+        // Cursor name
+        let cursor_name = self.parse_identifier()?;
+
+        // Optional INTO clause
+        let into_variables = if self.try_consume_keyword(Keyword::Into) {
+            let mut vars = Vec::new();
+            vars.push(self.parse_identifier()?);
+            while self.try_consume(&Token::Comma) {
+                vars.push(self.parse_identifier()?);
+            }
+            Some(vars)
+        } else {
+            None
+        };
+
+        Ok(FetchStmt { cursor_name, orientation, into_variables })
+    }
+
+    /// Parse CLOSE CURSOR statement
+    ///
+    /// Syntax:
+    /// ```sql
+    /// CLOSE cursor_name
+    /// ```
+    pub(super) fn parse_close_cursor_statement(
+        &mut self,
+    ) -> Result<CloseCursorStmt, ParseError> {
+        // CLOSE keyword
+        self.expect_keyword(Keyword::Close)?;
+
+        // Cursor name
+        let cursor_name = self.parse_identifier()?;
+
+        Ok(CloseCursorStmt { cursor_name })
     }
 }

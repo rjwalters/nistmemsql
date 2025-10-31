@@ -3,15 +3,15 @@
 //! This module defines the Statement enum that represents all possible SQL statements.
 
 use crate::{
-    AlterSequenceStmt, AlterTableStmt, BeginStmt, CommitStmt, CreateAssertionStmt,
+    AlterSequenceStmt, AlterTableStmt, BeginStmt, CloseCursorStmt, CommitStmt, CreateAssertionStmt,
     CreateCharacterSetStmt, CreateCollationStmt, CreateDomainStmt, CreateRoleStmt,
     CreateSchemaStmt, CreateSequenceStmt, CreateTableStmt, CreateTranslationStmt, CreateTriggerStmt,
     CreateTypeStmt, CreateViewStmt, DeclareCursorStmt, DeleteStmt, DropAssertionStmt,
     DropCharacterSetStmt, DropCollationStmt, DropDomainStmt, DropRoleStmt, DropSchemaStmt,
     DropSequenceStmt, DropTableStmt, DropTranslationStmt, DropTriggerStmt, DropTypeStmt,
-    DropViewStmt, GrantStmt, InsertStmt, ReleaseSavepointStmt, RevokeStmt, RollbackStmt,
+    DropViewStmt, FetchStmt, GrantStmt, InsertStmt, OpenCursorStmt, ReleaseSavepointStmt, RevokeStmt, RollbackStmt,
     RollbackToSavepointStmt, SavepointStmt, SelectStmt, SetCatalogStmt, SetNamesStmt,
-    SetSchemaStmt, SetTimeZoneStmt, UpdateStmt,
+    SetSchemaStmt, SetTimeZoneStmt, SetTransactionStmt, UpdateStmt,
 };
 
 // ============================================================================
@@ -34,6 +34,7 @@ pub enum Statement {
     SetCatalog(SetCatalogStmt),
     SetNames(SetNamesStmt),
     SetTimeZone(SetTimeZoneStmt),
+    SetTransaction(SetTransactionStmt),
     CreateRole(CreateRoleStmt),
     DropRole(DropRoleStmt),
     BeginTransaction(BeginStmt),
@@ -66,5 +67,7 @@ pub enum Statement {
     DropAssertion(DropAssertionStmt),
     // Cursor operations (SQL:1999 Feature E121)
     DeclareCursor(DeclareCursorStmt),
-    // TODO: Add more statement types (OPEN, FETCH, CLOSE cursors, ALTER, etc.)
+    OpenCursor(OpenCursorStmt),
+    Fetch(FetchStmt),
+    CloseCursor(CloseCursorStmt),
 }

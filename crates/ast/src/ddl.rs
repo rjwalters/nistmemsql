@@ -470,6 +470,57 @@ pub enum CursorUpdatability {
     Unspecified,
 }
 
+/// OPEN CURSOR statement (SQL:1999 Feature E121)
+#[derive(Debug, Clone, PartialEq)]
+pub struct OpenCursorStmt {
+    pub cursor_name: String,
+}
+
+/// FETCH statement (SQL:1999 Feature E121)
+#[derive(Debug, Clone, PartialEq)]
+pub struct FetchStmt {
+    pub cursor_name: String,
+    pub orientation: FetchOrientation,
+    pub into_variables: Option<Vec<String>>, // INTO variable_list
+}
+
+/// Fetch orientation specification
+#[derive(Debug, Clone, PartialEq)]
+pub enum FetchOrientation {
+    Next,
+    Prior,
+    First,
+    Last,
+    Absolute(i64), // ABSOLUTE n
+    Relative(i64), // RELATIVE n
+}
+
+/// CLOSE CURSOR statement (SQL:1999 Feature E121)
+#[derive(Debug, Clone, PartialEq)]
+pub struct CloseCursorStmt {
+    pub cursor_name: String,
+}
+
+/// Transaction isolation level
+#[derive(Debug, Clone, PartialEq)]
+pub enum IsolationLevel {
+    Serializable,
+}
+
+/// Transaction access mode
+#[derive(Debug, Clone, PartialEq)]
+pub enum TransactionAccessMode {
+    ReadOnly,
+    ReadWrite,
+}
+
+/// SET TRANSACTION statement (SQL:1999 Feature E152)
+#[derive(Debug, Clone, PartialEq)]
+pub struct SetTransactionStmt {
+    pub isolation_level: Option<IsolationLevel>,
+    pub access_mode: Option<TransactionAccessMode>,
+}
+
 /// CREATE ASSERTION statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct CreateAssertionStmt {

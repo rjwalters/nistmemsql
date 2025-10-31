@@ -166,6 +166,22 @@ impl Parser {
         }
     }
 
+    /// Parse an integer literal and return its value
+    pub(super) fn parse_integer_literal(&mut self) -> Result<i64, ParseError> {
+        match self.peek() {
+            Token::Number(n) => {
+                let num_str = n.clone();
+                self.advance();
+                num_str.parse::<i64>().map_err(|_| ParseError {
+                    message: format!("Expected integer, found '{}'", num_str),
+                })
+            }
+            _ => Err(ParseError {
+                message: format!("Expected integer literal, found {:?}", self.peek()),
+            }),
+        }
+    }
+
     /// Consume tokens until semicolon or EOF is reached.
     /// Used for minimal stub implementations that skip optional clauses.
     #[allow(dead_code)]
