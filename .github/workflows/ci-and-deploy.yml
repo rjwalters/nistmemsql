@@ -1,0 +1,247 @@
+name: CI and Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Sets permissions for GitHub Pages deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================================
+  # JOB 1: Build and Test
+  # ============================================================================
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "rust-ci-cache"
+
+      - name: Run unit tests
+        run: cargo test --release --lib
+
+      - name: Run sqltest conformance suite
+        run: cargo test --test sqltest_conformance --release -- --nocapture
+        continue-on-error: true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: target/sqltest_results.json
+          retention-days: 90
+
+  # ============================================================================
+  # JOB 2: Benchmarks (depends on test)
+  # ============================================================================
+  benchmark:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "rust-ci-cache"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Build and install Python bindings
+        run: |
+          uv pip install --system maturin
+          cd crates/python-bindings
+          maturin build --release
+          uv pip install --system ../../target/wheels/nistmemsql_py-*.whl
+
+      - name: Install benchmark dependencies
+        run: |
+          grep -v "^nistmemsql" benchmarks/requirements.txt > /tmp/requirements-ci.txt
+          uv pip install --system -r /tmp/requirements-ci.txt
+
+      - name: Run benchmarks
+        working-directory: benchmarks
+        run: |
+          pytest test_insert.py test_update.py test_delete.py test_select.py test_aggregates.py \
+            --benchmark-only \
+            --benchmark-json=../benchmark_results.json \
+            --benchmark-min-rounds=3 \
+            --benchmark-warmup=off
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark_results.json
+          retention-days: 90
+
+      - name: Display results summary
+        run: |
+          echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          python benchmarks/format_results.py benchmark_results.json >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # JOB 3: Deploy (depends on test and benchmark)
+  # ============================================================================
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [test, benchmark]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "rust-ci-cache"
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build WASM bindings
+        working-directory: crates/wasm-bindings
+        run: wasm-pack build --target web --release
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web-demo/package-lock.json
+
+      - name: Install and build web demo
+        working-directory: web-demo
+        run: |
+          npm ci
+          npm run build
+
+      # Download artifacts from previous jobs
+      - name: Download test results
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results
+          path: target
+
+      - name: Download benchmark results
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-results
+
+      - name: Download benchmark history from gh-pages
+        continue-on-error: true
+        run: |
+          curl -sL https://rjwalters.github.io/nistmemsql/benchmarks/benchmark_history.json \
+            -o benchmark_history.json || echo "No existing history found"
+
+      - name: Update benchmark history
+        run: |
+          python benchmarks/update_history.py \
+            benchmark_results.json \
+            benchmark_history.json \
+            ${{ github.sha }}
+        continue-on-error: true
+
+      # Generate badges
+      - name: Generate badge JSON
+        run: |
+          mkdir -p badges
+
+          # Extract pass rate from sqltest results
+          if [ -f target/sqltest_results.json ]; then
+            PASS_RATE=$(jq -r '.pass_rate // "0"' target/sqltest_results.json | xargs printf "%.1f")
+          else
+            PASS_RATE="0.0"
+          fi
+
+          # Determine badge color
+          if (( $(echo "$PASS_RATE >= 80" | bc -l) )); then
+            COLOR="brightgreen"
+          elif (( $(echo "$PASS_RATE >= 60" | bc -l) )); then
+            COLOR="green"
+          elif (( $(echo "$PASS_RATE >= 40" | bc -l) )); then
+            COLOR="yellow"
+          elif (( $(echo "$PASS_RATE >= 20" | bc -l) )); then
+            COLOR="orange"
+          else
+            COLOR="red"
+          fi
+
+          # Create badge JSON
+          cat > badges/sql1999-conformance.json <<JSON
+          {
+            "schemaVersion": 1,
+            "label": "SQL:1999",
+            "message": "${PASS_RATE}%",
+            "color": "$COLOR"
+          }
+          JSON
+
+          echo "Generated badge: ${PASS_RATE}% ($COLOR)"
+
+          # Copy results
+          [ -f target/sqltest_results.json ] && cp target/sqltest_results.json badges/
+          [ -f benchmark_results.json ] && cp benchmark_results.json badges/
+          [ -f benchmark_history.json ] && cp benchmark_history.json badges/
+
+      # Prepare deployment
+      - name: Prepare deployment
+        run: |
+          mkdir -p deploy
+          cp -r web-demo/dist/* deploy/
+          mkdir -p deploy/benchmarks
+          cp -r badges deploy/badges
+          [ -f badges/benchmark_results.json ] && cp badges/benchmark_results.json deploy/benchmarks/
+          [ -f badges/benchmark_history.json ] && cp badges/benchmark_history.json deploy/benchmarks/
+
+          echo "Deployment prepared:"
+          ls -la deploy/
+          ls -la deploy/badges/ || true
+
+      # Deploy to GitHub Pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './deploy'
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
