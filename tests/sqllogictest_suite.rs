@@ -348,11 +348,15 @@ fn run_test_suite() -> HashMap<String, TestStats> {
         };
 
         // Create a new database for each test file
-        let runtime = tokio::runtime::Runtime::new().unwrap();
-        let result = runtime.block_on(async {
-            let mut tester = Runner::new(|| async { Ok(NistMemSqlDB::new()) });
-            tester.run_script(&contents)
-        });
+        // We need to create a runtime because this is a sync test
+        let result = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                let mut tester = Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+                tester.run_script(&contents)
+            });
 
         match result {
             Ok(_) => {
