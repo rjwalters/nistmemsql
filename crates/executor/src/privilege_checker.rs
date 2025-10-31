@@ -17,7 +17,7 @@ impl PrivilegeChecker {
 
     /// Check if current role has UPDATE privilege on table
     pub fn check_update(db: &Database, table_name: &str) -> Result<(), ExecutorError> {
-        Self::check_privilege(db, table_name, &ast::PrivilegeType::Update, "UPDATE")
+        Self::check_privilege(db, table_name, &ast::PrivilegeType::Update(None), "UPDATE")
     }
 
     /// Check if current role has DELETE privilege on table

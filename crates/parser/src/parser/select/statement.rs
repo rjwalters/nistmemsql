@@ -25,16 +25,29 @@ impl Parser {
 
         self.expect_keyword(Keyword::Select)?;
 
-        // Parse optional DISTINCT keyword
+        // Parse optional set quantifier (DISTINCT or ALL)
+        // SQL:1999 syntax: SELECT [ALL | DISTINCT] select_list
+        // ALL is the default (include duplicates), DISTINCT removes duplicates
         let distinct = if self.peek_keyword(Keyword::Distinct) {
             self.consume_keyword(Keyword::Distinct)?;
             true
+        } else if self.peek_keyword(Keyword::All) {
+            self.consume_keyword(Keyword::All)?;
+            false // ALL means include duplicates (same as default)
         } else {
-            false
+            false // Default is ALL (include duplicates)
         };
 
         // Parse SELECT list
         let select_list = self.parse_select_list()?;
+
+        // Parse optional INTO clause (SQL:1999 Feature E111)
+        let into_table = if self.peek_keyword(Keyword::Into) {
+            self.consume_keyword(Keyword::Into)?;
+            Some(self.parse_identifier()?)
+        } else {
+            None
+        };
 
         // Parse optional FROM clause
         let from = if self.peek_keyword(Keyword::From) {
@@ -100,12 +113,15 @@ impl Parser {
                 ast::SetOperator::Except
             };
 
-            // Check for ALL keyword (default is DISTINCT)
+            // Check for ALL or DISTINCT quantifier (default is DISTINCT if omitted)
             let all = if self.peek_keyword(Keyword::All) {
                 self.consume_keyword(Keyword::All)?;
                 true
+            } else if self.peek_keyword(Keyword::Distinct) {
+                self.consume_keyword(Keyword::Distinct)?;
+                false // DISTINCT = remove duplicates (same as default)
             } else {
-                false
+                false // Default behavior is DISTINCT
             };
 
             // Parse the right-hand side SELECT statement
@@ -201,6 +217,7 @@ impl Parser {
             with_clause,
             distinct,
             select_list,
+            into_table,
             from,
             where_clause,
             group_by,

@@ -87,7 +87,8 @@ fn test_create_view_with_group_by() {
 
 #[test]
 fn test_create_view_with_check_option() {
-    let sql = "CREATE VIEW active_users AS SELECT * FROM users WHERE active = true WITH CHECK OPTION";
+    let sql =
+        "CREATE VIEW active_users AS SELECT * FROM users WHERE active = true WITH CHECK OPTION";
     let result = Parser::parse_sql(sql);
     assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
 

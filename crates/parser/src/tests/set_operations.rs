@@ -203,3 +203,25 @@ fn test_parse_set_operation_with_distinct() {
     );
     assert!(result.is_ok(), "Set operation with DISTINCT should parse: {:?}", result);
 }
+
+// ========================================================================
+// Explicit DISTINCT Quantifier Tests (SQL:1999 Features E071-01, E071-03)
+// ========================================================================
+
+#[test]
+fn test_parse_union_distinct() {
+    let result = Parser::parse_sql("SELECT id FROM users UNION DISTINCT SELECT id FROM customers;");
+    assert!(result.is_ok(), "UNION DISTINCT should parse: {:?}", result);
+}
+
+#[test]
+fn test_parse_except_distinct() {
+    let result = Parser::parse_sql("SELECT a FROM t1 EXCEPT DISTINCT SELECT b FROM t2;");
+    assert!(result.is_ok(), "EXCEPT DISTINCT should parse: {:?}", result);
+}
+
+#[test]
+fn test_parse_intersect_distinct() {
+    let result = Parser::parse_sql("SELECT id FROM users INTERSECT DISTINCT SELECT id FROM customers;");
+    assert!(result.is_ok(), "INTERSECT DISTINCT should parse: {:?}", result);
+}

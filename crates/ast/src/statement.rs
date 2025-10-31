@@ -10,7 +10,7 @@ use crate::{
     DropDomainStmt, DropRoleStmt, DropSchemaStmt, DropSequenceStmt, DropTableStmt,
     DropTranslationStmt, DropTypeStmt, DropViewStmt, GrantStmt, InsertStmt,
     ReleaseSavepointStmt, RevokeStmt, RollbackStmt, RollbackToSavepointStmt, SavepointStmt,
-    SelectStmt, SetSchemaStmt, UpdateStmt,
+    SelectStmt, SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt, UpdateStmt,
 };
 
 // ============================================================================
@@ -30,6 +30,9 @@ pub enum Statement {
     CreateSchema(CreateSchemaStmt),
     DropSchema(DropSchemaStmt),
     SetSchema(SetSchemaStmt),
+    SetCatalog(SetCatalogStmt),
+    SetNames(SetNamesStmt),
+    SetTimeZone(SetTimeZoneStmt),
     CreateRole(CreateRoleStmt),
     DropRole(DropRoleStmt),
     BeginTransaction(BeginStmt),

@@ -9,7 +9,9 @@ impl Parser {
     ///
     /// Syntax:
     ///   CREATE VIEW view_name [(column_list)] AS select_statement [WITH CHECK OPTION]
-    pub(super) fn parse_create_view_statement(&mut self) -> Result<ast::CreateViewStmt, ParseError> {
+    pub(super) fn parse_create_view_statement(
+        &mut self,
+    ) -> Result<ast::CreateViewStmt, ParseError> {
         // Expect CREATE keyword
         self.expect_keyword(Keyword::Create)?;
 
@@ -30,9 +32,11 @@ impl Parser {
                         cols.push(name.clone());
                         self.advance();
                     }
-                    _ => return Err(ParseError {
-                        message: "Expected column name in view column list".to_string(),
-                    }),
+                    _ => {
+                        return Err(ParseError {
+                            message: "Expected column name in view column list".to_string(),
+                        })
+                    }
                 }
 
                 if matches!(self.peek(), Token::Comma) {
@@ -69,12 +73,7 @@ impl Parser {
             self.advance();
         }
 
-        Ok(ast::CreateViewStmt {
-            view_name,
-            columns,
-            query,
-            with_check_option,
-        })
+        Ok(ast::CreateViewStmt { view_name, columns, query, with_check_option })
     }
 
     /// Parse DROP VIEW statement
@@ -116,10 +115,6 @@ impl Parser {
             self.advance();
         }
 
-        Ok(ast::DropViewStmt {
-            view_name,
-            if_exists,
-            cascade,
-        })
+        Ok(ast::DropViewStmt { view_name, if_exists, cascade })
     }
 }

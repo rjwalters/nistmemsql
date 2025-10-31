@@ -187,6 +187,8 @@ impl Lexer {
             "VALUES" => Token::Keyword(Keyword::Values),
             "IN" => Token::Keyword(Keyword::In),
             "BETWEEN" => Token::Keyword(Keyword::Between),
+            "ASYMMETRIC" => Token::Keyword(Keyword::Asymmetric),
+            "SYMMETRIC" => Token::Keyword(Keyword::Symmetric),
             "LIKE" => Token::Keyword(Keyword::Like),
             "EXISTS" => Token::Keyword(Keyword::Exists),
             "IF" => Token::Keyword(Keyword::If),
@@ -248,6 +250,7 @@ impl Lexer {
             "UNIQUE" => Token::Keyword(Keyword::Unique),
             "CHECK" => Token::Keyword(Keyword::Check),
             "REFERENCES" => Token::Keyword(Keyword::References),
+            "ACTION" => Token::Keyword(Keyword::Action),
             // TRIM function keywords
             "BOTH" => Token::Keyword(Keyword::Both),
             "LEADING" => Token::Keyword(Keyword::Leading),
@@ -267,6 +270,10 @@ impl Lexer {
             // REVOKE keywords
             "REVOKE" => Token::Keyword(Keyword::Revoke),
             "GRANTED" => Token::Keyword(Keyword::Granted),
+            // Advanced privilege keywords
+            "EXECUTE" => Token::Keyword(Keyword::Execute),
+            "TRIGGER" => Token::Keyword(Keyword::Trigger),
+            "UNDER" => Token::Keyword(Keyword::Under),
             // Role management keywords
             "ROLE" => Token::Keyword(Keyword::Role),
             // Advanced SQL object keywords
@@ -285,6 +292,13 @@ impl Lexer {
             "NO" => Token::Keyword(Keyword::No),
             "RESTART" => Token::Keyword(Keyword::Restart),
             "NEXT" => Token::Keyword(Keyword::Next),
+            // Session configuration keywords (SQL:1999)
+            "CATALOG" => Token::Keyword(Keyword::Catalog),
+            "NAMES" => Token::Keyword(Keyword::Names),
+            "ZONE" => Token::Keyword(Keyword::Zone),
+            "LOCAL" => Token::Keyword(Keyword::Local),
+            "HOUR" => Token::Keyword(Keyword::Hour),
+            "MINUTE" => Token::Keyword(Keyword::Minute),
             _ => Token::Identifier(upper_text), // Regular identifiers are normalized to uppercase
         };
 

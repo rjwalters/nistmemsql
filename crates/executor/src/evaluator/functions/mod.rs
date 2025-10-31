@@ -59,6 +59,7 @@ pub(super) fn eval_scalar_function(
         // Numeric functions
         "ABS" => numeric::abs(args),
         "ROUND" => numeric::round(args),
+        "TRUNCATE" => numeric::truncate(args),
         "FLOOR" => numeric::floor(args),
         "CEIL" | "CEILING" => numeric::ceil(args),
         "MOD" => numeric::mod_func(args),

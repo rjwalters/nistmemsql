@@ -250,11 +250,11 @@ impl Parser {
             }
 
             // Parse optional USING clause for string functions BEFORE closing paren
-            if matches!(function_name_upper.as_str(), "CHARACTER_LENGTH" | "CHAR_LENGTH") {
-                if matches!(self.peek(), Token::Keyword(Keyword::Using)) {
-                    self.advance(); // consume USING
-                    character_unit = Some(self.parse_character_unit()?);
-                }
+            if matches!(function_name_upper.as_str(), "CHARACTER_LENGTH" | "CHAR_LENGTH")
+                && matches!(self.peek(), Token::Keyword(Keyword::Using))
+            {
+                self.advance(); // consume USING
+                character_unit = Some(self.parse_character_unit()?);
             }
 
             self.expect_token(Token::RParen)?;

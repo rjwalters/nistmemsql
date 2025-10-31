@@ -18,13 +18,13 @@ impl Domain {
 #[derive(Debug, Clone)]
 pub struct Sequence {
     pub name: String,
-    pub start_with: i64,        // Original start value (for RESTART without WITH)
+    pub start_with: i64, // Original start value (for RESTART without WITH)
     pub increment_by: i64,
     pub min_value: Option<i64>,
     pub max_value: Option<i64>,
     pub cycle: bool,
-    pub current_value: i64,     // Current sequence value
-    pub exhausted: bool,        // true if reached limit with NO CYCLE
+    pub current_value: i64, // Current sequence value
+    pub exhausted: bool,    // true if reached limit with NO CYCLE
 }
 
 impl Sequence {
@@ -58,7 +58,8 @@ impl Sequence {
         let value = self.current_value;
 
         // Advance the sequence
-        let next = value.checked_add(self.increment_by)
+        let next = value
+            .checked_add(self.increment_by)
             .ok_or_else(|| format!("Sequence {} overflow", self.name))?;
 
         // Check bounds

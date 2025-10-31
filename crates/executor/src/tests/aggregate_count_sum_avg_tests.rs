@@ -33,6 +33,7 @@ fn test_count_star_no_group_by() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -87,6 +88,7 @@ fn test_sum_no_group_by() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -145,6 +147,7 @@ fn test_count_with_nulls() {
     let executor = SelectExecutor::new(&db);
     // COUNT(*) counts all rows including NULL
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -199,6 +202,7 @@ fn test_sum_with_nulls() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -254,6 +258,7 @@ fn test_avg_function() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -309,6 +314,7 @@ fn test_avg_with_nulls() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -370,6 +376,7 @@ fn test_count_column_all_nulls() {
 
     // COUNT(column) should return 0 when all values are NULL
     let stmt_count_col = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -396,6 +403,7 @@ fn test_count_column_all_nulls() {
 
     // COUNT(*) should still return row count
     let stmt_count_star = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,

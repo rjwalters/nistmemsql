@@ -95,12 +95,39 @@ impl Parser {
         }
     }
 
+    /// Parse a signed number (optional minus sign followed by number)
+    pub(super) fn parse_signed_number(&mut self) -> Result<String, ParseError> {
+        let mut num_str = String::new();
+
+        // Check for optional minus sign
+        if self.try_consume(&Token::Symbol('-')) {
+            num_str.push('-');
+        }
+
+        // Parse the number
+        match self.peek() {
+            Token::Number(n) => {
+                num_str.push_str(n);
+                self.advance();
+                Ok(num_str)
+            }
+            _ => Err(ParseError {
+                message: "Expected number".to_string(),
+            }),
+        }
+    }
+
     /// Parse a qualified identifier (schema.table or just table)
     pub(super) fn parse_qualified_identifier(&mut self) -> Result<String, ParseError> {
         // Parse first identifier
         let first_part = match self.peek() {
             Token::Identifier(name) | Token::DelimitedIdentifier(name) => {
                 let identifier = name.clone();
+                self.advance();
+                identifier
+            }
+            Token::Keyword(keyword) => {
+                let identifier = keyword.to_string();
                 self.advance();
                 identifier
             }
@@ -113,6 +140,11 @@ impl Parser {
             let second_part = match self.peek() {
                 Token::Identifier(name) | Token::DelimitedIdentifier(name) => {
                     let identifier = name.clone();
+                    self.advance();
+                    identifier
+                }
+                Token::Keyword(keyword) => {
+                    let identifier = keyword.to_string();
                     self.advance();
                     identifier
                 }

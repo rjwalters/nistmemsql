@@ -181,13 +181,26 @@ impl Parser {
                 let release_stmt = self.parse_release_savepoint_statement()?;
                 Ok(ast::Statement::ReleaseSavepoint(release_stmt))
             }
-            Token::Keyword(Keyword::Set) => match self.peek_keyword(Keyword::Schema) {
-                true => {
+            Token::Keyword(Keyword::Set) => {
+                // Look ahead to determine which SET statement this is
+                if self.peek_next_keyword(Keyword::Schema) {
                     let set_stmt = self.parse_set_schema_statement()?;
                     Ok(ast::Statement::SetSchema(set_stmt))
+                } else if self.peek_next_keyword(Keyword::Catalog) {
+                    let set_stmt = schema::parse_set_catalog(self)?;
+                    Ok(ast::Statement::SetCatalog(set_stmt))
+                } else if self.peek_next_keyword(Keyword::Names) {
+                    let set_stmt = schema::parse_set_names(self)?;
+                    Ok(ast::Statement::SetNames(set_stmt))
+                } else if self.peek_next_keyword(Keyword::Time) {
+                    let set_stmt = schema::parse_set_time_zone(self)?;
+                    Ok(ast::Statement::SetTimeZone(set_stmt))
+                } else {
+                    Err(ParseError {
+                        message: "Expected SCHEMA, CATALOG, NAMES, or TIME ZONE after SET".to_string(),
+                    })
                 }
-                false => Err(ParseError { message: "Expected SCHEMA after SET".to_string() }),
-            },
+            }
             Token::Keyword(Keyword::Grant) => {
                 let grant_stmt = self.parse_grant_statement()?;
                 Ok(ast::Statement::Grant(grant_stmt))

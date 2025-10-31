@@ -107,7 +107,7 @@ impl SelectExecutor<'_> {
         let mut final_rows = Vec::new();
         for (row, _) in result_rows {
             let projected_row =
-                project_row_combined(&row, &stmt.select_list, &evaluator, &window_mapping)?;
+                project_row_combined(&row, &stmt.select_list, &evaluator, &schema, &window_mapping)?;
             final_rows.push(projected_row);
         }
 
@@ -141,9 +141,9 @@ impl SelectExecutor<'_> {
         let mut values = Vec::new();
         for item in &stmt.select_list {
             match item {
-                ast::SelectItem::Wildcard => {
+                ast::SelectItem::Wildcard | ast::SelectItem::QualifiedWildcard { .. } => {
                     return Err(ExecutorError::UnsupportedFeature(
-                        "SELECT * requires FROM clause".to_string(),
+                        "SELECT * and qualified wildcards require FROM clause".to_string(),
                     ));
                 }
                 ast::SelectItem::Expression { expr, .. } => {

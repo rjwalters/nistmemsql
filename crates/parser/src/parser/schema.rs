@@ -79,3 +79,92 @@ pub fn parse_set_schema(parser: &mut crate::Parser) -> Result<SetSchemaStmt, Par
 
     Ok(SetSchemaStmt { schema_name })
 }
+
+/// Parse SET CATALOG statement
+pub fn parse_set_catalog(parser: &mut crate::Parser) -> Result<ast::SetCatalogStmt, ParseError> {
+    parser.expect_keyword(Keyword::Set)?;
+    parser.expect_keyword(Keyword::Catalog)?;
+
+    let catalog_name = parser.parse_qualified_identifier()?;
+
+    Ok(ast::SetCatalogStmt { catalog_name })
+}
+
+/// Parse SET NAMES statement
+pub fn parse_set_names(parser: &mut crate::Parser) -> Result<ast::SetNamesStmt, ParseError> {
+    parser.expect_keyword(Keyword::Set)?;
+    parser.expect_keyword(Keyword::Names)?;
+
+    // Parse charset name (can be identifier or string literal)
+    let charset_name = match parser.peek() {
+        crate::token::Token::String(s) => {
+            let val = s.clone();
+            parser.advance();
+            val
+        }
+        _ => parser.parse_qualified_identifier()?,
+    };
+
+    // Parse optional COLLATE clause (use Collation keyword)
+    let collation = if parser.peek_keyword(Keyword::Collation) {
+        parser.advance();
+        Some(match parser.peek() {
+            crate::token::Token::String(s) => {
+                let val = s.clone();
+                parser.advance();
+                val
+            }
+            _ => parser.parse_qualified_identifier()?,
+        })
+    } else {
+        None
+    };
+
+    Ok(ast::SetNamesStmt { charset_name, collation })
+}
+
+/// Parse SET TIME ZONE statement
+pub fn parse_set_time_zone(parser: &mut crate::Parser) -> Result<ast::SetTimeZoneStmt, ParseError> {
+    parser.expect_keyword(Keyword::Set)?;
+    parser.expect_keyword(Keyword::Time)?;
+    parser.expect_keyword(Keyword::Zone)?;
+
+    // Parse zone specification: LOCAL or INTERVAL '...'
+    let zone = if parser.peek_keyword(Keyword::Local) {
+        parser.advance();
+        ast::TimeZoneSpec::Local
+    } else if parser.peek_keyword(Keyword::Interval) {
+        parser.advance();
+        // Parse the interval string
+        let interval_str = match parser.peek() {
+            crate::token::Token::String(s) => {
+                let val = s.clone();
+                parser.advance();
+                val
+            }
+            _ => {
+                return Err(ParseError {
+                    message: "Expected string literal after INTERVAL".to_string(),
+                });
+            }
+        };
+
+        // Optionally parse HOUR TO MINUTE or other interval qualifiers
+        // For now, we'll accept but ignore the qualifier
+        if parser.peek_keyword(Keyword::Hour) {
+            parser.advance();
+            if parser.peek_keyword(Keyword::To) {
+                parser.advance();
+                parser.expect_keyword(Keyword::Minute)?;
+            }
+        }
+
+        ast::TimeZoneSpec::Interval(interval_str)
+    } else {
+        return Err(ParseError {
+            message: "Expected LOCAL or INTERVAL after SET TIME ZONE".to_string(),
+        });
+    };
+
+    Ok(ast::SetTimeZoneStmt { zone })
+}
