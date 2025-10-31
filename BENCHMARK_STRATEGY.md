@@ -626,11 +626,174 @@ for analytical workloads on identical hardware. Performance ranges from
 11. **DuckDB Benchmarks**: https://duckdb.org/why_duckdb#performance
 12. **SQLite Benchmarks**: https://www.sqlite.org/fasterthanfs.html
 
+## pytest-benchmark Framework Usage
+
+### Quick Start
+
+The pytest-benchmark framework is now set up for head-to-head performance testing between nistmemsql and SQLite. Here's how to run benchmarks:
+
+#### Prerequisites
+
+```bash
+# Install Python dependencies
+pip install -r benchmarks/requirements.txt
+
+# Build and install nistmemsql Python bindings
+cd crates/python-bindings
+maturin build --release
+pip install --force-reinstall target/wheels/nistmemsql-*.whl
+cd ../..
+```
+
+#### Running Benchmarks
+
+**Run all benchmarks:**
+```bash
+./scripts/run_benchmarks.sh
+```
+
+**Run specific test file:**
+```bash
+pytest benchmarks/test_example.py --benchmark-only
+```
+
+**Run with detailed output:**
+```bash
+pytest benchmarks/ --benchmark-only --benchmark-verbose
+```
+
+**Save historical results:**
+```bash
+pytest benchmarks/ --benchmark-only --benchmark-autosave
+```
+
+### Output Files
+
+After running benchmarks, you'll get:
+
+1. **`benchmark_results.json`** - Raw pytest-benchmark data
+2. **`benchmark_comparison.md`** - Human-readable comparison table
+3. **`benchmark_summary.json`** - Structured summary matching BENCHMARK_STRATEGY.md schema
+
+### Understanding Results
+
+**Example output:**
+
+```
+| Benchmark | nistmemsql | SQLite | Ratio | Status |
+|-----------|------------|--------|-------|--------|
+| simple_select | 18.70 μs | 12.50 μs | 1.50x | ✓ Good |
+| complex_join | 245.30 μs | 87.20 μs | 2.81x | ○ Fair |
+| aggregate_query | 612.45 μs | 145.80 μs | 4.20x | ⚠ Slow |
+```
+
+**Performance Status:**
+- **✓ Good** (<1.5x): Competitive with SQLite
+- **○ Fair** (1.5-3.0x): Acceptable overhead
+- **⚠ Slow** (>3.0x): Optimization opportunity
+
+**Summary Statistics:**
+- **Geometric Mean Ratio**: Overall performance characteristic
+- **Median Ratio**: Typical query performance
+- **Range**: Best and worst case ratios
+
+### Adding New Benchmarks
+
+Create new benchmark tests in `benchmarks/`:
+
+```python
+import pytest
+
+@pytest.mark.parametrize("db_name", ["sqlite", "nistmemsql"])
+def test_my_operation(benchmark, both_databases, setup_test_table, db_name):
+    """Benchmark description."""
+    db = both_databases[db_name]
+
+    # Setup (not timed)
+    if db_name == "sqlite":
+        db.execute("INSERT INTO test_users VALUES (1, 'Alice', 30, 50000.0, TRUE)")
+        db.commit()
+
+        def run_query():
+            return db.execute("SELECT * FROM test_users WHERE age > 25").fetchall()
+    else:
+        cursor = db.cursor()
+        cursor.execute("INSERT INTO test_users VALUES (1, 'Alice', 30, 50000.0, TRUE)")
+
+        def run_query():
+            cursor = db.cursor()
+            cursor.execute("SELECT * FROM test_users WHERE age > 25")
+            return cursor.fetchall()
+
+    # Benchmark (timed)
+    result = benchmark(run_query)
+    assert len(result) == 1
+```
+
+### Framework Components
+
+**Fixtures (benchmarks/conftest.py):**
+- `hardware_metadata` - CPU, memory, OS information
+- `sqlite_db` - SQLite :memory: connection
+- `nistmemsql_db` - nistmemsql connection via PyO3
+- `both_databases` - Combined fixture for head-to-head tests
+- `setup_test_table` - Creates identical schemas in both databases
+- `insert_test_data` - Parametrized test data insertion
+
+**Utilities (benchmarks/utils/):**
+- `database_setup.py` - Connection and execution helpers
+- `data_generator.py` - Test dataset generation
+- `result_formatter.py` - JSON output formatting
+
+**Configuration:**
+- `pytest.ini` - pytest-benchmark settings
+- `requirements.txt` - Python dependencies
+
+### Benchmark Best Practices
+
+1. **Use `@pytest.mark.parametrize("db_name", ["sqlite", "nistmemsql"])`** for head-to-head tests
+2. **Separate setup from benchmark** - Only time the operation itself
+3. **Use fixtures** - Leverage `both_databases`, `setup_test_table`, etc.
+4. **Document expectations** - Add assertions to verify correctness
+5. **Test at multiple scales** - Use parametrized row counts (1K, 10K, 100K)
+
+### CI Integration
+
+To integrate benchmarks into CI (future):
+
+```yaml
+# .github/workflows/benchmarks.yml
+name: Benchmarks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+      - name: Install dependencies
+        run: pip install -r benchmarks/requirements.txt
+      - name: Build PyO3 bindings
+        run: |
+          cd crates/python-bindings
+          maturin build --release
+          pip install target/wheels/nistmemsql-*.whl
+      - name: Run benchmarks
+        run: pytest benchmarks/ --benchmark-only --benchmark-json=output.json
+      - name: Compare results
+        run: python scripts/compare_performance.py
+```
+
 ## Next Steps
 
 ### Immediate Actions
 
-1. ⬜ Create `benches/` directory structure
+1. ✅ Create `benchmarks/` directory structure
 2. ⬜ Set up criterion benchmarking harness
 3. ⬜ Implement MySQL integration module
 4. ⬜ Write first micro-benchmark (simple SELECT)
