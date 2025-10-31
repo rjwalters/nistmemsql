@@ -134,6 +134,15 @@ pub enum Keyword {
     Collation,
     Character,
     Translation,
+    // SEQUENCE specific keywords
+    Increment,
+    Minvalue,
+    Maxvalue,
+    Cycle,
+    No,
+    Restart,
+    Next,
+    Value,
 }
 
 impl fmt::Display for Keyword {
@@ -253,6 +262,14 @@ impl fmt::Display for Keyword {
             Keyword::Collation => "COLLATION",
             Keyword::Character => "CHARACTER",
             Keyword::Translation => "TRANSLATION",
+            Keyword::Increment => "INCREMENT",
+            Keyword::Minvalue => "MINVALUE",
+            Keyword::Maxvalue => "MAXVALUE",
+            Keyword::Cycle => "CYCLE",
+            Keyword::No => "NO",
+            Keyword::Restart => "RESTART",
+            Keyword::Next => "NEXT",
+            Keyword::Value => "VALUE",
         };
         write!(f, "{}", keyword_str)
     }

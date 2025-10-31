@@ -277,4 +277,20 @@ impl Parser {
             _ => Ok(None),
         }
     }
+
+    /// Parse NEXT VALUE FOR expression
+    /// Syntax: NEXT VALUE FOR sequence_name
+    pub(super) fn parse_sequence_value_function(
+        &mut self,
+    ) -> Result<Option<ast::Expression>, ParseError> {
+        if matches!(self.peek(), Token::Keyword(Keyword::Next)) {
+            self.advance(); // consume NEXT
+            self.expect_keyword(Keyword::Value)?;
+            self.expect_keyword(Keyword::For)?;
+            let sequence_name = self.parse_identifier()?;
+            Ok(Some(ast::Expression::NextValue { sequence_name }))
+        } else {
+            Ok(None)
+        }
+    }
 }

@@ -190,6 +190,14 @@ pub enum Expression {
         function: WindowFunctionSpec,
         over: WindowSpec,
     },
+
+    /// NEXT VALUE FOR sequence expression
+    /// Example: NEXT VALUE FOR user_id_seq
+    /// Returns the next value from the specified sequence generator
+    /// SQL:1999 Section 6.13: Next value expression
+    NextValue {
+        sequence_name: String,
+    },
 }
 
 /// CASE WHEN clause structure

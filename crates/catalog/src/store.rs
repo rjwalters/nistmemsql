@@ -364,11 +364,22 @@ impl Catalog {
     // ============================================================================
 
     /// Create a SEQUENCE
-    pub fn create_sequence(&mut self, name: String) -> Result<(), CatalogError> {
+    pub fn create_sequence(
+        &mut self,
+        name: String,
+        start_with: Option<i64>,
+        increment_by: i64,
+        min_value: Option<i64>,
+        max_value: Option<i64>,
+        cycle: bool,
+    ) -> Result<(), CatalogError> {
         if self.sequences.contains_key(&name) {
             return Err(CatalogError::SequenceAlreadyExists(name));
         }
-        self.sequences.insert(name.clone(), Sequence::new(name));
+        self.sequences.insert(
+            name.clone(),
+            Sequence::new(name, start_with, increment_by, min_value, max_value, cycle),
+        );
         Ok(())
     }
 
@@ -377,6 +388,47 @@ impl Catalog {
         self.sequences
             .remove(name)
             .map(|_| ())
+            .ok_or_else(|| CatalogError::SequenceNotFound(name.to_string()))
+    }
+
+    /// Alter a SEQUENCE
+    pub fn alter_sequence(
+        &mut self,
+        name: &str,
+        restart_with: Option<i64>,
+        increment_by: Option<i64>,
+        min_value: Option<Option<i64>>,
+        max_value: Option<Option<i64>>,
+        cycle: Option<bool>,
+    ) -> Result<(), CatalogError> {
+        let seq = self
+            .sequences
+            .get_mut(name)
+            .ok_or_else(|| CatalogError::SequenceNotFound(name.to_string()))?;
+
+        if let Some(restart) = restart_with {
+            seq.restart(Some(restart));
+        }
+        if let Some(incr) = increment_by {
+            seq.increment_by = incr;
+        }
+        if let Some(min) = min_value {
+            seq.min_value = min;
+        }
+        if let Some(max) = max_value {
+            seq.max_value = max;
+        }
+        if let Some(cyc) = cycle {
+            seq.cycle = cyc;
+        }
+
+        Ok(())
+    }
+
+    /// Get a mutable reference to a SEQUENCE for NEXT VALUE FOR
+    pub fn get_sequence_mut(&mut self, name: &str) -> Result<&mut Sequence, CatalogError> {
+        self.sequences
+            .get_mut(name)
             .ok_or_else(|| CatalogError::SequenceNotFound(name.to_string()))
     }
 

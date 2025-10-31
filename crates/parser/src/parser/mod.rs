@@ -138,8 +138,17 @@ impl Parser {
                 }
             }
             Token::Keyword(Keyword::Alter) => {
-                let alter_stmt = self.parse_alter_table_statement()?;
-                Ok(ast::Statement::AlterTable(alter_stmt))
+                if self.peek_next_keyword(Keyword::Table) {
+                    let alter_stmt = self.parse_alter_table_statement()?;
+                    Ok(ast::Statement::AlterTable(alter_stmt))
+                } else if self.peek_next_keyword(Keyword::Sequence) {
+                    let alter_stmt = self.parse_alter_sequence_statement()?;
+                    Ok(ast::Statement::AlterSequence(alter_stmt))
+                } else {
+                    Err(ParseError {
+                        message: "Expected TABLE or SEQUENCE after ALTER".to_string(),
+                    })
+                }
             }
             Token::Keyword(Keyword::Begin) | Token::Keyword(Keyword::Start) => {
                 let begin_stmt = self.parse_begin_statement()?;
@@ -296,6 +305,13 @@ impl Parser {
         &mut self,
     ) -> Result<ast::DropSequenceStmt, ParseError> {
         advanced_objects::parse_drop_sequence(self)
+    }
+
+    /// Parse ALTER SEQUENCE statement
+    pub fn parse_alter_sequence_statement(
+        &mut self,
+    ) -> Result<ast::AlterSequenceStmt, ParseError> {
+        advanced_objects::parse_alter_sequence(self)
     }
 
     /// Parse CREATE TYPE statement

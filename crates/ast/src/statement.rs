@@ -3,12 +3,13 @@
 //! This module defines the Statement enum that represents all possible SQL statements.
 
 use crate::{
-    AlterTableStmt, BeginStmt, CommitStmt, CreateCharacterSetStmt, CreateCollationStmt,
-    CreateDomainStmt, CreateRoleStmt, CreateSchemaStmt, CreateSequenceStmt, CreateTableStmt,
-    CreateTranslationStmt, CreateTypeStmt, DeleteStmt, DropCharacterSetStmt, DropCollationStmt,
-    DropDomainStmt, DropRoleStmt, DropSchemaStmt, DropSequenceStmt, DropTableStmt,
-    DropTranslationStmt, DropTypeStmt, GrantStmt, InsertStmt, ReleaseSavepointStmt, RevokeStmt,
-    RollbackStmt, RollbackToSavepointStmt, SavepointStmt, SelectStmt, SetSchemaStmt, UpdateStmt,
+    AlterSequenceStmt, AlterTableStmt, BeginStmt, CommitStmt, CreateCharacterSetStmt,
+    CreateCollationStmt, CreateDomainStmt, CreateRoleStmt, CreateSchemaStmt, CreateSequenceStmt,
+    CreateTableStmt, CreateTranslationStmt, CreateTypeStmt, DeleteStmt, DropCharacterSetStmt,
+    DropCollationStmt, DropDomainStmt, DropRoleStmt, DropSchemaStmt, DropSequenceStmt,
+    DropTableStmt, DropTranslationStmt, DropTypeStmt, GrantStmt, InsertStmt,
+    ReleaseSavepointStmt, RevokeStmt, RollbackStmt, RollbackToSavepointStmt, SavepointStmt,
+    SelectStmt, SetSchemaStmt, UpdateStmt,
 };
 
 // ============================================================================
@@ -42,6 +43,7 @@ pub enum Statement {
     CreateDomain(CreateDomainStmt),
     DropDomain(DropDomainStmt),
     CreateSequence(CreateSequenceStmt),
+    AlterSequence(AlterSequenceStmt),
     DropSequence(DropSequenceStmt),
     CreateType(CreateTypeStmt),
     DropType(DropTypeStmt),

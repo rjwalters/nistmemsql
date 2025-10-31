@@ -31,6 +31,11 @@ impl Parser {
             return Ok(expr);
         }
 
+        // Try to parse as NEXT VALUE FOR sequence expression
+        if let Some(expr) = self.parse_sequence_value_function()? {
+            return Ok(expr);
+        }
+
         // Try to parse as a function call
         if let Some(expr) = self.parse_function_call()? {
             return Ok(expr);

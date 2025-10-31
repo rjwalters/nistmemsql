@@ -211,12 +211,29 @@ pub struct DropDomainStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub struct CreateSequenceStmt {
     pub sequence_name: String,
+    pub start_with: Option<i64>,
+    pub increment_by: i64,        // default: 1
+    pub min_value: Option<i64>,
+    pub max_value: Option<i64>,
+    pub cycle: bool,              // default: false
 }
 
 /// DROP SEQUENCE statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct DropSequenceStmt {
     pub sequence_name: String,
+    pub cascade: bool, // true for CASCADE, false for RESTRICT
+}
+
+/// ALTER SEQUENCE statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct AlterSequenceStmt {
+    pub sequence_name: String,
+    pub restart_with: Option<i64>,
+    pub increment_by: Option<i64>,
+    pub min_value: Option<Option<i64>>, // None = no change, Some(None) = NO MINVALUE, Some(Some(n)) = MINVALUE n
+    pub max_value: Option<Option<i64>>, // None = no change, Some(None) = NO MAXVALUE, Some(Some(n)) = MAXVALUE n
+    pub cycle: Option<bool>,
 }
 
 /// CREATE TYPE statement
