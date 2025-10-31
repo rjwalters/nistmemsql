@@ -21,7 +21,7 @@ pub fn parse_grant(parser: &mut crate::Parser) -> Result<GrantStmt, ParseError> 
 
     parser.expect_keyword(Keyword::On)?;
 
-    // Detect TABLE vs SCHEMA (defaults to TABLE if not specified)
+    // Detect TABLE vs SCHEMA (with context-aware defaults)
     let object_type = if parser.peek() == &Token::Keyword(Keyword::Table) {
         parser.advance(); // consume TABLE
         ObjectType::Table
@@ -29,8 +29,14 @@ pub fn parse_grant(parser: &mut crate::Parser) -> Result<GrantStmt, ParseError> 
         parser.advance(); // consume SCHEMA
         ObjectType::Schema
     } else {
-        // Default to TABLE if not specified (SQL standard behavior)
-        ObjectType::Table
+        // When no object type is specified, infer from privilege type
+        // USAGE privilege defaults to Schema (SQL:1999 E081-09)
+        // Other privileges default to Table (SQL standard behavior)
+        if privileges.contains(&PrivilegeType::Usage) {
+            ObjectType::Schema
+        } else {
+            ObjectType::Table
+        }
     };
 
     // Parse object name (supports qualified names like "schema.table")
@@ -99,10 +105,14 @@ fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>
                 parser.advance();
                 PrivilegeType::Create
             }
+            Token::Keyword(Keyword::References) => {
+                parser.advance();
+                PrivilegeType::References
+            }
             _ => {
                 return Err(ParseError {
                     message: format!(
-                        "Expected privilege keyword (SELECT, INSERT, UPDATE, DELETE, USAGE, CREATE, ALL), found {:?}",
+                        "Expected privilege keyword (SELECT, INSERT, UPDATE, DELETE, USAGE, CREATE, REFERENCES, ALL), found {:?}",
                         parser.peek()
                     ),
                 })

@@ -63,6 +63,7 @@ fn test_delete_where_in_subquery() {
 
     // Subquery: SELECT dept_id FROM inactive_depts
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
@@ -147,6 +148,7 @@ fn test_delete_where_not_in_subquery() {
 
     // Subquery
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
@@ -232,6 +234,7 @@ fn test_delete_where_scalar_subquery_comparison() {
 
     // Subquery: SELECT AVG(salary) FROM employees
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
@@ -321,6 +324,7 @@ fn test_delete_where_subquery_empty_result() {
 
     // Subquery returns empty result
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
@@ -403,6 +407,7 @@ fn test_delete_where_subquery_with_aggregate_max() {
 
     // Subquery: SELECT MAX(price) FROM items
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
@@ -505,6 +510,7 @@ fn test_delete_where_complex_subquery_with_filter() {
 
     // Subquery: SELECT customer_id FROM inactive_customers WHERE status = 'inactive'
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
@@ -586,6 +592,7 @@ fn test_delete_where_subquery_returns_null() {
 
     // Subquery returns NULL (empty result)
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {

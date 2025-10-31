@@ -79,6 +79,7 @@ fn test_correlated_subquery_basic() {
 
     // Build correlated subquery: SELECT AVG(salary) FROM employees WHERE department = e.department
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -114,6 +115,7 @@ fn test_correlated_subquery_basic() {
 
     // Build main query: SELECT name, salary FROM employees e WHERE salary > (correlated subquery)
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,

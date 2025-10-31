@@ -273,10 +273,7 @@ pub fn parse_create_type(parser: &mut crate::Parser) -> Result<CreateTypeStmt, P
             let attr_name = parser.parse_identifier()?;
             let data_type = parser.parse_data_type()?;
 
-            attributes.push(ast::TypeAttribute {
-                name: attr_name,
-                data_type,
-            });
+            attributes.push(ast::TypeAttribute { name: attr_name, data_type });
 
             if !parser.try_consume(&Token::Comma) {
                 break;
@@ -287,10 +284,7 @@ pub fn parse_create_type(parser: &mut crate::Parser) -> Result<CreateTypeStmt, P
         ast::TypeDefinition::Structured { attributes }
     };
 
-    Ok(CreateTypeStmt {
-        type_name,
-        definition,
-    })
+    Ok(CreateTypeStmt { type_name, definition })
 }
 
 /// Parse DROP TYPE statement
@@ -313,10 +307,7 @@ pub fn parse_drop_type(parser: &mut crate::Parser) -> Result<DropTypeStmt, Parse
         ast::DropBehavior::Restrict // Default to RESTRICT per SQL:1999
     };
 
-    Ok(DropTypeStmt {
-        type_name,
-        behavior,
-    })
+    Ok(DropTypeStmt { type_name, behavior })
 }
 
 // ============================================================================

@@ -158,15 +158,15 @@ impl Database {
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
             ast::Statement::CreateSequence(create_seq_stmt) => {
-                executor::advanced_objects::execute_create_sequence(
-                    &create_seq_stmt,
-                    &mut self.db,
-                )
-                .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+                executor::advanced_objects::execute_create_sequence(&create_seq_stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult {
                     rows_affected: 0,
-                    message: format!("Sequence '{}' created successfully", create_seq_stmt.sequence_name),
+                    message: format!(
+                        "Sequence '{}' created successfully",
+                        create_seq_stmt.sequence_name
+                    ),
                 };
 
                 serde_wasm_bindgen::to_value(&result)
@@ -178,7 +178,10 @@ impl Database {
 
                 let result = ExecuteResult {
                     rows_affected: 0,
-                    message: format!("Sequence '{}' dropped successfully", drop_seq_stmt.sequence_name),
+                    message: format!(
+                        "Sequence '{}' dropped successfully",
+                        drop_seq_stmt.sequence_name
+                    ),
                 };
 
                 serde_wasm_bindgen::to_value(&result)
@@ -190,7 +193,10 @@ impl Database {
 
                 let result = ExecuteResult {
                     rows_affected: 0,
-                    message: format!("Sequence '{}' altered successfully", alter_seq_stmt.sequence_name),
+                    message: format!(
+                        "Sequence '{}' altered successfully",
+                        alter_seq_stmt.sequence_name
+                    ),
                 };
 
                 serde_wasm_bindgen::to_value(&result)

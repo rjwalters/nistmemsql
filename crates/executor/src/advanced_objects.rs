@@ -56,9 +56,7 @@ pub fn execute_create_type(stmt: &CreateTypeStmt, db: &mut Database) -> Result<(
     // Convert AST TypeDefinition to Catalog TypeDefinitionKind
     let catalog_def = match &stmt.definition {
         ast::TypeDefinition::Distinct { base_type } => {
-            TypeDefinitionKind::Distinct {
-                base_type: base_type.clone(),
-            }
+            TypeDefinitionKind::Distinct { base_type: base_type.clone() }
         }
         ast::TypeDefinition::Structured { attributes } => {
             let catalog_attrs = attributes
@@ -68,16 +66,11 @@ pub fn execute_create_type(stmt: &CreateTypeStmt, db: &mut Database) -> Result<(
                     data_type: attr.data_type.clone(),
                 })
                 .collect();
-            TypeDefinitionKind::Structured {
-                attributes: catalog_attrs,
-            }
+            TypeDefinitionKind::Structured { attributes: catalog_attrs }
         }
     };
 
-    let type_def = TypeDefinition {
-        name: stmt.type_name.clone(),
-        definition: catalog_def,
-    };
+    let type_def = TypeDefinition { name: stmt.type_name.clone(), definition: catalog_def };
 
     db.catalog.create_type(type_def)?;
     Ok(())
@@ -145,10 +138,7 @@ pub fn execute_drop_translation(
 }
 
 /// Execute CREATE VIEW statement
-pub fn execute_create_view(
-    stmt: &CreateViewStmt,
-    db: &mut Database,
-) -> Result<(), ExecutorError> {
+pub fn execute_create_view(stmt: &CreateViewStmt, db: &mut Database) -> Result<(), ExecutorError> {
     use catalog::ViewDefinition;
 
     let view = ViewDefinition::new(
@@ -163,10 +153,7 @@ pub fn execute_create_view(
 }
 
 /// Execute DROP VIEW statement
-pub fn execute_drop_view(
-    stmt: &DropViewStmt,
-    db: &mut Database,
-) -> Result<(), ExecutorError> {
+pub fn execute_drop_view(stmt: &DropViewStmt, db: &mut Database) -> Result<(), ExecutorError> {
     // Check if view exists
     let view_exists = db.catalog.get_view(&stmt.view_name).is_some();
 

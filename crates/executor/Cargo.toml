@@ -26,5 +26,9 @@ name = "delete_tests"
 path = "tests/delete_tests.rs"
 
 [[test]]
+name = "conversion_function_tests"
+path = "tests/conversion_function_tests.rs"
+
+[[test]]
 name = "test_numeric_edge_cases"
 path = "tests/test_numeric_edge_cases.rs"

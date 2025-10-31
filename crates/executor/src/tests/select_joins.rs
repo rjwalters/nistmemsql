@@ -67,6 +67,7 @@ fn test_inner_join_two_tables() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -166,6 +167,7 @@ fn test_right_outer_join() {
     // RIGHT OUTER JOIN should include all orders, with NULLs for missing users
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -271,6 +273,7 @@ fn test_full_outer_join() {
     // - Order 2 with NULL user
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -388,6 +391,7 @@ fn test_cross_join() {
     // CROSS JOIN should produce cartesian product: 2 * 3 = 6 rows
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -431,6 +435,7 @@ fn test_cross_join_with_condition_fails() {
     // CROSS JOIN with condition should fail
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
