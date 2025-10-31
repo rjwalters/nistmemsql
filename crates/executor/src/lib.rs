@@ -19,6 +19,7 @@ mod schema;
 mod schema_ddl;
 mod select;
 mod transaction;
+mod type_ddl;
 mod update;
 
 pub use alter::AlterTableExecutor;
@@ -39,6 +40,7 @@ pub use transaction::{
     BeginTransactionExecutor, CommitExecutor, ReleaseSavepointExecutor, RollbackExecutor,
     RollbackToSavepointExecutor, SavepointExecutor,
 };
+pub use type_ddl::TypeExecutor;
 pub use update::UpdateExecutor;
 
 #[cfg(test)]

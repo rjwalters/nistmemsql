@@ -1,11 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::advanced_objects::{CharacterSet, Collation, Sequence, Translation, UserDefinedType};
+use crate::advanced_objects::{CharacterSet, Collation, Sequence, Translation};
 use crate::domain::DomainDefinition;
 use crate::errors::CatalogError;
 use crate::privilege::PrivilegeGrant;
 use crate::schema::Schema;
 use crate::table::TableSchema;
+use crate::type_definition::TypeDefinition;
 
 /// Database catalog - manages all schemas and their objects.
 #[derive(Debug, Clone)]
@@ -17,7 +18,7 @@ pub struct Catalog {
     // Advanced SQL:1999 objects
     domains: HashMap<String, DomainDefinition>,
     sequences: HashMap<String, Sequence>,
-    types: HashMap<String, UserDefinedType>,
+    type_definitions: HashMap<String, TypeDefinition>,  // Comprehensive type support
     collations: HashMap<String, Collation>,
     character_sets: HashMap<String, CharacterSet>,
     translations: HashMap<String, Translation>,
@@ -33,7 +34,7 @@ impl Catalog {
             roles: HashSet::new(),
             domains: HashMap::new(),
             sequences: HashMap::new(),
-            types: HashMap::new(),
+            type_definitions: HashMap::new(),
             collations: HashMap::new(),
             character_sets: HashMap::new(),
             translations: HashMap::new(),
@@ -299,8 +300,90 @@ impl Catalog {
         self.roles.iter().cloned().collect()
     }
 
+    // ============================================================================
+    // Type Definition Management Methods
+    // ============================================================================
+
+    /// Create a new user-defined type.
+    pub fn create_type(&mut self, type_def: TypeDefinition) -> Result<(), CatalogError> {
+        let type_name = type_def.name.clone();
+        if self.type_definitions.contains_key(&type_name) {
+            return Err(CatalogError::TypeAlreadyExists(type_name));
+        }
+        self.type_definitions.insert(type_name, type_def);
+        Ok(())
+    }
+
+    /// Drop a user-defined type.
+    pub fn drop_type(&mut self, name: &str, cascade: bool) -> Result<(), CatalogError> {
+        if !self.type_definitions.contains_key(name) {
+            return Err(CatalogError::TypeNotFound(name.to_string()));
+        }
+
+        // Check for dependencies if not CASCADE
+        if !cascade {
+            // Check if any tables use this type
+            for schema in self.schemas.values() {
+                for table_name in schema.list_tables() {
+                    if let Some(table) = schema.get_table(&table_name) {
+                        for column in &table.columns {
+                            if let types::DataType::UserDefined { type_name } = &column.data_type {
+                                if type_name == name {
+                                    return Err(CatalogError::TypeInUse(name.to_string()));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        self.type_definitions.remove(name);
+
+        // If CASCADE, also drop dependent objects (tables with columns of this type)
+        if cascade {
+            let mut tables_to_drop = Vec::new();
+            for (schema_name, schema) in &self.schemas {
+                for table_name in schema.list_tables() {
+                    if let Some(table) = schema.get_table(&table_name) {
+                        for column in &table.columns {
+                            if let types::DataType::UserDefined { type_name } = &column.data_type {
+                                if type_name == name {
+                                    tables_to_drop.push(format!("{}.{}", schema_name, table_name));
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Drop the dependent tables
+            for qualified_table_name in tables_to_drop {
+                let _ = self.drop_table(&qualified_table_name);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Get a type definition by name.
+    pub fn get_type(&self, name: &str) -> Option<&TypeDefinition> {
+        self.type_definitions.get(name)
+    }
+
+    /// Check if a type exists.
+    pub fn type_exists(&self, name: &str) -> bool {
+        self.type_definitions.contains_key(name)
+    }
+
+    /// List all user-defined type names.
+    pub fn list_types(&self) -> Vec<String> {
+        self.type_definitions.keys().cloned().collect()
+    }
+
     // ========================================================================
-    // Advanced SQL:1999 Object Management
+    // Advanced SQL:1999 Object Management (stubs)
     // ========================================================================
 
     // ============================================================================
@@ -427,24 +510,9 @@ impl Catalog {
 
     /// Get a mutable reference to a SEQUENCE for NEXT VALUE FOR
     pub fn get_sequence_mut(&mut self, name: &str) -> Result<&mut Sequence, CatalogError> {
-        self.sequences.get_mut(name).ok_or_else(|| CatalogError::SequenceNotFound(name.to_string()))
-    }
-
-    /// Create a TYPE
-    pub fn create_type(&mut self, name: String) -> Result<(), CatalogError> {
-        if self.types.contains_key(&name) {
-            return Err(CatalogError::TypeAlreadyExists(name));
-        }
-        self.types.insert(name.clone(), UserDefinedType::new(name));
-        Ok(())
-    }
-
-    /// Drop a TYPE
-    pub fn drop_type(&mut self, name: &str) -> Result<(), CatalogError> {
-        self.types
-            .remove(name)
-            .map(|_| ())
-            .ok_or_else(|| CatalogError::TypeNotFound(name.to_string()))
+        self.sequences
+            .get_mut(name)
+            .ok_or_else(|| CatalogError::SequenceNotFound(name.to_string()))
     }
 
     /// Create a COLLATION

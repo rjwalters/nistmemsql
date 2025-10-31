@@ -18,10 +18,11 @@ pub use ddl::{
     BeginStmt, ColumnConstraint, ColumnConstraintKind, ColumnDef, CommitStmt,
     CreateCharacterSetStmt, CreateCollationStmt, CreateDomainStmt, CreateRoleStmt,
     CreateSchemaStmt, CreateSequenceStmt, CreateTableStmt, CreateTranslationStmt, CreateTypeStmt,
-    DomainConstraint, DropCharacterSetStmt, DropCollationStmt, DropColumnStmt, DropConstraintStmt,
-    DropDomainStmt, DropRoleStmt, DropSchemaStmt, DropSequenceStmt, DropTableStmt,
-    DropTranslationStmt, DropTypeStmt, ReleaseSavepointStmt, RollbackStmt, RollbackToSavepointStmt,
-    SavepointStmt, SchemaElement, SetSchemaStmt, TableConstraint, TableConstraintKind,
+    DomainConstraint, DropBehavior, DropCharacterSetStmt, DropCollationStmt, DropColumnStmt,
+    DropConstraintStmt, DropDomainStmt, DropRoleStmt, DropSchemaStmt, DropSequenceStmt,
+    DropTableStmt, DropTranslationStmt, DropTypeStmt, ReleaseSavepointStmt, RollbackStmt,
+    RollbackToSavepointStmt, SavepointStmt, SchemaElement, SetSchemaStmt, TableConstraint,
+    TableConstraintKind, TypeAttribute, TypeDefinition,
 };
 pub use dml::{Assignment, DeleteStmt, InsertSource, InsertStmt, UpdateStmt};
 pub use expression::{

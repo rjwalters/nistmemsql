@@ -248,31 +248,75 @@ pub fn parse_alter_sequence(parser: &mut crate::Parser) -> Result<AlterSequenceS
 
 /// Parse CREATE TYPE statement
 ///
-/// Syntax: CREATE TYPE type_name AS (field1 type1, field2 type2, ...)
-/// Minimal implementation: CREATE TYPE type_name
+/// Syntax:
+///   CREATE TYPE type_name AS DISTINCT base_type
+///   CREATE TYPE type_name AS (attr1 type1, attr2 type2, ...)
 pub fn parse_create_type(parser: &mut crate::Parser) -> Result<CreateTypeStmt, ParseError> {
     parser.expect_keyword(Keyword::Create)?;
     parser.expect_keyword(Keyword::Type)?;
 
     let type_name = parser.parse_identifier()?;
 
-    // For minimal stub: just accept the name, ignore AS clause
-    // TODO: Parse full syntax when implementing actual functionality
-    parser.consume_until_semicolon_or_eof();
+    parser.expect_keyword(Keyword::As)?;
 
-    Ok(CreateTypeStmt { type_name })
+    let definition = if parser.peek_keyword(Keyword::Distinct) {
+        // DISTINCT type
+        parser.advance(); // consume DISTINCT
+        let base_type = parser.parse_data_type()?;
+        ast::TypeDefinition::Distinct { base_type }
+    } else {
+        // STRUCTURED type
+        parser.expect_token(Token::LParen)?;
+
+        let mut attributes = Vec::new();
+        loop {
+            let attr_name = parser.parse_identifier()?;
+            let data_type = parser.parse_data_type()?;
+
+            attributes.push(ast::TypeAttribute {
+                name: attr_name,
+                data_type,
+            });
+
+            if !parser.try_consume(&Token::Comma) {
+                break;
+            }
+        }
+
+        parser.expect_token(Token::RParen)?;
+        ast::TypeDefinition::Structured { attributes }
+    };
+
+    Ok(CreateTypeStmt {
+        type_name,
+        definition,
+    })
 }
 
 /// Parse DROP TYPE statement
 ///
-/// Syntax: DROP TYPE type_name
+/// Syntax: DROP TYPE type_name [CASCADE | RESTRICT]
 pub fn parse_drop_type(parser: &mut crate::Parser) -> Result<DropTypeStmt, ParseError> {
     parser.expect_keyword(Keyword::Drop)?;
     parser.expect_keyword(Keyword::Type)?;
 
     let type_name = parser.parse_identifier()?;
 
-    Ok(DropTypeStmt { type_name })
+    // Parse optional CASCADE or RESTRICT
+    let behavior = if parser.peek_keyword(Keyword::Cascade) {
+        parser.advance();
+        ast::DropBehavior::Cascade
+    } else if parser.peek_keyword(Keyword::Restrict) {
+        parser.advance();
+        ast::DropBehavior::Restrict
+    } else {
+        ast::DropBehavior::Restrict // Default to RESTRICT per SQL:1999
+    };
+
+    Ok(DropTypeStmt {
+        type_name,
+        behavior,
+    })
 }
 
 // ============================================================================
