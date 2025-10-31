@@ -15,8 +15,33 @@ interface ConformanceData {
   error_tests?: ErrorTest[]
 }
 
+interface SQLLogicTestCategory {
+  total: number
+  passed: number
+  failed: number
+  errors: number
+  pass_rate: number
+}
+
+interface SQLLogicTestData {
+  total: number
+  passed: number
+  failed: number
+  errors: number
+  pass_rate: number
+  categories: {
+    select?: SQLLogicTestCategory
+    evidence?: SQLLogicTestCategory
+    index?: SQLLogicTestCategory
+    random?: SQLLogicTestCategory
+    ddl?: SQLLogicTestCategory
+    other?: SQLLogicTestCategory
+  }
+}
+
 interface ConformanceReportState {
   data: ConformanceData | null
+  sltData: SQLLogicTestData | null
   loading: boolean
   error: string | null
 }
@@ -28,6 +53,7 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
   constructor() {
     super('#conformance-content', {
       data: null,
+      sltData: null,
       loading: true,
       error: null,
     })
@@ -36,12 +62,26 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
 
   private async loadData(): Promise<void> {
     try {
-      const response = await fetch('/nistmemsql/badges/sqltest_results.json')
-      if (!response.ok) {
-        throw new Error(`Failed to load conformance data: ${response.statusText}`)
+      // Load sqltest results
+      const sqltestResponse = await fetch('/nistmemsql/badges/sqltest_results.json')
+      if (!sqltestResponse.ok) {
+        throw new Error(`Failed to load sqltest data: ${sqltestResponse.statusText}`)
       }
-      const data = (await response.json()) as ConformanceData
-      this.setState({ data, loading: false })
+      const data = (await sqltestResponse.json()) as ConformanceData
+
+      // Load SQLLogicTest results
+      let sltData: SQLLogicTestData | null = null
+      try {
+        const sltResponse = await fetch('/nistmemsql/badges/sqllogictest_results.json')
+        if (sltResponse.ok) {
+          sltData = (await sltResponse.json()) as SQLLogicTestData
+        }
+      } catch {
+        // SQLLogicTest data is optional, continue without it
+        console.warn('SQLLogicTest results not available')
+      }
+
+      this.setState({ data, sltData, loading: false })
     } catch (error) {
       this.setState({
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -286,6 +326,76 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
     `
   }
 
+  private renderSQLLogicTestResults(sltData: SQLLogicTestData): string {
+    const passRate = sltData.pass_rate.toFixed(1)
+
+    const categories = [
+      { key: 'select', name: 'SELECT Tests', data: sltData.categories.select },
+      { key: 'evidence', name: 'Evidence Tests', data: sltData.categories.evidence },
+      { key: 'index', name: 'Index Tests', data: sltData.categories.index },
+      { key: 'random', name: 'Random Tests', data: sltData.categories.random },
+      { key: 'ddl', name: 'DDL Tests', data: sltData.categories.ddl },
+      { key: 'other', name: 'Other Tests', data: sltData.categories.other },
+    ]
+
+    const categoryCards = categories
+      .filter(cat => cat.data)
+      .map(cat => {
+        const catData = cat.data!
+        const catPassRate = catData.pass_rate.toFixed(1)
+        return `
+        <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+          <div class="text-sm font-semibold text-gray-900 dark:text-white mb-2">${cat.name}</div>
+          <div class="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">${catPassRate}%</div>
+          <div class="text-xs text-gray-600 dark:text-gray-400">${catData.passed}/${catData.total} passed</div>
+        </div>
+      `
+      })
+      .join('')
+
+    return `
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-8">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">SQLLogicTest Results</h2>
+
+        <p class="text-gray-700 dark:text-gray-300 mb-6">
+          Results from the comprehensive
+          <a href="https://github.com/dolthub/sqllogictest" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline">SQLLogicTest</a>
+          suite containing ~5.9 million tests across 623 test files from the official SQLite corpus.
+        </p>
+
+        <!-- Overall Results -->
+        <div class="bg-gradient-to-br from-purple-500 to-purple-700 rounded-lg shadow-lg p-6 text-white mb-6">
+          <div class="text-sm font-semibold uppercase tracking-wider opacity-90 mb-2">Overall Pass Rate</div>
+          <div class="text-4xl font-bold mb-2">${passRate}%</div>
+          <div class="text-sm opacity-75">${sltData.passed} of ${sltData.total} test files passing</div>
+          <div class="mt-4 bg-white/20 rounded-full h-2 overflow-hidden">
+            <div
+              class="bg-white h-full rounded-full transition-all duration-500"
+              style="width: ${passRate}%"
+            ></div>
+          </div>
+        </div>
+
+        <!-- Category Breakdown -->
+        <div>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Test Categories</h3>
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            ${categoryCards}
+          </div>
+        </div>
+
+        <!-- Info Box -->
+        <div class="mt-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 p-4">
+          <p class="text-sm text-gray-700 dark:text-gray-300">
+            <strong>Note:</strong> SQLLogicTest provides a different perspective from sqltest. While sqltest focuses on BNF grammar
+            conformance from the SQL:1999 specification, SQLLogicTest contains millions of real-world SQL queries testing practical
+            correctness across a wide range of scenarios.
+          </p>
+        </div>
+      </div>
+    `
+  }
+
   private renderRunningTestsLocally(): string {
     return `
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-8">
@@ -293,8 +403,10 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
 
         <div class="bg-gray-100 dark:bg-gray-900 rounded-lg p-4 font-mono text-sm overflow-x-auto">
           <div class="text-gray-700 dark:text-gray-300">
-            <div class="text-green-600 dark:text-green-400"># Run all conformance tests</div>
+            <div class="text-green-600 dark:text-green-400"># Run SQL:1999 conformance tests</div>
             <div>cargo test --test sqltest_conformance -- --nocapture</div>
+            <div class="mt-4 text-green-600 dark:text-green-400"># Run SQLLogicTest suite (takes hours)</div>
+            <div>cargo test --test sqllogictest_suite -- --nocapture</div>
             <div class="mt-4 text-green-600 dark:text-green-400"># Generate coverage report</div>
             <div>cargo coverage</div>
             <div class="mt-2 text-green-600 dark:text-green-400"># Open coverage report</div>
@@ -306,7 +418,7 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
   }
 
   protected render(): void {
-    const { data, loading, error } = this.state
+    const { data, sltData, loading, error } = this.state
 
     if (loading) {
       this.element.innerHTML = `
@@ -346,6 +458,7 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
         ${this.renderSummaryCards(data)}
         ${this.renderExplanation(data)}
         ${this.renderTestCoverage()}
+        ${sltData ? this.renderSQLLogicTestResults(sltData) : ''}
         ${data.error_tests && data.error_tests.length > 0 ? this.renderFailingTests(data.error_tests) : ''}
         ${this.renderRunningTestsLocally()}
       </div>
