@@ -56,7 +56,11 @@ fn create_scalar_subquery(table_name: &str, column_name: &str) -> Box<ast::Selec
     })
 }
 
-fn create_aggregate_subquery(table_name: &str, column_name: &str, func_name: &str) -> Box<ast::SelectStmt> {
+fn create_aggregate_subquery(
+    table_name: &str,
+    column_name: &str,
+    func_name: &str,
+) -> Box<ast::SelectStmt> {
     Box::new(ast::SelectStmt {
         with_clause: None,
         distinct: false,
@@ -80,36 +84,39 @@ fn create_aggregate_subquery(table_name: &str, column_name: &str, func_name: &st
     })
 }
 
-fn create_update_stmt(table_name: &str, column: &str, value: Expression, where_clause: Option<Expression>) -> UpdateStmt {
+fn create_update_stmt(
+    table_name: &str,
+    column: &str,
+    value: Expression,
+    where_clause: Option<Expression>,
+) -> UpdateStmt {
     UpdateStmt {
         table_name: table_name.to_string(),
-        assignments: vec![Assignment {
-            column: column.to_string(),
-            value,
-        }],
+        assignments: vec![Assignment { column: column.to_string(), value }],
         where_clause,
     }
 }
 
-fn create_multi_column_update_stmt(table_name: &str, assignments: Vec<(&str, Expression)>) -> UpdateStmt {
+fn create_multi_column_update_stmt(
+    table_name: &str,
+    assignments: Vec<(&str, Expression)>,
+) -> UpdateStmt {
     UpdateStmt {
         table_name: table_name.to_string(),
-        assignments: assignments.into_iter().map(|(col, val)| Assignment {
-            column: col.to_string(),
-            value: val,
-        }).collect(),
+        assignments: assignments
+            .into_iter()
+            .map(|(col, val)| Assignment { column: col.to_string(), value: val })
+            .collect(),
         where_clause: None,
     }
 }
 
 fn insert_employee(db: &mut Database, id: i64, salary: SqlValue) {
-    db.insert_row("employees", Row::new(vec![SqlValue::Integer(id), salary]))
-        .unwrap();
+    db.insert_row("employees", Row::new(vec![SqlValue::Integer(id), salary])).unwrap();
 }
 
 fn insert_product(db: &mut Database, id: i64, price: SqlValue) {
-    db.insert_row("products", Row::new(vec![SqlValue::Integer(id), price]))
-        .unwrap();
+    db.insert_row("products", Row::new(vec![SqlValue::Integer(id), price])).unwrap();
 }
 
 fn insert_data_row(db: &mut Database, table: &str, value: SqlValue) {
@@ -139,7 +146,8 @@ fn test_update_with_scalar_subquery_single_value() {
     insert_data_row(&mut db, "config", SqlValue::Integer(100000));
 
     let subquery = create_scalar_subquery("config", "max_salary");
-    let stmt = create_update_stmt("employees", "salary", Expression::ScalarSubquery(subquery), None);
+    let stmt =
+        create_update_stmt("employees", "salary", Expression::ScalarSubquery(subquery), None);
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
     assert_eq!(count, 1);
@@ -158,7 +166,8 @@ fn test_update_with_scalar_subquery_max_aggregate() {
     insert_data_row(&mut db, "salaries", SqlValue::Integer(50000));
 
     let subquery = create_aggregate_subquery("salaries", "amount", "MAX");
-    let stmt = create_update_stmt("employees", "salary", Expression::ScalarSubquery(subquery), None);
+    let stmt =
+        create_update_stmt("employees", "salary", Expression::ScalarSubquery(subquery), None);
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
     assert_eq!(count, 1);
@@ -196,7 +205,8 @@ fn test_update_with_scalar_subquery_avg_aggregate() {
     insert_data_row(&mut db, "salaries", SqlValue::Integer(50000));
 
     let subquery = create_aggregate_subquery("salaries", "amount", "AVG");
-    let stmt = create_update_stmt("employees", "salary", Expression::ScalarSubquery(subquery), None);
+    let stmt =
+        create_update_stmt("employees", "salary", Expression::ScalarSubquery(subquery), None);
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
     assert_eq!(count, 1);
@@ -213,7 +223,8 @@ fn test_update_with_scalar_subquery_returns_null() {
     insert_data_row(&mut db, "config", SqlValue::Null);
 
     let subquery = create_scalar_subquery("config", "max_salary");
-    let stmt = create_update_stmt("employees", "salary", Expression::ScalarSubquery(subquery), None);
+    let stmt =
+        create_update_stmt("employees", "salary", Expression::ScalarSubquery(subquery), None);
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
     assert_eq!(count, 1);
@@ -230,7 +241,8 @@ fn test_update_with_scalar_subquery_empty_result() {
     // No config rows inserted - empty result set
 
     let subquery = create_scalar_subquery("config", "max_salary");
-    let stmt = create_update_stmt("employees", "salary", Expression::ScalarSubquery(subquery), None);
+    let stmt =
+        create_update_stmt("employees", "salary", Expression::ScalarSubquery(subquery), None);
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
     assert_eq!(count, 1);
@@ -294,7 +306,8 @@ fn test_update_with_subquery_updates_multiple_rows() {
     insert_data_row(&mut db, "config", SqlValue::Integer(55000));
 
     let subquery = create_scalar_subquery("config", "base_salary");
-    let stmt = create_update_stmt("employees", "salary", Expression::ScalarSubquery(subquery), None);
+    let stmt =
+        create_update_stmt("employees", "salary", Expression::ScalarSubquery(subquery), None);
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
     assert_eq!(count, 3);
@@ -317,7 +330,12 @@ fn test_update_with_subquery_and_where_clause() {
         op: ast::BinaryOperator::Equal,
         right: Box::new(Expression::Literal(SqlValue::Integer(1))),
     };
-    let stmt = create_update_stmt("employees", "salary", Expression::ScalarSubquery(subquery), Some(where_clause));
+    let stmt = create_update_stmt(
+        "employees",
+        "salary",
+        Expression::ScalarSubquery(subquery),
+        Some(where_clause),
+    );
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
     assert_eq!(count, 1);
