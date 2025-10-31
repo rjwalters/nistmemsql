@@ -30,9 +30,16 @@ fn test_select_into_single_row() {
     CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
 
     // Insert one row
-    db.insert_row("source", storage::Row {
-        values: vec![types::SqlValue::Integer(1), types::SqlValue::Varchar("Alice".to_string())],
-    }).unwrap();
+    db.insert_row(
+        "source",
+        storage::Row {
+            values: vec![
+                types::SqlValue::Integer(1),
+                types::SqlValue::Varchar("Alice".to_string()),
+            ],
+        },
+    )
+    .unwrap();
 
     // Execute SELECT INTO
     let select_stmt = ast::SelectStmt {
@@ -94,15 +101,13 @@ fn test_select_into_no_rows_error() {
     // Create source table
     let create_stmt = ast::CreateTableStmt {
         table_name: "source".to_string(),
-        columns: vec![
-            ast::ColumnDef {
-                name: "id".to_string(),
-                data_type: types::DataType::Integer,
-                nullable: false,
-                constraints: vec![],
-                default_value: None,
-            },
-        ],
+        columns: vec![ast::ColumnDef {
+            name: "id".to_string(),
+            data_type: types::DataType::Integer,
+            nullable: false,
+            constraints: vec![],
+            default_value: None,
+        }],
         table_constraints: vec![],
     };
     CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
@@ -113,12 +118,10 @@ fn test_select_into_no_rows_error() {
     let select_stmt = ast::SelectStmt {
         with_clause: None,
         distinct: false,
-        select_list: vec![
-            ast::SelectItem::Expression {
-                expr: ast::Expression::ColumnRef { table: None, column: "id".to_string() },
-                alias: None,
-            },
-        ],
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::ColumnRef { table: None, column: "id".to_string() },
+            alias: None,
+        }],
         into_table: Some("target".to_string()),
         from: Some(ast::FromClause::Table { name: "source".to_string(), alias: None }),
         where_clause: None,
@@ -147,15 +150,13 @@ fn test_select_into_multiple_rows_error() {
     // Create source table
     let create_stmt = ast::CreateTableStmt {
         table_name: "source".to_string(),
-        columns: vec![
-            ast::ColumnDef {
-                name: "id".to_string(),
-                data_type: types::DataType::Integer,
-                nullable: false,
-                constraints: vec![],
-                default_value: None,
-            },
-        ],
+        columns: vec![ast::ColumnDef {
+            name: "id".to_string(),
+            data_type: types::DataType::Integer,
+            nullable: false,
+            constraints: vec![],
+            default_value: None,
+        }],
         table_constraints: vec![],
     };
     CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
@@ -168,12 +169,10 @@ fn test_select_into_multiple_rows_error() {
     let select_stmt = ast::SelectStmt {
         with_clause: None,
         distinct: false,
-        select_list: vec![
-            ast::SelectItem::Expression {
-                expr: ast::Expression::ColumnRef { table: None, column: "id".to_string() },
-                alias: None,
-            },
-        ],
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::ColumnRef { table: None, column: "id".to_string() },
+            alias: None,
+        }],
         into_table: Some("target".to_string()),
         from: Some(ast::FromClause::Table { name: "source".to_string(), alias: None }),
         where_clause: None,
@@ -202,15 +201,13 @@ fn test_select_into_with_expressions() {
     // Create source table
     let create_stmt = ast::CreateTableStmt {
         table_name: "source".to_string(),
-        columns: vec![
-            ast::ColumnDef {
-                name: "x".to_string(),
-                data_type: types::DataType::Integer,
-                nullable: false,
-                constraints: vec![],
-                default_value: None,
-            },
-        ],
+        columns: vec![ast::ColumnDef {
+            name: "x".to_string(),
+            data_type: types::DataType::Integer,
+            nullable: false,
+            constraints: vec![],
+            default_value: None,
+        }],
         table_constraints: vec![],
     };
     CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
@@ -222,16 +219,14 @@ fn test_select_into_with_expressions() {
     let select_stmt = ast::SelectStmt {
         with_clause: None,
         distinct: false,
-        select_list: vec![
-            ast::SelectItem::Expression {
-                expr: ast::Expression::BinaryOp {
-                    op: ast::BinaryOperator::Plus,
-                    left: Box::new(ast::Expression::ColumnRef { table: None, column: "x".to_string() }),
-                    right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(5))),
-                },
-                alias: Some("y".to_string()),
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::BinaryOp {
+                op: ast::BinaryOperator::Plus,
+                left: Box::new(ast::Expression::ColumnRef { table: None, column: "x".to_string() }),
+                right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(5))),
             },
-        ],
+            alias: Some("y".to_string()),
+        }],
         into_table: Some("target".to_string()),
         from: Some(ast::FromClause::Table { name: "source".to_string(), alias: None }),
         where_clause: None,

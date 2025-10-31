@@ -4,7 +4,9 @@ use super::super::*;
 
 impl Parser {
     /// Parse ON DELETE/UPDATE referential actions
-    fn parse_referential_actions(&mut self) -> Result<(Option<ast::ReferentialAction>, Option<ast::ReferentialAction>), ParseError> {
+    fn parse_referential_actions(
+        &mut self,
+    ) -> Result<(Option<ast::ReferentialAction>, Option<ast::ReferentialAction>), ParseError> {
         let mut on_delete = None;
         let mut on_update = None;
 
@@ -31,9 +33,7 @@ impl Parser {
                 self.advance(); // consume UPDATE
                 on_update = Some(self.parse_referential_action()?);
             } else {
-                return Err(ParseError {
-                    message: "Expected UPDATE after ON".to_string(),
-                });
+                return Err(ParseError { message: "Expected UPDATE after ON".to_string() });
             }
         }
 

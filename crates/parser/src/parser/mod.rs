@@ -198,7 +198,8 @@ impl Parser {
                     Ok(ast::Statement::SetTimeZone(set_stmt))
                 } else {
                     Err(ParseError {
-                        message: "Expected SCHEMA, CATALOG, NAMES, or TIME ZONE after SET".to_string(),
+                        message: "Expected SCHEMA, CATALOG, NAMES, or TIME ZONE after SET"
+                            .to_string(),
                     })
                 }
             }

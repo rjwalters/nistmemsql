@@ -58,12 +58,10 @@ fn test_parse_set_time_zone_local() {
     let stmt = parser.parse_statement().unwrap();
 
     match stmt {
-        ast::Statement::SetTimeZone(set_stmt) => {
-            match set_stmt.zone {
-                ast::TimeZoneSpec::Local => {}
-                _ => panic!("Expected Local time zone"),
-            }
-        }
+        ast::Statement::SetTimeZone(set_stmt) => match set_stmt.zone {
+            ast::TimeZoneSpec::Local => {}
+            _ => panic!("Expected Local time zone"),
+        },
         _ => panic!("Expected SetTimeZone statement"),
     }
 }
@@ -76,14 +74,12 @@ fn test_parse_set_time_zone_interval() {
     let stmt = parser.parse_statement().unwrap();
 
     match stmt {
-        ast::Statement::SetTimeZone(set_stmt) => {
-            match set_stmt.zone {
-                ast::TimeZoneSpec::Interval(ref interval) => {
-                    assert_eq!(interval, "+05:00");
-                }
-                _ => panic!("Expected Interval time zone"),
+        ast::Statement::SetTimeZone(set_stmt) => match set_stmt.zone {
+            ast::TimeZoneSpec::Interval(ref interval) => {
+                assert_eq!(interval, "+05:00");
             }
-        }
+            _ => panic!("Expected Interval time zone"),
+        },
         _ => panic!("Expected SetTimeZone statement"),
     }
 }

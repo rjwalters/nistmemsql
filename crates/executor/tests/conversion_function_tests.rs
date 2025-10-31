@@ -20,9 +20,7 @@ fn test_to_number_valid_integer() {
     let (evaluator, row) = create_test_evaluator();
     let expr = ast::Expression::Function {
         name: "TO_NUMBER".to_string(),
-        args: vec![ast::Expression::Literal(types::SqlValue::Varchar(
-            "42".to_string(),
-        ))],
+        args: vec![ast::Expression::Literal(types::SqlValue::Varchar("42".to_string()))],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
@@ -34,9 +32,7 @@ fn test_to_number_valid_double() {
     let (evaluator, row) = create_test_evaluator();
     let expr = ast::Expression::Function {
         name: "TO_NUMBER".to_string(),
-        args: vec![ast::Expression::Literal(types::SqlValue::Varchar(
-            "3.14".to_string(),
-        ))],
+        args: vec![ast::Expression::Literal(types::SqlValue::Varchar("3.14".to_string()))],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
@@ -48,9 +44,7 @@ fn test_to_number_negative_integer() {
     let (evaluator, row) = create_test_evaluator();
     let expr = ast::Expression::Function {
         name: "TO_NUMBER".to_string(),
-        args: vec![ast::Expression::Literal(types::SqlValue::Varchar(
-            "-42".to_string(),
-        ))],
+        args: vec![ast::Expression::Literal(types::SqlValue::Varchar("-42".to_string()))],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
@@ -62,9 +56,7 @@ fn test_to_number_negative_double() {
     let (evaluator, row) = create_test_evaluator();
     let expr = ast::Expression::Function {
         name: "TO_NUMBER".to_string(),
-        args: vec![ast::Expression::Literal(types::SqlValue::Varchar(
-            "-3.14".to_string(),
-        ))],
+        args: vec![ast::Expression::Literal(types::SqlValue::Varchar("-3.14".to_string()))],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
@@ -76,9 +68,7 @@ fn test_to_number_with_whitespace() {
     let (evaluator, row) = create_test_evaluator();
     let expr = ast::Expression::Function {
         name: "TO_NUMBER".to_string(),
-        args: vec![ast::Expression::Literal(types::SqlValue::Varchar(
-            "  123  ".to_string(),
-        ))],
+        args: vec![ast::Expression::Literal(types::SqlValue::Varchar("  123  ".to_string()))],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
@@ -90,9 +80,7 @@ fn test_to_number_with_commas() {
     let (evaluator, row) = create_test_evaluator();
     let expr = ast::Expression::Function {
         name: "TO_NUMBER".to_string(),
-        args: vec![ast::Expression::Literal(types::SqlValue::Varchar(
-            "1,234.56".to_string(),
-        ))],
+        args: vec![ast::Expression::Literal(types::SqlValue::Varchar("1,234.56".to_string()))],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
@@ -116,9 +104,7 @@ fn test_to_number_invalid_string() {
     let (evaluator, row) = create_test_evaluator();
     let expr = ast::Expression::Function {
         name: "TO_NUMBER".to_string(),
-        args: vec![ast::Expression::Literal(types::SqlValue::Varchar(
-            "invalid".to_string(),
-        ))],
+        args: vec![ast::Expression::Literal(types::SqlValue::Varchar("invalid".to_string()))],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row);
@@ -130,9 +116,7 @@ fn test_to_number_mixed_alphanumeric() {
     let (evaluator, row) = create_test_evaluator();
     let expr = ast::Expression::Function {
         name: "TO_NUMBER".to_string(),
-        args: vec![ast::Expression::Literal(types::SqlValue::Varchar(
-            "abc123".to_string(),
-        ))],
+        args: vec![ast::Expression::Literal(types::SqlValue::Varchar("abc123".to_string()))],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row);
@@ -144,9 +128,7 @@ fn test_to_number_zero() {
     let (evaluator, row) = create_test_evaluator();
     let expr = ast::Expression::Function {
         name: "TO_NUMBER".to_string(),
-        args: vec![ast::Expression::Literal(types::SqlValue::Varchar(
-            "0".to_string(),
-        ))],
+        args: vec![ast::Expression::Literal(types::SqlValue::Varchar("0".to_string()))],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
@@ -158,9 +140,7 @@ fn test_to_number_scientific_notation() {
     let (evaluator, row) = create_test_evaluator();
     let expr = ast::Expression::Function {
         name: "TO_NUMBER".to_string(),
-        args: vec![ast::Expression::Literal(types::SqlValue::Varchar(
-            "1.5e2".to_string(),
-        ))],
+        args: vec![ast::Expression::Literal(types::SqlValue::Varchar("1.5e2".to_string()))],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
@@ -210,10 +190,7 @@ fn test_to_date_basic() {
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
-    assert_eq!(
-        result,
-        types::SqlValue::Date("2023-12-25".to_string())
-    );
+    assert_eq!(result, types::SqlValue::Date("2023-12-25".to_string()));
 }
 
 #[test]
@@ -228,10 +205,7 @@ fn test_to_date_different_format() {
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
-    assert_eq!(
-        result,
-        types::SqlValue::Date("2023-12-25".to_string())
-    );
+    assert_eq!(result, types::SqlValue::Date("2023-12-25".to_string()));
 }
 
 #[test]
@@ -284,9 +258,7 @@ fn test_to_date_wrong_arg_count() {
     let (evaluator, row) = create_test_evaluator();
     let expr = ast::Expression::Function {
         name: "TO_DATE".to_string(),
-        args: vec![ast::Expression::Literal(types::SqlValue::Varchar(
-            "2023-12-25".to_string(),
-        ))],
+        args: vec![ast::Expression::Literal(types::SqlValue::Varchar("2023-12-25".to_string()))],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row);
@@ -318,20 +290,13 @@ fn test_to_timestamp_basic() {
     let expr = ast::Expression::Function {
         name: "TO_TIMESTAMP".to_string(),
         args: vec![
-            ast::Expression::Literal(types::SqlValue::Varchar(
-                "2023-12-25 14:30:45".to_string(),
-            )),
-            ast::Expression::Literal(types::SqlValue::Varchar(
-                "YYYY-MM-DD HH24:MI:SS".to_string(),
-            )),
+            ast::Expression::Literal(types::SqlValue::Varchar("2023-12-25 14:30:45".to_string())),
+            ast::Expression::Literal(types::SqlValue::Varchar("YYYY-MM-DD HH24:MI:SS".to_string())),
         ],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
-    assert_eq!(
-        result,
-        types::SqlValue::Timestamp("2023-12-25 14:30:45".to_string())
-    );
+    assert_eq!(result, types::SqlValue::Timestamp("2023-12-25 14:30:45".to_string()));
 }
 
 #[test]
@@ -341,9 +306,7 @@ fn test_to_timestamp_null_input() {
         name: "TO_TIMESTAMP".to_string(),
         args: vec![
             ast::Expression::Literal(types::SqlValue::Null),
-            ast::Expression::Literal(types::SqlValue::Varchar(
-                "YYYY-MM-DD HH24:MI:SS".to_string(),
-            )),
+            ast::Expression::Literal(types::SqlValue::Varchar("YYYY-MM-DD HH24:MI:SS".to_string())),
         ],
         character_unit: None,
     };
@@ -357,9 +320,7 @@ fn test_to_timestamp_null_format() {
     let expr = ast::Expression::Function {
         name: "TO_TIMESTAMP".to_string(),
         args: vec![
-            ast::Expression::Literal(types::SqlValue::Varchar(
-                "2023-12-25 14:30:45".to_string(),
-            )),
+            ast::Expression::Literal(types::SqlValue::Varchar("2023-12-25 14:30:45".to_string())),
             ast::Expression::Literal(types::SqlValue::Null),
         ],
         character_unit: None,
@@ -389,9 +350,7 @@ fn test_to_timestamp_non_string_arguments() {
         name: "TO_TIMESTAMP".to_string(),
         args: vec![
             ast::Expression::Literal(types::SqlValue::Integer(20231225)),
-            ast::Expression::Literal(types::SqlValue::Varchar(
-                "YYYY-MM-DD HH24:MI:SS".to_string(),
-            )),
+            ast::Expression::Literal(types::SqlValue::Varchar("YYYY-MM-DD HH24:MI:SS".to_string())),
         ],
         character_unit: None,
     };
@@ -411,10 +370,7 @@ fn test_to_date_with_character_type() {
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
-    assert_eq!(
-        result,
-        types::SqlValue::Date("2023-12-25".to_string())
-    );
+    assert_eq!(result, types::SqlValue::Date("2023-12-25".to_string()));
 }
 
 #[test]
@@ -423,9 +379,7 @@ fn test_to_timestamp_with_character_type() {
     let expr = ast::Expression::Function {
         name: "TO_TIMESTAMP".to_string(),
         args: vec![
-            ast::Expression::Literal(types::SqlValue::Character(
-                "2023-12-25 14:30:45".to_string(),
-            )),
+            ast::Expression::Literal(types::SqlValue::Character("2023-12-25 14:30:45".to_string())),
             ast::Expression::Literal(types::SqlValue::Character(
                 "YYYY-MM-DD HH24:MI:SS".to_string(),
             )),
@@ -433,10 +387,7 @@ fn test_to_timestamp_with_character_type() {
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
-    assert_eq!(
-        result,
-        types::SqlValue::Timestamp("2023-12-25 14:30:45".to_string())
-    );
+    assert_eq!(result, types::SqlValue::Timestamp("2023-12-25 14:30:45".to_string()));
 }
 
 // ============================================================================
@@ -469,12 +420,8 @@ fn test_to_char_timestamp() {
     let expr = ast::Expression::Function {
         name: "TO_CHAR".to_string(),
         args: vec![
-            ast::Expression::Literal(types::SqlValue::Timestamp(
-                "2023-12-25 14:30:45".to_string(),
-            )),
-            ast::Expression::Literal(types::SqlValue::Varchar(
-                "YYYY-MM-DD HH24:MI:SS".to_string(),
-            )),
+            ast::Expression::Literal(types::SqlValue::Timestamp("2023-12-25 14:30:45".to_string())),
+            ast::Expression::Literal(types::SqlValue::Varchar("YYYY-MM-DD HH24:MI:SS".to_string())),
         ],
         character_unit: None,
     };
@@ -562,9 +509,7 @@ fn test_to_char_wrong_arg_count() {
     let (evaluator, row) = create_test_evaluator();
     let expr = ast::Expression::Function {
         name: "TO_CHAR".to_string(),
-        args: vec![ast::Expression::Literal(types::SqlValue::Date(
-            "2023-12-25".to_string(),
-        ))],
+        args: vec![ast::Expression::Literal(types::SqlValue::Date("2023-12-25".to_string()))],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row);
@@ -755,10 +700,7 @@ fn test_cast_varchar_to_date() {
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
-    assert_eq!(
-        result,
-        types::SqlValue::Date("2023-12-25".to_string())
-    );
+    assert_eq!(result, types::SqlValue::Date("2023-12-25".to_string()));
 }
 
 #[test]

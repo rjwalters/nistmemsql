@@ -100,8 +100,7 @@ mod wasm_tests {
         let stmt = parser::Parser::parse_sql(commit_sql).expect("Parse failed");
         match stmt {
             ast::Statement::Commit(commit_stmt) => {
-                executor::CommitExecutor::execute(&commit_stmt, &mut db)
-                    .expect("Commit failed");
+                executor::CommitExecutor::execute(&commit_stmt, &mut db).expect("Commit failed");
             }
             _ => panic!("Expected Commit statement"),
         }
@@ -273,8 +272,8 @@ mod wasm_tests {
         match stmt {
             ast::Statement::Select(select_stmt) => {
                 let select_executor = executor::SelectExecutor::new(&db);
-                let result = select_executor.execute_with_columns(&select_stmt)
-                    .expect("Query failed");
+                let result =
+                    select_executor.execute_with_columns(&select_stmt).expect("Query failed");
 
                 // Column names are normalized to uppercase
                 assert_eq!(result.columns, vec!["ID", "NAME"]);
@@ -300,8 +299,7 @@ mod wasm_tests {
         match stmt {
             ast::Statement::Select(select_stmt) => {
                 let select_executor = executor::SelectExecutor::new(&db);
-                let result = select_executor.execute(&select_stmt)
-                    .expect("Query failed");
+                let result = select_executor.execute(&select_stmt).expect("Query failed");
 
                 // Should only return orders with amount > 120 (order 2 and 3)
                 assert_eq!(result.len(), 2);
@@ -315,7 +313,11 @@ mod wasm_tests {
         let mut db = storage::Database::new();
 
         // Setup with various data types
-        execute_sql(&mut db, "CREATE TABLE types_test (i INTEGER, f DOUBLE, s VARCHAR(50), b BOOLEAN)").unwrap();
+        execute_sql(
+            &mut db,
+            "CREATE TABLE types_test (i INTEGER, f DOUBLE, s VARCHAR(50), b BOOLEAN)",
+        )
+        .unwrap();
         execute_sql(&mut db, "INSERT INTO types_test VALUES (42, 3.14, 'hello', TRUE)").unwrap();
 
         let sql = "SELECT i, f, s, b FROM types_test";
@@ -323,8 +325,7 @@ mod wasm_tests {
         match stmt {
             ast::Statement::Select(select_stmt) => {
                 let select_executor = executor::SelectExecutor::new(&db);
-                let result = select_executor.execute(&select_stmt)
-                    .expect("Query failed");
+                let result = select_executor.execute(&select_stmt).expect("Query failed");
 
                 assert_eq!(result.len(), 1);
                 let row = &result[0];
@@ -365,7 +366,11 @@ mod wasm_tests {
         let mut db = storage::Database::new();
 
         // Create table with multiple columns and types
-        execute_sql(&mut db, "CREATE TABLE employees (id INTEGER, name VARCHAR(100), salary DOUBLE, active BOOLEAN)").unwrap();
+        execute_sql(
+            &mut db,
+            "CREATE TABLE employees (id INTEGER, name VARCHAR(100), salary DOUBLE, active BOOLEAN)",
+        )
+        .unwrap();
 
         // Get table schema (table names are normalized to uppercase)
         let table = db.get_table("EMPLOYEES").expect("Table not found");
@@ -466,12 +471,11 @@ mod wasm_tests {
 
     #[test]
     fn test_examples_sql_statement_parsing() {
-        let sql = "CREATE TABLE test (id INTEGER); INSERT INTO test VALUES (1); SELECT * FROM test;";
+        let sql =
+            "CREATE TABLE test (id INTEGER); INSERT INTO test VALUES (1); SELECT * FROM test;";
 
-        let statements: Vec<&str> = sql.split(';')
-            .map(|s| s.trim())
-            .filter(|s| !s.is_empty())
-            .collect();
+        let statements: Vec<&str> =
+            sql.split(';').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
 
         assert_eq!(statements.len(), 3);
         assert!(statements[0].starts_with("CREATE TABLE"));

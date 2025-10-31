@@ -111,9 +111,7 @@ impl Parser {
                 self.advance();
                 Ok(num_str)
             }
-            _ => Err(ParseError {
-                message: "Expected number".to_string(),
-            }),
+            _ => Err(ParseError { message: "Expected number".to_string() }),
         }
     }
 
