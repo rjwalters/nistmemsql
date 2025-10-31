@@ -139,6 +139,22 @@ impl NistMemSqlDB {
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
+            ast::Statement::CreateAssertion(create_assertion_stmt) => {
+                executor::advanced_objects::execute_create_assertion(
+                    &create_assertion_stmt,
+                    &mut self.db,
+                )
+                .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::DropAssertion(drop_assertion_stmt) => {
+                executor::advanced_objects::execute_drop_assertion(
+                    &drop_assertion_stmt,
+                    &mut self.db,
+                )
+                .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
             ast::Statement::BeginTransaction(_)
             | ast::Statement::Commit(_)
             | ast::Statement::Rollback(_)

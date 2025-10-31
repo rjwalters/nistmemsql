@@ -177,3 +177,19 @@ impl Translation {
         Translation { name, source_charset, target_charset, translation_source }
     }
 }
+
+/// Assertion - Named constraint that checks a boolean condition (SQL:1999 Feature F671/F672)
+///
+/// Assertions are schema-level constraints that can reference multiple tables
+/// and enforce complex integrity rules across the database.
+#[derive(Debug, Clone)]
+pub struct Assertion {
+    pub name: String,
+    pub check_condition: ast::Expression,
+}
+
+impl Assertion {
+    pub fn new(name: String, check_condition: ast::Expression) -> Self {
+        Assertion { name, check_condition }
+    }
+}
