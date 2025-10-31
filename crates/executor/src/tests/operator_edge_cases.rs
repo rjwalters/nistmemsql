@@ -37,6 +37,7 @@ fn test_unary_plus_integer() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -67,6 +68,7 @@ fn test_unary_plus_float() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -97,6 +99,7 @@ fn test_unary_minus_integer() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -127,6 +130,7 @@ fn test_unary_minus_negative() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -157,6 +161,7 @@ fn test_unary_minus_numeric_string() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -187,6 +192,7 @@ fn test_unary_minus_negative_numeric() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -217,6 +223,7 @@ fn test_unary_plus_null() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -247,6 +254,7 @@ fn test_unary_minus_null() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -277,6 +285,7 @@ fn test_unary_plus_invalid_type() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt);
@@ -307,6 +316,7 @@ fn test_unary_minus_invalid_type() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt);
@@ -355,6 +365,7 @@ fn test_nested_arithmetic() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -399,6 +410,7 @@ fn test_nested_comparisons() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -434,6 +446,7 @@ fn test_null_plus_integer() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -465,6 +478,7 @@ fn test_integer_plus_null() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -496,6 +510,7 @@ fn test_null_multiply_integer() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -527,6 +542,7 @@ fn test_null_comparison() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -562,6 +578,7 @@ fn test_string_concat_basic() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -593,6 +610,7 @@ fn test_string_concat_empty() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -624,6 +642,7 @@ fn test_string_concat_null() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -668,6 +687,7 @@ fn test_string_concat_multiple() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();

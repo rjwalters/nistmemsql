@@ -49,6 +49,7 @@ fn test_in_list_basic() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -90,6 +91,7 @@ fn test_not_in_list() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -131,6 +133,7 @@ fn test_in_list_with_null_value() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -172,6 +175,7 @@ fn test_in_list_with_null_in_list() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -213,6 +217,7 @@ fn test_like_wildcard_percent() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -250,6 +255,7 @@ fn test_like_wildcard_underscore() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -287,6 +293,7 @@ fn test_not_like() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -323,6 +330,7 @@ fn test_like_null_pattern() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -359,6 +367,7 @@ fn test_like_null_value() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -395,12 +404,14 @@ fn test_between_with_null_expr() {
             low: Box::new(ast::Expression::Literal(types::SqlValue::Integer(1))),
             high: Box::new(ast::Expression::Literal(types::SqlValue::Integer(10))),
             negated: false,
+            symmetric: false,
         }),
         group_by: None,
         having: None,
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -434,12 +445,14 @@ fn test_not_between() {
             low: Box::new(ast::Expression::Literal(types::SqlValue::Integer(10))),
             high: Box::new(ast::Expression::Literal(types::SqlValue::Integer(20))),
             negated: true,
+            symmetric: false,
         }),
         group_by: None,
         having: None,
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -472,12 +485,14 @@ fn test_between_boundary_values() {
             low: Box::new(ast::Expression::Literal(types::SqlValue::Integer(10))),
             high: Box::new(ast::Expression::Literal(types::SqlValue::Integer(20))),
             negated: false,
+            symmetric: false,
         }),
         group_by: None,
         having: None,
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -513,6 +528,7 @@ fn test_position_found() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -545,6 +561,7 @@ fn test_position_not_found() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -577,6 +594,7 @@ fn test_position_null_substring() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -609,6 +627,7 @@ fn test_position_null_string() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -645,6 +664,7 @@ fn test_trim_both_default() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -677,6 +697,7 @@ fn test_trim_leading() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -709,6 +730,7 @@ fn test_trim_trailing() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -741,6 +763,7 @@ fn test_trim_custom_char() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -773,6 +796,7 @@ fn test_trim_null_string() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -805,6 +829,7 @@ fn test_trim_null_removal_char() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -840,6 +865,7 @@ fn test_cast_integer_to_varchar() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -871,6 +897,7 @@ fn test_cast_varchar_to_integer() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
@@ -902,6 +929,7 @@ fn test_cast_null() {
         order_by: None,
         limit: None,
         offset: None,
+        into_table: None,
     };
 
     let result = executor.execute(&stmt).unwrap();
