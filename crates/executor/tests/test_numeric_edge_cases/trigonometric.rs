@@ -1,10 +1,7 @@
 //! Trigonometric function edge cases (SIN, ASIN, ACOS, ATAN2, RADIANS, DEGREES)
 
-mod common;
-mod test_numeric_helpers;
-
-use common::create_test_evaluator;
-use test_numeric_helpers::*;
+use super::common::create_test_evaluator;
+use super::basic::{assert_function_returns_null_on_null_input, assert_function_errors, create_function_expr};
 use types::SqlValue;
 
 #[test]

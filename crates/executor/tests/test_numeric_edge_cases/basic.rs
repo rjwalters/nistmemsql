@@ -1,12 +1,10 @@
 //! Basic numeric function edge cases (ABS, SIGN, MOD)
 
-mod common;
-
-use common::create_test_evaluator;
+use super::common::create_test_evaluator;
 use types::SqlValue;
 
 // Helper functions for this module
-fn create_function_expr(name: &str, args: Vec<SqlValue>) -> ast::Expression {
+pub fn create_function_expr(name: &str, args: Vec<SqlValue>) -> ast::Expression {
     ast::Expression::Function {
         name: name.to_string(),
         args: args.into_iter().map(|v| ast::Expression::Literal(v)).collect(),
@@ -14,7 +12,7 @@ fn create_function_expr(name: &str, args: Vec<SqlValue>) -> ast::Expression {
     }
 }
 
-fn assert_function_returns_null_on_null_input(
+pub fn assert_function_returns_null_on_null_input(
     evaluator: &executor::ExpressionEvaluator,
     row: &storage::Row,
     function_name: &str,
@@ -30,7 +28,7 @@ fn assert_function_returns_null_on_null_input(
         "Function {} should return NULL when input contains NULL", function_name);
 }
 
-fn assert_function_errors(
+pub fn assert_function_errors(
     evaluator: &executor::ExpressionEvaluator,
     row: &storage::Row,
     function_name: &str,
@@ -42,7 +40,7 @@ fn assert_function_errors(
         "Function {} should have returned an error but got: {:?}", function_name, result);
 }
 
-fn assert_function_returns_double(
+pub fn assert_function_returns_double(
     evaluator: &executor::ExpressionEvaluator,
     row: &storage::Row,
     function_name: &str,
@@ -65,7 +63,7 @@ fn assert_function_returns_double(
     }
 }
 
-fn assert_function_returns_integer(
+pub fn assert_function_returns_integer(
     evaluator: &executor::ExpressionEvaluator,
     row: &storage::Row,
     function_name: &str,
@@ -92,7 +90,7 @@ fn test_abs_min_int() {
     let expr = create_function_expr("ABS", vec![types::SqlValue::Integer(i32::MIN as i64)]);
 
     // This might panic or error - depending on implementation
-    let result = evaluator.eval(&expr, row);
+    let result = evaluator.eval(&expr, &row);
     match result {
         Ok(_) => println!("ABS(i32::MIN) succeeded"),
         Err(e) => println!("ABS(i32::MIN) failed: {:?}", e),
@@ -102,35 +100,35 @@ fn test_abs_min_int() {
 #[test]
 fn test_abs_null() {
     let (evaluator, row) = create_test_evaluator();
-    assert_function_returns_null_on_null_input(&evaluator, row, "ABS", vec![SqlValue::Integer(42)]);
+    assert_function_returns_null_on_null_input(&evaluator, &row, "ABS", vec![SqlValue::Integer(42)]);
 }
 
 #[test]
 fn test_sign_null() {
     let (evaluator, row) = create_test_evaluator();
-    assert_function_returns_null_on_null_input(&evaluator, row, "SIGN", vec![SqlValue::Integer(42)]);
+    assert_function_returns_null_on_null_input(&evaluator, &row, "SIGN", vec![SqlValue::Integer(42)]);
 }
 
 #[test]
 fn test_sign_float_zero() {
     let (evaluator, row) = create_test_evaluator();
-    assert_function_returns_double(&evaluator, row, "SIGN", vec![SqlValue::Double(-0.0)], 0.0, 0.001);
+    assert_function_returns_double(&evaluator, &row, "SIGN", vec![SqlValue::Double(-0.0)], 0.0, 0.001);
 }
 
 #[test]
 fn test_mod_by_zero() {
     let (evaluator, row) = create_test_evaluator();
-    assert_function_errors(&evaluator, row, "MOD", vec![SqlValue::Integer(10), SqlValue::Integer(0)]);
+    assert_function_errors(&evaluator, &row, "MOD", vec![SqlValue::Integer(10), SqlValue::Integer(0)]);
 }
 
 #[test]
 fn test_mod_with_null() {
     let (evaluator, row) = create_test_evaluator();
-    assert_function_returns_null_on_null_input(&evaluator, row, "MOD", vec![SqlValue::Integer(10), SqlValue::Integer(5)]);
+    assert_function_returns_null_on_null_input(&evaluator, &row, "MOD", vec![SqlValue::Integer(10), SqlValue::Integer(5)]);
 }
 
 #[test]
 fn test_mod_negative_divisor() {
     let (evaluator, row) = create_test_evaluator();
-    assert_function_returns_integer(&evaluator, row, "MOD", vec![SqlValue::Integer(10), SqlValue::Integer(-3)], 10 % -3);
+    assert_function_returns_integer(&evaluator, &row, "MOD", vec![SqlValue::Integer(10), SqlValue::Integer(-3)], 10 % -3);
 }
