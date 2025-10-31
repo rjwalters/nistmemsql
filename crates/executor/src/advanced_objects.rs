@@ -143,3 +143,32 @@ pub fn execute_drop_translation(
     db.catalog.drop_translation(&stmt.translation_name)?;
     Ok(())
 }
+
+/// Execute CREATE VIEW statement
+pub fn execute_create_view(
+    stmt: &CreateViewStmt,
+    db: &mut Database,
+) -> Result<(), ExecutorError> {
+    use catalog::ViewDefinition;
+
+    let view = ViewDefinition::new(
+        stmt.view_name.clone(),
+        stmt.columns.clone(),
+        (*stmt.query).clone(),
+        stmt.with_check_option,
+    );
+
+    db.catalog.create_view(view)?;
+    Ok(())
+}
+
+/// Execute DROP VIEW statement
+pub fn execute_drop_view(
+    stmt: &DropViewStmt,
+    db: &mut Database,
+) -> Result<(), ExecutorError> {
+    // TODO: Handle IF EXISTS to skip error if view doesn't exist
+    // TODO: Handle CASCADE to drop dependent views
+    db.catalog.drop_view(&stmt.view_name)?;
+    Ok(())
+}

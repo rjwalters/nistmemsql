@@ -19,6 +19,7 @@ mod schema;
 mod select;
 mod transaction;
 mod update;
+mod view;
 
 /// Parser error
 #[derive(Debug, Clone, PartialEq)]
@@ -96,10 +97,12 @@ impl Parser {
                     Ok(ast::Statement::CreateTranslation(
                         self.parse_create_translation_statement()?,
                     ))
+                } else if self.peek_next_keyword(Keyword::View) {
+                    Ok(ast::Statement::CreateView(self.parse_create_view_statement()?))
                 } else {
                     Err(ParseError {
                         message:
-                            "Expected TABLE, SCHEMA, ROLE, DOMAIN, SEQUENCE, TYPE, COLLATION, CHARACTER, or TRANSLATION after CREATE"
+                            "Expected TABLE, SCHEMA, ROLE, DOMAIN, SEQUENCE, TYPE, COLLATION, CHARACTER, TRANSLATION, or VIEW after CREATE"
                                 .to_string(),
                     })
                 }
@@ -123,10 +126,12 @@ impl Parser {
                     Ok(ast::Statement::DropCharacterSet(self.parse_drop_character_set_statement()?))
                 } else if self.peek_next_keyword(Keyword::Translation) {
                     Ok(ast::Statement::DropTranslation(self.parse_drop_translation_statement()?))
+                } else if self.peek_next_keyword(Keyword::View) {
+                    Ok(ast::Statement::DropView(self.parse_drop_view_statement()?))
                 } else {
                     Err(ParseError {
                         message:
-                            "Expected TABLE, SCHEMA, ROLE, DOMAIN, SEQUENCE, TYPE, COLLATION, CHARACTER, or TRANSLATION after DROP"
+                            "Expected TABLE, SCHEMA, ROLE, DOMAIN, SEQUENCE, TYPE, COLLATION, CHARACTER, TRANSLATION, or VIEW after DROP"
                                 .to_string(),
                     })
                 }

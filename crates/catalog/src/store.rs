@@ -7,6 +7,7 @@ use crate::privilege::PrivilegeGrant;
 use crate::schema::Schema;
 use crate::table::TableSchema;
 use crate::type_definition::TypeDefinition;
+use crate::view::ViewDefinition;
 
 /// Database catalog - manages all schemas and their objects.
 #[derive(Debug, Clone)]
@@ -22,6 +23,7 @@ pub struct Catalog {
     collations: HashMap<String, Collation>,
     character_sets: HashMap<String, CharacterSet>,
     translations: HashMap<String, Translation>,
+    views: HashMap<String, ViewDefinition>,
 }
 
 impl Catalog {
@@ -38,6 +40,7 @@ impl Catalog {
             collations: HashMap::new(),
             character_sets: HashMap::new(),
             translations: HashMap::new(),
+            views: HashMap::new(),
         };
 
         // Create the default "public" schema
@@ -564,6 +567,29 @@ impl Catalog {
             .remove(name)
             .map(|_| ())
             .ok_or_else(|| CatalogError::TranslationNotFound(name.to_string()))
+    }
+
+    /// Create a VIEW
+    pub fn create_view(&mut self, view: ViewDefinition) -> Result<(), CatalogError> {
+        let name = view.name.clone();
+        if self.views.contains_key(&name) {
+            return Err(CatalogError::ViewAlreadyExists(name));
+        }
+        self.views.insert(name, view);
+        Ok(())
+    }
+
+    /// Get a VIEW definition by name (supports qualified names like "schema.view")
+    pub fn get_view(&self, name: &str) -> Option<&ViewDefinition> {
+        self.views.get(name)
+    }
+
+    /// Drop a VIEW
+    pub fn drop_view(&mut self, name: &str) -> Result<(), CatalogError> {
+        self.views
+            .remove(name)
+            .map(|_| ())
+            .ok_or_else(|| CatalogError::ViewNotFound(name.to_string()))
     }
 }
 

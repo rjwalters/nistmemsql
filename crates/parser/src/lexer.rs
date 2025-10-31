@@ -276,6 +276,7 @@ impl Lexer {
             "COLLATION" => Token::Keyword(Keyword::Collation),
             "CHARACTER" => Token::Keyword(Keyword::Character),
             "TRANSLATION" => Token::Keyword(Keyword::Translation),
+            "VIEW" => Token::Keyword(Keyword::View),
             // SEQUENCE specific keywords
             "INCREMENT" => Token::Keyword(Keyword::Increment),
             "MINVALUE" => Token::Keyword(Keyword::Minvalue),

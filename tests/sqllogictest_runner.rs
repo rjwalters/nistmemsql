@@ -138,7 +138,9 @@ impl NistMemSqlDB {
             | ast::Statement::CreateCharacterSet(_)
             | ast::Statement::DropCharacterSet(_)
             | ast::Statement::CreateTranslation(_)
-            | ast::Statement::DropTranslation(_) => Ok(DBOutput::StatementComplete(0)),
+            | ast::Statement::DropTranslation(_)
+            | ast::Statement::CreateView(_)
+            | ast::Statement::DropView(_) => Ok(DBOutput::StatementComplete(0)),
         }
     }
 
