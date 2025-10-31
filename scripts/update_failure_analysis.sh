@@ -5,19 +5,22 @@
 # with current test metrics and failure patterns.
 #
 # Usage:
-#   ./scripts/update_failure_analysis.sh           # Use existing test results
-#   ./scripts/update_failure_analysis.sh --run     # Run tests first, then analyze
+#   ./scripts/update_failure_analysis.sh              # Run tests first (default)
+#   ./scripts/update_failure_analysis.sh --reprocess  # Use existing test results
 
 set -e
 
 RESULTS_FILE="target/sqltest_results.json"
 OUTPUT_FILE="FAILURE_ANALYSIS.md"
 
-# Check if --run flag is provided
-if [ "$1" = "--run" ]; then
+# Check if --reprocess flag is provided (skip running tests)
+if [ "$1" != "--reprocess" ]; then
     echo "Running conformance tests..."
     cargo test --test sqltest_conformance --release -- --nocapture > /dev/null 2>&1
     echo "✅ Tests completed"
+    echo ""
+else
+    echo "Using existing test results from $RESULTS_FILE"
     echo ""
 fi
 
@@ -25,8 +28,8 @@ fi
 if [ ! -f "$RESULTS_FILE" ]; then
     echo "Error: $RESULTS_FILE not found. Run conformance tests first:"
     echo "  cargo test --test sqltest_conformance --release -- --nocapture"
-    echo "Or run this script with --run flag:"
-    echo "  ./scripts/update_failure_analysis.sh --run"
+    echo "Or run this script without --reprocess flag:"
+    echo "  ./scripts/update_failure_analysis.sh"
     exit 1
 fi
 
