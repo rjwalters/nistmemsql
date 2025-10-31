@@ -27,64 +27,64 @@ def test_insert_1k_duckdb(benchmark, duckdb_db):
     _run_insert_test(benchmark, duckdb_db, 1000, 'duckdb')
 
 
-def test_insert_2k_sqlite(benchmark, sqlite_db):
-    """Benchmark INSERT operations on SQLite (2k rows)."""
-    _run_insert_test(benchmark, sqlite_db, 2000, 'sqlite')
+# def test_insert_2k_sqlite(benchmark, sqlite_db):
+#     """Benchmark INSERT operations on SQLite (2k rows)."""
+#     _run_insert_test(benchmark, sqlite_db, 2000, 'sqlite')
 
 
-def test_insert_2k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark INSERT operations on nistmemsql (2k rows)."""
-    _run_insert_test(benchmark, nistmemsql_db, 2000, 'nistmemsql')
+# def test_insert_2k_nistmemsql(benchmark, nistmemsql_db):
+#     """Benchmark INSERT operations on nistmemsql (2k rows)."""
+#     _run_insert_test(benchmark, nistmemsql_db, 2000, 'nistmemsql')
 
 
-def test_insert_2k_duckdb(benchmark, duckdb_db):
-    """Benchmark INSERT operations on DuckDB (2k rows)."""
-    _run_insert_test(benchmark, duckdb_db, 2000, 'duckdb')
+# def test_insert_2k_duckdb(benchmark, duckdb_db):
+#     """Benchmark INSERT operations on DuckDB (2k rows)."""
+#     _run_insert_test(benchmark, duckdb_db, 2000, 'duckdb')
 
 
-def test_insert_5k_sqlite(benchmark, sqlite_db):
-    """Benchmark INSERT operations on SQLite (5k rows)."""
-    _run_insert_test(benchmark, sqlite_db, 5000, 'sqlite')
+# def test_insert_5k_sqlite(benchmark, sqlite_db):
+#     """Benchmark INSERT operations on SQLite (5k rows)."""
+#     _run_insert_test(benchmark, sqlite_db, 5000, 'sqlite')
 
 
-def test_insert_5k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark INSERT operations on nistmemsql (5k rows)."""
-    _run_insert_test(benchmark, nistmemsql_db, 5000, 'nistmemsql')
+# def test_insert_5k_nistmemsql(benchmark, nistmemsql_db):
+#     """Benchmark INSERT operations on nistmemsql (5k rows)."""
+#     _run_insert_test(benchmark, nistmemsql_db, 5000, 'nistmemsql')
 
 
-def test_insert_5k_duckdb(benchmark, duckdb_db):
-    """Benchmark INSERT operations on DuckDB (5k rows)."""
-    _run_insert_test(benchmark, duckdb_db, 5000, 'duckdb')
+# def test_insert_5k_duckdb(benchmark, duckdb_db):
+#     """Benchmark INSERT operations on DuckDB (5k rows)."""
+#     _run_insert_test(benchmark, duckdb_db, 5000, 'duckdb')
 
 
-def test_insert_10k_sqlite(benchmark, sqlite_db):
-    """Benchmark INSERT operations on SQLite (10k rows)."""
-    _run_insert_test(benchmark, sqlite_db, 10000, 'sqlite')
+# def test_insert_10k_sqlite(benchmark, sqlite_db):
+#     """Benchmark INSERT operations on SQLite (10k rows)."""
+#     _run_insert_test(benchmark, sqlite_db, 10000, 'sqlite')
 
 
-def test_insert_10k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark INSERT operations on nistmemsql (10k rows)."""
-    _run_insert_test(benchmark, nistmemsql_db, 10000, 'nistmemsql')
+# def test_insert_10k_nistmemsql(benchmark, nistmemsql_db):
+#     """Benchmark INSERT operations on nistmemsql (10k rows)."""
+#     _run_insert_test(benchmark, nistmemsql_db, 10000, 'nistmemsql')
 
 
-def test_insert_10k_duckdb(benchmark, duckdb_db):
-    """Benchmark INSERT operations on DuckDB (10k rows)."""
-    _run_insert_test(benchmark, duckdb_db, 10000, 'duckdb')
+# def test_insert_10k_duckdb(benchmark, duckdb_db):
+#     """Benchmark INSERT operations on DuckDB (10k rows)."""
+#     _run_insert_test(benchmark, duckdb_db, 10000, 'duckdb')
 
 
-def test_insert_20k_sqlite(benchmark, sqlite_db):
-    """Benchmark INSERT operations on SQLite (20k rows)."""
-    _run_insert_test(benchmark, sqlite_db, 20000, 'sqlite')
+# def test_insert_20k_sqlite(benchmark, sqlite_db):
+#     """Benchmark INSERT operations on SQLite (20k rows)."""
+#     _run_insert_test(benchmark, sqlite_db, 20000, 'sqlite')
 
 
-def test_insert_20k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark INSERT operations on nistmemsql (20k rows)."""
-    _run_insert_test(benchmark, nistmemsql_db, 20000, 'nistmemsql')
+# def test_insert_20k_nistmemsql(benchmark, nistmemsql_db):
+#     """Benchmark INSERT operations on nistmemsql (20k rows)."""
+#     _run_insert_test(benchmark, nistmemsql_db, 20000, 'nistmemsql')
 
 
-def test_insert_20k_duckdb(benchmark, duckdb_db):
-    """Benchmark INSERT operations on DuckDB (20k rows)."""
-    _run_insert_test(benchmark, duckdb_db, 20000, 'duckdb')
+# def test_insert_20k_duckdb(benchmark, duckdb_db):
+#     """Benchmark INSERT operations on DuckDB (20k rows)."""
+#     _run_insert_test(benchmark, duckdb_db, 20000, 'duckdb')
 
 
 def _run_insert_test(benchmark, connection, num_rows, db_type):

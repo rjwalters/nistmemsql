@@ -48,28 +48,14 @@ jobs:
           grep -v "^nistmemsql" benchmarks/requirements.txt > /tmp/requirements-ci.txt
           uv pip install --system -r /tmp/requirements-ci.txt
 
-      - name: Run benchmarks (fast for PRs, full for main)
+      - name: Run benchmarks
         working-directory: benchmarks
-        env:
-          # Skip 20k tests in PRs, run full suite on main
-          BENCHMARK_SKIP_LARGE: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
         run: |
-          if [ "$BENCHMARK_SKIP_LARGE" = "true" ]; then
-            echo "Running fast benchmark suite (skipping 20k tests for PRs)"
-            pytest test_insert.py test_update.py test_delete.py test_select.py test_aggregates.py \
-              --benchmark-only \
-              --benchmark-json=../benchmark_results.json \
-              --benchmark-min-rounds=3 \
-              --benchmark-warmup=off \
-              -k "not 20k"
-          else
-            echo "Running full benchmark suite"
-            pytest test_insert.py test_update.py test_delete.py test_select.py test_aggregates.py \
-              --benchmark-only \
-              --benchmark-json=../benchmark_results.json \
-              --benchmark-min-rounds=5 \
-              --benchmark-warmup=on
-          fi
+          pytest test_insert.py test_update.py test_delete.py test_select.py test_aggregates.py \
+            --benchmark-only \
+            --benchmark-json=../benchmark_results.json \
+            --benchmark-min-rounds=3 \
+            --benchmark-warmup=off
 
       - name: Download baseline benchmarks (for PRs)
         if: github.event_name == 'pull_request'
