@@ -1,7 +1,6 @@
 # NIST-Compatible SQL:1999 Database
 
 [![CI and Deploy](https://github.com/rjwalters/nistmemsql/actions/workflows/ci-and-deploy.yml/badge.svg)](https://github.com/rjwalters/nistmemsql/actions/workflows/ci-and-deploy.yml)
-[![CI](https://github.com/rjwalters/nistmemsql/actions/workflows/ci.yml/badge.svg)](https://github.com/rjwalters/nistmemsql/actions/workflows/ci.yml)
 [![Demo](https://img.shields.io/badge/demo-live-success)](https://rjwalters.github.io/nistmemsql/)
 [![Coverage](https://img.shields.io/badge/coverage-86%25-green)](https://github.com/rjwalters/nistmemsql)
 [![sqltest](https://img.shields.io/badge/sqltest-89.4%25-green)](https://rjwalters.github.io/nistmemsql/conformance.html)
