@@ -6,6 +6,7 @@ mod case_expression;
 mod cast;
 mod create_table;
 mod cte;
+mod cursor;
 mod delete;
 mod display;
 mod errors;

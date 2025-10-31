@@ -158,6 +158,16 @@ pub enum Keyword {
     Local,
     Hour,
     Minute,
+    // CURSOR keywords
+    Declare,
+    Cursor,
+    Insensitive,
+    Scroll,
+    Hold,
+    Without,
+    Read,
+    Only,
+    Of,
 }
 
 impl fmt::Display for Keyword {
@@ -297,6 +307,15 @@ impl fmt::Display for Keyword {
             Keyword::Local => "LOCAL",
             Keyword::Hour => "HOUR",
             Keyword::Minute => "MINUTE",
+            Keyword::Declare => "DECLARE",
+            Keyword::Cursor => "CURSOR",
+            Keyword::Insensitive => "INSENSITIVE",
+            Keyword::Scroll => "SCROLL",
+            Keyword::Hold => "HOLD",
+            Keyword::Without => "WITHOUT",
+            Keyword::Read => "READ",
+            Keyword::Only => "ONLY",
+            Keyword::Of => "OF",
         };
         write!(f, "{}", keyword_str)
     }
