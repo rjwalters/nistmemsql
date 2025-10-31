@@ -75,7 +75,8 @@ fn test_parse_create_table_with_references() {
             assert_eq!(create.columns[0].constraints.len(), 1);
             match &create.columns[0].constraints[0] {
                 ast::ColumnConstraint {
-                    kind: ast::ColumnConstraintKind::References { table, column, on_delete, on_update },
+                    kind:
+                        ast::ColumnConstraintKind::References { table, column, on_delete, on_update },
                     ..
                 } => {
                     assert_eq!(table, "CUSTOMERS");

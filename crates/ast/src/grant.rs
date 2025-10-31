@@ -35,6 +35,20 @@ pub enum ObjectType {
     Table,
     /// Schema object
     Schema,
+    /// Function object (SQL:1999 Feature P001)
+    Function,
+    /// Procedure object (SQL:1999 Feature P001)
+    Procedure,
+    /// Routine object (generic term covering both functions and procedures)
+    Routine,
+    /// Method object (SQL:1999 Feature S091)
+    Method,
+    /// Constructor method for user-defined types
+    ConstructorMethod,
+    /// Static method for user-defined types
+    StaticMethod,
+    /// Instance method for user-defined types
+    InstanceMethod,
 }
 
 /// GRANT statement - assigns privileges to roles/users.

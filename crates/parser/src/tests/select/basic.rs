@@ -252,7 +252,10 @@ fn test_parse_select_qualified_wildcard() {
                 ast::SelectItem::QualifiedWildcard { qualifier } => {
                     assert_eq!(qualifier, "TABLE_NAME");
                 }
-                _ => panic!("Expected QualifiedWildcard select item, got {:?}", select.select_list[0]),
+                _ => panic!(
+                    "Expected QualifiedWildcard select item, got {:?}",
+                    select.select_list[0]
+                ),
             }
             // Check FROM clause exists
             assert!(select.from.is_some());

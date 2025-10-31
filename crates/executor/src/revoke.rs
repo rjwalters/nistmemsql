@@ -27,6 +27,19 @@ impl RevokeExecutor {
                     return Err(ExecutorError::SchemaNotFound(stmt.object_name.clone()));
                 }
             }
+            // Callable objects (functions, procedures, routines, methods)
+            // For now, these are accepted without validation since catalog support
+            // for these objects will be added in future work (SQL:1999 P001, S091)
+            ObjectType::Function
+            | ObjectType::Procedure
+            | ObjectType::Routine
+            | ObjectType::Method
+            | ObjectType::ConstructorMethod
+            | ObjectType::StaticMethod
+            | ObjectType::InstanceMethod => {
+                // No validation - assume object exists
+                // TODO: Add catalog validation once function/procedure/method storage is implemented
+            }
         }
 
         // Validate all grantees (roles) exist
@@ -47,6 +60,15 @@ impl RevokeExecutor {
                     PrivilegeType::References(None),
                 ],
                 ObjectType::Schema => vec![PrivilegeType::Usage, PrivilegeType::Create],
+                // Callable objects (functions, procedures, routines, methods)
+                // ALL PRIVILEGES on callable objects means EXECUTE privilege
+                ObjectType::Function
+                | ObjectType::Procedure
+                | ObjectType::Routine
+                | ObjectType::Method
+                | ObjectType::ConstructorMethod
+                | ObjectType::StaticMethod
+                | ObjectType::InstanceMethod => vec![PrivilegeType::Execute],
             }
         } else {
             stmt.privileges.clone()

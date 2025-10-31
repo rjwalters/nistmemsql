@@ -245,7 +245,9 @@ fn run_query(db: &Database, query: &str) {
                         ast::SelectItem::Expression { alias: None, .. } => {
                             format!("column{}", i + 1)
                         }
-                        ast::SelectItem::QualifiedWildcard { qualifier } => format!("{}.*", qualifier),
+                        ast::SelectItem::QualifiedWildcard { qualifier } => {
+                            format!("{}.*", qualifier)
+                        }
                         ast::SelectItem::Wildcard => "*".to_string(),
                     })
                     .collect();

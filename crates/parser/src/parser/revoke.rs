@@ -7,11 +7,11 @@ use ast::*;
 
 /// Parse REVOKE statement
 ///
-/// Phase 3: Removes privileges from roles/users with CASCADE/RESTRICT support
+/// Removes privileges from roles/users with CASCADE/RESTRICT support
 ///
 /// Grammar:
 /// ```text
-/// REVOKE [GRANT OPTION FOR] privilege_list ON [TABLE | SCHEMA] object_name
+/// REVOKE [GRANT OPTION FOR] privilege_list ON [TABLE | SCHEMA | FUNCTION | PROCEDURE | ROUTINE | METHOD | CONSTRUCTOR METHOD | STATIC METHOD | INSTANCE METHOD] object_name
 /// FROM grantee_list [GRANTED BY grantor] [CASCADE | RESTRICT]
 /// ```
 pub fn parse_revoke(parser: &mut crate::Parser) -> Result<RevokeStmt, ParseError> {
@@ -32,13 +32,37 @@ pub fn parse_revoke(parser: &mut crate::Parser) -> Result<RevokeStmt, ParseError
 
     parser.expect_keyword(Keyword::On)?;
 
-    // Detect TABLE vs SCHEMA (defaults to TABLE if not specified)
+    // Parse object type (TABLE, SCHEMA, FUNCTION, PROCEDURE, etc.)
     let object_type = if parser.peek() == &Token::Keyword(Keyword::Table) {
         parser.advance(); // consume TABLE
         ObjectType::Table
     } else if parser.peek() == &Token::Keyword(Keyword::Schema) {
         parser.advance(); // consume SCHEMA
         ObjectType::Schema
+    } else if parser.peek() == &Token::Keyword(Keyword::Function) {
+        parser.advance(); // consume FUNCTION
+        ObjectType::Function
+    } else if parser.peek() == &Token::Keyword(Keyword::Procedure) {
+        parser.advance(); // consume PROCEDURE
+        ObjectType::Procedure
+    } else if parser.peek() == &Token::Keyword(Keyword::Routine) {
+        parser.advance(); // consume ROUTINE
+        ObjectType::Routine
+    } else if parser.peek() == &Token::Keyword(Keyword::Constructor) {
+        parser.advance(); // consume CONSTRUCTOR
+        parser.expect_keyword(Keyword::Method)?; // expect METHOD after CONSTRUCTOR
+        ObjectType::ConstructorMethod
+    } else if parser.peek() == &Token::Keyword(Keyword::Static) {
+        parser.advance(); // consume STATIC
+        parser.expect_keyword(Keyword::Method)?; // expect METHOD after STATIC
+        ObjectType::StaticMethod
+    } else if parser.peek() == &Token::Keyword(Keyword::Instance) {
+        parser.advance(); // consume INSTANCE
+        parser.expect_keyword(Keyword::Method)?; // expect METHOD after INSTANCE
+        ObjectType::InstanceMethod
+    } else if parser.peek() == &Token::Keyword(Keyword::Method) {
+        parser.advance(); // consume METHOD
+        ObjectType::Method
     } else {
         // Default to TABLE if not specified (SQL standard behavior)
         ObjectType::Table
@@ -136,10 +160,14 @@ fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>
                 let columns = parse_optional_column_list(parser)?;
                 PrivilegeType::References(columns)
             }
+            Token::Keyword(Keyword::Execute) => {
+                parser.advance();
+                PrivilegeType::Execute
+            }
             _ => {
                 return Err(ParseError {
                     message: format!(
-                        "Expected privilege keyword (SELECT, INSERT, UPDATE, DELETE, REFERENCES, USAGE, CREATE, ALL), found {:?}",
+                        "Expected privilege keyword (SELECT, INSERT, UPDATE, DELETE, REFERENCES, USAGE, CREATE, EXECUTE, ALL), found {:?}",
                         parser.peek()
                     ),
                 })
@@ -163,7 +191,9 @@ fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>
 ///
 /// If next token is '(', parses column list and returns Some(vec).
 /// Otherwise returns None for table-level privilege.
-fn parse_optional_column_list(parser: &mut crate::Parser) -> Result<Option<Vec<String>>, ParseError> {
+fn parse_optional_column_list(
+    parser: &mut crate::Parser,
+) -> Result<Option<Vec<String>>, ParseError> {
     if parser.peek() == &Token::LParen {
         parser.advance(); // consume '('
 

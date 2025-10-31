@@ -62,7 +62,9 @@ pub struct TableConstraint {
 /// Table constraint types
 #[derive(Debug, Clone, PartialEq)]
 pub enum TableConstraintKind {
-    PrimaryKey { columns: Vec<String> },
+    PrimaryKey {
+        columns: Vec<String>,
+    },
     ForeignKey {
         columns: Vec<String>,
         references_table: String,
@@ -70,8 +72,12 @@ pub enum TableConstraintKind {
         on_delete: Option<ReferentialAction>,
         on_update: Option<ReferentialAction>,
     },
-    Unique { columns: Vec<String> },
-    Check { expr: Box<Expression> },
+    Unique {
+        columns: Vec<String>,
+    },
+    Check {
+        expr: Box<Expression>,
+    },
 }
 
 /// DROP TABLE statement

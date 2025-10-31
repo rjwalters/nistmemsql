@@ -19,7 +19,11 @@ fn test_revoke_specific_privilege() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -68,7 +72,11 @@ fn test_revoke_all_privileges() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -123,7 +131,11 @@ fn test_revoke_with_grant_option_for() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -145,7 +157,10 @@ fn test_revoke_with_grant_option_for() {
     // Verify both privilege and grant option exist
     assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
     let grants = db.catalog.get_grants_for_grantee("user1");
-    let grant = grants.iter().find(|g| g.object == "test_table" && g.privilege == PrivilegeType::Select).unwrap();
+    let grant = grants
+        .iter()
+        .find(|g| g.object == "test_table" && g.privilege == PrivilegeType::Select)
+        .unwrap();
     assert!(grant.with_grant_option);
 
     // Revoke GRANT OPTION FOR (not the privilege itself)
@@ -163,7 +178,10 @@ fn test_revoke_with_grant_option_for() {
     // Verify grant option was revoked but privilege remains
     assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
     let grants = db.catalog.get_grants_for_grantee("user1");
-    let grant = grants.iter().find(|g| g.object == "test_table" && g.privilege == PrivilegeType::Select).unwrap();
+    let grant = grants
+        .iter()
+        .find(|g| g.object == "test_table" && g.privilege == PrivilegeType::Select)
+        .unwrap();
     assert!(!grant.with_grant_option);
     assert!(result.contains("Revoked grant option for"));
 }
@@ -178,7 +196,11 @@ fn test_revoke_cascade_behavior() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -242,7 +264,11 @@ fn test_revoke_restrict_with_dependent_grants() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -300,7 +326,11 @@ fn test_revoke_multiple_grantees() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -353,7 +383,11 @@ fn test_revoke_non_existent_privilege() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -387,7 +421,11 @@ fn test_revoke_from_non_existent_role() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();

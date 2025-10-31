@@ -150,7 +150,9 @@ fn test_unary_minus_numeric_string() {
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::UnaryOp {
                 op: ast::UnaryOperator::Minus,
-                expr: Box::new(ast::Expression::Literal(types::SqlValue::Numeric("123.45".to_string()))),
+                expr: Box::new(ast::Expression::Literal(types::SqlValue::Numeric(
+                    "123.45".to_string(),
+                ))),
             },
             alias: Some("result".to_string()),
         }],
@@ -181,7 +183,9 @@ fn test_unary_minus_negative_numeric() {
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::UnaryOp {
                 op: ast::UnaryOperator::Minus,
-                expr: Box::new(ast::Expression::Literal(types::SqlValue::Numeric("-123.45".to_string()))),
+                expr: Box::new(ast::Expression::Literal(types::SqlValue::Numeric(
+                    "-123.45".to_string(),
+                ))),
             },
             alias: Some("result".to_string()),
         }],
@@ -274,7 +278,9 @@ fn test_unary_plus_invalid_type() {
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::UnaryOp {
                 op: ast::UnaryOperator::Plus,
-                expr: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("hello".to_string()))),
+                expr: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "hello".to_string(),
+                ))),
             },
             alias: Some("result".to_string()),
         }],
@@ -305,7 +311,9 @@ fn test_unary_minus_invalid_type() {
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::UnaryOp {
                 op: ast::UnaryOperator::Minus,
-                expr: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("hello".to_string()))),
+                expr: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "hello".to_string(),
+                ))),
             },
             alias: Some("result".to_string()),
         }],
@@ -394,13 +402,19 @@ fn test_nested_comparisons() {
         from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: Some(ast::Expression::BinaryOp {
             left: Box::new(ast::Expression::BinaryOp {
-                left: Box::new(ast::Expression::ColumnRef { table: None, column: "val".to_string() }),
+                left: Box::new(ast::Expression::ColumnRef {
+                    table: None,
+                    column: "val".to_string(),
+                }),
                 op: ast::BinaryOperator::GreaterThan,
                 right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(10))),
             }),
             op: ast::BinaryOperator::And,
             right: Box::new(ast::Expression::BinaryOp {
-                left: Box::new(ast::Expression::ColumnRef { table: None, column: "val".to_string() }),
+                left: Box::new(ast::Expression::ColumnRef {
+                    table: None,
+                    column: "val".to_string(),
+                }),
                 op: ast::BinaryOperator::LessThan,
                 right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(20))),
             }),
@@ -565,9 +579,13 @@ fn test_string_concat_basic() {
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::BinaryOp {
-                left: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("Hello".to_string()))),
+                left: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "Hello".to_string(),
+                ))),
                 op: ast::BinaryOperator::Concat,
-                right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(" World".to_string()))),
+                right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    " World".to_string(),
+                ))),
             },
             alias: Some("result".to_string()),
         }],
@@ -597,7 +615,9 @@ fn test_string_concat_empty() {
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::BinaryOp {
-                left: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("Hello".to_string()))),
+                left: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "Hello".to_string(),
+                ))),
                 op: ast::BinaryOperator::Concat,
                 right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("".to_string()))),
             },
@@ -629,7 +649,9 @@ fn test_string_concat_null() {
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::BinaryOp {
-                left: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("Hello".to_string()))),
+                left: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "Hello".to_string(),
+                ))),
                 op: ast::BinaryOperator::Concat,
                 right: Box::new(ast::Expression::Literal(types::SqlValue::Null)),
             },
@@ -665,18 +687,28 @@ fn test_string_concat_multiple() {
                 left: Box::new(ast::Expression::BinaryOp {
                     left: Box::new(ast::Expression::BinaryOp {
                         left: Box::new(ast::Expression::BinaryOp {
-                            left: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("Hello".to_string()))),
+                            left: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                                "Hello".to_string(),
+                            ))),
                             op: ast::BinaryOperator::Concat,
-                            right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(" ".to_string()))),
+                            right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                                " ".to_string(),
+                            ))),
                         }),
                         op: ast::BinaryOperator::Concat,
-                        right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("Beautiful".to_string()))),
+                        right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                            "Beautiful".to_string(),
+                        ))),
                     }),
                     op: ast::BinaryOperator::Concat,
-                    right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(" ".to_string()))),
+                    right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                        " ".to_string(),
+                    ))),
                 }),
                 op: ast::BinaryOperator::Concat,
-                right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("World".to_string()))),
+                right: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "World".to_string(),
+                ))),
             },
             alias: Some("result".to_string()),
         }],

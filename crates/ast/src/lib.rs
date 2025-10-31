@@ -21,8 +21,8 @@ pub use ddl::{
     CreateViewStmt, DomainConstraint, DropBehavior, DropCharacterSetStmt, DropCollationStmt,
     DropColumnStmt, DropConstraintStmt, DropDomainStmt, DropRoleStmt, DropSchemaStmt,
     DropSequenceStmt, DropTableStmt, DropTranslationStmt, DropTypeStmt, DropViewStmt,
-    ReferentialAction, ReleaseSavepointStmt, RollbackStmt, RollbackToSavepointStmt, SavepointStmt, SchemaElement,
-    SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt, TableConstraint,
+    ReferentialAction, ReleaseSavepointStmt, RollbackStmt, RollbackToSavepointStmt, SavepointStmt,
+    SchemaElement, SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt, TableConstraint,
     TableConstraintKind, TimeZoneSpec, TypeAttribute, TypeDefinition,
 };
 pub use dml::{Assignment, DeleteStmt, InsertSource, InsertStmt, UpdateStmt};

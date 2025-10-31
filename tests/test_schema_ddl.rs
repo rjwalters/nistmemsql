@@ -52,7 +52,8 @@ fn test_create_schema_qualified_name() {
 
 #[test]
 fn test_create_schema_with_table() {
-    let sql = "CREATE SCHEMA test_schema CREATE TABLE users (id INTEGER PRIMARY KEY, name VARCHAR(100))";
+    let sql =
+        "CREATE SCHEMA test_schema CREATE TABLE users (id INTEGER PRIMARY KEY, name VARCHAR(100))";
     let stmt = Parser::parse_sql(sql).expect("Failed to parse CREATE SCHEMA with table");
 
     match stmt {
@@ -167,14 +168,12 @@ fn test_drop_schema_qualified_name() {
 fn test_set_schema() {
     let sql = "SET SCHEMA test_schema";
     match Parser::parse_sql(sql) {
-        Ok(stmt) => {
-            match stmt {
-                Statement::SetSchema(set_stmt) => {
-                    assert_eq!(set_stmt.schema_name, "TEST_SCHEMA");
-                }
-                _ => panic!("Expected SetSchema statement, got {:?}", stmt),
+        Ok(stmt) => match stmt {
+            Statement::SetSchema(set_stmt) => {
+                assert_eq!(set_stmt.schema_name, "TEST_SCHEMA");
             }
-        }
+            _ => panic!("Expected SetSchema statement, got {:?}", stmt),
+        },
         Err(e) => panic!("Failed to parse SET SCHEMA: {:?}", e),
     }
 }
@@ -215,7 +214,7 @@ fn test_schema_statement_case_insensitive() {
         "drop schema test",
         "DROP SCHEMA test",
         "Drop Schema test",
-        "SET SCHEMA test",  // SET must be uppercase for recognition
+        "SET SCHEMA test", // SET must be uppercase for recognition
     ];
 
     for sql in sql_variants {
@@ -228,12 +227,12 @@ fn test_schema_parse_errors() {
     // Test various parse error cases
 
     let invalid_statements = vec![
-        "CREATE SCHEMA",                    // Missing schema name
-        "CREATE SCHEMA IF",                // Incomplete IF NOT EXISTS
-        "CREATE SCHEMA IF NOT",            // Incomplete IF NOT EXISTS
-        "DROP SCHEMA",                     // Missing schema name
-        "DROP SCHEMA IF",                  // Incomplete IF EXISTS
-        "SET SCHEMA",                      // Missing schema name
+        "CREATE SCHEMA",        // Missing schema name
+        "CREATE SCHEMA IF",     // Incomplete IF NOT EXISTS
+        "CREATE SCHEMA IF NOT", // Incomplete IF NOT EXISTS
+        "DROP SCHEMA",          // Missing schema name
+        "DROP SCHEMA IF",       // Incomplete IF EXISTS
+        "SET SCHEMA",           // Missing schema name
     ];
 
     for sql in invalid_statements {

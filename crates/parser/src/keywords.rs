@@ -154,6 +154,15 @@ pub enum Keyword {
     Local,
     Hour,
     Minute,
+    // Callable object keywords (functions, procedures, methods)
+    Function,
+    Procedure,
+    Routine,
+    Method,
+    Constructor,
+    Static,
+    Instance,
+    Execute,
 }
 
 impl fmt::Display for Keyword {
@@ -290,6 +299,14 @@ impl fmt::Display for Keyword {
             Keyword::Local => "LOCAL",
             Keyword::Hour => "HOUR",
             Keyword::Minute => "MINUTE",
+            Keyword::Function => "FUNCTION",
+            Keyword::Procedure => "PROCEDURE",
+            Keyword::Routine => "ROUTINE",
+            Keyword::Method => "METHOD",
+            Keyword::Constructor => "CONSTRUCTOR",
+            Keyword::Static => "STATIC",
+            Keyword::Instance => "INSTANCE",
+            Keyword::Execute => "EXECUTE",
         };
         write!(f, "{}", keyword_str)
     }

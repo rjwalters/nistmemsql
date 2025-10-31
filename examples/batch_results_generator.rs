@@ -522,7 +522,9 @@ fn main() {
                                         _ => format!("col{}", i + 1),
                                     }
                                 }
-                                ast::SelectItem::QualifiedWildcard { qualifier } => format!("{}.*", qualifier),
+                                ast::SelectItem::QualifiedWildcard { qualifier } => {
+                                    format!("{}.*", qualifier)
+                                }
                                 ast::SelectItem::Wildcard => "*".to_string(),
                             })
                             .collect();

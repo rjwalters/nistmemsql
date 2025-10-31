@@ -335,8 +335,8 @@ fn date_add_subtract(
             "YEAR" | "YEARS" => {
                 let new_year = timestamp.year() + amount as i32;
                 let date = timestamp.date();
-                let new_date = safe_date_with_year_month(date, new_year, date.month())
-                    .ok_or_else(|| {
+                let new_date =
+                    safe_date_with_year_month(date, new_year, date.month()).ok_or_else(|| {
                         ExecutorError::UnsupportedFeature(format!("Invalid year: {}", new_year))
                     })?;
 
@@ -345,14 +345,18 @@ fn date_add_subtract(
                 NaiveDateTime::new(new_date, time)
             }
             "MONTH" | "MONTHS" => {
-                let total_months = timestamp.year() as i64 * 12 + timestamp.month() as i64 - 1 + amount;
+                let total_months =
+                    timestamp.year() as i64 * 12 + timestamp.month() as i64 - 1 + amount;
                 let new_year = (total_months / 12) as i32;
                 let new_month = (total_months % 12 + 1) as u32;
 
                 let date = timestamp.date();
-                let new_date = safe_date_with_year_month(date, new_year, new_month)
-                    .ok_or_else(|| {
-                        ExecutorError::UnsupportedFeature(format!("Invalid date: {}-{:02}", new_year, new_month))
+                let new_date =
+                    safe_date_with_year_month(date, new_year, new_month).ok_or_else(|| {
+                        ExecutorError::UnsupportedFeature(format!(
+                            "Invalid date: {}-{:02}",
+                            new_year, new_month
+                        ))
                     })?;
 
                 // Combine new date with original time
@@ -392,7 +396,10 @@ fn date_add_subtract(
                 let new_month = (total_months % 12 + 1) as u32;
 
                 safe_date_with_year_month(date, new_year, new_month).ok_or_else(|| {
-                    ExecutorError::UnsupportedFeature(format!("Invalid date: {}-{:02}", new_year, new_month))
+                    ExecutorError::UnsupportedFeature(format!(
+                        "Invalid date: {}-{:02}",
+                        new_year, new_month
+                    ))
                 })?
             }
             "DAY" | "DAYS" => date + Duration::days(amount),

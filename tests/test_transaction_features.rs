@@ -141,12 +141,12 @@ fn test_nested_transaction_example() {
         // Just verify it parses without error - the specific type checking is done above
         assert!(matches!(
             stmt,
-            Statement::BeginTransaction(_) |
-            Statement::Commit(_) |
-            Statement::Rollback(_) |
-            Statement::Savepoint(_) |
-            Statement::RollbackToSavepoint(_) |
-            Statement::ReleaseSavepoint(_)
+            Statement::BeginTransaction(_)
+                | Statement::Commit(_)
+                | Statement::Rollback(_)
+                | Statement::Savepoint(_)
+                | Statement::RollbackToSavepoint(_)
+                | Statement::ReleaseSavepoint(_)
         ));
     }
 }
@@ -177,10 +177,10 @@ fn test_transaction_statement_case_insensitive() {
 #[test]
 fn test_savepoint_names_various() {
     let test_cases = vec![
-        ("SAVEPOINT abc", "ABC"),  // unquoted identifiers are uppercased
+        ("SAVEPOINT abc", "ABC"), // unquoted identifiers are uppercased
         ("SAVEPOINT ABC", "ABC"),
         ("SAVEPOINT save_point_123", "SAVE_POINT_123"),
-        ("SAVEPOINT \"quoted name\"", "quoted name"),  // quoted identifiers preserve case
+        ("SAVEPOINT \"quoted name\"", "quoted name"), // quoted identifiers preserve case
     ];
 
     for (sql, expected_name) in test_cases {
@@ -199,11 +199,11 @@ fn test_transaction_parse_errors() {
     // Test various parse error cases
 
     let invalid_statements = vec![
-        "SAVEPOINT",         // Missing savepoint name
-        "ROLLBACK TO",       // Missing SAVEPOINT keyword
+        "SAVEPOINT",             // Missing savepoint name
+        "ROLLBACK TO",           // Missing SAVEPOINT keyword
         "ROLLBACK TO SAVEPOINT", // Missing savepoint name
-        "RELEASE",           // Missing SAVEPOINT keyword
-        "RELEASE SAVEPOINT", // Missing savepoint name
+        "RELEASE",               // Missing SAVEPOINT keyword
+        "RELEASE SAVEPOINT",     // Missing savepoint name
     ];
 
     for sql in invalid_statements {
