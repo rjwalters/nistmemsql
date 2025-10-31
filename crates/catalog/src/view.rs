@@ -23,11 +23,6 @@ impl ViewDefinition {
         query: SelectStmt,
         with_check_option: bool,
     ) -> Self {
-        ViewDefinition {
-            name,
-            columns,
-            query,
-            with_check_option,
-        }
+        ViewDefinition { name, columns, query, with_check_option }
     }
 }
