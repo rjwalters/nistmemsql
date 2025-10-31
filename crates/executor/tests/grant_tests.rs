@@ -8,8 +8,8 @@
 
 // Re-export all tests from submodules
 mod grant_tests {
-    pub mod table_privileges;
-    pub mod schema_privileges;
-    pub mod grant_option;
     pub mod edge_cases;
+    pub mod grant_option;
+    pub mod schema_privileges;
+    pub mod table_privileges;
 }

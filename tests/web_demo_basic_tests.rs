@@ -5,12 +5,10 @@
 
 mod common;
 
-use common::web_demo_helpers::{
-    extract_query, load_database, parse_example_files, WebDemoExample,
-};
+use ast;
+use common::web_demo_helpers::{extract_query, load_database, parse_example_files, WebDemoExample};
 use executor::SelectExecutor;
 use parser::Parser;
-use ast;
 
 /// Test basic SQL examples from web demo
 /// Includes examples with IDs: basic*, dml*, ddl*, data*
@@ -93,7 +91,9 @@ fn test_basic_sql_examples() {
                     if rows.len() != expected_count {
                         println!(
                             "❌ {}: Expected {} rows, got {}",
-                            example.id, expected_count, rows.len()
+                            example.id,
+                            expected_count,
+                            rows.len()
                         );
                         failed += 1;
                         continue;
@@ -122,11 +122,7 @@ fn test_basic_sql_examples() {
     println!("===================================\n");
 
     // For now, we require at least some tests to pass
-    assert!(
-        passed >= 1,
-        "Expected at least 1 basic example to pass, got {}",
-        passed
-    );
+    assert!(passed >= 1, "Expected at least 1 basic example to pass, got {}", passed);
 
     // TODO: Make this stricter once all basic features are complete
     // assert_eq!(failed, 0, "{} basic example(s) failed", failed);
