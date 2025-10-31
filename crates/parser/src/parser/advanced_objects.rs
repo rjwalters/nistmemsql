@@ -493,9 +493,9 @@ pub fn parse_drop_assertion(
     // CASCADE or RESTRICT (defaults to RESTRICT if neither specified)
     let cascade = if parser.try_consume_keyword(Keyword::Cascade) {
         true
-    } else if parser.try_consume_keyword(Keyword::Restrict) {
-        false
     } else {
+        // Explicitly consume RESTRICT keyword if present (optional, defaults to RESTRICT)
+        let _ = parser.try_consume_keyword(Keyword::Restrict);
         false // Default to RESTRICT per SQL standard
     };
 
