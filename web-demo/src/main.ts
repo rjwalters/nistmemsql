@@ -10,6 +10,7 @@ import { DatabaseSelectorComponent } from './components/DatabaseSelector'
 import type { DatabaseOption } from './components/DatabaseSelector'
 import { initShowcase } from './showcase'
 import { sampleDatabases, loadSampleDatabase, getSampleDatabase } from './data/sample-databases'
+import { updateConformanceFooter } from './utils/conformance'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Monaco types are loaded dynamically from CDN and not available at compile time
@@ -521,6 +522,9 @@ async function bootstrap(): Promise<void> {
       timestampElement.textContent = 'Deployed: Development build'
     }
   }
+
+  // Update conformance pass rate dynamically
+  void updateConformanceFooter()
 }
 
 void bootstrap()

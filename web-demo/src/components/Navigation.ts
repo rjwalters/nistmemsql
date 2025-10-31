@@ -72,7 +72,9 @@ export class NavigationComponent extends Component<NavigationState> {
           // Create a wrapper for the theme toggle
           const wrapper = document.createElement('div')
           wrapper.id = 'theme-toggle'
+          // Append wrapper to DOM BEFORE creating the component
           themeToggleContainer.appendChild(wrapper)
+          // Now create the component - it will find the #theme-toggle element
           new ThemeToggleComponent(this.themeSystem!)
         }
       })

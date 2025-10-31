@@ -138,7 +138,9 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
     `
   }
 
-  private renderExplanation(): string {
+  private renderExplanation(data: ConformanceData): string {
+    const passRate = data.pass_rate.toFixed(1)
+
     return `
       <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 p-6">
         <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
@@ -184,9 +186,9 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
           </div>
 
           <div>
-            <h3 class="font-semibold text-gray-900 dark:text-white mb-2">What does 95.3% mean?</h3>
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-2">What does ${passRate}% mean?</h3>
             <p>
-              Our 95.3% pass rate means we pass 704 out of 739 sqltest tests. This demonstrates strong SQL:1999 conformance
+              Our ${passRate}% pass rate means we pass ${data.passed} out of ${data.total} sqltest tests. This demonstrates strong SQL:1999 conformance
               and suggests we've implemented most Core features correctly. However, it is not a claim of official SQL:1999 Core certification,
               which would require testing against the official NIST SQL Test Suite and formal validation.
             </p>
@@ -342,7 +344,7 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
       <div class="space-y-8">
         ${this.renderMetadataCard(commit, timestamp, data.pass_rate)}
         ${this.renderSummaryCards(data)}
-        ${this.renderExplanation()}
+        ${this.renderExplanation(data)}
         ${this.renderTestCoverage()}
         ${data.error_tests && data.error_tests.length > 0 ? this.renderFailingTests(data.error_tests) : ''}
         ${this.renderRunningTestsLocally()}

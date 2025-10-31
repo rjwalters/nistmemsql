@@ -276,7 +276,7 @@ function renderChart(data: BenchmarkResults) {
  */
 async function loadBenchmarkData() {
   try {
-    const response = await fetch('/benchmarks/benchmark_results.json');
+    const response = await fetch('/nistmemsql/benchmarks/benchmark_results.json');
 
     if (!response.ok) {
       throw new Error(`Failed to load benchmark data: ${response.status}`);
