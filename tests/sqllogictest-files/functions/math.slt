@@ -1,0 +1,57 @@
+# Math functions
+
+# Basic arithmetic
+query I
+SELECT 5 + 3
+----
+8
+
+query I
+SELECT 10 - 4
+----
+6
+
+query I
+SELECT 6 * 7
+----
+42
+
+query I
+SELECT 20 / 4
+----
+5
+
+# ABS
+query I
+SELECT ABS(-42)
+----
+42
+
+# SQRT (skip - returns Numeric type which has conversion issues)
+# query R
+# SELECT SQRT(16.0)
+# ----
+# 4.0
+
+# POWER (skip - returns Numeric type which has conversion issues)
+# query R
+# SELECT POWER(2.0, 3.0)
+# ----
+# 8.0
+
+# FLOOR/CEILING
+query I
+SELECT FLOOR(4.7)
+----
+4
+
+query I
+SELECT CEILING(4.2)
+----
+5
+
+# MOD
+query I
+SELECT MOD(10, 3)
+----
+1

@@ -1,0 +1,53 @@
+# WHERE clause predicates
+
+statement ok
+CREATE TABLE numbers (x INTEGER, y INTEGER)
+
+statement ok
+INSERT INTO numbers VALUES (1, 10), (2, 20), (3, 30), (4, 40), (5, 50)
+
+# Comparison operators
+query I
+SELECT x FROM numbers WHERE y > 25
+----
+3
+4
+5
+
+query I
+SELECT x FROM numbers WHERE y <= 20
+----
+1
+2
+
+query I
+SELECT x FROM numbers WHERE y = 30
+----
+3
+
+query I
+SELECT x FROM numbers WHERE y <> 30
+----
+1
+2
+4
+5
+
+# BETWEEN
+query I rowsort
+SELECT x FROM numbers WHERE y BETWEEN 20 AND 40
+----
+2
+3
+4
+
+# IN clause
+query I rowsort
+SELECT x FROM numbers WHERE x IN (1, 3, 5)
+----
+1
+3
+5
+
+statement ok
+DROP TABLE numbers

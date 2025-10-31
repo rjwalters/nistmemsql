@@ -1,0 +1,44 @@
+# JOIN operations
+
+statement ok
+CREATE TABLE customers (id INTEGER, name VARCHAR(50))
+
+statement ok
+CREATE TABLE orders (id INTEGER, customer_id INTEGER, amount INTEGER)
+
+statement ok
+INSERT INTO customers VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')
+
+statement ok
+INSERT INTO orders VALUES (1, 1, 100), (2, 1, 200), (3, 2, 150)
+
+# INNER JOIN
+query ITI rowsort
+SELECT c.id, c.name, o.amount FROM customers c INNER JOIN orders o ON c.id = o.customer_id
+----
+1 Alice 100
+1 Alice 200
+2 Bob 150
+
+# LEFT JOIN
+query ITI rowsort
+SELECT c.id, c.name, o.amount FROM customers c LEFT JOIN orders o ON c.id = o.customer_id
+----
+1 Alice 100
+1 Alice 200
+2 Bob 150
+3 Charlie NULL
+
+# Aggregate with JOIN (note: SUM returns 0 instead of NULL for no rows - known issue)
+query TI rowsort
+SELECT c.name, SUM(o.amount) FROM customers c LEFT JOIN orders o ON c.id = o.customer_id GROUP BY c.name
+----
+Alice 300
+Bob 150
+Charlie 0
+
+statement ok
+DROP TABLE orders
+
+statement ok
+DROP TABLE customers

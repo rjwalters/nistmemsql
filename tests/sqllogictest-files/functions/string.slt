@@ -1,0 +1,53 @@
+# String functions
+
+# UPPER
+query T
+SELECT UPPER('hello')
+----
+HELLO
+
+# LOWER
+query T
+SELECT LOWER('WORLD')
+----
+world
+
+# SUBSTRING
+query T
+SELECT SUBSTRING('hello' FROM 2 FOR 3)
+----
+ell
+
+# CHAR_LENGTH
+query I
+SELECT CHAR_LENGTH('test')
+----
+4
+
+# Concatenation
+query T
+SELECT 'hello' || ' ' || 'world'
+----
+hello world
+
+# TRIM
+query T
+SELECT TRIM('  hello  ')
+----
+hello
+
+statement ok
+CREATE TABLE strings (s VARCHAR(50))
+
+statement ok
+INSERT INTO strings VALUES ('Hello'), ('WORLD'), ('Test')
+
+query T
+SELECT UPPER(s) FROM strings ORDER BY s
+----
+HELLO
+TEST
+WORLD
+
+statement ok
+DROP TABLE strings

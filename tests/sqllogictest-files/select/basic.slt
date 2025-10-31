@@ -1,0 +1,34 @@
+# Basic SELECT queries
+
+statement ok
+CREATE TABLE t1 (a INTEGER, b VARCHAR(50))
+
+statement ok
+INSERT INTO t1 VALUES (1, 'hello')
+
+statement ok
+INSERT INTO t1 VALUES (2, 'world')
+
+query IT rowsort
+SELECT * FROM t1
+----
+1 hello
+2 world
+
+query I
+SELECT a FROM t1 WHERE b = 'world'
+----
+2
+
+query T
+SELECT b FROM t1 WHERE a = 1
+----
+hello
+
+query I
+SELECT COUNT(*) FROM t1
+----
+2
+
+statement ok
+DROP TABLE t1
