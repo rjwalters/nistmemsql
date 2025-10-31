@@ -349,23 +349,29 @@ fn run_test_suite() -> HashMap<String, TestStats> {
 
         // Create a new database for each test file
         // We need to create a runtime because this is a sync test
-        let result = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap()
-            .block_on(async {
-                let mut tester = Runner::new(|| async { Ok(NistMemSqlDB::new()) });
-                tester.run_script(&contents)
-            });
+        let result = std::panic::catch_unwind(|| {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap()
+                .block_on(async {
+                    let mut tester = Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+                    tester.run_script(&contents)
+                })
+        });
 
         match result {
-            Ok(_) => {
+            Ok(Ok(_)) => {
                 println!("✓ {}", relative_path);
                 stats.passed += 1;
             }
-            Err(e) => {
+            Ok(Err(e)) => {
                 eprintln!("✗ {} - {}", relative_path, e);
                 stats.failed += 1;
+            }
+            Err(_) => {
+                eprintln!("✗ {} - Test panicked (likely unsupported SQLLogicTest syntax)", relative_path);
+                stats.errors += 1;
             }
         }
     }
