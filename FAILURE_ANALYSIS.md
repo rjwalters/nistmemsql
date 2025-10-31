@@ -1,185 +1,79 @@
 # SQL:1999 Test Failure Analysis
 
-**Generated**: 2025-10-30 (Updated after PR #685)
+**Generated**: 2025-10-30 (Auto-generated from test results)
 **Total Failures**: 108/739 tests (14.6%)
 **Current Pass Rate**: 85.4%
-**Target**: 90%+ (need to fix ~41 tests)
-
-**Note**: PR #685 (GRANT/REVOKE for functions/procedures) introduced a regression (-3 tests). Investigation needed.
+**Target**: 90%+ (need to fix ~34 tests)
 
 ---
 
 ## Executive Summary
 
-**Recent Progress**: Fixed 28 tests from FAILURE_ANALYSIS patterns (PRs #681-#684), but PR #685 introduced a regression (-3 tests).
+Analysis of the 108 failing tests reveals the following primary failure patterns:
 
-**Fixes Completed** ✅:
-1. ✅ **SELECT * with AS clause** (12 tests fixed) - Column aliasing for wildcards (PR #682)
-2. ✅ **CREATE statement extensions** (6 tests fixed) - WITHOUT OIDS clause (PR #681)
-3. ✅ **VIEW query execution** (9 tests fixed) - View storage/retrieval (PR #683)
-4. ✅ **ALTER TABLE ADD** (1 test fixed) - Column without COLUMN keyword (PR #684)
+**Top Failure Patterns** (by count):
+1. **SELECT * AS (col1, col2)** (12 tests) - Derived column lists for wildcards
+2. **GRANT/REVOKE advanced syntax** (49 tests) - Procedure/Function/Domain/Sequence privileges
+3. **Cursor operations** (13 tests) - OPEN, FETCH, CLOSE
+4. **TIMESTAMP WITHOUT TIME ZONE** (0 tests) - Parser support needed
+5. **SET statement extensions** (6 tests) - Transaction isolation, read-only mode
+6. **Foreign key referential actions** (8 tests) - ON UPDATE/DELETE actions
+7. **Aggregate function ALL syntax** (5 tests) - ALL keyword in aggregates
+8. **Column-level privileges** (4 tests) - GRANT/REVOKE on specific columns
+9. **Miscellaneous** (11 tests) - Various parser/executor gaps
 
-**Regression** ⚠️:
-- PR #685 (GRANT/REVOKE for functions/procedures) broke 3 previously passing tests
-- Net progress: +25 tests (28 fixed - 3 regressed)
-- Current: **631 passing (85.4%)**, was 633 before PR #685
-
-**Remaining 108 failures** - Primary patterns:
-1. **GRANT/REVOKE advanced syntax** (28 tests) - Procedure/Function/Domain/Sequence privileges
-2. **Cursor operations** (10 tests) - OPEN, FETCH, CLOSE
-3. **SET statement extensions** (6 tests) - Transaction isolation level, read-only mode
-4. **Foreign key referential actions** (8 tests) - ON UPDATE/DELETE NO ACTION
-5. **Aggregate function syntax** (5 tests) - ALL keyword in aggregates
-6. **Miscellaneous** (~48 tests) - Various parser/executor gaps
-
-**Path to 90%+**: Need to fix ~38 more tests. Quick wins remain in SET extensions and aggregate syntax.
+**Path to 90%+**: Need to fix ~34 more tests. Quick wins available in patterns with smaller test counts.
 
 ---
 
-## Failure Patterns (Grouped by Impact)
+## Detailed Failure Patterns
 
-### Pattern 1: SELECT * with Column Aliasing ✅ **FIXED** (was 12 tests)
-
-**Status**: Fixed in PR #682
-
-**Previous Error**:
-```
-Statement 2 failed: Execution error: UnsupportedFeature("SELECT * and qualified wildcards require FROM clause")
-```
-
-**Example SQL** (now working):
-```sql
-CREATE TABLE TABLE_E051_07_01_01 ( A INT, B INT );
-SELECT * AS ( C , D ) FROM TABLE_E051_07_01_01
-```
-
-**Issue**: The executor rejected `SELECT * AS (C, D)` syntax - SQL:1999 feature E051-07/08 (derived column list).
-
-**Resolution**: Implemented proper handling for derived column lists in SELECT statement execution.
-
----
-
-### Pattern 2: GRANT/REVOKE Advanced Privileges (28 tests) ⚠️ MEDIUM-HIGH IMPACT
-
-**Subcategory 2.1: Procedure/Function/Method Privileges (14 tests)**
-
-**Error Messages**:
-```
-Statement 2 failed: Parse error: ParseError { message: "Expected keyword To/From, found Keyword(Function)" }
-Statement 2 failed: Parse error: ParseError { message: "Expected keyword To/From, found Keyword(Procedure)" }
-Statement 2 failed: Parse error: ParseError { message: "Expected keyword To/From, found Keyword(Method)" }
-Statement 2 failed: Parse error: ParseError { message: "Expected keyword To/From, found Keyword(Constructor)" }
-Statement 2 failed: Parse error: ParseError { message: "Expected keyword To/From, found Keyword(Routine)" }
-Statement 2 failed: Parse error: ParseError { message: "Expected keyword To/From, found Keyword(Static)" }
-Statement 2 failed: Parse error: ParseError { message: "Expected keyword To/From, found Keyword(Instance)" }
-```
-
-**Example SQL**:
-```sql
-GRANT EXECUTE ON FUNCTION my_func TO user1;
-GRANT EXECUTE ON PROCEDURE my_proc TO user1;
-GRANT EXECUTE ON METHOD my_method FOR my_type TO user1;
-```
-
-**Issue**: Parser doesn't recognize FUNCTION/PROCEDURE/METHOD/etc. as privilege targets.
-
-**Impact**: 14 tests
-**Difficulty**: Medium
-**Feature Code**: SQL/PSM and OOP SQL extensions
-
-**Fix Required**:
-- Extend GRANT/REVOKE parser to accept: `ON {FUNCTION|PROCEDURE|METHOD|ROUTINE|CONSTRUCTOR|STATIC|INSTANCE} <name>`
-- Add storage for these privilege types
-- Update privilege enforcement
-
-**Subcategory 2.2: Domain/Sequence/Translation Privileges (12 tests)**
-
-**Error Messages**:
-```
-Statement 3 failed: Parse error: ParseError { message: "Expected keyword To/From, found Identifier(\"DOMAIN1\")" }
-Statement 3 failed: Parse error: ParseError { message: "Expected keyword To/From, found Identifier(\"SEQUENCE1\")" }
-Statement 3 failed: Parse error: ParseError { message: "Expected keyword To/From, found Identifier(\"TRANSLATION1\")" }
-```
-
-**Example SQL**:
-```sql
-GRANT USAGE ON DOMAIN domain1 TO user1;
-GRANT USAGE ON SEQUENCE seq1 TO user1;
-GRANT USAGE ON TRANSLATION trans1 TO user1;
-```
-
-**Issue**: Parser expects table/schema names, not domain/sequence/translation objects.
-
-**Impact**: 12 tests
-**Difficulty**: High (requires implementing CREATE DOMAIN/SEQUENCE/TRANSLATION first)
-**Feature Code**: Advanced DDL features
-
-**Subcategory 2.3: SET Privilege Context (2 tests)**
-
-**Error Messages**:
-```
-Statement 3 failed: Parse error: ParseError { message: "Expected keyword To/From, found Keyword(Set)" }
-```
-
-**Issue**: GRANT with SET clause (probably for user/role context).
-
-**Impact**: 2 tests
-**Difficulty**: Medium
-
----
-
-### Pattern 3: SET Statement Extensions (6 tests) 🎯 MEDIUM IMPACT
+### Pattern 1: SELECT * AS (col1, col2) - 12 tests
 
 **Error Message**:
 ```
-Statement 2 failed: Parse error: ParseError { message: "Expected SCHEMA, CATALOG, NAMES, or TIME ZONE after SET" }
+Statement 2 failed: Parse error: ParseError { message: "Expected Symbol('('), found LParen" }
 ```
 
 **Example SQL**:
 ```sql
-SET CATALOG my_catalog;
-SET NAMES 'UTF8';
-SET TIME ZONE LOCAL;
+SELECT * AS (C, D) FROM table_name
 ```
 
-**Issue**: Parser only accepts `SET SCHEMA`, not other SET variants.
+**Issue**: Parser doesn't support derived column lists (AS clause after wildcards).
 
-**Impact**: 6 tests
-**Difficulty**: Easy
-**Feature Code**: F031 (Basic schema manipulation)
+**Feature Code**: E051-07, E051-08
 
-**Fix Required**:
-- Extend SET parser to accept: CATALOG, NAMES, TIME ZONE
-- Add AST nodes for these SET variants
-- Implement execution (may be no-ops for some)
+**Affected Tests**:
+e051_07_01_01,e051_07_01_03,e051_07_01_05,e051_07_01_07,e051_07_01_09,e051_07_01_11,e051_08_01_01,e051_08_01_03,e051_08_01_05,e051_08_01_07,e051_08_01_09,e051_08_01_11
 
 ---
 
-### Pattern 4: CREATE Statement Extensions ✅ **FIXED** (was 6 tests)
+### Pattern 2: GRANT/REVOKE Advanced Privileges - 49 tests
 
-**Status**: Fixed in PR #681
+**Subcategories**:
+- GRANT/REVOKE on FUNCTION/PROCEDURE/METHOD
+- GRANT/REVOKE on DOMAIN/SEQUENCE/TRANSLATION
+- GRANT/REVOKE on CHARACTER SET/COLLATION/TYPE
+- Column-level privileges (GRANT SELECT(col) ON table)
 
-**Previous Error**:
+**Error Messages**:
 ```
-Parse error: ParseError { message: "Expected RParen, found Keyword(Without)" }
+Expected keyword To/From, found Keyword(Function/Procedure/Domain/Sequence)
+Expected keyword On, found LParen (for column privileges)
 ```
 
-**Example SQL** (now working):
-```sql
-CREATE TABLE foo (id INT) WITHOUT OIDS;
-```
+**Issue**: Parser doesn't recognize advanced privilege targets beyond tables and schemas.
 
-**Issue**: Parser didn't recognize `WITHOUT OIDS` clause.
-
-**Resolution**: Extended CREATE TABLE parser to accept optional `WITHOUT OIDS` / `WITH OIDS` clauses (treated as no-ops in execution).
+**Affected Test Patterns**: f031_03_*, f031_19_*, e081_*
 
 ---
 
-### Pattern 5: Cursor Operations (10 tests) ⚠️ MEDIUM IMPACT
+### Pattern 3: Cursor Operations - 13 tests
 
 **Error Message**:
 ```
-Statement 4 failed: Parse error: ParseError { message: "Expected statement, found Identifier(\"OPEN\")" }
+Statement failed: Parse error: ParseError { message: "Expected statement, found Identifier(\"OPEN\")" }
 ```
 
 **Example SQL**:
@@ -190,267 +84,129 @@ FETCH FROM cur1;
 CLOSE cur1;
 ```
 
-**Issue**: Parser doesn't recognize DECLARE CURSOR, OPEN, FETCH, CLOSE statements.
+**Issue**: No cursor support (procedural SQL feature).
 
-**Impact**: 10 tests
-**Difficulty**: High
-**Feature Code**: Cursor support (SQL/PSM)
+**Feature Code**: E121 (Cursor support)
 
-**Fix Required**:
-- Add DECLARE CURSOR statement
-- Add OPEN/FETCH/CLOSE statements
-- Implement cursor state management
-- This is a larger feature (procedural SQL)
+**Affected Test Pattern**: e121_*
 
 ---
 
-### Pattern 6: UPDATE/DELETE Trigger Extensions (8 tests) ⚠️ MEDIUM IMPACT
+### Pattern 4: TIMESTAMP WITHOUT TIME ZONE - 0 tests
 
 **Error Message**:
 ```
-Statement 2 failed: Parse error: ParseError { message: "Expected UPDATE after ON" }
+Parse error: ParseError { message: "Expected RParen, found Keyword(Without)" }
 ```
 
 **Example SQL**:
 ```sql
-CREATE TRIGGER trig1 BEFORE DELETE ON table1 FOR EACH ROW ...
+CAST('2016-03-26 01:02:03' AS TIMESTAMP WITHOUT TIME ZONE)
 ```
 
-**Issue**: Parser expects `ON UPDATE` for triggers, not other trigger events.
+**Issue**: Parser doesn't support TIMESTAMP WITHOUT TIME ZONE syntax.
 
-**Impact**: 8 tests
-**Difficulty**: High
-**Feature Code**: Trigger support
-
-**Fix Required**:
-- Complete trigger syntax parsing (already partially implemented)
-- Add DELETE, INSERT trigger events
-- Implement trigger execution
+**Affected Test Pattern**: f051_05_*
 
 ---
 
-### Pattern 7: VIEW Execution Errors ✅ **FIXED** (was 9 tests)
+### Pattern 5: SET Statement Extensions - 6 tests
 
-**Status**: Fixed in PR #683
-
-**Previous Error**:
+**Error Messages**:
 ```
-Statement 3 failed: Execution error: TableNotFound("VIEW_F131_01_01_01")
-Statement 4 failed: Execution error: TableNotFound("VIEW_F131_02_01_01")
+Expected SCHEMA, CATALOG, NAMES, or TIME ZONE after SET
 ```
 
-**Example Test Pattern** (now working):
+**Example SQL**:
 ```sql
-CREATE VIEW my_view AS SELECT * FROM t1;  -- Statement 1
--- Statement 2: some other operation
--- Statement 3: tries to query the view - now works!
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+SET TRANSACTION READ ONLY;
+SET LOCAL TRANSACTION ...;
 ```
 
-**Issue**: Views were created but not stored/queryable properly.
+**Issue**: SET statement only supports SCHEMA, needs transaction-related extensions.
 
-**Resolution**: Fixed view storage/retrieval and catalog registration to ensure views can be queried properly.
+**Affected Test Pattern**: e152_*
 
 ---
 
-### Pattern 8: ALTER TABLE ADD Constraint ✅ **FIXED** (was 1 test)
+### Pattern 6: Foreign Key Referential Actions - 8 tests
 
-**Status**: Fixed in PR #684
-
-**Previous Error**:
+**Error Message**:
 ```
-Statement 2 failed: Parse error: ParseError { message: "Expected COLUMN, CONSTRAINT, or constraint type after ADD" }
+Parse error: ParseError { message: "Expected UPDATE after ON" }
 ```
 
-**Example SQL** (now working):
+**Example SQL**:
 ```sql
-ALTER TABLE t1 ADD CHECK (col1 > 0);
+CREATE TABLE t2 (
+  b INT REFERENCES t1(a) ON UPDATE NO ACTION ON DELETE NO ACTION
+);
 ```
 
-**Issue**: Parser expected `ADD COLUMN` or `ADD CONSTRAINT`, not bare column definitions.
+**Issue**: Parser expects only "ON UPDATE" not "ON DELETE" for foreign key actions.
 
-**Resolution**: Extended ALTER TABLE ADD parser to allow adding columns without the explicit COLUMN keyword.
+**Affected Test Pattern**: e141_04_*
 
 ---
 
-### Pattern 9: Miscellaneous Parse Errors (12 tests)
+### Pattern 7: Aggregate Function ALL Syntax - 5 tests
 
-Various one-off parsing issues:
-- `Expected expression, found Keyword(All)` (5 tests)
-- `Expected table name after DELETE FROM` (1 test)
-- `Expected identifier, found String("de_DE")` (2 tests)
-- `Expected identifier after CURRENT, found Keyword(Of)` (2 tests)
-- Others (2 tests)
+**Error Message**:
+```
+Parse error: ParseError { message: "Expected expression, found Keyword(All)" }
+```
 
-**Impact**: 12 tests
-**Difficulty**: Varies
-**Approach**: Each needs individual investigation
+**Example SQL**:
+```sql
+SELECT AVG(ALL col) FROM table;
+SELECT COUNT(ALL col) FROM table;
+```
+
+**Issue**: Parser doesn't support ALL keyword in aggregate functions.
+
+**Affected Test Pattern**: e091_06_*
+
+---
+
+### Pattern 8: Miscellaneous Parse Errors - 11 tests
+
+Various one-off parsing and execution issues requiring individual investigation.
 
 ---
 
 ## Prioritized Action Plan
 
-### Phase 1: Quick Wins (Target: 87-88% conformance)
+### Quick Wins (Highest ROI)
 
-**Goal**: Fix 15-20 tests with minimal effort
+1. **Aggregate ALL syntax** ($AGG_ALL_COUNT tests) - Simple parser fix
+2. **SET transaction statements** ($SET_COUNT tests) - Parser extension
+3. **Foreign key actions** ($FK_ACTION_COUNT tests) - Parser fix
 
-1. ✅ **SELECT * AS (col1, col2)** - 12 tests
-   - Estimated effort: 4-6 hours
-   - Impact: +1.6% conformance
-   - Difficulty: Medium (executor change)
+**Estimated Impact**: ~$(echo "$AGG_ALL_COUNT + $SET_COUNT + $FK_ACTION_COUNT" | bc) tests, moderate effort
 
-2. ✅ **CREATE TABLE WITHOUT OIDS** - 6 tests
-   - Estimated effort: 1-2 hours
-   - Impact: +0.8% conformance
-   - Difficulty: Easy (parser no-op)
+### Medium-Term Fixes
 
-3. ✅ **SET CATALOG/NAMES/TIME ZONE** - 6 tests
-   - Estimated effort: 2-3 hours
-   - Impact: +0.8% conformance
-   - Difficulty: Easy (parser + no-op execution)
+4. **SELECT * AS aliasing** ($SELECT_AS_COUNT tests) - Parser + executor work
+5. **TIMESTAMP WITHOUT TIME ZONE** ($TIMESTAMP_COUNT tests) - Type system extension
+6. **Column-level privileges** ($COL_PRIV_COUNT tests) - Security model enhancement
 
-**Phase 1 Total**: 24 tests fixed → **88.9% conformance** (+3.2%)
+### Long-Term Features
+
+7. **GRANT/REVOKE advanced** ($GRANT_REVOKE_COUNT tests) - Requires stub objects
+8. **Cursor operations** ($CURSOR_COUNT tests) - Major procedural SQL feature
 
 ---
 
-### Phase 2: Medium Impact Fixes (Target: 90%+ conformance)
+## Implementation Notes
 
-**Goal**: Fix patterns with good ROI
+**Auto-generated from**: target/sqltest_results.json
+**Last test run**: $CURRENT_DATE
+**Test suite**: SQL:1999 conformance tests (upstream YAML)
 
-4. ✅ **VIEW query execution fixes** - 9 tests
-   - Estimated effort: 4-6 hours
-   - Impact: +1.2% conformance
-   - Difficulty: Medium (debugging)
+To regenerate this file:
+\`\`\`bash
+cargo test --test sqltest_conformance --release -- --nocapture
+./scripts/update_failure_analysis.sh
+\`\`\`
 
-5. ✅ **ALTER TABLE ADD bare constraint** - 1 test
-   - Estimated effort: 1 hour
-   - Impact: +0.1% conformance
-   - Difficulty: Easy
-
-6. ✅ **GRANT ON FUNCTION/PROCEDURE** - 14 tests
-   - Estimated effort: 6-8 hours
-   - Impact: +1.9% conformance
-   - Difficulty: Medium (requires stub function/procedure objects)
-
-**Phase 2 Total**: 24 tests fixed → **92.2% conformance** (+3.2%)
-
-**Cumulative**: 48 tests fixed → **92.2% total conformance**
-
----
-
-### Phase 3: Advanced Features (Optional for 95%+)
-
-**Long-term features** (not required for 90%):
-
-7. ⬜ **Cursor operations** - 10 tests
-   - Requires procedural SQL implementation
-   - Large feature (cursors, state management)
-
-8. ⬜ **GRANT ON DOMAIN/SEQUENCE** - 12 tests
-   - Requires CREATE DOMAIN/SEQUENCE first
-   - Complex DDL features
-
-9. ⬜ **Trigger syntax completion** - 8 tests
-   - Requires full trigger implementation
-   - Already partially parsed
-
-10. ⬜ **Miscellaneous parse fixes** - 12 tests
-    - Various one-off issues
-    - Requires individual analysis
-
-**Phase 3 Total**: 42 tests → **97.9% conformance**
-
----
-
-## Recommended Approach
-
-### Immediate Focus: Phase 1 (Days 1-2)
-
-**Target**: 88.9% conformance in 2 days
-
-**Day 1**:
-1. Implement `SELECT * AS (col1, col2, ...)` support
-   - Modify executor projection handling
-   - Add tests for wildcard aliasing
-   - Estimated: 12 tests fixed
-
-**Day 2**:
-2. Add `WITHOUT OIDS` clause to CREATE TABLE (parser no-op)
-   - Estimated: 6 tests fixed
-3. Add `SET CATALOG/NAMES/TIME ZONE` statements
-   - Estimated: 6 tests fixed
-
-**Result**: 24 tests fixed → **88.9% conformance**
-
----
-
-### Short-term Focus: Phase 2 (Days 3-5)
-
-**Target**: 92%+ conformance in 3 days
-
-**Day 3**:
-4. Debug and fix VIEW query execution
-   - Investigate why views aren't found
-   - Fix catalog registration
-   - Estimated: 9 tests fixed
-
-**Day 4**:
-5. Add ALTER TABLE ADD bare constraint syntax
-   - Simple parser update
-   - Estimated: 1 test fixed
-6. Start GRANT ON FUNCTION/PROCEDURE support
-   - Add privilege target types
-   - Create stub function/procedure objects
-
-**Day 5**:
-7. Complete GRANT ON FUNCTION/PROCEDURE
-   - Wire up privilege checking
-   - Estimated: 14 tests fixed
-
-**Result**: 24 more tests fixed → **92.2% conformance**
-
----
-
-### Long-term Focus: Phase 3 (Weeks 2-4)
-
-**Target**: 95%+ conformance
-
-Only pursue if aiming for near-complete SQL:1999 Core:
-- Cursor support (major feature)
-- CREATE DOMAIN/SEQUENCE (advanced DDL)
-- Trigger completion (already started)
-- Miscellaneous fixes
-
----
-
-## Impact Summary
-
-| Phase | Tests Fixed | Conformance Gain | Effort | Priority |
-|-------|-------------|------------------|--------|----------|
-| **Phase 1** | 24 | +3.2% → 88.9% | 7-11 hours | ⭐⭐⭐ High |
-| **Phase 2** | 24 | +3.2% → 92.2% | 11-15 hours | ⭐⭐ Medium |
-| **Phase 3** | 42 | +5.7% → 97.9% | 40-60 hours | ⭐ Low |
-
-**Recommended immediate action**: Execute Phase 1 in next 2 days to reach ~89% conformance with minimal effort.
-
-**90% milestone**: Phases 1+2 will achieve 92.2%, exceeding the 90% target.
-
----
-
-## Feature Code Reference
-
-- **E051-07/08**: Derived column lists (SELECT * AS (cols))
-- **F031**: Basic schema manipulation (SET CATALOG, etc.)
-- **F131**: Grouped views
-- **SQL/PSM**: Procedural SQL (cursors, procedures, functions)
-- **Advanced DDL**: DOMAIN, SEQUENCE, TRANSLATION
-
----
-
-**Next Steps**:
-1. Review and approve this analysis
-2. Create GitHub issues for Phase 1 tasks
-3. Begin implementation starting with SELECT * AS aliasing
-
----
-
-*Generated by Claude Code analysis of target/sqltest_results.json*
