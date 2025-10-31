@@ -94,6 +94,7 @@ fn expression_references_column(expr: &ast::Expression) -> bool {
         ast::Expression::CurrentDate => false,
         ast::Expression::CurrentTime { .. } => false,
         ast::Expression::CurrentTimestamp { .. } => false,
+        ast::Expression::NextValue { .. } => false, // Sequence reference, not column
     }
 }
 
