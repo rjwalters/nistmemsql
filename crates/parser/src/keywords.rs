@@ -189,6 +189,7 @@ pub enum Keyword {
     Without,
     Read,
     Only,
+    Oids,
 }
 
 impl fmt::Display for Keyword {
@@ -355,6 +356,7 @@ impl fmt::Display for Keyword {
             Keyword::Without => "WITHOUT",
             Keyword::Read => "READ",
             Keyword::Only => "ONLY",
+            Keyword::Oids => "OIDS",
         };
         write!(f, "{}", keyword_str)
     }

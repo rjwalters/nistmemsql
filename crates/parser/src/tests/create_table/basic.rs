@@ -60,3 +60,51 @@ fn test_parse_create_table_various_types() {
         _ => panic!("Expected CREATE TABLE statement"),
     }
 }
+
+#[test]
+fn test_parse_create_table_without_oids() {
+    let result = Parser::parse_sql("CREATE TABLE t1 (id INT) WITHOUT OIDS;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "T1");
+            assert_eq!(create.columns.len(), 1);
+            assert_eq!(create.columns[0].name, "ID");
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_create_table_with_oids() {
+    let result = Parser::parse_sql("CREATE TABLE t2 (id INT) WITH OIDS;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "T2");
+            assert_eq!(create.columns.len(), 1);
+            assert_eq!(create.columns[0].name, "ID");
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_create_table_no_oids_clause() {
+    // Ensure tables without OIDS clause still work
+    let result = Parser::parse_sql("CREATE TABLE t3 (id INT);");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "T3");
+            assert_eq!(create.columns.len(), 1);
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}

@@ -74,6 +74,18 @@ impl Parser {
 
         self.expect_token(Token::RParen)?;
 
+        // Parse optional WITH OIDS / WITHOUT OIDS clause
+        // This is a PostgreSQL extension that we parse but ignore in execution
+        if self.peek_keyword(Keyword::With) {
+            self.advance(); // consume WITH
+            self.expect_keyword(Keyword::Oids)?;
+            // We parse it but don't store it - just for compatibility
+        } else if self.peek_keyword(Keyword::Without) {
+            self.advance(); // consume WITHOUT
+            self.expect_keyword(Keyword::Oids)?;
+            // We parse it but don't store it - just for compatibility
+        }
+
         // Expect semicolon or EOF
         if matches!(self.peek(), Token::Semicolon) {
             self.advance();
