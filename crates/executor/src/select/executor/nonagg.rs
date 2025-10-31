@@ -146,7 +146,7 @@ impl SelectExecutor<'_> {
         let mut values = Vec::new();
         for item in &stmt.select_list {
             match item {
-                ast::SelectItem::Wildcard | ast::SelectItem::QualifiedWildcard { .. } => {
+                ast::SelectItem::Wildcard { .. } | ast::SelectItem::QualifiedWildcard { .. } => {
                     return Err(ExecutorError::UnsupportedFeature(
                         "SELECT * and qualified wildcards require FROM clause".to_string(),
                     ));

@@ -34,7 +34,7 @@ fn test_like_wildcard_percent() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: Some(ast::Expression::Like {
             expr: Box::new(ast::Expression::ColumnRef { table: None, column: "name".to_string() }),
@@ -81,7 +81,7 @@ fn test_like_wildcard_underscore() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: Some(ast::Expression::Like {
             expr: Box::new(ast::Expression::ColumnRef { table: None, column: "name".to_string() }),
@@ -128,7 +128,7 @@ fn test_not_like() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: Some(ast::Expression::Like {
             expr: Box::new(ast::Expression::ColumnRef { table: None, column: "name".to_string() }),
@@ -172,7 +172,7 @@ fn test_like_null_pattern() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: Some(ast::Expression::Like {
             expr: Box::new(ast::Expression::ColumnRef { table: None, column: "name".to_string() }),
@@ -214,7 +214,7 @@ fn test_like_null_value() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: Some(ast::Expression::Like {
             expr: Box::new(ast::Expression::ColumnRef { table: None, column: "name".to_string() }),

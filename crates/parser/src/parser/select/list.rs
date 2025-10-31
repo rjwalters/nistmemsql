@@ -20,6 +20,48 @@ impl Parser {
         Ok(items)
     }
 
+    /// Parse derived column list: AS (col1, col2, ...)
+    /// SQL:1999 Feature E051-07/08
+    fn parse_derived_column_list(&mut self) -> Result<Option<Vec<String>>, ParseError> {
+        if !self.peek_keyword(Keyword::As) {
+            return Ok(None);
+        }
+
+        self.consume_keyword(Keyword::As)?;
+        self.expect_token(Token::Symbol('('))?;
+
+        let mut columns = Vec::new();
+        loop {
+            match self.peek() {
+                Token::Identifier(id) | Token::DelimitedIdentifier(id) => {
+                    columns.push(id.clone());
+                    self.advance();
+                }
+                _ => {
+                    return Err(ParseError {
+                        message: "Expected column name in derived column list".to_string(),
+                    })
+                }
+            }
+
+            if matches!(self.peek(), Token::Comma) {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        self.expect_token(Token::Symbol(')'))?;
+
+        if columns.is_empty() {
+            return Err(ParseError {
+                message: "Derived column list cannot be empty".to_string(),
+            });
+        }
+
+        Ok(Some(columns))
+    }
+
     /// Parse a single SELECT item
     pub(crate) fn parse_select_item(&mut self) -> Result<ast::SelectItem, ParseError> {
         // Check for qualified wildcard (table.* or alias.*)
@@ -40,7 +82,8 @@ impl Parser {
 
                 if matches!(self.peek(), Token::Symbol('*')) {
                     self.advance(); // consume asterisk
-                    return Ok(ast::SelectItem::QualifiedWildcard { qualifier });
+                    let alias = self.parse_derived_column_list()?;
+                    return Ok(ast::SelectItem::QualifiedWildcard { qualifier, alias });
                 }
             }
         }
@@ -51,7 +94,8 @@ impl Parser {
         // Check for wildcard (*)
         if matches!(self.peek(), Token::Symbol('*')) {
             self.advance();
-            return Ok(ast::SelectItem::Wildcard);
+            let alias = self.parse_derived_column_list()?;
+            return Ok(ast::SelectItem::Wildcard { alias });
         }
 
         // Parse expression

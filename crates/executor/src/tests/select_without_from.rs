@@ -170,7 +170,7 @@ fn test_select_star_without_from_fails() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: None,
         where_clause: None,
         group_by: None,

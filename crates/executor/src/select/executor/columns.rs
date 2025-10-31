@@ -15,8 +15,8 @@ impl SelectExecutor<'_> {
 
         for item in select_list {
             match item {
-                ast::SelectItem::Wildcard => {
-                    // SELECT * - expand to all column names from schema
+                ast::SelectItem::Wildcard { alias } => {
+                    // SELECT * [AS (col1, col2, ...)] - expand to all column names from schema
                     if let Some(from_res) = from_result {
                         // Get all column names in order from the combined schema
                         let mut table_columns: Vec<(usize, String)> = Vec::new();
@@ -31,8 +31,19 @@ impl SelectExecutor<'_> {
                         // Sort by index to maintain column order
                         table_columns.sort_by_key(|(idx, _)| *idx);
 
-                        for (_, name) in table_columns {
-                            column_names.push(name);
+                        // Apply derived column list if present
+                        if let Some(derived_cols) = alias {
+                            if derived_cols.len() != table_columns.len() {
+                                return Err(ExecutorError::ColumnCountMismatch {
+                                    expected: table_columns.len(),
+                                    provided: derived_cols.len(),
+                                });
+                            }
+                            column_names.extend(derived_cols.clone());
+                        } else {
+                            for (_, name) in table_columns {
+                                column_names.push(name);
+                            }
                         }
                     } else {
                         return Err(ExecutorError::UnsupportedFeature(
@@ -40,16 +51,27 @@ impl SelectExecutor<'_> {
                         ));
                     }
                 }
-                ast::SelectItem::QualifiedWildcard { qualifier } => {
-                    // SELECT table.* or SELECT alias.* - expand to columns from specific table/alias
+                ast::SelectItem::QualifiedWildcard { qualifier, alias } => {
+                    // SELECT table.* [AS (col1, col2, ...)] or SELECT alias.* [AS (col1, col2, ...)]
                     if let Some(from_res) = from_result {
                         // Find the table/alias in the schema
                         if let Some((_start_index, schema)) =
                             from_res.schema.table_schemas.get(qualifier)
                         {
-                            // Add all column names from this table in order
-                            for col_schema in &schema.columns {
-                                column_names.push(col_schema.name.clone());
+                            // Apply derived column list if present
+                            if let Some(derived_cols) = alias {
+                                if derived_cols.len() != schema.columns.len() {
+                                    return Err(ExecutorError::ColumnCountMismatch {
+                                        expected: schema.columns.len(),
+                                        provided: derived_cols.len(),
+                                    });
+                                }
+                                column_names.extend(derived_cols.clone());
+                            } else {
+                                // Add all column names from this table in order
+                                for col_schema in &schema.columns {
+                                    column_names.push(col_schema.name.clone());
+                                }
                             }
                         } else {
                             return Err(ExecutorError::TableNotFound(qualifier.clone()));
