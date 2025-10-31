@@ -300,6 +300,23 @@ impl Lexer {
             "LOCAL" => Token::Keyword(Keyword::Local),
             "HOUR" => Token::Keyword(Keyword::Hour),
             "MINUTE" => Token::Keyword(Keyword::Minute),
+            // Internationalization keywords (SQL:1999)
+            "GET" => Token::Keyword(Keyword::Get),
+            "PAD" => Token::Keyword(Keyword::Pad),
+            "SPACE" => Token::Keyword(Keyword::Space),
+            "COLLATE" => Token::Keyword(Keyword::Collate),
+            // CURSOR keywords
+            "DECLARE" => Token::Keyword(Keyword::Declare),
+            "CURSOR" => Token::Keyword(Keyword::Cursor),
+            "INSENSITIVE" => Token::Keyword(Keyword::Insensitive),
+            "SCROLL" => Token::Keyword(Keyword::Scroll),
+            "HOLD" => Token::Keyword(Keyword::Hold),
+            "WITHOUT" => Token::Keyword(Keyword::Without),
+            "READ" => Token::Keyword(Keyword::Read),
+            "ONLY" => Token::Keyword(Keyword::Only),
+            "OF" => Token::Keyword(Keyword::Of),
+            // Assertion keywords (SQL:1999)
+            "ASSERTION" => Token::Keyword(Keyword::Assertion),
             _ => Token::Identifier(upper_text), // Regular identifiers are normalized to uppercase
         };
 

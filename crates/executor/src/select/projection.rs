@@ -39,7 +39,8 @@ pub(super) fn project_row_combined(
                     let effective_end = if let Some(mapping) = window_mapping {
                         if !mapping.is_empty() {
                             // Find the minimum window column index to know where base columns end
-                            let min_window_col = mapping.values().min().copied().unwrap_or(row.values.len());
+                            let min_window_col =
+                                mapping.values().min().copied().unwrap_or(row.values.len());
                             end_index.min(min_window_col)
                         } else {
                             end_index

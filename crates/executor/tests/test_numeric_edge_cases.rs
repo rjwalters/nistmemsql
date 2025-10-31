@@ -603,8 +603,14 @@ fn test_round_precision_edge_cases() {
         let result = evaluator.eval(&expr, &row).unwrap();
 
         if let types::SqlValue::Double(val) = result {
-            assert!((val - expected).abs() < 0.001,
-                "ROUND({}, {}) = {} but expected {}", input, precision, val, expected);
+            assert!(
+                (val - expected).abs() < 0.001,
+                "ROUND({}, {}) = {} but expected {}",
+                input,
+                precision,
+                val,
+                expected
+            );
         } else {
             panic!("Expected Double value");
         }

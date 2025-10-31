@@ -157,7 +157,8 @@ impl NistMemSqlDB {
             | ast::Statement::CreateView(_)
             | ast::Statement::DropView(_)
             | ast::Statement::CreateAssertion(_)
-            | ast::Statement::DropAssertion(_) => Ok(DBOutput::StatementComplete(0)),
+            | ast::Statement::DropAssertion(_)
+            | ast::Statement::DeclareCursor(_) => Ok(DBOutput::StatementComplete(0)),
         }
     }
 

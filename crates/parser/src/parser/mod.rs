@@ -6,6 +6,7 @@ use std::fmt;
 mod advanced_objects;
 mod alter;
 mod create;
+mod cursor;
 mod delete;
 mod domain;
 mod drop;
@@ -201,7 +202,8 @@ impl Parser {
                     Ok(ast::Statement::SetTimeZone(set_stmt))
                 } else {
                     Err(ParseError {
-                        message: "Expected SCHEMA, CATALOG, NAMES, or TIME ZONE after SET".to_string(),
+                        message: "Expected SCHEMA, CATALOG, NAMES, or TIME ZONE after SET"
+                            .to_string(),
                     })
                 }
             }
@@ -212,6 +214,10 @@ impl Parser {
             Token::Keyword(Keyword::Revoke) => {
                 let revoke_stmt = self.parse_revoke_statement()?;
                 Ok(ast::Statement::Revoke(revoke_stmt))
+            }
+            Token::Keyword(Keyword::Declare) => {
+                let declare_cursor_stmt = self.parse_declare_cursor_statement()?;
+                Ok(ast::Statement::DeclareCursor(declare_cursor_stmt))
             }
             _ => {
                 Err(ParseError { message: format!("Expected statement, found {:?}", self.peek()) })

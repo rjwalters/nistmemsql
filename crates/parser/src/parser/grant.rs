@@ -152,7 +152,9 @@ fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>
 ///
 /// If next token is '(', parses column list and returns Some(vec).
 /// Otherwise returns None for table-level privilege.
-fn parse_optional_column_list(parser: &mut crate::Parser) -> Result<Option<Vec<String>>, ParseError> {
+fn parse_optional_column_list(
+    parser: &mut crate::Parser,
+) -> Result<Option<Vec<String>>, ParseError> {
     if parser.peek() == &Token::LParen {
         parser.advance(); // consume '('
 

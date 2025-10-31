@@ -6,11 +6,11 @@
 
 use ast::Statement;
 use catalog::CatalogError;
-use executor::{
-    AlterTableExecutor, CreateTableExecutor, ExecutorError, InsertExecutor,
-    SchemaExecutor, SelectExecutor,
-};
 use executor::advanced_objects::{execute_create_view, execute_drop_view};
+use executor::{
+    AlterTableExecutor, CreateTableExecutor, ExecutorError, InsertExecutor, SchemaExecutor,
+    SelectExecutor,
+};
 use parser::Parser;
 use storage::Database;
 
@@ -36,7 +36,11 @@ fn test_table_already_exists_error() {
         assert!(result.is_err(), "Should fail with TableAlreadyExists");
 
         if let Err(ExecutorError::TableAlreadyExists(name)) = result {
-            assert!(name == "USERS" || name == "public.USERS", "Expected USERS or public.USERS, got: {}", name);
+            assert!(
+                name == "USERS" || name == "public.USERS",
+                "Expected USERS or public.USERS, got: {}",
+                name
+            );
             let error_msg = format!("{}", ExecutorError::TableAlreadyExists(name));
             assert!(error_msg.contains("already exists"));
         } else {
@@ -131,7 +135,8 @@ fn test_schema_already_exists_error() {
     let sql = "CREATE SCHEMA myschema";
     let stmt = Parser::parse_sql(sql).expect("Failed to parse");
     if let Statement::CreateSchema(create_stmt) = stmt {
-        SchemaExecutor::execute_create_schema(&create_stmt, &mut db).expect("First create should succeed");
+        SchemaExecutor::execute_create_schema(&create_stmt, &mut db)
+            .expect("First create should succeed");
     }
 
     // Try to create same schema again
@@ -185,7 +190,8 @@ fn test_schema_not_empty_error() {
     let sql = "CREATE SCHEMA testschema";
     let stmt = Parser::parse_sql(sql).expect("Failed to parse");
     if let Statement::CreateSchema(create_stmt) = stmt {
-        SchemaExecutor::execute_create_schema(&create_stmt, &mut db).expect("Create should succeed");
+        SchemaExecutor::execute_create_schema(&create_stmt, &mut db)
+            .expect("Create should succeed");
     }
 
     // Create table in schema
@@ -338,7 +344,8 @@ fn test_subquery_returned_multiple_rows_error() {
             Err(ExecutorError::SubqueryReturnedMultipleRows { expected, actual }) => {
                 assert_eq!(expected, 1);
                 assert_eq!(actual, 2);
-                let error_msg = format!("{}", ExecutorError::SubqueryReturnedMultipleRows { expected, actual });
+                let error_msg =
+                    format!("{}", ExecutorError::SubqueryReturnedMultipleRows { expected, actual });
                 assert!(error_msg.contains("returned") && error_msg.contains("rows"));
             }
             other => panic!("Expected SubqueryReturnedMultipleRows error, got: {:?}", other),
@@ -507,10 +514,7 @@ fn test_storage_column_count_mismatch_error() {
     use storage::StorageError;
 
     // Test ColumnCountMismatch display format
-    let error = StorageError::ColumnCountMismatch {
-        expected: 3,
-        actual: 5,
-    };
+    let error = StorageError::ColumnCountMismatch { expected: 3, actual: 5 };
 
     let error_msg = format!("{}", error);
     assert!(error_msg.contains("Column count mismatch"));
@@ -577,100 +581,82 @@ fn test_catalog_error_display_formats() {
     let errors = vec![
         (
             CatalogError::TableAlreadyExists("mytable".to_string()),
-            vec!["Table", "mytable", "already exists"]
+            vec!["Table", "mytable", "already exists"],
         ),
-        (
-            CatalogError::TableNotFound("missing".to_string()),
-            vec!["Table", "missing", "not found"]
-        ),
+        (CatalogError::TableNotFound("missing".to_string()), vec!["Table", "missing", "not found"]),
         (
             CatalogError::ColumnAlreadyExists("mycolumn".to_string()),
-            vec!["Column", "mycolumn", "already exists"]
+            vec!["Column", "mycolumn", "already exists"],
         ),
-        (
-            CatalogError::ColumnNotFound("badcol".to_string()),
-            vec!["Column", "badcol", "not found"]
-        ),
+        (CatalogError::ColumnNotFound("badcol".to_string()), vec!["Column", "badcol", "not found"]),
         (
             CatalogError::SchemaAlreadyExists("myschema".to_string()),
-            vec!["Schema", "myschema", "already exists"]
+            vec!["Schema", "myschema", "already exists"],
         ),
         (
             CatalogError::SchemaNotFound("noschema".to_string()),
-            vec!["Schema", "noschema", "not found"]
+            vec!["Schema", "noschema", "not found"],
         ),
         (
             CatalogError::SchemaNotEmpty("fullschema".to_string()),
-            vec!["Schema", "fullschema", "not empty"]
+            vec!["Schema", "fullschema", "not empty"],
         ),
         (
             CatalogError::RoleAlreadyExists("admin".to_string()),
-            vec!["Role", "admin", "already exists"]
+            vec!["Role", "admin", "already exists"],
         ),
-        (
-            CatalogError::RoleNotFound("norole".to_string()),
-            vec!["Role", "norole", "not found"]
-        ),
+        (CatalogError::RoleNotFound("norole".to_string()), vec!["Role", "norole", "not found"]),
         (
             CatalogError::DomainAlreadyExists("mydomain".to_string()),
-            vec!["Domain", "mydomain", "already exists"]
+            vec!["Domain", "mydomain", "already exists"],
         ),
         (
             CatalogError::DomainNotFound("nodomain".to_string()),
-            vec!["Domain", "nodomain", "not found"]
+            vec!["Domain", "nodomain", "not found"],
         ),
         (
             CatalogError::SequenceAlreadyExists("myseq".to_string()),
-            vec!["Sequence", "myseq", "already exists"]
+            vec!["Sequence", "myseq", "already exists"],
         ),
         (
             CatalogError::SequenceNotFound("noseq".to_string()),
-            vec!["Sequence", "noseq", "not found"]
+            vec!["Sequence", "noseq", "not found"],
         ),
         (
             CatalogError::TypeAlreadyExists("mytype".to_string()),
-            vec!["Type", "mytype", "already exists"]
+            vec!["Type", "mytype", "already exists"],
         ),
-        (
-            CatalogError::TypeNotFound("notype".to_string()),
-            vec!["Type", "notype", "not found"]
-        ),
-        (
-            CatalogError::TypeInUse("busytype".to_string()),
-            vec!["Type", "busytype", "still in use"]
-        ),
+        (CatalogError::TypeNotFound("notype".to_string()), vec!["Type", "notype", "not found"]),
+        (CatalogError::TypeInUse("busytype".to_string()), vec!["Type", "busytype", "still in use"]),
         (
             CatalogError::CollationAlreadyExists("mycoll".to_string()),
-            vec!["Collation", "mycoll", "already exists"]
+            vec!["Collation", "mycoll", "already exists"],
         ),
         (
             CatalogError::CollationNotFound("nocoll".to_string()),
-            vec!["Collation", "nocoll", "not found"]
+            vec!["Collation", "nocoll", "not found"],
         ),
         (
             CatalogError::CharacterSetAlreadyExists("mycharset".to_string()),
-            vec!["Character set", "mycharset", "already exists"]
+            vec!["Character set", "mycharset", "already exists"],
         ),
         (
             CatalogError::CharacterSetNotFound("nocharset".to_string()),
-            vec!["Character set", "nocharset", "not found"]
+            vec!["Character set", "nocharset", "not found"],
         ),
         (
             CatalogError::TranslationAlreadyExists("mytrans".to_string()),
-            vec!["Translation", "mytrans", "already exists"]
+            vec!["Translation", "mytrans", "already exists"],
         ),
         (
             CatalogError::TranslationNotFound("notrans".to_string()),
-            vec!["Translation", "notrans", "not found"]
+            vec!["Translation", "notrans", "not found"],
         ),
         (
             CatalogError::ViewAlreadyExists("myview".to_string()),
-            vec!["View", "myview", "already exists"]
+            vec!["View", "myview", "already exists"],
         ),
-        (
-            CatalogError::ViewNotFound("noview".to_string()),
-            vec!["View", "noview", "not found"]
-        ),
+        (CatalogError::ViewNotFound("noview".to_string()), vec!["View", "noview", "not found"]),
     ];
 
     for (error, expected_parts) in errors {

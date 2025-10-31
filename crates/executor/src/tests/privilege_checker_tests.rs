@@ -18,7 +18,11 @@ fn test_check_select_with_privilege() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -56,7 +60,11 @@ fn test_check_select_without_privilege() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -82,7 +90,11 @@ fn test_check_insert_with_privilege() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -116,7 +128,11 @@ fn test_check_update_with_privilege() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -150,7 +166,11 @@ fn test_check_delete_with_privilege() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -210,7 +230,11 @@ fn test_check_drop_with_privilege() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -244,7 +268,11 @@ fn test_check_alter_with_privilege() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -278,7 +306,11 @@ fn test_admin_role_bypasses_checks() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -308,7 +340,11 @@ fn test_dba_role_bypasses_checks() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -338,7 +374,11 @@ fn test_security_disabled_bypasses_checks() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -368,7 +408,11 @@ fn test_hierarchical_privilege_checks() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -399,10 +443,10 @@ fn test_hierarchical_privilege_checks() {
 
 #[test]
 fn test_schema_level_privileges() {
-let mut db = Database::new();
+    let mut db = Database::new();
 
-// Create schema
-db.catalog.create_schema("test_schema".to_string()).unwrap();
+    // Create schema
+    db.catalog.create_schema("test_schema".to_string()).unwrap();
 
     // Create role
     db.catalog.create_role("user1".to_string()).unwrap();
@@ -435,7 +479,11 @@ fn test_role_based_privileges() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();

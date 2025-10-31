@@ -192,7 +192,8 @@ fn test_alter_table_add_primary_key_no_keyword() {
 
 #[test]
 fn test_alter_table_add_foreign_key_no_keyword() {
-    let result = Parser::parse_sql("ALTER TABLE t ADD FOREIGN KEY (col) REFERENCES other(other_col);");
+    let result =
+        Parser::parse_sql("ALTER TABLE t ADD FOREIGN KEY (col) REFERENCES other(other_col);");
     assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
     let stmt = result.unwrap();
 

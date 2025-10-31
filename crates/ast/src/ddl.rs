@@ -62,7 +62,9 @@ pub struct TableConstraint {
 /// Table constraint types
 #[derive(Debug, Clone, PartialEq)]
 pub enum TableConstraintKind {
-    PrimaryKey { columns: Vec<String> },
+    PrimaryKey {
+        columns: Vec<String>,
+    },
     ForeignKey {
         columns: Vec<String>,
         references_table: String,
@@ -70,8 +72,12 @@ pub enum TableConstraintKind {
         on_delete: Option<ReferentialAction>,
         on_update: Option<ReferentialAction>,
     },
-    Unique { columns: Vec<String> },
-    Check { expr: Box<Expression> },
+    Unique {
+        columns: Vec<String>,
+    },
+    Check {
+        expr: Box<Expression>,
+    },
 }
 
 /// DROP TABLE statement
@@ -318,9 +324,18 @@ pub enum DropBehavior {
 }
 
 /// CREATE COLLATION statement
+///
+/// SQL:1999 Syntax:
+///   CREATE COLLATION collation_name
+///     [FOR character_set]
+///     [FROM source_collation]
+///     [PAD SPACE | NO PAD]
 #[derive(Debug, Clone, PartialEq)]
 pub struct CreateCollationStmt {
     pub collation_name: String,
+    pub character_set: Option<String>,    // FOR character_set
+    pub source_collation: Option<String>, // FROM source_collation
+    pub pad_space: Option<bool>,          // PAD SPACE (true) | NO PAD (false)
 }
 
 /// DROP COLLATION statement
@@ -330,9 +345,16 @@ pub struct DropCollationStmt {
 }
 
 /// CREATE CHARACTER SET statement
+///
+/// SQL:1999 Syntax:
+///   CREATE CHARACTER SET charset_name [AS]
+///     [GET source]
+///     [COLLATE FROM collation]
 #[derive(Debug, Clone, PartialEq)]
 pub struct CreateCharacterSetStmt {
     pub charset_name: String,
+    pub source: Option<String>,    // GET source
+    pub collation: Option<String>, // COLLATE FROM collation
 }
 
 /// DROP CHARACTER SET statement
@@ -342,9 +364,17 @@ pub struct DropCharacterSetStmt {
 }
 
 /// CREATE TRANSLATION statement
+///
+/// SQL:1999 Syntax:
+///   CREATE TRANSLATION translation_name
+///     [FOR source_charset TO target_charset]
+///     [FROM translation_source]
 #[derive(Debug, Clone, PartialEq)]
 pub struct CreateTranslationStmt {
     pub translation_name: String,
+    pub source_charset: Option<String>,       // FOR source_charset
+    pub target_charset: Option<String>,       // TO target_charset
+    pub translation_source: Option<String>,   // FROM translation_source
 }
 
 /// DROP TRANSLATION statement
@@ -368,6 +398,25 @@ pub struct DropViewStmt {
     pub view_name: String,
     pub if_exists: bool,
     pub cascade: bool,
+}
+
+/// DECLARE CURSOR statement (SQL:1999 Feature E121)
+#[derive(Debug, Clone, PartialEq)]
+pub struct DeclareCursorStmt {
+    pub cursor_name: String,
+    pub insensitive: bool,
+    pub scroll: bool,
+    pub hold: Option<bool>, // Some(true) = WITH HOLD, Some(false) = WITHOUT HOLD, None = not specified
+    pub query: Box<crate::SelectStmt>,
+    pub updatability: CursorUpdatability,
+}
+
+/// Cursor updatability specification
+#[derive(Debug, Clone, PartialEq)]
+pub enum CursorUpdatability {
+    ReadOnly,
+    Update { columns: Option<Vec<String>> }, // Some(cols) = UPDATE OF cols, None = UPDATE (all columns)
+    Unspecified,
 }
 
 /// CREATE ASSERTION statement
