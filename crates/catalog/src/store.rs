@@ -571,11 +571,20 @@ impl Catalog {
     }
 
     /// Create a COLLATION
-    pub fn create_collation(&mut self, name: String) -> Result<(), CatalogError> {
+    pub fn create_collation(
+        &mut self,
+        name: String,
+        character_set: Option<String>,
+        source_collation: Option<String>,
+        pad_space: Option<bool>,
+    ) -> Result<(), CatalogError> {
         if self.collations.contains_key(&name) {
             return Err(CatalogError::CollationAlreadyExists(name));
         }
-        self.collations.insert(name.clone(), Collation::new(name));
+        self.collations.insert(
+            name.clone(),
+            Collation::new(name, character_set, source_collation, pad_space),
+        );
         Ok(())
     }
 
@@ -588,11 +597,16 @@ impl Catalog {
     }
 
     /// Create a CHARACTER SET
-    pub fn create_character_set(&mut self, name: String) -> Result<(), CatalogError> {
+    pub fn create_character_set(
+        &mut self,
+        name: String,
+        source: Option<String>,
+        collation: Option<String>,
+    ) -> Result<(), CatalogError> {
         if self.character_sets.contains_key(&name) {
             return Err(CatalogError::CharacterSetAlreadyExists(name));
         }
-        self.character_sets.insert(name.clone(), CharacterSet::new(name));
+        self.character_sets.insert(name.clone(), CharacterSet::new(name, source, collation));
         Ok(())
     }
 
@@ -605,11 +619,20 @@ impl Catalog {
     }
 
     /// Create a TRANSLATION
-    pub fn create_translation(&mut self, name: String) -> Result<(), CatalogError> {
+    pub fn create_translation(
+        &mut self,
+        name: String,
+        source_charset: Option<String>,
+        target_charset: Option<String>,
+        translation_source: Option<String>,
+    ) -> Result<(), CatalogError> {
         if self.translations.contains_key(&name) {
             return Err(CatalogError::TranslationAlreadyExists(name));
         }
-        self.translations.insert(name.clone(), Translation::new(name));
+        self.translations.insert(
+            name.clone(),
+            Translation::new(name, source_charset, target_charset, translation_source),
+        );
         Ok(())
     }
 

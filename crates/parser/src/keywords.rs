@@ -154,6 +154,11 @@ pub enum Keyword {
     Local,
     Hour,
     Minute,
+    // Internationalization keywords (SQL:1999)
+    Get,
+    Pad,
+    Space,
+    Collate,
 }
 
 impl fmt::Display for Keyword {
@@ -290,6 +295,10 @@ impl fmt::Display for Keyword {
             Keyword::Local => "LOCAL",
             Keyword::Hour => "HOUR",
             Keyword::Minute => "MINUTE",
+            Keyword::Get => "GET",
+            Keyword::Pad => "PAD",
+            Keyword::Space => "SPACE",
+            Keyword::Collate => "COLLATE",
         };
         write!(f, "{}", keyword_str)
     }
