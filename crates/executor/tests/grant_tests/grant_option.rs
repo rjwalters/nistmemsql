@@ -24,6 +24,7 @@ fn test_grant_with_grant_option_stored_in_catalog() {
         privileges: vec![ast::PrivilegeType::Select],
         object_type: ast::ObjectType::Table,
         object_name: "users".to_string(),
+        for_type_name: None,
         grantees: vec!["manager".to_string()],
         with_grant_option: true,
     };
@@ -56,6 +57,7 @@ fn test_grant_without_grant_option_stored_in_catalog() {
         privileges: vec![ast::PrivilegeType::Select],
         object_type: ast::ObjectType::Table,
         object_name: "users".to_string(),
+        for_type_name: None,
         grantees: vec!["clerk".to_string()],
         with_grant_option: false,
     };
@@ -88,6 +90,7 @@ fn test_grant_all_privileges_with_grant_option_on_table() {
         privileges: vec![ast::PrivilegeType::AllPrivileges],
         object_type: ast::ObjectType::Table,
         object_name: "products".to_string(),
+        for_type_name: None,
         grantees: vec!["admin".to_string()],
         with_grant_option: true,
     };
@@ -128,6 +131,7 @@ fn test_grant_multiple_grantees_with_grant_option() {
         privileges: vec![ast::PrivilegeType::Select],
         object_type: ast::ObjectType::Table,
         object_name: "orders".to_string(),
+        for_type_name: None,
         grantees: vec!["manager".to_string(), "clerk".to_string()],
         with_grant_option: true,
     };

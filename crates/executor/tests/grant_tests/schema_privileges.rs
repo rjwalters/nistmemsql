@@ -18,6 +18,7 @@ fn test_grant_usage_on_schema() {
         privileges: vec![ast::PrivilegeType::Usage],
         object_type: ast::ObjectType::Schema,
         object_name: "app_schema".to_string(),
+        for_type_name: None,
         grantees: vec!["user_role".to_string()],
         with_grant_option: false,
     };
@@ -47,6 +48,7 @@ fn test_grant_create_on_schema() {
         privileges: vec![ast::PrivilegeType::Create],
         object_type: ast::ObjectType::Schema,
         object_name: "admin_schema".to_string(),
+        for_type_name: None,
         grantees: vec!["admin_role".to_string()],
         with_grant_option: false,
     };
@@ -76,6 +78,7 @@ fn test_grant_all_privileges_on_schema_expands_correctly() {
         privileges: vec![ast::PrivilegeType::AllPrivileges],
         object_type: ast::ObjectType::Schema,
         object_name: "myschema".to_string(),
+        for_type_name: None,
         grantees: vec!["developer".to_string()],
         with_grant_option: false,
     };
@@ -115,6 +118,7 @@ fn test_grant_schema_with_grant_option() {
         privileges: vec![ast::PrivilegeType::Usage],
         object_type: ast::ObjectType::Schema,
         object_name: "power_schema".to_string(),
+        for_type_name: None,
         grantees: vec!["power_user".to_string()],
         with_grant_option: true,
     };
@@ -156,6 +160,7 @@ fn test_grant_multiple_schema_privileges_to_multiple_grantees() {
         privileges: vec![ast::PrivilegeType::Usage, ast::PrivilegeType::Create],
         object_type: ast::ObjectType::Schema,
         object_name: "shared".to_string(),
+        for_type_name: None,
         grantees: vec!["dev1".to_string(), "dev2".to_string()],
         with_grant_option: false,
     };

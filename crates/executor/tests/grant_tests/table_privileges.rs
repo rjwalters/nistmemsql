@@ -31,6 +31,8 @@ fn test_grant_select_on_table() {
         privileges: vec![ast::PrivilegeType::Select],
         object_type: ast::ObjectType::Table,
         object_name: "users".to_string(),
+        for_type_name: None,
+        for_type_name: None,
         grantees: vec!["manager".to_string()],
         with_grant_option: false,
     };
@@ -75,6 +77,7 @@ fn test_grant_on_qualified_table() {
         privileges: vec![ast::PrivilegeType::Select],
         object_type: ast::ObjectType::Table,
         object_name: "myschema.products".to_string(),
+        for_type_name: None,
         grantees: vec!["clerk".to_string()],
         with_grant_option: false,
     };
@@ -98,6 +101,7 @@ fn test_grant_on_nonexistent_table() {
         privileges: vec![ast::PrivilegeType::Select],
         object_type: ast::ObjectType::Table,
         object_name: "nonexistent".to_string(),
+        for_type_name: None,
         grantees: vec!["manager".to_string()],
         with_grant_option: false,
     };
@@ -129,6 +133,7 @@ fn test_grant_to_multiple_grantees() {
         privileges: vec![ast::PrivilegeType::Select],
         object_type: ast::ObjectType::Table,
         object_name: "orders".to_string(),
+        for_type_name: None,
         grantees: vec!["manager".to_string(), "clerk".to_string()],
         with_grant_option: false,
     };
@@ -177,6 +182,7 @@ fn test_grant_multiple_privileges() {
         ],
         object_type: ast::ObjectType::Table,
         object_name: "users".to_string(),
+        for_type_name: None,
         grantees: vec!["manager".to_string()],
         with_grant_option: false,
     };
@@ -227,6 +233,7 @@ fn test_grant_matrix_multiple_privileges_and_grantees() {
         privileges: vec![ast::PrivilegeType::Select, ast::PrivilegeType::Insert],
         object_type: ast::ObjectType::Table,
         object_name: "products".to_string(),
+        for_type_name: None,
         grantees: vec!["r1".to_string(), "r2".to_string()],
         with_grant_option: false,
     };
@@ -277,6 +284,7 @@ fn test_grant_all_four_privilege_types() {
         ],
         object_type: ast::ObjectType::Table,
         object_name: "data".to_string(),
+        for_type_name: None,
         grantees: vec!["admin".to_string()],
         with_grant_option: false,
     };
@@ -329,6 +337,7 @@ fn test_grant_all_privileges_expands_to_table_privileges() {
         privileges: vec![ast::PrivilegeType::AllPrivileges],
         object_type: ast::ObjectType::Table,
         object_name: "users".to_string(),
+        for_type_name: None,
         grantees: vec!["manager".to_string()],
         with_grant_option: false,
     };
@@ -382,6 +391,7 @@ fn test_grant_all_privileges_to_multiple_grantees() {
         privileges: vec![ast::PrivilegeType::AllPrivileges],
         object_type: ast::ObjectType::Table,
         object_name: "orders".to_string(),
+        for_type_name: None,
         grantees: vec!["manager".to_string(), "clerk".to_string()],
         with_grant_option: false,
     };
