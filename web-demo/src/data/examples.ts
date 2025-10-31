@@ -32,12 +32,12 @@ export {
 
 // Import loader
 import { loadExamplesForCategory } from './examples/loader'
-import { exampleCategoriesMetadata as categoriesMetadata } from './examples-metadata'
+import { exampleCategoriesMetadata } from './examples-metadata'
 
 /**
  * Load all example categories with SQL payloads
  */
-export const exampleCategories: ExampleCategory[] = categoriesMetadata.map(metadata => ({
+export const exampleCategories: ExampleCategory[] = exampleCategoriesMetadata.map(metadata => ({
   id: metadata.id,
   title: metadata.title,
   description: metadata.description,

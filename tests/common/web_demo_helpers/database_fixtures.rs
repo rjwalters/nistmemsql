@@ -1,153 +1,14 @@
-//! Common helpers for web demo SQL example tests
+//! Database fixtures for web demo SQL tests
 //!
-//! This module provides shared functionality for testing web demo SQL examples,
-//! including database creation, example parsing, and result validation.
+//! This module provides pre-configured test databases including:
+//! - Northwind: Categories and products
+//! - Employees: Company structure with departments, projects, and employees
+//! - University: Students, courses, and enrollments
+//! - Empty: Minimal empty database for testing
 
 use catalog::{ColumnSchema, TableSchema};
-use regex::Regex;
-use std::fs;
-use std::path::Path;
 use storage::{Database, Row};
 use types::{DataType, SqlValue};
-
-/// Represents a parsed SQL example from the web demo
-#[derive(Debug, Clone)]
-pub struct WebDemoExample {
-    pub id: String,
-    #[allow(dead_code)]
-    pub title: String,
-    pub database: String,
-    pub sql: String,
-    pub expected_rows: Option<Vec<Vec<String>>>,
-    pub expected_count: Option<usize>,
-}
-
-/// Parse all TypeScript example files and extract SQL examples
-pub fn parse_example_files() -> Result<Vec<WebDemoExample>, Box<dyn std::error::Error>> {
-    let mut examples = Vec::new();
-
-    let example_files = vec!["web-demo/src/data/examples.ts"];
-
-    for file_path in example_files {
-        if Path::new(file_path).exists() {
-            let content = fs::read_to_string(file_path)?;
-            examples.extend(parse_typescript_examples(&content)?);
-        }
-    }
-
-    Ok(examples)
-}
-
-/// Parse TypeScript content to extract QueryExample objects
-fn parse_typescript_examples(
-    content: &str,
-) -> Result<Vec<WebDemoExample>, Box<dyn std::error::Error>> {
-    let mut examples = Vec::new();
-
-    // Regex to match QueryExample objects in TypeScript
-    // This is a simplified parser that looks for the pattern:
-    // {
-    //   id: 'example-id',
-    //   title: 'Example Title',
-    //   database: 'northwind',
-    //   sql: `SQL CONTENT`,
-    //   ...
-    // }
-
-    let example_pattern = Regex::new(
-        r#"(?s)\{\s*id:\s*['"]([^'"]+)['"],\s*title:\s*['"]([^'"]+)['"],\s*database:\s*['"]([^'"]+)['"],\s*sql:\s*`([^`]+)`"#,
-    )?;
-
-    for cap in example_pattern.captures_iter(content) {
-        let id = cap.get(1).unwrap().as_str().to_string();
-        let title = cap.get(2).unwrap().as_str().to_string();
-        let database = cap.get(3).unwrap().as_str().to_string();
-        let sql = cap.get(4).unwrap().as_str().to_string();
-
-        // Parse expected results from SQL comments
-        let (expected_rows, expected_count) = parse_expected_results(&sql);
-
-        examples.push(WebDemoExample { id, title, database, sql, expected_rows, expected_count });
-    }
-
-    Ok(examples)
-}
-
-/// Parse expected results from SQL comment blocks
-/// Returns (expected_rows, expected_count)
-fn parse_expected_results(sql: &str) -> (Option<Vec<Vec<String>>>, Option<usize>) {
-    let lines: Vec<&str> = sql.lines().collect();
-    let mut in_expected_block = false;
-    let mut expected_rows = Vec::new();
-    let mut expected_count = None;
-
-    // Compile regex once outside the loop
-    let row_count_re = Regex::new(r"--\s*\((\d+)\s+rows?\)").ok();
-
-    for line in lines {
-        let trimmed = line.trim();
-
-        // Check for EXPECTED block start
-        if trimmed.contains("-- EXPECTED:") {
-            in_expected_block = true;
-            continue;
-        }
-
-        // Check for row count pattern: "-- (N rows)"
-        if let Some(ref re) = row_count_re {
-            if let Some(cap) = re.captures(trimmed) {
-                if let Ok(count) = cap.get(1).unwrap().as_str().parse::<usize>() {
-                    expected_count = Some(count);
-                }
-                in_expected_block = false;
-                continue;
-            }
-        }
-
-        // Parse table rows in expected block
-        if in_expected_block && trimmed.starts_with("--") {
-            let row_content = trimmed.trim_start_matches("--").trim();
-
-            // Skip header separator lines
-            if row_content.starts_with("|") && !row_content.contains("----") {
-                // Parse table row: | col1 | col2 | col3 |
-                let values: Vec<String> = row_content
-                    .split('|')
-                    .map(|s| s.trim().to_string())
-                    .filter(|s| !s.is_empty())
-                    .collect();
-
-                if !values.is_empty() {
-                    expected_rows.push(values);
-                }
-            }
-        }
-
-        // Stop parsing if we hit a line that's not a comment
-        if in_expected_block && !trimmed.starts_with("--") {
-            in_expected_block = false;
-        }
-    }
-
-    let rows = if expected_rows.len() > 1 {
-        // Skip header row (first row)
-        Some(expected_rows[1..].to_vec())
-    } else {
-        None
-    };
-
-    (rows, expected_count)
-}
-
-/// Extract just the SQL query without expected result comments
-pub fn extract_query(sql: &str) -> String {
-    sql.lines()
-        .take_while(|line| !line.trim().contains("-- EXPECTED"))
-        .collect::<Vec<_>>()
-        .join("\n")
-        .trim()
-        .to_string()
-}
 
 /// Create a Northwind database for testing
 pub fn create_northwind_db() -> Database {
@@ -165,7 +26,9 @@ pub fn create_northwind_db() -> Database {
             ),
             ColumnSchema::new(
                 "DESCRIPTION".to_string(),
-                DataType::Varchar { max_length: Some(200) },
+                DataType::Varchar {
+                    max_length: Some(200),
+                },
                 false,
             ),
         ],
@@ -179,11 +42,17 @@ pub fn create_northwind_db() -> Database {
             ColumnSchema::new("PRODUCT_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
                 "PRODUCT_NAME".to_string(),
-                DataType::Varchar { max_length: Some(100) },
+                DataType::Varchar {
+                    max_length: Some(100),
+                },
                 false,
             ),
             ColumnSchema::new("CATEGORY_ID".to_string(), DataType::Integer, false),
-            ColumnSchema::new("UNIT_PRICE".to_string(), DataType::Float { precision: 53 }, false),
+            ColumnSchema::new(
+                "UNIT_PRICE".to_string(),
+                DataType::Float { precision: 53 },
+                false,
+            ),
             ColumnSchema::new("UNITS_IN_STOCK".to_string(), DataType::Integer, false),
             ColumnSchema::new("UNITS_ON_ORDER".to_string(), DataType::Integer, false),
         ],
@@ -486,7 +355,9 @@ pub fn create_employees_db() -> Database {
             ),
             ColumnSchema::new(
                 "LOCATION".to_string(),
-                DataType::Varchar { max_length: Some(100) },
+                DataType::Varchar {
+                    max_length: Some(100),
+                },
                 true,
             ),
         ],
@@ -500,7 +371,9 @@ pub fn create_employees_db() -> Database {
             ColumnSchema::new("PROJECT_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
                 "PROJECT_NAME".to_string(),
-                DataType::Varchar { max_length: Some(100) },
+                DataType::Varchar {
+                    max_length: Some(100),
+                },
                 false,
             ),
             ColumnSchema::new("DEPT_ID".to_string(), DataType::Integer, true),
@@ -527,7 +400,9 @@ pub fn create_employees_db() -> Database {
             ),
             ColumnSchema::new(
                 "NAME".to_string(),
-                DataType::Varchar { max_length: Some(100) },
+                DataType::Varchar {
+                    max_length: Some(100),
+                },
                 false,
             ), // full name for company examples
             ColumnSchema::new(
@@ -538,10 +413,16 @@ pub fn create_employees_db() -> Database {
             ColumnSchema::new("DEPT_ID".to_string(), DataType::Integer, true), // for company examples
             ColumnSchema::new(
                 "TITLE".to_string(),
-                DataType::Varchar { max_length: Some(100) },
+                DataType::Varchar {
+                    max_length: Some(100),
+                },
                 false,
             ),
-            ColumnSchema::new("SALARY".to_string(), DataType::Float { precision: 53 }, false),
+            ColumnSchema::new(
+                "SALARY".to_string(),
+                DataType::Float { precision: 53 },
+                false,
+            ),
             ColumnSchema::new(
                 "HIRE_DATE".to_string(),
                 DataType::Varchar { max_length: Some(20) },
@@ -868,7 +749,9 @@ pub fn create_university_db() -> Database {
             ColumnSchema::new("STUDENT_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
                 "NAME".to_string(),
-                DataType::Varchar { max_length: Some(100) },
+                DataType::Varchar {
+                    max_length: Some(100),
+                },
                 false,
             ),
             ColumnSchema::new(
@@ -888,7 +771,9 @@ pub fn create_university_db() -> Database {
             ColumnSchema::new("COURSE_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
                 "COURSE_NAME".to_string(),
-                DataType::Varchar { max_length: Some(100) },
+                DataType::Varchar {
+                    max_length: Some(100),
+                },
                 false,
             ),
             ColumnSchema::new(
@@ -907,7 +792,11 @@ pub fn create_university_db() -> Database {
         vec![
             ColumnSchema::new("STUDENT_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new("COURSE_ID".to_string(), DataType::Integer, false),
-            ColumnSchema::new("GRADE".to_string(), DataType::Varchar { max_length: Some(2) }, true), // nullable
+            ColumnSchema::new(
+                "GRADE".to_string(),
+                DataType::Varchar { max_length: Some(2) },
+                true,
+            ), // nullable
             ColumnSchema::new(
                 "SEMESTER".to_string(),
                 DataType::Varchar { max_length: Some(20) },
@@ -931,7 +820,11 @@ pub fn create_university_db() -> Database {
             8 => ("Henry Anderson", "Computer Science", 3.3_f32),
             9 => ("Iris Chen", "Mathematics", 3.8_f32),
             10 => ("Jack Robinson", "Physics", 3.1_f32),
-            _ => ("Student", "Computer Science", 3.0_f32 + (i as f32 % 10.0) / 10.0),
+            _ => (
+                "Student",
+                "Computer Science",
+                3.0_f32 + (i as f32 % 10.0) / 10.0,
+            ),
         };
         students_table
             .insert(Row::new(vec![

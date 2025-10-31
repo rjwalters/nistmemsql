@@ -19,8 +19,7 @@ fn test_query_select() {
     match stmt {
         ast::Statement::Select(select_stmt) => {
             let select_executor = executor::SelectExecutor::new(&db);
-            let result =
-                select_executor.execute_with_columns(&select_stmt).expect("Query failed");
+            let result = select_executor.execute_with_columns(&select_stmt).expect("Query failed");
 
             // Column names are normalized to uppercase
             assert_eq!(result.columns, vec!["ID", "NAME"]);
@@ -60,11 +59,8 @@ fn test_query_value_conversion() {
     let mut db = storage::Database::new();
 
     // Setup with various data types
-    execute_sql(
-        &mut db,
-        "CREATE TABLE types_test (i INTEGER, f DOUBLE, s VARCHAR(50), b BOOLEAN)",
-    )
-    .unwrap();
+    execute_sql(&mut db, "CREATE TABLE types_test (i INTEGER, f DOUBLE, s VARCHAR(50), b BOOLEAN)")
+        .unwrap();
     execute_sql(&mut db, "INSERT INTO types_test VALUES (42, 3.14, 'hello', TRUE)").unwrap();
 
     let sql = "SELECT i, f, s, b FROM types_test";
