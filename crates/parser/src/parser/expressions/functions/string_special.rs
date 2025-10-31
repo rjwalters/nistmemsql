@@ -102,21 +102,21 @@ impl Parser {
 
             self.expect_token(Token::RParen)?;
 
-            return Ok(ast::Expression::Trim {
+            Ok(ast::Expression::Trim {
                 position,
                 removal_char,
                 string: Box::new(string),
-            });
+            })
         } else {
             // No FROM keyword, so first_expr is the string
             // removal_char defaults to None (which means space)
             self.expect_token(Token::RParen)?;
 
-            return Ok(ast::Expression::Trim {
+            Ok(ast::Expression::Trim {
                 position,
                 removal_char: None,
                 string: Box::new(first_expr),
-            });
+            })
         }
     }
 
