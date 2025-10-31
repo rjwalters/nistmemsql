@@ -250,6 +250,21 @@ impl SqltestRunner {
                     .map_err(|e| format!("Execution error: {:?}", e))?;
                 Ok(true)
             }
+            ast::Statement::SetCatalog(set_stmt) => {
+                executor::SchemaExecutor::execute_set_catalog(&set_stmt, db)
+                    .map_err(|e| format!("Execution error: {:?}", e))?;
+                Ok(true)
+            }
+            ast::Statement::SetNames(set_stmt) => {
+                executor::SchemaExecutor::execute_set_names(&set_stmt, db)
+                    .map_err(|e| format!("Execution error: {:?}", e))?;
+                Ok(true)
+            }
+            ast::Statement::SetTimeZone(set_stmt) => {
+                executor::SchemaExecutor::execute_set_time_zone(&set_stmt, db)
+                    .map_err(|e| format!("Execution error: {:?}", e))?;
+                Ok(true)
+            }
             ast::Statement::Grant(grant_stmt) => {
                 executor::GrantExecutor::execute_grant(&grant_stmt, db)
                     .map_err(|e| format!("Execution error: {:?}", e))?;

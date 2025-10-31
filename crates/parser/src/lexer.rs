@@ -285,6 +285,13 @@ impl Lexer {
             "NO" => Token::Keyword(Keyword::No),
             "RESTART" => Token::Keyword(Keyword::Restart),
             "NEXT" => Token::Keyword(Keyword::Next),
+            // Session configuration keywords (SQL:1999)
+            "CATALOG" => Token::Keyword(Keyword::Catalog),
+            "NAMES" => Token::Keyword(Keyword::Names),
+            "ZONE" => Token::Keyword(Keyword::Zone),
+            "LOCAL" => Token::Keyword(Keyword::Local),
+            "HOUR" => Token::Keyword(Keyword::Hour),
+            "MINUTE" => Token::Keyword(Keyword::Minute),
             _ => Token::Identifier(upper_text), // Regular identifiers are normalized to uppercase
         };
 
