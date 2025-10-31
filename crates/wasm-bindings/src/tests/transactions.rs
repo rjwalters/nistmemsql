@@ -1,6 +1,5 @@
 //! Transaction and savepoint tests
 
-use crate::*;
 use super::helpers::execute_sql;
 
 #[test]

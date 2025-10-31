@@ -2,7 +2,6 @@
 //!
 //! Tests SELECT queries, WHERE clauses, and data type conversion
 
-use crate::*;
 use super::helpers::execute_sql;
 
 #[test]

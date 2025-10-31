@@ -2,7 +2,6 @@
 //!
 //! Tests CREATE/DROP TABLE, roles, domains, sequences, and other DDL operations
 
-use crate::*;
 use super::helpers::execute_sql;
 
 #[test]

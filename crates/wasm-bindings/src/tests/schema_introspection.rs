@@ -2,7 +2,6 @@
 //!
 //! Tests schema inspection functionality: list tables, describe tables, column metadata
 
-use crate::*;
 use super::helpers::execute_sql;
 
 #[test]

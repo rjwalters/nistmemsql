@@ -1,6 +1,5 @@
 //! Helper functions for WASM API tests
 
-use crate::*;
 
 /// Helper to execute SQL (handles multi-statement SQL like loading database schemas)
 pub fn execute_sql(db: &mut storage::Database, sql: &str) -> Result<(), String> {
