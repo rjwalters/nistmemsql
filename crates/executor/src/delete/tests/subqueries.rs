@@ -1,7 +1,5 @@
 //! DELETE with subquery tests (Issue #353)
 
-use super::super::executor::DeleteExecutor;
-use ast::Expression;
 use catalog::{ColumnSchema, TableSchema};
 use storage::{Database, Row};
 use types::{DataType, SqlValue};
