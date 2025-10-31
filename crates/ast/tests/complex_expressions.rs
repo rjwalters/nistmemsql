@@ -118,7 +118,7 @@ fn test_not_in_expression() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![SelectItem::Wildcard],
+        select_list: vec![SelectItem::Wildcard { alias: None }],
         into_table: None,
         from: Some(FromClause::Table { name: "excluded".to_string(), alias: None }),
         where_clause: None,

@@ -22,6 +22,11 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache Rust dependencies and build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "rust-ci-cache"  # Shared with test.yml and deploy-demo.yml
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:

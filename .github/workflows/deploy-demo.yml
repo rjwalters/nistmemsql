@@ -31,6 +31,11 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
+      - name: Cache Rust dependencies and build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "rust-ci-cache"  # Shared with test.yml and benchmarks.yml
+
       # Install wasm-pack for building WASM bindings
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
@@ -58,13 +63,46 @@ jobs:
         working-directory: web-demo
         run: npm run build
 
-      # Run conformance tests to get latest metrics
+      # Try to download conformance test results from test workflow
+      # This avoids re-running expensive conformance tests on main branch deploys
+      # Falls back to running tests if artifacts unavailable (e.g., first run)
+      - name: Download conformance test results
+        continue-on-error: true
+        run: |
+          # Try to download from the latest successful test workflow run on main
+          gh run download \
+            --repo ${{ github.repository }} \
+            --branch main \
+            --name test-results \
+            --dir target \
+            || echo "No test results found, will run tests"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # Run conformance tests only if download failed
       - name: Run sqltest conformance suite
+        if: hashFiles('target/sqltest_results.json') == ''
         run: cargo test --test sqltest_conformance --release -- --nocapture
         continue-on-error: true
 
-      # Setup Python for benchmarks
-      - name: Setup Python
+      # Try to download benchmark results from benchmark workflow
+      # This avoids re-running expensive benchmarks on main branch deploys
+      # Falls back to running benchmarks if artifacts unavailable
+      - name: Download benchmark results
+        continue-on-error: true
+        run: |
+          # Try to download from the latest successful benchmark workflow run on main
+          gh run download \
+            --repo ${{ github.repository }} \
+            --branch main \
+            --name benchmark-results \
+            || echo "No benchmark results found, will run benchmarks"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # Only run benchmarks if download failed
+      - name: Setup Python for benchmarks
+        if: hashFiles('benchmark_results.json') == ''
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -73,6 +111,7 @@ jobs:
 
       # Build and install Python bindings
       - name: Build and install Python bindings
+        if: hashFiles('benchmark_results.json') == ''
         run: |
           pip install maturin
           cd crates/python-bindings
@@ -81,12 +120,14 @@ jobs:
 
       # Run benchmarks
       - name: Install benchmark dependencies
+        if: hashFiles('benchmark_results.json') == ''
         run: |
           # Install requirements except nistmemsql (already installed from wheel)
           grep -v "^nistmemsql" benchmarks/requirements.txt > /tmp/requirements-ci.txt
           pip install -r /tmp/requirements-ci.txt
 
       - name: Run benchmarks
+        if: hashFiles('benchmark_results.json') == ''
         working-directory: benchmarks
         run: |
           pytest test_micro_benchmarks.py \
