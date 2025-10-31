@@ -3,16 +3,30 @@
 #
 # This script analyzes target/sqltest_results.json and updates FAILURE_ANALYSIS.md
 # with current test metrics and failure patterns.
+#
+# Usage:
+#   ./scripts/update_failure_analysis.sh           # Use existing test results
+#   ./scripts/update_failure_analysis.sh --run     # Run tests first, then analyze
 
 set -e
 
 RESULTS_FILE="target/sqltest_results.json"
 OUTPUT_FILE="FAILURE_ANALYSIS.md"
 
+# Check if --run flag is provided
+if [ "$1" = "--run" ]; then
+    echo "Running conformance tests..."
+    cargo test --test sqltest_conformance --release -- --nocapture > /dev/null 2>&1
+    echo "✅ Tests completed"
+    echo ""
+fi
+
 # Check if results file exists
 if [ ! -f "$RESULTS_FILE" ]; then
     echo "Error: $RESULTS_FILE not found. Run conformance tests first:"
     echo "  cargo test --test sqltest_conformance --release -- --nocapture"
+    echo "Or run this script with --run flag:"
+    echo "  ./scripts/update_failure_analysis.sh --run"
     exit 1
 fi
 
