@@ -99,10 +99,14 @@ fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>
                 parser.advance();
                 PrivilegeType::Create
             }
+            Token::Keyword(Keyword::References) => {
+                parser.advance();
+                PrivilegeType::References
+            }
             _ => {
                 return Err(ParseError {
                     message: format!(
-                        "Expected privilege keyword (SELECT, INSERT, UPDATE, DELETE, USAGE, CREATE, ALL), found {:?}",
+                        "Expected privilege keyword (SELECT, INSERT, UPDATE, DELETE, USAGE, CREATE, REFERENCES, ALL), found {:?}",
                         parser.peek()
                     ),
                 })
