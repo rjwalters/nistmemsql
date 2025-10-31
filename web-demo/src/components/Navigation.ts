@@ -32,19 +32,19 @@ export class NavigationComponent extends Component<NavigationState> {
       {
         id: 'terminal',
         label: 'SQL Terminal Demo',
-        href: '/',
+        href: '/nistmemsql/',
         icon: this.getTerminalIcon(),
       },
       {
         id: 'conformance',
         label: 'SQL Test Compliance Report',
-        href: '/conformance.html',
+        href: '/nistmemsql/conformance.html',
         icon: this.getConformanceIcon(),
       },
       {
         id: 'benchmarks',
         label: 'Benchmark Data',
-        href: '/benchmarks.html',
+        href: '/nistmemsql/benchmarks.html',
         icon: this.getBenchmarkIcon(),
       },
       {
@@ -65,14 +65,17 @@ export class NavigationComponent extends Component<NavigationState> {
 
     // Initialize theme toggle if themeSystem is provided
     if (this.themeSystem) {
-      const themeToggleContainer = this.element.querySelector('#theme-toggle-nav') as HTMLDivElement
-      if (themeToggleContainer) {
-        // Create a wrapper for the theme toggle
-        const wrapper = document.createElement('div')
-        wrapper.id = 'theme-toggle'
-        themeToggleContainer.appendChild(wrapper)
-        new ThemeToggleComponent(this.themeSystem)
-      }
+      // Use requestAnimationFrame to ensure DOM is ready
+      requestAnimationFrame(() => {
+        const themeToggleContainer = this.element.querySelector('#theme-toggle-nav') as HTMLDivElement
+        if (themeToggleContainer) {
+          // Create a wrapper for the theme toggle
+          const wrapper = document.createElement('div')
+          wrapper.id = 'theme-toggle'
+          themeToggleContainer.appendChild(wrapper)
+          new ThemeToggleComponent(this.themeSystem!)
+        }
+      })
     }
   }
 
