@@ -1,7 +1,7 @@
 //! Rounding function edge cases (ROUND, FLOOR, CEIL)
 
 use super::common::create_test_evaluator;
-use super::test_numeric_basic::{assert_function_returns_double, assert_function_returns_null_on_null_input, create_function_expr};
+use super::basic::{assert_function_returns_double, assert_function_returns_null_on_null_input, create_function_expr};
 use types::SqlValue;
 
 #[test]

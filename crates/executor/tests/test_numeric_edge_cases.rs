@@ -10,12 +10,27 @@
 //! Tests are organized into logical modules for maintainability.
 
 mod common;
-mod test_numeric_helpers;
 
-mod test_numeric_basic;
-mod test_numeric_rounding;
-mod test_numeric_exponential;
-mod test_numeric_trigonometric;
-mod test_numeric_type_coercion;
-mod test_numeric_domain_range;
-mod test_numeric_precision;
+#[path = "test_numeric_edge_cases/helpers.rs"]
+mod helpers;
+
+#[path = "test_numeric_edge_cases/basic.rs"]
+mod basic;
+
+#[path = "test_numeric_edge_cases/rounding.rs"]
+mod rounding;
+
+#[path = "test_numeric_edge_cases/exponential.rs"]
+mod exponential;
+
+#[path = "test_numeric_edge_cases/trigonometric.rs"]
+mod trigonometric;
+
+#[path = "test_numeric_edge_cases/type_coercion.rs"]
+mod type_coercion;
+
+#[path = "test_numeric_edge_cases/domain_range.rs"]
+mod domain_range;
+
+#[path = "test_numeric_edge_cases/precision.rs"]
+mod precision;

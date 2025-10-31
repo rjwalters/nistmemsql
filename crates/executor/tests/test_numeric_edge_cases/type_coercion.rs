@@ -1,8 +1,8 @@
 //! Type coercion and mixed type tests
 
 use super::common::create_test_evaluator;
-use super::test_numeric_basic::assert_function_returns_double;
-use super::test_numeric_helpers::*;
+use super::basic::assert_function_returns_double;
+use super::helpers::*;
 use types::SqlValue;
 
 #[test]
