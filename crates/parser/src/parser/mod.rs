@@ -103,10 +103,12 @@ impl Parser {
                     Ok(ast::Statement::CreateView(self.parse_create_view_statement()?))
                 } else if self.peek_next_keyword(Keyword::Trigger) {
                     Ok(ast::Statement::CreateTrigger(self.parse_create_trigger_statement()?))
+                } else if self.peek_next_keyword(Keyword::Assertion) {
+                    Ok(ast::Statement::CreateAssertion(self.parse_create_assertion_statement()?))
                 } else {
                     Err(ParseError {
                         message:
-                            "Expected TABLE, SCHEMA, ROLE, DOMAIN, SEQUENCE, TYPE, COLLATION, CHARACTER, TRANSLATION, VIEW, or TRIGGER after CREATE"
+                            "Expected TABLE, SCHEMA, ROLE, DOMAIN, SEQUENCE, TYPE, COLLATION, CHARACTER, TRANSLATION, VIEW, TRIGGER, or ASSERTION after CREATE"
                                 .to_string(),
                     })
                 }
@@ -134,10 +136,12 @@ impl Parser {
                     Ok(ast::Statement::DropView(self.parse_drop_view_statement()?))
                 } else if self.peek_next_keyword(Keyword::Trigger) {
                     Ok(ast::Statement::DropTrigger(self.parse_drop_trigger_statement()?))
+                } else if self.peek_next_keyword(Keyword::Assertion) {
+                    Ok(ast::Statement::DropAssertion(self.parse_drop_assertion_statement()?))
                 } else {
                     Err(ParseError {
                         message:
-                            "Expected TABLE, SCHEMA, ROLE, DOMAIN, SEQUENCE, TYPE, COLLATION, CHARACTER, TRANSLATION, VIEW, or TRIGGER after DROP"
+                            "Expected TABLE, SCHEMA, ROLE, DOMAIN, SEQUENCE, TYPE, COLLATION, CHARACTER, TRANSLATION, VIEW, TRIGGER, or ASSERTION after DROP"
                                 .to_string(),
                     })
                 }
@@ -379,5 +383,19 @@ impl Parser {
         &mut self,
     ) -> Result<ast::DropTranslationStmt, ParseError> {
         advanced_objects::parse_drop_translation(self)
+    }
+
+    /// Parse CREATE ASSERTION statement
+    pub fn parse_create_assertion_statement(
+        &mut self,
+    ) -> Result<ast::CreateAssertionStmt, ParseError> {
+        advanced_objects::parse_create_assertion(self)
+    }
+
+    /// Parse DROP ASSERTION statement
+    pub fn parse_drop_assertion_statement(
+        &mut self,
+    ) -> Result<ast::DropAssertionStmt, ParseError> {
+        advanced_objects::parse_drop_assertion(self)
     }
 }

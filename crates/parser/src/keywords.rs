@@ -141,6 +141,7 @@ pub enum Keyword {
     Character,
     Translation,
     View,
+    Assertion,
     // Trigger-specific keywords
     Before,
     After,
@@ -166,6 +167,14 @@ pub enum Keyword {
     Local,
     Hour,
     Minute,
+    // Callable object keywords (functions, procedures, methods)
+    Function,
+    Procedure,
+    Routine,
+    Method,
+    Constructor,
+    Static,
+    Instance,
     // Internationalization keywords (SQL:1999)
     Get,
     Pad,
@@ -180,8 +189,6 @@ pub enum Keyword {
     Without,
     Read,
     Only,
-    // Assertion keywords (SQL:1999)
-    Assertion,
 }
 
 impl fmt::Display for Keyword {
@@ -307,6 +314,7 @@ impl fmt::Display for Keyword {
             Keyword::Character => "CHARACTER",
             Keyword::Translation => "TRANSLATION",
             Keyword::View => "VIEW",
+            Keyword::Assertion => "ASSERTION",
             Keyword::Before => "BEFORE",
             Keyword::After => "AFTER",
             Keyword::Instead => "INSTEAD",
@@ -328,6 +336,13 @@ impl fmt::Display for Keyword {
             Keyword::Local => "LOCAL",
             Keyword::Hour => "HOUR",
             Keyword::Minute => "MINUTE",
+            Keyword::Function => "FUNCTION",
+            Keyword::Procedure => "PROCEDURE",
+            Keyword::Routine => "ROUTINE",
+            Keyword::Method => "METHOD",
+            Keyword::Constructor => "CONSTRUCTOR",
+            Keyword::Static => "STATIC",
+            Keyword::Instance => "INSTANCE",
             Keyword::Get => "GET",
             Keyword::Pad => "PAD",
             Keyword::Space => "SPACE",
@@ -340,7 +355,6 @@ impl fmt::Display for Keyword {
             Keyword::Without => "WITHOUT",
             Keyword::Read => "READ",
             Keyword::Only => "ONLY",
-            Keyword::Assertion => "ASSERTION",
         };
         write!(f, "{}", keyword_str)
     }

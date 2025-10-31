@@ -284,6 +284,7 @@ impl Lexer {
             "CHARACTER" => Token::Keyword(Keyword::Character),
             "TRANSLATION" => Token::Keyword(Keyword::Translation),
             "VIEW" => Token::Keyword(Keyword::View),
+            "ASSERTION" => Token::Keyword(Keyword::Assertion),
             // Trigger-specific keywords
             "BEFORE" => Token::Keyword(Keyword::Before),
             "AFTER" => Token::Keyword(Keyword::After),
@@ -307,6 +308,14 @@ impl Lexer {
             "LOCAL" => Token::Keyword(Keyword::Local),
             "HOUR" => Token::Keyword(Keyword::Hour),
             "MINUTE" => Token::Keyword(Keyword::Minute),
+            // Callable object keywords (functions, procedures, methods)
+            "FUNCTION" => Token::Keyword(Keyword::Function),
+            "PROCEDURE" => Token::Keyword(Keyword::Procedure),
+            "ROUTINE" => Token::Keyword(Keyword::Routine),
+            "METHOD" => Token::Keyword(Keyword::Method),
+            "CONSTRUCTOR" => Token::Keyword(Keyword::Constructor),
+            "STATIC" => Token::Keyword(Keyword::Static),
+            "INSTANCE" => Token::Keyword(Keyword::Instance),
             // Internationalization keywords (SQL:1999)
             "GET" => Token::Keyword(Keyword::Get),
             "PAD" => Token::Keyword(Keyword::Pad),
@@ -321,8 +330,6 @@ impl Lexer {
             "WITHOUT" => Token::Keyword(Keyword::Without),
             "READ" => Token::Keyword(Keyword::Read),
             "ONLY" => Token::Keyword(Keyword::Only),
-            // Assertion keywords (SQL:1999)
-            "ASSERTION" => Token::Keyword(Keyword::Assertion),
             _ => Token::Identifier(upper_text), // Regular identifiers are normalized to uppercase
         };
 
