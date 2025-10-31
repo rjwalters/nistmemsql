@@ -159,57 +159,21 @@ This isn't just about databases. It's about understanding what's now possible wi
 
 ### SQL:1999 Conformance Progress
 
-**Current Conformance**: **Near-complete** (see sqltest badge for current %)
+**Current Conformance**: **95.4%** (705/739 sqltest tests passing - see badge)
 
-**Progress Overview**:
-- **Foundation** (Days 1-5): Core query engine, transactions, constraints implemented
-- **Security Model** (Day 6): GRANT/REVOKE, privilege enforcement complete
-- **Extended SQL Objects** (Day 7): GRANT/REVOKE support for additional object types
-- **Major Milestones**: Transactions ✅, Constraints ✅, Schema Management ✅, Security Model ✅, Extended Privileges ✅
-- **Achievement**: **Excellent Core compliance** - strong foundation established
-- **Focus**: Continuing toward 100% compliance
+**Major Milestones Achieved**:
+- ✅ Core query engine with all JOIN types, subqueries, CTEs, set operations
+- ✅ Complete constraint enforcement (NOT NULL, PRIMARY KEY, UNIQUE, CHECK, FOREIGN KEY)
+- ✅ Full transaction support with SAVEPOINT (nested transactions)
+- ✅ Complete security model with privilege enforcement on all operations
+- ✅ 75+ built-in functions (string, date/time, math)
+- ✅ Window functions (ranking, value, and aggregate)
+- ✅ Schema management with ALTER TABLE support
+- ✅ Extended GRANT/REVOKE for additional SQL object types
 
-### Progress Breakdown by Category
+**Next Focus**: Continuing toward 100% SQL:1999 Core compliance
 
-| Category | Progress | Completed | Status |
-|----------|----------|-----------|--------|
-| Data Types | 100% (14/13) | INTEGER, SMALLINT, BIGINT, FLOAT, REAL, DOUBLE, VARCHAR, CHAR, BOOLEAN, DATE, TIME, TIMESTAMP, NUMERIC, INTERVAL | ✅ Complete |
-| DML Operations | 70% (7/10) | SELECT, INSERT (single + multi-row), INSERT...SELECT, UPDATE, DELETE, DROP TABLE | 🟢 Advanced |
-| Predicates | 100% | =, <>, <, >, <=, >=, BETWEEN, IN, LIKE, EXISTS, IS NULL, quantified, ALL, ANY, SOME | ✅ Complete |
-| JOINs | 100% (5/5) | INNER, LEFT, RIGHT, FULL, CROSS (with GROUP BY support) | ✅ Complete |
-| Subqueries | 100% | Scalar, table, correlated, IN with subquery | ✅ Complete |
-| CTEs | 100% | WITH clause, multiple CTEs, CTE chaining, RECURSIVE keyword | ✅ Complete |
-| Set Operations | 100% | UNION [ALL], INTERSECT [ALL], EXCEPT [ALL] | ✅ Complete |
-| Aggregates | 100% (7/7) | COUNT, SUM, AVG, MIN, MAX, + DISTINCT, GROUP BY, HAVING (works with JOINs) | ✅ Complete |
-| Window Functions | 100% | ROW_NUMBER, RANK, DENSE_RANK, NTILE, LAG, LEAD, COUNT, SUM, AVG, MIN, MAX OVER() | ✅ Complete |
-| Built-in Functions | 65% | String (40+ functions), Date/Time (15+ functions), Math (20+ functions), CASE, COALESCE, NULLIF, CAST, POSITION | 🟢 Advanced |
-| DDL | 50% (5/10) | CREATE TABLE, DROP TABLE, CREATE/DROP/SET SCHEMA, ALTER TABLE (ADD/DROP/MODIFY COLUMN), CREATE/DROP ROLE | 🟢 Advanced |
-| Constraints | 100% (5/5 enforced) | NOT NULL, PRIMARY KEY, UNIQUE, CHECK, FOREIGN KEY enforced ✅ (35+ tests) | ✅ Complete |
-| Transactions | 100% (4/4) | BEGIN, COMMIT, ROLLBACK, SAVEPOINT ✅ (nested transactions) | ✅ Complete |
-| Security | 100% | CREATE/DROP ROLE, GRANT, REVOKE, Privilege Enforcement (all operations) ✅ | ✅ Complete |
-| Web Demo Validation | 30% | Automated test infrastructure ✅, Expected results for 19 examples ✅ | 🟡 In Progress |
-| Conformance Tests | Near-complete | See sqltest badge ✅ | 🟢 Excellent |
-
-### Achievement: Excellent Core Compliance Foundation
-
-**Current Results**:
-- **Near-complete conformance achieved** (see badge for current %)
-- **Solid foundation**: Core query engine, transactions, constraints, security complete
-- **Next milestone**: Continue toward 100% compliance
-
-**AI-Powered Development Advantages**:
-- Parallel feature implementation via Loom orchestration
-- Instant boilerplate generation
-- Rapid test creation and iteration
-- Well-defined SQL:1999 specification (no ambiguity)
-
-**What Makes This Different**:
-- Traditional estimates assume human-paced development
-- AI assistance with Loom orchestration enables rapid iteration
-- Clear specifications (SQL:1999 standard is precise)
-- Strong foundation already built (parser, executor, storage)
-
-### What Works Today (Days 1-4 Achievements)
+### What Works Today
 
 **Query Engine** ✅ **(Phase 4 Complete!)**
 - **SELECT**: WHERE, JOIN, subqueries, GROUP BY, HAVING, ORDER BY, LIMIT, DISTINCT
@@ -329,12 +293,10 @@ This isn't just about databases. It's about understanding what's now possible wi
 - [x] Zero clippy warnings achieved (#493, #494, #496, #498)
 - [x] **Security model complete** - Full privilege enforcement implemented
 
-**Day 7 (Oct 31)** - Advanced DDL & Optimization
-- [ ] View query expansion and execution
-- [ ] Index usage in query optimization
-- [ ] GRANT/REVOKE basic permissions
-- [ ] Performance profiling and optimization
-- [ ] Additional built-in functions
+**Day 7 (Oct 31)** - ✅ **COMPLETED** - Extended Privileges & SQL Standard Extensions
+- [x] GRANT/REVOKE for additional SQL object types (F031) ✅ (#742)
+- [x] SQL cursor operations parsing (DECLARE, OPEN, FETCH, CLOSE, CURRENT OF) ✅ (#741)
+- [x] Conformance metrics updated to 95.4% (705/739 tests passing) ✅
 
 **Day 8 (Nov 1)** - Conformance Test Harness
 - [ ] NIST SQL Test Suite v6.0 integration
@@ -673,13 +635,15 @@ See [WORK_PLAN.md](WORK_PLAN.md) for current priorities.
 **In Progress** 🚧
 - [ ] Type conversion functions (remaining)
 - [ ] NUMERIC/DECIMAL precision arithmetic (currently string-based)
-- [ ] INSERT from SELECT
+- [ ] View query expansion and execution
+- [ ] Index usage in query optimization
 
 **Upcoming** ⏳
-- [ ] Transaction support (BEGIN, COMMIT, ROLLBACK)
-- [ ] Constraint enforcement (NOT NULL, PRIMARY KEY, UNIQUE, CHECK, FOREIGN KEY)
-- [ ] Conformance test harness (NIST + Mimer SQL:1999 Core validator)
-- [ ] Automated compliance reporting with badges
+- [ ] Additional built-in functions (type conversions, string manipulation)
+- [ ] CREATE VIEW and view query expansion
+- [ ] CREATE INDEX and query optimization
+- [ ] Information schema views
+- [ ] Advanced type features (ARRAY, ROW types)
 
 ---
 
