@@ -112,3 +112,135 @@ fn test_parse_alter_table_alter_column_drop_not_null() {
         _ => panic!("Expected ALTER TABLE statement"),
     }
 }
+
+// ========================================================================
+// ALTER TABLE ADD Constraint (without CONSTRAINT keyword) Tests
+// SQL:1999 Feature F031-04
+// ========================================================================
+
+#[test]
+fn test_alter_table_add_check_no_keyword() {
+    let result = Parser::parse_sql("ALTER TABLE t ADD CHECK (x > 0);");
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::AlterTable(alter) => match alter {
+            ast::AlterTableStmt::AddConstraint(add) => {
+                assert_eq!(add.table_name, "T");
+                assert!(add.constraint.name.is_none(), "Expected unnamed constraint");
+                match add.constraint.kind {
+                    ast::TableConstraintKind::Check { .. } => {} // Success
+                    _ => panic!("Expected CHECK constraint"),
+                }
+            }
+            _ => panic!("Expected ADD CONSTRAINT"),
+        },
+        _ => panic!("Expected ALTER TABLE statement"),
+    }
+}
+
+#[test]
+fn test_alter_table_add_unique_no_keyword() {
+    let result = Parser::parse_sql("ALTER TABLE t ADD UNIQUE (col);");
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::AlterTable(alter) => match alter {
+            ast::AlterTableStmt::AddConstraint(add) => {
+                assert_eq!(add.table_name, "T");
+                assert!(add.constraint.name.is_none(), "Expected unnamed constraint");
+                match &add.constraint.kind {
+                    ast::TableConstraintKind::Unique { columns } => {
+                        assert_eq!(columns.len(), 1);
+                        assert_eq!(columns[0], "COL");
+                    }
+                    _ => panic!("Expected UNIQUE constraint"),
+                }
+            }
+            _ => panic!("Expected ADD CONSTRAINT"),
+        },
+        _ => panic!("Expected ALTER TABLE statement"),
+    }
+}
+
+#[test]
+fn test_alter_table_add_primary_key_no_keyword() {
+    let result = Parser::parse_sql("ALTER TABLE t ADD PRIMARY KEY (col);");
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::AlterTable(alter) => match alter {
+            ast::AlterTableStmt::AddConstraint(add) => {
+                assert_eq!(add.table_name, "T");
+                assert!(add.constraint.name.is_none(), "Expected unnamed constraint");
+                match &add.constraint.kind {
+                    ast::TableConstraintKind::PrimaryKey { columns } => {
+                        assert_eq!(columns.len(), 1);
+                        assert_eq!(columns[0], "COL");
+                    }
+                    _ => panic!("Expected PRIMARY KEY constraint"),
+                }
+            }
+            _ => panic!("Expected ADD CONSTRAINT"),
+        },
+        _ => panic!("Expected ALTER TABLE statement"),
+    }
+}
+
+#[test]
+fn test_alter_table_add_foreign_key_no_keyword() {
+    let result = Parser::parse_sql("ALTER TABLE t ADD FOREIGN KEY (col) REFERENCES other(other_col);");
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::AlterTable(alter) => match alter {
+            ast::AlterTableStmt::AddConstraint(add) => {
+                assert_eq!(add.table_name, "T");
+                assert!(add.constraint.name.is_none(), "Expected unnamed constraint");
+                match &add.constraint.kind {
+                    ast::TableConstraintKind::ForeignKey {
+                        columns,
+                        references_table,
+                        references_columns,
+                    } => {
+                        assert_eq!(columns.len(), 1);
+                        assert_eq!(columns[0], "COL");
+                        assert_eq!(references_table, "OTHER");
+                        assert_eq!(references_columns.len(), 1);
+                        assert_eq!(references_columns[0], "OTHER_COL");
+                    }
+                    _ => panic!("Expected FOREIGN KEY constraint"),
+                }
+            }
+            _ => panic!("Expected ADD CONSTRAINT"),
+        },
+        _ => panic!("Expected ALTER TABLE statement"),
+    }
+}
+
+#[test]
+fn test_alter_table_add_named_check_with_keyword() {
+    // Ensure backward compatibility - named constraints with CONSTRAINT keyword still work
+    let result = Parser::parse_sql("ALTER TABLE t ADD CONSTRAINT ck CHECK (x > 0);");
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::AlterTable(alter) => match alter {
+            ast::AlterTableStmt::AddConstraint(add) => {
+                assert_eq!(add.table_name, "T");
+                assert_eq!(add.constraint.name, Some("CK".to_string()));
+                match add.constraint.kind {
+                    ast::TableConstraintKind::Check { .. } => {} // Success
+                    _ => panic!("Expected CHECK constraint"),
+                }
+            }
+            _ => panic!("Expected ADD CONSTRAINT"),
+        },
+        _ => panic!("Expected ALTER TABLE statement"),
+    }
+}

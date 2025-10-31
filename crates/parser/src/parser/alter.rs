@@ -23,12 +23,12 @@ pub fn parse_alter_table(parser: &mut crate::Parser) -> Result<AlterTableStmt, P
                     parser.advance();
                     parse_add_column(parser, table_name)
                 }
-                Token::Keyword(Keyword::Constraint) => {
-                    parser.advance();
+                // SQL:1999 allows adding constraints with or without CONSTRAINT keyword
+                Token::Keyword(Keyword::Constraint | Keyword::Check | Keyword::Unique | Keyword::Primary | Keyword::Foreign) => {
                     parse_add_constraint(parser, table_name)
                 }
                 _ => Err(ParseError {
-                    message: "Expected COLUMN or CONSTRAINT after ADD".to_string(),
+                    message: "Expected COLUMN, CONSTRAINT, or constraint type after ADD".to_string(),
                 }),
             }
         }
@@ -198,18 +198,8 @@ fn parse_add_constraint(
     parser: &mut crate::Parser,
     table_name: String,
 ) -> Result<AlterTableStmt, ParseError> {
-    let constraint_name = if parser.try_consume_keyword(Keyword::Constraint) {
-        Some(parser.parse_identifier()?)
-    } else {
-        None
-    };
-
-    // TODO: Parse constraint type (PRIMARY KEY, UNIQUE, etc.)
-    // For now, create a placeholder
-    let constraint = TableConstraint {
-        name: constraint_name,
-        kind: TableConstraintKind::PrimaryKey { columns: vec!["placeholder".to_string()] },
-    };
+    // Use the existing parse_table_constraint method which handles all constraint types
+    let constraint = parser.parse_table_constraint()?;
 
     Ok(AlterTableStmt::AddConstraint(AddConstraintStmt { table_name, constraint }))
 }
