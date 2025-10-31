@@ -19,7 +19,11 @@ fn test_grant_specific_privilege() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -52,7 +56,11 @@ fn test_grant_all_privileges_table() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -113,7 +121,11 @@ fn test_grant_with_grant_option() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -134,7 +146,10 @@ fn test_grant_with_grant_option() {
     // Verify both privilege and grant option granted
     assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
     let grants = db.catalog.get_grants_for_grantee("user1");
-    let grant = grants.iter().find(|g| g.object == "test_table" && g.privilege == PrivilegeType::Select).unwrap();
+    let grant = grants
+        .iter()
+        .find(|g| g.object == "test_table" && g.privilege == PrivilegeType::Select)
+        .unwrap();
     assert!(grant.with_grant_option);
 }
 
@@ -148,7 +163,11 @@ fn test_grant_multiple_privileges() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -184,7 +203,11 @@ fn test_grant_multiple_grantees() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -245,7 +268,11 @@ fn test_grant_to_non_existent_role() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();
@@ -316,7 +343,11 @@ fn test_grant_idempotent() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ],
     );
     db.create_table(table_schema).unwrap();

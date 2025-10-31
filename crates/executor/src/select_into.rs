@@ -35,13 +35,15 @@ impl SelectIntoExecutor {
         // SQL:1999 Feature E111 requires exactly one row
         if rows.is_empty() {
             return Err(ExecutorError::UnsupportedFeature(
-                "SELECT INTO returned no rows (expected exactly 1 row for Feature E111)".to_string(),
+                "SELECT INTO returned no rows (expected exactly 1 row for Feature E111)"
+                    .to_string(),
             ));
         }
         if rows.len() > 1 {
-            return Err(ExecutorError::UnsupportedFeature(
-                format!("SELECT INTO returned {} rows (expected exactly 1 row for Feature E111)", rows.len()),
-            ));
+            return Err(ExecutorError::UnsupportedFeature(format!(
+                "SELECT INTO returned {} rows (expected exactly 1 row for Feature E111)",
+                rows.len()
+            )));
         }
 
         // Derive column definitions from the SELECT list and result row

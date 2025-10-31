@@ -129,6 +129,10 @@ pub enum Keyword {
     // REVOKE keywords
     Revoke,
     Granted,
+    // Advanced privilege keywords
+    Execute,
+    Trigger,
+    Under,
     // Advanced SQL object keywords
     Domain,
     Sequence,
@@ -137,7 +141,6 @@ pub enum Keyword {
     Character,
     Translation,
     View,
-    Trigger,
     // Trigger-specific keywords
     Before,
     After,
@@ -163,6 +166,22 @@ pub enum Keyword {
     Local,
     Hour,
     Minute,
+    // Internationalization keywords (SQL:1999)
+    Get,
+    Pad,
+    Space,
+    Collate,
+    // CURSOR keywords
+    Declare,
+    Cursor,
+    Insensitive,
+    Scroll,
+    Hold,
+    Without,
+    Read,
+    Only,
+    // Assertion keywords (SQL:1999)
+    Assertion,
 }
 
 impl fmt::Display for Keyword {
@@ -278,6 +297,9 @@ impl fmt::Display for Keyword {
             Keyword::Option => "OPTION",
             Keyword::Revoke => "REVOKE",
             Keyword::Granted => "GRANTED",
+            Keyword::Execute => "EXECUTE",
+            Keyword::Trigger => "TRIGGER",
+            Keyword::Under => "UNDER",
             Keyword::Domain => "DOMAIN",
             Keyword::Sequence => "SEQUENCE",
             Keyword::Type => "TYPE",
@@ -285,7 +307,6 @@ impl fmt::Display for Keyword {
             Keyword::Character => "CHARACTER",
             Keyword::Translation => "TRANSLATION",
             Keyword::View => "VIEW",
-            Keyword::Trigger => "TRIGGER",
             Keyword::Before => "BEFORE",
             Keyword::After => "AFTER",
             Keyword::Instead => "INSTEAD",
@@ -307,6 +328,19 @@ impl fmt::Display for Keyword {
             Keyword::Local => "LOCAL",
             Keyword::Hour => "HOUR",
             Keyword::Minute => "MINUTE",
+            Keyword::Get => "GET",
+            Keyword::Pad => "PAD",
+            Keyword::Space => "SPACE",
+            Keyword::Collate => "COLLATE",
+            Keyword::Declare => "DECLARE",
+            Keyword::Cursor => "CURSOR",
+            Keyword::Insensitive => "INSENSITIVE",
+            Keyword::Scroll => "SCROLL",
+            Keyword::Hold => "HOLD",
+            Keyword::Without => "WITHOUT",
+            Keyword::Read => "READ",
+            Keyword::Only => "ONLY",
+            Keyword::Assertion => "ASSERTION",
         };
         write!(f, "{}", keyword_str)
     }

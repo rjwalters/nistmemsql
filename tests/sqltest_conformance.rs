@@ -330,8 +330,11 @@ impl SqltestRunner {
             | ast::Statement::CreateView(_)
             | ast::Statement::DropView(_)
             | ast::Statement::CreateTrigger(_)
-            | ast::Statement::DropTrigger(_) => {
-                // Transactions and advanced SQL objects are no-ops for validation
+            | ast::Statement::DropTrigger(_)
+            | ast::Statement::CreateAssertion(_)
+            | ast::Statement::DropAssertion(_)
+            | ast::Statement::DeclareCursor(_) => {
+                // Transactions, cursors, triggers, assertions, and advanced SQL objects are no-ops for validation
                 Ok(true)
             }
         }

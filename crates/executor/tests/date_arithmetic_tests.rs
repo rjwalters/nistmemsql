@@ -921,9 +921,7 @@ fn test_datediff_wrong_argument_count() {
 
     let expr = ast::Expression::Function {
         name: "DATEDIFF".to_string(),
-        args: vec![
-            ast::Expression::Literal(types::SqlValue::Date("2024-01-10".to_string())),
-        ],
+        args: vec![ast::Expression::Literal(types::SqlValue::Date("2024-01-10".to_string()))],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row);

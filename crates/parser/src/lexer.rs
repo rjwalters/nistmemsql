@@ -270,6 +270,10 @@ impl Lexer {
             // REVOKE keywords
             "REVOKE" => Token::Keyword(Keyword::Revoke),
             "GRANTED" => Token::Keyword(Keyword::Granted),
+            // Advanced privilege keywords
+            "EXECUTE" => Token::Keyword(Keyword::Execute),
+            "TRIGGER" => Token::Keyword(Keyword::Trigger),
+            "UNDER" => Token::Keyword(Keyword::Under),
             // Role management keywords
             "ROLE" => Token::Keyword(Keyword::Role),
             // Advanced SQL object keywords
@@ -280,7 +284,6 @@ impl Lexer {
             "CHARACTER" => Token::Keyword(Keyword::Character),
             "TRANSLATION" => Token::Keyword(Keyword::Translation),
             "VIEW" => Token::Keyword(Keyword::View),
-            "TRIGGER" => Token::Keyword(Keyword::Trigger),
             // Trigger-specific keywords
             "BEFORE" => Token::Keyword(Keyword::Before),
             "AFTER" => Token::Keyword(Keyword::After),
@@ -304,6 +307,22 @@ impl Lexer {
             "LOCAL" => Token::Keyword(Keyword::Local),
             "HOUR" => Token::Keyword(Keyword::Hour),
             "MINUTE" => Token::Keyword(Keyword::Minute),
+            // Internationalization keywords (SQL:1999)
+            "GET" => Token::Keyword(Keyword::Get),
+            "PAD" => Token::Keyword(Keyword::Pad),
+            "SPACE" => Token::Keyword(Keyword::Space),
+            "COLLATE" => Token::Keyword(Keyword::Collate),
+            // CURSOR keywords
+            "DECLARE" => Token::Keyword(Keyword::Declare),
+            "CURSOR" => Token::Keyword(Keyword::Cursor),
+            "INSENSITIVE" => Token::Keyword(Keyword::Insensitive),
+            "SCROLL" => Token::Keyword(Keyword::Scroll),
+            "HOLD" => Token::Keyword(Keyword::Hold),
+            "WITHOUT" => Token::Keyword(Keyword::Without),
+            "READ" => Token::Keyword(Keyword::Read),
+            "ONLY" => Token::Keyword(Keyword::Only),
+            // Assertion keywords (SQL:1999)
+            "ASSERTION" => Token::Keyword(Keyword::Assertion),
             _ => Token::Identifier(upper_text), // Regular identifiers are normalized to uppercase
         };
 

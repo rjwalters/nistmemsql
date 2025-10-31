@@ -25,7 +25,8 @@ fn test_create_sequence_basic() {
 
 #[test]
 fn test_create_sequence_with_options() {
-    let sql = "CREATE SEQUENCE test_seq START WITH 100 INCREMENT BY 5 MINVALUE 1 MAXVALUE 1000 CYCLE";
+    let sql =
+        "CREATE SEQUENCE test_seq START WITH 100 INCREMENT BY 5 MINVALUE 1 MAXVALUE 1000 CYCLE";
     let stmt = Parser::parse_sql(sql).expect("Failed to parse CREATE SEQUENCE with options");
 
     match stmt {
@@ -303,15 +304,15 @@ fn test_advanced_objects_case_insensitive() {
     ];
 
     for sql in sql_variants {
-        Parser::parse_sql(sql).expect(&format!("Failed to parse case variant: {}", sql));
+        Parser::parse_sql(sql).unwrap_or_else(|_| panic!("Failed to parse case variant: {}", sql));
     }
 }
 
 #[test]
 fn test_sequence_parse_errors() {
     let invalid_statements = vec![
-        "CREATE SEQUENCE",                    // Missing sequence name
-        "DROP SEQUENCE",                     // Missing sequence name
+        "CREATE SEQUENCE", // Missing sequence name
+        "DROP SEQUENCE",   // Missing sequence name
     ];
 
     for sql in invalid_statements {
@@ -323,14 +324,14 @@ fn test_sequence_parse_errors() {
 #[test]
 fn test_type_parse_errors() {
     let invalid_statements = vec![
-        "CREATE TYPE",                       // Missing type name
-        "CREATE TYPE test",                  // Missing AS clause
-        "CREATE TYPE test AS",               // Missing type definition
-        "CREATE TYPE test AS INVALID",       // Invalid type definition
-        "CREATE TYPE test AS DISTINCT",      // Missing base type
-        "CREATE TYPE test AS (",             // Incomplete structured type
-        "CREATE TYPE test AS (name)",        // Missing data type
-        "DROP TYPE",                         // Missing type name
+        "CREATE TYPE",                  // Missing type name
+        "CREATE TYPE test",             // Missing AS clause
+        "CREATE TYPE test AS",          // Missing type definition
+        "CREATE TYPE test AS INVALID",  // Invalid type definition
+        "CREATE TYPE test AS DISTINCT", // Missing base type
+        "CREATE TYPE test AS (",        // Incomplete structured type
+        "CREATE TYPE test AS (name)",   // Missing data type
+        "DROP TYPE",                    // Missing type name
     ];
 
     for sql in invalid_statements {
@@ -342,12 +343,12 @@ fn test_type_parse_errors() {
 #[test]
 fn test_collation_character_set_translation_parse_errors() {
     let invalid_statements = vec![
-        "CREATE COLLATION",                  // Missing collation name
-        "DROP COLLATION",                    // Missing collation name
-        "CREATE CHARACTER SET",              // Missing charset name
-        "DROP CHARACTER SET",                // Missing charset name
-        "CREATE TRANSLATION",                // Missing translation name
-        "DROP TRANSLATION",                  // Missing translation name
+        "CREATE COLLATION",     // Missing collation name
+        "DROP COLLATION",       // Missing collation name
+        "CREATE CHARACTER SET", // Missing charset name
+        "DROP CHARACTER SET",   // Missing charset name
+        "CREATE TRANSLATION",   // Missing translation name
+        "DROP TRANSLATION",     // Missing translation name
     ];
 
     for sql in invalid_statements {

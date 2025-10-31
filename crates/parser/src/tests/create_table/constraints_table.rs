@@ -96,12 +96,13 @@ fn test_parse_create_table_with_foreign_key_on_delete_update() {
             assert_eq!(column.constraints.len(), 1);
             match &column.constraints[0] {
                 ast::ColumnConstraint {
-                    kind: ast::ColumnConstraintKind::References {
-                        table,
-                        column: col,
-                        on_delete,
-                        on_update,
-                    },
+                    kind:
+                        ast::ColumnConstraintKind::References {
+                            table,
+                            column: col,
+                            on_delete,
+                            on_update,
+                        },
                     ..
                 } => {
                     assert_eq!(table, "parent");
@@ -133,13 +134,14 @@ fn test_parse_create_table_with_table_foreign_key_on_delete_update() {
             assert_eq!(create.table_constraints.len(), 1);
             match &create.table_constraints[0] {
                 ast::TableConstraint {
-                    kind: ast::TableConstraintKind::ForeignKey {
-                        columns,
-                        references_table,
-                        references_columns,
-                        on_delete,
-                        on_update,
-                    },
+                    kind:
+                        ast::TableConstraintKind::ForeignKey {
+                            columns,
+                            references_table,
+                            references_columns,
+                            on_delete,
+                            on_update,
+                        },
                     ..
                 } => {
                     assert_eq!(columns.len(), 1);
@@ -173,11 +175,7 @@ fn test_parse_create_table_with_foreign_key_on_delete_only() {
             let column = &create.columns[1];
             match &column.constraints[0] {
                 ast::ColumnConstraint {
-                    kind: ast::ColumnConstraintKind::References {
-                        on_delete,
-                        on_update,
-                        ..
-                    },
+                    kind: ast::ColumnConstraintKind::References { on_delete, on_update, .. },
                     ..
                 } => {
                     assert_eq!(on_delete, &Some(ast::ReferentialAction::SetDefault));
