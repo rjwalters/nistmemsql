@@ -169,6 +169,13 @@ jobs:
         with:
           name: benchmark-results
 
+      - name: Verify downloaded artifacts
+        run: |
+          echo "=== Checking downloaded benchmark artifacts ==="
+          ls -la benchmark_results.json || echo "ERROR: benchmark_results.json not found!"
+          echo "=== Checking test artifacts ==="
+          ls -la target/sqltest_results.json || echo "ERROR: sqltest_results.json not found!"
+
       - name: Download benchmark history from gh-pages
         continue-on-error: true
         run: |
@@ -232,12 +239,31 @@ jobs:
           cp -r web-demo/dist/* deploy/
           mkdir -p deploy/benchmarks
           cp -r badges deploy/badges
-          [ -f badges/benchmark_results.json ] && cp badges/benchmark_results.json deploy/benchmarks/
-          [ -f badges/benchmark_history.json ] && cp badges/benchmark_history.json deploy/benchmarks/
 
-          echo "Deployment prepared:"
+          # Copy benchmark files with verification
+          if [ -f badges/benchmark_results.json ]; then
+            cp badges/benchmark_results.json deploy/benchmarks/
+            echo "✓ Copied benchmark_results.json to deploy/benchmarks/"
+          else
+            echo "⚠️  WARNING: badges/benchmark_results.json not found!"
+          fi
+
+          if [ -f badges/benchmark_history.json ]; then
+            cp badges/benchmark_history.json deploy/benchmarks/
+            echo "✓ Copied benchmark_history.json to deploy/benchmarks/"
+          else
+            echo "⚠️  WARNING: badges/benchmark_history.json not found!"
+          fi
+
+          echo ""
+          echo "=== Deployment structure ==="
           ls -la deploy/
-          ls -la deploy/badges/ || true
+          echo ""
+          echo "=== Badges directory ==="
+          ls -la deploy/badges/ || echo "No badges directory"
+          echo ""
+          echo "=== Benchmarks directory ==="
+          ls -la deploy/benchmarks/ || echo "No benchmarks directory"
 
       # Deploy to GitHub Pages
       - name: Setup Pages
