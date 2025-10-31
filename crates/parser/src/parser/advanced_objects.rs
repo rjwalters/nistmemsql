@@ -284,8 +284,11 @@ pub fn parse_drop_type(parser: &mut crate::Parser) -> Result<DropTypeStmt, Parse
 
 /// Parse CREATE COLLATION statement
 ///
-/// Syntax: CREATE COLLATION collation_name FROM 'locale' [NO PAD]
-/// Minimal implementation: CREATE COLLATION collation_name
+/// SQL:1999 Syntax:
+///   CREATE COLLATION collation_name
+///     [FOR character_set]
+///     [FROM source_collation]
+///     [PAD SPACE | NO PAD]
 pub fn parse_create_collation(
     parser: &mut crate::Parser,
 ) -> Result<CreateCollationStmt, ParseError> {
@@ -294,11 +297,32 @@ pub fn parse_create_collation(
 
     let collation_name = parser.parse_identifier()?;
 
-    // For minimal stub: just accept the name, ignore FROM clause
-    // TODO: Parse full syntax when implementing actual functionality
-    parser.consume_until_semicolon_or_eof();
+    // Optional: FOR character_set
+    let character_set = if parser.try_consume_keyword(Keyword::For) {
+        Some(parser.parse_identifier()?)
+    } else {
+        None
+    };
 
-    Ok(CreateCollationStmt { collation_name })
+    // Optional: FROM source_collation
+    let source_collation = if parser.try_consume_keyword(Keyword::From) {
+        Some(parser.parse_identifier()?)
+    } else {
+        None
+    };
+
+    // Optional: PAD SPACE | NO PAD
+    let pad_space = if parser.try_consume_keyword(Keyword::Pad) {
+        parser.expect_keyword(Keyword::Space)?;
+        Some(true)
+    } else if parser.try_consume_keyword(Keyword::No) {
+        parser.expect_keyword(Keyword::Pad)?;
+        Some(false)
+    } else {
+        None
+    };
+
+    Ok(CreateCollationStmt { collation_name, character_set, source_collation, pad_space })
 }
 
 /// Parse DROP COLLATION statement
@@ -319,8 +343,10 @@ pub fn parse_drop_collation(parser: &mut crate::Parser) -> Result<DropCollationS
 
 /// Parse CREATE CHARACTER SET statement
 ///
-/// Syntax: CREATE CHARACTER SET charset_name [AS GET charset_source]
-/// Minimal implementation: CREATE CHARACTER SET charset_name
+/// SQL:1999 Syntax:
+///   CREATE CHARACTER SET charset_name [AS]
+///     [GET source]
+///     [COLLATE FROM collation]
 pub fn parse_create_character_set(
     parser: &mut crate::Parser,
 ) -> Result<CreateCharacterSetStmt, ParseError> {
@@ -330,11 +356,25 @@ pub fn parse_create_character_set(
 
     let charset_name = parser.parse_identifier()?;
 
-    // For minimal stub: just accept the name
-    // TODO: Parse full syntax when implementing actual functionality
-    parser.consume_until_semicolon_or_eof();
+    // Optional: AS
+    parser.try_consume_keyword(Keyword::As);
 
-    Ok(CreateCharacterSetStmt { charset_name })
+    // Optional: GET source
+    let source = if parser.try_consume_keyword(Keyword::Get) {
+        Some(parser.parse_identifier()?)
+    } else {
+        None
+    };
+
+    // Optional: COLLATE FROM collation
+    let collation = if parser.try_consume_keyword(Keyword::Collate) {
+        parser.expect_keyword(Keyword::From)?;
+        Some(parser.parse_identifier()?)
+    } else {
+        None
+    };
+
+    Ok(CreateCharacterSetStmt { charset_name, source, collation })
 }
 
 /// Parse DROP CHARACTER SET statement
@@ -358,8 +398,10 @@ pub fn parse_drop_character_set(
 
 /// Parse CREATE TRANSLATION statement
 ///
-/// Syntax: CREATE TRANSLATION translation_name FROM charset1 TO charset2
-/// Minimal implementation: CREATE TRANSLATION translation_name
+/// SQL:1999 Syntax:
+///   CREATE TRANSLATION translation_name
+///     [FOR source_charset TO target_charset]
+///     [FROM translation_source]
 pub fn parse_create_translation(
     parser: &mut crate::Parser,
 ) -> Result<CreateTranslationStmt, ParseError> {
@@ -368,11 +410,33 @@ pub fn parse_create_translation(
 
     let translation_name = parser.parse_identifier()?;
 
-    // For minimal stub: just accept the name, ignore FROM/TO clauses
-    // TODO: Parse full syntax when implementing actual functionality
-    parser.consume_until_semicolon_or_eof();
+    // Optional: FOR source_charset
+    let source_charset = if parser.try_consume_keyword(Keyword::For) {
+        Some(parser.parse_identifier()?)
+    } else {
+        None
+    };
 
-    Ok(CreateTranslationStmt { translation_name })
+    // Optional: TO target_charset (only if FOR was specified)
+    let target_charset = if source_charset.is_some() && parser.try_consume_keyword(Keyword::To) {
+        Some(parser.parse_identifier()?)
+    } else {
+        None
+    };
+
+    // Optional: FROM translation_source
+    let translation_source = if parser.try_consume_keyword(Keyword::From) {
+        Some(parser.parse_identifier()?)
+    } else {
+        None
+    };
+
+    Ok(CreateTranslationStmt {
+        translation_name,
+        source_charset,
+        target_charset,
+        translation_source,
+    })
 }
 
 /// Parse DROP TRANSLATION statement

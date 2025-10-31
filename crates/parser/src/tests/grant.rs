@@ -279,7 +279,7 @@ fn test_parse_grant_without_grant_option() {
 
     match result.unwrap() {
         ast::Statement::Grant(grant_stmt) => {
-            assert_eq!(grant_stmt.with_grant_option, false);
+            assert!(!grant_stmt.with_grant_option);
         }
         other => panic!("Expected Grant statement, got {:?}", other),
     }

@@ -298,7 +298,7 @@ fn test_parse_select_all_literal() {
     match stmt {
         ast::Statement::Select(select) => {
             // ALL means include duplicates (distinct = false)
-            assert_eq!(select.distinct, false);
+            assert!(!select.distinct);
             assert_eq!(select.select_list.len(), 1);
             match &select.select_list[0] {
                 ast::SelectItem::Expression { expr, alias } => {
@@ -323,7 +323,7 @@ fn test_parse_select_all_star() {
 
     match stmt {
         ast::Statement::Select(select) => {
-            assert_eq!(select.distinct, false);
+            assert!(!select.distinct);
             assert_eq!(select.select_list.len(), 1);
             match &select.select_list[0] {
                 ast::SelectItem::Wildcard => {} // Success
@@ -342,7 +342,7 @@ fn test_parse_select_all_from_table() {
 
     match stmt {
         ast::Statement::Select(select) => {
-            assert_eq!(select.distinct, false);
+            assert!(!select.distinct);
             assert_eq!(select.select_list.len(), 1);
             assert!(select.from.is_some());
             match &select.from.as_ref().unwrap() {
@@ -365,7 +365,7 @@ fn test_parse_select_all_multiple_columns() {
 
     match stmt {
         ast::Statement::Select(select) => {
-            assert_eq!(select.distinct, false);
+            assert!(!select.distinct);
             assert_eq!(select.select_list.len(), 2);
         }
         _ => panic!("Expected SELECT statement"),
@@ -381,7 +381,7 @@ fn test_select_distinct_still_works() {
 
     match stmt {
         ast::Statement::Select(select) => {
-            assert_eq!(select.distinct, true);
+            assert!(select.distinct);
             assert_eq!(select.select_list.len(), 1);
         }
         _ => panic!("Expected SELECT statement"),

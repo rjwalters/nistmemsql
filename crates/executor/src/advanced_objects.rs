@@ -88,7 +88,12 @@ pub fn execute_create_collation(
     stmt: &CreateCollationStmt,
     db: &mut Database,
 ) -> Result<(), ExecutorError> {
-    db.catalog.create_collation(stmt.collation_name.clone())?;
+    db.catalog.create_collation(
+        stmt.collation_name.clone(),
+        stmt.character_set.clone(),
+        stmt.source_collation.clone(),
+        stmt.pad_space,
+    )?;
     Ok(())
 }
 
@@ -106,7 +111,11 @@ pub fn execute_create_character_set(
     stmt: &CreateCharacterSetStmt,
     db: &mut Database,
 ) -> Result<(), ExecutorError> {
-    db.catalog.create_character_set(stmt.charset_name.clone())?;
+    db.catalog.create_character_set(
+        stmt.charset_name.clone(),
+        stmt.source.clone(),
+        stmt.collation.clone(),
+    )?;
     Ok(())
 }
 
@@ -124,7 +133,12 @@ pub fn execute_create_translation(
     stmt: &CreateTranslationStmt,
     db: &mut Database,
 ) -> Result<(), ExecutorError> {
-    db.catalog.create_translation(stmt.translation_name.clone())?;
+    db.catalog.create_translation(
+        stmt.translation_name.clone(),
+        stmt.source_charset.clone(),
+        stmt.target_charset.clone(),
+        stmt.translation_source.clone(),
+    )?;
     Ok(())
 }
 

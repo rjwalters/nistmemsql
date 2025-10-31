@@ -137,8 +137,7 @@ fn test_nested_transaction_example() {
     ];
 
     for sql in statements {
-        let stmt = Parser::parse_sql(sql)
-            .unwrap_or_else(|_| panic!("Failed to parse: {}", sql));
+        let stmt = Parser::parse_sql(sql).unwrap_or_else(|_| panic!("Failed to parse: {}", sql));
         // Just verify it parses without error - the specific type checking is done above
         assert!(matches!(
             stmt,
@@ -171,8 +170,7 @@ fn test_transaction_statement_case_insensitive() {
     ];
 
     for sql in sql_variants {
-        Parser::parse_sql(sql)
-            .unwrap_or_else(|_| panic!("Failed to parse case variant: {}", sql));
+        Parser::parse_sql(sql).unwrap_or_else(|_| panic!("Failed to parse case variant: {}", sql));
     }
 }
 
@@ -186,8 +184,7 @@ fn test_savepoint_names_various() {
     ];
 
     for (sql, expected_name) in test_cases {
-        let stmt = Parser::parse_sql(sql)
-            .unwrap_or_else(|_| panic!("Failed to parse: {}", sql));
+        let stmt = Parser::parse_sql(sql).unwrap_or_else(|_| panic!("Failed to parse: {}", sql));
         match stmt {
             Statement::Savepoint(savepoint_stmt) => {
                 assert_eq!(savepoint_stmt.name, expected_name, "Failed for SQL: {}", sql);

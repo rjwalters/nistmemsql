@@ -304,8 +304,7 @@ fn test_advanced_objects_case_insensitive() {
     ];
 
     for sql in sql_variants {
-        Parser::parse_sql(sql)
-            .unwrap_or_else(|_| panic!("Failed to parse case variant: {}", sql));
+        Parser::parse_sql(sql).unwrap_or_else(|_| panic!("Failed to parse case variant: {}", sql));
     }
 }
 

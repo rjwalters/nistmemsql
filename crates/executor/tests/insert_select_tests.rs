@@ -58,7 +58,6 @@ fn test_insert_from_select_basic() {
         order_by: None,
         limit: None,
         offset: None,
-        distinct: false,
         set_operation: None,
     };
 
@@ -127,7 +126,6 @@ fn test_insert_from_select_with_where() {
         order_by: None,
         limit: None,
         offset: None,
-        distinct: false,
         set_operation: None,
     };
 
@@ -274,7 +272,6 @@ fn test_insert_from_select_with_aggregates() {
         order_by: None,
         limit: None,
         offset: None,
-        distinct: false,
         set_operation: None,
     };
 
