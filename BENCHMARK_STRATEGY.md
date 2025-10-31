@@ -757,6 +757,309 @@ def test_my_operation(benchmark, both_databases, setup_test_table, db_name):
 4. **Document expectations** - Add assertions to verify correctness
 5. **Test at multiple scales** - Use parametrized row counts (1K, 10K, 100K)
 
+## Framework Usage
+
+The pytest-benchmark framework is now set up and ready for use. This section documents how to use the framework for performance testing.
+
+### Prerequisites
+
+Before running benchmarks, ensure you have:
+
+1. **Python 3.8+** installed
+2. **PyO3 bindings** built (from issue #648)
+3. **Benchmark dependencies** installed
+
+```bash
+# Install benchmark dependencies
+pip install -r benchmarks/requirements.txt
+
+# Build and install PyO3 bindings
+cd crates/python-bindings
+maturin build --release
+pip install --force-reinstall target/wheels/nistmemsql-*.whl
+cd ../..
+```
+
+### Running Benchmarks
+
+#### Quick Start
+
+Run all benchmarks with default settings:
+
+```bash
+# Using the helper script (recommended)
+./scripts/run_benchmarks.sh
+
+# Or manually with pytest
+pytest benchmarks/ --benchmark-only
+```
+
+#### Running Specific Benchmark Tiers
+
+```bash
+# Tier 1: Micro-benchmarks (basic operations)
+pytest benchmarks/test_micro_benchmarks.py --benchmark-only
+
+# Tier 2: TPC-H style queries
+pytest benchmarks/test_tpch_queries.py --benchmark-only
+
+# Tier 3: NIST conformance test performance
+pytest benchmarks/test_conformance_perf.py --benchmark-only
+
+# Tier 4: Memory profiling
+pytest benchmarks/test_memory_profiling.py --benchmark-only
+
+# Example tests (for learning the framework)
+pytest benchmarks/test_example.py --benchmark-only
+```
+
+#### Running Head-to-Head Comparisons
+
+All benchmarks are parametrized to run against both nistmemsql and SQLite:
+
+```bash
+# Run specific benchmark with both databases
+pytest benchmarks/test_micro_benchmarks.py::test_simple_select -v --benchmark-only
+
+# Expected output shows both:
+# test_simple_select[sqlite] ........
+# test_simple_select[nistmemsql] ....
+```
+
+#### Benchmark Options
+
+Customize benchmark behavior with pytest-benchmark options:
+
+```bash
+# Save results with custom name
+pytest benchmarks/ --benchmark-only --benchmark-json=my_results.json
+
+# Compare with historical results
+pytest benchmarks/ --benchmark-only --benchmark-compare
+
+# Disable warmup for faster runs (less accurate)
+pytest benchmarks/ --benchmark-only --benchmark-warmup=off
+
+# Increase measurement rounds for more precision
+pytest benchmarks/ --benchmark-only --benchmark-min-rounds=10
+
+# Show only specific columns
+pytest benchmarks/ --benchmark-only --benchmark-columns=min,max,mean,stddev
+```
+
+### Understanding Output
+
+#### Console Output
+
+Pytest-benchmark displays a comparison table:
+
+```
+-------------------------------- benchmark: 2 tests -------------------------------
+Name (time in us)              Min      Max     Mean   Median    Rounds
+-------------------------------------------------------------------------------
+test_simple_select[sqlite]    12.50   45.30   15.20    14.10       100
+test_simple_select[nistmemsql] 18.70   62.10   22.80    21.50        87
+-------------------------------------------------------------------------------
+```
+
+**Key Metrics**:
+- **Min/Max**: Fastest and slowest execution times
+- **Mean**: Average execution time across all rounds
+- **Median**: Middle value (less affected by outliers)
+- **Rounds**: Number of times the benchmark ran
+
+**Performance Ratio**: In this example, nistmemsql is ~1.5x slower (22.80 / 15.20)
+
+#### JSON Output
+
+Results are saved to `benchmark_results.json` following the schema in BENCHMARK_STRATEGY.md:
+
+```json
+{
+  "timestamp": "2025-10-30T10:00:00Z",
+  "hardware": {
+    "cpu": "Apple M1 Pro",
+    "cpu_count": 8,
+    "memory_gb": 16.0,
+    "os": "Darwin 24.6.0",
+    "python_version": "3.11.5"
+  },
+  "benchmarks": {
+    "test_simple_select[sqlite]": {
+      "min": 12.50,
+      "max": 45.30,
+      "mean": 15.20,
+      "median": 14.10,
+      "stddev": 3.42,
+      "rounds": 100
+    },
+    "test_simple_select[nistmemsql]": {
+      "min": 18.70,
+      "max": 62.10,
+      "mean": 22.80,
+      "median": 21.50,
+      "stddev": 5.18,
+      "rounds": 87
+    }
+  }
+}
+```
+
+### Adding New Benchmark Tests
+
+#### Basic Structure
+
+Create a new test file in `benchmarks/`:
+
+```python
+import pytest
+
+def test_my_benchmark(benchmark, both_databases, setup_test_table):
+    """Benchmark description"""
+
+    # Setup (not timed)
+    db = both_databases['sqlite']  # Or parametrize
+
+    # Define benchmark function
+    def run_query():
+        cursor = db.execute("SELECT * FROM test_users LIMIT 10")
+        return cursor.fetchall()
+
+    # Run benchmark (timed)
+    result = benchmark(run_query)
+
+    # Assert correctness
+    assert len(result) == 10
+```
+
+#### Using Parametrization
+
+Test the same operation on both databases:
+
+```python
+@pytest.mark.parametrize("db_name", ["sqlite", "nistmemsql"])
+def test_operation(benchmark, both_databases, db_name):
+    """Head-to-head comparison"""
+    db = both_databases[db_name]
+
+    # Adapt to database API differences
+    if db_name == "sqlite":
+        def run():
+            return db.execute("SELECT COUNT(*) FROM test_users").fetchone()
+    else:
+        def run():
+            cursor = db.cursor()
+            cursor.execute("SELECT COUNT(*) FROM test_users")
+            return cursor.fetchone()
+
+    result = benchmark(run)
+    assert result is not None
+```
+
+#### Using Test Data
+
+Generate test data with utilities:
+
+```python
+from benchmarks.utils.data_generator import generate_users
+
+def test_with_data(benchmark, both_databases, setup_test_table):
+    """Benchmark with generated data"""
+    users = generate_users(count=10000)
+
+    # Insert data into both databases
+    # ... setup code ...
+
+    # Benchmark query
+    def run_query():
+        return db.execute("SELECT * FROM test_users WHERE age > 30").fetchall()
+
+    result = benchmark(run_query)
+```
+
+### Framework Components
+
+#### Available Fixtures (conftest.py)
+
+- **`hardware_metadata`**: Collects CPU, memory, OS information
+- **`sqlite_db`**: SQLite :memory: database connection
+- **`nistmemsql_db`**: nistmemsql database connection (requires PyO3 bindings)
+- **`both_databases`**: Dict with both database connections
+- **`setup_test_table`**: Creates `test_users` table in both databases
+- **`insert_test_data`**: Parametrized data insertion (default 1000 rows)
+
+#### Utility Modules
+
+**`benchmarks/utils/database_setup.py`**:
+- `create_sqlite_connection()`: Create SQLite connection
+- `create_nistmemsql_connection()`: Create nistmemsql connection
+- `execute_sql_both()`: Run same query on both databases
+
+**`benchmarks/utils/data_generator.py`**:
+- `generate_users(count)`: Generate user test data
+- `generate_orders(user_count, orders_per_user)`: Generate order data
+- `generate_varchar_data(count, min_length, max_length)`: Generate strings
+
+**`benchmarks/utils/result_formatter.py`**:
+- `calculate_ratio(nistmemsql_time, sqlite_time)`: Compute performance ratio
+- `format_benchmark_results(benchmark_data, hardware_metadata)`: Format to JSON schema
+- `save_results_json(results, output_path)`: Save results to file
+- `generate_comparison_table(results)`: Generate markdown comparison table
+
+### Best Practices for Benchmark Authoring
+
+1. **Isolate Setup from Measurement**:
+   ```python
+   # Good: Setup outside benchmark function
+   data = generate_test_data(1000)
+   def run_query():
+       return db.execute("SELECT * FROM users")
+
+   benchmark(run_query)
+
+   # Bad: Setup inside benchmark (included in timing)
+   def run_with_setup():
+       data = generate_test_data(1000)  # This gets timed!
+       return db.execute("SELECT * FROM users")
+
+   benchmark(run_with_setup)
+   ```
+
+2. **Use Parametrization for Comparisons**:
+   Always parametrize by `db_name` to ensure identical queries run on both databases
+
+3. **Test Multiple Data Scales**:
+   ```python
+   @pytest.mark.parametrize("row_count", [100, 1000, 10000])
+   def test_scaling(benchmark, insert_test_data, row_count):
+       # Tests performance at different scales
+       pass
+   ```
+
+4. **Verify Correctness**:
+   Always include assertions to ensure benchmark is testing valid operations
+
+5. **Use Descriptive Names**:
+   ```python
+   # Good
+   def test_join_two_tables_1k_rows():
+       pass
+
+   # Bad
+   def test_benchmark1():
+       pass
+   ```
+
+6. **Document Expectations**:
+   ```python
+   def test_aggregation(benchmark, both_databases):
+       """Test COUNT(*) aggregation performance
+
+       Expected: nistmemsql should be within 2x of SQLite
+       """
+       pass
+   ```
+
 ### CI Integration
 
 To integrate benchmarks into CI (future):
@@ -793,18 +1096,18 @@ jobs:
 
 ### Immediate Actions
 
-1. ✅ Create `benchmarks/` directory structure
-2. ⬜ Set up criterion benchmarking harness
-3. ⬜ Implement MySQL integration module
-4. ⬜ Write first micro-benchmark (simple SELECT)
-5. ⬜ Verify head-to-head comparison works
+1. ✅ Create `benchmarks/` directory structure (Issue #649 - Completed)
+2. ✅ Set up pytest-benchmark test framework (Issue #649 - Completed)
+3. ✅ Implement PyO3 Python bindings (Issue #648 - Completed)
+4. ✅ Write example benchmark tests (Issue #649 - Completed)
+5. ✅ Verify head-to-head comparison works (Issue #649 - Completed)
 
 ### Week 1 Deliverables
 
-1. ⬜ All Tier 1 micro-benchmarks implemented
-2. ⬜ MySQL setup documented
+1. ⬜ All Tier 1 micro-benchmarks implemented (Tier 1-4 test stubs created)
+2. ⬜ SQLite baseline comparison documented
 3. ⬜ Initial baseline measurements collected
-4. ⬜ JSON result output working
+4. ✅ JSON result output working
 
 ### Month 1 Goals
 
@@ -815,6 +1118,6 @@ jobs:
 
 ---
 
-**Document Version**: 1.0
+**Document Version**: 1.1
 **Last Updated**: 2025-10-30
-**Status**: Planning / Not Yet Implemented
+**Status**: Framework Implemented - Ready for Benchmark Development
