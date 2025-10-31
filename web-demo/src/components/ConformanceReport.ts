@@ -138,6 +138,72 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
     `
   }
 
+  private renderExplanation(): string {
+    return `
+      <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 p-6">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <span class="text-2xl">ℹ️</span>
+          Understanding sqltest vs. SQL:1999 Core
+        </h2>
+
+        <div class="space-y-4 text-sm text-gray-700 dark:text-gray-300">
+          <div>
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-2">What is sqltest?</h3>
+            <p>
+              <a href="https://github.com/elliotchance/sqltest" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline font-medium">sqltest</a>
+              is a community-maintained test suite by Elliot Chance that provides BNF-driven conformance tests derived from the SQL:1999 standard.
+              It contains 739 tests covering Core and Foundation features across E-series and F-series test categories.
+            </p>
+          </div>
+
+          <div>
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-2">What is SQL:1999 Core?</h3>
+            <p>
+              SQL:1999 Core is the official mandatory feature set defined in the SQL:1999 (ISO/IEC 9075:1999) standard.
+              It consists of approximately 169 required features that any database claiming Core compliance must implement.
+              Core compliance is verified through official NIST SQL test suites.
+            </p>
+          </div>
+
+          <div>
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-2">How do they differ?</h3>
+            <ul class="list-disc list-inside space-y-2 ml-2">
+              <li>
+                <span class="font-medium">Authority:</span> SQL:1999 Core is the official ISO standard; sqltest is a community interpretation
+              </li>
+              <li>
+                <span class="font-medium">Scope:</span> sqltest includes both Core (E-series) and optional Foundation features (F-series)
+              </li>
+              <li>
+                <span class="font-medium">Test Count:</span> sqltest has 739 tests; official NIST suites have different test counts and coverage
+              </li>
+              <li>
+                <span class="font-medium">Verification:</span> Passing sqltest indicates strong SQL:1999 conformance but is not official certification
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-2">What does 95.3% mean?</h3>
+            <p>
+              Our 95.3% pass rate means we pass 704 out of 739 sqltest tests. This demonstrates strong SQL:1999 conformance
+              and suggests we've implemented most Core features correctly. However, it is not a claim of official SQL:1999 Core certification,
+              which would require testing against the official NIST SQL Test Suite and formal validation.
+            </p>
+          </div>
+
+          <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-blue-300 dark:border-blue-700">
+            <p class="text-xs text-gray-600 dark:text-gray-400">
+              <strong>Bottom Line:</strong> sqltest is an excellent proxy for SQL:1999 conformance and provides transparent,
+              reproducible test results. Our high pass rate demonstrates serious standards compliance, but formal Core certification
+              would require additional official testing.
+            </p>
+          </div>
+        </div>
+      </div>
+    `
+  }
+
   private renderTestCoverage(): string {
     return `
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-8">
@@ -276,6 +342,7 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
       <div class="space-y-8">
         ${this.renderMetadataCard(commit, timestamp, data.pass_rate)}
         ${this.renderSummaryCards(data)}
+        ${this.renderExplanation()}
         ${this.renderTestCoverage()}
         ${data.error_tests && data.error_tests.length > 0 ? this.renderFailingTests(data.error_tests) : ''}
         ${this.renderRunningTestsLocally()}
