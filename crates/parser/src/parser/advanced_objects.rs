@@ -26,9 +26,7 @@ use ast::*;
 ///         [MINVALUE n | NO MINVALUE]
 ///         [MAXVALUE n | NO MAXVALUE]
 ///         [CYCLE | NO CYCLE]
-pub fn parse_create_sequence(
-    parser: &mut crate::Parser,
-) -> Result<CreateSequenceStmt, ParseError> {
+pub fn parse_create_sequence(parser: &mut crate::Parser) -> Result<CreateSequenceStmt, ParseError> {
     parser.expect_keyword(Keyword::Create)?;
     parser.expect_keyword(Keyword::Sequence)?;
 
@@ -46,7 +44,11 @@ pub fn parse_create_sequence(
             parser.expect_keyword(Keyword::With)?;
             let num_str = match parser.peek() {
                 Token::Number(n) => n.clone(),
-                _ => return Err(ParseError { message: "Expected number after START WITH".to_string() }),
+                _ => {
+                    return Err(ParseError {
+                        message: "Expected number after START WITH".to_string(),
+                    })
+                }
             };
             parser.advance();
             start_with = Some(num_str.parse::<i64>().map_err(|_| ParseError {
@@ -56,7 +58,11 @@ pub fn parse_create_sequence(
             parser.expect_keyword(Keyword::By)?;
             let num_str = match parser.peek() {
                 Token::Number(n) => n.clone(),
-                _ => return Err(ParseError { message: "Expected number after INCREMENT BY".to_string() }),
+                _ => {
+                    return Err(ParseError {
+                        message: "Expected number after INCREMENT BY".to_string(),
+                    })
+                }
             };
             parser.advance();
             increment_by = num_str.parse::<i64>().map_err(|_| ParseError {
@@ -65,21 +71,31 @@ pub fn parse_create_sequence(
         } else if parser.try_consume_keyword(Keyword::Minvalue) {
             let num_str = match parser.peek() {
                 Token::Number(n) => n.clone(),
-                _ => return Err(ParseError { message: "Expected number after MINVALUE".to_string() }),
+                _ => {
+                    return Err(ParseError {
+                        message: "Expected number after MINVALUE".to_string(),
+                    })
+                }
             };
             parser.advance();
-            min_value = Some(num_str.parse::<i64>().map_err(|_| ParseError {
-                message: format!("Invalid MINVALUE: {}", num_str),
-            })?);
+            min_value =
+                Some(num_str.parse::<i64>().map_err(|_| ParseError {
+                    message: format!("Invalid MINVALUE: {}", num_str),
+                })?);
         } else if parser.try_consume_keyword(Keyword::Maxvalue) {
             let num_str = match parser.peek() {
                 Token::Number(n) => n.clone(),
-                _ => return Err(ParseError { message: "Expected number after MAXVALUE".to_string() }),
+                _ => {
+                    return Err(ParseError {
+                        message: "Expected number after MAXVALUE".to_string(),
+                    })
+                }
             };
             parser.advance();
-            max_value = Some(num_str.parse::<i64>().map_err(|_| ParseError {
-                message: format!("Invalid MAXVALUE: {}", num_str),
-            })?);
+            max_value =
+                Some(num_str.parse::<i64>().map_err(|_| ParseError {
+                    message: format!("Invalid MAXVALUE: {}", num_str),
+                })?);
         } else if parser.try_consume_keyword(Keyword::No) {
             if parser.try_consume_keyword(Keyword::Minvalue) {
                 min_value = None;
@@ -99,14 +115,7 @@ pub fn parse_create_sequence(
         }
     }
 
-    Ok(CreateSequenceStmt {
-        sequence_name,
-        start_with,
-        increment_by,
-        min_value,
-        max_value,
-        cycle,
-    })
+    Ok(CreateSequenceStmt { sequence_name, start_with, increment_by, min_value, max_value, cycle })
 }
 
 /// Parse DROP SEQUENCE statement
@@ -118,18 +127,15 @@ pub fn parse_drop_sequence(parser: &mut crate::Parser) -> Result<DropSequenceStm
 
     let sequence_name = parser.parse_identifier()?;
 
+    // CASCADE or RESTRICT (defaults to RESTRICT if neither specified)
     let cascade = if parser.try_consume_keyword(Keyword::Cascade) {
         true
-    } else if parser.try_consume_keyword(Keyword::Restrict) {
-        false
     } else {
-        false // default to RESTRICT
+        parser.try_consume_keyword(Keyword::Restrict); // consume if present
+        false
     };
 
-    Ok(DropSequenceStmt {
-        sequence_name,
-        cascade,
-    })
+    Ok(DropSequenceStmt { sequence_name, cascade })
 }
 
 /// Parse ALTER SEQUENCE statement
@@ -140,9 +146,7 @@ pub fn parse_drop_sequence(parser: &mut crate::Parser) -> Result<DropSequenceStm
 ///         [MINVALUE n | NO MINVALUE]
 ///         [MAXVALUE n | NO MAXVALUE]
 ///         [CYCLE | NO CYCLE]
-pub fn parse_alter_sequence(
-    parser: &mut crate::Parser,
-) -> Result<AlterSequenceStmt, ParseError> {
+pub fn parse_alter_sequence(parser: &mut crate::Parser) -> Result<AlterSequenceStmt, ParseError> {
     parser.expect_keyword(Keyword::Alter)?;
     parser.expect_keyword(Keyword::Sequence)?;
 
@@ -160,7 +164,11 @@ pub fn parse_alter_sequence(
             if parser.try_consume_keyword(Keyword::With) {
                 let num_str = match parser.peek() {
                     Token::Number(n) => n.clone(),
-                    _ => return Err(ParseError { message: "Expected number after RESTART WITH".to_string() }),
+                    _ => {
+                        return Err(ParseError {
+                            message: "Expected number after RESTART WITH".to_string(),
+                        })
+                    }
                 };
                 parser.advance();
                 restart_with = Some(num_str.parse::<i64>().map_err(|_| ParseError {
@@ -174,7 +182,11 @@ pub fn parse_alter_sequence(
             parser.expect_keyword(Keyword::By)?;
             let num_str = match parser.peek() {
                 Token::Number(n) => n.clone(),
-                _ => return Err(ParseError { message: "Expected number after INCREMENT BY".to_string() }),
+                _ => {
+                    return Err(ParseError {
+                        message: "Expected number after INCREMENT BY".to_string(),
+                    })
+                }
             };
             parser.advance();
             increment_by = Some(num_str.parse::<i64>().map_err(|_| ParseError {
@@ -183,21 +195,31 @@ pub fn parse_alter_sequence(
         } else if parser.try_consume_keyword(Keyword::Minvalue) {
             let num_str = match parser.peek() {
                 Token::Number(n) => n.clone(),
-                _ => return Err(ParseError { message: "Expected number after MINVALUE".to_string() }),
+                _ => {
+                    return Err(ParseError {
+                        message: "Expected number after MINVALUE".to_string(),
+                    })
+                }
             };
             parser.advance();
-            min_value = Some(Some(num_str.parse::<i64>().map_err(|_| ParseError {
-                message: format!("Invalid MINVALUE: {}", num_str),
-            })?));
+            min_value =
+                Some(Some(num_str.parse::<i64>().map_err(|_| ParseError {
+                    message: format!("Invalid MINVALUE: {}", num_str),
+                })?));
         } else if parser.try_consume_keyword(Keyword::Maxvalue) {
             let num_str = match parser.peek() {
                 Token::Number(n) => n.clone(),
-                _ => return Err(ParseError { message: "Expected number after MAXVALUE".to_string() }),
+                _ => {
+                    return Err(ParseError {
+                        message: "Expected number after MAXVALUE".to_string(),
+                    })
+                }
             };
             parser.advance();
-            max_value = Some(Some(num_str.parse::<i64>().map_err(|_| ParseError {
-                message: format!("Invalid MAXVALUE: {}", num_str),
-            })?));
+            max_value =
+                Some(Some(num_str.parse::<i64>().map_err(|_| ParseError {
+                    message: format!("Invalid MAXVALUE: {}", num_str),
+                })?));
         } else if parser.try_consume_keyword(Keyword::No) {
             if parser.try_consume_keyword(Keyword::Minvalue) {
                 min_value = Some(None); // NO MINVALUE
@@ -217,14 +239,7 @@ pub fn parse_alter_sequence(
         }
     }
 
-    Ok(AlterSequenceStmt {
-        sequence_name,
-        restart_with,
-        increment_by,
-        min_value,
-        max_value,
-        cycle,
-    })
+    Ok(AlterSequenceStmt { sequence_name, restart_with, increment_by, min_value, max_value, cycle })
 }
 
 // ============================================================================

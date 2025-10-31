@@ -135,12 +135,12 @@ impl ExpressionEvaluator<'_> {
             // 1. Use RefCell<Sequence> for interior mutability in catalog
             // 2. Handle NEXT VALUE FOR at statement execution level (INSERT/SELECT)
             // 3. Change evaluator to accept mutable database reference
-            ast::Expression::NextValue { sequence_name } => Err(ExecutorError::UnsupportedExpression(
-                format!(
+            ast::Expression::NextValue { sequence_name } => {
+                Err(ExecutorError::UnsupportedExpression(format!(
                     "NEXT VALUE FOR {} not yet implemented - requires mutable catalog access",
                     sequence_name
-                ),
-            )),
+                )))
+            }
         }
     }
 

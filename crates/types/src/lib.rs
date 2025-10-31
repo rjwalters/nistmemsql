@@ -44,7 +44,7 @@ pub enum DataType {
     Character { length: usize },
     Varchar { max_length: Option<usize> }, // None = default length (255)
     CharacterLargeObject,                  // CLOB
-    Name,                                  // NAME type for SQL identifiers (SQL:1999), maps to VARCHAR(128)
+    Name, // NAME type for SQL identifiers (SQL:1999), maps to VARCHAR(128)
 
     // Boolean type (SQL:1999)
     Boolean,

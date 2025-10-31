@@ -2,7 +2,7 @@
 //! Minimal stub implementations for: DOMAIN, SEQUENCE, TYPE, COLLATION, CHARACTER SET, TRANSLATION
 
 /// Domain - User-defined data type with constraints
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Domain {
     pub name: String,
     // TODO: Add base_type, constraints when implementing full functionality
@@ -11,12 +11,6 @@ pub struct Domain {
 impl Domain {
     pub fn new(name: String) -> Self {
         Domain { name }
-    }
-}
-
-impl Default for Domain {
-    fn default() -> Self {
-        Domain { name: String::new() }
     }
 }
 
@@ -117,7 +111,7 @@ impl Default for Sequence {
 }
 
 /// User-defined Type (UDT)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct UserDefinedType {
     pub name: String,
     // TODO: Add fields when implementing full functionality
@@ -129,14 +123,8 @@ impl UserDefinedType {
     }
 }
 
-impl Default for UserDefinedType {
-    fn default() -> Self {
-        UserDefinedType { name: String::new() }
-    }
-}
-
 /// Collation - String comparison rules
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Collation {
     pub name: String,
     // TODO: Add locale, pad_attribute when implementing full functionality
@@ -148,14 +136,8 @@ impl Collation {
     }
 }
 
-impl Default for Collation {
-    fn default() -> Self {
-        Collation { name: String::new() }
-    }
-}
-
 /// Character Set - Character encoding
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CharacterSet {
     pub name: String,
     // TODO: Add encoding details when implementing full functionality
@@ -167,14 +149,8 @@ impl CharacterSet {
     }
 }
 
-impl Default for CharacterSet {
-    fn default() -> Self {
-        CharacterSet { name: String::new() }
-    }
-}
-
 /// Translation - Character set translation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Translation {
     pub name: String,
     // TODO: Add from_charset, to_charset when implementing full functionality
@@ -183,11 +159,5 @@ pub struct Translation {
 impl Translation {
     pub fn new(name: String) -> Self {
         Translation { name }
-    }
-}
-
-impl Default for Translation {
-    fn default() -> Self {
-        Translation { name: String::new() }
     }
 }

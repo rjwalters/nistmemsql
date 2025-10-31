@@ -285,7 +285,15 @@ impl Parser {
     ) -> Result<Option<ast::Expression>, ParseError> {
         if matches!(self.peek(), Token::Keyword(Keyword::Next)) {
             self.advance(); // consume NEXT
-            self.expect_keyword(Keyword::Value)?;
+
+            // Parse "VALUE" as identifier (not a reserved keyword)
+            match self.peek() {
+                Token::Identifier(s) if s.eq_ignore_ascii_case("VALUE") => {
+                    self.advance();
+                }
+                _ => return Err(ParseError { message: "Expected VALUE after NEXT".to_string() }),
+            }
+
             self.expect_keyword(Keyword::For)?;
             let sequence_name = self.parse_identifier()?;
             Ok(Some(ast::Expression::NextValue { sequence_name }))

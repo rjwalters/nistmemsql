@@ -212,10 +212,10 @@ pub struct DropDomainStmt {
 pub struct CreateSequenceStmt {
     pub sequence_name: String,
     pub start_with: Option<i64>,
-    pub increment_by: i64,        // default: 1
+    pub increment_by: i64, // default: 1
     pub min_value: Option<i64>,
     pub max_value: Option<i64>,
-    pub cycle: bool,              // default: false
+    pub cycle: bool, // default: false
 }
 
 /// DROP SEQUENCE statement

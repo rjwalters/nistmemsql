@@ -7,9 +7,9 @@ use crate::{
     CreateCollationStmt, CreateDomainStmt, CreateRoleStmt, CreateSchemaStmt, CreateSequenceStmt,
     CreateTableStmt, CreateTranslationStmt, CreateTypeStmt, DeleteStmt, DropCharacterSetStmt,
     DropCollationStmt, DropDomainStmt, DropRoleStmt, DropSchemaStmt, DropSequenceStmt,
-    DropTableStmt, DropTranslationStmt, DropTypeStmt, GrantStmt, InsertStmt,
-    ReleaseSavepointStmt, RevokeStmt, RollbackStmt, RollbackToSavepointStmt, SavepointStmt,
-    SelectStmt, SetSchemaStmt, UpdateStmt,
+    DropTableStmt, DropTranslationStmt, DropTypeStmt, GrantStmt, InsertStmt, ReleaseSavepointStmt,
+    RevokeStmt, RollbackStmt, RollbackToSavepointStmt, SavepointStmt, SelectStmt, SetSchemaStmt,
+    UpdateStmt,
 };
 
 // ============================================================================

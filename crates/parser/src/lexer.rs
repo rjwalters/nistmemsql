@@ -284,7 +284,6 @@ impl Lexer {
             "NO" => Token::Keyword(Keyword::No),
             "RESTART" => Token::Keyword(Keyword::Restart),
             "NEXT" => Token::Keyword(Keyword::Next),
-            "VALUE" => Token::Keyword(Keyword::Value),
             _ => Token::Identifier(upper_text), // Regular identifiers are normalized to uppercase
         };
 

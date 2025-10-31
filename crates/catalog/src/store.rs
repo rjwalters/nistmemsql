@@ -427,9 +427,7 @@ impl Catalog {
 
     /// Get a mutable reference to a SEQUENCE for NEXT VALUE FOR
     pub fn get_sequence_mut(&mut self, name: &str) -> Result<&mut Sequence, CatalogError> {
-        self.sequences
-            .get_mut(name)
-            .ok_or_else(|| CatalogError::SequenceNotFound(name.to_string()))
+        self.sequences.get_mut(name).ok_or_else(|| CatalogError::SequenceNotFound(name.to_string()))
     }
 
     /// Create a TYPE

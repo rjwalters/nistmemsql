@@ -148,13 +148,50 @@ impl Database {
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
             ast::Statement::DropDomain(drop_domain_stmt) => {
-                let message = executor::DomainExecutor::execute_drop_domain(
-                    &drop_domain_stmt,
+                let message =
+                    executor::DomainExecutor::execute_drop_domain(&drop_domain_stmt, &mut self.db)
+                        .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+
+                let result = ExecuteResult { rows_affected: 0, message };
+
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
+            ast::Statement::CreateSequence(create_seq_stmt) => {
+                executor::advanced_objects::execute_create_sequence(
+                    &create_seq_stmt,
                     &mut self.db,
                 )
                 .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
-                let result = ExecuteResult { rows_affected: 0, message };
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message: format!("Sequence '{}' created successfully", create_seq_stmt.sequence_name),
+                };
+
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
+            ast::Statement::DropSequence(drop_seq_stmt) => {
+                executor::advanced_objects::execute_drop_sequence(&drop_seq_stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message: format!("Sequence '{}' dropped successfully", drop_seq_stmt.sequence_name),
+                };
+
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
+            ast::Statement::AlterSequence(alter_seq_stmt) => {
+                executor::advanced_objects::execute_alter_sequence(&alter_seq_stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message: format!("Sequence '{}' altered successfully", alter_seq_stmt.sequence_name),
+                };
 
                 serde_wasm_bindgen::to_value(&result)
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))

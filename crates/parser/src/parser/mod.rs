@@ -87,9 +87,7 @@ impl Parser {
                 } else if self.peek_next_keyword(Keyword::Type) {
                     Ok(ast::Statement::CreateType(self.parse_create_type_statement()?))
                 } else if self.peek_next_keyword(Keyword::Collation) {
-                    Ok(ast::Statement::CreateCollation(
-                        self.parse_create_collation_statement()?,
-                    ))
+                    Ok(ast::Statement::CreateCollation(self.parse_create_collation_statement()?))
                 } else if self.peek_next_keyword(Keyword::Character) {
                     Ok(ast::Statement::CreateCharacterSet(
                         self.parse_create_character_set_statement()?,
@@ -122,13 +120,9 @@ impl Parser {
                 } else if self.peek_next_keyword(Keyword::Collation) {
                     Ok(ast::Statement::DropCollation(self.parse_drop_collation_statement()?))
                 } else if self.peek_next_keyword(Keyword::Character) {
-                    Ok(ast::Statement::DropCharacterSet(
-                        self.parse_drop_character_set_statement()?,
-                    ))
+                    Ok(ast::Statement::DropCharacterSet(self.parse_drop_character_set_statement()?))
                 } else if self.peek_next_keyword(Keyword::Translation) {
-                    Ok(ast::Statement::DropTranslation(
-                        self.parse_drop_translation_statement()?,
-                    ))
+                    Ok(ast::Statement::DropTranslation(self.parse_drop_translation_statement()?))
                 } else {
                     Err(ParseError {
                         message:
@@ -282,9 +276,7 @@ impl Parser {
     // ========================================================================
 
     /// Parse CREATE DOMAIN statement (uses full implementation from domain module)
-    pub fn parse_create_domain_statement(
-        &mut self,
-    ) -> Result<ast::CreateDomainStmt, ParseError> {
+    pub fn parse_create_domain_statement(&mut self) -> Result<ast::CreateDomainStmt, ParseError> {
         domain::parse_create_domain(self)
     }
 
@@ -301,16 +293,12 @@ impl Parser {
     }
 
     /// Parse DROP SEQUENCE statement
-    pub fn parse_drop_sequence_statement(
-        &mut self,
-    ) -> Result<ast::DropSequenceStmt, ParseError> {
+    pub fn parse_drop_sequence_statement(&mut self) -> Result<ast::DropSequenceStmt, ParseError> {
         advanced_objects::parse_drop_sequence(self)
     }
 
     /// Parse ALTER SEQUENCE statement
-    pub fn parse_alter_sequence_statement(
-        &mut self,
-    ) -> Result<ast::AlterSequenceStmt, ParseError> {
+    pub fn parse_alter_sequence_statement(&mut self) -> Result<ast::AlterSequenceStmt, ParseError> {
         advanced_objects::parse_alter_sequence(self)
     }
 
@@ -332,9 +320,7 @@ impl Parser {
     }
 
     /// Parse DROP COLLATION statement
-    pub fn parse_drop_collation_statement(
-        &mut self,
-    ) -> Result<ast::DropCollationStmt, ParseError> {
+    pub fn parse_drop_collation_statement(&mut self) -> Result<ast::DropCollationStmt, ParseError> {
         advanced_objects::parse_drop_collation(self)
     }
 

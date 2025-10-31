@@ -142,7 +142,6 @@ pub enum Keyword {
     No,
     Restart,
     Next,
-    Value,
 }
 
 impl fmt::Display for Keyword {
@@ -269,7 +268,6 @@ impl fmt::Display for Keyword {
             Keyword::No => "NO",
             Keyword::Restart => "RESTART",
             Keyword::Next => "NEXT",
-            Keyword::Value => "VALUE",
         };
         write!(f, "{}", keyword_str)
     }
