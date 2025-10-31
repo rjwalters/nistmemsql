@@ -284,6 +284,7 @@ impl Lexer {
             "CHARACTER" => Token::Keyword(Keyword::Character),
             "TRANSLATION" => Token::Keyword(Keyword::Translation),
             "VIEW" => Token::Keyword(Keyword::View),
+            "ASSERTION" => Token::Keyword(Keyword::Assertion),
             // SEQUENCE specific keywords
             "INCREMENT" => Token::Keyword(Keyword::Increment),
             "MINVALUE" => Token::Keyword(Keyword::Minvalue),

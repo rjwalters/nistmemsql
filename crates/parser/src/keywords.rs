@@ -141,6 +141,7 @@ pub enum Keyword {
     Character,
     Translation,
     View,
+    Assertion,
     // SEQUENCE specific keywords
     Increment,
     Minvalue,
@@ -283,6 +284,7 @@ impl fmt::Display for Keyword {
             Keyword::Character => "CHARACTER",
             Keyword::Translation => "TRANSLATION",
             Keyword::View => "VIEW",
+            Keyword::Assertion => "ASSERTION",
             Keyword::Increment => "INCREMENT",
             Keyword::Minvalue => "MINVALUE",
             Keyword::Maxvalue => "MAXVALUE",
