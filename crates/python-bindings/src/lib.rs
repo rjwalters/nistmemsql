@@ -3,12 +3,14 @@
 //! This module provides Python bindings following DB-API 2.0 conventions
 //! to expose the Rust database library to Python for benchmarking and usage.
 
+// Suppress PyO3 macro warnings
+#![allow(non_local_definitions)]
+
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::types::{PyList, PyTuple};
 use std::sync::{Arc, Mutex};
 
-/// Custom exception for database errors
 pyo3::create_exception!(nistmemsql, DatabaseError, PyException);
 pyo3::create_exception!(nistmemsql, OperationalError, DatabaseError);
 pyo3::create_exception!(nistmemsql, ProgrammingError, DatabaseError);
@@ -77,9 +79,17 @@ impl Database {
 /// Query result storage
 enum QueryResultData {
     /// SELECT query result with columns and rows
-    Select { columns: Vec<String>, rows: Vec<storage::Row> },
+    Select {
+        #[allow(dead_code)]
+        columns: Vec<String>,
+        rows: Vec<storage::Row>,
+    },
     /// DML/DDL result with rows affected and message
-    Execute { rows_affected: usize, message: String },
+    Execute {
+        rows_affected: usize,
+        #[allow(dead_code)]
+        message: String,
+    },
 }
 
 /// Cursor object for executing SQL statements
