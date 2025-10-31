@@ -6,9 +6,9 @@ use crate::{
     AlterSequenceStmt, AlterTableStmt, BeginStmt, CommitStmt, CreateAssertionStmt,
     CreateCharacterSetStmt, CreateCollationStmt, CreateDomainStmt, CreateRoleStmt,
     CreateSchemaStmt, CreateSequenceStmt, CreateTableStmt, CreateTranslationStmt, CreateTypeStmt,
-    CreateViewStmt, DeleteStmt, DropAssertionStmt, DropCharacterSetStmt, DropCollationStmt,
-    DropDomainStmt, DropRoleStmt, DropSchemaStmt, DropSequenceStmt, DropTableStmt,
-    DropTranslationStmt, DropTypeStmt, DropViewStmt, GrantStmt, InsertStmt,
+    CreateViewStmt, DeclareCursorStmt, DeleteStmt, DropAssertionStmt, DropCharacterSetStmt,
+    DropCollationStmt, DropDomainStmt, DropRoleStmt, DropSchemaStmt, DropSequenceStmt,
+    DropTableStmt, DropTranslationStmt, DropTypeStmt, DropViewStmt, GrantStmt, InsertStmt,
     ReleaseSavepointStmt, RevokeStmt, RollbackStmt, RollbackToSavepointStmt, SavepointStmt,
     SelectStmt, SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt, UpdateStmt,
 };
@@ -61,5 +61,7 @@ pub enum Statement {
     DropView(DropViewStmt),
     CreateAssertion(CreateAssertionStmt),
     DropAssertion(DropAssertionStmt),
-    // TODO: Add more statement types (ALTER, etc.)
+    // Cursor operations (SQL:1999 Feature E121)
+    DeclareCursor(DeclareCursorStmt),
+    // TODO: Add more statement types (OPEN, FETCH, CLOSE cursors, ALTER, etc.)
 }

@@ -62,7 +62,9 @@ pub struct TableConstraint {
 /// Table constraint types
 #[derive(Debug, Clone, PartialEq)]
 pub enum TableConstraintKind {
-    PrimaryKey { columns: Vec<String> },
+    PrimaryKey {
+        columns: Vec<String>,
+    },
     ForeignKey {
         columns: Vec<String>,
         references_table: String,
@@ -70,8 +72,12 @@ pub enum TableConstraintKind {
         on_delete: Option<ReferentialAction>,
         on_update: Option<ReferentialAction>,
     },
-    Unique { columns: Vec<String> },
-    Check { expr: Box<Expression> },
+    Unique {
+        columns: Vec<String>,
+    },
+    Check {
+        expr: Box<Expression>,
+    },
 }
 
 /// DROP TABLE statement
@@ -392,6 +398,25 @@ pub struct DropViewStmt {
     pub view_name: String,
     pub if_exists: bool,
     pub cascade: bool,
+}
+
+/// DECLARE CURSOR statement (SQL:1999 Feature E121)
+#[derive(Debug, Clone, PartialEq)]
+pub struct DeclareCursorStmt {
+    pub cursor_name: String,
+    pub insensitive: bool,
+    pub scroll: bool,
+    pub hold: Option<bool>, // Some(true) = WITH HOLD, Some(false) = WITHOUT HOLD, None = not specified
+    pub query: Box<crate::SelectStmt>,
+    pub updatability: CursorUpdatability,
+}
+
+/// Cursor updatability specification
+#[derive(Debug, Clone, PartialEq)]
+pub enum CursorUpdatability {
+    ReadOnly,
+    Update { columns: Option<Vec<String>> }, // Some(cols) = UPDATE OF cols, None = UPDATE (all columns)
+    Unspecified,
 }
 
 /// CREATE ASSERTION statement

@@ -222,6 +222,7 @@ fn test_parse_except_distinct() {
 
 #[test]
 fn test_parse_intersect_distinct() {
-    let result = Parser::parse_sql("SELECT id FROM users INTERSECT DISTINCT SELECT id FROM customers;");
+    let result =
+        Parser::parse_sql("SELECT id FROM users INTERSECT DISTINCT SELECT id FROM customers;");
     assert!(result.is_ok(), "INTERSECT DISTINCT should parse: {:?}", result);
 }

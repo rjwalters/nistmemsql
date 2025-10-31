@@ -279,7 +279,7 @@ fn test_parse_grant_without_grant_option() {
 
     match result.unwrap() {
         ast::Statement::Grant(grant_stmt) => {
-            assert_eq!(grant_stmt.with_grant_option, false);
+            assert!(!grant_stmt.with_grant_option);
         }
         other => panic!("Expected Grant statement, got {:?}", other),
     }
@@ -663,10 +663,7 @@ fn test_parse_grant_references_table_level() {
 
     match result.unwrap() {
         ast::Statement::Grant(grant_stmt) => {
-            assert_eq!(
-                grant_stmt.privileges[0],
-                ast::PrivilegeType::References(None)
-            );
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::References(None));
         }
         other => panic!("Expected Grant statement, got {:?}", other),
     }

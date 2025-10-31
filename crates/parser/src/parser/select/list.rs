@@ -24,7 +24,9 @@ impl Parser {
     pub(crate) fn parse_select_item(&mut self) -> Result<ast::SelectItem, ParseError> {
         // Check for qualified wildcard (table.* or alias.*)
         let saved_position = self.position;
-        let qualifier = if let Token::Identifier(ref qualifier) | Token::DelimitedIdentifier(ref qualifier) = self.peek() {
+        let qualifier = if let Token::Identifier(ref qualifier)
+        | Token::DelimitedIdentifier(ref qualifier) = self.peek()
+        {
             Some(qualifier.clone())
         } else {
             None

@@ -327,21 +327,13 @@ fn test_between_symmetric_swaps_bounds() {
     // Create test table
     let schema = catalog::TableSchema::new(
         "NUMBERS".to_string(),
-        vec![catalog::ColumnSchema::new(
-            "VALUE".to_string(),
-            types::DataType::Integer,
-            false,
-        )],
+        vec![catalog::ColumnSchema::new("VALUE".to_string(), types::DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
 
     // Insert test data: values from 1 to 10
     for i in 1..=10 {
-        db.insert_row(
-            "NUMBERS",
-            storage::Row::new(vec![types::SqlValue::Integer(i)]),
-        )
-        .unwrap();
+        db.insert_row("NUMBERS", storage::Row::new(vec![types::SqlValue::Integer(i)])).unwrap();
     }
 
     // Test: WHERE value BETWEEN SYMMETRIC 10 AND 1
@@ -368,21 +360,13 @@ fn test_between_asymmetric_does_not_swap() {
     // Create test table
     let schema = catalog::TableSchema::new(
         "NUMBERS".to_string(),
-        vec![catalog::ColumnSchema::new(
-            "VALUE".to_string(),
-            types::DataType::Integer,
-            false,
-        )],
+        vec![catalog::ColumnSchema::new("VALUE".to_string(), types::DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
 
     // Insert test data
     for i in 1..=10 {
-        db.insert_row(
-            "NUMBERS",
-            storage::Row::new(vec![types::SqlValue::Integer(i)]),
-        )
-        .unwrap();
+        db.insert_row("NUMBERS", storage::Row::new(vec![types::SqlValue::Integer(i)])).unwrap();
     }
 
     // Test: WHERE value BETWEEN ASYMMETRIC 10 AND 1
@@ -410,21 +394,13 @@ fn test_between_default_is_asymmetric() {
     // Create test table
     let schema = catalog::TableSchema::new(
         "NUMBERS".to_string(),
-        vec![catalog::ColumnSchema::new(
-            "VALUE".to_string(),
-            types::DataType::Integer,
-            false,
-        )],
+        vec![catalog::ColumnSchema::new("VALUE".to_string(), types::DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
 
     // Insert test data
     for i in 1..=10 {
-        db.insert_row(
-            "NUMBERS",
-            storage::Row::new(vec![types::SqlValue::Integer(i)]),
-        )
-        .unwrap();
+        db.insert_row("NUMBERS", storage::Row::new(vec![types::SqlValue::Integer(i)])).unwrap();
     }
 
     // Test: BETWEEN without modifier should behave like ASYMMETRIC
@@ -447,11 +423,7 @@ fn test_between_default_is_asymmetric() {
         panic!("Expected SELECT statement");
     };
 
-    assert_eq!(
-        result1.len(),
-        result2.len(),
-        "BETWEEN default should be same as ASYMMETRIC"
-    );
+    assert_eq!(result1.len(), result2.len(), "BETWEEN default should be same as ASYMMETRIC");
     assert_eq!(result1, result2, "Results should be identical");
 }
 
@@ -462,21 +434,13 @@ fn test_symmetric_with_equal_bounds() {
     // Create test table
     let schema = catalog::TableSchema::new(
         "NUMBERS".to_string(),
-        vec![catalog::ColumnSchema::new(
-            "VALUE".to_string(),
-            types::DataType::Integer,
-            false,
-        )],
+        vec![catalog::ColumnSchema::new("VALUE".to_string(), types::DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
 
     // Insert test data
     for i in 1..=10 {
-        db.insert_row(
-            "NUMBERS",
-            storage::Row::new(vec![types::SqlValue::Integer(i)]),
-        )
-        .unwrap();
+        db.insert_row("NUMBERS", storage::Row::new(vec![types::SqlValue::Integer(i)])).unwrap();
     }
 
     // Test: WHERE value BETWEEN SYMMETRIC 5 AND 5
@@ -501,21 +465,13 @@ fn test_not_between_symmetric() {
     // Create test table
     let schema = catalog::TableSchema::new(
         "NUMBERS".to_string(),
-        vec![catalog::ColumnSchema::new(
-            "VALUE".to_string(),
-            types::DataType::Integer,
-            false,
-        )],
+        vec![catalog::ColumnSchema::new("VALUE".to_string(), types::DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
 
     // Insert test data
     for i in 1..=10 {
-        db.insert_row(
-            "NUMBERS",
-            storage::Row::new(vec![types::SqlValue::Integer(i)]),
-        )
-        .unwrap();
+        db.insert_row("NUMBERS", storage::Row::new(vec![types::SqlValue::Integer(i)])).unwrap();
     }
 
     // Test: WHERE value NOT BETWEEN SYMMETRIC 8 AND 2
@@ -552,18 +508,9 @@ fn test_symmetric_with_null() {
     db.create_table(schema).unwrap();
 
     // Insert test data including NULL
-    db.insert_row("DATA", storage::Row::new(vec![types::SqlValue::Null]))
-        .unwrap();
-    db.insert_row(
-        "DATA",
-        storage::Row::new(vec![types::SqlValue::Integer(5)]),
-    )
-    .unwrap();
-    db.insert_row(
-        "DATA",
-        storage::Row::new(vec![types::SqlValue::Integer(15)]),
-    )
-    .unwrap();
+    db.insert_row("DATA", storage::Row::new(vec![types::SqlValue::Null])).unwrap();
+    db.insert_row("DATA", storage::Row::new(vec![types::SqlValue::Integer(5)])).unwrap();
+    db.insert_row("DATA", storage::Row::new(vec![types::SqlValue::Integer(15)])).unwrap();
 
     // Test: WHERE value BETWEEN SYMMETRIC 1 AND 10
     // NULL should not match

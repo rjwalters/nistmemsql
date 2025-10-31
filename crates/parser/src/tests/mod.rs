@@ -8,6 +8,7 @@ mod character_set;
 mod collation;
 mod create_table;
 mod cte;
+mod cursor;
 mod delete;
 mod display;
 mod errors;

@@ -191,12 +191,19 @@ fn test_like_wildcard_percent() {
     let mut db = storage::Database::new();
     let schema = catalog::TableSchema::new(
         "test".to_string(),
-        vec![catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(50) }, false)],
+        vec![catalog::ColumnSchema::new(
+            "name".to_string(),
+            types::DataType::Varchar { max_length: Some(50) },
+            false,
+        )],
     );
     db.create_table(schema).unwrap();
-    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("Alice".to_string())])).unwrap();
-    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("Bob".to_string())])).unwrap();
-    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("Alex".to_string())])).unwrap();
+    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("Alice".to_string())]))
+        .unwrap();
+    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("Bob".to_string())]))
+        .unwrap();
+    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("Alex".to_string())]))
+        .unwrap();
 
     let executor = SelectExecutor::new(&db);
 
@@ -209,7 +216,9 @@ fn test_like_wildcard_percent() {
         from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: Some(ast::Expression::Like {
             expr: Box::new(ast::Expression::ColumnRef { table: None, column: "name".to_string() }),
-            pattern: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("Al%".to_string()))),
+            pattern: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                "Al%".to_string(),
+            ))),
             negated: false,
         }),
         group_by: None,
@@ -229,12 +238,19 @@ fn test_like_wildcard_underscore() {
     let mut db = storage::Database::new();
     let schema = catalog::TableSchema::new(
         "test".to_string(),
-        vec![catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(50) }, false)],
+        vec![catalog::ColumnSchema::new(
+            "name".to_string(),
+            types::DataType::Varchar { max_length: Some(50) },
+            false,
+        )],
     );
     db.create_table(schema).unwrap();
-    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("cat".to_string())])).unwrap();
-    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("bat".to_string())])).unwrap();
-    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("cart".to_string())])).unwrap();
+    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("cat".to_string())]))
+        .unwrap();
+    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("bat".to_string())]))
+        .unwrap();
+    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("cart".to_string())]))
+        .unwrap();
 
     let executor = SelectExecutor::new(&db);
 
@@ -247,7 +263,9 @@ fn test_like_wildcard_underscore() {
         from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: Some(ast::Expression::Like {
             expr: Box::new(ast::Expression::ColumnRef { table: None, column: "name".to_string() }),
-            pattern: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("_at".to_string()))),
+            pattern: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                "_at".to_string(),
+            ))),
             negated: false,
         }),
         group_by: None,
@@ -267,12 +285,19 @@ fn test_not_like() {
     let mut db = storage::Database::new();
     let schema = catalog::TableSchema::new(
         "test".to_string(),
-        vec![catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(50) }, false)],
+        vec![catalog::ColumnSchema::new(
+            "name".to_string(),
+            types::DataType::Varchar { max_length: Some(50) },
+            false,
+        )],
     );
     db.create_table(schema).unwrap();
-    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("Alice".to_string())])).unwrap();
-    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("Bob".to_string())])).unwrap();
-    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("Alex".to_string())])).unwrap();
+    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("Alice".to_string())]))
+        .unwrap();
+    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("Bob".to_string())]))
+        .unwrap();
+    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("Alex".to_string())]))
+        .unwrap();
 
     let executor = SelectExecutor::new(&db);
 
@@ -285,7 +310,9 @@ fn test_not_like() {
         from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: Some(ast::Expression::Like {
             expr: Box::new(ast::Expression::ColumnRef { table: None, column: "name".to_string() }),
-            pattern: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("Al%".to_string()))),
+            pattern: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                "Al%".to_string(),
+            ))),
             negated: true,
         }),
         group_by: None,
@@ -306,10 +333,15 @@ fn test_like_null_pattern() {
     let mut db = storage::Database::new();
     let schema = catalog::TableSchema::new(
         "test".to_string(),
-        vec![catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(50) }, false)],
+        vec![catalog::ColumnSchema::new(
+            "name".to_string(),
+            types::DataType::Varchar { max_length: Some(50) },
+            false,
+        )],
     );
     db.create_table(schema).unwrap();
-    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("Alice".to_string())])).unwrap();
+    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("Alice".to_string())]))
+        .unwrap();
 
     let executor = SelectExecutor::new(&db);
 
@@ -342,11 +374,16 @@ fn test_like_null_value() {
     let mut db = storage::Database::new();
     let schema = catalog::TableSchema::new(
         "test".to_string(),
-        vec![catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(50) }, true)],
+        vec![catalog::ColumnSchema::new(
+            "name".to_string(),
+            types::DataType::Varchar { max_length: Some(50) },
+            true,
+        )],
     );
     db.create_table(schema).unwrap();
     db.insert_row("test", storage::Row::new(vec![types::SqlValue::Null])).unwrap();
-    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("Alice".to_string())])).unwrap();
+    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Varchar("Alice".to_string())]))
+        .unwrap();
 
     let executor = SelectExecutor::new(&db);
 
@@ -359,7 +396,9 @@ fn test_like_null_value() {
         from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: Some(ast::Expression::Like {
             expr: Box::new(ast::Expression::ColumnRef { table: None, column: "name".to_string() }),
-            pattern: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("Al%".to_string()))),
+            pattern: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                "Al%".to_string(),
+            ))),
             negated: false,
         }),
         group_by: None,
@@ -515,8 +554,12 @@ fn test_position_found() {
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Position {
-                substring: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("world".to_string()))),
-                string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("hello world".to_string()))),
+                substring: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "world".to_string(),
+                ))),
+                string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "hello world".to_string(),
+                ))),
                 character_unit: None,
             },
             alias: Some("pos".to_string()),
@@ -548,8 +591,12 @@ fn test_position_not_found() {
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Position {
-                substring: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("xyz".to_string()))),
-                string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("hello world".to_string()))),
+                substring: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "xyz".to_string(),
+                ))),
+                string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "hello world".to_string(),
+                ))),
                 character_unit: None,
             },
             alias: Some("pos".to_string()),
@@ -582,7 +629,9 @@ fn test_position_null_substring() {
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Position {
                 substring: Box::new(ast::Expression::Literal(types::SqlValue::Null)),
-                string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("hello world".to_string()))),
+                string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "hello world".to_string(),
+                ))),
                 character_unit: None,
             },
             alias: Some("pos".to_string()),
@@ -614,7 +663,9 @@ fn test_position_null_string() {
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Position {
-                substring: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("world".to_string()))),
+                substring: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "world".to_string(),
+                ))),
                 string: Box::new(ast::Expression::Literal(types::SqlValue::Null)),
                 character_unit: None,
             },
@@ -651,9 +702,11 @@ fn test_trim_both_default() {
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Trim {
-                position: None, // Defaults to Both
+                position: None,     // Defaults to Both
                 removal_char: None, // Defaults to space
-                string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("  hello  ".to_string()))),
+                string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "  hello  ".to_string(),
+                ))),
             },
             alias: Some("result".to_string()),
         }],
@@ -686,7 +739,9 @@ fn test_trim_leading() {
             expr: ast::Expression::Trim {
                 position: Some(ast::TrimPosition::Leading),
                 removal_char: None,
-                string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("  hello  ".to_string()))),
+                string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "  hello  ".to_string(),
+                ))),
             },
             alias: Some("result".to_string()),
         }],
@@ -719,7 +774,9 @@ fn test_trim_trailing() {
             expr: ast::Expression::Trim {
                 position: Some(ast::TrimPosition::Trailing),
                 removal_char: None,
-                string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("  hello  ".to_string()))),
+                string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "  hello  ".to_string(),
+                ))),
             },
             alias: Some("result".to_string()),
         }],
@@ -751,8 +808,12 @@ fn test_trim_custom_char() {
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Trim {
                 position: None,
-                removal_char: Some(Box::new(ast::Expression::Literal(types::SqlValue::Varchar("x".to_string())))),
-                string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("xxxhelloxxx".to_string()))),
+                removal_char: Some(Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "x".to_string(),
+                )))),
+                string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "xxxhelloxxx".to_string(),
+                ))),
             },
             alias: Some("result".to_string()),
         }],
@@ -818,7 +879,9 @@ fn test_trim_null_removal_char() {
             expr: ast::Expression::Trim {
                 position: None,
                 removal_char: Some(Box::new(ast::Expression::Literal(types::SqlValue::Null))),
-                string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("hello".to_string()))),
+                string: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "hello".to_string(),
+                ))),
             },
             alias: Some("result".to_string()),
         }],
@@ -885,7 +948,9 @@ fn test_cast_varchar_to_integer() {
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
             expr: ast::Expression::Cast {
-                expr: Box::new(ast::Expression::Literal(types::SqlValue::Varchar("456".to_string()))),
+                expr: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "456".to_string(),
+                ))),
                 data_type: types::DataType::Integer,
             },
             alias: Some("result".to_string()),
