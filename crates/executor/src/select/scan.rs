@@ -52,14 +52,14 @@ where
     }
 }
 
-/// Execute a table scan (handles both regular tables and CTEs)
+/// Execute a table scan (handles CTEs, views, and regular tables)
 fn execute_table_scan(
     table_name: &str,
     alias: Option<&String>,
     cte_results: &HashMap<String, CteResult>,
     database: &storage::Database,
 ) -> Result<FromResult, ExecutorError> {
-    // Check if table is a CTE first, then check database
+    // Check if table is a CTE first
     if let Some((cte_schema, cte_rows)) = cte_results.get(table_name) {
         // Use CTE result
         let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
@@ -69,26 +69,66 @@ fn execute_table_scan(
         );
         let schema = CombinedSchema::from_table(effective_name, cte_schema.clone());
         let rows = cte_rows.clone();
-        Ok(FromResult { schema, rows })
-    } else {
-        // Check SELECT privilege on the table
+        return Ok(FromResult { schema, rows });
+    }
+
+    // Check if it's a view
+    if let Some(view) = database.catalog.get_view(table_name) {
+        eprintln!("DEBUG SCAN VIEW: table_name={}, alias={:?}", table_name, alias);
+
+        // Check SELECT privilege on the view
         PrivilegeChecker::check_select(database, table_name)?;
 
-        // Use database table
-        let table = database
-            .get_table(table_name)
-            .ok_or_else(|| ExecutorError::TableNotFound(table_name.to_string()))?;
+        // Execute the view's query to get the result
+        // We need to execute the entire SELECT statement, not just the FROM clause
+        use super::SelectExecutor;
+        let executor = SelectExecutor::new(database);
 
+        // Get both rows and column metadata
+        let select_result = executor.execute_with_columns(&view.query)?;
+
+        // Build a schema from the column names
+        // Since views can have arbitrary SELECT expressions, we derive column types from the first row
+        let columns = if !select_result.rows.is_empty() {
+            let first_row = &select_result.rows[0];
+            select_result.columns.iter().zip(&first_row.values).map(|(name, value)| {
+                catalog::ColumnSchema {
+                    name: name.clone(),
+                    data_type: value.get_type(),
+                    nullable: true, // Views return nullable columns by default
+                    default_value: None,
+                }
+            }).collect()
+        } else {
+            // For empty views, create columns without specific types
+            // This is a limitation but views with no rows are edge cases
+            vec![]
+        };
+
+        let view_schema = catalog::TableSchema::new(table_name.to_string(), columns);
         let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
-        eprintln!(
-            "DEBUG SCAN TABLE: table_name={}, alias={:?}, effective_name={}",
-            table_name, alias, effective_name
-        );
-        let schema = CombinedSchema::from_table(effective_name, table.schema.clone());
-        let rows = table.scan().to_vec();
+        let schema = CombinedSchema::from_table(effective_name, view_schema);
 
-        Ok(FromResult { schema, rows })
+        return Ok(FromResult { schema, rows: select_result.rows });
     }
+
+    // Check SELECT privilege on the table
+    PrivilegeChecker::check_select(database, table_name)?;
+
+    // Use database table
+    let table = database
+        .get_table(table_name)
+        .ok_or_else(|| ExecutorError::TableNotFound(table_name.to_string()))?;
+
+    let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
+    eprintln!(
+        "DEBUG SCAN TABLE: table_name={}, alias={:?}, effective_name={}",
+        table_name, alias, effective_name
+    );
+    let schema = CombinedSchema::from_table(effective_name, table.schema.clone());
+    let rows = table.scan().to_vec();
+
+    Ok(FromResult { schema, rows })
 }
 
 /// Execute a JOIN operation
