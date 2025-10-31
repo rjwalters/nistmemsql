@@ -36,6 +36,7 @@ fn test_grant_specific_privilege() {
         privileges: vec![PrivilegeType::Select],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
+        for_type_name: None,
         grantees: vec!["user1".to_string()],
         with_grant_option: false,
     };
@@ -73,6 +74,7 @@ fn test_grant_all_privileges_table() {
         privileges: vec![PrivilegeType::AllPrivileges],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
+        for_type_name: None,
         grantees: vec!["user1".to_string()],
         with_grant_option: false,
     };
@@ -101,6 +103,7 @@ fn test_grant_all_privileges_schema() {
         privileges: vec![PrivilegeType::AllPrivileges],
         object_type: ObjectType::Schema,
         object_name: "test_schema".to_string(),
+        for_type_name: None,
         grantees: vec!["user1".to_string()],
         with_grant_option: false,
     };
@@ -138,6 +141,7 @@ fn test_grant_with_grant_option() {
         privileges: vec![PrivilegeType::Select],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
+        for_type_name: None,
         grantees: vec!["user1".to_string()],
         with_grant_option: true,
     };
@@ -180,6 +184,7 @@ fn test_grant_multiple_privileges() {
         privileges: vec![PrivilegeType::Select, PrivilegeType::Insert, PrivilegeType::Update(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
+        for_type_name: None,
         grantees: vec!["user1".to_string()],
         with_grant_option: false,
     };
@@ -222,6 +227,7 @@ fn test_grant_multiple_grantees() {
         privileges: vec![PrivilegeType::Select],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
+        for_type_name: None,
         grantees: vec!["user1".to_string(), "user2".to_string(), "user3".to_string()],
         with_grant_option: false,
     };
@@ -248,6 +254,7 @@ fn test_grant_schema_privileges() {
         privileges: vec![PrivilegeType::Usage, PrivilegeType::Create],
         object_type: ObjectType::Schema,
         object_name: "test_schema".to_string(),
+        for_type_name: None,
         grantees: vec!["user1".to_string()],
         with_grant_option: false,
     };
@@ -282,6 +289,7 @@ fn test_grant_to_non_existent_role() {
         privileges: vec![PrivilegeType::Select],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
+        for_type_name: None,
         grantees: vec!["non_existent_role".to_string()],
         with_grant_option: false,
     };
@@ -303,6 +311,7 @@ fn test_grant_on_non_existent_table() {
         privileges: vec![PrivilegeType::Select],
         object_type: ObjectType::Table,
         object_name: "non_existent_table".to_string(),
+        for_type_name: None,
         grantees: vec!["user1".to_string()],
         with_grant_option: false,
     };
@@ -324,6 +333,7 @@ fn test_grant_on_non_existent_schema() {
         privileges: vec![PrivilegeType::Usage],
         object_type: ObjectType::Schema,
         object_name: "non_existent_schema".to_string(),
+        for_type_name: None,
         grantees: vec!["user1".to_string()],
         with_grant_option: false,
     };
@@ -360,6 +370,7 @@ fn test_grant_idempotent() {
         privileges: vec![PrivilegeType::Select],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
+        for_type_name: None,
         grantees: vec!["user1".to_string()],
         with_grant_option: false,
     };
@@ -388,6 +399,7 @@ fn test_grant_execute_on_function() {
         privileges: vec![PrivilegeType::Execute],
         object_type: ObjectType::Function,
         object_name: "my_func".to_string(),
+        for_type_name: None,
         grantees: vec!["user1".to_string()],
         with_grant_option: false,
     };
@@ -414,6 +426,7 @@ fn test_grant_execute_on_procedure() {
         privileges: vec![PrivilegeType::Execute],
         object_type: ObjectType::Procedure,
         object_name: "my_proc".to_string(),
+        for_type_name: None,
         grantees: vec!["user1".to_string()],
         with_grant_option: false,
     };
@@ -440,6 +453,7 @@ fn test_grant_execute_on_routine() {
         privileges: vec![PrivilegeType::Execute],
         object_type: ObjectType::Routine,
         object_name: "my_routine".to_string(),
+        for_type_name: None,
         grantees: vec!["user1".to_string()],
         with_grant_option: false,
     };
@@ -466,6 +480,7 @@ fn test_grant_execute_on_method() {
         privileges: vec![PrivilegeType::Execute],
         object_type: ObjectType::Method,
         object_name: "my_method".to_string(),
+        for_type_name: None,
         grantees: vec!["user1".to_string()],
         with_grant_option: false,
     };
@@ -489,6 +504,7 @@ fn test_grant_all_privileges_on_function() {
         privileges: vec![PrivilegeType::AllPrivileges],
         object_type: ObjectType::Function,
         object_name: "my_func".to_string(),
+        for_type_name: None,
         grantees: vec!["user1".to_string()],
         with_grant_option: false,
     };
@@ -511,6 +527,7 @@ fn test_revoke_execute_from_function() {
         privileges: vec![PrivilegeType::Execute],
         object_type: ObjectType::Function,
         object_name: "my_func".to_string(),
+        for_type_name: None,
         grantees: vec!["user1".to_string()],
         with_grant_option: false,
     };
@@ -525,6 +542,7 @@ fn test_revoke_execute_from_function() {
         privileges: vec![PrivilegeType::Execute],
         object_type: ObjectType::Function,
         object_name: "my_func".to_string(),
+        for_type_name: None,
         grantees: vec!["user1".to_string()],
         granted_by: None,
         cascade_option: CascadeOption::None,
@@ -548,6 +566,7 @@ fn test_revoke_execute_from_procedure() {
         privileges: vec![PrivilegeType::Execute],
         object_type: ObjectType::Procedure,
         object_name: "my_proc".to_string(),
+        for_type_name: None,
         grantees: vec!["user1".to_string()],
         with_grant_option: false,
     };
@@ -562,6 +581,7 @@ fn test_revoke_execute_from_procedure() {
         privileges: vec![PrivilegeType::Execute],
         object_type: ObjectType::Procedure,
         object_name: "my_proc".to_string(),
+        for_type_name: None,
         grantees: vec!["user1".to_string()],
         granted_by: None,
         cascade_option: CascadeOption::None,
@@ -586,6 +606,7 @@ fn test_revoke_from_nonexistent_function_fails() {
         privileges: vec![PrivilegeType::Execute],
         object_type: ObjectType::Function,
         object_name: "nonexistent_func".to_string(),
+        for_type_name: None,
         grantees: vec!["user1".to_string()],
         granted_by: None,
         cascade_option: CascadeOption::None,

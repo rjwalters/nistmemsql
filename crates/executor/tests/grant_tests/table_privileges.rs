@@ -32,7 +32,6 @@ fn test_grant_select_on_table() {
         object_type: ast::ObjectType::Table,
         object_name: "users".to_string(),
         for_type_name: None,
-        for_type_name: None,
         grantees: vec!["manager".to_string()],
         with_grant_option: false,
     };
