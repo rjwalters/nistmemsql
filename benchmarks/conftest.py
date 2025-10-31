@@ -14,6 +14,7 @@ def pytest_configure(config):
     config.option.benchmark_warmup = True
     config.option.benchmark_warmup_iterations = 2
     config.option.benchmark_disable_gc = True  # Disable GC during timing
+    # config.option.benchmark_json = "benchmark_results.json"  # Disabled to avoid JSON saving issues
 
 @pytest.fixture(scope="session")
 def hardware_metadata():
