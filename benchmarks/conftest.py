@@ -1,6 +1,7 @@
 
 import pytest
 import sqlite3
+import duckdb
 import nistmemsql
 import json
 import platform
@@ -44,11 +45,27 @@ def nistmemsql_db():
     conn.close()
 
 @pytest.fixture
+def duckdb_db():
+    """Create DuckDB in-memory database connection"""
+    conn = duckdb.connect(':memory:')
+    yield conn
+    conn.close()
+
+@pytest.fixture
 def both_databases(sqlite_db, nistmemsql_db):
     """Provide both databases for head-to-head comparison"""
     return {
         'sqlite': sqlite_db,
         'nistmemsql': nistmemsql_db
+    }
+
+@pytest.fixture
+def all_databases(sqlite_db, nistmemsql_db, duckdb_db):
+    """Provide all three databases for comprehensive comparison"""
+    return {
+        'sqlite': sqlite_db,
+        'nistmemsql': nistmemsql_db,
+        'duckdb': duckdb_db
     }
 
 @pytest.fixture
