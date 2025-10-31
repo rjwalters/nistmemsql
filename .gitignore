@@ -23,6 +23,7 @@ Cargo.lock
 .loom/*.log
 .loom/*.sock
 lcov.info
+conformance_test_output.log
 
 # Python
 __pycache__/
