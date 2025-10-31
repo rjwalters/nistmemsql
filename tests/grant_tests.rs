@@ -73,9 +73,9 @@ fn test_grant_all_privileges_table() {
     // Verify all table privileges granted
     assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
     assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Insert));
-    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Update));
+    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Update(None)));
     assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Delete));
-    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::References));
+    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::References(None)));
 }
 
 #[test]
@@ -158,7 +158,7 @@ fn test_grant_multiple_privileges() {
 
     // Grant multiple privileges
     let grant_stmt = GrantStmt {
-        privileges: vec![PrivilegeType::Select, PrivilegeType::Insert, PrivilegeType::Update],
+        privileges: vec![PrivilegeType::Select, PrivilegeType::Insert, PrivilegeType::Update(None)],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         grantees: vec!["user1".to_string()],
@@ -169,7 +169,7 @@ fn test_grant_multiple_privileges() {
     // Verify all privileges granted
     assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
     assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Insert));
-    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Update));
+    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Update(None)));
     // Not granted
     assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Delete));
 }

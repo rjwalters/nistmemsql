@@ -126,6 +126,11 @@ impl Parser {
                 self.advance();
                 identifier
             }
+            Token::Keyword(keyword) => {
+                let identifier = keyword.to_string();
+                self.advance();
+                identifier
+            }
             _ => return Err(ParseError { message: "Expected identifier".to_string() }),
         };
 
@@ -135,6 +140,11 @@ impl Parser {
             let second_part = match self.peek() {
                 Token::Identifier(name) | Token::DelimitedIdentifier(name) => {
                     let identifier = name.clone();
+                    self.advance();
+                    identifier
+                }
+                Token::Keyword(keyword) => {
+                    let identifier = keyword.to_string();
                     self.advance();
                     identifier
                 }

@@ -89,9 +89,9 @@ fn test_revoke_all_privileges() {
     // Verify all privileges granted
     assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
     assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Insert));
-    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Update));
+    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Update(None)));
     assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Delete));
-    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::References));
+    assert!(db.catalog.has_privilege("user1", "test_table", &PrivilegeType::References(None)));
 
     // Revoke ALL PRIVILEGES
     let revoke_stmt = RevokeStmt {
@@ -108,9 +108,9 @@ fn test_revoke_all_privileges() {
     // Verify all privileges revoked
     assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Select));
     assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Insert));
-    assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Update));
+    assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Update(None)));
     assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::Delete));
-    assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::References));
+    assert!(!db.catalog.has_privilege("user1", "test_table", &PrivilegeType::References(None)));
 }
 
 #[test]

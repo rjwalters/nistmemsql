@@ -104,8 +104,8 @@ fn test_parse_create_table_with_foreign_key_on_delete_update() {
                     },
                     ..
                 } => {
-                    assert_eq!(table, "PARENT");
-                    assert_eq!(col, "ID");
+                    assert_eq!(table, "parent");
+                    assert_eq!(col, "id");
                     assert_eq!(on_delete, &Some(ast::ReferentialAction::Cascade));
                     assert_eq!(on_update, &Some(ast::ReferentialAction::SetNull));
                 }
@@ -118,15 +118,15 @@ fn test_parse_create_table_with_foreign_key_on_delete_update() {
 
 #[test]
 fn test_parse_create_table_with_table_foreign_key_on_delete_update() {
-let result = Parser::parse_sql(
-"CREATE TABLE orders (
-id INT PRIMARY KEY,
-customer_id INT,
-FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE NO ACTION
-);",
-);
-assert!(result.is_ok(), "Should parse table-level FOREIGN KEY with ON DELETE");
-let stmt = result.unwrap();
+    let result = Parser::parse_sql(
+        "CREATE TABLE orders (
+            id INT PRIMARY KEY,
+            customer_id INT,
+            FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE NO ACTION ON UPDATE SET DEFAULT
+        );",
+    );
+    assert!(result.is_ok(), "Should parse table-level FOREIGN KEY with ON DELETE/UPDATE");
+    let stmt = result.unwrap();
 
     match stmt {
         ast::Statement::CreateTable(create) => {
@@ -148,7 +148,7 @@ let stmt = result.unwrap();
                     assert_eq!(references_columns.len(), 1);
                     assert_eq!(references_columns[0], "ID");
                     assert_eq!(on_delete, &Some(ast::ReferentialAction::NoAction));
-                    assert!(on_update.is_none());
+                    assert_eq!(on_update, &Some(ast::ReferentialAction::SetDefault));
                 }
                 _ => panic!("Expected FOREIGN KEY constraint"),
             }
