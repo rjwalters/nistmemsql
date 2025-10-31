@@ -34,7 +34,7 @@ jobs:
           pip install maturin
           cd crates/python-bindings
           maturin build --release
-          pip install target/wheels/*.whl
+          pip install ../../target/wheels/nistmemsql_py-*.whl
 
       - name: Install benchmark dependencies
         run: pip install -r benchmarks/requirements.txt
