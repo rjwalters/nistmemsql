@@ -136,6 +136,32 @@ fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>
     Ok(privileges)
 }
 
+/// Parse optional column list for UPDATE/REFERENCES privileges
+///
+/// If next token is '(', parses column list and returns Some(vec).
+/// Otherwise returns None for table-level privilege.
+fn parse_optional_column_list(parser: &mut crate::Parser) -> Result<Option<Vec<String>>, ParseError> {
+    if parser.peek() == &Token::LParen {
+        parser.advance(); // consume '('
+
+        // Parse comma-separated column list
+        let columns = parse_identifier_list(parser)?;
+
+        // Expect closing ')'
+        if parser.peek() != &Token::RParen {
+            return Err(ParseError {
+                message: format!("Expected ')' after column list, found {:?}", parser.peek()),
+            });
+        }
+        parser.advance(); // consume ')'
+
+        Ok(Some(columns))
+    } else {
+        // No column list - table-level privilege
+        Ok(None)
+    }
+}
+
 /// Parse a comma-separated list of identifiers
 fn parse_identifier_list(parser: &mut crate::Parser) -> Result<Vec<String>, ParseError> {
     let mut identifiers = vec![];

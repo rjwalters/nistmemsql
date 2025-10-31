@@ -126,7 +126,7 @@ fn test_check_update_with_privilege() {
     let grant = PrivilegeGrant {
         object: "test_table".to_string(),
         object_type: ObjectType::Table,
-        privilege: PrivilegeType::Update,
+        privilege: PrivilegeType::Update(None),
         grantee: "user1".to_string(),
         grantor: "admin".to_string(),
         with_grant_option: false,

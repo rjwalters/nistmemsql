@@ -180,7 +180,7 @@ fn test_revoke_references_basic() {
     let sql = "REVOKE REFERENCES ON TABLE users FROM manager";
     let stmt = parse_revoke(sql);
 
-    assert_eq!(stmt.privileges, vec![PrivilegeType::References]);
+    assert_eq!(stmt.privileges, vec![PrivilegeType::References(None)]);
     assert_eq!(stmt.object_type, ObjectType::Table);
     assert_eq!(stmt.object_name, "USERS");
     assert_eq!(stmt.grantees, vec!["MANAGER"]);
@@ -191,7 +191,7 @@ fn test_revoke_references_with_cascade() {
     let sql = "REVOKE REFERENCES ON TABLE orders FROM manager CASCADE";
     let stmt = parse_revoke(sql);
 
-    assert_eq!(stmt.privileges, vec![PrivilegeType::References]);
+    assert_eq!(stmt.privileges, vec![PrivilegeType::References(None)]);
     assert_eq!(stmt.object_name, "ORDERS");
     assert_eq!(stmt.grantees, vec!["MANAGER"]);
     assert_eq!(stmt.cascade_option, CascadeOption::Cascade);
@@ -203,7 +203,7 @@ fn test_revoke_grant_option_for_references() {
     let stmt = parse_revoke(sql);
 
     assert!(stmt.grant_option_for);
-    assert_eq!(stmt.privileges, vec![PrivilegeType::References]);
+    assert_eq!(stmt.privileges, vec![PrivilegeType::References(None)]);
     assert_eq!(stmt.object_name, "PRODUCTS");
     assert_eq!(stmt.grantees, vec!["ADMIN"]);
 }
