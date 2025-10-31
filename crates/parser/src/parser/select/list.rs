@@ -54,9 +54,7 @@ impl Parser {
         self.expect_token(Token::Symbol(')'))?;
 
         if columns.is_empty() {
-            return Err(ParseError {
-                message: "Derived column list cannot be empty".to_string(),
-            });
+            return Err(ParseError { message: "Derived column list cannot be empty".to_string() });
         }
 
         Ok(Some(columns))

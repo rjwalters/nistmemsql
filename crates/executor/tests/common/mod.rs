@@ -1,5 +1,7 @@
 //! Common test utilities for executor tests
 
+pub mod insert_constraint_fixtures;
+
 use executor::ExpressionEvaluator;
 
 /// Creates a test evaluator with a simple schema for testing.

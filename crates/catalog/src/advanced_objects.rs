@@ -162,9 +162,9 @@ impl CharacterSet {
 #[derive(Debug, Clone, Default)]
 pub struct Translation {
     pub name: String,
-    pub source_charset: Option<String>,       // FOR source_charset
-    pub target_charset: Option<String>,       // TO target_charset
-    pub translation_source: Option<String>,   // FROM translation_source
+    pub source_charset: Option<String>,     // FOR source_charset
+    pub target_charset: Option<String>,     // TO target_charset
+    pub translation_source: Option<String>, // FROM translation_source
 }
 
 impl Translation {

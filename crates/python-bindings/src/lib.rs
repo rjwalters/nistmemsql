@@ -24,7 +24,9 @@ fn sqlvalue_to_py(py: Python, value: &types::SqlValue) -> PyResult<PyObject> {
         types::SqlValue::Float(f) => (*f as f64).into_pyobject(py)?.into_any().unbind(),
         types::SqlValue::Real(f) => (*f as f64).into_pyobject(py)?.into_any().unbind(),
         types::SqlValue::Double(f) => (*f).into_pyobject(py)?.into_any().unbind(),
-        types::SqlValue::Varchar(s) | types::SqlValue::Character(s) => s.into_pyobject(py)?.into_any().unbind(),
+        types::SqlValue::Varchar(s) | types::SqlValue::Character(s) => {
+            s.into_pyobject(py)?.into_any().unbind()
+        }
         types::SqlValue::Boolean(b) => b.into_pyobject(py)?.to_owned().into_any().unbind(),
         types::SqlValue::Numeric(s)
         | types::SqlValue::Date(s)
@@ -48,9 +50,7 @@ impl Database {
     /// Create a new database connection
     #[new]
     fn new() -> Self {
-        Database {
-            db: Arc::new(Mutex::new(storage::Database::new())),
-        }
+        Database { db: Arc::new(Mutex::new(storage::Database::new())) }
     }
 
     /// Create a cursor for executing queries
@@ -58,10 +58,7 @@ impl Database {
     /// Returns:
     ///     Cursor: A new cursor object
     fn cursor(&self) -> PyResult<Cursor> {
-        Ok(Cursor {
-            db: Arc::clone(&self.db),
-            last_result: None,
-        })
+        Ok(Cursor { db: Arc::clone(&self.db), last_result: None })
     }
 
     /// Close the database connection
@@ -124,10 +121,8 @@ impl Cursor {
                     .execute_with_columns(&select_stmt)
                     .map_err(|e| OperationalError::new_err(format!("Execution error: {:?}", e)))?;
 
-                self.last_result = Some(QueryResultData::Select {
-                    columns: result.columns,
-                    rows: result.rows,
-                });
+                self.last_result =
+                    Some(QueryResultData::Select { columns: result.columns, rows: result.rows });
 
                 Ok(())
             }
@@ -148,10 +143,7 @@ impl Cursor {
                 let message = executor::DropTableExecutor::execute(&drop_stmt, &mut db)
                     .map_err(|e| OperationalError::new_err(format!("Execution error: {:?}", e)))?;
 
-                self.last_result = Some(QueryResultData::Execute {
-                    rows_affected: 0,
-                    message,
-                });
+                self.last_result = Some(QueryResultData::Execute { rows_affected: 0, message });
 
                 Ok(())
             }
@@ -222,9 +214,8 @@ impl Cursor {
             Some(QueryResultData::Select { rows, .. }) => {
                 let result_list = PyList::empty(py);
                 for row in rows {
-                    let py_values: Vec<PyObject> = row.values.iter()
-                        .map(|v| sqlvalue_to_py(py, v).unwrap())
-                        .collect();
+                    let py_values: Vec<PyObject> =
+                        row.values.iter().map(|v| sqlvalue_to_py(py, v).unwrap()).collect();
                     let py_row = PyTuple::new(py, py_values)?;
                     result_list.append(py_row)?;
                 }
@@ -248,9 +239,8 @@ impl Cursor {
                     Ok(py.None())
                 } else {
                     let row = rows.remove(0);
-                    let py_values: Vec<PyObject> = row.values.iter()
-                        .map(|v| sqlvalue_to_py(py, v).unwrap())
-                        .collect();
+                    let py_values: Vec<PyObject> =
+                        row.values.iter().map(|v| sqlvalue_to_py(py, v).unwrap()).collect();
                     let py_row = PyTuple::new(py, py_values)?;
                     Ok(py_row.into())
                 }
@@ -280,9 +270,8 @@ impl Cursor {
                         break;
                     }
                     let row = rows.remove(0);
-                    let py_values: Vec<PyObject> = row.values.iter()
-                        .map(|v| sqlvalue_to_py(py, v).unwrap())
-                        .collect();
+                    let py_values: Vec<PyObject> =
+                        row.values.iter().map(|v| sqlvalue_to_py(py, v).unwrap()).collect();
                     let py_row = PyTuple::new(py, py_values)?;
                     result_list.append(py_row)?;
                 }

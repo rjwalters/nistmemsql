@@ -6,7 +6,9 @@ use crate::errors::ExecutorError;
 
 /// UPPER(string) - Convert string to uppercase
 /// SQL:1999 Section 6.29: String value functions
-pub(in crate::evaluator::functions) fn upper(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
+pub(in crate::evaluator::functions) fn upper(
+    args: &[types::SqlValue],
+) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 1 {
         return Err(ExecutorError::UnsupportedFeature(format!(
             "UPPER requires exactly 1 argument, got {}",
@@ -27,7 +29,9 @@ pub(in crate::evaluator::functions) fn upper(args: &[types::SqlValue]) -> Result
 
 /// LOWER(string) - Convert string to lowercase
 /// SQL:1999 Section 6.29: String value functions
-pub(in crate::evaluator::functions) fn lower(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
+pub(in crate::evaluator::functions) fn lower(
+    args: &[types::SqlValue],
+) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 1 {
         return Err(ExecutorError::UnsupportedFeature(format!(
             "LOWER requires exactly 1 argument, got {}",
