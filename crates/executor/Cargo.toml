@@ -24,3 +24,7 @@ path = "tests/having_subquery_tests.rs"
 [[test]]
 name = "delete_tests"
 path = "tests/delete_tests.rs"
+
+[[test]]
+name = "test_numeric_edge_cases"
+path = "tests/test_numeric_edge_cases.rs"
