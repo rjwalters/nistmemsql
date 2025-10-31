@@ -208,10 +208,14 @@ impl Parser {
                 } else if self.peek_next_keyword(Keyword::Transaction) {
                     let set_stmt = self.parse_set_transaction_statement()?;
                     Ok(ast::Statement::SetTransaction(set_stmt))
+                } else if self.peek_next_keyword(Keyword::Local) {
+                    // SET LOCAL TRANSACTION
+                    let set_stmt = self.parse_set_transaction_statement()?;
+                    Ok(ast::Statement::SetTransaction(set_stmt))
                 } else {
                     Err(ParseError {
                         message:
-                            "Expected SCHEMA, CATALOG, NAMES, TIME ZONE, or TRANSACTION after SET"
+                            "Expected SCHEMA, CATALOG, NAMES, TIME ZONE, TRANSACTION, or LOCAL after SET"
                                 .to_string(),
                     })
                 }
@@ -363,6 +367,9 @@ impl Parser {
         // SET keyword
         self.expect_keyword(Keyword::Set)?;
 
+        // Optional LOCAL keyword
+        let local = self.try_consume_keyword(Keyword::Local);
+
         // TRANSACTION keyword
         self.expect_keyword(Keyword::Transaction)?;
 
@@ -402,7 +409,7 @@ impl Parser {
             }
         }
 
-        Ok(ast::SetTransactionStmt { isolation_level, access_mode })
+        Ok(ast::SetTransactionStmt { local, isolation_level, access_mode })
     }
 
     /// Parse DROP TYPE statement

@@ -517,6 +517,7 @@ pub enum TransactionAccessMode {
 /// SET TRANSACTION statement (SQL:1999 Feature E152)
 #[derive(Debug, Clone, PartialEq)]
 pub struct SetTransactionStmt {
+    pub local: bool, // true for SET LOCAL TRANSACTION, false for SET TRANSACTION
     pub isolation_level: Option<IsolationLevel>,
     pub access_mode: Option<TransactionAccessMode>,
 }
