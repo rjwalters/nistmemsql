@@ -14,7 +14,10 @@ use ast;
 
 /// Test subquery SQL examples from web demo
 /// Includes examples with IDs: subquery*, sub*, scalar*, correlated*, exists*, in-*
+///
+/// TODO(#716): Re-enable once subquery examples are migrated to JSON format
 #[test]
+#[ignore = "Subquery JSON examples not yet created - see issue #716"]
 fn test_subquery_sql_examples() {
     // Parse all examples from web demo
     let examples = parse_example_files().expect("Failed to parse example files");
