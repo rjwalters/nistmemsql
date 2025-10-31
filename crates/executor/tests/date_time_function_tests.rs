@@ -3,7 +3,13 @@
 //! This test module contains comprehensive tests for date/time functions.
 //! Tests are organized into focused sub-modules for better maintainability.
 //!
-//! See `date_time_function_tests/mod.rs` for detailed documentation on test organization.
+//! ## Module Organization
+//!
+//! - **fixtures**: Common test helpers and datetime value fixtures
+//! - **current_datetime**: CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP and aliases
+//! - **precision**: Precision arguments for fractional seconds
+//! - **extraction**: YEAR, MONTH, DAY, HOUR, MINUTE, SECOND extraction
+//! - **nested_operations**: Nested and combined datetime operations
 
 mod common;
 
