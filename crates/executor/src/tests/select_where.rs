@@ -33,6 +33,7 @@ fn test_select_with_where() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -99,6 +100,7 @@ fn test_select_with_and_condition() {
     let executor = SelectExecutor::new(&db);
     // WHERE price > 50 AND stock > 0
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -179,6 +181,7 @@ fn test_select_with_or_condition() {
     let executor = SelectExecutor::new(&db);
     // WHERE category = 'electronics' OR category = 'books'
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -248,6 +251,7 @@ fn test_select_with_null_in_where() {
     let executor = SelectExecutor::new(&db);
     // WHERE value > 50 - should filter out NULL (NULL comparisons are unknown)
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,

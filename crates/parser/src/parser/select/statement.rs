@@ -36,6 +36,14 @@ impl Parser {
         // Parse SELECT list
         let select_list = self.parse_select_list()?;
 
+        // Parse optional INTO clause (SQL:1999 Feature E111)
+        let into_table = if self.peek_keyword(Keyword::Into) {
+            self.consume_keyword(Keyword::Into)?;
+            Some(self.parse_identifier()?)
+        } else {
+            None
+        };
+
         // Parse optional FROM clause
         let from = if self.peek_keyword(Keyword::From) {
             self.consume_keyword(Keyword::From)?;
@@ -201,6 +209,7 @@ impl Parser {
             with_clause,
             distinct,
             select_list,
+            into_table,
             from,
             where_clause,
             group_by,

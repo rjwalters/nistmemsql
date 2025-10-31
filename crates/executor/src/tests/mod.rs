@@ -39,6 +39,7 @@ mod scalar_subquery_correlated_tests;
 mod scalar_subquery_error_tests;
 mod select_basic;
 mod select_distinct;
+mod select_into_tests;
 mod select_joins;
 mod select_where;
 mod select_window_aggregate;

@@ -24,6 +24,7 @@ fn test_scalar_subquery_error_multiple_rows() {
 
     // Build subquery that returns multiple rows: SELECT id FROM employees
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -42,6 +43,7 @@ fn test_scalar_subquery_error_multiple_rows() {
 
     // Build main query: SELECT (subquery) FROM employees
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -103,6 +105,7 @@ fn test_scalar_subquery_error_multiple_columns() {
 
     // Build subquery that returns multiple columns: SELECT id, name FROM employees
     let subquery = Box::new(ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -127,6 +130,7 @@ fn test_scalar_subquery_error_multiple_columns() {
 
     // Build main query: SELECT (subquery) FROM employees
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
