@@ -10,7 +10,7 @@ fn test_create_select_statement() {
     let stmt = Statement::Select(SelectStmt {
         with_clause: None,
         distinct: false,
-        select_list: vec![SelectItem::Wildcard],
+        select_list: vec![SelectItem::Wildcard { alias: None }],
         into_table: None,
         from: None,
         where_clause: None,

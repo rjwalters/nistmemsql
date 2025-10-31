@@ -24,7 +24,7 @@ fn test_select_star() {
 
     assert_eq!(select.select_list.len(), 1);
     match &select.select_list[0] {
-        SelectItem::Wildcard => {} // Success
+        SelectItem::Wildcard { alias: _ } => {} // Success
         _ => panic!("Expected wildcard"),
     }
 }

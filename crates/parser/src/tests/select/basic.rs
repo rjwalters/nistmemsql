@@ -90,7 +90,7 @@ fn test_parse_select_star() {
         ast::Statement::Select(select) => {
             assert_eq!(select.select_list.len(), 1);
             match &select.select_list[0] {
-                ast::SelectItem::Wildcard => {} // Success
+                ast::SelectItem::Wildcard { alias: _ } => {} // Success
                 _ => panic!("Expected Wildcard select item"),
             }
         }
@@ -249,7 +249,7 @@ fn test_parse_select_qualified_wildcard() {
         ast::Statement::Select(select) => {
             assert_eq!(select.select_list.len(), 1);
             match &select.select_list[0] {
-                ast::SelectItem::QualifiedWildcard { qualifier } => {
+                ast::SelectItem::QualifiedWildcard { qualifier, alias: _ } => {
                     assert_eq!(qualifier, "TABLE_NAME");
                 }
                 _ => panic!(
@@ -274,7 +274,7 @@ fn test_parse_select_qualified_wildcard_alias() {
         ast::Statement::Select(select) => {
             assert_eq!(select.select_list.len(), 1);
             match &select.select_list[0] {
-                ast::SelectItem::QualifiedWildcard { qualifier } => {
+                ast::SelectItem::QualifiedWildcard { qualifier, alias: _ } => {
                     assert_eq!(qualifier, "ALIAS");
                 }
                 _ => panic!("Expected QualifiedWildcard select item"),
@@ -326,7 +326,7 @@ fn test_parse_select_all_star() {
             assert!(!select.distinct);
             assert_eq!(select.select_list.len(), 1);
             match &select.select_list[0] {
-                ast::SelectItem::Wildcard => {} // Success
+                ast::SelectItem::Wildcard { alias: _ } => {} // Success
                 _ => panic!("Expected Wildcard select item"),
             }
         }

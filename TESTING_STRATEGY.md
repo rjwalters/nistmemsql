@@ -32,7 +32,7 @@ This document describes the SQL:1999 conformance testing strategy, including cur
 - **F051**: Date/Time types and operations
 - **E141**: Default values and constraints
 - **F031**: Basic schema operations
-- **Pass Rate**: **86.6%** (640/739 tests passing, excellent progress)
+- **Pass Rate**: **85.7%** (633/739 tests passing, strong foundation)
 
 See `tests/sql1999/README.md` for details.
 
@@ -220,9 +220,9 @@ tests/sql1999/
 - Metrics: total tests, passed, failed, errors, pass rate percentage
 
 **Current Metrics** (739 tests):
-- **86.6% pass rate** (640 passing, 99 errors)
+- **85.7% pass rate** (633 passing, 106 errors)
 - Strong conformance across Core SQL:1999 features
-- Remaining gaps: String type variants, DEFAULT keyword, CURRENT_* functions without FROM, advanced GRANT/REVOKE
+- Remaining gaps: Need to analyze 106 test failures for patterns and prioritization
 
 ### Future Compliance Matrix (Planned)
 
@@ -283,16 +283,16 @@ Coverage commands are defined as Cargo aliases in `.cargo/config.toml`, so the i
 - [x] GitHub Actions integration with badge generation
 - [x] Compliance report automation
 
-### ✅ Completed: High Pass Rate Achievement (Phase 2)
-- [x] Achieved **86.6% pass rate** (640/739 tests)
+### ✅ Completed: Strong Foundation Achievement (Phase 2)
+- [x] Achieved **85.7% pass rate** (633/739 tests)
 - [x] Fixed parser gaps (constraints, TRIM, CAST, comparison operators)
 - [x] Fixed executor gaps (type coercion, constraint enforcement, transactions)
 - [x] Strong Core SQL:1999 compliance demonstrated
 
-### 🚧 Current: Reaching 90%+ (Phase 3)
-1. String type variants (CHARACTER VARYING, CHAR with CHARACTERS/OCTETS)
-2. DEFAULT keyword in INSERT/UPDATE
-3. CURRENT_* functions without FROM clause
+### 🚧 Current: Analyzing Failures for 90%+ (Phase 3)
+1. Analyze 106 remaining test failures
+2. Identify common failure patterns
+3. Prioritize high-impact fixes
 4. Target: 90%+ pass rate on 739-test suite
 
 ### Planned: Test Coverage Expansion (Phase 3)
@@ -348,10 +348,10 @@ Coverage commands are defined as Cargo aliases in `.cargo/config.toml`, so the i
 1. ✅ Basic test infrastructure established
 2. ✅ Tests run automatically in GitHub Actions on every commit
 3. ✅ Automated badge generation and compliance reporting
-4. ✅ 80%+ pass rate achieved - now at **86.6%** (640/739 tests)
+4. ✅ 80%+ pass rate achieved - now at **85.7%** (633/739 tests)
 5. ✅ 739 tests covering Core SQL:1999 features
 6. ✅ Clear gap identification for parser and executor improvements
-7. 🚧 Target 90%+ pass rate (next milestone)
+7. 🚧 Target 90%+ pass rate (analyzing 106 remaining failures)
 
 ### Future Phase Goals (Full Compliance)
 
@@ -388,7 +388,7 @@ Coverage commands are defined as Cargo aliases in `.cargo/config.toml`, so the i
 
 ### Immediate Priorities
 
-1. ✅ **Fixed parser gaps** - Achieved 86.6% pass rate
+1. ✅ **Fixed parser gaps** - Achieved 85.7% pass rate
    - ✅ Added constraint naming support
    - ✅ Enhanced TRIM syntax (BOTH/LEADING/TRAILING 'x' FROM s)
    - ✅ CAST to VARCHAR without explicit length
@@ -399,15 +399,16 @@ Coverage commands are defined as Cargo aliases in `.cargo/config.toml`, so the i
    - ✅ All constraints enforced (NOT NULL, PRIMARY KEY, UNIQUE, CHECK, FOREIGN KEY)
    - ✅ Transaction support complete (BEGIN, COMMIT, ROLLBACK, SAVEPOINT)
 
-3. 🚧 **Reach 90%+ conformance** (current: 86.6%)
-   - String type variants (CHARACTER VARYING, CHAR with CHARACTERS/OCTETS)
-   - DEFAULT keyword in INSERT/UPDATE
-   - CURRENT_* functions without FROM clause
+3. 🚧 **Analyze and fix failures for 90%+ conformance** (current: 85.7%)
+   - Analyze 106 remaining test failures
+   - Group by failure patterns
+   - Prioritize high-impact fixes
+   - Systematically address gaps
 
 ### Medium-Term Goals
 
-4. ✅ **Achieved 80%+ pass rate** - now at 86.6%
-5. 🚧 **Target 90%+ pass rate** (in progress)
+4. ✅ **Achieved 80%+ pass rate** - now at 85.7%
+5. 🚧 **Target 90%+ pass rate** (analyzing 106 failures)
 6. ⬜ **Build ODBC driver** (deferred - not required for Core compliance)
 7. ⬜ **Build JDBC driver** (deferred - not required for Core compliance)
 
