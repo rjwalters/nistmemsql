@@ -527,4 +527,5 @@ async function bootstrap(): Promise<void> {
   void updateConformanceFooter()
 }
 
-void bootstrap()
+// Start the application when DOM is ready
+document.addEventListener('DOMContentLoaded', () => void bootstrap())

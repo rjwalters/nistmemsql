@@ -263,10 +263,11 @@ function renderChart(data: BenchmarkResults) {
       maintainAspectRatio: false,
       scales: {
         y: {
-          beginAtZero: true,
+          type: 'logarithmic',
+          beginAtZero: false,
           title: {
             display: true,
-            text: 'Time (ms)',
+            text: 'Time (ms) - Log Scale',
           },
         },
       },

@@ -21,5 +21,5 @@ function bootstrap(): void {
   void updateConformanceFooter()
 }
 
-// Start the application
-bootstrap()
+// Start the application when DOM is ready
+document.addEventListener('DOMContentLoaded', bootstrap)
