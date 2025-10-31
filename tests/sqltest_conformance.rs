@@ -46,7 +46,7 @@ impl std::fmt::Display for SqlField {
 #[derive(Debug, Clone)]
 struct TestCase {
     id: String,
-    sql: String,
+    sql: SqlField,
     expect_success: bool,
 }
 
@@ -119,7 +119,7 @@ impl SqltestRunner {
 
                     tests.push(TestCase {
                         id: yaml_test.id,
-                        sql: yaml_test.sql.to_string(),
+                        sql: yaml_test.sql,
                         expect_success: true, // All tests in upstream expect success
                     });
                 }
@@ -146,12 +146,12 @@ impl SqltestRunner {
                     print!(".");
                 }
                 Ok(false) => {
-                    results.record_fail(test_case.id.clone(), test_case.sql.clone());
+                    results.record_fail(test_case.id.clone(), test_case.sql.to_string());
                     print!("F");
                     eprintln!("\n❌ FAIL: {} - {}", test_case.id, test_case.sql);
                 }
                 Err(e) => {
-                    results.record_error(test_case.id.clone(), test_case.sql.clone(), e.clone());
+                    results.record_error(test_case.id.clone(), test_case.sql.to_string(), e.clone());
                     print!("E");
                     eprintln!("\n⚠️  ERROR: {} - {}\n   {}", test_case.id, test_case.sql, e);
                 }
@@ -169,10 +169,27 @@ impl SqltestRunner {
 
     /// Run a single test case
     fn run_test(&self, db: &mut Database, test_case: &TestCase) -> Result<bool, String> {
-        // Parse the SQL
-        let parse_result = Parser::parse_sql(&test_case.sql);
+        match &test_case.sql {
+            SqlField::Single(sql) => {
+                self.run_single_statement(db, sql, test_case.expect_success)
+            }
+            SqlField::Multiple(statements) => {
+                // Execute each statement in sequence
+                for (idx, sql) in statements.iter().enumerate() {
+                    self.run_single_statement(db, sql, test_case.expect_success)
+                        .map_err(|e| format!("Statement {} failed: {}", idx + 1, e))?;
+                }
+                Ok(true)
+            }
+        }
+    }
 
-        if !test_case.expect_success {
+    /// Run a single SQL statement
+    fn run_single_statement(&self, db: &mut Database, sql: &str, expect_success: bool) -> Result<bool, String> {
+        // Parse the SQL
+        let parse_result = Parser::parse_sql(sql);
+
+        if !expect_success {
             // Test expects failure - check that it fails
             return Ok(parse_result.is_err());
         }
@@ -268,8 +285,6 @@ impl SqltestRunner {
             | ast::Statement::Savepoint(_)
             | ast::Statement::RollbackToSavepoint(_)
             | ast::Statement::ReleaseSavepoint(_)
-            | ast::Statement::CreateDomain(_)
-            | ast::Statement::DropDomain(_)
             | ast::Statement::CreateSequence(_)
             | ast::Statement::DropSequence(_)
             | ast::Statement::CreateType(_)
