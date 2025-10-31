@@ -21,6 +21,29 @@ This document describes the performance benchmarking strategy for nistmemsql, in
 - Micro-optimization of hot paths
 - Hardware-specific tuning
 
+## Usage
+
+### Running the Benchmarks
+
+To run the benchmark suite, use the `run_benchmarks.sh` script:
+
+```bash
+./scripts/run_benchmarks.sh
+```
+
+This script will:
+
+1.  Build the optimized Python bindings for `nistmemsql`.
+2.  Install the required Python dependencies.
+3.  Run the `pytest-benchmark` suite.
+4.  Generate a `benchmark_results.json` file with the results.
+5.  Generate a comparison report.
+
+### Interpreting the Results
+
+The benchmark results are saved in `benchmark_results.json`. This file contains detailed information about each benchmark run, including the minimum, maximum, mean, and median execution times.
+
+The `run_benchmarks.sh` script also generates a comparison report that provides a high-level overview of the performance of `nistmemsql` compared to SQLite.
 ## Comparison Target: MySQL
 
 ### Why MySQL?
