@@ -1059,7 +1059,6 @@ def test_with_data(benchmark, both_databases, setup_test_table):
        """
        pass
    ```
-
 ### CI Integration
 
 To integrate benchmarks into CI (future):
