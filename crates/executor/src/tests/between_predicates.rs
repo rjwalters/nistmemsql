@@ -208,7 +208,7 @@ fn test_between_boundary_inclusive() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Table { name: "DATA".to_string(), alias: None }),
         where_clause: Some(ast::Expression::Between {
             expr: Box::new(ast::Expression::ColumnRef { table: None, column: "VALUE".to_string() }),

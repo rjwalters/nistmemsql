@@ -21,7 +21,7 @@ fn test_greater_than_comparison() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Table { name: "nums".to_string(), alias: None }),
         where_clause: Some(ast::Expression::BinaryOp {
             left: Box::new(ast::Expression::ColumnRef { table: None, column: "val".to_string() }),
@@ -57,7 +57,7 @@ fn test_less_than_comparison() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Table { name: "nums".to_string(), alias: None }),
         where_clause: Some(ast::Expression::BinaryOp {
             left: Box::new(ast::Expression::ColumnRef { table: None, column: "val".to_string() }),
@@ -94,7 +94,7 @@ fn test_not_equal_comparison() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Table { name: "nums".to_string(), alias: None }),
         where_clause: Some(ast::Expression::BinaryOp {
             left: Box::new(ast::Expression::ColumnRef { table: None, column: "val".to_string() }),
@@ -132,7 +132,7 @@ fn test_less_than_or_equal_comparison() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Table { name: "nums".to_string(), alias: None }),
         where_clause: Some(ast::Expression::BinaryOp {
             left: Box::new(ast::Expression::ColumnRef { table: None, column: "val".to_string() }),

@@ -290,7 +290,7 @@ fn test_distinct_false_preserves_duplicates() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Table { name: "products".to_string(), alias: None }),
         where_clause: None,
         group_by: None,

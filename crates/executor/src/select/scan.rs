@@ -147,7 +147,7 @@ where
     let mut col_index = 0;
     for item in &query.select_list {
         match item {
-            ast::SelectItem::Wildcard | ast::SelectItem::QualifiedWildcard { .. } => {
+            ast::SelectItem::Wildcard { .. } | ast::SelectItem::QualifiedWildcard { .. } => {
                 // For SELECT * or SELECT table.*, expand to all columns from the result rows
                 // Since we executed the subquery, the rows tell us how many columns there are
                 if let Some(first_row) = rows.first() {

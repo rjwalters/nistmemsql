@@ -9,7 +9,7 @@ fn make_pagination_stmt(limit: Option<usize>, offset: Option<usize>) -> ast::Sel
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
         where_clause: None,
         group_by: None,

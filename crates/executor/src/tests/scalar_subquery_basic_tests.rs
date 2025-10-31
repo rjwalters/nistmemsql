@@ -88,7 +88,7 @@ fn test_scalar_subquery_in_where_clause() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Table { name: "employees".to_string(), alias: None }),
         where_clause: Some(ast::Expression::BinaryOp {
             left: Box::new(ast::Expression::ColumnRef {

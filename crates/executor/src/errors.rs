@@ -22,6 +22,7 @@ pub enum ExecutorError {
     StorageError(String),
     SubqueryReturnedMultipleRows { expected: usize, actual: usize },
     SubqueryColumnCountMismatch { expected: usize, actual: usize },
+    ColumnCountMismatch { expected: usize, provided: usize },
     CastError { from_type: String, to_type: String },
     ConstraintViolation(String),
     CannotDropColumn(String),
@@ -78,6 +79,13 @@ impl std::fmt::Display for ExecutorError {
             }
             ExecutorError::SubqueryColumnCountMismatch { expected, actual } => {
                 write!(f, "Subquery returned {} columns, expected {}", actual, expected)
+            }
+            ExecutorError::ColumnCountMismatch { expected, provided } => {
+                write!(
+                    f,
+                    "Derived column list has {} columns but query produces {} columns",
+                    provided, expected
+                )
             }
             ExecutorError::CastError { from_type, to_type } => {
                 write!(f, "Cannot cast {} to {}", from_type, to_type)

@@ -88,7 +88,7 @@ impl SelectExecutor<'_> {
                         )?;
                         aggregate_results.push(value);
                     }
-                    ast::SelectItem::Wildcard | ast::SelectItem::QualifiedWildcard { .. } => {
+                    ast::SelectItem::Wildcard { .. } | ast::SelectItem::QualifiedWildcard { .. } => {
                         return Err(ExecutorError::UnsupportedFeature(
                             "SELECT * and qualified wildcards not supported with aggregates"
                                 .to_string(),

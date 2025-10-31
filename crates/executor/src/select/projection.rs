@@ -13,7 +13,7 @@ pub(super) fn project_row_combined(
 
     for item in columns {
         match item {
-            ast::SelectItem::Wildcard => {
+            ast::SelectItem::Wildcard { .. } => {
                 // SELECT * - include all columns
                 // When window functions are present, only include base columns (not appended window values)
                 if let Some(mapping) = window_mapping {
@@ -29,7 +29,7 @@ pub(super) fn project_row_combined(
                     values.extend(row.values.iter().cloned());
                 }
             }
-            ast::SelectItem::QualifiedWildcard { qualifier } => {
+            ast::SelectItem::QualifiedWildcard { qualifier, .. } => {
                 // SELECT table.* or SELECT alias.* - include columns from specific table/alias
                 if let Some((start_index, table_schema)) = schema.table_schemas.get(qualifier) {
                     let num_columns = table_schema.columns.len();

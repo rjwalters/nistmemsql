@@ -26,7 +26,7 @@ fn test_between_with_null_expr() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: Some(ast::Expression::Between {
             expr: Box::new(ast::Expression::ColumnRef { table: None, column: "val".to_string() }),
@@ -67,7 +67,7 @@ fn test_not_between() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: Some(ast::Expression::Between {
             expr: Box::new(ast::Expression::ColumnRef { table: None, column: "val".to_string() }),
@@ -107,7 +107,7 @@ fn test_between_boundary_values() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: Some(ast::Expression::Between {
             expr: Box::new(ast::Expression::ColumnRef { table: None, column: "val".to_string() }),

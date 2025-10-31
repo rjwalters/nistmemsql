@@ -77,7 +77,7 @@ fn test_select_into_single_row() {
     let query = ast::SelectStmt {
         with_clause: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         into_table: None,
         from: Some(ast::FromClause::Table { name: "target".to_string(), alias: None }),
         where_clause: None,
@@ -246,7 +246,7 @@ fn test_select_into_with_expressions() {
     let query = ast::SelectStmt {
         with_clause: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         into_table: None,
         from: Some(ast::FromClause::Table { name: "target".to_string(), alias: None }),
         where_clause: None,

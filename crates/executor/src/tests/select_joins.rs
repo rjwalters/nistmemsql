@@ -71,7 +71,7 @@ fn test_inner_join_two_tables() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Join {
             left: Box::new(ast::FromClause::Table { name: "users".to_string(), alias: None }),
             right: Box::new(ast::FromClause::Table { name: "orders".to_string(), alias: None }),
@@ -171,7 +171,7 @@ fn test_right_outer_join() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Join {
             left: Box::new(ast::FromClause::Table { name: "users".to_string(), alias: None }),
             right: Box::new(ast::FromClause::Table { name: "orders".to_string(), alias: None }),
@@ -277,7 +277,7 @@ fn test_full_outer_join() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Join {
             left: Box::new(ast::FromClause::Table { name: "users".to_string(), alias: None }),
             right: Box::new(ast::FromClause::Table { name: "orders".to_string(), alias: None }),
@@ -395,7 +395,7 @@ fn test_cross_join() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Join {
             left: Box::new(ast::FromClause::Table { name: "users".to_string(), alias: None }),
             right: Box::new(ast::FromClause::Table { name: "products".to_string(), alias: None }),
@@ -439,7 +439,7 @@ fn test_cross_join_with_condition_fails() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Join {
             left: Box::new(ast::FromClause::Table { name: "users".to_string(), alias: None }),
             right: Box::new(ast::FromClause::Table { name: "products".to_string(), alias: None }),

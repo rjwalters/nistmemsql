@@ -27,7 +27,7 @@ fn test_in_list_basic() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: Some(ast::Expression::InList {
             expr: Box::new(ast::Expression::ColumnRef { table: None, column: "val".to_string() }),
@@ -69,7 +69,7 @@ fn test_not_in_list() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: Some(ast::Expression::InList {
             expr: Box::new(ast::Expression::ColumnRef { table: None, column: "val".to_string() }),
@@ -111,7 +111,7 @@ fn test_in_list_with_null_value() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: Some(ast::Expression::InList {
             expr: Box::new(ast::Expression::ColumnRef { table: None, column: "val".to_string() }),
@@ -153,7 +153,7 @@ fn test_in_list_with_null_in_list() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard],
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
         from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: Some(ast::Expression::InList {
             expr: Box::new(ast::Expression::ColumnRef { table: None, column: "val".to_string() }),

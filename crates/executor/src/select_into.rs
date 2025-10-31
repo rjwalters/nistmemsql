@@ -76,7 +76,7 @@ impl SelectIntoExecutor {
 
         for (idx, item) in select_list.iter().enumerate() {
             match item {
-                SelectItem::Wildcard => {
+                SelectItem::Wildcard { .. } => {
                     return Err(ExecutorError::UnsupportedFeature(
                         "SELECT * is not supported in SELECT INTO statements".to_string(),
                     ));
