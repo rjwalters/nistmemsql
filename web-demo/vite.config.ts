@@ -11,6 +11,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         conformance: resolve(__dirname, 'conformance.html'),
+        benchmarks: resolve(__dirname, 'benchmarks.html'),
       },
     },
   },
