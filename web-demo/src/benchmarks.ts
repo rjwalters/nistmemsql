@@ -50,7 +50,7 @@ function formatTime(seconds: number): string {
  * Parse benchmark name to extract database and operation info
  */
 function parseBenchmarkName(name: string): { operation: string; database: string } {
-  // Example names: "test_simple_select_1k_nistmemsql", "test_simple_select_1k_sqlite"
+  // Example names: "test_simple_select_1k_nistmemsql", "test_simple_select_1k_sqlite", "test_simple_select_1k_duckdb"
   const parts = name.split('_');
   const database = parts[parts.length - 1]; // Last part is database name
 
@@ -103,8 +103,9 @@ function renderResultsTable(data: BenchmarkResults) {
   for (const [operation, databases] of grouped.entries()) {
     const nistmemsql = databases.get('nistmemsql');
     const sqlite = databases.get('sqlite');
+    const duckdb = databases.get('duckdb');
 
-    if (!nistmemsql && !sqlite) continue;
+    if (!nistmemsql && !sqlite && !duckdb) continue;
 
     const row = document.createElement('tr');
     row.className = 'hover:bg-card/50 transition-colors';
@@ -127,7 +128,13 @@ function renderResultsTable(data: BenchmarkResults) {
     sqliteCell.textContent = sqlite ? formatTime(sqlite.stats.mean) : 'N/A';
     row.appendChild(sqliteCell);
 
-    // Speedup
+    // DuckDB time
+    const duckdbCell = document.createElement('td');
+    duckdbCell.className = 'px-4 py-3 text-right text-muted';
+    duckdbCell.textContent = duckdb ? formatTime(duckdb.stats.mean) : 'N/A';
+    row.appendChild(duckdbCell);
+
+    // Speedup vs SQLite
     const speedupCell = document.createElement('td');
     speedupCell.className = 'px-4 py-3 text-right font-semibold';
 
@@ -208,15 +215,18 @@ function renderChart(data: BenchmarkResults) {
   const labels: string[] = [];
   const nistmemsqlData: number[] = [];
   const sqliteData: number[] = [];
+  const duckdbData: number[] = [];
 
   for (const [operation, databases] of grouped.entries()) {
     const nistmemsql = databases.get('nistmemsql');
     const sqlite = databases.get('sqlite');
+    const duckdb = databases.get('duckdb');
 
-    if (nistmemsql && sqlite) {
+    if (nistmemsql || sqlite || duckdb) {
       labels.push(operation.replace(/_/g, ' ').toUpperCase());
-      nistmemsqlData.push(nistmemsql.stats.mean * 1000); // Convert to ms
-      sqliteData.push(sqlite.stats.mean * 1000);
+      nistmemsqlData.push(nistmemsql ? nistmemsql.stats.mean * 1000 : 0); // Convert to ms
+      sqliteData.push(sqlite ? sqlite.stats.mean * 1000 : 0);
+      duckdbData.push(duckdb ? duckdb.stats.mean * 1000 : 0);
     }
   }
 
@@ -237,6 +247,13 @@ function renderChart(data: BenchmarkResults) {
           data: sqliteData,
           backgroundColor: 'rgba(239, 68, 68, 0.5)',
           borderColor: 'rgba(239, 68, 68, 1)',
+          borderWidth: 1,
+        },
+        {
+          label: 'DuckDB',
+          data: duckdbData,
+          backgroundColor: 'rgba(59, 130, 246, 0.5)',
+          borderColor: 'rgba(59, 130, 246, 1)',
           borderWidth: 1,
         },
       ],
@@ -301,7 +318,7 @@ async function loadBenchmarkData() {
     if (tbody) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="5" class="px-4 py-8 text-center text-red-500">
+          <td colspan="6" class="px-4 py-8 text-center text-red-500">
             ⚠️ Failed to load benchmark results. Please check back later.
           </td>
         </tr>
