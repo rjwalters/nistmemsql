@@ -147,6 +147,13 @@ pub enum Keyword {
     Next,
     // Referential action keywords
     Action,
+    // Session configuration keywords (SQL:1999)
+    Catalog,
+    Names,
+    Zone,
+    Local,
+    Hour,
+    Minute,
 }
 
 impl fmt::Display for Keyword {
@@ -277,6 +284,12 @@ impl fmt::Display for Keyword {
             Keyword::Restart => "RESTART",
             Keyword::Next => "NEXT",
             Keyword::Action => "ACTION",
+            Keyword::Catalog => "CATALOG",
+            Keyword::Names => "NAMES",
+            Keyword::Zone => "ZONE",
+            Keyword::Local => "LOCAL",
+            Keyword::Hour => "HOUR",
+            Keyword::Minute => "MINUTE",
         };
         write!(f, "{}", keyword_str)
     }

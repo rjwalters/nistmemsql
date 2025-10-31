@@ -84,6 +84,21 @@ impl NistMemSqlDB {
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
+            ast::Statement::SetCatalog(set_stmt) => {
+                executor::SchemaExecutor::execute_set_catalog(&set_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::SetNames(set_stmt) => {
+                executor::SchemaExecutor::execute_set_names(&set_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::SetTimeZone(set_stmt) => {
+                executor::SchemaExecutor::execute_set_time_zone(&set_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
             ast::Statement::Grant(grant_stmt) => {
                 executor::GrantExecutor::execute_grant(&grant_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
