@@ -1,0 +1,126 @@
+{
+  "adv-1": {
+    "title": "CTEs + Window Functions + JOINs",
+    "database": "northwind",
+    "sql": "-- Complex reporting: Category performance with rankings\nWITH category_metrics AS (\n  SELECT\n    c.category_id,\n    c.category_name,\n    COUNT(DISTINCT p.product_id) AS product_count,\n    COUNT(DISTINCT od.order_id) AS order_count,\n    SUM(od.quantity) AS units_sold,\n    SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue\n  FROM categories c\n  LEFT JOIN products p ON c.category_id = p.category_id\n  LEFT JOIN order_details od ON p.product_id = od.product_id\n  GROUP BY c.category_id, c.category_name\n)\nSELECT\n  category_name,\n  product_count,\n  order_count,\n  units_sold,\n  ROUND(revenue, 2) AS revenue,\n  RANK() OVER (ORDER BY revenue DESC) AS revenue_rank,\n  ROUND(revenue * 100.0 / SUM(revenue) OVER (), 2) AS revenue_share_pct,\n  ROUND(AVG(revenue) OVER (), 2) AS avg_category_revenue,\n  CASE\n    WHEN revenue > AVG(revenue) OVER () THEN 'Above Average'\n    ELSE 'Below Average'\n  END AS performance\nFROM category_metrics\nORDER BY revenue DESC;",
+    "description": "Comprehensive category analysis combining CTEs, window functions, and JOINs",
+    "sqlFeatures": [
+      "CTE",
+      "Window functions",
+      "RANK",
+      "Multiple JOINs",
+      "Complex aggregation"
+    ],
+    "difficulty": "advanced",
+    "useCase": "reports",
+    "relatedExamples": [
+      "cte-1",
+      "window-1",
+      "join-1"
+    ],
+    "tags": [
+      "complex-query",
+      "multi-feature",
+      "reporting",
+      "advanced-analytics"
+    ]
+  },
+  "adv-2": {
+    "title": "Recursive CTEs + Aggregates",
+    "database": "empty",
+    "sql": "-- Hierarchical rollup using recursive CTE\nWITH RECURSIVE org_hierarchy AS (\n  -- Base case: top-level managers\n  SELECT\n    1 AS employee_id,\n    'CEO' AS name,\n    NULL::INTEGER AS manager_id,\n    1 AS level,\n    CAST('CEO' AS TEXT) AS path\n  UNION ALL\n  SELECT\n    2, 'VP Sales', 1, 2, 'CEO > VP Sales'\n  UNION ALL\n  SELECT\n    3, 'VP Engineering', 1, 2, 'CEO > VP Engineering'\n  UNION ALL\n  SELECT\n    4, 'Sales Rep 1', 2, 3, 'CEO > VP Sales > Sales Rep 1'\n  UNION ALL\n  SELECT\n    5, 'Sales Rep 2', 2, 3, 'CEO > VP Sales > Sales Rep 2'\n  UNION ALL\n  SELECT\n    6, 'Engineer 1', 3, 3, 'CEO > VP Engineering > Engineer 1'\n)\nSELECT\n  level,\n  COUNT(*) AS employee_count,\n  STRING_AGG(name, ', ') AS employees,\n  AVG(level) OVER () AS avg_org_depth\nFROM org_hierarchy\nGROUP BY level\nORDER BY level;",
+    "description": "Hierarchical data rollup using recursive CTEs and aggregation",
+    "sqlFeatures": [
+      "Recursive CTE",
+      "Aggregates",
+      "STRING_AGG",
+      "Hierarchical queries"
+    ],
+    "difficulty": "advanced",
+    "useCase": "development",
+    "relatedExamples": [
+      "recursive-1",
+      "cte-1"
+    ],
+    "tags": [
+      "recursive",
+      "hierarchy",
+      "organizational-structure",
+      "tree-queries"
+    ]
+  },
+  "adv-3": {
+    "title": "Subqueries in Multiple Contexts",
+    "database": "northwind",
+    "sql": "-- Subqueries in SELECT, FROM, WHERE, and HAVING clauses\nSELECT\n  p.product_name,\n  p.unit_price,\n  -- Subquery in SELECT\n  (SELECT AVG(unit_price) FROM products) AS overall_avg_price,\n  -- Subquery in SELECT with correlation\n  (SELECT COUNT(*) FROM order_details od WHERE od.product_id = p.product_id) AS times_ordered,\n  -- Calculated field\n  ROUND(p.unit_price / (SELECT AVG(unit_price) FROM products), 2) AS price_vs_avg\nFROM products p\n-- Subquery in WHERE\nWHERE p.unit_price > (SELECT AVG(unit_price) FROM products)\n  AND p.category_id IN (\n    -- Subquery returning multiple values\n    SELECT category_id FROM categories WHERE category_name LIKE '%Co%'\n  )\n  AND EXISTS (\n    -- Correlated subquery in WHERE\n    SELECT 1 FROM order_details od WHERE od.product_id = p.product_id\n  )\nORDER BY p.unit_price DESC\nLIMIT 10;",
+    "description": "Use subqueries in SELECT, FROM, WHERE, and EXISTS clauses",
+    "sqlFeatures": [
+      "Scalar subquery",
+      "Correlated subquery",
+      "EXISTS",
+      "IN subquery"
+    ],
+    "difficulty": "advanced",
+    "useCase": "development",
+    "relatedExamples": [
+      "subquery-1",
+      "subquery-2",
+      "subquery-3"
+    ],
+    "tags": [
+      "subqueries",
+      "correlated",
+      "exists",
+      "multi-context"
+    ]
+  },
+  "adv-4": {
+    "title": "Window Functions + CASE Expressions",
+    "database": "northwind",
+    "sql": "-- Conditional analytics using window functions and CASE\nSELECT\n  product_name,\n  category_id,\n  unit_price,\n  units_in_stock,\n  -- Window function with CASE for conditional aggregation\n  SUM(CASE WHEN unit_price > 20 THEN 1 ELSE 0 END)\n    OVER (PARTITION BY category_id) AS premium_products_in_category,\n  -- Multiple window functions\n  AVG(unit_price) OVER (PARTITION BY category_id) AS category_avg_price,\n  RANK() OVER (PARTITION BY category_id ORDER BY unit_price DESC) AS price_rank_in_category,\n  -- Complex CASE with window function results\n  CASE\n    WHEN unit_price > AVG(unit_price) OVER (PARTITION BY category_id) * 1.5\n      THEN 'Premium'\n    WHEN unit_price > AVG(unit_price) OVER (PARTITION BY category_id)\n      THEN 'Above Average'\n    WHEN unit_price > AVG(unit_price) OVER (PARTITION BY category_id) * 0.5\n      THEN 'Average'\n    ELSE 'Budget'\n  END AS price_tier,\n  -- Stock status\n  CASE\n    WHEN units_in_stock = 0 THEN 'Out of Stock'\n    WHEN units_in_stock < 10 THEN 'Low Stock'\n    ELSE 'In Stock'\n  END AS stock_status\nFROM products\nWHERE unit_price IS NOT NULL\nORDER BY category_id, price_rank_in_category\nLIMIT 30;",
+    "description": "Combine window functions with CASE expressions for conditional analytics",
+    "sqlFeatures": [
+      "Window functions",
+      "CASE",
+      "Conditional aggregation",
+      "Multiple OVER clauses"
+    ],
+    "difficulty": "advanced",
+    "useCase": "analytics",
+    "relatedExamples": [
+      "window-1",
+      "case-1"
+    ],
+    "tags": [
+      "window-functions",
+      "case-expressions",
+      "conditional-logic",
+      "tiering"
+    ]
+  },
+  "adv-5": {
+    "title": "Multiple CTEs with Cross-References",
+    "database": "northwind",
+    "sql": "-- Complex analysis using multiple interconnected CTEs\nWITH product_sales AS (\n  SELECT\n    product_id,\n    SUM(quantity) AS total_quantity,\n    SUM(unit_price * quantity * (1 - discount)) AS total_revenue\n  FROM order_details\n  GROUP BY product_id\n),\ncategory_sales AS (\n  SELECT\n    p.category_id,\n    SUM(ps.total_revenue) AS category_revenue\n  FROM product_sales ps\n  JOIN products p ON ps.product_id = p.product_id\n  GROUP BY p.category_id\n),\nproduct_analysis AS (\n  SELECT\n    p.product_id,\n    p.product_name,\n    p.category_id,\n    ps.total_quantity,\n    ps.total_revenue,\n    cs.category_revenue\n  FROM products p\n  JOIN product_sales ps ON p.product_id = ps.product_id\n  JOIN category_sales cs ON p.category_id = cs.category_id\n)\nSELECT\n  product_name,\n  total_quantity AS units_sold,\n  ROUND(total_revenue, 2) AS product_revenue,\n  ROUND(category_revenue, 2) AS category_total,\n  ROUND(total_revenue * 100.0 / category_revenue, 2) AS pct_of_category_revenue,\n  RANK() OVER (PARTITION BY category_id ORDER BY total_revenue DESC) AS rank_in_category\nFROM product_analysis\nWHERE total_revenue > 0\nORDER BY category_id, rank_in_category\nLIMIT 20;",
+    "description": "Multiple CTEs that reference each other for layered analysis",
+    "sqlFeatures": [
+      "Multiple CTEs",
+      "CTE chaining",
+      "Window functions",
+      "Complex JOINs"
+    ],
+    "difficulty": "advanced",
+    "useCase": "analytics",
+    "relatedExamples": [
+      "cte-1",
+      "cte-2",
+      "window-1"
+    ],
+    "tags": [
+      "cte-chaining",
+      "layered-analysis",
+      "complex-queries",
+      "data-pipeline"
+    ]
+  }
+}
