@@ -42,56 +42,24 @@ pub fn parse_create_sequence(parser: &mut crate::Parser) -> Result<CreateSequenc
     loop {
         if parser.try_consume_keyword(Keyword::Start) {
             parser.expect_keyword(Keyword::With)?;
-            let num_str = match parser.peek() {
-                Token::Number(n) => n.clone(),
-                _ => {
-                    return Err(ParseError {
-                        message: "Expected number after START WITH".to_string(),
-                    })
-                }
-            };
-            parser.advance();
+            let num_str = parser.parse_signed_number()?;
             start_with = Some(num_str.parse::<i64>().map_err(|_| ParseError {
                 message: format!("Invalid START WITH value: {}", num_str),
             })?);
         } else if parser.try_consume_keyword(Keyword::Increment) {
             parser.expect_keyword(Keyword::By)?;
-            let num_str = match parser.peek() {
-                Token::Number(n) => n.clone(),
-                _ => {
-                    return Err(ParseError {
-                        message: "Expected number after INCREMENT BY".to_string(),
-                    })
-                }
-            };
-            parser.advance();
+            let num_str = parser.parse_signed_number()?;
             increment_by = num_str.parse::<i64>().map_err(|_| ParseError {
                 message: format!("Invalid INCREMENT BY value: {}", num_str),
             })?;
         } else if parser.try_consume_keyword(Keyword::Minvalue) {
-            let num_str = match parser.peek() {
-                Token::Number(n) => n.clone(),
-                _ => {
-                    return Err(ParseError {
-                        message: "Expected number after MINVALUE".to_string(),
-                    })
-                }
-            };
-            parser.advance();
+            let num_str = parser.parse_signed_number()?;
             min_value =
                 Some(num_str.parse::<i64>().map_err(|_| ParseError {
                     message: format!("Invalid MINVALUE: {}", num_str),
                 })?);
         } else if parser.try_consume_keyword(Keyword::Maxvalue) {
-            let num_str = match parser.peek() {
-                Token::Number(n) => n.clone(),
-                _ => {
-                    return Err(ParseError {
-                        message: "Expected number after MAXVALUE".to_string(),
-                    })
-                }
-            };
-            parser.advance();
+            let num_str = parser.parse_signed_number()?;
             max_value =
                 Some(num_str.parse::<i64>().map_err(|_| ParseError {
                     message: format!("Invalid MAXVALUE: {}", num_str),
@@ -273,10 +241,7 @@ pub fn parse_create_type(parser: &mut crate::Parser) -> Result<CreateTypeStmt, P
             let attr_name = parser.parse_identifier()?;
             let data_type = parser.parse_data_type()?;
 
-            attributes.push(ast::TypeAttribute {
-                name: attr_name,
-                data_type,
-            });
+            attributes.push(ast::TypeAttribute { name: attr_name, data_type });
 
             if !parser.try_consume(&Token::Comma) {
                 break;
@@ -287,10 +252,7 @@ pub fn parse_create_type(parser: &mut crate::Parser) -> Result<CreateTypeStmt, P
         ast::TypeDefinition::Structured { attributes }
     };
 
-    Ok(CreateTypeStmt {
-        type_name,
-        definition,
-    })
+    Ok(CreateTypeStmt { type_name, definition })
 }
 
 /// Parse DROP TYPE statement
@@ -313,10 +275,7 @@ pub fn parse_drop_type(parser: &mut crate::Parser) -> Result<DropTypeStmt, Parse
         ast::DropBehavior::Restrict // Default to RESTRICT per SQL:1999
     };
 
-    Ok(DropTypeStmt {
-        type_name,
-        behavior,
-    })
+    Ok(DropTypeStmt { type_name, behavior })
 }
 
 // ============================================================================

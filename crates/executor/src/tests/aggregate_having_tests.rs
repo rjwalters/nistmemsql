@@ -46,6 +46,7 @@ fn test_having_clause() {
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
+        into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,

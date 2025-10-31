@@ -282,6 +282,36 @@ pub fn extract(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 
 // ==================== HELPER FUNCTIONS ====================
 
+/// Helper to safely change year and month, clamping day to last valid day of month
+/// This handles edge cases like Jan 31 + 1 month → Feb 28/29
+fn safe_date_with_year_month(date: NaiveDate, year: i32, month: u32) -> Option<NaiveDate> {
+    let day = date.day();
+
+    // Get the last valid day for the target year/month
+    let last_day_of_month = last_day_of_month(year, month);
+    let clamped_day = day.min(last_day_of_month);
+
+    // Create date with clamped day
+    NaiveDate::from_ymd_opt(year, month, clamped_day)
+}
+
+/// Helper to get the last day of a given month/year
+fn last_day_of_month(year: i32, month: u32) -> u32 {
+    // Days in each month (non-leap year)
+    const DAYS_IN_MONTH: [u32; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+    if month == 2 && is_leap_year(year) {
+        29
+    } else {
+        DAYS_IN_MONTH[(month - 1) as usize]
+    }
+}
+
+/// Check if a year is a leap year
+fn is_leap_year(year: i32) -> bool {
+    (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
+}
+
 /// Helper for DATE_ADD and DATE_SUB functions
 /// Adds or subtracts an interval from a date/timestamp
 /// preserve_time: if true and input is timestamp, preserve time component
@@ -303,25 +333,31 @@ fn date_add_subtract(
 
         let new_timestamp = match unit {
             "YEAR" | "YEARS" => {
-                let year = timestamp.year() + amount as i32;
-                timestamp.with_year(year).ok_or_else(|| {
-                    ExecutorError::UnsupportedFeature(format!("Invalid year: {}", year))
-                })?
+                let new_year = timestamp.year() + amount as i32;
+                let date = timestamp.date();
+                let new_date = safe_date_with_year_month(date, new_year, date.month())
+                    .ok_or_else(|| {
+                        ExecutorError::UnsupportedFeature(format!("Invalid year: {}", new_year))
+                    })?;
+
+                // Combine new date with original time
+                let time = timestamp.time();
+                NaiveDateTime::new(new_date, time)
             }
             "MONTH" | "MONTHS" => {
-                let months = timestamp.month() as i64 + amount;
-                let years_offset = (months - 1) / 12;
-                let new_month = ((months - 1) % 12 + 1) as u32;
-                let new_month = if new_month == 0 { 12 } else { new_month };
-                let new_year = timestamp.year() + years_offset as i32;
+                let total_months = timestamp.year() as i64 * 12 + timestamp.month() as i64 - 1 + amount;
+                let new_year = (total_months / 12) as i32;
+                let new_month = (total_months % 12 + 1) as u32;
 
-                let mut new_ts = timestamp.with_year(new_year).ok_or_else(|| {
-                    ExecutorError::UnsupportedFeature(format!("Invalid year: {}", new_year))
-                })?;
-                new_ts = new_ts.with_month(new_month).ok_or_else(|| {
-                    ExecutorError::UnsupportedFeature(format!("Invalid month: {}", new_month))
-                })?;
-                new_ts
+                let date = timestamp.date();
+                let new_date = safe_date_with_year_month(date, new_year, new_month)
+                    .ok_or_else(|| {
+                        ExecutorError::UnsupportedFeature(format!("Invalid date: {}-{:02}", new_year, new_month))
+                    })?;
+
+                // Combine new date with original time
+                let time = timestamp.time();
+                NaiveDateTime::new(new_date, time)
             }
             "DAY" | "DAYS" => timestamp + Duration::days(amount),
             "HOUR" | "HOURS" => timestamp + Duration::hours(amount),
@@ -345,25 +381,19 @@ fn date_add_subtract(
 
         let new_date = match unit {
             "YEAR" | "YEARS" => {
-                let year = date.year() + amount as i32;
-                date.with_year(year).ok_or_else(|| {
-                    ExecutorError::UnsupportedFeature(format!("Invalid year: {}", year))
+                let new_year = date.year() + amount as i32;
+                safe_date_with_year_month(date, new_year, date.month()).ok_or_else(|| {
+                    ExecutorError::UnsupportedFeature(format!("Invalid year: {}", new_year))
                 })?
             }
             "MONTH" | "MONTHS" => {
-                let months = date.month() as i64 + amount;
-                let years_offset = (months - 1) / 12;
-                let new_month = ((months - 1) % 12 + 1) as u32;
-                let new_month = if new_month == 0 { 12 } else { new_month };
-                let new_year = date.year() + years_offset as i32;
+                let total_months = date.year() as i64 * 12 + date.month() as i64 - 1 + amount;
+                let new_year = (total_months / 12) as i32;
+                let new_month = (total_months % 12 + 1) as u32;
 
-                let mut new_date = date.with_year(new_year).ok_or_else(|| {
-                    ExecutorError::UnsupportedFeature(format!("Invalid year: {}", new_year))
-                })?;
-                new_date = new_date.with_month(new_month).ok_or_else(|| {
-                    ExecutorError::UnsupportedFeature(format!("Invalid month: {}", new_month))
-                })?;
-                new_date
+                safe_date_with_year_month(date, new_year, new_month).ok_or_else(|| {
+                    ExecutorError::UnsupportedFeature(format!("Invalid date: {}-{:02}", new_year, new_month))
+                })?
             }
             "DAY" | "DAYS" => date + Duration::days(amount),
             "HOUR" | "HOURS" | "MINUTE" | "MINUTES" | "SECOND" | "SECONDS" => {

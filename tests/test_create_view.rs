@@ -61,7 +61,8 @@ fn test_create_view_with_column_list() {
 fn test_create_view_with_check_option() {
     let mut db = Database::new();
 
-    let sql = "CREATE VIEW active_users AS SELECT * FROM users WHERE active = true WITH CHECK OPTION";
+    let sql =
+        "CREATE VIEW active_users AS SELECT * FROM users WHERE active = true WITH CHECK OPTION";
     let stmt = Parser::parse_sql(sql).expect("Failed to parse");
 
     match stmt {
