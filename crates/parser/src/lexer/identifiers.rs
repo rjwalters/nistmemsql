@@ -1,5 +1,5 @@
+use super::{keywords, Lexer, LexerError};
 use crate::token::Token;
-use super::{Lexer, LexerError, keywords};
 
 impl Lexer {
     /// Tokenize an identifier or keyword.

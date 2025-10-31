@@ -17,9 +17,7 @@ fn execute_select(db: &Database, sql: &str) -> Result<Vec<Row>, String> {
     };
 
     let executor = SelectExecutor::new(db);
-    executor
-        .execute(&select_stmt)
-        .map_err(|e| format!("Execution error: {:?}", e))
+    executor.execute(&select_stmt).map_err(|e| format!("Execution error: {:?}", e))
 }
 
 // ========================================================================
@@ -37,9 +35,7 @@ fn test_e2e_quantified_comparisons() {
             ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
                 "NAME".to_string(),
-                DataType::Varchar {
-                    max_length: Some(100),
-                },
+                DataType::Varchar { max_length: Some(100) },
                 false,
             ),
             ColumnSchema::new("SALARY".to_string(), DataType::Integer, false),
@@ -117,10 +113,7 @@ fn test_e2e_quantified_comparisons() {
         "SELECT name FROM employees WHERE salary < ALL (SELECT salary FROM employees WHERE dept_id = 2)"
     ).unwrap();
     assert_eq!(results.len(), 3);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("Alice".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("Alice".to_string()));
 
     // Test 3: > ANY - salary greater than at least one dept 1 salary
     // Everyone except Alice (50000 is not > any value in dept 1 starting with 50000)
@@ -144,15 +137,9 @@ fn test_e2e_quantified_comparisons() {
         "SELECT name FROM employees WHERE salary = ANY (SELECT salary FROM employees WHERE dept_id = 1)"
     ).unwrap();
     assert_eq!(results.len(), 3);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("Alice".to_string())
-    );
+    assert_eq!(results[0].values[0], SqlValue::Varchar("Alice".to_string()));
     assert_eq!(results[1].values[0], SqlValue::Varchar("Bob".to_string()));
-    assert_eq!(
-        results[2].values[0],
-        SqlValue::Varchar("Charlie".to_string())
-    );
+    assert_eq!(results[2].values[0], SqlValue::Varchar("Charlie".to_string()));
 
     // Test 6: SOME is synonym for ANY
     let results = execute_select(&db,
@@ -186,10 +173,7 @@ fn test_e2e_quantified_comparisons() {
     ).unwrap();
     assert_eq!(results.len(), 2); // Bob (60000) and Charlie (70000)
     assert_eq!(results[0].values[0], SqlValue::Varchar("Bob".to_string()));
-    assert_eq!(
-        results[1].values[0],
-        SqlValue::Varchar("Charlie".to_string())
-    );
+    assert_eq!(results[1].values[0], SqlValue::Varchar("Charlie".to_string()));
 
     // Test 11: >= ALL
     let results = execute_select(&db,

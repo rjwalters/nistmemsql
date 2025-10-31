@@ -82,14 +82,14 @@ impl Parser {
         // Check if this is an aggregate function
         let function_name_upper = first.to_uppercase();
         let is_aggregate =
-        matches!(function_name_upper.as_str(), "COUNT" | "SUM" | "AVG" | "MIN" | "MAX");
+            matches!(function_name_upper.as_str(), "COUNT" | "SUM" | "AVG" | "MIN" | "MAX");
 
         // Parse optional DISTINCT or ALL for aggregate functions
         let distinct = if is_aggregate {
-        if matches!(self.peek(), Token::Keyword(Keyword::Distinct)) {
-            self.advance(); // consume DISTINCT
+            if matches!(self.peek(), Token::Keyword(Keyword::Distinct)) {
+                self.advance(); // consume DISTINCT
                 true
-        } else if matches!(self.peek(), Token::Keyword(Keyword::All)) {
+            } else if matches!(self.peek(), Token::Keyword(Keyword::All)) {
                 self.advance(); // consume ALL
                 false
             } else {

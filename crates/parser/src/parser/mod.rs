@@ -192,26 +192,27 @@ impl Parser {
                 Ok(ast::Statement::ReleaseSavepoint(release_stmt))
             }
             Token::Keyword(Keyword::Set) => {
-            // Look ahead to determine which SET statement this is
-            if self.peek_next_keyword(Keyword::Schema) {
-            let set_stmt = self.parse_set_schema_statement()?;
-            Ok(ast::Statement::SetSchema(set_stmt))
-            } else if self.peek_next_keyword(Keyword::Catalog) {
-            let set_stmt = schema::parse_set_catalog(self)?;
-            Ok(ast::Statement::SetCatalog(set_stmt))
-            } else if self.peek_next_keyword(Keyword::Names) {
-            let set_stmt = schema::parse_set_names(self)?;
-            Ok(ast::Statement::SetNames(set_stmt))
-            } else if self.peek_next_keyword(Keyword::Time) {
-            let set_stmt = schema::parse_set_time_zone(self)?;
-            Ok(ast::Statement::SetTimeZone(set_stmt))
-            } else if self.peek_next_keyword(Keyword::Transaction) {
-            let set_stmt = self.parse_set_transaction_statement()?;
-            Ok(ast::Statement::SetTransaction(set_stmt))
-            } else {
-            Err(ParseError {
-                    message: "Expected SCHEMA, CATALOG, NAMES, TIME ZONE, or TRANSACTION after SET"
-                            .to_string(),
+                // Look ahead to determine which SET statement this is
+                if self.peek_next_keyword(Keyword::Schema) {
+                    let set_stmt = self.parse_set_schema_statement()?;
+                    Ok(ast::Statement::SetSchema(set_stmt))
+                } else if self.peek_next_keyword(Keyword::Catalog) {
+                    let set_stmt = schema::parse_set_catalog(self)?;
+                    Ok(ast::Statement::SetCatalog(set_stmt))
+                } else if self.peek_next_keyword(Keyword::Names) {
+                    let set_stmt = schema::parse_set_names(self)?;
+                    Ok(ast::Statement::SetNames(set_stmt))
+                } else if self.peek_next_keyword(Keyword::Time) {
+                    let set_stmt = schema::parse_set_time_zone(self)?;
+                    Ok(ast::Statement::SetTimeZone(set_stmt))
+                } else if self.peek_next_keyword(Keyword::Transaction) {
+                    let set_stmt = self.parse_set_transaction_statement()?;
+                    Ok(ast::Statement::SetTransaction(set_stmt))
+                } else {
+                    Err(ParseError {
+                        message:
+                            "Expected SCHEMA, CATALOG, NAMES, TIME ZONE, or TRANSACTION after SET"
+                                .to_string(),
                     })
                 }
             }
@@ -356,7 +357,9 @@ impl Parser {
     }
 
     /// Parse SET TRANSACTION statement
-    pub fn parse_set_transaction_statement(&mut self) -> Result<ast::SetTransactionStmt, ParseError> {
+    pub fn parse_set_transaction_statement(
+        &mut self,
+    ) -> Result<ast::SetTransactionStmt, ParseError> {
         // SET keyword
         self.expect_keyword(Keyword::Set)?;
 
@@ -399,10 +402,7 @@ impl Parser {
             }
         }
 
-        Ok(ast::SetTransactionStmt {
-            isolation_level,
-            access_mode,
-        })
+        Ok(ast::SetTransactionStmt { isolation_level, access_mode })
     }
 
     /// Parse DROP TYPE statement
@@ -458,9 +458,7 @@ impl Parser {
     }
 
     /// Parse DROP ASSERTION statement
-    pub fn parse_drop_assertion_statement(
-        &mut self,
-    ) -> Result<ast::DropAssertionStmt, ParseError> {
+    pub fn parse_drop_assertion_statement(&mut self) -> Result<ast::DropAssertionStmt, ParseError> {
         advanced_objects::parse_drop_assertion(self)
     }
 }

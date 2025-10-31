@@ -10,11 +10,11 @@
 use crate::token::Token;
 use std::fmt;
 
+mod identifiers;
 mod keywords;
 mod numbers;
-mod strings;
-mod identifiers;
 mod operators;
+mod strings;
 
 /// Lexer error returned when tokenization fails.
 #[derive(Debug, Clone, PartialEq)]
