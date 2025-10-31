@@ -36,8 +36,7 @@ fn test_execute_drop_table() {
     let stmt = parser::Parser::parse_sql(drop_sql).expect("Parse failed");
     match stmt {
         ast::Statement::DropTable(drop_stmt) => {
-            executor::DropTableExecutor::execute(&drop_stmt, &mut db)
-                .expect("Drop table failed");
+            executor::DropTableExecutor::execute(&drop_stmt, &mut db).expect("Drop table failed");
         }
         _ => panic!("Expected DropTable statement"),
     }
@@ -59,8 +58,8 @@ fn test_execute_insert() {
     let stmt = parser::Parser::parse_sql(insert_sql).expect("Parse failed");
     match stmt {
         ast::Statement::Insert(insert_stmt) => {
-            let row_count = executor::InsertExecutor::execute(&mut db, &insert_stmt)
-                .expect("Insert failed");
+            let row_count =
+                executor::InsertExecutor::execute(&mut db, &insert_stmt).expect("Insert failed");
             assert_eq!(row_count, 1);
         }
         _ => panic!("Expected Insert statement"),

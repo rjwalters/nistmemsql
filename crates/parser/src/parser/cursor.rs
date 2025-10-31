@@ -3,7 +3,10 @@
 use crate::keywords::Keyword;
 use crate::parser::{ParseError, Parser};
 use crate::token::Token;
-use ast::{CloseCursorStmt, CursorUpdatability, DeclareCursorStmt, FetchOrientation, FetchStmt, OpenCursorStmt};
+use ast::{
+    CloseCursorStmt, CursorUpdatability, DeclareCursorStmt, FetchOrientation, FetchStmt,
+    OpenCursorStmt,
+};
 
 impl Parser {
     /// Parse DECLARE CURSOR statement
@@ -86,9 +89,7 @@ impl Parser {
     /// ```sql
     /// OPEN cursor_name
     /// ```
-    pub(super) fn parse_open_cursor_statement(
-        &mut self,
-    ) -> Result<OpenCursorStmt, ParseError> {
+    pub(super) fn parse_open_cursor_statement(&mut self) -> Result<OpenCursorStmt, ParseError> {
         // OPEN keyword
         self.expect_keyword(Keyword::Open)?;
 
@@ -105,9 +106,7 @@ impl Parser {
     /// FETCH [ [ NEXT | PRIOR | FIRST | LAST | ABSOLUTE n | RELATIVE n ] FROM ] cursor_name
     ///   [ INTO variable [, ...] ]
     /// ```
-    pub(super) fn parse_fetch_statement(
-        &mut self,
-    ) -> Result<FetchStmt, ParseError> {
+    pub(super) fn parse_fetch_statement(&mut self) -> Result<FetchStmt, ParseError> {
         // FETCH keyword
         self.expect_keyword(Keyword::Fetch)?;
 
@@ -157,9 +156,7 @@ impl Parser {
     /// ```sql
     /// CLOSE cursor_name
     /// ```
-    pub(super) fn parse_close_cursor_statement(
-        &mut self,
-    ) -> Result<CloseCursorStmt, ParseError> {
+    pub(super) fn parse_close_cursor_statement(&mut self) -> Result<CloseCursorStmt, ParseError> {
         // CLOSE keyword
         self.expect_keyword(Keyword::Close)?;
 

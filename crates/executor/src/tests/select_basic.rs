@@ -274,10 +274,7 @@ fn test_select_star_with_derived_columns() {
     db.create_table(schema).unwrap();
     db.insert_row(
         "t1",
-        storage::Row::new(vec![
-            types::SqlValue::Integer(1),
-            types::SqlValue::Integer(2),
-        ]),
+        storage::Row::new(vec![types::SqlValue::Integer(1), types::SqlValue::Integer(2)]),
     )
     .unwrap();
 
@@ -323,10 +320,7 @@ fn test_select_qualified_star_with_derived_columns() {
     db.create_table(schema).unwrap();
     db.insert_row(
         "t1",
-        storage::Row::new(vec![
-            types::SqlValue::Integer(1),
-            types::SqlValue::Integer(2),
-        ]),
+        storage::Row::new(vec![types::SqlValue::Integer(1), types::SqlValue::Integer(2)]),
     )
     .unwrap();
 
@@ -373,10 +367,7 @@ fn test_derived_columns_count_mismatch() {
     db.create_table(schema).unwrap();
     db.insert_row(
         "t1",
-        storage::Row::new(vec![
-            types::SqlValue::Integer(1),
-            types::SqlValue::Integer(2),
-        ]),
+        storage::Row::new(vec![types::SqlValue::Integer(1), types::SqlValue::Integer(2)]),
     )
     .unwrap();
 
@@ -423,18 +414,12 @@ fn test_select_distinct_star_with_derived_columns() {
     db.create_table(schema).unwrap();
     db.insert_row(
         "t1",
-        storage::Row::new(vec![
-            types::SqlValue::Integer(1),
-            types::SqlValue::Integer(2),
-        ]),
+        storage::Row::new(vec![types::SqlValue::Integer(1), types::SqlValue::Integer(2)]),
     )
     .unwrap();
     db.insert_row(
         "t1",
-        storage::Row::new(vec![
-            types::SqlValue::Integer(1),
-            types::SqlValue::Integer(2),
-        ]),
+        storage::Row::new(vec![types::SqlValue::Integer(1), types::SqlValue::Integer(2)]),
     )
     .unwrap();
 
@@ -443,7 +428,7 @@ fn test_select_distinct_star_with_derived_columns() {
         into_table: None,
         with_clause: None,
         set_operation: None,
-        distinct: true,  // DISTINCT
+        distinct: true, // DISTINCT
         select_list: vec![ast::SelectItem::Wildcard {
             alias: Some(vec!["C".to_string(), "D".to_string()]),
         }],
@@ -480,10 +465,7 @@ fn test_select_star_alias_with_table_alias() {
     db.create_table(schema).unwrap();
     db.insert_row(
         "t1",
-        storage::Row::new(vec![
-            types::SqlValue::Integer(10),
-            types::SqlValue::Integer(20),
-        ]),
+        storage::Row::new(vec![types::SqlValue::Integer(10), types::SqlValue::Integer(20)]),
     )
     .unwrap();
 
@@ -499,7 +481,7 @@ fn test_select_star_alias_with_table_alias() {
         }],
         from: Some(ast::FromClause::Table {
             name: "t1".to_string(),
-            alias: Some("alias_name".to_string())
+            alias: Some("alias_name".to_string()),
         }),
         where_clause: None,
         group_by: None,

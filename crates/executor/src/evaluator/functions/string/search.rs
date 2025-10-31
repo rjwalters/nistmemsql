@@ -39,7 +39,9 @@ pub(in crate::evaluator::functions) fn position(
 
 /// INSTR(string, substring) - Find position of substring (1-indexed, 0 if not found)
 /// MySQL/Oracle function - returns first occurrence position
-pub(in crate::evaluator::functions) fn instr(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
+pub(in crate::evaluator::functions) fn instr(
+    args: &[types::SqlValue],
+) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 2 {
         return Err(ExecutorError::UnsupportedFeature(format!(
             "INSTR requires exactly 2 arguments, got {}",
@@ -67,7 +69,9 @@ pub(in crate::evaluator::functions) fn instr(args: &[types::SqlValue]) -> Result
 
 /// LOCATE(substring, string, [start]) - Find position of substring with optional start
 /// Note: Arguments reversed compared to INSTR (needle, haystack vs haystack, needle)
-pub(in crate::evaluator::functions) fn locate(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
+pub(in crate::evaluator::functions) fn locate(
+    args: &[types::SqlValue],
+) -> Result<types::SqlValue, ExecutorError> {
     if args.len() < 2 || args.len() > 3 {
         return Err(ExecutorError::UnsupportedFeature(format!(
             "LOCATE requires 2 or 3 arguments, got {}",

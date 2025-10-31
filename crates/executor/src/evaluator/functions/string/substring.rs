@@ -7,7 +7,9 @@ use crate::errors::ExecutorError;
 /// SUBSTRING(string, start [, length]) - Extract substring
 /// SQL:1999 Section 6.29: String value functions
 /// start is 1-based (SQL standard), length is optional
-pub(in crate::evaluator::functions) fn substring(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
+pub(in crate::evaluator::functions) fn substring(
+    args: &[types::SqlValue],
+) -> Result<types::SqlValue, ExecutorError> {
     if args.len() < 2 || args.len() > 3 {
         return Err(ExecutorError::UnsupportedFeature(format!(
             "SUBSTRING requires 2 or 3 arguments, got {}",
@@ -96,7 +98,9 @@ pub(in crate::evaluator::functions) fn substring(args: &[types::SqlValue]) -> Re
 }
 
 /// LEFT(string, n) - Leftmost n characters
-pub(in crate::evaluator::functions) fn left(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
+pub(in crate::evaluator::functions) fn left(
+    args: &[types::SqlValue],
+) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 2 {
         return Err(ExecutorError::UnsupportedFeature(format!(
             "LEFT requires exactly 2 arguments, got {}",
@@ -126,7 +130,9 @@ pub(in crate::evaluator::functions) fn left(args: &[types::SqlValue]) -> Result<
 }
 
 /// RIGHT(string, n) - Rightmost n characters
-pub(in crate::evaluator::functions) fn right(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
+pub(in crate::evaluator::functions) fn right(
+    args: &[types::SqlValue],
+) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 2 {
         return Err(ExecutorError::UnsupportedFeature(format!(
             "RIGHT requires exactly 2 arguments, got {}",

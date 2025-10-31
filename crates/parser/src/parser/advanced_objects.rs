@@ -482,9 +482,7 @@ pub fn parse_create_assertion(
 /// Parse DROP ASSERTION statement
 ///
 /// Syntax: DROP ASSERTION assertion_name [CASCADE | RESTRICT]
-pub fn parse_drop_assertion(
-    parser: &mut crate::Parser,
-) -> Result<DropAssertionStmt, ParseError> {
+pub fn parse_drop_assertion(parser: &mut crate::Parser) -> Result<DropAssertionStmt, ParseError> {
     parser.expect_keyword(Keyword::Drop)?;
     parser.expect_keyword(Keyword::Assertion)?;
 
