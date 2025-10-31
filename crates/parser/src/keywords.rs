@@ -142,6 +142,14 @@ pub enum Keyword {
     Translation,
     View,
     Assertion,
+    // Trigger-specific keywords
+    Before,
+    After,
+    Instead,
+    Of,
+    Each,
+    Row,
+    Statement,
     // SEQUENCE specific keywords
     Increment,
     Minvalue,
@@ -181,7 +189,6 @@ pub enum Keyword {
     Without,
     Read,
     Only,
-    Of,
 }
 
 impl fmt::Display for Keyword {
@@ -308,6 +315,13 @@ impl fmt::Display for Keyword {
             Keyword::Translation => "TRANSLATION",
             Keyword::View => "VIEW",
             Keyword::Assertion => "ASSERTION",
+            Keyword::Before => "BEFORE",
+            Keyword::After => "AFTER",
+            Keyword::Instead => "INSTEAD",
+            Keyword::Of => "OF",
+            Keyword::Each => "EACH",
+            Keyword::Row => "ROW",
+            Keyword::Statement => "STATEMENT",
             Keyword::Increment => "INCREMENT",
             Keyword::Minvalue => "MINVALUE",
             Keyword::Maxvalue => "MAXVALUE",
@@ -341,7 +355,6 @@ impl fmt::Display for Keyword {
             Keyword::Without => "WITHOUT",
             Keyword::Read => "READ",
             Keyword::Only => "ONLY",
-            Keyword::Of => "OF",
         };
         write!(f, "{}", keyword_str)
     }

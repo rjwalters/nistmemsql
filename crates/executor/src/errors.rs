@@ -157,6 +157,12 @@ impl From<catalog::CatalogError> for ExecutorError {
             catalog::CatalogError::ViewNotFound(name) => {
                 ExecutorError::Other(format!("View '{}' not found", name))
             }
+            catalog::CatalogError::TriggerAlreadyExists(name) => {
+                ExecutorError::Other(format!("Trigger '{}' already exists", name))
+            }
+            catalog::CatalogError::TriggerNotFound(name) => {
+                ExecutorError::Other(format!("Trigger '{}' not found", name))
+            }
         }
     }
 }

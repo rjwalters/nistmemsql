@@ -18,13 +18,14 @@ pub use ddl::{
     BeginStmt, ColumnConstraint, ColumnConstraintKind, ColumnDef, CommitStmt,
     CreateAssertionStmt, CreateCharacterSetStmt, CreateCollationStmt, CreateDomainStmt,
     CreateRoleStmt, CreateSchemaStmt, CreateSequenceStmt, CreateTableStmt,
-    CreateTranslationStmt, CreateTypeStmt, CreateViewStmt, CursorUpdatability, DeclareCursorStmt,
-    DomainConstraint, DropAssertionStmt, DropBehavior, DropCharacterSetStmt, DropCollationStmt,
-    DropColumnStmt, DropConstraintStmt, DropDomainStmt, DropRoleStmt, DropSchemaStmt,
-    DropSequenceStmt, DropTableStmt, DropTranslationStmt, DropTypeStmt, DropViewStmt,
-    ReferentialAction, ReleaseSavepointStmt, RollbackStmt, RollbackToSavepointStmt, SavepointStmt,
-    SchemaElement, SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt, TableConstraint,
-    TableConstraintKind, TimeZoneSpec, TypeAttribute, TypeDefinition,
+    CreateTranslationStmt, CreateTriggerStmt, CreateTypeStmt, CreateViewStmt, CursorUpdatability,
+    DeclareCursorStmt, DomainConstraint, DropAssertionStmt, DropBehavior, DropCharacterSetStmt,
+    DropCollationStmt, DropColumnStmt, DropConstraintStmt, DropDomainStmt, DropRoleStmt,
+    DropSchemaStmt, DropSequenceStmt, DropTableStmt, DropTranslationStmt, DropTriggerStmt,
+    DropTypeStmt, DropViewStmt, ReferentialAction, ReleaseSavepointStmt, RollbackStmt,
+    RollbackToSavepointStmt, SavepointStmt, SchemaElement, SetCatalogStmt, SetNamesStmt,
+    SetSchemaStmt, SetTimeZoneStmt, TableConstraint, TableConstraintKind, TimeZoneSpec,
+    TriggerAction, TriggerEvent, TriggerGranularity, TriggerTiming, TypeAttribute, TypeDefinition,
 };
 pub use dml::{Assignment, DeleteStmt, InsertSource, InsertStmt, UpdateStmt};
 pub use expression::{

@@ -285,6 +285,14 @@ impl Lexer {
             "TRANSLATION" => Token::Keyword(Keyword::Translation),
             "VIEW" => Token::Keyword(Keyword::View),
             "ASSERTION" => Token::Keyword(Keyword::Assertion),
+            // Trigger-specific keywords
+            "BEFORE" => Token::Keyword(Keyword::Before),
+            "AFTER" => Token::Keyword(Keyword::After),
+            "INSTEAD" => Token::Keyword(Keyword::Instead),
+            "OF" => Token::Keyword(Keyword::Of),
+            "EACH" => Token::Keyword(Keyword::Each),
+            "ROW" => Token::Keyword(Keyword::Row),
+            "STATEMENT" => Token::Keyword(Keyword::Statement),
             // SEQUENCE specific keywords
             "INCREMENT" => Token::Keyword(Keyword::Increment),
             "MINVALUE" => Token::Keyword(Keyword::Minvalue),
@@ -322,7 +330,6 @@ impl Lexer {
             "WITHOUT" => Token::Keyword(Keyword::Without),
             "READ" => Token::Keyword(Keyword::Read),
             "ONLY" => Token::Keyword(Keyword::Only),
-            "OF" => Token::Keyword(Keyword::Of),
             _ => Token::Identifier(upper_text), // Regular identifiers are normalized to uppercase
         };
 

@@ -6,6 +6,7 @@ use crate::errors::CatalogError;
 use crate::privilege::PrivilegeGrant;
 use crate::schema::Schema;
 use crate::table::TableSchema;
+use crate::trigger::TriggerDefinition;
 use crate::type_definition::TypeDefinition;
 use crate::view::ViewDefinition;
 
@@ -24,6 +25,7 @@ pub struct Catalog {
     character_sets: HashMap<String, CharacterSet>,
     translations: HashMap<String, Translation>,
     views: HashMap<String, ViewDefinition>,
+    triggers: HashMap<String, TriggerDefinition>,
     // Session state (SQL:1999 session configuration)
     current_catalog: Option<String>,
     current_charset: String,
@@ -46,6 +48,7 @@ impl Catalog {
             character_sets: HashMap::new(),
             translations: HashMap::new(),
             views: HashMap::new(),
+            triggers: HashMap::new(),
             // Session defaults (SQL:1999)
             current_catalog: None,
             current_charset: "UTF8".to_string(),
@@ -665,6 +668,29 @@ impl Catalog {
             .remove(name)
             .map(|_| ())
             .ok_or_else(|| CatalogError::ViewNotFound(name.to_string()))
+    }
+
+    /// Create a TRIGGER
+    pub fn create_trigger(&mut self, trigger: TriggerDefinition) -> Result<(), CatalogError> {
+        let name = trigger.name.clone();
+        if self.triggers.contains_key(&name) {
+            return Err(CatalogError::TriggerAlreadyExists(name));
+        }
+        self.triggers.insert(name, trigger);
+        Ok(())
+    }
+
+    /// Get a TRIGGER definition by name
+    pub fn get_trigger(&self, name: &str) -> Option<&TriggerDefinition> {
+        self.triggers.get(name)
+    }
+
+    /// Drop a TRIGGER
+    pub fn drop_trigger(&mut self, name: &str) -> Result<(), CatalogError> {
+        self.triggers
+            .remove(name)
+            .map(|_| ())
+            .ok_or_else(|| CatalogError::TriggerNotFound(name.to_string()))
     }
 }
 

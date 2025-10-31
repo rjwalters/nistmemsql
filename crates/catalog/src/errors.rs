@@ -26,6 +26,8 @@ pub enum CatalogError {
     TranslationNotFound(String),
     ViewAlreadyExists(String),
     ViewNotFound(String),
+    TriggerAlreadyExists(String),
+    TriggerNotFound(String),
 }
 
 impl std::fmt::Display for CatalogError {
@@ -88,6 +90,12 @@ impl std::fmt::Display for CatalogError {
             }
             CatalogError::ViewNotFound(name) => {
                 write!(f, "View '{}' not found", name)
+            }
+            CatalogError::TriggerAlreadyExists(name) => {
+                write!(f, "Trigger '{}' already exists", name)
+            }
+            CatalogError::TriggerNotFound(name) => {
+                write!(f, "Trigger '{}' not found", name)
             }
         }
     }
