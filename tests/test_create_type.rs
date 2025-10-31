@@ -8,8 +8,12 @@ use storage::Database;
 fn execute_and_expect_success(db: &mut Database, sql: &str) -> String {
     let stmt = Parser::parse_sql(sql).expect("Failed to parse");
     match stmt {
-        Statement::CreateType(s) => TypeExecutor::execute_create_type(&s, db).expect("Execution failed"),
-        Statement::DropType(s) => TypeExecutor::execute_drop_type(&s, db).expect("Execution failed"),
+        Statement::CreateType(s) => {
+            TypeExecutor::execute_create_type(&s, db).expect("Execution failed")
+        }
+        Statement::DropType(s) => {
+            TypeExecutor::execute_drop_type(&s, db).expect("Execution failed")
+        }
         _ => panic!("Unexpected statement type"),
     }
 }

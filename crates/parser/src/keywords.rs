@@ -143,6 +143,8 @@ pub enum Keyword {
     No,
     Restart,
     Next,
+    // Referential action keywords
+    Action,
 }
 
 impl fmt::Display for Keyword {
@@ -270,6 +272,7 @@ impl fmt::Display for Keyword {
             Keyword::No => "NO",
             Keyword::Restart => "RESTART",
             Keyword::Next => "NEXT",
+            Keyword::Action => "ACTION",
         };
         write!(f, "{}", keyword_str)
     }

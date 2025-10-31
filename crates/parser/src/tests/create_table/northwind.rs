@@ -71,6 +71,8 @@ fn test_parse_northwind_products_table() {
                             columns,
                             references_table,
                             references_columns,
+                            on_delete,
+                            on_update,
                         },
                     ..
                 } => {
@@ -79,6 +81,8 @@ fn test_parse_northwind_products_table() {
                     assert_eq!(references_table, "CATEGORIES");
                     assert_eq!(references_columns.len(), 1);
                     assert_eq!(references_columns[0], "CATEGORY_ID");
+                    assert!(on_delete.is_none());
+                    assert!(on_update.is_none());
                 }
                 _ => panic!("Expected FOREIGN KEY constraint"),
             }
