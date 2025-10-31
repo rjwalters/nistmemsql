@@ -167,7 +167,14 @@ pub fn execute_drop_view(
     stmt: &DropViewStmt,
     db: &mut Database,
 ) -> Result<(), ExecutorError> {
-    // TODO: Handle IF EXISTS to skip error if view doesn't exist
+    // Check if view exists
+    let view_exists = db.catalog.get_view(&stmt.view_name).is_some();
+
+    // If IF EXISTS is specified and view doesn't exist, succeed silently
+    if stmt.if_exists && !view_exists {
+        return Ok(());
+    }
+
     // TODO: Handle CASCADE to drop dependent views
     db.catalog.drop_view(&stmt.view_name)?;
     Ok(())

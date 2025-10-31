@@ -152,3 +152,22 @@ fn test_drop_view_not_found_error() {
         _ => panic!("Expected DropView statement"),
     }
 }
+
+#[test]
+fn test_drop_view_if_exists_nonexistent() {
+    let mut db = Database::new();
+
+    // DROP VIEW IF EXISTS should succeed even if view doesn't exist
+    let sql = "DROP VIEW IF EXISTS nonexistent_view";
+    let stmt = Parser::parse_sql(sql).expect("Failed to parse");
+
+    match stmt {
+        Statement::DropView(drop_stmt) => {
+            assert!(drop_stmt.if_exists, "if_exists flag should be true");
+
+            let result = execute_drop_view(&drop_stmt, &mut db);
+            assert!(result.is_ok(), "DROP VIEW IF EXISTS should succeed for non-existent view");
+        }
+        _ => panic!("Expected DropView statement"),
+    }
+}
