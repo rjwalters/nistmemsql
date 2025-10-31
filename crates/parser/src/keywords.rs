@@ -174,8 +174,6 @@ pub enum Keyword {
     Read,
     Only,
     Of,
-    // Assertion keywords (SQL:1999)
-    Assertion,
 }
 
 impl fmt::Display for Keyword {
@@ -329,7 +327,6 @@ impl fmt::Display for Keyword {
             Keyword::Read => "READ",
             Keyword::Only => "ONLY",
             Keyword::Of => "OF",
-            Keyword::Assertion => "ASSERTION",
         };
         write!(f, "{}", keyword_str)
     }
