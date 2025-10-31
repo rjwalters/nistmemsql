@@ -180,3 +180,25 @@ pub fn execute_drop_view(stmt: &DropViewStmt, db: &mut Database) -> Result<(), E
     db.catalog.drop_view(&stmt.view_name)?;
     Ok(())
 }
+
+/// Execute CREATE ASSERTION statement (SQL:1999 Feature F671/F672)
+pub fn execute_create_assertion(
+    stmt: &CreateAssertionStmt,
+    db: &mut Database,
+) -> Result<(), ExecutorError> {
+    use catalog::Assertion;
+
+    let assertion = Assertion::new(stmt.assertion_name.clone(), (*stmt.check_condition).clone());
+
+    db.catalog.create_assertion(assertion)?;
+    Ok(())
+}
+
+/// Execute DROP ASSERTION statement (SQL:1999 Feature F671/F672)
+pub fn execute_drop_assertion(
+    stmt: &DropAssertionStmt,
+    db: &mut Database,
+) -> Result<(), ExecutorError> {
+    db.catalog.drop_assertion(&stmt.assertion_name, stmt.cascade)?;
+    Ok(())
+}

@@ -17,7 +17,7 @@ mod type_definition;
 mod view;
 
 pub use advanced_objects::{
-    CharacterSet, Collation, Domain, Sequence, Translation, UserDefinedType,
+    Assertion, CharacterSet, Collation, Domain, Sequence, Translation, UserDefinedType,
 };
 pub use column::ColumnSchema;
 pub use domain::{DomainConstraintDef, DomainDefinition};
