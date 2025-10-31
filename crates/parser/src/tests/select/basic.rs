@@ -238,3 +238,46 @@ fn test_parse_select_current_timestamp() {
         _ => panic!("Expected SELECT statement"),
     }
 }
+
+#[test]
+fn test_parse_select_qualified_wildcard() {
+    let result = Parser::parse_sql("SELECT table_name.* FROM table_name;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Select(select) => {
+            assert_eq!(select.select_list.len(), 1);
+            match &select.select_list[0] {
+                ast::SelectItem::QualifiedWildcard { qualifier } => {
+                    assert_eq!(qualifier, "TABLE_NAME");
+                }
+                _ => panic!("Expected QualifiedWildcard select item, got {:?}", select.select_list[0]),
+            }
+            // Check FROM clause exists
+            assert!(select.from.is_some());
+        }
+        _ => panic!("Expected SELECT statement"),
+    }
+}
+
+#[test]
+fn test_parse_select_qualified_wildcard_alias() {
+    let result = Parser::parse_sql("SELECT alias.* FROM table_name AS alias;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Select(select) => {
+            assert_eq!(select.select_list.len(), 1);
+            match &select.select_list[0] {
+                ast::SelectItem::QualifiedWildcard { qualifier } => {
+                    assert_eq!(qualifier, "ALIAS");
+                }
+                _ => panic!("Expected QualifiedWildcard select item"),
+            }
+            assert!(select.from.is_some());
+        }
+        _ => panic!("Expected SELECT statement"),
+    }
+}

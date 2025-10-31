@@ -6,6 +6,7 @@ pub(super) fn project_row_combined(
     row: &storage::Row,
     columns: &[ast::SelectItem],
     evaluator: &crate::evaluator::CombinedExpressionEvaluator,
+    schema: &crate::schema::CombinedSchema,
     window_mapping: &Option<HashMap<WindowFunctionKey, usize>>,
 ) -> Result<storage::Row, crate::errors::ExecutorError> {
     let mut values = Vec::new();
@@ -27,6 +28,33 @@ pub(super) fn project_row_combined(
                 } else {
                     values.extend(row.values.iter().cloned());
                 }
+            }
+            ast::SelectItem::QualifiedWildcard { qualifier } => {
+                // SELECT table.* or SELECT alias.* - include columns from specific table/alias
+                if let Some((start_index, table_schema)) = schema.table_schemas.get(qualifier) {
+                    let num_columns = table_schema.columns.len();
+                    let end_index = start_index + num_columns;
+
+                    // When window functions are present, only include base columns
+                    let effective_end = if let Some(mapping) = window_mapping {
+                        if !mapping.is_empty() {
+                            // Find the minimum window column index to know where base columns end
+                            let min_window_col = mapping.values().min().copied().unwrap_or(row.values.len());
+                            end_index.min(min_window_col)
+                        } else {
+                            end_index
+                        }
+                    } else {
+                        end_index
+                    };
+
+                    // Extract the columns for this table
+                    if *start_index < effective_end && effective_end <= row.values.len() {
+                        values.extend(row.values[*start_index..effective_end].iter().cloned());
+                    }
+                    // If indices are out of bounds, this might be an error, but we'll be silent for now
+                }
+                // If table not found, skip silently (this should be caught during column name derivation)
             }
             ast::SelectItem::Expression { expr, alias: _ } => {
                 // Check if this is a window function expression

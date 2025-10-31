@@ -6,7 +6,7 @@ use ast::{Expression, SelectItem};
 pub(in crate::select) fn has_window_functions(select_list: &[SelectItem]) -> bool {
     select_list.iter().any(|item| match item {
         SelectItem::Expression { expr, .. } => expression_has_window_function(expr),
-        SelectItem::Wildcard => false,
+        SelectItem::Wildcard | SelectItem::QualifiedWildcard { .. } => false,
     })
 }
 

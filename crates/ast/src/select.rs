@@ -60,6 +60,8 @@ pub struct SetOperation {
 pub enum SelectItem {
     /// SELECT *
     Wildcard,
+    /// SELECT table.* or SELECT alias.*
+    QualifiedWildcard { qualifier: String },
     /// SELECT expr [AS alias]
     Expression { expr: Expression, alias: Option<String> },
 }
