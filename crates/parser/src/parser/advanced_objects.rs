@@ -489,7 +489,12 @@ pub fn parse_drop_assertion(parser: &mut crate::Parser) -> Result<DropAssertionS
     let assertion_name = parser.parse_identifier()?;
 
     // CASCADE or RESTRICT (defaults to RESTRICT if neither specified)
-    let cascade = parser.try_consume_keyword(Keyword::Cascade);
+    let cascade = if parser.try_consume_keyword(Keyword::Cascade) {
+        true
+    } else {
+        parser.try_consume_keyword(Keyword::Restrict); // Consume RESTRICT if present
+        false // Default to RESTRICT per SQL standard
+    };
 
     Ok(DropAssertionStmt { assertion_name, cascade })
 }
