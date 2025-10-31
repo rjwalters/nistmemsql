@@ -75,6 +75,7 @@ impl CombinedExpressionEvaluator<'_> {
         &self,
         name: &str,
         args: &[ast::Expression],
+        character_unit: &Option<ast::CharacterUnit>,
         row: &storage::Row,
     ) -> Result<types::SqlValue, ExecutorError> {
         // Evaluate all arguments
@@ -84,7 +85,7 @@ impl CombinedExpressionEvaluator<'_> {
         }
 
         // Call shared scalar function evaluator
-        eval_scalar_function(name, &arg_values)
+        eval_scalar_function(name, &arg_values, character_unit)
     }
 
     /// Evaluate unary operation
