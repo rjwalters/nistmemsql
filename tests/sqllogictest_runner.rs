@@ -104,6 +104,16 @@ impl NistMemSqlDB {
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
+            ast::Statement::CreateDomain(create_domain_stmt) => {
+                executor::DomainExecutor::execute_create_domain(&create_domain_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::DropDomain(drop_domain_stmt) => {
+                executor::DomainExecutor::execute_drop_domain(&drop_domain_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
             ast::Statement::CreateType(create_type_stmt) => {
                 executor::TypeExecutor::execute_create_type(&create_type_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;

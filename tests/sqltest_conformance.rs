@@ -252,6 +252,16 @@ impl SqltestRunner {
                     .map_err(|e| format!("Execution error: {:?}", e))?;
                 Ok(true)
             }
+            ast::Statement::CreateDomain(create_domain_stmt) => {
+                executor::DomainExecutor::execute_create_domain(&create_domain_stmt, db)
+                    .map_err(|e| format!("Execution error: {:?}", e))?;
+                Ok(true)
+            }
+            ast::Statement::DropDomain(drop_domain_stmt) => {
+                executor::DomainExecutor::execute_drop_domain(&drop_domain_stmt, db)
+                    .map_err(|e| format!("Execution error: {:?}", e))?;
+                Ok(true)
+            }
             ast::Statement::CreateType(create_type_stmt) => {
                 executor::TypeExecutor::execute_create_type(&create_type_stmt, db)
                     .map_err(|e| format!("Execution error: {:?}", e))?;

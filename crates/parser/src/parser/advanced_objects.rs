@@ -1,5 +1,6 @@
 //! Advanced SQL object DDL parsing (SQL:1999)
-//! Includes: DOMAIN, SEQUENCE, TYPE, COLLATION, CHARACTER SET, TRANSLATION
+//! Includes: SEQUENCE, TYPE, COLLATION, CHARACTER SET, TRANSLATION
+//! Note: DOMAIN has a full implementation in domain module
 
 use crate::keywords::Keyword;
 use crate::parser::ParseError;
@@ -10,34 +11,8 @@ use ast::*;
 // DOMAIN
 // ============================================================================
 
-/// Parse CREATE DOMAIN statement
-///
-/// Syntax: CREATE DOMAIN domain_name AS data_type [constraints...]
-/// Minimal implementation: CREATE DOMAIN domain_name
-pub fn parse_create_domain(parser: &mut crate::Parser) -> Result<CreateDomainStmt, ParseError> {
-    parser.expect_keyword(Keyword::Create)?;
-    parser.expect_keyword(Keyword::Domain)?;
-
-    let domain_name = parser.parse_identifier()?;
-
-    // For minimal stub: just accept the name, ignore AS clause and constraints
-    // TODO: Parse full syntax when implementing actual functionality
-    parser.consume_until_semicolon_or_eof();
-
-    Ok(CreateDomainStmt { domain_name })
-}
-
-/// Parse DROP DOMAIN statement
-///
-/// Syntax: DROP DOMAIN domain_name
-pub fn parse_drop_domain(parser: &mut crate::Parser) -> Result<DropDomainStmt, ParseError> {
-    parser.expect_keyword(Keyword::Drop)?;
-    parser.expect_keyword(Keyword::Domain)?;
-
-    let domain_name = parser.parse_identifier()?;
-
-    Ok(DropDomainStmt { domain_name })
-}
+// DOMAIN parsing functions are in the domain module with full implementation
+// (including data types, defaults, and CHECK constraints)
 
 // ============================================================================
 // SEQUENCE
