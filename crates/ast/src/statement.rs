@@ -5,12 +5,12 @@
 use crate::{
     AlterSequenceStmt, AlterTableStmt, BeginStmt, CommitStmt, CreateCharacterSetStmt,
     CreateCollationStmt, CreateDomainStmt, CreateRoleStmt, CreateSchemaStmt, CreateSequenceStmt,
-    CreateTableStmt, CreateTranslationStmt, CreateTypeStmt, CreateViewStmt, DeleteStmt,
-    DropCharacterSetStmt, DropCollationStmt, DropDomainStmt, DropRoleStmt, DropSchemaStmt,
-    DropSequenceStmt, DropTableStmt, DropTranslationStmt, DropTypeStmt, DropViewStmt, GrantStmt,
-    InsertStmt, ReleaseSavepointStmt, RevokeStmt, RollbackStmt, RollbackToSavepointStmt,
-    SavepointStmt, SelectStmt, SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt,
-    UpdateStmt,
+    CreateTableStmt, CreateTranslationStmt, CreateTriggerStmt, CreateTypeStmt, CreateViewStmt,
+    DeleteStmt, DropCharacterSetStmt, DropCollationStmt, DropDomainStmt, DropRoleStmt,
+    DropSchemaStmt, DropSequenceStmt, DropTableStmt, DropTranslationStmt, DropTriggerStmt,
+    DropTypeStmt, DropViewStmt, GrantStmt, InsertStmt, ReleaseSavepointStmt, RevokeStmt,
+    RollbackStmt, RollbackToSavepointStmt, SavepointStmt, SelectStmt, SetCatalogStmt, SetNamesStmt,
+    SetSchemaStmt, SetTimeZoneStmt, UpdateStmt,
 };
 
 // ============================================================================
@@ -59,5 +59,7 @@ pub enum Statement {
     DropTranslation(DropTranslationStmt),
     CreateView(CreateViewStmt),
     DropView(DropViewStmt),
+    CreateTrigger(CreateTriggerStmt),
+    DropTrigger(DropTriggerStmt),
     // TODO: Add more statement types (ALTER, etc.)
 }

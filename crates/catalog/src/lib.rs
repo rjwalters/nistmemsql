@@ -12,6 +12,7 @@ mod privilege;
 mod schema;
 mod store;
 mod table;
+mod trigger;
 mod type_definition;
 mod view;
 
@@ -26,6 +27,7 @@ pub use privilege::PrivilegeGrant;
 pub use schema::Schema;
 pub use store::Catalog;
 pub use table::TableSchema;
+pub use trigger::TriggerDefinition;
 pub use type_definition::{TypeAttribute, TypeDefinition, TypeDefinitionKind};
 pub use view::ViewDefinition;
 

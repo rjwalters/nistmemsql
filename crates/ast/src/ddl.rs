@@ -369,3 +369,54 @@ pub struct DropViewStmt {
     pub if_exists: bool,
     pub cascade: bool,
 }
+
+/// CREATE TRIGGER statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreateTriggerStmt {
+    pub trigger_name: String,
+    pub timing: TriggerTiming,
+    pub event: TriggerEvent,
+    pub table_name: String,
+    pub granularity: TriggerGranularity,
+    pub when_condition: Option<Box<Expression>>,
+    pub triggered_action: TriggerAction,
+}
+
+/// Trigger timing: BEFORE | AFTER | INSTEAD OF
+#[derive(Debug, Clone, PartialEq)]
+pub enum TriggerTiming {
+    Before,
+    After,
+    InsteadOf,
+}
+
+/// Trigger event: INSERT | UPDATE | DELETE
+#[derive(Debug, Clone, PartialEq)]
+pub enum TriggerEvent {
+    Insert,
+    Update(Option<Vec<String>>), // Optional column list for UPDATE OF
+    Delete,
+}
+
+/// Trigger granularity: FOR EACH ROW | FOR EACH STATEMENT
+#[derive(Debug, Clone, PartialEq)]
+pub enum TriggerGranularity {
+    Row,       // FOR EACH ROW
+    Statement, // FOR EACH STATEMENT (default in SQL:1999)
+}
+
+/// Triggered action (procedural SQL)
+#[derive(Debug, Clone, PartialEq)]
+pub enum TriggerAction {
+    /// For initial implementation, store raw SQL
+    RawSql(String),
+    // Future: Add procedural SQL statement support
+    // Statements(Vec<Statement>),
+}
+
+/// DROP TRIGGER statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropTriggerStmt {
+    pub trigger_name: String,
+    pub cascade: bool,
+}

@@ -280,6 +280,15 @@ impl Lexer {
             "CHARACTER" => Token::Keyword(Keyword::Character),
             "TRANSLATION" => Token::Keyword(Keyword::Translation),
             "VIEW" => Token::Keyword(Keyword::View),
+            "TRIGGER" => Token::Keyword(Keyword::Trigger),
+            // Trigger-specific keywords
+            "BEFORE" => Token::Keyword(Keyword::Before),
+            "AFTER" => Token::Keyword(Keyword::After),
+            "INSTEAD" => Token::Keyword(Keyword::Instead),
+            "OF" => Token::Keyword(Keyword::Of),
+            "EACH" => Token::Keyword(Keyword::Each),
+            "ROW" => Token::Keyword(Keyword::Row),
+            "STATEMENT" => Token::Keyword(Keyword::Statement),
             // SEQUENCE specific keywords
             "INCREMENT" => Token::Keyword(Keyword::Increment),
             "MINVALUE" => Token::Keyword(Keyword::Minvalue),
