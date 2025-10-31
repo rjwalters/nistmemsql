@@ -43,9 +43,9 @@ impl GrantExecutor {
                 ObjectType::Table => vec![
                     PrivilegeType::Select,
                     PrivilegeType::Insert,
-                    PrivilegeType::Update,
+                    PrivilegeType::Update(None),
                     PrivilegeType::Delete,
-                    PrivilegeType::References,
+                    PrivilegeType::References(None),
                 ],
                 ObjectType::Schema => vec![PrivilegeType::Usage, PrivilegeType::Create],
             }

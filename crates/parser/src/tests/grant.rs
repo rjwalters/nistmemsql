@@ -61,7 +61,7 @@ fn test_parse_grant_multiple_privileges() {
             assert_eq!(grant_stmt.privileges.len(), 3);
             assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::Select);
             assert_eq!(grant_stmt.privileges[1], ast::PrivilegeType::Insert);
-            assert_eq!(grant_stmt.privileges[2], ast::PrivilegeType::Update);
+            assert_eq!(grant_stmt.privileges[2], ast::PrivilegeType::Update(None));
             assert_eq!(grant_stmt.object_name.to_string(), "USERS");
             assert_eq!(grant_stmt.grantees, vec!["MANAGER"]);
         }
@@ -80,7 +80,7 @@ fn test_parse_grant_all_privilege_types() {
             assert_eq!(grant_stmt.privileges.len(), 4);
             assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::Select);
             assert_eq!(grant_stmt.privileges[1], ast::PrivilegeType::Insert);
-            assert_eq!(grant_stmt.privileges[2], ast::PrivilegeType::Update);
+            assert_eq!(grant_stmt.privileges[2], ast::PrivilegeType::Update(None));
             assert_eq!(grant_stmt.privileges[3], ast::PrivilegeType::Delete);
         }
         other => panic!("Expected Grant statement, got {:?}", other),
@@ -419,7 +419,7 @@ fn test_parse_grant_references_on_table() {
     match result.unwrap() {
         ast::Statement::Grant(grant_stmt) => {
             assert_eq!(grant_stmt.privileges.len(), 1);
-            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::References);
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::References(None));
             assert_eq!(grant_stmt.object_type, ast::ObjectType::Table);
             assert_eq!(grant_stmt.object_name.to_string(), "USERS");
             assert_eq!(grant_stmt.grantees, vec!["MANAGER"]);
@@ -438,7 +438,7 @@ fn test_parse_grant_references_case_insensitive() {
     match result.unwrap() {
         ast::Statement::Grant(grant_stmt) => {
             assert_eq!(grant_stmt.privileges.len(), 1);
-            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::References);
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::References(None));
             assert_eq!(grant_stmt.object_name.to_string(), "EMPLOYEES");
             assert_eq!(grant_stmt.grantees, vec!["CLERK"]);
         }
@@ -455,7 +455,7 @@ fn test_parse_grant_references_combined_with_select() {
     match result.unwrap() {
         ast::Statement::Grant(grant_stmt) => {
             assert_eq!(grant_stmt.privileges.len(), 2);
-            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::References);
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::References(None));
             assert_eq!(grant_stmt.privileges[1], ast::PrivilegeType::Select);
             assert_eq!(grant_stmt.object_name.to_string(), "PRODUCTS");
             assert_eq!(grant_stmt.grantees, vec!["BUYER"]);
@@ -465,18 +465,208 @@ fn test_parse_grant_references_combined_with_select() {
 }
 
 #[test]
-fn test_parse_grant_references_with_grant_option() {
+fn test_parse_grant_references_with_grant_option_table_level() {
     let sql = "GRANT REFERENCES ON TABLE orders TO manager WITH GRANT OPTION";
     let result = Parser::parse_sql(sql);
     assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
 
     match result.unwrap() {
         ast::Statement::Grant(grant_stmt) => {
-            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::References);
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::References(None));
             assert_eq!(grant_stmt.object_type, ast::ObjectType::Table);
             assert_eq!(grant_stmt.object_name.to_string(), "ORDERS");
             assert_eq!(grant_stmt.grantees, vec!["MANAGER"]);
             assert!(grant_stmt.with_grant_option);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+// Column-level privilege tests (SQL:1999 Feature E081-05, E081-07)
+
+#[test]
+fn test_parse_grant_update_column_single() {
+    let sql = "GRANT UPDATE(salary) ON TABLE employees TO manager";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 1);
+            assert_eq!(
+                grant_stmt.privileges[0],
+                ast::PrivilegeType::Update(Some(vec!["SALARY".to_string()]))
+            );
+            assert_eq!(grant_stmt.object_name.to_string(), "EMPLOYEES");
+            assert_eq!(grant_stmt.grantees, vec!["MANAGER"]);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_update_columns_multiple() {
+    let sql = "GRANT UPDATE(salary, bonus, commission) ON TABLE employees TO manager";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 1);
+            assert_eq!(
+                grant_stmt.privileges[0],
+                ast::PrivilegeType::Update(Some(vec![
+                    "SALARY".to_string(),
+                    "BONUS".to_string(),
+                    "COMMISSION".to_string()
+                ]))
+            );
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_references_column_single() {
+    let sql = "GRANT REFERENCES(id) ON TABLE users TO foreign_table";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 1);
+            assert_eq!(
+                grant_stmt.privileges[0],
+                ast::PrivilegeType::References(Some(vec!["ID".to_string()]))
+            );
+            assert_eq!(grant_stmt.object_name.to_string(), "USERS");
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_references_columns_multiple() {
+    let sql = "GRANT REFERENCES(user_id, account_id) ON TABLE accounts TO orders";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 1);
+            assert_eq!(
+                grant_stmt.privileges[0],
+                ast::PrivilegeType::References(Some(vec![
+                    "USER_ID".to_string(),
+                    "ACCOUNT_ID".to_string()
+                ]))
+            );
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_mixed_table_and_column_privileges() {
+    let sql = "GRANT SELECT, UPDATE(salary), DELETE ON TABLE employees TO manager";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges.len(), 3);
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::Select);
+            assert_eq!(
+                grant_stmt.privileges[1],
+                ast::PrivilegeType::Update(Some(vec!["SALARY".to_string()]))
+            );
+            assert_eq!(grant_stmt.privileges[2], ast::PrivilegeType::Delete);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_update_column_with_grant_option() {
+    let sql = "GRANT UPDATE(salary) ON TABLE employees TO manager WITH GRANT OPTION";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(
+                grant_stmt.privileges[0],
+                ast::PrivilegeType::Update(Some(vec!["SALARY".to_string()]))
+            );
+            assert!(grant_stmt.with_grant_option);
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_update_column_qualified_table() {
+    let sql = "GRANT UPDATE(salary) ON TABLE hr.employees TO manager";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(
+                grant_stmt.privileges[0],
+                ast::PrivilegeType::Update(Some(vec!["SALARY".to_string()]))
+            );
+            assert_eq!(grant_stmt.object_name.to_string(), "HR.EMPLOYEES");
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_update_column_case_insensitive() {
+    let sql = "grant update(salary) on table employees to manager";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(
+                grant_stmt.privileges[0],
+                ast::PrivilegeType::Update(Some(vec!["SALARY".to_string()]))
+            );
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_update_table_level() {
+    // Test that UPDATE without columns still works (table-level privilege)
+    let sql = "GRANT UPDATE ON TABLE employees TO manager";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(grant_stmt.privileges[0], ast::PrivilegeType::Update(None));
+        }
+        other => panic!("Expected Grant statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_parse_grant_references_table_level() {
+    // Test that REFERENCES without columns still works (table-level privilege)
+    let sql = "GRANT REFERENCES ON TABLE users TO foreign_table";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        ast::Statement::Grant(grant_stmt) => {
+            assert_eq!(
+                grant_stmt.privileges[0],
+                ast::PrivilegeType::References(None)
+            );
         }
         other => panic!("Expected Grant statement, got {:?}", other),
     }
