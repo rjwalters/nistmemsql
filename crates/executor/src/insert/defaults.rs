@@ -26,7 +26,9 @@ pub fn evaluate_insert_expression(
 
 /// Evaluate a DEFAULT expression to get its value
 /// Supports literals and special functions (CURRENT_DATE, CURRENT_USER, etc.)
-pub fn evaluate_default_expression(expr: &ast::Expression) -> Result<types::SqlValue, ExecutorError> {
+pub fn evaluate_default_expression(
+    expr: &ast::Expression,
+) -> Result<types::SqlValue, ExecutorError> {
     match expr {
         ast::Expression::Literal(lit) => Ok(lit.clone()),
         ast::Expression::Function { name, .. } => {
@@ -72,8 +74,7 @@ pub fn apply_default_values(
         if row_values[col_idx] == types::SqlValue::Null {
             if let Some(default_expr) = &col.default_value {
                 let default_value = evaluate_default_expression(default_expr)?;
-                let coerced_value =
-                    super::validation::coerce_value(default_value, &col.data_type)?;
+                let coerced_value = super::validation::coerce_value(default_value, &col.data_type)?;
                 row_values[col_idx] = coerced_value;
             }
         }

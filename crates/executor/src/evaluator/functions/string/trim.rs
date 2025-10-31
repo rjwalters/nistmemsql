@@ -7,7 +7,9 @@ use crate::errors::ExecutorError;
 /// TRIM(string) - Remove leading and trailing spaces
 /// SQL:1999 Section 6.29: String value functions
 #[allow(dead_code)] // Reserved for future use when basic TRIM needs to be exposed
-pub(in crate::evaluator::functions) fn trim(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
+pub(in crate::evaluator::functions) fn trim(
+    args: &[types::SqlValue],
+) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 1 {
         return Err(ExecutorError::UnsupportedFeature(format!(
             "TRIM requires exactly 1 argument, got {}",

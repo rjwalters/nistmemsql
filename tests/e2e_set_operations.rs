@@ -17,9 +17,7 @@ fn execute_select(db: &Database, sql: &str) -> Result<Vec<Row>, String> {
     };
 
     let executor = SelectExecutor::new(db);
-    executor
-        .execute(&select_stmt)
-        .map_err(|e| format!("Execution error: {:?}", e))
+    executor.execute(&select_stmt).map_err(|e| format!("Execution error: {:?}", e))
 }
 
 // ========================================================================
@@ -37,9 +35,7 @@ fn test_e2e_set_operations() {
             ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
                 "NAME".to_string(),
-                DataType::Varchar {
-                    max_length: Some(100),
-                },
+                DataType::Varchar { max_length: Some(100) },
                 false,
             ),
         ],
@@ -52,9 +48,7 @@ fn test_e2e_set_operations() {
             ColumnSchema::new("ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
                 "NAME".to_string(),
-                DataType::Varchar {
-                    max_length: Some(100),
-                },
+                DataType::Varchar { max_length: Some(100) },
                 false,
             ),
         ],
@@ -64,67 +58,43 @@ fn test_e2e_set_operations() {
     // Insert data: table_a has 1, 2, 3, 4; table_b has 3, 4, 5, 6
     db.insert_row(
         "TABLE_A",
-        Row::new(vec![
-            SqlValue::Integer(1),
-            SqlValue::Varchar("Alice".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
     )
     .unwrap();
     db.insert_row(
         "TABLE_A",
-        Row::new(vec![
-            SqlValue::Integer(2),
-            SqlValue::Varchar("Bob".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())]),
     )
     .unwrap();
     db.insert_row(
         "TABLE_A",
-        Row::new(vec![
-            SqlValue::Integer(3),
-            SqlValue::Varchar("Charlie".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(3), SqlValue::Varchar("Charlie".to_string())]),
     )
     .unwrap();
     db.insert_row(
         "TABLE_A",
-        Row::new(vec![
-            SqlValue::Integer(4),
-            SqlValue::Varchar("David".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(4), SqlValue::Varchar("David".to_string())]),
     )
     .unwrap();
 
     db.insert_row(
         "TABLE_B",
-        Row::new(vec![
-            SqlValue::Integer(3),
-            SqlValue::Varchar("Charlie".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(3), SqlValue::Varchar("Charlie".to_string())]),
     )
     .unwrap();
     db.insert_row(
         "TABLE_B",
-        Row::new(vec![
-            SqlValue::Integer(4),
-            SqlValue::Varchar("David".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(4), SqlValue::Varchar("David".to_string())]),
     )
     .unwrap();
     db.insert_row(
         "TABLE_B",
-        Row::new(vec![
-            SqlValue::Integer(5),
-            SqlValue::Varchar("Eve".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(5), SqlValue::Varchar("Eve".to_string())]),
     )
     .unwrap();
     db.insert_row(
         "TABLE_B",
-        Row::new(vec![
-            SqlValue::Integer(6),
-            SqlValue::Varchar("Frank".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(6), SqlValue::Varchar("Frank".to_string())]),
     )
     .unwrap();
 
@@ -182,10 +152,7 @@ fn test_e2e_set_operations() {
     // Test 5: Multiple UNION operations
     db.insert_row(
         "TABLE_A",
-        Row::new(vec![
-            SqlValue::Integer(7),
-            SqlValue::Varchar("Grace".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(7), SqlValue::Varchar("Grace".to_string())]),
     )
     .unwrap();
     let results = execute_select(&db,
@@ -219,43 +186,27 @@ fn test_e2e_set_operations() {
     // Create tables with duplicate values
     let dup_a_schema = TableSchema::new(
         "DUP_A".to_string(),
-        vec![ColumnSchema::new(
-            "VAL".to_string(),
-            DataType::Integer,
-            false,
-        )],
+        vec![ColumnSchema::new("VAL".to_string(), DataType::Integer, false)],
     );
     db.create_table(dup_a_schema).unwrap();
 
     let dup_b_schema = TableSchema::new(
         "DUP_B".to_string(),
-        vec![ColumnSchema::new(
-            "VAL".to_string(),
-            DataType::Integer,
-            false,
-        )],
+        vec![ColumnSchema::new("VAL".to_string(), DataType::Integer, false)],
     );
     db.create_table(dup_b_schema).unwrap();
 
     // dup_a: 1, 1, 2, 2, 2
-    db.insert_row("DUP_A", Row::new(vec![SqlValue::Integer(1)]))
-        .unwrap();
-    db.insert_row("DUP_A", Row::new(vec![SqlValue::Integer(1)]))
-        .unwrap();
-    db.insert_row("DUP_A", Row::new(vec![SqlValue::Integer(2)]))
-        .unwrap();
-    db.insert_row("DUP_A", Row::new(vec![SqlValue::Integer(2)]))
-        .unwrap();
-    db.insert_row("DUP_A", Row::new(vec![SqlValue::Integer(2)]))
-        .unwrap();
+    db.insert_row("DUP_A", Row::new(vec![SqlValue::Integer(1)])).unwrap();
+    db.insert_row("DUP_A", Row::new(vec![SqlValue::Integer(1)])).unwrap();
+    db.insert_row("DUP_A", Row::new(vec![SqlValue::Integer(2)])).unwrap();
+    db.insert_row("DUP_A", Row::new(vec![SqlValue::Integer(2)])).unwrap();
+    db.insert_row("DUP_A", Row::new(vec![SqlValue::Integer(2)])).unwrap();
 
     // dup_b: 1, 2, 2
-    db.insert_row("DUP_B", Row::new(vec![SqlValue::Integer(1)]))
-        .unwrap();
-    db.insert_row("DUP_B", Row::new(vec![SqlValue::Integer(2)]))
-        .unwrap();
-    db.insert_row("DUP_B", Row::new(vec![SqlValue::Integer(2)]))
-        .unwrap();
+    db.insert_row("DUP_B", Row::new(vec![SqlValue::Integer(1)])).unwrap();
+    db.insert_row("DUP_B", Row::new(vec![SqlValue::Integer(2)])).unwrap();
+    db.insert_row("DUP_B", Row::new(vec![SqlValue::Integer(2)])).unwrap();
 
     // INTERSECT ALL should return: 1 (once), 2 (twice)
     let results =

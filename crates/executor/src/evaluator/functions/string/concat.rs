@@ -6,7 +6,9 @@ use crate::errors::ExecutorError;
 
 /// CONCAT(str1, str2, ...) - Concatenate strings
 /// SQL:1999 Section 6.29: String value functions
-pub(in crate::evaluator::functions) fn concat(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
+pub(in crate::evaluator::functions) fn concat(
+    args: &[types::SqlValue],
+) -> Result<types::SqlValue, ExecutorError> {
     if args.is_empty() {
         return Err(ExecutorError::UnsupportedFeature(
             "CONCAT requires at least one argument".to_string(),
