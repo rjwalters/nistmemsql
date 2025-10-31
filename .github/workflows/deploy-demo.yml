@@ -34,7 +34,7 @@ jobs:
       - name: Cache Rust dependencies and build artifacts
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "rust-ci-cache"
+          shared-key: "rust-ci-cache"  # Shared with test.yml and benchmarks.yml
 
       # Install wasm-pack for building WASM bindings
       - name: Install wasm-pack
@@ -64,6 +64,8 @@ jobs:
         run: npm run build
 
       # Try to download conformance test results from test workflow
+      # This avoids re-running expensive conformance tests on main branch deploys
+      # Falls back to running tests if artifacts unavailable (e.g., first run)
       - name: Download conformance test results
         continue-on-error: true
         run: |
@@ -84,6 +86,8 @@ jobs:
         continue-on-error: true
 
       # Try to download benchmark results from benchmark workflow
+      # This avoids re-running expensive benchmarks on main branch deploys
+      # Falls back to running benchmarks if artifacts unavailable
       - name: Download benchmark results
         continue-on-error: true
         run: |

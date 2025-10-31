@@ -11,7 +11,9 @@ permissions:
   contents: read  # Read-only permissions
 
 jobs:
-  # Shared build job - builds once and uploads artifacts for reuse
+  # Shared build job - builds once and uploads artifacts for reuse by conformance-tests
+  # This eliminates duplicate compilation of the same code.
+  # Cache key "rust-ci-cache" is shared across all workflows for consistency.
   build:
     runs-on: ubuntu-latest
 
@@ -26,7 +28,7 @@ jobs:
       - name: Cache Rust dependencies and build artifacts
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "rust-ci-cache"
+          shared-key: "rust-ci-cache"  # Shared with benchmarks.yml and deploy-demo.yml
 
       - name: Build workspace in release mode
         run: cargo build --workspace --release --all-targets
@@ -42,7 +44,8 @@ jobs:
 
   rust-tests:
     runs-on: ubuntu-latest
-    needs: build
+    # Note: Does not depend on build job because cargo-llvm-cov must recompile
+    # with instrumentation. Only benefits from Rust dependency caching.
 
     steps:
       - uses: actions/checkout@v4
@@ -56,12 +59,6 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: "rust-ci-cache"
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: rust-build-artifacts
-          path: target/
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
