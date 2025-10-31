@@ -23,11 +23,7 @@ fn create_parent_table(db: &mut Database, table_name: &str) {
         table_name.to_string(),
         vec![
             ColumnSchema::new("ID".to_string(), DataType::Integer, false),
-            ColumnSchema::new(
-                "NAME".to_string(),
-                DataType::Varchar { max_length: Some(50) },
-                true,
-            ),
+            ColumnSchema::new("NAME".to_string(), DataType::Varchar { max_length: Some(50) }, true),
         ],
         vec!["ID".to_string()],
     );
@@ -45,11 +41,7 @@ fn create_child_table(
     let columns = vec![
         ColumnSchema::new("ID".to_string(), DataType::Integer, false),
         ColumnSchema::new("PARENT_ID".to_string(), DataType::Integer, true),
-        ColumnSchema::new(
-            "DATA".to_string(),
-            DataType::Varchar { max_length: Some(50) },
-            true,
-        ),
+        ColumnSchema::new("DATA".to_string(), DataType::Varchar { max_length: Some(50) }, true),
     ];
 
     let fk = ForeignKeyConstraint {
@@ -75,9 +67,8 @@ fn execute_delete(db: &mut Database, sql: &str) -> Result<usize, String> {
     let stmt = Parser::parse_sql(sql).map_err(|e| format!("Parse error: {:?}", e))?;
 
     match stmt {
-        ast::Statement::Delete(delete_stmt) => {
-            DeleteExecutor::execute(&delete_stmt, db).map_err(|e| format!("Execution error: {:?}", e))
-        }
+        ast::Statement::Delete(delete_stmt) => DeleteExecutor::execute(&delete_stmt, db)
+            .map_err(|e| format!("Execution error: {:?}", e)),
         other => Err(format!("Expected DELETE statement, got {:?}", other)),
     }
 }
@@ -101,11 +92,18 @@ fn test_on_delete_no_action_with_references() {
     );
 
     // Insert test data
-    db.insert_row("PARENT", Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]))
-        .unwrap();
+    db.insert_row(
+        "PARENT",
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
+    )
+    .unwrap();
     db.insert_row(
         "CHILD",
-        Row::new(vec![SqlValue::Integer(10), SqlValue::Integer(1), SqlValue::Varchar("Child1".to_string())]),
+        Row::new(vec![
+            SqlValue::Integer(10),
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Child1".to_string()),
+        ]),
     )
     .unwrap();
 
@@ -134,15 +132,25 @@ fn test_on_delete_no_action_without_references() {
     );
 
     // Insert test data - parent without children
-    db.insert_row("PARENT", Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]))
-        .unwrap();
-    db.insert_row("PARENT", Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())]))
-        .unwrap();
+    db.insert_row(
+        "PARENT",
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
+    )
+    .unwrap();
+    db.insert_row(
+        "PARENT",
+        Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())]),
+    )
+    .unwrap();
 
     // Only Bob has a child
     db.insert_row(
         "CHILD",
-        Row::new(vec![SqlValue::Integer(10), SqlValue::Integer(2), SqlValue::Varchar("Child1".to_string())]),
+        Row::new(vec![
+            SqlValue::Integer(10),
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Child1".to_string()),
+        ]),
     )
     .unwrap();
 
@@ -171,16 +179,27 @@ fn test_on_delete_cascade_single_level() {
     );
 
     // Insert test data
-    db.insert_row("PARENT", Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]))
-        .unwrap();
     db.insert_row(
-        "CHILD",
-        Row::new(vec![SqlValue::Integer(10), SqlValue::Integer(1), SqlValue::Varchar("Child1".to_string())]),
+        "PARENT",
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
     )
     .unwrap();
     db.insert_row(
         "CHILD",
-        Row::new(vec![SqlValue::Integer(11), SqlValue::Integer(1), SqlValue::Varchar("Child2".to_string())]),
+        Row::new(vec![
+            SqlValue::Integer(10),
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Child1".to_string()),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "CHILD",
+        Row::new(vec![
+            SqlValue::Integer(11),
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Child2".to_string()),
+        ]),
     )
     .unwrap();
 
@@ -227,12 +246,20 @@ fn test_on_delete_cascade_multi_level() {
     .unwrap();
     db.insert_row(
         "PARENT",
-        Row::new(vec![SqlValue::Integer(10), SqlValue::Integer(1), SqlValue::Varchar("Parent1".to_string())]),
+        Row::new(vec![
+            SqlValue::Integer(10),
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Parent1".to_string()),
+        ]),
     )
     .unwrap();
     db.insert_row(
         "CHILD",
-        Row::new(vec![SqlValue::Integer(100), SqlValue::Integer(10), SqlValue::Varchar("Child1".to_string())]),
+        Row::new(vec![
+            SqlValue::Integer(100),
+            SqlValue::Integer(10),
+            SqlValue::Varchar("Child1".to_string()),
+        ]),
     )
     .unwrap();
 
@@ -262,11 +289,18 @@ fn test_on_delete_set_null() {
     );
 
     // Insert test data
-    db.insert_row("PARENT", Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]))
-        .unwrap();
+    db.insert_row(
+        "PARENT",
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
+    )
+    .unwrap();
     db.insert_row(
         "CHILD",
-        Row::new(vec![SqlValue::Integer(10), SqlValue::Integer(1), SqlValue::Varchar("Child1".to_string())]),
+        Row::new(vec![
+            SqlValue::Integer(10),
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Child1".to_string()),
+        ]),
     )
     .unwrap();
 
@@ -309,11 +343,18 @@ fn test_on_delete_set_default() {
     );
 
     // Insert test data
-    db.insert_row("PARENT", Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]))
-        .unwrap();
+    db.insert_row(
+        "PARENT",
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
+    )
+    .unwrap();
     db.insert_row(
         "CHILD",
-        Row::new(vec![SqlValue::Integer(10), SqlValue::Integer(1), SqlValue::Varchar("Child1".to_string())]),
+        Row::new(vec![
+            SqlValue::Integer(10),
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Child1".to_string()),
+        ]),
     )
     .unwrap();
 
@@ -324,11 +365,7 @@ fn test_on_delete_set_default() {
     // Verify child's foreign key was set to default
     let child_table = db.get_table("CHILD").unwrap();
     let child_row = &child_table.scan()[0];
-    assert_eq!(
-        child_row.values[1],
-        SqlValue::Integer(0),
-        "Foreign key should be set to default"
-    );
+    assert_eq!(child_row.values[1], SqlValue::Integer(0), "Foreign key should be set to default");
 }
 
 #[test]
@@ -346,11 +383,18 @@ fn test_on_delete_restrict_with_references() {
     );
 
     // Insert test data
-    db.insert_row("PARENT", Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]))
-        .unwrap();
+    db.insert_row(
+        "PARENT",
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
+    )
+    .unwrap();
     db.insert_row(
         "CHILD",
-        Row::new(vec![SqlValue::Integer(10), SqlValue::Integer(1), SqlValue::Varchar("Child1".to_string())]),
+        Row::new(vec![
+            SqlValue::Integer(10),
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Child1".to_string()),
+        ]),
     )
     .unwrap();
 
@@ -436,11 +480,7 @@ fn test_self_referential_table() {
     let columns = vec![
         ColumnSchema::new("ID".to_string(), DataType::Integer, false),
         ColumnSchema::new("MANAGER_ID".to_string(), DataType::Integer, true),
-        ColumnSchema::new(
-            "NAME".to_string(),
-            DataType::Varchar { max_length: Some(50) },
-            false,
-        ),
+        ColumnSchema::new("NAME".to_string(), DataType::Varchar { max_length: Some(50) }, false),
     ];
 
     let fk = ForeignKeyConstraint {
@@ -454,7 +494,8 @@ fn test_self_referential_table() {
         on_update: ReferentialAction::NoAction,
     };
 
-    let mut schema = TableSchema::with_primary_key("EMPLOYEE".to_string(), columns, vec!["ID".to_string()]);
+    let mut schema =
+        TableSchema::with_primary_key("EMPLOYEE".to_string(), columns, vec!["ID".to_string()]);
     schema.foreign_keys.push(fk);
     db.create_table(schema).unwrap();
 
@@ -466,12 +507,20 @@ fn test_self_referential_table() {
     .unwrap();
     db.insert_row(
         "EMPLOYEE",
-        Row::new(vec![SqlValue::Integer(2), SqlValue::Integer(1), SqlValue::Varchar("Manager".to_string())]),
+        Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Manager".to_string()),
+        ]),
     )
     .unwrap();
     db.insert_row(
         "EMPLOYEE",
-        Row::new(vec![SqlValue::Integer(3), SqlValue::Integer(2), SqlValue::Varchar("Employee".to_string())]),
+        Row::new(vec![
+            SqlValue::Integer(3),
+            SqlValue::Integer(2),
+            SqlValue::Varchar("Employee".to_string()),
+        ]),
     )
     .unwrap();
 
@@ -527,14 +576,19 @@ fn test_multi_column_foreign_key() {
         on_update: ReferentialAction::NoAction,
     };
 
-    let mut schema = TableSchema::with_primary_key("CHILD".to_string(), columns, vec!["ID".to_string()]);
+    let mut schema =
+        TableSchema::with_primary_key("CHILD".to_string(), columns, vec!["ID".to_string()]);
     schema.foreign_keys.push(fk);
     db.create_table(schema).unwrap();
 
     // Insert test data
     db.insert_row(
         "PARENT",
-        Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(100), SqlValue::Varchar("Alice".to_string())]),
+        Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Integer(100),
+            SqlValue::Varchar("Alice".to_string()),
+        ]),
     )
     .unwrap();
     db.insert_row(
@@ -563,13 +617,20 @@ fn test_null_foreign_key_values() {
     );
 
     // Insert parent
-    db.insert_row("PARENT", Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]))
-        .unwrap();
+    db.insert_row(
+        "PARENT",
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
+    )
+    .unwrap();
 
     // Insert child with NULL foreign key (should be allowed - NULLs bypass FK checks)
     db.insert_row(
         "CHILD",
-        Row::new(vec![SqlValue::Integer(10), SqlValue::Null, SqlValue::Varchar("Orphan".to_string())]),
+        Row::new(vec![
+            SqlValue::Integer(10),
+            SqlValue::Null,
+            SqlValue::Varchar("Orphan".to_string()),
+        ]),
     )
     .unwrap();
 
@@ -627,16 +688,23 @@ fn test_delete_multiple_parents_with_shared_child() {
         on_update: ReferentialAction::NoAction,
     };
 
-    let mut schema = TableSchema::with_primary_key("CHILD".to_string(), columns, vec!["ID".to_string()]);
+    let mut schema =
+        TableSchema::with_primary_key("CHILD".to_string(), columns, vec!["ID".to_string()]);
     schema.foreign_keys.push(fk1);
     schema.foreign_keys.push(fk2);
     db.create_table(schema).unwrap();
 
     // Insert test data
-    db.insert_row("PARENT1", Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("P1".to_string())]))
-        .unwrap();
-    db.insert_row("PARENT2", Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("P2".to_string())]))
-        .unwrap();
+    db.insert_row(
+        "PARENT1",
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("P1".to_string())]),
+    )
+    .unwrap();
+    db.insert_row(
+        "PARENT2",
+        Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("P2".to_string())]),
+    )
+    .unwrap();
     db.insert_row(
         "CHILD",
         Row::new(vec![SqlValue::Integer(10), SqlValue::Integer(1), SqlValue::Integer(2)]),
@@ -657,8 +725,10 @@ fn test_table_without_primary_key() {
     let mut db = Database::new();
 
     // Create parent table WITHOUT primary key
-    let parent_schema =
-        TableSchema::new("PARENT".to_string(), vec![ColumnSchema::new("ID".to_string(), DataType::Integer, false)]);
+    let parent_schema = TableSchema::new(
+        "PARENT".to_string(),
+        vec![ColumnSchema::new("ID".to_string(), DataType::Integer, false)],
+    );
     db.create_table(parent_schema).unwrap();
 
     // Insert data
@@ -683,8 +753,11 @@ fn test_empty_child_table() {
     );
 
     // Insert only parent (no children)
-    db.insert_row("PARENT", Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]))
-        .unwrap();
+    db.insert_row(
+        "PARENT",
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
+    )
+    .unwrap();
 
     // Delete should succeed (no children to violate constraint)
     let deleted = execute_delete(&mut db, "DELETE FROM parent WHERE id = 1").unwrap();
@@ -704,11 +777,18 @@ fn test_fk_constraint_error_message() {
         ReferentialAction::NoAction,
     );
 
-    db.insert_row("PARENT", Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]))
-        .unwrap();
+    db.insert_row(
+        "PARENT",
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
+    )
+    .unwrap();
     db.insert_row(
         "CHILD",
-        Row::new(vec![SqlValue::Integer(10), SqlValue::Integer(1), SqlValue::Varchar("Child1".to_string())]),
+        Row::new(vec![
+            SqlValue::Integer(10),
+            SqlValue::Integer(1),
+            SqlValue::Varchar("Child1".to_string()),
+        ]),
     )
     .unwrap();
 

@@ -236,7 +236,6 @@ pub struct AlterSequenceStmt {
     pub cycle: Option<bool>,
 }
 
-
 /// CREATE TYPE statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct CreateTypeStmt {
