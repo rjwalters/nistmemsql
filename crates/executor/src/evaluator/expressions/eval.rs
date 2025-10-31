@@ -82,23 +82,23 @@ impl ExpressionEvaluator<'_> {
             }
 
             // Function call
-            ast::Expression::Function { name, args, character_unit: _ } => {
-                self.eval_function(name, args, row)
+            ast::Expression::Function { name, args, character_unit } => {
+                self.eval_function(name, args, character_unit, row)
             }
 
             // Current date/time functions
             ast::Expression::CurrentDate => {
-                super::super::functions::eval_scalar_function("CURRENT_DATE", &[])
+                super::super::functions::eval_scalar_function("CURRENT_DATE", &[], &None)
             }
             ast::Expression::CurrentTime { precision: _ } => {
                 // For now, ignore precision and call existing function
                 // Phase 2 will implement precision-aware formatting
-                super::super::functions::eval_scalar_function("CURRENT_TIME", &[])
+                super::super::functions::eval_scalar_function("CURRENT_TIME", &[], &None)
             }
             ast::Expression::CurrentTimestamp { precision: _ } => {
                 // For now, ignore precision and call existing function
                 // Phase 2 will implement precision-aware formatting
-                super::super::functions::eval_scalar_function("CURRENT_TIMESTAMP", &[])
+                super::super::functions::eval_scalar_function("CURRENT_TIMESTAMP", &[], &None)
             }
 
             // Unsupported expressions

@@ -59,6 +59,7 @@ impl ExpressionEvaluator<'_> {
         &self,
         name: &str,
         args: &[ast::Expression],
+        character_unit: &Option<ast::CharacterUnit>,
         row: &storage::Row,
     ) -> Result<types::SqlValue, ExecutorError> {
         let mut arg_values = Vec::new();
@@ -66,6 +67,6 @@ impl ExpressionEvaluator<'_> {
             arg_values.push(self.eval(arg, row)?);
         }
 
-        eval_scalar_function(name, &arg_values)
+        eval_scalar_function(name, &arg_values, character_unit)
     }
 }

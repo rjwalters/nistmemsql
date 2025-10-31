@@ -224,6 +224,7 @@ impl Parser {
 
         // Parse function arguments
         let mut args = Vec::new();
+        let mut character_unit = None;
 
         // Check for empty argument list or '*'
         if matches!(self.peek(), Token::RParen) {
@@ -248,21 +249,16 @@ impl Parser {
                 }
             }
 
-            self.expect_token(Token::RParen)?;
-        }
-
-        // Parse optional USING clause for string functions
-        let character_unit =
+            // Parse optional USING clause for string functions BEFORE closing paren
             if matches!(function_name_upper.as_str(), "CHARACTER_LENGTH" | "CHAR_LENGTH") {
                 if matches!(self.peek(), Token::Keyword(Keyword::Using)) {
                     self.advance(); // consume USING
-                    Some(self.parse_character_unit()?)
-                } else {
-                    None
+                    character_unit = Some(self.parse_character_unit()?);
                 }
-            } else {
-                None
-            };
+            }
+
+            self.expect_token(Token::RParen)?;
+        }
 
         // Check for OVER clause (window function)
         if matches!(self.peek(), Token::Keyword(Keyword::Over)) {

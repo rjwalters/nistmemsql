@@ -31,6 +31,7 @@ mod system;
 pub(super) fn eval_scalar_function(
     name: &str,
     args: &[types::SqlValue],
+    character_unit: &Option<ast::CharacterUnit>,
 ) -> Result<types::SqlValue, ExecutorError> {
     match name.to_uppercase().as_str() {
         // NULL handling functions
@@ -43,7 +44,7 @@ pub(super) fn eval_scalar_function(
         "SUBSTRING" => string::substring(args),
         "SUBSTR" => string::substring(args), // Alias for SUBSTRING
         // Note: TRIM is handled as a special expression in the parser (like POSITION)
-        "CHAR_LENGTH" | "CHARACTER_LENGTH" => string::char_length(args, name),
+        "CHAR_LENGTH" | "CHARACTER_LENGTH" => string::char_length(args, name, character_unit),
         "OCTET_LENGTH" => string::octet_length(args),
         "CONCAT" => string::concat(args),
         "LENGTH" => string::length(args),

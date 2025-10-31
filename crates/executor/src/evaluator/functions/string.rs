@@ -223,11 +223,13 @@ pub(crate) fn trim_advanced(
     Ok(types::SqlValue::Varchar(result))
 }
 
-/// CHAR_LENGTH(string) / CHARACTER_LENGTH(string) - Return string length
+/// CHAR_LENGTH(string [USING unit]) / CHARACTER_LENGTH(string [USING unit])
+/// Return string length in characters or octets
 /// SQL:1999 Section 6.29: String value functions
 pub(super) fn char_length(
     args: &[types::SqlValue],
     name: &str,
+    character_unit: &Option<ast::CharacterUnit>,
 ) -> Result<types::SqlValue, ExecutorError> {
     if args.len() != 1 {
         return Err(ExecutorError::UnsupportedFeature(format!(
@@ -239,8 +241,20 @@ pub(super) fn char_length(
 
     match &args[0] {
         types::SqlValue::Null => Ok(types::SqlValue::Null),
-        types::SqlValue::Varchar(s) => Ok(types::SqlValue::Integer(s.len() as i64)),
-        types::SqlValue::Character(s) => Ok(types::SqlValue::Integer(s.len() as i64)),
+        types::SqlValue::Varchar(s) | types::SqlValue::Character(s) => {
+            // Determine unit: CHARACTERS (default) or OCTETS
+            let length = match character_unit {
+                Some(ast::CharacterUnit::Octets) => {
+                    // USING OCTETS - return byte count
+                    s.len() as i64
+                }
+                Some(ast::CharacterUnit::Characters) | None => {
+                    // USING CHARACTERS or default - return character count
+                    s.chars().count() as i64
+                }
+            };
+            Ok(types::SqlValue::Integer(length))
+        }
         val => Err(ExecutorError::UnsupportedFeature(format!(
             "{} requires string argument, got {:?}",
             name, val
