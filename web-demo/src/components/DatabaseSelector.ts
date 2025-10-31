@@ -65,8 +65,9 @@ export class DatabaseSelectorComponent extends Component<DatabaseSelectorState> 
         <label for="db-select" class="sr-only">Select Database</label>
         <select
           id="db-select"
-          class="appearance-none bg-background border border-border rounded-lg px-4 py-2 pr-8 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark cursor-pointer"
+          class="appearance-none bg-card border border-border rounded-lg px-3 py-1.5 pr-8 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark cursor-pointer"
           aria-label="Select database"
+          title="${selectedDb ? this.escapeHtml(selectedDb.description) : 'Select database'}"
         >
           ${databases.map(db => `
             <option value="${this.escapeHtml(db.id)}" ${db.id === selected ? 'selected' : ''}>
@@ -75,16 +76,11 @@ export class DatabaseSelectorComponent extends Component<DatabaseSelectorState> 
           `).join('')}
         </select>
         <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-muted">
-          <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+          <svg class="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
             <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
           </svg>
         </div>
       </div>
-      ${selectedDb ? `
-        <p class="text-xs text-muted mt-1">
-          ${this.escapeHtml(selectedDb.description)}
-        </p>
-      ` : ''}
     `
 
     // Setup change handler

@@ -5,11 +5,11 @@
  */
 
 import './styles/main.css';
-import { ThemeToggle } from './components/ThemeToggle';
-import { Chart, registerables } from 'chart.js';
+import { initTheme } from './theme';
+import { NavigationComponent } from './components/Navigation';
 
-// Register Chart.js components
-Chart.register(...registerables);
+// Chart.js is loaded via CDN in benchmarks.html
+declare const Chart: any;
 
 interface BenchmarkStats {
   mean: number;
@@ -260,7 +260,8 @@ function renderChart(data: BenchmarkResults) {
         },
         tooltip: {
           callbacks: {
-            label: function (context) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            label: function (context: any) {
               return `${context.dataset.label}: ${context.parsed.y.toFixed(2)} ms`;
             },
           },
@@ -317,11 +318,11 @@ async function loadBenchmarkData() {
 
 // Initialize page
 document.addEventListener('DOMContentLoaded', () => {
-  // Setup theme toggle
-  const themeToggleContainer = document.getElementById('theme-toggle');
-  if (themeToggleContainer) {
-    new ThemeToggle(themeToggleContainer);
-  }
+  // Initialize theme system
+  const theme = initTheme();
+
+  // Initialize navigation component
+  new NavigationComponent('benchmarks', theme);
 
   // Load benchmark data
   loadBenchmarkData();
