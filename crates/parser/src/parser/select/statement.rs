@@ -113,12 +113,15 @@ impl Parser {
                 ast::SetOperator::Except
             };
 
-            // Check for ALL keyword (default is DISTINCT)
+            // Check for ALL or DISTINCT quantifier (default is DISTINCT if omitted)
             let all = if self.peek_keyword(Keyword::All) {
                 self.consume_keyword(Keyword::All)?;
                 true
+            } else if self.peek_keyword(Keyword::Distinct) {
+                self.consume_keyword(Keyword::Distinct)?;
+                false // DISTINCT = remove duplicates (same as default)
             } else {
-                false
+                false // Default behavior is DISTINCT
             };
 
             // Parse the right-hand side SELECT statement
