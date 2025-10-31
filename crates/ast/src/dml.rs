@@ -29,12 +29,21 @@ pub struct InsertStmt {
 // UPDATE Statement
 // ============================================================================
 
+/// WHERE clause for positioned UPDATE/DELETE
+#[derive(Debug, Clone, PartialEq)]
+pub enum WhereClause {
+    /// Normal WHERE condition
+    Condition(Expression),
+    /// WHERE CURRENT OF cursor_name (positioned update/delete)
+    CurrentOf(String),
+}
+
 /// UPDATE statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct UpdateStmt {
     pub table_name: String,
     pub assignments: Vec<Assignment>,
-    pub where_clause: Option<Expression>,
+    pub where_clause: Option<WhereClause>,
 }
 
 /// Column assignment (column = value)
@@ -52,5 +61,5 @@ pub struct Assignment {
 #[derive(Debug, Clone, PartialEq)]
 pub struct DeleteStmt {
     pub table_name: String,
-    pub where_clause: Option<Expression>,
+    pub where_clause: Option<WhereClause>,
 }

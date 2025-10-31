@@ -201,11 +201,11 @@ mod in_subquery {
         // DELETE FROM employees WHERE dept_id IN (SELECT dept_id FROM inactive_depts)
         let stmt = ast::DeleteStmt {
             table_name: "employees".to_string(),
-            where_clause: Some(Expression::In {
+            where_clause: Some(ast::WhereClause::Condition(Expression::In {
                 expr: Box::new(Expression::ColumnRef {
                     table: None,
                     column: "dept_id".to_string(),
-                }),
+                })),
                 subquery,
                 negated: false,
             }),
@@ -255,11 +255,11 @@ mod in_subquery {
         // DELETE FROM employees WHERE dept_id NOT IN (SELECT dept_id FROM active_depts)
         let stmt = ast::DeleteStmt {
             table_name: "employees".to_string(),
-            where_clause: Some(Expression::In {
+            where_clause: Some(ast::WhereClause::Condition(Expression::In {
                 expr: Box::new(Expression::ColumnRef {
                     table: None,
                     column: "dept_id".to_string(),
-                }),
+                })),
                 subquery,
                 negated: true,
             }),
@@ -319,8 +319,8 @@ mod scalar_subquery {
         // DELETE FROM employees WHERE salary < (SELECT AVG(salary) FROM employees)
         let stmt = ast::DeleteStmt {
             table_name: "employees".to_string(),
-            where_clause: Some(Expression::BinaryOp {
-                left: Box::new(Expression::ColumnRef { table: None, column: "salary".to_string() }),
+            where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef { table: None, column: "salary".to_string() })),
                 op: ast::BinaryOperator::LessThan,
                 right: Box::new(Expression::ScalarSubquery(subquery)),
             }),
@@ -383,8 +383,8 @@ mod scalar_subquery {
         // DELETE FROM items WHERE price = (SELECT MAX(price) FROM items)
         let stmt = ast::DeleteStmt {
             table_name: "items".to_string(),
-            where_clause: Some(Expression::BinaryOp {
-                left: Box::new(Expression::ColumnRef { table: None, column: "price".to_string() }),
+            where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef { table: None, column: "price".to_string() })),
                 op: ast::BinaryOperator::Equal,
                 right: Box::new(Expression::ScalarSubquery(subquery)),
             }),
@@ -437,8 +437,8 @@ mod scalar_subquery {
         // DELETE FROM employees WHERE salary > (SELECT threshold FROM config)
         let stmt = ast::DeleteStmt {
             table_name: "employees".to_string(),
-            where_clause: Some(Expression::BinaryOp {
-                left: Box::new(Expression::ColumnRef { table: None, column: "salary".to_string() }),
+            where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef { table: None, column: "salary".to_string() })),
                 op: ast::BinaryOperator::GreaterThan,
                 right: Box::new(Expression::ScalarSubquery(subquery)),
             }),
@@ -490,11 +490,11 @@ mod empty_subquery {
         // DELETE FROM employees WHERE dept_id IN (SELECT dept_id FROM old_depts)
         let stmt = ast::DeleteStmt {
             table_name: "employees".to_string(),
-            where_clause: Some(Expression::In {
+            where_clause: Some(ast::WhereClause::Condition(Expression::In {
                 expr: Box::new(Expression::ColumnRef {
                     table: None,
                     column: "dept_id".to_string(),
-                }),
+                })),
                 subquery,
                 negated: false,
             }),
@@ -543,8 +543,8 @@ mod complex_subquery {
                 name: "inactive_customers".to_string(),
                 alias: None,
             }),
-            where_clause: Some(Expression::BinaryOp {
-                left: Box::new(Expression::ColumnRef { table: None, column: "status".to_string() }),
+            where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
+                left: Box::new(Expression::ColumnRef { table: None, column: "status".to_string() })),
                 op: ast::BinaryOperator::Equal,
                 right: Box::new(Expression::Literal(SqlValue::Varchar("inactive".to_string()))),
             }),
@@ -559,11 +559,11 @@ mod complex_subquery {
         // DELETE FROM orders WHERE customer_id IN (SELECT customer_id FROM inactive_customers WHERE status = 'inactive')
         let stmt = ast::DeleteStmt {
             table_name: "orders".to_string(),
-            where_clause: Some(Expression::In {
+            where_clause: Some(ast::WhereClause::Condition(Expression::In {
                 expr: Box::new(Expression::ColumnRef {
                     table: None,
                     column: "customer_id".to_string(),
-                }),
+                })),
                 subquery,
                 negated: false,
             }),

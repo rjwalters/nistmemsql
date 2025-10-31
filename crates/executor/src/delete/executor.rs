@@ -100,8 +100,18 @@ impl DeleteExecutor {
         // Find rows to delete and their indices
         let mut rows_and_indices_to_delete: Vec<(usize, storage::Row)> = Vec::new();
         for (index, row) in table.scan().iter().enumerate() {
-            let should_delete = if let Some(ref where_expr) = stmt.where_clause {
-                matches!(evaluator.eval(where_expr, row), Ok(types::SqlValue::Boolean(true)))
+            let should_delete = if let Some(ref where_clause) = stmt.where_clause {
+                match where_clause {
+                    ast::WhereClause::Condition(where_expr) => {
+                        matches!(evaluator.eval(where_expr, row), Ok(types::SqlValue::Boolean(true)))
+                    }
+                    ast::WhereClause::CurrentOf(_cursor_name) => {
+                        // TODO: Implement cursor support - for now return error
+                        return Err(ExecutorError::UnsupportedFeature(
+                            "WHERE CURRENT OF cursor is not yet implemented".to_string(),
+                        ));
+                    }
+                }
             } else {
                 true
             };

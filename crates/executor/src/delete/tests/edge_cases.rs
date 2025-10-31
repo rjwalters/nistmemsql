@@ -75,8 +75,8 @@ fn test_delete_no_matching_rows() {
     // DELETE FROM users WHERE id = 999;
     let stmt = DeleteStmt {
         table_name: "users".to_string(),
-        where_clause: Some(Expression::BinaryOp {
-            left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
+        where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
+            left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() })),
             op: BinaryOperator::Equal,
             right: Box::new(Expression::Literal(SqlValue::Integer(999))),
         }),
@@ -116,11 +116,11 @@ fn test_delete_column_not_found() {
     // DELETE FROM users WHERE nonexistent_column = 1;
     let stmt = DeleteStmt {
         table_name: "users".to_string(),
-        where_clause: Some(Expression::BinaryOp {
+        where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
             left: Box::new(Expression::ColumnRef {
                 table: None,
                 column: "nonexistent_column".to_string(),
-            }),
+            })),
             op: BinaryOperator::Equal,
             right: Box::new(Expression::Literal(SqlValue::Integer(1))),
         }),
