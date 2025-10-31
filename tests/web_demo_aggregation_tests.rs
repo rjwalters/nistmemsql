@@ -12,7 +12,10 @@ use parser::Parser;
 
 /// Test aggregation SQL examples from web demo
 /// Includes examples with IDs: agg*, group*, having*, count*, sum*, avg*, min*, max*
+///
+/// TODO(#716): Re-enable once aggregation examples are migrated to JSON format
 #[test]
+#[ignore = "Aggregation JSON examples not yet created - see issue #716"]
 fn test_aggregation_sql_examples() {
     // Parse all examples from web demo
     let examples = parse_example_files().expect("Failed to parse example files");

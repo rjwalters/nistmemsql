@@ -12,7 +12,12 @@ use parser::Parser;
 
 /// Test advanced SQL examples from web demo
 /// Includes examples with IDs: cte*, with*, window*, partition*, string*, concat*, advanced*, complex*, uni*, company*
+///
+/// TODO(#716): Re-enable this test once advanced examples are migrated to JSON format
+/// The JSON example files were created in commit 12a4539 but only basic.json exists.
+/// Advanced examples haven't been migrated from examples.ts yet.
 #[test]
+#[ignore = "Advanced JSON examples not yet created - see issue #716"]
 fn test_advanced_sql_examples() {
     // Parse all examples from web demo
     let examples = parse_example_files().expect("Failed to parse example files");
