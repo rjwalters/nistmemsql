@@ -3,7 +3,8 @@
 [![CI and Deploy](https://github.com/rjwalters/nistmemsql/actions/workflows/ci-and-deploy.yml/badge.svg)](https://github.com/rjwalters/nistmemsql/actions/workflows/ci-and-deploy.yml)
 [![Demo](https://img.shields.io/badge/demo-live-success)](https://rjwalters.github.io/nistmemsql/)
 [![Coverage](https://img.shields.io/badge/coverage-86%25-green)](https://github.com/rjwalters/nistmemsql)
-[![sqltest](https://img.shields.io/badge/sqltest-95.4%25-brightgreen)](https://rjwalters.github.io/nistmemsql/conformance.html)
+[![sqltest](https://img.shields.io/endpoint?url=https://rjwalters.github.io/nistmemsql/badges/sql1999-conformance.json)](https://rjwalters.github.io/nistmemsql/conformance.html)
+[![SQLLogicTest](https://img.shields.io/endpoint?url=https://rjwalters.github.io/nistmemsql/badges/sqllogictest.json)](https://github.com/rjwalters/nistmemsql)
 
 > **An open-source, NIST-testable SQL:1999 database implementation in Rust**
 
@@ -71,7 +72,7 @@ We use comprehensive test suites to track SQL:1999 compliance:
 |-------|-------|--------|
 | SQL:1999 sqltest | 739 tests | 🟢 95.4% (705 passing) |
 | Custom E2E Tests | 2,000+ tests | ✅ Passing (note: some compilation errors exist) |
-| SQLLogicTest | 623 test files (~5.9M tests) | 🔄 Integrated (baseline verification passing) |
+| SQLLogicTest | 623 test files (~5.9M tests) | 🔄 See badge above (updated on each CI run) |
 
 **Recent Progress** (As of Oct 31, 2024):
 - ✅ **SQLLogicTest integration** - Added ~5.9M tests via dolthub/sqllogictest submodule

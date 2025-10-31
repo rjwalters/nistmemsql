@@ -14,6 +14,7 @@ use parser::Parser;
 use sqllogictest::{AsyncDB, DBOutput, DefaultColumnType, Runner};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::{fs, io::Write};
 use storage::Database;
 use types::SqlValue;
 
@@ -418,4 +419,66 @@ fn run_sqllogictest_suite() {
 
     println!("\nNote: This is a comprehensive test suite with millions of individual test cases.");
     println!("Some failures are expected as we continue implementing SQL:1999 features.");
+
+    // Write results to JSON file for CI/badge generation
+    let results_json = serde_json::json!({
+        "total": grand_total.total,
+        "passed": grand_total.passed,
+        "failed": grand_total.failed,
+        "errors": grand_total.errors,
+        "pass_rate": grand_total.pass_rate(),
+        "categories": {
+            "select": results.get("select").map(|s| serde_json::json!({
+                "total": s.total,
+                "passed": s.passed,
+                "failed": s.failed,
+                "errors": s.errors,
+                "pass_rate": s.pass_rate()
+            })),
+            "evidence": results.get("evidence").map(|s| serde_json::json!({
+                "total": s.total,
+                "passed": s.passed,
+                "failed": s.failed,
+                "errors": s.errors,
+                "pass_rate": s.pass_rate()
+            })),
+            "index": results.get("index").map(|s| serde_json::json!({
+                "total": s.total,
+                "passed": s.passed,
+                "failed": s.failed,
+                "errors": s.errors,
+                "pass_rate": s.pass_rate()
+            })),
+            "random": results.get("random").map(|s| serde_json::json!({
+                "total": s.total,
+                "passed": s.passed,
+                "failed": s.failed,
+                "errors": s.errors,
+                "pass_rate": s.pass_rate()
+            })),
+            "ddl": results.get("ddl").map(|s| serde_json::json!({
+                "total": s.total,
+                "passed": s.passed,
+                "failed": s.failed,
+                "errors": s.errors,
+                "pass_rate": s.pass_rate()
+            })),
+            "other": results.get("other").map(|s| serde_json::json!({
+                "total": s.total,
+                "passed": s.passed,
+                "failed": s.failed,
+                "errors": s.errors,
+                "pass_rate": s.pass_rate()
+            })),
+        }
+    });
+
+    // Ensure target directory exists
+    fs::create_dir_all("target").ok();
+
+    // Write JSON results
+    if let Ok(mut file) = fs::File::create("target/sqllogictest_results.json") {
+        let _ = file.write_all(serde_json::to_string_pretty(&results_json).unwrap().as_bytes());
+        println!("\n✓ Results written to target/sqllogictest_results.json");
+    }
 }

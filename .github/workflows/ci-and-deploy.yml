@@ -42,11 +42,17 @@ jobs:
         run: cargo test --test sqltest_conformance --release -- --nocapture
         continue-on-error: true
 
+      - name: Run SQLLogicTest suite
+        run: cargo test --test sqllogictest_suite --release -- --nocapture
+        continue-on-error: true
+
       - name: Upload test results
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: target/sqltest_results.json
+          path: |
+            target/sqltest_results.json
+            target/sqllogictest_results.json
           retention-days: 90
 
   # ============================================================================
@@ -175,6 +181,7 @@ jobs:
           ls -la benchmark_results.json || echo "ERROR: benchmark_results.json not found!"
           echo "=== Checking test artifacts ==="
           ls -la target/sqltest_results.json || echo "ERROR: sqltest_results.json not found!"
+          ls -la target/sqllogictest_results.json || echo "ERROR: sqllogictest_results.json not found!"
 
       - name: Download benchmark history from gh-pages
         continue-on-error: true
@@ -220,7 +227,7 @@ jobs:
             COLOR="red"
           fi
 
-          # Create badge JSON
+          # Create SQL:1999 badge JSON
           cat > badges/sql1999-conformance.json <<JSON
           {
             "schemaVersion": 1,
@@ -230,10 +237,43 @@ jobs:
           }
           JSON
 
-          echo "Generated badge: ${PASS_RATE}% ($COLOR)"
+          echo "Generated SQL:1999 badge: ${PASS_RATE}% ($COLOR)"
+
+          # Extract pass rate from SQLLogicTest results
+          if [ -f target/sqllogictest_results.json ]; then
+            SLT_PASS_RATE=$(jq -r '.pass_rate // "0"' target/sqllogictest_results.json | xargs printf "%.1f")
+          else
+            SLT_PASS_RATE="0.0"
+          fi
+
+          # Determine SQLLogicTest badge color
+          if (( $(echo "$SLT_PASS_RATE >= 80" | bc -l) )); then
+            SLT_COLOR="brightgreen"
+          elif (( $(echo "$SLT_PASS_RATE >= 60" | bc -l) )); then
+            SLT_COLOR="green"
+          elif (( $(echo "$SLT_PASS_RATE >= 40" | bc -l) )); then
+            SLT_COLOR="yellow"
+          elif (( $(echo "$SLT_PASS_RATE >= 20" | bc -l) )); then
+            SLT_COLOR="orange"
+          else
+            SLT_COLOR="red"
+          fi
+
+          # Create SQLLogicTest badge JSON
+          cat > badges/sqllogictest.json <<JSON
+          {
+            "schemaVersion": 1,
+            "label": "SQLLogicTest",
+            "message": "${SLT_PASS_RATE}%",
+            "color": "$SLT_COLOR"
+          }
+          JSON
+
+          echo "Generated SQLLogicTest badge: ${SLT_PASS_RATE}% ($SLT_COLOR)"
 
           # Copy results
           [ -f target/sqltest_results.json ] && cp target/sqltest_results.json badges/
+          [ -f target/sqllogictest_results.json ] && cp target/sqllogictest_results.json badges/
           [ -f benchmark_results.json ] && cp benchmark_results.json badges/
           [ -f benchmark_history.json ] && cp benchmark_history.json badges/
 
