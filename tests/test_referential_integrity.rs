@@ -10,7 +10,7 @@
 mod common;
 
 use catalog::{ColumnSchema, ForeignKeyConstraint, ReferentialAction, TableSchema};
-use common::referential_integrity_fixtures::{create_child_table, create_parent_table, execute_delete};
+use common::referential_integrity_fixtures::*;
 use storage::{Database, Row};
 use types::{DataType, SqlValue};
 
@@ -33,25 +33,12 @@ fn test_on_delete_no_action_with_references() {
     );
 
     // Insert test data
-    db.insert_row(
-        "PARENT",
-        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
-    )
-    .unwrap();
-    db.insert_row(
-        "CHILD",
-        Row::new(vec![
-            SqlValue::Integer(10),
-            SqlValue::Integer(1),
-            SqlValue::Varchar("Child1".to_string()),
-        ]),
-    )
-    .unwrap();
+    insert_parent_row(&mut db, "PARENT", 1, "Alice");
+    insert_child_row(&mut db, "CHILD", 10, 1, "Child1");
 
     // Try to delete parent - should fail due to foreign key constraint
     let result = execute_delete(&mut db, "DELETE FROM parent WHERE id = 1");
-    assert!(result.is_err(), "DELETE should fail when child references exist");
-    assert!(result.unwrap_err().contains("FOREIGN KEY constraint violation"));
+    assert_fk_violation(result, "CHILD");
 
     // Verify parent still exists
     let parent_table = db.get_table("PARENT").unwrap();
@@ -73,31 +60,15 @@ fn test_on_delete_no_action_without_references() {
     );
 
     // Insert test data - parent without children
-    db.insert_row(
-        "PARENT",
-        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
-    )
-    .unwrap();
-    db.insert_row(
-        "PARENT",
-        Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())]),
-    )
-    .unwrap();
+    insert_parent_row(&mut db, "PARENT", 1, "Alice");
+    insert_parent_row(&mut db, "PARENT", 2, "Bob");
 
     // Only Bob has a child
-    db.insert_row(
-        "CHILD",
-        Row::new(vec![
-            SqlValue::Integer(10),
-            SqlValue::Integer(2),
-            SqlValue::Varchar("Child1".to_string()),
-        ]),
-    )
-    .unwrap();
+    insert_child_row(&mut db, "CHILD", 10, 2, "Child1");
 
     // Delete parent without children - should succeed
-    let deleted = execute_delete(&mut db, "DELETE FROM parent WHERE id = 1").unwrap();
-    assert_eq!(deleted, 1, "Should delete parent without children");
+    let result = execute_delete(&mut db, "DELETE FROM parent WHERE id = 1");
+    assert_successful_delete(result, 1);
 
     // Verify Alice was deleted, Bob remains
     let parent_table = db.get_table("PARENT").unwrap();
@@ -120,33 +91,13 @@ fn test_on_delete_cascade_single_level() {
     );
 
     // Insert test data
-    db.insert_row(
-        "PARENT",
-        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
-    )
-    .unwrap();
-    db.insert_row(
-        "CHILD",
-        Row::new(vec![
-            SqlValue::Integer(10),
-            SqlValue::Integer(1),
-            SqlValue::Varchar("Child1".to_string()),
-        ]),
-    )
-    .unwrap();
-    db.insert_row(
-        "CHILD",
-        Row::new(vec![
-            SqlValue::Integer(11),
-            SqlValue::Integer(1),
-            SqlValue::Varchar("Child2".to_string()),
-        ]),
-    )
-    .unwrap();
+    insert_parent_row(&mut db, "PARENT", 1, "Alice");
+    insert_child_row(&mut db, "CHILD", 10, 1, "Child1");
+    insert_child_row(&mut db, "CHILD", 11, 1, "Child2");
 
     // Delete parent - should cascade to children
-    let deleted = execute_delete(&mut db, "DELETE FROM parent WHERE id = 1").unwrap();
-    assert_eq!(deleted, 1, "Should delete 1 parent");
+    let result = execute_delete(&mut db, "DELETE FROM parent WHERE id = 1");
+    assert_successful_delete(result, 1);
 
     // Verify parent was deleted
     let parent_table = db.get_table("PARENT").unwrap();
@@ -180,11 +131,7 @@ fn test_on_delete_cascade_multi_level() {
     );
 
     // Insert test data
-    db.insert_row(
-        "GRANDPARENT",
-        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("GrandParent1".to_string())]),
-    )
-    .unwrap();
+    insert_parent_row(&mut db, "GRANDPARENT", 1, "GrandParent1");
     db.insert_row(
         "PARENT",
         Row::new(vec![
@@ -205,8 +152,8 @@ fn test_on_delete_cascade_multi_level() {
     .unwrap();
 
     // Delete grandparent - should cascade through all levels
-    let deleted = execute_delete(&mut db, "DELETE FROM grandparent WHERE id = 1").unwrap();
-    assert_eq!(deleted, 1);
+    let result = execute_delete(&mut db, "DELETE FROM grandparent WHERE id = 1");
+    assert_successful_delete(result, 1);
 
     // Verify all levels were deleted
     assert_eq!(db.get_table("GRANDPARENT").unwrap().row_count(), 0);
@@ -230,24 +177,12 @@ fn test_on_delete_set_null() {
     );
 
     // Insert test data
-    db.insert_row(
-        "PARENT",
-        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
-    )
-    .unwrap();
-    db.insert_row(
-        "CHILD",
-        Row::new(vec![
-            SqlValue::Integer(10),
-            SqlValue::Integer(1),
-            SqlValue::Varchar("Child1".to_string()),
-        ]),
-    )
-    .unwrap();
+    insert_parent_row(&mut db, "PARENT", 1, "Alice");
+    insert_child_row(&mut db, "CHILD", 10, 1, "Child1");
 
     // Delete parent - should set child's foreign key to NULL
-    let deleted = execute_delete(&mut db, "DELETE FROM parent WHERE id = 1").unwrap();
-    assert_eq!(deleted, 1);
+    let result = execute_delete(&mut db, "DELETE FROM parent WHERE id = 1");
+    assert_successful_delete(result, 1);
 
     // Verify parent was deleted
     let parent_table = db.get_table("PARENT").unwrap();
@@ -269,11 +204,7 @@ fn test_on_delete_set_default() {
     create_parent_table(&mut db, "PARENT");
 
     // Create a default parent row
-    db.insert_row(
-        "PARENT",
-        Row::new(vec![SqlValue::Integer(0), SqlValue::Varchar("Default".to_string())]),
-    )
-    .unwrap();
+    insert_parent_row(&mut db, "PARENT", 0, "Default");
 
     create_child_table(
         &mut db,
@@ -284,24 +215,12 @@ fn test_on_delete_set_default() {
     );
 
     // Insert test data
-    db.insert_row(
-        "PARENT",
-        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
-    )
-    .unwrap();
-    db.insert_row(
-        "CHILD",
-        Row::new(vec![
-            SqlValue::Integer(10),
-            SqlValue::Integer(1),
-            SqlValue::Varchar("Child1".to_string()),
-        ]),
-    )
-    .unwrap();
+    insert_parent_row(&mut db, "PARENT", 1, "Alice");
+    insert_child_row(&mut db, "CHILD", 10, 1, "Child1");
 
     // Delete parent - should set child's foreign key to default value (0)
-    let deleted = execute_delete(&mut db, "DELETE FROM parent WHERE id = 1").unwrap();
-    assert_eq!(deleted, 1);
+    let result = execute_delete(&mut db, "DELETE FROM parent WHERE id = 1");
+    assert_successful_delete(result, 1);
 
     // Verify child's foreign key was set to default
     let child_table = db.get_table("CHILD").unwrap();
@@ -324,24 +243,12 @@ fn test_on_delete_restrict_with_references() {
     );
 
     // Insert test data
-    db.insert_row(
-        "PARENT",
-        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
-    )
-    .unwrap();
-    db.insert_row(
-        "CHILD",
-        Row::new(vec![
-            SqlValue::Integer(10),
-            SqlValue::Integer(1),
-            SqlValue::Varchar("Child1".to_string()),
-        ]),
-    )
-    .unwrap();
+    insert_parent_row(&mut db, "PARENT", 1, "Alice");
+    insert_child_row(&mut db, "CHILD", 10, 1, "Child1");
 
     // Try to delete parent - should fail
     let result = execute_delete(&mut db, "DELETE FROM parent WHERE id = 1");
-    assert!(result.is_err(), "DELETE should fail when child references exist");
+    assert_fk_violation(result, "");
 }
 
 // ========================================================================
@@ -418,27 +325,7 @@ fn test_self_referential_table() {
     let mut db = Database::new();
 
     // Create a self-referential table (e.g., employees with manager_id)
-    let columns = vec![
-        ColumnSchema::new("ID".to_string(), DataType::Integer, false),
-        ColumnSchema::new("MANAGER_ID".to_string(), DataType::Integer, true),
-        ColumnSchema::new("NAME".to_string(), DataType::Varchar { max_length: Some(50) }, false),
-    ];
-
-    let fk = ForeignKeyConstraint {
-        name: Some("FK_EMPLOYEE_MANAGER".to_string()),
-        column_names: vec!["MANAGER_ID".to_string()],
-        column_indices: vec![1],
-        parent_table: "EMPLOYEE".to_string(),
-        parent_column_names: vec!["ID".to_string()],
-        parent_column_indices: vec![0],
-        on_delete: ReferentialAction::NoAction,
-        on_update: ReferentialAction::NoAction,
-    };
-
-    let mut schema =
-        TableSchema::with_primary_key("EMPLOYEE".to_string(), columns, vec!["ID".to_string()]);
-    schema.foreign_keys.push(fk);
-    db.create_table(schema).unwrap();
+    create_self_referential_employee_table(&mut db);
 
     // Insert employees: CEO (no manager), Manager (reports to CEO), Employee (reports to Manager)
     db.insert_row(
@@ -467,11 +354,13 @@ fn test_self_referential_table() {
 
     // Try to delete Manager - should fail because Employee references them
     let result = execute_delete(&mut db, "DELETE FROM employee WHERE id = 2");
-    assert!(result.is_err(), "Cannot delete employee with subordinates");
+    assert_fk_violation(result, "");
 
     // Delete Employee first, then Manager should succeed
-    execute_delete(&mut db, "DELETE FROM employee WHERE id = 3").unwrap();
-    execute_delete(&mut db, "DELETE FROM employee WHERE id = 2").unwrap();
+    let result1 = execute_delete(&mut db, "DELETE FROM employee WHERE id = 3");
+    assert_successful_delete(result1, 1);
+    let result2 = execute_delete(&mut db, "DELETE FROM employee WHERE id = 2");
+    assert_successful_delete(result2, 1);
 
     // Verify only CEO remains
     let employee_table = db.get_table("EMPLOYEE").unwrap();
@@ -483,44 +372,8 @@ fn test_self_referential_table() {
 fn test_multi_column_foreign_key() {
     let mut db = Database::new();
 
-    // Create parent with composite primary key
-    let parent_schema = TableSchema::with_primary_key(
-        "PARENT".to_string(),
-        vec![
-            ColumnSchema::new("DEPT_ID".to_string(), DataType::Integer, false),
-            ColumnSchema::new("EMP_ID".to_string(), DataType::Integer, false),
-            ColumnSchema::new(
-                "NAME".to_string(),
-                DataType::Varchar { max_length: Some(50) },
-                false,
-            ),
-        ],
-        vec!["DEPT_ID".to_string(), "EMP_ID".to_string()],
-    );
-    db.create_table(parent_schema).unwrap();
-
-    // Create child with multi-column foreign key
-    let columns = vec![
-        ColumnSchema::new("ID".to_string(), DataType::Integer, false),
-        ColumnSchema::new("PARENT_DEPT_ID".to_string(), DataType::Integer, false),
-        ColumnSchema::new("PARENT_EMP_ID".to_string(), DataType::Integer, false),
-    ];
-
-    let fk = ForeignKeyConstraint {
-        name: Some("FK_MULTI".to_string()),
-        column_names: vec!["PARENT_DEPT_ID".to_string(), "PARENT_EMP_ID".to_string()],
-        column_indices: vec![1, 2],
-        parent_table: "PARENT".to_string(),
-        parent_column_names: vec!["DEPT_ID".to_string(), "EMP_ID".to_string()],
-        parent_column_indices: vec![0, 1],
-        on_delete: ReferentialAction::NoAction,
-        on_update: ReferentialAction::NoAction,
-    };
-
-    let mut schema =
-        TableSchema::with_primary_key("CHILD".to_string(), columns, vec!["ID".to_string()]);
-    schema.foreign_keys.push(fk);
-    db.create_table(schema).unwrap();
+    // Create parent with composite primary key and child with multi-column FK
+    create_multi_column_parent_child_tables(&mut db);
 
     // Insert test data
     db.insert_row(
@@ -540,7 +393,7 @@ fn test_multi_column_foreign_key() {
 
     // Try to delete parent - should fail
     let result = execute_delete(&mut db, "DELETE FROM parent WHERE dept_id = 1 AND emp_id = 100");
-    assert!(result.is_err(), "Cannot delete parent with child references");
+    assert_fk_violation(result, "");
 }
 
 #[test]
@@ -558,26 +411,14 @@ fn test_null_foreign_key_values() {
     );
 
     // Insert parent
-    db.insert_row(
-        "PARENT",
-        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
-    )
-    .unwrap();
+    insert_parent_row(&mut db, "PARENT", 1, "Alice");
 
     // Insert child with NULL foreign key (should be allowed - NULLs bypass FK checks)
-    db.insert_row(
-        "CHILD",
-        Row::new(vec![
-            SqlValue::Integer(10),
-            SqlValue::Null,
-            SqlValue::Varchar("Orphan".to_string()),
-        ]),
-    )
-    .unwrap();
+    insert_child_row_null_fk(&mut db, "CHILD", 10, "Orphan");
 
     // Delete parent - should succeed because child has NULL foreign key
-    let deleted = execute_delete(&mut db, "DELETE FROM parent WHERE id = 1").unwrap();
-    assert_eq!(deleted, 1, "Should delete parent when child has NULL FK");
+    let result = execute_delete(&mut db, "DELETE FROM parent WHERE id = 1");
+    assert_successful_delete(result, 1);
 
     // Verify child with NULL FK still exists
     let child_table = db.get_table("CHILD").unwrap();
@@ -596,56 +437,12 @@ fn test_deferred_constraint_checking() {
 fn test_delete_multiple_parents_with_shared_child() {
     let mut db = Database::new();
 
-    // Create two parent tables
-    create_parent_table(&mut db, "PARENT1");
-    create_parent_table(&mut db, "PARENT2");
-
-    // Create child table with FKs to both parents
-    let columns = vec![
-        ColumnSchema::new("ID".to_string(), DataType::Integer, false),
-        ColumnSchema::new("PARENT1_ID".to_string(), DataType::Integer, true),
-        ColumnSchema::new("PARENT2_ID".to_string(), DataType::Integer, true),
-    ];
-
-    let fk1 = ForeignKeyConstraint {
-        name: Some("FK_CHILD_PARENT1".to_string()),
-        column_names: vec!["PARENT1_ID".to_string()],
-        column_indices: vec![1],
-        parent_table: "PARENT1".to_string(),
-        parent_column_names: vec!["ID".to_string()],
-        parent_column_indices: vec![0],
-        on_delete: ReferentialAction::NoAction,
-        on_update: ReferentialAction::NoAction,
-    };
-
-    let fk2 = ForeignKeyConstraint {
-        name: Some("FK_CHILD_PARENT2".to_string()),
-        column_names: vec!["PARENT2_ID".to_string()],
-        column_indices: vec![2],
-        parent_table: "PARENT2".to_string(),
-        parent_column_names: vec!["ID".to_string()],
-        parent_column_indices: vec![0],
-        on_delete: ReferentialAction::NoAction,
-        on_update: ReferentialAction::NoAction,
-    };
-
-    let mut schema =
-        TableSchema::with_primary_key("CHILD".to_string(), columns, vec!["ID".to_string()]);
-    schema.foreign_keys.push(fk1);
-    schema.foreign_keys.push(fk2);
-    db.create_table(schema).unwrap();
+    // Create two parent tables and child with FKs to both
+    create_multiple_parent_child_tables(&mut db);
 
     // Insert test data
-    db.insert_row(
-        "PARENT1",
-        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("P1".to_string())]),
-    )
-    .unwrap();
-    db.insert_row(
-        "PARENT2",
-        Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("P2".to_string())]),
-    )
-    .unwrap();
+    insert_parent_row(&mut db, "PARENT1", 1, "P1");
+    insert_parent_row(&mut db, "PARENT2", 2, "P2");
     db.insert_row(
         "CHILD",
         Row::new(vec![SqlValue::Integer(10), SqlValue::Integer(1), SqlValue::Integer(2)]),
@@ -653,8 +450,10 @@ fn test_delete_multiple_parents_with_shared_child() {
     .unwrap();
 
     // Try to delete either parent - should fail
-    assert!(execute_delete(&mut db, "DELETE FROM parent1 WHERE id = 1").is_err());
-    assert!(execute_delete(&mut db, "DELETE FROM parent2 WHERE id = 2").is_err());
+    let result1 = execute_delete(&mut db, "DELETE FROM parent1 WHERE id = 1");
+    assert_fk_violation(result1, "");
+    let result2 = execute_delete(&mut db, "DELETE FROM parent2 WHERE id = 2");
+    assert_fk_violation(result2, "");
 }
 
 // ========================================================================
@@ -676,8 +475,8 @@ fn test_table_without_primary_key() {
     db.insert_row("PARENT", Row::new(vec![SqlValue::Integer(1)])).unwrap();
 
     // Delete should succeed (no PK means no FK enforcement on this table)
-    let deleted = execute_delete(&mut db, "DELETE FROM parent WHERE id = 1").unwrap();
-    assert_eq!(deleted, 1);
+    let result = execute_delete(&mut db, "DELETE FROM parent WHERE id = 1");
+    assert_successful_delete(result, 1);
 }
 
 #[test]
@@ -694,15 +493,11 @@ fn test_empty_child_table() {
     );
 
     // Insert only parent (no children)
-    db.insert_row(
-        "PARENT",
-        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
-    )
-    .unwrap();
+    insert_parent_row(&mut db, "PARENT", 1, "Alice");
 
     // Delete should succeed (no children to violate constraint)
-    let deleted = execute_delete(&mut db, "DELETE FROM parent WHERE id = 1").unwrap();
-    assert_eq!(deleted, 1);
+    let result = execute_delete(&mut db, "DELETE FROM parent WHERE id = 1");
+    assert_successful_delete(result, 1);
 }
 
 #[test]
@@ -718,20 +513,8 @@ fn test_fk_constraint_error_message() {
         ReferentialAction::NoAction,
     );
 
-    db.insert_row(
-        "PARENT",
-        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
-    )
-    .unwrap();
-    db.insert_row(
-        "CHILD",
-        Row::new(vec![
-            SqlValue::Integer(10),
-            SqlValue::Integer(1),
-            SqlValue::Varchar("Child1".to_string()),
-        ]),
-    )
-    .unwrap();
+    insert_parent_row(&mut db, "PARENT", 1, "Alice");
+    insert_child_row(&mut db, "CHILD", 10, 1, "Child1");
 
     // Check error message format
     let result = execute_delete(&mut db, "DELETE FROM parent WHERE id = 1");
