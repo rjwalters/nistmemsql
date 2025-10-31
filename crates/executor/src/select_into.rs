@@ -79,6 +79,11 @@ impl SelectIntoExecutor {
                         "SELECT * is not supported in SELECT INTO statements".to_string(),
                     ));
                 }
+                SelectItem::QualifiedWildcard { qualifier } => {
+                    return Err(ExecutorError::UnsupportedFeature(
+                        format!("SELECT {}.* is not supported in SELECT INTO statements", qualifier),
+                    ));
+                }
                 SelectItem::Expression { expr, alias } => {
                     // Column name: use alias if present, otherwise derive from expression
                     let column_name = if let Some(alias) = alias {

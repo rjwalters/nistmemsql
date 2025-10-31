@@ -184,9 +184,10 @@ fn test_select_star_without_from_fails() {
     assert!(result.is_err());
     match result {
         Err(ExecutorError::UnsupportedFeature(msg)) => {
-            assert!(msg.contains("SELECT * requires FROM clause"));
+            // Error message includes both wildcards (merged from main branch)
+            assert!(msg.contains("require FROM clause"));
         }
-        _ => panic!("Expected UnsupportedFeature error"),
+        _ => panic!("Expected UnsupportedFeature error, got: {:?}", result),
     }
 }
 
