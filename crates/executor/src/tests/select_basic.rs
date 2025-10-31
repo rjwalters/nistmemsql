@@ -501,3 +501,237 @@ fn test_select_star_alias_with_table_alias() {
     assert_eq!(result.rows[0].values[0], types::SqlValue::Integer(10));
     assert_eq!(result.rows[0].values[1], types::SqlValue::Integer(20));
 }
+
+// ============================================================================
+// Tests for derived column lists (SQL:1999 E051-07, E051-08)
+// ============================================================================
+
+#[test]
+fn test_select_wildcard_with_derived_column_list() {
+    let mut db = storage::Database::new();
+    let schema = catalog::TableSchema::new(
+        "T".to_string(),
+        vec![
+            catalog::ColumnSchema::new("a".to_string(), types::DataType::Integer, false),
+            catalog::ColumnSchema::new("b".to_string(), types::DataType::Integer, false),
+        ],
+    );
+    db.create_table(schema).unwrap();
+    db.insert_row(
+        "T",
+        storage::Row::new(vec![
+            types::SqlValue::Integer(10),
+            types::SqlValue::Integer(20),
+        ]),
+    )
+    .unwrap();
+
+    let stmt = parser::Parser::parse_sql("SELECT * AS (c, d) FROM t;").unwrap();
+    let select_stmt = match stmt {
+        ast::Statement::Select(s) => s,
+        _ => panic!("Expected SELECT statement"),
+    };
+
+    let executor = SelectExecutor::new(&db);
+    let result = executor.execute_with_columns(&select_stmt).unwrap();
+
+    // Check column names are renamed
+    assert_eq!(result.columns, vec!["C", "D"]);
+
+    // Check values are correct
+    assert_eq!(result.rows.len(), 1);
+    assert_eq!(result.rows[0].values[0], types::SqlValue::Integer(10));
+    assert_eq!(result.rows[0].values[1], types::SqlValue::Integer(20));
+}
+
+#[test]
+fn test_select_all_wildcard_with_derived_column_list() {
+    let mut db = storage::Database::new();
+    let schema = catalog::TableSchema::new(
+        "T".to_string(),
+        vec![
+            catalog::ColumnSchema::new("a".to_string(), types::DataType::Integer, false),
+            catalog::ColumnSchema::new("b".to_string(), types::DataType::Integer, false),
+        ],
+    );
+    db.create_table(schema).unwrap();
+    db.insert_row(
+        "T",
+        storage::Row::new(vec![
+            types::SqlValue::Integer(10),
+            types::SqlValue::Integer(20),
+        ]),
+    )
+    .unwrap();
+
+    let stmt = parser::Parser::parse_sql("SELECT ALL * AS (c, d) FROM t;").unwrap();
+    let select_stmt = match stmt {
+        ast::Statement::Select(s) => s,
+        _ => panic!("Expected SELECT statement"),
+    };
+
+    let executor = SelectExecutor::new(&db);
+    let result = executor.execute_with_columns(&select_stmt).unwrap();
+
+    // Check column names are renamed
+    assert_eq!(result.columns, vec!["C", "D"]);
+
+    // Check values are correct
+    assert_eq!(result.rows.len(), 1);
+    assert_eq!(result.rows[0].values[0], types::SqlValue::Integer(10));
+    assert_eq!(result.rows[0].values[1], types::SqlValue::Integer(20));
+}
+
+#[test]
+fn test_select_distinct_wildcard_with_derived_column_list() {
+    let mut db = storage::Database::new();
+    let schema = catalog::TableSchema::new(
+        "T".to_string(),
+        vec![
+            catalog::ColumnSchema::new("a".to_string(), types::DataType::Integer, false),
+            catalog::ColumnSchema::new("b".to_string(), types::DataType::Integer, false),
+        ],
+    );
+    db.create_table(schema).unwrap();
+    db.insert_row(
+        "T",
+        storage::Row::new(vec![
+            types::SqlValue::Integer(10),
+            types::SqlValue::Integer(20),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "T",
+        storage::Row::new(vec![
+            types::SqlValue::Integer(10),
+            types::SqlValue::Integer(20),
+        ]),
+    )
+    .unwrap();
+
+    let stmt = parser::Parser::parse_sql("SELECT DISTINCT * AS (c, d) FROM t;").unwrap();
+    let select_stmt = match stmt {
+        ast::Statement::Select(s) => s,
+        _ => panic!("Expected SELECT statement"),
+    };
+
+    let executor = SelectExecutor::new(&db);
+    let result = executor.execute_with_columns(&select_stmt).unwrap();
+
+    // Check column names are renamed
+    assert_eq!(result.columns, vec!["C", "D"]);
+
+    // Check DISTINCT works - should have only 1 row
+    assert_eq!(result.rows.len(), 1);
+    assert_eq!(result.rows[0].values[0], types::SqlValue::Integer(10));
+    assert_eq!(result.rows[0].values[1], types::SqlValue::Integer(20));
+}
+
+#[test]
+fn test_select_qualified_wildcard_with_derived_column_list() {
+    let mut db = storage::Database::new();
+    let schema = catalog::TableSchema::new(
+        "T".to_string(),
+        vec![
+            catalog::ColumnSchema::new("a".to_string(), types::DataType::Integer, false),
+            catalog::ColumnSchema::new("b".to_string(), types::DataType::Integer, false),
+        ],
+    );
+    db.create_table(schema).unwrap();
+    db.insert_row(
+        "T",
+        storage::Row::new(vec![
+            types::SqlValue::Integer(10),
+            types::SqlValue::Integer(20),
+        ]),
+    )
+    .unwrap();
+
+    let stmt = parser::Parser::parse_sql("SELECT t.* AS (c, d) FROM t;").unwrap();
+    let select_stmt = match stmt {
+        ast::Statement::Select(s) => s,
+        _ => panic!("Expected SELECT statement"),
+    };
+
+    let executor = SelectExecutor::new(&db);
+    let result = executor.execute_with_columns(&select_stmt).unwrap();
+
+    // Check column names are renamed
+    assert_eq!(result.columns, vec!["C", "D"]);
+
+    // Check values are correct
+    assert_eq!(result.rows.len(), 1);
+    assert_eq!(result.rows[0].values[0], types::SqlValue::Integer(10));
+    assert_eq!(result.rows[0].values[1], types::SqlValue::Integer(20));
+}
+
+#[test]
+fn test_select_alias_wildcard_with_derived_column_list() {
+    let mut db = storage::Database::new();
+    let schema = catalog::TableSchema::new(
+        "MYTABLE".to_string(),
+        vec![
+            catalog::ColumnSchema::new("a".to_string(), types::DataType::Integer, false),
+            catalog::ColumnSchema::new("b".to_string(), types::DataType::Integer, false),
+        ],
+    );
+    db.create_table(schema).unwrap();
+    db.insert_row(
+        "MYTABLE",
+        storage::Row::new(vec![
+            types::SqlValue::Integer(10),
+            types::SqlValue::Integer(20),
+        ]),
+    )
+    .unwrap();
+
+    let stmt = parser::Parser::parse_sql("SELECT myalias.* AS (c, d) FROM mytable AS myalias;").unwrap();
+    let select_stmt = match stmt {
+        ast::Statement::Select(s) => s,
+        _ => panic!("Expected SELECT statement"),
+    };
+
+    let executor = SelectExecutor::new(&db);
+    let result = executor.execute_with_columns(&select_stmt).unwrap();
+
+    // Check column names are renamed
+    assert_eq!(result.columns, vec!["C", "D"]);
+
+    // Check values are correct
+    assert_eq!(result.rows.len(), 1);
+    assert_eq!(result.rows[0].values[0], types::SqlValue::Integer(10));
+    assert_eq!(result.rows[0].values[1], types::SqlValue::Integer(20));
+}
+
+#[test]
+fn test_select_derived_column_list_count_mismatch_error() {
+    let mut db = storage::Database::new();
+    let schema = catalog::TableSchema::new(
+        "T".to_string(),
+        vec![
+            catalog::ColumnSchema::new("a".to_string(), types::DataType::Integer, false),
+            catalog::ColumnSchema::new("b".to_string(), types::DataType::Integer, false),
+        ],
+    );
+    db.create_table(schema).unwrap();
+
+    let stmt = parser::Parser::parse_sql("SELECT * AS (c, d, e) FROM t;").unwrap();
+    let select_stmt = match stmt {
+        ast::Statement::Select(s) => s,
+        _ => panic!("Expected SELECT statement"),
+    };
+
+    let executor = SelectExecutor::new(&db);
+    let result = executor.execute_with_columns(&select_stmt);
+
+    // Should fail with column count mismatch
+    assert!(result.is_err());
+    match result {
+        Err(ExecutorError::ColumnCountMismatch { expected, provided }) => {
+            assert_eq!(expected, 2); // Table has 2 columns
+            assert_eq!(provided, 3); // We provided 3 names in derived list
+        }
+        _ => panic!("Expected ColumnCountMismatch error"),
+    }
+}
