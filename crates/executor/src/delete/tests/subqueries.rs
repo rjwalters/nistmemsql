@@ -90,7 +90,11 @@ mod common {
     pub fn insert_order(db: &mut Database, id: i64, customer_id: i64, amount: i64) {
         db.insert_row(
             "orders",
-            Row::new(vec![SqlValue::Integer(id), SqlValue::Integer(customer_id), SqlValue::Integer(amount)]),
+            Row::new(vec![
+                SqlValue::Integer(id),
+                SqlValue::Integer(customer_id),
+                SqlValue::Integer(amount),
+            ]),
         )
         .unwrap();
     }
@@ -156,8 +160,8 @@ mod common {
 }
 
 mod in_subquery {
-    use super::common::*;
     use super::super::super::executor::DeleteExecutor;
+    use super::common::*;
     use ast::Expression;
     use storage::Database;
     use types::SqlValue;
@@ -198,7 +202,10 @@ mod in_subquery {
         let stmt = ast::DeleteStmt {
             table_name: "employees".to_string(),
             where_clause: Some(Expression::In {
-                expr: Box::new(Expression::ColumnRef { table: None, column: "dept_id".to_string() }),
+                expr: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "dept_id".to_string(),
+                }),
                 subquery,
                 negated: false,
             }),
@@ -249,7 +256,10 @@ mod in_subquery {
         let stmt = ast::DeleteStmt {
             table_name: "employees".to_string(),
             where_clause: Some(Expression::In {
-                expr: Box::new(Expression::ColumnRef { table: None, column: "dept_id".to_string() }),
+                expr: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "dept_id".to_string(),
+                }),
                 subquery,
                 negated: true,
             }),
@@ -267,8 +277,8 @@ mod in_subquery {
 }
 
 mod scalar_subquery {
-    use super::common::*;
     use super::super::super::executor::DeleteExecutor;
+    use super::common::*;
     use ast::Expression;
     use storage::Database;
     use types::SqlValue;
@@ -443,8 +453,8 @@ mod scalar_subquery {
 }
 
 mod empty_subquery {
-    use super::common::*;
     use super::super::super::executor::DeleteExecutor;
+    use super::common::*;
     use ast::Expression;
     use storage::Database;
 
@@ -481,7 +491,10 @@ mod empty_subquery {
         let stmt = ast::DeleteStmt {
             table_name: "employees".to_string(),
             where_clause: Some(Expression::In {
-                expr: Box::new(Expression::ColumnRef { table: None, column: "dept_id".to_string() }),
+                expr: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "dept_id".to_string(),
+                }),
                 subquery,
                 negated: false,
             }),
@@ -496,8 +509,8 @@ mod empty_subquery {
 }
 
 mod complex_subquery {
-    use super::common::*;
     use super::super::super::executor::DeleteExecutor;
+    use super::common::*;
     use ast::Expression;
     use storage::Database;
     use types::SqlValue;
@@ -526,7 +539,10 @@ mod complex_subquery {
                 expr: Expression::ColumnRef { table: None, column: "customer_id".to_string() },
                 alias: None,
             }],
-            from: Some(ast::FromClause::Table { name: "inactive_customers".to_string(), alias: None }),
+            from: Some(ast::FromClause::Table {
+                name: "inactive_customers".to_string(),
+                alias: None,
+            }),
             where_clause: Some(Expression::BinaryOp {
                 left: Box::new(Expression::ColumnRef { table: None, column: "status".to_string() }),
                 op: ast::BinaryOperator::Equal,
