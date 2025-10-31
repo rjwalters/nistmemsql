@@ -25,12 +25,17 @@ impl Parser {
 
         self.expect_keyword(Keyword::Select)?;
 
-        // Parse optional DISTINCT keyword
+        // Parse optional set quantifier (DISTINCT or ALL)
+        // SQL:1999 syntax: SELECT [ALL | DISTINCT] select_list
+        // ALL is the default (include duplicates), DISTINCT removes duplicates
         let distinct = if self.peek_keyword(Keyword::Distinct) {
             self.consume_keyword(Keyword::Distinct)?;
             true
+        } else if self.peek_keyword(Keyword::All) {
+            self.consume_keyword(Keyword::All)?;
+            false // ALL means include duplicates (same as default)
         } else {
-            false
+            false // Default is ALL (include duplicates)
         };
 
         // Parse SELECT list
