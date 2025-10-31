@@ -136,15 +136,15 @@ This isn't a toy project. A fully SQL:1999 compliant database is a **massive und
 This repository is that experiment, documented in real-time:
 
 **Current Results** (As of latest test run):
-- ✅ **85.7% SQL:1999 conformance** (633/739 tests passing on sqltest suite)
-- ✅ **1,306+ unit/integration tests passing** (100%)
+- ✅ **89.4% SQL:1999 conformance** (661/739 tests passing on sqltest suite)
+- ✅ **2,000+ unit/integration tests passing** (100%)
 - ✅ Complete query engine with JOINs, subqueries, CTEs, aggregates, window functions
 - ✅ Full transaction support with SAVEPOINT, all constraints enforced
 - ✅ **Complete security model** with privilege enforcement on all operations
 - ✅ 50+ built-in functions (string, date/time, math)
 - ✅ Live web demo running in browser via WASM
-- 📈 **Strong conformance** - 85.7% achieved, targeting 90%+ milestone
-- 🎯 **106 remaining test failures** to analyze and address
+- 📈 **Strong conformance** - 89.4% achieved, targeting 95%+ milestone
+- 🎯 **78 remaining test failures** to analyze and address
 
 **The Open Question**: Can Claude Code achieve **FULL SQL:1999 compliance**—something no database has ever accomplished? That would require months more work, implementing ~400+ features including procedural SQL, triggers, advanced types, and the information schema.
 
