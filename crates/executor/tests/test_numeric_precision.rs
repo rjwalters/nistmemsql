@@ -1,10 +1,7 @@
 //! Precision and accuracy tests
 
-mod common;
-mod test_numeric_helpers;
-
-use common::create_test_evaluator;
-use test_numeric_helpers::*;
+use super::common::create_test_evaluator;
+use super::test_numeric_basic::{assert_function_returns_double, create_function_expr};
 use types::SqlValue;
 
 #[test]

@@ -9,6 +9,9 @@
 //!
 //! Tests are organized into logical modules for maintainability.
 
+mod common;
+mod test_numeric_helpers;
+
 mod test_numeric_basic;
 mod test_numeric_rounding;
 mod test_numeric_exponential;

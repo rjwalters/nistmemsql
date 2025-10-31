@@ -1,10 +1,7 @@
 //! Domain and range error tests
 
-mod common;
-mod test_numeric_helpers;
-
-use common::create_test_evaluator;
-use test_numeric_helpers::*;
+use super::common::create_test_evaluator;
+use super::test_numeric_basic::assert_function_errors;
 use types::SqlValue;
 
 #[test]
