@@ -33,5 +33,5 @@ pub(super) use basic::{abs, mod_fn as mod_func, pi, sign};
 pub(super) use comparison::{greatest, least};
 pub(super) use decimal::format;
 pub(super) use exponential::{exp, ln, log10, power, sqrt};
-pub(super) use rounding::{ceil, floor, round};
+pub(super) use rounding::{ceil, floor, round, truncate};
 pub(super) use trigonometric::{acos, asin, atan, atan2, cos, degrees, radians, sin, tan};
