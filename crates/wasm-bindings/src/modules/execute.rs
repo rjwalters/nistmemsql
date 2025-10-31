@@ -289,6 +289,26 @@ impl Database {
                 serde_wasm_bindgen::to_value(&result)
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
+            ast::Statement::CreateView(stmt) => {
+                executor::advanced_objects::execute_create_view(&stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message: format!("View '{}' created successfully", stmt.view_name),
+                };
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
+            ast::Statement::DropView(stmt) => {
+                executor::advanced_objects::execute_drop_view(&stmt, &mut self.db)
+                    .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+                let result = ExecuteResult {
+                    rows_affected: 0,
+                    message: format!("View '{}' dropped successfully", stmt.view_name),
+                };
+                serde_wasm_bindgen::to_value(&result)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+            }
             _ => Err(JsValue::from_str(&format!(
                 "Statement type not yet supported in WASM: {:?}",
                 stmt

@@ -24,6 +24,8 @@ pub enum CatalogError {
     CharacterSetNotFound(String),
     TranslationAlreadyExists(String),
     TranslationNotFound(String),
+    ViewAlreadyExists(String),
+    ViewNotFound(String),
 }
 
 impl std::fmt::Display for CatalogError {
@@ -80,6 +82,12 @@ impl std::fmt::Display for CatalogError {
             }
             CatalogError::TranslationNotFound(name) => {
                 write!(f, "Translation '{}' not found", name)
+            }
+            CatalogError::ViewAlreadyExists(name) => {
+                write!(f, "View '{}' already exists", name)
+            }
+            CatalogError::ViewNotFound(name) => {
+                write!(f, "View '{}' not found", name)
             }
         }
     }

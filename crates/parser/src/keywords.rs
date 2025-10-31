@@ -134,6 +134,7 @@ pub enum Keyword {
     Collation,
     Character,
     Translation,
+    View,
     // SEQUENCE specific keywords
     Increment,
     Minvalue,
@@ -261,6 +262,7 @@ impl fmt::Display for Keyword {
             Keyword::Collation => "COLLATION",
             Keyword::Character => "CHARACTER",
             Keyword::Translation => "TRANSLATION",
+            Keyword::View => "VIEW",
             Keyword::Increment => "INCREMENT",
             Keyword::Minvalue => "MINVALUE",
             Keyword::Maxvalue => "MAXVALUE",

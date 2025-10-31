@@ -307,3 +307,20 @@ pub struct CreateTranslationStmt {
 pub struct DropTranslationStmt {
     pub translation_name: String,
 }
+
+/// CREATE VIEW statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreateViewStmt {
+    pub view_name: String,
+    pub columns: Option<Vec<String>>,
+    pub query: Box<crate::SelectStmt>,
+    pub with_check_option: bool,
+}
+
+/// DROP VIEW statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropViewStmt {
+    pub view_name: String,
+    pub if_exists: bool,
+    pub cascade: bool,
+}

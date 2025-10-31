@@ -304,7 +304,9 @@ impl SqltestRunner {
             | ast::Statement::CreateCharacterSet(_)
             | ast::Statement::DropCharacterSet(_)
             | ast::Statement::CreateTranslation(_)
-            | ast::Statement::DropTranslation(_) => {
+            | ast::Statement::DropTranslation(_)
+            | ast::Statement::CreateView(_)
+            | ast::Statement::DropView(_) => {
                 // Transactions and advanced SQL objects are no-ops for validation
                 Ok(true)
             }

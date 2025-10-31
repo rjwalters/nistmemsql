@@ -151,6 +151,12 @@ impl From<catalog::CatalogError> for ExecutorError {
             catalog::CatalogError::TranslationNotFound(name) => {
                 ExecutorError::Other(format!("Translation '{}' not found", name))
             }
+            catalog::CatalogError::ViewAlreadyExists(name) => {
+                ExecutorError::Other(format!("View '{}' already exists", name))
+            }
+            catalog::CatalogError::ViewNotFound(name) => {
+                ExecutorError::Other(format!("View '{}' not found", name))
+            }
         }
     }
 }
