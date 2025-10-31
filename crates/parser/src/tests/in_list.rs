@@ -101,7 +101,7 @@ fn test_parse_in_list_with_or() {
 #[test]
 fn test_parse_multiple_in_lists() {
     let result =
-        Parser::parse_sql("SELECT * FROM data WHERE type IN ('A', 'B') AND status IN (1, 2, 3);");
+        Parser::parse_sql("SELECT * FROM data WHERE category IN ('A', 'B') AND status IN (1, 2, 3);");
     assert!(result.is_ok(), "Multiple IN lists should parse: {:?}", result);
 }
 

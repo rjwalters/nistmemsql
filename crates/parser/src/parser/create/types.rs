@@ -11,6 +11,7 @@ impl Parser {
             Token::Keyword(Keyword::Time) => "TIME".to_string(),
             Token::Keyword(Keyword::Timestamp) => "TIMESTAMP".to_string(),
             Token::Keyword(Keyword::Interval) => "INTERVAL".to_string(),
+            Token::Keyword(Keyword::Character) => "CHARACTER".to_string(),
             _ => return Err(ParseError { message: "Expected data type".to_string() }),
         };
         self.advance();
