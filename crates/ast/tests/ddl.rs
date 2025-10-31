@@ -45,3 +45,61 @@ fn test_column_def() {
     assert_eq!(col.name, "email");
     assert!(!col.nullable);
 }
+
+// ============================================================================
+// DDL Tests - ASSERTION
+// ============================================================================
+
+#[test]
+fn test_create_assertion_statement() {
+    let stmt = Statement::CreateAssertion(CreateAssertionStmt {
+        assertion_name: "valid_balance".to_string(),
+        check_condition: Box::new(Expression::BinaryOp {
+            op: BinaryOperator::GreaterThanOrEqual,
+            left: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "balance".to_string(),
+            }),
+            right: Box::new(Expression::Literal(types::SqlValue::Integer(0))),
+        }),
+    });
+
+    match stmt {
+        Statement::CreateAssertion(assertion) => {
+            assert_eq!(assertion.assertion_name, "valid_balance");
+        }
+        _ => panic!("Expected CREATE ASSERTION statement"),
+    }
+}
+
+#[test]
+fn test_drop_assertion_restrict() {
+    let stmt = Statement::DropAssertion(DropAssertionStmt {
+        assertion_name: "old_constraint".to_string(),
+        cascade: false, // RESTRICT
+    });
+
+    match stmt {
+        Statement::DropAssertion(drop) => {
+            assert_eq!(drop.assertion_name, "old_constraint");
+            assert!(!drop.cascade);
+        }
+        _ => panic!("Expected DROP ASSERTION statement"),
+    }
+}
+
+#[test]
+fn test_drop_assertion_cascade() {
+    let stmt = Statement::DropAssertion(DropAssertionStmt {
+        assertion_name: "cascade_constraint".to_string(),
+        cascade: true, // CASCADE
+    });
+
+    match stmt {
+        Statement::DropAssertion(drop) => {
+            assert_eq!(drop.assertion_name, "cascade_constraint");
+            assert!(drop.cascade);
+        }
+        _ => panic!("Expected DROP ASSERTION statement"),
+    }
+}
