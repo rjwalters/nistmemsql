@@ -1,0 +1,212 @@
+name: Boost SQLLogicTest Coverage
+
+on:
+  workflow_dispatch:
+    inputs:
+      time_budget:
+        description: 'Time budget in seconds (default: 300 = 5 minutes)'
+        required: false
+        default: '300'
+        type: string
+      run_count:
+        description: 'Number of sequential test runs (default: 1)'
+        required: false
+        default: '1'
+        type: string
+  # Optional: Run automatically on a schedule (commented out by default)
+  # schedule:
+  #   - cron: '0 */6 * * *'  # Every 6 hours
+
+jobs:
+  boost-coverage:
+    name: Boost SQLLogicTest Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-boost-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-boost-
+            ${{ runner.os }}-cargo-
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download historical SQLLogicTest results
+        continue-on-error: true
+        run: |
+          echo "Downloading historical SQLLogicTest results..."
+          if curl -sL https://rjwalters.github.io/nistmemsql/badges/sqllogictest_cumulative.json \
+            -o sqllogictest_cumulative.json && [ -s sqllogictest_cumulative.json ]; then
+            echo "✓ Downloaded existing cumulative results"
+            cat sqllogictest_cumulative.json | jq '.summary'
+            cp sqllogictest_cumulative.json target/sqllogictest_historical.json
+          else
+            echo "No existing cumulative results found - starting fresh"
+            echo '{}' > target/sqllogictest_historical.json
+          fi
+
+      - name: Run SQLLogicTest boost (multiple runs)
+        run: |
+          TIME_BUDGET="${{ github.event.inputs.time_budget || '300' }}"
+          RUN_COUNT="${{ github.event.inputs.run_count || '1' }}"
+
+          echo "=== Boost Configuration ==="
+          echo "Time budget per run: ${TIME_BUDGET}s"
+          echo "Number of runs: ${RUN_COUNT}"
+          echo ""
+
+          mkdir -p target/boost_runs
+
+          for i in $(seq 1 $RUN_COUNT); do
+            echo ""
+            echo "=== Boost Run $i of $RUN_COUNT ==="
+
+            # Use timestamp + run number as seed for variety
+            SEED=$(date +%s)$i
+
+            # Run tests with unique seed
+            timeout $((TIME_BUDGET + 30)) cargo test --test sqllogictest_suite --release -- --nocapture 2>&1 | \
+              tee target/boost_runs/run_${i}.log | \
+              python3 scripts/analyze_sqllogictest.py
+
+            # Save this run's results
+            if [ -f target/sqllogictest_analysis.json ]; then
+              cp target/sqllogictest_analysis.json target/boost_runs/analysis_${i}.json
+              echo "✓ Saved analysis for run $i"
+            fi
+
+            # Merge with cumulative results after each run
+            if [ -f target/sqllogictest_analysis.json ]; then
+              echo "Merging run $i with cumulative results..."
+              python3 scripts/merge_sqllogictest_results.py \
+                target/sqllogictest_analysis.json \
+                target/sqllogictest_historical.json \
+                target/sqllogictest_cumulative_new.json
+
+              # Update historical for next iteration
+              if [ -f target/sqllogictest_cumulative_new.json ]; then
+                cp target/sqllogictest_cumulative_new.json target/sqllogictest_historical.json
+                cp target/sqllogictest_cumulative_new.json target/sqllogictest_cumulative.json
+                echo "✓ Updated cumulative results"
+                cat target/sqllogictest_cumulative.json | jq '.summary'
+              fi
+            fi
+
+            echo ""
+          done
+
+          echo ""
+          echo "=== Boost Complete ==="
+          if [ -f target/sqllogictest_cumulative.json ]; then
+            echo "Final cumulative results:"
+            cat target/sqllogictest_cumulative.json | jq '.summary'
+          fi
+        env:
+          SQLLOGICTEST_TIME_BUDGET: ${{ github.event.inputs.time_budget || '300' }}
+
+      - name: Generate boost summary
+        if: always()
+        run: |
+          echo "# SQLLogicTest Boost Run Summary" > boost_summary.md
+          echo "" >> boost_summary.md
+          echo "**Triggered by:** ${{ github.actor }}" >> boost_summary.md
+          echo "**Time:** $(date -u)" >> boost_summary.md
+          echo "**Time budget per run:** ${{ github.event.inputs.time_budget || '300' }}s" >> boost_summary.md
+          echo "**Number of runs:** ${{ github.event.inputs.run_count || '1' }}" >> boost_summary.md
+          echo "" >> boost_summary.md
+
+          if [ -f target/sqllogictest_cumulative.json ]; then
+            echo "## Cumulative Results" >> boost_summary.md
+            echo "" >> boost_summary.md
+            echo '```json' >> boost_summary.md
+            cat target/sqllogictest_cumulative.json | jq '.summary' >> boost_summary.md
+            echo '```' >> boost_summary.md
+            echo "" >> boost_summary.md
+            echo "**Coverage:** $(jq -r '.summary.coverage_rate' target/sqllogictest_cumulative.json)%" >> boost_summary.md
+            echo "**Pass Rate:** $(jq -r '.summary.pass_rate' target/sqllogictest_cumulative.json)%" >> boost_summary.md
+            echo "**Files Tested:** $(jq -r '.summary.total_tested_files' target/sqllogictest_cumulative.json) / $(jq -r '.summary.total_available_files' target/sqllogictest_cumulative.json)" >> boost_summary.md
+
+            if [ -f target/sqllogictest_cumulative.json ]; then
+              NEW_TESTED=$(jq -r '.merge_info.new_files_tested // 0' target/sqllogictest_cumulative.json)
+              echo "**New files tested this boost:** $NEW_TESTED" >> boost_summary.md
+            fi
+          fi
+
+          cat boost_summary.md
+
+      - name: Upload boost results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: boost-results-${{ github.run_number }}
+          path: |
+            target/sqllogictest_cumulative.json
+            target/sqllogictest_analysis.json
+            target/boost_runs/*.json
+            boost_summary.md
+          retention-days: 90
+
+      - name: Update gh-pages with new cumulative results
+        if: always() && github.ref == 'refs/heads/main'
+        run: |
+          # Clone gh-pages branch
+          git clone --branch gh-pages --depth 1 https://github.com/${{ github.repository }} gh-pages-repo || {
+            echo "Failed to clone gh-pages branch"
+            exit 0
+          }
+
+          # Update cumulative results
+          if [ -f target/sqllogictest_cumulative.json ]; then
+            mkdir -p gh-pages-repo/badges
+            cp target/sqllogictest_cumulative.json gh-pages-repo/badges/
+            echo "✓ Updated cumulative results in gh-pages"
+
+            # Commit and push
+            cd gh-pages-repo
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add badges/sqllogictest_cumulative.json
+            git diff --staged --quiet || {
+              git commit -m "Update SQLLogicTest cumulative results (boost run #${{ github.run_number }})"
+              git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} gh-pages
+              echo "✓ Pushed cumulative results to gh-pages"
+            }
+          fi
+
+      - name: Comment on PR (if applicable)
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          script: |
+            const fs = require('fs');
+            if (fs.existsSync('boost_summary.md')) {
+              const summary = fs.readFileSync('boost_summary.md', 'utf8');
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: summary
+              });
+            }

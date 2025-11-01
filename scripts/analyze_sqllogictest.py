@@ -7,6 +7,7 @@ This script parses the output from cargo test sqllogictest_suite and:
 - Counts occurrences of each error type
 - Generates actionable summary reports
 - Tracks progress over time
+- Merges results with historical data to build cumulative test coverage
 """
 
 import sys
@@ -14,17 +15,20 @@ import re
 import json
 from collections import defaultdict, Counter
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Set
 
 
 class SQLLogicTestAnalyzer:
     def __init__(self):
-        self.passed = []
-        self.failed = []
+        self.passed = []  # List of passed file names
+        self.failed = []  # List of failed file names
+        self.passed_set = set()  # Set of passed file names (for deduplication)
+        self.failed_set = set()  # Set of failed file names (for deduplication)
         self.error_categories = defaultdict(list)
         self.parse_errors = Counter()
         self.sqllogictest_syntax_errors = Counter()
         self.missing_features = Counter()
+        self.total_available_files = 0  # Total files in corpus
 
     def parse_line(self, line: str) -> None:
         """Parse a single line of test output."""
@@ -34,6 +38,7 @@ class SQLLogicTestAnalyzer:
         if line.startswith("✓ "):
             test_file = line[2:].strip()
             self.passed.append(test_file)
+            self.passed_set.add(test_file)
 
         # Match failed tests with parse errors
         elif line.startswith("✗ ") and "Parse error:" in line:
@@ -41,6 +46,7 @@ class SQLLogicTestAnalyzer:
             if match:
                 test_file, error_msg = match.groups()
                 self.failed.append(test_file)
+                self.failed_set.add(test_file)
                 self.categorize_parse_error(test_file, error_msg)
 
         # Match failed tests with SQLLogicTest syntax errors (panics)
@@ -49,7 +55,14 @@ class SQLLogicTestAnalyzer:
             if match:
                 test_file = match.group(1)
                 self.failed.append(test_file)
+                self.failed_set.add(test_file)
                 self.error_categories['sqllogictest_syntax'].append(test_file)
+
+        # Match total available files from test output
+        elif "Total available test files:" in line:
+            match = re.search(r'Total available test files: (\d+)', line)
+            if match:
+                self.total_available_files = int(match.group(1))
 
         # Match panic details for SQLLogicTest syntax errors
         elif "InvalidLine" in line:
@@ -147,15 +160,26 @@ class SQLLogicTestAnalyzer:
 
     def generate_json_summary(self) -> Dict:
         """Generate a JSON summary for programmatic use."""
-        total = len(self.passed) + len(self.failed)
-        pass_rate = (len(self.passed) / total * 100) if total > 0 else 0
+        total_tested = len(self.passed_set) + len(self.failed_set)
+        pass_rate = (len(self.passed_set) / total_tested * 100) if total_tested > 0 else 0
+
+        # Calculate untested files
+        total_available = self.total_available_files if self.total_available_files > 0 else total_tested
+        untested_count = total_available - total_tested
 
         return {
             "summary": {
-                "total_files": total,
-                "passed": len(self.passed),
-                "failed": len(self.failed),
-                "pass_rate": round(pass_rate, 2)
+                "total_available_files": total_available,
+                "total_tested_files": total_tested,
+                "passed": len(self.passed_set),
+                "failed": len(self.failed_set),
+                "untested": untested_count,
+                "pass_rate": round(pass_rate, 2),
+                "coverage_rate": round((total_tested / total_available * 100), 2) if total_available > 0 else 0
+            },
+            "tested_files": {
+                "passed": sorted(list(self.passed_set)),
+                "failed": sorted(list(self.failed_set))
             },
             "error_categories": {
                 category: len(tests)
@@ -168,17 +192,22 @@ class SQLLogicTestAnalyzer:
 
     def generate_markdown_report(self) -> str:
         """Generate a markdown report for documentation."""
-        total = len(self.passed) + len(self.failed)
-        pass_rate = (len(self.passed) / total * 100) if total > 0 else 0
+        total_tested = len(self.passed_set) + len(self.failed_set)
+        pass_rate = (len(self.passed_set) / total_tested * 100) if total_tested > 0 else 0
+        total_available = self.total_available_files if self.total_available_files > 0 else total_tested
+        untested_count = total_available - total_tested
+        coverage_rate = (total_tested / total_available * 100) if total_available > 0 else 0
 
         report = []
         report.append("# SQLLogicTest Analysis Report")
         report.append("")
         report.append("## Summary")
         report.append("")
-        report.append(f"- **Total test files**: {total}")
-        report.append(f"- **Passed**: {len(self.passed)} ({pass_rate:.1f}%)")
-        report.append(f"- **Failed**: {len(self.failed)} ({100-pass_rate:.1f}%)")
+        report.append(f"- **Total available test files**: {total_available}")
+        report.append(f"- **Tested this run**: {total_tested} ({coverage_rate:.1f}% coverage)")
+        report.append(f"- **Passed**: {len(self.passed_set)} ({pass_rate:.1f}%)")
+        report.append(f"- **Failed**: {len(self.failed_set)} ({100-pass_rate:.1f}%)")
+        report.append(f"- **Not yet tested**: {untested_count}")
         report.append("")
 
         # Error categories table
@@ -249,9 +278,12 @@ def main():
     with open(results_path, 'w') as f:
         json.dump({
             "pass_rate": summary_data["summary"]["pass_rate"],
-            "total": summary_data["summary"]["total_files"],
+            "coverage_rate": summary_data["summary"]["coverage_rate"],
+            "total_available": summary_data["summary"]["total_available_files"],
+            "total_tested": summary_data["summary"]["total_tested_files"],
             "passed": summary_data["summary"]["passed"],
-            "failed": summary_data["summary"]["failed"]
+            "failed": summary_data["summary"]["failed"],
+            "untested": summary_data["summary"]["untested"]
         }, f, indent=2)
     print(f"✓ Badge results written to {results_path}")
 

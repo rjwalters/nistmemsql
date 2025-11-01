@@ -1,6 +1,9 @@
 //! Comprehensive SQLLogicTest suite runner using the dolthub/sqllogictest submodule.
 //!
 //! This test suite runs ~5.9 million SQL tests from the official SQLLogicTest corpus.
+//! Tests are randomly selected each run to progressively build coverage over time.
+//! Results are merged with historical data to track: tested/passed, tested/failed, not-yet-tested.
+//!
 //! Tests are organized by category:
 //! - select1-5.test: Basic SELECT queries
 //! - evidence/: Core SQL language features
@@ -12,9 +15,10 @@ use async_trait::async_trait;
 use executor::SelectExecutor;
 use parser::Parser;
 use sqllogictest::{AsyncDB, DBOutput, DefaultColumnType, Runner};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use std::{fs, io::Write};
+use std::time::{Duration, Instant};
+use std::{env, fs, io::Write};
 use storage::Database;
 use types::SqlValue;
 
@@ -303,6 +307,7 @@ struct TestStats {
     failed: usize,
     errors: usize,
     skipped: usize,
+    tested_files: HashSet<String>,  // Files that were actually tested this run
 }
 
 impl TestStats {
@@ -322,22 +327,72 @@ fn should_skip_file(path: &std::path::Path) -> Result<bool, std::io::Error> {
     Ok(content.contains("onlyif ") || content.contains("skipif "))
 }
 
-/// Run all SQLLogicTest files from the submodule
-fn run_test_suite() -> HashMap<String, TestStats> {
+/// Run SQLLogicTest files from the submodule (randomly selected with time budget)
+fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
     let test_dir = PathBuf::from("third_party/sqllogictest/test");
     let mut results = HashMap::new();
 
+    // Get time budget from environment (default: 5 minutes = 300 seconds)
+    let time_budget_secs: u64 = env::var("SQLLOGICTEST_TIME_BUDGET")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(300);
+    let time_budget = Duration::from_secs(time_budget_secs);
+    let start_time = Instant::now();
+
     // Find all .test files
     let pattern = format!("{}/**/*.test", test_dir.display());
-    let test_files: Vec<PathBuf> = glob::glob(&pattern)
+    let mut test_files: Vec<PathBuf> = glob::glob(&pattern)
         .expect("Failed to read test pattern")
         .filter_map(Result::ok)
         .collect();
 
-    println!("\n=== SQLLogicTest Suite ===");
-    println!("Found {} test files\n", test_files.len());
+    let total_available_files = test_files.len();
+
+    // Shuffle test files randomly (but deterministically for reproducibility)
+    // Use seed from environment or default to 0
+    let seed: u64 = env::var("SQLLOGICTEST_SEED")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or_else(|| {
+            // Use git commit hash as seed if available
+            env::var("GITHUB_SHA")
+                .ok()
+                .and_then(|sha| u64::from_str_radix(&sha[..8], 16).ok())
+                .unwrap_or(0)
+        });
+
+    // Simple deterministic shuffle using seed
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    test_files.sort_by_cached_key(|path| {
+        let mut hasher = DefaultHasher::new();
+        path.hash(&mut hasher);
+        seed.hash(&mut hasher);
+        hasher.finish()
+    });
+
+    println!("\n=== SQLLogicTest Suite (Random Sampling) ===");
+    println!("Total available test files: {}", total_available_files);
+    println!("Time budget: {} seconds", time_budget_secs);
+    println!("Random seed: {}", seed);
+    println!("Starting test run...\n");
+
+    let mut files_tested = 0;
 
     for test_file in test_files {
+        // Check time budget
+        if start_time.elapsed() >= time_budget {
+            println!("\n⏱️  Time budget exhausted after {} seconds", time_budget_secs);
+            println!("Tested {} of {} files ({:.1}%)\n",
+                files_tested,
+                total_available_files,
+                (files_tested as f64 / total_available_files as f64) * 100.0
+            );
+            break;
+        }
+
+        files_tested += 1;
         let relative_path = test_file
             .strip_prefix(&test_dir)
             .unwrap_or(&test_file)
@@ -362,6 +417,7 @@ fn run_test_suite() -> HashMap<String, TestStats> {
 
         let stats = results.entry(category.clone()).or_insert_with(TestStats::default);
         stats.total += 1;
+        stats.tested_files.insert(relative_path.clone());
 
         // Check if file should be skipped due to conditional directives
         match should_skip_file(&test_file) {
@@ -417,7 +473,7 @@ fn run_test_suite() -> HashMap<String, TestStats> {
         }
     }
 
-    results
+    (results, total_available_files)
 }
 
 #[test]
@@ -430,7 +486,7 @@ fn run_sqllogictest_suite() {
         );
     }
 
-    let results = run_test_suite();
+    let (results, total_available_files) = run_test_suite();
 
     // Print summary
     println!("\n=== Test Results Summary ===");
@@ -438,6 +494,7 @@ fn run_sqllogictest_suite() {
     println!("{}", "-".repeat(80));
 
     let mut grand_total = TestStats::default();
+    let mut all_tested_files = HashSet::new();
 
     for category in ["select", "evidence", "index", "random", "ddl", "other"] {
         if let Some(stats) = results.get(category) {
@@ -456,6 +513,7 @@ fn run_sqllogictest_suite() {
             grand_total.failed += stats.failed;
             grand_total.errors += stats.errors;
             grand_total.skipped += stats.skipped;
+            all_tested_files.extend(stats.tested_files.clone());
         }
     }
 
@@ -471,11 +529,13 @@ fn run_sqllogictest_suite() {
         grand_total.pass_rate()
     );
 
-    println!("\nNote: This is a comprehensive test suite with millions of individual test cases.");
+    println!("\nNote: This test suite randomly samples from ~5.9 million test cases across {} files.", total_available_files);
+    println!("Results from multiple CI runs are merged to progressively build complete coverage.");
     println!("Some failures are expected as we continue implementing SQL:1999 features.");
     println!("Files with database-specific conditional directives are skipped as they test vendor-specific behavior.");
 
     // Write results to JSON file for CI/badge generation
+    let tested_files_vec: Vec<String> = all_tested_files.into_iter().collect();
     let results_json = serde_json::json!({
         "total": grand_total.total,
         "passed": grand_total.passed,
@@ -483,6 +543,8 @@ fn run_sqllogictest_suite() {
         "errors": grand_total.errors,
         "skipped": grand_total.skipped,
         "pass_rate": grand_total.pass_rate(),
+        "total_available_files": total_available_files,
+        "tested_files": tested_files_vec,
         "categories": {
             "select": results.get("select").map(|s| serde_json::json!({
                 "total": s.total,

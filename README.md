@@ -72,7 +72,7 @@ We use comprehensive test suites to track SQL:1999 compliance:
 |-------|-------|--------|
 | SQL:1999 sqltest | 739 tests | ✅ **100% (739 passing)** |
 | Custom E2E Tests | 2,000+ tests | ✅ Passing (note: some compilation errors exist) |
-| SQLLogicTest | 623 test files (~5.9M tests) | 🔄 See badge above (updated on each CI run) |
+| SQLLogicTest | 623 test files (~5.9M tests) | 🔄 **Progressive coverage** - See badge above (cumulative from all CI + boost runs) |
 
 **Recent Progress** (As of Nov 1, 2024):
 - ✅ **100% SQL:1999 Core Conformance ACHIEVED** - All 739 tests passing!
@@ -103,11 +103,25 @@ cargo test --test sqltest_conformance -- --nocapture
 # Run SQLLogicTest baseline verification
 cargo test --test sqllogictest_basic
 
-# Run comprehensive SQLLogicTest suite (623 files, takes hours)
-cargo test --test sqllogictest_suite -- --nocapture
+# Run comprehensive SQLLogicTest suite with 5-minute time budget
+SQLLOGICTEST_TIME_BUDGET=300 cargo test --test sqllogictest_suite --release -- --nocapture
 ```
 
-**Note**: The comprehensive SQLLogicTest suite contains ~5.9 million individual test cases across 623 files. Running the full suite takes several hours. Use the basic verification test for quick validation.
+**SQLLogicTest Progressive Coverage Strategy**: The suite contains ~5.9 million test cases across 623 files. Instead of running all tests (which takes hours), we use **random sampling with progressive coverage**:
+
+- **CI runs**: Each commit tests a random sample for 5 minutes (~3-20 files)
+- **Results merge**: Current results merge with historical data on gh-pages
+- **Boost runs**: Optional manual workflow runs to rapidly increase coverage
+- **Badge updates**: Shows cumulative `{passed}✓ {failed}✗ ({coverage}% tested)`
+
+To manually boost coverage:
+```bash
+# Via GitHub Actions UI: Actions → "Boost SQLLogicTest Coverage" → Run workflow
+# Or via CLI:
+gh workflow run boost-sqllogictest.yml -f run_count=5 -f time_budget=300
+```
+
+See [`.github/workflows/README.md`](.github/workflows/README.md) for details on the boost workflow.
 
 ---
 

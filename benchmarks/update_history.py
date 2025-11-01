@@ -46,10 +46,20 @@ def update_history(
         sys.exit(1)
 
     # Load existing history
-    if Path(history_file).exists():
-        with open(history_file, 'r') as f:
-            history = json.load(f)
+    history_path = Path(history_file)
+    if history_path.exists() and history_path.stat().st_size > 0:
+        try:
+            with open(history_file, 'r') as f:
+                history = json.load(f)
+        except json.JSONDecodeError as e:
+            print(f"⚠️  Warning: Invalid JSON in history file, creating new history: {e}")
+            history = {
+                'version': '1.0',
+                'entries': []
+            }
     else:
+        if history_path.exists():
+            print("⚠️  Warning: History file exists but is empty, creating new history")
         history = {
             'version': '1.0',
             'entries': []
