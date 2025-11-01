@@ -1,266 +1,15 @@
-//! Basic SELECT tests (no WHERE, no aggregates, no JOINs)
+//! SELECT with derived column lists tests
 //!
-//! Tests for fundamental SELECT functionality including wildcards, column projection, and ORDER BY.
+//! Tests for SQL:1999 Feature E051-07/08 - derived column lists (AS (col1, col2, ...))
+//! These tests cover various wildcard scenarios with column renaming.
 
 use super::super::*;
-
-#[test]
-fn test_select_star() {
-    let mut db = storage::Database::new();
-    let schema = catalog::TableSchema::new(
-        "users".to_string(),
-        vec![
-            catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new(
-                "name".to_string(),
-                types::DataType::Varchar { max_length: Some(100) },
-                true,
-            ),
-        ],
-    );
-    db.create_table(schema).unwrap();
-    db.insert_row(
-        "users",
-        storage::Row::new(vec![
-            types::SqlValue::Integer(1),
-            types::SqlValue::Varchar("Alice".to_string()),
-        ]),
-    )
-    .unwrap();
-    db.insert_row(
-        "users",
-        storage::Row::new(vec![
-            types::SqlValue::Integer(2),
-            types::SqlValue::Varchar("Bob".to_string()),
-        ]),
-    )
-    .unwrap();
-
-    let executor = SelectExecutor::new(&db);
-    let stmt = ast::SelectStmt {
-        into_table: None,
-        with_clause: None,
-        set_operation: None,
-        distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
-        from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
-        where_clause: None,
-        group_by: None,
-        having: None,
-        order_by: None,
-        limit: None,
-        offset: None,
-    };
-
-    let result = executor.execute(&stmt).unwrap();
-    assert_eq!(result.len(), 2);
-    assert_eq!(result[0].values[0], types::SqlValue::Integer(1));
-    assert_eq!(result[0].values[1], types::SqlValue::Varchar("Alice".to_string()));
-    assert_eq!(result[1].values[0], types::SqlValue::Integer(2));
-    assert_eq!(result[1].values[1], types::SqlValue::Varchar("Bob".to_string()));
-}
-
-#[test]
-fn test_select_specific_columns() {
-    let mut db = storage::Database::new();
-    let schema = catalog::TableSchema::new(
-        "users".to_string(),
-        vec![
-            catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new(
-                "name".to_string(),
-                types::DataType::Varchar { max_length: Some(100) },
-                true,
-            ),
-            catalog::ColumnSchema::new("age".to_string(), types::DataType::Integer, false),
-        ],
-    );
-    db.create_table(schema).unwrap();
-    db.insert_row(
-        "users",
-        storage::Row::new(vec![
-            types::SqlValue::Integer(1),
-            types::SqlValue::Varchar("Alice".to_string()),
-            types::SqlValue::Integer(25),
-        ]),
-    )
-    .unwrap();
-
-    let executor = SelectExecutor::new(&db);
-    let stmt = ast::SelectStmt {
-        into_table: None,
-        with_clause: None,
-        set_operation: None,
-        distinct: false,
-        select_list: vec![
-            ast::SelectItem::Expression {
-                expr: ast::Expression::ColumnRef { table: None, column: "name".to_string() },
-                alias: None,
-            },
-            ast::SelectItem::Expression {
-                expr: ast::Expression::ColumnRef { table: None, column: "age".to_string() },
-                alias: None,
-            },
-        ],
-        from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
-        where_clause: None,
-        group_by: None,
-        having: None,
-        order_by: None,
-        limit: None,
-        offset: None,
-    };
-
-    let result = executor.execute(&stmt).unwrap();
-    assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values.len(), 2);
-    assert_eq!(result[0].values[0], types::SqlValue::Varchar("Alice".to_string()));
-    assert_eq!(result[0].values[1], types::SqlValue::Integer(25));
-}
-
-#[test]
-fn test_order_by_single_column_asc() {
-    let mut db = storage::Database::new();
-    let schema = catalog::TableSchema::new(
-        "users".to_string(),
-        vec![
-            catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("age".to_string(), types::DataType::Integer, false),
-        ],
-    );
-    db.create_table(schema).unwrap();
-    db.insert_row(
-        "users",
-        storage::Row::new(vec![types::SqlValue::Integer(1), types::SqlValue::Integer(30)]),
-    )
-    .unwrap();
-    db.insert_row(
-        "users",
-        storage::Row::new(vec![types::SqlValue::Integer(2), types::SqlValue::Integer(20)]),
-    )
-    .unwrap();
-    db.insert_row(
-        "users",
-        storage::Row::new(vec![types::SqlValue::Integer(3), types::SqlValue::Integer(25)]),
-    )
-    .unwrap();
-
-    let executor = SelectExecutor::new(&db);
-    let stmt = ast::SelectStmt {
-        into_table: None,
-        with_clause: None,
-        set_operation: None,
-        distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
-        from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
-        where_clause: None,
-        group_by: None,
-        having: None,
-        order_by: Some(vec![ast::OrderByItem {
-            expr: ast::Expression::ColumnRef { table: None, column: "age".to_string() },
-            direction: ast::OrderDirection::Asc,
-        }]),
-        limit: None,
-        offset: None,
-    };
-
-    let result = executor.execute(&stmt).unwrap();
-    assert_eq!(result.len(), 3);
-    assert_eq!(result[0].values[1], types::SqlValue::Integer(20));
-    assert_eq!(result[1].values[1], types::SqlValue::Integer(25));
-    assert_eq!(result[2].values[1], types::SqlValue::Integer(30));
-}
-
-#[test]
-fn test_order_by_multiple_columns() {
-    let mut db = storage::Database::new();
-    let schema = catalog::TableSchema::new(
-        "users".to_string(),
-        vec![
-            catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("dept".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("age".to_string(), types::DataType::Integer, false),
-        ],
-    );
-    db.create_table(schema).unwrap();
-    db.insert_row(
-        "users",
-        storage::Row::new(vec![
-            types::SqlValue::Integer(1),
-            types::SqlValue::Integer(2),
-            types::SqlValue::Integer(35),
-        ]),
-    )
-    .unwrap();
-    db.insert_row(
-        "users",
-        storage::Row::new(vec![
-            types::SqlValue::Integer(2),
-            types::SqlValue::Integer(1),
-            types::SqlValue::Integer(30),
-        ]),
-    )
-    .unwrap();
-    db.insert_row(
-        "users",
-        storage::Row::new(vec![
-            types::SqlValue::Integer(3),
-            types::SqlValue::Integer(2),
-            types::SqlValue::Integer(20),
-        ]),
-    )
-    .unwrap();
-    db.insert_row(
-        "users",
-        storage::Row::new(vec![
-            types::SqlValue::Integer(4),
-            types::SqlValue::Integer(1),
-            types::SqlValue::Integer(25),
-        ]),
-    )
-    .unwrap();
-
-    let executor = SelectExecutor::new(&db);
-    let stmt = ast::SelectStmt {
-        into_table: None,
-        with_clause: None,
-        set_operation: None,
-        distinct: false,
-        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
-        from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
-        where_clause: None,
-        group_by: None,
-        having: None,
-        order_by: Some(vec![
-            ast::OrderByItem {
-                expr: ast::Expression::ColumnRef { table: None, column: "dept".to_string() },
-                direction: ast::OrderDirection::Asc,
-            },
-            ast::OrderByItem {
-                expr: ast::Expression::ColumnRef { table: None, column: "age".to_string() },
-                direction: ast::OrderDirection::Desc,
-            },
-        ]),
-        limit: None,
-        offset: None,
-    };
-
-    let result = executor.execute(&stmt).unwrap();
-    assert_eq!(result.len(), 4);
-    assert_eq!(result[0].values[1], types::SqlValue::Integer(1));
-    assert_eq!(result[0].values[2], types::SqlValue::Integer(30));
-    assert_eq!(result[1].values[1], types::SqlValue::Integer(1));
-    assert_eq!(result[1].values[2], types::SqlValue::Integer(25));
-    assert_eq!(result[2].values[1], types::SqlValue::Integer(2));
-    assert_eq!(result[2].values[2], types::SqlValue::Integer(35));
-    assert_eq!(result[3].values[1], types::SqlValue::Integer(2));
-    assert_eq!(result[3].values[2], types::SqlValue::Integer(20));
-}
 
 // ============================================================================
 // Derived Column List Tests (SQL:1999 Feature E051-07/08)
 // ============================================================================
 
+/// Test SELECT * with derived columns (column renaming)
 #[test]
 fn test_select_star_with_derived_columns() {
     let mut db = storage::Database::new();
@@ -307,6 +56,7 @@ fn test_select_star_with_derived_columns() {
     assert_eq!(result.rows[0].values[1], types::SqlValue::Integer(2));
 }
 
+/// Test SELECT qualified * with derived columns
 #[test]
 fn test_select_qualified_star_with_derived_columns() {
     let mut db = storage::Database::new();
@@ -354,6 +104,7 @@ fn test_select_qualified_star_with_derived_columns() {
     assert_eq!(result.rows[0].values[1], types::SqlValue::Integer(2));
 }
 
+/// Test error when derived columns count doesn't match table columns
 #[test]
 fn test_derived_columns_count_mismatch() {
     let mut db = storage::Database::new();
@@ -401,6 +152,7 @@ fn test_derived_columns_count_mismatch() {
     }
 }
 
+/// Test SELECT DISTINCT * with derived columns
 #[test]
 fn test_select_distinct_star_with_derived_columns() {
     let mut db = storage::Database::new();
@@ -452,6 +204,7 @@ fn test_select_distinct_star_with_derived_columns() {
     assert_eq!(result.rows[0].values[1], types::SqlValue::Integer(2));
 }
 
+/// Test SELECT * with derived columns and table alias
 #[test]
 fn test_select_star_alias_with_table_alias() {
     let mut db = storage::Database::new();
@@ -506,6 +259,7 @@ fn test_select_star_alias_with_table_alias() {
 // Tests for derived column lists (SQL:1999 E051-07, E051-08)
 // ============================================================================
 
+/// Test SELECT * AS (c, d) using parser
 #[test]
 fn test_select_wildcard_with_derived_column_list() {
     let mut db = storage::Database::new();
@@ -544,6 +298,7 @@ fn test_select_wildcard_with_derived_column_list() {
     assert_eq!(result.rows[0].values[1], types::SqlValue::Integer(20));
 }
 
+/// Test SELECT ALL * AS (c, d) using parser
 #[test]
 fn test_select_all_wildcard_with_derived_column_list() {
     let mut db = storage::Database::new();
@@ -582,6 +337,7 @@ fn test_select_all_wildcard_with_derived_column_list() {
     assert_eq!(result.rows[0].values[1], types::SqlValue::Integer(20));
 }
 
+/// Test SELECT DISTINCT * AS (c, d) using parser
 #[test]
 fn test_select_distinct_wildcard_with_derived_column_list() {
     let mut db = storage::Database::new();
@@ -628,6 +384,7 @@ fn test_select_distinct_wildcard_with_derived_column_list() {
     assert_eq!(result.rows[0].values[1], types::SqlValue::Integer(20));
 }
 
+/// Test SELECT t.* AS (c, d) using parser
 #[test]
 fn test_select_qualified_wildcard_with_derived_column_list() {
     let mut db = storage::Database::new();
@@ -666,6 +423,7 @@ fn test_select_qualified_wildcard_with_derived_column_list() {
     assert_eq!(result.rows[0].values[1], types::SqlValue::Integer(20));
 }
 
+/// Test SELECT myalias.* AS (c, d) FROM mytable AS myalias using parser
 #[test]
 fn test_select_alias_wildcard_with_derived_column_list() {
     let mut db = storage::Database::new();
@@ -704,6 +462,7 @@ fn test_select_alias_wildcard_with_derived_column_list() {
     assert_eq!(result.rows[0].values[1], types::SqlValue::Integer(20));
 }
 
+/// Test error when derived column list count doesn't match table columns
 #[test]
 fn test_select_derived_column_list_count_mismatch_error() {
     let mut db = storage::Database::new();
