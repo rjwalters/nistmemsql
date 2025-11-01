@@ -239,6 +239,43 @@ cat > "$OUTPUT" <<EOF
     <!-- Failing Tests Section (if any) -->
 $ERROR_SECTION
 
+    <!-- SQLLogicTest Section -->
+    <div id="SQLlogicTest" class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-8">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">SQLLogicTest Suite</h2>
+
+      <p class="text-gray-700 dark:text-gray-300 mb-6">
+        Tests from the <a href="https://www.sqlite.org/sqllogictest/" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline">SQLLogicTest corpus</a>
+        - a comprehensive test suite with ~5.9 million tests across 623 files from the official SQLite test repository.
+      </p>
+
+      <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6 mb-6">
+        <h3 class="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">📊 Current Progress</h3>
+        <p class="text-blue-800 dark:text-blue-200 text-sm mb-4">
+          The SQLLogicTest suite provides extensive coverage of SQL functionality beyond SQL:1999 compliance.
+          Results are generated on each CI run. See the badge at the top of this page for current pass rate.
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <span class="font-semibold text-blue-900 dark:text-blue-100">Test files:</span>
+            <span class="ml-2 text-blue-800 dark:text-blue-200">623 files</span>
+          </div>
+          <div>
+            <span class="font-semibold text-blue-900 dark:text-blue-100">Total tests:</span>
+            <span class="ml-2 text-blue-800 dark:text-blue-200">~5.9 million</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-gray-100 dark:bg-gray-900 rounded-lg p-4 font-mono text-sm overflow-x-auto">
+        <div class="text-gray-700 dark:text-gray-300">
+          <div class="text-green-600 dark:text-green-400"># Run basic verification (quick)</div>
+          <div>cargo test --test sqllogictest_basic</div>
+          <div class="mt-4 text-green-600 dark:text-green-400"># Run comprehensive suite (takes hours)</div>
+          <div>cargo test --test sqllogictest_suite --release -- --nocapture</div>
+        </div>
+      </div>
+    </div>
+
     <!-- How to Run Tests Locally -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-8">
       <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Running Tests Locally</h2>
