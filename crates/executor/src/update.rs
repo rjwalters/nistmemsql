@@ -177,26 +177,45 @@ impl UpdateExecutor {
                 // Enforce PRIMARY KEY constraint (uniqueness)
                 if let Some(pk_indices) = schema.get_primary_key_indices() {
                     // Extract primary key values from the updated row
-                    let new_pk_values: Vec<&types::SqlValue> =
-                        pk_indices.iter().filter_map(|&idx| new_row.get(idx)).collect();
+                    let new_pk_values: Vec<types::SqlValue> =
+                        pk_indices.iter().map(|&idx| new_row.values[idx].clone()).collect();
 
-                    // Check if any OTHER row has the same primary key
-                    for (other_idx, other_row) in table.scan().iter().enumerate() {
-                        // Skip the row being updated
-                        if other_idx == row_index {
-                            continue;
+                    // Use hash index for O(1) lookup instead of O(n) scan
+                    if let Some(pk_index) = table.primary_key_index() {
+                        if pk_index.contains_key(&new_pk_values) {
+                            // Check if it's not the same row (hash index doesn't store row index for easy exclusion)
+                            // We need to verify it's actually a different row by checking if this is an update to the same PK
+                            let original_pk_values: Vec<types::SqlValue> =
+                                pk_indices.iter().map(|&idx| row.values[idx].clone()).collect();
+
+                            if new_pk_values != original_pk_values {
+                                let pk_col_names: Vec<String> =
+                                    schema.primary_key.as_ref().unwrap().clone();
+                                return Err(ExecutorError::ConstraintViolation(format!(
+                                    "PRIMARY KEY constraint violated: duplicate key value for ({})",
+                                    pk_col_names.join(", ")
+                                )));
+                            }
                         }
+                    } else {
+                        // Fallback to table scan if index not available (should not happen in normal operation)
+                        for (other_idx, other_row) in table.scan().iter().enumerate() {
+                            // Skip the row being updated
+                            if other_idx == row_index {
+                                continue;
+                            }
 
-                        let other_pk_values: Vec<&types::SqlValue> =
-                            pk_indices.iter().filter_map(|&idx| other_row.get(idx)).collect();
+                            let other_pk_values: Vec<&types::SqlValue> =
+                                pk_indices.iter().filter_map(|&idx| other_row.get(idx)).collect();
 
-                        if new_pk_values == other_pk_values {
-                            let pk_col_names: Vec<String> =
-                                schema.primary_key.as_ref().unwrap().clone();
-                            return Err(ExecutorError::ConstraintViolation(format!(
-                                "PRIMARY KEY constraint violated: duplicate key value for ({})",
-                                pk_col_names.join(", ")
-                            )));
+                            if new_pk_values.iter().zip(other_pk_values).all(|(a, b)| *a == *b) {
+                                let pk_col_names: Vec<String> =
+                                    schema.primary_key.as_ref().unwrap().clone();
+                                return Err(ExecutorError::ConstraintViolation(format!(
+                                    "PRIMARY KEY constraint violated: duplicate key value for ({})",
+                                    pk_col_names.join(", ")
+                                )));
+                            }
                         }
                     }
                 }
@@ -206,37 +225,57 @@ impl UpdateExecutor {
                 for (constraint_idx, unique_indices) in unique_constraint_indices.iter().enumerate()
                 {
                     // Extract unique constraint values from the updated row
-                    let new_unique_values: Vec<&types::SqlValue> =
-                        unique_indices.iter().filter_map(|&idx| new_row.get(idx)).collect();
+                    let new_unique_values: Vec<types::SqlValue> =
+                        unique_indices.iter().map(|&idx| new_row.values[idx].clone()).collect();
 
                     // Skip if any value in the unique constraint is NULL
                     // (NULL != NULL in SQL, so multiple NULLs are allowed)
-                    if new_unique_values.iter().any(|v| **v == types::SqlValue::Null) {
+                    if new_unique_values.iter().any(|v| *v == types::SqlValue::Null) {
                         continue;
                     }
 
-                    // Check if any OTHER row has the same unique constraint values
-                    for (other_idx, other_row) in table.scan().iter().enumerate() {
-                        // Skip the row being updated
-                        if other_idx == row_index {
-                            continue;
+                    // Use hash index for O(1) lookup instead of O(n) scan
+                    let unique_indexes = table.unique_indexes();
+                    if constraint_idx < unique_indexes.len() {
+                        let unique_index = &unique_indexes[constraint_idx];
+                        if unique_index.contains_key(&new_unique_values) {
+                            // Check if it's not the same row by comparing original values
+                            let original_unique_values: Vec<types::SqlValue> =
+                                unique_indices.iter().map(|&idx| row.values[idx].clone()).collect();
+
+                            if new_unique_values != original_unique_values {
+                                let unique_col_names: Vec<String> =
+                                    schema.unique_constraints[constraint_idx].clone();
+                                return Err(ExecutorError::ConstraintViolation(format!(
+                                    "UNIQUE constraint violated: duplicate value for ({})",
+                                    unique_col_names.join(", ")
+                                )));
+                            }
                         }
+                    } else {
+                        // Fallback to table scan if index not available (should not happen in normal operation)
+                        for (other_idx, other_row) in table.scan().iter().enumerate() {
+                            // Skip the row being updated
+                            if other_idx == row_index {
+                                continue;
+                            }
 
-                        let other_unique_values: Vec<&types::SqlValue> =
-                            unique_indices.iter().filter_map(|&idx| other_row.get(idx)).collect();
+                            let other_unique_values: Vec<&types::SqlValue> =
+                                unique_indices.iter().filter_map(|&idx| other_row.get(idx)).collect();
 
-                        // Skip if any existing value is NULL
-                        if other_unique_values.iter().any(|v| **v == types::SqlValue::Null) {
-                            continue;
-                        }
+                            // Skip if any existing value is NULL
+                            if other_unique_values.iter().any(|v| **v == types::SqlValue::Null) {
+                                continue;
+                            }
 
-                        if new_unique_values == other_unique_values {
-                            let unique_col_names: Vec<String> =
-                                schema.unique_constraints[constraint_idx].clone();
-                            return Err(ExecutorError::ConstraintViolation(format!(
-                                "UNIQUE constraint violated: duplicate value for ({})",
-                                unique_col_names.join(", ")
-                            )));
+                            if new_unique_values.iter().zip(other_unique_values).all(|(a, b)| *a == *b) {
+                                let unique_col_names: Vec<String> =
+                                    schema.unique_constraints[constraint_idx].clone();
+                                return Err(ExecutorError::ConstraintViolation(format!(
+                                    "UNIQUE constraint violated: duplicate value for ({})",
+                                    unique_col_names.join(", ")
+                                )));
+                            }
                         }
                     }
                 }

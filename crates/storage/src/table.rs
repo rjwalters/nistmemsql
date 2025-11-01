@@ -205,6 +205,16 @@ impl Table {
         &mut self.schema
     }
 
+    /// Get reference to primary key index
+    pub fn primary_key_index(&self) -> Option<&HashMap<Vec<SqlValue>, usize>> {
+        self.primary_key_index.as_ref()
+    }
+
+    /// Get reference to unique constraint indexes
+    pub fn unique_indexes(&self) -> &[HashMap<Vec<SqlValue>, usize>] {
+        &self.unique_indexes
+    }
+
     /// Update hash indexes when inserting a row
     fn update_indexes_for_insert(&mut self, row: &Row, row_index: usize) {
         // Update primary key index
@@ -328,15 +338,5 @@ impl Table {
         for (row, row_index) in rows_with_indices {
             self.update_indexes_for_insert(&row, row_index);
         }
-    }
-
-    /// Get reference to primary key index
-    pub fn primary_key_index(&self) -> &Option<HashMap<Vec<SqlValue>, usize>> {
-        &self.primary_key_index
-    }
-
-    /// Get reference to unique indexes
-    pub fn unique_indexes(&self) -> &Vec<HashMap<Vec<SqlValue>, usize>> {
-        &self.unique_indexes
     }
 }
