@@ -117,7 +117,11 @@ impl GrantExecutor {
             ObjectType::Method
             | ObjectType::ConstructorMethod
             | ObjectType::StaticMethod
-            | ObjectType::InstanceMethod => {
+            | ObjectType::InstanceMethod
+            | ObjectType::SpecificMethod
+            | ObjectType::SpecificConstructorMethod
+            | ObjectType::SpecificStaticMethod
+            | ObjectType::SpecificInstanceMethod => {
                 // No validation - methods belong to UDTs which aren't fully implemented yet
                 // Privilege tracking works by object name alone
             }
@@ -160,7 +164,11 @@ impl GrantExecutor {
                 | ObjectType::InstanceMethod
                 | ObjectType::SpecificFunction
                 | ObjectType::SpecificProcedure
-                | ObjectType::SpecificRoutine => vec![PrivilegeType::Execute],
+                | ObjectType::SpecificRoutine
+                | ObjectType::SpecificMethod
+                | ObjectType::SpecificConstructorMethod
+                | ObjectType::SpecificStaticMethod
+                | ObjectType::SpecificInstanceMethod => vec![PrivilegeType::Execute],
             }
         } else {
             stmt.privileges.clone()
