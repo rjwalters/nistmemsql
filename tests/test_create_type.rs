@@ -199,3 +199,13 @@ fn test_multiple_types() {
     assert!(!db.catalog.type_exists("TYPE2"));
     assert!(!db.catalog.type_exists("TYPE3"));
 }
+
+#[test]
+fn test_create_type_forward_declaration() {
+    let mut db = Database::new();
+
+    // Create a forward declaration (without AS clause)
+    let result = execute_and_expect_success(&mut db, "CREATE TYPE forward_type");
+    assert_eq!(result, "Type 'FORWARD_TYPE' created");
+    assert!(db.catalog.type_exists("FORWARD_TYPE"));
+}

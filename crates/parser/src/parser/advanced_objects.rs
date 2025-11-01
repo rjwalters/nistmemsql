@@ -217,39 +217,44 @@ pub fn parse_alter_sequence(parser: &mut crate::Parser) -> Result<AlterSequenceS
 /// Parse CREATE TYPE statement
 ///
 /// Syntax:
-///   CREATE TYPE type_name AS DISTINCT base_type
-///   CREATE TYPE type_name AS (attr1 type1, attr2 type2, ...)
+///   CREATE TYPE type_name;                              -- Forward declaration
+///   CREATE TYPE type_name AS DISTINCT base_type         -- Distinct type
+///   CREATE TYPE type_name AS (attr1 type1, attr2 type2, ...)  -- Structured type
 pub fn parse_create_type(parser: &mut crate::Parser) -> Result<CreateTypeStmt, ParseError> {
     parser.expect_keyword(Keyword::Create)?;
     parser.expect_keyword(Keyword::Type)?;
 
     let type_name = parser.parse_identifier()?;
 
-    parser.expect_keyword(Keyword::As)?;
+    // Check if AS keyword is present
+    let definition = if parser.try_consume_keyword(Keyword::As) {
+        if parser.peek_keyword(Keyword::Distinct) {
+            // DISTINCT type
+            parser.advance(); // consume DISTINCT
+            let base_type = parser.parse_data_type()?;
+            ast::TypeDefinition::Distinct { base_type }
+        } else {
+            // STRUCTURED type
+            parser.expect_token(Token::LParen)?;
 
-    let definition = if parser.peek_keyword(Keyword::Distinct) {
-        // DISTINCT type
-        parser.advance(); // consume DISTINCT
-        let base_type = parser.parse_data_type()?;
-        ast::TypeDefinition::Distinct { base_type }
-    } else {
-        // STRUCTURED type
-        parser.expect_token(Token::LParen)?;
+            let mut attributes = Vec::new();
+            loop {
+                let attr_name = parser.parse_identifier()?;
+                let data_type = parser.parse_data_type()?;
 
-        let mut attributes = Vec::new();
-        loop {
-            let attr_name = parser.parse_identifier()?;
-            let data_type = parser.parse_data_type()?;
+                attributes.push(ast::TypeAttribute { name: attr_name, data_type });
 
-            attributes.push(ast::TypeAttribute { name: attr_name, data_type });
-
-            if !parser.try_consume(&Token::Comma) {
-                break;
+                if !parser.try_consume(&Token::Comma) {
+                    break;
+                }
             }
-        }
 
-        parser.expect_token(Token::RParen)?;
-        ast::TypeDefinition::Structured { attributes }
+            parser.expect_token(Token::RParen)?;
+            ast::TypeDefinition::Structured { attributes }
+        }
+    } else {
+        // Forward declaration without AS
+        ast::TypeDefinition::Forward
     };
 
     Ok(CreateTypeStmt { type_name, definition })
@@ -306,7 +311,24 @@ pub fn parse_create_collation(
 
     // Optional: FROM source_collation
     let source_collation = if parser.try_consume_keyword(Keyword::From) {
-        Some(parser.parse_identifier()?)
+        match parser.peek() {
+            Token::Identifier(s) | Token::DelimitedIdentifier(s) => {
+                let source = s.clone();
+                parser.advance();
+                Some(source)
+            }
+            Token::String(s) => {
+                // SQL:1999 allows string literal for locale (e.g., 'de_DE')
+                let source = s.clone();
+                parser.advance();
+                Some(source)
+            }
+            _ => {
+                return Err(ParseError {
+                    message: "Expected identifier or string literal after FROM".to_string(),
+                });
+            }
+        }
     } else {
         None
     };
