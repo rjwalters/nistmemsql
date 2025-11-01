@@ -641,3 +641,36 @@ fn test_sqllogictest_multipolygon_basic() {
         _ => panic!("Expected CREATE TABLE statement"),
     }
 }
+
+#[test]
+fn test_default_before_comment_mysql_standard() {
+    // Test MySQL standard order: DEFAULT before COMMENT
+    // Per MySQL 8.4 Reference Manual:
+    // column_definition: data_type [DEFAULT {literal | (expr)}] [COMMENT 'string']
+    let result = Parser::parse_sql(
+        "CREATE TABLE t (col INT DEFAULT 5 COMMENT 'test column');",
+    );
+
+    if let Err(ref e) = result {
+        eprintln!("Parse error: {}", e);
+    }
+
+    assert!(result.is_ok(), "Should parse DEFAULT before COMMENT (MySQL standard order)");
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::CreateTable(create) => {
+            assert_eq!(create.columns.len(), 1);
+
+            let col = &create.columns[0];
+            assert_eq!(col.name, "COL");
+
+            // Verify DEFAULT value is parsed
+            assert!(col.default_value.is_some(), "Should have default value");
+
+            // Verify COMMENT is parsed
+            assert_eq!(col.comment, Some("test column".to_string()));
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}

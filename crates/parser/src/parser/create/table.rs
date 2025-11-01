@@ -48,7 +48,15 @@ impl Parser {
             // Parse data type
             let data_type = self.parse_data_type()?;
 
-            // Parse optional COMMENT clause
+            // Parse optional DEFAULT clause (before COMMENT, per MySQL standard)
+            let default_value = if self.peek_keyword(Keyword::Default) {
+                self.advance(); // consume DEFAULT
+                Some(Box::new(self.parse_expression()?))
+            } else {
+                None
+            };
+
+            // Parse optional COMMENT clause (after DEFAULT, per MySQL standard)
             let comment = if self.peek_keyword(Keyword::Comment) {
                 self.advance(); // consume COMMENT
                 match self.peek() {
@@ -59,14 +67,6 @@ impl Parser {
                     }
                     _ => return Err(ParseError { message: "Expected string literal after COMMENT".to_string() }),
                 }
-            } else {
-                None
-            };
-
-            // Parse optional DEFAULT clause
-            let default_value = if self.peek_keyword(Keyword::Default) {
-                self.advance(); // consume DEFAULT
-                Some(Box::new(self.parse_expression()?))
             } else {
                 None
             };
