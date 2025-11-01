@@ -343,13 +343,15 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
   private renderSQLLogicTestResults(sltData: SQLLogicTestData): string {
     const passRate = sltData.pass_rate.toFixed(1)
 
+    // Handle case where categories might be undefined
+    const categoriesData = sltData.categories || {}
     const categories = [
-      { key: 'select', name: 'SELECT Tests', data: sltData.categories.select },
-      { key: 'evidence', name: 'Evidence Tests', data: sltData.categories.evidence },
-      { key: 'index', name: 'Index Tests', data: sltData.categories.index },
-      { key: 'random', name: 'Random Tests', data: sltData.categories.random },
-      { key: 'ddl', name: 'DDL Tests', data: sltData.categories.ddl },
-      { key: 'other', name: 'Other Tests', data: sltData.categories.other },
+      { key: 'select', name: 'SELECT Tests', data: categoriesData.select },
+      { key: 'evidence', name: 'Evidence Tests', data: categoriesData.evidence },
+      { key: 'index', name: 'Index Tests', data: categoriesData.index },
+      { key: 'random', name: 'Random Tests', data: categoriesData.random },
+      { key: 'ddl', name: 'DDL Tests', data: categoriesData.ddl },
+      { key: 'other', name: 'Other Tests', data: categoriesData.other },
     ]
 
     const categoryCards = categories
