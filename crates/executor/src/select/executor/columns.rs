@@ -151,8 +151,25 @@ fn derive_expression_name_impl(expr: &ast::Expression) -> String {
             )
         }
         ast::Expression::Literal(val) => {
-            // For literals, use the value representation
-            format!("{:?}", val)
+            // For literals, use a clean string representation
+            match val {
+                types::SqlValue::Integer(n) => n.to_string(),
+                types::SqlValue::Smallint(n) => n.to_string(),
+                types::SqlValue::Bigint(n) => n.to_string(),
+                types::SqlValue::Double(f) => f.to_string(),
+                types::SqlValue::Float(f) => f.to_string(),
+                types::SqlValue::Real(f) => f.to_string(),
+                types::SqlValue::Numeric(f) => f.to_string(),
+                types::SqlValue::Varchar(s) | types::SqlValue::Character(s) => {
+                    format!("'{}'", s)
+                }
+                types::SqlValue::Boolean(b) => b.to_string(),
+                types::SqlValue::Date(d) => format!("'{}'", d),
+                types::SqlValue::Time(t) => format!("'{}'", t),
+                types::SqlValue::Timestamp(ts) => format!("'{}'", ts),
+                types::SqlValue::Interval(i) => format!("INTERVAL '{}'", i),
+                types::SqlValue::Null => "NULL".to_string(),
+            }
         }
         _ => "?column?".to_string(), // Default for other expression types
     }
