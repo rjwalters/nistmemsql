@@ -3,7 +3,9 @@
 //! Tests are organized by feature area:
 //! - `expression_eval`: Expression evaluator tests (literals, column refs, binary ops)
 //! - `limit_offset`: LIMIT/OFFSET pagination tests
-//! - `select_basic`: Basic SELECT tests (wildcards, columns, ORDER BY)
+//! - `select_basic_projection`: Basic SELECT projection tests (wildcards, specific columns)
+//! - `select_order_by`: ORDER BY clause tests
+//! - `select_derived_columns`: Derived column lists (SQL:1999 E051-07/08) tests
 //! - `select_where`: WHERE clause filtering tests
 //! - `select_distinct`: DISTINCT keyword tests for duplicate removal
 //! - `aggregate_count_sum_avg_tests`: COUNT, SUM, AVG functions with NULL handling
@@ -42,8 +44,10 @@ mod privilege_checker_tests;
 mod scalar_subquery_basic_tests;
 mod scalar_subquery_correlated_tests;
 mod scalar_subquery_error_tests;
-mod select_basic;
+mod select_basic_projection;
+mod select_derived_columns;
 mod select_distinct;
+mod select_order_by;
 mod select_into_tests;
 mod select_joins;
 mod select_where;
