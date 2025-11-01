@@ -141,14 +141,14 @@ impl Table {
         // Normalize row values (e.g., CHAR padding/truncation)
         let normalized_row = self.normalize_row(row);
 
-        // Get old row for index updates
-        let old_row = &self.rows[index];
+        // Get old row for index updates (clone it before modifying)
+        let old_row = self.rows[index].clone();
 
         // Update the row
         self.rows[index] = normalized_row.clone();
 
         // Update indexes
-        self.update_indexes_for_update(old_row, &normalized_row, index);
+        self.update_indexes_for_update(&old_row, &normalized_row, index);
 
         Ok(())
     }
@@ -203,6 +203,16 @@ impl Table {
     /// Get mutable reference to schema
     pub fn schema_mut(&mut self) -> &mut catalog::TableSchema {
         &mut self.schema
+    }
+
+    /// Get reference to primary key index
+    pub fn primary_key_index(&self) -> Option<&HashMap<Vec<SqlValue>, usize>> {
+        self.primary_key_index.as_ref()
+    }
+
+    /// Get reference to unique constraint indexes
+    pub fn unique_indexes(&self) -> &[HashMap<Vec<SqlValue>, usize>] {
+        &self.unique_indexes
     }
 
     /// Update hash indexes when inserting a row
@@ -280,7 +290,7 @@ impl Table {
     }
 
     /// Update hash indexes when deleting rows
-    fn update_indexes_for_delete(&mut self, row: &Row, row_index: usize) {
+    fn update_indexes_for_delete(&mut self, row: &Row, _row_index: usize) {
         // Update primary key index
         if let Some(ref mut pk_index) = self.primary_key_index {
             if let Some(pk_indices) = self.schema.get_primary_key_indices() {
@@ -319,8 +329,9 @@ impl Table {
             unique_index.clear();
         }
 
-        // Rebuild from current rows
-        for (row_index, row) in self.rows.iter().enumerate() {
+        // Rebuild from current rows (collect first to avoid borrowing issues)
+        let rows: Vec<Row> = self.rows.clone();
+        for (row_index, row) in rows.iter().enumerate() {
             self.update_indexes_for_insert(row, row_index);
         }
     }
