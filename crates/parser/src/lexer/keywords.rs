@@ -181,6 +181,7 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "PAD" => Token::Keyword(Keyword::Pad),
         "SPACE" => Token::Keyword(Keyword::Space),
         "COLLATE" => Token::Keyword(Keyword::Collate),
+        "COMMENT" => Token::Keyword(Keyword::Comment),
         // CURSOR keywords
         "DECLARE" => Token::Keyword(Keyword::Declare),
         "CURSOR" => Token::Keyword(Keyword::Cursor),

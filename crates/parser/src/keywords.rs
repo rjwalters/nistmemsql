@@ -204,6 +204,7 @@ pub enum Keyword {
     Isolation,
     Level,
     Write,
+    Comment,
 }
 
 impl fmt::Display for Keyword {
@@ -385,6 +386,7 @@ impl fmt::Display for Keyword {
             Keyword::Isolation => "ISOLATION",
             Keyword::Level => "LEVEL",
             Keyword::Write => "WRITE",
+            Keyword::Comment => "COMMENT",
         };
         write!(f, "{}", keyword_str)
     }

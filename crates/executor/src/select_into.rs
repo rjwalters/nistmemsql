@@ -103,6 +103,7 @@ impl SelectIntoExecutor {
                         nullable: true, // Allow NULL by default
                         constraints: vec![],
                         default_value: None,
+                        comment: None,
                     });
                 }
             }

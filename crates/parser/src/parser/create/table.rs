@@ -48,6 +48,21 @@ impl Parser {
             // Parse data type
             let data_type = self.parse_data_type()?;
 
+            // Parse optional COMMENT clause
+            let comment = if self.peek_keyword(Keyword::Comment) {
+                self.advance(); // consume COMMENT
+                match self.peek() {
+                    Token::String(s) => {
+                        let c = s.clone();
+                        self.advance();
+                        Some(c)
+                    }
+                    _ => return Err(ParseError { message: "Expected string literal after COMMENT".to_string() }),
+                }
+            } else {
+                None
+            };
+
             // Parse optional DEFAULT clause
             let default_value = if self.peek_keyword(Keyword::Default) {
                 self.advance(); // consume DEFAULT
@@ -63,7 +78,7 @@ impl Parser {
             let nullable =
                 !constraints.iter().any(|c| matches!(&c.kind, ast::ColumnConstraintKind::NotNull));
 
-            columns.push(ast::ColumnDef { name, data_type, nullable, constraints, default_value });
+            columns.push(ast::ColumnDef { name, data_type, nullable, constraints, default_value, comment });
 
             if matches!(self.peek(), Token::Comma) {
                 self.advance();

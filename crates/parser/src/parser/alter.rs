@@ -126,7 +126,7 @@ fn parse_add_column(
     }
 
     let column_def =
-        ColumnDef { name: column_name, data_type, nullable, constraints, default_value };
+        ColumnDef { name: column_name, data_type, nullable, constraints, default_value, comment: None };
 
     Ok(AlterTableStmt::AddColumn(AddColumnStmt { table_name, column_def }))
 }
