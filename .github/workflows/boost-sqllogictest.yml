@@ -94,9 +94,11 @@ jobs:
 
             # Use timestamp + run number as seed for variety
             SEED=$(date +%s)$i
+            echo "Using seed: $SEED"
 
             # Run tests with unique seed
-            timeout $((TIME_BUDGET + 30)) cargo test --test sqllogictest_suite --release -- --nocapture 2>&1 | \
+            SQLLOGICTEST_SEED=$SEED timeout $((TIME_BUDGET + 30)) \
+              cargo test --test sqllogictest_suite --release -- --nocapture 2>&1 | \
               tee target/boost_runs/run_${i}.log | \
               python3 scripts/analyze_sqllogictest.py
 
