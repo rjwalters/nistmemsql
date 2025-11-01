@@ -327,7 +327,102 @@ fn should_skip_file(path: &std::path::Path) -> Result<bool, std::io::Error> {
     Ok(content.contains("onlyif ") || content.contains("skipif "))
 }
 
-/// Run SQLLogicTest files from the submodule (randomly selected with time budget)
+/// Load historical test results from JSON file
+fn load_historical_results() -> serde_json::Value {
+    // Try to load from target/sqllogictest_cumulative.json (workflow format)
+    if let Ok(content) = std::fs::read_to_string("target/sqllogictest_cumulative.json") {
+        if let Ok(json) = serde_json::from_str(&content) {
+            return json;
+        }
+    }
+
+    // Try to load from target/sqllogictest_analysis.json (analysis format)
+    if let Ok(content) = std::fs::read_to_string("target/sqllogictest_analysis.json") {
+        if let Ok(json) = serde_json::from_str(&content) {
+            return json;
+        }
+    }
+
+    // Return empty object if no historical data found
+    serde_json::Value::Object(serde_json::Map::new())
+}
+
+/// Prioritize test files based on historical results: failed first, then untested, then passed
+fn prioritize_test_files(
+    all_files: &[PathBuf],
+    historical: &serde_json::Value,
+    test_dir: &PathBuf,
+    seed: u64,
+) -> Vec<PathBuf> {
+    // Extract historical passed and failed sets
+    let mut historical_passed = HashSet::new();
+    let mut historical_failed = HashSet::new();
+
+    if let Some(tested_files) = historical.get("tested_files") {
+        if let Some(passed) = tested_files.get("passed").and_then(|p| p.as_array()) {
+            for file in passed {
+                if let Some(file_str) = file.as_str() {
+                    historical_passed.insert(file_str.to_string());
+                }
+            }
+        }
+        if let Some(failed) = tested_files.get("failed").and_then(|f| f.as_array()) {
+            for file in failed {
+                if let Some(file_str) = file.as_str() {
+                    historical_failed.insert(file_str.to_string());
+                }
+            }
+        }
+    }
+
+    // Categorize files by priority
+    let mut failed_files = Vec::new();
+    let mut untested_files = Vec::new();
+    let mut passed_files = Vec::new();
+
+    for file_path in all_files {
+        let relative_path = file_path
+            .strip_prefix(test_dir)
+            .unwrap_or(file_path)
+            .to_string_lossy()
+            .to_string();
+
+        if historical_failed.contains(&relative_path) {
+            failed_files.push(file_path.clone());
+        } else if historical_passed.contains(&relative_path) {
+            passed_files.push(file_path.clone());
+        } else {
+            untested_files.push(file_path.clone());
+        }
+    }
+
+    // Shuffle within each category using deterministic seed
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    let shuffle_with_seed = |files: &mut Vec<PathBuf>| {
+        files.sort_by_cached_key(|path| {
+            let mut hasher = DefaultHasher::new();
+            path.hash(&mut hasher);
+            seed.hash(&mut hasher);
+            hasher.finish()
+        });
+    };
+
+    shuffle_with_seed(&mut failed_files);
+    shuffle_with_seed(&mut untested_files);
+    shuffle_with_seed(&mut passed_files);
+
+    // Concatenate in priority order: failed, untested, passed
+    let mut prioritized = Vec::new();
+    prioritized.extend(failed_files);
+    prioritized.extend(untested_files);
+    prioritized.extend(passed_files);
+
+    prioritized
+}
+
+/// Run SQLLogicTest files from the submodule (prioritized by failure history, then randomly selected with time budget)
 fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
     let test_dir = PathBuf::from("third_party/sqllogictest/test");
     let mut results = HashMap::new();
@@ -342,15 +437,17 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
 
     // Find all .test files
     let pattern = format!("{}/**/*.test", test_dir.display());
-    let mut test_files: Vec<PathBuf> = glob::glob(&pattern)
+    let all_test_files: Vec<PathBuf> = glob::glob(&pattern)
         .expect("Failed to read test pattern")
         .filter_map(Result::ok)
         .collect();
 
-    let total_available_files = test_files.len();
+    let total_available_files = all_test_files.len();
 
-    // Shuffle test files randomly (but deterministically for reproducibility)
-    // Use seed from environment or default to 0
+    // Load historical results to prioritize testing
+    let historical_results = load_historical_results();
+
+    // Get seed for shuffling within priority categories
     let seed: u64 = env::var("SQLLOGICTEST_SEED")
         .ok()
         .and_then(|s| s.parse().ok())
@@ -362,25 +459,19 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
                 .unwrap_or(0)
         });
 
-    // Simple deterministic shuffle using seed
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-    test_files.sort_by_cached_key(|path| {
-        let mut hasher = DefaultHasher::new();
-        path.hash(&mut hasher);
-        seed.hash(&mut hasher);
-        hasher.finish()
-    });
+    // Prioritize test files: failed first, then untested, then passed
+    let prioritized_files = prioritize_test_files(&all_test_files, &historical_results, &test_dir, seed);
 
-    println!("\n=== SQLLogicTest Suite (Random Sampling) ===");
+    println!("\n=== SQLLogicTest Suite (Prioritized Sampling) ===");
     println!("Total available test files: {}", total_available_files);
     println!("Time budget: {} seconds", time_budget_secs);
     println!("Random seed: {}", seed);
+    println!("Prioritization: Failed → Untested → Passed");
     println!("Starting test run...\n");
 
     let mut files_tested = 0;
 
-    for test_file in test_files {
+    for test_file in prioritized_files {
         // Check time budget
         if start_time.elapsed() >= time_budget {
             println!("\n⏱️  Time budget exhausted after {} seconds", time_budget_secs);
