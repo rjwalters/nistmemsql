@@ -56,11 +56,21 @@ jobs:
         continue-on-error: true
         run: |
           echo "Downloading historical SQLLogicTest results..."
+          mkdir -p target
+
+          # Download and validate JSON
           if curl -sL https://rjwalters.github.io/nistmemsql/badges/sqllogictest_cumulative.json \
-            -o sqllogictest_cumulative.json && [ -s sqllogictest_cumulative.json ]; then
-            echo "✓ Downloaded existing cumulative results"
-            cat sqllogictest_cumulative.json | jq '.summary'
-            cp sqllogictest_cumulative.json target/sqllogictest_historical.json
+            -o sqllogictest_cumulative.json 2>/dev/null; then
+
+            # Check if it's valid JSON (not an HTML error page)
+            if jq empty sqllogictest_cumulative.json 2>/dev/null; then
+              echo "✓ Downloaded existing cumulative results"
+              jq '.summary' sqllogictest_cumulative.json || echo "{}"
+              cp sqllogictest_cumulative.json target/sqllogictest_historical.json
+            else
+              echo "Downloaded file is not valid JSON (likely 404 page) - starting fresh"
+              echo '{}' > target/sqllogictest_historical.json
+            fi
           else
             echo "No existing cumulative results found - starting fresh"
             echo '{}' > target/sqllogictest_historical.json

@@ -56,12 +56,21 @@ jobs:
           echo "Downloading cumulative SQLLogicTest results..."
           echo "Note: This includes results from both regular CI runs and boost runs"
           echo ""
+
+          # Download and validate JSON
           if curl -sL https://rjwalters.github.io/nistmemsql/badges/sqllogictest_cumulative.json \
-            -o target/sqllogictest_historical.json && [ -s target/sqllogictest_historical.json ]; then
-            echo "✓ Downloaded existing cumulative results"
-            echo ""
-            echo "Current coverage:"
-            cat target/sqllogictest_historical.json | jq '.summary'
+            -o target/sqllogictest_historical.json 2>/dev/null; then
+
+            # Check if it's valid JSON (not an HTML error page)
+            if jq empty target/sqllogictest_historical.json 2>/dev/null; then
+              echo "✓ Downloaded existing cumulative results"
+              echo ""
+              echo "Current coverage:"
+              jq '.summary' target/sqllogictest_historical.json || echo "{}"
+            else
+              echo "Downloaded file is not valid JSON (likely 404 page) - starting fresh"
+              echo '{}' > target/sqllogictest_historical.json
+            fi
           else
             echo "No existing cumulative results found - this will be the first run"
             echo '{}' > target/sqllogictest_historical.json
