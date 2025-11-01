@@ -13,14 +13,24 @@ on:
         required: false
         default: '1'
         type: string
+      parallel_runners:
+        description: 'Number of parallel runners (default: 1, max: 10)'
+        required: false
+        default: '1'
+        type: string
   # Optional: Run automatically on a schedule (commented out by default)
   # schedule:
   #   - cron: '0 */6 * * *'  # Every 6 hours
 
 jobs:
   boost-coverage:
-    name: Boost SQLLogicTest Coverage
+    name: Boost SQLLogicTest Coverage (Runner ${{ matrix.runner_id }})
     runs-on: ubuntu-latest
+    if: matrix.runner_id <= fromJson(github.event.inputs.parallel_runners || '1')
+    strategy:
+      fail-fast: false
+      matrix:
+        runner_id: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
     steps:
       - name: Checkout repository
@@ -88,23 +98,25 @@ jobs:
 
           mkdir -p target/boost_runs
 
+          RUNNER_ID="${{ matrix.runner_id }}"
+
           for i in $(seq 1 $RUN_COUNT); do
             echo ""
-            echo "=== Boost Run $i of $RUN_COUNT ==="
+            echo "=== Runner $RUNNER_ID - Boost Run $i of $RUN_COUNT ==="
 
-            # Use timestamp + run number as seed for variety
-            SEED=$(date +%s)$i
-            echo "Using seed: $SEED"
+            # Use timestamp + runner_id + run number as seed for variety
+            SEED=$(date +%s)${RUNNER_ID}${i}
+            echo "Using seed: $SEED (runner $RUNNER_ID, run $i)"
 
             # Run tests with unique seed
             SQLLOGICTEST_SEED=$SEED timeout $((TIME_BUDGET + 30)) \
               cargo test --test sqllogictest_suite --release -- --nocapture 2>&1 | \
-              tee target/boost_runs/run_${i}.log | \
+              tee target/boost_runs/run_${RUNNER_ID}_${i}.log | \
               python3 scripts/analyze_sqllogictest.py
 
             # Save this run's results
             if [ -f target/sqllogictest_analysis.json ]; then
-              cp target/sqllogictest_analysis.json target/boost_runs/analysis_${i}.json
+              cp target/sqllogictest_analysis.json target/boost_runs/analysis_${RUNNER_ID}_${i}.json
               echo "✓ Saved analysis for run $i"
             fi
 
@@ -140,10 +152,11 @@ jobs:
       - name: Generate boost summary
         if: always()
         run: |
-          echo "# SQLLogicTest Boost Run Summary" > boost_summary.md
+          echo "# SQLLogicTest Boost Run Summary (Runner ${{ matrix.runner_id }})" > boost_summary.md
           echo "" >> boost_summary.md
           echo "**Triggered by:** ${{ github.actor }}" >> boost_summary.md
           echo "**Time:** $(date -u)" >> boost_summary.md
+          echo "**Runner ID:** ${{ matrix.runner_id }} / ${{ github.event.inputs.parallel_runners || '1' }}" >> boost_summary.md
           echo "**Time budget per run:** ${{ github.event.inputs.time_budget || '300' }}s" >> boost_summary.md
           echo "**Number of runs:** ${{ github.event.inputs.run_count || '1' }}" >> boost_summary.md
           echo "" >> boost_summary.md
@@ -171,7 +184,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: boost-results-${{ github.run_number }}
+          name: boost-results-runner-${{ matrix.runner_id }}-${{ github.run_number }}
           path: |
             target/sqllogictest_cumulative.json
             target/sqllogictest_analysis.json

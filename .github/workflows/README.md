@@ -33,36 +33,65 @@ This directory contains CI/CD workflows for the nistmemsql project.
    - Go to Actions → "Boost SQLLogicTest Coverage" → "Run workflow"
    - Configure:
      - **Time budget**: Seconds per run (default: 300 = 5 minutes)
-     - **Run count**: Number of sequential runs (default: 1)
+     - **Run count**: Number of sequential runs per runner (default: 1)
+     - **Parallel runners**: Number of parallel runners to spawn (default: 1, max: 10)
 
    Examples:
-   - Quick boost: 1 run × 5 minutes = ~3-20 files tested
-   - Medium boost: 5 runs × 5 minutes = ~15-100 files tested
-   - Deep boost: 10 runs × 10 minutes = ~100-300 files tested
+   - Quick boost: 1 runner × 1 run × 5 minutes = ~3-20 files tested
+   - Medium boost: 1 runner × 5 runs × 5 minutes = ~15-100 files tested
+   - Deep boost: 1 runner × 10 runs × 10 minutes = ~100-300 files tested
+   - Parallel boost: 5 runners × 1 run × 5 minutes = ~15-100 files tested (faster!)
+   - Maximum boost: 10 runners × 5 runs × 5 minutes = ~150-500 files tested in ~25 minutes
+
+   **Parallel Execution**:
+   - Use the **parallel_runners** parameter to run multiple test runners simultaneously
+   - Each runner uses a unique seed (timestamp + runner_id + run_number)
+   - All runners safely merge their results with gh-pages using retry logic
+   - No results are lost due to race conditions
+   - Example: Set parallel_runners=5 to test 5× more files in the same wall-clock time
 
 2. **Via GitHub CLI**:
    ```bash
-   # Quick boost (1 run, 5 minutes)
+   # Quick boost (1 runner, 1 run, 5 minutes)
    gh workflow run boost-sqllogictest.yml
 
-   # Medium boost (5 runs, 5 minutes each)
+   # Medium boost (1 runner, 5 runs, 5 minutes each)
    gh workflow run boost-sqllogictest.yml \
      -f run_count=5 \
      -f time_budget=300
 
-   # Deep boost (10 runs, 10 minutes each)
+   # Deep boost (1 runner, 10 runs, 10 minutes each)
    gh workflow run boost-sqllogictest.yml \
      -f run_count=10 \
      -f time_budget=600
+
+   # Parallel boost (5 runners, 1 run each, 5 minutes)
+   gh workflow run boost-sqllogictest.yml \
+     -f parallel_runners=5 \
+     -f time_budget=300
+
+   # Maximum boost (10 runners, 5 runs each, 5 minutes per run)
+   gh workflow run boost-sqllogictest.yml \
+     -f parallel_runners=10 \
+     -f run_count=5 \
+     -f time_budget=300
    ```
 
 3. **Via API**:
    ```bash
+   # Single runner, 5 runs
    curl -X POST \
      -H "Accept: application/vnd.github+json" \
      -H "Authorization: token $GITHUB_TOKEN" \
      https://api.github.com/repos/rjwalters/nistmemsql/actions/workflows/boost-sqllogictest.yml/dispatches \
      -d '{"ref":"main","inputs":{"time_budget":"600","run_count":"5"}}'
+
+   # Parallel execution: 5 runners, 1 run each
+   curl -X POST \
+     -H "Accept: application/vnd.github+json" \
+     -H "Authorization: token $GITHUB_TOKEN" \
+     https://api.github.com/repos/rjwalters/nistmemsql/actions/workflows/boost-sqllogictest.yml/dispatches \
+     -d '{"ref":"main","inputs":{"time_budget":"300","run_count":"1","parallel_runners":"5"}}'
    ```
 
 **How It Works**:
