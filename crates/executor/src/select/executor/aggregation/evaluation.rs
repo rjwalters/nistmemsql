@@ -103,10 +103,8 @@ impl SelectExecutor<'_> {
                         "COUNT(DISTINCT *) is not valid SQL".to_string(),
                     ));
                 }
-                for _ in group_rows {
-                    acc.accumulate(&types::SqlValue::Integer(1));
-                }
-                return Ok(acc.finalize());
+                // Fast path: COUNT(*) without DISTINCT is just row count (O(1) vs O(n))
+                return Ok(types::SqlValue::Integer(group_rows.len() as i64));
             }
         }
 

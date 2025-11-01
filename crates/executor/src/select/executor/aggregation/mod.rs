@@ -33,23 +33,11 @@ impl SelectExecutor<'_> {
             }
         };
 
-        eprintln!(
-            "DEBUG AGG: schema keys={:?}",
-            from_result.schema.table_schemas.keys().collect::<Vec<_>>()
-        );
-        eprintln!(
-            "DEBUG AGG: outer_row={}, outer_schema={:?}",
-            self._outer_row.is_some(),
-            self._outer_schema.map(|s| s.table_schemas.keys().collect::<Vec<_>>())
-        );
+
 
         // Create evaluator with outer context if available (outer schema is already a CombinedSchema)
         let evaluator =
             if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
-                eprintln!(
-                    "DEBUG AGG: Creating evaluator WITH outer context, outer tables={:?}",
-                    outer_schema.table_schemas.keys().collect::<Vec<_>>()
-                );
                 CombinedExpressionEvaluator::with_database_and_outer_context(
                     &from_result.schema,
                     self.database,
