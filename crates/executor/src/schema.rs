@@ -39,14 +39,7 @@ impl CombinedSchema {
             })
             .collect();
 
-        let schema = catalog::TableSchema {
-            name: alias.clone(),
-            columns,
-            primary_key: None,
-            unique_constraints: Vec::new(),
-            check_constraints: Vec::new(),
-            foreign_keys: Vec::new(),
-        };
+        let schema = catalog::TableSchema::new(alias.clone(), columns);
         let mut table_schemas = HashMap::new();
         table_schemas.insert(alias, (0, schema));
         CombinedSchema { table_schemas, total_columns }

@@ -107,9 +107,9 @@ mod tests {
         columns: Vec<(&str, DataType)>,
         rows: Vec<Vec<SqlValue>>,
     ) -> FromResult {
-        let schema = TableSchema {
-            name: table_name.to_string(),
-            columns: columns
+        let schema = TableSchema::new(
+            table_name.to_string(),
+            columns
                 .iter()
                 .map(|(name, dtype)| ColumnSchema::new(
                     name.to_string(),
@@ -117,11 +117,7 @@ mod tests {
                     true, // nullable
                 ))
                 .collect(),
-            primary_key: None,
-            unique_constraints: vec![],
-            foreign_keys: vec![],
-            check_constraints: vec![],
-        };
+        );
 
         let combined_schema = CombinedSchema::from_table(table_name.to_string(), schema);
 

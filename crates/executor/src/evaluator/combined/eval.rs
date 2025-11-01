@@ -26,7 +26,7 @@ impl CombinedExpressionEvaluator<'_> {
             // Column reference - look up column index (with optional table qualifier)
             ast::Expression::ColumnRef { table, column } => {
                 // Try to resolve in inner schema first
-                if let Some(col_index) = self.schema.get_column_index(table.as_deref(), column) {
+                if let Some(col_index) = self.get_column_index_cached(table.as_deref(), column) {
                     return row
                         .get(col_index)
                         .cloned()
