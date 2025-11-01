@@ -58,4 +58,43 @@ impl Lexer {
             position: self.position,
         })
     }
+
+    /// Tokenize a backtick-delimited identifier (MySQL-style).
+    /// Backtick identifiers are case-sensitive and can contain reserved words.
+    /// Supports doubled backticks as escape (e.g., `O``Reilly` becomes O`Reilly)
+    pub(super) fn tokenize_backtick_identifier(&mut self) -> Result<Token, LexerError> {
+        self.advance(); // Skip opening backtick
+
+        let mut identifier = String::new();
+        while !self.is_eof() {
+            let ch = self.current_char();
+            if ch == '`' {
+                self.advance();
+                // Check for escaped backtick (``)
+                if !self.is_eof() && self.current_char() == '`' {
+                    // Escaped backtick - add a single backtick to the identifier
+                    identifier.push('`');
+                    self.advance();
+                } else {
+                    // End of delimited identifier
+                    // Reject empty delimited identifiers
+                    if identifier.is_empty() {
+                        return Err(LexerError {
+                            message: "Empty delimited identifier is not allowed".to_string(),
+                            position: self.position,
+                        });
+                    }
+                    return Ok(Token::DelimitedIdentifier(identifier));
+                }
+            } else {
+                identifier.push(ch);
+                self.advance();
+            }
+        }
+
+        Err(LexerError {
+            message: "Unterminated delimited identifier".to_string(),
+            position: self.position,
+        })
+    }
 }
