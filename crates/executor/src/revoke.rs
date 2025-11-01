@@ -39,35 +39,18 @@ impl RevokeExecutor {
             }
             // Functions (SQL:1999 Feature P001)
             ObjectType::Function | ObjectType::SpecificFunction => {
-                // Validate function exists (don't create stubs on REVOKE)
-                if !database.catalog.function_exists(&stmt.object_name) {
-                    return Err(ExecutorError::Other(format!(
-                        "Function '{}' not found",
-                        stmt.object_name
-                    )));
-                }
+                // Allow REVOKE on non-existent functions (SQL:1999 compliance)
+                // No validation - silently succeed if function doesn't exist
             }
             // Procedures (SQL:1999 Feature P001)
             ObjectType::Procedure | ObjectType::SpecificProcedure => {
-                // Validate procedure exists (don't create stubs on REVOKE)
-                if !database.catalog.procedure_exists(&stmt.object_name) {
-                    return Err(ExecutorError::Other(format!(
-                        "Procedure '{}' not found",
-                        stmt.object_name
-                    )));
-                }
+                // Allow REVOKE on non-existent procedures (SQL:1999 compliance)
+                // No validation - silently succeed if procedure doesn't exist
             }
             // Routine (generic term for function or procedure)
             ObjectType::Routine | ObjectType::SpecificRoutine => {
-                // Check if either function or procedure exists
-                if !database.catalog.function_exists(&stmt.object_name)
-                    && !database.catalog.procedure_exists(&stmt.object_name)
-                {
-                    return Err(ExecutorError::Other(format!(
-                        "Routine '{}' not found",
-                        stmt.object_name
-                    )));
-                }
+                // Allow REVOKE on non-existent routines (SQL:1999 compliance)
+                // No validation - silently succeed if routine doesn't exist
             }
             // Methods (SQL:1999 Feature S091) - OOP SQL
             // For now, accept without validation - full UDT implementation is future work
