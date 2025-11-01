@@ -2,8 +2,10 @@
 pub enum ExecutorError {
     TableNotFound(String),
     TableAlreadyExists(String),
-    ColumnNotFound(String),
+    ColumnNotFound { column_name: String, table_name: String },
     ColumnAlreadyExists(String),
+    IndexNotFound(String),
+    IndexAlreadyExists(String),
     SchemaNotFound(String),
     SchemaAlreadyExists(String),
     SchemaNotEmpty(String),
@@ -34,10 +36,14 @@ impl std::fmt::Display for ExecutorError {
         match self {
             ExecutorError::TableNotFound(name) => write!(f, "Table '{}' not found", name),
             ExecutorError::TableAlreadyExists(name) => write!(f, "Table '{}' already exists", name),
-            ExecutorError::ColumnNotFound(name) => write!(f, "Column '{}' not found", name),
+            ExecutorError::ColumnNotFound { column_name, table_name } => {
+                write!(f, "Column '{}' not found in table '{}'", column_name, table_name)
+            }
             ExecutorError::ColumnAlreadyExists(name) => {
                 write!(f, "Column '{}' already exists", name)
             }
+            ExecutorError::IndexNotFound(name) => write!(f, "Index '{}' not found", name),
+            ExecutorError::IndexAlreadyExists(name) => write!(f, "Index '{}' already exists", name),
             ExecutorError::SchemaNotFound(name) => write!(f, "Schema '{}' not found", name),
             ExecutorError::SchemaAlreadyExists(name) => {
                 write!(f, "Schema '{}' already exists", name)
@@ -103,6 +109,27 @@ impl std::fmt::Display for ExecutorError {
 
 impl std::error::Error for ExecutorError {}
 
+impl From<storage::StorageError> for ExecutorError {
+    fn from(err: storage::StorageError) -> Self {
+        match err {
+            storage::StorageError::TableNotFound(name) => ExecutorError::TableNotFound(name),
+            storage::StorageError::IndexAlreadyExists(name) => {
+                ExecutorError::IndexAlreadyExists(name)
+            }
+            storage::StorageError::IndexNotFound(name) => ExecutorError::IndexNotFound(name),
+            storage::StorageError::ColumnCountMismatch { expected, actual } => {
+                ExecutorError::ColumnCountMismatch { expected, provided: actual }
+            }
+            storage::StorageError::ColumnIndexOutOfBounds { index } => {
+                ExecutorError::ColumnIndexOutOfBounds { index }
+            }
+            storage::StorageError::CatalogError(msg) => ExecutorError::StorageError(msg),
+            storage::StorageError::TransactionError(msg) => ExecutorError::StorageError(msg),
+            storage::StorageError::RowNotFound => ExecutorError::StorageError("Row not found".to_string()),
+        }
+    }
+}
+
 impl From<catalog::CatalogError> for ExecutorError {
     fn from(err: catalog::CatalogError) -> Self {
         match err {
@@ -113,7 +140,10 @@ impl From<catalog::CatalogError> for ExecutorError {
             catalog::CatalogError::ColumnAlreadyExists(name) => {
                 ExecutorError::ColumnAlreadyExists(name)
             }
-            catalog::CatalogError::ColumnNotFound(name) => ExecutorError::ColumnNotFound(name),
+            catalog::CatalogError::ColumnNotFound(name) => ExecutorError::ColumnNotFound {
+                column_name: name,
+                table_name: "unknown".to_string(),
+            },
             catalog::CatalogError::SchemaNotFound(name) => ExecutorError::SchemaNotFound(name),
             catalog::CatalogError::SchemaAlreadyExists(name) => {
                 ExecutorError::SchemaAlreadyExists(name)

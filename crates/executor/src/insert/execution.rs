@@ -18,7 +18,7 @@ pub fn execute_insert(
         .clone();
 
     // Determine target column indices and types
-    let target_column_info = super::validation::resolve_target_columns(&schema, &stmt.columns)?;
+    let target_column_info = super::validation::resolve_target_columns(&schema, &stmt.table_name, &stmt.columns)?;
 
     // Get the rows to insert based on the source
     let rows_to_insert = match &stmt.source {

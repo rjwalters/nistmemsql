@@ -3,6 +3,7 @@
 // ============================================================================
 
 use crate::{Row, StorageError, Table};
+use ast::IndexColumn;
 use std::collections::HashMap;
 
 /// A single change made during a transaction
@@ -42,11 +43,22 @@ pub enum TransactionState {
     },
 }
 
+/// Index metadata
+#[derive(Debug, Clone)]
+pub struct IndexMetadata {
+    pub index_name: String,
+    pub table_name: String,
+    pub unique: bool,
+    pub columns: Vec<IndexColumn>,
+}
+
 /// In-memory database - manages catalog and tables
 #[derive(Debug, Clone)]
 pub struct Database {
     pub catalog: catalog::Catalog,
     tables: HashMap<String, Table>,
+    /// Index metadata storage (index_name -> metadata)
+    indexes: HashMap<String, IndexMetadata>,
     /// Current transaction state
     transaction_state: TransactionState,
     /// Next transaction ID
@@ -66,6 +78,7 @@ impl Database {
         Database {
             catalog: catalog::Catalog::new(),
             tables: HashMap::new(),
+            indexes: HashMap::new(),
             transaction_state: TransactionState::None,
             next_transaction_id: 1,
             current_role: None,
@@ -422,6 +435,54 @@ impl Database {
     /// Enable security checks
     pub fn enable_security(&mut self) {
         self.security_enabled = true;
+    }
+
+    // ============================================================================
+    // Index Management
+    // ============================================================================
+
+    /// Create an index
+    pub fn create_index(
+        &mut self,
+        index_name: String,
+        table_name: String,
+        unique: bool,
+        columns: Vec<IndexColumn>,
+    ) -> Result<(), StorageError> {
+        // Check if index already exists
+        if self.indexes.contains_key(&index_name) {
+            return Err(StorageError::IndexAlreadyExists(index_name));
+        }
+
+        // Store index metadata
+        let metadata =
+            IndexMetadata { index_name: index_name.clone(), table_name, unique, columns };
+        self.indexes.insert(index_name, metadata);
+
+        Ok(())
+    }
+
+    /// Check if an index exists
+    pub fn index_exists(&self, index_name: &str) -> bool {
+        self.indexes.contains_key(index_name)
+    }
+
+    /// Get index metadata
+    pub fn get_index(&self, index_name: &str) -> Option<&IndexMetadata> {
+        self.indexes.get(index_name)
+    }
+
+    /// Drop an index
+    pub fn drop_index(&mut self, index_name: &str) -> Result<(), StorageError> {
+        if self.indexes.remove(index_name).is_none() {
+            return Err(StorageError::IndexNotFound(index_name.to_string()));
+        }
+        Ok(())
+    }
+
+    /// List all indexes
+    pub fn list_indexes(&self) -> Vec<String> {
+        self.indexes.keys().cloned().collect()
     }
 }
 

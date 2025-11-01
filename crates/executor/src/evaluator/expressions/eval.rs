@@ -169,6 +169,9 @@ impl ExpressionEvaluator<'_> {
         }
 
         // Column not found in either schema
-        Err(ExecutorError::ColumnNotFound(column.to_string()))
+        Err(ExecutorError::ColumnNotFound {
+            column_name: column.to_string(),
+            table_name: "unknown".to_string(),
+        })
     }
 }

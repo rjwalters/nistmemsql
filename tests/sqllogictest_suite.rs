@@ -176,6 +176,16 @@ impl NistMemSqlDB {
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
+            ast::Statement::CreateIndex(create_index_stmt) => {
+                executor::IndexExecutor::execute(&create_index_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::DropIndex(drop_index_stmt) => {
+                executor::IndexExecutor::execute_drop(&drop_index_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
             // Unimplemented statements return success for now
             ast::Statement::BeginTransaction(_)
             | ast::Statement::Commit(_)
@@ -195,8 +205,6 @@ impl NistMemSqlDB {
             | ast::Statement::DropTranslation(_)
             | ast::Statement::CreateTrigger(_)
             | ast::Statement::DropTrigger(_)
-            | ast::Statement::CreateIndex(_)
-            | ast::Statement::DropIndex(_)
             | ast::Statement::DeclareCursor(_)
             | ast::Statement::OpenCursor(_)
             | ast::Statement::Fetch(_)
