@@ -199,7 +199,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always() && steps.should_run.outputs.run == 'true'
         with:
-          name: boost-results-runner-${{ matrix.runner_id }}
+          name: boost-results-${{ github.run_number }}-runner-${{ matrix.runner_id }}
           path: |
             target/sqllogictest_cumulative.json
             target/sqllogictest_analysis.json
@@ -223,10 +223,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Download all runner artifacts
+      - name: Download all runner artifacts for this run
         uses: actions/download-artifact@v4
         with:
-          pattern: boost-results-runner-*
+          pattern: boost-results-${{ github.run_number }}-runner-*
           path: artifacts/
           merge-multiple: false
 
