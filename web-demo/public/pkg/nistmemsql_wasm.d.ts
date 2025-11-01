@@ -35,33 +35,6 @@ export class Database {
    */
   constructor();
   /**
-   * Executes a DDL or DML statement (CREATE TABLE, INSERT, UPDATE, DELETE)
-   * Returns a JSON string with the result
-   */
-  execute(sql: string): any;
-  /**
-   * Executes a SELECT query and returns results as JSON
-   */
-  query(sql: string): any;
-  /**
-   * Lists all table names in the database
-   */
-  list_tables(): any;
-  /**
-   * Gets the schema for a specific table
-   */
-  describe_table(table_name: string): any;
-  /**
-   * Loads the Employees example database (hierarchical org structure)
-   * Demonstrates recursive queries with WITH RECURSIVE
-   */
-  load_employees(): any;
-  /**
-   * Loads the Northwind example database (classic sales/orders database)
-   * Demonstrates JOINs, aggregates, and relational database concepts
-   */
-  load_northwind(): any;
-  /**
    * Returns the version string
    */
   version(): string;
@@ -146,12 +119,6 @@ export interface InitOutput {
   readonly __wbg_set_tableschema_columns: (a: number, b: number, c: number) => void;
   readonly __wbg_database_free: (a: number, b: number) => void;
   readonly database_new: () => number;
-  readonly database_execute: (a: number, b: number, c: number) => [number, number, number];
-  readonly database_query: (a: number, b: number, c: number) => [number, number, number];
-  readonly database_list_tables: (a: number) => [number, number, number];
-  readonly database_describe_table: (a: number, b: number, c: number) => [number, number, number];
-  readonly database_load_employees: (a: number) => [number, number, number];
-  readonly database_load_northwind: (a: number) => [number, number, number];
   readonly database_version: (a: number) => [number, number];
   readonly __wbg_set_executeresult_message: (a: number, b: number, c: number) => void;
   readonly __wbg_set_tableschema_name: (a: number, b: number, c: number) => void;
@@ -163,7 +130,6 @@ export interface InitOutput {
   readonly __wbindgen_export_3: WebAssembly.Table;
   readonly __externref_drop_slice: (a: number, b: number) => void;
   readonly __externref_table_alloc: () => number;
-  readonly __externref_table_dealloc: (a: number) => void;
   readonly __wbindgen_start: () => void;
 }
 

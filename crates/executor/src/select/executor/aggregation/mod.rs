@@ -27,13 +27,20 @@ impl SelectExecutor<'_> {
         let from_result = match &stmt.from {
             Some(from_clause) => self.execute_from(from_clause, cte_results)?,
             None => {
-                return Err(ExecutorError::UnsupportedFeature(
-                    "SELECT without FROM not yet implemented".to_string(),
-                ))
+                // SELECT without FROM - create empty schema and no rows
+                // This allows aggregate functions like COUNT(*) to work (returns 0)
+                use crate::schema::CombinedSchema;
+                use crate::select::join::FromResult;
+
+                let empty_schema = catalog::TableSchema::new("".to_string(), vec![]);
+                let combined_schema = CombinedSchema::from_table("".to_string(), empty_schema);
+
+                FromResult {
+                    schema: combined_schema,
+                    rows: vec![],
+                }
             }
         };
-
-
 
         // Create evaluator with outer context if available (outer schema is already a CombinedSchema)
         let evaluator =

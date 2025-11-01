@@ -45,10 +45,12 @@ impl SelectExecutor<'_> {
                 )
             }
 
+            // Literals can be evaluated without row context
+            ast::Expression::Literal(val) => Ok(val.clone()),
+
             // Other expressions that might contain subqueries or be useful in HAVING:
             // Delegate to evaluator using first row from group as context
             ast::Expression::ColumnRef { .. }
-            | ast::Expression::Literal(_)
             | ast::Expression::InList { .. }
             | ast::Expression::Between { .. }
             | ast::Expression::Cast { .. }
