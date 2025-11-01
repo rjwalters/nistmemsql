@@ -155,35 +155,32 @@ impl Table {
 
     /// Delete rows matching a predicate
     /// Returns number of rows deleted
-    pub fn delete_where<F>(&mut self, predicate: F) -> usize
+    pub fn delete_where<F>(&mut self, mut predicate: F) -> usize
     where
-        F: Fn(&Row) -> bool,
+        F: FnMut(&Row) -> bool,
     {
-        // Collect indices to delete (only evaluate predicate once per row)
-        let mut indices_to_delete: Vec<usize> = Vec::new();
-        let mut rows_to_delete: Vec<Row> = Vec::new();
-
+        // Collect indices and rows to delete (only call predicate once per row)
+        let mut indices_and_rows_to_delete: Vec<(usize, Row)> = Vec::new();
         for (index, row) in self.rows.iter().enumerate() {
             if predicate(row) {
-                indices_to_delete.push(index);
-                rows_to_delete.push(row.clone());
+                indices_and_rows_to_delete.push((index, row.clone()));
             }
         }
 
         // Delete rows in reverse order to maintain correct indices
-        for index in indices_to_delete.iter().rev() {
+        for (index, _) in indices_and_rows_to_delete.iter().rev() {
             self.rows.remove(*index);
         }
 
         // Update indexes for deleted rows
-        for deleted_row in &rows_to_delete {
+        for (_, deleted_row) in &indices_and_rows_to_delete {
             self.update_indexes_for_delete(deleted_row, 0); // row_index not used in delete
         }
 
         // Since rows shifted, we need to rebuild indexes to maintain correct indices
         self.rebuild_indexes();
 
-        rows_to_delete.len()
+        indices_and_rows_to_delete.len()
     }
 
     /// Remove a specific row (used for transaction undo)

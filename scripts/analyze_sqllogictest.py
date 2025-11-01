@@ -239,9 +239,21 @@ def main():
     # Save JSON summary
     json_path = Path("target/sqllogictest_analysis.json")
     json_path.parent.mkdir(exist_ok=True)
+    summary_data = analyzer.generate_json_summary()
     with open(json_path, 'w') as f:
-        json.dump(analyzer.generate_json_summary(), f, indent=2)
+        json.dump(summary_data, f, indent=2)
     print(f"\n✓ JSON summary written to {json_path}")
+
+    # Save badge-compatible results file (expected by CI workflow)
+    results_path = Path("target/sqllogictest_results.json")
+    with open(results_path, 'w') as f:
+        json.dump({
+            "pass_rate": summary_data["summary"]["pass_rate"],
+            "total": summary_data["summary"]["total_files"],
+            "passed": summary_data["summary"]["passed"],
+            "failed": summary_data["summary"]["failed"]
+        }, f, indent=2)
+    print(f"✓ Badge results written to {results_path}")
 
     # Save markdown report
     md_path = Path("target/sqllogictest_analysis.md")
