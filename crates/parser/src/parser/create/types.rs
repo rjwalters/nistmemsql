@@ -264,6 +264,11 @@ impl Parser {
 
                 Ok(types::DataType::Character { length })
             }
+            "TEXT" => {
+                // TEXT is SQLite-style unlimited VARCHAR
+                // Maps to VARCHAR without length constraint (unlimited)
+                Ok(types::DataType::Varchar { max_length: None })
+            }
             _ => Err(ParseError { message: format!("Unknown data type: {}", type_upper) }),
         }
     }

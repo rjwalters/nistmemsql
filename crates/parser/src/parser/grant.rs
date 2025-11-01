@@ -16,6 +16,7 @@ use ast::*;
 /// object_type ::= TABLE | SCHEMA | DOMAIN | COLLATION | CHARACTER SET | TRANSLATION | TYPE | SEQUENCE
 ///               | FUNCTION | PROCEDURE | ROUTINE | METHOD | CONSTRUCTOR METHOD | STATIC METHOD | INSTANCE METHOD
 ///               | SPECIFIC FUNCTION | SPECIFIC PROCEDURE | SPECIFIC ROUTINE
+///               | SPECIFIC METHOD | SPECIFIC CONSTRUCTOR METHOD | SPECIFIC STATIC METHOD | SPECIFIC INSTANCE METHOD
 /// ```
 pub fn parse_grant(parser: &mut crate::Parser) -> Result<GrantStmt, ParseError> {
     parser.expect_keyword(Keyword::Grant)?;
@@ -28,7 +29,7 @@ pub fn parse_grant(parser: &mut crate::Parser) -> Result<GrantStmt, ParseError> 
     // Parse object type (TABLE, SCHEMA, FUNCTION, PROCEDURE, etc.)
     let object_type = if parser.peek() == &Token::Keyword(Keyword::Specific) {
         parser.advance(); // consume SPECIFIC
-        // SPECIFIC FUNCTION | SPECIFIC PROCEDURE | SPECIFIC ROUTINE
+        // SPECIFIC FUNCTION | SPECIFIC PROCEDURE | SPECIFIC ROUTINE | SPECIFIC METHOD variants
         if parser.peek() == &Token::Keyword(Keyword::Function) {
             parser.advance();
             ObjectType::SpecificFunction
@@ -38,10 +39,25 @@ pub fn parse_grant(parser: &mut crate::Parser) -> Result<GrantStmt, ParseError> 
         } else if parser.peek() == &Token::Keyword(Keyword::Routine) {
             parser.advance();
             ObjectType::SpecificRoutine
+        } else if parser.peek() == &Token::Keyword(Keyword::Constructor) {
+            parser.advance();
+            parser.expect_keyword(Keyword::Method)?;
+            ObjectType::SpecificConstructorMethod
+        } else if parser.peek() == &Token::Keyword(Keyword::Static) {
+            parser.advance();
+            parser.expect_keyword(Keyword::Method)?;
+            ObjectType::SpecificStaticMethod
+        } else if parser.peek() == &Token::Keyword(Keyword::Instance) {
+            parser.advance();
+            parser.expect_keyword(Keyword::Method)?;
+            ObjectType::SpecificInstanceMethod
+        } else if parser.peek() == &Token::Keyword(Keyword::Method) {
+            parser.advance();
+            ObjectType::SpecificMethod
         } else {
             return Err(ParseError {
                 message: format!(
-                    "Expected FUNCTION, PROCEDURE, or ROUTINE after SPECIFIC, found {:?}",
+                    "Expected FUNCTION, PROCEDURE, ROUTINE, or METHOD variant after SPECIFIC, found {:?}",
                     parser.peek()
                 ),
             });

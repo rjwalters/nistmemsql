@@ -295,11 +295,12 @@ pub struct CreateTypeStmt {
     pub definition: TypeDefinition,
 }
 
-/// Type definition (distinct or structured)
+/// Type definition (distinct, structured, or forward)
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeDefinition {
     Distinct { base_type: DataType },
     Structured { attributes: Vec<TypeAttribute> },
+    Forward, // Forward declaration without definition
 }
 
 /// Attribute in a structured type
@@ -449,6 +450,21 @@ pub enum TriggerAction {
 pub struct DropTriggerStmt {
     pub trigger_name: String,
     pub cascade: bool,
+}
+
+/// CREATE INDEX statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreateIndexStmt {
+    pub index_name: String,
+    pub table_name: String,
+    pub unique: bool,
+    pub columns: Vec<String>,
+}
+
+/// DROP INDEX statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropIndexStmt {
+    pub index_name: String,
 }
 
 /// DECLARE CURSOR statement (SQL:1999 Feature E121)

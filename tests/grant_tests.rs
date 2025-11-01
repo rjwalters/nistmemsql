@@ -594,7 +594,7 @@ fn test_revoke_execute_from_procedure() {
 }
 
 #[test]
-fn test_revoke_from_nonexistent_function_fails() {
+fn test_revoke_from_nonexistent_function_succeeds() {
     let mut db = Database::new();
 
     // Create role
@@ -612,8 +612,7 @@ fn test_revoke_from_nonexistent_function_fails() {
         cascade_option: CascadeOption::None,
     };
 
-    // Should fail with ObjectNotFound error
+    // SQL:1999 compliance: REVOKE should succeed on non-existent objects
     let result = RevokeExecutor::execute_revoke(&revoke_stmt, &mut db);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("not found"));
+    assert!(result.is_ok());
 }

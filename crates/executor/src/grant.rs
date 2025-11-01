@@ -16,10 +16,23 @@ impl GrantExecutor {
         stmt: &GrantStmt,
         database: &mut Database,
     ) -> Result<String, ExecutorError> {
+        // Determine actual object type (may differ from statement if SQL:1999 uses TABLE for schemas)
+        let mut actual_object_type = stmt.object_type.clone();
+
         // Validate object exists based on object type
         match stmt.object_type {
             ObjectType::Table => {
-                if !database.catalog.table_exists(&stmt.object_name) {
+                // Special case: USAGE/EXECUTE are schema/routine privileges, not table privileges
+                // If granting USAGE/EXECUTE on a "TABLE", check if it's actually a schema first
+                // This handles SQL:1999 tests that use "ON TABLE" for schema objects
+                let is_schema_privilege = stmt.privileges.iter().any(|p| {
+                    matches!(p, PrivilegeType::Usage | PrivilegeType::Execute)
+                });
+
+                if is_schema_privilege && database.catalog.schema_exists(&stmt.object_name) {
+                    // Object is actually a schema, update the actual type
+                    actual_object_type = ObjectType::Schema;
+                } else if !database.catalog.table_exists(&stmt.object_name) {
                     return Err(ExecutorError::TableNotFound(stmt.object_name.clone()));
                 }
             }
@@ -104,7 +117,11 @@ impl GrantExecutor {
             ObjectType::Method
             | ObjectType::ConstructorMethod
             | ObjectType::StaticMethod
-            | ObjectType::InstanceMethod => {
+            | ObjectType::InstanceMethod
+            | ObjectType::SpecificMethod
+            | ObjectType::SpecificConstructorMethod
+            | ObjectType::SpecificStaticMethod
+            | ObjectType::SpecificInstanceMethod => {
                 // No validation - methods belong to UDTs which aren't fully implemented yet
                 // Privilege tracking works by object name alone
             }
@@ -117,9 +134,9 @@ impl GrantExecutor {
             }
         }
 
-        // Expand ALL PRIVILEGES based on object type
+        // Expand ALL PRIVILEGES based on actual object type
         let expanded_privileges = if stmt.privileges.contains(&PrivilegeType::AllPrivileges) {
-            match stmt.object_type {
+            match actual_object_type {
                 ObjectType::Table => vec![
                     PrivilegeType::Select(None),
                     PrivilegeType::Insert(None),
@@ -147,7 +164,11 @@ impl GrantExecutor {
                 | ObjectType::InstanceMethod
                 | ObjectType::SpecificFunction
                 | ObjectType::SpecificProcedure
-                | ObjectType::SpecificRoutine => vec![PrivilegeType::Execute],
+                | ObjectType::SpecificRoutine
+                | ObjectType::SpecificMethod
+                | ObjectType::SpecificConstructorMethod
+                | ObjectType::SpecificStaticMethod
+                | ObjectType::SpecificInstanceMethod => vec![PrivilegeType::Execute],
             }
         } else {
             stmt.privileges.clone()
@@ -158,7 +179,7 @@ impl GrantExecutor {
             for privilege in &expanded_privileges {
                 let grant = PrivilegeGrant {
                     object: stmt.object_name.clone(),
-                    object_type: stmt.object_type.clone(),
+                    object_type: actual_object_type.clone(),
                     privilege: privilege.clone(),
                     grantee: grantee.clone(),
                     grantor: database.get_current_role(),

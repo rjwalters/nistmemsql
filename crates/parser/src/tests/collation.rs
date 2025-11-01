@@ -57,6 +57,24 @@ fn test_create_collation_with_from() {
 }
 
 #[test]
+fn test_create_collation_with_from_string_literal() {
+    let sql = "CREATE COLLATION my_collation FROM 'de_DE'";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    let stmt = result.unwrap();
+    match stmt {
+        ast::Statement::CreateCollation(create_stmt) => {
+            assert_eq!(create_stmt.collation_name, "MY_COLLATION");
+            assert_eq!(create_stmt.character_set, None);
+            assert_eq!(create_stmt.source_collation, Some("de_DE".to_string()));
+            assert_eq!(create_stmt.pad_space, None);
+        }
+        _ => panic!("Expected CreateCollation statement, got: {:?}", stmt),
+    }
+}
+
+#[test]
 fn test_create_collation_with_pad_space() {
     let sql = "CREATE COLLATION my_collation PAD SPACE";
     let result = Parser::parse_sql(sql);

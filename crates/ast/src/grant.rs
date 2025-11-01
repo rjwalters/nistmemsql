@@ -73,6 +73,14 @@ pub enum ObjectType {
     SpecificProcedure,
     /// Specific routine - routine by signature (SQL:1999 Feature F031-17)
     SpecificRoutine,
+    /// Specific method - method by signature (SQL:1999 Feature F031-12)
+    SpecificMethod,
+    /// Specific constructor method (SQL:1999 Feature F031-12)
+    SpecificConstructorMethod,
+    /// Specific static method (SQL:1999 Feature F031-12)
+    SpecificStaticMethod,
+    /// Specific instance method (SQL:1999 Feature F031-12)
+    SpecificInstanceMethod,
 }
 
 /// GRANT statement - assigns privileges to roles/users.

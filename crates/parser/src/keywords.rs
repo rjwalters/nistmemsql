@@ -141,6 +141,7 @@ pub enum Keyword {
     Character,
     Translation,
     View,
+    Index,
     Assertion,
     Specific,
     // Trigger-specific keywords
@@ -328,6 +329,7 @@ impl fmt::Display for Keyword {
             Keyword::Character => "CHARACTER",
             Keyword::Translation => "TRANSLATION",
             Keyword::View => "VIEW",
+            Keyword::Index => "INDEX",
             Keyword::Assertion => "ASSERTION",
             Keyword::Specific => "SPECIFIC",
             Keyword::Before => "BEFORE",

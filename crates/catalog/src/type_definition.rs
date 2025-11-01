@@ -16,6 +16,8 @@ pub enum TypeDefinitionKind {
     Distinct { base_type: DataType },
     /// Structured type: CREATE TYPE address AS (street VARCHAR(100), city VARCHAR(50))
     Structured { attributes: Vec<TypeAttribute> },
+    /// Forward declaration: CREATE TYPE type_name;
+    Forward,
 }
 
 /// Attribute in a structured type
@@ -34,5 +36,10 @@ impl TypeDefinition {
     /// Create a new structured type definition
     pub fn structured(name: String, attributes: Vec<TypeAttribute>) -> Self {
         TypeDefinition { name, definition: TypeDefinitionKind::Structured { attributes } }
+    }
+
+    /// Create a new forward declaration
+    pub fn forward(name: String) -> Self {
+        TypeDefinition { name, definition: TypeDefinitionKind::Forward }
     }
 }

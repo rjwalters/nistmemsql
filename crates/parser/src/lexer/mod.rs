@@ -98,6 +98,7 @@ impl Lexer {
             }
             '\'' => self.tokenize_string(),
             '"' => self.tokenize_delimited_identifier(),
+            '`' => self.tokenize_backtick_identifier(),
             '0'..='9' => self.tokenize_number(),
             'a'..='z' | 'A'..='Z' | '_' => self.tokenize_identifier_or_keyword(),
             _ => Err(LexerError {

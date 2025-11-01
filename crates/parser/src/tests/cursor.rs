@@ -183,8 +183,154 @@ fn test_declare_cursor_complex_query() {
     );
 
     if let Ok(Statement::DeclareCursor(stmt)) = result {
-        assert_eq!(stmt.cursor_name, "C1");
+    assert_eq!(stmt.cursor_name, "C1");
     } else {
-        panic!("Expected DeclareCursor statement");
+    panic!("Expected DeclareCursor statement");
+    }
+}
+
+#[test]
+fn test_open_cursor_statement() {
+    let sql = "OPEN my_cursor";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse OPEN CURSOR: {:?}", result.err());
+
+    if let Ok(Statement::OpenCursor(stmt)) = result {
+        assert_eq!(stmt.cursor_name, "MY_CURSOR");
+    } else {
+        panic!("Expected OpenCursor statement");
+    }
+}
+
+#[test]
+fn test_close_cursor_statement() {
+    let sql = "CLOSE my_cursor";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse CLOSE CURSOR: {:?}", result.err());
+
+    if let Ok(Statement::CloseCursor(stmt)) = result {
+        assert_eq!(stmt.cursor_name, "MY_CURSOR");
+    } else {
+        panic!("Expected CloseCursor statement");
+    }
+}
+
+#[test]
+fn test_fetch_statement_next() {
+    let sql = "FETCH NEXT FROM my_cursor";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse FETCH NEXT: {:?}", result.err());
+
+    if let Ok(Statement::Fetch(stmt)) = result {
+        assert_eq!(stmt.cursor_name, "MY_CURSOR");
+        assert!(matches!(stmt.orientation, ast::FetchOrientation::Next));
+        assert_eq!(stmt.into_variables, None);
+    } else {
+        panic!("Expected Fetch statement");
+    }
+}
+
+#[test]
+fn test_fetch_statement_prior() {
+    let sql = "FETCH PRIOR FROM my_cursor";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse FETCH PRIOR: {:?}", result.err());
+
+    if let Ok(Statement::Fetch(stmt)) = result {
+        assert_eq!(stmt.cursor_name, "MY_CURSOR");
+        assert!(matches!(stmt.orientation, ast::FetchOrientation::Prior));
+        assert_eq!(stmt.into_variables, None);
+    } else {
+        panic!("Expected Fetch statement");
+    }
+}
+
+#[test]
+fn test_fetch_statement_first() {
+    let sql = "FETCH FIRST FROM my_cursor";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse FETCH FIRST: {:?}", result.err());
+
+    if let Ok(Statement::Fetch(stmt)) = result {
+        assert_eq!(stmt.cursor_name, "MY_CURSOR");
+        assert!(matches!(stmt.orientation, ast::FetchOrientation::First));
+        assert_eq!(stmt.into_variables, None);
+    } else {
+        panic!("Expected Fetch statement");
+    }
+}
+
+#[test]
+fn test_fetch_statement_last() {
+    let sql = "FETCH LAST FROM my_cursor";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse FETCH LAST: {:?}", result.err());
+
+    if let Ok(Statement::Fetch(stmt)) = result {
+        assert_eq!(stmt.cursor_name, "MY_CURSOR");
+        assert!(matches!(stmt.orientation, ast::FetchOrientation::Last));
+        assert_eq!(stmt.into_variables, None);
+    } else {
+        panic!("Expected Fetch statement");
+    }
+}
+
+#[test]
+fn test_fetch_statement_absolute() {
+    let sql = "FETCH ABSOLUTE 5 FROM my_cursor";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse FETCH ABSOLUTE: {:?}", result.err());
+
+    if let Ok(Statement::Fetch(stmt)) = result {
+        assert_eq!(stmt.cursor_name, "MY_CURSOR");
+        assert!(matches!(stmt.orientation, ast::FetchOrientation::Absolute(5)));
+        assert_eq!(stmt.into_variables, None);
+    } else {
+        panic!("Expected Fetch statement");
+    }
+}
+
+#[test]
+fn test_fetch_statement_relative() {
+    let sql = "FETCH RELATIVE 3 FROM my_cursor";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse FETCH RELATIVE: {:?}", result.err());
+
+    if let Ok(Statement::Fetch(stmt)) = result {
+        assert_eq!(stmt.cursor_name, "MY_CURSOR");
+        assert!(matches!(stmt.orientation, ast::FetchOrientation::Relative(3)));
+        assert_eq!(stmt.into_variables, None);
+    } else {
+        panic!("Expected Fetch statement");
+    }
+}
+
+#[test]
+fn test_fetch_statement_with_into() {
+    let sql = "FETCH NEXT FROM my_cursor INTO var1, var2";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse FETCH with INTO: {:?}", result.err());
+
+    if let Ok(Statement::Fetch(stmt)) = result {
+        assert_eq!(stmt.cursor_name, "MY_CURSOR");
+        assert!(matches!(stmt.orientation, ast::FetchOrientation::Next));
+        assert_eq!(stmt.into_variables, Some(vec!["VAR1".to_string(), "VAR2".to_string()]));
+    } else {
+        panic!("Expected Fetch statement");
+    }
+}
+
+#[test]
+fn test_fetch_statement_default_orientation() {
+    let sql = "FETCH FROM my_cursor";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse FETCH with default orientation: {:?}", result.err());
+
+    if let Ok(Statement::Fetch(stmt)) = result {
+        assert_eq!(stmt.cursor_name, "MY_CURSOR");
+        assert!(matches!(stmt.orientation, ast::FetchOrientation::Next)); // default
+        assert_eq!(stmt.into_variables, None);
+    } else {
+        panic!("Expected Fetch statement");
     }
 }

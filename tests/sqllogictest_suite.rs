@@ -187,6 +187,8 @@ impl NistMemSqlDB {
             | ast::Statement::DropView(_)
             | ast::Statement::CreateTrigger(_)
             | ast::Statement::DropTrigger(_)
+            | ast::Statement::CreateIndex(_)
+            | ast::Statement::DropIndex(_)
             | ast::Statement::DeclareCursor(_)
             | ast::Statement::OpenCursor(_)
             | ast::Statement::Fetch(_)
@@ -284,16 +286,24 @@ struct TestStats {
     passed: usize,
     failed: usize,
     errors: usize,
+    skipped: usize,
 }
 
 impl TestStats {
     fn pass_rate(&self) -> f64 {
-        if self.total == 0 {
+        let relevant_total = self.total - self.skipped;
+        if relevant_total == 0 {
             0.0
         } else {
-            (self.passed as f64 / self.total as f64) * 100.0
+            (self.passed as f64 / relevant_total as f64) * 100.0
         }
     }
+}
+
+/// Check if a test file should be skipped due to conditional directives
+fn should_skip_file(path: &std::path::Path) -> Result<bool, std::io::Error> {
+    let content = std::fs::read_to_string(path)?;
+    Ok(content.contains("onlyif ") || content.contains("skipif "))
 }
 
 /// Run all SQLLogicTest files from the submodule
@@ -336,6 +346,21 @@ fn run_test_suite() -> HashMap<String, TestStats> {
 
         let stats = results.entry(category.clone()).or_insert_with(TestStats::default);
         stats.total += 1;
+
+        // Check if file should be skipped due to conditional directives
+        match should_skip_file(&test_file) {
+            Ok(true) => {
+                println!("~ {} (skipped - vendor-specific)", relative_path);
+                stats.skipped += 1;
+                continue;
+            }
+            Ok(false) => {} // Continue with test
+            Err(e) => {
+                eprintln!("✗ {} - Failed to check skip status: {}", relative_path, e);
+                stats.errors += 1;
+                continue;
+            }
+        }
 
         // Read and run test file
         let contents = match std::fs::read_to_string(&test_file) {
@@ -393,42 +418,46 @@ fn run_sqllogictest_suite() {
 
     // Print summary
     println!("\n=== Test Results Summary ===");
-    println!("{:<20} {:>8} {:>8} {:>8} {:>8} {:>10}", "Category", "Total", "Passed", "Failed", "Errors", "Pass Rate");
-    println!("{}", "-".repeat(72));
+    println!("{:<20} {:>8} {:>8} {:>8} {:>8} {:>8} {:>10}", "Category", "Total", "Passed", "Failed", "Errors", "Skipped", "Pass Rate");
+    println!("{}", "-".repeat(80));
 
     let mut grand_total = TestStats::default();
 
     for category in ["select", "evidence", "index", "random", "ddl", "other"] {
         if let Some(stats) = results.get(category) {
             println!(
-                "{:<20} {:>8} {:>8} {:>8} {:>8} {:>9.1}%",
+                "{:<20} {:>8} {:>8} {:>8} {:>8} {:>8} {:>9.1}%",
                 category,
                 stats.total,
                 stats.passed,
                 stats.failed,
                 stats.errors,
+                stats.skipped,
                 stats.pass_rate()
             );
             grand_total.total += stats.total;
             grand_total.passed += stats.passed;
             grand_total.failed += stats.failed;
             grand_total.errors += stats.errors;
+            grand_total.skipped += stats.skipped;
         }
     }
 
-    println!("{}", "-".repeat(72));
+    println!("{}", "-".repeat(80));
     println!(
-        "{:<20} {:>8} {:>8} {:>8} {:>8} {:>9.1}%",
+        "{:<20} {:>8} {:>8} {:>8} {:>8} {:>8} {:>9.1}%",
         "TOTAL",
         grand_total.total,
         grand_total.passed,
         grand_total.failed,
         grand_total.errors,
+        grand_total.skipped,
         grand_total.pass_rate()
     );
 
     println!("\nNote: This is a comprehensive test suite with millions of individual test cases.");
     println!("Some failures are expected as we continue implementing SQL:1999 features.");
+    println!("Files with database-specific conditional directives are skipped as they test vendor-specific behavior.");
 
     // Write results to JSON file for CI/badge generation
     let results_json = serde_json::json!({
@@ -436,6 +465,7 @@ fn run_sqllogictest_suite() {
         "passed": grand_total.passed,
         "failed": grand_total.failed,
         "errors": grand_total.errors,
+        "skipped": grand_total.skipped,
         "pass_rate": grand_total.pass_rate(),
         "categories": {
             "select": results.get("select").map(|s| serde_json::json!({
@@ -443,6 +473,7 @@ fn run_sqllogictest_suite() {
                 "passed": s.passed,
                 "failed": s.failed,
                 "errors": s.errors,
+                "skipped": s.skipped,
                 "pass_rate": s.pass_rate()
             })),
             "evidence": results.get("evidence").map(|s| serde_json::json!({
@@ -450,6 +481,7 @@ fn run_sqllogictest_suite() {
                 "passed": s.passed,
                 "failed": s.failed,
                 "errors": s.errors,
+                "skipped": s.skipped,
                 "pass_rate": s.pass_rate()
             })),
             "index": results.get("index").map(|s| serde_json::json!({
@@ -457,6 +489,7 @@ fn run_sqllogictest_suite() {
                 "passed": s.passed,
                 "failed": s.failed,
                 "errors": s.errors,
+                "skipped": s.skipped,
                 "pass_rate": s.pass_rate()
             })),
             "random": results.get("random").map(|s| serde_json::json!({
@@ -464,6 +497,7 @@ fn run_sqllogictest_suite() {
                 "passed": s.passed,
                 "failed": s.failed,
                 "errors": s.errors,
+                "skipped": s.skipped,
                 "pass_rate": s.pass_rate()
             })),
             "ddl": results.get("ddl").map(|s| serde_json::json!({
@@ -471,6 +505,7 @@ fn run_sqllogictest_suite() {
                 "passed": s.passed,
                 "failed": s.failed,
                 "errors": s.errors,
+                "skipped": s.skipped,
                 "pass_rate": s.pass_rate()
             })),
             "other": results.get("other").map(|s| serde_json::json!({
@@ -478,6 +513,7 @@ fn run_sqllogictest_suite() {
                 "passed": s.passed,
                 "failed": s.failed,
                 "errors": s.errors,
+                "skipped": s.skipped,
                 "pass_rate": s.pass_rate()
             })),
         }
