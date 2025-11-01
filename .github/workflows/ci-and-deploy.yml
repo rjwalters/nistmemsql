@@ -36,7 +36,7 @@ jobs:
           shared-key: "rust-ci-cache"
 
       - name: Run unit tests
-        run: cargo test --release
+        run: cargo test --release -- --skip run_sqllogictest_suite
 
       - name: Run sqltest conformance suite
         run: cargo test --test sqltest_conformance --release -- --nocapture

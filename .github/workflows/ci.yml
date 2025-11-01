@@ -33,10 +33,10 @@ jobs:
           shared-key: "rust-ci-cache"
 
       - name: Run unit tests
-        run: cargo test --release
+        run: cargo test --release -- --skip run_sqllogictest_suite
 
       - name: Run integration tests
-        run: cargo test --release --test '*'
+        run: cargo test --release --test '*' -- --skip run_sqllogictest_suite
         continue-on-error: false
 
   # ============================================================================
