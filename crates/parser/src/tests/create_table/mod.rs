@@ -1,6 +1,9 @@
 mod basic;
 mod constraints_column;
 mod constraints_table;
-mod data_types;
+mod numeric_types;
+mod temporal_types;
+mod spatial_types;
+mod text_types;
 mod northwind;
 mod string_types;
