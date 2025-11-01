@@ -269,8 +269,30 @@ impl Parser {
                 // Maps to VARCHAR without length constraint (unlimited)
                 Ok(types::DataType::Varchar { max_length: None })
             }
-            _ => Err(ParseError { message: format!("Unknown data type: {}", type_upper) }),
+            _ => {
+                // Check if this is a spatial/geometric type (SQL/MM standard)
+                // These are outside SQL:1999 scope but should parse gracefully as user-defined types
+                if Self::is_spatial_type(&type_upper) {
+                    Ok(types::DataType::UserDefined { type_name: type_upper })
+                } else {
+                    Err(ParseError { message: format!("Unknown data type: {}", type_upper) })
+                }
+            }
         }
+    }
+
+    /// Check if a type name is a spatial/geometric type from SQL/MM standard
+    /// These types are not part of SQL:1999 but appear in SQLLogicTest suite
+    fn is_spatial_type(type_name: &str) -> bool {
+        matches!(
+            type_name,
+            // 2D basic types
+            "POINT" | "LINESTRING" | "POLYGON" |
+            // Multi types
+            "MULTIPOINT" | "MULTILINESTRING" | "MULTIPOLYGON" |
+            // Collection types
+            "GEOMETRY" | "GEOMETRYCOLLECTION"
+        )
     }
 
     /// Parse interval field (YEAR, MONTH, DAY, HOUR, MINUTE, SECOND)
