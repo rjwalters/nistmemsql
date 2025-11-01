@@ -10,10 +10,15 @@ impl Parser {
 
                 // Try to parse as integer first
                 if let Ok(i) = num_str.parse::<i64>() {
-                    Ok(Some(ast::Expression::Literal(types::SqlValue::Integer(i))))
+                Ok(Some(ast::Expression::Literal(types::SqlValue::Integer(i))))
                 } else {
-                    // For now, store as numeric string
-                    Ok(Some(ast::Expression::Literal(types::SqlValue::Numeric(num_str))))
+                // Parse as f64 for Numeric type
+                match num_str.parse::<f64>() {
+                        Ok(f) => Ok(Some(ast::Expression::Literal(types::SqlValue::Numeric(f)))),
+                        Err(_) => Err(ParseError {
+                            message: format!("Invalid numeric literal: {}", num_str),
+                        }),
+                    }
                 }
             }
             Token::String(s) => {

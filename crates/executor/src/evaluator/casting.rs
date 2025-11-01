@@ -43,11 +43,7 @@ pub(crate) fn to_f64(value: &types::SqlValue) -> Result<f64, ExecutorError> {
         types::SqlValue::Integer(n) => Ok(*n as f64),
         types::SqlValue::Smallint(n) => Ok(*n as f64),
         types::SqlValue::Bigint(n) => Ok(*n as f64),
-        types::SqlValue::Numeric(s) => s.parse::<f64>().map_err(|_| ExecutorError::TypeMismatch {
-            left: value.clone(),
-            op: "numeric_conversion".to_string(),
-            right: types::SqlValue::Null,
-        }),
+        types::SqlValue::Numeric(f) => Ok(*f),
         _ => Err(ExecutorError::TypeMismatch {
             left: value.clone(),
             op: "numeric_conversion".to_string(),
@@ -122,6 +118,27 @@ pub(crate) fn cast_value(
             }),
         },
 
+        // Cast to NUMERIC
+        Numeric { .. } => match value {
+            SqlValue::Numeric(f) => Ok(SqlValue::Numeric(*f)),
+            SqlValue::Integer(n) => Ok(SqlValue::Numeric(*n as f64)),
+            SqlValue::Smallint(n) => Ok(SqlValue::Numeric(*n as f64)),
+            SqlValue::Bigint(n) => Ok(SqlValue::Numeric(*n as f64)),
+            SqlValue::Float(n) => Ok(SqlValue::Numeric(*n as f64)),
+            SqlValue::Real(n) => Ok(SqlValue::Numeric(*n as f64)),
+            SqlValue::Double(n) => Ok(SqlValue::Numeric(*n)),
+            SqlValue::Varchar(s) => {
+                s.parse::<f64>().map(SqlValue::Numeric).map_err(|_| ExecutorError::CastError {
+                    from_type: format!("{:?}", value),
+                    to_type: "NUMERIC".to_string(),
+                })
+            }
+            _ => Err(ExecutorError::CastError {
+                from_type: format!("{:?}", value),
+                to_type: "NUMERIC".to_string(),
+            }),
+        },
+
         // Cast to FLOAT
         Float { .. } => match value {
             SqlValue::Float(n) => Ok(SqlValue::Float(*n)),
@@ -172,6 +189,7 @@ pub(crate) fn cast_value(
                 SqlValue::Float(n) => n.to_string(),
                 SqlValue::Real(n) => n.to_string(),
                 SqlValue::Double(n) => n.to_string(),
+                SqlValue::Numeric(n) => n.to_string(),
                 SqlValue::Boolean(b) => if *b { "TRUE" } else { "FALSE" }.to_string(),
                 SqlValue::Date(s) => s.clone(),
                 SqlValue::Time(s) => s.clone(),

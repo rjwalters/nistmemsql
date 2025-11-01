@@ -114,7 +114,7 @@ pub enum SqlValue {
     Integer(i64),
     Smallint(i16),
     Bigint(i64),
-    Numeric(String), // TODO: Use proper decimal type
+    Numeric(f64), // f64 for performance (was: String)
 
     Float(f32),
     Real(f32),
@@ -195,12 +195,8 @@ impl PartialOrd for SqlValue {
             (Character(a), Character(b)) => a.partial_cmp(b),
             (Varchar(a), Varchar(b)) => a.partial_cmp(b),
 
-            // Numeric (string-based decimal, parse as f64 for now)
-            // TODO: Replace with proper decimal type for exact comparison
-            (Numeric(a), Numeric(b)) => match (a.parse::<f64>(), b.parse::<f64>()) {
-                (Ok(x), Ok(y)) => x.partial_cmp(&y),
-                _ => None, // Invalid numeric string is incomparable
-            },
+            // Numeric (f64 - direct comparison)
+            (Numeric(a), Numeric(b)) => a.partial_cmp(b),
 
             // Boolean (false < true in SQL)
             (Boolean(a), Boolean(b)) => a.partial_cmp(b),
@@ -246,8 +242,13 @@ impl Hash for SqlValue {
             Integer(i) => i.hash(state),
             Smallint(i) => i.hash(state),
             Bigint(i) => i.hash(state),
-            Numeric(s) => s.hash(state),
-
+            Numeric(f) => {
+                if f.is_nan() {
+                    f64::NAN.to_bits().hash(state);
+                } else {
+                    f.to_bits().hash(state);
+                }
+            }
             // For floats, use to_bits() to get consistent hash for NaN
             Float(f) => {
                 if f.is_nan() {

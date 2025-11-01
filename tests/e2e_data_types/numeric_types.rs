@@ -174,7 +174,7 @@ fn test_e2e_numeric_type() {
         "FINANCIALS",
         Row::new(vec![
             SqlValue::Integer(1),
-            SqlValue::Numeric("123.45".to_string()),
+            SqlValue::Numeric(123.45),
         ]),
     )
     .unwrap();
@@ -182,7 +182,7 @@ fn test_e2e_numeric_type() {
         "FINANCIALS",
         Row::new(vec![
             SqlValue::Integer(2),
-            SqlValue::Numeric("999.99".to_string()),
+            SqlValue::Numeric(999.99),
         ]),
     )
     .unwrap();
@@ -191,11 +191,11 @@ fn test_e2e_numeric_type() {
     assert_eq!(results.len(), 2);
     assert_eq!(
         results[0].values[0],
-        SqlValue::Numeric("123.45".to_string())
+        SqlValue::Numeric(123.45)
     );
     assert_eq!(
         results[1].values[0],
-        SqlValue::Numeric("999.99".to_string())
+        SqlValue::Numeric(999.99)
     );
 }
 
@@ -209,7 +209,7 @@ fn test_e2e_decimal_type() {
         "FINANCIALS",
         Row::new(vec![
             SqlValue::Integer(1),
-            SqlValue::Numeric("19.99".to_string()),
+            SqlValue::Numeric(19.99),
         ]),
     )
     .unwrap();
@@ -217,7 +217,7 @@ fn test_e2e_decimal_type() {
         "FINANCIALS",
         Row::new(vec![
             SqlValue::Integer(2),
-            SqlValue::Numeric("49.95".to_string()),
+            SqlValue::Numeric(49.95),
         ]),
     )
     .unwrap();
@@ -226,11 +226,11 @@ fn test_e2e_decimal_type() {
     assert_eq!(results.len(), 2);
     assert_eq!(
         results[0].values[0],
-        SqlValue::Numeric("19.99".to_string())
+        SqlValue::Numeric(19.99)
     );
     assert_eq!(
         results[1].values[0],
-        SqlValue::Numeric("49.95".to_string())
+        SqlValue::Numeric(49.95)
     );
 }
 
