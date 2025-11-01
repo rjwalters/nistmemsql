@@ -179,20 +179,22 @@ function renderResultsTable(data: BenchmarkResults) {
     const avgSpeedup = totalSpeedup / comparisonCount;
     const avgSpeedupEl = document.getElementById('avg-speedup');
     if (avgSpeedupEl) {
-      avgSpeedupEl.textContent = `${avgSpeedup.toFixed(2)}x`;
-
       if (avgSpeedup > 1) {
-        avgSpeedupEl.textContent += ' faster';
+        avgSpeedupEl.textContent = `${avgSpeedup.toFixed(2)}x faster`;
         avgSpeedupEl.className = avgSpeedupEl.className.replace(
           'text-primary-light dark:text-primary-dark',
           'text-green-600 dark:text-green-400'
         );
       } else if (avgSpeedup < 1) {
-        avgSpeedupEl.textContent += ' slower';
+        // Invert the ratio: if speedup = 0.11, we're 1/0.11 = 9.09x slower
+        const slowerBy = 1 / avgSpeedup;
+        avgSpeedupEl.textContent = `${slowerBy.toFixed(2)}x slower`;
         avgSpeedupEl.className = avgSpeedupEl.className.replace(
           'text-primary-light dark:text-primary-dark',
           'text-red-600 dark:text-red-400'
         );
+      } else {
+        avgSpeedupEl.textContent = `${avgSpeedup.toFixed(2)}x`;
       }
     }
   }
