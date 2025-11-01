@@ -51,4 +51,4 @@ path = "tests/e2e_data_types/mod.rs"
 
 [[test]]
 name = "test_revoke_nonexistent"
-path = "test_revoke_nonexistent.rs"
+path = "tests/test_revoke_nonexistent.rs"
