@@ -11,6 +11,11 @@ on:
 permissions:
   contents: read
 
+# Prevent duplicate runs for the same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # ============================================================================
   # Fast CI for branches/PRs - optimized for speed
