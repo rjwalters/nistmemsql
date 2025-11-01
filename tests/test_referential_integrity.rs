@@ -9,7 +9,7 @@
 
 mod common;
 
-use catalog::{ColumnSchema, ForeignKeyConstraint, ReferentialAction, TableSchema};
+use catalog::{ColumnSchema, ReferentialAction, TableSchema};
 use common::referential_integrity_fixtures::*;
 use storage::{Database, Row};
 use types::{DataType, SqlValue};

@@ -6,6 +6,8 @@
 //! - University: Students, courses, and enrollments
 //! - Empty: Minimal empty database for testing
 
+#![allow(dead_code)]
+
 use catalog::{ColumnSchema, TableSchema};
 use storage::{Database, Row};
 use types::{DataType, SqlValue};

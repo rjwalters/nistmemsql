@@ -6,6 +6,8 @@
 //! - Executing DELETE statements
 //! - Asserting constraint violation behaviors
 
+#![allow(dead_code)]
+
 use catalog::{ColumnSchema, ForeignKeyConstraint, ReferentialAction, TableSchema};
 use executor::DeleteExecutor;
 use parser::Parser;

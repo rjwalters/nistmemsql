@@ -6,6 +6,8 @@
 //! - Expected results parsing from SQL comments
 //! - Query extraction and database detection
 
+#![allow(dead_code)]
+
 use regex::Regex;
 use serde_json;
 use std::fs;

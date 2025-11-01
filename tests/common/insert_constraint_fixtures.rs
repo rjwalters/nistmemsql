@@ -3,6 +3,8 @@
 //! This module provides reusable table schemas, insert statement builders,
 //! and assertion helpers for testing insert constraints across the test suite.
 
+#![allow(dead_code)]
+
 use executor::ExecutorError;
 
 /// Creates a basic users table with NOT NULL columns
