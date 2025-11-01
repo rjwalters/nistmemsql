@@ -16,7 +16,7 @@ pyo3::create_exception!(nistmemsql, OperationalError, DatabaseError);
 pyo3::create_exception!(nistmemsql, ProgrammingError, DatabaseError);
 
 /// Converts a Rust SqlValue to a Python object
-fn sqlvalue_to_py(py: Python, value: &types::SqlValue) -> PyResult<PyObject> {
+fn sqlvalue_to_py(py: Python, value: &types::SqlValue) -> PyResult<Py<PyAny>> {
     Ok(match value {
         types::SqlValue::Integer(i) => (*i).into_pyobject(py)?.into_any().unbind(),
         types::SqlValue::Smallint(i) => (*i).into_pyobject(py)?.into_any().unbind(),
@@ -28,8 +28,8 @@ fn sqlvalue_to_py(py: Python, value: &types::SqlValue) -> PyResult<PyObject> {
             s.into_pyobject(py)?.into_any().unbind()
         }
         types::SqlValue::Boolean(b) => b.into_pyobject(py)?.to_owned().into_any().unbind(),
-        types::SqlValue::Numeric(s)
-        | types::SqlValue::Date(s)
+        types::SqlValue::Numeric(n) => n.into_pyobject(py)?.into_any().unbind(),
+        types::SqlValue::Date(s)
         | types::SqlValue::Time(s)
         | types::SqlValue::Timestamp(s)
         | types::SqlValue::Interval(s) => s.into_pyobject(py)?.into_any().unbind(),
@@ -209,12 +209,12 @@ impl Cursor {
     ///
     /// Returns:
     ///     list: List of tuples, each representing a row
-    fn fetchall(&mut self, py: Python) -> PyResult<PyObject> {
+    fn fetchall(&mut self, py: Python) -> PyResult<Py<PyAny>> {
         match &self.last_result {
             Some(QueryResultData::Select { rows, .. }) => {
                 let result_list = PyList::empty(py);
                 for row in rows {
-                    let py_values: Vec<PyObject> =
+                    let py_values: Vec<Py<PyAny>> =
                         row.values.iter().map(|v| sqlvalue_to_py(py, v).unwrap()).collect();
                     let py_row = PyTuple::new(py, py_values)?;
                     result_list.append(py_row)?;
@@ -232,14 +232,14 @@ impl Cursor {
     ///
     /// Returns:
     ///     tuple or None: A tuple representing the next row, or None if no more rows
-    fn fetchone(&mut self, py: Python) -> PyResult<PyObject> {
+    fn fetchone(&mut self, py: Python) -> PyResult<Py<PyAny>> {
         match &mut self.last_result {
             Some(QueryResultData::Select { rows, .. }) => {
                 if rows.is_empty() {
                     Ok(py.None())
                 } else {
                     let row = rows.remove(0);
-                    let py_values: Vec<PyObject> =
+                    let py_values: Vec<Py<PyAny>> =
                         row.values.iter().map(|v| sqlvalue_to_py(py, v).unwrap()).collect();
                     let py_row = PyTuple::new(py, py_values)?;
                     Ok(py_row.into())
@@ -259,7 +259,7 @@ impl Cursor {
     ///
     /// Returns:
     ///     list: List of tuples, each representing a row
-    fn fetchmany(&mut self, py: Python, size: usize) -> PyResult<PyObject> {
+    fn fetchmany(&mut self, py: Python, size: usize) -> PyResult<Py<PyAny>> {
         match &mut self.last_result {
             Some(QueryResultData::Select { rows, .. }) => {
                 let fetch_count = size.min(rows.len());
@@ -270,7 +270,7 @@ impl Cursor {
                         break;
                     }
                     let row = rows.remove(0);
-                    let py_values: Vec<PyObject> =
+                    let py_values: Vec<Py<PyAny>> =
                         row.values.iter().map(|v| sqlvalue_to_py(py, v).unwrap()).collect();
                     let py_row = PyTuple::new(py, py_values)?;
                     result_list.append(py_row)?;
