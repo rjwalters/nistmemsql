@@ -33,7 +33,7 @@ jobs:
           shared-key: "rust-ci-cache"
 
       - name: Run unit tests
-        run: cargo test --release --lib
+        run: cargo test --release
 
       - name: Run integration tests
         run: cargo test --release --test '*'
