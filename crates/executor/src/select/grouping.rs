@@ -182,21 +182,15 @@ fn add_sql_values(a: &types::SqlValue, b: &types::SqlValue) -> types::SqlValue {
         }
         // Integer + Numeric => Numeric (promote Integer to Numeric)
         (types::SqlValue::Integer(x), types::SqlValue::Numeric(y)) => {
-            let x_f64 = *x as f64;
-            let y_f64 = y.parse::<f64>().unwrap_or(0.0);
-            types::SqlValue::Numeric((x_f64 + y_f64).to_string())
+            types::SqlValue::Numeric(*x as f64 + *y)
         }
         // Numeric + Integer => Numeric (promote Integer to Numeric)
         (types::SqlValue::Numeric(x), types::SqlValue::Integer(y)) => {
-            let x_f64 = x.parse::<f64>().unwrap_or(0.0);
-            let y_f64 = *y as f64;
-            types::SqlValue::Numeric((x_f64 + y_f64).to_string())
+            types::SqlValue::Numeric(*x + *y as f64)
         }
         // Numeric + Numeric => Numeric
         (types::SqlValue::Numeric(x), types::SqlValue::Numeric(y)) => {
-            let x_f64 = x.parse::<f64>().unwrap_or(0.0);
-            let y_f64 = y.parse::<f64>().unwrap_or(0.0);
-            types::SqlValue::Numeric((x_f64 + y_f64).to_string())
+            types::SqlValue::Numeric(*x + *y)
         }
         // Default: return first value unchanged
         _ => a.clone(),
@@ -208,9 +202,7 @@ fn divide_sql_value(value: &types::SqlValue, count: i64) -> types::SqlValue {
     match value {
         types::SqlValue::Integer(sum) => types::SqlValue::Integer(sum / count),
         types::SqlValue::Numeric(sum) => {
-            let sum_f64 = sum.parse::<f64>().unwrap_or(0.0);
-            let avg = sum_f64 / (count as f64);
-            types::SqlValue::Numeric(avg.to_string())
+            types::SqlValue::Numeric(*sum / count as f64)
         }
         // Default: return NULL for unsupported types
         _ => types::SqlValue::Null,

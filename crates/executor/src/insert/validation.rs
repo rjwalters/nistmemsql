@@ -87,55 +87,46 @@ pub fn coerce_value(
         (SqlValue::Numeric(_), DataType::Decimal { .. }) => Ok(value),
 
         // Numeric literal → Float/Real/Double
-        (SqlValue::Numeric(s), DataType::Float { .. }) => {
-            s.parse::<f32>().map(SqlValue::Float).map_err(|_| {
-                ExecutorError::UnsupportedExpression(format!(
-                    "Cannot convert numeric '{}' to Float",
-                    s
-                ))
-            })
+        (SqlValue::Numeric(f), DataType::Float { .. }) => {
+        Ok(SqlValue::Float(*f as f32))
         }
-        (SqlValue::Numeric(s), DataType::Real) => {
-            s.parse::<f32>().map(SqlValue::Real).map_err(|_| {
-                ExecutorError::UnsupportedExpression(format!(
-                    "Cannot convert numeric '{}' to Real",
-                    s
-                ))
-            })
+        (SqlValue::Numeric(f), DataType::Real) => {
+        Ok(SqlValue::Real(*f as f32))
         }
-        (SqlValue::Numeric(s), DataType::DoublePrecision) => {
-            s.parse::<f64>().map(SqlValue::Double).map_err(|_| {
-                ExecutorError::UnsupportedExpression(format!(
-                    "Cannot convert numeric '{}' to DoublePrecision",
-                    s
-                ))
-            })
+        (SqlValue::Numeric(f), DataType::DoublePrecision) => {
+            Ok(SqlValue::Double(*f))
         }
 
         // Numeric literal → Integer types
-        (SqlValue::Numeric(s), DataType::Integer) => {
-            s.parse::<i64>().map(SqlValue::Integer).map_err(|_| {
-                ExecutorError::UnsupportedExpression(format!(
-                    "Cannot convert numeric '{}' to Integer (must be whole number)",
-                    s
-                ))
-            })
+        (SqlValue::Numeric(f), DataType::Integer) => {
+        if f.fract() == 0.0 && *f >= i64::MIN as f64 && *f <= i64::MAX as f64 {
+        Ok(SqlValue::Integer(*f as i64))
+        } else {
+        Err(ExecutorError::UnsupportedExpression(format!(
+            "Cannot convert numeric '{}' to Integer (must be whole number in range)",
+                f
+                )))
+            }
         }
-        (SqlValue::Numeric(s), DataType::Smallint) => {
-            s.parse::<i16>().map(SqlValue::Smallint).map_err(|_| {
-                ExecutorError::UnsupportedExpression(format!(
-                    "Cannot convert numeric '{}' to Smallint (must be whole number)",
-                    s
-                ))
-            })
+        (SqlValue::Numeric(f), DataType::Smallint) => {
+        if f.fract() == 0.0 && *f >= i16::MIN as f64 && *f <= i16::MAX as f64 {
+        Ok(SqlValue::Smallint(*f as i16))
+        } else {
+            Err(ExecutorError::UnsupportedExpression(format!(
+                    "Cannot convert numeric '{}' to Smallint (must be whole number in range)",
+                    f
+            )))
         }
-        (SqlValue::Numeric(s), DataType::Bigint) => {
-            s.parse::<i64>().map(SqlValue::Bigint).map_err(|_| {
-                ExecutorError::UnsupportedExpression(format!(
-                    "Cannot convert numeric '{}' to Bigint (must be whole number)",
-                    s
-                ))
-            })
+        }
+        (SqlValue::Numeric(f), DataType::Bigint) => {
+        if f.fract() == 0.0 && *f >= i64::MIN as f64 && *f <= i64::MAX as f64 {
+            Ok(SqlValue::Bigint(*f as i64))
+            } else {
+                Err(ExecutorError::UnsupportedExpression(format!(
+                    "Cannot convert numeric '{}' to Bigint (must be whole number in range)",
+                    f
+                )))
+            }
         }
 
         // Integer → Float types (safe widening conversion)

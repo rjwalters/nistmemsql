@@ -32,14 +32,8 @@ pub(crate) fn eval_unary_op(
         (Minus, SqlValue::Float(n)) => Ok(SqlValue::Float(-n)),
         (Minus, SqlValue::Real(n)) => Ok(SqlValue::Real(-n)),
         (Minus, SqlValue::Double(n)) => Ok(SqlValue::Double(-n)),
-        (Minus, SqlValue::Numeric(s)) => {
-            // Negate numeric string: if starts with -, remove it; otherwise add -
-            let negated = if let Some(stripped) = s.strip_prefix('-') {
-                stripped.to_string()
-            } else {
-                format!("-{}", s)
-            };
-            Ok(SqlValue::Numeric(negated))
+        (Minus, SqlValue::Numeric(f)) => {
+            Ok(SqlValue::Numeric(-*f))
         }
 
         // NULL propagation - unary operations on NULL return NULL

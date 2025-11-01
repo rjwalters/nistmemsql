@@ -27,9 +27,7 @@ pub fn format(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
                 SqlValue::Float(f) => *f as f64,
                 SqlValue::Double(f) => *f,
                 SqlValue::Real(f) => *f as f64,
-                SqlValue::Numeric(s) => s.parse::<f64>().map_err(|_| {
-                    ExecutorError::UnsupportedFeature(format!("Cannot parse numeric value: {}", s))
-                })?,
+                SqlValue::Numeric(f) => *f,
                 val => {
                     return Err(ExecutorError::UnsupportedFeature(format!(
                         "FORMAT requires numeric argument, got {:?}",
