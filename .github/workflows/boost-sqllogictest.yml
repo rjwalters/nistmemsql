@@ -26,24 +26,36 @@ jobs:
   boost-coverage:
     name: Boost SQLLogicTest Coverage (Runner ${{ matrix.runner_id }})
     runs-on: ubuntu-latest
-    if: matrix.runner_id <= fromJson(github.event.inputs.parallel_runners || '1')
     strategy:
       fail-fast: false
       matrix:
         runner_id: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
     steps:
+      - name: Check if runner should execute
+        id: should_run
+        run: |
+          PARALLEL_RUNNERS=${{ github.event.inputs.parallel_runners || '1' }}
+          if [ ${{ matrix.runner_id }} -le $PARALLEL_RUNNERS ]; then
+            echo "run=true" >> $GITHUB_OUTPUT
+          else
+            echo "run=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout repository
+        if: steps.should_run.outputs.run == 'true'
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
       - name: Setup Rust
+        if: steps.should_run.outputs.run == 'true'
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
 
       - name: Cache Rust dependencies
+        if: steps.should_run.outputs.run == 'true'
         uses: actions/cache@v4
         with:
           path: |
@@ -58,11 +70,13 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Setup Python
+        if: steps.should_run.outputs.run == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Download historical SQLLogicTest results
+        if: steps.should_run.outputs.run == 'true'
         continue-on-error: true
         run: |
           echo "Downloading historical SQLLogicTest results..."
@@ -87,6 +101,7 @@ jobs:
           fi
 
       - name: Run SQLLogicTest boost (multiple runs)
+        if: steps.should_run.outputs.run == 'true'
         run: |
           TIME_BUDGET="${{ github.event.inputs.time_budget || '300' }}"
           RUN_COUNT="${{ github.event.inputs.run_count || '1' }}"
@@ -150,7 +165,7 @@ jobs:
           SQLLOGICTEST_TIME_BUDGET: ${{ github.event.inputs.time_budget || '300' }}
 
       - name: Generate boost summary
-        if: always()
+        if: always() && steps.should_run.outputs.run == 'true'
         run: |
           echo "# SQLLogicTest Boost Run Summary (Runner ${{ matrix.runner_id }})" > boost_summary.md
           echo "" >> boost_summary.md
@@ -182,7 +197,7 @@ jobs:
 
       - name: Upload boost results
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && steps.should_run.outputs.run == 'true'
         with:
           name: boost-results-runner-${{ matrix.runner_id }}-${{ github.run_number }}
           path: |
@@ -193,7 +208,7 @@ jobs:
           retention-days: 90
 
       - name: Update gh-pages with new cumulative results (with retry for parallel runs)
-        if: always() && github.ref == 'refs/heads/main'
+        if: always() && steps.should_run.outputs.run == 'true' && github.ref == 'refs/heads/main'
         run: |
           if [ ! -f target/sqllogictest_cumulative.json ]; then
             echo "No cumulative results to publish"
@@ -280,7 +295,7 @@ jobs:
           push_with_retry
 
       - name: Comment on PR (if applicable)
-        if: github.event_name == 'pull_request' && always()
+        if: github.event_name == 'pull_request' && always() && steps.should_run.outputs.run == 'true'
         uses: actions/github-script@v7
         continue-on-error: true
         with:
