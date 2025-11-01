@@ -69,16 +69,26 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
       }
       const data = (await sqltestResponse.json()) as ConformanceData
 
-      // Load SQLLogicTest results
+      // Load SQLLogicTest results (prefer cumulative results from boost runs)
       let sltData: SQLLogicTestData | null = null
       try {
-        const sltResponse = await fetch('/nistmemsql/badges/sqllogictest_results.json')
+        // Try cumulative results first (updated by boost workflow)
+        let sltResponse = await fetch('/nistmemsql/badges/sqllogictest_cumulative.json')
         if (sltResponse.ok) {
           sltData = (await sltResponse.json()) as SQLLogicTestData
+          console.log('Loaded cumulative SQLLogicTest results')
+        } else {
+          // Fall back to single-run results (from CI workflow)
+          console.log('Cumulative results not available, trying single-run results')
+          sltResponse = await fetch('/nistmemsql/badges/sqllogictest_results.json')
+          if (sltResponse.ok) {
+            sltData = (await sltResponse.json()) as SQLLogicTestData
+            console.log('Loaded single-run SQLLogicTest results')
+          }
         }
-      } catch {
+      } catch (error) {
         // SQLLogicTest data is optional, continue without it
-        console.warn('SQLLogicTest results not available')
+        console.warn('SQLLogicTest results not available:', error)
       }
 
       this.setState({ data, sltData, loading: false })
