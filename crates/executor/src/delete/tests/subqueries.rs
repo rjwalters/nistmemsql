@@ -160,9 +160,9 @@ mod common {
 }
 
 mod in_subquery {
-    use super::super::super::executor::DeleteExecutor;
+    use crate::DeleteExecutor;
     use super::common::*;
-    use ast::Expression;
+    use ast::{Expression, WhereClause, DeleteStmt};
     use storage::Database;
     use types::SqlValue;
 
@@ -277,7 +277,7 @@ mod in_subquery {
 }
 
 mod scalar_subquery {
-    use super::super::super::executor::DeleteExecutor;
+    use crate::DeleteExecutor;
     use super::common::*;
     use ast::Expression;
     use storage::Database;
@@ -453,7 +453,7 @@ mod scalar_subquery {
 }
 
 mod empty_subquery {
-    use super::super::super::executor::DeleteExecutor;
+    use crate::DeleteExecutor;
     use super::common::*;
     use ast::Expression;
     use storage::Database;
@@ -509,7 +509,7 @@ mod empty_subquery {
 }
 
 mod complex_subquery {
-    use super::super::super::executor::DeleteExecutor;
+    use crate::DeleteExecutor;
     use super::common::*;
     use ast::Expression;
     use storage::Database;

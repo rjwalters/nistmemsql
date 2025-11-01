@@ -1,7 +1,7 @@
 //! Basic DELETE operation tests
 
-use super::super::executor::DeleteExecutor;
-use ast::{BinaryOperator, DeleteStmt, Expression};
+use crate::DeleteExecutor;
+use ast::{BinaryOperator, DeleteStmt, Expression, WhereClause};
 use catalog::{ColumnSchema, TableSchema};
 use storage::{Database, Row};
 use types::{DataType, SqlValue};
@@ -78,11 +78,11 @@ fn test_delete_with_simple_where() {
     // DELETE FROM users WHERE id = 2;
     let stmt = DeleteStmt {
         table_name: "users".to_string(),
-        where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
-            left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() })),
+        where_clause: Some(WhereClause::Condition(Expression::BinaryOp {
+            left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
             op: BinaryOperator::Equal,
             right: Box::new(Expression::Literal(SqlValue::Integer(2))),
-        }),
+        })),
     };
 
     let deleted = DeleteExecutor::execute(&stmt, &mut db).unwrap();
@@ -111,11 +111,11 @@ fn test_delete_with_boolean_where() {
     // DELETE FROM users WHERE active = TRUE;
     let stmt = DeleteStmt {
         table_name: "users".to_string(),
-        where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
-            left: Box::new(Expression::ColumnRef { table: None, column: "active".to_string() })),
+        where_clause: Some(WhereClause::Condition(Expression::BinaryOp {
+            left: Box::new(Expression::ColumnRef { table: None, column: "active".to_string() }),
             op: BinaryOperator::Equal,
             right: Box::new(Expression::Literal(SqlValue::Boolean(true))),
-        }),
+        })),
     };
 
     let deleted = DeleteExecutor::execute(&stmt, &mut db).unwrap();
@@ -138,11 +138,11 @@ fn test_delete_multiple_rows() {
     // DELETE FROM users WHERE id > 1;
     let stmt = DeleteStmt {
         table_name: "users".to_string(),
-        where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
-            left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() })),
+        where_clause: Some(WhereClause::Condition(Expression::BinaryOp {
+            left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
             op: BinaryOperator::GreaterThan,
             right: Box::new(Expression::Literal(SqlValue::Integer(1))),
-        }),
+        })),
     };
 
     let deleted = DeleteExecutor::execute(&stmt, &mut db).unwrap();
