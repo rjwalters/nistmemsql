@@ -452,6 +452,21 @@ pub struct DropTriggerStmt {
     pub cascade: bool,
 }
 
+/// CREATE INDEX statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreateIndexStmt {
+    pub index_name: String,
+    pub table_name: String,
+    pub unique: bool,
+    pub columns: Vec<String>,
+}
+
+/// DROP INDEX statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropIndexStmt {
+    pub index_name: String,
+}
+
 /// DECLARE CURSOR statement (SQL:1999 Feature E121)
 #[derive(Debug, Clone, PartialEq)]
 pub struct DeclareCursorStmt {

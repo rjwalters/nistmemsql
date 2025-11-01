@@ -187,6 +187,8 @@ impl NistMemSqlDB {
             | ast::Statement::DropView(_)
             | ast::Statement::CreateTrigger(_)
             | ast::Statement::DropTrigger(_)
+            | ast::Statement::CreateIndex(_)
+            | ast::Statement::DropIndex(_)
             | ast::Statement::DeclareCursor(_)
             | ast::Statement::OpenCursor(_)
             | ast::Statement::Fetch(_)

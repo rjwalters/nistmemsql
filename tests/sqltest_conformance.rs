@@ -344,6 +344,8 @@ impl SqltestRunner {
             | ast::Statement::SetTransaction(_)
             | ast::Statement::CreateTrigger(_)
             | ast::Statement::DropTrigger(_)
+            | ast::Statement::CreateIndex(_)
+            | ast::Statement::DropIndex(_)
             | ast::Statement::CreateAssertion(_)
             | ast::Statement::DropAssertion(_)
             | ast::Statement::DeclareCursor(_)

@@ -143,6 +143,7 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "TRANSLATION" => Token::Keyword(Keyword::Translation),
         "SPECIFIC" => Token::Keyword(Keyword::Specific),
         "VIEW" => Token::Keyword(Keyword::View),
+        "INDEX" => Token::Keyword(Keyword::Index),
         "ASSERTION" => Token::Keyword(Keyword::Assertion),
         // Trigger-specific keywords
         "BEFORE" => Token::Keyword(Keyword::Before),
