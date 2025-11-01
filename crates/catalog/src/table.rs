@@ -1,11 +1,14 @@
 use crate::column::ColumnSchema;
 use crate::foreign_key::ForeignKeyConstraint;
+use std::collections::HashMap;
 
 /// Table schema definition.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TableSchema {
     pub name: String,
     pub columns: Vec<ColumnSchema>,
+    /// Cache for O(1) column name to index lookup
+    column_index_cache: HashMap<String, usize>,
     /// Primary key column names (None if no primary key, Some(vec) for single or composite key)
     pub primary_key: Option<Vec<String>>,
     /// Unique constraints - each inner vec represents a unique constraint (can be single or composite)
@@ -18,9 +21,16 @@ pub struct TableSchema {
 
 impl TableSchema {
     pub fn new(name: String, columns: Vec<ColumnSchema>) -> Self {
+        let column_index_cache: HashMap<String, usize> = columns
+            .iter()
+            .enumerate()
+            .map(|(idx, col)| (col.name.clone(), idx))
+            .collect();
+
         TableSchema {
             name,
             columns,
+            column_index_cache,
             primary_key: None,
             unique_constraints: Vec::new(),
             check_constraints: Vec::new(),
@@ -34,9 +44,16 @@ impl TableSchema {
         columns: Vec<ColumnSchema>,
         primary_key: Vec<String>,
     ) -> Self {
+        let column_index_cache: HashMap<String, usize> = columns
+            .iter()
+            .enumerate()
+            .map(|(idx, col)| (col.name.clone(), idx))
+            .collect();
+
         TableSchema {
             name,
             columns,
+            column_index_cache,
             primary_key: Some(primary_key),
             unique_constraints: Vec::new(),
             check_constraints: Vec::new(),
@@ -50,9 +67,16 @@ impl TableSchema {
         columns: Vec<ColumnSchema>,
         unique_constraints: Vec<Vec<String>>,
     ) -> Self {
+        let column_index_cache: HashMap<String, usize> = columns
+            .iter()
+            .enumerate()
+            .map(|(idx, col)| (col.name.clone(), idx))
+            .collect();
+
         TableSchema {
             name,
             columns,
+            column_index_cache,
             primary_key: None,
             unique_constraints,
             check_constraints: Vec::new(),
@@ -66,9 +90,16 @@ impl TableSchema {
         columns: Vec<ColumnSchema>,
         foreign_keys: Vec<ForeignKeyConstraint>,
     ) -> Self {
+        let column_index_cache: HashMap<String, usize> = columns
+            .iter()
+            .enumerate()
+            .map(|(idx, col)| (col.name.clone(), idx))
+            .collect();
+
         TableSchema {
             name,
             columns,
+            column_index_cache,
             primary_key: None,
             unique_constraints: Vec::new(),
             check_constraints: Vec::new(),
@@ -83,9 +114,16 @@ impl TableSchema {
         primary_key: Option<Vec<String>>,
         unique_constraints: Vec<Vec<String>>,
     ) -> Self {
+        let column_index_cache: HashMap<String, usize> = columns
+            .iter()
+            .enumerate()
+            .map(|(idx, col)| (col.name.clone(), idx))
+            .collect();
+
         TableSchema {
             name,
             columns,
+            column_index_cache,
             primary_key,
             unique_constraints,
             check_constraints: Vec::new(),
@@ -102,9 +140,16 @@ impl TableSchema {
         check_constraints: Vec<(String, ast::Expression)>,
         foreign_keys: Vec<ForeignKeyConstraint>,
     ) -> Self {
+        let column_index_cache: HashMap<String, usize> = columns
+            .iter()
+            .enumerate()
+            .map(|(idx, col)| (col.name.clone(), idx))
+            .collect();
+
         TableSchema {
             name,
             columns,
+            column_index_cache,
             primary_key,
             unique_constraints,
             check_constraints,
@@ -119,7 +164,7 @@ impl TableSchema {
 
     /// Get column index by name.
     pub fn get_column_index(&self, name: &str) -> Option<usize> {
-        self.columns.iter().position(|col| col.name == name)
+        self.column_index_cache.get(name).copied()
     }
 
     /// Get number of columns.
@@ -153,7 +198,9 @@ impl TableSchema {
         if self.get_column(&column.name).is_some() {
             return Err(crate::CatalogError::ColumnAlreadyExists(column.name));
         }
-        self.columns.push(column);
+        let index = self.columns.len();
+        self.columns.push(column.clone());
+        self.column_index_cache.insert(column.name, index);
         Ok(())
     }
 
@@ -163,6 +210,12 @@ impl TableSchema {
             return Err(crate::CatalogError::ColumnNotFound("index out of bounds".to_string()));
         }
         let removed_column = self.columns.remove(index);
+
+        // Rebuild the column index cache since indices have shifted
+        self.column_index_cache.clear();
+        for (idx, col) in self.columns.iter().enumerate() {
+            self.column_index_cache.insert(col.name.clone(), idx);
+        }
 
         // Remove from primary key if present
         if let Some(ref mut pk) = self.primary_key {

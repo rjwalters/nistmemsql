@@ -2,6 +2,8 @@ use super::casting::{is_approximate_numeric, is_exact_numeric, to_f64, to_i64};
 use crate::errors::ExecutorError;
 use crate::schema::CombinedSchema;
 use crate::select::WindowFunctionKey;
+use std::cell::RefCell;
+use std::collections::HashMap;
 
 /// Evaluates expressions in the context of a row
 pub struct ExpressionEvaluator<'a> {
@@ -18,6 +20,8 @@ pub struct CombinedExpressionEvaluator<'a> {
     pub(super) outer_row: Option<&'a storage::Row>,
     pub(super) outer_schema: Option<&'a CombinedSchema>,
     pub(super) window_mapping: Option<&'a std::collections::HashMap<WindowFunctionKey, usize>>,
+    /// Cache for column lookups to avoid repeated schema traversals
+    column_cache: RefCell<HashMap<(Option<String>, String), usize>>,
 }
 
 impl<'a> ExpressionEvaluator<'a> {
@@ -443,6 +447,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             outer_row: None,
             outer_schema: None,
             window_mapping: None,
+            column_cache: RefCell::new(HashMap::new()),
         }
     }
 
@@ -457,6 +462,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             outer_row: None,
             outer_schema: None,
             window_mapping: None,
+            column_cache: RefCell::new(HashMap::new()),
         }
     }
 
@@ -473,6 +479,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             outer_row: Some(outer_row),
             outer_schema: Some(outer_schema),
             window_mapping: None,
+            column_cache: RefCell::new(HashMap::new()),
         }
     }
 
@@ -488,6 +495,25 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             outer_row: None,
             outer_schema: None,
             window_mapping: Some(window_mapping),
+            column_cache: RefCell::new(HashMap::new()),
+        }
+    }
+
+    /// Get column index with caching to avoid repeated schema lookups
+    pub(crate) fn get_column_index_cached(&self, table: Option<&str>, column: &str) -> Option<usize> {
+        let key = (table.map(|s| s.to_string()), column.to_string());
+
+        // Check cache first
+        if let Some(&idx) = self.column_cache.borrow().get(&key) {
+            return Some(idx);
+        }
+
+        // Cache miss: lookup and store
+        if let Some(idx) = self.schema.get_column_index(table, column) {
+            self.column_cache.borrow_mut().insert(key, idx);
+            Some(idx)
+        } else {
+            None
         }
     }
 }
