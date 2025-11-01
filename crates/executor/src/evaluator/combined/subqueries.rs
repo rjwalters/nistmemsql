@@ -23,7 +23,6 @@ impl CombinedExpressionEvaluator<'_> {
             );
             crate::select::SelectExecutor::new_with_outer_context(database, row, self.schema)
         } else {
-            eprintln!("DEBUG eval_scalar_subquery: No outer context (no tables)");
             crate::select::SelectExecutor::new(database)
         };
         let rows = select_executor.execute(subquery)?;

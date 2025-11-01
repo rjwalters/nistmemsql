@@ -57,7 +57,6 @@ impl SelectExecutor<'_> {
                     outer_schema,
                 )
             } else {
-                eprintln!("DEBUG AGG: Creating evaluator WITHOUT outer context");
                 CombinedExpressionEvaluator::with_database(&from_result.schema, self.database)
             };
 

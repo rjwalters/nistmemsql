@@ -166,6 +166,16 @@ impl NistMemSqlDB {
                 .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
+            ast::Statement::CreateView(create_view_stmt) => {
+                executor::advanced_objects::execute_create_view(&create_view_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::DropView(drop_view_stmt) => {
+                executor::advanced_objects::execute_drop_view(&drop_view_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
             // Unimplemented statements return success for now
             ast::Statement::BeginTransaction(_)
             | ast::Statement::Commit(_)
@@ -183,8 +193,6 @@ impl NistMemSqlDB {
             | ast::Statement::DropCharacterSet(_)
             | ast::Statement::CreateTranslation(_)
             | ast::Statement::DropTranslation(_)
-            | ast::Statement::CreateView(_)
-            | ast::Statement::DropView(_)
             | ast::Statement::CreateTrigger(_)
             | ast::Statement::DropTrigger(_)
             | ast::Statement::CreateIndex(_)
