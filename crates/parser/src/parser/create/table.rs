@@ -48,10 +48,25 @@ impl Parser {
             // Parse data type
             let data_type = self.parse_data_type()?;
 
-            // Parse optional DEFAULT clause
+            // Parse optional DEFAULT clause (before COMMENT, per MySQL standard)
             let default_value = if self.peek_keyword(Keyword::Default) {
                 self.advance(); // consume DEFAULT
                 Some(Box::new(self.parse_expression()?))
+            } else {
+                None
+            };
+
+            // Parse optional COMMENT clause (after DEFAULT, per MySQL standard)
+            let comment = if self.peek_keyword(Keyword::Comment) {
+                self.advance(); // consume COMMENT
+                match self.peek() {
+                    Token::String(s) => {
+                        let c = s.clone();
+                        self.advance();
+                        Some(c)
+                    }
+                    _ => return Err(ParseError { message: "Expected string literal after COMMENT".to_string() }),
+                }
             } else {
                 None
             };
@@ -63,7 +78,7 @@ impl Parser {
             let nullable =
                 !constraints.iter().any(|c| matches!(&c.kind, ast::ColumnConstraintKind::NotNull));
 
-            columns.push(ast::ColumnDef { name, data_type, nullable, constraints, default_value });
+            columns.push(ast::ColumnDef { name, data_type, nullable, constraints, default_value, comment });
 
             if matches!(self.peek(), Token::Comma) {
                 self.advance();

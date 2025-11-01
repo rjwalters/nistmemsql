@@ -569,7 +569,6 @@ fn test_unknown_type_still_fails() {
 }
 
 #[test]
-#[ignore = "COMMENT clause syntax not yet fully supported in all contexts"]
 fn test_sqllogictest_multipolygon_with_comment() {
     // Test from actual SQLLogicTest suite
     // Note: This test is currently ignored because COMMENT clause may not be fully supported
@@ -585,15 +584,28 @@ fn test_sqllogictest_multipolygon_with_comment() {
     let stmt = result.unwrap();
 
     match stmt {
-        ast::Statement::CreateTable(create) => {
-            assert_eq!(create.columns.len(), 2);
+    ast::Statement::CreateTable(create) => {
+    assert_eq!(create.columns.len(), 2);
 
-            match &create.columns[0].data_type {
+    // Check first column
+    assert_eq!(create.columns[0].name, "c1");
+    match &create.columns[0].data_type {
+    types::DataType::UserDefined { type_name } => {
+        assert_eq!(type_name, "MULTIPOLYGON");
+        }
+            _ => panic!("Expected UserDefined MULTIPOLYGON, got {:?}", create.columns[0].data_type),
+        }
+            assert_eq!(create.columns[0].comment, Some("text155459".to_string()));
+
+            // Check second column
+            assert_eq!(create.columns[1].name, "c2");
+            match &create.columns[1].data_type {
                 types::DataType::UserDefined { type_name } => {
                     assert_eq!(type_name, "MULTIPOLYGON");
                 }
-                _ => panic!("Expected UserDefined MULTIPOLYGON, got {:?}", create.columns[0].data_type),
+                _ => panic!("Expected UserDefined MULTIPOLYGON, got {:?}", create.columns[1].data_type),
             }
+            assert_eq!(create.columns[1].comment, Some("text155461".to_string()));
         }
         _ => panic!("Expected CREATE TABLE statement"),
     }
@@ -625,6 +637,39 @@ fn test_sqllogictest_multipolygon_basic() {
                 }
                 _ => panic!("Expected UserDefined MULTIPOLYGON, got {:?}", create.columns[1].data_type),
             }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_default_before_comment_mysql_standard() {
+    // Test MySQL standard order: DEFAULT before COMMENT
+    // Per MySQL 8.4 Reference Manual:
+    // column_definition: data_type [DEFAULT {literal | (expr)}] [COMMENT 'string']
+    let result = Parser::parse_sql(
+        "CREATE TABLE t (col INT DEFAULT 5 COMMENT 'test column');",
+    );
+
+    if let Err(ref e) = result {
+        eprintln!("Parse error: {}", e);
+    }
+
+    assert!(result.is_ok(), "Should parse DEFAULT before COMMENT (MySQL standard order)");
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::CreateTable(create) => {
+            assert_eq!(create.columns.len(), 1);
+
+            let col = &create.columns[0];
+            assert_eq!(col.name, "COL");
+
+            // Verify DEFAULT value is parsed
+            assert!(col.default_value.is_some(), "Should have default value");
+
+            // Verify COMMENT is parsed
+            assert_eq!(col.comment, Some("test column".to_string()));
         }
         _ => panic!("Expected CREATE TABLE statement"),
     }

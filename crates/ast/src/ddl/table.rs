@@ -33,6 +33,7 @@ pub struct ColumnDef {
     pub nullable: bool,
     pub constraints: Vec<ColumnConstraint>,
     pub default_value: Option<Box<Expression>>,
+    pub comment: Option<String>,
 }
 
 /// Column-level constraint
