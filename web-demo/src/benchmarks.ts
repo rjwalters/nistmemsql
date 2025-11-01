@@ -271,6 +271,17 @@ function renderChart(data: BenchmarkResults) {
             display: true,
             text: 'Time (ms) - Log Scale',
           },
+          ticks: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            callback: function (value: any) {
+              // Only show specific tick marks: 0.01, 0.1, 1, 10, 100, 1000
+              const allowedTicks = [0.01, 0.1, 1, 10, 100, 1000];
+              if (allowedTicks.includes(value)) {
+                return value;
+              }
+              return null;
+            },
+          },
         },
       },
       plugins: {
