@@ -36,6 +36,7 @@ mod string_functions;
 mod subquery;
 mod transaction;
 mod translation;
+mod index;
 mod trigger;
 mod update;
 mod view;
