@@ -27,7 +27,7 @@ impl DeleteExecutor {
     /// # Examples
     ///
     /// ```
-    /// use ast::{DeleteStmt, Expression, BinaryOperator};
+    /// use ast::{DeleteStmt, Expression, BinaryOperator, WhereClause};
     /// use types::SqlValue;
     /// use storage::Database;
     /// use catalog::{TableSchema, ColumnSchema};
@@ -58,15 +58,16 @@ impl DeleteExecutor {
     ///
     /// // Delete specific row
     /// let stmt = DeleteStmt {
+    ///     only: false,
     ///     table_name: "users".to_string(),
-    ///     where_clause: Some(Expression::BinaryOp {
+    ///     where_clause: Some(WhereClause::Condition(Expression::BinaryOp {
     ///         left: Box::new(Expression::ColumnRef {
     ///             table: None,
     ///             column: "id".to_string(),
     ///         }),
     ///         op: BinaryOperator::Equal,
     ///         right: Box::new(Expression::Literal(SqlValue::Integer(1))),
-    ///     }),
+    ///     })),
     /// };
     ///
     /// let count = DeleteExecutor::execute(&stmt, &mut db).unwrap();

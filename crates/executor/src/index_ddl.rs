@@ -24,8 +24,7 @@ impl IndexExecutor {
     /// # Examples
     ///
     /// ```
-    /// use ast::{CreateIndexStmt, IndexColumn};
-    /// use ast::select::OrderDirection;
+    /// use ast::{CreateIndexStmt, IndexColumn, OrderDirection};
     /// use storage::Database;
     /// use executor::IndexExecutor;
     ///
