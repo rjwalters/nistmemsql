@@ -825,9 +825,11 @@ pub fn generate_tpch_lineitem(scale_factor: usize) -> Table {
 
 ---
 
-### Next Optimization
+### Remaining Optimizations
 
-#### Issue #774: Reduce Row Cloning Overhead
+#### Issue #774: Reduce Row Cloning Overhead (PR #775)
+
+**Status**: 🔄 **IN REVIEW** - Implementation complete, awaiting approval
 
 **Priority**: High Impact, Low Effort (1 day)
 
@@ -838,19 +840,66 @@ pub fn generate_tpch_lineitem(scale_factor: usize) -> Table {
 - 20-30% overall query speedup
 - Reduced cache pressure and improved locality
 
+**Implementation Summary**:
+- Hybrid approach targeting JOIN operations first
+- Reference-based execution for hash join and nested loops
+- Clone only at final result materialization
+
+**Files Modified**:
+- `crates/executor/src/select/join/mod.rs` - Reference-based JOIN operations
+
+---
+
+#### Issue #776: Expression Optimization (Constant Folding)
+
+**Status**: ⏳ **PLANNED** - Ready for implementation after #774
+
+**Priority**: Medium Impact, Low Effort (1 day)
+
+**Objective**: Implement constant folding and dead code elimination for expressions
+
+**Expected Impact**:
+- 5-15% reduction in expression evaluation overhead
+- Instant results for `WHERE false` queries (skip table scan)
+- Simplified execution plans
+
 **Implementation Plan**:
-1. Replace clone-heavy JOIN operations with reference-based execution
-2. Implement `RowRef` struct for lazy materialization
-3. Update window functions and CTE operations
-4. Materialize final results only once at pipeline end
+1. Constant folding for expressions without column references
+2. Dead code elimination (`WHERE false` → empty result)
+3. Boolean short-circuit evaluation
+4. Integration with query executor
+
+---
+
+#### Issue #777: Phase 2 Benchmarking and Validation
+
+**Status**: ⏳ **PLANNED** - Runs after #774 and #776 complete
+
+**Priority**: High Priority, Medium Effort (1 day)
+
+**Objective**: Validate all Phase 2 optimizations meet performance targets
+
+**Deliverables**:
+- Comprehensive benchmark results (hash join, row cloning, expressions)
+- Quality validation (all tests pass, zero warnings)
+- Performance comparison report
+- Updated documentation with actual results
+
+**Success Criteria**:
+- 10K×10K equi-join: <1 second (vs ~60s baseline)
+- Memory allocations: 50% reduction
+- All 1,306+ tests passing
+- Conformance tests maintained (703/739)
+
+---
 
 ### Phase 2 Timeline
 
-**Week 1 (Current)**:
-- Day 1-2: Implement hash join for equi-joins
-- Day 3: Reduce row cloning overhead
-- Day 4: Expression constant folding
-- Day 5: Benchmark and validate improvements
+**Progress**:
+- ✅ **Day 1-2**: Hash join for equi-joins (Issue #769, PR #771) - **COMPLETE**
+- 🔄 **Day 3**: Row cloning overhead (Issue #774, PR #775) - **IN REVIEW**
+- ⏳ **Day 4**: Expression optimization (Issue #776) - **PLANNED**
+- ⏳ **Day 5**: Benchmark and validate (Issue #777) - **PLANNED**
 
 **Expected Phase 2 Outcome**: 10-100x JOIN speedup, 50% memory reduction
 
@@ -947,8 +996,10 @@ cargo instruments -t alloc --bench join_performance --open
 - **2025-10-31**: Created issues #769, #773-774 for Phase 2 optimizations: hash join and clone reduction
 - **2025-11-01**: Hash join optimization completed (issue #769, PR #771) - O(n+m) equi-joins implemented
 - **2025-11-01**: Issue #773 closed as duplicate of #769
-- **Version**: 1.3
-- **Status**: Phase 1 completed, Phase 2 in progress (hash joins done, row cloning next)
+- **2025-11-01**: Created issues #776 (expression optimization) and #777 (Phase 2 benchmarking)
+- **2025-11-01**: Updated Phase 2 timeline with issue references and progress tracking
+- **Version**: 1.4
+- **Status**: Phase 2 in progress - hash joins complete, row cloning in review, expression optimization planned
 
 ---
 
