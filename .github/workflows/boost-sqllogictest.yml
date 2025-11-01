@@ -22,6 +22,17 @@ on:
   # schedule:
   #   - cron: '0 */6 * * *'  # Every 6 hours
 
+# Sets permissions for GitHub Pages deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Prevent concurrent Pages deployments (queue them instead)
+concurrency:
+  group: pages-deployment
+  cancel-in-progress: false
+
 jobs:
   boost-coverage:
     name: Boost SQLLogicTest Coverage (Runner ${{ matrix.runner_id }})
@@ -287,52 +298,61 @@ jobs:
           echo "=== Final Aggregated Results ==="
           jq '.summary' aggregated/sqllogictest_merged.json
 
-      - name: Update gh-pages with aggregated results
+      - name: Download current Pages site
+        run: |
+          echo "Downloading current Pages site content..."
+          mkdir -p pages-site
+
+          # Download the entire current Pages site recursively
+          # -r: recursive, -np: no parent, -nH: no host directory, -R: reject patterns
+          # -q: quiet, --cut-dirs=0: don't cut any path components
+          wget -r -np -nH -q --cut-dirs=0 \
+            -R "*.html.tmp,*.html?*" \
+            -P pages-site \
+            https://rjwalters.github.io/nistmemsql/ || {
+            echo "⚠️  Could not download full Pages site"
+            echo "This might be the first boost run - creating minimal structure"
+            mkdir -p pages-site/badges
+          }
+
+          # Clean up wget artifacts
+          rm -f pages-site/robots.txt.tmp 2>/dev/null || true
+
+          echo ""
+          echo "=== Downloaded Pages site structure ==="
+          find pages-site -type f | head -20
+
+      - name: Update cumulative results in Pages site
         run: |
           if [ ! -f aggregated/sqllogictest_merged.json ]; then
             echo "No aggregated results to publish"
-            exit 0
+            exit 1
           fi
 
-          # Try to clone gh-pages branch
-          if git clone --branch gh-pages --depth 1 \
-            https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} gh-pages-repo 2>/dev/null; then
-
-            echo "✓ Cloned existing gh-pages branch"
-            cd gh-pages-repo
-
-          else
-            echo "⚠️  gh-pages branch doesn't exist yet - will be created by main CI workflow"
-            echo "Saving aggregated results as artifact for now..."
-
-            # Save results for later (main CI will create gh-pages)
-            mkdir -p gh-pages-staging
-            cp aggregated/sqllogictest_merged.json gh-pages-staging/sqllogictest_cumulative.json
-
-            echo ""
-            echo "=== Aggregated Results (not yet published) ==="
-            jq '.' gh-pages-staging/sqllogictest_cumulative.json
-
-            exit 0
-          fi
+          # Create badges directory if it doesn't exist
+          mkdir -p pages-site/badges
 
           # Copy aggregated results
-          mkdir -p badges
-          cp ../aggregated/sqllogictest_merged.json badges/sqllogictest_cumulative.json
+          cp aggregated/sqllogictest_merged.json pages-site/badges/sqllogictest_cumulative.json
 
-          # Configure git
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          echo ""
+          echo "=== Updated Cumulative Results ==="
+          jq '.summary' pages-site/badges/sqllogictest_cumulative.json
 
-          # Commit and push
-          git add badges/sqllogictest_cumulative.json
+          echo ""
+          echo "=== Pages site structure ==="
+          ls -la pages-site/
+          echo ""
+          echo "=== Badges directory ==="
+          ls -la pages-site/badges/ || echo "No badges directory"
 
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-            exit 0
-          fi
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
 
-          git commit -m "Update SQLLogicTest cumulative results (boost run #${{ github.run_number }})"
-          git push
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './pages-site'
 
-          echo "✓ Successfully pushed aggregated results to gh-pages"
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4

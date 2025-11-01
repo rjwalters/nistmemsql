@@ -11,10 +11,11 @@ permissions:
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment
+# Prevent concurrent Pages deployments (queue them instead)
+# Also allow only one CI run per branch at a time
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow == 'CI and Deploy' && github.ref == 'refs/heads/main' && 'pages-deployment' || format('{0}-{1}', github.workflow, github.event.pull_request.number || github.ref) }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   # ============================================================================
