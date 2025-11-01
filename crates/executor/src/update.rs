@@ -1,6 +1,6 @@
 //! UPDATE statement execution
 
-use ast::UpdateStmt;
+use ast::{UpdateStmt, Expression, BinaryOperator};
 use storage::Database;
 
 use crate::errors::ExecutorError;
@@ -11,6 +11,51 @@ use crate::privilege_checker::PrivilegeChecker;
 pub struct UpdateExecutor;
 
 impl UpdateExecutor {
+    /// Analyze WHERE expression to see if it can use primary key index for fast lookup
+    ///
+    /// Returns the primary key value if the expression is a simple equality on the primary key,
+    /// otherwise returns None.
+    fn extract_primary_key_lookup(
+        where_expr: &Expression,
+        schema: &catalog::TableSchema,
+    ) -> Option<Vec<types::SqlValue>> {
+        // Only handle simple binary equality operations
+        match where_expr {
+            Expression::BinaryOp { left, op: BinaryOperator::Equal, right } => {
+                // Check if left side is a column reference and right side is a literal
+                if let (Expression::ColumnRef { column, .. }, Expression::Literal(value)) =
+                    (left.as_ref(), right.as_ref())
+                {
+                    // Check if this column is the primary key
+                    if let Some(pk_indices) = schema.get_primary_key_indices() {
+                        if let Some(col_index) = schema.get_column_index(column) {
+                            // Only handle single-column primary keys for now
+                            if pk_indices.len() == 1 && pk_indices[0] == col_index {
+                                return Some(vec![value.clone()]);
+                            }
+                        }
+                    }
+                }
+
+                // Also check the reverse: literal = column
+                if let (Expression::Literal(value), Expression::ColumnRef { column, .. }) =
+                    (left.as_ref(), right.as_ref())
+                {
+                    if let Some(pk_indices) = schema.get_primary_key_indices() {
+                        if let Some(col_index) = schema.get_column_index(column) {
+                            if pk_indices.len() == 1 && pk_indices[0] == col_index {
+                                return Some(vec![value.clone()]);
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        None
+    }
+
     /// Execute an UPDATE statement
     ///
     /// # Arguments
@@ -86,9 +131,271 @@ impl UpdateExecutor {
         // Step 4: Build list of updates (two-phase execution for SQL semantics)
         let mut updates = Vec::new();
 
+        // Try to use primary key index for fast lookup
+        let candidate_rows: Vec<(usize, storage::Row)> =
+            if let Some(ast::WhereClause::Condition(where_expr)) = &stmt.where_clause {
+                if let Some(pk_values) = Self::extract_primary_key_lookup(where_expr, schema) {
+                    // Use primary key index for O(1) lookup
+                    if let Some(pk_index) = table.primary_key_index() {
+                        if let Some(&row_index) = pk_index.get(&pk_values) {
+                            // Found the row via index - single row to update
+                            vec![(row_index, table.scan()[row_index].clone())]
+                        } else {
+                            // Primary key not found - no rows to update
+                            vec![]
+                        }
+                    } else {
+                        // No primary key index available, fall back to table scan
+                        Self::collect_candidate_rows(table, &stmt.where_clause, &evaluator)?
+                    }
+                } else {
+                    // WHERE clause exists but can't use index, fall back to table scan
+                    Self::collect_candidate_rows(table, &stmt.where_clause, &evaluator)?
+                }
+            } else {
+                // No WHERE clause or unsupported WHERE type - scan all rows
+                Self::collect_candidate_rows(table, &stmt.where_clause, &evaluator)?
+            };
+
+        for (row_index, row) in candidate_rows {
+            // If the primary key is being updated, we need to check for child references
+            if let Some(pk_indices) = schema.get_primary_key_indices() {
+                let updates_pk = stmt.assignments.iter().any(|a| {
+                    let col_index = schema.get_column_index(&a.column).unwrap();
+                    pk_indices.contains(&col_index)
+                });
+
+                if updates_pk {
+                    check_no_child_references(database, &stmt.table_name, &row)?;
+                }
+            }
+
+            // Build updated row by cloning original and applying assignments
+            let mut new_row = row.clone();
+
+            // Apply each assignment
+            for assignment in &stmt.assignments {
+                // Find column index
+                let col_index =
+                    schema.get_column_index(&assignment.column).ok_or_else(|| {
+                        ExecutorError::ColumnNotFound {
+                            column_name: assignment.column.clone(),
+                            table_name: stmt.table_name.clone(),
+                        }
+                    })?;
+
+                // Evaluate new value expression
+                // Handle DEFAULT specially before evaluating other expressions
+                let new_value = match &assignment.value {
+                    ast::Expression::Default => {
+                        // Use column's default value, or NULL if no default is defined
+                        let column = &schema.columns[col_index];
+                        if let Some(default_expr) = &column.default_value {
+                            // Evaluate the default expression (currently only supports literals)
+                            match default_expr {
+                                ast::Expression::Literal(lit) => lit.clone(),
+                                _ => return Err(ExecutorError::UnsupportedExpression(
+                                    format!("Complex default expressions not yet supported for column '{}'", column.name)
+                                ))
+                            }
+                        } else {
+                            // No default value defined, use NULL
+                            types::SqlValue::Null
+                        }
+                    }
+                    _ => {
+                        // Evaluate other expressions against ORIGINAL row
+                        evaluator.eval(&assignment.value, &row)?
+                    }
+                };
+
+                // Update column in new row
+                new_row
+                    .set(col_index, new_value)
+                    .map_err(|e| ExecutorError::StorageError(e.to_string()))?;
+            }
+
+            // Enforce NOT NULL constraints on the updated row
+            for (col_idx, col) in schema.columns.iter().enumerate() {
+                let value = new_row
+                    .get(col_idx)
+                    .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: col_idx })?;
+
+                if !col.nullable && *value == types::SqlValue::Null {
+                    return Err(ExecutorError::ConstraintViolation(format!(
+                        "NOT NULL constraint violation: column '{}' in table '{}' cannot be NULL",
+                        col.name, stmt.table_name
+                    )));
+                }
+            }
+
+            // Enforce PRIMARY KEY constraint (uniqueness)
+            if let Some(pk_indices) = schema.get_primary_key_indices() {
+                // Extract primary key values from the updated row
+                let new_pk_values: Vec<types::SqlValue> =
+                    pk_indices.iter().map(|&idx| new_row.values[idx].clone()).collect();
+
+                // Use hash index for O(1) lookup instead of O(n) scan
+                if let Some(pk_index) = table.primary_key_index() {
+                    if pk_index.contains_key(&new_pk_values) {
+                        // Check if it's not the same row (hash index doesn't store row index for easy exclusion)
+                        // We need to verify it's actually a different row by checking if this is an update to the same PK
+                        let original_pk_values: Vec<types::SqlValue> =
+                            pk_indices.iter().map(|&idx| row.values[idx].clone()).collect();
+
+                        if new_pk_values != original_pk_values {
+                            let pk_col_names: Vec<String> =
+                                schema.primary_key.as_ref().unwrap().clone();
+                            return Err(ExecutorError::ConstraintViolation(format!(
+                                "PRIMARY KEY constraint violated: duplicate key value for ({})",
+                                pk_col_names.join(", ")
+                            )));
+                        }
+                    }
+                } else {
+                    // Fallback to table scan if index not available (should not happen in normal operation)
+                    for (other_idx, other_row) in table.scan().iter().enumerate() {
+                        // Skip the row being updated
+                        if other_idx == row_index {
+                            continue;
+                        }
+
+                        let other_pk_values: Vec<&types::SqlValue> =
+                            pk_indices.iter().filter_map(|&idx| other_row.get(idx)).collect();
+
+                        if new_pk_values.iter().zip(other_pk_values).all(|(a, b)| *a == *b) {
+                            let pk_col_names: Vec<String> =
+                                schema.primary_key.as_ref().unwrap().clone();
+                            return Err(ExecutorError::ConstraintViolation(format!(
+                                "PRIMARY KEY constraint violated: duplicate key value for ({})",
+                                pk_col_names.join(", ")
+                            )));
+                        }
+                    }
+                }
+            }
+
+            // Enforce UNIQUE constraints
+            let unique_constraint_indices = schema.get_unique_constraint_indices();
+            for (constraint_idx, unique_indices) in unique_constraint_indices.iter().enumerate()
+            {
+                // Extract unique constraint values from the updated row
+                let new_unique_values: Vec<types::SqlValue> =
+                    unique_indices.iter().map(|&idx| new_row.values[idx].clone()).collect();
+
+                // Skip if any value in the unique constraint is NULL
+                // (NULL != NULL in SQL, so multiple NULLs are allowed)
+                if new_unique_values.iter().any(|v| *v == types::SqlValue::Null) {
+                    continue;
+                }
+
+                // Use hash index for O(1) lookup instead of O(n) scan
+                let unique_indexes = table.unique_indexes();
+                if constraint_idx < unique_indexes.len() {
+                    let unique_index = &unique_indexes[constraint_idx];
+                    if unique_index.contains_key(&new_unique_values) {
+                        // Check if it's not the same row by comparing original values
+                        let original_unique_values: Vec<types::SqlValue> =
+                            unique_indices.iter().map(|&idx| row.values[idx].clone()).collect();
+
+                        if new_unique_values != original_unique_values {
+                            let unique_col_names: Vec<String> =
+                                schema.unique_constraints[constraint_idx].clone();
+                            return Err(ExecutorError::ConstraintViolation(format!(
+                                "UNIQUE constraint violated: duplicate value for ({})",
+                                unique_col_names.join(", ")
+                            )));
+                        }
+                    }
+                } else {
+                    // Fallback to table scan if index not available (should not happen in normal operation)
+                    for (other_idx, other_row) in table.scan().iter().enumerate() {
+                        // Skip the row being updated
+                        if other_idx == row_index {
+                            continue;
+                        }
+
+                        let other_unique_values: Vec<&types::SqlValue> = unique_indices
+                            .iter()
+                            .filter_map(|&idx| other_row.get(idx))
+                            .collect();
+
+                        // Skip if any existing value is NULL
+                        if other_unique_values.iter().any(|v| **v == types::SqlValue::Null) {
+                            continue;
+                        }
+
+                        if new_unique_values
+                            .iter()
+                            .zip(other_unique_values)
+                            .all(|(a, b)| *a == *b)
+                        {
+                            let unique_col_names: Vec<String> =
+                                schema.unique_constraints[constraint_idx].clone();
+                            return Err(ExecutorError::ConstraintViolation(format!(
+                                "UNIQUE constraint violated: duplicate value for ({})",
+                                unique_col_names.join(", ")
+                            )));
+                        }
+                    }
+                }
+            }
+
+            // Enforce CHECK constraints
+            if !schema.check_constraints.is_empty() {
+                let evaluator = crate::evaluator::ExpressionEvaluator::new(schema);
+
+                for (constraint_name, check_expr) in &schema.check_constraints {
+                    // Evaluate the CHECK expression against the updated row
+                    let result = evaluator.eval(check_expr, &new_row)?;
+
+                    // CHECK constraint passes if result is TRUE or NULL (UNKNOWN)
+                    // CHECK constraint fails if result is FALSE
+                    if result == types::SqlValue::Boolean(false) {
+                        return Err(ExecutorError::ConstraintViolation(format!(
+                            "CHECK constraint '{}' violated",
+                            constraint_name
+                        )));
+                    }
+                }
+            }
+
+            // Enforce FOREIGN KEY constraints (child table)
+            if !schema.foreign_keys.is_empty() {
+                validate_foreign_key_constraints(database, &stmt.table_name, &new_row.values)?;
+            }
+
+            updates.push((row_index, new_row));
+        }
+
+        // Step 5: Apply all updates (after evaluation phase completes)
+        let update_count = updates.len();
+
+        // Get mutable table reference
+        let table_mut = database
+            .get_table_mut(&stmt.table_name)
+            .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
+
+        for (index, new_row) in updates {
+            table_mut
+                .update_row(index, new_row)
+                .map_err(|e| ExecutorError::StorageError(e.to_string()))?;
+        }
+
+        Ok(update_count)
+    }
+
+    /// Collect candidate rows that match the WHERE clause (fallback for non-indexed queries)
+    fn collect_candidate_rows(
+        table: &storage::Table,
+        where_clause: &Option<ast::WhereClause>,
+        evaluator: &ExpressionEvaluator,
+    ) -> Result<Vec<(usize, storage::Row)>, ExecutorError> {
+        let mut candidate_rows = Vec::new();
+
         for (row_index, row) in table.scan().iter().enumerate() {
             // Check WHERE clause
-            let should_update = if let Some(ref where_clause) = stmt.where_clause {
+            let should_update = if let Some(ref where_clause) = where_clause {
                 match where_clause {
                     ast::WhereClause::Condition(where_expr) => {
                         let result = evaluator.eval(where_expr, row)?;
@@ -107,232 +414,11 @@ impl UpdateExecutor {
             };
 
             if should_update {
-                // If the primary key is being updated, we need to check for child references
-                if let Some(pk_indices) = schema.get_primary_key_indices() {
-                    let updates_pk = stmt.assignments.iter().any(|a| {
-                        let col_index = schema.get_column_index(&a.column).unwrap();
-                        pk_indices.contains(&col_index)
-                    });
-
-                    if updates_pk {
-                        check_no_child_references(database, &stmt.table_name, row)?;
-                    }
-                }
-
-                // Build updated row by cloning original and applying assignments
-                let mut new_row = row.clone();
-
-                // Apply each assignment
-                for assignment in &stmt.assignments {
-                    // Find column index
-                    let col_index =
-                        schema.get_column_index(&assignment.column).ok_or_else(|| {
-                            ExecutorError::ColumnNotFound {
-                                column_name: assignment.column.clone(),
-                                table_name: stmt.table_name.clone(),
-                            }
-                        })?;
-
-                    // Evaluate new value expression
-                    // Handle DEFAULT specially before evaluating other expressions
-                    let new_value = match &assignment.value {
-                        ast::Expression::Default => {
-                            // Use column's default value, or NULL if no default is defined
-                            let column = &schema.columns[col_index];
-                            if let Some(default_expr) = &column.default_value {
-                                // Evaluate the default expression (currently only supports literals)
-                                match default_expr {
-                                    ast::Expression::Literal(lit) => lit.clone(),
-                                    _ => return Err(ExecutorError::UnsupportedExpression(
-                                        format!("Complex default expressions not yet supported for column '{}'", column.name)
-                                    ))
-                                }
-                            } else {
-                                // No default value defined, use NULL
-                                types::SqlValue::Null
-                            }
-                        }
-                        _ => {
-                            // Evaluate other expressions against ORIGINAL row
-                            evaluator.eval(&assignment.value, row)?
-                        }
-                    };
-
-                    // Update column in new row
-                    new_row
-                        .set(col_index, new_value)
-                        .map_err(|e| ExecutorError::StorageError(e.to_string()))?;
-                }
-
-                // Enforce NOT NULL constraints on the updated row
-                for (col_idx, col) in schema.columns.iter().enumerate() {
-                    let value = new_row
-                        .get(col_idx)
-                        .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: col_idx })?;
-
-                    if !col.nullable && *value == types::SqlValue::Null {
-                        return Err(ExecutorError::ConstraintViolation(format!(
-                            "NOT NULL constraint violation: column '{}' in table '{}' cannot be NULL",
-                            col.name, stmt.table_name
-                        )));
-                    }
-                }
-
-                // Enforce PRIMARY KEY constraint (uniqueness)
-                if let Some(pk_indices) = schema.get_primary_key_indices() {
-                    // Extract primary key values from the updated row
-                    let new_pk_values: Vec<types::SqlValue> =
-                        pk_indices.iter().map(|&idx| new_row.values[idx].clone()).collect();
-
-                    // Use hash index for O(1) lookup instead of O(n) scan
-                    if let Some(pk_index) = table.primary_key_index() {
-                        if pk_index.contains_key(&new_pk_values) {
-                            // Check if it's not the same row (hash index doesn't store row index for easy exclusion)
-                            // We need to verify it's actually a different row by checking if this is an update to the same PK
-                            let original_pk_values: Vec<types::SqlValue> =
-                                pk_indices.iter().map(|&idx| row.values[idx].clone()).collect();
-
-                            if new_pk_values != original_pk_values {
-                                let pk_col_names: Vec<String> =
-                                    schema.primary_key.as_ref().unwrap().clone();
-                                return Err(ExecutorError::ConstraintViolation(format!(
-                                    "PRIMARY KEY constraint violated: duplicate key value for ({})",
-                                    pk_col_names.join(", ")
-                                )));
-                            }
-                        }
-                    } else {
-                        // Fallback to table scan if index not available (should not happen in normal operation)
-                        for (other_idx, other_row) in table.scan().iter().enumerate() {
-                            // Skip the row being updated
-                            if other_idx == row_index {
-                                continue;
-                            }
-
-                            let other_pk_values: Vec<&types::SqlValue> =
-                                pk_indices.iter().filter_map(|&idx| other_row.get(idx)).collect();
-
-                            if new_pk_values.iter().zip(other_pk_values).all(|(a, b)| *a == *b) {
-                                let pk_col_names: Vec<String> =
-                                    schema.primary_key.as_ref().unwrap().clone();
-                                return Err(ExecutorError::ConstraintViolation(format!(
-                                    "PRIMARY KEY constraint violated: duplicate key value for ({})",
-                                    pk_col_names.join(", ")
-                                )));
-                            }
-                        }
-                    }
-                }
-
-                // Enforce UNIQUE constraints
-                let unique_constraint_indices = schema.get_unique_constraint_indices();
-                for (constraint_idx, unique_indices) in unique_constraint_indices.iter().enumerate()
-                {
-                    // Extract unique constraint values from the updated row
-                    let new_unique_values: Vec<types::SqlValue> =
-                        unique_indices.iter().map(|&idx| new_row.values[idx].clone()).collect();
-
-                    // Skip if any value in the unique constraint is NULL
-                    // (NULL != NULL in SQL, so multiple NULLs are allowed)
-                    if new_unique_values.iter().any(|v| *v == types::SqlValue::Null) {
-                        continue;
-                    }
-
-                    // Use hash index for O(1) lookup instead of O(n) scan
-                    let unique_indexes = table.unique_indexes();
-                    if constraint_idx < unique_indexes.len() {
-                        let unique_index = &unique_indexes[constraint_idx];
-                        if unique_index.contains_key(&new_unique_values) {
-                            // Check if it's not the same row by comparing original values
-                            let original_unique_values: Vec<types::SqlValue> =
-                                unique_indices.iter().map(|&idx| row.values[idx].clone()).collect();
-
-                            if new_unique_values != original_unique_values {
-                                let unique_col_names: Vec<String> =
-                                    schema.unique_constraints[constraint_idx].clone();
-                                return Err(ExecutorError::ConstraintViolation(format!(
-                                    "UNIQUE constraint violated: duplicate value for ({})",
-                                    unique_col_names.join(", ")
-                                )));
-                            }
-                        }
-                    } else {
-                        // Fallback to table scan if index not available (should not happen in normal operation)
-                        for (other_idx, other_row) in table.scan().iter().enumerate() {
-                            // Skip the row being updated
-                            if other_idx == row_index {
-                                continue;
-                            }
-
-                            let other_unique_values: Vec<&types::SqlValue> = unique_indices
-                                .iter()
-                                .filter_map(|&idx| other_row.get(idx))
-                                .collect();
-
-                            // Skip if any existing value is NULL
-                            if other_unique_values.iter().any(|v| **v == types::SqlValue::Null) {
-                                continue;
-                            }
-
-                            if new_unique_values
-                                .iter()
-                                .zip(other_unique_values)
-                                .all(|(a, b)| *a == *b)
-                            {
-                                let unique_col_names: Vec<String> =
-                                    schema.unique_constraints[constraint_idx].clone();
-                                return Err(ExecutorError::ConstraintViolation(format!(
-                                    "UNIQUE constraint violated: duplicate value for ({})",
-                                    unique_col_names.join(", ")
-                                )));
-                            }
-                        }
-                    }
-                }
-
-                // Enforce CHECK constraints
-                if !schema.check_constraints.is_empty() {
-                    let evaluator = crate::evaluator::ExpressionEvaluator::new(schema);
-
-                    for (constraint_name, check_expr) in &schema.check_constraints {
-                        // Evaluate the CHECK expression against the updated row
-                        let result = evaluator.eval(check_expr, &new_row)?;
-
-                        // CHECK constraint passes if result is TRUE or NULL (UNKNOWN)
-                        // CHECK constraint fails if result is FALSE
-                        if result == types::SqlValue::Boolean(false) {
-                            return Err(ExecutorError::ConstraintViolation(format!(
-                                "CHECK constraint '{}' violated",
-                                constraint_name
-                            )));
-                        }
-                    }
-                }
-
-                // Enforce FOREIGN KEY constraints (child table)
-                if !schema.foreign_keys.is_empty() {
-                    validate_foreign_key_constraints(database, &stmt.table_name, &new_row.values)?;
-                }
-
-                updates.push((row_index, new_row));
+                candidate_rows.push((row_index, row.clone()));
             }
         }
 
-        // Step 5: Apply all updates (after evaluation phase completes)
-        let update_count = updates.len();
-
-        // Get mutable table reference
-        let table_mut = database
-            .get_table_mut(&stmt.table_name)
-            .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
-
-        for (index, new_row) in updates {
-            table_mut
-                .update_row(index, new_row)
-                .map_err(|e| ExecutorError::StorageError(e.to_string()))?;
-        }
-
-        Ok(update_count)
+        Ok(candidate_rows)
     }
 }
 
