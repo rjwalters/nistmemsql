@@ -17,10 +17,6 @@ impl CombinedExpressionEvaluator<'_> {
         // Execute the subquery with outer context for correlated subqueries
         // Pass the entire CombinedSchema to preserve alias information
         let select_executor = if !self.schema.table_schemas.is_empty() {
-            eprintln!(
-                "DEBUG eval_scalar_subquery: Passing outer context with tables {:?}",
-                self.schema.table_schemas.keys().collect::<Vec<_>>()
-            );
             crate::select::SelectExecutor::new_with_outer_context(database, row, self.schema)
         } else {
             crate::select::SelectExecutor::new(database)
