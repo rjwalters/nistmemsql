@@ -12,6 +12,16 @@ pub(super) struct FromResult {
     pub(super) rows: Vec<storage::Row>,
 }
 
+/// Helper function to combine two rows without unnecessary cloning
+/// Only creates a single combined row, avoiding intermediate clones
+#[inline]
+fn combine_rows(left_row: &storage::Row, right_row: &storage::Row) -> storage::Row {
+    let mut combined_values = Vec::with_capacity(left_row.values.len() + right_row.values.len());
+    combined_values.extend_from_slice(&left_row.values);
+    combined_values.extend_from_slice(&right_row.values);
+    storage::Row::new(combined_values)
+}
+
 /// Perform join between two FROM results, optimizing with hash join when possible
 pub(super) fn nested_loop_join(
     left: FromResult,
@@ -117,10 +127,8 @@ pub(super) fn nested_loop_inner_join(
     let mut result_rows = Vec::new();
     for left_row in &left.rows {
         for right_row in &right.rows {
-            // Concatenate rows
-            let mut combined_values = left_row.values.clone();
-            combined_values.extend(right_row.values.clone());
-            let combined_row = storage::Row::new(combined_values);
+            // Combine rows using optimized helper (single allocation)
+            let combined_row = combine_rows(left_row, right_row);
 
             // Evaluate join condition
             let matches = if let Some(cond) = condition {
@@ -184,10 +192,8 @@ pub(super) fn nested_loop_left_outer_join(
         let mut matched = false;
 
         for right_row in &right.rows {
-            // Concatenate rows
-            let mut combined_values = left_row.values.clone();
-            combined_values.extend(right_row.values.clone());
-            let combined_row = storage::Row::new(combined_values);
+            // Combine rows using optimized helper (single allocation)
+            let combined_row = combine_rows(left_row, right_row);
 
             // Evaluate join condition
             let matches = if let Some(cond) = condition {
@@ -214,8 +220,8 @@ pub(super) fn nested_loop_left_outer_join(
 
         // If no match found, add left row with NULLs for right columns
         if !matched {
-            let mut combined_values = left_row.values.clone();
-            // Add NULL values for all right table columns
+            let mut combined_values = Vec::with_capacity(left_row.values.len() + right_column_count);
+            combined_values.extend_from_slice(&left_row.values);
             combined_values.extend(vec![types::SqlValue::Null; right_column_count]);
             result_rows.push(storage::Row::new(combined_values));
         }
@@ -317,10 +323,8 @@ pub(super) fn nested_loop_full_outer_join(
         let mut matched = false;
 
         for (right_idx, right_row) in right.rows.iter().enumerate() {
-            // Concatenate rows
-            let mut combined_values = left_row.values.clone();
-            combined_values.extend(right_row.values.clone());
-            let combined_row = storage::Row::new(combined_values);
+            // Combine rows using optimized helper (single allocation)
+            let combined_row = combine_rows(left_row, right_row);
 
             // Evaluate join condition
             let matches = if let Some(cond) = condition {
@@ -348,7 +352,8 @@ pub(super) fn nested_loop_full_outer_join(
 
         // If no match found, add left row with NULLs for right columns
         if !matched {
-            let mut combined_values = left_row.values.clone();
+            let mut combined_values = Vec::with_capacity(left_row.values.len() + right_column_count);
+            combined_values.extend_from_slice(&left_row.values);
             combined_values.extend(vec![types::SqlValue::Null; right_column_count]);
             result_rows.push(storage::Row::new(combined_values));
         }
@@ -357,8 +362,9 @@ pub(super) fn nested_loop_full_outer_join(
     // Second pass: Add unmatched right rows with NULLs for left columns
     for (right_idx, right_row) in right.rows.iter().enumerate() {
         if !right_matched[right_idx] {
-            let mut combined_values = vec![types::SqlValue::Null; left_column_count];
-            combined_values.extend(right_row.values.clone());
+            let mut combined_values = Vec::with_capacity(left_column_count + right_row.values.len());
+            combined_values.extend(vec![types::SqlValue::Null; left_column_count]);
+            combined_values.extend_from_slice(&right_row.values);
             result_rows.push(storage::Row::new(combined_values));
         }
     }
@@ -404,9 +410,7 @@ pub(super) fn nested_loop_cross_join(
     let mut result_rows = Vec::new();
     for left_row in &left.rows {
         for right_row in &right.rows {
-            let mut combined_values = left_row.values.clone();
-            combined_values.extend(right_row.values.clone());
-            result_rows.push(storage::Row::new(combined_values));
+            result_rows.push(combine_rows(left_row, right_row));
         }
     }
 
@@ -488,14 +492,10 @@ fn hash_join_inner(
                 // Combine rows in correct order (left first, then right)
                 let combined_row = if left_is_build {
                     // build_row is from left, probe_row is from right
-                    let mut combined_values = build_row.values.clone();
-                    combined_values.extend(probe_row.values.clone());
-                    storage::Row::new(combined_values)
+                    combine_rows(build_row, probe_row)
                 } else {
                     // probe_row is from left, build_row is from right
-                    let mut combined_values = probe_row.values.clone();
-                    combined_values.extend(build_row.values.clone());
-                    storage::Row::new(combined_values)
+                    combine_rows(probe_row, build_row)
                 };
 
                 result_rows.push(combined_row);
@@ -530,7 +530,7 @@ mod tests {
                     true, // nullable
                 ))
                 .collect(),
-            primary_key: vec![],
+            primary_key: None,
             unique_constraints: vec![],
             foreign_keys: vec![],
             check_constraints: vec![],
