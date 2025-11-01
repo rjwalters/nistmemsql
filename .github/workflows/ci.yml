@@ -3,9 +3,6 @@ name: CI
 on:
   pull_request:
     branches: [main]
-  push:
-    branches-ignore: [main]
-    tags-ignore: ['**']
   workflow_dispatch:
 
 permissions:
