@@ -169,7 +169,7 @@ pub fn optimize_expression(
         Expression::Cast { expr: inner_expr, data_type } => {
             let expr_opt = optimize_expression(inner_expr, evaluator)?;
 
-            if let Expression::Literal(val) = &expr_opt {
+            if let Expression::Literal(_val) = &expr_opt {
                 // TODO: Implement cast evaluation at plan time
                 Ok(Expression::Cast {
                     expr: Box::new(expr_opt),
@@ -209,54 +209,5 @@ pub fn optimize_expression(
 
         // Scalar subquery - cannot optimize
         Expression::ScalarSubquery(_) => Ok(expr.clone()),
-    }
-}
-
-/// Check if an expression is constant (contains no column references)
-///
-/// This is used to determine if an expression can be evaluated at plan time.
-pub fn is_constant_expression(expr: &Expression) -> bool {
-    match expr {
-        Expression::Literal(_) => true,
-        Expression::ColumnRef { .. } => false,
-        Expression::BinaryOp { left, right, .. } => {
-            is_constant_expression(left) && is_constant_expression(right)
-        }
-        Expression::UnaryOp { expr: inner, .. } => is_constant_expression(inner),
-        Expression::Function { args, .. } => args.iter().all(is_constant_expression),
-        Expression::AggregateFunction { args, .. } => args.iter().all(is_constant_expression),
-        Expression::IsNull { expr: inner, .. } => is_constant_expression(inner),
-        Expression::Wildcard => false,
-        Expression::Case { operand, when_clauses, else_result } => {
-            operand.as_ref().map_or(true, |op| is_constant_expression(op))
-                && when_clauses.iter().all(|wc| {
-                    wc.conditions.iter().all(is_constant_expression) && is_constant_expression(&wc.result)
-                })
-                && else_result.as_ref().map_or(true, |er| is_constant_expression(er))
-        }
-        Expression::In { expr: inner, .. } => is_constant_expression(inner),
-        Expression::InList { expr: inner, values, .. } => {
-            is_constant_expression(inner) && values.iter().all(is_constant_expression)
-        }
-        Expression::Between { expr: inner, low, high, .. } => {
-            is_constant_expression(inner) && is_constant_expression(low) && is_constant_expression(high)
-        }
-        Expression::Cast { expr: inner, .. } => is_constant_expression(inner),
-        Expression::Position { substring, string, .. } => {
-            is_constant_expression(substring) && is_constant_expression(string)
-        }
-        Expression::Trim { removal_char, string, .. } => {
-            removal_char.as_ref().map_or(true, |rc| is_constant_expression(rc)) && is_constant_expression(string)
-        }
-        Expression::Like { expr: inner, pattern, .. } => {
-            is_constant_expression(inner) && is_constant_expression(pattern)
-        }
-        Expression::Exists { .. } => false, // EXISTS depends on data
-        Expression::QuantifiedComparison { expr: inner, .. } => is_constant_expression(inner),
-        Expression::CurrentDate | Expression::CurrentTime { .. } | Expression::CurrentTimestamp { .. } => true,
-        Expression::Default => false,
-        Expression::WindowFunction { .. } => false,
-        Expression::NextValue { .. } => false, // Sequence values change
-        Expression::ScalarSubquery(_) => false, // Subqueries depend on data
     }
 }

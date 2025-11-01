@@ -159,14 +159,21 @@ impl Table {
     where
         F: Fn(&Row) -> bool,
     {
-        // Collect rows to delete for index updates
-        let rows_to_delete: Vec<Row> = self.rows.iter()
-            .filter(|row| predicate(row))
-            .cloned()
-            .collect();
+        // Collect indices to delete (only evaluate predicate once per row)
+        let mut indices_to_delete: Vec<usize> = Vec::new();
+        let mut rows_to_delete: Vec<Row> = Vec::new();
 
-        let initial_count = self.rows.len();
-        self.rows.retain(|row| !predicate(row));
+        for (index, row) in self.rows.iter().enumerate() {
+            if predicate(row) {
+                indices_to_delete.push(index);
+                rows_to_delete.push(row.clone());
+            }
+        }
+
+        // Delete rows in reverse order to maintain correct indices
+        for index in indices_to_delete.iter().rev() {
+            self.rows.remove(*index);
+        }
 
         // Update indexes for deleted rows
         for deleted_row in &rows_to_delete {
@@ -176,7 +183,7 @@ impl Table {
         // Since rows shifted, we need to rebuild indexes to maintain correct indices
         self.rebuild_indexes();
 
-        initial_count - self.rows.len()
+        rows_to_delete.len()
     }
 
     /// Remove a specific row (used for transaction undo)
