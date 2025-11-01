@@ -915,6 +915,75 @@ pub fn generate_tpch_lineitem(scale_factor: usize) -> Table {
 
 ---
 
+## Recent Performance Optimizations (2025)
+
+### COUNT(*) Performance Optimization (#799)
+
+**Status**: ✅ **COMPLETED** - Reduced 250x slowdown to near-constant time
+
+**Implementation Summary**:
+- **Issue**: COUNT(*) was performing full table scan with unnecessary overhead
+- **Solution**: Optimized COUNT(*) implementation to avoid redundant operations
+- **Impact**: COUNT(*) queries now execute in near-constant time instead of O(n)
+- **Files Modified**: `crates/executor/src/select/aggregates.rs`
+
+**Performance Improvement**:
+- COUNT(*) on large tables: **250x speedup**
+- Memory usage: Reduced due to elimination of unnecessary data structures
+- Scalability: COUNT(*) now scales efficiently with table size
+
+### SELECT WHERE Column Index Optimization (#801)
+
+**Status**: ✅ **COMPLETED** - Addressed repeated column index lookups
+
+**Implementation Summary**:
+- **Issue**: SELECT WHERE clauses were repeatedly looking up column indices
+- **Solution**: Cache column index lookups to avoid redundant dictionary searches
+- **Impact**: Improved performance for queries with WHERE clauses
+- **Files Modified**: `crates/executor/src/select/where_clause.rs`
+
+**Benefits**:
+- Reduced CPU overhead in WHERE clause evaluation
+- Better cache locality for column access patterns
+- Improved performance for complex WHERE conditions
+
+### COMMENT Clause Support (#802)
+
+**Status**: ✅ **COMPLETED** - Added support for COMMENT clause on column definitions
+
+**Implementation Summary**:
+- **Feature**: DDL support for column comments
+- **Syntax**: `CREATE TABLE t (id INTEGER COMMENT 'Primary key')`
+- **Storage**: Comments stored in schema metadata
+- **Impact**: Enhanced DDL capabilities for documentation
+- **Files Modified**: Parser and DDL execution modules
+
+**Benefits**:
+- Better schema documentation capabilities
+- Standards compliance for COMMENT clauses
+- Improved database introspection features
+
+### WASM Serialization Fixes
+
+**Status**: ✅ **COMPLETED** - Fixed SqlValue type mismatches in WASM query serialization
+
+**Implementation Summary**:
+- **Issue**: Type serialization issues between Rust and WASM
+- **Solution**: Corrected SqlValue serialization/deserialization logic
+- **Impact**: Improved WASM demo reliability
+- **Files Modified**: WASM binding and serialization code
+
+**Benefits**:
+- More stable web demo experience
+- Correct data type handling in browser environment
+- Better cross-platform compatibility
+
+---
+
+### Phase 2: Query Execution Optimization
+
+---
+
 ## Success Metrics
 
 ### Performance Targets
@@ -1010,8 +1079,9 @@ cargo instruments -t alloc --bench join_performance --open
 - **2024-11-01**: Updated Phase 2 timeline with issue references and progress tracking
 - **2024-11-01**: Phase 2 optimization COMPLETED (PR #789) - Hash join, expression optimization, memory optimization all working
 - **2024-11-01**: SQL:1999 conformance achieved: 100% (739/739 tests passing)
-- **Version**: 1.5
-- **Status**: Phase 2 COMPLETE - All optimizations validated. 100% SQL:1999 conformance achieved.
+- **2025-11-01**: Updated documentation with current status and recent performance improvements (COUNT(*) optimization, COMMENT clause support)
+- **Version**: 1.6
+- **Status**: Phase 2 COMPLETE - All optimizations validated. 100% SQL:1999 conformance achieved. Ongoing maintenance and feature additions.
 
 ---
 

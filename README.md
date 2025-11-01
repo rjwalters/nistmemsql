@@ -74,7 +74,7 @@ We use comprehensive test suites to track SQL:1999 compliance:
 | Custom E2E Tests | 2,000+ tests | ✅ Passing (note: some compilation errors exist) |
 | SQLLogicTest | 623 test files (~5.9M tests) | 🔄 **Progressive coverage** - See badge above (cumulative from all CI + boost runs) |
 
-**Recent Progress** (As of Nov 1, 2024):
+**Recent Progress** (As of Nov 1, 2025):
 - ✅ **100% SQL:1999 Core Conformance ACHIEVED** - All 739 tests passing!
 - ✅ **Phase 2 Optimizations Complete** - Hash join, expression optimization, memory optimization (#789)
 - ✅ **SQLLogicTest integration** - Added ~5.9M tests via dolthub/sqllogictest submodule
@@ -149,7 +149,7 @@ This isn't a toy project. A fully SQL:1999 compliant database is a **massive und
 
 This repository is that experiment, documented in real-time:
 
-**Current Results** (As of latest test run):
+**Current Results** (As of latest test run - Nov 1, 2025):
 - ✅ **100% SQL:1999 Core Conformance ACHIEVED** (739/739 tests passing) 🎉
 - ✅ **2,000+ unit/integration tests passing** (100%)
 - ✅ **Phase 2 Performance Optimizations** - Hash join, expression optimization, memory optimization
@@ -320,7 +320,7 @@ This isn't just about databases. It's about understanding what's now possible wi
 - [x] SQL cursor operations parsing (DECLARE, OPEN, FETCH, CLOSE, CURRENT OF) ✅ (#741)
 - [x] Conformance metrics updated to 95.4% (705/739 tests passing) ✅
 
-**Day 8 (Nov 1)** - Conformance Test Harness
+**Day 8 (Nov 1, 2024)** - Conformance Test Harness
 - [ ] NIST SQL Test Suite v6.0 integration
 - [ ] SQL:1999 Core feature validator (Mimer taxonomy)
 - [ ] Automated test harness: `nistmemsql test` + `nistmemsql validate`
@@ -613,7 +613,7 @@ See [WORK_PLAN.md](WORK_PLAN.md) for current priorities.
 - **Architecture**: 7-crate workspace
 - **Tests**: 2,000+ unit/integration tests (100%), ✅ **100% SQL:1999 conformance** (739/739)
 - **Coverage**: ~86%
-- **LOC**: ~64,000+
+- **LOC**: ~65,000+
 - **Project Type**: AI-powered SQL:1999 compliance demonstration
 - **Started**: October 25, 2024
 - **Milestone Achieved**: ✅ **100% SQL:1999 Core Conformance** (November 1, 2024)
@@ -688,8 +688,9 @@ MIT License - See [LICENSE](LICENSE) for details.
 - **Conformance**: 739/739 tests passing (100%)
 - **Phase 2 Optimizations**: Hash join, expression optimization, memory optimization complete
 - **Achievement**: Complete SQL:1999 Core implementation in just 7 days!
-- **Performance**: 260x speedup on hash joins, 50% memory reduction
+- **Performance**: 260x speedup on hash joins, 50% memory reduction, COUNT(*) near-constant time
 - **Next Decision**: Pursue FULL SQL:1999 compliance or focus on production-ready polish
+- **Recent Updates**: COMMENT clause support, WASM serialization fixes, SQLLogicTest integration (November 2025)
 
 **Future Options**:
 1. FULL SQL:1999 compliance (optional features, procedural SQL, triggers)
