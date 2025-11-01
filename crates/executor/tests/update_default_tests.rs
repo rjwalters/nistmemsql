@@ -1,4 +1,4 @@
-use ast::{Assignment, BinaryOperator, Expression, UpdateStmt};
+use ast::{Assignment, BinaryOperator, Expression, UpdateStmt, WhereClause};
 use catalog::{ColumnSchema, TableSchema};
 use executor::UpdateExecutor;
 use storage::{Database, Row};
@@ -30,11 +30,11 @@ fn test_update_with_default_value() {
     let stmt = UpdateStmt {
         table_name: "users".to_string(),
         assignments: vec![Assignment { column: "name".to_string(), value: Expression::Default }],
-        where_clause: Some(Expression::BinaryOp {
+        where_clause: Some(WhereClause::Condition(Expression::BinaryOp {
             op: BinaryOperator::Equal,
             left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
             right: Box::new(Expression::Literal(SqlValue::Integer(1))),
-        }),
+        })),
     };
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
@@ -75,11 +75,11 @@ fn test_update_default_no_default_value_defined() {
     let stmt = UpdateStmt {
         table_name: "users".to_string(),
         assignments: vec![Assignment { column: "name".to_string(), value: Expression::Default }],
-        where_clause: Some(Expression::BinaryOp {
+        where_clause: Some(WhereClause::Condition(Expression::BinaryOp {
             op: BinaryOperator::Equal,
             left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
             right: Box::new(Expression::Literal(SqlValue::Integer(1))),
-        }),
+        })),
     };
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();

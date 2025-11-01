@@ -17,7 +17,8 @@ mod tests {
     use super::*;
     use crate::Row;
     use types::SqlValue;
-    use catalog::{ColumnSchema, DataType, TableSchema};
+    use catalog::{ColumnSchema, TableSchema};
+    use types::DataType;
 
     #[test]
     fn test_hash_indexes_primary_key() {
@@ -25,7 +26,7 @@ mod tests {
             "users".to_string(),
             vec![
                 ColumnSchema::new("id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("name".to_string(), DataType::Varchar(100), false),
+                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
             ],
             vec!["id".to_string()],
         );
@@ -42,8 +43,8 @@ mod tests {
         }
 
         // Check that primary key index exists and has entries
-        assert!(table.primary_key_index.is_some());
-        assert_eq!(table.primary_key_index.as_ref().unwrap().len(), 10);
+        assert!(table.primary_key_index().is_some());
+        assert_eq!(table.primary_key_index().as_ref().unwrap().len(), 10);
 
         // Try to insert duplicate - should work at table level (constraint check is in executor)
         let duplicate_row = Row::new(vec![
@@ -59,7 +60,7 @@ mod tests {
             "products".to_string(),
             vec![
                 ColumnSchema::new("id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("sku".to_string(), DataType::Varchar(50), false),
+                ColumnSchema::new("sku".to_string(), DataType::Varchar { max_length: Some(50) }, false),
             ],
             vec![vec!["sku".to_string()]], // Unique constraint on sku
         );
@@ -76,7 +77,7 @@ mod tests {
         }
 
         // Check that unique index exists and has entries
-        assert_eq!(table.unique_indexes.len(), 1);
-        assert_eq!(table.unique_indexes[0].len(), 5);
+        assert_eq!(table.unique_indexes().len(), 1);
+        assert_eq!(table.unique_indexes()[0].len(), 5);
     }
 }
