@@ -22,7 +22,7 @@ pub use ddl::{
     DeclareCursorStmt, DomainConstraint, DropAssertionStmt, DropBehavior, DropCharacterSetStmt,
     DropCollationStmt, DropColumnStmt, DropConstraintStmt, DropDomainStmt, DropIndexStmt,
     DropRoleStmt, DropSchemaStmt, DropSequenceStmt, DropTableStmt, DropTranslationStmt,
-    DropTriggerStmt, DropTypeStmt, DropViewStmt, FetchOrientation, FetchStmt, IsolationLevel,
+    DropTriggerStmt, DropTypeStmt, DropViewStmt, FetchOrientation, FetchStmt, IndexColumn, IsolationLevel,
     OpenCursorStmt, ReferentialAction, ReleaseSavepointStmt, RollbackStmt,
     RollbackToSavepointStmt, SavepointStmt, SchemaElement, SetCatalogStmt, SetNamesStmt,
     SetSchemaStmt, SetTimeZoneStmt, SetTransactionStmt, TableConstraint, TableConstraintKind,

@@ -41,7 +41,21 @@ impl Parser {
         // Parse column list
         let mut columns = Vec::new();
         loop {
-            columns.push(self.parse_identifier()?);
+            // Parse column name
+            let column_name = self.parse_identifier()?;
+
+            // Check for optional ASC/DESC
+            let direction = if self.peek_keyword(crate::keywords::Keyword::Asc) {
+                self.advance(); // consume ASC
+                ast::OrderDirection::Asc
+            } else if self.peek_keyword(crate::keywords::Keyword::Desc) {
+                self.advance(); // consume DESC
+                ast::OrderDirection::Desc
+            } else {
+                ast::OrderDirection::Asc // Default
+            };
+
+            columns.push(ast::IndexColumn { column_name, direction });
 
             if self.peek() == &Token::Comma {
                 self.advance(); // consume comma

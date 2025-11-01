@@ -458,7 +458,14 @@ pub struct CreateIndexStmt {
     pub index_name: String,
     pub table_name: String,
     pub unique: bool,
-    pub columns: Vec<String>,
+    pub columns: Vec<IndexColumn>,
+}
+
+/// Index column specification
+#[derive(Debug, Clone, PartialEq)]
+pub struct IndexColumn {
+    pub column_name: String,
+    pub direction: crate::select::OrderDirection,
 }
 
 /// DROP INDEX statement

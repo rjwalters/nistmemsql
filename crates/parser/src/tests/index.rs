@@ -14,7 +14,9 @@ fn test_create_index_simple() {
             assert_eq!(stmt.index_name, "IDX");
             assert_eq!(stmt.table_name, "USERS");
             assert!(!stmt.unique);
-            assert_eq!(stmt.columns, vec!["EMAIL"]);
+            assert_eq!(stmt.columns.len(), 1);
+                assert_eq!(stmt.columns[0].column_name, "EMAIL");
+                assert_eq!(stmt.columns[0].direction, ast::OrderDirection::Asc);
         }
         other => panic!("Expected CreateIndex, got: {:?}", other),
     }
@@ -31,7 +33,9 @@ fn test_create_unique_index() {
             assert!(stmt.unique, "Expected unique=true");
             assert_eq!(stmt.index_name, "IDX");
             assert_eq!(stmt.table_name, "USERS");
-            assert_eq!(stmt.columns, vec!["EMAIL"]);
+            assert_eq!(stmt.columns.len(), 1);
+        assert_eq!(stmt.columns[0].column_name, "EMAIL");
+        assert_eq!(stmt.columns[0].direction, ast::OrderDirection::Asc);
         }
         other => panic!("Expected CreateIndex, got: {:?}", other),
     }
@@ -48,7 +52,13 @@ fn test_create_index_multi_column() {
             assert_eq!(stmt.index_name, "IDX");
             assert_eq!(stmt.table_name, "USERS");
             assert!(!stmt.unique);
-            assert_eq!(stmt.columns, vec!["FIRST_NAME", "LAST_NAME", "EMAIL"]);
+            assert_eq!(stmt.columns.len(), 3);
+                assert_eq!(stmt.columns[0].column_name, "FIRST_NAME");
+                assert_eq!(stmt.columns[0].direction, ast::OrderDirection::Asc);
+                assert_eq!(stmt.columns[1].column_name, "LAST_NAME");
+                assert_eq!(stmt.columns[1].direction, ast::OrderDirection::Asc);
+                assert_eq!(stmt.columns[2].column_name, "EMAIL");
+                assert_eq!(stmt.columns[2].direction, ast::OrderDirection::Asc);
         }
         other => panic!("Expected CreateIndex, got: {:?}", other),
     }
@@ -65,7 +75,11 @@ fn test_create_unique_index_multi_column() {
             assert!(stmt.unique);
             assert_eq!(stmt.index_name, "IDX");
             assert_eq!(stmt.table_name, "ORDERS");
-            assert_eq!(stmt.columns, vec!["CUSTOMER_ID", "ORDER_DATE"]);
+            assert_eq!(stmt.columns.len(), 2);
+                assert_eq!(stmt.columns[0].column_name, "CUSTOMER_ID");
+                assert_eq!(stmt.columns[0].direction, ast::OrderDirection::Asc);
+                assert_eq!(stmt.columns[1].column_name, "ORDER_DATE");
+                assert_eq!(stmt.columns[1].direction, ast::OrderDirection::Asc);
         }
         other => panic!("Expected CreateIndex, got: {:?}", other),
     }
@@ -81,7 +95,9 @@ fn test_create_index_mixed_case_identifiers() {
         Statement::CreateIndex(stmt) => {
             assert_eq!(stmt.index_name, "MYINDEX");
             assert_eq!(stmt.table_name, "MYTABLE");
-            assert_eq!(stmt.columns, vec!["MYCOLUMN"]);
+            assert_eq!(stmt.columns.len(), 1);
+                assert_eq!(stmt.columns[0].column_name, "MYCOLUMN");
+                assert_eq!(stmt.columns[0].direction, ast::OrderDirection::Asc);
         }
         other => panic!("Expected CreateIndex, got: {:?}", other),
     }
@@ -97,7 +113,30 @@ fn test_create_index_single_column() {
         Statement::CreateIndex(stmt) => {
             assert_eq!(stmt.index_name, "PK");
             assert_eq!(stmt.table_name, "USERS");
-            assert_eq!(stmt.columns, vec!["ID"]);
+            assert_eq!(stmt.columns.len(), 1);
+            assert_eq!(stmt.columns[0].column_name, "ID");
+            assert_eq!(stmt.columns[0].direction, ast::OrderDirection::Asc);
+        }
+        other => panic!("Expected CreateIndex, got: {:?}", other),
+    }
+}
+
+#[test]
+fn test_create_index_with_desc() {
+    let sql = "CREATE INDEX idx ON users(email DESC, created_at ASC)";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok());
+
+    match result.unwrap() {
+        Statement::CreateIndex(stmt) => {
+            assert_eq!(stmt.index_name, "IDX");
+            assert_eq!(stmt.table_name, "USERS");
+            assert!(!stmt.unique);
+            assert_eq!(stmt.columns.len(), 2);
+            assert_eq!(stmt.columns[0].column_name, "EMAIL");
+            assert_eq!(stmt.columns[0].direction, ast::OrderDirection::Desc);
+            assert_eq!(stmt.columns[1].column_name, "CREATED_AT");
+            assert_eq!(stmt.columns[1].direction, ast::OrderDirection::Asc);
         }
         other => panic!("Expected CreateIndex, got: {:?}", other),
     }
