@@ -89,6 +89,16 @@ impl NistMemSqlDB {
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
+            ast::Statement::CreateIndex(create_index_stmt) => {
+                executor::IndexExecutor::execute(&create_index_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            ast::Statement::DropIndex(drop_index_stmt) => {
+                executor::IndexExecutor::execute_drop(&drop_index_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
             ast::Statement::SetNames(set_stmt) => {
                 executor::SchemaExecutor::execute_set_names(&set_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
@@ -175,8 +185,6 @@ impl NistMemSqlDB {
             | ast::Statement::DropView(_)
             | ast::Statement::CreateTrigger(_)
             | ast::Statement::DropTrigger(_)
-            | ast::Statement::CreateIndex(_)
-            | ast::Statement::DropIndex(_)
             | ast::Statement::DeclareCursor(_)
             | ast::Statement::OpenCursor(_)
             | ast::Statement::Fetch(_)

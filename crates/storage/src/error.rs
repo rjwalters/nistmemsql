@@ -10,6 +10,8 @@ pub enum StorageError {
     CatalogError(String),
     TransactionError(String),
     RowNotFound,
+    IndexAlreadyExists(String),
+    IndexNotFound(String),
 }
 
 impl std::fmt::Display for StorageError {
@@ -25,6 +27,8 @@ impl std::fmt::Display for StorageError {
             StorageError::CatalogError(msg) => write!(f, "Catalog error: {}", msg),
             StorageError::TransactionError(msg) => write!(f, "Transaction error: {}", msg),
             StorageError::RowNotFound => write!(f, "Row not found"),
+            StorageError::IndexAlreadyExists(name) => write!(f, "Index '{}' already exists", name),
+            StorageError::IndexNotFound(name) => write!(f, "Index '{}' not found", name),
         }
     }
 }

@@ -327,6 +327,16 @@ impl SqltestRunner {
                     .map_err(|e| format!("Execution error: {:?}", e))?;
                 Ok(true)
             }
+            ast::Statement::CreateIndex(create_index_stmt) => {
+                executor::IndexExecutor::execute(&create_index_stmt, db)
+                    .map_err(|e| format!("Execution error: {:?}", e))?;
+                Ok(true)
+            }
+            ast::Statement::DropIndex(drop_index_stmt) => {
+                executor::IndexExecutor::execute_drop(&drop_index_stmt, db)
+                    .map_err(|e| format!("Execution error: {:?}", e))?;
+                Ok(true)
+            }
             ast::Statement::BeginTransaction(_)
             | ast::Statement::Commit(_)
             | ast::Statement::Rollback(_)
@@ -344,8 +354,6 @@ impl SqltestRunner {
             | ast::Statement::SetTransaction(_)
             | ast::Statement::CreateTrigger(_)
             | ast::Statement::DropTrigger(_)
-            | ast::Statement::CreateIndex(_)
-            | ast::Statement::DropIndex(_)
             | ast::Statement::CreateAssertion(_)
             | ast::Statement::DropAssertion(_)
             | ast::Statement::DeclareCursor(_)

@@ -78,7 +78,7 @@ fn test_eval_column_not_found() {
     let expr = ast::Expression::ColumnRef { table: None, column: "missing".to_string() };
     let err = evaluator.eval(&expr, &row).unwrap_err();
     match err {
-        ExecutorError::ColumnNotFound(name) => assert_eq!(name, "missing"),
+        ExecutorError::ColumnNotFound { column_name, .. } => assert_eq!(column_name, "missing"),
         other => panic!("Expected ColumnNotFound, got {:?}", other),
     }
 }

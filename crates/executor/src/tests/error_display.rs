@@ -17,8 +17,11 @@ fn test_table_already_exists_display() {
 
 #[test]
 fn test_column_not_found_display() {
-    let error = ExecutorError::ColumnNotFound("email".to_string());
-    assert_eq!(error.to_string(), "Column 'email' not found");
+    let error = ExecutorError::ColumnNotFound {
+        column_name: "email".to_string(),
+        table_name: "users".to_string(),
+    };
+    assert_eq!(error.to_string(), "Column 'email' not found in table 'users'");
 }
 
 #[test]

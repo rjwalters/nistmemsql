@@ -3,6 +3,7 @@ use crate::errors::ExecutorError;
 /// Determine target column indices and types for an INSERT statement
 pub fn resolve_target_columns(
     schema: &catalog::TableSchema,
+    table_name: &str,
     specified_columns: &[String],
 ) -> Result<Vec<(usize, types::DataType)>, ExecutorError> {
     if specified_columns.is_empty() {
@@ -26,7 +27,10 @@ pub fn resolve_target_columns(
                         let col = &schema.columns[idx];
                         (idx, col.data_type.clone())
                     })
-                    .ok_or_else(|| ExecutorError::ColumnNotFound(col_name.clone()))
+                    .ok_or_else(|| ExecutorError::ColumnNotFound {
+                        column_name: col_name.clone(),
+                        table_name: table_name.to_string(),
+                    })
             })
             .collect::<Result<Vec<_>, _>>()
     }

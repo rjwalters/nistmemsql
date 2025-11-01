@@ -107,7 +107,7 @@ mod evaluator_tests {
         let expr = ast::Expression::ColumnRef { table: None, column: "nonexistent".to_string() };
 
         let result = evaluator.eval(&expr, &inner_row);
-        assert!(matches!(result, Err(ExecutorError::ColumnNotFound(_))));
+        assert!(matches!(result, Err(ExecutorError::ColumnNotFound { .. })));
     }
 
     #[test]

@@ -127,7 +127,10 @@ impl UpdateExecutor {
                     // Find column index
                     let col_index = schema
                         .get_column_index(&assignment.column)
-                        .ok_or_else(|| ExecutorError::ColumnNotFound(assignment.column.clone()))?;
+                        .ok_or_else(|| ExecutorError::ColumnNotFound {
+                            column_name: assignment.column.clone(),
+                            table_name: stmt.table_name.clone(),
+                        })?;
 
                     // Evaluate new value expression
                     // Handle DEFAULT specially before evaluating other expressions

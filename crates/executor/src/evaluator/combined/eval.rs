@@ -45,7 +45,10 @@ impl CombinedExpressionEvaluator<'_> {
                 }
 
                 // Column not found in either schema
-                Err(ExecutorError::ColumnNotFound(column.clone()))
+                Err(ExecutorError::ColumnNotFound {
+                    column_name: column.clone(),
+                    table_name: "unknown".to_string(),
+                })
             }
 
             // Binary operations
