@@ -60,6 +60,8 @@ pub struct Assignment {
 /// DELETE statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct DeleteStmt {
+    /// If true, DELETE FROM ONLY (excludes derived tables in table inheritance)
+    pub only: bool,
     pub table_name: String,
     pub where_clause: Option<WhereClause>,
 }

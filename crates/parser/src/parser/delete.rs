@@ -6,6 +6,15 @@ impl Parser {
         self.expect_keyword(Keyword::Delete)?;
         self.expect_keyword(Keyword::From)?;
 
+        // Check for optional ONLY keyword
+        let only = self.try_consume_keyword(Keyword::Only);
+
+        // Check for optional left parenthesis
+        let has_paren = matches!(self.peek(), Token::LParen);
+        if has_paren {
+            self.advance(); // consume '('
+        }
+
         // Parse table name
         let table_name = match self.peek() {
             Token::Identifier(name) => {
@@ -19,6 +28,16 @@ impl Parser {
                 })
             }
         };
+
+        // If we had opening paren, expect closing paren
+        if has_paren {
+            if !matches!(self.peek(), Token::RParen) {
+                return Err(ParseError {
+                    message: "Expected ')' after table name".to_string(),
+                })
+            }
+            self.advance(); // consume ')'
+        }
 
         // Parse optional WHERE clause
         let where_clause = if self.peek_keyword(Keyword::Where) {
@@ -40,6 +59,10 @@ impl Parser {
             self.advance();
         }
 
-        Ok(ast::DeleteStmt { table_name, where_clause })
+        Ok(ast::DeleteStmt {
+            only,
+            table_name,
+            where_clause,
+        })
     }
 }

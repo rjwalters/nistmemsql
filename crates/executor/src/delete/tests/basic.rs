@@ -61,7 +61,7 @@ fn test_delete_all_rows() {
     setup_test_table(&mut db);
 
     // DELETE FROM users;
-    let stmt = DeleteStmt { table_name: "users".to_string(), where_clause: None };
+    let stmt = DeleteStmt { only: false, table_name: "users".to_string(), where_clause: None };
 
     let deleted = DeleteExecutor::execute(&stmt, &mut db).unwrap();
     assert_eq!(deleted, 3);
@@ -77,6 +77,7 @@ fn test_delete_with_simple_where() {
 
     // DELETE FROM users WHERE id = 2;
     let stmt = DeleteStmt {
+        only: false,
         table_name: "users".to_string(),
         where_clause: Some(WhereClause::Condition(Expression::BinaryOp {
             left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
@@ -110,6 +111,7 @@ fn test_delete_with_boolean_where() {
 
     // DELETE FROM users WHERE active = TRUE;
     let stmt = DeleteStmt {
+        only: false,
         table_name: "users".to_string(),
         where_clause: Some(WhereClause::Condition(Expression::BinaryOp {
             left: Box::new(Expression::ColumnRef { table: None, column: "active".to_string() }),
@@ -137,6 +139,7 @@ fn test_delete_multiple_rows() {
 
     // DELETE FROM users WHERE id > 1;
     let stmt = DeleteStmt {
+        only: false,
         table_name: "users".to_string(),
         where_clause: Some(WhereClause::Condition(Expression::BinaryOp {
             left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
