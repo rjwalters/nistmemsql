@@ -199,7 +199,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always() && steps.should_run.outputs.run == 'true'
         with:
-          name: boost-results-runner-${{ matrix.runner_id }}-${{ github.run_number }}
+          name: boost-results-runner-${{ matrix.runner_id }}
           path: |
             target/sqllogictest_cumulative.json
             target/sqllogictest_analysis.json
@@ -207,106 +207,116 @@ jobs:
             boost_summary.md
           retention-days: 90
 
-      - name: Update gh-pages with new cumulative results (with retry for parallel runs)
-        if: always() && steps.should_run.outputs.run == 'true' && github.ref == 'refs/heads/main'
+  # Aggregation job: Collects results from all parallel runners and pushes once
+  aggregate-results:
+    name: Aggregate Results and Update gh-pages
+    runs-on: ubuntu-latest
+    needs: boost-coverage
+    if: always() && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download all runner artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: boost-results-runner-*
+          path: artifacts/
+          merge-multiple: false
+
+      - name: Download historical SQLLogicTest results
+        continue-on-error: true
         run: |
-          if [ ! -f target/sqllogictest_cumulative.json ]; then
-            echo "No cumulative results to publish"
+          echo "Downloading historical cumulative results from gh-pages..."
+          mkdir -p aggregated
+
+          if curl -sL https://rjwalters.github.io/nistmemsql/badges/sqllogictest_cumulative.json \
+            -o aggregated/sqllogictest_historical.json 2>/dev/null; then
+            if jq empty aggregated/sqllogictest_historical.json 2>/dev/null; then
+              echo "✓ Downloaded existing cumulative results"
+              jq '.summary' aggregated/sqllogictest_historical.json
+            else
+              echo "Downloaded file is not valid JSON - starting fresh"
+              echo '{}' > aggregated/sqllogictest_historical.json
+            fi
+          else
+            echo "No existing cumulative results found - starting fresh"
+            echo '{}' > aggregated/sqllogictest_historical.json
+          fi
+
+      - name: Merge all runner results
+        run: |
+          echo "=== Aggregating Results from All Runners ==="
+          echo ""
+
+          # Start with historical data
+          cp aggregated/sqllogictest_historical.json aggregated/sqllogictest_merged.json
+
+          # Find all runner result files
+          RUNNER_FILES=$(find artifacts -name "sqllogictest_cumulative.json" | sort)
+          RUNNER_COUNT=$(echo "$RUNNER_FILES" | wc -l | tr -d ' ')
+
+          echo "Found $RUNNER_COUNT runner result files"
+          echo ""
+
+          # Merge each runner's results
+          RUNNER_NUM=1
+          for result_file in $RUNNER_FILES; do
+            echo "Merging runner $RUNNER_NUM results..."
+
+            python3 scripts/merge_sqllogictest_results.py \
+              "$result_file" \
+              aggregated/sqllogictest_merged.json \
+              aggregated/sqllogictest_merged_new.json
+
+            if [ -f aggregated/sqllogictest_merged_new.json ]; then
+              mv aggregated/sqllogictest_merged_new.json aggregated/sqllogictest_merged.json
+              echo "✓ Merged runner $RUNNER_NUM"
+            fi
+
+            RUNNER_NUM=$((RUNNER_NUM + 1))
+          done
+
+          echo ""
+          echo "=== Final Aggregated Results ==="
+          jq '.summary' aggregated/sqllogictest_merged.json
+
+      - name: Update gh-pages with aggregated results
+        run: |
+          if [ ! -f aggregated/sqllogictest_merged.json ]; then
+            echo "No aggregated results to publish"
             exit 0
           fi
 
-          # Function to attempt push with merge retry
-          push_with_retry() {
-            local max_attempts=5
-            local attempt=1
+          # Clone gh-pages
+          git clone --branch gh-pages --depth 1 \
+            https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} gh-pages-repo
 
-            while [ $attempt -le $max_attempts ]; do
-              echo ""
-              echo "=== Push attempt $attempt of $max_attempts ==="
+          cd gh-pages-repo
 
-              # Clone fresh copy
-              rm -rf gh-pages-repo
-              git clone --branch gh-pages --depth 1 https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} gh-pages-repo || {
-                echo "❌ Failed to clone gh-pages branch"
-                return 1
-              }
+          # Copy aggregated results
+          mkdir -p badges
+          cp ../aggregated/sqllogictest_merged.json badges/sqllogictest_cumulative.json
 
-              cd gh-pages-repo
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-              # Download latest cumulative results from gh-pages
-              if [ -f badges/sqllogictest_cumulative.json ]; then
-                echo "Found existing cumulative results on gh-pages, re-merging..."
-                cp badges/sqllogictest_cumulative.json ../latest_from_ghpages.json
+          # Commit and push
+          git add badges/sqllogictest_cumulative.json
 
-                # Re-merge our results with the latest from gh-pages
-                cd ..
-                python3 scripts/merge_sqllogictest_results.py \
-                  target/sqllogictest_cumulative.json \
-                  latest_from_ghpages.json \
-                  target/sqllogictest_cumulative_final.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
 
-                if [ -f target/sqllogictest_cumulative_final.json ]; then
-                  cp target/sqllogictest_cumulative_final.json target/sqllogictest_cumulative.json
-                  echo "✓ Re-merged with latest gh-pages results"
-                fi
-                cd gh-pages-repo
-              else
-                echo "No existing cumulative results on gh-pages"
-              fi
+          git commit -m "Update SQLLogicTest cumulative results (boost run #${{ github.run_number }})"
+          git push
 
-              # Copy our final results
-              mkdir -p badges
-              cp ../target/sqllogictest_cumulative.json badges/
-              echo "✓ Copied cumulative results to gh-pages clone"
-
-              # Configure git
-              git config user.name "github-actions[bot]"
-              git config user.email "github-actions[bot]@users.noreply.github.com"
-
-              # Check if there are changes
-              git add badges/sqllogictest_cumulative.json
-              if git diff --staged --quiet; then
-                echo "No changes to commit"
-                cd ..
-                return 0
-              fi
-
-              # Commit
-              git commit -m "Update SQLLogicTest cumulative results (boost run #${{ github.run_number }})"
-
-              # Try to push
-              if git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} gh-pages; then
-                echo "✓ Successfully pushed cumulative results to gh-pages"
-                cd ..
-                return 0
-              else
-                echo "⚠️  Push failed (likely due to parallel update), retrying..."
-                cd ..
-                attempt=$((attempt + 1))
-                sleep $((2 ** attempt))  # Exponential backoff
-              fi
-            done
-
-            echo "❌ Failed to push after $max_attempts attempts"
-            return 1
-          }
-
-          # Execute push with retry
-          push_with_retry
-
-      - name: Comment on PR (if applicable)
-        if: github.event_name == 'pull_request' && always() && steps.should_run.outputs.run == 'true'
-        uses: actions/github-script@v7
-        continue-on-error: true
-        with:
-          script: |
-            const fs = require('fs');
-            if (fs.existsSync('boost_summary.md')) {
-              const summary = fs.readFileSync('boost_summary.md', 'utf8');
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: summary
-              });
-            }
+          echo "✓ Successfully pushed aggregated results to gh-pages"
