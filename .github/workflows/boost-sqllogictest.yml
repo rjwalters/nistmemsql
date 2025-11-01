@@ -179,32 +179,92 @@ jobs:
             boost_summary.md
           retention-days: 90
 
-      - name: Update gh-pages with new cumulative results
+      - name: Update gh-pages with new cumulative results (with retry for parallel runs)
         if: always() && github.ref == 'refs/heads/main'
         run: |
-          # Clone gh-pages branch
-          git clone --branch gh-pages --depth 1 https://github.com/${{ github.repository }} gh-pages-repo || {
-            echo "Failed to clone gh-pages branch"
+          if [ ! -f target/sqllogictest_cumulative.json ]; then
+            echo "No cumulative results to publish"
             exit 0
+          fi
+
+          # Function to attempt push with merge retry
+          push_with_retry() {
+            local max_attempts=5
+            local attempt=1
+
+            while [ $attempt -le $max_attempts ]; do
+              echo ""
+              echo "=== Push attempt $attempt of $max_attempts ==="
+
+              # Clone fresh copy
+              rm -rf gh-pages-repo
+              git clone --branch gh-pages --depth 1 https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} gh-pages-repo || {
+                echo "❌ Failed to clone gh-pages branch"
+                return 1
+              }
+
+              cd gh-pages-repo
+
+              # Download latest cumulative results from gh-pages
+              if [ -f badges/sqllogictest_cumulative.json ]; then
+                echo "Found existing cumulative results on gh-pages, re-merging..."
+                cp badges/sqllogictest_cumulative.json ../latest_from_ghpages.json
+
+                # Re-merge our results with the latest from gh-pages
+                cd ..
+                python3 scripts/merge_sqllogictest_results.py \
+                  target/sqllogictest_cumulative.json \
+                  latest_from_ghpages.json \
+                  target/sqllogictest_cumulative_final.json
+
+                if [ -f target/sqllogictest_cumulative_final.json ]; then
+                  cp target/sqllogictest_cumulative_final.json target/sqllogictest_cumulative.json
+                  echo "✓ Re-merged with latest gh-pages results"
+                fi
+                cd gh-pages-repo
+              else
+                echo "No existing cumulative results on gh-pages"
+              fi
+
+              # Copy our final results
+              mkdir -p badges
+              cp ../target/sqllogictest_cumulative.json badges/
+              echo "✓ Copied cumulative results to gh-pages clone"
+
+              # Configure git
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+
+              # Check if there are changes
+              git add badges/sqllogictest_cumulative.json
+              if git diff --staged --quiet; then
+                echo "No changes to commit"
+                cd ..
+                return 0
+              fi
+
+              # Commit
+              git commit -m "Update SQLLogicTest cumulative results (boost run #${{ github.run_number }})"
+
+              # Try to push
+              if git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} gh-pages; then
+                echo "✓ Successfully pushed cumulative results to gh-pages"
+                cd ..
+                return 0
+              else
+                echo "⚠️  Push failed (likely due to parallel update), retrying..."
+                cd ..
+                attempt=$((attempt + 1))
+                sleep $((2 ** attempt))  # Exponential backoff
+              fi
+            done
+
+            echo "❌ Failed to push after $max_attempts attempts"
+            return 1
           }
 
-          # Update cumulative results
-          if [ -f target/sqllogictest_cumulative.json ]; then
-            mkdir -p gh-pages-repo/badges
-            cp target/sqllogictest_cumulative.json gh-pages-repo/badges/
-            echo "✓ Updated cumulative results in gh-pages"
-
-            # Commit and push
-            cd gh-pages-repo
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add badges/sqllogictest_cumulative.json
-            git diff --staged --quiet || {
-              git commit -m "Update SQLLogicTest cumulative results (boost run #${{ github.run_number }})"
-              git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} gh-pages
-              echo "✓ Pushed cumulative results to gh-pages"
-            }
-          fi
+          # Execute push with retry
+          push_with_retry
 
       - name: Comment on PR (if applicable)
         if: github.event_name == 'pull_request' && always()
