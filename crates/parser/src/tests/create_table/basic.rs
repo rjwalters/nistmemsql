@@ -108,3 +108,97 @@ fn test_parse_create_table_no_oids_clause() {
         _ => panic!("Expected CREATE TABLE statement"),
     }
 }
+
+// ========================================================================
+// Backtick Identifier Tests (MySQL-style)
+// ========================================================================
+
+#[test]
+fn test_parse_create_table_with_backtick_table_name() {
+    let result = Parser::parse_sql("CREATE TABLE `user_table` (id INTEGER);");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::CreateTable(create) => {
+            // Backtick identifiers preserve case
+            assert_eq!(create.table_name, "user_table");
+            assert_eq!(create.columns.len(), 1);
+            assert_eq!(create.columns[0].name, "ID");
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_create_table_with_backtick_column_names() {
+    let result = Parser::parse_sql("CREATE TABLE users (`user_id` INTEGER, `user_name` VARCHAR(100));");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "USERS");
+            assert_eq!(create.columns.len(), 2);
+            // Backtick identifiers preserve case
+            assert_eq!(create.columns[0].name, "user_id");
+            assert_eq!(create.columns[1].name, "user_name");
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_create_table_with_backtick_reserved_word() {
+    // Reserved words can be used as identifiers when backtick-quoted
+    let result = Parser::parse_sql("CREATE TABLE `select` (`from` INTEGER, `where` VARCHAR(50));");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "select");
+            assert_eq!(create.columns.len(), 2);
+            assert_eq!(create.columns[0].name, "from");
+            assert_eq!(create.columns[1].name, "where");
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_create_table_with_backtick_spaces() {
+    // Backtick identifiers can contain spaces
+    let result = Parser::parse_sql("CREATE TABLE `my table` (`first name` INTEGER, `last name` VARCHAR(100));");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "my table");
+            assert_eq!(create.columns.len(), 2);
+            assert_eq!(create.columns[0].name, "first name");
+            assert_eq!(create.columns[1].name, "last name");
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_create_table_mixed_backtick_and_regular() {
+    // Mix backtick and regular identifiers
+    let result = Parser::parse_sql("CREATE TABLE `MyTable` (id INTEGER, `userName` VARCHAR(100), status INT);");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "MyTable");
+            assert_eq!(create.columns.len(), 3);
+            assert_eq!(create.columns[0].name, "ID"); // Regular identifier - uppercased
+            assert_eq!(create.columns[1].name, "userName"); // Backtick - preserves case
+            assert_eq!(create.columns[2].name, "STATUS"); // Regular identifier - uppercased
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
