@@ -12,6 +12,7 @@ pub mod errors;
 pub mod evaluator;
 mod grant;
 mod insert;
+mod optimizer;
 mod privilege_checker;
 mod revoke;
 mod role_ddl;

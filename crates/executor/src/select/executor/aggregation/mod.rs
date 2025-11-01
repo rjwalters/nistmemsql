@@ -9,6 +9,7 @@ mod evaluation;
 use super::builder::SelectExecutor;
 use crate::errors::ExecutorError;
 use crate::evaluator::CombinedExpressionEvaluator;
+use crate::optimizer::optimize_where_clause;
 use crate::select::cte::CteResult;
 use crate::select::filter::apply_where_filter_combined;
 use crate::select::grouping::group_rows;
@@ -60,9 +61,28 @@ impl SelectExecutor<'_> {
                 CombinedExpressionEvaluator::with_database(&from_result.schema, self.database)
             };
 
-        // Apply WHERE clause to filter joined rows
-        let filtered_rows =
-            apply_where_filter_combined(from_result.rows, stmt.where_clause.as_ref(), &evaluator)?;
+        // Optimize WHERE clause with constant folding and dead code elimination
+        let where_optimization = optimize_where_clause(stmt.where_clause.as_ref(), &evaluator)?;
+
+        // Apply WHERE clause to filter joined rows (optimized)
+        let filtered_rows = match where_optimization {
+            crate::optimizer::WhereOptimization::AlwaysTrue => {
+                // WHERE TRUE - no filtering needed
+                from_result.rows
+            }
+            crate::optimizer::WhereOptimization::AlwaysFalse => {
+                // WHERE FALSE - return empty result
+                Vec::new()
+            }
+            crate::optimizer::WhereOptimization::Optimized(ref expr) => {
+                // Apply optimized WHERE clause
+                apply_where_filter_combined(from_result.rows, Some(expr), &evaluator)?
+            }
+            crate::optimizer::WhereOptimization::Unchanged(where_expr) => {
+                // Apply original WHERE clause
+                apply_where_filter_combined(from_result.rows, where_expr.as_ref(), &evaluator)?
+            }
+        };
 
         // Group rows
         let groups = if let Some(group_by_exprs) = &stmt.group_by {

@@ -3,6 +3,7 @@
 use super::builder::SelectExecutor;
 use crate::errors::ExecutorError;
 use crate::evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator};
+use crate::optimizer::optimize_where_clause;
 use crate::select::filter::apply_where_filter_combined;
 use crate::select::helpers::{apply_distinct, apply_limit_offset};
 use crate::select::join::FromResult;
@@ -35,9 +36,28 @@ impl SelectExecutor<'_> {
                 CombinedExpressionEvaluator::with_database(&schema, self.database)
             };
 
-        // Apply WHERE clause filter
-        let mut filtered_rows =
-            apply_where_filter_combined(rows, stmt.where_clause.as_ref(), &evaluator)?;
+        // Optimize WHERE clause with constant folding and dead code elimination
+        let where_optimization = optimize_where_clause(stmt.where_clause.as_ref(), &evaluator)?;
+
+        // Apply WHERE clause filter (optimized)
+        let mut filtered_rows = match where_optimization {
+            crate::optimizer::WhereOptimization::AlwaysTrue => {
+                // WHERE TRUE - no filtering needed
+                rows
+            }
+            crate::optimizer::WhereOptimization::AlwaysFalse => {
+                // WHERE FALSE - return empty result
+                Vec::new()
+            }
+            crate::optimizer::WhereOptimization::Optimized(ref expr) => {
+                // Apply optimized WHERE clause
+                apply_where_filter_combined(rows, Some(expr), &evaluator)?
+            }
+            crate::optimizer::WhereOptimization::Unchanged(where_expr) => {
+                // Apply original WHERE clause
+                apply_where_filter_combined(rows, where_expr.as_ref(), &evaluator)?
+            }
+        };
 
         // Check if SELECT list has window functions
         let has_select_windows = has_window_functions(&stmt.select_list);
