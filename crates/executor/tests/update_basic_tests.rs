@@ -41,11 +41,11 @@ fn test_update_with_where_clause() {
             column: "salary".to_string(),
             value: Expression::Literal(SqlValue::Integer(60000)),
         }],
-        where_clause: Some(Expression::BinaryOp {
-            left: Box::new(Expression::ColumnRef { table: None, column: "department".to_string() }),
-            op: BinaryOperator::Equal,
-            right: Box::new(Expression::Literal(SqlValue::Varchar("Engineering".to_string()))),
-        }),
+        where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
+        left: Box::new(Expression::ColumnRef { table: None, column: "department".to_string() }),
+        op: BinaryOperator::Equal,
+        right: Box::new(Expression::Literal(SqlValue::Varchar("Engineering".to_string()))),
+        })),
     };
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
@@ -80,11 +80,11 @@ fn test_update_multiple_columns() {
                 value: Expression::Literal(SqlValue::Varchar("Sales".to_string())),
             },
         ],
-        where_clause: Some(Expression::BinaryOp {
-            left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
-            op: BinaryOperator::Equal,
-            right: Box::new(Expression::Literal(SqlValue::Integer(1))),
-        }),
+        where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
+        left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
+        op: BinaryOperator::Equal,
+        right: Box::new(Expression::Literal(SqlValue::Integer(1))),
+        })),
     };
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
@@ -180,11 +180,11 @@ fn test_update_no_matching_rows() {
             column: "salary".to_string(),
             value: Expression::Literal(SqlValue::Integer(99999)),
         }],
-        where_clause: Some(Expression::BinaryOp {
-            left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
-            op: BinaryOperator::Equal,
-            right: Box::new(Expression::Literal(SqlValue::Integer(999))),
-        }),
+        where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
+        left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
+        op: BinaryOperator::Equal,
+        right: Box::new(Expression::Literal(SqlValue::Integer(999))),
+        })),
     };
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
