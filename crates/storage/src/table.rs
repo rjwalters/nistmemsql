@@ -141,7 +141,7 @@ impl Table {
         // Normalize row values (e.g., CHAR padding/truncation)
         let normalized_row = self.normalize_row(row);
 
-        // Get old row for index updates (clone it before modifying)
+        // Get old row for index updates (clone to avoid borrow issues)
         let old_row = self.rows[index].clone();
 
         // Update the row
@@ -329,10 +329,14 @@ impl Table {
             unique_index.clear();
         }
 
-        // Rebuild from current rows (collect first to avoid borrowing issues)
-        let rows: Vec<Row> = self.rows.clone();
-        for (row_index, row) in rows.iter().enumerate() {
-            self.update_indexes_for_insert(row, row_index);
+        // Rebuild from current rows (collect to avoid borrow issues)
+        let rows_with_indices: Vec<(Row, usize)> = self.rows.iter()
+            .enumerate()
+            .map(|(idx, row)| (row.clone(), idx))
+            .collect();
+
+        for (row, row_index) in rows_with_indices {
+            self.update_indexes_for_insert(&row, row_index);
         }
     }
 }
