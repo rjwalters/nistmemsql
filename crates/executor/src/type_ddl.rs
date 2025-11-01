@@ -29,6 +29,9 @@ impl TypeExecutor {
                     .collect();
                 TypeDefinitionKind::Structured { attributes: catalog_attrs }
             }
+            ast::TypeDefinition::Forward => {
+                TypeDefinitionKind::Forward
+            }
         };
 
         let type_def = TypeDefinition { name: stmt.type_name.clone(), definition: catalog_def };

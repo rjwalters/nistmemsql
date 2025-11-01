@@ -295,11 +295,12 @@ pub struct CreateTypeStmt {
     pub definition: TypeDefinition,
 }
 
-/// Type definition (distinct or structured)
+/// Type definition (distinct, structured, or forward)
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeDefinition {
     Distinct { base_type: DataType },
     Structured { attributes: Vec<TypeAttribute> },
+    Forward, // Forward declaration without definition
 }
 
 /// Attribute in a structured type

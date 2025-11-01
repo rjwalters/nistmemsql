@@ -325,7 +325,6 @@ fn test_sequence_parse_errors() {
 fn test_type_parse_errors() {
     let invalid_statements = vec![
         "CREATE TYPE",                  // Missing type name
-        "CREATE TYPE test",             // Missing AS clause
         "CREATE TYPE test AS",          // Missing type definition
         "CREATE TYPE test AS INVALID",  // Invalid type definition
         "CREATE TYPE test AS DISTINCT", // Missing base type
