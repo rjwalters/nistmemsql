@@ -48,3 +48,7 @@ pyo3 = { version = "0.27", features = ["extension-module"] }
 [[test]]
 name = "e2e_data_types"
 path = "tests/e2e_data_types/mod.rs"
+
+[[test]]
+name = "test_revoke_nonexistent"
+path = "test_revoke_nonexistent.rs"
