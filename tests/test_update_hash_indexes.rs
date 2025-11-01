@@ -11,18 +11,16 @@ fn test_update_hash_indexes() {
     let mut db = Database::new();
 
     // Create a table with primary key and unique constraint
-    let schema = TableSchema {
-        name: "users".to_string(),
-        columns: vec![
+    let schema = TableSchema::with_all_constraints(
+        "users".to_string(),
+        vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
             ColumnSchema::new("email".to_string(), DataType::Varchar { max_length: Some(100) }, false),
             ColumnSchema::new("username".to_string(), DataType::Varchar { max_length: Some(50) }, false),
         ],
-        primary_key: Some(vec!["id".to_string()]),
-        unique_constraints: vec![vec!["email".to_string()], vec!["username".to_string()]],
-        check_constraints: Vec::new(),
-        foreign_keys: Vec::new(),
-    };
+        Some(vec!["id".to_string()]),
+        vec![vec!["email".to_string()], vec!["username".to_string()]],
+    );
 
     db.create_table(schema).unwrap();
 
