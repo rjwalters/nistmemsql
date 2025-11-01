@@ -73,6 +73,10 @@ impl DeleteExecutor {
     /// assert_eq!(count, 1);
     /// ```
     pub fn execute(stmt: &DeleteStmt, database: &mut Database) -> Result<usize, ExecutorError> {
+        // Note: stmt.only is currently ignored (treated as false)
+        // ONLY keyword is used in table inheritance to exclude derived tables.
+        // Since table inheritance is not yet implemented, we treat all deletes the same.
+
         // Check DELETE privilege on the table
         PrivilegeChecker::check_delete(database, &stmt.table_name)?;
 
