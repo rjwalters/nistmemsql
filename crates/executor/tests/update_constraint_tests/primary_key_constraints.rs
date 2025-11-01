@@ -2,7 +2,9 @@ use executor::{ExecutorError, UpdateExecutor};
 use storage::{Database, Row};
 use types::SqlValue;
 
-use super::constraint_test_utils::{create_update_with_id_clause, create_users_table_with_primary_key, insert_user_row_simple};
+use super::constraint_test_utils::{
+    create_update_with_id_clause, create_users_table_with_primary_key, insert_user_row_simple,
+};
 
 #[test]
 fn test_update_primary_key_duplicate() {

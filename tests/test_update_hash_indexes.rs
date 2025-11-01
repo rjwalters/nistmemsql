@@ -1,8 +1,8 @@
 // Test to verify hash indexes work for UPDATE constraint validation
+use catalog::{ColumnSchema, TableSchema};
 use std::time::Instant;
 use storage::{Database, Row};
-use types::{SqlValue, DataType};
-use catalog::{ColumnSchema, TableSchema};
+use types::{DataType, SqlValue};
 
 #[test]
 fn test_update_hash_indexes() {
@@ -15,8 +15,16 @@ fn test_update_hash_indexes() {
         "users".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("email".to_string(), DataType::Varchar { max_length: Some(100) }, false),
-            ColumnSchema::new("username".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new(
+                "email".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
+            ColumnSchema::new(
+                "username".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
         ],
         Some(vec!["id".to_string()]),
         vec![vec!["email".to_string()], vec!["username".to_string()]],
@@ -59,7 +67,8 @@ fn test_update_hash_indexes() {
     // Test primary key constraint check - should be O(1)
     let start = Instant::now();
     let pk_indices = schema.get_primary_key_indices().unwrap();
-    let test_pk_values: Vec<types::SqlValue> = pk_indices.iter().map(|&idx| table.scan()[0].values[idx].clone()).collect();
+    let test_pk_values: Vec<types::SqlValue> =
+        pk_indices.iter().map(|&idx| table.scan()[0].values[idx].clone()).collect();
 
     let constraint_violated = if let Some(pk_index) = table.primary_key_index() {
         // This simulates the constraint check: look up if this PK already exists
@@ -78,7 +87,8 @@ fn test_update_hash_indexes() {
     let start = Instant::now();
     let unique_constraint_indices = schema.get_unique_constraint_indices();
     let unique_indices = &unique_constraint_indices[0]; // email constraint
-    let test_unique_values: Vec<types::SqlValue> = unique_indices.iter().map(|&idx| table.scan()[0].values[idx].clone()).collect();
+    let test_unique_values: Vec<types::SqlValue> =
+        unique_indices.iter().map(|&idx| table.scan()[0].values[idx].clone()).collect();
 
     let constraint_violated = if !test_unique_values.iter().any(|v| *v == types::SqlValue::Null) {
         unique_indexes[0].contains_key(&test_unique_values)

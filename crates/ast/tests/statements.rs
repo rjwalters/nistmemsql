@@ -63,8 +63,11 @@ fn test_create_update_statement() {
 
 #[test]
 fn test_create_delete_statement() {
-    let stmt =
-        Statement::Delete(DeleteStmt { only: false, table_name: "users".to_string(), where_clause: None });
+    let stmt = Statement::Delete(DeleteStmt {
+        only: false,
+        table_name: "users".to_string(),
+        where_clause: None,
+    });
 
     match stmt {
         Statement::Delete(_) => {} // Success

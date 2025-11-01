@@ -183,9 +183,9 @@ fn test_declare_cursor_complex_query() {
     );
 
     if let Ok(Statement::DeclareCursor(stmt)) = result {
-    assert_eq!(stmt.cursor_name, "C1");
+        assert_eq!(stmt.cursor_name, "C1");
     } else {
-    panic!("Expected DeclareCursor statement");
+        panic!("Expected DeclareCursor statement");
     }
 }
 

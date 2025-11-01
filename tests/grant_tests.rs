@@ -181,7 +181,11 @@ fn test_grant_multiple_privileges() {
 
     // Grant multiple privileges
     let grant_stmt = GrantStmt {
-        privileges: vec![PrivilegeType::Select(None), PrivilegeType::Insert(None), PrivilegeType::Update(None)],
+        privileges: vec![
+            PrivilegeType::Select(None),
+            PrivilegeType::Insert(None),
+            PrivilegeType::Update(None),
+        ],
         object_type: ObjectType::Table,
         object_name: "test_table".to_string(),
         for_type_name: None,

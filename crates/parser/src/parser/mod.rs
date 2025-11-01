@@ -104,7 +104,9 @@ impl Parser {
                     Ok(ast::Statement::CreateView(self.parse_create_view_statement()?))
                 } else if self.peek_next_keyword(Keyword::Trigger) {
                     Ok(ast::Statement::CreateTrigger(self.parse_create_trigger_statement()?))
-                } else if self.peek_next_keyword(Keyword::Index) || self.peek_next_keyword(Keyword::Unique) {
+                } else if self.peek_next_keyword(Keyword::Index)
+                    || self.peek_next_keyword(Keyword::Unique)
+                {
                     Ok(ast::Statement::CreateIndex(self.parse_create_index_statement()?))
                 } else if self.peek_next_keyword(Keyword::Assertion) {
                     Ok(ast::Statement::CreateAssertion(self.parse_create_assertion_statement()?))

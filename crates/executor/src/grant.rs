@@ -25,9 +25,10 @@ impl GrantExecutor {
                 // Special case: USAGE/EXECUTE are schema/routine privileges, not table privileges
                 // If granting USAGE/EXECUTE on a "TABLE", check if it's actually a schema first
                 // This handles SQL:1999 tests that use "ON TABLE" for schema objects
-                let is_schema_privilege = stmt.privileges.iter().any(|p| {
-                    matches!(p, PrivilegeType::Usage | PrivilegeType::Execute)
-                });
+                let is_schema_privilege = stmt
+                    .privileges
+                    .iter()
+                    .any(|p| matches!(p, PrivilegeType::Usage | PrivilegeType::Execute));
 
                 if is_schema_privilege && database.catalog.schema_exists(&stmt.object_name) {
                     // Object is actually a schema, update the actual type

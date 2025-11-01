@@ -19,9 +19,7 @@ pub fn execute_select(db: &Database, sql: &str) -> Result<Vec<Row>, String> {
     };
 
     let executor = SelectExecutor::new(db);
-    executor
-        .execute(&select_stmt)
-        .map_err(|e| format!("Execution error: {:?}", e))
+    executor.execute(&select_stmt).map_err(|e| format!("Execution error: {:?}", e))
 }
 
 // ========================================================================
@@ -104,16 +102,8 @@ pub fn create_codes_schema() -> TableSchema {
         "CODES".to_string(),
         vec![
             ColumnSchema::new("ID".to_string(), DataType::Integer, false),
-            ColumnSchema::new(
-                "CODE".to_string(),
-                DataType::Character { length: 5 },
-                false,
-            ),
-            ColumnSchema::new(
-                "NAME".to_string(),
-                DataType::Character { length: 10 },
-                false,
-            ),
+            ColumnSchema::new("CODE".to_string(), DataType::Character { length: 5 }, false),
+            ColumnSchema::new("NAME".to_string(), DataType::Character { length: 10 }, false),
         ],
     )
 }

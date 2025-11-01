@@ -21,11 +21,8 @@ pub struct TableSchema {
 
 impl TableSchema {
     pub fn new(name: String, columns: Vec<ColumnSchema>) -> Self {
-        let column_index_cache: HashMap<String, usize> = columns
-            .iter()
-            .enumerate()
-            .map(|(idx, col)| (col.name.clone(), idx))
-            .collect();
+        let column_index_cache: HashMap<String, usize> =
+            columns.iter().enumerate().map(|(idx, col)| (col.name.clone(), idx)).collect();
 
         TableSchema {
             name,
@@ -44,11 +41,8 @@ impl TableSchema {
         columns: Vec<ColumnSchema>,
         primary_key: Vec<String>,
     ) -> Self {
-        let column_index_cache: HashMap<String, usize> = columns
-            .iter()
-            .enumerate()
-            .map(|(idx, col)| (col.name.clone(), idx))
-            .collect();
+        let column_index_cache: HashMap<String, usize> =
+            columns.iter().enumerate().map(|(idx, col)| (col.name.clone(), idx)).collect();
 
         TableSchema {
             name,
@@ -67,11 +61,8 @@ impl TableSchema {
         columns: Vec<ColumnSchema>,
         unique_constraints: Vec<Vec<String>>,
     ) -> Self {
-        let column_index_cache: HashMap<String, usize> = columns
-            .iter()
-            .enumerate()
-            .map(|(idx, col)| (col.name.clone(), idx))
-            .collect();
+        let column_index_cache: HashMap<String, usize> =
+            columns.iter().enumerate().map(|(idx, col)| (col.name.clone(), idx)).collect();
 
         TableSchema {
             name,
@@ -90,11 +81,8 @@ impl TableSchema {
         columns: Vec<ColumnSchema>,
         foreign_keys: Vec<ForeignKeyConstraint>,
     ) -> Self {
-        let column_index_cache: HashMap<String, usize> = columns
-            .iter()
-            .enumerate()
-            .map(|(idx, col)| (col.name.clone(), idx))
-            .collect();
+        let column_index_cache: HashMap<String, usize> =
+            columns.iter().enumerate().map(|(idx, col)| (col.name.clone(), idx)).collect();
 
         TableSchema {
             name,
@@ -114,11 +102,8 @@ impl TableSchema {
         primary_key: Option<Vec<String>>,
         unique_constraints: Vec<Vec<String>>,
     ) -> Self {
-        let column_index_cache: HashMap<String, usize> = columns
-            .iter()
-            .enumerate()
-            .map(|(idx, col)| (col.name.clone(), idx))
-            .collect();
+        let column_index_cache: HashMap<String, usize> =
+            columns.iter().enumerate().map(|(idx, col)| (col.name.clone(), idx)).collect();
 
         TableSchema {
             name,
@@ -140,11 +125,8 @@ impl TableSchema {
         check_constraints: Vec<(String, ast::Expression)>,
         foreign_keys: Vec<ForeignKeyConstraint>,
     ) -> Self {
-        let column_index_cache: HashMap<String, usize> = columns
-            .iter()
-            .enumerate()
-            .map(|(idx, col)| (col.name.clone(), idx))
-            .collect();
+        let column_index_cache: HashMap<String, usize> =
+            columns.iter().enumerate().map(|(idx, col)| (col.name.clone(), idx)).collect();
 
         TableSchema {
             name,

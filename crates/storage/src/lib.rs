@@ -16,9 +16,9 @@ pub use table::Table;
 mod tests {
     use super::*;
     use crate::Row;
-    use types::SqlValue;
     use catalog::{ColumnSchema, TableSchema};
     use types::DataType;
+    use types::SqlValue;
 
     #[test]
     fn test_hash_indexes_primary_key() {
@@ -26,7 +26,11 @@ mod tests {
             "users".to_string(),
             vec![
                 ColumnSchema::new("id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
+                ColumnSchema::new(
+                    "name".to_string(),
+                    DataType::Varchar { max_length: Some(100) },
+                    false,
+                ),
             ],
             vec!["id".to_string()],
         );
@@ -35,10 +39,8 @@ mod tests {
 
         // Insert some rows
         for i in 0..10 {
-            let row = Row::new(vec![
-                SqlValue::Integer(i),
-                SqlValue::Varchar(format!("User {}", i)),
-            ]);
+            let row =
+                Row::new(vec![SqlValue::Integer(i), SqlValue::Varchar(format!("User {}", i))]);
             table.insert(row).unwrap();
         }
 
@@ -47,10 +49,8 @@ mod tests {
         assert_eq!(table.primary_key_index().as_ref().unwrap().len(), 10);
 
         // Try to insert duplicate - should work at table level (constraint check is in executor)
-        let duplicate_row = Row::new(vec![
-            SqlValue::Integer(0),
-            SqlValue::Varchar("Duplicate User".to_string()),
-        ]);
+        let duplicate_row =
+            Row::new(vec![SqlValue::Integer(0), SqlValue::Varchar("Duplicate User".to_string())]);
         table.insert(duplicate_row).unwrap(); // This succeeds because constraint checking is in executor
     }
 
@@ -60,7 +60,11 @@ mod tests {
             "products".to_string(),
             vec![
                 ColumnSchema::new("id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("sku".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+                ColumnSchema::new(
+                    "sku".to_string(),
+                    DataType::Varchar { max_length: Some(50) },
+                    false,
+                ),
             ],
             vec![vec!["sku".to_string()]], // Unique constraint on sku
         );
@@ -69,10 +73,7 @@ mod tests {
 
         // Insert some rows
         for i in 0..5 {
-            let row = Row::new(vec![
-                SqlValue::Integer(i),
-                SqlValue::Varchar(format!("SKU{}", i)),
-            ]);
+            let row = Row::new(vec![SqlValue::Integer(i), SqlValue::Varchar(format!("SKU{}", i))]);
             table.insert(row).unwrap();
         }
 

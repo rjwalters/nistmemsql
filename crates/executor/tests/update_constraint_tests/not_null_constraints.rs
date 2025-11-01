@@ -5,8 +5,8 @@ use types::SqlValue;
 #[path = "../common/mod.rs"]
 mod common;
 
-use common::setup_test_table;
 use super::constraint_test_utils::create_update_with_id_clause;
+use common::setup_test_table;
 
 #[test]
 fn test_update_not_null_constraint_violation() {

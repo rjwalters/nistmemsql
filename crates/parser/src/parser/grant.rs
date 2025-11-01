@@ -29,7 +29,7 @@ pub fn parse_grant(parser: &mut crate::Parser) -> Result<GrantStmt, ParseError> 
     // Parse object type (TABLE, SCHEMA, FUNCTION, PROCEDURE, etc.)
     let object_type = if parser.peek() == &Token::Keyword(Keyword::Specific) {
         parser.advance(); // consume SPECIFIC
-        // SPECIFIC FUNCTION | SPECIFIC PROCEDURE | SPECIFIC ROUTINE | SPECIFIC METHOD variants
+                          // SPECIFIC FUNCTION | SPECIFIC PROCEDURE | SPECIFIC ROUTINE | SPECIFIC METHOD variants
         if parser.peek() == &Token::Keyword(Keyword::Function) {
             parser.advance();
             ObjectType::SpecificFunction

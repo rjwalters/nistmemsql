@@ -307,7 +307,7 @@ struct TestStats {
     failed: usize,
     errors: usize,
     skipped: usize,
-    tested_files: HashSet<String>,  // Files that were actually tested this run
+    tested_files: HashSet<String>, // Files that were actually tested this run
 }
 
 impl TestStats {
@@ -381,11 +381,8 @@ fn prioritize_test_files(
     let mut passed_files = Vec::new();
 
     for file_path in all_files {
-        let relative_path = file_path
-            .strip_prefix(test_dir)
-            .unwrap_or(file_path)
-            .to_string_lossy()
-            .to_string();
+        let relative_path =
+            file_path.strip_prefix(test_dir).unwrap_or(file_path).to_string_lossy().to_string();
 
         if historical_failed.contains(&relative_path) {
             failed_files.push(file_path.clone());
@@ -428,19 +425,15 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
     let mut results = HashMap::new();
 
     // Get time budget from environment (default: 5 minutes = 300 seconds)
-    let time_budget_secs: u64 = env::var("SQLLOGICTEST_TIME_BUDGET")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(300);
+    let time_budget_secs: u64 =
+        env::var("SQLLOGICTEST_TIME_BUDGET").ok().and_then(|s| s.parse().ok()).unwrap_or(300);
     let time_budget = Duration::from_secs(time_budget_secs);
     let start_time = Instant::now();
 
     // Find all .test files
     let pattern = format!("{}/**/*.test", test_dir.display());
-    let all_test_files: Vec<PathBuf> = glob::glob(&pattern)
-        .expect("Failed to read test pattern")
-        .filter_map(Result::ok)
-        .collect();
+    let all_test_files: Vec<PathBuf> =
+        glob::glob(&pattern).expect("Failed to read test pattern").filter_map(Result::ok).collect();
 
     let total_available_files = all_test_files.len();
 
@@ -448,10 +441,8 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
     let historical_results = load_historical_results();
 
     // Get seed for shuffling within priority categories
-    let seed: u64 = env::var("SQLLOGICTEST_SEED")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or_else(|| {
+    let seed: u64 =
+        env::var("SQLLOGICTEST_SEED").ok().and_then(|s| s.parse().ok()).unwrap_or_else(|| {
             // Use git commit hash as seed if available
             env::var("GITHUB_SHA")
                 .ok()
@@ -460,7 +451,8 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
         });
 
     // Prioritize test files: failed first, then untested, then passed
-    let prioritized_files = prioritize_test_files(&all_test_files, &historical_results, &test_dir, seed);
+    let prioritized_files =
+        prioritize_test_files(&all_test_files, &historical_results, &test_dir, seed);
 
     println!("\n=== SQLLogicTest Suite (Prioritized Sampling) ===");
     println!("Total available test files: {}", total_available_files);
@@ -475,7 +467,8 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
         // Check time budget
         if start_time.elapsed() >= time_budget {
             println!("\n⏱️  Time budget exhausted after {} seconds", time_budget_secs);
-            println!("Tested {} of {} files ({:.1}%)\n",
+            println!(
+                "Tested {} of {} files ({:.1}%)\n",
                 files_tested,
                 total_available_files,
                 (files_tested as f64 / total_available_files as f64) * 100.0
@@ -484,11 +477,8 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
         }
 
         files_tested += 1;
-        let relative_path = test_file
-            .strip_prefix(&test_dir)
-            .unwrap_or(&test_file)
-            .to_string_lossy()
-            .to_string();
+        let relative_path =
+            test_file.strip_prefix(&test_dir).unwrap_or(&test_file).to_string_lossy().to_string();
 
         // Determine category from path
         let category = if relative_path.starts_with("select") {
@@ -538,14 +528,12 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
         // Create a new database for each test file
         // We need to create a runtime because this is a sync test
         let result = std::panic::catch_unwind(|| {
-            tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .unwrap()
-                .block_on(async {
+            tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(
+                async {
                     let mut tester = Runner::new(|| async { Ok(NistMemSqlDB::new()) });
                     tester.run_script(&contents)
-                })
+                },
+            )
         });
 
         match result {
@@ -558,7 +546,10 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
                 stats.failed += 1;
             }
             Err(_) => {
-                eprintln!("✗ {} - Test panicked (likely unsupported SQLLogicTest syntax)", relative_path);
+                eprintln!(
+                    "✗ {} - Test panicked (likely unsupported SQLLogicTest syntax)",
+                    relative_path
+                );
                 stats.errors += 1;
             }
         }
@@ -581,7 +572,10 @@ fn run_sqllogictest_suite() {
 
     // Print summary
     println!("\n=== Test Results Summary ===");
-    println!("{:<20} {:>8} {:>8} {:>8} {:>8} {:>8} {:>10}", "Category", "Total", "Passed", "Failed", "Errors", "Skipped", "Pass Rate");
+    println!(
+        "{:<20} {:>8} {:>8} {:>8} {:>8} {:>8} {:>10}",
+        "Category", "Total", "Passed", "Failed", "Errors", "Skipped", "Pass Rate"
+    );
     println!("{}", "-".repeat(80));
 
     let mut grand_total = TestStats::default();
@@ -620,7 +614,10 @@ fn run_sqllogictest_suite() {
         grand_total.pass_rate()
     );
 
-    println!("\nNote: This test suite randomly samples from ~5.9 million test cases across {} files.", total_available_files);
+    println!(
+        "\nNote: This test suite randomly samples from ~5.9 million test cases across {} files.",
+        total_available_files
+    );
     println!("Results from multiple CI runs are merged to progressively build complete coverage.");
     println!("Some failures are expected as we continue implementing SQL:1999 features.");
     println!("Files with database-specific conditional directives are skipped as they test vendor-specific behavior.");

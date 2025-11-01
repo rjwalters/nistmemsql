@@ -14,10 +14,8 @@ fn test_extract_from_current_date() {
     let (evaluator, row) = setup_test();
 
     // YEAR(CURRENT_DATE) should return current year as integer
-    let expr = create_datetime_function(
-        "YEAR",
-        vec![create_datetime_function("CURRENT_DATE", vec![])],
-    );
+    let expr =
+        create_datetime_function("YEAR", vec![create_datetime_function("CURRENT_DATE", vec![])]);
     let result = evaluator.eval(&expr, &row).unwrap();
 
     // Should return an integer year (e.g., 2024, 2025)
@@ -34,10 +32,7 @@ fn test_extract_from_current_timestamp() {
     let (evaluator, row) = setup_test();
 
     // HOUR(NOW()) should return current hour as integer
-    let expr = create_datetime_function(
-        "HOUR",
-        vec![create_datetime_function("NOW", vec![])],
-    );
+    let expr = create_datetime_function("HOUR", vec![create_datetime_function("NOW", vec![])]);
     let result = evaluator.eval(&expr, &row).unwrap();
 
     // Should return an integer hour (0-23)
@@ -58,50 +53,32 @@ fn test_multiple_extractions() {
     let timestamp = types::SqlValue::Timestamp(TEST_TIMESTAMP_CHRISTMAS.to_string());
 
     // Test YEAR
-    let year_expr = create_datetime_function(
-        "YEAR",
-        vec![create_literal(timestamp.clone())],
-    );
+    let year_expr = create_datetime_function("YEAR", vec![create_literal(timestamp.clone())]);
     let year_result = evaluator.eval(&year_expr, &row).unwrap();
     assert_eq!(year_result, types::SqlValue::Integer(2024));
 
     // Test MONTH
-    let month_expr = create_datetime_function(
-        "MONTH",
-        vec![create_literal(timestamp.clone())],
-    );
+    let month_expr = create_datetime_function("MONTH", vec![create_literal(timestamp.clone())]);
     let month_result = evaluator.eval(&month_expr, &row).unwrap();
     assert_eq!(month_result, types::SqlValue::Integer(12));
 
     // Test DAY
-    let day_expr = create_datetime_function(
-        "DAY",
-        vec![create_literal(timestamp.clone())],
-    );
+    let day_expr = create_datetime_function("DAY", vec![create_literal(timestamp.clone())]);
     let day_result = evaluator.eval(&day_expr, &row).unwrap();
     assert_eq!(day_result, types::SqlValue::Integer(25));
 
     // Test HOUR
-    let hour_expr = create_datetime_function(
-        "HOUR",
-        vec![create_literal(timestamp.clone())],
-    );
+    let hour_expr = create_datetime_function("HOUR", vec![create_literal(timestamp.clone())]);
     let hour_result = evaluator.eval(&hour_expr, &row).unwrap();
     assert_eq!(hour_result, types::SqlValue::Integer(23));
 
     // Test MINUTE
-    let minute_expr = create_datetime_function(
-        "MINUTE",
-        vec![create_literal(timestamp.clone())],
-    );
+    let minute_expr = create_datetime_function("MINUTE", vec![create_literal(timestamp.clone())]);
     let minute_result = evaluator.eval(&minute_expr, &row).unwrap();
     assert_eq!(minute_result, types::SqlValue::Integer(59));
 
     // Test SECOND
-    let second_expr = create_datetime_function(
-        "SECOND",
-        vec![create_literal(timestamp)],
-    );
+    let second_expr = create_datetime_function("SECOND", vec![create_literal(timestamp)]);
     let second_result = evaluator.eval(&second_expr, &row).unwrap();
     assert_eq!(second_result, types::SqlValue::Integer(58));
 }

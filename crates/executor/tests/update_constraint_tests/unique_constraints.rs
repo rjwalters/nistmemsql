@@ -4,7 +4,8 @@ use storage::{Database, Row};
 use types::SqlValue;
 
 use super::constraint_test_utils::{
-    create_update_with_id_clause, create_users_table_with_composite_unique, create_users_table_with_unique_email,
+    create_update_with_id_clause, create_users_table_with_composite_unique,
+    create_users_table_with_unique_email,
 };
 
 #[test]
@@ -15,18 +16,12 @@ fn test_update_unique_constraint_duplicate() {
     // Insert two users
     db.insert_row(
         "users",
-        Row::new(vec![
-            SqlValue::Integer(1),
-            SqlValue::Varchar("alice@example.com".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("alice@example.com".to_string())]),
     )
     .unwrap();
     db.insert_row(
         "users",
-        Row::new(vec![
-            SqlValue::Integer(2),
-            SqlValue::Varchar("bob@example.com".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("bob@example.com".to_string())]),
     )
     .unwrap();
 
@@ -57,18 +52,12 @@ fn test_update_unique_constraint_to_unique_value() {
     // Insert two users
     db.insert_row(
         "users",
-        Row::new(vec![
-            SqlValue::Integer(1),
-            SqlValue::Varchar("alice@example.com".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("alice@example.com".to_string())]),
     )
     .unwrap();
     db.insert_row(
         "users",
-        Row::new(vec![
-            SqlValue::Integer(2),
-            SqlValue::Varchar("bob@example.com".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("bob@example.com".to_string())]),
     )
     .unwrap();
 
@@ -86,10 +75,7 @@ fn test_update_unique_constraint_to_unique_value() {
     // Verify the update
     let table = db.get_table("users").unwrap();
     let rows: Vec<&Row> = table.scan().iter().collect();
-    assert_eq!(
-        rows[1].get(1).unwrap(),
-        &SqlValue::Varchar("robert@example.com".to_string())
-    );
+    assert_eq!(rows[1].get(1).unwrap(), &SqlValue::Varchar("robert@example.com".to_string()));
 }
 
 #[test]
@@ -100,18 +86,12 @@ fn test_update_unique_constraint_allows_null() {
     // Insert two users with email
     db.insert_row(
         "users",
-        Row::new(vec![
-            SqlValue::Integer(1),
-            SqlValue::Varchar("alice@example.com".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("alice@example.com".to_string())]),
     )
     .unwrap();
     db.insert_row(
         "users",
-        Row::new(vec![
-            SqlValue::Integer(2),
-            SqlValue::Varchar("bob@example.com".to_string()),
-        ]),
+        Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("bob@example.com".to_string())]),
     )
     .unwrap();
 
@@ -171,10 +151,7 @@ fn test_update_unique_constraint_composite() {
             },
         ],
         where_clause: Some(Expression::BinaryOp {
-            left: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "id".to_string(),
-            }),
+            left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
             op: BinaryOperator::Equal,
             right: Box::new(Expression::Literal(SqlValue::Integer(2))),
         }),

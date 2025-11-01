@@ -1,7 +1,7 @@
 //! Edge cases and error handling tests for DELETE operations
 
-use crate::DeleteExecutor;
 use crate::errors::ExecutorError;
+use crate::DeleteExecutor;
 use ast::{BinaryOperator, DeleteStmt, Expression, WhereClause};
 use catalog::{ColumnSchema, TableSchema};
 use storage::{Database, Row};
@@ -60,7 +60,8 @@ fn setup_test_table(db: &mut Database) {
 fn test_delete_table_not_found() {
     let mut db = Database::new();
 
-    let stmt = DeleteStmt { only: false, table_name: "nonexistent".to_string(), where_clause: None };
+    let stmt =
+        DeleteStmt { only: false, table_name: "nonexistent".to_string(), where_clause: None };
 
     let result = DeleteExecutor::execute(&stmt, &mut db);
     assert!(result.is_err());
@@ -103,7 +104,8 @@ fn test_delete_from_empty_table() {
     db.create_table(schema).unwrap();
 
     // DELETE FROM empty_users;
-    let stmt = DeleteStmt { only: false, table_name: "empty_users".to_string(), where_clause: None };
+    let stmt =
+        DeleteStmt { only: false, table_name: "empty_users".to_string(), where_clause: None };
 
     let deleted = DeleteExecutor::execute(&stmt, &mut db).unwrap();
     assert_eq!(deleted, 0);

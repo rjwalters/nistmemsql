@@ -26,9 +26,7 @@ pub fn create_northwind_db() -> Database {
             ),
             ColumnSchema::new(
                 "DESCRIPTION".to_string(),
-                DataType::Varchar {
-                    max_length: Some(200),
-                },
+                DataType::Varchar { max_length: Some(200) },
                 false,
             ),
         ],
@@ -42,17 +40,11 @@ pub fn create_northwind_db() -> Database {
             ColumnSchema::new("PRODUCT_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
                 "PRODUCT_NAME".to_string(),
-                DataType::Varchar {
-                    max_length: Some(100),
-                },
+                DataType::Varchar { max_length: Some(100) },
                 false,
             ),
             ColumnSchema::new("CATEGORY_ID".to_string(), DataType::Integer, false),
-            ColumnSchema::new(
-                "UNIT_PRICE".to_string(),
-                DataType::Float { precision: 53 },
-                false,
-            ),
+            ColumnSchema::new("UNIT_PRICE".to_string(), DataType::Float { precision: 53 }, false),
             ColumnSchema::new("UNITS_IN_STOCK".to_string(), DataType::Integer, false),
             ColumnSchema::new("UNITS_ON_ORDER".to_string(), DataType::Integer, false),
         ],
@@ -355,9 +347,7 @@ pub fn create_employees_db() -> Database {
             ),
             ColumnSchema::new(
                 "LOCATION".to_string(),
-                DataType::Varchar {
-                    max_length: Some(100),
-                },
+                DataType::Varchar { max_length: Some(100) },
                 true,
             ),
         ],
@@ -371,9 +361,7 @@ pub fn create_employees_db() -> Database {
             ColumnSchema::new("PROJECT_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
                 "PROJECT_NAME".to_string(),
-                DataType::Varchar {
-                    max_length: Some(100),
-                },
+                DataType::Varchar { max_length: Some(100) },
                 false,
             ),
             ColumnSchema::new("DEPT_ID".to_string(), DataType::Integer, true),
@@ -400,9 +388,7 @@ pub fn create_employees_db() -> Database {
             ),
             ColumnSchema::new(
                 "NAME".to_string(),
-                DataType::Varchar {
-                    max_length: Some(100),
-                },
+                DataType::Varchar { max_length: Some(100) },
                 false,
             ), // full name for company examples
             ColumnSchema::new(
@@ -413,16 +399,10 @@ pub fn create_employees_db() -> Database {
             ColumnSchema::new("DEPT_ID".to_string(), DataType::Integer, true), // for company examples
             ColumnSchema::new(
                 "TITLE".to_string(),
-                DataType::Varchar {
-                    max_length: Some(100),
-                },
+                DataType::Varchar { max_length: Some(100) },
                 false,
             ),
-            ColumnSchema::new(
-                "SALARY".to_string(),
-                DataType::Float { precision: 53 },
-                false,
-            ),
+            ColumnSchema::new("SALARY".to_string(), DataType::Float { precision: 53 }, false),
             ColumnSchema::new(
                 "HIRE_DATE".to_string(),
                 DataType::Varchar { max_length: Some(20) },
@@ -749,9 +729,7 @@ pub fn create_university_db() -> Database {
             ColumnSchema::new("STUDENT_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
                 "NAME".to_string(),
-                DataType::Varchar {
-                    max_length: Some(100),
-                },
+                DataType::Varchar { max_length: Some(100) },
                 false,
             ),
             ColumnSchema::new(
@@ -771,9 +749,7 @@ pub fn create_university_db() -> Database {
             ColumnSchema::new("COURSE_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new(
                 "COURSE_NAME".to_string(),
-                DataType::Varchar {
-                    max_length: Some(100),
-                },
+                DataType::Varchar { max_length: Some(100) },
                 false,
             ),
             ColumnSchema::new(
@@ -792,11 +768,7 @@ pub fn create_university_db() -> Database {
         vec![
             ColumnSchema::new("STUDENT_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new("COURSE_ID".to_string(), DataType::Integer, false),
-            ColumnSchema::new(
-                "GRADE".to_string(),
-                DataType::Varchar { max_length: Some(2) },
-                true,
-            ), // nullable
+            ColumnSchema::new("GRADE".to_string(), DataType::Varchar { max_length: Some(2) }, true), // nullable
             ColumnSchema::new(
                 "SEMESTER".to_string(),
                 DataType::Varchar { max_length: Some(20) },
@@ -820,11 +792,7 @@ pub fn create_university_db() -> Database {
             8 => ("Henry Anderson", "Computer Science", 3.3_f32),
             9 => ("Iris Chen", "Mathematics", 3.8_f32),
             10 => ("Jack Robinson", "Physics", 3.1_f32),
-            _ => (
-                "Student",
-                "Computer Science",
-                3.0_f32 + (i as f32 % 10.0) / 10.0,
-            ),
+            _ => ("Student", "Computer Science", 3.0_f32 + (i as f32 % 10.0) / 10.0),
         };
         students_table
             .insert(Row::new(vec![

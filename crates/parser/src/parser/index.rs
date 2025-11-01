@@ -74,9 +74,7 @@ impl Parser {
     ///
     /// Syntax:
     ///   DROP INDEX index_name
-    pub(super) fn parse_drop_index_statement(
-        &mut self,
-    ) -> Result<ast::DropIndexStmt, ParseError> {
+    pub(super) fn parse_drop_index_statement(&mut self) -> Result<ast::DropIndexStmt, ParseError> {
         // Expect DROP keyword
         self.expect_keyword(Keyword::Drop)?;
 

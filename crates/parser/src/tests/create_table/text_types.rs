@@ -17,12 +17,16 @@ fn test_parse_create_table_text_type() {
             // TEXT should map to Varchar with no length limit
             match &create.columns[0].data_type {
                 types::DataType::Varchar { max_length: None } => {} // Success
-                _ => panic!("Expected TEXT to map to VARCHAR, got {:?}", create.columns[0].data_type),
+                _ => {
+                    panic!("Expected TEXT to map to VARCHAR, got {:?}", create.columns[0].data_type)
+                }
             }
 
             match &create.columns[1].data_type {
                 types::DataType::Varchar { max_length: None } => {} // Success
-                _ => panic!("Expected TEXT to map to VARCHAR, got {:?}", create.columns[1].data_type),
+                _ => {
+                    panic!("Expected TEXT to map to VARCHAR, got {:?}", create.columns[1].data_type)
+                }
             }
         }
         _ => panic!("Expected CREATE TABLE statement"),

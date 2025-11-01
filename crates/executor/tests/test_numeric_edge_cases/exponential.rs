@@ -1,19 +1,36 @@
 //! Exponential function edge cases (POWER, SQRT, EXP, LN, LOG10)
 
+use super::basic::{
+    assert_function_errors, assert_function_returns_double,
+    assert_function_returns_null_on_null_input, create_function_expr,
+};
 use super::common::create_test_evaluator;
-use super::basic::{assert_function_returns_double, assert_function_returns_null_on_null_input, assert_function_errors, create_function_expr};
 use types::SqlValue;
 
 #[test]
 fn test_power_zero_to_zero() {
     let (evaluator, row) = create_test_evaluator();
-    assert_function_returns_double(&evaluator, &row, "POWER", vec![SqlValue::Integer(0), SqlValue::Integer(0)], 1.0, 0.001);
+    assert_function_returns_double(
+        &evaluator,
+        &row,
+        "POWER",
+        vec![SqlValue::Integer(0), SqlValue::Integer(0)],
+        1.0,
+        0.001,
+    );
 }
 
 #[test]
 fn test_power_negative_base() {
     let (evaluator, row) = create_test_evaluator();
-    assert_function_returns_double(&evaluator, &row, "POWER", vec![SqlValue::Integer(-2), SqlValue::Integer(3)], -8.0, 0.001);
+    assert_function_returns_double(
+        &evaluator,
+        &row,
+        "POWER",
+        vec![SqlValue::Integer(-2), SqlValue::Integer(3)],
+        -8.0,
+        0.001,
+    );
 }
 
 #[test]
@@ -33,7 +50,12 @@ fn test_sqrt_negative() {
 #[test]
 fn test_sqrt_null() {
     let (evaluator, row) = create_test_evaluator();
-    assert_function_returns_null_on_null_input(&evaluator, &row, "SQRT", vec![SqlValue::Double(4.0)]);
+    assert_function_returns_null_on_null_input(
+        &evaluator,
+        &row,
+        "SQRT",
+        vec![SqlValue::Double(4.0)],
+    );
 }
 
 #[test]
@@ -54,7 +76,12 @@ fn test_exp_overflow() {
 #[test]
 fn test_exp_null() {
     let (evaluator, row) = create_test_evaluator();
-    assert_function_returns_null_on_null_input(&evaluator, &row, "EXP", vec![SqlValue::Double(1.0)]);
+    assert_function_returns_null_on_null_input(
+        &evaluator,
+        &row,
+        "EXP",
+        vec![SqlValue::Double(1.0)],
+    );
 }
 
 #[test]
@@ -84,5 +111,10 @@ fn test_log10_zero() {
 #[test]
 fn test_log10_null() {
     let (evaluator, row) = create_test_evaluator();
-    assert_function_returns_null_on_null_input(&evaluator, &row, "LOG10", vec![SqlValue::Double(10.0)]);
+    assert_function_returns_null_on_null_input(
+        &evaluator,
+        &row,
+        "LOG10",
+        vec![SqlValue::Double(10.0)],
+    );
 }

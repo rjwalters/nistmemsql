@@ -1,7 +1,7 @@
 //! Precision and accuracy tests
 
-use super::common::create_test_evaluator;
 use super::basic::{assert_function_returns_double, create_function_expr};
+use super::common::create_test_evaluator;
 use types::SqlValue;
 
 #[test]
@@ -17,7 +17,14 @@ fn test_round_precision_edge_cases() {
     ];
 
     for (input, precision, expected) in test_cases {
-        assert_function_returns_double(&evaluator, &row, "ROUND", vec![SqlValue::Double(input), SqlValue::Integer(precision)], expected, 0.001);
+        assert_function_returns_double(
+            &evaluator,
+            &row,
+            "ROUND",
+            vec![SqlValue::Double(input), SqlValue::Integer(precision)],
+            expected,
+            0.001,
+        );
     }
 }
 

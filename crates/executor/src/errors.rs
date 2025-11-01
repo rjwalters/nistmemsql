@@ -125,7 +125,9 @@ impl From<storage::StorageError> for ExecutorError {
             }
             storage::StorageError::CatalogError(msg) => ExecutorError::StorageError(msg),
             storage::StorageError::TransactionError(msg) => ExecutorError::StorageError(msg),
-            storage::StorageError::RowNotFound => ExecutorError::StorageError("Row not found".to_string()),
+            storage::StorageError::RowNotFound => {
+                ExecutorError::StorageError("Row not found".to_string())
+            }
         }
     }
 }

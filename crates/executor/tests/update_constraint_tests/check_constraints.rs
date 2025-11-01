@@ -14,11 +14,7 @@ fn test_update_check_constraint_passes() {
     create_products_table_with_check_price(&mut db);
 
     // Insert a row
-    db.insert_row(
-        "products",
-        Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(50)]),
-    )
-    .unwrap();
+    db.insert_row("products", Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(50)])).unwrap();
 
     // Update to valid price (should succeed)
     let stmt = UpdateStmt {
@@ -40,11 +36,7 @@ fn test_update_check_constraint_violation() {
     create_products_table_with_check_price(&mut db);
 
     // Insert a row
-    db.insert_row(
-        "products",
-        Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(50)]),
-    )
-    .unwrap();
+    db.insert_row("products", Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(50)])).unwrap();
 
     // Try to update to negative price (should fail)
     let stmt = UpdateStmt {
@@ -73,11 +65,7 @@ fn test_update_check_constraint_with_null() {
     create_products_table_with_nullable_price(&mut db);
 
     // Insert a row
-    db.insert_row(
-        "products",
-        Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(50)]),
-    )
-    .unwrap();
+    db.insert_row("products", Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(50)])).unwrap();
 
     // Update to NULL (should succeed - NULL is treated as UNKNOWN which passes CHECK)
     let stmt = UpdateStmt {
@@ -101,11 +89,7 @@ fn test_update_check_constraint_with_expression() {
     // Insert a row
     db.insert_row(
         "employees",
-        Row::new(vec![
-            SqlValue::Integer(1),
-            SqlValue::Integer(50000),
-            SqlValue::Integer(10000),
-        ]),
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(50000), SqlValue::Integer(10000)]),
     )
     .unwrap();
 

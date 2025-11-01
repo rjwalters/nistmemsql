@@ -9,11 +9,7 @@ pub fn create_users_table_with_primary_key(db: &mut Database) {
         "users".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new(
-                "name".to_string(),
-                DataType::Varchar { max_length: Some(50) },
-                true,
-            ),
+            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, true),
         ],
         vec!["id".to_string()],
     );
@@ -74,10 +70,7 @@ pub fn create_products_table_with_check_price(db: &mut Database) {
         vec![(
             "price_positive".to_string(),
             Expression::BinaryOp {
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "price".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "price".to_string() }),
                 op: BinaryOperator::GreaterThanOrEqual,
                 right: Box::new(Expression::Literal(SqlValue::Integer(0))),
             },
@@ -100,10 +93,7 @@ pub fn create_products_table_with_nullable_price(db: &mut Database) {
         vec![(
             "price_positive".to_string(),
             Expression::BinaryOp {
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "price".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "price".to_string() }),
                 op: BinaryOperator::GreaterThanOrEqual,
                 right: Box::new(Expression::Literal(SqlValue::Integer(0))),
             },
@@ -127,10 +117,7 @@ pub fn create_employees_table_with_check_bonus(db: &mut Database) {
         vec![(
             "bonus_less_than_salary".to_string(),
             Expression::BinaryOp {
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "bonus".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "bonus".to_string() }),
                 op: BinaryOperator::LessThan,
                 right: Box::new(Expression::ColumnRef {
                     table: None,
@@ -144,7 +131,12 @@ pub fn create_employees_table_with_check_bonus(db: &mut Database) {
 }
 
 /// Helper to insert a user row with optional email
-pub fn insert_user_row(db: &mut Database, id: i64, name: &str, email: Option<&str>) -> Result<(), storage::StorageError> {
+pub fn insert_user_row(
+    db: &mut Database,
+    id: i64,
+    name: &str,
+    email: Option<&str>,
+) -> Result<(), storage::StorageError> {
     let email_value = email.map(|e| SqlValue::Varchar(e.to_string())).unwrap_or(SqlValue::Null);
     db.insert_row(
         "users",
@@ -153,7 +145,11 @@ pub fn insert_user_row(db: &mut Database, id: i64, name: &str, email: Option<&st
 }
 
 /// Helper to insert a user row without email column (for PK tests)
-pub fn insert_user_row_simple(db: &mut Database, id: i64, name: &str) -> Result<(), storage::StorageError> {
+pub fn insert_user_row_simple(
+    db: &mut Database,
+    id: i64,
+    name: &str,
+) -> Result<(), storage::StorageError> {
     db.insert_row(
         "users",
         Row::new(vec![SqlValue::Integer(id), SqlValue::Varchar(name.to_string())]),
@@ -174,10 +170,7 @@ pub fn create_update_with_id_clause(
             value: Expression::Literal(value),
         }],
         where_clause: Some(Expression::BinaryOp {
-            left: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "id".to_string(),
-            }),
+            left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
             op: BinaryOperator::Equal,
             right: Box::new(Expression::Literal(SqlValue::Integer(id))),
         }),

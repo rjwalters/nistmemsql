@@ -115,13 +115,12 @@ impl AlterTableExecutor {
         }
 
         // Get column index
-        let col_index = table
-            .schema
-            .get_column_index(&stmt.column_name)
-            .ok_or_else(|| ExecutorError::ColumnNotFound {
+        let col_index = table.schema.get_column_index(&stmt.column_name).ok_or_else(|| {
+            ExecutorError::ColumnNotFound {
                 column_name: stmt.column_name.clone(),
                 table_name: stmt.table_name.clone(),
-            })?;
+            }
+        })?;
 
         // Remove column from schema
         table.schema_mut().remove_column(col_index)?;
@@ -156,13 +155,12 @@ impl AlterTableExecutor {
                     .get_table_mut(table_name)
                     .ok_or_else(|| ExecutorError::TableNotFound(table_name.clone()))?;
 
-                let col_index = table
-                    .schema
-                    .get_column_index(column_name)
-                    .ok_or_else(|| ExecutorError::ColumnNotFound {
+                let col_index = table.schema.get_column_index(column_name).ok_or_else(|| {
+                    ExecutorError::ColumnNotFound {
                         column_name: column_name.clone(),
                         table_name: table_name.clone(),
-                    })?;
+                    }
+                })?;
 
                 // Check if any existing rows have NULL in this column
                 for row in table.scan() {
@@ -183,13 +181,12 @@ impl AlterTableExecutor {
                     .get_table_mut(table_name)
                     .ok_or_else(|| ExecutorError::TableNotFound(table_name.clone()))?;
 
-                let col_index = table
-                    .schema
-                    .get_column_index(column_name)
-                    .ok_or_else(|| ExecutorError::ColumnNotFound {
+                let col_index = table.schema.get_column_index(column_name).ok_or_else(|| {
+                    ExecutorError::ColumnNotFound {
                         column_name: column_name.clone(),
                         table_name: table_name.clone(),
-                    })?;
+                    }
+                })?;
 
                 // Set column as nullable
                 table.schema_mut().set_column_nullable(col_index, true)?;

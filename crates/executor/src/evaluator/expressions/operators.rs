@@ -23,7 +23,7 @@ pub(crate) fn eval_unary_op(
         (Plus, SqlValue::Float(n)) => Ok(SqlValue::Float(*n)),
         (Plus, SqlValue::Real(n)) => Ok(SqlValue::Real(*n)),
         (Plus, SqlValue::Double(n)) => Ok(SqlValue::Double(*n)),
-        (Plus, SqlValue::Numeric(s)) => Ok(SqlValue::Numeric(s.clone())),
+        (Plus, SqlValue::Numeric(s)) => Ok(SqlValue::Numeric(*s)),
 
         // Unary minus - negation
         (Minus, SqlValue::Integer(n)) => Ok(SqlValue::Integer(-n)),
@@ -32,9 +32,7 @@ pub(crate) fn eval_unary_op(
         (Minus, SqlValue::Float(n)) => Ok(SqlValue::Float(-n)),
         (Minus, SqlValue::Real(n)) => Ok(SqlValue::Real(-n)),
         (Minus, SqlValue::Double(n)) => Ok(SqlValue::Double(-n)),
-        (Minus, SqlValue::Numeric(f)) => {
-            Ok(SqlValue::Numeric(-*f))
-        }
+        (Minus, SqlValue::Numeric(f)) => Ok(SqlValue::Numeric(-*f)),
 
         // NULL propagation - unary operations on NULL return NULL
         (Plus | Minus, SqlValue::Null) => Ok(SqlValue::Null),

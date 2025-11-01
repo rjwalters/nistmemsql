@@ -55,18 +55,14 @@ pub(super) fn nested_loop_join(
                 .table_schemas
                 .keys()
                 .next()
-                .ok_or_else(|| {
-                    ExecutorError::UnsupportedFeature("Complex JOIN".to_string())
-                })?
+                .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
                 .clone();
 
             let right_schema = right
                 .schema
                 .table_schemas
                 .get(&right_table_name)
-                .ok_or_else(|| {
-                    ExecutorError::UnsupportedFeature("Complex JOIN".to_string())
-                })?
+                .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
                 .1
                 .clone();
 
@@ -90,15 +86,9 @@ pub(super) fn nested_loop_join(
     // Fall back to nested loop join for all other cases
     match join_type {
         ast::JoinType::Inner => nested_loop_inner_join(left, right, condition, database),
-        ast::JoinType::LeftOuter => {
-            nested_loop_left_outer_join(left, right, condition, database)
-        }
-        ast::JoinType::RightOuter => {
-            nested_loop_right_outer_join(left, right, condition, database)
-        }
-        ast::JoinType::FullOuter => {
-            nested_loop_full_outer_join(left, right, condition, database)
-        }
+        ast::JoinType::LeftOuter => nested_loop_left_outer_join(left, right, condition, database),
+        ast::JoinType::RightOuter => nested_loop_right_outer_join(left, right, condition, database),
+        ast::JoinType::FullOuter => nested_loop_full_outer_join(left, right, condition, database),
         ast::JoinType::Cross => nested_loop_cross_join(left, right, condition, database),
     }
 }

@@ -13,29 +13,19 @@ pub struct Table {
     rows: Vec<Row>,
 
     // Hash indexes for constraint validation
-    primary_key_index: Option<HashMap<Vec<SqlValue>, usize>>,  // Composite key → row index
-    unique_indexes: Vec<HashMap<Vec<SqlValue>, usize>>,         // One HashMap per unique constraint
+    primary_key_index: Option<HashMap<Vec<SqlValue>, usize>>, // Composite key → row index
+    unique_indexes: Vec<HashMap<Vec<SqlValue>, usize>>,       // One HashMap per unique constraint
 }
 
 impl Table {
     /// Create a new empty table with given schema
     pub fn new(schema: catalog::TableSchema) -> Self {
-        let primary_key_index = if schema.primary_key.is_some() {
-            Some(HashMap::new())
-        } else {
-            None
-        };
+        let primary_key_index =
+            if schema.primary_key.is_some() { Some(HashMap::new()) } else { None };
 
-        let unique_indexes = (0..schema.unique_constraints.len())
-            .map(|_| HashMap::new())
-            .collect();
+        let unique_indexes = (0..schema.unique_constraints.len()).map(|_| HashMap::new()).collect();
 
-        Table {
-            schema,
-            rows: Vec::new(),
-            primary_key_index,
-            unique_indexes,
-        }
+        Table { schema, rows: Vec::new(), primary_key_index, unique_indexes }
     }
 
     /// Insert a row into the table
@@ -224,9 +214,8 @@ impl Table {
         // Update primary key index
         if let Some(ref mut pk_index) = self.primary_key_index {
             if let Some(pk_indices) = self.schema.get_primary_key_indices() {
-                let pk_values: Vec<SqlValue> = pk_indices.iter()
-                    .map(|&idx| row.values[idx].clone())
-                    .collect();
+                let pk_values: Vec<SqlValue> =
+                    pk_indices.iter().map(|&idx| row.values[idx].clone()).collect();
                 pk_index.insert(pk_values, row_index);
             }
         }
@@ -234,9 +223,8 @@ impl Table {
         // Update unique constraint indexes
         let unique_constraint_indices = self.schema.get_unique_constraint_indices();
         for (constraint_idx, unique_indices) in unique_constraint_indices.iter().enumerate() {
-            let unique_values: Vec<SqlValue> = unique_indices.iter()
-                .map(|&idx| row.values[idx].clone())
-                .collect();
+            let unique_values: Vec<SqlValue> =
+                unique_indices.iter().map(|&idx| row.values[idx].clone()).collect();
 
             // Skip if any value in the unique constraint is NULL
             if unique_values.iter().any(|v| *v == SqlValue::Null) {
@@ -254,12 +242,10 @@ impl Table {
         // Update primary key index
         if let Some(ref mut pk_index) = self.primary_key_index {
             if let Some(pk_indices) = self.schema.get_primary_key_indices() {
-                let old_pk_values: Vec<SqlValue> = pk_indices.iter()
-                    .map(|&idx| old_row.values[idx].clone())
-                    .collect();
-                let new_pk_values: Vec<SqlValue> = pk_indices.iter()
-                    .map(|&idx| new_row.values[idx].clone())
-                    .collect();
+                let old_pk_values: Vec<SqlValue> =
+                    pk_indices.iter().map(|&idx| old_row.values[idx].clone()).collect();
+                let new_pk_values: Vec<SqlValue> =
+                    pk_indices.iter().map(|&idx| new_row.values[idx].clone()).collect();
 
                 // Remove old key if different from new key
                 if old_pk_values != new_pk_values {
@@ -272,16 +258,16 @@ impl Table {
         // Update unique constraint indexes
         let unique_constraint_indices = self.schema.get_unique_constraint_indices();
         for (constraint_idx, unique_indices) in unique_constraint_indices.iter().enumerate() {
-            let old_unique_values: Vec<SqlValue> = unique_indices.iter()
-                .map(|&idx| old_row.values[idx].clone())
-                .collect();
-            let new_unique_values: Vec<SqlValue> = unique_indices.iter()
-                .map(|&idx| new_row.values[idx].clone())
-                .collect();
+            let old_unique_values: Vec<SqlValue> =
+                unique_indices.iter().map(|&idx| old_row.values[idx].clone()).collect();
+            let new_unique_values: Vec<SqlValue> =
+                unique_indices.iter().map(|&idx| new_row.values[idx].clone()).collect();
 
             if let Some(unique_index) = self.unique_indexes.get_mut(constraint_idx) {
                 // Remove old key if it's different and not NULL
-                if old_unique_values != new_unique_values && !old_unique_values.iter().any(|v| *v == SqlValue::Null) {
+                if old_unique_values != new_unique_values
+                    && !old_unique_values.iter().any(|v| *v == SqlValue::Null)
+                {
                     unique_index.remove(&old_unique_values);
                 }
 
@@ -298,9 +284,8 @@ impl Table {
         // Update primary key index
         if let Some(ref mut pk_index) = self.primary_key_index {
             if let Some(pk_indices) = self.schema.get_primary_key_indices() {
-                let pk_values: Vec<SqlValue> = pk_indices.iter()
-                    .map(|&idx| row.values[idx].clone())
-                    .collect();
+                let pk_values: Vec<SqlValue> =
+                    pk_indices.iter().map(|&idx| row.values[idx].clone()).collect();
                 pk_index.remove(&pk_values);
             }
         }
@@ -308,9 +293,8 @@ impl Table {
         // Update unique constraint indexes
         let unique_constraint_indices = self.schema.get_unique_constraint_indices();
         for (constraint_idx, unique_indices) in unique_constraint_indices.iter().enumerate() {
-            let unique_values: Vec<SqlValue> = unique_indices.iter()
-                .map(|&idx| row.values[idx].clone())
-                .collect();
+            let unique_values: Vec<SqlValue> =
+                unique_indices.iter().map(|&idx| row.values[idx].clone()).collect();
 
             // Skip if any value in the unique constraint is NULL
             if unique_values.iter().any(|v| *v == SqlValue::Null) {
@@ -334,10 +318,8 @@ impl Table {
         }
 
         // Rebuild from current rows (collect to avoid borrow issues)
-        let rows_with_indices: Vec<(Row, usize)> = self.rows.iter()
-            .enumerate()
-            .map(|(idx, row)| (row.clone(), idx))
-            .collect();
+        let rows_with_indices: Vec<(Row, usize)> =
+            self.rows.iter().enumerate().map(|(idx, row)| (row.clone(), idx)).collect();
 
         for (row, row_index) in rows_with_indices {
             self.update_indexes_for_insert(&row, row_index);

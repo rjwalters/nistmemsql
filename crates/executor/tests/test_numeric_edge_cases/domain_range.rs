@@ -1,7 +1,7 @@
 //! Domain and range error tests
 
-use super::common::create_test_evaluator;
 use super::basic::assert_function_errors;
+use super::common::create_test_evaluator;
 use types::SqlValue;
 
 #[test]

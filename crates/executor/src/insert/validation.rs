@@ -87,40 +87,34 @@ pub fn coerce_value(
         (SqlValue::Numeric(_), DataType::Decimal { .. }) => Ok(value),
 
         // Numeric literal → Float/Real/Double
-        (SqlValue::Numeric(f), DataType::Float { .. }) => {
-        Ok(SqlValue::Float(*f as f32))
-        }
-        (SqlValue::Numeric(f), DataType::Real) => {
-        Ok(SqlValue::Real(*f as f32))
-        }
-        (SqlValue::Numeric(f), DataType::DoublePrecision) => {
-            Ok(SqlValue::Double(*f))
-        }
+        (SqlValue::Numeric(f), DataType::Float { .. }) => Ok(SqlValue::Float(*f as f32)),
+        (SqlValue::Numeric(f), DataType::Real) => Ok(SqlValue::Real(*f as f32)),
+        (SqlValue::Numeric(f), DataType::DoublePrecision) => Ok(SqlValue::Double(*f)),
 
         // Numeric literal → Integer types
         (SqlValue::Numeric(f), DataType::Integer) => {
-        if f.fract() == 0.0 && *f >= i64::MIN as f64 && *f <= i64::MAX as f64 {
-        Ok(SqlValue::Integer(*f as i64))
-        } else {
-        Err(ExecutorError::UnsupportedExpression(format!(
-            "Cannot convert numeric '{}' to Integer (must be whole number in range)",
-                f
+            if f.fract() == 0.0 && *f >= i64::MIN as f64 && *f <= i64::MAX as f64 {
+                Ok(SqlValue::Integer(*f as i64))
+            } else {
+                Err(ExecutorError::UnsupportedExpression(format!(
+                    "Cannot convert numeric '{}' to Integer (must be whole number in range)",
+                    f
                 )))
             }
         }
         (SqlValue::Numeric(f), DataType::Smallint) => {
-        if f.fract() == 0.0 && *f >= i16::MIN as f64 && *f <= i16::MAX as f64 {
-        Ok(SqlValue::Smallint(*f as i16))
-        } else {
-            Err(ExecutorError::UnsupportedExpression(format!(
+            if f.fract() == 0.0 && *f >= i16::MIN as f64 && *f <= i16::MAX as f64 {
+                Ok(SqlValue::Smallint(*f as i16))
+            } else {
+                Err(ExecutorError::UnsupportedExpression(format!(
                     "Cannot convert numeric '{}' to Smallint (must be whole number in range)",
                     f
-            )))
-        }
+                )))
+            }
         }
         (SqlValue::Numeric(f), DataType::Bigint) => {
-        if f.fract() == 0.0 && *f >= i64::MIN as f64 && *f <= i64::MAX as f64 {
-            Ok(SqlValue::Bigint(*f as i64))
+            if f.fract() == 0.0 && *f >= i64::MIN as f64 && *f <= i64::MAX as f64 {
+                Ok(SqlValue::Bigint(*f as i64))
             } else {
                 Err(ExecutorError::UnsupportedExpression(format!(
                     "Cannot convert numeric '{}' to Bigint (must be whole number in range)",

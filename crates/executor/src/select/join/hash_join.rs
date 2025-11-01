@@ -12,7 +12,7 @@ use super::{combine_rows, FromResult};
 /// Algorithm:
 /// 1. Build phase: Hash the smaller table into a HashMap (O(n))
 /// 2. Probe phase: For each row in larger table, lookup matches (O(m))
-/// Total: O(n + m) instead of O(n * m) for nested loop join
+///     Total: O(n + m) instead of O(n * m) for nested loop join
 ///
 /// Performance characteristics:
 /// - Time: O(n + m) vs O(n*m) for nested loop
@@ -42,7 +42,8 @@ pub(super) fn hash_join_inner(
         .clone();
 
     // Combine schemas
-    let combined_schema = CombinedSchema::combine(left.schema.clone(), right_table_name, right_schema);
+    let combined_schema =
+        CombinedSchema::combine(left.schema.clone(), right_table_name, right_schema);
 
     // Choose build and probe sides (build hash table on smaller table)
     let (build_rows, probe_rows, build_col_idx, probe_col_idx, left_is_build) =
@@ -111,11 +112,13 @@ mod tests {
             table_name.to_string(),
             columns
                 .iter()
-                .map(|(name, dtype)| ColumnSchema::new(
-                    name.to_string(),
-                    dtype.clone(),
-                    true, // nullable
-                ))
+                .map(|(name, dtype)| {
+                    ColumnSchema::new(
+                        name.to_string(),
+                        dtype.clone(),
+                        true, // nullable
+                    )
+                })
                 .collect(),
         );
 
@@ -163,27 +166,18 @@ mod tests {
 
         // Check specific matches
         // Alice (id=1) should appear twice (2 orders)
-        let alice_orders: Vec<_> = result
-            .rows
-            .iter()
-            .filter(|r| r.values[0] == SqlValue::Integer(1))
-            .collect();
+        let alice_orders: Vec<_> =
+            result.rows.iter().filter(|r| r.values[0] == SqlValue::Integer(1)).collect();
         assert_eq!(alice_orders.len(), 2);
 
         // Bob (id=2) should appear once (1 order)
-        let bob_orders: Vec<_> = result
-            .rows
-            .iter()
-            .filter(|r| r.values[0] == SqlValue::Integer(2))
-            .collect();
+        let bob_orders: Vec<_> =
+            result.rows.iter().filter(|r| r.values[0] == SqlValue::Integer(2)).collect();
         assert_eq!(bob_orders.len(), 1);
 
         // Charlie (id=3) should not appear (no orders)
-        let charlie_orders: Vec<_> = result
-            .rows
-            .iter()
-            .filter(|r| r.values[0] == SqlValue::Integer(3))
-            .collect();
+        let charlie_orders: Vec<_> =
+            result.rows.iter().filter(|r| r.values[0] == SqlValue::Integer(3)).collect();
         assert_eq!(charlie_orders.len(), 0);
     }
 
@@ -215,10 +209,7 @@ mod tests {
         // NULLs should not match each other in equi-joins
         assert_eq!(result.rows.len(), 1);
         assert_eq!(result.rows[0].values[0], SqlValue::Integer(1)); // user id
-        assert_eq!(
-            result.rows[0].values[1],
-            SqlValue::Varchar("Alice".to_string())
-        ); // user name
+        assert_eq!(result.rows[0].values[1], SqlValue::Varchar("Alice".to_string())); // user name
         assert_eq!(result.rows[0].values[2], SqlValue::Integer(1)); // order user_id
         assert_eq!(result.rows[0].values[3], SqlValue::Integer(100)); // order amount
     }
@@ -248,12 +239,10 @@ mod tests {
     #[test]
     fn test_hash_join_empty_tables() {
         // Left table (empty)
-        let left =
-            create_test_from_result("users", vec![("id", DataType::Integer)], vec![]);
+        let left = create_test_from_result("users", vec![("id", DataType::Integer)], vec![]);
 
         // Right table (empty)
-        let right =
-            create_test_from_result("orders", vec![("user_id", DataType::Integer)], vec![]);
+        let right = create_test_from_result("orders", vec![("user_id", DataType::Integer)], vec![]);
 
         let result = hash_join_inner(left, right, 0, 0).unwrap();
 

@@ -68,9 +68,7 @@ pub fn execute_create_type(stmt: &CreateTypeStmt, db: &mut Database) -> Result<(
                 .collect();
             TypeDefinitionKind::Structured { attributes: catalog_attrs }
         }
-        ast::TypeDefinition::Forward => {
-            TypeDefinitionKind::Forward
-        }
+        ast::TypeDefinition::Forward => TypeDefinitionKind::Forward,
     };
 
     let type_def = TypeDefinition { name: stmt.type_name.clone(), definition: catalog_def };

@@ -273,10 +273,7 @@ fn test_select_wildcard_with_derived_column_list() {
     db.create_table(schema).unwrap();
     db.insert_row(
         "T",
-        storage::Row::new(vec![
-            types::SqlValue::Integer(10),
-            types::SqlValue::Integer(20),
-        ]),
+        storage::Row::new(vec![types::SqlValue::Integer(10), types::SqlValue::Integer(20)]),
     )
     .unwrap();
 
@@ -312,10 +309,7 @@ fn test_select_all_wildcard_with_derived_column_list() {
     db.create_table(schema).unwrap();
     db.insert_row(
         "T",
-        storage::Row::new(vec![
-            types::SqlValue::Integer(10),
-            types::SqlValue::Integer(20),
-        ]),
+        storage::Row::new(vec![types::SqlValue::Integer(10), types::SqlValue::Integer(20)]),
     )
     .unwrap();
 
@@ -351,18 +345,12 @@ fn test_select_distinct_wildcard_with_derived_column_list() {
     db.create_table(schema).unwrap();
     db.insert_row(
         "T",
-        storage::Row::new(vec![
-            types::SqlValue::Integer(10),
-            types::SqlValue::Integer(20),
-        ]),
+        storage::Row::new(vec![types::SqlValue::Integer(10), types::SqlValue::Integer(20)]),
     )
     .unwrap();
     db.insert_row(
         "T",
-        storage::Row::new(vec![
-            types::SqlValue::Integer(10),
-            types::SqlValue::Integer(20),
-        ]),
+        storage::Row::new(vec![types::SqlValue::Integer(10), types::SqlValue::Integer(20)]),
     )
     .unwrap();
 
@@ -398,10 +386,7 @@ fn test_select_qualified_wildcard_with_derived_column_list() {
     db.create_table(schema).unwrap();
     db.insert_row(
         "T",
-        storage::Row::new(vec![
-            types::SqlValue::Integer(10),
-            types::SqlValue::Integer(20),
-        ]),
+        storage::Row::new(vec![types::SqlValue::Integer(10), types::SqlValue::Integer(20)]),
     )
     .unwrap();
 
@@ -437,14 +422,12 @@ fn test_select_alias_wildcard_with_derived_column_list() {
     db.create_table(schema).unwrap();
     db.insert_row(
         "MYTABLE",
-        storage::Row::new(vec![
-            types::SqlValue::Integer(10),
-            types::SqlValue::Integer(20),
-        ]),
+        storage::Row::new(vec![types::SqlValue::Integer(10), types::SqlValue::Integer(20)]),
     )
     .unwrap();
 
-    let stmt = parser::Parser::parse_sql("SELECT myalias.* AS (c, d) FROM mytable AS myalias;").unwrap();
+    let stmt =
+        parser::Parser::parse_sql("SELECT myalias.* AS (c, d) FROM mytable AS myalias;").unwrap();
     let select_stmt = match stmt {
         ast::Statement::Select(s) => s,
         _ => panic!("Expected SELECT statement"),
@@ -493,4 +476,68 @@ fn test_select_derived_column_list_count_mismatch_error() {
         }
         _ => panic!("Expected ColumnCountMismatch error"),
     }
+}
+
+#[test]
+fn test_select_without_from() {
+    // Test SELECT 1;
+    let db = storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    let stmt = ast::SelectStmt {
+        into_table: None,
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::Literal(types::SqlValue::Integer(1)),
+            alias: None,
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].values.len(), 1);
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(1));
+}
+
+#[test]
+fn test_select_expression_without_from() {
+    // Test SELECT 1 + 1;
+    let db = storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    let stmt = ast::SelectStmt {
+        into_table: None,
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::BinaryOp {
+                left: Box::new(ast::Expression::Literal(types::SqlValue::Integer(1))),
+                op: ast::BinaryOperator::Plus,
+                right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(1))),
+            },
+            alias: None,
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].values.len(), 1);
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(2));
 }

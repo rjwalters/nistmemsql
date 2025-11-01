@@ -61,9 +61,8 @@ fn parse_json_examples(
     let category_obj = json.as_object().ok_or("JSON root must be an object")?;
 
     for (example_id, example_value) in category_obj {
-        let example_obj = example_value
-            .as_object()
-            .ok_or(format!("Example {} must be an object", example_id))?;
+        let example_obj =
+            example_value.as_object().ok_or(format!("Example {} must be an object", example_id))?;
 
         let sql = example_obj
             .get("sql")
@@ -84,24 +83,17 @@ fn parse_json_examples(
             .unwrap_or_else(|| "northwind".to_string());
 
         // Parse expected results from JSON or SQL comments
-        let expected_rows = example_obj
-            .get("expectedRows")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|row| row.as_array())
-                    .map(|row| {
-                        row.iter()
-                            .filter_map(|cell| cell.as_str().map(|s| s.to_string()))
-                            .collect()
-                    })
-                    .collect()
-            });
+        let expected_rows = example_obj.get("expectedRows").and_then(|v| v.as_array()).map(|arr| {
+            arr.iter()
+                .filter_map(|row| row.as_array())
+                .map(|row| {
+                    row.iter().filter_map(|cell| cell.as_str().map(|s| s.to_string())).collect()
+                })
+                .collect()
+        });
 
-        let expected_count = example_obj
-            .get("expectedCount")
-            .and_then(|v| v.as_u64())
-            .map(|n| n as usize);
+        let expected_count =
+            example_obj.get("expectedCount").and_then(|v| v.as_u64()).map(|n| n as usize);
 
         examples.push(WebDemoExample {
             id: example_id.clone(),

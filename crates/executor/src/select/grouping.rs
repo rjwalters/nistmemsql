@@ -19,11 +19,9 @@ impl AggregateAccumulator {
         let seen = if distinct { Some(HashSet::new()) } else { None };
         match function_name.to_uppercase().as_str() {
             "COUNT" => Ok(AggregateAccumulator::Count { count: 0, distinct, seen }),
-            "SUM" => Ok(AggregateAccumulator::Sum {
-                sum: types::SqlValue::Integer(0),
-                distinct,
-                seen,
-            }),
+            "SUM" => {
+                Ok(AggregateAccumulator::Sum { sum: types::SqlValue::Integer(0), distinct, seen })
+            }
             "AVG" => Ok(AggregateAccumulator::Avg {
                 sum: types::SqlValue::Integer(0),
                 count: 0,
@@ -202,9 +200,7 @@ fn add_sql_values(a: &types::SqlValue, b: &types::SqlValue) -> types::SqlValue {
 fn divide_sql_value(value: &types::SqlValue, count: i64) -> types::SqlValue {
     match value {
         types::SqlValue::Integer(sum) => types::SqlValue::Integer(sum / count),
-        types::SqlValue::Numeric(sum) => {
-            types::SqlValue::Numeric(*sum / count as f64)
-        }
+        types::SqlValue::Numeric(sum) => types::SqlValue::Numeric(*sum / count as f64),
         // Default: return NULL for unsupported types
         _ => types::SqlValue::Null,
     }

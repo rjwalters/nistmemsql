@@ -15,11 +15,7 @@ use common::create_test_evaluator;
 
 /// Helper to create a function expression
 fn create_function_expr(name: &str, args: Vec<ast::Expression>) -> ast::Expression {
-    ast::Expression::Function {
-        name: name.to_string(),
-        args,
-        character_unit: None,
-    }
+    ast::Expression::Function { name: name.to_string(), args, character_unit: None }
 }
 
 /// Helper to evaluate a function and return the result
@@ -176,13 +172,15 @@ fn test_to_number_non_string_argument() {
 
 #[test]
 fn test_to_date_basic() {
-    let result = eval_function("TO_DATE", vec![varchar_lit("2023-12-25"), varchar_lit("YYYY-MM-DD")]);
+    let result =
+        eval_function("TO_DATE", vec![varchar_lit("2023-12-25"), varchar_lit("YYYY-MM-DD")]);
     assert_eq!(result, types::SqlValue::Date("2023-12-25".to_string()));
 }
 
 #[test]
 fn test_to_date_different_format() {
-    let result = eval_function("TO_DATE", vec![varchar_lit("25/12/2023"), varchar_lit("DD/MM/YYYY")]);
+    let result =
+        eval_function("TO_DATE", vec![varchar_lit("25/12/2023"), varchar_lit("DD/MM/YYYY")]);
     assert_eq!(result, types::SqlValue::Date("2023-12-25".to_string()));
 }
 
@@ -200,7 +198,10 @@ fn test_to_date_null_format() {
 
 #[test]
 fn test_to_date_invalid_format() {
-    eval_function_expect_error("TO_DATE", vec![varchar_lit("2023-12-25"), varchar_lit("DD/MM/YYYY")]);
+    eval_function_expect_error(
+        "TO_DATE",
+        vec![varchar_lit("2023-12-25"), varchar_lit("DD/MM/YYYY")],
+    );
 }
 
 #[test]
@@ -226,16 +227,15 @@ fn test_to_timestamp_basic() {
 
 #[test]
 fn test_to_timestamp_null_input() {
-    let result = eval_function(
-        "TO_TIMESTAMP",
-        vec![null_lit(), varchar_lit("YYYY-MM-DD HH24:MI:SS")],
-    );
+    let result =
+        eval_function("TO_TIMESTAMP", vec![null_lit(), varchar_lit("YYYY-MM-DD HH24:MI:SS")]);
     assert_eq!(result, types::SqlValue::Null);
 }
 
 #[test]
 fn test_to_timestamp_null_format() {
-    let result = eval_function("TO_TIMESTAMP", vec![varchar_lit("2023-12-25 14:30:45"), null_lit()]);
+    let result =
+        eval_function("TO_TIMESTAMP", vec![varchar_lit("2023-12-25 14:30:45"), null_lit()]);
     assert_eq!(result, types::SqlValue::Null);
 }
 
@@ -254,10 +254,8 @@ fn test_to_timestamp_non_string_arguments() {
 
 #[test]
 fn test_to_date_with_character_type() {
-    let result = eval_function(
-        "TO_DATE",
-        vec![character_lit("2023-12-25"), character_lit("YYYY-MM-DD")],
-    );
+    let result =
+        eval_function("TO_DATE", vec![character_lit("2023-12-25"), character_lit("YYYY-MM-DD")]);
     assert_eq!(result, types::SqlValue::Date("2023-12-25".to_string()));
 }
 
@@ -265,10 +263,7 @@ fn test_to_date_with_character_type() {
 fn test_to_timestamp_with_character_type() {
     let result = eval_function(
         "TO_TIMESTAMP",
-        vec![
-            character_lit("2023-12-25 14:30:45"),
-            character_lit("YYYY-MM-DD HH24:MI:SS"),
-        ],
+        vec![character_lit("2023-12-25 14:30:45"), character_lit("YYYY-MM-DD HH24:MI:SS")],
     );
     assert_eq!(result, types::SqlValue::Timestamp("2023-12-25 14:30:45".to_string()));
 }
@@ -290,10 +285,7 @@ fn test_to_char_date() {
 fn test_to_char_timestamp() {
     let result = eval_function(
         "TO_CHAR",
-        vec![
-            timestamp_lit("2023-12-25 14:30:45"),
-            varchar_lit("YYYY-MM-DD HH24:MI:SS"),
-        ],
+        vec![timestamp_lit("2023-12-25 14:30:45"), varchar_lit("YYYY-MM-DD HH24:MI:SS")],
     );
     match result {
         types::SqlValue::Varchar(s) => {

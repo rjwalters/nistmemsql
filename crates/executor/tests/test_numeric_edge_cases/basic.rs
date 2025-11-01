@@ -24,8 +24,12 @@ pub fn assert_function_returns_null_on_null_input(
 
     let expr = create_function_expr(function_name, args);
     let result = evaluator.eval(&expr, row).unwrap();
-    assert_eq!(result, SqlValue::Null,
-        "Function {} should return NULL when input contains NULL", function_name);
+    assert_eq!(
+        result,
+        SqlValue::Null,
+        "Function {} should return NULL when input contains NULL",
+        function_name
+    );
 }
 
 pub fn assert_function_errors(
@@ -36,8 +40,12 @@ pub fn assert_function_errors(
 ) {
     let expr = create_function_expr(function_name, args);
     let result = evaluator.eval(&expr, row);
-    assert!(result.is_err(),
-        "Function {} should have returned an error but got: {:?}", function_name, result);
+    assert!(
+        result.is_err(),
+        "Function {} should have returned an error but got: {:?}",
+        function_name,
+        result
+    );
 }
 
 pub fn assert_function_returns_double(
@@ -56,7 +64,10 @@ pub fn assert_function_returns_double(
             assert!(
                 (val - expected).abs() < tolerance,
                 "Function {} returned {} but expected {} (tolerance: {})",
-                function_name, val, expected, tolerance
+                function_name,
+                val,
+                expected,
+                tolerance
             );
         }
         _ => panic!("Function {} should return Double but got {:?}", function_name, result),
@@ -75,8 +86,11 @@ pub fn assert_function_returns_integer(
 
     match result {
         SqlValue::Integer(val) => {
-            assert_eq!(val, expected,
-                "Function {} returned {} but expected {}", function_name, val, expected);
+            assert_eq!(
+                val, expected,
+                "Function {} returned {} but expected {}",
+                function_name, val, expected
+            );
         }
         _ => panic!("Function {} should return Integer but got {:?}", function_name, result),
     }
@@ -100,35 +114,68 @@ fn test_abs_min_int() {
 #[test]
 fn test_abs_null() {
     let (evaluator, row) = create_test_evaluator();
-    assert_function_returns_null_on_null_input(&evaluator, &row, "ABS", vec![SqlValue::Integer(42)]);
+    assert_function_returns_null_on_null_input(
+        &evaluator,
+        &row,
+        "ABS",
+        vec![SqlValue::Integer(42)],
+    );
 }
 
 #[test]
 fn test_sign_null() {
     let (evaluator, row) = create_test_evaluator();
-    assert_function_returns_null_on_null_input(&evaluator, &row, "SIGN", vec![SqlValue::Integer(42)]);
+    assert_function_returns_null_on_null_input(
+        &evaluator,
+        &row,
+        "SIGN",
+        vec![SqlValue::Integer(42)],
+    );
 }
 
 #[test]
 fn test_sign_float_zero() {
     let (evaluator, row) = create_test_evaluator();
-    assert_function_returns_double(&evaluator, &row, "SIGN", vec![SqlValue::Double(-0.0)], 0.0, 0.001);
+    assert_function_returns_double(
+        &evaluator,
+        &row,
+        "SIGN",
+        vec![SqlValue::Double(-0.0)],
+        0.0,
+        0.001,
+    );
 }
 
 #[test]
 fn test_mod_by_zero() {
     let (evaluator, row) = create_test_evaluator();
-    assert_function_errors(&evaluator, &row, "MOD", vec![SqlValue::Integer(10), SqlValue::Integer(0)]);
+    assert_function_errors(
+        &evaluator,
+        &row,
+        "MOD",
+        vec![SqlValue::Integer(10), SqlValue::Integer(0)],
+    );
 }
 
 #[test]
 fn test_mod_with_null() {
     let (evaluator, row) = create_test_evaluator();
-    assert_function_returns_null_on_null_input(&evaluator, &row, "MOD", vec![SqlValue::Integer(10), SqlValue::Integer(5)]);
+    assert_function_returns_null_on_null_input(
+        &evaluator,
+        &row,
+        "MOD",
+        vec![SqlValue::Integer(10), SqlValue::Integer(5)],
+    );
 }
 
 #[test]
 fn test_mod_negative_divisor() {
     let (evaluator, row) = create_test_evaluator();
-    assert_function_returns_integer(&evaluator, &row, "MOD", vec![SqlValue::Integer(10), SqlValue::Integer(-3)], 10 % -3);
+    assert_function_returns_integer(
+        &evaluator,
+        &row,
+        "MOD",
+        vec![SqlValue::Integer(10), SqlValue::Integer(-3)],
+        10 % -3,
+    );
 }

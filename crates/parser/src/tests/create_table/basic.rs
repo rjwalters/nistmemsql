@@ -132,7 +132,8 @@ fn test_parse_create_table_with_backtick_table_name() {
 
 #[test]
 fn test_parse_create_table_with_backtick_column_names() {
-    let result = Parser::parse_sql("CREATE TABLE users (`user_id` INTEGER, `user_name` VARCHAR(100));");
+    let result =
+        Parser::parse_sql("CREATE TABLE users (`user_id` INTEGER, `user_name` VARCHAR(100));");
     assert!(result.is_ok());
     let stmt = result.unwrap();
 
@@ -169,7 +170,9 @@ fn test_parse_create_table_with_backtick_reserved_word() {
 #[test]
 fn test_parse_create_table_with_backtick_spaces() {
     // Backtick identifiers can contain spaces
-    let result = Parser::parse_sql("CREATE TABLE `my table` (`first name` INTEGER, `last name` VARCHAR(100));");
+    let result = Parser::parse_sql(
+        "CREATE TABLE `my table` (`first name` INTEGER, `last name` VARCHAR(100));",
+    );
     assert!(result.is_ok());
     let stmt = result.unwrap();
 
@@ -187,7 +190,9 @@ fn test_parse_create_table_with_backtick_spaces() {
 #[test]
 fn test_parse_create_table_mixed_backtick_and_regular() {
     // Mix backtick and regular identifiers
-    let result = Parser::parse_sql("CREATE TABLE `MyTable` (id INTEGER, `userName` VARCHAR(100), status INT);");
+    let result = Parser::parse_sql(
+        "CREATE TABLE `MyTable` (id INTEGER, `userName` VARCHAR(100), status INT);",
+    );
     assert!(result.is_ok());
     let stmt = result.unwrap();
 

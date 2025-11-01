@@ -32,12 +32,8 @@ pub fn optimize_where_clause(
             let optimized = optimize_expression(expr, evaluator)?;
 
             match optimized {
-                Expression::Literal(SqlValue::Boolean(true)) => {
-                    Ok(WhereOptimization::AlwaysTrue)
-                }
-                Expression::Literal(SqlValue::Boolean(false)) => {
-                    Ok(WhereOptimization::AlwaysFalse)
-                }
+                Expression::Literal(SqlValue::Boolean(true)) => Ok(WhereOptimization::AlwaysTrue),
+                Expression::Literal(SqlValue::Boolean(false)) => Ok(WhereOptimization::AlwaysFalse),
                 Expression::Literal(SqlValue::Null) => {
                     // WHERE NULL is treated as false
                     Ok(WhereOptimization::AlwaysFalse)
@@ -58,6 +54,7 @@ pub fn optimize_where_clause(
 ///
 /// Recursively walks the expression tree and evaluates any subexpressions
 /// that don't reference columns (constants).
+#[allow(clippy::only_used_in_recursion)]
 pub fn optimize_expression(
     expr: &Expression,
     evaluator: &CombinedExpressionEvaluator,
@@ -75,19 +72,21 @@ pub fn optimize_expression(
             let right_opt = optimize_expression(right, evaluator)?;
 
             // If both sides are literals, evaluate the operation
-            if let (Expression::Literal(left_val), Expression::Literal(right_val)) = (&left_opt, &right_opt) {
+            if let (Expression::Literal(left_val), Expression::Literal(right_val)) =
+                (&left_opt, &right_opt)
+            {
                 match ExpressionEvaluator::eval_binary_op_static(left_val, op, right_val) {
                     Ok(result) => Ok(Expression::Literal(result)),
                     Err(_) => Ok(Expression::BinaryOp {
                         left: Box::new(left_opt),
-                        op: op.clone(),
+                        op: *op,
                         right: Box::new(right_opt),
                     }),
                 }
             } else {
                 Ok(Expression::BinaryOp {
                     left: Box::new(left_opt),
-                    op: op.clone(),
+                    op: *op,
                     right: Box::new(right_opt),
                 })
             }
@@ -96,10 +95,7 @@ pub fn optimize_expression(
         // Unary operations - cannot optimize easily, keep as-is
         Expression::UnaryOp { op, expr: inner_expr } => {
             let inner_opt = optimize_expression(inner_expr, evaluator)?;
-            Ok(Expression::UnaryOp {
-                op: op.clone(),
-                expr: Box::new(inner_opt),
-            })
+            Ok(Expression::UnaryOp { op: *op, expr: Box::new(inner_opt) })
         }
 
         // Function calls - cannot optimize generally
@@ -117,10 +113,7 @@ pub fn optimize_expression(
                 let result = if *negated { !is_null } else { is_null };
                 Ok(Expression::Literal(SqlValue::Boolean(result)))
             } else {
-                Ok(Expression::IsNull {
-                    expr: Box::new(inner_opt),
-                    negated: *negated,
-                })
+                Ok(Expression::IsNull { expr: Box::new(inner_opt), negated: *negated })
             }
         }
 
@@ -129,15 +122,24 @@ pub fn optimize_expression(
 
         // CASE expressions - optimize recursively
         Expression::Case { operand, when_clauses, else_result } => {
-            let operand_opt = operand.as_ref().map(|op| optimize_expression(op, evaluator)).transpose()?;
-            let when_clauses_opt: Result<Vec<CaseWhen>, ExecutorError> = when_clauses.iter().map(|wc| {
-                let conditions: Result<Vec<Expression>, ExecutorError> = wc.conditions.iter().map(|cond| optimize_expression(cond, evaluator)).collect();
-                Ok(CaseWhen {
-                    conditions: conditions?,
-                    result: optimize_expression(&wc.result, evaluator)?,
+            let operand_opt =
+                operand.as_ref().map(|op| optimize_expression(op, evaluator)).transpose()?;
+            let when_clauses_opt: Result<Vec<CaseWhen>, ExecutorError> = when_clauses
+                .iter()
+                .map(|wc| {
+                    let conditions: Result<Vec<Expression>, ExecutorError> = wc
+                        .conditions
+                        .iter()
+                        .map(|cond| optimize_expression(cond, evaluator))
+                        .collect();
+                    Ok(CaseWhen {
+                        conditions: conditions?,
+                        result: optimize_expression(&wc.result, evaluator)?,
+                    })
                 })
-            }).collect();
-            let else_opt = else_result.as_ref().map(|er| optimize_expression(er, evaluator)).transpose()?;
+                .collect();
+            let else_opt =
+                else_result.as_ref().map(|er| optimize_expression(er, evaluator)).transpose()?;
 
             Ok(Expression::Case {
                 operand: operand_opt.map(Box::new),
@@ -171,15 +173,9 @@ pub fn optimize_expression(
 
             if let Expression::Literal(_val) = &expr_opt {
                 // TODO: Implement cast evaluation at plan time
-                Ok(Expression::Cast {
-                    expr: Box::new(expr_opt),
-                    data_type: data_type.clone(),
-                })
+                Ok(Expression::Cast { expr: Box::new(expr_opt), data_type: data_type.clone() })
             } else {
-                Ok(Expression::Cast {
-                    expr: Box::new(expr_opt),
-                    data_type: data_type.clone(),
-                })
+                Ok(Expression::Cast { expr: Box::new(expr_opt), data_type: data_type.clone() })
             }
         }
 
@@ -196,7 +192,9 @@ pub fn optimize_expression(
         Expression::QuantifiedComparison { .. } => Ok(expr.clone()),
 
         // Current date/time - cannot optimize
-        Expression::CurrentDate | Expression::CurrentTime { .. } | Expression::CurrentTimestamp { .. } => Ok(expr.clone()),
+        Expression::CurrentDate
+        | Expression::CurrentTime { .. }
+        | Expression::CurrentTimestamp { .. } => Ok(expr.clone()),
 
         // DEFAULT - cannot optimize
         Expression::Default => Ok(expr.clone()),

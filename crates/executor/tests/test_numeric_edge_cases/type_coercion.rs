@@ -1,7 +1,7 @@
 //! Type coercion and mixed type tests
 
-use super::common::create_test_evaluator;
 use super::basic::assert_function_returns_double;
+use super::common::create_test_evaluator;
 use super::helpers::*;
 use types::SqlValue;
 
@@ -18,5 +18,12 @@ fn test_power_type_mixing() {
     let (evaluator, row) = create_test_evaluator();
 
     // Test POWER with mixed types
-    assert_function_returns_double(&evaluator, &row, "POWER", vec![SqlValue::Integer(2), SqlValue::Double(3.0)], 8.0, 0.001);
+    assert_function_returns_double(
+        &evaluator,
+        &row,
+        "POWER",
+        vec![SqlValue::Integer(2), SqlValue::Double(3.0)],
+        8.0,
+        0.001,
+    );
 }

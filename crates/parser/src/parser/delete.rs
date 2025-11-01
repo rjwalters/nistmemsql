@@ -32,9 +32,7 @@ impl Parser {
         // If we had opening paren, expect closing paren
         if has_paren {
             if !matches!(self.peek(), Token::RParen) {
-                return Err(ParseError {
-                    message: "Expected ')' after table name".to_string(),
-                })
+                return Err(ParseError { message: "Expected ')' after table name".to_string() });
             }
             self.advance(); // consume ')'
         }
@@ -59,10 +57,6 @@ impl Parser {
             self.advance();
         }
 
-        Ok(ast::DeleteStmt {
-            only,
-            table_name,
-            where_clause,
-        })
+        Ok(ast::DeleteStmt { only, table_name, where_clause })
     }
 }

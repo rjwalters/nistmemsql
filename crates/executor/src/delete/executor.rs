@@ -107,7 +107,10 @@ impl DeleteExecutor {
             let should_delete = if let Some(ref where_clause) = stmt.where_clause {
                 match where_clause {
                     ast::WhereClause::Condition(where_expr) => {
-                        matches!(evaluator.eval(where_expr, row), Ok(types::SqlValue::Boolean(true)))
+                        matches!(
+                            evaluator.eval(where_expr, row),
+                            Ok(types::SqlValue::Boolean(true))
+                        )
                     }
                     ast::WhereClause::CurrentOf(_cursor_name) => {
                         // TODO: Implement cursor support - for now return error

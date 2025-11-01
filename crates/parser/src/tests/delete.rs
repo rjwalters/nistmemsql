@@ -107,7 +107,9 @@ fn test_parse_delete_where_current_of() {
 #[test]
 fn test_parse_delete_only_with_parentheses_and_current_of() {
     // This is the full test case from issue #748
-    let result = Parser::parse_sql("DELETE FROM ONLY (TABLE_E121_07_01_01) WHERE CURRENT OF CUR_E121_07_01_01;");
+    let result = Parser::parse_sql(
+        "DELETE FROM ONLY (TABLE_E121_07_01_01) WHERE CURRENT OF CUR_E121_07_01_01;",
+    );
     assert!(result.is_ok());
     let stmt = result.unwrap();
 

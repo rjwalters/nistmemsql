@@ -65,7 +65,11 @@ impl Parser {
                         self.advance();
                         Some(c)
                     }
-                    _ => return Err(ParseError { message: "Expected string literal after COMMENT".to_string() }),
+                    _ => {
+                        return Err(ParseError {
+                            message: "Expected string literal after COMMENT".to_string(),
+                        })
+                    }
                 }
             } else {
                 None
@@ -78,7 +82,14 @@ impl Parser {
             let nullable =
                 !constraints.iter().any(|c| matches!(&c.kind, ast::ColumnConstraintKind::NotNull));
 
-            columns.push(ast::ColumnDef { name, data_type, nullable, constraints, default_value, comment });
+            columns.push(ast::ColumnDef {
+                name,
+                data_type,
+                nullable,
+                constraints,
+                default_value,
+                comment,
+            });
 
             if matches!(self.peek(), Token::Comma) {
                 self.advance();

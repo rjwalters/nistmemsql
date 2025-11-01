@@ -500,7 +500,11 @@ impl<'a> CombinedExpressionEvaluator<'a> {
     }
 
     /// Get column index with caching to avoid repeated schema lookups
-    pub(crate) fn get_column_index_cached(&self, table: Option<&str>, column: &str) -> Option<usize> {
+    pub(crate) fn get_column_index_cached(
+        &self,
+        table: Option<&str>,
+        column: &str,
+    ) -> Option<usize> {
         let key = (table.map(|s| s.to_string()), column.to_string());
 
         // Check cache first

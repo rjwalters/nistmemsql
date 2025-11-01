@@ -40,7 +40,7 @@ pub fn parse_revoke(parser: &mut crate::Parser) -> Result<RevokeStmt, ParseError
     // Parse object type (TABLE, SCHEMA, FUNCTION, PROCEDURE, etc.)
     let object_type = if parser.peek() == &Token::Keyword(Keyword::Specific) {
         parser.advance(); // consume SPECIFIC
-        // SPECIFIC FUNCTION | SPECIFIC PROCEDURE | SPECIFIC ROUTINE | SPECIFIC METHOD variants
+                          // SPECIFIC FUNCTION | SPECIFIC PROCEDURE | SPECIFIC ROUTINE | SPECIFIC METHOD variants
         if parser.peek() == &Token::Keyword(Keyword::Function) {
             parser.advance();
             ObjectType::SpecificFunction

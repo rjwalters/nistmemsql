@@ -119,18 +119,36 @@ pub fn parse_examples() -> Vec<(String, String, String)> {
         ("string", include_str!("../../../../web-demo/src/data/examples/string.json")),
         ("math", include_str!("../../../../web-demo/src/data/examples/math.json")),
         ("case", include_str!("../../../../web-demo/src/data/examples/case.json")),
-        ("null-handling", include_str!("../../../../web-demo/src/data/examples/null-handling.json")),
+        (
+            "null-handling",
+            include_str!("../../../../web-demo/src/data/examples/null-handling.json"),
+        ),
         ("set", include_str!("../../../../web-demo/src/data/examples/set.json")),
         ("recursive", include_str!("../../../../web-demo/src/data/examples/recursive.json")),
         ("ddl", include_str!("../../../../web-demo/src/data/examples/ddl.json")),
         ("dml", include_str!("../../../../web-demo/src/data/examples/dml.json")),
         ("patterns", include_str!("../../../../web-demo/src/data/examples/patterns.json")),
         ("data-quality", include_str!("../../../../web-demo/src/data/examples/data-quality.json")),
-        ("performance-patterns", include_str!("../../../../web-demo/src/data/examples/performance-patterns.json")),
-        ("business-intelligence", include_str!("../../../../web-demo/src/data/examples/business-intelligence.json")),
-        ("report-templates", include_str!("../../../../web-demo/src/data/examples/report-templates.json")),
-        ("advanced-multi-feature", include_str!("../../../../web-demo/src/data/examples/advanced-multi-feature.json")),
-        ("sql1999-standards", include_str!("../../../../web-demo/src/data/examples/sql1999-standards.json")),
+        (
+            "performance-patterns",
+            include_str!("../../../../web-demo/src/data/examples/performance-patterns.json"),
+        ),
+        (
+            "business-intelligence",
+            include_str!("../../../../web-demo/src/data/examples/business-intelligence.json"),
+        ),
+        (
+            "report-templates",
+            include_str!("../../../../web-demo/src/data/examples/report-templates.json"),
+        ),
+        (
+            "advanced-multi-feature",
+            include_str!("../../../../web-demo/src/data/examples/advanced-multi-feature.json"),
+        ),
+        (
+            "sql1999-standards",
+            include_str!("../../../../web-demo/src/data/examples/sql1999-standards.json"),
+        ),
         ("company", include_str!("../../../../web-demo/src/data/examples/company.json")),
         ("university", include_str!("../../../../web-demo/src/data/examples/university.json")),
     ];
@@ -145,7 +163,9 @@ pub fn parse_examples() -> Vec<(String, String, String)> {
 }
 
 /// Parse a single JSON example file
-fn parse_json_examples(content: &str) -> Result<Vec<(String, String, String)>, Box<dyn std::error::Error>> {
+fn parse_json_examples(
+    content: &str,
+) -> Result<Vec<(String, String, String)>, Box<dyn std::error::Error>> {
     let mut examples = Vec::new();
 
     // Parse the JSON
@@ -153,9 +173,8 @@ fn parse_json_examples(content: &str) -> Result<Vec<(String, String, String)>, B
     let category_obj = json.as_object().ok_or("JSON root must be an object")?;
 
     for (example_id, example_value) in category_obj {
-        let example_obj = example_value
-            .as_object()
-            .ok_or(format!("Example {} must be an object", example_id))?;
+        let example_obj =
+            example_value.as_object().ok_or(format!("Example {} must be an object", example_id))?;
 
         let sql = example_obj
             .get("sql")

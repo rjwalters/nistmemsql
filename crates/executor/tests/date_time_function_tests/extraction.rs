@@ -37,10 +37,7 @@ fn test_year_from_timestamp() {
 fn test_year_with_null() {
     let (evaluator, row) = setup_test();
 
-    let expr = create_datetime_function(
-        "YEAR",
-        vec![create_literal(types::SqlValue::Null)],
-    );
+    let expr = create_datetime_function("YEAR", vec![create_literal(types::SqlValue::Null)]);
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Null);
 }
@@ -87,7 +84,9 @@ fn test_day_from_timestamp() {
 
     let expr = create_datetime_function(
         "DAY",
-        vec![create_literal(types::SqlValue::Timestamp(TEST_DATE_LATE_MONTH.to_string() + " 14:30:45"))],
+        vec![create_literal(types::SqlValue::Timestamp(
+            TEST_DATE_LATE_MONTH.to_string() + " 14:30:45",
+        ))],
     );
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(27));
@@ -176,10 +175,7 @@ fn test_extraction_functions_with_null() {
     let functions = vec!["YEAR", "MONTH", "DAY", "HOUR", "MINUTE", "SECOND"];
 
     for func_name in functions {
-        let expr = create_datetime_function(
-            func_name,
-            vec![create_literal(types::SqlValue::Null)],
-        );
+        let expr = create_datetime_function(func_name, vec![create_literal(types::SqlValue::Null)]);
         let result = evaluator.eval(&expr, &row).unwrap();
         assert_eq!(
             result,

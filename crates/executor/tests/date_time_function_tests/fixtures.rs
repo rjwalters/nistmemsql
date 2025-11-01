@@ -4,11 +4,7 @@ use crate::common::create_test_evaluator;
 
 /// Helper to create a datetime function expression with given name and arguments
 pub fn create_datetime_function(name: &str, args: Vec<ast::Expression>) -> ast::Expression {
-    ast::Expression::Function {
-        name: name.to_string(),
-        args,
-        character_unit: None,
-    }
+    ast::Expression::Function { name: name.to_string(), args, character_unit: None }
 }
 
 /// Helper to create a literal expression from a SQL value

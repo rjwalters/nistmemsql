@@ -13,10 +13,8 @@ use super::fixtures::*;
 fn test_current_time_precision_0() {
     let (evaluator, row) = setup_test();
 
-    let expr = create_datetime_function(
-        "CURRENT_TIME",
-        vec![create_literal(types::SqlValue::Integer(0))],
-    );
+    let expr =
+        create_datetime_function("CURRENT_TIME", vec![create_literal(types::SqlValue::Integer(0))]);
     let result = evaluator.eval(&expr, &row).unwrap();
 
     // Precision 0: HH:MM:SS (no fractional)
@@ -33,10 +31,8 @@ fn test_current_time_precision_0() {
 fn test_current_time_precision_3() {
     let (evaluator, row) = setup_test();
 
-    let expr = create_datetime_function(
-        "CURRENT_TIME",
-        vec![create_literal(types::SqlValue::Integer(3))],
-    );
+    let expr =
+        create_datetime_function("CURRENT_TIME", vec![create_literal(types::SqlValue::Integer(3))]);
     let result = evaluator.eval(&expr, &row).unwrap();
 
     // Precision 3: HH:MM:SS.fff
@@ -52,10 +48,8 @@ fn test_current_time_precision_3() {
 fn test_current_time_precision_6() {
     let (evaluator, row) = setup_test();
 
-    let expr = create_datetime_function(
-        "CURRENT_TIME",
-        vec![create_literal(types::SqlValue::Integer(6))],
-    );
+    let expr =
+        create_datetime_function("CURRENT_TIME", vec![create_literal(types::SqlValue::Integer(6))]);
     let result = evaluator.eval(&expr, &row).unwrap();
 
     // Precision 6: HH:MM:SS.ffffff
@@ -71,10 +65,8 @@ fn test_current_time_precision_6() {
 fn test_current_time_precision_9() {
     let (evaluator, row) = setup_test();
 
-    let expr = create_datetime_function(
-        "CURRENT_TIME",
-        vec![create_literal(types::SqlValue::Integer(9))],
-    );
+    let expr =
+        create_datetime_function("CURRENT_TIME", vec![create_literal(types::SqlValue::Integer(9))]);
     let result = evaluator.eval(&expr, &row).unwrap();
 
     // Precision 9: HH:MM:SS.nnnnnnnnn (max precision)

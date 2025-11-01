@@ -136,8 +136,8 @@ impl IndexExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ast::{ColumnDef, CreateTableStmt, IndexColumn, OrderDirection};
     use crate::CreateTableExecutor;
+    use ast::{ColumnDef, CreateTableStmt, IndexColumn, OrderDirection};
     use types::DataType;
 
     fn create_test_table(db: &mut Database) {
@@ -228,14 +228,8 @@ mod tests {
             table_name: "users".to_string(),
             unique: false,
             columns: vec![
-                IndexColumn {
-                    column_name: "email".to_string(),
-                    direction: OrderDirection::Asc,
-                },
-                IndexColumn {
-                    column_name: "name".to_string(),
-                    direction: OrderDirection::Desc,
-                },
+                IndexColumn { column_name: "email".to_string(), direction: OrderDirection::Asc },
+                IndexColumn { column_name: "name".to_string(), direction: OrderDirection::Desc },
             ],
         };
 

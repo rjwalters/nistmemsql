@@ -129,7 +129,8 @@ pub(super) fn nested_loop_left_outer_join(
 
         // If no match found, add left row with NULLs for right columns
         if !matched {
-            let mut combined_values = Vec::with_capacity(left_row.values.len() + right_column_count);
+            let mut combined_values =
+                Vec::with_capacity(left_row.values.len() + right_column_count);
             combined_values.extend_from_slice(&left_row.values);
             combined_values.extend(vec![types::SqlValue::Null; right_column_count]);
             result_rows.push(storage::Row::new(combined_values));
@@ -261,7 +262,8 @@ pub(super) fn nested_loop_full_outer_join(
 
         // If no match found, add left row with NULLs for right columns
         if !matched {
-            let mut combined_values = Vec::with_capacity(left_row.values.len() + right_column_count);
+            let mut combined_values =
+                Vec::with_capacity(left_row.values.len() + right_column_count);
             combined_values.extend_from_slice(&left_row.values);
             combined_values.extend(vec![types::SqlValue::Null; right_column_count]);
             result_rows.push(storage::Row::new(combined_values));
@@ -271,7 +273,8 @@ pub(super) fn nested_loop_full_outer_join(
     // Second pass: Add unmatched right rows with NULLs for left columns
     for (right_idx, right_row) in right.rows.iter().enumerate() {
         if !right_matched[right_idx] {
-            let mut combined_values = Vec::with_capacity(left_column_count + right_row.values.len());
+            let mut combined_values =
+                Vec::with_capacity(left_column_count + right_row.values.len());
             combined_values.extend(vec![types::SqlValue::Null; left_column_count]);
             combined_values.extend_from_slice(&right_row.values);
             result_rows.push(storage::Row::new(combined_values));

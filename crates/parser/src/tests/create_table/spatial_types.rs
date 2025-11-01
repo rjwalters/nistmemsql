@@ -19,14 +19,20 @@ fn test_parse_create_table_multipolygon() {
                 types::DataType::UserDefined { type_name } => {
                     assert_eq!(type_name, "MULTIPOLYGON");
                 }
-                _ => panic!("Expected UserDefined MULTIPOLYGON, got {:?}", create.columns[0].data_type),
+                _ => panic!(
+                    "Expected UserDefined MULTIPOLYGON, got {:?}",
+                    create.columns[0].data_type
+                ),
             }
 
             match &create.columns[1].data_type {
                 types::DataType::UserDefined { type_name } => {
                     assert_eq!(type_name, "MULTIPOLYGON");
                 }
-                _ => panic!("Expected UserDefined MULTIPOLYGON, got {:?}", create.columns[1].data_type),
+                _ => panic!(
+                    "Expected UserDefined MULTIPOLYGON, got {:?}",
+                    create.columns[1].data_type
+                ),
             }
         }
         _ => panic!("Expected CREATE TABLE statement"),
@@ -100,7 +106,8 @@ fn test_spatial_types_case_insensitive() {
     if let Ok(ast::Statement::CreateTable(t1)) = lowercase_result {
         if let Ok(ast::Statement::CreateTable(t2)) = uppercase_result {
             if let Ok(ast::Statement::CreateTable(t3)) = mixed_result {
-                match (&t1.columns[0].data_type, &t2.columns[0].data_type, &t3.columns[0].data_type) {
+                match (&t1.columns[0].data_type, &t2.columns[0].data_type, &t3.columns[0].data_type)
+                {
                     (
                         types::DataType::UserDefined { type_name: name1 },
                         types::DataType::UserDefined { type_name: name2 },
@@ -147,17 +154,20 @@ fn test_sqllogictest_multipolygon_with_comment() {
     let stmt = result.unwrap();
 
     match stmt {
-    ast::Statement::CreateTable(create) => {
-    assert_eq!(create.columns.len(), 2);
+        ast::Statement::CreateTable(create) => {
+            assert_eq!(create.columns.len(), 2);
 
-    // Check first column
-    assert_eq!(create.columns[0].name, "c1");
-    match &create.columns[0].data_type {
-    types::DataType::UserDefined { type_name } => {
-        assert_eq!(type_name, "MULTIPOLYGON");
-        }
-            _ => panic!("Expected UserDefined MULTIPOLYGON, got {:?}", create.columns[0].data_type),
-        }
+            // Check first column
+            assert_eq!(create.columns[0].name, "c1");
+            match &create.columns[0].data_type {
+                types::DataType::UserDefined { type_name } => {
+                    assert_eq!(type_name, "MULTIPOLYGON");
+                }
+                _ => panic!(
+                    "Expected UserDefined MULTIPOLYGON, got {:?}",
+                    create.columns[0].data_type
+                ),
+            }
             assert_eq!(create.columns[0].comment, Some("text155459".to_string()));
 
             // Check second column
@@ -166,7 +176,10 @@ fn test_sqllogictest_multipolygon_with_comment() {
                 types::DataType::UserDefined { type_name } => {
                     assert_eq!(type_name, "MULTIPOLYGON");
                 }
-                _ => panic!("Expected UserDefined MULTIPOLYGON, got {:?}", create.columns[1].data_type),
+                _ => panic!(
+                    "Expected UserDefined MULTIPOLYGON, got {:?}",
+                    create.columns[1].data_type
+                ),
             }
             assert_eq!(create.columns[1].comment, Some("text155461".to_string()));
         }
@@ -177,9 +190,7 @@ fn test_sqllogictest_multipolygon_with_comment() {
 #[test]
 fn test_sqllogictest_multipolygon_basic() {
     // Simplified test without COMMENT clause to verify core spatial type parsing
-    let result = Parser::parse_sql(
-        "CREATE TABLE t1710a (c1 MULTIPOLYGON, c2 MULTIPOLYGON);",
-    );
+    let result = Parser::parse_sql("CREATE TABLE t1710a (c1 MULTIPOLYGON, c2 MULTIPOLYGON);");
     assert!(result.is_ok(), "Should parse MULTIPOLYGON columns");
     let stmt = result.unwrap();
 
@@ -191,14 +202,20 @@ fn test_sqllogictest_multipolygon_basic() {
                 types::DataType::UserDefined { type_name } => {
                     assert_eq!(type_name, "MULTIPOLYGON");
                 }
-                _ => panic!("Expected UserDefined MULTIPOLYGON, got {:?}", create.columns[0].data_type),
+                _ => panic!(
+                    "Expected UserDefined MULTIPOLYGON, got {:?}",
+                    create.columns[0].data_type
+                ),
             }
 
             match &create.columns[1].data_type {
                 types::DataType::UserDefined { type_name } => {
                     assert_eq!(type_name, "MULTIPOLYGON");
                 }
-                _ => panic!("Expected UserDefined MULTIPOLYGON, got {:?}", create.columns[1].data_type),
+                _ => panic!(
+                    "Expected UserDefined MULTIPOLYGON, got {:?}",
+                    create.columns[1].data_type
+                ),
             }
         }
         _ => panic!("Expected CREATE TABLE statement"),
@@ -210,9 +227,7 @@ fn test_default_before_comment_mysql_standard() {
     // Test MySQL standard order: DEFAULT before COMMENT
     // Per MySQL 8.4 Reference Manual:
     // column_definition: data_type [DEFAULT {literal | (expr)}] [COMMENT 'string']
-    let result = Parser::parse_sql(
-        "CREATE TABLE t (col INT DEFAULT 5 COMMENT 'test column');",
-    );
+    let result = Parser::parse_sql("CREATE TABLE t (col INT DEFAULT 5 COMMENT 'test column');");
 
     if let Err(ref e) = result {
         eprintln!("Parse error: {}", e);

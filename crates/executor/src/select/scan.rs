@@ -74,7 +74,6 @@ fn execute_table_scan(
 
     // Check if it's a view
     if let Some(view) = database.catalog.get_view(table_name) {
-
         // Check SELECT privilege on the view
         PrivilegeChecker::check_select(database, table_name)?;
 
@@ -148,7 +147,6 @@ fn execute_join<F>(
 where
     F: Fn(&ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> + Copy,
 {
-
     // Execute left and right sides recursively
     let left_result = execute_from_clause(left, cte_results, database, execute_subquery)?;
     eprintln!(
