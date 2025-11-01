@@ -1,6 +1,8 @@
 {
-  "pass_rate": 75.0,
   "total": 4,
   "passed": 3,
-  "failed": 1
+  "failed": 1,
+  "errors": 0,
+  "pass_rate": 75.0,
+  "categories": {}
 }

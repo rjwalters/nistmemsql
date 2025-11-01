@@ -75,14 +75,32 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
         // Try cumulative results first (updated by boost workflow)
         let sltResponse = await fetch('/nistmemsql/badges/sqllogictest_cumulative.json')
         if (sltResponse.ok) {
-          sltData = (await sltResponse.json()) as SQLLogicTestData
+          const cumulativeData = await sltResponse.json()
+          // Transform cumulative data structure to match interface
+          sltData = {
+            total: cumulativeData.summary.total_tested_files,
+            passed: cumulativeData.summary.passed,
+            failed: cumulativeData.summary.failed,
+            errors: 0, // Not tracked in cumulative data
+            pass_rate: cumulativeData.summary.pass_rate,
+            categories: {} // Not available in cumulative data
+          }
           console.log('Loaded cumulative SQLLogicTest results')
         } else {
           // Fall back to single-run results (from CI workflow)
           console.log('Cumulative results not available, trying single-run results')
           sltResponse = await fetch('/nistmemsql/badges/sqllogictest_results.json')
           if (sltResponse.ok) {
-            sltData = (await sltResponse.json()) as SQLLogicTestData
+            const singleRunData = await sltResponse.json()
+            // Transform single-run data structure to match interface
+            sltData = {
+              total: singleRunData.total_tested || singleRunData.total,
+              passed: singleRunData.passed,
+              failed: singleRunData.failed,
+              errors: singleRunData.errors || 0,
+              pass_rate: singleRunData.pass_rate,
+              categories: {} // Not available in single-run data
+            }
             console.log('Loaded single-run SQLLogicTest results')
           }
         }
@@ -147,7 +165,7 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
   }
 
   private renderSqltestResults(data: ConformanceData): string {
-    const passRate = data.pass_rate.toFixed(1)
+    const passRate = (data.pass_rate || 0).toFixed(1)
 
     return `
       <div id="sqltest" class="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-8">
@@ -233,8 +251,8 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
   }
 
   private renderExplanation(data: ConformanceData, sltData: SQLLogicTestData | null): string {
-    const sqltestPassRate = data.pass_rate.toFixed(1)
-    const sltPassRate = sltData ? sltData.pass_rate.toFixed(1) : 'N/A'
+    const sqltestPassRate = (data.pass_rate || 0).toFixed(1)
+    const sltPassRate = sltData ? (sltData.pass_rate || 0).toFixed(1) : 'N/A'
 
     return `
       <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 p-6">
@@ -351,7 +369,7 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
   }
 
   private renderSQLLogicTestResults(sltData: SQLLogicTestData): string {
-    const passRate = sltData.pass_rate.toFixed(1)
+    const passRate = (sltData.pass_rate || 0).toFixed(1)
 
     // Handle case where categories might be undefined
     const categoriesData = sltData.categories || {}
@@ -368,7 +386,7 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
       .filter(cat => cat.data)
       .map(cat => {
         const catData = cat.data!
-        const catPassRate = catData.pass_rate.toFixed(1)
+        const catPassRate = (catData.pass_rate || 0).toFixed(1)
         return `
         <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
           <div class="text-sm font-semibold text-gray-900 dark:text-white mb-2">${cat.name}</div>
@@ -479,8 +497,8 @@ export class ConformanceReportComponent extends Component<ConformanceReportState
     const commit = 'latest'
 
     this.element.innerHTML = `
-      <div class="space-y-8">
-        ${this.renderMetadataCard(commit, timestamp, data.pass_rate)}
+    <div class="space-y-8">
+    ${this.renderMetadataCard(commit, timestamp, data.pass_rate || 0)}
         ${this.renderSqltestResults(data)}
         ${sltData ? this.renderSQLLogicTestResults(sltData) : ''}
         ${this.renderExplanation(data, sltData)}
