@@ -57,11 +57,11 @@ fn test_update_where_scalar_subquery_equal() {
             column: "salary".to_string(),
             value: Expression::Literal(SqlValue::Integer(55000)),
         }],
-        where_clause: Some(Expression::BinaryOp {
+        where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
             left: Box::new(Expression::ColumnRef { table: None, column: "salary".to_string() }),
             op: ast::BinaryOperator::Equal,
             right: Box::new(Expression::ScalarSubquery(subquery)),
-        }),
+        })),
     };
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
@@ -129,11 +129,11 @@ fn test_update_where_scalar_subquery_less_than() {
             column: "bonus".to_string(),
             value: Expression::Literal(SqlValue::Integer(5000)),
         }],
-        where_clause: Some(Expression::BinaryOp {
+        where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
             left: Box::new(Expression::ColumnRef { table: None, column: "salary".to_string() }),
             op: ast::BinaryOperator::LessThan,
             right: Box::new(Expression::ScalarSubquery(subquery)),
-        }),
+        })),
     };
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
@@ -195,11 +195,11 @@ fn test_update_where_subquery_returns_null() {
             column: "salary".to_string(),
             value: Expression::Literal(SqlValue::Integer(60000)),
         }],
-        where_clause: Some(Expression::BinaryOp {
+        where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
             left: Box::new(Expression::ColumnRef { table: None, column: "salary".to_string() }),
             op: ast::BinaryOperator::LessThan,
             right: Box::new(Expression::ScalarSubquery(subquery)),
-        }),
+        })),
     };
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
@@ -271,11 +271,11 @@ fn test_update_where_subquery_with_aggregate() {
             column: "discounted".to_string(),
             value: Expression::Literal(SqlValue::Boolean(true)),
         }],
-        where_clause: Some(Expression::BinaryOp {
+        where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
             left: Box::new(Expression::ColumnRef { table: None, column: "price".to_string() }),
             op: ast::BinaryOperator::Equal,
             right: Box::new(Expression::ScalarSubquery(subquery)),
-        }),
+        })),
     };
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
@@ -375,11 +375,11 @@ fn test_update_where_and_set_both_use_subqueries() {
             column: "salary".to_string(),
             value: Expression::ScalarSubquery(set_subquery),
         }],
-        where_clause: Some(Expression::In {
+        where_clause: Some(ast::WhereClause::Condition(Expression::In {
             expr: Box::new(Expression::ColumnRef { table: None, column: "dept_id".to_string() }),
             subquery: where_subquery,
             negated: false,
-        }),
+        })),
     };
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();

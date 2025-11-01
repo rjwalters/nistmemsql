@@ -40,6 +40,7 @@ impl CreateTableExecutor {
     ///             nullable: false,
     ///             constraints: vec![],
     ///             default_value: None,
+    ///             comment: None,
     ///         },
     ///         ColumnDef {
     ///             name: "name".to_string(),
@@ -47,6 +48,7 @@ impl CreateTableExecutor {
     ///             nullable: true,
     ///             constraints: vec![],
     ///             default_value: None,
+    ///             comment: None,
     ///         },
     ///     ],
     ///     table_constraints: vec![],
@@ -142,6 +144,7 @@ mod tests {
                     nullable: false,
                     constraints: vec![],
                     default_value: None,
+                    comment: None,
                 },
                 ColumnDef {
                     name: "name".to_string(),
@@ -149,6 +152,7 @@ mod tests {
                     nullable: true,
                     constraints: vec![],
                     default_value: None,
+                    comment: None,
                 },
             ],
             table_constraints: vec![],
@@ -178,6 +182,7 @@ mod tests {
                     nullable: false,
                     constraints: vec![],
                     default_value: None,
+                    comment: None,
                 },
                 ColumnDef {
                     name: "name".to_string(),
@@ -185,6 +190,7 @@ mod tests {
                     nullable: false,
                     constraints: vec![],
                     default_value: None,
+                    comment: None,
                 },
                 ColumnDef {
                     name: "price".to_string(),
@@ -192,6 +198,7 @@ mod tests {
                     nullable: false,
                     constraints: vec![],
                     default_value: None,
+                    comment: None,
                 },
                 ColumnDef {
                     name: "in_stock".to_string(),
@@ -199,6 +206,7 @@ mod tests {
                     nullable: false,
                     constraints: vec![],
                     default_value: None,
+                    comment: None,
                 },
                 ColumnDef {
                     name: "description".to_string(),
@@ -206,6 +214,7 @@ mod tests {
                     nullable: true, // Optional field
                     constraints: vec![],
                     default_value: None,
+                    comment: None,
                 },
             ],
             table_constraints: vec![],
@@ -235,6 +244,7 @@ mod tests {
                 nullable: false,
                 constraints: vec![],
                 default_value: None,
+                comment: None,
             }],
             table_constraints: vec![],
         };
@@ -262,6 +272,7 @@ mod tests {
                     nullable: false,
                     constraints: vec![],
                     default_value: None,
+                    comment: None,
                 },
                 ColumnDef {
                     name: "middle_name".to_string(),
@@ -269,6 +280,7 @@ mod tests {
                     nullable: true, // Nullable field
                     constraints: vec![],
                     default_value: None,
+                    comment: None,
                 },
                 ColumnDef {
                     name: "manager_id".to_string(),
@@ -276,6 +288,7 @@ mod tests {
                     nullable: true, // Nullable foreign key
                     constraints: vec![],
                     default_value: None,
+                    comment: None,
                 },
             ],
             table_constraints: vec![],
@@ -322,6 +335,7 @@ mod tests {
                 nullable: false,
                 constraints: vec![],
                 default_value: None,
+                comment: None,
             }],
             table_constraints: vec![],
         };
@@ -336,6 +350,7 @@ mod tests {
                 nullable: false,
                 constraints: vec![],
                 default_value: None,
+                comment: None,
             }],
             table_constraints: vec![],
         };
@@ -360,6 +375,7 @@ mod tests {
                 nullable: false,
                 constraints: vec![],
                 default_value: None,
+                comment: None,
             }],
             table_constraints: vec![],
         };
@@ -381,6 +397,7 @@ mod tests {
                 nullable: false,
                 constraints: vec![],
                 default_value: None,
+                comment: None,
             }],
             table_constraints: vec![],
         };
@@ -395,6 +412,7 @@ mod tests {
                 nullable: false,
                 constraints: vec![],
                 default_value: None,
+                comment: None,
             }],
             table_constraints: vec![],
         };

@@ -72,11 +72,11 @@ fn test_update_where_in_subquery() {
             column: "salary".to_string(),
             value: Expression::Literal(SqlValue::Integer(80000)),
         }],
-        where_clause: Some(Expression::In {
+        where_clause: Some(ast::WhereClause::Condition(Expression::In {
             expr: Box::new(Expression::ColumnRef { table: None, column: "dept_id".to_string() }),
             subquery,
             negated: false,
-        }),
+        })),
     };
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
@@ -150,11 +150,11 @@ fn test_update_where_not_in_subquery() {
             column: "active".to_string(),
             value: Expression::Literal(SqlValue::Boolean(false)),
         }],
-        where_clause: Some(Expression::In {
+        where_clause: Some(ast::WhereClause::Condition(Expression::In {
             expr: Box::new(Expression::ColumnRef { table: None, column: "dept_id".to_string() }),
             subquery,
             negated: true,
-        }),
+        })),
     };
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
@@ -221,11 +221,11 @@ fn test_update_where_subquery_empty_result() {
             column: "active".to_string(),
             value: Expression::Literal(SqlValue::Boolean(false)),
         }],
-        where_clause: Some(Expression::In {
+        where_clause: Some(ast::WhereClause::Condition(Expression::In {
             expr: Box::new(Expression::ColumnRef { table: None, column: "dept_id".to_string() }),
             subquery,
             negated: false,
-        }),
+        })),
     };
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
@@ -286,11 +286,11 @@ fn test_update_where_complex_subquery_condition() {
         }],
         into_table: None,
         from: Some(ast::FromClause::Table { name: "departments".to_string(), alias: None }),
-        where_clause: Some(Expression::BinaryOp {
+        where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
             left: Box::new(Expression::ColumnRef { table: None, column: "budget".to_string() }),
             op: ast::BinaryOperator::GreaterThan,
             right: Box::new(Expression::Literal(SqlValue::Integer(80000))),
-        }),
+        })),
         group_by: None,
         having: None,
         order_by: None,
@@ -306,11 +306,11 @@ fn test_update_where_complex_subquery_condition() {
             column: "salary".to_string(),
             value: Expression::Literal(SqlValue::Integer(70000)),
         }],
-        where_clause: Some(Expression::In {
+        where_clause: Some(ast::WhereClause::Condition(Expression::In {
             expr: Box::new(Expression::ColumnRef { table: None, column: "dept_id".to_string() }),
             subquery,
             negated: false,
-        }),
+        })),
     };
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
@@ -388,11 +388,11 @@ fn test_update_where_multiple_rows_in_subquery() {
             column: "active".to_string(),
             value: Expression::Literal(SqlValue::Boolean(false)),
         }],
-        where_clause: Some(Expression::In {
+        where_clause: Some(ast::WhereClause::Condition(Expression::In {
             expr: Box::new(Expression::ColumnRef { table: None, column: "dept_id".to_string() }),
             subquery,
             negated: false,
-        }),
+        })),
     };
 
     let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();

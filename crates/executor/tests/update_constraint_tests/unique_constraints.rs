@@ -150,11 +150,11 @@ fn test_update_unique_constraint_composite() {
                 value: Expression::Literal(SqlValue::Varchar("Smith".to_string())),
             },
         ],
-        where_clause: Some(Expression::BinaryOp {
+        where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
             left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
             op: BinaryOperator::Equal,
             right: Box::new(Expression::Literal(SqlValue::Integer(2))),
-        }),
+        })),
     };
 
     let result = UpdateExecutor::execute(&stmt, &mut db);

@@ -39,6 +39,7 @@ impl DropTableExecutor {
     ///             nullable: false,
     ///             constraints: vec![],
     ///             default_value: None,
+    ///             comment: None,
     ///         },
     ///     ],
     ///     table_constraints: vec![],
@@ -100,6 +101,7 @@ mod tests {
                 nullable: false,
                 constraints: vec![],
                 default_value: None,
+                comment: None,
             }],
             table_constraints: vec![],
         };
@@ -153,6 +155,7 @@ mod tests {
                 nullable: false,
                 constraints: vec![],
                 default_value: None,
+                comment: None,
             }],
             table_constraints: vec![],
         };
@@ -183,6 +186,7 @@ mod tests {
                     nullable: false,
                     constraints: vec![],
                     default_value: None,
+                    comment: None,
                 },
                 ColumnDef {
                     name: "name".to_string(),
@@ -190,6 +194,7 @@ mod tests {
                     nullable: false,
                     constraints: vec![],
                     default_value: None,
+                    comment: None,
                 },
             ],
             table_constraints: vec![],
@@ -229,6 +234,7 @@ mod tests {
                 nullable: false,
                 constraints: vec![],
                 default_value: None,
+                comment: None,
             }],
             table_constraints: vec![],
         };
@@ -258,6 +264,7 @@ mod tests {
                     nullable: false,
                     constraints: vec![],
                     default_value: None,
+                    comment: None,
                 }],
                 table_constraints: vec![],
             };
@@ -289,6 +296,7 @@ mod tests {
                 nullable: false,
                 constraints: vec![],
                 default_value: None,
+                comment: None,
             }],
             table_constraints: vec![],
         };

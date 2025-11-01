@@ -16,6 +16,7 @@ fn test_select_into_single_row() {
                 nullable: false,
                 constraints: vec![],
                 default_value: None,
+                comment: None,
             },
             ast::ColumnDef {
                 name: "name".to_string(),
@@ -23,6 +24,7 @@ fn test_select_into_single_row() {
                 nullable: true,
                 constraints: vec![],
                 default_value: None,
+                comment: None,
             },
         ],
         table_constraints: vec![],
@@ -107,6 +109,7 @@ fn test_select_into_no_rows_error() {
             nullable: false,
             constraints: vec![],
             default_value: None,
+            comment: None,
         }],
         table_constraints: vec![],
     };
@@ -156,6 +159,7 @@ fn test_select_into_multiple_rows_error() {
             nullable: false,
             constraints: vec![],
             default_value: None,
+            comment: None,
         }],
         table_constraints: vec![],
     };
@@ -207,6 +211,7 @@ fn test_select_into_with_expressions() {
             nullable: false,
             constraints: vec![],
             default_value: None,
+            comment: None,
         }],
         table_constraints: vec![],
     };

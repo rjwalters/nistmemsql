@@ -169,10 +169,10 @@ pub fn create_update_with_id_clause(
             column: column.to_string(),
             value: Expression::Literal(value),
         }],
-        where_clause: Some(Expression::BinaryOp {
+        where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
             left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
             op: BinaryOperator::Equal,
             right: Box::new(Expression::Literal(SqlValue::Integer(id))),
-        }),
+        })),
     }
 }

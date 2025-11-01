@@ -88,7 +88,7 @@ fn create_update_stmt(
     table_name: &str,
     column: &str,
     value: Expression,
-    where_clause: Option<Expression>,
+    where_clause: Option<ast::WhereClause>,
 ) -> UpdateStmt {
     UpdateStmt {
         table_name: table_name.to_string(),
@@ -325,11 +325,11 @@ fn test_update_with_subquery_and_where_clause() {
     insert_data_row(&mut db, "config", SqlValue::Integer(45000));
 
     let subquery = create_scalar_subquery("config", "max_salary");
-    let where_clause = Expression::BinaryOp {
+    let where_clause = ast::WhereClause::Condition(Expression::BinaryOp {
         left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
         op: ast::BinaryOperator::Equal,
         right: Box::new(Expression::Literal(SqlValue::Integer(1))),
-    };
+    });
     let stmt = create_update_stmt(
         "employees",
         "salary",

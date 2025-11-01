@@ -17,12 +17,16 @@ fn test_create_table_with_column_primary_key() {
                 data_type: DataType::Integer,
                 nullable: true, // This should be overridden by the PK constraint
                 constraints: vec![ColumnConstraint::PrimaryKey],
+                default_value: None,
+                comment: None,
             },
             ColumnDef {
                 name: "name".to_string(),
                 data_type: DataType::Varchar { max_length: Some(100) },
                 nullable: true,
                 constraints: vec![],
+                default_value: None,
+                comment: None,
             },
         ],
         table_constraints: vec![],
@@ -47,12 +51,16 @@ fn test_create_table_with_table_primary_key() {
                 data_type: DataType::Integer,
                 nullable: true, // This should be overridden
                 constraints: vec![],
+                default_value: None,
+                comment: None,
             },
             ColumnDef {
                 name: "tenant_id".to_string(),
                 data_type: DataType::Integer,
                 nullable: true, // This should be overridden
                 constraints: vec![],
+                default_value: None,
+                comment: None,
             },
         ],
         table_constraints: vec![TableConstraint::PrimaryKey {
@@ -82,6 +90,8 @@ fn test_create_table_with_multiple_primary_keys_fails() {
             data_type: DataType::Integer,
             nullable: false,
             constraints: vec![ColumnConstraint::PrimaryKey],
+            default_value: None,
+            comment: None,
         }],
         table_constraints: vec![TableConstraint::PrimaryKey {
             columns: vec!["id".to_string()],
@@ -103,12 +113,16 @@ fn test_create_table_with_column_unique_constraint() {
                 data_type: DataType::Integer,
                 nullable: false,
                 constraints: vec![],
+                default_value: None,
+                comment: None,
             },
             ColumnDef {
                 name: "email".to_string(),
                 data_type: DataType::Varchar { max_length: Some(100) },
                 nullable: false,
                 constraints: vec![ColumnConstraint::Unique],
+                default_value: None,
+                comment: None,
             },
         ],
         table_constraints: vec![],
@@ -133,12 +147,16 @@ fn test_create_table_with_table_unique_constraint() {
                 data_type: DataType::Varchar { max_length: Some(50) },
                 nullable: false,
                 constraints: vec![],
+                default_value: None,
+                comment: None,
             },
             ColumnDef {
                 name: "last_name".to_string(),
                 data_type: DataType::Varchar { max_length: Some(50) },
                 nullable: false,
                 constraints: vec![],
+                default_value: None,
+                comment: None,
             },
         ],
         table_constraints: vec![TableConstraint::Unique {
@@ -173,6 +191,8 @@ fn test_create_table_with_check_constraint() {
             data_type: DataType::Integer,
             nullable: false,
             constraints: vec![ColumnConstraint::Check(Box::new(check_expr.clone()))],
+            default_value: None,
+            comment: None,
         }],
         table_constraints: vec![],
     };
