@@ -4,11 +4,11 @@ use std::collections::HashSet;
 /// Accumulator for aggregate functions
 #[derive(Debug, Clone)]
 pub(super) enum AggregateAccumulator {
-    Count { count: i64, distinct: bool, seen: HashSet<types::SqlValue> },
-    Sum { sum: types::SqlValue, distinct: bool, seen: HashSet<types::SqlValue> },
-    Avg { sum: types::SqlValue, count: i64, distinct: bool, seen: HashSet<types::SqlValue> },
-    Min { value: Option<types::SqlValue>, distinct: bool, seen: HashSet<types::SqlValue> },
-    Max { value: Option<types::SqlValue>, distinct: bool, seen: HashSet<types::SqlValue> },
+    Count { count: i64, distinct: bool, seen: Option<HashSet<types::SqlValue>> },
+    Sum { sum: types::SqlValue, distinct: bool, seen: Option<HashSet<types::SqlValue>> },
+    Avg { sum: types::SqlValue, count: i64, distinct: bool, seen: Option<HashSet<types::SqlValue>> },
+    Min { value: Option<types::SqlValue>, distinct: bool, seen: Option<HashSet<types::SqlValue>> },
+    Max { value: Option<types::SqlValue>, distinct: bool, seen: Option<HashSet<types::SqlValue>> },
 }
 
 impl AggregateAccumulator {
@@ -16,21 +16,22 @@ impl AggregateAccumulator {
         function_name: &str,
         distinct: bool,
     ) -> Result<Self, crate::errors::ExecutorError> {
+        let seen = if distinct { Some(HashSet::new()) } else { None };
         match function_name.to_uppercase().as_str() {
-            "COUNT" => Ok(AggregateAccumulator::Count { count: 0, distinct, seen: HashSet::new() }),
+            "COUNT" => Ok(AggregateAccumulator::Count { count: 0, distinct, seen }),
             "SUM" => Ok(AggregateAccumulator::Sum {
                 sum: types::SqlValue::Integer(0),
                 distinct,
-                seen: HashSet::new(),
+                seen,
             }),
             "AVG" => Ok(AggregateAccumulator::Avg {
                 sum: types::SqlValue::Integer(0),
                 count: 0,
                 distinct,
-                seen: HashSet::new(),
+                seen,
             }),
-            "MIN" => Ok(AggregateAccumulator::Min { value: None, distinct, seen: HashSet::new() }),
-            "MAX" => Ok(AggregateAccumulator::Max { value: None, distinct, seen: HashSet::new() }),
+            "MIN" => Ok(AggregateAccumulator::Min { value: None, distinct, seen }),
+            "MAX" => Ok(AggregateAccumulator::Max { value: None, distinct, seen }),
             _ => Err(crate::errors::ExecutorError::UnsupportedExpression(format!(
                 "Unknown aggregate function: {}",
                 function_name
@@ -41,14 +42,14 @@ impl AggregateAccumulator {
     pub(super) fn accumulate(&mut self, value: &types::SqlValue) {
         match self {
             // COUNT - counts non-NULL values
-            AggregateAccumulator::Count { ref mut count, distinct, ref mut seen } => {
+            AggregateAccumulator::Count { ref mut count, distinct, seen } => {
                 if value.is_null() {
                     return; // Skip NULL values
                 }
 
                 if *distinct {
                     // Only count if we haven't seen this value before
-                    if seen.insert(value.clone()) {
+                    if seen.as_mut().unwrap().insert(value.clone()) {
                         *count += 1;
                     }
                 } else {
@@ -57,13 +58,13 @@ impl AggregateAccumulator {
             }
 
             // SUM - sums numeric values (Integer or Numeric), ignores NULLs
-            AggregateAccumulator::Sum { ref mut sum, distinct, ref mut seen } => {
+            AggregateAccumulator::Sum { ref mut sum, distinct, seen } => {
                 match value {
                     types::SqlValue::Null => {} // Skip NULL
                     types::SqlValue::Integer(_) | types::SqlValue::Numeric(_) => {
                         if *distinct {
                             // Only sum if we haven't seen this value before
-                            if seen.insert(value.clone()) {
+                            if seen.as_mut().unwrap().insert(value.clone()) {
                                 *sum = add_sql_values(sum, value);
                             }
                         } else {
@@ -75,13 +76,13 @@ impl AggregateAccumulator {
             }
 
             // AVG - computes average of numeric values (Integer or Numeric), ignores NULLs
-            AggregateAccumulator::Avg { ref mut sum, ref mut count, distinct, ref mut seen } => {
+            AggregateAccumulator::Avg { ref mut sum, ref mut count, distinct, seen } => {
                 match value {
                     types::SqlValue::Null => {} // Skip NULL
                     types::SqlValue::Integer(_) | types::SqlValue::Numeric(_) => {
                         if *distinct {
                             // Only include if we haven't seen this value before
-                            if seen.insert(value.clone()) {
+                            if seen.as_mut().unwrap().insert(value.clone()) {
                                 *sum = add_sql_values(sum, value);
                                 *count += 1;
                             }
@@ -95,14 +96,14 @@ impl AggregateAccumulator {
             }
 
             // MIN - finds minimum value, ignores NULLs
-            AggregateAccumulator::Min { value: ref mut current_min, distinct, ref mut seen } => {
+            AggregateAccumulator::Min { value: ref mut current_min, distinct, seen } => {
                 if value.is_null() {
                     return; // Skip NULL
                 }
 
                 // For MIN with DISTINCT, we still need to consider all unique values
                 // but the result is the same as without DISTINCT
-                if *distinct && !seen.insert(value.clone()) {
+                if *distinct && !seen.as_mut().unwrap().insert(value.clone()) {
                     return; // Already seen this value
                 }
 
@@ -123,14 +124,14 @@ impl AggregateAccumulator {
             }
 
             // MAX - finds maximum value, ignores NULLs
-            AggregateAccumulator::Max { value: ref mut current_max, distinct, ref mut seen } => {
+            AggregateAccumulator::Max { value: ref mut current_max, distinct, seen } => {
                 if value.is_null() {
                     return; // Skip NULL
                 }
 
                 // For MAX with DISTINCT, we still need to consider all unique values
                 // but the result is the same as without DISTINCT
-                if *distinct && !seen.insert(value.clone()) {
+                if *distinct && !seen.as_mut().unwrap().insert(value.clone()) {
                     return; // Already seen this value
                 }
 
