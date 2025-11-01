@@ -12,6 +12,9 @@ export interface QueryExample {
   sql: string
   description: string
   sqlFeatures: string[]
+  // Expected results for testing
+  expectedRows?: string[][]
+  expectedCount?: number
   // Enhanced metadata (Step 2 additions)
   difficulty?: 'beginner' | 'intermediate' | 'advanced'
   useCase?: 'analytics' | 'admin' | 'development' | 'reports' | 'data-quality'

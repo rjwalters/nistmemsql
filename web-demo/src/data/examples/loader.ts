@@ -102,8 +102,10 @@ export function loadExamplesForCategory(
     }
 
     return {
-      ...metadata,
-      sql: payload.sql
+    ...metadata,
+    sql: payload.sql,
+      expectedRows: payload.expectedRows,
+      expectedCount: payload.expectedCount
     }
   })
 }

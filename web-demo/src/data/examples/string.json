@@ -15,9 +15,20 @@
     "sql": "SELECT\n  first_name,\n  last_name,\n  SUBSTRING(first_name, 1, 1) AS first_initial,\n  LENGTH(last_name) AS last_name_length\nFROM employees\nLIMIT 8;",
     "description": "Extract substrings and measure string length",
     "sqlFeatures": [
-      "SUBSTRING",
-      "LENGTH"
-    ]
+    "SUBSTRING",
+    "LENGTH"
+    ],
+      "expectedRows": [
+      ["Alice", "Johnson", "A", "7"],
+      ["Bob", "Smith", "B", "5"],
+      ["Carol", "White", "C", "5"],
+      ["David", "Brown", "D", "5"],
+      ["Eve", "Martinez", "E", "8"],
+      ["Frank", "Wilson", "F", "6"],
+      ["Grace", "Taylor", "G", "6"],
+      ["Henry", "Anderson", "H", "8"]
+    ],
+    "expectedCount": 8
   },
   "string-3": {
     "title": "Text Trimming",
