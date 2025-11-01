@@ -294,11 +294,27 @@ jobs:
             exit 0
           fi
 
-          # Clone gh-pages
-          git clone --branch gh-pages --depth 1 \
-            https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} gh-pages-repo
+          # Try to clone gh-pages branch
+          if git clone --branch gh-pages --depth 1 \
+            https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} gh-pages-repo 2>/dev/null; then
 
-          cd gh-pages-repo
+            echo "✓ Cloned existing gh-pages branch"
+            cd gh-pages-repo
+
+          else
+            echo "⚠️  gh-pages branch doesn't exist yet - will be created by main CI workflow"
+            echo "Saving aggregated results as artifact for now..."
+
+            # Save results for later (main CI will create gh-pages)
+            mkdir -p gh-pages-staging
+            cp aggregated/sqllogictest_merged.json gh-pages-staging/sqllogictest_cumulative.json
+
+            echo ""
+            echo "=== Aggregated Results (not yet published) ==="
+            jq '.' gh-pages-staging/sqllogictest_cumulative.json
+
+            exit 0
+          fi
 
           # Copy aggregated results
           mkdir -p badges
