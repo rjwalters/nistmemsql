@@ -343,7 +343,8 @@ jobs:
           mkdir -p deploy
           cp -r web-demo/dist/* deploy/
           mkdir -p deploy/benchmarks
-          cp -r badges deploy/badges
+          mkdir -p deploy/badges
+          cp badges/* deploy/badges/ 2>/dev/null || true
 
           # Copy benchmark files with verification
           if [ -f badges/benchmark_results.json ]; then
