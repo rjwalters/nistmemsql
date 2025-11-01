@@ -52,8 +52,10 @@ impl Database {
                             serde_json::Value::String(s.clone())
                         }
                         types::SqlValue::Boolean(b) => serde_json::Value::Bool(*b),
-                        types::SqlValue::Numeric(s)
-                        | types::SqlValue::Date(s)
+                        types::SqlValue::Numeric(n) => serde_json::Number::from_f64(*n)
+                            .map(serde_json::Value::Number)
+                            .unwrap_or(serde_json::Value::Null),
+                        types::SqlValue::Date(s)
                         | types::SqlValue::Time(s)
                         | types::SqlValue::Timestamp(s)
                         | types::SqlValue::Interval(s) => serde_json::Value::String(s.clone()),
