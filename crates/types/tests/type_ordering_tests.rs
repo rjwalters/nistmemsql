@@ -80,14 +80,14 @@ fn test_boolean_ordering() {
 
 #[test]
 fn test_numeric_ordering() {
-    assert!(SqlValue::Numeric("1.5".to_string()) < SqlValue::Numeric("2.5".to_string()));
-    assert!(SqlValue::Numeric("100.0".to_string()) > SqlValue::Numeric("50.5".to_string()));
+    assert!(SqlValue::Numeric(1.5) < SqlValue::Numeric(2.5));
+    assert!(SqlValue::Numeric(100.0) > SqlValue::Numeric(50.5));
 }
 
 #[test]
 fn test_numeric_invalid_is_incomparable() {
-    let invalid = SqlValue::Numeric("not-a-number".to_string());
-    let valid = SqlValue::Numeric("1.0".to_string());
+    let invalid = SqlValue::Numeric(f64::NAN);
+    let valid = SqlValue::Numeric(1.0);
     assert_eq!(invalid.partial_cmp(&valid), None);
     assert_eq!(valid.partial_cmp(&invalid), None);
 }

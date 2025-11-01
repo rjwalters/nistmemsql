@@ -48,7 +48,7 @@ fn test_bigint_display() {
 
 #[test]
 fn test_numeric_display() {
-    let value = SqlValue::Numeric("123.45".to_string());
+    let value = SqlValue::Numeric(123.45);
     assert_eq!(format!("{}", value), "123.45");
 }
 

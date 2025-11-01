@@ -150,6 +150,7 @@ mod tests {
                     nullable: false,
                     constraints: vec![],
                     default_value: None,
+                    comment: None,
                 },
                 ColumnDef {
                     name: "email".to_string(),
@@ -157,6 +158,7 @@ mod tests {
                     nullable: false,
                     constraints: vec![],
                     default_value: None,
+                    comment: None,
                 },
                 ColumnDef {
                     name: "name".to_string(),
@@ -164,6 +166,7 @@ mod tests {
                     nullable: true,
                     constraints: vec![],
                     default_value: None,
+                    comment: None,
                 },
             ],
             table_constraints: vec![],

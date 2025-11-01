@@ -196,7 +196,7 @@ fn test_insert_column_not_found() {
 
     let result = InsertExecutor::execute(&mut db, &stmt);
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), ExecutorError::ColumnNotFound(_)));
+    assert!(matches!(result.unwrap_err(), ExecutorError::ColumnNotFound { .. }));
 }
 
 #[test]

@@ -103,7 +103,7 @@ fn test_bigint_value_has_bigint_type() {
 
 #[test]
 fn test_numeric_value_has_numeric_type() {
-    let value = SqlValue::Numeric("123.45".to_string());
+    let value = SqlValue::Numeric(123.45);
     match value.get_type() {
         DataType::Numeric { .. } => {} // Success
         _ => panic!("Expected Numeric type"),

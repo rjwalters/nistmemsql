@@ -50,9 +50,9 @@ fn test_unary_minus_numeric_string() {
     let db = storage::Database::new();
     let expr = ast::Expression::UnaryOp {
         op: ast::UnaryOperator::Minus,
-        expr: Box::new(ast::Expression::Literal(types::SqlValue::Numeric("123.45".to_string()))),
+        expr: Box::new(ast::Expression::Literal(types::SqlValue::Numeric(123.45))),
     };
-    assert_expression_result(&db, expr, types::SqlValue::Numeric("-123.45".to_string()));
+    assert_expression_result(&db, expr, types::SqlValue::Numeric(-123.45));
 }
 
 #[test]
@@ -60,9 +60,9 @@ fn test_unary_minus_negative_numeric() {
     let db = storage::Database::new();
     let expr = ast::Expression::UnaryOp {
         op: ast::UnaryOperator::Minus,
-        expr: Box::new(ast::Expression::Literal(types::SqlValue::Numeric("-123.45".to_string()))),
+        expr: Box::new(ast::Expression::Literal(types::SqlValue::Numeric(-123.45))),
     };
-    assert_expression_result(&db, expr, types::SqlValue::Numeric("123.45".to_string()));
+    assert_expression_result(&db, expr, types::SqlValue::Numeric(123.45));
 }
 
 #[test]

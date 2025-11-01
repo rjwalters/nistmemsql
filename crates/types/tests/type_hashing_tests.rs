@@ -38,8 +38,8 @@ fn test_bigint_hash() {
 
 #[test]
 fn test_numeric_hash() {
-    let v1 = SqlValue::Numeric("123.45".to_string());
-    let v2 = SqlValue::Numeric("123.45".to_string());
+    let v1 = SqlValue::Numeric(123.45);
+    let v2 = SqlValue::Numeric(123.45);
     assert_eq!(calculate_hash(&v1), calculate_hash(&v2));
 }
 

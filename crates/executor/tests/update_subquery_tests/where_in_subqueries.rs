@@ -286,11 +286,11 @@ fn test_update_where_complex_subquery_condition() {
         }],
         into_table: None,
         from: Some(ast::FromClause::Table { name: "departments".to_string(), alias: None }),
-        where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
+        where_clause: Some(Expression::BinaryOp {
             left: Box::new(Expression::ColumnRef { table: None, column: "budget".to_string() }),
             op: ast::BinaryOperator::GreaterThan,
             right: Box::new(Expression::Literal(SqlValue::Integer(80000))),
-        })),
+        }),
         group_by: None,
         having: None,
         order_by: None,

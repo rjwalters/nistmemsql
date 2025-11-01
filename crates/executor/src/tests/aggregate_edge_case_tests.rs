@@ -72,8 +72,7 @@ fn test_avg_precision_decimal() {
     assert_eq!(result.len(), 1);
     // AVG(10.50, 20.75, 15.25) = 46.50 / 3 = 15.50
     match &result[0].values[0] {
-        types::SqlValue::Numeric(s) => {
-            let value: f64 = s.parse().unwrap();
+        types::SqlValue::Numeric(value) => {
             assert!((value - 15.50).abs() < 0.01, "Expected 15.50, got {}", value);
         }
         other => panic!("Expected Numeric value, got {:?}", other),
