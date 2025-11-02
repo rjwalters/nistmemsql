@@ -1,5 +1,1 @@
-# WASM files are generated during build, not committed to repo
-*.js
-*.wasm
-*.ts
-!README.md
+*

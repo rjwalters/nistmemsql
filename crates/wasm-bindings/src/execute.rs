@@ -6,10 +6,9 @@
 use crate::{Database, ExecuteResult};
 use wasm_bindgen::prelude::*;
 
-impl Database {
-    /// Executes a DDL or DML statement (CREATE TABLE, INSERT, UPDATE, DELETE)
-    /// Returns a JSON string with the result
-    pub fn execute(&mut self, sql: &str) -> Result<JsValue, JsValue> {
+/// Executes a DDL or DML statement (CREATE TABLE, INSERT, UPDATE, DELETE)
+/// Returns a JSON string with the result
+pub fn execute_statement(db: &mut Database, sql: &str) -> Result<JsValue, JsValue> {
         // Parse the SQL
         let stmt = parser::Parser::parse_sql(sql)
             .map_err(|e| JsValue::from_str(&format!("Parse error: {:?}", e)))?;
@@ -17,7 +16,7 @@ impl Database {
         // Execute based on statement type
         match stmt {
             ast::Statement::CreateTable(create_stmt) => {
-                executor::CreateTableExecutor::execute(&create_stmt, &mut self.db)
+                executor::CreateTableExecutor::execute(&create_stmt, &mut db.db)
                     .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult {
@@ -29,7 +28,7 @@ impl Database {
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
             ast::Statement::DropTable(drop_stmt) => {
-                let message = executor::DropTableExecutor::execute(&drop_stmt, &mut self.db)
+                let message = executor::DropTableExecutor::execute(&drop_stmt, &mut db.db)
                     .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult { rows_affected: 0, message };
@@ -38,7 +37,7 @@ impl Database {
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
             ast::Statement::Insert(insert_stmt) => {
-                let row_count = executor::InsertExecutor::execute(&mut self.db, &insert_stmt)
+                let row_count = executor::InsertExecutor::execute(&mut db.db, &insert_stmt)
                     .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult {
@@ -59,7 +58,7 @@ impl Database {
             }
             ast::Statement::BeginTransaction(begin_stmt) => {
                 let message =
-                    executor::BeginTransactionExecutor::execute(&begin_stmt, &mut self.db)
+                    executor::BeginTransactionExecutor::execute(&begin_stmt, &mut db.db)
                         .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult { rows_affected: 0, message };
@@ -68,7 +67,7 @@ impl Database {
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
             ast::Statement::Commit(commit_stmt) => {
-                let message = executor::CommitExecutor::execute(&commit_stmt, &mut self.db)
+                let message = executor::CommitExecutor::execute(&commit_stmt, &mut db.db)
                     .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult { rows_affected: 0, message };
@@ -77,7 +76,7 @@ impl Database {
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
             ast::Statement::Rollback(rollback_stmt) => {
-                let message = executor::RollbackExecutor::execute(&rollback_stmt, &mut self.db)
+                let message = executor::RollbackExecutor::execute(&rollback_stmt, &mut db.db)
                     .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult { rows_affected: 0, message };
@@ -87,7 +86,7 @@ impl Database {
             }
             ast::Statement::Savepoint(savepoint_stmt) => {
                 let message =
-                    executor::SavepointExecutor::execute(&savepoint_stmt, &mut self.db)
+                    executor::SavepointExecutor::execute(&savepoint_stmt, &mut db.db)
                         .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult { rows_affected: 0, message };
@@ -97,7 +96,7 @@ impl Database {
             }
             ast::Statement::RollbackToSavepoint(rollback_to_stmt) => {
                 let message =
-                    executor::RollbackToSavepointExecutor::execute(&rollback_to_stmt, &mut self.db)
+                    executor::RollbackToSavepointExecutor::execute(&rollback_to_stmt, &mut db.db)
                         .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult { rows_affected: 0, message };
@@ -107,7 +106,7 @@ impl Database {
             }
             ast::Statement::ReleaseSavepoint(release_stmt) => {
                 let message =
-                    executor::ReleaseSavepointExecutor::execute(&release_stmt, &mut self.db)
+                    executor::ReleaseSavepointExecutor::execute(&release_stmt, &mut db.db)
                         .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult { rows_affected: 0, message };
@@ -117,7 +116,7 @@ impl Database {
             }
             ast::Statement::CreateRole(create_role_stmt) => {
                 let message =
-                    executor::RoleExecutor::execute_create_role(&create_role_stmt, &mut self.db)
+                    executor::RoleExecutor::execute_create_role(&create_role_stmt, &mut db.db)
                         .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult { rows_affected: 0, message };
@@ -127,7 +126,7 @@ impl Database {
             }
             ast::Statement::DropRole(drop_role_stmt) => {
                 let message =
-                    executor::RoleExecutor::execute_drop_role(&drop_role_stmt, &mut self.db)
+                    executor::RoleExecutor::execute_drop_role(&drop_role_stmt, &mut db.db)
                         .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult { rows_affected: 0, message };
@@ -138,7 +137,7 @@ impl Database {
             ast::Statement::CreateDomain(create_domain_stmt) => {
                 let message = executor::DomainExecutor::execute_create_domain(
                     &create_domain_stmt,
-                    &mut self.db,
+                    &mut db.db,
                 )
                 .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
@@ -149,7 +148,7 @@ impl Database {
             }
             ast::Statement::DropDomain(drop_domain_stmt) => {
                 let message =
-                    executor::DomainExecutor::execute_drop_domain(&drop_domain_stmt, &mut self.db)
+                    executor::DomainExecutor::execute_drop_domain(&drop_domain_stmt, &mut db.db)
                         .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult { rows_affected: 0, message };
@@ -158,7 +157,7 @@ impl Database {
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
             ast::Statement::CreateSequence(create_seq_stmt) => {
-                executor::advanced_objects::execute_create_sequence(&create_seq_stmt, &mut self.db)
+                executor::advanced_objects::execute_create_sequence(&create_seq_stmt, &mut db.db)
                     .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult {
@@ -173,7 +172,7 @@ impl Database {
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
             ast::Statement::DropSequence(drop_seq_stmt) => {
-                executor::advanced_objects::execute_drop_sequence(&drop_seq_stmt, &mut self.db)
+                executor::advanced_objects::execute_drop_sequence(&drop_seq_stmt, &mut db.db)
                     .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult {
@@ -188,7 +187,7 @@ impl Database {
                     .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
             }
             ast::Statement::AlterSequence(alter_seq_stmt) => {
-                executor::advanced_objects::execute_alter_sequence(&alter_seq_stmt, &mut self.db)
+                executor::advanced_objects::execute_alter_sequence(&alter_seq_stmt, &mut db.db)
                     .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult {
@@ -204,7 +203,7 @@ impl Database {
             }
             ast::Statement::CreateType(create_type_stmt) => {
                 let message =
-                    executor::TypeExecutor::execute_create_type(&create_type_stmt, &mut self.db)
+                    executor::TypeExecutor::execute_create_type(&create_type_stmt, &mut db.db)
                         .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult { rows_affected: 0, message };
@@ -214,7 +213,7 @@ impl Database {
             }
             ast::Statement::DropType(drop_type_stmt) => {
                 let message =
-                    executor::TypeExecutor::execute_drop_type(&drop_type_stmt, &mut self.db)
+                    executor::TypeExecutor::execute_drop_type(&drop_type_stmt, &mut db.db)
                         .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
 
                 let result = ExecuteResult { rows_affected: 0, message };
@@ -227,5 +226,4 @@ impl Database {
                 stmt
             ))),
         }
-    }
 }

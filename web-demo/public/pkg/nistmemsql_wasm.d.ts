@@ -38,6 +38,31 @@ export class Database {
    * Returns the version string
    */
   version(): string;
+  /**
+   * Lists all table names in the database
+   */
+  list_tables(): string[];
+  /**
+   * Executes a SELECT query and returns results as JSON
+   */
+  query(sql: string): any;
+  /**
+   * Gets the schema for a specific table
+   */
+  describe_table(table_name: string): any;
+  /**
+   * Executes a DDL or DML statement (CREATE TABLE, INSERT, UPDATE, DELETE)
+   * Returns a JSON string with the result
+   */
+  execute(sql: string): any;
+  /**
+   * Load the Employees example database
+   */
+  load_employees(): any;
+  /**
+   * Load the Northwind example database
+   */
+  load_northwind(): any;
 }
 /**
  * Result of an execute (DDL/DML) operation
@@ -120,6 +145,12 @@ export interface InitOutput {
   readonly __wbg_database_free: (a: number, b: number) => void;
   readonly database_new: () => number;
   readonly database_version: (a: number) => [number, number];
+  readonly database_list_tables: (a: number) => [number, number];
+  readonly database_query: (a: number, b: number, c: number) => [number, number, number];
+  readonly database_describe_table: (a: number, b: number, c: number) => [number, number, number];
+  readonly database_execute: (a: number, b: number, c: number) => [number, number, number];
+  readonly database_load_employees: (a: number) => [number, number, number];
+  readonly database_load_northwind: (a: number) => [number, number, number];
   readonly __wbg_set_executeresult_message: (a: number, b: number, c: number) => void;
   readonly __wbg_set_tableschema_name: (a: number, b: number, c: number) => void;
   readonly __wbg_get_executeresult_message: (a: number) => [number, number];
@@ -130,6 +161,7 @@ export interface InitOutput {
   readonly __wbindgen_export_3: WebAssembly.Table;
   readonly __externref_drop_slice: (a: number, b: number) => void;
   readonly __externref_table_alloc: () => number;
+  readonly __externref_table_dealloc: (a: number) => void;
   readonly __wbindgen_start: () => void;
 }
 

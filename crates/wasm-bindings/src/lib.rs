@@ -1,11 +1,12 @@
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsError;
 
 // Module declarations
-mod examples;
-mod execute;
-mod query;
-mod schema;
+pub mod examples;
+pub mod execute;
+pub mod query;
+pub mod schema;
 #[cfg(test)]
 mod tests;
 
@@ -77,6 +78,42 @@ impl Database {
     /// Returns the version string
     pub fn version(&self) -> String {
         "nistmemsql-wasm 0.1.0".to_string()
+    }
+
+    /// Lists all table names in the database
+    pub fn list_tables(&self) -> Vec<String> {
+        self.db.list_tables()
+    }
+
+    /// Executes a SELECT query and returns results as JSON
+    pub fn query(&self, sql: String) -> Result<JsValue, JsError> {
+        query::execute_query(self, &sql)
+            .map_err(|e| JsError::new(&format!("{:?}", e)))
+    }
+
+    /// Gets the schema for a specific table
+    pub fn describe_table(&self, table_name: String) -> Result<JsValue, JsError> {
+        schema::describe_table_impl(self, &table_name)
+            .map_err(|e| JsError::new(&format!("{:?}", e)))
+    }
+
+    /// Executes a DDL or DML statement (CREATE TABLE, INSERT, UPDATE, DELETE)
+    /// Returns a JSON string with the result
+    pub fn execute(&mut self, sql: String) -> Result<JsValue, JsError> {
+        execute::execute_statement(self, &sql)
+            .map_err(|e| JsError::new(&format!("{:?}", e)))
+    }
+
+    /// Load the Employees example database
+    pub fn load_employees(&mut self) -> Result<JsValue, JsError> {
+        examples::load_employees_impl(self)
+            .map_err(|e| JsError::new(&format!("{:?}", e)))
+    }
+
+    /// Load the Northwind example database
+    pub fn load_northwind(&mut self) -> Result<JsValue, JsError> {
+        examples::load_northwind_impl(self)
+            .map_err(|e| JsError::new(&format!("{:?}", e)))
     }
 }
 

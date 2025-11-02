@@ -5,9 +5,8 @@
 use crate::{Database, QueryResult};
 use wasm_bindgen::prelude::*;
 
-impl Database {
-    /// Executes a SELECT query and returns results as JSON
-    pub fn query(&self, sql: &str) -> Result<JsValue, JsValue> {
+/// Executes a SELECT query and returns results as JSON
+pub fn execute_query(db: &Database, sql: &str) -> Result<JsValue, JsValue> {
         // Parse the SQL
         let stmt = parser::Parser::parse_sql(sql)
             .map_err(|e| JsValue::from_str(&format!("Parse error: {:?}", e)))?;
@@ -19,7 +18,7 @@ impl Database {
         };
 
         // Execute the query with column metadata
-        let select_executor = executor::SelectExecutor::new(&self.db);
+        let select_executor = executor::SelectExecutor::new(&db.db);
         let result = select_executor
             .execute_with_columns(&select_stmt)
             .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
@@ -71,5 +70,4 @@ impl Database {
 
         serde_wasm_bindgen::to_value(&result)
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
-    }
 }
