@@ -55,8 +55,7 @@ jobs:
 
       # Build WASM bindings
       - name: Build WASM bindings
-        working-directory: crates/wasm-bindings
-        run: wasm-pack build --target web --release
+        run: wasm-pack build --target web --out-dir ${{ github.workspace }}/web-demo/public/pkg crates/wasm-bindings --release
 
       # Setup Node.js for web demo
       - name: Setup Node.js

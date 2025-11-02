@@ -186,8 +186,7 @@ jobs:
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Build WASM bindings
-        working-directory: crates/wasm-bindings
-        run: wasm-pack build --target web --release
+        run: wasm-pack build --target web --out-dir ${{ github.workspace }}/web-demo/public/pkg crates/wasm-bindings --release
 
       - name: Setup Python
         uses: actions/setup-python@v5
