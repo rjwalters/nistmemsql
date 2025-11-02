@@ -318,7 +318,18 @@ jobs:
             https://rjwalters.github.io/nistmemsql/ || {
             echo "⚠️  Could not download full Pages site"
             echo "This might be the first boost run - creating minimal structure"
-            mkdir -p pages-site/badges
+            mkdir -p pages-site/nistmemsql/badges
+          }
+
+          # Explicitly download the /pkg/ directory (WASM files not linked in HTML)
+          echo ""
+          echo "Downloading /pkg/ directory with WASM files..."
+          mkdir -p pages-site/nistmemsql/pkg
+          wget -q -P pages-site/nistmemsql/pkg \
+            https://rjwalters.github.io/nistmemsql/pkg/nistmemsql_wasm_bg.wasm \
+            https://rjwalters.github.io/nistmemsql/pkg/nistmemsql_wasm.js \
+            https://rjwalters.github.io/nistmemsql/pkg/package.json || {
+            echo "⚠️  Could not download pkg directory - may not exist yet"
           }
 
           # Clean up wget artifacts
