@@ -162,12 +162,17 @@ jobs:
           echo "**Conformance Page:** https://rjwalters.github.io/nistmemsql/conformance.html" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Show updated conformance stats if available
-          if [ -f badges/sqllogictest_cumulative.json ]; then
+          # Show updated conformance stats if available and valid
+          if [ -f badges/sqllogictest_cumulative.json ] && jq -e '.summary' badges/sqllogictest_cumulative.json > /dev/null 2>&1; then
             echo "### Latest Conformance Data" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
             jq '.summary' badges/sqllogictest_cumulative.json >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### Latest Conformance Data" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "_Conformance data not yet available. Will be populated after the first boost workflow run._" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
           fi
