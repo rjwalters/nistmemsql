@@ -219,6 +219,9 @@ jobs:
           retention-days: 90
 
   # Aggregation job: Collects results from all parallel runners and pushes once
+  # IMPORTANT: This job downloads the FULL GitHub Pages site to preserve all
+  # web demo files (HTML, JS, WASM, CSS) before updating only the cumulative
+  # SQLLogicTest results. This prevents corrupting the web demo deployment.
   aggregate-results:
     name: Aggregate Results and Update gh-pages
     runs-on: ubuntu-latest
@@ -304,10 +307,13 @@ jobs:
           mkdir -p pages-site
 
           # Download the entire current Pages site recursively
-          # -r: recursive, -np: no parent, -nH: no host directory, -R: reject patterns
-          # -q: quiet, --cut-dirs=0: don't cut any path components
-          wget -r -np -nH -q --cut-dirs=0 \
-            -R "*.html.tmp,*.html?*" \
+          # -r: recursive, -np: no parent, -nH: no host directory
+          # -E: adjust extension, -k: convert links
+          # -A: accept specific file types to ensure all assets are downloaded
+          # --reject: reject patterns we don't want
+          wget -r -np -nH -E -k --cut-dirs=0 \
+            -A "*.html,*.js,*.wasm,*.css,*.json,*.svg,*.png,*.jpg,*.jpeg,*.gif,*.woff,*.woff2,*.ttf,*.eot,*.ico,*.md" \
+            --reject "*.html.tmp,*.html?*" \
             -P pages-site \
             https://rjwalters.github.io/nistmemsql/ || {
             echo "⚠️  Could not download full Pages site"
@@ -317,10 +323,54 @@ jobs:
 
           # Clean up wget artifacts
           rm -f pages-site/robots.txt.tmp 2>/dev/null || true
+          rm -f pages-site/.listing 2>/dev/null || true
 
           echo ""
           echo "=== Downloaded Pages site structure ==="
-          find pages-site -type f | head -20
+          find pages-site -type f | head -30
+          echo ""
+          echo "=== JavaScript and WASM files ==="
+          find pages-site -name "*.js" -o -name "*.wasm" | head -20
+          echo ""
+          echo "=== Key asset counts ==="
+          echo "HTML files: $(find pages-site -name "*.html" | wc -l)"
+          echo "JS files: $(find pages-site -name "*.js" | wc -l)"
+          echo "WASM files: $(find pages-site -name "*.wasm" | wc -l)"
+          echo "CSS files: $(find pages-site -name "*.css" | wc -l)"
+          echo "JSON files: $(find pages-site -name "*.json" | wc -l)"
+
+      - name: Verify downloaded site integrity
+        run: |
+          echo "=== Verifying critical files exist ==="
+
+          # Check for essential HTML files
+          if [ ! -f pages-site/nistmemsql/index.html ]; then
+            echo "❌ ERROR: index.html not found! Site download may have failed."
+            echo "This could corrupt the deployment. Aborting to preserve current site."
+            exit 1
+          fi
+
+          # Check for WASM files (critical for database functionality)
+          WASM_COUNT=$(find pages-site/nistmemsql -name "*.wasm" 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$WASM_COUNT" -eq 0 ]; then
+            echo "❌ ERROR: No WASM files found! Database will not function."
+            echo "This could corrupt the deployment. Aborting to preserve current site."
+            exit 1
+          fi
+
+          # Check for JavaScript files
+          JS_COUNT=$(find pages-site/nistmemsql -name "*.js" 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$JS_COUNT" -eq 0 ]; then
+            echo "❌ ERROR: No JavaScript files found! Site will not function."
+            echo "This could corrupt the deployment. Aborting to preserve current site."
+            exit 1
+          fi
+
+          echo "✓ Found index.html"
+          echo "✓ Found $WASM_COUNT WASM files"
+          echo "✓ Found $JS_COUNT JavaScript files"
+          echo ""
+          echo "Site integrity check PASSED"
 
       - name: Update cumulative results in Pages site
         run: |
@@ -330,21 +380,21 @@ jobs:
           fi
 
           # Create badges directory if it doesn't exist
-          mkdir -p pages-site/badges
+          mkdir -p pages-site/nistmemsql/badges
 
           # Copy aggregated results
-          cp aggregated/sqllogictest_merged.json pages-site/badges/sqllogictest_cumulative.json
+          cp aggregated/sqllogictest_merged.json pages-site/nistmemsql/badges/sqllogictest_cumulative.json
 
           echo ""
           echo "=== Updated Cumulative Results ==="
-          jq '.summary' pages-site/badges/sqllogictest_cumulative.json
+          jq '.summary' pages-site/nistmemsql/badges/sqllogictest_cumulative.json
 
           echo ""
           echo "=== Pages site structure ==="
-          ls -la pages-site/
+          ls -la pages-site/nistmemsql/
           echo ""
           echo "=== Badges directory ==="
-          ls -la pages-site/badges/ || echo "No badges directory"
+          ls -la pages-site/nistmemsql/badges/ || echo "No badges directory"
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
