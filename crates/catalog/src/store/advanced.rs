@@ -358,6 +358,25 @@ impl super::Catalog {
             .ok_or_else(|| CatalogError::TriggerNotFound(name.to_string()))
     }
 
+    /// Get all triggers for a table with a specific event
+    ///
+    /// # Arguments
+    /// * `table_name` - Name of the table to check for triggers
+    /// * `event` - Optional trigger event to filter by (Insert, Update, Delete)
+    ///
+    /// # Returns
+    /// Iterator over trigger definitions matching the criteria
+    pub fn get_triggers_for_table<'a>(
+        &'a self,
+        table_name: &'a str,
+        event: Option<ast::TriggerEvent>,
+    ) -> impl Iterator<Item = &'a TriggerDefinition> + 'a {
+        self.triggers.values().filter(move |trigger| {
+            trigger.table_name == table_name
+                && event.as_ref().map_or(true, |e| trigger.event == *e)
+        })
+    }
+
     /// Create an ASSERTION (SQL:1999 Feature F671/F672)
     pub fn create_assertion(&mut self, assertion: Assertion) -> Result<(), CatalogError> {
         let name = assertion.name.clone();
