@@ -1,6 +1,6 @@
 //! UPDATE statement execution
 
-use ast::{UpdateStmt, Expression, BinaryOperator};
+use ast::{BinaryOperator, Expression, UpdateStmt};
 use storage::Database;
 
 use crate::errors::ExecutorError;
@@ -176,13 +176,12 @@ impl UpdateExecutor {
             // Apply each assignment
             for assignment in &stmt.assignments {
                 // Find column index
-                let col_index =
-                    schema.get_column_index(&assignment.column).ok_or_else(|| {
-                        ExecutorError::ColumnNotFound {
-                            column_name: assignment.column.clone(),
-                            table_name: stmt.table_name.clone(),
-                        }
-                    })?;
+                let col_index = schema.get_column_index(&assignment.column).ok_or_else(|| {
+                    ExecutorError::ColumnNotFound {
+                        column_name: assignment.column.clone(),
+                        table_name: stmt.table_name.clone(),
+                    }
+                })?;
 
                 // Evaluate new value expression
                 // Handle DEFAULT specially before evaluating other expressions
@@ -194,9 +193,10 @@ impl UpdateExecutor {
                             // Evaluate the default expression (currently only supports literals)
                             match default_expr {
                                 ast::Expression::Literal(lit) => lit.clone(),
-                                _ => return Err(ExecutorError::UnsupportedExpression(
-                                    format!("Complex default expressions not yet supported for column '{}'", column.name)
-                                ))
+                                _ => return Err(ExecutorError::UnsupportedExpression(format!(
+                                    "Complex default expressions not yet supported for column '{}'",
+                                    column.name
+                                ))),
                             }
                         } else {
                             // No default value defined, use NULL
@@ -277,8 +277,7 @@ impl UpdateExecutor {
 
             // Enforce UNIQUE constraints
             let unique_constraint_indices = schema.get_unique_constraint_indices();
-            for (constraint_idx, unique_indices) in unique_constraint_indices.iter().enumerate()
-            {
+            for (constraint_idx, unique_indices) in unique_constraint_indices.iter().enumerate() {
                 // Extract unique constraint values from the updated row
                 let new_unique_values: Vec<types::SqlValue> =
                     unique_indices.iter().map(|&idx| new_row.values[idx].clone()).collect();
@@ -315,20 +314,15 @@ impl UpdateExecutor {
                             continue;
                         }
 
-                        let other_unique_values: Vec<&types::SqlValue> = unique_indices
-                            .iter()
-                            .filter_map(|&idx| other_row.get(idx))
-                            .collect();
+                        let other_unique_values: Vec<&types::SqlValue> =
+                            unique_indices.iter().filter_map(|&idx| other_row.get(idx)).collect();
 
                         // Skip if any existing value is NULL
                         if other_unique_values.iter().any(|v| **v == types::SqlValue::Null) {
                             continue;
                         }
 
-                        if new_unique_values
-                            .iter()
-                            .zip(other_unique_values)
-                            .all(|(a, b)| *a == *b)
+                        if new_unique_values.iter().zip(other_unique_values).all(|(a, b)| *a == *b)
                         {
                             let unique_col_names: Vec<String> =
                                 schema.unique_constraints[constraint_idx].clone();

@@ -37,6 +37,52 @@ fn sqlvalue_to_py(py: Python, value: &types::SqlValue) -> PyResult<Py<PyAny>> {
     })
 }
 
+/// Converts a Python object to a Rust SqlValue
+///
+/// This is the inverse of sqlvalue_to_py() and supports DB-API 2.0 type conversion.
+fn py_to_sqlvalue(_py: Python, obj: &Bound<'_, PyAny>) -> PyResult<types::SqlValue> {
+    // Check for None (SQL NULL)
+    if obj.is_none() {
+        return Ok(types::SqlValue::Null);
+    }
+
+    // Try to extract Python types in order of likelihood
+    // 1. Integer types
+    if let Ok(val) = obj.extract::<i64>() {
+        // Check range to determine which integer type to use
+        if val >= i16::MIN as i64 && val <= i16::MAX as i64 {
+            return Ok(types::SqlValue::Smallint(val as i16));
+        } else if val >= i32::MIN as i64 && val <= i32::MAX as i64 {
+            return Ok(types::SqlValue::Integer(val));
+        } else {
+            return Ok(types::SqlValue::Bigint(val));
+        }
+    }
+
+    // 2. Float types
+    if let Ok(val) = obj.extract::<f64>() {
+        return Ok(types::SqlValue::Double(val));
+    }
+
+    // 3. String types
+    if let Ok(val) = obj.extract::<String>() {
+        return Ok(types::SqlValue::Varchar(val));
+    }
+
+    // 4. Boolean types
+    if let Ok(val) = obj.extract::<bool>() {
+        return Ok(types::SqlValue::Boolean(val));
+    }
+
+    // If no type matched, return an error
+    let type_name =
+        obj.get_type().name().map(|s| s.to_string()).unwrap_or_else(|_| "unknown".to_string());
+    Err(ProgrammingError::new_err(format!(
+        "Cannot convert Python type '{}' to SQL value",
+        type_name
+    )))
+}
+
 /// Database connection object
 ///
 /// Represents a connection to an in-memory nistmemsql database.
@@ -100,16 +146,93 @@ struct Cursor {
 
 #[pymethods]
 impl Cursor {
-    /// Execute a SQL statement
+    /// Execute a SQL statement with optional parameter binding
     ///
     /// Args:
-    ///     sql (str): The SQL statement to execute
+    ///     sql (str): The SQL statement to execute (may contain ? placeholders)
+    ///     params (tuple, optional): Parameter values to bind to ? placeholders
     ///
     /// Returns:
-    ///     Cursor: Returns self for method chaining
-    fn execute(&mut self, sql: &str) -> PyResult<()> {
-        // Parse the SQL
-        let stmt = parser::Parser::parse_sql(sql)
+    ///     None
+    fn execute(
+        &mut self,
+        py: Python,
+        sql: &str,
+        params: Option<&Bound<'_, PyTuple>>,
+    ) -> PyResult<()> {
+        // Process SQL with parameter substitution if params are provided
+        let processed_sql = if let Some(params_tuple) = params {
+            // Count placeholders in SQL
+            let placeholder_count = sql.matches('?').count();
+            let param_count = params_tuple.len();
+
+            // Validate parameter count matches placeholder count
+            if placeholder_count != param_count {
+                return Err(ProgrammingError::new_err(format!(
+                    "Parameter count mismatch: SQL has {} placeholders but {} parameters provided",
+                    placeholder_count, param_count
+                )));
+            }
+
+            // Convert Python parameters to SQL values
+            let mut sql_values = Vec::new();
+            for i in 0..param_count {
+                let py_obj = params_tuple.get_item(i)?;
+                let sql_value = py_to_sqlvalue(py, &py_obj).map_err(|e| {
+                    ProgrammingError::new_err(format!(
+                        "Parameter at position {} has invalid type: {}",
+                        i, e
+                    ))
+                })?;
+                sql_values.push(sql_value);
+            }
+
+            // Replace placeholders with SQL literal values
+            let mut result = String::new();
+            let mut param_idx = 0;
+            let mut chars = sql.chars().peekable();
+
+            while let Some(ch) = chars.next() {
+                if ch == '?' {
+                    // Replace ? with the corresponding parameter value as SQL literal
+                    if param_idx < sql_values.len() {
+                        let value_str = match &sql_values[param_idx] {
+                            types::SqlValue::Integer(i) => i.to_string(),
+                            types::SqlValue::Smallint(i) => i.to_string(),
+                            types::SqlValue::Bigint(i) => i.to_string(),
+                            types::SqlValue::Float(f) => f.to_string(),
+                            types::SqlValue::Real(f) => f.to_string(),
+                            types::SqlValue::Double(f) => f.to_string(),
+                            types::SqlValue::Numeric(n) => n.to_string(),
+                            types::SqlValue::Varchar(s) | types::SqlValue::Character(s) => {
+                                // Escape single quotes by doubling them (SQL standard)
+                                format!("'{}'", s.replace('\'', "''"))
+                            }
+                            types::SqlValue::Boolean(b) => {
+                                if *b { "TRUE" } else { "FALSE" }.to_string()
+                            }
+                            types::SqlValue::Date(s) => format!("DATE '{}'", s),
+                            types::SqlValue::Time(s) => format!("TIME '{}'", s),
+                            types::SqlValue::Timestamp(s) => format!("TIMESTAMP '{}'", s),
+                            types::SqlValue::Interval(s) => format!("INTERVAL '{}'", s),
+                            types::SqlValue::Null => "NULL".to_string(),
+                        };
+                        result.push_str(&value_str);
+                        param_idx += 1;
+                    }
+                } else {
+                    result.push(ch);
+                }
+            }
+
+            result
+        } else {
+            // No parameters provided, use SQL as-is
+            sql.to_string()
+        };
+
+        // Parse the processed SQL
+        let stmt = parser::Parser::parse_sql(&processed_sql)
             .map_err(|e| ProgrammingError::new_err(format!("Parse error: {:?}", e)))?;
 
         // Execute based on statement type

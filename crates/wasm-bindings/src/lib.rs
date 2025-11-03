@@ -87,8 +87,7 @@ impl Database {
 
     /// Executes a SELECT query and returns results as JSON
     pub fn query(&self, sql: String) -> Result<JsValue, JsError> {
-        query::execute_query(self, &sql)
-            .map_err(|e| JsError::new(&format!("{:?}", e)))
+        query::execute_query(self, &sql).map_err(|e| JsError::new(&format!("{:?}", e)))
     }
 
     /// Gets the schema for a specific table
@@ -100,20 +99,17 @@ impl Database {
     /// Executes a DDL or DML statement (CREATE TABLE, INSERT, UPDATE, DELETE)
     /// Returns a JSON string with the result
     pub fn execute(&mut self, sql: String) -> Result<JsValue, JsError> {
-        execute::execute_statement(self, &sql)
-            .map_err(|e| JsError::new(&format!("{:?}", e)))
+        execute::execute_statement(self, &sql).map_err(|e| JsError::new(&format!("{:?}", e)))
     }
 
     /// Load the Employees example database
     pub fn load_employees(&mut self) -> Result<JsValue, JsError> {
-        examples::load_employees_impl(self)
-            .map_err(|e| JsError::new(&format!("{:?}", e)))
+        examples::load_employees_impl(self).map_err(|e| JsError::new(&format!("{:?}", e)))
     }
 
     /// Load the Northwind example database
     pub fn load_northwind(&mut self) -> Result<JsValue, JsError> {
-        examples::load_northwind_impl(self)
-            .map_err(|e| JsError::new(&format!("{:?}", e)))
+        examples::load_northwind_impl(self).map_err(|e| JsError::new(&format!("{:?}", e)))
     }
 }
 

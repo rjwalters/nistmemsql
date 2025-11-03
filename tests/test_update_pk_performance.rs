@@ -15,7 +15,11 @@ fn test_update_with_pk_index_performance() {
         "test_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(20) }, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(20) },
+                false,
+            ),
             ColumnSchema::new("value".to_string(), DataType::Integer, false),
         ],
         vec!["id".to_string()],
@@ -57,10 +61,7 @@ fn test_update_with_pk_index_performance() {
                 },
             }],
             where_clause: Some(WhereClause::Condition(Expression::BinaryOp {
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "id".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
                 op: BinaryOperator::Equal,
                 right: Box::new(Expression::Literal(SqlValue::Integer(i))),
             })),
@@ -77,9 +78,5 @@ fn test_update_with_pk_index_performance() {
 
     // Verify the optimization is working (should be < 20ms)
     // Original was ~48ms, SQLite is ~1ms, we should be much closer to SQLite now
-    assert!(
-        elapsed_ms < 20,
-        "UPDATE with PK index should be fast (< 20ms), got {}ms",
-        elapsed_ms
-    );
+    assert!(elapsed_ms < 20, "UPDATE with PK index should be fast (< 20ms), got {}ms", elapsed_ms);
 }

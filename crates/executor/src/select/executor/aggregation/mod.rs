@@ -35,10 +35,7 @@ impl SelectExecutor<'_> {
                 let empty_schema = catalog::TableSchema::new("".to_string(), vec![]);
                 let combined_schema = CombinedSchema::from_table("".to_string(), empty_schema);
 
-                FromResult {
-                    schema: combined_schema,
-                    rows: vec![],
-                }
+                FromResult { schema: combined_schema, rows: vec![] }
             }
         };
 
