@@ -1,0 +1,102 @@
+{
+    "machine_info": {
+        "node": "robblocal.local",
+        "processor": "arm",
+        "machine": "arm64",
+        "python_compiler": "Clang 16.0.3 ",
+        "python_implementation": "CPython",
+        "python_implementation_version": "3.11.7",
+        "python_version": "3.11.7",
+        "python_build": [
+            "main",
+            "Jan  7 2024 23:23:46"
+        ],
+        "release": "24.6.0",
+        "system": "Darwin",
+        "cpu": {
+            "python_version": "3.11.7.final.0 (64 bit)",
+            "cpuinfo_version": [
+                9,
+                0,
+                0
+            ],
+            "cpuinfo_version_string": "9.0.0",
+            "arch": "ARM_8",
+            "bits": 64,
+            "count": 8,
+            "arch_string_raw": "arm64",
+            "brand_raw": "Apple M3"
+        }
+    },
+    "commit_info": {
+        "id": "ded1191ce45f947d8ed522da5280db0a7543d4b5",
+        "time": "2025-11-02T20:58:05-08:00",
+        "author_time": "2025-11-02T20:58:05-08:00",
+        "dirty": true,
+        "project": "nistmemsql",
+        "branch": "feature/issue-825"
+    },
+    "benchmarks": [
+        {
+            "group": null,
+            "name": "test_update_1k_nistmemsql",
+            "fullname": "test_update.py::test_update_1k_nistmemsql",
+            "params": null,
+            "param": null,
+            "extra_info": {},
+            "options": {
+                "disable_gc": true,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": 2
+            },
+            "stats": {
+                "min": 0.04512500000419095,
+                "max": 0.04611862500314601,
+                "mean": 0.04553761936404044,
+                "stddev": 0.0002763494125268015,
+                "rounds": 22,
+                "median": 0.04552054150190088,
+                "iqr": 0.0003785410008276813,
+                "q1": 0.045355875001405366,
+                "q3": 0.04573441600223305,
+                "iqr_outliers": 0,
+                "stddev_outliers": 7,
+                "outliers": "7;0",
+                "ld15iqr": 0.04512500000419095,
+                "hd15iqr": 0.04611862500314601,
+                "ops": 21.959865578516983,
+                "total": 1.0018276260088896,
+                "data": [
+                    0.045355875001405366,
+                    0.045189832999312785,
+                    0.04512500000419095,
+                    0.045275584001501556,
+                    0.04583795899816323,
+                    0.04611862500314601,
+                    0.045574541996757034,
+                    0.04604000000108499,
+                    0.04581375000270782,
+                    0.04541087499819696,
+                    0.04513929200038547,
+                    0.04566487499687355,
+                    0.04580654200253775,
+                    0.0455248330035829,
+                    0.04573441600223305,
+                    0.04551625000021886,
+                    0.045382749995042104,
+                    0.04525166600069497,
+                    0.04545962499832967,
+                    0.045572125003673136,
+                    0.04565183399972739,
+                    0.04538137499912409
+                ],
+                "iterations": 1
+            }
+        }
+    ],
+    "datetime": "2025-11-03T05:05:46.051050+00:00",
+    "version": "5.1.0"
+}

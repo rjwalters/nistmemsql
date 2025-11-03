@@ -6,9 +6,11 @@
 // Suppress PyO3 macro warnings
 #![allow(non_local_definitions)]
 
+use lru::LruCache;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::types::{PyList, PyTuple};
+use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex};
 
 pyo3::create_exception!(nistmemsql, DatabaseError, PyException);
@@ -104,7 +106,15 @@ impl Database {
     /// Returns:
     ///     Cursor: A new cursor object
     fn cursor(&self) -> PyResult<Cursor> {
-        Ok(Cursor { db: Arc::clone(&self.db), last_result: None })
+        Ok(Cursor {
+            db: Arc::clone(&self.db),
+            last_result: None,
+            stmt_cache: Arc::new(Mutex::new(LruCache::new(
+                NonZeroUsize::new(1000).unwrap(),
+            ))),
+            cache_hits: Arc::new(Mutex::new(0)),
+            cache_misses: Arc::new(Mutex::new(0)),
+        })
     }
 
     /// Close the database connection
@@ -142,6 +152,12 @@ enum QueryResultData {
 struct Cursor {
     db: Arc<Mutex<storage::Database>>,
     last_result: Option<QueryResultData>,
+    /// LRU cache for parsed SQL statements (max 1000 entries)
+    /// Key: SQL string with ? placeholders, Value: parsed AST
+    stmt_cache: Arc<Mutex<LruCache<String, ast::Statement>>>,
+    /// Cache statistics for monitoring
+    cache_hits: Arc<Mutex<usize>>,
+    cache_misses: Arc<Mutex<usize>>,
 }
 
 #[pymethods]
@@ -161,8 +177,24 @@ impl Cursor {
         sql: &str,
         params: Option<&Bound<'_, PyTuple>>,
     ) -> PyResult<()> {
-        // Process SQL with parameter substitution if params are provided
-        let processed_sql = if let Some(params_tuple) = params {
+        // Use the original SQL (with ? placeholders) as the cache key
+        let cache_key = sql.to_string();
+
+        // Check if we have a cached parsed AST for this SQL
+        let mut cache = self.stmt_cache.lock().unwrap();
+        let stmt = if let Some(cached_stmt) = cache.get(&cache_key) {
+            // Cache hit! Clone the cached AST before releasing lock
+            let cloned_stmt = cached_stmt.clone();
+            drop(cache); // Release cache lock before updating stats
+            *self.cache_hits.lock().unwrap() += 1;
+            cloned_stmt
+        } else {
+            // Cache miss - need to parse
+            drop(cache); // Release cache lock before parsing
+            *self.cache_misses.lock().unwrap() += 1;
+
+            // Process SQL with parameter substitution if params are provided
+            let processed_sql = if let Some(params_tuple) = params {
             // Count placeholders in SQL
             let placeholder_count = sql.matches('?').count();
             let param_count = params_tuple.len();
@@ -226,15 +258,23 @@ impl Cursor {
                 }
             }
 
-            result
-        } else {
-            // No parameters provided, use SQL as-is
-            sql.to_string()
-        };
+                result
+            } else {
+                // No parameters provided, use SQL as-is
+                sql.to_string()
+            };
 
-        // Parse the processed SQL
-        let stmt = parser::Parser::parse_sql(&processed_sql)
-            .map_err(|e| ProgrammingError::new_err(format!("Parse error: {:?}", e)))?;
+            // Parse the processed SQL
+            let stmt = parser::Parser::parse_sql(&processed_sql)
+                .map_err(|e| ProgrammingError::new_err(format!("Parse error: {:?}", e)))?;
+
+            // Store the parsed AST in cache for future reuse
+            let mut cache = self.stmt_cache.lock().unwrap();
+            cache.put(cache_key.clone(), stmt.clone());
+            drop(cache);
+
+            stmt
+        };
 
         // Execute based on statement type
         match stmt {
@@ -255,6 +295,11 @@ impl Cursor {
                 executor::CreateTableExecutor::execute(&create_stmt, &mut db)
                     .map_err(|e| OperationalError::new_err(format!("Execution error: {:?}", e)))?;
 
+                // Clear statement cache on schema change
+                let mut cache = self.stmt_cache.lock().unwrap();
+                cache.clear();
+                drop(cache);
+
                 self.last_result = Some(QueryResultData::Execute {
                     rows_affected: 0,
                     message: format!("Table '{}' created successfully", create_stmt.table_name),
@@ -266,6 +311,11 @@ impl Cursor {
                 let mut db = self.db.lock().unwrap();
                 let message = executor::DropTableExecutor::execute(&drop_stmt, &mut db)
                     .map_err(|e| OperationalError::new_err(format!("Execution error: {:?}", e)))?;
+
+                // Clear statement cache on schema change
+                let mut cache = self.stmt_cache.lock().unwrap();
+                cache.clear();
+                drop(cache);
 
                 self.last_result = Some(QueryResultData::Execute { rows_affected: 0, message });
 
@@ -420,6 +470,31 @@ impl Cursor {
             Some(QueryResultData::Select { rows, .. }) => Ok(rows.len() as i64),
             None => Ok(-1),
         }
+    }
+
+    /// Get statement cache statistics
+    ///
+    /// Returns:
+    ///     tuple: (cache_hits, cache_misses, hit_rate)
+    fn cache_stats(&self) -> PyResult<(usize, usize, f64)> {
+        let hits = *self.cache_hits.lock().unwrap();
+        let misses = *self.cache_misses.lock().unwrap();
+        let total = hits + misses;
+        let hit_rate = if total > 0 {
+            (hits as f64) / (total as f64)
+        } else {
+            0.0
+        };
+        Ok((hits, misses, hit_rate))
+    }
+
+    /// Clear the statement cache
+    ///
+    /// Useful for testing or when schema changes occur outside this cursor
+    fn clear_cache(&mut self) -> PyResult<()> {
+        let mut cache = self.stmt_cache.lock().unwrap();
+        cache.clear();
+        Ok(())
     }
 
     /// Close the cursor
