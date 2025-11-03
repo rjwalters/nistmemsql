@@ -436,9 +436,12 @@ SELECT department, COUNT(*) as count FROM employees GROUP BY department;
 ### Try the Demo Locally
 
 ```bash
-# Clone the repository
-git clone https://github.com/rjwalters/nistmemsql.git
+# Clone the repository with submodules (includes SQLite reference source)
+git clone --recurse-submodules https://github.com/rjwalters/nistmemsql.git
 cd nistmemsql
+
+# If already cloned, initialize submodules
+git submodule update --init --recursive
 
 # Run tests (requires Rust)
 cargo test --workspace
@@ -448,6 +451,8 @@ cd web-demo
 npm install
 npm run dev
 ```
+
+**Note**: This project includes SQLite source code as a reference submodule for learning and optimization. See [docs/reference/README.md](docs/reference/README.md) for details.
 
 ### Python Usage
 
