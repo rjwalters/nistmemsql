@@ -22,3 +22,11 @@ test-*.ts
 diagnose-*.ts
 find-*.ts
 debug-screenshot-*.png
+
+# Compiled debug/test scripts (should not be committed)
+debug-*.js
+inspect-*.js
+test-*.js
+diagnose-*.js
+find-*.js
+check-*.js

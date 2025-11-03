@@ -8,12 +8,12 @@ echo ""
 echo "Building optimized nistmemsql with PyO3..."
 cd crates/python-bindings
 maturin build --release
-pip install --force-reinstall target/wheels/nistmemsql-*.whl
+uv pip install --force-reinstall target/wheels/nistmemsql-*.whl
 cd ../..
 
 # Install benchmark dependencies
 echo "Installing benchmark dependencies..."
-pip install -r benchmarks/requirements.txt
+uv pip install -r benchmarks/requirements.txt
 
 # Run benchmarks
 echo "Running benchmark suite..."

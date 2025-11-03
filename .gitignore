@@ -51,3 +51,9 @@ ENV/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Node.js
+node_modules/
+
+# Benchmark results
+benchmark_results.json
