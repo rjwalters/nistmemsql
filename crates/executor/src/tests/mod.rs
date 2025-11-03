@@ -34,6 +34,7 @@ mod aggregate_min_max_tests;
 mod between_predicates;
 mod case_bug;
 mod comparison_ops;
+mod count_star_fast_path;
 mod error_display;
 mod expression_eval;
 mod join_aggregation;

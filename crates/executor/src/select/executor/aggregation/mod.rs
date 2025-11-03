@@ -23,6 +23,18 @@ impl SelectExecutor<'_> {
         stmt: &ast::SelectStmt,
         cte_results: &HashMap<String, CteResult>,
     ) -> Result<Vec<storage::Row>, ExecutorError> {
+        // Fast path: Simple COUNT(*) without filtering
+        // This optimization avoids materializing all rows when we just need the count
+        if let Some(table_name) = self.is_simple_count_star(stmt) {
+            // If table doesn't exist, fall through to normal path which will produce proper error
+            if let Some(table) = self.database.get_table(&table_name) {
+                let count = table.row_count();
+                return Ok(vec![storage::Row::new(vec![types::SqlValue::Integer(
+                    count as i64,
+                )])]);
+            }
+        }
+
         // Execute FROM clause (handles JOINs, subqueries, CTEs)
         let from_result = match &stmt.from {
             Some(from_clause) => self.execute_from(from_clause, cte_results)?,
