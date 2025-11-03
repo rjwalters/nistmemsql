@@ -356,6 +356,47 @@ jobs:
           [ -f benchmark_results.json ] && cp benchmark_results.json badges/
           [ -f benchmark_history.json ] && cp benchmark_history.json badges/
 
+      # Download existing Pages site to preserve cumulative results
+      - name: Download current Pages site
+        continue-on-error: true
+        run: |
+          echo "Downloading current Pages site to preserve cumulative results..."
+          mkdir -p pages-temp
+
+          # Download existing cumulative results (most important)
+          if curl -sL https://rjwalters.github.io/nistmemsql/badges/sqllogictest_cumulative.json \
+            -o pages-temp/sqllogictest_cumulative_existing.json 2>/dev/null; then
+            if jq empty pages-temp/sqllogictest_cumulative_existing.json 2>/dev/null; then
+              echo "✓ Downloaded existing cumulative results"
+              jq '.summary' pages-temp/sqllogictest_cumulative_existing.json
+            else
+              echo "Downloaded file is not valid JSON - will use fresh results"
+            fi
+          else
+            echo "No existing cumulative results found on Pages"
+          fi
+
+      # Re-merge with latest cumulative from Pages (not the one from start of test job)
+      - name: Re-merge with latest cumulative results
+        continue-on-error: true
+        run: |
+          if [ -f pages-temp/sqllogictest_cumulative_existing.json ]; then
+            echo "Re-merging with latest cumulative results from Pages..."
+            python3 scripts/merge_sqllogictest_results.py \
+              target/sqllogictest_analysis.json \
+              pages-temp/sqllogictest_cumulative_existing.json \
+              target/sqllogictest_cumulative_updated.json
+
+            if [ -f target/sqllogictest_cumulative_updated.json ]; then
+              cp target/sqllogictest_cumulative_updated.json target/sqllogictest_cumulative.json
+              cp target/sqllogictest_cumulative_updated.json badges/sqllogictest_cumulative.json
+              echo "✓ Re-merged with latest Pages cumulative results"
+              jq '.summary' target/sqllogictest_cumulative.json
+            fi
+          else
+            echo "Using cumulative results from test job (no Pages version found)"
+          fi
+
       # Prepare deployment
       - name: Prepare deployment
         run: |
