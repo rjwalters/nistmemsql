@@ -83,60 +83,26 @@ pub fn execute_insert(
         // Apply DEFAULT values for unspecified columns
         super::defaults::apply_default_values(&schema, &mut full_row_values)?;
 
-        // Enforce NOT NULL constraints
-        super::constraints::enforce_not_null_constraints(
-            &schema,
-            &stmt.table_name,
-            &full_row_values,
-        )?;
-
-        // Enforce PRIMARY KEY constraint (uniqueness)
-        super::constraints::enforce_primary_key_constraint(
+        // Validate all constraints in a single pass and extract index keys
+        let validator = super::row_validator::RowValidator::new(
             db,
             &schema,
             &stmt.table_name,
-            &full_row_values,
             &primary_key_values,
-        )?;
-
-        // Track PK values for batch duplicate checking
-        if let Some(pk_indices) = schema.get_primary_key_indices() {
-            let new_pk_values: Vec<types::SqlValue> =
-                pk_indices.iter().map(|&idx| full_row_values[idx].clone()).collect();
-            primary_key_values.push(new_pk_values);
-        }
-
-        // Enforce UNIQUE constraints
-        super::constraints::enforce_unique_constraints(
-            db,
-            &schema,
-            &stmt.table_name,
-            &full_row_values,
             &unique_constraint_values,
-        )?;
+        );
+        let validation_result = validator.validate(&full_row_values)?;
 
-        // Track UNIQUE values for batch duplicate checking
-        let unique_constraint_indices = schema.get_unique_constraint_indices();
-        for (constraint_idx, unique_indices) in unique_constraint_indices.iter().enumerate() {
-            let new_unique_values: Vec<types::SqlValue> =
-                unique_indices.iter().map(|&idx| full_row_values[idx].clone()).collect();
-
-            // Skip if any value is NULL (multiple NULLs allowed in UNIQUE constraints)
-            if !new_unique_values.iter().any(|v| *v == types::SqlValue::Null) {
-                unique_constraint_values[constraint_idx].push(new_unique_values);
-            }
+        // Track PK values for batch duplicate checking (using pre-extracted keys)
+        if let Some(pk_values) = validation_result.primary_key {
+            primary_key_values.push(pk_values);
         }
 
-        // Enforce CHECK constraints
-        super::constraints::enforce_check_constraints(&schema, &full_row_values)?;
-
-        // Enforce FOREIGN KEY constraints (child table)
-        if !schema.foreign_keys.is_empty() {
-            super::foreign_keys::validate_foreign_key_constraints(
-                db,
-                &stmt.table_name,
-                &full_row_values,
-            )?;
+        // Track UNIQUE values for batch duplicate checking (using pre-extracted keys)
+        for (constraint_idx, unique_values) in validation_result.unique_keys.into_iter().enumerate() {
+            if let Some(values) = unique_values {
+                unique_constraint_values[constraint_idx].push(values);
+            }
         }
 
         // Store validated row for insertion
