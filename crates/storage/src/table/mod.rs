@@ -4,10 +4,12 @@
 
 mod indexes;
 mod append_mode;
+mod normalization;
 
 use crate::{Row, StorageError};
 use indexes::IndexManager;
 use append_mode::AppendModeTracker;
+use normalization::RowNormalizer;
 use types::SqlValue;
 
 /// In-memory table - stores rows
@@ -19,7 +21,7 @@ pub struct Table {
     // Hash indexes for constraint validation (managed by IndexManager)
     indexes: IndexManager,
 
-    // Append mode optimization tracking
+    // Append mode optimization tracking (managed by AppendModeTracker)
     append_tracker: AppendModeTracker,
 }
 
@@ -38,19 +40,9 @@ impl Table {
 
     /// Insert a row into the table
     pub fn insert(&mut self, row: Row) -> Result<(), StorageError> {
-        // Validate row has correct number of columns
-        if row.len() != self.schema.column_count() {
-            return Err(StorageError::ColumnCountMismatch {
-                expected: self.schema.column_count(),
-                actual: row.len(),
-            });
-        }
-
-        // TODO: Type checking - verify each value matches column type
-        // TODO: NULL checking - verify non-nullable columns have values
-
-        // Normalize row values (e.g., CHAR padding/truncation)
-        let normalized_row = self.normalize_row(row);
+        // Normalize and validate row (column count, type checking, NULL checking, value normalization)
+        let normalizer = RowNormalizer::new(&self.schema);
+        let normalized_row = normalizer.normalize_and_validate(row)?;
 
         // Detect sequential append pattern before inserting
         if let Some(pk_indices) = self.schema.get_primary_key_indices() {
@@ -67,44 +59,6 @@ impl Table {
         self.indexes.update_for_insert(&self.schema, &normalized_row, row_index);
 
         Ok(())
-    }
-
-    /// Normalize row values according to schema
-    /// - CHAR: pad with spaces or truncate to fixed length
-    /// - Other types: pass through unchanged
-    fn normalize_row(&self, mut row: Row) -> Row {
-        for (i, column) in self.schema.columns.iter().enumerate() {
-            if let Some(value) = row.values.get_mut(i) {
-                // Normalize CHAR values
-                if let types::DataType::Character { length } = column.data_type {
-                    if let types::SqlValue::Character(s) = value {
-                        *s = Self::normalize_char_value(s, length);
-                    }
-                }
-            }
-        }
-        row
-    }
-
-    /// Normalize a CHAR value to fixed length
-    /// - Pad with spaces if too short
-    /// - Truncate if too long
-    fn normalize_char_value(value: &str, length: usize) -> String {
-        use std::cmp::Ordering;
-        match value.len().cmp(&length) {
-            Ordering::Less => {
-                // Pad with spaces to the right
-                format!("{:width$}", value, width = length)
-            }
-            Ordering::Greater => {
-                // Truncate to fixed length
-                value[..length].to_string()
-            }
-            Ordering::Equal => {
-                // Exact length - no change needed
-                value.to_string()
-            }
-        }
     }
 
     /// Get all rows (for scanning)
@@ -138,16 +92,9 @@ impl Table {
             return Err(StorageError::ColumnIndexOutOfBounds { index });
         }
 
-        // Validate row has correct number of columns
-        if row.len() != self.schema.column_count() {
-            return Err(StorageError::ColumnCountMismatch {
-                expected: self.schema.column_count(),
-                actual: row.len(),
-            });
-        }
-
-        // Normalize row values (e.g., CHAR padding/truncation)
-        let normalized_row = self.normalize_row(row);
+        // Normalize and validate row
+        let normalizer = RowNormalizer::new(&self.schema);
+        let normalized_row = normalizer.normalize_and_validate(row)?;
 
         // Get old row for index updates (clone to avoid borrow issues)
         let old_row = self.rows[index].clone();
@@ -184,16 +131,9 @@ impl Table {
             return Err(StorageError::ColumnIndexOutOfBounds { index });
         }
 
-        // Validate row has correct number of columns
-        if row.len() != self.schema.column_count() {
-            return Err(StorageError::ColumnCountMismatch {
-                expected: self.schema.column_count(),
-                actual: row.len(),
-            });
-        }
-
-        // Normalize row values (e.g., CHAR padding/truncation)
-        let normalized_row = self.normalize_row(row);
+        // Normalize and validate row
+        let normalizer = RowNormalizer::new(&self.schema);
+        let normalized_row = normalizer.normalize_and_validate(row)?;
 
         // Get old row for index updates (clone to avoid borrow issues)
         let old_row = self.rows[index].clone();
@@ -303,9 +243,7 @@ mod tests {
     }
 
     fn create_row(id: i64, name: &str) -> Row {
-        Row {
-            values: vec![SqlValue::Integer(id), SqlValue::Varchar(name.to_string())],
-        }
+        Row { values: vec![SqlValue::Integer(id), SqlValue::Varchar(name.to_string())] }
     }
 
     #[test]

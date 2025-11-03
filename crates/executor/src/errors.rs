@@ -128,6 +128,18 @@ impl From<storage::StorageError> for ExecutorError {
             storage::StorageError::RowNotFound => {
                 ExecutorError::StorageError("Row not found".to_string())
             }
+            storage::StorageError::NullConstraintViolation { column } => {
+                ExecutorError::ConstraintViolation(format!(
+                    "NOT NULL constraint violation: column '{}' cannot be NULL",
+                    column
+                ))
+            }
+            storage::StorageError::TypeMismatch { column, expected, actual } => {
+                ExecutorError::StorageError(format!(
+                    "Type mismatch in column '{}': expected {}, got {}",
+                    column, expected, actual
+                ))
+            }
         }
     }
 }

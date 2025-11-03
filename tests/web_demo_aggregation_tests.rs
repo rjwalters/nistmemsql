@@ -5,7 +5,6 @@
 
 mod common;
 
-use ast;
 use common::web_demo_helpers::{extract_query, load_database, parse_example_files, WebDemoExample};
 use executor::SelectExecutor;
 use parser::Parser;

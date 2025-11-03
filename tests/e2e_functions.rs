@@ -39,7 +39,7 @@ fn test_e2e_coalesce_and_nullif() {
             ColumnSchema::new(
                 "NICKNAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
-                false,
+                true, // nullable - to test COALESCE with NULL values
             ),
             ColumnSchema::new("BALANCE".to_string(), DataType::Integer, false),
         ],

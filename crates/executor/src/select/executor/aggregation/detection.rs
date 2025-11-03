@@ -105,7 +105,7 @@ impl SelectExecutor<'_> {
             Some(ast::FromClause::Table { name, .. }) => name.clone(),
             Some(ast::FromClause::Join { .. }) => return None, // JOIN not allowed
             Some(ast::FromClause::Subquery { .. }) => return None, // Subquery not allowed
-            None => return None, // No FROM clause
+            None => return None,                               // No FROM clause
         };
 
         Some(table_name)

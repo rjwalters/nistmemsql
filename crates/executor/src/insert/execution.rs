@@ -111,7 +111,8 @@ pub fn execute_insert(
         }
 
         // Track UNIQUE values for batch duplicate checking (using pre-extracted keys)
-        for (constraint_idx, unique_values) in validation_result.unique_keys.into_iter().enumerate() {
+        for (constraint_idx, unique_values) in validation_result.unique_keys.into_iter().enumerate()
+        {
             if let Some(values) = unique_values {
                 unique_constraint_values[constraint_idx].push(values);
             }

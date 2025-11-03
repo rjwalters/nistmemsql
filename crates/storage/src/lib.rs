@@ -148,16 +148,10 @@ mod tests {
 
         // Insert initial rows
         table
-            .insert(Row::new(vec![
-                SqlValue::Integer(1),
-                SqlValue::Varchar("Alice".to_string()),
-            ]))
+            .insert(Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]))
             .unwrap();
         table
-            .insert(Row::new(vec![
-                SqlValue::Integer(2),
-                SqlValue::Varchar("Bob".to_string()),
-            ]))
+            .insert(Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())]))
             .unwrap();
 
         // Update primary key column
@@ -220,10 +214,7 @@ mod tests {
 
         // Verify unique index was updated
         let row = table.scan().iter().next().unwrap();
-        assert_eq!(
-            row.get(1),
-            Some(&SqlValue::Varchar("alice.smith@example.com".to_string()))
-        );
+        assert_eq!(row.get(1), Some(&SqlValue::Varchar("alice.smith@example.com".to_string())));
     }
 
     #[test]
