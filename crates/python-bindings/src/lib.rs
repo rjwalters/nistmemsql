@@ -154,6 +154,7 @@ impl Cursor {
     ///
     /// Returns:
     ///     None
+    #[pyo3(signature = (sql, params=None))]
     fn execute(
         &mut self,
         py: Python,
