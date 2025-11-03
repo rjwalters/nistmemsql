@@ -515,6 +515,140 @@ def test_statement_cache_performance():
     db.close()
 
 
+# ============================================================================
+# Schema Cache Tests (Issue #826)
+# ============================================================================
+
+def test_schema_cache_basic():
+    """Test that schema cache reduces redundant catalog lookups"""
+    db = nistmemsql.connect()
+    cursor = db.cursor()
+    cursor.execute("CREATE TABLE test (id INTEGER, value INTEGER)")
+    cursor.execute("INSERT INTO test VALUES (1, 100)")
+
+    # First UPDATE - schema cache miss
+    cursor.execute("UPDATE test SET value = 200 WHERE id = 1")
+    hits1, misses1, _ = cursor.schema_cache_stats()
+    assert misses1 == 1, f"Expected 1 schema cache miss, got {misses1}"
+
+    # Second UPDATE on same table - schema cache hit
+    cursor.execute("UPDATE test SET value = 300 WHERE id = 1")
+    hits2, misses2, _ = cursor.schema_cache_stats()
+    assert hits2 == 1, f"Expected 1 schema cache hit, got {hits2}"
+    assert misses2 == 1, f"Expected still 1 schema cache miss, got {misses2}"
+
+    cursor.close()
+    db.close()
+
+
+def test_schema_cache_multiple_tables():
+    """Test schema caching with multiple tables"""
+    db = nistmemsql.connect()
+    cursor = db.cursor()
+    cursor.execute("CREATE TABLE table1 (id INTEGER, value INTEGER)")
+    cursor.execute("CREATE TABLE table2 (id INTEGER, value INTEGER)")
+
+    # UPDATE table1 - first miss for table1
+    cursor.execute("UPDATE table1 SET value = 100 WHERE id = 1")
+    hits1, misses1, _ = cursor.schema_cache_stats()
+
+    # UPDATE table2 - first miss for table2
+    cursor.execute("UPDATE table2 SET value = 200 WHERE id = 1")
+    hits2, misses2, _ = cursor.schema_cache_stats()
+    assert misses2 == misses1 + 1, "Expected miss for second table"
+
+    # UPDATE table1 again - should hit cache
+    cursor.execute("UPDATE table1 SET value = 101 WHERE id = 1")
+    hits3, misses3, _ = cursor.schema_cache_stats()
+    assert hits3 > hits2, "Expected schema cache hit for table1"
+
+    cursor.close()
+    db.close()
+
+
+def test_schema_cache_invalidation_on_ddl():
+    """Test that schema cache is cleared on DDL operations"""
+    db = nistmemsql.connect()
+    cursor = db.cursor()
+    cursor.execute("CREATE TABLE test (id INTEGER, value INTEGER)")
+    cursor.execute("INSERT INTO test VALUES (1, 100)")
+
+    # Execute UPDATE to populate schema cache
+    cursor.execute("UPDATE test SET value = 200 WHERE id = 1")
+    hits1, misses1, _ = cursor.schema_cache_stats()
+    assert misses1 == 1, "Expected initial schema cache miss"
+
+    # DROP TABLE should clear schema cache
+    cursor.execute("DROP TABLE test")
+
+    # Recreate table and UPDATE - should be a new miss (cache was cleared)
+    cursor.execute("CREATE TABLE test (id INTEGER, value INTEGER)")
+    cursor.execute("INSERT INTO test VALUES (1, 100)")
+    cursor.execute("UPDATE test SET value = 300 WHERE id = 1")
+
+    hits2, misses2, _ = cursor.schema_cache_stats()
+    assert misses2 > misses1, "Expected schema cache to be cleared after DDL"
+
+    cursor.close()
+    db.close()
+
+
+def test_schema_cache_hit_rate():
+    """Test schema cache hit rate with repeated UPDATEs"""
+    db = nistmemsql.connect()
+    cursor = db.cursor()
+    cursor.execute("CREATE TABLE test (id INTEGER, value INTEGER)")
+
+    # Insert test data
+    for i in range(100):
+        cursor.execute("INSERT INTO test VALUES (?, ?)", (i, i * 10))
+
+    # Execute many UPDATEs on same table - should mostly hit schema cache
+    for i in range(100):
+        cursor.execute("UPDATE test SET value = value + 1 WHERE id = ?", (i,))
+
+    hits, misses, hit_rate = cursor.schema_cache_stats()
+
+    # First UPDATE is a miss, rest should be hits
+    assert misses == 1, f"Expected exactly 1 schema cache miss, got {misses}"
+    assert hits == 99, f"Expected 99 schema cache hits, got {hits}"
+    assert abs(hit_rate - 0.99) < 0.01, f"Expected 99% hit rate, got {hit_rate:.2%}"
+
+    print(f"  Schema cache: {hits} hits, {misses} misses, {hit_rate:.2%} hit rate")
+
+    cursor.close()
+    db.close()
+
+
+def test_schema_cache_performance_improvement():
+    """Test that schema caching reduces lookup overhead"""
+    import time
+
+    db = nistmemsql.connect()
+    cursor = db.cursor()
+    cursor.execute("CREATE TABLE test (id INTEGER, value INTEGER)")
+
+    # Insert test data
+    for i in range(100):
+        cursor.execute("INSERT INTO test VALUES (?, ?)", (i, i * 10))
+
+    # Execute many UPDATEs - schema should be cached after first lookup
+    start_time = time.time()
+    for i in range(1000):
+        cursor.execute("UPDATE test SET value = value + 1 WHERE id = ?", (i % 100,))
+    elapsed = time.time() - start_time
+
+    # Verify high schema cache hit rate
+    hits, misses, hit_rate = cursor.schema_cache_stats()
+    assert hit_rate > 0.98, f"Expected >98% schema cache hit rate, got {hit_rate:.2%}"
+    assert misses == 1, f"Expected exactly 1 schema cache miss, got {misses}"
+
+    print(f"  1000 UPDATEs with schema cache: {elapsed*1000:.2f}ms (schema hit rate: {hit_rate:.2%})")
+
+    cursor.close()
+    db.close()
+
+
 if __name__ == "__main__":
     # Run all tests
     test_connection()
@@ -549,5 +683,12 @@ if __name__ == "__main__":
     test_statement_cache_stats()
     test_statement_cache_invalidation()
     test_statement_cache_performance()
+
+    # Schema cache tests
+    test_schema_cache_basic()
+    test_schema_cache_multiple_tables()
+    test_schema_cache_invalidation_on_ddl()
+    test_schema_cache_hit_rate()
+    test_schema_cache_performance_improvement()
 
     print("All tests passed!")

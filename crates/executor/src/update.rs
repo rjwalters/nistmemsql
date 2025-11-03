@@ -111,14 +111,40 @@ impl UpdateExecutor {
     /// assert_eq!(count, 1);
     /// ```
     pub fn execute(stmt: &UpdateStmt, database: &mut Database) -> Result<usize, ExecutorError> {
+        Self::execute_with_schema(stmt, database, None)
+    }
+
+    /// Execute an UPDATE statement with optional pre-fetched schema
+    ///
+    /// This method allows cursor-level schema caching to reduce redundant catalog lookups.
+    /// If schema is provided, skips the catalog lookup step.
+    ///
+    /// # Arguments
+    ///
+    /// * `stmt` - The UPDATE statement AST node
+    /// * `database` - The database to update
+    /// * `schema` - Optional pre-fetched schema (from cursor cache)
+    ///
+    /// # Returns
+    ///
+    /// Number of rows updated or error
+    pub fn execute_with_schema(
+        stmt: &UpdateStmt,
+        database: &mut Database,
+        schema: Option<&catalog::TableSchema>,
+    ) -> Result<usize, ExecutorError> {
         // Check UPDATE privilege on the table
         PrivilegeChecker::check_update(database, &stmt.table_name)?;
 
-        // Step 1: Get table schema from catalog
-        let schema = database
-            .catalog
-            .get_table(&stmt.table_name)
-            .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
+        // Step 1: Get table schema - use provided schema or fetch from catalog
+        let schema = if let Some(s) = schema {
+            s
+        } else {
+            database
+                .catalog
+                .get_table(&stmt.table_name)
+                .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?
+        };
 
         // Step 2: Get table from storage (for reading rows)
         let table = database
