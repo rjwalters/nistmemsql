@@ -5,6 +5,7 @@ mod core;
 pub mod date_format;
 mod expressions;
 mod functions;
+mod operators;
 mod pattern;
 pub mod window;
 
