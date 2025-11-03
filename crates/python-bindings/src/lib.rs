@@ -9,6 +9,7 @@
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::types::{PyList, PyTuple};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 pyo3::create_exception!(nistmemsql, DatabaseError, PyException);
@@ -58,7 +59,11 @@ impl Database {
     /// Returns:
     ///     Cursor: A new cursor object
     fn cursor(&self) -> PyResult<Cursor> {
-        Ok(Cursor { db: Arc::clone(&self.db), last_result: None })
+        Ok(Cursor {
+            db: Arc::clone(&self.db),
+            last_result: None,
+            statement_cache: HashMap::new(),
+        })
     }
 
     /// Close the database connection
@@ -96,6 +101,8 @@ enum QueryResultData {
 struct Cursor {
     db: Arc<Mutex<storage::Database>>,
     last_result: Option<QueryResultData>,
+    /// Simple cache for parsed SQL statements to avoid reparsing
+    statement_cache: HashMap<String, ast::Statement>,
 }
 
 #[pymethods]
@@ -108,9 +115,50 @@ impl Cursor {
     /// Returns:
     ///     Cursor: Returns self for method chaining
     fn execute(&mut self, sql: &str) -> PyResult<()> {
-        // Parse the SQL
-        let stmt = parser::Parser::parse_sql(sql)
-            .map_err(|e| ProgrammingError::new_err(format!("Parse error: {:?}", e)))?;
+        self.execute_internal(sql)
+    }
+
+    /// Execute the same SQL statement multiple times with different parameters
+    ///
+    /// This is much faster than calling execute() in a loop as it reduces FFI overhead.
+    ///
+    /// Args:
+    ///     sql_statements (list[str]): List of SQL statements to execute
+    ///
+    /// Returns:
+    ///     int: Total number of rows affected across all statements
+    fn executemany(&mut self, sql_statements: Vec<String>) -> PyResult<usize> {
+        let mut total_rows_affected = 0;
+
+        for sql in sql_statements {
+            self.execute_internal(&sql)?;
+
+            // Accumulate rows affected
+            if let Some(QueryResultData::Execute { rows_affected, .. }) = &self.last_result {
+                total_rows_affected += rows_affected;
+            }
+        }
+
+        Ok(total_rows_affected)
+    }
+
+    /// Internal helper to execute a single SQL statement
+    fn execute_internal(&mut self, sql: &str) -> PyResult<()> {
+        // Check cache first, or parse and cache if not present
+        let stmt = if let Some(cached_stmt) = self.statement_cache.get(sql) {
+            cached_stmt.clone()
+        } else {
+            let parsed_stmt = parser::Parser::parse_sql(sql)
+                .map_err(|e| ProgrammingError::new_err(format!("Parse error: {:?}", e)))?;
+
+            // Cache the parsed statement for future use
+            // Limit cache size to prevent unbounded growth
+            if self.statement_cache.len() < 1000 {
+                self.statement_cache.insert(sql.to_string(), parsed_stmt.clone());
+            }
+
+            parsed_stmt
+        };
 
         // Execute based on statement type
         match stmt {

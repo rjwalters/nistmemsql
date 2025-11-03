@@ -20,6 +20,23 @@ def test_update_1k_nistmemsql(benchmark, nistmemsql_db):
     _run_update_test(benchmark, nistmemsql_db, 1000, 'nistmemsql')
 
 
+def test_update_1k_nistmemsql_batch(benchmark, nistmemsql_db):
+    """Benchmark batched UPDATE operations on nistmemsql (1k rows) using executemany."""
+    setup_test_table(nistmemsql_db, 1000, 'nistmemsql')
+
+    def run_updates():
+        cursor = nistmemsql_db.cursor()
+        # Create list of all UPDATE statements
+        statements = [
+            f"UPDATE test_table SET value = value + 1 WHERE id = {i}"
+            for i in range(1000)
+        ]
+        # Execute them all at once with executemany
+        cursor.executemany(statements)
+
+    benchmark(run_updates)
+
+
 def test_update_1k_duckdb(benchmark, duckdb_db):
     """Benchmark UPDATE operations on DuckDB (1k rows)."""
     setup_test_table(duckdb_db, 1000, 'duckdb')
