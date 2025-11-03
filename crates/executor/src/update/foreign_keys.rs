@@ -78,9 +78,27 @@ impl ForeignKeyValidator {
         let parent_key_values: Vec<types::SqlValue> =
             pk_indices.iter().map(|&idx| parent_row.values[idx].clone()).collect();
 
+        // Optimization: Check if any table in the database has foreign keys at all
+        // If not, skip the expensive scan of all tables
+        let has_any_fks = db.catalog.list_tables().iter().any(|table_name| {
+            db.catalog
+                .get_table(table_name)
+                .map(|schema| !schema.foreign_keys.is_empty())
+                .unwrap_or(false)
+        });
+
+        if !has_any_fks {
+            return Ok(());
+        }
+
         // Scan all tables in the database to find foreign keys that reference this table.
         for table_name in db.catalog.list_tables() {
             let child_schema = db.catalog.get_table(&table_name).unwrap();
+
+            // Skip tables without foreign keys (optimization)
+            if child_schema.foreign_keys.is_empty() {
+                continue;
+            }
 
             for fk in &child_schema.foreign_keys {
                 if fk.parent_table != parent_table_name {
