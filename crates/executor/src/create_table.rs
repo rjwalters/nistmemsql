@@ -79,7 +79,7 @@ impl CreateTableExecutor {
         }
 
         // Convert AST ColumnDef → Catalog ColumnSchema
-        let columns: Vec<ColumnSchema> = stmt
+        let mut columns: Vec<ColumnSchema> = stmt
             .columns
             .iter()
             .map(|col_def| ColumnSchema {
@@ -90,8 +90,42 @@ impl CreateTableExecutor {
             })
             .collect();
 
+        // Process constraints to extract primary key
+        let mut primary_key_columns: Vec<String> = Vec::new();
+
+        // First, check column-level PRIMARY KEY constraints
+        for col_def in &stmt.columns {
+            for constraint in &col_def.constraints {
+                if matches!(constraint.kind, ast::ColumnConstraintKind::PrimaryKey) {
+                    primary_key_columns.push(col_def.name.clone());
+                }
+            }
+        }
+
+        // Then, check table-level PRIMARY KEY constraints (these override column-level)
+        for table_constraint in &stmt.table_constraints {
+            if let ast::TableConstraintKind::PrimaryKey { columns: pk_cols } = &table_constraint.kind {
+                primary_key_columns = pk_cols.clone();
+                break; // Only one PRIMARY KEY constraint allowed
+            }
+        }
+
+        // If we have a primary key, mark those columns as NOT NULL
+        if !primary_key_columns.is_empty() {
+            for pk_col_name in &primary_key_columns {
+                if let Some(col) = columns.iter_mut().find(|c| c.name == *pk_col_name) {
+                    col.nullable = false; // PKs are implicitly NOT NULL
+                }
+            }
+        }
+
         // Create TableSchema with unqualified name
-        let table_schema = TableSchema::new(table_name.clone(), columns);
+        let mut table_schema = TableSchema::new(table_name.clone(), columns);
+
+        // Set primary key if found
+        if !primary_key_columns.is_empty() {
+            table_schema.primary_key = Some(primary_key_columns);
+        }
 
         // If creating in a non-current schema, temporarily switch to it
         let original_schema = database.catalog.get_current_schema().to_string();
