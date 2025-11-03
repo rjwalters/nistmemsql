@@ -109,12 +109,8 @@ impl Database {
         Ok(Cursor {
             db: Arc::clone(&self.db),
             last_result: None,
-            stmt_cache: Arc::new(Mutex::new(LruCache::new(
-                NonZeroUsize::new(1000).unwrap(),
-            ))),
-            schema_cache: Arc::new(Mutex::new(LruCache::new(
-                NonZeroUsize::new(100).unwrap(),
-            ))),
+            stmt_cache: Arc::new(Mutex::new(LruCache::new(NonZeroUsize::new(1000).unwrap()))),
+            schema_cache: Arc::new(Mutex::new(LruCache::new(NonZeroUsize::new(100).unwrap()))),
             cache_hits: Arc::new(Mutex::new(0)),
             cache_misses: Arc::new(Mutex::new(0)),
             schema_cache_hits: Arc::new(Mutex::new(0)),
@@ -206,68 +202,68 @@ impl Cursor {
 
             // Process SQL with parameter substitution if params are provided
             let processed_sql = if let Some(params_tuple) = params {
-            // Count placeholders in SQL
-            let placeholder_count = sql.matches('?').count();
-            let param_count = params_tuple.len();
+                // Count placeholders in SQL
+                let placeholder_count = sql.matches('?').count();
+                let param_count = params_tuple.len();
 
-            // Validate parameter count matches placeholder count
-            if placeholder_count != param_count {
-                return Err(ProgrammingError::new_err(format!(
+                // Validate parameter count matches placeholder count
+                if placeholder_count != param_count {
+                    return Err(ProgrammingError::new_err(format!(
                     "Parameter count mismatch: SQL has {} placeholders but {} parameters provided",
                     placeholder_count, param_count
                 )));
-            }
-
-            // Convert Python parameters to SQL values
-            let mut sql_values = Vec::new();
-            for i in 0..param_count {
-                let py_obj = params_tuple.get_item(i)?;
-                let sql_value = py_to_sqlvalue(py, &py_obj).map_err(|e| {
-                    ProgrammingError::new_err(format!(
-                        "Parameter at position {} has invalid type: {}",
-                        i, e
-                    ))
-                })?;
-                sql_values.push(sql_value);
-            }
-
-            // Replace placeholders with SQL literal values
-            let mut result = String::new();
-            let mut param_idx = 0;
-            let mut chars = sql.chars().peekable();
-
-            while let Some(ch) = chars.next() {
-                if ch == '?' {
-                    // Replace ? with the corresponding parameter value as SQL literal
-                    if param_idx < sql_values.len() {
-                        let value_str = match &sql_values[param_idx] {
-                            types::SqlValue::Integer(i) => i.to_string(),
-                            types::SqlValue::Smallint(i) => i.to_string(),
-                            types::SqlValue::Bigint(i) => i.to_string(),
-                            types::SqlValue::Float(f) => f.to_string(),
-                            types::SqlValue::Real(f) => f.to_string(),
-                            types::SqlValue::Double(f) => f.to_string(),
-                            types::SqlValue::Numeric(n) => n.to_string(),
-                            types::SqlValue::Varchar(s) | types::SqlValue::Character(s) => {
-                                // Escape single quotes by doubling them (SQL standard)
-                                format!("'{}'", s.replace('\'', "''"))
-                            }
-                            types::SqlValue::Boolean(b) => {
-                                if *b { "TRUE" } else { "FALSE" }.to_string()
-                            }
-                            types::SqlValue::Date(s) => format!("DATE '{}'", s),
-                            types::SqlValue::Time(s) => format!("TIME '{}'", s),
-                            types::SqlValue::Timestamp(s) => format!("TIMESTAMP '{}'", s),
-                            types::SqlValue::Interval(s) => format!("INTERVAL '{}'", s),
-                            types::SqlValue::Null => "NULL".to_string(),
-                        };
-                        result.push_str(&value_str);
-                        param_idx += 1;
-                    }
-                } else {
-                    result.push(ch);
                 }
-            }
+
+                // Convert Python parameters to SQL values
+                let mut sql_values = Vec::new();
+                for i in 0..param_count {
+                    let py_obj = params_tuple.get_item(i)?;
+                    let sql_value = py_to_sqlvalue(py, &py_obj).map_err(|e| {
+                        ProgrammingError::new_err(format!(
+                            "Parameter at position {} has invalid type: {}",
+                            i, e
+                        ))
+                    })?;
+                    sql_values.push(sql_value);
+                }
+
+                // Replace placeholders with SQL literal values
+                let mut result = String::new();
+                let mut param_idx = 0;
+                let mut chars = sql.chars().peekable();
+
+                while let Some(ch) = chars.next() {
+                    if ch == '?' {
+                        // Replace ? with the corresponding parameter value as SQL literal
+                        if param_idx < sql_values.len() {
+                            let value_str = match &sql_values[param_idx] {
+                                types::SqlValue::Integer(i) => i.to_string(),
+                                types::SqlValue::Smallint(i) => i.to_string(),
+                                types::SqlValue::Bigint(i) => i.to_string(),
+                                types::SqlValue::Float(f) => f.to_string(),
+                                types::SqlValue::Real(f) => f.to_string(),
+                                types::SqlValue::Double(f) => f.to_string(),
+                                types::SqlValue::Numeric(n) => n.to_string(),
+                                types::SqlValue::Varchar(s) | types::SqlValue::Character(s) => {
+                                    // Escape single quotes by doubling them (SQL standard)
+                                    format!("'{}'", s.replace('\'', "''"))
+                                }
+                                types::SqlValue::Boolean(b) => {
+                                    if *b { "TRUE" } else { "FALSE" }.to_string()
+                                }
+                                types::SqlValue::Date(s) => format!("DATE '{}'", s),
+                                types::SqlValue::Time(s) => format!("TIME '{}'", s),
+                                types::SqlValue::Timestamp(s) => format!("TIMESTAMP '{}'", s),
+                                types::SqlValue::Interval(s) => format!("INTERVAL '{}'", s),
+                                types::SqlValue::Null => "NULL".to_string(),
+                            };
+                            result.push_str(&value_str);
+                            param_idx += 1;
+                        }
+                    } else {
+                        result.push(ch);
+                    }
+                }
 
                 result
             } else {
@@ -500,11 +496,7 @@ impl Cursor {
         let hits = *self.schema_cache_hits.lock().unwrap();
         let misses = *self.schema_cache_misses.lock().unwrap();
         let total = hits + misses;
-        let hit_rate = if total > 0 {
-            (hits as f64) / (total as f64)
-        } else {
-            0.0
-        };
+        let hit_rate = if total > 0 { (hits as f64) / (total as f64) } else { 0.0 };
         Ok((hits, misses, hit_rate))
     }
 
@@ -516,11 +508,7 @@ impl Cursor {
         let hits = *self.cache_hits.lock().unwrap();
         let misses = *self.cache_misses.lock().unwrap();
         let total = hits + misses;
-        let hit_rate = if total > 0 {
-            (hits as f64) / (total as f64)
-        } else {
-            0.0
-        };
+        let hit_rate = if total > 0 { (hits as f64) / (total as f64) } else { 0.0 };
         Ok((hits, misses, hit_rate))
     }
 
@@ -566,9 +554,7 @@ impl Cursor {
         let schema = db
             .catalog
             .get_table(table_name)
-            .ok_or_else(|| {
-                OperationalError::new_err(format!("Table not found: {}", table_name))
-            })?
+            .ok_or_else(|| OperationalError::new_err(format!("Table not found: {}", table_name)))?
             .clone();
         drop(db);
 

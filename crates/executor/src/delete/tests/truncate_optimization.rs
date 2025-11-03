@@ -2,7 +2,9 @@
 
 use crate::DeleteExecutor;
 use ast::{DeleteStmt, TriggerAction, TriggerEvent, TriggerGranularity, TriggerTiming};
-use catalog::{ColumnSchema, ForeignKeyConstraint, ReferentialAction, TableSchema, TriggerDefinition};
+use catalog::{
+    ColumnSchema, ForeignKeyConstraint, ReferentialAction, TableSchema, TriggerDefinition,
+};
 use storage::{Database, Row};
 use types::{DataType, SqlValue};
 
@@ -28,10 +30,7 @@ fn test_truncate_optimization_basic() {
     for i in 0..1000 {
         db.insert_row(
             "large_table",
-            Row::new(vec![
-                SqlValue::Integer(i),
-                SqlValue::Varchar(format!("data_{}", i)),
-            ]),
+            Row::new(vec![SqlValue::Integer(i), SqlValue::Varchar(format!("data_{}", i))]),
         )
         .unwrap();
     }
@@ -160,10 +159,7 @@ fn test_truncate_allowed_when_no_fk_references() {
     for i in 1..=100 {
         db.insert_row(
             "parent",
-            Row::new(vec![
-                SqlValue::Integer(i),
-                SqlValue::Varchar(format!("Parent {}", i)),
-            ]),
+            Row::new(vec![SqlValue::Integer(i), SqlValue::Varchar(format!("Parent {}", i))]),
         )
         .unwrap();
     }
@@ -222,8 +218,7 @@ fn test_truncate_blocked_by_delete_trigger() {
     // DELETE FROM test_table (no WHERE)
     // Should NOT use TRUNCATE because DELETE trigger exists
     // Should use row-by-row deletion (which currently doesn't execute triggers, but that's separate)
-    let stmt =
-        DeleteStmt { only: false, table_name: "test_table".to_string(), where_clause: None };
+    let stmt = DeleteStmt { only: false, table_name: "test_table".to_string(), where_clause: None };
 
     let deleted = DeleteExecutor::execute(&stmt, &mut db).unwrap();
     assert_eq!(deleted, 10);
@@ -273,8 +268,7 @@ fn test_truncate_allowed_with_insert_trigger() {
 
     // DELETE FROM test_table (no WHERE)
     // Should use TRUNCATE because only INSERT trigger exists (not DELETE)
-    let stmt =
-        DeleteStmt { only: false, table_name: "test_table".to_string(), where_clause: None };
+    let stmt = DeleteStmt { only: false, table_name: "test_table".to_string(), where_clause: None };
 
     let deleted = DeleteExecutor::execute(&stmt, &mut db).unwrap();
     assert_eq!(deleted, 100);
@@ -305,10 +299,7 @@ fn test_truncate_performance() {
     for i in 0..10_000 {
         db.insert_row(
             "large_table",
-            Row::new(vec![
-                SqlValue::Integer(i),
-                SqlValue::Varchar(format!("data_{}", i)),
-            ]),
+            Row::new(vec![SqlValue::Integer(i), SqlValue::Varchar(format!("data_{}", i))]),
         )
         .unwrap();
     }

@@ -461,22 +461,18 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
     println!("Prioritization: Failed → Untested → Passed");
     println!("Starting test run...\n");
 
-    let mut files_tested = 0;
-
-    for test_file in prioritized_files {
+    for (files_tested, test_file) in prioritized_files.into_iter().enumerate() {
         // Check time budget
         if start_time.elapsed() >= time_budget {
             println!("\n⏱️  Time budget exhausted after {} seconds", time_budget_secs);
             println!(
                 "Tested {} of {} files ({:.1}%)\n",
-                files_tested,
+                files_tested + 1,
                 total_available_files,
-                (files_tested as f64 / total_available_files as f64) * 100.0
+                ((files_tested + 1) as f64 / total_available_files as f64) * 100.0
             );
             break;
         }
-
-        files_tested += 1;
         let relative_path =
             test_file.strip_prefix(&test_dir).unwrap_or(&test_file).to_string_lossy().to_string();
 

@@ -1,6 +1,7 @@
 use crate::errors::ExecutorError;
 
 /// Enforce NOT NULL constraints on a row
+#[allow(dead_code)] // TODO: Remove once storage layer validation is fully integrated
 pub fn enforce_not_null_constraints(
     schema: &catalog::TableSchema,
     table_name: &str,

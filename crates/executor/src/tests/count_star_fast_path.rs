@@ -23,10 +23,7 @@ fn test_count_star_fast_path_simple() {
     for i in 0..1000 {
         db.insert_row(
             "test_table",
-            storage::Row::new(vec![
-                types::SqlValue::Integer(i),
-                types::SqlValue::Integer(i * 2),
-            ]),
+            storage::Row::new(vec![types::SqlValue::Integer(i), types::SqlValue::Integer(i * 2)]),
         )
         .unwrap();
     }
@@ -45,10 +42,7 @@ fn test_count_star_fast_path_simple() {
             },
             alias: None,
         }],
-        from: Some(ast::FromClause::Table {
-            name: "test_table".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "test_table".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -86,10 +80,7 @@ fn test_count_star_fast_path_empty_table() {
             },
             alias: None,
         }],
-        from: Some(ast::FromClause::Table {
-            name: "empty_table".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "empty_table".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -138,15 +129,9 @@ fn test_count_star_with_where_no_fast_path() {
             },
             alias: None,
         }],
-        from: Some(ast::FromClause::Table {
-            name: "test_table".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "test_table".to_string(), alias: None }),
         where_clause: Some(ast::Expression::BinaryOp {
-            left: Box::new(ast::Expression::ColumnRef {
-                table: None,
-                column: "value".to_string(),
-            }),
+            left: Box::new(ast::Expression::ColumnRef { table: None, column: "value".to_string() }),
             op: ast::BinaryOperator::GreaterThan,
             right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(5))),
         }),
@@ -211,10 +196,7 @@ fn test_count_star_with_group_by_no_fast_path() {
         distinct: false,
         select_list: vec![
             ast::SelectItem::Expression {
-                expr: ast::Expression::ColumnRef {
-                    table: None,
-                    column: "category".to_string(),
-                },
+                expr: ast::Expression::ColumnRef { table: None, column: "category".to_string() },
                 alias: None,
             },
             ast::SelectItem::Expression {
@@ -226,10 +208,7 @@ fn test_count_star_with_group_by_no_fast_path() {
                 alias: None,
             },
         ],
-        from: Some(ast::FromClause::Table {
-            name: "test_table".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "test_table".to_string(), alias: None }),
         where_clause: None,
         group_by: Some(vec![ast::Expression::ColumnRef {
             table: None,
@@ -257,8 +236,7 @@ fn test_count_star_distinct_no_fast_path() {
     db.create_table(schema).unwrap();
 
     for i in 0..5 {
-        db.insert_row("test_table", storage::Row::new(vec![types::SqlValue::Integer(i)]))
-            .unwrap();
+        db.insert_row("test_table", storage::Row::new(vec![types::SqlValue::Integer(i)])).unwrap();
     }
 
     let executor = SelectExecutor::new(&db);
@@ -275,10 +253,7 @@ fn test_count_star_distinct_no_fast_path() {
             },
             alias: None,
         }],
-        from: Some(ast::FromClause::Table {
-            name: "test_table".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "test_table".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -303,8 +278,7 @@ fn test_count_column_no_fast_path() {
     db.create_table(schema).unwrap();
 
     for i in 0..5 {
-        db.insert_row("test_table", storage::Row::new(vec![types::SqlValue::Integer(i)]))
-            .unwrap();
+        db.insert_row("test_table", storage::Row::new(vec![types::SqlValue::Integer(i)])).unwrap();
     }
 
     let executor = SelectExecutor::new(&db);
@@ -317,17 +291,11 @@ fn test_count_column_no_fast_path() {
             expr: ast::Expression::AggregateFunction {
                 name: "COUNT".to_string(),
                 distinct: false,
-                args: vec![ast::Expression::ColumnRef {
-                    table: None,
-                    column: "id".to_string(),
-                }],
+                args: vec![ast::Expression::ColumnRef { table: None, column: "id".to_string() }],
             },
             alias: None,
         }],
-        from: Some(ast::FromClause::Table {
-            name: "test_table".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "test_table".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -352,8 +320,7 @@ fn test_count_star_with_alias() {
     db.create_table(schema).unwrap();
 
     for i in 0..100 {
-        db.insert_row("test_table", storage::Row::new(vec![types::SqlValue::Integer(i)]))
-            .unwrap();
+        db.insert_row("test_table", storage::Row::new(vec![types::SqlValue::Integer(i)])).unwrap();
     }
 
     let executor = SelectExecutor::new(&db);
@@ -370,10 +337,7 @@ fn test_count_star_with_alias() {
             },
             alias: Some("total".to_string()), // Has alias
         }],
-        from: Some(ast::FromClause::Table {
-            name: "test_table".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "test_table".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -435,10 +399,7 @@ fn test_count_star_multiple_select_items_no_fast_path() {
                 alias: None,
             },
         ],
-        from: Some(ast::FromClause::Table {
-            name: "test_table".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "test_table".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,

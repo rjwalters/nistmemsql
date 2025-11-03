@@ -142,6 +142,27 @@ impl SqlValue {
         matches!(self, SqlValue::Null)
     }
 
+    /// Get the type name as a string (for error messages)
+    pub fn type_name(&self) -> &'static str {
+        match self {
+            SqlValue::Integer(_) => "INTEGER",
+            SqlValue::Smallint(_) => "SMALLINT",
+            SqlValue::Bigint(_) => "BIGINT",
+            SqlValue::Numeric(_) => "NUMERIC",
+            SqlValue::Float(_) => "FLOAT",
+            SqlValue::Real(_) => "REAL",
+            SqlValue::Double(_) => "DOUBLE PRECISION",
+            SqlValue::Character(_) => "CHAR",
+            SqlValue::Varchar(_) => "VARCHAR",
+            SqlValue::Boolean(_) => "BOOLEAN",
+            SqlValue::Date(_) => "DATE",
+            SqlValue::Time(_) => "TIME",
+            SqlValue::Timestamp(_) => "TIMESTAMP",
+            SqlValue::Interval(_) => "INTERVAL",
+            SqlValue::Null => "NULL",
+        }
+    }
+
     /// Get the data type of this value
     pub fn get_type(&self) -> DataType {
         match self {
