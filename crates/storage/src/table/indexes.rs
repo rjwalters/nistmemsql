@@ -31,8 +31,7 @@ impl IndexManager {
         let primary_key_index =
             if schema.primary_key.is_some() { Some(HashMap::new()) } else { None };
 
-        let unique_indexes =
-            (0..schema.unique_constraints.len()).map(|_| HashMap::new()).collect();
+        let unique_indexes = (0..schema.unique_constraints.len()).map(|_| HashMap::new()).collect();
 
         IndexManager { primary_key_index, unique_indexes }
     }
@@ -211,14 +210,10 @@ impl IndexManager {
                     // Update specific unique constraint index
                     let unique_constraint_indices = schema.get_unique_constraint_indices();
                     if let Some(unique_indices) = unique_constraint_indices.get(*constraint_idx) {
-                        let old_unique_values: Vec<SqlValue> = unique_indices
-                            .iter()
-                            .map(|&idx| old_row.values[idx].clone())
-                            .collect();
-                        let new_unique_values: Vec<SqlValue> = unique_indices
-                            .iter()
-                            .map(|&idx| new_row.values[idx].clone())
-                            .collect();
+                        let old_unique_values: Vec<SqlValue> =
+                            unique_indices.iter().map(|&idx| old_row.values[idx].clone()).collect();
+                        let new_unique_values: Vec<SqlValue> =
+                            unique_indices.iter().map(|&idx| new_row.values[idx].clone()).collect();
 
                         if let Some(unique_index) = self.unique_indexes.get_mut(*constraint_idx) {
                             // Remove old key if it's different and not NULL

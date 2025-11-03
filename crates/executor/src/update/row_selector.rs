@@ -51,6 +51,7 @@ impl<'a> RowSelector<'a> {
     ///
     /// Returns the primary key value if the expression is a simple equality on the primary key,
     /// otherwise returns None.
+    #[allow(clippy::single_match)]
     fn extract_primary_key_lookup(
         where_expr: &Expression,
         schema: &catalog::TableSchema,

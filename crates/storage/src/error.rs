@@ -12,6 +12,8 @@ pub enum StorageError {
     RowNotFound,
     IndexAlreadyExists(String),
     IndexNotFound(String),
+    NullConstraintViolation { column: String },
+    TypeMismatch { column: String, expected: String, actual: String },
 }
 
 impl std::fmt::Display for StorageError {
@@ -29,6 +31,16 @@ impl std::fmt::Display for StorageError {
             StorageError::RowNotFound => write!(f, "Row not found"),
             StorageError::IndexAlreadyExists(name) => write!(f, "Index '{}' already exists", name),
             StorageError::IndexNotFound(name) => write!(f, "Index '{}' not found", name),
+            StorageError::NullConstraintViolation { column } => {
+                write!(f, "NOT NULL constraint violation: column '{}' cannot be NULL", column)
+            }
+            StorageError::TypeMismatch { column, expected, actual } => {
+                write!(
+                    f,
+                    "Type mismatch in column '{}': expected {}, got {}",
+                    column, expected, actual
+                )
+            }
         }
     }
 }

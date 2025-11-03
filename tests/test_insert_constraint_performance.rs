@@ -26,8 +26,8 @@ fn test_insert_with_merged_constraint_validation() {
                 false, // NOT NULL
             ),
         ],
-        Some(vec!["id".to_string()]),              // PRIMARY KEY
-        vec![vec!["email".to_string()]],            // UNIQUE constraints
+        Some(vec!["id".to_string()]),    // PRIMARY KEY
+        vec![vec!["email".to_string()]], // UNIQUE constraints
     );
 
     db.create_table(schema).unwrap();

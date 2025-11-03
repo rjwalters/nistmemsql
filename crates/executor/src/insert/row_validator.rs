@@ -30,18 +30,15 @@ impl<'a> RowValidator<'a> {
         batch_pk_values: &'a [Vec<types::SqlValue>],
         batch_unique_values: &'a [Vec<Vec<types::SqlValue>>],
     ) -> Self {
-        Self {
-            db,
-            schema,
-            table_name,
-            batch_pk_values,
-            batch_unique_values,
-        }
+        Self { db, schema, table_name, batch_pk_values, batch_unique_values }
     }
 
     /// Validate all constraints in a single pass through the row
     /// Returns ValidationResult containing pre-built index keys
-    pub fn validate(&self, row_values: &[types::SqlValue]) -> Result<ValidationResult, ExecutorError> {
+    pub fn validate(
+        &self,
+        row_values: &[types::SqlValue],
+    ) -> Result<ValidationResult, ExecutorError> {
         // Prepare result structure
         let mut result = ValidationResult {
             primary_key: None,
@@ -170,7 +167,8 @@ impl<'a> RowValidator<'a> {
 
             if let Some(pk_index) = table.primary_key_index() {
                 if pk_index.contains_key(new_pk_values) {
-                    let pk_col_names: Vec<String> = self.schema.primary_key.as_ref().unwrap().clone();
+                    let pk_col_names: Vec<String> =
+                        self.schema.primary_key.as_ref().unwrap().clone();
                     return Err(ExecutorError::ConstraintViolation(format!(
                         "PRIMARY KEY constraint violated: duplicate key value for ({})",
                         pk_col_names.join(", ")
@@ -198,7 +196,8 @@ impl<'a> RowValidator<'a> {
 
             // Check for duplicates within the batch
             if self.batch_unique_values[constraint_idx].contains(new_unique_values) {
-                let unique_col_names: Vec<String> = self.schema.unique_constraints[constraint_idx].clone();
+                let unique_col_names: Vec<String> =
+                    self.schema.unique_constraints[constraint_idx].clone();
                 return Err(ExecutorError::ConstraintViolation(format!(
                     "UNIQUE constraint violated: duplicate value for ({})",
                     unique_col_names.join(", ")
@@ -251,7 +250,10 @@ impl<'a> RowValidator<'a> {
     }
 
     /// Phase 4: Evaluate CHECK constraints (after column pass)
-    fn validate_check_constraints(&self, row_values: &[types::SqlValue]) -> Result<(), ExecutorError> {
+    fn validate_check_constraints(
+        &self,
+        row_values: &[types::SqlValue],
+    ) -> Result<(), ExecutorError> {
         if !self.schema.check_constraints.is_empty() {
             let row = storage::Row::new(row_values.to_vec());
             let evaluator = crate::evaluator::ExpressionEvaluator::new(self.schema);
@@ -273,7 +275,10 @@ impl<'a> RowValidator<'a> {
     }
 
     /// Phase 5: Validate FOREIGN KEY references using pre-extracted keys
-    fn validate_foreign_keys(&self, fk_keys: &[Option<Vec<types::SqlValue>>]) -> Result<(), ExecutorError> {
+    fn validate_foreign_keys(
+        &self,
+        fk_keys: &[Option<Vec<types::SqlValue>>],
+    ) -> Result<(), ExecutorError> {
         for (fk_idx, fk_values) in fk_keys.iter().enumerate() {
             // Skip if any FK value is NULL (stored as None)
             let Some(ref fk_values) = fk_values else {

@@ -55,9 +55,8 @@ pub fn try_bulk_transfer(
 /// Extract table name from simple SELECT * FROM table pattern
 fn extract_simple_table_select(select_stmt: &SelectStmt) -> Option<String> {
     // Must have: SELECT * or SELECT table.*
-    let is_wildcard = select_stmt.select_list.iter().any(|item| {
-        matches!(item, SelectItem::Wildcard { .. })
-    });
+    let is_wildcard =
+        select_stmt.select_list.iter().any(|item| matches!(item, SelectItem::Wildcard { .. }));
 
     if !is_wildcard {
         return None;
@@ -220,20 +219,14 @@ fn execute_bulk_transfer(
 
         // Foreign key constraints (if dest has them)
         if compat_result.validate_foreign_keys {
-            super::foreign_keys::validate_foreign_key_constraints(
-                db,
-                dest_table,
-                &row_values,
-            )?;
+            super::foreign_keys::validate_foreign_key_constraints(db, dest_table, &row_values)?;
         }
 
         // Track constraint values for batch validation
         if compat_result.validate_primary_key {
             if let Some(pk_cols) = dest_schema.get_primary_key_indices() {
-                let pk_vals: Vec<SqlValue> = pk_cols
-                    .iter()
-                    .map(|&col_idx| row_values[col_idx].clone())
-                    .collect();
+                let pk_vals: Vec<SqlValue> =
+                    pk_cols.iter().map(|&col_idx| row_values[col_idx].clone()).collect();
                 pk_values_seen.push(pk_vals);
             }
         }
@@ -277,10 +270,7 @@ mod tests {
             distinct: false,
             select_list: vec![SelectItem::Wildcard { alias: None }],
             into_table: None,
-            from: Some(FromClause::Table {
-                name: "source".to_string(),
-                alias: None,
-            }),
+            from: Some(FromClause::Table { name: "source".to_string(), alias: None }),
             where_clause: None,
             group_by: None,
             having: None,
@@ -290,10 +280,7 @@ mod tests {
             set_operation: None,
         };
 
-        assert_eq!(
-            extract_simple_table_select(&stmt),
-            Some("source".to_string())
-        );
+        assert_eq!(extract_simple_table_select(&stmt), Some("source".to_string()));
     }
 
     #[test]
@@ -303,10 +290,7 @@ mod tests {
             distinct: false,
             select_list: vec![SelectItem::Wildcard { alias: None }],
             into_table: None,
-            from: Some(FromClause::Table {
-                name: "source".to_string(),
-                alias: None,
-            }),
+            from: Some(FromClause::Table { name: "source".to_string(), alias: None }),
             where_clause: Some(Expression::Literal(SqlValue::Integer(1))),
             group_by: None,
             having: None,
@@ -326,10 +310,7 @@ mod tests {
             distinct: true,
             select_list: vec![SelectItem::Wildcard { alias: None }],
             into_table: None,
-            from: Some(FromClause::Table {
-                name: "source".to_string(),
-                alias: None,
-            }),
+            from: Some(FromClause::Table { name: "source".to_string(), alias: None }),
             where_clause: None,
             group_by: None,
             having: None,
@@ -411,7 +392,11 @@ mod tests {
 
         let schema2 = TableSchema::new(
             "t2".to_string(),
-            vec![catalog::ColumnSchema::new("id".to_string(), DataType::Varchar { max_length: None }, false)],
+            vec![catalog::ColumnSchema::new(
+                "id".to_string(),
+                DataType::Varchar { max_length: None },
+                false,
+            )],
         );
 
         let result = check_schema_compatibility(&schema1, &schema2).unwrap();
