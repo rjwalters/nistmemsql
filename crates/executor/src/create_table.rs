@@ -422,4 +422,104 @@ mod tests {
         let result = CreateTableExecutor::execute(&stmt2, &mut db);
         assert!(result.is_ok() || result.is_err());
     }
+
+    #[test]
+    fn test_create_table_with_spatial_types() {
+        // Test spatial data types (SQL/MM standard) - Issue #818
+        // These are parsed as UserDefined types and should be accepted by executor
+        let mut db = Database::new();
+
+        let stmt = CreateTableStmt {
+            table_name: "spatial_table".to_string(),
+            columns: vec![
+                ColumnDef {
+                    name: "id".to_string(),
+                    data_type: DataType::Integer,
+                    nullable: false,
+                    constraints: vec![],
+                    default_value: None,
+                    comment: None,
+                },
+                ColumnDef {
+                    name: "location".to_string(),
+                    data_type: DataType::UserDefined { type_name: "POINT".to_string() },
+                    nullable: true,
+                    constraints: vec![],
+                    default_value: None,
+                    comment: None,
+                },
+                ColumnDef {
+                    name: "area".to_string(),
+                    data_type: DataType::UserDefined { type_name: "POLYGON".to_string() },
+                    nullable: true,
+                    constraints: vec![],
+                    default_value: None,
+                    comment: None,
+                },
+                ColumnDef {
+                    name: "regions".to_string(),
+                    data_type: DataType::UserDefined { type_name: "MULTIPOLYGON".to_string() },
+                    nullable: true,
+                    constraints: vec![],
+                    default_value: None,
+                    comment: None,
+                },
+            ],
+            table_constraints: vec![],
+        };
+
+        let result = CreateTableExecutor::execute(&stmt, &mut db);
+        assert!(result.is_ok(), "Should accept spatial types as UserDefined types");
+
+        // Verify table exists and has correct schema
+        let schema = db.catalog.get_table("spatial_table");
+        assert!(schema.is_some());
+        let schema = schema.unwrap();
+        assert_eq!(schema.column_count(), 4);
+
+        // Verify spatial type columns exist
+        assert!(schema.get_column("location").is_some());
+        assert!(schema.get_column("area").is_some());
+        assert!(schema.get_column("regions").is_some());
+    }
+
+    #[test]
+    fn test_create_table_multipolygon_sqllogictest() {
+        // Test the exact scenario from SQLLogicTest - Issue #818
+        let mut db = Database::new();
+
+        let stmt = CreateTableStmt {
+            table_name: "t1710a".to_string(),
+            columns: vec![
+                ColumnDef {
+                    name: "c1".to_string(),
+                    data_type: DataType::UserDefined { type_name: "MULTIPOLYGON".to_string() },
+                    nullable: true,
+                    constraints: vec![],
+                    default_value: None,
+                    comment: Some("text155459".to_string()),
+                },
+                ColumnDef {
+                    name: "c2".to_string(),
+                    data_type: DataType::UserDefined { type_name: "MULTIPOLYGON".to_string() },
+                    nullable: true,
+                    constraints: vec![],
+                    default_value: None,
+                    comment: Some("text155461".to_string()),
+                },
+            ],
+            table_constraints: vec![],
+        };
+
+        let result = CreateTableExecutor::execute(&stmt, &mut db);
+        assert!(
+            result.is_ok(),
+            "Should create table with MULTIPOLYGON columns (SQLLogicTest conformance)"
+        );
+
+        // Verify table was created successfully
+        assert!(db.catalog.table_exists("t1710a"));
+        let schema = db.catalog.get_table("t1710a").unwrap();
+        assert_eq!(schema.column_count(), 2);
+    }
 }
