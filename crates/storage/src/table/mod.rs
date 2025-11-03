@@ -3,9 +3,11 @@
 // ============================================================================
 
 mod indexes;
+mod append_mode;
 
 use crate::{Row, StorageError};
 use indexes::IndexManager;
+use append_mode::AppendModeTracker;
 use types::SqlValue;
 
 /// In-memory table - stores rows
@@ -18,9 +20,7 @@ pub struct Table {
     indexes: IndexManager,
 
     // Append mode optimization tracking
-    last_pk_value: Option<Vec<SqlValue>>,  // Last inserted primary key value
-    append_mode: bool,                     // True when detecting sequential inserts
-    append_streak: usize,                  // Count of consecutive sequential inserts
+    append_tracker: AppendModeTracker,
 }
 
 impl Table {
@@ -32,9 +32,7 @@ impl Table {
             schema,
             rows: Vec::new(),
             indexes,
-            last_pk_value: None,
-            append_mode: false,
-            append_streak: 0,
+            append_tracker: AppendModeTracker::new(),
         }
     }
 
@@ -58,7 +56,7 @@ impl Table {
         if let Some(pk_indices) = self.schema.get_primary_key_indices() {
             let pk_values: Vec<SqlValue> =
                 pk_indices.iter().map(|&idx| normalized_row.values[idx].clone()).collect();
-            self.update_append_mode(&pk_values);
+            self.append_tracker.update(&pk_values);
         }
 
         // Add row to table
@@ -109,27 +107,6 @@ impl Table {
         }
     }
 
-    /// Update append mode tracking based on current primary key value
-    /// Detects sequential inserts and enables append mode after a threshold
-    fn update_append_mode(&mut self, pk_values: &[SqlValue]) {
-        if let Some(last_pk) = &self.last_pk_value {
-            // Check if current PK is greater than last PK (sequential)
-            if pk_values > last_pk.as_slice() {
-                self.append_streak += 1;
-                // Enable append mode after 3 consecutive sequential inserts
-                if self.append_streak >= 3 {
-                    self.append_mode = true;
-                }
-            } else {
-                // Non-sequential insert - reset append mode
-                self.append_mode = false;
-                self.append_streak = 0;
-            }
-        }
-        // Update last PK value for next comparison
-        self.last_pk_value = Some(pk_values.to_vec());
-    }
-
     /// Get all rows (for scanning)
     pub fn scan(&self) -> &[Row] {
         &self.rows
@@ -143,7 +120,7 @@ impl Table {
     /// Check if table is in append mode (sequential inserts detected)
     /// When true, constraint checks can skip duplicate lookups for optimization
     pub fn is_in_append_mode(&self) -> bool {
-        self.append_mode
+        self.append_tracker.is_active()
     }
 
     /// Clear all rows
@@ -152,9 +129,7 @@ impl Table {
         // Clear indexes (delegate to IndexManager)
         self.indexes.clear();
         // Reset append mode tracking
-        self.last_pk_value = None;
-        self.append_mode = false;
-        self.append_streak = 0;
+        self.append_tracker.reset();
     }
 
     /// Update a row at the specified index
@@ -334,131 +309,19 @@ mod tests {
     }
 
     #[test]
-    fn test_append_mode_detection() {
+    fn test_append_mode_integration() {
         let mut table = create_test_table();
-
-        // Insert sequential values
-        table.insert(create_row(1, "Alice")).unwrap();
-        assert_eq!(table.append_streak, 0); // First insert, no streak yet
-        assert!(!table.append_mode);
-
-        table.insert(create_row(2, "Bob")).unwrap();
-        assert_eq!(table.append_streak, 1); // Second sequential
-        assert!(!table.append_mode); // Not yet at threshold
-
-        table.insert(create_row(3, "Charlie")).unwrap();
-        assert_eq!(table.append_streak, 2); // Third sequential
-        assert!(!table.append_mode); // Not yet at threshold
-
-        table.insert(create_row(4, "David")).unwrap();
-        assert_eq!(table.append_streak, 3); // Fourth sequential
-        assert!(table.append_mode); // NOW append mode is active (threshold = 3)
-    }
-
-    #[test]
-    fn test_append_mode_reset_on_non_sequential() {
-        let mut table = create_test_table();
-
-        // Build up append mode
-        table.insert(create_row(1, "Alice")).unwrap();
-        table.insert(create_row(2, "Bob")).unwrap();
-        table.insert(create_row(3, "Charlie")).unwrap();
-        table.insert(create_row(4, "David")).unwrap();
-        assert!(table.append_mode);
-        assert_eq!(table.append_streak, 3);
-
-        // Insert non-sequential value (goes backward)
-        table.insert(create_row(2, "Eve")).unwrap(); // 2 < 4, non-sequential
-        assert!(!table.append_mode); // Append mode reset
-        assert_eq!(table.append_streak, 0); // Streak reset
-    }
-
-    #[test]
-    fn test_append_mode_still_indexes_rows() {
-        let mut table = create_test_table();
-
-        // Enter append mode
-        table.insert(create_row(1, "Alice")).unwrap();
-        table.insert(create_row(2, "Bob")).unwrap();
-        table.insert(create_row(3, "Charlie")).unwrap();
-        table.insert(create_row(4, "David")).unwrap();
-        assert!(table.append_mode);
-
-        // Verify all rows are indexed
-        let pk_index = table.primary_key_index().unwrap();
-        assert!(pk_index.contains_key(&vec![SqlValue::Integer(1)]));
-        assert!(pk_index.contains_key(&vec![SqlValue::Integer(2)]));
-        assert!(pk_index.contains_key(&vec![SqlValue::Integer(3)]));
-        assert!(pk_index.contains_key(&vec![SqlValue::Integer(4)]));
-    }
-
-    #[test]
-    fn test_append_mode_clear_resets() {
-        let mut table = create_test_table();
-
-        // Enter append mode
-        table.insert(create_row(1, "Alice")).unwrap();
-        table.insert(create_row(2, "Bob")).unwrap();
-        table.insert(create_row(3, "Charlie")).unwrap();
-        table.insert(create_row(4, "David")).unwrap();
-        assert!(table.append_mode);
-        assert_eq!(table.append_streak, 3);
-
-        // Clear table
-        table.clear();
-
-        // Verify append mode tracking is reset
-        assert!(!table.append_mode);
-        assert_eq!(table.append_streak, 0);
-        assert_eq!(table.last_pk_value, None);
-    }
-
-    #[test]
-    fn test_duplicate_caught_after_append_mode() {
-        let mut table = create_test_table();
-
-        // Enter append mode
-        table.insert(create_row(1, "Alice")).unwrap();
-        table.insert(create_row(2, "Bob")).unwrap();
-        table.insert(create_row(3, "Charlie")).unwrap();
-        table.insert(create_row(4, "David")).unwrap();
-        assert!(table.append_mode);
-
-        // Continue in append mode
-        table.insert(create_row(100, "Eve")).unwrap();
-        assert!(table.append_mode); // Still in append mode
-
-        // Try to insert duplicate (non-sequential, will exit append mode)
-        table.insert(create_row(4, "Frank")).unwrap(); // Inserts successfully (no constraint check in Table)
-        assert!(!table.append_mode); // Exited append mode (4 < 100)
-
-        // Note: Duplicate detection happens at executor level, not table level
-        // This test verifies that append mode resets on non-sequential inserts
-    }
-
-    #[test]
-    fn test_empty_table_first_insert() {
-        let mut table = create_test_table();
-
-        // First insert should not trigger append mode
-        table.insert(create_row(5, "Alice")).unwrap();
-        assert_eq!(table.append_streak, 0); // No comparison possible
-        assert!(!table.append_mode);
-        assert_eq!(table.last_pk_value, Some(vec![SqlValue::Integer(5)]));
-    }
-
-    #[test]
-    fn test_is_in_append_mode_accessor() {
-        let mut table = create_test_table();
-
         assert!(!table.is_in_append_mode());
 
-        // Enter append mode
+        // Sequential inserts should activate append mode
         table.insert(create_row(1, "Alice")).unwrap();
         table.insert(create_row(2, "Bob")).unwrap();
         table.insert(create_row(3, "Charlie")).unwrap();
         table.insert(create_row(4, "David")).unwrap();
-
         assert!(table.is_in_append_mode());
+
+        // Clear should reset
+        table.clear();
+        assert!(!table.is_in_append_mode());
     }
 }
