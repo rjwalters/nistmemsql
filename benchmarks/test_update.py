@@ -103,15 +103,11 @@ def _run_update_test(benchmark, connection, num_rows, db_type):
     def run_updates():
         cursor = connection.cursor()
         for i in range(num_rows):
-            if db_type in ['sqlite', 'duckdb']:
-                cursor.execute(
-                    "UPDATE test_table SET value = value + 1 WHERE id = ?",
-                    (i,)
-                )
-            else:  # nistmemsql
-                cursor.execute(
-                    f"UPDATE test_table SET value = value + 1 WHERE id = {i}"
-                )
+            # All databases now use parameterized queries for statement cache benefit
+            cursor.execute(
+                "UPDATE test_table SET value = value + 1 WHERE id = ?",
+                (i,)
+            )
 
         if db_type in ['sqlite', 'duckdb']:
             connection.commit()

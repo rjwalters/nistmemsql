@@ -416,6 +416,105 @@ def test_parameterized_complex_where():
     db.close()
 
 
+def test_statement_cache_hit():
+    """Test that repeated queries hit the statement cache"""
+    db = nistmemsql.connect()
+    cursor = db.cursor()
+    cursor.execute("CREATE TABLE test (id INTEGER, value INTEGER)")
+
+    # First execution - cache miss
+    cursor.execute("INSERT INTO test VALUES (?, ?)", (1, 100))
+    hits1, misses1, _ = cursor.cache_stats()
+
+    # Second execution with same SQL pattern - cache hit
+    cursor.execute("INSERT INTO test VALUES (?, ?)", (2, 200))
+    hits2, misses2, _ = cursor.cache_stats()
+
+    # Verify cache hit occurred
+    assert hits2 == hits1 + 1, f"Expected cache hit, got hits={hits2}, misses={misses2}"
+    assert misses2 == misses1, f"Expected no additional miss, got misses={misses2}"
+
+    cursor.close()
+    db.close()
+
+
+def test_statement_cache_stats():
+    """Test cache statistics tracking"""
+    db = nistmemsql.connect()
+    cursor = db.cursor()
+    cursor.execute("CREATE TABLE test (id INTEGER, value INTEGER)")
+
+    # Execute same query 10 times
+    for i in range(10):
+        cursor.execute("INSERT INTO test VALUES (?, ?)", (i, i * 10))
+
+    hits, misses, hit_rate = cursor.cache_stats()
+
+    # First execution is a miss, next 9 are hits
+    assert misses >= 1, "Expected at least 1 cache miss"
+    assert hits >= 9, f"Expected at least 9 cache hits, got {hits}"
+    assert 0 <= hit_rate <= 1, f"Hit rate should be between 0 and 1, got {hit_rate}"
+
+    cursor.close()
+    db.close()
+
+
+def test_statement_cache_invalidation():
+    """Test that cache is invalidated on schema changes"""
+    db = nistmemsql.connect()
+    cursor = db.cursor()
+    cursor.execute("CREATE TABLE test (id INTEGER)")
+
+    # Execute some queries to populate cache
+    cursor.execute("INSERT INTO test VALUES (?)", (1,))
+    cursor.execute("INSERT INTO test VALUES (?)", (2,))
+    hits1, misses1, _ = cursor.cache_stats()
+
+    # Drop table should clear cache
+    cursor.execute("DROP TABLE test")
+
+    # Create new table and execute query
+    cursor.execute("CREATE TABLE test (id INTEGER)")
+    cursor.execute("INSERT INTO test VALUES (?)", (3,))
+
+    # Cache should have been cleared, so we get a new miss
+    hits2, misses2, _ = cursor.cache_stats()
+    assert misses2 > misses1, "Expected cache to be cleared after DROP TABLE"
+
+    cursor.close()
+    db.close()
+
+
+def test_statement_cache_performance():
+    """Test that cache provides performance improvement for repeated queries"""
+    import time
+
+    db = nistmemsql.connect()
+    cursor = db.cursor()
+    cursor.execute("CREATE TABLE test (id INTEGER, value INTEGER)")
+
+    # Warm up and populate some data
+    for i in range(100):
+        cursor.execute("INSERT INTO test VALUES (?, ?)", (i, i * 10))
+
+    # Execute 1000 UPDATEs using same SQL pattern (should hit cache)
+    start_time = time.time()
+    for i in range(1000):
+        cursor.execute("UPDATE test SET value = value + 1 WHERE id = ?", (i % 100,))
+    elapsed = time.time() - start_time
+
+    # Check cache hit rate is high
+    hits, misses, hit_rate = cursor.cache_stats()
+    assert hit_rate > 0.95, f"Expected >95% cache hit rate, got {hit_rate:.2%}"
+
+    # Performance should be reasonable (this is a soft assertion)
+    # With cache, 1000 updates should complete quickly
+    print(f"  1000 UPDATEs completed in {elapsed*1000:.2f}ms (cache hit rate: {hit_rate:.2%})")
+
+    cursor.close()
+    db.close()
+
+
 if __name__ == "__main__":
     # Run all tests
     test_connection()
@@ -444,5 +543,11 @@ if __name__ == "__main__":
     test_parameterized_error_invalid_type()
     test_backward_compatibility_no_params()
     test_parameterized_complex_where()
+
+    # Statement cache tests
+    test_statement_cache_hit()
+    test_statement_cache_stats()
+    test_statement_cache_invalidation()
+    test_statement_cache_performance()
 
     print("All tests passed!")
