@@ -81,4 +81,204 @@ mod tests {
         assert_eq!(table.unique_indexes().len(), 1);
         assert_eq!(table.unique_indexes()[0].len(), 5);
     }
+
+    #[test]
+    fn test_update_row_selective_non_indexed_column() {
+        // Create table with primary key and unique constraint
+        let schema = TableSchema::with_all_constraints(
+            "users".to_string(),
+            vec![
+                ColumnSchema::new("id".to_string(), DataType::Integer, false),
+                ColumnSchema::new(
+                    "email".to_string(),
+                    DataType::Varchar { max_length: Some(100) },
+                    false,
+                ),
+                ColumnSchema::new(
+                    "name".to_string(),
+                    DataType::Varchar { max_length: Some(100) },
+                    false,
+                ),
+            ],
+            Some(vec!["id".to_string()]),
+            vec![vec!["email".to_string()]],
+        );
+        let mut table = Table::new(schema);
+
+        // Insert initial row
+        let row1 = Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Varchar("alice@example.com".to_string()),
+            SqlValue::Varchar("Alice".to_string()),
+        ]);
+        table.insert(row1).unwrap();
+
+        // Update only the 'name' column (non-indexed)
+        let updated_row = Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Varchar("alice@example.com".to_string()),
+            SqlValue::Varchar("Alice Smith".to_string()),
+        ]);
+        let mut changed_columns = std::collections::HashSet::new();
+        changed_columns.insert(2); // 'name' column index
+
+        table.update_row_selective(0, updated_row, &changed_columns).unwrap();
+
+        // Verify row was updated
+        let row = table.scan().iter().next().unwrap();
+        assert_eq!(row.get(2), Some(&SqlValue::Varchar("Alice Smith".to_string())));
+    }
+
+    #[test]
+    fn test_update_row_selective_primary_key_column() {
+        // Create table with primary key
+        let schema = TableSchema::with_primary_key(
+            "users".to_string(),
+            vec![
+                ColumnSchema::new("id".to_string(), DataType::Integer, false),
+                ColumnSchema::new(
+                    "name".to_string(),
+                    DataType::Varchar { max_length: Some(100) },
+                    false,
+                ),
+            ],
+            vec!["id".to_string()],
+        );
+        let mut table = Table::new(schema);
+
+        // Insert initial rows
+        table
+            .insert(Row::new(vec![
+                SqlValue::Integer(1),
+                SqlValue::Varchar("Alice".to_string()),
+            ]))
+            .unwrap();
+        table
+            .insert(Row::new(vec![
+                SqlValue::Integer(2),
+                SqlValue::Varchar("Bob".to_string()),
+            ]))
+            .unwrap();
+
+        // Update primary key column
+        let updated_row = Row::new(vec![
+            SqlValue::Integer(10), // Changed PK
+            SqlValue::Varchar("Alice".to_string()),
+        ]);
+        let mut changed_columns = std::collections::HashSet::new();
+        changed_columns.insert(0); // 'id' column index
+
+        table.update_row_selective(0, updated_row, &changed_columns).unwrap();
+
+        // Verify primary key index was updated
+        assert_eq!(table.row_count(), 2);
+        let row = table.scan().iter().next().unwrap();
+        assert_eq!(row.get(0), Some(&SqlValue::Integer(10)));
+    }
+
+    #[test]
+    fn test_update_row_selective_unique_constraint_column() {
+        // Create table with unique constraint
+        let schema = TableSchema::with_unique_constraints(
+            "users".to_string(),
+            vec![
+                ColumnSchema::new("id".to_string(), DataType::Integer, false),
+                ColumnSchema::new(
+                    "email".to_string(),
+                    DataType::Varchar { max_length: Some(100) },
+                    false,
+                ),
+                ColumnSchema::new(
+                    "name".to_string(),
+                    DataType::Varchar { max_length: Some(100) },
+                    false,
+                ),
+            ],
+            vec![vec!["email".to_string()]],
+        );
+        let mut table = Table::new(schema);
+
+        // Insert initial rows
+        table
+            .insert(Row::new(vec![
+                SqlValue::Integer(1),
+                SqlValue::Varchar("alice@example.com".to_string()),
+                SqlValue::Varchar("Alice".to_string()),
+            ]))
+            .unwrap();
+
+        // Update unique constraint column
+        let updated_row = Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Varchar("alice.smith@example.com".to_string()), // Changed email
+            SqlValue::Varchar("Alice".to_string()),
+        ]);
+        let mut changed_columns = std::collections::HashSet::new();
+        changed_columns.insert(1); // 'email' column index
+
+        table.update_row_selective(0, updated_row, &changed_columns).unwrap();
+
+        // Verify unique index was updated
+        let row = table.scan().iter().next().unwrap();
+        assert_eq!(
+            row.get(1),
+            Some(&SqlValue::Varchar("alice.smith@example.com".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_update_row_selective_vs_full_correctness() {
+        // Verify both methods produce the same result
+        let schema1 = TableSchema::with_all_constraints(
+            "users".to_string(),
+            vec![
+                ColumnSchema::new("id".to_string(), DataType::Integer, false),
+                ColumnSchema::new(
+                    "email".to_string(),
+                    DataType::Varchar { max_length: Some(100) },
+                    false,
+                ),
+                ColumnSchema::new(
+                    "name".to_string(),
+                    DataType::Varchar { max_length: Some(100) },
+                    false,
+                ),
+            ],
+            Some(vec!["id".to_string()]),
+            vec![vec!["email".to_string()]],
+        );
+        let mut table1 = Table::new(schema1.clone());
+
+        let schema2 = schema1.clone();
+        let mut table2 = Table::new(schema2);
+
+        // Insert same initial row into both tables
+        let initial_row = Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Varchar("alice@example.com".to_string()),
+            SqlValue::Varchar("Alice".to_string()),
+        ]);
+        table1.insert(initial_row.clone()).unwrap();
+        table2.insert(initial_row).unwrap();
+
+        // Update with selective method
+        let updated_row1 = Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Varchar("alice@example.com".to_string()),
+            SqlValue::Varchar("Alice Smith".to_string()),
+        ]);
+        let mut changed_columns = std::collections::HashSet::new();
+        changed_columns.insert(2); // 'name' column
+        table1.update_row_selective(0, updated_row1.clone(), &changed_columns).unwrap();
+
+        // Update with full method
+        table2.update_row(0, updated_row1).unwrap();
+
+        // Both tables should be identical
+        let row1 = table1.scan().iter().next().unwrap();
+        let row2 = table2.scan().iter().next().unwrap();
+        assert_eq!(row1.get(0), row2.get(0));
+        assert_eq!(row1.get(1), row2.get(1));
+        assert_eq!(row1.get(2), row2.get(2));
+    }
 }

@@ -129,7 +129,8 @@ impl UpdateExecutor {
         let evaluator = ExpressionEvaluator::with_database(schema, database);
 
         // Step 4: Build list of updates (two-phase execution for SQL semantics)
-        let mut updates = Vec::new();
+        // Each update consists of: (row_index, new_row, changed_columns)
+        let mut updates: Vec<(usize, storage::Row, std::collections::HashSet<usize>)> = Vec::new();
 
         // Try to use primary key index for fast lookup
         let candidate_rows: Vec<(usize, storage::Row)> =
@@ -173,6 +174,9 @@ impl UpdateExecutor {
             // Build updated row by cloning original and applying assignments
             let mut new_row = row.clone();
 
+            // Track which columns are being updated for selective index maintenance
+            let mut changed_columns = std::collections::HashSet::new();
+
             // Apply each assignment
             for assignment in &stmt.assignments {
                 // Find column index
@@ -213,6 +217,9 @@ impl UpdateExecutor {
                 new_row
                     .set(col_index, new_value)
                     .map_err(|e| ExecutorError::StorageError(e.to_string()))?;
+
+                // Track that this column changed
+                changed_columns.insert(col_index);
             }
 
             // Enforce NOT NULL constraints on the updated row
@@ -359,7 +366,7 @@ impl UpdateExecutor {
                 validate_foreign_key_constraints(database, &stmt.table_name, &new_row.values)?;
             }
 
-            updates.push((row_index, new_row));
+            updates.push((row_index, new_row, changed_columns));
         }
 
         // Step 5: Apply all updates (after evaluation phase completes)
@@ -370,9 +377,9 @@ impl UpdateExecutor {
             .get_table_mut(&stmt.table_name)
             .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
 
-        for (index, new_row) in updates {
+        for (index, new_row, changed_columns) in updates {
             table_mut
-                .update_row(index, new_row)
+                .update_row_selective(index, new_row, &changed_columns)
                 .map_err(|e| ExecutorError::StorageError(e.to_string()))?;
         }
 
