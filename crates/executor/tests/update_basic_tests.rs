@@ -42,9 +42,9 @@ fn test_update_with_where_clause() {
             value: Expression::Literal(SqlValue::Integer(60000)),
         }],
         where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
-        left: Box::new(Expression::ColumnRef { table: None, column: "department".to_string() }),
-        op: BinaryOperator::Equal,
-        right: Box::new(Expression::Literal(SqlValue::Varchar("Engineering".to_string()))),
+            left: Box::new(Expression::ColumnRef { table: None, column: "department".to_string() }),
+            op: BinaryOperator::Equal,
+            right: Box::new(Expression::Literal(SqlValue::Varchar("Engineering".to_string()))),
         })),
     };
 
@@ -81,9 +81,9 @@ fn test_update_multiple_columns() {
             },
         ],
         where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
-        left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
-        op: BinaryOperator::Equal,
-        right: Box::new(Expression::Literal(SqlValue::Integer(1))),
+            left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
+            op: BinaryOperator::Equal,
+            right: Box::new(Expression::Literal(SqlValue::Integer(1))),
         })),
     };
 
@@ -181,9 +181,9 @@ fn test_update_no_matching_rows() {
             value: Expression::Literal(SqlValue::Integer(99999)),
         }],
         where_clause: Some(ast::WhereClause::Condition(Expression::BinaryOp {
-        left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
-        op: BinaryOperator::Equal,
-        right: Box::new(Expression::Literal(SqlValue::Integer(999))),
+            left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
+            op: BinaryOperator::Equal,
+            right: Box::new(Expression::Literal(SqlValue::Integer(999))),
         })),
     };
 
