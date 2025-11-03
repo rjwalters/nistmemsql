@@ -17,6 +17,15 @@ def pytest_configure(config):
     config.option.benchmark_disable_gc = True  # Disable GC during timing
     # config.option.benchmark_json = "benchmark_results.json"  # Disabled to avoid JSON saving issues
 
+def pytest_addoption(parser):
+    """Add custom command-line options"""
+    parser.addoption(
+        "--no-duckdb",
+        action="store_true",
+        default=False,
+        help="Skip DuckDB benchmarks (faster iteration)"
+    )
+
 @pytest.fixture(scope="session")
 def hardware_metadata():
     """Collect hardware and environment metadata"""
@@ -45,8 +54,12 @@ def nistmemsql_db():
     conn.close()
 
 @pytest.fixture
-def duckdb_db():
+def duckdb_db(request):
     """Create DuckDB in-memory database connection"""
+    # Skip if --no-duckdb flag is set
+    if request.config.getoption("--no-duckdb"):
+        pytest.skip("DuckDB benchmarks disabled with --no-duckdb")
+
     conn = duckdb.connect(':memory:')
     yield conn
     conn.close()
