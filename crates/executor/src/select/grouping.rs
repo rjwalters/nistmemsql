@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 /// Accumulator for aggregate functions
 #[derive(Debug, Clone)]
@@ -232,12 +232,16 @@ pub(super) fn compare_sql_values(a: &types::SqlValue, b: &types::SqlValue) -> Or
 pub(super) type GroupedRows = Vec<(Vec<types::SqlValue>, Vec<storage::Row>)>;
 
 /// Group rows by GROUP BY expressions
+///
+/// Optimized implementation using HashMap for O(1) group lookups instead of O(n) linear search.
+/// This significantly improves performance for queries with many groups.
 pub(super) fn group_rows(
     rows: &[storage::Row],
     group_by_exprs: &[ast::Expression],
     evaluator: &crate::evaluator::CombinedExpressionEvaluator,
 ) -> Result<GroupedRows, crate::errors::ExecutorError> {
-    let mut groups: GroupedRows = Vec::new();
+    // Use HashMap for O(1) group lookups
+    let mut groups_map: HashMap<Vec<types::SqlValue>, Vec<storage::Row>> = HashMap::new();
 
     for row in rows {
         // Evaluate GROUP BY expressions to get the group key
@@ -247,20 +251,10 @@ pub(super) fn group_rows(
             key.push(value);
         }
 
-        // Find existing group or create new one
-        let mut found = false;
-        for (existing_key, group_rows) in &mut groups {
-            if existing_key == &key {
-                group_rows.push(row.clone());
-                found = true;
-                break;
-            }
-        }
-
-        if !found {
-            groups.push((key, vec![row.clone()]));
-        }
+        // Insert or update group using HashMap (O(1) lookup)
+        groups_map.entry(key).or_insert_with(Vec::new).push(row.clone());
     }
 
-    Ok(groups)
+    // Convert HashMap back to Vec for compatibility with existing code
+    Ok(groups_map.into_iter().collect())
 }
