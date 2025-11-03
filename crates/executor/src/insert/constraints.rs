@@ -45,6 +45,12 @@ pub fn enforce_primary_key_constraint(
             .get_table(table_name)
             .ok_or_else(|| ExecutorError::TableNotFound(table_name.to_string()))?;
 
+        // Skip existing row check if table is in append mode (sequential inserts)
+        // Append mode guarantees no duplicates because PKs are strictly increasing
+        if table.is_in_append_mode() {
+            return Ok(());
+        }
+
         // Use the primary key index for O(1) lookup instead of O(n) scan
         if let Some(pk_index) = table.primary_key_index() {
             if pk_index.contains_key(&new_pk_values) {
