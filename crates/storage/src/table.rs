@@ -6,6 +6,15 @@ use crate::{Row, StorageError};
 use std::collections::HashMap;
 use types::SqlValue;
 
+/// Represents different types of indexes that can be affected by column updates
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum IndexType {
+    /// Primary key index
+    PrimaryKey,
+    /// Unique constraint index (with constraint index)
+    UniqueConstraint(usize),
+}
+
 /// In-memory table - stores rows
 #[derive(Debug, Clone)]
 pub struct Table {
@@ -194,6 +203,60 @@ impl Table {
         Ok(())
     }
 
+    /// Update a row with selective index maintenance
+    ///
+    /// Only updates indexes that reference changed columns, providing significant
+    /// performance improvement for tables with many indexes when updating non-indexed columns.
+    ///
+    /// # Arguments
+    /// * `index` - Row index to update
+    /// * `row` - New row data
+    /// * `changed_columns` - Set of column indices that were modified
+    ///
+    /// # Returns
+    /// * `Ok(())` on success
+    /// * `Err(StorageError)` if index out of bounds or column count mismatch
+    pub fn update_row_selective(
+        &mut self,
+        index: usize,
+        row: Row,
+        changed_columns: &std::collections::HashSet<usize>,
+    ) -> Result<(), StorageError> {
+        if index >= self.rows.len() {
+            return Err(StorageError::ColumnIndexOutOfBounds { index });
+        }
+
+        // Validate row has correct number of columns
+        if row.len() != self.schema.column_count() {
+            return Err(StorageError::ColumnCountMismatch {
+                expected: self.schema.column_count(),
+                actual: row.len(),
+            });
+        }
+
+        // Normalize row values (e.g., CHAR padding/truncation)
+        let normalized_row = self.normalize_row(row);
+
+        // Get old row for index updates (clone to avoid borrow issues)
+        let old_row = self.rows[index].clone();
+
+        // Update the row
+        self.rows[index] = normalized_row.clone();
+
+        // Determine which indexes are affected by the changed columns
+        let affected_indexes = self.get_affected_indexes(changed_columns);
+
+        // Update only affected indexes
+        self.update_indexes_for_update_selective(
+            &old_row,
+            &normalized_row,
+            index,
+            &affected_indexes,
+        );
+
+        Ok(())
+    }
+
     /// Delete rows matching a predicate
     /// Returns number of rows deleted
     pub fn delete_where<F>(&mut self, mut predicate: F) -> usize
@@ -325,6 +388,112 @@ impl Table {
                 // Insert new key if not NULL
                 if !new_unique_values.iter().any(|v| *v == SqlValue::Null) {
                     unique_index.insert(new_unique_values, row_index);
+                }
+            }
+        }
+    }
+
+    /// Determine which indexes are affected by column changes
+    ///
+    /// Returns an enum describing which indexes need updating based on the changed columns.
+    /// This allows selective index maintenance for performance optimization.
+    ///
+    /// # Arguments
+    /// * `changed_columns` - Set of column indices that were modified
+    ///
+    /// # Returns
+    /// Vector of index types that are affected by the changes
+    fn get_affected_indexes(
+        &self,
+        changed_columns: &std::collections::HashSet<usize>,
+    ) -> Vec<IndexType> {
+        let mut affected = Vec::new();
+
+        // Check if primary key affected
+        if let Some(pk_indices) = self.schema.get_primary_key_indices() {
+            if pk_indices.iter().any(|idx| changed_columns.contains(idx)) {
+                affected.push(IndexType::PrimaryKey);
+            }
+        }
+
+        // Check which unique constraints affected
+        let unique_constraint_indices = self.schema.get_unique_constraint_indices();
+        for (constraint_idx, unique_indices) in unique_constraint_indices.iter().enumerate() {
+            if unique_indices.iter().any(|col_idx| changed_columns.contains(col_idx)) {
+                affected.push(IndexType::UniqueConstraint(constraint_idx));
+            }
+        }
+
+        affected
+    }
+
+    /// Update only affected indexes after a row update
+    ///
+    /// This is a performance optimization that only updates indexes that reference
+    /// changed columns, rather than updating all indexes unconditionally.
+    ///
+    /// # Arguments
+    /// * `old_row` - Row data before the update
+    /// * `new_row` - Row data after the update
+    /// * `row_index` - Index of the row in the table
+    /// * `affected_indexes` - List of indexes that need updating
+    fn update_indexes_for_update_selective(
+        &mut self,
+        old_row: &Row,
+        new_row: &Row,
+        row_index: usize,
+        affected_indexes: &[IndexType],
+    ) {
+        for index_type in affected_indexes {
+            match index_type {
+                IndexType::PrimaryKey => {
+                    // Update primary key index
+                    if let Some(ref mut pk_index) = self.primary_key_index {
+                        if let Some(pk_indices) = self.schema.get_primary_key_indices() {
+                            let old_pk_values: Vec<SqlValue> = pk_indices
+                                .iter()
+                                .map(|&idx| old_row.values[idx].clone())
+                                .collect();
+                            let new_pk_values: Vec<SqlValue> = pk_indices
+                                .iter()
+                                .map(|&idx| new_row.values[idx].clone())
+                                .collect();
+
+                            // Remove old key if different from new key
+                            if old_pk_values != new_pk_values {
+                                pk_index.remove(&old_pk_values);
+                                pk_index.insert(new_pk_values, row_index);
+                            }
+                        }
+                    }
+                }
+                IndexType::UniqueConstraint(constraint_idx) => {
+                    // Update specific unique constraint index
+                    let unique_constraint_indices = self.schema.get_unique_constraint_indices();
+                    if let Some(unique_indices) = unique_constraint_indices.get(*constraint_idx) {
+                        let old_unique_values: Vec<SqlValue> = unique_indices
+                            .iter()
+                            .map(|&idx| old_row.values[idx].clone())
+                            .collect();
+                        let new_unique_values: Vec<SqlValue> = unique_indices
+                            .iter()
+                            .map(|&idx| new_row.values[idx].clone())
+                            .collect();
+
+                        if let Some(unique_index) = self.unique_indexes.get_mut(*constraint_idx) {
+                            // Remove old key if it's different and not NULL
+                            if old_unique_values != new_unique_values
+                                && !old_unique_values.iter().any(|v| *v == SqlValue::Null)
+                            {
+                                unique_index.remove(&old_unique_values);
+                            }
+
+                            // Insert new key if not NULL
+                            if !new_unique_values.iter().any(|v| *v == SqlValue::Null) {
+                                unique_index.insert(new_unique_values, row_index);
+                            }
+                        }
+                    }
                 }
             }
         }
