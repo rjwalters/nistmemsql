@@ -246,6 +246,22 @@ jobs:
         continue-on-error: true
 
       # Generate badges
+      - name: Verify cumulative results were created
+        run: |
+          echo "=== Checking merged cumulative results ==="
+          if [ -f target/sqllogictest_cumulative.json ]; then
+            echo "✓ Cumulative results file exists"
+            echo ""
+            echo "Summary:"
+            jq '.summary' target/sqllogictest_cumulative.json || echo "No summary found"
+            echo ""
+            echo "Merge info:"
+            jq '.merge_info' target/sqllogictest_cumulative.json || echo "No merge info found"
+          else
+            echo "⚠️  WARNING: No cumulative results file found!"
+            echo "This means the merge step may have failed."
+          fi
+
       - name: Generate badge JSON
         run: |
           mkdir -p badges
@@ -282,20 +298,23 @@ jobs:
 
           echo "Generated SQL:1999 badge: ${PASS_RATE}% ($COLOR)"
 
-          # Extract stats from cumulative SQLLogicTest results (or fall back to single-run)
+          # Use the merged cumulative results for badge display (includes this run's contribution)
           if [ -f target/sqllogictest_cumulative.json ]; then
+            echo "Using merged cumulative results for badge (includes current run)"
             SLT_PASS_RATE=$(jq -r '.summary.pass_rate // "0"' target/sqllogictest_cumulative.json | xargs printf "%.1f")
             SLT_COVERAGE=$(jq -r '.summary.coverage_rate // "0"' target/sqllogictest_cumulative.json | xargs printf "%.1f")
             SLT_PASSED=$(jq -r '.summary.passed // "0"' target/sqllogictest_cumulative.json)
             SLT_FAILED=$(jq -r '.summary.failed // "0"' target/sqllogictest_cumulative.json)
             SLT_TOTAL=$(jq -r '.summary.total_available_files // "0"' target/sqllogictest_cumulative.json)
           elif [ -f target/sqllogictest_results.json ]; then
+            echo "Using single-run results for badge display (merge may have failed)"
             SLT_PASS_RATE=$(jq -r '.pass_rate // "0"' target/sqllogictest_results.json | xargs printf "%.1f")
             SLT_COVERAGE="0.0"
             SLT_PASSED=$(jq -r '.passed // "0"' target/sqllogictest_results.json)
             SLT_FAILED=$(jq -r '.failed // "0"' target/sqllogictest_results.json)
             SLT_TOTAL="0"
           else
+            echo "No SQLLogicTest results available"
             SLT_PASS_RATE="0.0"
             SLT_COVERAGE="0.0"
             SLT_PASSED="0"
@@ -328,7 +347,7 @@ jobs:
 
           echo "Generated SQLLogicTest badge: ${SLT_PASSED}✓ ${SLT_FAILED}✗ (${SLT_COVERAGE}% coverage, $SLT_COLOR)"
 
-          # Copy results
+          # Copy all results including the updated cumulative file
           [ -f target/sqltest_results.json ] && cp target/sqltest_results.json badges/
           [ -f target/sqllogictest_results.json ] && cp target/sqllogictest_results.json badges/
           [ -f target/sqllogictest_analysis.json ] && cp target/sqllogictest_analysis.json badges/
@@ -372,6 +391,7 @@ jobs:
             echo "✓ Copied sqllogictest_analysis.md to deploy/badges/"
           fi
 
+          # Copy updated cumulative results (includes this run's contribution)
           if [ -f badges/sqllogictest_cumulative.json ]; then
             cp badges/sqllogictest_cumulative.json deploy/badges/
             echo "✓ Copied sqllogictest_cumulative.json to deploy/badges/"
