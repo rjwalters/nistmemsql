@@ -1,6 +1,56 @@
 // ============================================================================
-// Table
+// Table - In-Memory Storage Layer
 // ============================================================================
+//
+// This module provides the core Table abstraction for in-memory row storage.
+// The table implementation follows a delegation pattern, where specialized
+// components handle distinct concerns:
+//
+// ## Architecture
+//
+// ```
+// Table (Orchestration Layer)
+//   ├─> IndexManager      - Hash-based indexing for PK/UNIQUE constraints
+//   ├─> RowNormalizer     - Value normalization and validation
+//   └─> [Inline]          - Append mode optimization tracking
+// ```
+//
+// ### Component Responsibilities
+//
+// **IndexManager** (`indexes.rs`):
+// - Maintains hash indexes for primary key and unique constraints
+// - Provides O(1) lookups for duplicate detection
+// - Handles index updates on INSERT/UPDATE/DELETE
+// - Supports selective index maintenance for performance
+//
+// **RowNormalizer** (`normalization.rs`):
+// - CHAR padding/truncation to fixed length
+// - Type validation (ensures values match column types)
+// - NULL constraint validation
+// - Column count verification
+//
+// **Append Mode Optimization** (inline, to be extracted):
+// - Detects sequential primary key insertion patterns
+// - Enables executor-level optimizations when sequential inserts detected
+// - Maintains O(1) tracking overhead
+//
+// ### Design Principles
+//
+// 1. **Separation of Concerns**: Each component handles one specific responsibility
+// 2. **Delegation Pattern**: Table orchestrates, components execute
+// 3. **Performance First**: Optimizations built into architecture (append mode, selective updates)
+// 4. **Clean API**: Public interface remains simple despite internal complexity
+//
+// ### Future Refactoring
+//
+// Append mode tracking will be extracted to `append_mode.rs` in Phase 4 (#850),
+// completing the modular architecture and removing all inline optimization logic.
+//
+// ### Related PRs
+//
+// - #853: Phase 1 - Index Management extraction
+// - #856: Phase 3 - Row Normalization extraction
+// - #858: Phase 4 - Append Mode extraction (pending)
 
 mod indexes;
 mod normalization;
@@ -10,16 +60,57 @@ use indexes::IndexManager;
 use normalization::RowNormalizer;
 use types::SqlValue;
 
-/// In-memory table - stores rows
+/// In-memory table - stores rows with optimized indexing and validation
+///
+/// # Architecture
+///
+/// The `Table` struct acts as an orchestration layer, delegating specialized
+/// operations to dedicated components:
+///
+/// - **Row Storage**: Direct Vec storage for sequential access (table scans)
+/// - **Indexing**: `IndexManager` maintains hash indexes for constraint checks
+/// - **Normalization**: `RowNormalizer` handles value transformation and validation
+/// - **Optimization**: Append mode tracking for sequential insert performance
+///
+/// # Performance Characteristics
+///
+/// - **INSERT**: O(1) amortized for row append + O(1) for index updates
+/// - **UPDATE**: O(1) for row update + O(k) for k affected indexes (selective mode)
+/// - **DELETE**: O(n) for scan + O(m) for m deletes + O(n) for index rebuild
+/// - **SCAN**: O(n) direct vector iteration
+/// - **PK/UNIQUE lookup**: O(1) via hash indexes
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use catalog::TableSchema;
+/// use storage::Table;
+///
+/// let schema = TableSchema::new("users", columns);
+/// let mut table = Table::new(schema);
+///
+/// // Insert automatically validates and indexes
+/// table.insert(row)?;
+///
+/// // Scan returns all rows
+/// for row in table.scan() {
+///     // Process row...
+/// }
+/// ```
 #[derive(Debug, Clone)]
 pub struct Table {
+    /// Table schema defining structure and constraints
     pub schema: catalog::TableSchema,
+
+    /// Row storage - direct vector for sequential access
     rows: Vec<Row>,
 
-    // Hash indexes for constraint validation (managed by IndexManager)
+    /// Hash indexes for constraint validation (managed by IndexManager)
+    /// Provides O(1) lookups for primary key and unique constraints
     indexes: IndexManager,
 
-    // Append mode optimization tracking
+    /// Append mode optimization tracking (to be extracted in Phase 4)
+    /// Detects sequential primary key inserts for executor-level optimizations
     last_pk_value: Option<Vec<SqlValue>>, // Last inserted primary key value
     append_mode: bool,                    // True when detecting sequential inserts
     append_streak: usize,                 // Count of consecutive sequential inserts
