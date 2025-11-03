@@ -109,30 +109,29 @@ impl DeleteExecutor {
         let evaluator = ExpressionEvaluator::with_database(&schema, database);
 
         // Find rows to delete and their indices
+        // Try to use primary key index for fast lookup
         let mut rows_and_indices_to_delete: Vec<(usize, storage::Row)> = Vec::new();
-        for (index, row) in table.scan().iter().enumerate() {
-            let should_delete = if let Some(ref where_clause) = stmt.where_clause {
-                match where_clause {
-                    ast::WhereClause::Condition(where_expr) => {
-                        matches!(
-                            evaluator.eval(where_expr, row),
-                            Ok(types::SqlValue::Boolean(true))
-                        )
+
+        if let Some(ast::WhereClause::Condition(where_expr)) = &stmt.where_clause {
+            // Try primary key optimization
+            if let Some(pk_values) = Self::extract_primary_key_lookup(where_expr, &schema) {
+                if let Some(pk_index) = table.primary_key_index() {
+                    if let Some(&row_index) = pk_index.get(&pk_values) {
+                        // Found the row via index - single row to delete
+                        rows_and_indices_to_delete.push((row_index, table.scan()[row_index].clone()));
                     }
-                    ast::WhereClause::CurrentOf(_cursor_name) => {
-                        // TODO: Implement cursor support - for now return error
-                        return Err(ExecutorError::UnsupportedFeature(
-                            "WHERE CURRENT OF cursor is not yet implemented".to_string(),
-                        ));
-                    }
+                    // If not found, rows_and_indices_to_delete stays empty (no rows to delete)
+                } else {
+                    // No PK index, fall through to table scan below
+                    Self::collect_rows_with_scan(table, &stmt.where_clause, &evaluator, &mut rows_and_indices_to_delete)?;
                 }
             } else {
-                true
-            };
-
-            if should_delete {
-                rows_and_indices_to_delete.push((index, row.clone()));
+                // Can't extract PK lookup, fall through to table scan
+                Self::collect_rows_with_scan(table, &stmt.where_clause, &evaluator, &mut rows_and_indices_to_delete)?;
             }
+        } else {
+            // No WHERE clause - collect all rows
+            Self::collect_rows_with_scan(table, &stmt.where_clause, &evaluator, &mut rows_and_indices_to_delete)?;
         }
 
         // Step 3: Check referential integrity for each row to be deleted
@@ -160,6 +159,84 @@ impl DeleteExecutor {
         });
 
         Ok(deleted_count)
+    }
+
+    /// Extract primary key value from WHERE expression if it's a simple equality
+    fn extract_primary_key_lookup(
+        where_expr: &ast::Expression,
+        schema: &catalog::TableSchema,
+    ) -> Option<Vec<types::SqlValue>> {
+        use ast::{BinaryOperator, Expression};
+
+        // Only handle simple binary equality operations
+        match where_expr {
+            Expression::BinaryOp { left, op: BinaryOperator::Equal, right } => {
+                // Check if left side is a column reference and right side is a literal
+                if let (Expression::ColumnRef { column, .. }, Expression::Literal(value)) =
+                    (left.as_ref(), right.as_ref())
+                {
+                    // Check if this column is the primary key
+                    if let Some(pk_indices) = schema.get_primary_key_indices() {
+                        if let Some(col_index) = schema.get_column_index(column) {
+                            // Only handle single-column primary keys for now
+                            if pk_indices.len() == 1 && pk_indices[0] == col_index {
+                                return Some(vec![value.clone()]);
+                            }
+                        }
+                    }
+                }
+
+                // Also check the reverse: literal = column
+                if let (Expression::Literal(value), Expression::ColumnRef { column, .. }) =
+                    (left.as_ref(), right.as_ref())
+                {
+                    if let Some(pk_indices) = schema.get_primary_key_indices() {
+                        if let Some(col_index) = schema.get_column_index(column) {
+                            if pk_indices.len() == 1 && pk_indices[0] == col_index {
+                                return Some(vec![value.clone()]);
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        None
+    }
+
+    /// Collect rows using table scan (fallback when PK optimization can't be used)
+    fn collect_rows_with_scan(
+        table: &storage::Table,
+        where_clause: &Option<ast::WhereClause>,
+        evaluator: &ExpressionEvaluator,
+        rows_and_indices: &mut Vec<(usize, storage::Row)>,
+    ) -> Result<(), ExecutorError> {
+        for (index, row) in table.scan().iter().enumerate() {
+            let should_delete = if let Some(ref where_clause) = where_clause {
+                match where_clause {
+                    ast::WhereClause::Condition(where_expr) => {
+                        matches!(
+                            evaluator.eval(where_expr, row),
+                            Ok(types::SqlValue::Boolean(true))
+                        )
+                    }
+                    ast::WhereClause::CurrentOf(_cursor_name) => {
+                        return Err(ExecutorError::UnsupportedFeature(
+                            "WHERE CURRENT OF cursor is not yet implemented".to_string(),
+                        ));
+                    }
+                }
+            } else {
+                true
+            };
+
+            if should_delete {
+                rows_and_indices.push((index, row.clone()));
+            }
+        }
+
+        Ok(())
     }
 }
 
