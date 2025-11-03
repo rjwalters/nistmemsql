@@ -1,6 +1,59 @@
 // ============================================================================
-// Table
+// Table - In-Memory Storage Layer
 // ============================================================================
+//
+// This module provides the core Table abstraction for in-memory row storage.
+// The table implementation follows a delegation pattern, where specialized
+// components handle distinct concerns:
+//
+// ## Architecture
+//
+// ```
+// Table (Orchestration Layer)
+//   ├─> IndexManager        - Hash-based indexing for PK/UNIQUE constraints
+//   ├─> RowNormalizer       - Value normalization and validation
+//   └─> AppendModeTracker   - Sequential insert detection for optimization
+// ```
+//
+// ### Component Responsibilities
+//
+// **IndexManager** (`indexes.rs`):
+// - Maintains hash indexes for primary key and unique constraints
+// - Provides O(1) lookups for duplicate detection
+// - Handles index updates on INSERT/UPDATE/DELETE
+// - Supports selective index maintenance for performance
+//
+// **RowNormalizer** (`normalization.rs`):
+// - CHAR padding/truncation to fixed length
+// - Type validation (ensures values match column types)
+// - NULL constraint validation
+// - Column count verification
+//
+// **AppendModeTracker** (`append_mode.rs`):
+// - Detects sequential primary key insertion patterns
+// - Enables executor-level optimizations when sequential inserts detected
+// - Maintains O(1) tracking overhead
+// - Activates after threshold of consecutive sequential inserts
+//
+// ### Design Principles
+//
+// 1. **Separation of Concerns**: Each component handles one specific responsibility
+// 2. **Delegation Pattern**: Table orchestrates, components execute
+// 3. **Performance First**: Optimizations built into architecture (append mode, selective updates)
+// 4. **Clean API**: Public interface remains simple despite internal complexity
+//
+// ### Refactoring History
+//
+// This module structure is the result of a systematic refactoring effort (#842)
+// that extracted specialized components from a monolithic table.rs file:
+//
+// - **Phase 1** (PR #853): IndexManager extraction
+// - **Phase 3** (PR #856): RowNormalizer extraction
+// - **Phase 4** (PR #858): AppendModeTracker extraction
+// - **Phase 5** (PR #859): Documentation and finalization
+//
+// Note: Phase 2 (Constraint Validation) was closed as invalid - constraint
+// validation properly belongs in the executor layer, not the storage layer.
 
 mod indexes;
 mod append_mode;
@@ -12,16 +65,57 @@ use append_mode::AppendModeTracker;
 use normalization::RowNormalizer;
 use types::SqlValue;
 
-/// In-memory table - stores rows
+/// In-memory table - stores rows with optimized indexing and validation
+///
+/// # Architecture
+///
+/// The `Table` struct acts as an orchestration layer, delegating specialized
+/// operations to dedicated components:
+///
+/// - **Row Storage**: Direct Vec storage for sequential access (table scans)
+/// - **Indexing**: `IndexManager` maintains hash indexes for constraint checks
+/// - **Normalization**: `RowNormalizer` handles value transformation and validation
+/// - **Optimization**: Append mode tracking for sequential insert performance
+///
+/// # Performance Characteristics
+///
+/// - **INSERT**: O(1) amortized for row append + O(1) for index updates
+/// - **UPDATE**: O(1) for row update + O(k) for k affected indexes (selective mode)
+/// - **DELETE**: O(n) for scan + O(m) for m deletes + O(n) for index rebuild
+/// - **SCAN**: O(n) direct vector iteration
+/// - **PK/UNIQUE lookup**: O(1) via hash indexes
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use catalog::TableSchema;
+/// use storage::Table;
+///
+/// let schema = TableSchema::new("users", columns);
+/// let mut table = Table::new(schema);
+///
+/// // Insert automatically validates and indexes
+/// table.insert(row)?;
+///
+/// // Scan returns all rows
+/// for row in table.scan() {
+///     // Process row...
+/// }
+/// ```
 #[derive(Debug, Clone)]
 pub struct Table {
+    /// Table schema defining structure and constraints
     pub schema: catalog::TableSchema,
+
+    /// Row storage - direct vector for sequential access
     rows: Vec<Row>,
 
-    // Hash indexes for constraint validation (managed by IndexManager)
+    /// Hash indexes for constraint validation (managed by IndexManager)
+    /// Provides O(1) lookups for primary key and unique constraints
     indexes: IndexManager,
 
-    // Append mode optimization tracking (managed by AppendModeTracker)
+    /// Append mode optimization tracking (managed by AppendModeTracker)
+    /// Detects sequential primary key inserts for executor-level optimizations
     append_tracker: AppendModeTracker,
 }
 
