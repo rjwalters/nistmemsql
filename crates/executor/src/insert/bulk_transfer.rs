@@ -268,6 +268,7 @@ fn execute_bulk_transfer(
 mod tests {
     use super::*;
     use ast::*;
+    use types::DataType;
 
     #[test]
     fn test_extract_simple_table_select_valid() {
@@ -343,27 +344,23 @@ mod tests {
 
     #[test]
     fn test_schema_compatibility_same_columns() {
-        let schema1 = TableSchema {
-            name: "t1".to_string(),
-            columns: vec![
+        let schema1 = TableSchema::new(
+            "t1".to_string(),
+            vec![
                 catalog::ColumnSchema {
                     name: "id".to_string(),
                     data_type: DataType::Integer,
-                    not_null: true,
-                    default: None,
+                    nullable: false,
+                    default_value: None,
                 },
                 catalog::ColumnSchema {
                     name: "name".to_string(),
-                    data_type: DataType::Text,
-                    not_null: false,
-                    default: None,
+                    data_type: DataType::Varchar { max_length: None },
+                    nullable: true,
+                    default_value: None,
                 },
             ],
-            primary_key: None,
-            unique_constraints: vec![],
-            foreign_keys: vec![],
-            check_constraints: vec![],
-        };
+        );
 
         let schema2 = schema1.clone();
 
@@ -373,41 +370,33 @@ mod tests {
 
     #[test]
     fn test_schema_compatibility_different_column_count() {
-        let schema1 = TableSchema {
-            name: "t1".to_string(),
-            columns: vec![catalog::ColumnSchema {
+        let schema1 = TableSchema::new(
+            "t1".to_string(),
+            vec![catalog::ColumnSchema {
                 name: "id".to_string(),
                 data_type: DataType::Integer,
-                not_null: true,
-                default: None,
+                nullable: false,
+                default_value: None,
             }],
-            primary_key: None,
-            unique_constraints: vec![],
-            foreign_keys: vec![],
-            check_constraints: vec![],
-        };
+        );
 
-        let schema2 = TableSchema {
-            name: "t2".to_string(),
-            columns: vec![
+        let schema2 = TableSchema::new(
+            "t2".to_string(),
+            vec![
                 catalog::ColumnSchema {
                     name: "id".to_string(),
                     data_type: DataType::Integer,
-                    not_null: true,
-                    default: None,
+                    nullable: false,
+                    default_value: None,
                 },
                 catalog::ColumnSchema {
                     name: "name".to_string(),
-                    data_type: DataType::Text,
-                    not_null: false,
-                    default: None,
+                    data_type: DataType::Varchar { max_length: None },
+                    nullable: true,
+                    default_value: None,
                 },
             ],
-            primary_key: None,
-            unique_constraints: vec![],
-            foreign_keys: vec![],
-            check_constraints: vec![],
-        };
+        );
 
         let result = check_schema_compatibility(&schema1, &schema2).unwrap();
         assert!(!result.compatible);
