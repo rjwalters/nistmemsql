@@ -112,8 +112,13 @@ impl Database {
             stmt_cache: Arc::new(Mutex::new(LruCache::new(
                 NonZeroUsize::new(1000).unwrap(),
             ))),
+            schema_cache: Arc::new(Mutex::new(LruCache::new(
+                NonZeroUsize::new(100).unwrap(),
+            ))),
             cache_hits: Arc::new(Mutex::new(0)),
             cache_misses: Arc::new(Mutex::new(0)),
+            schema_cache_hits: Arc::new(Mutex::new(0)),
+            schema_cache_misses: Arc::new(Mutex::new(0)),
         })
     }
 
@@ -155,9 +160,15 @@ struct Cursor {
     /// LRU cache for parsed SQL statements (max 1000 entries)
     /// Key: SQL string with ? placeholders, Value: parsed AST
     stmt_cache: Arc<Mutex<LruCache<String, ast::Statement>>>,
+    /// Cache for table schemas (max 100 tables per cursor)
+    /// Key: table name, Value: cached schema
+    schema_cache: Arc<Mutex<LruCache<String, catalog::TableSchema>>>,
     /// Cache statistics for monitoring
     cache_hits: Arc<Mutex<usize>>,
     cache_misses: Arc<Mutex<usize>>,
+    /// Schema cache statistics
+    schema_cache_hits: Arc<Mutex<usize>>,
+    schema_cache_misses: Arc<Mutex<usize>>,
 }
 
 #[pymethods]
@@ -295,10 +306,11 @@ impl Cursor {
                 executor::CreateTableExecutor::execute(&create_stmt, &mut db)
                     .map_err(|e| OperationalError::new_err(format!("Execution error: {:?}", e)))?;
 
-                // Clear statement cache on schema change
+                // Clear both statement and schema caches on schema change
                 let mut cache = self.stmt_cache.lock().unwrap();
                 cache.clear();
                 drop(cache);
+                self.clear_schema_cache();
 
                 self.last_result = Some(QueryResultData::Execute {
                     rows_affected: 0,
@@ -312,10 +324,11 @@ impl Cursor {
                 let message = executor::DropTableExecutor::execute(&drop_stmt, &mut db)
                     .map_err(|e| OperationalError::new_err(format!("Execution error: {:?}", e)))?;
 
-                // Clear statement cache on schema change
+                // Clear both statement and schema caches on schema change
                 let mut cache = self.stmt_cache.lock().unwrap();
                 cache.clear();
                 drop(cache);
+                self.clear_schema_cache();
 
                 self.last_result = Some(QueryResultData::Execute { rows_affected: 0, message });
 
@@ -339,9 +352,16 @@ impl Cursor {
                 Ok(())
             }
             ast::Statement::Update(update_stmt) => {
+                // Use cached schema to reduce catalog lookups
+                let cached_schema = self.get_cached_schema(&update_stmt.table_name)?;
+
                 let mut db = self.db.lock().unwrap();
-                let row_count = executor::UpdateExecutor::execute(&update_stmt, &mut db)
-                    .map_err(|e| OperationalError::new_err(format!("Execution error: {:?}", e)))?;
+                let row_count = executor::UpdateExecutor::execute_with_schema(
+                    &update_stmt,
+                    &mut db,
+                    Some(&cached_schema),
+                )
+                .map_err(|e| OperationalError::new_err(format!("Execution error: {:?}", e)))?;
 
                 self.last_result = Some(QueryResultData::Execute {
                     rows_affected: row_count,
@@ -472,6 +492,22 @@ impl Cursor {
         }
     }
 
+    /// Get schema cache statistics
+    ///
+    /// Returns:
+    ///     tuple: (schema_cache_hits, schema_cache_misses, schema_hit_rate)
+    fn schema_cache_stats(&self) -> PyResult<(usize, usize, f64)> {
+        let hits = *self.schema_cache_hits.lock().unwrap();
+        let misses = *self.schema_cache_misses.lock().unwrap();
+        let total = hits + misses;
+        let hit_rate = if total > 0 {
+            (hits as f64) / (total as f64)
+        } else {
+            0.0
+        };
+        Ok((hits, misses, hit_rate))
+    }
+
     /// Get statement cache statistics
     ///
     /// Returns:
@@ -488,12 +524,15 @@ impl Cursor {
         Ok((hits, misses, hit_rate))
     }
 
-    /// Clear the statement cache
+    /// Clear both statement and schema caches
     ///
     /// Useful for testing or when schema changes occur outside this cursor
     fn clear_cache(&mut self) -> PyResult<()> {
         let mut cache = self.stmt_cache.lock().unwrap();
         cache.clear();
+        drop(cache);
+
+        self.clear_schema_cache();
         Ok(())
     }
 
@@ -501,6 +540,60 @@ impl Cursor {
     fn close(&self) -> PyResult<()> {
         // No cleanup needed
         Ok(())
+    }
+}
+
+impl Cursor {
+    /// Get table schema with caching
+    ///
+    /// First checks the schema cache, and only queries the database catalog on cache miss.
+    /// This reduces redundant catalog lookups during repeated operations on the same table.
+    fn get_cached_schema(&self, table_name: &str) -> PyResult<catalog::TableSchema> {
+        // Check cache first
+        let mut cache = self.schema_cache.lock().unwrap();
+        if let Some(schema) = cache.get(table_name) {
+            // Cache hit! Clone and return
+            let schema = schema.clone();
+            drop(cache);
+            *self.schema_cache_hits.lock().unwrap() += 1;
+            return Ok(schema);
+        }
+        drop(cache);
+
+        // Cache miss - look up in database catalog
+        *self.schema_cache_misses.lock().unwrap() += 1;
+        let db = self.db.lock().unwrap();
+        let schema = db
+            .catalog
+            .get_table(table_name)
+            .ok_or_else(|| {
+                OperationalError::new_err(format!("Table not found: {}", table_name))
+            })?
+            .clone();
+        drop(db);
+
+        // Store in cache for future use
+        let mut cache = self.schema_cache.lock().unwrap();
+        cache.put(table_name.to_string(), schema.clone());
+        drop(cache);
+
+        Ok(schema)
+    }
+
+    /// Invalidate schema cache for a specific table
+    ///
+    /// Call this after DDL operations that modify table schema.
+    fn invalidate_schema_cache(&self, table_name: &str) {
+        let mut cache = self.schema_cache.lock().unwrap();
+        cache.pop(table_name);
+    }
+
+    /// Clear all schema caches
+    ///
+    /// Call this after any DDL operation that could affect multiple tables.
+    fn clear_schema_cache(&self) {
+        let mut cache = self.schema_cache.lock().unwrap();
+        cache.clear();
     }
 }
 
