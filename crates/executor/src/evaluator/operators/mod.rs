@@ -19,6 +19,7 @@ use logical::LogicalOps;
 use string::StringOps;
 
 /// Trait for binary operator evaluation
+#[allow(dead_code)]
 pub(crate) trait BinaryOperator {
     /// Evaluate the operator on two SQL values
     fn evaluate(&self, left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError>;
