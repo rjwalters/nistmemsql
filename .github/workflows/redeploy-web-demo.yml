@@ -1,18 +1,16 @@
 name: Redeploy Web Demo
 
 on:
-  # Trigger after boost workflow completes on main branch
-  workflow_run:
-    workflows: ["Boost SQLLogicTest Coverage"]
-    types: [completed]
-    branches: [main]
-  # Allow manual triggering
+  # Manual-only workflow for redeploying web demo when needed
+  # NOTE: CI and Deploy workflow already deploys on every push
+  # NOTE: Boost workflow already deploys after updating test results
+  # This workflow is only needed for manual redeployments (e.g., fixing a broken deploy)
   workflow_dispatch:
     inputs:
       reason:
         description: 'Reason for redeployment'
         required: false
-        default: 'Update with latest conformance data'
+        default: 'Manual redeploy of web demo with latest data'
         type: string
 
 # Sets permissions for GitHub Pages deployment
