@@ -321,11 +321,6 @@ impl TestStats {
     }
 }
 
-/// Check if a test file should be skipped due to conditional directives
-fn should_skip_file(path: &std::path::Path) -> Result<bool, std::io::Error> {
-    let content = std::fs::read_to_string(path)?;
-    Ok(content.contains("onlyif ") || content.contains("skipif "))
-}
 
 /// Load historical test results from JSON file
 fn load_historical_results() -> serde_json::Value {
@@ -550,21 +545,6 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
         stats.total += 1;
         stats.tested_files.insert(relative_path.clone());
 
-        // Check if file should be skipped due to conditional directives
-        match should_skip_file(&test_file) {
-            Ok(true) => {
-                println!("~ {} (skipped - vendor-specific)", relative_path);
-                stats.skipped += 1;
-                continue;
-            }
-            Ok(false) => {} // Continue with test
-            Err(e) => {
-                eprintln!("✗ {} - Failed to check skip status: {}", relative_path, e);
-                stats.errors += 1;
-                continue;
-            }
-        }
-
         // Read and run test file
         let contents = match std::fs::read_to_string(&test_file) {
             Ok(c) => c,
@@ -670,7 +650,6 @@ fn run_sqllogictest_suite() {
     );
     println!("Results from multiple CI runs are merged to progressively build complete coverage.");
     println!("Some failures are expected as we continue implementing SQL:1999 features.");
-    println!("Files with database-specific conditional directives are skipped as they test vendor-specific behavior.");
 
     // Write results to JSON file for CI/badge generation
     let tested_files_vec: Vec<String> = all_tested_files.into_iter().collect();
