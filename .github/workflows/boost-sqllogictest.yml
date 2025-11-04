@@ -393,21 +393,21 @@ jobs:
           # -E: adjust extension, -k: convert links
           # -A: accept specific file types to ensure all assets are downloaded
           # --reject: reject patterns we don't want
-          wget -r -np -nH -E -k --cut-dirs=0 \
+          wget -r -np -nH -E -k --cut-dirs=1 \
             -A "*.html,*.js,*.wasm,*.css,*.json,*.svg,*.png,*.jpg,*.jpeg,*.gif,*.woff,*.woff2,*.ttf,*.eot,*.ico,*.md" \
             --reject "*.html.tmp,*.html?*" \
             -P pages-site \
             https://rjwalters.github.io/vibesql/ || {
             echo "⚠️  Could not download full Pages site"
             echo "This might be the first boost run - creating minimal structure"
-            mkdir -p pages-site/vibesql/badges
+            mkdir -p pages-site/badges
           }
 
           # Explicitly download the /pkg/ directory (WASM files not linked in HTML)
           echo ""
           echo "Downloading /pkg/ directory with WASM files..."
-          mkdir -p pages-site/vibesql/pkg
-          wget -q -P pages-site/vibesql/pkg \
+          mkdir -p pages-site/pkg
+          wget -q -P pages-site/pkg \
             https://rjwalters.github.io/vibesql/pkg/vibesql_wasm_bg.wasm \
             https://rjwalters.github.io/vibesql/pkg/vibesql_wasm.js \
             https://rjwalters.github.io/vibesql/pkg/package.json || {
@@ -437,14 +437,14 @@ jobs:
           echo "=== Verifying critical files exist ==="
 
           # Check for essential HTML files
-          if [ ! -f pages-site/vibesql/index.html ]; then
+          if [ ! -f pages-site/index.html ]; then
             echo "❌ ERROR: index.html not found! Site download may have failed."
             echo "This could corrupt the deployment. Aborting to preserve current site."
             exit 1
           fi
 
           # Check for WASM files (critical for database functionality)
-          WASM_COUNT=$(find pages-site/vibesql -name "*.wasm" 2>/dev/null | wc -l | tr -d ' ')
+          WASM_COUNT=$(find pages-site -name "*.wasm" 2>/dev/null | wc -l | tr -d ' ')
           if [ "$WASM_COUNT" -eq 0 ]; then
             echo "❌ ERROR: No WASM files found! Database will not function."
             echo "This could corrupt the deployment. Aborting to preserve current site."
@@ -452,7 +452,7 @@ jobs:
           fi
 
           # Check for JavaScript files
-          JS_COUNT=$(find pages-site/vibesql -name "*.js" 2>/dev/null | wc -l | tr -d ' ')
+          JS_COUNT=$(find pages-site -name "*.js" 2>/dev/null | wc -l | tr -d ' ')
           if [ "$JS_COUNT" -eq 0 ]; then
             echo "❌ ERROR: No JavaScript files found! Site will not function."
             echo "This could corrupt the deployment. Aborting to preserve current site."
@@ -473,22 +473,22 @@ jobs:
           fi
 
           # Create badges directory if it doesn't exist
-          mkdir -p pages-site/vibesql/badges
+          mkdir -p pages-site/badges
 
           # Copy aggregated results
-          cp aggregated/sqllogictest_merged.json pages-site/vibesql/badges/sqllogictest_cumulative.json
+          cp aggregated/sqllogictest_merged.json pages-site/badges/sqllogictest_cumulative.json
 
           echo ""
           echo "=== Updated Cumulative Results ==="
-          jq '.summary' pages-site/vibesql/badges/sqllogictest_cumulative.json
+          jq '.summary' pages-site/badges/sqllogictest_cumulative.json
 
           # Generate badge JSON from cumulative results
           echo ""
           echo "=== Generating Badge JSON ==="
-          SLT_PASS_RATE=$(jq -r '.summary.pass_rate // "0"' pages-site/vibesql/badges/sqllogictest_cumulative.json | xargs printf "%.1f")
-          SLT_COVERAGE=$(jq -r '.summary.coverage_rate // "0"' pages-site/vibesql/badges/sqllogictest_cumulative.json | xargs printf "%.1f")
-          SLT_PASSED=$(jq -r '.summary.passed // "0"' pages-site/vibesql/badges/sqllogictest_cumulative.json)
-          SLT_FAILED=$(jq -r '.summary.failed // "0"' pages-site/vibesql/badges/sqllogictest_cumulative.json)
+          SLT_PASS_RATE=$(jq -r '.summary.pass_rate // "0"' pages-site/badges/sqllogictest_cumulative.json | xargs printf "%.1f")
+          SLT_COVERAGE=$(jq -r '.summary.coverage_rate // "0"' pages-site/badges/sqllogictest_cumulative.json | xargs printf "%.1f")
+          SLT_PASSED=$(jq -r '.summary.passed // "0"' pages-site/badges/sqllogictest_cumulative.json)
+          SLT_FAILED=$(jq -r '.summary.failed // "0"' pages-site/badges/sqllogictest_cumulative.json)
 
           # Determine badge color (based on coverage rate)
           if (( $(echo "$SLT_COVERAGE >= 80" | bc -l) )); then
@@ -504,7 +504,7 @@ jobs:
           fi
 
           # Create SQLLogicTest badge JSON (showing coverage)
-          cat > pages-site/vibesql/badges/sqllogictest.json <<JSON
+          cat > pages-site/badges/sqllogictest.json <<JSON
           {
             "schemaVersion": 1,
             "label": "SQLLogicTest",
@@ -516,14 +516,14 @@ jobs:
           echo "Generated SQLLogicTest badge: ${SLT_PASSED}✓ ${SLT_FAILED}✗ (${SLT_COVERAGE}% coverage, $SLT_COLOR)"
           echo ""
           echo "Badge JSON:"
-          cat pages-site/vibesql/badges/sqllogictest.json
+          cat pages-site/badges/sqllogictest.json
 
           echo ""
           echo "=== Pages site structure ==="
-          ls -la pages-site/vibesql/
+          ls -la pages-site/
           echo ""
           echo "=== Badges directory ==="
-          ls -la pages-site/vibesql/badges/ || echo "No badges directory"
+          ls -la pages-site/badges/ || echo "No badges directory"
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -531,7 +531,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './pages-site/vibesql'
+          path: './pages-site'
 
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
