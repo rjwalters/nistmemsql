@@ -1,63 +1,67 @@
 # Documentation Summary
 
-This directory contains active documentation for the nistmemsql project, including planning documents, strategies, and technical guides.
+This directory contains active documentation for the nistmemsql project, organized into focused subdirectories for easy navigation.
 
-## 📋 Planning & Strategy Documents
+## 📋 Quick Access
 
-### Core Planning
+### Most Frequently Used
 - **[WORK_PLAN.md](WORK_PLAN.md)** - Comprehensive roadmap tracking SQL:1999 compliance progress, milestones, and development velocity
-- **[PROBLEM_STATEMENT.md](PROBLEM_STATEMENT.md)** - Original challenge: building a NIST-compatible SQL database from scratch
-- **[REQUIREMENTS.md](REQUIREMENTS.md)** - Project requirements and SQL:1999 compliance targets
-- **[ROADMAP_CORE_COMPLIANCE.md](ROADMAP_CORE_COMPLIANCE.md)** - 10-phase plan to achieve Core SQL:1999 compliance
-
-### Testing & Quality
-- **[TESTING_STRATEGY.md](TESTING_STRATEGY.md)** - Test-driven development approach, test suites, and quality standards
-- **[SQLLOGICTEST_IMPROVEMENTS.md](SQLLOGICTEST_IMPROVEMENTS.md)** - Enhancements and integration of SQLLogicTest suite (~5.9M tests)
-- **[sqllogictest-analysis.md](sqllogictest-analysis.md)** - Analysis of SQLLogicTest results and coverage
-
-### Performance & Optimization
-- **[BENCHMARK_STRATEGY.md](BENCHMARK_STRATEGY.md)** - Performance benchmarking methodology and comparison strategy
-- **[OPTIMIZATION.md](OPTIMIZATION.md)** - Optimization techniques and performance improvements
-- **[PERFORMANCE_ANALYSIS.md](PERFORMANCE_ANALYSIS.md)** - Detailed performance analysis with profiling results
-- **[PROFILING_GUIDE.md](PROFILING_GUIDE.md)** - How to use built-in profiling tools for performance analysis
-- **[PYO3_OPTIMIZATION_OPPORTUNITIES.md](PYO3_OPTIMIZATION_OPPORTUNITIES.md)** - Python bindings optimization opportunities
-
-### Conformance & Standards
-- **[SQL1999_CONFORMANCE.md](SQL1999_CONFORMANCE.md)** - SQL:1999 standard conformance tracking and progress
+- **[README.md](README.md)** - Documentation guide explaining the structure and purpose of all documentation
 
 ## 📁 Subdirectories
 
-### [archive/](archive/)
-Historical documents, completed work, and superseded documentation.
+### [planning/](planning/) - Project Planning & Strategy
+Project vision, requirements, and roadmaps. Start here to understand the big picture.
+- PROBLEM_STATEMENT.md - Original challenge and vision
+- REQUIREMENTS.md - Project requirements and constraints
+- ROADMAP_CORE_COMPLIANCE.md - 10-phase plan to Core compliance
 
-### [decisions/](decisions/)
+### [testing/](testing/) - Testing & Conformance
+Testing strategies, conformance tracking, and quality assurance.
+- TESTING_STRATEGY.md - TDD approach and test suites
+- SQL1999_CONFORMANCE.md - Conformance progress tracking
+- SQLLOGICTEST_IMPROVEMENTS.md - SQLLogicTest integration (~5.9M tests)
+- sqllogictest-analysis.md - Test results analysis
+
+### [performance/](performance/) - Performance & Optimization
+Benchmarking, profiling, and optimization documentation.
+- BENCHMARK_STRATEGY.md - Benchmarking methodology
+- OPTIMIZATION.md - Optimization techniques and improvements
+- PERFORMANCE_ANALYSIS.md - Detailed profiling results
+- PROFILING_GUIDE.md - How to use profiling tools
+- PYO3_OPTIMIZATION_OPPORTUNITIES.md - Python bindings optimization
+
+### [decisions/](decisions/) - Architecture Decisions
 Architecture Decision Records (ADRs) documenting important technical choices.
 
-### [lessons/](lessons/)
+### [lessons/](lessons/) - Lessons Learned
 Lessons learned, challenges overcome, and development insights.
 
-### [reference/](reference/)
+### [reference/](reference/) - Reference Materials
 Reference materials, external documentation, and research resources.
 
-### [templates/](templates/)
+### [archive/](archive/) - Historical Documents
+Historical documents, completed work, and superseded documentation.
+
+### [templates/](templates/) - Document Templates
 Document templates for consistent documentation structure.
 
-### [proposals/](proposals/)
+### [proposals/](proposals/) - Feature Proposals
 Feature proposals and design documents.
 
 ## 🔍 Finding What You Need
 
-**Starting the project?** → Read PROBLEM_STATEMENT.md, then WORK_PLAN.md
+**Starting the project?** → Read [planning/PROBLEM_STATEMENT.md](planning/PROBLEM_STATEMENT.md), then [WORK_PLAN.md](WORK_PLAN.md)
 
-**Contributing code?** → Check TESTING_STRATEGY.md and lessons/TDD_APPROACH.md
+**Contributing code?** → Check [testing/TESTING_STRATEGY.md](testing/TESTING_STRATEGY.md) and [lessons/TDD_APPROACH.md](lessons/TDD_APPROACH.md)
 
-**Optimizing performance?** → See OPTIMIZATION.md, PROFILING_GUIDE.md, and PERFORMANCE_ANALYSIS.md
+**Optimizing performance?** → See [performance/](performance/) directory for all optimization docs
 
-**Understanding decisions?** → Browse decisions/ for ADRs
+**Understanding decisions?** → Browse [decisions/](decisions/) for ADRs
 
-**Learning from experience?** → Explore lessons/ for gotchas and challenges
+**Learning from experience?** → Explore [lessons/](lessons/) for gotchas and challenges
 
-**Historical context?** → Check archive/ for completed work and old documentation
+**Historical context?** → Check [archive/](archive/) for completed work and old documentation
 
 ---
 

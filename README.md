@@ -526,13 +526,13 @@ nistmemsql> SELECT * FROM users;
 
 **Quick Links**:
 - **[docs/WORK_PLAN.md](docs/WORK_PLAN.md)** - Detailed roadmap and feature tracking
-- **[docs/PROBLEM_STATEMENT.md](docs/PROBLEM_STATEMENT.md)** - Original challenge
+- **[docs/planning/PROBLEM_STATEMENT.md](docs/planning/PROBLEM_STATEMENT.md)** - Original challenge
 - **[docs/archive/SQL1999_COMPLIANCE_GAP_ANALYSIS.md](docs/archive/SQL1999_COMPLIANCE_GAP_ANALYSIS.md)** - Honest assessment of current vs target
-- **[docs/ROADMAP_CORE_COMPLIANCE.md](docs/ROADMAP_CORE_COMPLIANCE.md)** - 10-phase plan to Core compliance
+- **[docs/planning/ROADMAP_CORE_COMPLIANCE.md](docs/planning/ROADMAP_CORE_COMPLIANCE.md)** - 10-phase plan to Core compliance
 
 **Architecture & Design**:
 - [docs/decisions/](docs/decisions/) - Architecture Decision Records
-- [docs/TESTING_STRATEGY.md](docs/TESTING_STRATEGY.md) - Test approach and strategy
+- [docs/testing/TESTING_STRATEGY.md](docs/testing/TESTING_STRATEGY.md) - Test approach and strategy
 - [docs/lessons/TDD_APPROACH.md](docs/lessons/TDD_APPROACH.md) - TDD lessons learned
 
 **Loom AI Orchestration**:
