@@ -204,18 +204,30 @@ jobs:
 
           RUNNER_ID="${{ matrix.runner_id }}"
 
+          # Determine total workers based on trigger
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            TOTAL_WORKERS=10
+          else
+            TOTAL_WORKERS=${{ github.event.inputs.parallel_runners || '1' }}
+          fi
+
           for i in $(seq 1 $RUN_COUNT); do
             echo ""
             echo "=== Runner $RUNNER_ID - Boost Run $i of $RUN_COUNT ==="
 
-            # Use timestamp + runner_id + run number as seed for variety
-            SEED=$(date +%s)${RUNNER_ID}${i}
-            echo "Using seed: $SEED (runner $RUNNER_ID, run $i)"
+            # Use shared timestamp as seed so all workers shuffle files the same way
+            # Then each worker selects their partition based on worker ID
+            SEED=$(date +%s)
+            echo "Using shared seed: $SEED (all workers use same seed)"
+            echo "Worker configuration: $RUNNER_ID of $TOTAL_WORKERS workers"
             echo ""
 
-            # Run tests with unique seed
-            echo "=== Starting test run ==="
-            SQLLOGICTEST_SEED=$SEED RUST_LOG=debug timeout $((TIME_BUDGET + 30)) \
+            # Run tests with worker partitioning
+            echo "=== Starting test run with file partitioning ==="
+            SQLLOGICTEST_SEED=$SEED \
+            SQLLOGICTEST_WORKER_ID=$RUNNER_ID \
+            SQLLOGICTEST_TOTAL_WORKERS=$TOTAL_WORKERS \
+            timeout $((TIME_BUDGET + 30)) \
               cargo test --test sqllogictest_suite --release -- --nocapture 2>&1 | \
               tee target/boost_runs/run_${RUNNER_ID}_${i}.log | \
               python3 scripts/analyze_sqllogictest.py

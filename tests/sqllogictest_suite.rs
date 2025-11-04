@@ -410,13 +410,67 @@ fn prioritize_test_files(
     shuffle_with_seed(&mut untested_files);
     shuffle_with_seed(&mut passed_files);
 
-    // Concatenate in priority order: failed, untested, passed
-    let mut prioritized = Vec::new();
-    prioritized.extend(failed_files);
-    prioritized.extend(untested_files);
-    prioritized.extend(passed_files);
+    // Apply worker-based partitioning if parallel workers are configured
+    // This ensures each worker tests a unique slice of untested files
+    let (worker_id, total_workers) = get_worker_config();
 
-    prioritized
+    if total_workers > 1 && worker_id > 0 && worker_id <= total_workers {
+        println!("Worker partitioning: This is worker {}/{}", worker_id, total_workers);
+
+        // Partition untested files among workers
+        let untested_partition = partition_files(&untested_files, worker_id, total_workers);
+        println!("  Untested files assigned to this worker: {} of {}",
+                 untested_partition.len(), untested_files.len());
+
+        // All workers test failed files (high priority)
+        // But each worker gets their own slice of untested files
+        // Passed files are shared (lowest priority, rarely reached)
+        let mut prioritized = Vec::new();
+        prioritized.extend(failed_files);
+        prioritized.extend(untested_partition);
+        prioritized.extend(passed_files);
+
+        prioritized
+    } else {
+        // Single worker mode: test everything in priority order
+        let mut prioritized = Vec::new();
+        prioritized.extend(failed_files);
+        prioritized.extend(untested_files);
+        prioritized.extend(passed_files);
+
+        prioritized
+    }
+}
+
+/// Extract worker configuration from environment variables
+fn get_worker_config() -> (usize, usize) {
+    let worker_id = env::var("SQLLOGICTEST_WORKER_ID")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0);
+
+    let total_workers = env::var("SQLLOGICTEST_TOTAL_WORKERS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(1);
+
+    (worker_id, total_workers)
+}
+
+/// Partition files into equal slices for parallel workers
+/// Returns the slice for the specified worker_id (1-indexed)
+fn partition_files(files: &[PathBuf], worker_id: usize, total_workers: usize) -> Vec<PathBuf> {
+    if total_workers <= 1 || worker_id == 0 || worker_id > total_workers {
+        return files.to_vec();
+    }
+
+    let chunk_size = (files.len() + total_workers - 1) / total_workers; // Ceiling division
+    let start = (worker_id - 1) * chunk_size;
+    let end = start + chunk_size;
+
+    files.get(start..end.min(files.len()))
+        .unwrap_or(&[])
+        .to_vec()
 }
 
 /// Run SQLLogicTest files from the submodule (prioritized by failure history, then randomly selected with time budget)
