@@ -10,6 +10,7 @@ Cargo.lock
 *.swp
 *.swo
 *~
+*.bak*
 .DS_Store
 
 # Claude Code
