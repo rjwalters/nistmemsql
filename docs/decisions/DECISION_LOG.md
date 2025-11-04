@@ -70,7 +70,7 @@ Create an ADR when:
 ## Related Documentation
 
 - [Documentation Guide](docs/README.md) - Overview of all documentation
-- [Lessons Learned](LESSONS_LEARNED.md) - Insights from implementation
+- [Lessons Learned](../lessons/LESSONS_LEARNED.md) - Insights from implementation
 - [Architecture Docs](docs/architecture/) - Detailed component designs
 
 ## Contributing

@@ -345,10 +345,10 @@ For quick additions to this master document:
 ## Related Documents
 
 - [Weekly Lessons](docs/lessons/WEEKLY.md) - Detailed week-by-week learnings
-- [Challenges](docs/lessons/CHALLENGES.md) - Major obstacles and solutions
-- [SQL:1999 Gotchas](docs/lessons/GOTCHAS.md) - Edge cases and surprises
-- [Decisions](DECISIONS.md) - Architecture decision records
-- [Research Summary](RESEARCH_SUMMARY.md) - Planning phase findings
+- [Challenges](CHALLENGES.md) - Major obstacles and solutions
+- [SQL:1999 Gotchas](GOTCHAS.md) - Edge cases and surprises
+- [Decisions](../decisions/DECISION_LOG.md) - Architecture decision records
+- [Research Summary](../archive/RESEARCH_SUMMARY.md) - Planning phase findings
 
 ---
 

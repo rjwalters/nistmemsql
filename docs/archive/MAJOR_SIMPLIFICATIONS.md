@@ -354,10 +354,10 @@ The path forward is clear: **Focus on correctness, use simple algorithms, levera
 
 ## Related Documents
 
-- [REQUIREMENTS.md](REQUIREMENTS.md) - Updated with all clarifications
-- [TESTING_STRATEGY.md](TESTING_STRATEGY.md) - Updated with sqltest details
+- [REQUIREMENTS.md](../REQUIREMENTS.md) - Updated with all clarifications
+- [TESTING_STRATEGY.md](../TESTING_STRATEGY.md) - Updated with sqltest details
 - [RESEARCH_SUMMARY.md](RESEARCH_SUMMARY.md) - Original scope assessment
-- [LESSONS_LEARNED.md](LESSONS_LEARNED.md) - Capture these insights
+- [LESSONS_LEARNED.md](../lessons/LESSONS_LEARNED.md) - Capture these insights
 
 ## Next Steps
 

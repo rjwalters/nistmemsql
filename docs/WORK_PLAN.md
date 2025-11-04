@@ -6,7 +6,7 @@
 **Phase 2 Optimizations**: ✅ COMPLETE (Hash Join, Expression Optimization, Memory Optimization)
 **Next Decision**: Pursue FULL SQL:1999 compliance or focus on production polish
 **Development Approach**: Test-Driven Development (TDD) ✅
-**Rebrand Planned**: See [REBRANDING.md](REBRANDING.md) for vibesql transition plan
+**Rebrand Planned**: See [decisions/0003-rebranding.md](decisions/0003-rebranding.md) for vibesql transition plan
 
 ---
 
@@ -635,7 +635,7 @@ Once Core SQL:1999 compliance is achieved (~10-14 months), the following work re
 
 **Combined Timeline (Core + FULL)**: 62-86 months (5-7 years)
 
-This builds on the original posix4e/nistmemsql challenge while taking an AI-first approach. Core compliance first provides an achievable milestone and enables NIST testing, while FULL compliance remains the ultimate research goal. (See [REBRANDING.md](REBRANDING.md) for planned transition to "vibesql" branding.)
+This builds on the original posix4e/nistmemsql challenge while taking an AI-first approach. Core compliance first provides an achievable milestone and enables NIST testing, while FULL compliance remains the ultimate research goal. (See [decisions/0003-rebranding.md](decisions/0003-rebranding.md) for planned transition to "vibesql" branding.)
 
 ---
 

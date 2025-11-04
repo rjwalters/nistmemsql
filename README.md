@@ -525,14 +525,14 @@ nistmemsql> SELECT * FROM users;
 ## 📖 Documentation
 
 **Quick Links**:
-- **[WORK_PLAN.md](WORK_PLAN.md)** - Detailed roadmap and feature tracking
-- **[PROBLEM_STATEMENT.md](PROBLEM_STATEMENT.md)** - Original challenge
-- **[SQL1999_COMPLIANCE_GAP_ANALYSIS.md](SQL1999_COMPLIANCE_GAP_ANALYSIS.md)** - Honest assessment of current vs target
-- **[ROADMAP_CORE_COMPLIANCE.md](ROADMAP_CORE_COMPLIANCE.md)** - 10-phase plan to Core compliance
+- **[docs/WORK_PLAN.md](docs/WORK_PLAN.md)** - Detailed roadmap and feature tracking
+- **[docs/PROBLEM_STATEMENT.md](docs/PROBLEM_STATEMENT.md)** - Original challenge
+- **[docs/archive/SQL1999_COMPLIANCE_GAP_ANALYSIS.md](docs/archive/SQL1999_COMPLIANCE_GAP_ANALYSIS.md)** - Honest assessment of current vs target
+- **[docs/ROADMAP_CORE_COMPLIANCE.md](docs/ROADMAP_CORE_COMPLIANCE.md)** - 10-phase plan to Core compliance
 
 **Architecture & Design**:
 - [docs/decisions/](docs/decisions/) - Architecture Decision Records
-- [TESTING_STRATEGY.md](TESTING_STRATEGY.md) - Test approach and strategy
+- [docs/TESTING_STRATEGY.md](docs/TESTING_STRATEGY.md) - Test approach and strategy
 - [docs/lessons/TDD_APPROACH.md](docs/lessons/TDD_APPROACH.md) - TDD lessons learned
 
 **Loom AI Orchestration**:
@@ -608,7 +608,7 @@ This project uses [Loom](https://github.com/loomhq/loom) for AI-powered developm
 - 🧪 Add test coverage
 - 🌐 Enhance the web demo
 
-See [WORK_PLAN.md](WORK_PLAN.md) for current priorities.
+See [docs/WORK_PLAN.md](docs/WORK_PLAN.md) for current priorities.
 
 ---
 
