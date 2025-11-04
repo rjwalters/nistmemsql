@@ -5,7 +5,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
-echo "=== Quick Benchmark (SQLite vs nistmemsql only) ==="
+echo "=== Quick Benchmark (SQLite vs vibesql only) ==="
 echo ""
 
 # Run benchmarks without DuckDB

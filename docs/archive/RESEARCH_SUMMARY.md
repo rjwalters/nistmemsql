@@ -230,7 +230,7 @@ Based on requirements and research:
 ## Project Structure Recommendation
 
 ```
-nistmemsql/
+vibesql/
 ├── Cargo.toml                 # Rust workspace
 ├── crates/
 │   ├── parser/                # SQL parser

@@ -59,7 +59,7 @@ jobs:
           echo ""
 
           # Download and validate JSON
-          if curl -sL https://rjwalters.github.io/nistmemsql/badges/sqllogictest_cumulative.json \
+          if curl -sL https://rjwalters.github.io/vibesql/badges/sqllogictest_cumulative.json \
             -o target/sqllogictest_historical.json 2>/dev/null; then
 
             # Check if it's valid JSON (not an HTML error page)
@@ -131,11 +131,11 @@ jobs:
           uv pip install --system maturin
           cd crates/python-bindings
           maturin build --release
-          uv pip install --system ../../target/wheels/nistmemsql_py-*.whl
+          uv pip install --system ../../target/wheels/vibesql_py-*.whl
 
       - name: Install benchmark dependencies
         run: |
-          grep -v "^nistmemsql" benchmarks/requirements.txt > /tmp/requirements-ci.txt
+          grep -v "^vibesql" benchmarks/requirements.txt > /tmp/requirements-ci.txt
           uv pip install --system -r /tmp/requirements-ci.txt
 
       - name: Run benchmarks
@@ -229,7 +229,7 @@ jobs:
       - name: Download benchmark history from gh-pages
         continue-on-error: true
         run: |
-          if curl -sL https://rjwalters.github.io/nistmemsql/benchmarks/benchmark_history.json \
+          if curl -sL https://rjwalters.github.io/vibesql/benchmarks/benchmark_history.json \
             -o benchmark_history.json; then
             echo "Downloaded existing benchmark history"
           else
@@ -364,7 +364,7 @@ jobs:
           mkdir -p pages-temp
 
           # Download existing cumulative results (most important)
-          if curl -sL https://rjwalters.github.io/nistmemsql/badges/sqllogictest_cumulative.json \
+          if curl -sL https://rjwalters.github.io/vibesql/badges/sqllogictest_cumulative.json \
             -o pages-temp/sqllogictest_cumulative_existing.json 2>/dev/null; then
             if jq empty pages-temp/sqllogictest_cumulative_existing.json 2>/dev/null; then
               echo "✓ Downloaded existing cumulative results"

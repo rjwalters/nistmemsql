@@ -22,29 +22,29 @@ export class DatabaseComparisonComponent {
 
         <div class="space-y-4">
           ${comparisons.map(db => {
-            const isNistMemSQL = db.database === 'nistmemsql'
-            const displayPercentage = isNistMemSQL && db.target ? db.target : db.percentage
+            const isVibeSQL = db.database === 'VibeSQL'
+            const displayPercentage = isVibeSQL && db.target ? db.target : db.percentage
             const progressPercentage = db.percentage
 
             return `
               <div>
                 <div class="flex justify-between items-center mb-2">
                   <div class="flex items-center gap-2">
-                    <span class="font-medium text-sm text-gray-900 dark:text-gray-100 ${isNistMemSQL ? 'font-bold' : ''}">
+                    <span class="font-medium text-sm text-gray-900 dark:text-gray-100 ${isVibeSQL ? 'font-bold' : ''}">
                       ${escapeHtml(db.database)}
                     </span>
-                    ${isNistMemSQL && db.target ? `
+                    ${isVibeSQL && db.target ? `
                       <span class="text-xs text-gray-600 dark:text-gray-400">
                         (currently ${db.percentage}%)
                       </span>
                     ` : ''}
                   </div>
                   <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                    ${displayPercentage}%${isNistMemSQL && db.target ? ' target' : ''}
+                    ${displayPercentage}%${isVibeSQL && db.target ? ' target' : ''}
                   </span>
                 </div>
                 <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                  ${isNistMemSQL && db.target ? `
+                  ${isVibeSQL && db.target ? `
                     <div class="h-full relative">
                       <div
                         class="h-full bg-blue-500 transition-all duration-500 absolute"

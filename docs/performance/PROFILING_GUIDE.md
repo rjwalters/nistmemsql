@@ -1,16 +1,16 @@
 # Performance Profiling Guide
 
-This guide shows how to use nistmemsql's built-in profiling tools to understand performance characteristics.
+This guide shows how to use vibesql's built-in profiling tools to understand performance characteristics.
 
 ## Quick Start
 
 ```python
-import nistmemsql
+import vibesql
 
 # Enable profiling (prints detailed timing to stderr)
-nistmemsql.enable_profiling()
+vibesql.enable_profiling()
 
-conn = nistmemsql.connect()
+conn = vibesql.connect()
 cursor = conn.cursor()
 
 # Execute queries - profiling output will show timing breakdown
@@ -20,7 +20,7 @@ cursor.execute("SELECT COUNT(*) FROM users")
 result = cursor.fetchall()
 
 # Disable profiling when done
-nistmemsql.disable_profiling()
+vibesql.disable_profiling()
 ```
 
 ## Understanding Profiling Output
@@ -62,10 +62,10 @@ The final line shows total execution time in both milliseconds and microseconds.
 ### Profile INSERT Performance
 
 ```python
-import nistmemsql
+import vibesql
 
-nistmemsql.enable_profiling()
-conn = nistmemsql.connect()
+vibesql.enable_profiling()
+conn = vibesql.connect()
 cursor = conn.cursor()
 
 cursor.execute("CREATE TABLE test (id INTEGER, value INTEGER)")
@@ -77,7 +77,7 @@ print("\n=== Subsequent INSERTs ===")
 for i in range(2, 5):
     cursor.execute(f"INSERT INTO test VALUES ({i}, {i * 100})")
 
-nistmemsql.disable_profiling()
+vibesql.disable_profiling()
 ```
 
 **What to look for**:
@@ -88,10 +88,10 @@ nistmemsql.disable_profiling()
 ### Profile UPDATE with PRIMARY KEY Optimization
 
 ```python
-import nistmemsql
+import vibesql
 
-nistmemsql.enable_profiling()
-conn = nistmemsql.connect()
+vibesql.enable_profiling()
+conn = vibesql.connect()
 cursor = conn.cursor()
 
 cursor.execute("""
@@ -109,7 +109,7 @@ for i in range(1, 11):
 print("\n=== UPDATE with PRIMARY KEY ===")
 cursor.execute("UPDATE users SET email = 'newemail@example.com' WHERE id = 5")
 
-nistmemsql.disable_profiling()
+vibesql.disable_profiling()
 ```
 
 **What to look for**:
@@ -120,23 +120,23 @@ nistmemsql.disable_profiling()
 ### Profile COUNT(*) Fast Path
 
 ```python
-import nistmemsql
+import vibesql
 
-nistmemsql.enable_profiling()
-conn = nistmemsql.connect()
+vibesql.enable_profiling()
+conn = vibesql.connect()
 cursor = conn.cursor()
 
 cursor.execute("CREATE TABLE items (id INTEGER, value INTEGER)")
 for i in range(100):
     cursor.execute(f"INSERT INTO items VALUES ({i}, {i * 10})")
 
-nistmemsql.disable_profiling()  # Disable during setup
+vibesql.disable_profiling()  # Disable during setup
 
 print("\n=== COUNT(*) with fast path ===")
-nistmemsql.enable_profiling()
+vibesql.enable_profiling()
 cursor.execute("SELECT COUNT(*) FROM items")
 result = cursor.fetchall()
-nistmemsql.disable_profiling()
+vibesql.disable_profiling()
 
 print(f"Result: {result}")
 ```
@@ -149,23 +149,23 @@ print(f"Result: {result}")
 ### Profile SELECT with Result Serialization
 
 ```python
-import nistmemsql
+import vibesql
 
-nistmemsql.enable_profiling()
-conn = nistmemsql.connect()
+vibesql.enable_profiling()
+conn = vibesql.connect()
 cursor = conn.cursor()
 
 cursor.execute("CREATE TABLE data (id INTEGER, value INTEGER)")
 for i in range(100):
     cursor.execute(f"INSERT INTO data VALUES ({i}, {i * 10})")
 
-nistmemsql.disable_profiling()
+vibesql.disable_profiling()
 
 print("\n=== SELECT with result serialization ===")
-nistmemsql.enable_profiling()
+vibesql.enable_profiling()
 cursor.execute("SELECT * FROM data")
 result = cursor.fetchall()
-nistmemsql.disable_profiling()
+vibesql.disable_profiling()
 
 print(f"Fetched {len(result)} rows")
 ```
@@ -219,11 +219,11 @@ Add profiling to specific test cases:
 
 ```python
 def test_insert_performance():
-    import nistmemsql
+    import vibesql
 
-    nistmemsql.enable_profiling()
+    vibesql.enable_profiling()
 
-    conn = nistmemsql.connect()
+    conn = vibesql.connect()
     cursor = conn.cursor()
 
     cursor.execute("CREATE TABLE test (id INTEGER)")
@@ -232,7 +232,7 @@ def test_insert_performance():
     for i in range(10):
         cursor.execute(f"INSERT INTO test VALUES ({i})")
 
-    nistmemsql.disable_profiling()
+    vibesql.disable_profiling()
 ```
 
 ## Advanced: Custom Profiling
@@ -240,24 +240,24 @@ def test_insert_performance():
 For more detailed profiling, you can wrap operations:
 
 ```python
-import nistmemsql
+import vibesql
 import time
 
 def profile_operation(name, func):
     """Profile a single operation"""
-    nistmemsql.enable_profiling()
+    vibesql.enable_profiling()
     start = time.perf_counter()
 
     result = func()
 
     end = time.perf_counter()
-    nistmemsql.disable_profiling()
+    vibesql.disable_profiling()
 
     print(f"\n{name}: {(end - start) * 1000:.3f}ms total")
     return result
 
 # Usage
-conn = nistmemsql.connect()
+conn = vibesql.connect()
 cursor = conn.cursor()
 
 profile_operation("CREATE TABLE",
@@ -274,7 +274,7 @@ profile_operation("COUNT(*)",
 
 ### Excellent Performance (After parking_lot Optimization - November 2025)
 
-For nistmemsql, these numbers are **competitive with SQLite**:
+For vibesql, these numbers are **competitive with SQLite**:
 
 - INSERT: **~40µs per row** (matching/beating SQLite!)
 - UPDATE (with PK): **~44µs** (matching SQLite!)
@@ -300,7 +300,7 @@ Investigate if you see significantly slower times than the above:
 
 **Current comparison** (1K rows, single operation):
 ```
-Operation    SQLite    nistmemsql (Before)  nistmemsql (After)  Improvement  Status
+Operation    SQLite    vibesql (Before)  vibesql (After)  Improvement  Status
 ────────────────────────────────────────────────────────────────────────────────────
 INSERT       ~50µs     ~155µs (3.1x)        ~40µs (0.8x)        3.9x faster  🚀 FASTER
 UPDATE       ~45µs     ~171µs (3.8x)        ~44µs (1.0x)        3.9x faster  ⚡ MATCHING

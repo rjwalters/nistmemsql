@@ -1038,7 +1038,7 @@ perf record -g cargo bench
 perf report
 
 # Valgrind cachegrind (Linux)
-valgrind --tool=cachegrind target/release/nistmemsql
+valgrind --tool=cachegrind target/release/vibesql
 ```
 
 ### Sample Profiling Session

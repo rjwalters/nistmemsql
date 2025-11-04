@@ -62,7 +62,7 @@ export class RoadmapTimelineComponent {
 
         <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
           <a
-            href="https://github.com/rjwalters/nistmemsql/blob/main/WORK_PLAN.md"
+            href="https://github.com/rjwalters/vibesql/blob/main/WORK_PLAN.md"
             target="_blank"
             rel="noopener noreferrer"
             class="inline-flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"

@@ -1,7 +1,7 @@
 """
 DELETE Benchmarks: Compare DELETE performance across databases at various scales.
 
-Tests DELETE operations for SQLite, nistmemsql, and DuckDB at:
+Tests DELETE operations for SQLite, vibesql, and DuckDB at:
 - 1k, 2k, 5k, 10k, and 20k rows
 """
 import pytest
@@ -9,7 +9,7 @@ from utils.database_setup import setup_test_table
 
 
 SIZES = [1000, 2000, 5000, 10000, 20000]
-DATABASES = ['sqlite', 'nistmemsql', 'duckdb']
+DATABASES = ['sqlite', 'vibesql', 'duckdb']
 
 
 def test_delete_1k_sqlite(benchmark, sqlite_db):
@@ -17,10 +17,10 @@ def test_delete_1k_sqlite(benchmark, sqlite_db):
     setup_test_table(sqlite_db, 1000, 'sqlite')
     _run_delete_test(benchmark, sqlite_db, 1000, 'sqlite')
 
-def test_delete_1k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark DELETE operations on nistmemsql (1k rows)."""
-    setup_test_table(nistmemsql_db, 1000, 'nistmemsql')
-    _run_delete_test(benchmark, nistmemsql_db, 1000, 'nistmemsql')
+def test_delete_1k_vibesql(benchmark, vibesql_db):
+    """Benchmark DELETE operations on vibesql (1k rows)."""
+    setup_test_table(vibesql_db, 1000, 'vibesql')
+    _run_delete_test(benchmark, vibesql_db, 1000, 'vibesql')
 
 def test_delete_1k_duckdb(benchmark, duckdb_db):
     """Benchmark DELETE operations on duckdb (1k rows)."""
@@ -32,10 +32,10 @@ def test_delete_1k_duckdb(benchmark, duckdb_db):
 #     setup_test_table(sqlite_db, 2000, 'sqlite')
 #     _run_delete_test(benchmark, sqlite_db, 2000, 'sqlite')
 
-# def test_delete_2k_nistmemsql(benchmark, nistmemsql_db):
-#     """Benchmark DELETE operations on nistmemsql (2k rows)."""
-#     setup_test_table(nistmemsql_db, 2000, 'nistmemsql')
-#     _run_delete_test(benchmark, nistmemsql_db, 2000, 'nistmemsql')
+# def test_delete_2k_vibesql(benchmark, vibesql_db):
+#     """Benchmark DELETE operations on vibesql (2k rows)."""
+#     setup_test_table(vibesql_db, 2000, 'vibesql')
+#     _run_delete_test(benchmark, vibesql_db, 2000, 'vibesql')
 
 # def test_delete_2k_duckdb(benchmark, duckdb_db):
 #     """Benchmark DELETE operations on duckdb (2k rows)."""
@@ -47,10 +47,10 @@ def test_delete_1k_duckdb(benchmark, duckdb_db):
 #     setup_test_table(sqlite_db, 5000, 'sqlite')
 #     _run_delete_test(benchmark, sqlite_db, 5000, 'sqlite')
 
-# def test_delete_5k_nistmemsql(benchmark, nistmemsql_db):
-#     """Benchmark DELETE operations on nistmemsql (5k rows)."""
-#     setup_test_table(nistmemsql_db, 5000, 'nistmemsql')
-#     _run_delete_test(benchmark, nistmemsql_db, 5000, 'nistmemsql')
+# def test_delete_5k_vibesql(benchmark, vibesql_db):
+#     """Benchmark DELETE operations on vibesql (5k rows)."""
+#     setup_test_table(vibesql_db, 5000, 'vibesql')
+#     _run_delete_test(benchmark, vibesql_db, 5000, 'vibesql')
 
 # def test_delete_5k_duckdb(benchmark, duckdb_db):
 #     """Benchmark DELETE operations on duckdb (5k rows)."""
@@ -62,10 +62,10 @@ def test_delete_1k_duckdb(benchmark, duckdb_db):
 #     setup_test_table(sqlite_db, 10000, 'sqlite')
 #     _run_delete_test(benchmark, sqlite_db, 10000, 'sqlite')
 
-# def test_delete_10k_nistmemsql(benchmark, nistmemsql_db):
-#     """Benchmark DELETE operations on nistmemsql (10k rows)."""
-#     setup_test_table(nistmemsql_db, 10000, 'nistmemsql')
-#     _run_delete_test(benchmark, nistmemsql_db, 10000, 'nistmemsql')
+# def test_delete_10k_vibesql(benchmark, vibesql_db):
+#     """Benchmark DELETE operations on vibesql (10k rows)."""
+#     setup_test_table(vibesql_db, 10000, 'vibesql')
+#     _run_delete_test(benchmark, vibesql_db, 10000, 'vibesql')
 
 # def test_delete_10k_duckdb(benchmark, duckdb_db):
 #     """Benchmark DELETE operations on duckdb (10k rows)."""
@@ -77,10 +77,10 @@ def test_delete_1k_duckdb(benchmark, duckdb_db):
 #     setup_test_table(sqlite_db, 20000, 'sqlite')
 #     _run_delete_test(benchmark, sqlite_db, 20000, 'sqlite')
 
-# def test_delete_20k_nistmemsql(benchmark, nistmemsql_db):
-#     """Benchmark DELETE operations on nistmemsql (20k rows)."""
-#     setup_test_table(nistmemsql_db, 20000, 'nistmemsql')
-#     _run_delete_test(benchmark, nistmemsql_db, 20000, 'nistmemsql')
+# def test_delete_20k_vibesql(benchmark, vibesql_db):
+#     """Benchmark DELETE operations on vibesql (20k rows)."""
+#     setup_test_table(vibesql_db, 20000, 'vibesql')
+#     _run_delete_test(benchmark, vibesql_db, 20000, 'vibesql')
 
 # def test_delete_20k_duckdb(benchmark, duckdb_db):
 #     """Benchmark DELETE operations on duckdb (20k rows)."""
@@ -98,7 +98,7 @@ def _run_delete_test(benchmark, connection, num_rows, db_type):
                     "DELETE FROM test_table WHERE id = ?",
                     (i,)
                 )
-            else:  # nistmemsql
+            else:  # vibesql
                 cursor.execute(
                     f"DELETE FROM test_table WHERE id = {i}"
                 )

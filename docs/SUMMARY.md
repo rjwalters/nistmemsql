@@ -1,6 +1,6 @@
 # Documentation Summary
 
-This directory contains active documentation for the nistmemsql project, organized into focused subdirectories for easy navigation.
+This directory contains active documentation for VibeSQL, organized into focused subdirectories for easy navigation.
 
 ## 📋 Quick Access
 

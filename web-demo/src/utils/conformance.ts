@@ -15,7 +15,7 @@ interface ConformanceData {
  */
 export async function fetchConformanceRate(): Promise<number> {
   try {
-    const response = await fetch('/nistmemsql/badges/sqltest_results.json')
+    const response = await fetch('/vibesql/badges/sqltest_results.json')
     if (!response.ok) {
       console.warn('Failed to load conformance data, using fallback')
       return 85.4 // Fallback value

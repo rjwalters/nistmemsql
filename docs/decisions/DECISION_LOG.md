@@ -1,6 +1,6 @@
 # Architecture Decision Records Index
 
-This document provides a quick reference to all architectural decisions made during the nistmemsql project.
+This document provides a quick reference to all architectural decisions made during the VibeSQL project.
 
 ## What are ADRs?
 

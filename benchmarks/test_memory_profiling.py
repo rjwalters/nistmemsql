@@ -9,7 +9,7 @@ import psutil
 import os
 
 
-def test_memory_baseline_empty_db(benchmark, sqlite_connection, nistmemsql_connection):
+def test_memory_baseline_empty_db(benchmark, sqlite_connection, vibesql_connection):
     """Measure memory usage of empty databases."""
     def measure_memory():
         process = psutil.Process(os.getpid())
@@ -17,7 +17,7 @@ def test_memory_baseline_empty_db(benchmark, sqlite_connection, nistmemsql_conne
 
         # Create connections (memory measurement point)
         sqlite_conn = sqlite_connection
-        # nistmemsql_conn = nistmemsql_connection
+        # nistmemsql_conn = vibesql_connection
 
         memory_after = process.memory_info().rss
         return memory_after - memory_before
@@ -25,10 +25,10 @@ def test_memory_baseline_empty_db(benchmark, sqlite_connection, nistmemsql_conne
     benchmark(measure_memory)
 
 
-def test_memory_simple_select(benchmark, sqlite_connection, nistmemsql_connection):
+def test_memory_simple_select(benchmark, sqlite_connection, vibesql_connection):
     """Measure memory usage during simple SELECT operations."""
     setup_memory_test_data(sqlite_connection)
-    # setup_memory_test_data(nistmemsql_connection)
+    # setup_memory_test_data(vibesql_connection)
 
     def measure_query_memory():
         process = psutil.Process(os.getpid())
@@ -38,7 +38,7 @@ def test_memory_simple_select(benchmark, sqlite_connection, nistmemsql_connectio
         sqlite_cursor = sqlite_connection.cursor()
         sqlite_cursor.execute("SELECT * FROM memory_test_table")
 
-        # nistmemsql_cursor = nistmemsql_connection.cursor()
+        # nistmemsql_cursor = vibesql_connection.cursor()
         # nistmemsql_cursor.execute("SELECT * FROM memory_test_table")
 
         memory_after = process.memory_info().rss
@@ -47,10 +47,10 @@ def test_memory_simple_select(benchmark, sqlite_connection, nistmemsql_connectio
     benchmark(measure_query_memory)
 
 
-def test_memory_complex_join(benchmark, sqlite_connection, nistmemsql_connection):
+def test_memory_complex_join(benchmark, sqlite_connection, vibesql_connection):
     """Measure memory usage during complex multi-table joins."""
     setup_memory_join_data(sqlite_connection)
-    # setup_memory_join_data(nistmemsql_connection)
+    # setup_memory_join_data(vibesql_connection)
 
     def measure_join_memory():
         process = psutil.Process(os.getpid())
@@ -66,7 +66,7 @@ def test_memory_complex_join(benchmark, sqlite_connection, nistmemsql_connection
             WHERE t1.category = 'ACTIVE'
         """)
 
-        # nistmemsql_cursor = nistmemsql_connection.cursor()
+        # nistmemsql_cursor = vibesql_connection.cursor()
         # nistmemsql_cursor.execute(...)  # Same query
 
         memory_after = process.memory_info().rss
@@ -75,10 +75,10 @@ def test_memory_complex_join(benchmark, sqlite_connection, nistmemsql_connection
     benchmark(measure_join_memory)
 
 
-def test_memory_aggregation_workload(benchmark, sqlite_connection, nistmemsql_connection):
+def test_memory_aggregation_workload(benchmark, sqlite_connection, vibesql_connection):
     """Measure memory usage during aggregation operations."""
     setup_memory_aggregation_data(sqlite_connection)
-    # setup_memory_aggregation_data(nistmemsql_connection)
+    # setup_memory_aggregation_data(vibesql_connection)
 
     def measure_aggregation_memory():
         process = psutil.Process(os.getpid())
@@ -100,7 +100,7 @@ def test_memory_aggregation_workload(benchmark, sqlite_connection, nistmemsql_co
             ORDER BY total DESC
         """)
 
-        # nistmemsql_cursor = nistmemsql_connection.cursor()
+        # nistmemsql_cursor = vibesql_connection.cursor()
         # nistmemsql_cursor.execute(...)  # Same query
 
         memory_after = process.memory_info().rss
@@ -109,7 +109,7 @@ def test_memory_aggregation_workload(benchmark, sqlite_connection, nistmemsql_co
     benchmark(measure_aggregation_memory)
 
 
-def test_memory_peak_usage_during_load(benchmark, sqlite_connection, nistmemsql_connection):
+def test_memory_peak_usage_during_load(benchmark, sqlite_connection, vibesql_connection):
     """Measure peak memory usage during bulk data loading."""
     def measure_load_memory():
         process = psutil.Process(os.getpid())

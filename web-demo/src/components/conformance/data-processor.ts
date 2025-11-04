@@ -8,7 +8,7 @@ export class DataProcessor {
    * Load sqltest conformance data from JSON file
    */
   async loadSqltestData(): Promise<ConformanceData> {
-    const response = await fetch('/nistmemsql/badges/sqltest_results.json')
+    const response = await fetch('/vibesql/badges/sqltest_results.json')
     if (!response.ok) {
       throw new Error(`Failed to load sqltest data: ${response.statusText}`)
     }
@@ -21,7 +21,7 @@ export class DataProcessor {
   async loadSQLLogicTestData(): Promise<SQLLogicTestData | null> {
     try {
       // Try cumulative results first (updated by boost workflow)
-      let sltResponse = await fetch('/nistmemsql/badges/sqllogictest_cumulative.json')
+      let sltResponse = await fetch('/vibesql/badges/sqllogictest_cumulative.json')
       if (sltResponse.ok) {
         const cumulativeData = await sltResponse.json()
         // Transform cumulative data structure to match interface
@@ -38,7 +38,7 @@ export class DataProcessor {
       } else {
         // Fall back to single-run results (from CI workflow)
         console.log('Cumulative results not available, trying single-run results')
-        sltResponse = await fetch('/nistmemsql/badges/sqllogictest_results.json')
+        sltResponse = await fetch('/vibesql/badges/sqllogictest_results.json')
         if (sltResponse.ok) {
           const singleRunData = await sltResponse.json()
           // Transform single-run data structure to match interface

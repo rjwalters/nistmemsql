@@ -5,14 +5,14 @@ This script measures the performance overhead of the Python bindings
 compared to native Rust execution.
 """
 import time
-import nistmemsql
+import vibesql
 
 
 def benchmark_simple_queries(query_count=1000):
     """Benchmark simple SELECT queries"""
     print(f"\n=== Benchmarking {query_count} Simple Queries ===")
 
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
 
     start = time.perf_counter()
@@ -33,7 +33,7 @@ def benchmark_table_operations(iterations=100):
     """Benchmark CREATE, INSERT, SELECT operations"""
     print(f"\n=== Benchmarking {iterations} Table Operations ===")
 
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
 
     # Create table
@@ -71,7 +71,7 @@ def benchmark_data_types():
     """Benchmark different data type conversions"""
     print("\n=== Benchmarking Data Type Conversions ===")
 
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
 
     test_cases = [
@@ -101,7 +101,7 @@ def benchmark_bulk_operations(row_count=1000):
     """Benchmark bulk insert and select operations"""
     print(f"\n=== Benchmarking Bulk Operations ({row_count} rows) ===")
 
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
 
     cursor.execute(
@@ -138,7 +138,7 @@ def benchmark_fetchmany(row_count=10000):
     """Benchmark fetchmany with different batch sizes"""
     print(f"\n=== Benchmarking fetchmany() with {row_count} rows ===")
 
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
 
     # Setup
@@ -170,7 +170,7 @@ def benchmark_fetchmany(row_count=10000):
 def main():
     """Run all benchmarks"""
     print("=" * 60)
-    print("nistmemsql Python Bindings Performance Benchmark")
+    print("vibesql Python Bindings Performance Benchmark")
     print("=" * 60)
 
     benchmark_simple_queries(1000)

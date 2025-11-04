@@ -91,7 +91,7 @@ cat > "$OUTPUT" <<EOF
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SQL:1999 Conformance Report - NIST MemSQL</title>
+  <title>SQL:1999 Conformance Report - vibesql</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     .fade-in { animation: fadeIn 0.5s ease-in; }
@@ -111,12 +111,12 @@ cat > "$OUTPUT" <<EOF
             SQL:1999 Conformance Report
           </h1>
           <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            NIST MemSQL Database Implementation
+            vibesql Database Implementation
           </p>
         </div>
         <div class="flex gap-3">
           <a
-            href="https://github.com/rjwalters/nistmemsql"
+            href="https://github.com/rjwalters/vibesql"
             target="_blank"
             rel="noopener noreferrer"
             class="px-4 py-2 bg-gray-800 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
@@ -124,7 +124,7 @@ cat > "$OUTPUT" <<EOF
             View on GitHub
           </a>
           <a
-            href="https://rjwalters.github.io/nistmemsql/"
+            href="https://rjwalters.github.io/vibesql/"
             class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Try Demo
@@ -146,7 +146,7 @@ cat > "$OUTPUT" <<EOF
         <div>
           <span class="text-gray-600 dark:text-gray-400">Commit:</span>
           <a
-            href="https://github.com/rjwalters/nistmemsql/commit/$COMMIT"
+            href="https://github.com/rjwalters/vibesql/commit/$COMMIT"
             target="_blank"
             class="ml-2 text-blue-600 dark:text-blue-400 hover:underline font-mono"
           >
@@ -295,13 +295,13 @@ $ERROR_SECTION
 
   <!-- Footer -->
   <footer class="mt-12 text-center text-sm text-gray-600 dark:text-gray-400 pb-8">
-    <p>NIST MemSQL - SQL:1999 Compliant Database in WebAssembly</p>
+    <p>vibesql - SQL:1999 Compliant Database in WebAssembly</p>
     <p class="mt-2">
-      <a href="https://github.com/rjwalters/nistmemsql" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline">
+      <a href="https://github.com/rjwalters/vibesql" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline">
         GitHub Repository
       </a>
       •
-      <a href="https://rjwalters.github.io/nistmemsql/" class="text-blue-600 dark:text-blue-400 hover:underline">
+      <a href="https://rjwalters.github.io/vibesql/" class="text-blue-600 dark:text-blue-400 hover:underline">
         Live Demo
       </a>
     </p>

@@ -94,7 +94,7 @@ jobs:
           mkdir -p target
 
           # Download and validate JSON
-          if curl -sL https://rjwalters.github.io/nistmemsql/badges/sqllogictest_cumulative.json \
+          if curl -sL https://rjwalters.github.io/vibesql/badges/sqllogictest_cumulative.json \
             -o sqllogictest_cumulative.json 2>/dev/null; then
 
             # Check if it's valid JSON (not an HTML error page)
@@ -250,7 +250,7 @@ jobs:
           echo "Downloading historical cumulative results from gh-pages..."
           mkdir -p aggregated
 
-          if curl -sL https://rjwalters.github.io/nistmemsql/badges/sqllogictest_cumulative.json \
+          if curl -sL https://rjwalters.github.io/vibesql/badges/sqllogictest_cumulative.json \
             -o aggregated/sqllogictest_historical.json 2>/dev/null; then
             if jq empty aggregated/sqllogictest_historical.json 2>/dev/null; then
               echo "✓ Downloaded existing cumulative results"
@@ -315,20 +315,20 @@ jobs:
             -A "*.html,*.js,*.wasm,*.css,*.json,*.svg,*.png,*.jpg,*.jpeg,*.gif,*.woff,*.woff2,*.ttf,*.eot,*.ico,*.md" \
             --reject "*.html.tmp,*.html?*" \
             -P pages-site \
-            https://rjwalters.github.io/nistmemsql/ || {
+            https://rjwalters.github.io/vibesql/ || {
             echo "⚠️  Could not download full Pages site"
             echo "This might be the first boost run - creating minimal structure"
-            mkdir -p pages-site/nistmemsql/badges
+            mkdir -p pages-site/vibesql/badges
           }
 
           # Explicitly download the /pkg/ directory (WASM files not linked in HTML)
           echo ""
           echo "Downloading /pkg/ directory with WASM files..."
-          mkdir -p pages-site/nistmemsql/pkg
-          wget -q -P pages-site/nistmemsql/pkg \
-            https://rjwalters.github.io/nistmemsql/pkg/nistmemsql_wasm_bg.wasm \
-            https://rjwalters.github.io/nistmemsql/pkg/nistmemsql_wasm.js \
-            https://rjwalters.github.io/nistmemsql/pkg/package.json || {
+          mkdir -p pages-site/vibesql/pkg
+          wget -q -P pages-site/vibesql/pkg \
+            https://rjwalters.github.io/vibesql/pkg/vibesql_wasm_bg.wasm \
+            https://rjwalters.github.io/vibesql/pkg/vibesql_wasm.js \
+            https://rjwalters.github.io/vibesql/pkg/package.json || {
             echo "⚠️  Could not download pkg directory - may not exist yet"
           }
 
@@ -355,14 +355,14 @@ jobs:
           echo "=== Verifying critical files exist ==="
 
           # Check for essential HTML files
-          if [ ! -f pages-site/nistmemsql/index.html ]; then
+          if [ ! -f pages-site/vibesql/index.html ]; then
             echo "❌ ERROR: index.html not found! Site download may have failed."
             echo "This could corrupt the deployment. Aborting to preserve current site."
             exit 1
           fi
 
           # Check for WASM files (critical for database functionality)
-          WASM_COUNT=$(find pages-site/nistmemsql -name "*.wasm" 2>/dev/null | wc -l | tr -d ' ')
+          WASM_COUNT=$(find pages-site/vibesql -name "*.wasm" 2>/dev/null | wc -l | tr -d ' ')
           if [ "$WASM_COUNT" -eq 0 ]; then
             echo "❌ ERROR: No WASM files found! Database will not function."
             echo "This could corrupt the deployment. Aborting to preserve current site."
@@ -370,7 +370,7 @@ jobs:
           fi
 
           # Check for JavaScript files
-          JS_COUNT=$(find pages-site/nistmemsql -name "*.js" 2>/dev/null | wc -l | tr -d ' ')
+          JS_COUNT=$(find pages-site/vibesql -name "*.js" 2>/dev/null | wc -l | tr -d ' ')
           if [ "$JS_COUNT" -eq 0 ]; then
             echo "❌ ERROR: No JavaScript files found! Site will not function."
             echo "This could corrupt the deployment. Aborting to preserve current site."
@@ -391,21 +391,21 @@ jobs:
           fi
 
           # Create badges directory if it doesn't exist
-          mkdir -p pages-site/nistmemsql/badges
+          mkdir -p pages-site/vibesql/badges
 
           # Copy aggregated results
-          cp aggregated/sqllogictest_merged.json pages-site/nistmemsql/badges/sqllogictest_cumulative.json
+          cp aggregated/sqllogictest_merged.json pages-site/vibesql/badges/sqllogictest_cumulative.json
 
           echo ""
           echo "=== Updated Cumulative Results ==="
-          jq '.summary' pages-site/nistmemsql/badges/sqllogictest_cumulative.json
+          jq '.summary' pages-site/vibesql/badges/sqllogictest_cumulative.json
 
           echo ""
           echo "=== Pages site structure ==="
-          ls -la pages-site/nistmemsql/
+          ls -la pages-site/vibesql/
           echo ""
           echo "=== Badges directory ==="
-          ls -la pages-site/nistmemsql/badges/ || echo "No badges directory"
+          ls -la pages-site/vibesql/badges/ || echo "No badges directory"
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

@@ -34,7 +34,7 @@ export class RecentUpdatesComponent {
                       +${update.tests} tests
                     </span>
                     <a
-                      href="https://github.com/rjwalters/nistmemsql/pull/${update.pr}"
+                      href="https://github.com/rjwalters/vibesql/pull/${update.pr}"
                       target="_blank"
                       rel="noopener noreferrer"
                       class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"

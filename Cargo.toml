@@ -1,5 +1,5 @@
 [package]
-name = "nistmemsql"
+name = "vibesql"
 version.workspace = true
 edition.workspace = true
 
@@ -37,9 +37,9 @@ resolver = "2"
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-authors = ["nistmemsql contributors"]
+authors = ["vibesql contributors"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/rjwalters/nistmemsql"
+repository = "https://github.com/rjwalters/vibesql"
 
 [workspace.dependencies]
 # Will add dependencies as needed for each phase

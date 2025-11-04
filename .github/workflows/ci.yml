@@ -71,11 +71,11 @@ jobs:
           uv pip install --system maturin
           cd crates/python-bindings
           maturin build --release
-          uv pip install --system ../../target/wheels/nistmemsql_py-*.whl
+          uv pip install --system ../../target/wheels/vibesql_py-*.whl
 
       - name: Install benchmark dependencies
         run: |
-          grep -v "^nistmemsql" benchmarks/requirements.txt > /tmp/requirements-ci.txt
+          grep -v "^vibesql" benchmarks/requirements.txt > /tmp/requirements-ci.txt
           uv pip install --system -r /tmp/requirements-ci.txt
 
       - name: Run quick benchmarks (1k tests only)

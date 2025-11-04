@@ -2,7 +2,7 @@
 import pytest
 import sqlite3
 import duckdb
-import nistmemsql
+import vibesql
 import json
 import platform
 import psutil
@@ -46,10 +46,10 @@ def sqlite_db():
     conn.close()
 
 @pytest.fixture
-def nistmemsql_db():
-    """Create nistmemsql in-memory database connection"""
+def vibesql_db():
+    """Create vibesql in-memory database connection"""
     # Assuming PyO3 bindings follow DB-API 2.0 pattern
-    conn = nistmemsql.connect()  # In-memory by default
+    conn = vibesql.connect()  # In-memory by default
     yield conn
     conn.close()
 
@@ -65,19 +65,19 @@ def duckdb_db(request):
     conn.close()
 
 @pytest.fixture
-def both_databases(sqlite_db, nistmemsql_db):
+def both_databases(sqlite_db, vibesql_db):
     """Provide both databases for head-to-head comparison"""
     return {
         'sqlite': sqlite_db,
-        'nistmemsql': nistmemsql_db
+        'vibesql': vibesql_db
     }
 
 @pytest.fixture
-def all_databases(sqlite_db, nistmemsql_db, duckdb_db):
+def all_databases(sqlite_db, vibesql_db, duckdb_db):
     """Provide all three databases for comprehensive comparison"""
     return {
         'sqlite': sqlite_db,
-        'nistmemsql': nistmemsql_db,
+        'vibesql': vibesql_db,
         'duckdb': duckdb_db
     }
 
@@ -98,9 +98,9 @@ def setup_test_table(both_databases):
     sqlite_db = both_databases['sqlite']
     sqlite_db.execute(schema)
 
-    # Create table in nistmemsql
-    nistmemsql_db = both_databases['nistmemsql']
-    cursor = nistmemsql_db.cursor()
+    # Create table in vibesql
+    vibesql_db = both_databases['vibesql']
+    cursor = vibesql_db.cursor()
     cursor.execute(schema)
 
     return both_databases
@@ -129,9 +129,9 @@ def insert_test_data(setup_test_table, request):
     )
     sqlite_db.commit()
 
-    # Insert into nistmemsql
-    nistmemsql_db = databases['nistmemsql']
-    cursor = nistmemsql_db.cursor()
+    # Insert into vibesql
+    vibesql_db = databases['vibesql']
+    cursor = vibesql_db.cursor()
     for row in test_data:
         cursor.execute(
             "INSERT INTO test_users VALUES (?, ?, ?, ?, ?)",

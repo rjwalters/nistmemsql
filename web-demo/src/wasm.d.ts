@@ -1,6 +1,6 @@
 // Type declarations for WASM module
 // The WASM package is generated at build time and not available during type checking
-declare module '*/nistmemsql_wasm' {
+declare module '*/vibesql_wasm' {
   export default function init(): Promise<void>
   export class Database {
     execute(sql: string): {

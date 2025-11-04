@@ -17,7 +17,7 @@ def run_insert_scenario(cursor, start_id, count, db_type='sqlite'):
         cursor: Database cursor
         start_id: Starting ID for inserts
         count: Number of rows to insert
-        db_type: One of 'sqlite', 'nistmemsql', or 'duckdb'
+        db_type: One of 'sqlite', 'vibesql', or 'duckdb'
     """
     # Reset random seed for deterministic data
     random.seed(42)
@@ -28,7 +28,7 @@ def run_insert_scenario(cursor, start_id, count, db_type='sqlite'):
                 "INSERT INTO test_table (id, name, value) VALUES (?, ?, ?)",
                 (start_id + i, f"name_{i % 100}", random.randint(1, 1000))
             )
-        else:  # nistmemsql
+        else:  # vibesql
             value = random.randint(1, 1000)
             cursor.execute(
                 f"INSERT INTO test_table (id, name, value) VALUES ({start_id + i}, 'name_{i % 100}', {value})"
@@ -44,7 +44,7 @@ def run_update_scenario(cursor, count, db_type='sqlite'):
     Args:
         cursor: Database cursor
         count: Number of rows to update
-        db_type: One of 'sqlite', 'nistmemsql', or 'duckdb'
+        db_type: One of 'sqlite', 'vibesql', or 'duckdb'
     """
     for i in range(count):
         if db_type in ['sqlite', 'duckdb']:
@@ -52,7 +52,7 @@ def run_update_scenario(cursor, count, db_type='sqlite'):
                 "UPDATE test_table SET value = value + 1 WHERE id = ?",
                 (i,)
             )
-        else:  # nistmemsql
+        else:  # vibesql
             cursor.execute(
                 f"UPDATE test_table SET value = value + 1 WHERE id = {i}"
             )
@@ -67,7 +67,7 @@ def run_delete_scenario(cursor, count, db_type='sqlite'):
     Args:
         cursor: Database cursor
         count: Number of rows to delete
-        db_type: One of 'sqlite', 'nistmemsql', or 'duckdb'
+        db_type: One of 'sqlite', 'vibesql', or 'duckdb'
     """
     for i in range(count):
         if db_type in ['sqlite', 'duckdb']:
@@ -75,7 +75,7 @@ def run_delete_scenario(cursor, count, db_type='sqlite'):
                 "DELETE FROM test_table WHERE id = ?",
                 (i,)
             )
-        else:  # nistmemsql
+        else:  # vibesql
             cursor.execute(
                 f"DELETE FROM test_table WHERE id = {i}"
             )
@@ -90,7 +90,7 @@ def run_select_where_scenario(cursor, row_limit, db_type='sqlite'):
     Args:
         cursor: Database cursor
         row_limit: Threshold for WHERE clause (selects rows with id < row_limit)
-        db_type: One of 'sqlite', 'nistmemsql', or 'duckdb'
+        db_type: One of 'sqlite', 'vibesql', or 'duckdb'
 
     Returns:
         List of fetched rows
@@ -108,7 +108,7 @@ def run_aggregate_scenario(cursor, operation, db_type='sqlite'):
     Args:
         cursor: Database cursor
         operation: One of 'COUNT', 'SUM', or 'AVG'
-        db_type: One of 'sqlite', 'nistmemsql', or 'duckdb'
+        db_type: One of 'sqlite', 'vibesql', or 'duckdb'
 
     Returns:
         Aggregate result value

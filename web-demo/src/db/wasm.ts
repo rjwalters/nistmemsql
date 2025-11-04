@@ -6,8 +6,8 @@ const isProdBuild =
   typeof import.meta !== 'undefined' &&
   Boolean((import.meta as { env?: { PROD?: boolean } }).env?.PROD)
 const WASM_MODULE_PATH = isProdBuild
-  ? '/nistmemsql/pkg/nistmemsql_wasm.js'
-  : '../../public/pkg/nistmemsql_wasm.js'
+  ? '/vibesql/pkg/vibesql_wasm.js'
+  : '../../public/pkg/vibesql_wasm.js'
 
 let wasmModule: WasmModule | null = null
 let db: Database | null = null

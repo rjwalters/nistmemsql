@@ -13,11 +13,11 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'target', 'release'))
 
 try:
-    import nistmemsql
+    import vibesql
 except ImportError:
-    print("Failed to import nistmemsql. Build the Python bindings first:")
+    print("Failed to import vibesql. Build the Python bindings first:")
     print("cd crates/python-bindings && maturin build --release")
-    print("pip3 install target/wheels/nistmemsql-*.whl")
+    print("pip3 install target/wheels/vibesql-*.whl")
     sys.exit(1)
 
 
@@ -110,7 +110,7 @@ def main():
     print("=== Phase 2 Expression Optimization Benchmark ===\n")
 
     # Create database
-    db = nistmemsql.Database()
+    db = vibesql.Database()
     setup_data(db)
 
     # Run benchmarks

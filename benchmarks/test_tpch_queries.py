@@ -7,7 +7,7 @@ aggregations, and subqueries adapted from the TPC-H benchmark suite.
 import pytest
 
 
-def test_tpch_q1_pricing_summary(benchmark, sqlite_connection, nistmemsql_connection):
+def test_tpch_q1_pricing_summary(benchmark, sqlite_connection, vibesql_connection):
     """
     TPC-H Q1: Pricing Summary Report Query
 
@@ -15,7 +15,7 @@ def test_tpch_q1_pricing_summary(benchmark, sqlite_connection, nistmemsql_connec
     Adapted: Simplified version with date filtering and aggregations.
     """
     setup_tpch_schema(sqlite_connection)
-    # setup_tpch_schema(nistmemsql_connection)
+    # setup_tpch_schema(vibesql_connection)
 
     def run_query():
         sqlite_cursor = sqlite_connection.cursor()
@@ -32,14 +32,14 @@ def test_tpch_q1_pricing_summary(benchmark, sqlite_connection, nistmemsql_connec
             ORDER BY l_returnflag, l_linestatus
         """)
 
-        # nistmemsql_cursor = nistmemsql_connection.cursor()
+        # nistmemsql_cursor = vibesql_connection.cursor()
         # nistmemsql_cursor.execute(...)  # Same query
         pass
 
     benchmark(run_query)
 
 
-def test_tpch_q3_shipping_priority(benchmark, sqlite_connection, nistmemsql_connection):
+def test_tpch_q3_shipping_priority(benchmark, sqlite_connection, vibesql_connection):
     """
     TPC-H Q3: Shipping Priority Query
 
@@ -47,7 +47,7 @@ def test_tpch_q3_shipping_priority(benchmark, sqlite_connection, nistmemsql_conn
     that have not been shipped yet.
     """
     setup_tpch_schema(sqlite_connection)
-    # setup_tpch_schema(nistmemsql_connection)
+    # setup_tpch_schema(vibesql_connection)
 
     def run_query():
         sqlite_cursor = sqlite_connection.cursor()
@@ -68,21 +68,21 @@ def test_tpch_q3_shipping_priority(benchmark, sqlite_connection, nistmemsql_conn
             LIMIT 10
         """)
 
-        # nistmemsql_cursor = nistmemsql_connection.cursor()
+        # nistmemsql_cursor = vibesql_connection.cursor()
         # nistmemsql_cursor.execute(...)  # Same query
         pass
 
     benchmark(run_query)
 
 
-def test_tpch_q5_local_supplier_volume(benchmark, sqlite_connection, nistmemsql_connection):
+def test_tpch_q5_local_supplier_volume(benchmark, sqlite_connection, vibesql_connection):
     """
     TPC-H Q5: Local Supplier Volume Query
 
     Original: Find the revenue volume by nation and year for local suppliers.
     """
     setup_tpch_schema(sqlite_connection)
-    # setup_tpch_schema(nistmemsql_connection)
+    # setup_tpch_schema(vibesql_connection)
 
     def run_query():
         sqlite_cursor = sqlite_connection.cursor()
@@ -104,7 +104,7 @@ def test_tpch_q5_local_supplier_volume(benchmark, sqlite_connection, nistmemsql_
             ORDER BY revenue desc
         """)
 
-        # nistmemsql_cursor = nistmemsql_connection.cursor()
+        # nistmemsql_cursor = vibesql_connection.cursor()
         # nistmemsql_cursor.execute(...)  # Same query
         pass
 

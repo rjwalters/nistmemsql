@@ -2,7 +2,7 @@
 
 ## Overview
 
-This directory contains comprehensive documentation tracking our journey building a FULL SQL:1999 compliant in-memory database.
+This directory contains comprehensive documentation tracking our journey building VibeSQL, a FULL SQL:1999 compliant in-memory database.
 
 ## Documentation Philosophy
 

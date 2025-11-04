@@ -1,7 +1,7 @@
 //! Performance profiling utilities for benchmarking
 //!
 //! This module provides timing instrumentation to understand performance bottlenecks
-//! when comparing nistmemsql with other databases like SQLite.
+//! when comparing vibesql with other databases like SQLite.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;

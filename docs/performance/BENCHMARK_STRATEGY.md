@@ -2,11 +2,11 @@
 
 ## Overview
 
-This document describes the performance benchmarking strategy for nistmemsql, including baseline measurement approach, comparison methodology, and future optimization tracking.
+This document describes the performance benchmarking strategy for vibesql, including baseline measurement approach, comparison methodology, and future optimization tracking.
 
 ## Philosophy
 
-**Current State**: nistmemsql is built for SQL:1999 correctness and compliance, not performance optimization. The project has deliberately prioritized standards conformance over execution speed.
+**Current State**: VibeSQL is built for SQL:1999 correctness and compliance, not performance optimization. The project has deliberately prioritized standards conformance over execution speed.
 
 **Benchmark Goals**:
 1. **Establish baseline performance** - Understand current performance characteristics without optimization
@@ -44,7 +44,7 @@ This document describes the performance benchmarking strategy for nistmemsql, in
 
 **Hardware Normalization**:
 - Run both databases on same machine simultaneously
-- Report results as relative ratios (nistmemsql vs MySQL)
+- Report results as relative ratios (vibesql vs MySQL)
 - Example: "Query execution 2.5x slower than MySQL on same hardware"
 - Makes results portable across different test environments
 
@@ -62,7 +62,7 @@ This document describes the performance benchmarking strategy for nistmemsql, in
 **Hypothesis**: Higher SQL:1999 compliance may come at performance cost
 
 **Measurements**:
-| Metric                     | nistmemsql | MySQL  | Ratio |
+| Metric                     | vibesql | MySQL  | Ratio |
 |----------------------------|------------|--------|-------|
 | SQL:1999 Core Coverage     | 86.6%      | ~XX%   | X.Xx  |
 | Simple SELECT (1M rows)    | XX ms      | YY ms  | X.Xx  |
@@ -90,7 +90,7 @@ This document describes the performance benchmarking strategy for nistmemsql, in
 
 **Output Format**:
 ```
-Query Type          | Scale | nistmemsql | MySQL | Ratio | Notes
+Query Type          | Scale | vibesql | MySQL | Ratio | Notes
 --------------------|-------|------------|-------|-------|------
 Point SELECT        | 1K    | X.X ms     | Y ms  | Z.Zx  | -
 Range scan (10%)    | 100K  | X.X ms     | Y ms  | Z.Zx  | -
@@ -108,7 +108,7 @@ Window function     | 100K  | X.X ms     | Y ms  | Z.Zx  | -
 - Cache behavior under load
 
 **Measurements**:
-| Metric                    | nistmemsql | MySQL | Ratio |
+| Metric                    | vibesql | MySQL | Ratio |
 |---------------------------|------------|-------|-------|
 | Empty database size       | XX MB      | YY MB | Z.Zx  |
 | Memory per 100K rows      | XX MB      | YY MB | Z.Zx  |
@@ -123,13 +123,13 @@ Window function     | 100K  | X.X ms     | Y ms  | Z.Zx  | -
 - Parser error handling overhead
 
 **Why Separate Parsing**:
-- nistmemsql uses Rust parser (potentially different characteristics than MySQL)
+- VibeSQL uses Rust parser (potentially different characteristics than MySQL)
 - Understand where execution time is spent (parse vs execute)
 - Identify optimization opportunities
 
 **Output Format**:
 ```
-Query Complexity | nistmemsql Parse | MySQL Parse | Ratio | Query Example
+Query Complexity | vibesql Parse | MySQL Parse | Ratio | Query Example
 -----------------|------------------|-------------|-------|---------------
 Simple           | X μs             | Y μs        | Z.Zx  | SELECT * FROM t
 Medium           | X μs             | Y μs        | Z.Zx  | 3-table JOIN
@@ -147,15 +147,15 @@ Complex          | X ms             | Y ms        | Z.Zx  | Nested CTEs + window
 ### 6. Standard SQL Feature Availability
 
 **Qualitative Comparison**:
-- Which NIST SQL:1999 tests pass in nistmemsql vs MySQL?
+- Which NIST SQL:1999 tests pass in vibesql vs MySQL?
 - Feature gaps in each database
 - Edge case handling differences
 
 **Example Matrix**:
 ```
-Feature                  | nistmemsql | MySQL | Winner
+Feature                  | vibesql | MySQL | Winner
 -------------------------|------------|-------|--------
-FULL OUTER JOIN          | ✅         | ❌    | nistmemsql
+FULL OUTER JOIN          | ✅         | ❌    | vibesql
 Window functions         | ✅         | ✅    | Tie
 Recursive CTEs           | ❌         | ✅    | MySQL
 ```
@@ -186,7 +186,7 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 fn benchmark_simple_select(c: &mut Criterion) {
     c.bench_function("SELECT * FROM table (1K rows)", |b| {
         b.iter(|| {
-            // Execute query against nistmemsql
+            // Execute query against vibesql
             // Execute same query against MySQL
             // Compare results
         });
@@ -219,7 +219,7 @@ fn benchmark_simple_select(c: &mut Criterion) {
 
 **Output Format**:
 ```
-TPC-H Query | nistmemsql | MySQL | Ratio | Description
+TPC-H Query | vibesql | MySQL | Ratio | Description
 ------------|------------|-------|-------|-------------
 Q1          | XX ms      | YY ms | Z.Zx  | Aggregate pricing summary
 Q3          | XX ms      | YY ms | Z.Zx  | Shipping priority
@@ -244,7 +244,7 @@ Geometric Mean | XX ms   | YY ms | Z.Zx  | Overall performance
 
 **Example Output**:
 ```
-Feature Code | Test Count | nistmemsql Total | MySQL Total | Ratio
+Feature Code | Test Count | vibesql Total | MySQL Total | Ratio
 -------------|------------|------------------|-------------|-------
 E011         | 50         | XX ms            | YY ms       | Z.Zx
 E021         | 30         | XX ms            | YY ms       | Z.Zx
@@ -305,7 +305,7 @@ benches/
 **Tasks**:
 1. ⬜ Implement Tier 1 micro-benchmarks
 2. ⬜ Run benchmarks on reference hardware
-3. ⬜ Collect nistmemsql baseline results
+3. ⬜ Collect vibesql baseline results
 4. ⬜ Collect MySQL baseline results
 5. ⬜ Generate initial comparison report
 6. ⬜ Document performance characteristics
@@ -313,7 +313,7 @@ benches/
 **Success Criteria**:
 - All micro-benchmarks runnable
 - Results reproducible (±5% variance)
-- Clear ratio comparisons (nistmemsql vs MySQL)
+- Clear ratio comparisons (vibesql vs MySQL)
 - Baseline report published in `docs/PERFORMANCE_BASELINE.md`
 
 ### Phase 3: Analytical Workload Testing (Weeks 5-8)
@@ -323,14 +323,14 @@ benches/
 **Tasks**:
 1. ⬜ Implement TPC-H query adaptations (all 22 queries)
 2. ⬜ Generate TPC-H dataset at Scale Factor 0.01
-3. ⬜ Load data into both nistmemsql and MySQL
+3. ⬜ Load data into both vibesql and MySQL
 4. ⬜ Execute queries and collect timing
 5. ⬜ Analyze results and identify bottlenecks
 6. ⬜ Document findings in `docs/TPCH_PERFORMANCE.md`
 
 **Success Criteria**:
 - All 22 TPC-H queries executable
-- Results show where nistmemsql excels vs struggles
+- Results show where vibesql excels vs struggles
 - Clear bottleneck identification (parser? executor? join algorithm?)
 
 ### Phase 4: Continuous Benchmark Tracking (Ongoing)
@@ -390,7 +390,7 @@ jobs:
   "benchmarks": {
     "micro": {
       "simple_select_1k": {
-        "nistmemsql_ms": 1.2,
+        "vibesql_ms": 1.2,
         "mysql_ms": 0.8,
         "ratio": 1.5
       },
@@ -398,7 +398,7 @@ jobs:
     },
     "tpch": {
       "q1": {
-        "nistmemsql_ms": 45.3,
+        "vibesql_ms": 45.3,
         "mysql_ms": 32.1,
         "ratio": 1.41
       },
@@ -422,12 +422,12 @@ jobs:
 # Performance Baseline Report
 
 **Generated**: 2025-10-30
-**nistmemsql Version**: v0.1.0
+**vibesql Version**: v0.1.0
 **MySQL Version**: 8.0.35
 
 ## Executive Summary
 
-nistmemsql is currently **1.8x slower** than MySQL on average (geometric mean)
+vibesql is currently **1.8x slower** than MySQL on average (geometric mean)
 for analytical workloads on identical hardware. Performance ranges from
 1.1x slower (simple queries) to 3.2x slower (complex multi-table joins).
 
@@ -438,7 +438,7 @@ for analytical workloads on identical hardware. Performance ranges from
 - Memory usage: ~1.4x higher (data structure overhead)
 
 **Trade-off Assessment**:
-- nistmemsql: 86.6% SQL:1999 compliance, 1.8x slower
+- vibesql: 86.6% SQL:1999 compliance, 1.8x slower
 - MySQL: ~65% SQL:1999 compliance, baseline speed
 
 ## Micro-Benchmarks (Tier 1)
@@ -495,7 +495,7 @@ for analytical workloads on identical hardware. Performance ranges from
 
 ### Phase 2: Baseline Established
 1. ⬜ All micro-benchmarks executed
-2. ⬜ nistmemsql vs MySQL ratios calculated
+2. ⬜ vibesql vs MySQL ratios calculated
 3. ⬜ Performance baseline documented
 4. ⬜ Bottlenecks identified
 
@@ -593,7 +593,7 @@ for analytical workloads on identical hardware. Performance ranges from
 ### Phase 7: Real-World Application Benchmarks
 
 **Beyond Synthetic**:
-- Port real applications to nistmemsql
+- Port real applications to vibesql
 - Measure end-to-end performance
 - User-facing metrics (latency percentiles, throughput)
 
@@ -630,7 +630,7 @@ for analytical workloads on identical hardware. Performance ranges from
 
 ### Quick Start
 
-The pytest-benchmark framework is now set up for head-to-head performance testing between nistmemsql and SQLite. Here's how to run benchmarks:
+The pytest-benchmark framework is now set up for head-to-head performance testing between vibesql and SQLite. Here's how to run benchmarks:
 
 #### Prerequisites
 
@@ -638,10 +638,10 @@ The pytest-benchmark framework is now set up for head-to-head performance testin
 # Install Python dependencies
 pip install -r benchmarks/requirements.txt
 
-# Build and install nistmemsql Python bindings
+# Build and install vibesql Python bindings
 cd crates/python-bindings
 maturin build --release
-pip install --force-reinstall target/wheels/nistmemsql-*.whl
+pip install --force-reinstall target/wheels/vibesql-*.whl
 cd ../..
 ```
 
@@ -680,7 +680,7 @@ After running benchmarks, you'll get:
 **Example output:**
 
 ```
-| Benchmark | nistmemsql | SQLite | Ratio | Status |
+| Benchmark | vibesql | SQLite | Ratio | Status |
 |-----------|------------|--------|-------|--------|
 | simple_select | 18.70 μs | 12.50 μs | 1.50x | ✓ Good |
 | complex_join | 245.30 μs | 87.20 μs | 2.81x | ○ Fair |
@@ -704,7 +704,7 @@ Create new benchmark tests in `benchmarks/`:
 ```python
 import pytest
 
-@pytest.mark.parametrize("db_name", ["sqlite", "nistmemsql"])
+@pytest.mark.parametrize("db_name", ["sqlite", "vibesql"])
 def test_my_operation(benchmark, both_databases, setup_test_table, db_name):
     """Benchmark description."""
     db = both_databases[db_name]
@@ -735,7 +735,7 @@ def test_my_operation(benchmark, both_databases, setup_test_table, db_name):
 **Fixtures (benchmarks/conftest.py):**
 - `hardware_metadata` - CPU, memory, OS information
 - `sqlite_db` - SQLite :memory: connection
-- `nistmemsql_db` - nistmemsql connection via PyO3
+- `vibesql_db` - vibesql connection via PyO3
 - `both_databases` - Combined fixture for head-to-head tests
 - `setup_test_table` - Creates identical schemas in both databases
 - `insert_test_data` - Parametrized test data insertion
@@ -751,7 +751,7 @@ def test_my_operation(benchmark, both_databases, setup_test_table, db_name):
 
 ### Benchmark Best Practices
 
-1. **Use `@pytest.mark.parametrize("db_name", ["sqlite", "nistmemsql"])`** for head-to-head tests
+1. **Use `@pytest.mark.parametrize("db_name", ["sqlite", "vibesql"])`** for head-to-head tests
 2. **Separate setup from benchmark** - Only time the operation itself
 3. **Use fixtures** - Leverage `both_databases`, `setup_test_table`, etc.
 4. **Document expectations** - Add assertions to verify correctness
@@ -776,7 +776,7 @@ pip install -r benchmarks/requirements.txt
 # Build and install PyO3 bindings
 cd crates/python-bindings
 maturin build --release
-pip install --force-reinstall target/wheels/nistmemsql-*.whl
+pip install --force-reinstall target/wheels/vibesql-*.whl
 cd ../..
 ```
 
@@ -815,7 +815,7 @@ pytest benchmarks/test_example.py --benchmark-only
 
 #### Running Head-to-Head Comparisons
 
-All benchmarks are parametrized to run against both nistmemsql and SQLite:
+All benchmarks are parametrized to run against both vibesql and SQLite:
 
 ```bash
 # Run specific benchmark with both databases
@@ -823,7 +823,7 @@ pytest benchmarks/test_micro_benchmarks.py::test_simple_select -v --benchmark-on
 
 # Expected output shows both:
 # test_simple_select[sqlite] ........
-# test_simple_select[nistmemsql] ....
+# test_simple_select[vibesql] ....
 ```
 
 #### Benchmark Options
@@ -858,7 +858,7 @@ Pytest-benchmark displays a comparison table:
 Name (time in us)              Min      Max     Mean   Median    Rounds
 -------------------------------------------------------------------------------
 test_simple_select[sqlite]    12.50   45.30   15.20    14.10       100
-test_simple_select[nistmemsql] 18.70   62.10   22.80    21.50        87
+test_simple_select[vibesql] 18.70   62.10   22.80    21.50        87
 -------------------------------------------------------------------------------
 ```
 
@@ -868,7 +868,7 @@ test_simple_select[nistmemsql] 18.70   62.10   22.80    21.50        87
 - **Median**: Middle value (less affected by outliers)
 - **Rounds**: Number of times the benchmark ran
 
-**Performance Ratio**: In this example, nistmemsql is ~1.5x slower (22.80 / 15.20)
+**Performance Ratio**: In this example, vibesql is ~1.5x slower (22.80 / 15.20)
 
 #### JSON Output
 
@@ -893,7 +893,7 @@ Results are saved to `benchmark_results.json` following the schema in BENCHMARK_
       "stddev": 3.42,
       "rounds": 100
     },
-    "test_simple_select[nistmemsql]": {
+    "test_simple_select[vibesql]": {
       "min": 18.70,
       "max": 62.10,
       "mean": 22.80,
@@ -937,7 +937,7 @@ def test_my_benchmark(benchmark, both_databases, setup_test_table):
 Test the same operation on both databases:
 
 ```python
-@pytest.mark.parametrize("db_name", ["sqlite", "nistmemsql"])
+@pytest.mark.parametrize("db_name", ["sqlite", "vibesql"])
 def test_operation(benchmark, both_databases, db_name):
     """Head-to-head comparison"""
     db = both_databases[db_name]
@@ -983,7 +983,7 @@ def test_with_data(benchmark, both_databases, setup_test_table):
 
 - **`hardware_metadata`**: Collects CPU, memory, OS information
 - **`sqlite_db`**: SQLite :memory: database connection
-- **`nistmemsql_db`**: nistmemsql database connection (requires PyO3 bindings)
+- **`vibesql_db`**: vibesql database connection (requires PyO3 bindings)
 - **`both_databases`**: Dict with both database connections
 - **`setup_test_table`**: Creates `test_users` table in both databases
 - **`insert_test_data`**: Parametrized data insertion (default 1000 rows)
@@ -992,7 +992,7 @@ def test_with_data(benchmark, both_databases, setup_test_table):
 
 **`benchmarks/utils/database_setup.py`**:
 - `create_sqlite_connection()`: Create SQLite connection
-- `create_nistmemsql_connection()`: Create nistmemsql connection
+- `create_vibesql_connection()`: Create vibesql connection
 - `execute_sql_both()`: Run same query on both databases
 
 **`benchmarks/utils/data_generator.py`**:
@@ -1001,7 +1001,7 @@ def test_with_data(benchmark, both_databases, setup_test_table):
 - `generate_varchar_data(count, min_length, max_length)`: Generate strings
 
 **`benchmarks/utils/result_formatter.py`**:
-- `calculate_ratio(nistmemsql_time, sqlite_time)`: Compute performance ratio
+- `calculate_ratio(vibesql_time, sqlite_time)`: Compute performance ratio
 - `format_benchmark_results(benchmark_data, hardware_metadata)`: Format to JSON schema
 - `save_results_json(results, output_path)`: Save results to file
 - `generate_comparison_table(results)`: Generate markdown comparison table
@@ -1055,7 +1055,7 @@ def test_with_data(benchmark, both_databases, setup_test_table):
    def test_aggregation(benchmark, both_databases):
        """Test COUNT(*) aggregation performance
 
-       Expected: nistmemsql should be within 2x of SQLite
+       Expected: vibesql should be within 2x of SQLite
        """
        pass
    ```
@@ -1084,7 +1084,7 @@ jobs:
         run: |
           cd crates/python-bindings
           maturin build --release
-          pip install target/wheels/nistmemsql-*.whl
+          pip install target/wheels/vibesql-*.whl
       - name: Run benchmarks
         run: pytest benchmarks/ --benchmark-only --benchmark-json=output.json
       - name: Compare results

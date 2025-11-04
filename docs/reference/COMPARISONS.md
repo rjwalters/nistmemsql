@@ -1,4 +1,4 @@
-# Implementation Comparisons: nistmemsql vs SQLite
+# Implementation Comparisons: vibesql vs SQLite
 
 This document tracks comparisons between our implementation and SQLite's approach, documenting design decisions, lessons learned, and optimization opportunities.
 

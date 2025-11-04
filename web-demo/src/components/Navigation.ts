@@ -50,7 +50,7 @@ export class NavigationComponent extends Component<NavigationState> {
       {
         id: 'github',
         label: 'GitHub Repository',
-        href: 'https://github.com/rjwalters/nistmemsql',
+        href: 'https://github.com/rjwalters/vibesql',
         icon: this.getGithubIcon(),
         external: true,
       },

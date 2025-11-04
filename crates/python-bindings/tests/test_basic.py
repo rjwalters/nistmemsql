@@ -1,19 +1,19 @@
 """
-Basic tests for nistmemsql Python bindings
+Basic tests for vibesql Python bindings
 """
-import nistmemsql
+import vibesql
 
 
 def test_connection():
     """Test basic connection creation"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     assert db is not None
     db.close()
 
 
 def test_cursor_creation():
     """Test cursor creation from database"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     assert cursor is not None
     cursor.close()
@@ -22,7 +22,7 @@ def test_cursor_creation():
 
 def test_create_table():
     """Test CREATE TABLE statement"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE users (id INTEGER, name VARCHAR(50))")
     cursor.close()
@@ -31,7 +31,7 @@ def test_create_table():
 
 def test_insert_select():
     """Test INSERT and SELECT operations"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE users (id INTEGER, name VARCHAR(50))")
     cursor.execute("INSERT INTO users VALUES (1, 'Alice')")
@@ -45,7 +45,7 @@ def test_insert_select():
 
 def test_multiple_inserts():
     """Test multiple INSERT operations"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE users (id INTEGER, name VARCHAR(50))")
     cursor.execute("INSERT INTO users VALUES (1, 'Alice')")
@@ -63,7 +63,7 @@ def test_multiple_inserts():
 
 def test_data_types():
     """Test various SQL data types"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     # Create a dummy table for testing various data types
     cursor.execute("CREATE TABLE datatypes (i INTEGER, f FLOAT, s VARCHAR(50), b BOOLEAN, n INTEGER)")
@@ -81,7 +81,7 @@ def test_data_types():
 
 def test_fetchone():
     """Test fetchone() method"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE numbers (n INTEGER)")
     cursor.execute("INSERT INTO numbers VALUES (1)")
@@ -107,7 +107,7 @@ def test_fetchone():
 
 def test_fetchmany():
     """Test fetchmany() method"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE numbers (n INTEGER)")
     for i in range(10):
@@ -130,7 +130,7 @@ def test_fetchmany():
 
 def test_update():
     """Test UPDATE statement"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE users (id INTEGER, name VARCHAR(50))")
     cursor.execute("INSERT INTO users VALUES (1, 'Alice')")
@@ -144,7 +144,7 @@ def test_update():
 
 def test_delete():
     """Test DELETE statement"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE users (id INTEGER, name VARCHAR(50))")
     cursor.execute("INSERT INTO users VALUES (1, 'Alice')")
@@ -160,7 +160,7 @@ def test_delete():
 
 def test_rowcount():
     """Test rowcount attribute"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE users (id INTEGER, name VARCHAR(50))")
     cursor.execute("INSERT INTO users VALUES (1, 'Alice')")
@@ -179,7 +179,7 @@ def test_rowcount():
 
 def test_drop_table():
     """Test DROP TABLE statement"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE temp (id INTEGER)")
     cursor.execute("DROP TABLE temp")
@@ -189,7 +189,7 @@ def test_drop_table():
 
 def test_multiple_cursors():
     """Test multiple cursors on same database"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
 
     cursor1 = db.cursor()
     cursor2 = db.cursor()
@@ -213,7 +213,7 @@ def test_multiple_cursors():
 
 def test_parameterized_select():
     """Test basic parameterized SELECT with single parameter"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE users (id INTEGER, name VARCHAR(50))")
     cursor.execute("INSERT INTO users VALUES (1, 'Alice')")
@@ -232,7 +232,7 @@ def test_parameterized_select():
 
 def test_parameterized_insert():
     """Test parameterized INSERT statement"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE users (id INTEGER, name VARCHAR(50))")
 
@@ -249,7 +249,7 @@ def test_parameterized_insert():
 
 def test_parameterized_update():
     """Test parameterized UPDATE statement"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE users (id INTEGER, name VARCHAR(50))")
     cursor.execute("INSERT INTO users VALUES (1, 'Alice')")
@@ -267,7 +267,7 @@ def test_parameterized_update():
 
 def test_parameterized_delete():
     """Test parameterized DELETE statement"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE users (id INTEGER, name VARCHAR(50))")
     cursor.execute("INSERT INTO users VALUES (1, 'Alice')")
@@ -288,7 +288,7 @@ def test_parameterized_delete():
 
 def test_parameterized_multiple_types():
     """Test parameterized query with multiple parameter types"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE data (id INTEGER, value FLOAT, name VARCHAR(50), active BOOLEAN)")
 
@@ -307,7 +307,7 @@ def test_parameterized_multiple_types():
 
 def test_parameterized_null_value():
     """Test parameterized query with NULL parameter"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE users (id INTEGER, name VARCHAR(50))")
 
@@ -324,7 +324,7 @@ def test_parameterized_null_value():
 
 def test_parameterized_string_with_quotes():
     """Test parameterized query with string containing quotes"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE users (id INTEGER, name VARCHAR(50))")
 
@@ -341,7 +341,7 @@ def test_parameterized_string_with_quotes():
 
 def test_parameterized_error_count_mismatch():
     """Test error when parameter count doesn't match placeholders"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE users (id INTEGER, name VARCHAR(50))")
 
@@ -349,14 +349,14 @@ def test_parameterized_error_count_mismatch():
     try:
         cursor.execute("INSERT INTO users VALUES (?, ?)", (1,))
         assert False, "Should have raised ProgrammingError"
-    except nistmemsql.ProgrammingError as e:
+    except vibesql.ProgrammingError as e:
         assert "Parameter count mismatch" in str(e)
 
     # Too many parameters
     try:
         cursor.execute("INSERT INTO users VALUES (?, ?)", (1, 'Alice', 'Extra'))
         assert False, "Should have raised ProgrammingError"
-    except nistmemsql.ProgrammingError as e:
+    except vibesql.ProgrammingError as e:
         assert "Parameter count mismatch" in str(e)
 
     cursor.close()
@@ -365,7 +365,7 @@ def test_parameterized_error_count_mismatch():
 
 def test_parameterized_error_invalid_type():
     """Test error when parameter has invalid type"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE users (id INTEGER, name VARCHAR(50))")
 
@@ -373,7 +373,7 @@ def test_parameterized_error_invalid_type():
     try:
         cursor.execute("INSERT INTO users VALUES (?, ?)", (1, {'invalid': 'dict'}))
         assert False, "Should have raised ProgrammingError"
-    except nistmemsql.ProgrammingError as e:
+    except vibesql.ProgrammingError as e:
         assert "invalid type" in str(e).lower() or "cannot convert" in str(e).lower()
 
     cursor.close()
@@ -382,7 +382,7 @@ def test_parameterized_error_invalid_type():
 
 def test_backward_compatibility_no_params():
     """Test backward compatibility - queries without parameters still work"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE users (id INTEGER, name VARCHAR(50))")
     cursor.execute("INSERT INTO users VALUES (1, 'Alice')")
@@ -397,7 +397,7 @@ def test_backward_compatibility_no_params():
 
 def test_parameterized_complex_where():
     """Test parameterized query with multiple conditions"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE users (id INTEGER, age INTEGER, active BOOLEAN)")
     cursor.execute("INSERT INTO users VALUES (1, 25, TRUE)")
@@ -418,7 +418,7 @@ def test_parameterized_complex_where():
 
 def test_statement_cache_hit():
     """Test that repeated queries hit the statement cache"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE test (id INTEGER, value INTEGER)")
 
@@ -440,7 +440,7 @@ def test_statement_cache_hit():
 
 def test_statement_cache_stats():
     """Test cache statistics tracking"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE test (id INTEGER, value INTEGER)")
 
@@ -461,7 +461,7 @@ def test_statement_cache_stats():
 
 def test_statement_cache_invalidation():
     """Test that cache is invalidated on schema changes"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE test (id INTEGER)")
 
@@ -489,7 +489,7 @@ def test_statement_cache_performance():
     """Test that cache provides performance improvement for repeated queries"""
     import time
 
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE test (id INTEGER, value INTEGER)")
 
@@ -521,7 +521,7 @@ def test_statement_cache_performance():
 
 def test_schema_cache_basic():
     """Test that schema cache reduces redundant catalog lookups"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE test (id INTEGER, value INTEGER)")
     cursor.execute("INSERT INTO test VALUES (1, 100)")
@@ -543,7 +543,7 @@ def test_schema_cache_basic():
 
 def test_schema_cache_multiple_tables():
     """Test schema caching with multiple tables"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE table1 (id INTEGER, value INTEGER)")
     cursor.execute("CREATE TABLE table2 (id INTEGER, value INTEGER)")
@@ -568,7 +568,7 @@ def test_schema_cache_multiple_tables():
 
 def test_schema_cache_invalidation_on_ddl():
     """Test that schema cache is cleared on DDL operations"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE test (id INTEGER, value INTEGER)")
     cursor.execute("INSERT INTO test VALUES (1, 100)")
@@ -595,7 +595,7 @@ def test_schema_cache_invalidation_on_ddl():
 
 def test_schema_cache_hit_rate():
     """Test schema cache hit rate with repeated UPDATEs"""
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE test (id INTEGER, value INTEGER)")
 
@@ -624,7 +624,7 @@ def test_schema_cache_performance_improvement():
     """Test that schema caching reduces lookup overhead"""
     import time
 
-    db = nistmemsql.connect()
+    db = vibesql.connect()
     cursor = db.cursor()
     cursor.execute("CREATE TABLE test (id INTEGER, value INTEGER)")
 

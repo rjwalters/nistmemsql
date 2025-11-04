@@ -1,6 +1,6 @@
 # Lessons Learned
 
-This document captures insights, challenges, and knowledge gained throughout the nistmemsql project.
+This document captures insights, challenges, and knowledge gained throughout the VibeSQL project.
 
 ## Purpose
 

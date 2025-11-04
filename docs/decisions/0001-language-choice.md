@@ -356,7 +356,7 @@ Rust provides the best combination of correctness guarantees, type safety, and d
 
 ### Project Structure
 ```
-nistmemsql/
+vibesql/
 ├── Cargo.toml              # Workspace definition
 ├── crates/
 │   ├── parser/             # SQL parser (pest or lalrpop)

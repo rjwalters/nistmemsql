@@ -86,10 +86,10 @@ This directory contains all performance-related documentation, including benchma
 
 **Built-in Profiling**:
 ```python
-import nistmemsql
-nistmemsql.enable_profiling()  # Prints detailed timing
+import VibeSQL
+VibeSQL.enable_profiling()  # Prints detailed timing
 # Run queries...
-nistmemsql.disable_profiling()
+VibeSQL.disable_profiling()
 ```
 
 **Benchmarking**:

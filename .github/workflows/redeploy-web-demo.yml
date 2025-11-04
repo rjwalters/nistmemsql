@@ -83,7 +83,7 @@ jobs:
           mkdir -p badges
 
           # Download cumulative SQLLogicTest results (updated by boost workflow)
-          if curl -sL https://rjwalters.github.io/nistmemsql/badges/sqllogictest_cumulative.json \
+          if curl -sL https://rjwalters.github.io/vibesql/badges/sqllogictest_cumulative.json \
               -o badges/sqllogictest_cumulative.json; then
             echo "✓ Downloaded cumulative SQLLogicTest results"
             jq '.summary' badges/sqllogictest_cumulative.json || echo "Invalid JSON"
@@ -92,7 +92,7 @@ jobs:
           fi
 
           # Download sqltest results (from main CI workflow)
-          if curl -sL https://rjwalters.github.io/nistmemsql/badges/sqltest_results.json \
+          if curl -sL https://rjwalters.github.io/vibesql/badges/sqltest_results.json \
               -o badges/sqltest_results.json; then
             echo "✓ Downloaded sqltest results"
           else
@@ -100,14 +100,14 @@ jobs:
           fi
 
           # Download benchmark data
-          if curl -sL https://rjwalters.github.io/nistmemsql/benchmarks/benchmark_results.json \
+          if curl -sL https://rjwalters.github.io/vibesql/benchmarks/benchmark_results.json \
               -o badges/benchmark_results.json; then
             echo "✓ Downloaded benchmark results"
           else
             echo "✗ Failed to download benchmark results"
           fi
 
-          if curl -sL https://rjwalters.github.io/nistmemsql/benchmarks/benchmark_history.json \
+          if curl -sL https://rjwalters.github.io/vibesql/benchmarks/benchmark_history.json \
               -o badges/benchmark_history.json; then
             echo "✓ Downloaded benchmark history"
           else
@@ -158,8 +158,8 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "**Reason:** ${{ github.event.inputs.reason }}" >> $GITHUB_STEP_SUMMARY
           fi
-          echo "**Deployment URL:** https://rjwalters.github.io/nistmemsql/" >> $GITHUB_STEP_SUMMARY
-          echo "**Conformance Page:** https://rjwalters.github.io/nistmemsql/conformance.html" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment URL:** https://rjwalters.github.io/vibesql/" >> $GITHUB_STEP_SUMMARY
+          echo "**Conformance Page:** https://rjwalters.github.io/vibesql/conformance.html" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Show updated conformance stats if available and valid

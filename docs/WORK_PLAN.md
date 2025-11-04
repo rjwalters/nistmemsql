@@ -6,7 +6,8 @@
 **Phase 2 Optimizations**: ✅ COMPLETE (Hash Join, Expression Optimization, Memory Optimization)
 **Next Decision**: Pursue FULL SQL:1999 compliance or focus on production polish
 **Development Approach**: Test-Driven Development (TDD) ✅
-**Rebrand Planned**: See [decisions/0003-rebranding.md](decisions/0003-rebranding.md) for vibesql transition plan
+**Origin**: Inspired by the posix4e/nistmemsql challenge
+**Rebrand Status**: See [decisions/0003-rebranding.md](decisions/0003-rebranding.md) for vibesql transition plan
 
 ---
 
@@ -23,7 +24,7 @@
 ### Phase 2: FULL SQL:1999 Compliance (Long-term Vision)
 **Timeline**: 3-5 years total
 **Goal**: Implement all mandatory + optional features (400+ features)
-**Origin**: Inspired by posix4e/nistmemsql challenge (rebranding to vibesql planned)
+**Origin**: Inspired by the posix4e/nistmemsql challenge
 
 **Note**: No production database has achieved FULL SQL:1999 compliance. PostgreSQL, Oracle, and SQL Server implement Core + selective optional features. We're targeting complete compliance as a long-term research goal.
 
@@ -414,7 +415,7 @@ Core SQL:1999 compliance is about language semantics, not client protocols.
 - [ ] Download NIST SQL Test Suite v6.0
 - [ ] Parse test `.sql` files and expected `.out` files
 - [ ] Convert to machine-readable manifest (`nist_core.json`)
-- [ ] Implement Rust test harness: `nistmemsql test --manifest tests/nist_core.json`
+- [ ] Implement Rust test harness: `vibesql test --manifest tests/nist_core.json`
 - [ ] Each test entry: `{ "sql": "...", "expected": [...], "sqlstate": "00000" }`
 - [ ] Run inside CLI (Rust) and WASM (Node/browser) for consistency
 - [ ] Report pass/fail with category grouping (DML, Joins, Constraints, etc.)
@@ -427,7 +428,7 @@ Core SQL:1999 compliance is about language semantics, not client protocols.
   - [ ] Write positive test case (feature works)
   - [ ] Write negative test case (proper error handling)
   - [ ] Tag with ISO feature code
-- [ ] Implement: `nistmemsql validate --core`
+- [ ] Implement: `vibesql validate --core`
 - [ ] Output compliance table: feature → implemented → passed
 - [ ] Target: 100% coverage of SQL:1999 Core mandatory features
 
@@ -635,7 +636,7 @@ Once Core SQL:1999 compliance is achieved (~10-14 months), the following work re
 
 **Combined Timeline (Core + FULL)**: 62-86 months (5-7 years)
 
-This builds on the original posix4e/nistmemsql challenge while taking an AI-first approach. Core compliance first provides an achievable milestone and enables NIST testing, while FULL compliance remains the ultimate research goal. (See [decisions/0003-rebranding.md](decisions/0003-rebranding.md) for planned transition to "vibesql" branding.)
+This builds on the original posix4e/nistmemsql challenge while taking an AI-first approach. Core compliance first provides an achievable milestone and enables NIST testing, while FULL compliance remains the ultimate research goal.
 
 ---
 
@@ -672,7 +673,7 @@ This builds on the original posix4e/nistmemsql challenge while taking an AI-firs
 - [ ] All ~169 Core SQL:1999 features implemented
 - [ ] ≥90% NIST SQL Test Suite v6.0 tests passing (SQL-92 Core overlap)
 - [ ] 100% SQL:1999 Annex F Core features validated (Mimer taxonomy)
-- [ ] Automated conformance test harness (`nistmemsql test` + `nistmemsql validate`)
+- [ ] Automated conformance test harness (`vibesql test` + `vibesql validate`)
 - [ ] Rust CLI, WASM, and web demo all passing same test suite
 - [ ] Conformance badges published to README
 - [ ] Complete SQL reference documentation

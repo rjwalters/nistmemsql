@@ -3,9 +3,9 @@ requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "nistmemsql"
+name = "vibesql"
 version = "0.1.0"
-description = "NIST-compatible SQL:1999 database in Rust with Python bindings"
+description = "VibeSQL: AI-powered SQL:1999 database in Rust with Python bindings"
 requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Rust",
@@ -21,5 +21,5 @@ classifiers = [
 
 [tool.maturin]
 bindings = "pyo3"
-module-name = "nistmemsql"
+module-name = "vibesql"
 manifest-path = "crates/python-bindings/Cargo.toml"

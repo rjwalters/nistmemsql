@@ -1,7 +1,7 @@
 """
 UPDATE Benchmarks: Compare UPDATE performance across databases at various scales.
 
-Tests UPDATE operations for SQLite, nistmemsql, and DuckDB at:
+Tests UPDATE operations for SQLite, vibesql, and DuckDB at:
 - 1k, 2k, 5k, 10k, and 20k rows
 """
 import pytest
@@ -14,10 +14,10 @@ def test_update_1k_sqlite(benchmark, sqlite_db):
     _run_update_test(benchmark, sqlite_db, 1000, 'sqlite')
 
 
-def test_update_1k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark UPDATE operations on nistmemsql (1k rows)."""
-    setup_test_table(nistmemsql_db, 1000, 'nistmemsql')
-    _run_update_test(benchmark, nistmemsql_db, 1000, 'nistmemsql')
+def test_update_1k_vibesql(benchmark, vibesql_db):
+    """Benchmark UPDATE operations on vibesql (1k rows)."""
+    setup_test_table(vibesql_db, 1000, 'vibesql')
+    _run_update_test(benchmark, vibesql_db, 1000, 'vibesql')
 
 
 def test_update_1k_duckdb(benchmark, duckdb_db):
@@ -32,10 +32,10 @@ def test_update_1k_duckdb(benchmark, duckdb_db):
 #     _run_update_test(benchmark, sqlite_db, 2000, 'sqlite')
 
 
-# def test_update_2k_nistmemsql(benchmark, nistmemsql_db):
-#     """Benchmark UPDATE operations on nistmemsql (2k rows)."""
-#     setup_test_table(nistmemsql_db, 2000, 'nistmemsql')
-#     _run_update_test(benchmark, nistmemsql_db, 2000, 'nistmemsql')
+# def test_update_2k_vibesql(benchmark, vibesql_db):
+#     """Benchmark UPDATE operations on vibesql (2k rows)."""
+#     setup_test_table(vibesql_db, 2000, 'vibesql')
+#     _run_update_test(benchmark, vibesql_db, 2000, 'vibesql')
 
 
 # def test_update_2k_duckdb(benchmark, duckdb_db):
@@ -50,10 +50,10 @@ def test_update_1k_duckdb(benchmark, duckdb_db):
 #     _run_update_test(benchmark, sqlite_db, 5000, 'sqlite')
 
 
-# def test_update_5k_nistmemsql(benchmark, nistmemsql_db):
-#     """Benchmark UPDATE operations on nistmemsql (5k rows)."""
-#     setup_test_table(nistmemsql_db, 5000, 'nistmemsql')
-#     _run_update_test(benchmark, nistmemsql_db, 5000, 'nistmemsql')
+# def test_update_5k_vibesql(benchmark, vibesql_db):
+#     """Benchmark UPDATE operations on vibesql (5k rows)."""
+#     setup_test_table(vibesql_db, 5000, 'vibesql')
+#     _run_update_test(benchmark, vibesql_db, 5000, 'vibesql')
 
 
 # def test_update_5k_duckdb(benchmark, duckdb_db):
@@ -68,10 +68,10 @@ def test_update_1k_duckdb(benchmark, duckdb_db):
 #     _run_update_test(benchmark, sqlite_db, 10000, 'sqlite')
 
 
-# def test_update_10k_nistmemsql(benchmark, nistmemsql_db):
-#     """Benchmark UPDATE operations on nistmemsql (10k rows)."""
-#     setup_test_table(nistmemsql_db, 10000, 'nistmemsql')
-#     _run_update_test(benchmark, nistmemsql_db, 10000, 'nistmemsql')
+# def test_update_10k_vibesql(benchmark, vibesql_db):
+#     """Benchmark UPDATE operations on vibesql (10k rows)."""
+#     setup_test_table(vibesql_db, 10000, 'vibesql')
+#     _run_update_test(benchmark, vibesql_db, 10000, 'vibesql')
 
 
 # def test_update_10k_duckdb(benchmark, duckdb_db):
@@ -86,10 +86,10 @@ def test_update_1k_duckdb(benchmark, duckdb_db):
 #     _run_update_test(benchmark, sqlite_db, 20000, 'sqlite')
 
 
-# def test_update_20k_nistmemsql(benchmark, nistmemsql_db):
-#     """Benchmark UPDATE operations on nistmemsql (20k rows)."""
-#     setup_test_table(nistmemsql_db, 20000, 'nistmemsql')
-#     _run_update_test(benchmark, nistmemsql_db, 20000, 'nistmemsql')
+# def test_update_20k_vibesql(benchmark, vibesql_db):
+#     """Benchmark UPDATE operations on vibesql (20k rows)."""
+#     setup_test_table(vibesql_db, 20000, 'vibesql')
+#     _run_update_test(benchmark, vibesql_db, 20000, 'vibesql')
 
 
 # def test_update_20k_duckdb(benchmark, duckdb_db):

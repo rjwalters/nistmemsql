@@ -3,19 +3,19 @@
 Profile COUNT aggregate performance to identify bottlenecks.
 """
 import time
-import nistmemsql
+import vibesql
 import sqlite3
 
-def profile_nistmemsql_count(num_rows=1000):
-    """Profile nistmemsql COUNT operation."""
-    db = nistmemsql.connect()
+def profile_vibesql_count(num_rows=1000):
+    """Profile vibesql COUNT operation."""
+    db = vibesql.connect()
     cursor = db.cursor()
 
     # Setup
     cursor.execute("CREATE TABLE test_table (id INT, name VARCHAR(100), value INT)")
 
     # Insert data
-    print(f"Inserting {num_rows} rows into nistmemsql...")
+    print(f"Inserting {num_rows} rows into vibesql...")
     insert_start = time.perf_counter()
     for i in range(num_rows):
         cursor.execute(f"INSERT INTO test_table (id, name, value) VALUES ({i}, 'name_{i % 100}', {i * 10})")
@@ -43,7 +43,7 @@ def profile_nistmemsql_count(num_rows=1000):
     min_time = min(times)
     max_time = max(times)
 
-    print(f"\nNISTMemSQL COUNT Statistics:")
+    print(f"\nvibesql COUNT Statistics:")
     print(f"  Min:  {min_time:.2f} μs")
     print(f"  Max:  {max_time:.2f} μs")
     print(f"  Mean: {avg_time:.2f} μs")
@@ -101,13 +101,13 @@ if __name__ == "__main__":
     print("COUNT Aggregate Performance Profiling (After HashMap Optimization)")
     print("=" * 70)
 
-    nist_time = profile_nistmemsql_count(1000)
+    nist_time = profile_vibesql_count(1000)
     sqlite_time = profile_sqlite_count(1000)
 
     print("\n" + "=" * 70)
     print("SUMMARY")
     print("=" * 70)
-    print(f"nistmemsql COUNT: {nist_time:.2f} μs")
+    print(f"vibesql COUNT: {nist_time:.2f} μs")
     print(f"SQLite COUNT:     {sqlite_time:.2f} μs")
     print(f"Slowdown factor:  {nist_time/sqlite_time:.1f}x")
     print("=" * 70)

@@ -1,6 +1,7 @@
-# nistmemsql
-in memory nist compatible SQL parser and database with full NIST COMPAT
+# VibeSQL
+In-memory NIST-compatible SQL parser and database with full SQL:1999 compliance
 
+> **Origin**: Inspired by the posix4e/nistmemsql challenge
 
 TODO
 - [ ] Implement SQL Parser frontend (Rust API, CLI, WASM)

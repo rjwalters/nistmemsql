@@ -17,7 +17,7 @@ def create_test_table(cursor, db_type='sqlite'):
 
     Args:
         cursor: Database cursor
-        db_type: One of 'sqlite', 'nistmemsql', or 'duckdb'
+        db_type: One of 'sqlite', 'vibesql', or 'duckdb'
     """
     cursor.execute("""
         CREATE TABLE test_table (
@@ -38,7 +38,7 @@ def insert_test_data(cursor, start_id, count, db_type='sqlite'):
         cursor: Database cursor
         start_id: Starting ID for inserts
         count: Number of rows to insert
-        db_type: One of 'sqlite', 'nistmemsql', or 'duckdb'
+        db_type: One of 'sqlite', 'vibesql', or 'duckdb'
     """
     # Use deterministic seed for reproducibility
     random.seed(42)
@@ -51,8 +51,8 @@ def insert_test_data(cursor, start_id, count, db_type='sqlite'):
                 "INSERT INTO test_table (id, name, value) VALUES (?, ?, ?)",
                 (start_id + i, f"name_{i % 100}", random.randint(1, 1000))
             )
-        else:  # nistmemsql
-            # nistmemsql doesn't support parameterized queries yet, use string formatting
+        else:  # vibesql
+            # vibesql doesn't support parameterized queries yet, use string formatting
             value = random.randint(1, 1000)
             cursor.execute(
                 f"INSERT INTO test_table (id, name, value) VALUES ({start_id + i}, 'name_{i % 100}', {value})"
@@ -67,7 +67,7 @@ def setup_database_for_benchmark(connection, db_type, row_count):
 
     Args:
         connection: Database connection
-        db_type: One of 'sqlite', 'nistmemsql', or 'duckdb'
+        db_type: One of 'sqlite', 'vibesql', or 'duckdb'
         row_count: Number of rows to pre-populate
     """
     cursor = connection.cursor()
@@ -87,7 +87,7 @@ def get_cursor_with_transaction(connection, db_type):
 
     Args:
         connection: Database connection
-        db_type: One of 'sqlite', 'nistmemsql', or 'duckdb'
+        db_type: One of 'sqlite', 'vibesql', or 'duckdb'
 
     Returns:
         Database cursor

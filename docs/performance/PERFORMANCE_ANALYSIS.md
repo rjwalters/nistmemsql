@@ -1,4 +1,4 @@
-# Performance Analysis: nistmemsql vs SQLite
+# Performance Analysis: vibesql vs SQLite
 
 ## Executive Summary
 
@@ -10,7 +10,7 @@ After comprehensive profiling and instrumentation, we've identified that **Pytho
 
 **After parking_lot::Mutex Optimization** (November 2025):
 
-| Operation | SQLite | nistmemsql (Before) | nistmemsql (After) | Improvement | New Multiplier | Status |
+| Operation | SQLite | vibesql (Before) | vibesql (After) | Improvement | New Multiplier | Status |
 |-----------|--------|---------------------|--------------------| ------------|----------------|--------|
 | INSERT    | ~50µs  | ~155µs (3.1x)       | **~40µs**          | **3.9x faster** | **0.8x** | ✅ **Beating SQLite!** |
 | UPDATE    | ~45µs  | ~171µs (3.8x)       | **~44µs**          | **3.9x faster** | **1.0x** | ✅ **Matching SQLite!** |
@@ -127,7 +127,7 @@ The `sqlite3` module is implemented in C and has **minimal overhead**:
 
 **Estimated overhead per operation**: ~1-5µs
 
-### nistmemsql's Python Bindings (PyO3)
+### vibesql's Python Bindings (PyO3)
 
 Our bindings use PyO3 (Rust ↔ Python FFI) which adds **necessary overhead**:
 
@@ -142,7 +142,7 @@ Our bindings use PyO3 (Rust ↔ Python FFI) which adds **necessary overhead**:
 ### The Overhead Breakdown
 
 ```
-Component                           SQLite    nistmemsql    Delta
+Component                           SQLite    vibesql    Delta
 ──────────────────────────────────────────────────────────────────
 Language                            C         Rust          +0µs
 Python bindings                     C         PyO3          +50-100µs
@@ -197,7 +197,7 @@ let db = self.db.lock();  // ~3-5µs (no poisoning check)
 
 ### 1. Educational Database Goals
 
-nistmemsql prioritizes:
+vibesql prioritizes:
 - ✅ SQL:1999 compliance over raw performance
 - ✅ Clear, understandable code over micro-optimizations
 - ✅ Educational value over production benchmarks
@@ -235,7 +235,7 @@ The performance gap is an **architectural choice**, not a missing optimization:
 - ❌ Harder to understand/modify
 - ❌ Not suitable for learning
 
-**Option B (nistmemsql approach)**: Rust implementation + PyO3 bindings
+**Option B (vibesql approach)**: Rust implementation + PyO3 bindings
 - ✅ Memory safe
 - ✅ Clear, educational code
 - ✅ Easy to extend
@@ -324,11 +324,11 @@ if let Some(table_name) = self.is_simple_count_star(stmt) {
 We built comprehensive profiling into the Python bindings:
 
 ```python
-import nistmemsql
+import vibesql
 
-nistmemsql.enable_profiling()  # Enable detailed timing
+vibesql.enable_profiling()  # Enable detailed timing
 
-conn = nistmemsql.connect()
+conn = vibesql.connect()
 cursor = conn.cursor()
 cursor.execute("SELECT COUNT(*) FROM table")  # Prints detailed breakdown
 ```
@@ -348,7 +348,7 @@ cursor.execute("SELECT COUNT(*) FROM table")  # Prints detailed breakdown
 
 ## Conclusion
 
-**After implementing parking_lot::Mutex optimization, nistmemsql now matches or beats SQLite performance on most operations!**
+**After implementing parking_lot::Mutex optimization, vibesql now matches or beats SQLite performance on most operations!**
 
 Our profiling and optimization journey proves:
 1. ✅ All major optimizations are implemented and working correctly

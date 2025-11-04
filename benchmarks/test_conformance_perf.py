@@ -9,14 +9,14 @@ import sqlite3
 import time
 
 
-def test_nist_e011_basic_aggregates(benchmark, sqlite_connection, nistmemsql_connection):
+def test_nist_e011_basic_aggregates(benchmark, sqlite_connection, vibesql_connection):
     """
     E011: Basic Aggregates (COUNT, SUM, AVG, MIN, MAX)
 
     Test performance of basic aggregation functions.
     """
     setup_nist_test_data(sqlite_connection)
-    # setup_nist_test_data(nistmemsql_connection)
+    # setup_nist_test_data(vibesql_connection)
 
     def run_e011_tests():
         # Test queries from E011 feature
@@ -39,20 +39,20 @@ def test_nist_e011_basic_aggregates(benchmark, sqlite_connection, nistmemsql_con
         """)
 
         # nistmemsql tests would go here
-        # nistmemsql_cursor = nistmemsql_connection.cursor()
+        # nistmemsql_cursor = vibesql_connection.cursor()
         # ... same queries ...
 
     benchmark(run_e011_tests)
 
 
-def test_nist_f031_basic_outer_join(benchmark, sqlite_connection, nistmemsql_connection):
+def test_nist_f031_basic_outer_join(benchmark, sqlite_connection, vibesql_connection):
     """
     F031: Basic Outer Join (LEFT, RIGHT, FULL)
 
     Test performance of outer join operations.
     """
     setup_nist_join_data(sqlite_connection)
-    # setup_nist_join_data(nistmemsql_connection)
+    # setup_nist_join_data(vibesql_connection)
 
     def run_f031_tests():
         sqlite_cursor = sqlite_connection.cursor()
@@ -83,20 +83,20 @@ def test_nist_f031_basic_outer_join(benchmark, sqlite_connection, nistmemsql_con
             pass
 
         # nistmemsql tests would go here
-        # nistmemsql_cursor = nistmemsql_connection.cursor()
+        # nistmemsql_cursor = vibesql_connection.cursor()
         # ... same queries ...
 
     benchmark(run_f031_tests)
 
 
-def test_nist_f041_basic_join(benchmark, sqlite_connection, nistmemsql_connection):
+def test_nist_f041_basic_join(benchmark, sqlite_connection, vibesql_connection):
     """
     F041: Basic Join (INNER, various join conditions)
 
     Test performance of inner join operations.
     """
     setup_nist_join_data(sqlite_connection)
-    # setup_nist_join_data(nistmemsql_connection)
+    # setup_nist_join_data(vibesql_connection)
 
     def run_f041_tests():
         sqlite_cursor = sqlite_connection.cursor()

@@ -12,9 +12,9 @@ This document tracks the progress of breaking down large files (500+ lines) into
 
 | Component | Original Size | Target Size | Current Status | PR | Priority |
 |-----------|--------------|-------------|----------------|-----|----------|
-| `table.rs` | 703 lines | < 300 lines | ✅ **Phase 1 Complete** | [#853](https://github.com/rjwalters/nistmemsql/pull/853) MERGED | 🔴 Critical |
-| `update.rs` | 546 lines | < 200 lines | 🟡 **In Review** | [#852](https://github.com/rjwalters/nistmemsql/pull/852) OPEN | 🔴 Critical |
-| `evaluator/core.rs` | 523 lines | < 200 lines | ✅ **Judge Approved** | [#854](https://github.com/rjwalters/nistmemsql/pull/854) OPEN | 🟡 High |
+| `table.rs` | 703 lines | < 300 lines | ✅ **Phase 1 Complete** | [#853](https://github.com/rjwalters/vibesql/pull/853) MERGED | 🔴 Critical |
+| `update.rs` | 546 lines | < 200 lines | 🟡 **In Review** | [#852](https://github.com/rjwalters/vibesql/pull/852) OPEN | 🔴 Critical |
+| `evaluator/core.rs` | 523 lines | < 200 lines | ✅ **Judge Approved** | [#854](https://github.com/rjwalters/vibesql/pull/854) OPEN | 🟡 High |
 | `main.ts` | 531 lines | < 150 lines | ⏳ **Not Started** | N/A | 🟡 High |
 | `ConformanceReport.ts` | 510 lines | < 150 lines | ⏳ **Not Started** | N/A | 🟡 High |
 
@@ -24,7 +24,7 @@ This document tracks the progress of breaking down large files (500+ lines) into
 
 ### 1. ✅ table.rs Refactoring (Issue #842) - PHASE 1 COMPLETE
 
-**PR #853**: [refactor: Extract index management into IndexManager module (Phase 1)](https://github.com/rjwalters/nistmemsql/pull/853)
+**PR #853**: [refactor: Extract index management into IndexManager module (Phase 1)](https://github.com/rjwalters/vibesql/pull/853)
 **Status**: ✅ MERGED (2025-11-03)
 **Progress**: Phase 1/4 complete
 
@@ -50,7 +50,7 @@ This document tracks the progress of breaking down large files (500+ lines) into
 
 ### 2. 🟡 update.rs Refactoring (Issue #843) - IN REVIEW
 
-**PR #852**: [refactor: Break down update.rs into modular components](https://github.com/rjwalters/nistmemsql/pull/852)
+**PR #852**: [refactor: Break down update.rs into modular components](https://github.com/rjwalters/vibesql/pull/852)
 **Status**: 🟡 OPEN with `loom:review-requested` label
 **Progress**: Implementation complete, awaiting Judge review
 
@@ -77,7 +77,7 @@ This document tracks the progress of breaking down large files (500+ lines) into
 
 ### 3. ✅ evaluator/core.rs Refactoring (Issue #844) - APPROVED
 
-**PR #854**: [refactor: Simplify evaluator/core.rs with trait-based operator system](https://github.com/rjwalters/nistmemsql/pull/854)
+**PR #854**: [refactor: Simplify evaluator/core.rs with trait-based operator system](https://github.com/rjwalters/vibesql/pull/854)
 **Status**: ✅ OPEN with `loom:pr` label (Judge approved)
 **Progress**: Implementation complete and approved, ready to merge
 
@@ -226,9 +226,9 @@ All refactoring work follows these principles:
 ## Related Work
 
 ### Recent Optimizations That Increased Complexity
-- [#839](https://github.com/rjwalters/nistmemsql/pull/839): UPDATE optimization with selective index maintenance
-- [#840](https://github.com/rjwalters/nistmemsql/pull/840): INSERT performance optimization
-- [#841](https://github.com/rjwalters/nistmemsql/pull/841): Cursor-level schema caching
+- [#839](https://github.com/rjwalters/vibesql/pull/839): UPDATE optimization with selective index maintenance
+- [#840](https://github.com/rjwalters/vibesql/pull/840): INSERT performance optimization
+- [#841](https://github.com/rjwalters/vibesql/pull/841): Cursor-level schema caching
 
 These valuable optimizations increased file sizes, making refactoring more important to maintain code quality while preserving performance gains.
 

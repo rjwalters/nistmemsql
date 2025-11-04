@@ -3,13 +3,13 @@
 Simple profiling test to validate instrumentation and measure operation breakdown
 """
 
-import nistmemsql
+import vibesql
 
 # Enable profiling
-nistmemsql.enable_profiling()
+vibesql.enable_profiling()
 
 # Create connection and cursor
-conn = nistmemsql.connect()
+conn = vibesql.connect()
 cursor = conn.cursor()
 
 print("=" * 80)

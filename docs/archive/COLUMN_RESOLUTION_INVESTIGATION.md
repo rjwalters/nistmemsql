@@ -2,7 +2,7 @@
 
 **Status**: Investigation Complete
 **Date**: 2025-10-29
-**Issue**: https://github.com/rjwalters/nistmemsql/issues/383
+**Issue**: https://github.com/rjwalters/vibesql/issues/383
 
 ## Summary
 

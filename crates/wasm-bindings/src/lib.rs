@@ -77,7 +77,7 @@ impl Database {
 
     /// Returns the version string
     pub fn version(&self) -> String {
-        "nistmemsql-wasm 0.1.0".to_string()
+        "vibesql-wasm 0.1.0".to_string()
     }
 
     /// Lists all table names in the database

@@ -69,7 +69,7 @@ Runs the test suite and generates all reports with proper error handling.
 The analysis runs automatically in CI on every push. Results are:
 
 1. **Uploaded as artifacts**: Available for download from GitHub Actions
-2. **Deployed to GitHub Pages**: Available at `https://rjwalters.github.io/nistmemsql/badges/`
+2. **Deployed to GitHub Pages**: Available at `https://rjwalters.github.io/vibesql/badges/`
    - `sqllogictest_analysis.json` - JSON summary
    - `sqllogictest_analysis.md` - Markdown report
 
@@ -82,8 +82,8 @@ The analysis runs automatically in CI on every push. Results are:
 4. Download "test-results" artifact
 
 **On GitHub Pages**:
-- JSON: https://rjwalters.github.io/nistmemsql/badges/sqllogictest_analysis.json
-- Markdown: https://rjwalters.github.io/nistmemsql/badges/sqllogictest_analysis.md
+- JSON: https://rjwalters.github.io/vibesql/badges/sqllogictest_analysis.json
+- Markdown: https://rjwalters.github.io/vibesql/badges/sqllogictest_analysis.md
 
 ## Output Format
 
@@ -198,7 +198,7 @@ fi
 
 Ensure you're running from the repository root:
 ```bash
-cd /path/to/nistmemsql
+cd /path/to/vibesql
 ./scripts/run_sqllogictest_analysis.sh
 ```
 

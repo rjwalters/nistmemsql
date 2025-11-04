@@ -7,7 +7,7 @@ license.workspace = true
 repository.workspace = true
 
 [lib]
-name = "nistmemsql_wasm"
+name = "vibesql_wasm"
 crate-type = ["cdylib"]
 
 [dependencies]

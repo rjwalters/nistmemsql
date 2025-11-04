@@ -10,12 +10,12 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '.venv/lib/python3.12/site-packages'))
 
-import nistmemsql
+import vibesql
 
 
-def profile_nistmemsql_delete(num_rows=1000):
-    """Profile nistmemsql DELETE operation."""
-    db = nistmemsql.connect()
+def profile_vibesql_delete(num_rows=1000):
+    """Profile vibesql DELETE operation."""
+    db = vibesql.connect()
     cursor = db.cursor()
 
     # Setup with PRIMARY KEY
@@ -30,7 +30,7 @@ def profile_nistmemsql_delete(num_rows=1000):
     for i in range(num_rows):
         cursor.execute(f"INSERT INTO test_table (id, name, value) VALUES ({i}, 'name_{i % 100}', {i * 10})")
 
-    print(f"nistmemsql: Inserted {num_rows} rows")
+    print(f"vibesql: Inserted {num_rows} rows")
 
     # Profile DELETE with WHERE on PRIMARY KEY
     delete_start = time.perf_counter()
@@ -85,17 +85,17 @@ def main():
 
     num_rows = 1000
 
-    nist_time = profile_nistmemsql_delete(num_rows)
+    nist_time = profile_vibesql_delete(num_rows)
     sqlite_time = profile_sqlite_delete(num_rows)
 
     print(f"\n{'=' * 60}")
     print("Summary:")
     print(f"{'=' * 60}")
-    print(f"nistmemsql: {nist_time * 1000:.2f}ms ({nist_time / num_rows * 1_000_000:.2f}μs per delete)")
+    print(f"vibesql: {nist_time * 1000:.2f}ms ({nist_time / num_rows * 1_000_000:.2f}μs per delete)")
     print(f"SQLite:     {sqlite_time * 1000:.2f}ms ({sqlite_time / num_rows * 1_000_000:.2f}μs per delete)")
     print(f"Ratio:      {nist_time / sqlite_time:.2f}x slower")
 
-    print(f"\nIf PRIMARY KEY index is working, nistmemsql should be close to SQLite speed.")
+    print(f"\nIf PRIMARY KEY index is working, vibesql should be close to SQLite speed.")
     print(f"Current gap suggests: {'✅ Optimization working' if nist_time / sqlite_time < 5 else '❌ Optimization not working or other overhead'}")
 
 

@@ -34,7 +34,7 @@ If you just cloned the repository:
 
 ```bash
 # Clone with submodules
-git clone --recurse-submodules https://github.com/rjwalters/nistmemsql.git
+git clone --recurse-submodules https://github.com/rjwalters/vibesql.git
 
 # Or if already cloned
 git submodule update --init --recursive

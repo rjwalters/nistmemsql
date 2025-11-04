@@ -1,7 +1,7 @@
 /**
  * Benchmark results page
  *
- * Loads and displays performance benchmark data comparing nistmemsql to SQLite.
+ * Loads and displays performance benchmark data comparing VibeSQL to SQLite.
  */
 
 import './styles/main.css';
@@ -50,7 +50,7 @@ function formatTime(seconds: number): string {
  * Parse benchmark name to extract database and operation info
  */
 function parseBenchmarkName(name: string): { operation: string; database: string } {
-  // Example names: "test_simple_select_1k_nistmemsql", "test_simple_select_1k_sqlite", "test_simple_select_1k_duckdb"
+  // Example names: "test_simple_select_1k_vibesql", "test_simple_select_1k_sqlite", "test_simple_select_1k_duckdb"
   const parts = name.split('_');
   const database = parts[parts.length - 1]; // Last part is database name
 
@@ -82,8 +82,8 @@ function groupBenchmarksByOperation(benchmarks: Benchmark[]): Map<string, Map<st
 /**
  * Calculate speedup factor
  */
-function calculateSpeedup(nistmemsql: number, sqlite: number): number {
-  return sqlite / nistmemsql;
+function calculateSpeedup(vibesql: number, sqlite: number): number {
+  return sqlite / vibesql;
 }
 
 /**
@@ -101,11 +101,11 @@ function renderResultsTable(data: BenchmarkResults) {
   let comparisonCount = 0;
 
   for (const [operation, databases] of grouped.entries()) {
-    const nistmemsql = databases.get('nistmemsql');
+    const vibesql = databases.get('vibesql');
     const sqlite = databases.get('sqlite');
     const duckdb = databases.get('duckdb');
 
-    if (!nistmemsql && !sqlite && !duckdb) continue;
+    if (!vibesql && !sqlite && !duckdb) continue;
 
     const row = document.createElement('tr');
     row.className = 'hover:bg-card/50 transition-colors';
@@ -116,11 +116,11 @@ function renderResultsTable(data: BenchmarkResults) {
     opCell.textContent = operation.replace(/_/g, ' ').toUpperCase();
     row.appendChild(opCell);
 
-    // nistmemsql time
-    const nistCell = document.createElement('td');
-    nistCell.className = 'px-4 py-3 text-right text-muted';
-    nistCell.textContent = nistmemsql ? formatTime(nistmemsql.stats.mean) : 'N/A';
-    row.appendChild(nistCell);
+    // vibesql time
+    const vibesqlCell = document.createElement('td');
+    vibesqlCell.className = 'px-4 py-3 text-right text-muted';
+    vibesqlCell.textContent = vibesql ? formatTime(vibesql.stats.mean) : 'N/A';
+    row.appendChild(vibesqlCell);
 
     // SQLite time
     const sqliteCell = document.createElement('td');
@@ -138,8 +138,8 @@ function renderResultsTable(data: BenchmarkResults) {
     const speedupCell = document.createElement('td');
     speedupCell.className = 'px-4 py-3 text-right font-semibold';
 
-    if (nistmemsql && sqlite) {
-      const speedup = calculateSpeedup(nistmemsql.stats.mean, sqlite.stats.mean);
+    if (vibesql && sqlite) {
+      const speedup = calculateSpeedup(vibesql.stats.mean, sqlite.stats.mean);
       speedupCell.textContent = `${speedup.toFixed(2)}x`;
 
       if (speedup > 1) {
@@ -163,8 +163,8 @@ function renderResultsTable(data: BenchmarkResults) {
     const winnerCell = document.createElement('td');
     winnerCell.className = 'px-4 py-3 text-center text-2xl';
 
-    if (nistmemsql && sqlite) {
-      const speedup = calculateSpeedup(nistmemsql.stats.mean, sqlite.stats.mean);
+    if (vibesql && sqlite) {
+      const speedup = calculateSpeedup(vibesql.stats.mean, sqlite.stats.mean);
       winnerCell.textContent = speedup > 1 ? '🚀' : speedup < 1 ? '🐌' : '🤝';
     } else {
       winnerCell.textContent = '-';
@@ -215,18 +215,18 @@ function renderChart(data: BenchmarkResults) {
   const grouped = groupBenchmarksByOperation(data.benchmarks);
 
   const labels: string[] = [];
-  const nistmemsqlData: number[] = [];
+  const vibesqlData: number[] = [];
   const sqliteData: number[] = [];
   const duckdbData: number[] = [];
 
   for (const [operation, databases] of grouped.entries()) {
-    const nistmemsql = databases.get('nistmemsql');
+    const vibesql = databases.get('vibesql');
     const sqlite = databases.get('sqlite');
     const duckdb = databases.get('duckdb');
 
-    if (nistmemsql || sqlite || duckdb) {
+    if (vibesql || sqlite || duckdb) {
       labels.push(operation.replace(/_/g, ' ').toUpperCase());
-      nistmemsqlData.push(nistmemsql ? nistmemsql.stats.mean * 1000 : 0); // Convert to ms
+      vibesqlData.push(vibesql ? vibesql.stats.mean * 1000 : 0); // Convert to ms
       sqliteData.push(sqlite ? sqlite.stats.mean * 1000 : 0);
       duckdbData.push(duckdb ? duckdb.stats.mean * 1000 : 0);
     }
@@ -238,8 +238,8 @@ function renderChart(data: BenchmarkResults) {
       labels,
       datasets: [
         {
-          label: 'nistmemsql',
-          data: nistmemsqlData,
+          label: 'VibeSQL',
+          data: vibesqlData,
           backgroundColor: 'rgba(34, 197, 94, 0.5)',
           borderColor: 'rgba(34, 197, 94, 1)',
           borderWidth: 1,
@@ -307,7 +307,7 @@ function renderChart(data: BenchmarkResults) {
  */
 async function loadBenchmarkData() {
   try {
-    const response = await fetch('/nistmemsql/benchmarks/benchmark_results.json');
+    const response = await fetch('/vibesql/benchmarks/benchmark_results.json');
 
     if (!response.ok) {
       throw new Error(`Failed to load benchmark data: ${response.status}`);

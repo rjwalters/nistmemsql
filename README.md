@@ -1,14 +1,14 @@
-# NIST-Compatible SQL:1999 Database
+# VibeSQL: AI-Powered SQL:1999 Database
 
-[![CI and Deploy](https://github.com/rjwalters/nistmemsql/actions/workflows/ci-and-deploy.yml/badge.svg)](https://github.com/rjwalters/nistmemsql/actions/workflows/ci-and-deploy.yml)
-[![Demo](https://img.shields.io/badge/demo-live-success)](https://rjwalters.github.io/nistmemsql/)
-[![Coverage](https://img.shields.io/badge/coverage-86%25-green)](https://github.com/rjwalters/nistmemsql)
-[![sqltest](https://img.shields.io/endpoint?url=https://rjwalters.github.io/nistmemsql/badges/sql1999-conformance.json)](https://rjwalters.github.io/nistmemsql/conformance.html)
-[![SQLLogicTest](https://img.shields.io/endpoint?url=https://rjwalters.github.io/nistmemsql/badges/sqllogictest.json)](https://rjwalters.github.io/nistmemsql/conformance.html#SQLlogicTest)
+[![CI and Deploy](https://github.com/rjwalters/vibesql/actions/workflows/ci-and-deploy.yml/badge.svg)](https://github.com/rjwalters/vibesql/actions/workflows/ci-and-deploy.yml)
+[![Demo](https://img.shields.io/badge/demo-live-success)](https://rjwalters.github.io/vibesql/)
+[![Coverage](https://img.shields.io/badge/coverage-86%25-green)](https://github.com/rjwalters/vibesql)
+[![sqltest](https://img.shields.io/endpoint?url=https://rjwalters.github.io/vibesql/badges/sql1999-conformance.json)](https://rjwalters.github.io/vibesql/conformance.html)
+[![SQLLogicTest](https://img.shields.io/endpoint?url=https://rjwalters.github.io/vibesql/badges/sqllogictest.json)](https://rjwalters.github.io/vibesql/conformance.html#SQLlogicTest)
 
-> **An open-source, NIST-testable SQL:1999 database implementation in Rust**
+> **VibeSQL - AI-powered, SQL:1999 database implementation in Rust**
 
-🚀 **[Try the Live Demo](https://rjwalters.github.io/nistmemsql/)** - Run SQL queries in your browser!
+🚀 **[Try the Live Demo](https://rjwalters.github.io/vibesql/)** - Run SQL queries in your browser!
 
 ---
 
@@ -28,7 +28,7 @@ Build a **FULL SQL:1999 compliant** database from scratch, designed for NIST con
 - Implement all mandatory + optional features (400+)
 - Timeline: A larger effort, but not years
 - Unprecedented achievement
-- Aligns with [upstream posix4e/nistmemsql](https://github.com/posix4e/nistmemsql) vision
+- Inspired by the [posix4e/nistmemsql challenge](https://github.com/posix4e/nistmemsql)
 
 **Note**: PostgreSQL, Oracle, and SQL Server implement Core + selective optional features. This is an AI-powered "speed run" to demonstrate rapid standards compliance.
 
@@ -89,7 +89,7 @@ We use comprehensive test suites to track SQL:1999 compliance:
 - ✅ **Type aliases** - CHARACTER, CHARACTER VARYING (#462)
 - ✅ **Code quality** - Zero clippy warnings (#493, #494, #496, #498)
 
-**See [SQL:1999 Conformance Report](https://rjwalters.github.io/nistmemsql/conformance.html) for detailed test results and remaining work.**
+**See [SQL:1999 Conformance Report](https://rjwalters.github.io/vibesql/conformance.html) for detailed test results and remaining work.**
 
 ### Running Tests
 
@@ -323,7 +323,7 @@ This isn't just about databases. It's about understanding what's now possible wi
 **Day 8 (Nov 1, 2025)** - Conformance Test Harness
 - [ ] NIST SQL Test Suite v6.0 integration
 - [ ] SQL:1999 Core feature validator (Mimer taxonomy)
-- [ ] Automated test harness: `nistmemsql test` + `nistmemsql validate`
+- [ ] Automated test harness: `vibesql test` + `vibesql validate`
 - [ ] Run tests via Rust API, CLI, and WASM
 - [ ] Publish conformance badges (≥90% NIST, 100% Core features)
 - [ ] Document compliance level
@@ -406,7 +406,7 @@ Core compliance is about SQL language semantics, not client protocols.
 
 ## 🌐 Live Demo
 
-**[Try it now →](https://rjwalters.github.io/nistmemsql/)**
+**[Try it now →](https://rjwalters.github.io/vibesql/)**
 
 Run SQL queries directly in your browser with **zero setup**:
 - **Pre-loaded Sample Data** - 6 employee records ready to query
@@ -437,8 +437,8 @@ SELECT department, COUNT(*) as count FROM employees GROUP BY department;
 
 ```bash
 # Clone the repository with submodules (includes SQLite reference source)
-git clone --recurse-submodules https://github.com/rjwalters/nistmemsql.git
-cd nistmemsql
+git clone --recurse-submodules https://github.com/rjwalters/vibesql.git
+cd vibesql
 
 # If already cloned, initialize submodules
 git submodule update --init --recursive
@@ -468,10 +468,10 @@ python3
 ```
 
 ```python
-import nistmemsql
+import vibesql
 
 # Create database connection
-db = nistmemsql.connect()
+db = vibesql.connect()
 cursor = db.cursor()
 
 # Create table and insert data
@@ -512,12 +512,12 @@ python3 benchmarks/python_overhead.py
 
 ```bash
 # Build and run the CLI
-cargo run --bin nistmemsql
+cargo run --bin vibesql
 
 # Try some SQL
-nistmemsql> CREATE TABLE users (id INTEGER, name VARCHAR(50));
-nistmemsql> INSERT INTO users VALUES (1, 'Alice');
-nistmemsql> SELECT * FROM users;
+vibesql> CREATE TABLE users (id INTEGER, name VARCHAR(50));
+vibesql> INSERT INTO users VALUES (1, 'Alice');
+vibesql> SELECT * FROM users;
 ```
 
 ---
@@ -682,7 +682,7 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 ## 🙏 Acknowledgments
 
-- Based on the [posix4e/nistmemsql](https://github.com/posix4e/nistmemsql) challenge
+- Inspired by the [posix4e/nistmemsql](https://github.com/posix4e/nistmemsql) challenge
 - Built with [Loom](https://github.com/loomhq/loom) AI orchestration
 - Powered by Rust 🦀 and Claude Code
 - NIST SQL:1999 standard compliance guidance
@@ -702,4 +702,4 @@ MIT License - See [LICENSE](LICENSE) for details.
 2. Production readiness (ODBC/JDBC, advanced optimizations)
 3. Real-world validation (TPC-H benchmarks, production workloads)
 
-**Try it now**: [Live Demo →](https://rjwalters.github.io/nistmemsql/)
+**Try it now**: [Live Demo →](https://rjwalters.github.io/vibesql/)

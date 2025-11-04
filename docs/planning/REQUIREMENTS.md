@@ -1,7 +1,10 @@
 # Project Requirements Specification
 
 ## Overview
-This document captures the complete requirements for the NIST-compatible in-memory SQL database project, based on upstream issue discussions.
+This document captures the complete requirements for VibeSQL, a NIST-compatible in-memory SQL database project.
+
+> **Note**: These requirements originated from the posix4e/nistmemsql challenge.
+> This project (VibeSQL) has since evolved independently with AI-first methodology using Loom orchestration.
 
 ## Core Requirements
 

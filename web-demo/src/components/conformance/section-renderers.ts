@@ -18,7 +18,7 @@ export function renderMetadataCard(commit: string, timestamp: string, passRate: 
         <div>
           <span class="text-gray-600 dark:text-gray-400">Commit:</span>
           <a
-            href="https://github.com/rjwalters/nistmemsql/commit/${commit}"
+            href="https://github.com/rjwalters/vibesql/commit/${commit}"
             target="_blank"
             class="ml-2 text-blue-600 dark:text-blue-400 hover:underline font-mono"
           >

@@ -3,10 +3,10 @@
 Test to verify COUNT(*) fast path is working.
 """
 import time
-import nistmemsql
+import vibesql
 
 # Create database and table
-db = nistmemsql.connect()
+db = vibesql.connect()
 cursor = db.cursor()
 cursor.execute("CREATE TABLE test_table (id INT, name VARCHAR(100), value INT)")
 

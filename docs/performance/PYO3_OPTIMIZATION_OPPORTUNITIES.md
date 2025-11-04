@@ -486,7 +486,7 @@ With executemany() for Batch INSERT (1000 rows):
 
 **The "architectural gap" was NOT fundamental** - it was fixable, and we fixed it!
 
-### Recommendations for nistmemsql
+### Recommendations for vibesql
 
 - ✅ **DONE**: parking_lot::Mutex - Exceptional results achieved
 - ⏳ **Optional**: Phase 2 optimizations (executemany, iterators) - Nice to have, not critical

@@ -80,7 +80,7 @@ The CI pipeline automatically runs conformance tests and generates compliance ar
    ```
 
 3. **Deployment**: Badge and results deployed to GitHub Pages
-   - **Badge Endpoint**: https://rjwalters.github.io/nistmemsql/badges/sql1999-conformance.json
+   - **Badge Endpoint**: https://rjwalters.github.io/vibesql/badges/sql1999-conformance.json
    - **README Badge**: Displays live conformance percentage (README.md:7)
 
 **Compliance Report Generation**: `scripts/generate_compliance_report.sh`
@@ -429,7 +429,7 @@ Coverage commands are defined as Cargo aliases in `.cargo/config.toml`, so the i
 4. **Badge Generation**: `.github/workflows/deploy-demo.yml` (lines 76-111)
 5. **Compliance Reporting**: `scripts/generate_compliance_report.sh`
 6. **Compliance Report**: `docs/SQL1999_CONFORMANCE.md` (auto-generated)
-7. **Badge Endpoint**: https://rjwalters.github.io/nistmemsql/badges/sql1999-conformance.json
+7. **Badge Endpoint**: https://rjwalters.github.io/vibesql/badges/sql1999-conformance.json
 8. **Test Results**: `target/sqltest_results.json` (generated after test runs)
 
 ### External Resources

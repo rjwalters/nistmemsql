@@ -1,4 +1,4 @@
-//! Python bindings for nistmemsql using PyO3
+//! Python bindings for vibesql using PyO3
 //!
 //! This module provides Python bindings following DB-API 2.0 conventions
 //! to expose the Rust database library to Python for benchmarking and usage.
@@ -16,9 +16,9 @@ use pyo3::types::{PyList, PyTuple};
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 
-pyo3::create_exception!(nistmemsql, DatabaseError, PyException);
-pyo3::create_exception!(nistmemsql, OperationalError, DatabaseError);
-pyo3::create_exception!(nistmemsql, ProgrammingError, DatabaseError);
+pyo3::create_exception!(vibesql, DatabaseError, PyException);
+pyo3::create_exception!(vibesql, OperationalError, DatabaseError);
+pyo3::create_exception!(vibesql, ProgrammingError, DatabaseError);
 
 /// Converts a Rust SqlValue to a Python object
 fn sqlvalue_to_py(py: Python, value: &types::SqlValue) -> PyResult<Py<PyAny>> {
@@ -90,7 +90,7 @@ fn py_to_sqlvalue(_py: Python, obj: &Bound<'_, PyAny>) -> PyResult<types::SqlVal
 
 /// Database connection object
 ///
-/// Represents a connection to an in-memory nistmemsql database.
+/// Represents a connection to an in-memory vibesql database.
 #[pyclass]
 struct Database {
     db: Arc<Mutex<storage::Database>>,
@@ -129,7 +129,7 @@ impl Database {
 
     /// Get version string
     fn version(&self) -> String {
-        "nistmemsql-py 0.1.0".to_string()
+        "vibesql-py 0.1.0".to_string()
     }
 }
 
@@ -637,7 +637,7 @@ fn disable_profiling() {
 
 /// Python module initialization
 #[pymodule]
-fn nistmemsql(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn vibesql(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(connect, m)?)?;
     m.add_function(wrap_pyfunction!(enable_profiling, m)?)?;
     m.add_function(wrap_pyfunction!(disable_profiling, m)?)?;

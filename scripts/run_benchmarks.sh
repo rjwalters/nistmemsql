@@ -1,14 +1,14 @@
 #!/bin/bash
 set -e
 
-echo "=== Running nistmemsql Benchmarks ==="
+echo "=== Running vibesql Benchmarks ==="
 echo ""
 
 # Ensure Python bindings are installed
-echo "Building optimized nistmemsql with PyO3..."
+echo "Building optimized vibesql with PyO3..."
 cd crates/python-bindings
 maturin build --release
-uv pip install --force-reinstall target/wheels/nistmemsql-*.whl
+uv pip install --force-reinstall target/wheels/vibesql-*.whl
 cd ../..
 
 # Install benchmark dependencies

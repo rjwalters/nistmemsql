@@ -1,6 +1,6 @@
 # Weekly Lessons
 
-This document tracks week-by-week learnings during the nistmemsql project.
+This document tracks week-by-week learnings during the VibeSQL project.
 
 ## Format
 
