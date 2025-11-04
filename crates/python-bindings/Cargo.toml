@@ -13,6 +13,7 @@ crate-type = ["cdylib"]
 [dependencies]
 pyo3 = { workspace = true }
 lru = "0.12"
+parking_lot = "0.12"
 
 # Internal crates
 types = { path = "../types" }

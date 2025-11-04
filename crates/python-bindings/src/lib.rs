@@ -6,12 +6,15 @@
 // Suppress PyO3 macro warnings
 #![allow(non_local_definitions)]
 
+mod profiling;
+
 use lru::LruCache;
+use parking_lot::Mutex;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::types::{PyList, PyTuple};
 use std::num::NonZeroUsize;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 pyo3::create_exception!(nistmemsql, DatabaseError, PyException);
 pyo3::create_exception!(nistmemsql, OperationalError, DatabaseError);
@@ -184,21 +187,27 @@ impl Cursor {
         sql: &str,
         params: Option<&Bound<'_, PyTuple>>,
     ) -> PyResult<()> {
+        let mut profiler = profiling::DetailedProfiler::new("execute()");
+
         // Use the original SQL (with ? placeholders) as the cache key
         let cache_key = sql.to_string();
+        profiler.checkpoint("SQL string copied");
 
         // Check if we have a cached parsed AST for this SQL
-        let mut cache = self.stmt_cache.lock().unwrap();
+        let mut cache = self.stmt_cache.lock();
+        profiler.checkpoint("Acquired cache lock");
         let stmt = if let Some(cached_stmt) = cache.get(&cache_key) {
             // Cache hit! Clone the cached AST before releasing lock
             let cloned_stmt = cached_stmt.clone();
             drop(cache); // Release cache lock before updating stats
-            *self.cache_hits.lock().unwrap() += 1;
+            *self.cache_hits.lock() += 1;
+            profiler.checkpoint("Cache HIT - stmt cloned");
             cloned_stmt
         } else {
             // Cache miss - need to parse
             drop(cache); // Release cache lock before parsing
-            *self.cache_misses.lock().unwrap() += 1;
+            *self.cache_misses.lock() += 1;
+            profiler.checkpoint("Cache MISS - need to parse");
 
             // Process SQL with parameter substitution if params are provided
             let processed_sql = if let Some(params_tuple) = params {
@@ -274,36 +283,44 @@ impl Cursor {
             // Parse the processed SQL
             let stmt = parser::Parser::parse_sql(&processed_sql)
                 .map_err(|e| ProgrammingError::new_err(format!("Parse error: {:?}", e)))?;
+            profiler.checkpoint("SQL parsed to AST");
 
             // Store the parsed AST in cache for future reuse
-            let mut cache = self.stmt_cache.lock().unwrap();
+            let mut cache = self.stmt_cache.lock();
             cache.put(cache_key.clone(), stmt.clone());
             drop(cache);
+            profiler.checkpoint("AST cached");
 
             stmt
         };
 
+        profiler.checkpoint("Statement ready for execution");
+
         // Execute based on statement type
         match stmt {
             ast::Statement::Select(select_stmt) => {
-                let db = self.db.lock().unwrap();
+                let db = self.db.lock();
+                profiler.checkpoint("Database lock acquired (SELECT)");
                 let select_executor = executor::SelectExecutor::new(&db);
+                profiler.checkpoint("SelectExecutor created");
                 let result = select_executor
                     .execute_with_columns(&select_stmt)
                     .map_err(|e| OperationalError::new_err(format!("Execution error: {:?}", e)))?;
+                profiler.checkpoint("SELECT executed in Rust");
 
                 self.last_result =
                     Some(QueryResultData::Select { columns: result.columns, rows: result.rows });
+                profiler.checkpoint("Result stored");
 
                 Ok(())
             }
             ast::Statement::CreateTable(create_stmt) => {
-                let mut db = self.db.lock().unwrap();
+                let mut db = self.db.lock();
                 executor::CreateTableExecutor::execute(&create_stmt, &mut db)
                     .map_err(|e| OperationalError::new_err(format!("Execution error: {:?}", e)))?;
 
                 // Clear both statement and schema caches on schema change
-                let mut cache = self.stmt_cache.lock().unwrap();
+                let mut cache = self.stmt_cache.lock();
                 cache.clear();
                 drop(cache);
                 self.clear_schema_cache();
@@ -316,12 +333,12 @@ impl Cursor {
                 Ok(())
             }
             ast::Statement::DropTable(drop_stmt) => {
-                let mut db = self.db.lock().unwrap();
+                let mut db = self.db.lock();
                 let message = executor::DropTableExecutor::execute(&drop_stmt, &mut db)
                     .map_err(|e| OperationalError::new_err(format!("Execution error: {:?}", e)))?;
 
                 // Clear both statement and schema caches on schema change
-                let mut cache = self.stmt_cache.lock().unwrap();
+                let mut cache = self.stmt_cache.lock();
                 cache.clear();
                 drop(cache);
                 self.clear_schema_cache();
@@ -331,9 +348,11 @@ impl Cursor {
                 Ok(())
             }
             ast::Statement::Insert(insert_stmt) => {
-                let mut db = self.db.lock().unwrap();
+                let mut db = self.db.lock();
+                profiler.checkpoint("Database lock acquired (INSERT)");
                 let row_count = executor::InsertExecutor::execute(&mut db, &insert_stmt)
                     .map_err(|e| OperationalError::new_err(format!("Execution error: {:?}", e)))?;
+                profiler.checkpoint("INSERT executed in Rust");
 
                 self.last_result = Some(QueryResultData::Execute {
                     rows_affected: row_count,
@@ -344,20 +363,24 @@ impl Cursor {
                         insert_stmt.table_name
                     ),
                 });
+                profiler.checkpoint("Result message created");
 
                 Ok(())
             }
             ast::Statement::Update(update_stmt) => {
                 // Use cached schema to reduce catalog lookups
                 let cached_schema = self.get_cached_schema(&update_stmt.table_name)?;
+                profiler.checkpoint("Schema cache lookup (UPDATE)");
 
-                let mut db = self.db.lock().unwrap();
+                let mut db = self.db.lock();
+                profiler.checkpoint("Database lock acquired (UPDATE)");
                 let row_count = executor::UpdateExecutor::execute_with_schema(
                     &update_stmt,
                     &mut db,
                     Some(&cached_schema),
                 )
                 .map_err(|e| OperationalError::new_err(format!("Execution error: {:?}", e)))?;
+                profiler.checkpoint("UPDATE executed in Rust");
 
                 self.last_result = Some(QueryResultData::Execute {
                     rows_affected: row_count,
@@ -368,13 +391,16 @@ impl Cursor {
                         update_stmt.table_name
                     ),
                 });
+                profiler.checkpoint("Result message created");
 
                 Ok(())
             }
             ast::Statement::Delete(delete_stmt) => {
-                let mut db = self.db.lock().unwrap();
+                let mut db = self.db.lock();
+                profiler.checkpoint("Database lock acquired (DELETE)");
                 let row_count = executor::DeleteExecutor::execute(&delete_stmt, &mut db)
                     .map_err(|e| OperationalError::new_err(format!("Execution error: {:?}", e)))?;
+                profiler.checkpoint("DELETE executed in Rust");
 
                 self.last_result = Some(QueryResultData::Execute {
                     rows_affected: row_count,
@@ -385,6 +411,7 @@ impl Cursor {
                         delete_stmt.table_name
                     ),
                 });
+                profiler.checkpoint("Result message created");
 
                 Ok(())
             }
@@ -400,15 +427,19 @@ impl Cursor {
     /// Returns:
     ///     list: List of tuples, each representing a row
     fn fetchall(&mut self, py: Python) -> PyResult<Py<PyAny>> {
+        let mut profiler = profiling::DetailedProfiler::new("fetchall()");
         match &self.last_result {
             Some(QueryResultData::Select { rows, .. }) => {
+                profiler.checkpoint(&format!("Starting fetch of {} rows", rows.len()));
                 let result_list = PyList::empty(py);
+                profiler.checkpoint("Empty PyList created");
                 for row in rows {
                     let py_values: Vec<Py<PyAny>> =
                         row.values.iter().map(|v| sqlvalue_to_py(py, v).unwrap()).collect();
                     let py_row = PyTuple::new(py, py_values)?;
                     result_list.append(py_row)?;
                 }
+                profiler.checkpoint("All rows converted to Python");
                 Ok(result_list.into())
             }
             Some(QueryResultData::Execute { .. }) => {
@@ -493,8 +524,8 @@ impl Cursor {
     /// Returns:
     ///     tuple: (schema_cache_hits, schema_cache_misses, schema_hit_rate)
     fn schema_cache_stats(&self) -> PyResult<(usize, usize, f64)> {
-        let hits = *self.schema_cache_hits.lock().unwrap();
-        let misses = *self.schema_cache_misses.lock().unwrap();
+        let hits = *self.schema_cache_hits.lock();
+        let misses = *self.schema_cache_misses.lock();
         let total = hits + misses;
         let hit_rate = if total > 0 { (hits as f64) / (total as f64) } else { 0.0 };
         Ok((hits, misses, hit_rate))
@@ -505,8 +536,8 @@ impl Cursor {
     /// Returns:
     ///     tuple: (cache_hits, cache_misses, hit_rate)
     fn cache_stats(&self) -> PyResult<(usize, usize, f64)> {
-        let hits = *self.cache_hits.lock().unwrap();
-        let misses = *self.cache_misses.lock().unwrap();
+        let hits = *self.cache_hits.lock();
+        let misses = *self.cache_misses.lock();
         let total = hits + misses;
         let hit_rate = if total > 0 { (hits as f64) / (total as f64) } else { 0.0 };
         Ok((hits, misses, hit_rate))
@@ -516,7 +547,7 @@ impl Cursor {
     ///
     /// Useful for testing or when schema changes occur outside this cursor
     fn clear_cache(&mut self) -> PyResult<()> {
-        let mut cache = self.stmt_cache.lock().unwrap();
+        let mut cache = self.stmt_cache.lock();
         cache.clear();
         drop(cache);
 
@@ -538,19 +569,19 @@ impl Cursor {
     /// This reduces redundant catalog lookups during repeated operations on the same table.
     fn get_cached_schema(&self, table_name: &str) -> PyResult<catalog::TableSchema> {
         // Check cache first
-        let mut cache = self.schema_cache.lock().unwrap();
+        let mut cache = self.schema_cache.lock();
         if let Some(schema) = cache.get(table_name) {
             // Cache hit! Clone and return
             let schema = schema.clone();
             drop(cache);
-            *self.schema_cache_hits.lock().unwrap() += 1;
+            *self.schema_cache_hits.lock() += 1;
             return Ok(schema);
         }
         drop(cache);
 
         // Cache miss - look up in database catalog
-        *self.schema_cache_misses.lock().unwrap() += 1;
-        let db = self.db.lock().unwrap();
+        *self.schema_cache_misses.lock() += 1;
+        let db = self.db.lock();
         let schema = db
             .catalog
             .get_table(table_name)
@@ -559,7 +590,7 @@ impl Cursor {
         drop(db);
 
         // Store in cache for future use
-        let mut cache = self.schema_cache.lock().unwrap();
+        let mut cache = self.schema_cache.lock();
         cache.put(table_name.to_string(), schema.clone());
         drop(cache);
 
@@ -570,7 +601,7 @@ impl Cursor {
     ///
     /// Call this after DDL operations that modify table schema.
     fn invalidate_schema_cache(&self, table_name: &str) {
-        let mut cache = self.schema_cache.lock().unwrap();
+        let mut cache = self.schema_cache.lock();
         cache.pop(table_name);
     }
 
@@ -578,7 +609,7 @@ impl Cursor {
     ///
     /// Call this after any DDL operation that could affect multiple tables.
     fn clear_schema_cache(&self) {
-        let mut cache = self.schema_cache.lock().unwrap();
+        let mut cache = self.schema_cache.lock();
         cache.clear();
     }
 }
@@ -592,10 +623,24 @@ fn connect() -> PyResult<Database> {
     Ok(Database::new())
 }
 
+/// Enable performance profiling (prints detailed timing to stderr)
+#[pyfunction]
+fn enable_profiling() {
+    profiling::enable_profiling();
+}
+
+/// Disable performance profiling
+#[pyfunction]
+fn disable_profiling() {
+    profiling::disable_profiling();
+}
+
 /// Python module initialization
 #[pymodule]
 fn nistmemsql(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(connect, m)?)?;
+    m.add_function(wrap_pyfunction!(enable_profiling, m)?)?;
+    m.add_function(wrap_pyfunction!(disable_profiling, m)?)?;
     m.add_class::<Database>()?;
     m.add_class::<Cursor>()?;
     m.add("DatabaseError", m.py().get_type::<DatabaseError>())?;
