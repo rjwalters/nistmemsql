@@ -161,7 +161,17 @@ jobs:
             # Check if it's valid JSON (not an HTML error page)
             if jq empty sqllogictest_cumulative.json 2>/dev/null; then
               echo "✓ Downloaded existing cumulative results"
+              echo ""
+              echo "Baseline summary:"
               jq '.summary' sqllogictest_cumulative.json || echo "{}"
+              echo ""
+              echo "Already tested files:"
+              PASSED_COUNT=$(jq -r '.tested_files.passed | length' sqllogictest_cumulative.json)
+              FAILED_COUNT=$(jq -r '.tested_files.failed | length' sqllogictest_cumulative.json)
+              TOTAL_TESTED=$((PASSED_COUNT + FAILED_COUNT))
+              echo "  Total already tested: $TOTAL_TESTED (Passed: $PASSED_COUNT, Failed: $FAILED_COUNT)"
+              echo "  This means all ${{ matrix.runner_id }} runners will prioritize the SAME untested files"
+              echo ""
               cp sqllogictest_cumulative.json target/sqllogictest_historical.json
             else
               echo "Downloaded file is not valid JSON (likely 404 page) - starting fresh"
@@ -201,12 +211,20 @@ jobs:
             # Use timestamp + runner_id + run number as seed for variety
             SEED=$(date +%s)${RUNNER_ID}${i}
             echo "Using seed: $SEED (runner $RUNNER_ID, run $i)"
+            echo ""
 
             # Run tests with unique seed
-            SQLLOGICTEST_SEED=$SEED timeout $((TIME_BUDGET + 30)) \
+            echo "=== Starting test run ==="
+            SQLLOGICTEST_SEED=$SEED RUST_LOG=debug timeout $((TIME_BUDGET + 30)) \
               cargo test --test sqllogictest_suite --release -- --nocapture 2>&1 | \
               tee target/boost_runs/run_${RUNNER_ID}_${i}.log | \
               python3 scripts/analyze_sqllogictest.py
+
+            echo ""
+            echo "=== Test run completed ==="
+            echo "Files tested in this run (from log):"
+            grep -E "^(✓|✗) " target/boost_runs/run_${RUNNER_ID}_${i}.log | head -20 || echo "No test results found"
+            echo ""
 
             # Save this run's results
             if [ -f target/sqllogictest_analysis.json ]; then
