@@ -250,6 +250,23 @@ def main():
     print(f"Repository: {repo_root}")
     print()
 
+    # Pre-build test binary once to avoid 64x compilation
+    print("Pre-compiling test binary...")
+    try:
+        subprocess.run(
+            ["cargo", "test", "--test", "sqllogictest_suite", "--release", "--no-run"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+        )
+        print("✓ Test binary compiled")
+    except subprocess.CalledProcessError as e:
+        print(f"Error: Failed to compile test binary", file=sys.stderr)
+        print(f"stdout: {e.stdout.decode()}", file=sys.stderr)
+        print(f"stderr: {e.stderr.decode()}", file=sys.stderr)
+        return 1
+    print()
+
     # Start all workers in parallel
     from multiprocessing import Pool
 
