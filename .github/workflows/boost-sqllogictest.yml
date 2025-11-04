@@ -18,9 +18,9 @@ on:
         required: false
         default: '1'
         type: string
-  # Optional: Run automatically on a schedule (commented out by default)
-  # schedule:
-  #   - cron: '0 */6 * * *'  # Every 6 hours
+  # Automatic hourly boost: 10 parallel workers for 10 minutes (only if work remains)
+  schedule:
+    - cron: '0 * * * *'  # Every hour
 
 # Sets permissions for GitHub Pages deployment
 permissions:
@@ -34,9 +34,63 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  check-remaining-work:
+    name: Check if there are untested files
+    runs-on: ubuntu-latest
+    # Only run this check for scheduled (cron) runs
+    if: github.event_name == 'schedule'
+    outputs:
+      should_boost: ${{ steps.check.outputs.should_boost }}
+
+    steps:
+      - name: Download historical results
+        id: check
+        run: |
+          echo "Checking if there are untested SQLLogicTest files..."
+
+          # Default to boosting if we can't determine status
+          SHOULD_BOOST="true"
+
+          # Download cumulative results
+          if curl -sL https://rjwalters.github.io/vibesql/badges/sqllogictest_cumulative.json \
+            -o cumulative.json 2>/dev/null; then
+
+            if jq empty cumulative.json 2>/dev/null; then
+              COVERAGE=$(jq -r '.summary.coverage_rate // 0' cumulative.json)
+              TESTED=$(jq -r '.summary.total_tested_files // 0' cumulative.json)
+              AVAILABLE=$(jq -r '.summary.total_available_files // 0' cumulative.json)
+
+              echo "Current coverage: ${COVERAGE}%"
+              echo "Files tested: ${TESTED}/${AVAILABLE}"
+
+              # Skip if coverage is 100%
+              if [ "$COVERAGE" == "100.0" ] || [ "$TESTED" == "$AVAILABLE" ]; then
+                echo "✓ Coverage is already 100% - no work remaining!"
+                SHOULD_BOOST="false"
+              else
+                REMAINING=$((AVAILABLE - TESTED))
+                echo "📊 Found $REMAINING untested files - boost is needed"
+                SHOULD_BOOST="true"
+              fi
+            else
+              echo "⚠️  Invalid JSON - will run boost to establish baseline"
+            fi
+          else
+            echo "⚠️  No historical data found - will run boost to establish baseline"
+          fi
+
+          echo "should_boost=$SHOULD_BOOST" >> $GITHUB_OUTPUT
+
   boost-coverage:
     name: Boost SQLLogicTest Coverage (Runner ${{ matrix.runner_id }})
     runs-on: ubuntu-latest
+    # For manual runs: always run
+    # For scheduled runs: only run if check-remaining-work says there's work to do
+    needs: [check-remaining-work]
+    if: |
+      always() &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'schedule' && needs.check-remaining-work.outputs.should_boost == 'true'))
     strategy:
       fail-fast: false
       matrix:
@@ -46,7 +100,14 @@ jobs:
       - name: Check if runner should execute
         id: should_run
         run: |
-          PARALLEL_RUNNERS=${{ github.event.inputs.parallel_runners || '1' }}
+          # For scheduled runs: use 10 parallel runners
+          # For manual runs: use the specified number (default 1)
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            PARALLEL_RUNNERS=10
+          else
+            PARALLEL_RUNNERS=${{ github.event.inputs.parallel_runners || '1' }}
+          fi
+
           if [ ${{ matrix.runner_id }} -le $PARALLEL_RUNNERS ]; then
             echo "run=true" >> $GITHUB_OUTPUT
           else
@@ -114,8 +175,15 @@ jobs:
       - name: Run SQLLogicTest boost (multiple runs)
         if: steps.should_run.outputs.run == 'true'
         run: |
-          TIME_BUDGET="${{ github.event.inputs.time_budget || '300' }}"
-          RUN_COUNT="${{ github.event.inputs.run_count || '1' }}"
+          # For scheduled runs: use 10 minutes (600 seconds)
+          # For manual runs: use the specified time (default 5 minutes)
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            TIME_BUDGET="600"
+            RUN_COUNT="1"
+          else
+            TIME_BUDGET="${{ github.event.inputs.time_budget || '300' }}"
+            RUN_COUNT="${{ github.event.inputs.run_count || '1' }}"
+          fi
 
           echo "=== Boost Configuration ==="
           echo "Time budget per run: ${TIME_BUDGET}s"
@@ -178,13 +246,27 @@ jobs:
       - name: Generate boost summary
         if: always() && steps.should_run.outputs.run == 'true'
         run: |
+          # Determine parallel runners and time budget based on trigger
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            PARALLEL_RUNNERS=10
+            TIME_BUDGET=600
+            RUN_COUNT=1
+            TRIGGER_TYPE="Scheduled (hourly cron)"
+          else
+            PARALLEL_RUNNERS=${{ github.event.inputs.parallel_runners || '1' }}
+            TIME_BUDGET=${{ github.event.inputs.time_budget || '300' }}
+            RUN_COUNT=${{ github.event.inputs.run_count || '1' }}
+            TRIGGER_TYPE="Manual"
+          fi
+
           echo "# SQLLogicTest Boost Run Summary (Runner ${{ matrix.runner_id }})" > boost_summary.md
           echo "" >> boost_summary.md
+          echo "**Trigger:** $TRIGGER_TYPE" >> boost_summary.md
           echo "**Triggered by:** ${{ github.actor }}" >> boost_summary.md
           echo "**Time:** $(date -u)" >> boost_summary.md
-          echo "**Runner ID:** ${{ matrix.runner_id }} / ${{ github.event.inputs.parallel_runners || '1' }}" >> boost_summary.md
-          echo "**Time budget per run:** ${{ github.event.inputs.time_budget || '300' }}s" >> boost_summary.md
-          echo "**Number of runs:** ${{ github.event.inputs.run_count || '1' }}" >> boost_summary.md
+          echo "**Runner ID:** ${{ matrix.runner_id }} / $PARALLEL_RUNNERS" >> boost_summary.md
+          echo "**Time budget per run:** ${TIME_BUDGET}s" >> boost_summary.md
+          echo "**Number of runs:** $RUN_COUNT" >> boost_summary.md
           echo "" >> boost_summary.md
 
           if [ -f target/sqllogictest_cumulative.json ]; then
