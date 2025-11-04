@@ -4,7 +4,7 @@ import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [wasm()],
-  base: '/nistmemsql/', // GitHub Pages path
+  base: '/vibesql/', // GitHub Pages path
   build: {
     target: 'esnext', // Modern browsers only
     rollupOptions: {
