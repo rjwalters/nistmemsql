@@ -482,6 +482,42 @@ jobs:
           echo "=== Updated Cumulative Results ==="
           jq '.summary' pages-site/vibesql/badges/sqllogictest_cumulative.json
 
+          # Generate badge JSON from cumulative results
+          echo ""
+          echo "=== Generating Badge JSON ==="
+          SLT_PASS_RATE=$(jq -r '.summary.pass_rate // "0"' pages-site/vibesql/badges/sqllogictest_cumulative.json | xargs printf "%.1f")
+          SLT_COVERAGE=$(jq -r '.summary.coverage_rate // "0"' pages-site/vibesql/badges/sqllogictest_cumulative.json | xargs printf "%.1f")
+          SLT_PASSED=$(jq -r '.summary.passed // "0"' pages-site/vibesql/badges/sqllogictest_cumulative.json)
+          SLT_FAILED=$(jq -r '.summary.failed // "0"' pages-site/vibesql/badges/sqllogictest_cumulative.json)
+
+          # Determine badge color (based on coverage rate)
+          if (( $(echo "$SLT_COVERAGE >= 80" | bc -l) )); then
+            SLT_COLOR="brightgreen"
+          elif (( $(echo "$SLT_COVERAGE >= 60" | bc -l) )); then
+            SLT_COLOR="green"
+          elif (( $(echo "$SLT_COVERAGE >= 40" | bc -l) )); then
+            SLT_COLOR="yellow"
+          elif (( $(echo "$SLT_COVERAGE >= 20" | bc -l) )); then
+            SLT_COLOR="orange"
+          else
+            SLT_COLOR="red"
+          fi
+
+          # Create SQLLogicTest badge JSON (showing coverage)
+          cat > pages-site/vibesql/badges/sqllogictest.json <<JSON
+          {
+            "schemaVersion": 1,
+            "label": "SQLLogicTest",
+            "message": "${SLT_PASSED}✓ ${SLT_FAILED}✗ (${SLT_COVERAGE}% tested)",
+            "color": "$SLT_COLOR"
+          }
+          JSON
+
+          echo "Generated SQLLogicTest badge: ${SLT_PASSED}✓ ${SLT_FAILED}✗ (${SLT_COVERAGE}% coverage, $SLT_COLOR)"
+          echo ""
+          echo "Badge JSON:"
+          cat pages-site/vibesql/badges/sqllogictest.json
+
           echo ""
           echo "=== Pages site structure ==="
           ls -la pages-site/vibesql/
