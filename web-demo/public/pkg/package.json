@@ -2,21 +2,21 @@
   "name": "wasm-bindings",
   "type": "module",
   "collaborators": [
-    "nistmemsql contributors"
+    "vibesql contributors"
   ],
   "version": "0.1.0",
   "license": "MIT OR Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/rjwalters/nistmemsql"
+    "url": "https://github.com/rjwalters/vibesql"
   },
   "files": [
-    "nistmemsql_wasm_bg.wasm",
-    "nistmemsql_wasm.js",
-    "nistmemsql_wasm.d.ts"
+    "vibesql_wasm_bg.wasm",
+    "vibesql_wasm.js",
+    "vibesql_wasm.d.ts"
   ],
-  "main": "nistmemsql_wasm.js",
-  "types": "nistmemsql_wasm.d.ts",
+  "main": "vibesql_wasm.js",
+  "types": "vibesql_wasm.d.ts",
   "sideEffects": [
     "./snippets/*"
   ]

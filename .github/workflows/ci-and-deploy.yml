@@ -185,6 +185,9 @@ jobs:
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
+      - name: Clean old WASM files (rebrand from nistmemsql to vibesql)
+        run: rm -rf web-demo/public/pkg
+
       - name: Build WASM bindings
         run: wasm-pack build --target web --out-dir ${{ github.workspace }}/web-demo/public/pkg crates/wasm-bindings --release
 
