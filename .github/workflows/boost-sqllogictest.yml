@@ -18,7 +18,7 @@ on:
         required: false
         default: '1'
         type: string
-  # Automatic hourly boost: 10 parallel workers for 10 minutes (only if work remains)
+  # Automatic hourly boost: 10 parallel workers for 30 minutes each (only if work remains)
   schedule:
     - cron: '0 * * * *'  # Every hour
 
@@ -185,10 +185,10 @@ jobs:
       - name: Run SQLLogicTest boost (multiple runs)
         if: steps.should_run.outputs.run == 'true'
         run: |
-          # For scheduled runs: use 10 minutes (600 seconds)
+          # For scheduled runs: use 30 minutes (1800 seconds) to allow runners to reach more diverse files
           # For manual runs: use the specified time (default 5 minutes)
           if [ "${{ github.event_name }}" == "schedule" ]; then
-            TIME_BUDGET="600"
+            TIME_BUDGET="1800"
             RUN_COUNT="1"
           else
             TIME_BUDGET="${{ github.event.inputs.time_budget || '300' }}"
@@ -267,7 +267,7 @@ jobs:
           # Determine parallel runners and time budget based on trigger
           if [ "${{ github.event_name }}" == "schedule" ]; then
             PARALLEL_RUNNERS=10
-            TIME_BUDGET=600
+            TIME_BUDGET=1800
             RUN_COUNT=1
             TRIGGER_TYPE="Scheduled (hourly cron)"
           else
