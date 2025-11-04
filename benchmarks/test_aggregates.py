@@ -1,7 +1,7 @@
 """
 Aggregate Benchmarks: Compare COUNT/SUM/AVG performance across databases at various scales.
 
-Tests aggregate operations for SQLite, nistmemsql, and DuckDB at:
+Tests aggregate operations for SQLite, vibesql, and DuckDB at:
 - 1k, 2k, 5k, 10k, and 20k rows
 """
 import pytest
@@ -14,10 +14,10 @@ def test_count_1k_sqlite(benchmark, sqlite_db):
     setup_test_table(sqlite_db, 1000, 'sqlite')
     _run_count_test(benchmark, sqlite_db, 1000)
 
-def test_count_1k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark COUNT(*) on nistmemsql (1k rows)."""
-    setup_test_table(nistmemsql_db, 1000, 'nistmemsql')
-    _run_count_test(benchmark, nistmemsql_db, 1000)
+def test_count_1k_vibesql(benchmark, vibesql_db):
+    """Benchmark COUNT(*) on vibesql (1k rows)."""
+    setup_test_table(vibesql_db, 1000, 'vibesql')
+    _run_count_test(benchmark, vibesql_db, 1000)
 
 def test_count_1k_duckdb(benchmark, duckdb_db):
     """Benchmark COUNT(*) on duckdb (1k rows)."""
@@ -89,10 +89,10 @@ def test_sum_1k_sqlite(benchmark, sqlite_db):
     setup_test_table(sqlite_db, 1000, 'sqlite')
     _run_sum_test(benchmark, sqlite_db, 1000)
 
-def test_sum_1k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark SUM(value) on nistmemsql (1k rows)."""
-    setup_test_table(nistmemsql_db, 1000, 'nistmemsql')
-    _run_sum_test(benchmark, nistmemsql_db, 1000)
+def test_sum_1k_vibesql(benchmark, vibesql_db):
+    """Benchmark SUM(value) on vibesql (1k rows)."""
+    setup_test_table(vibesql_db, 1000, 'vibesql')
+    _run_sum_test(benchmark, vibesql_db, 1000)
 
 def test_sum_1k_duckdb(benchmark, duckdb_db):
     """Benchmark SUM(value) on duckdb (1k rows)."""
@@ -164,10 +164,10 @@ def test_avg_1k_sqlite(benchmark, sqlite_db):
     setup_test_table(sqlite_db, 1000, 'sqlite')
     _run_avg_test(benchmark, sqlite_db, 1000)
 
-def test_avg_1k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark AVG(value) on nistmemsql (1k rows)."""
-    setup_test_table(nistmemsql_db, 1000, 'nistmemsql')
-    _run_avg_test(benchmark, nistmemsql_db, 1000)
+def test_avg_1k_vibesql(benchmark, vibesql_db):
+    """Benchmark AVG(value) on vibesql (1k rows)."""
+    setup_test_table(vibesql_db, 1000, 'vibesql')
+    _run_avg_test(benchmark, vibesql_db, 1000)
 
 def test_avg_1k_duckdb(benchmark, duckdb_db):
     """Benchmark AVG(value) on duckdb (1k rows)."""

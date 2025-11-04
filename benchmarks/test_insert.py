@@ -1,7 +1,7 @@
 """
 INSERT Benchmarks: Compare INSERT performance across databases at various scales.
 
-Tests INSERT operations for SQLite, nistmemsql, and DuckDB at:
+Tests INSERT operations for SQLite, vibesql, and DuckDB at:
 - 1k, 2k, 5k, 10k, and 20k rows
 """
 import pytest
@@ -17,9 +17,9 @@ def test_insert_1k_sqlite(benchmark, sqlite_db):
     _run_insert_test(benchmark, sqlite_db, 1000, 'sqlite')
 
 
-def test_insert_1k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark INSERT operations on nistmemsql (1k rows)."""
-    _run_insert_test(benchmark, nistmemsql_db, 1000, 'nistmemsql')
+def test_insert_1k_vibesql(benchmark, vibesql_db):
+    """Benchmark INSERT operations on vibesql (1k rows)."""
+    _run_insert_test(benchmark, vibesql_db, 1000, 'vibesql')
 
 
 def test_insert_1k_duckdb(benchmark, duckdb_db):
@@ -115,7 +115,7 @@ def _run_insert_test(benchmark, connection, num_rows, db_type):
                     "INSERT INTO test_table (id, name, value) VALUES (?, ?, ?)",
                     (start_id + i, f"name_{i % 100}", random.randint(1, 1000))
                 )
-            else:  # nistmemsql
+            else:  # vibesql
                 value = random.randint(1, 1000)
                 cursor.execute(
                     f"INSERT INTO test_table (id, name, value) VALUES ({start_id + i}, 'name_{i % 100}', {value})"

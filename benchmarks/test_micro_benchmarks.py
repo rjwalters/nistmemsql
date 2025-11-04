@@ -1,5 +1,5 @@
 """
-Tier 1 Micro-Benchmarks: Basic operations comparison between nistmemsql, SQLite, and DuckDB.
+Tier 1 Micro-Benchmarks: Basic operations comparison between vibesql, SQLite, and DuckDB.
 
 These benchmarks establish fundamental performance characteristics for single-table operations.
 Following the pattern from #650, expanded to cover INSERT, UPDATE, DELETE, WHERE, and aggregates.
@@ -36,15 +36,15 @@ def test_insert_1k_sqlite(benchmark, sqlite_db):
     benchmark(run_inserts)
 
 
-def test_insert_1k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark INSERT operations on nistmemsql (1K rows)."""
-    cursor = nistmemsql_db.cursor()
-    create_test_table(cursor, 'nistmemsql')
+def test_insert_1k_vibesql(benchmark, vibesql_db):
+    """Benchmark INSERT operations on vibesql (1K rows)."""
+    cursor = vibesql_db.cursor()
+    create_test_table(cursor, 'vibesql')
     next_id = [0]
 
     def run_inserts():
-        cursor = nistmemsql_db.cursor()
-        run_insert_scenario(cursor, next_id[0], 1000, 'nistmemsql')
+        cursor = vibesql_db.cursor()
+        run_insert_scenario(cursor, next_id[0], 1000, 'vibesql')
         next_id[0] += 1000
 
     benchmark(run_inserts)
@@ -80,15 +80,15 @@ def test_insert_10k_sqlite(benchmark, sqlite_db):
     benchmark(run_inserts)
 
 
-def test_insert_10k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark INSERT operations on nistmemsql (10K rows)."""
-    cursor = nistmemsql_db.cursor()
-    create_test_table(cursor, 'nistmemsql')
+def test_insert_10k_vibesql(benchmark, vibesql_db):
+    """Benchmark INSERT operations on vibesql (10K rows)."""
+    cursor = vibesql_db.cursor()
+    create_test_table(cursor, 'vibesql')
     next_id = [0]
 
     def run_inserts():
-        cursor = nistmemsql_db.cursor()
-        run_insert_scenario(cursor, next_id[0], 10000, 'nistmemsql')
+        cursor = vibesql_db.cursor()
+        run_insert_scenario(cursor, next_id[0], 10000, 'vibesql')
         next_id[0] += 10000
 
     benchmark(run_inserts)
@@ -124,15 +124,15 @@ def test_insert_100k_sqlite(benchmark, sqlite_db):
     benchmark(run_inserts)
 
 
-def test_insert_100k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark INSERT operations on nistmemsql (100K rows)."""
-    cursor = nistmemsql_db.cursor()
-    create_test_table(cursor, 'nistmemsql')
+def test_insert_100k_vibesql(benchmark, vibesql_db):
+    """Benchmark INSERT operations on vibesql (100K rows)."""
+    cursor = vibesql_db.cursor()
+    create_test_table(cursor, 'vibesql')
     next_id = [0]
 
     def run_inserts():
-        cursor = nistmemsql_db.cursor()
-        run_insert_scenario(cursor, next_id[0], 100000, 'nistmemsql')
+        cursor = vibesql_db.cursor()
+        run_insert_scenario(cursor, next_id[0], 100000, 'vibesql')
         next_id[0] += 100000
 
     benchmark(run_inserts)
@@ -169,13 +169,13 @@ def test_update_1k_sqlite(benchmark, sqlite_db):
     benchmark(run_updates)
 
 
-def test_update_1k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark UPDATE operations on nistmemsql (1K rows)."""
-    setup_database_for_benchmark(nistmemsql_db, 'nistmemsql', 1000)
+def test_update_1k_vibesql(benchmark, vibesql_db):
+    """Benchmark UPDATE operations on vibesql (1K rows)."""
+    setup_database_for_benchmark(vibesql_db, 'vibesql', 1000)
 
     def run_updates():
-        cursor = nistmemsql_db.cursor()
-        run_update_scenario(cursor, 1000, 'nistmemsql')
+        cursor = vibesql_db.cursor()
+        run_update_scenario(cursor, 1000, 'vibesql')
 
     benchmark(run_updates)
 
@@ -204,13 +204,13 @@ def test_update_10k_sqlite(benchmark, sqlite_db):
     benchmark(run_updates)
 
 
-def test_update_10k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark UPDATE operations on nistmemsql (10K rows)."""
-    setup_database_for_benchmark(nistmemsql_db, 'nistmemsql', 10000)
+def test_update_10k_vibesql(benchmark, vibesql_db):
+    """Benchmark UPDATE operations on vibesql (10K rows)."""
+    setup_database_for_benchmark(vibesql_db, 'vibesql', 10000)
 
     def run_updates():
-        cursor = nistmemsql_db.cursor()
-        run_update_scenario(cursor, 10000, 'nistmemsql')
+        cursor = vibesql_db.cursor()
+        run_update_scenario(cursor, 10000, 'vibesql')
 
     benchmark(run_updates)
 
@@ -239,13 +239,13 @@ def test_update_100k_sqlite(benchmark, sqlite_db):
     benchmark(run_updates)
 
 
-def test_update_100k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark UPDATE operations on nistmemsql (100K rows)."""
-    setup_database_for_benchmark(nistmemsql_db, 'nistmemsql', 100000)
+def test_update_100k_vibesql(benchmark, vibesql_db):
+    """Benchmark UPDATE operations on vibesql (100K rows)."""
+    setup_database_for_benchmark(vibesql_db, 'vibesql', 100000)
 
     def run_updates():
-        cursor = nistmemsql_db.cursor()
-        run_update_scenario(cursor, 100000, 'nistmemsql')
+        cursor = vibesql_db.cursor()
+        run_update_scenario(cursor, 100000, 'vibesql')
 
     benchmark(run_updates)
 
@@ -278,13 +278,13 @@ def test_delete_1k_sqlite(benchmark, sqlite_db):
     benchmark(run_deletes)
 
 
-def test_delete_1k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark DELETE operations on nistmemsql (1K rows)."""
-    setup_database_for_benchmark(nistmemsql_db, 'nistmemsql', 1000)
+def test_delete_1k_vibesql(benchmark, vibesql_db):
+    """Benchmark DELETE operations on vibesql (1K rows)."""
+    setup_database_for_benchmark(vibesql_db, 'vibesql', 1000)
 
     def run_deletes():
-        cursor = nistmemsql_db.cursor()
-        run_delete_scenario(cursor, 1000, 'nistmemsql')
+        cursor = vibesql_db.cursor()
+        run_delete_scenario(cursor, 1000, 'vibesql')
 
     benchmark(run_deletes)
 
@@ -313,13 +313,13 @@ def test_delete_10k_sqlite(benchmark, sqlite_db):
     benchmark(run_deletes)
 
 
-def test_delete_10k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark DELETE operations on nistmemsql (10K rows)."""
-    setup_database_for_benchmark(nistmemsql_db, 'nistmemsql', 10000)
+def test_delete_10k_vibesql(benchmark, vibesql_db):
+    """Benchmark DELETE operations on vibesql (10K rows)."""
+    setup_database_for_benchmark(vibesql_db, 'vibesql', 10000)
 
     def run_deletes():
-        cursor = nistmemsql_db.cursor()
-        run_delete_scenario(cursor, 10000, 'nistmemsql')
+        cursor = vibesql_db.cursor()
+        run_delete_scenario(cursor, 10000, 'vibesql')
 
     benchmark(run_deletes)
 
@@ -348,13 +348,13 @@ def test_delete_100k_sqlite(benchmark, sqlite_db):
     benchmark(run_deletes)
 
 
-def test_delete_100k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark DELETE operations on nistmemsql (100K rows)."""
-    setup_database_for_benchmark(nistmemsql_db, 'nistmemsql', 100000)
+def test_delete_100k_vibesql(benchmark, vibesql_db):
+    """Benchmark DELETE operations on vibesql (100K rows)."""
+    setup_database_for_benchmark(vibesql_db, 'vibesql', 100000)
 
     def run_deletes():
-        cursor = nistmemsql_db.cursor()
-        run_delete_scenario(cursor, 100000, 'nistmemsql')
+        cursor = vibesql_db.cursor()
+        run_delete_scenario(cursor, 100000, 'vibesql')
 
     benchmark(run_deletes)
 
@@ -387,13 +387,13 @@ def test_select_where_1k_sqlite(benchmark, sqlite_db):
     benchmark(run_query)
 
 
-def test_select_where_1k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark SELECT with WHERE clause on nistmemsql (filter 10% of 1K rows)."""
-    setup_database_for_benchmark(nistmemsql_db, 'nistmemsql', 1000)
+def test_select_where_1k_vibesql(benchmark, vibesql_db):
+    """Benchmark SELECT with WHERE clause on vibesql (filter 10% of 1K rows)."""
+    setup_database_for_benchmark(vibesql_db, 'vibesql', 1000)
 
     def run_query():
-        cursor = nistmemsql_db.cursor()
-        rows = run_select_where_scenario(cursor, 100, 'nistmemsql')
+        cursor = vibesql_db.cursor()
+        rows = run_select_where_scenario(cursor, 100, 'vibesql')
         assert_row_count(rows, 100)
 
     benchmark(run_query)
@@ -423,13 +423,13 @@ def test_select_where_10k_sqlite(benchmark, sqlite_db):
     benchmark(run_query)
 
 
-def test_select_where_10k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark SELECT with WHERE clause on nistmemsql (filter 10% of 10K rows)."""
-    setup_database_for_benchmark(nistmemsql_db, 'nistmemsql', 10000)
+def test_select_where_10k_vibesql(benchmark, vibesql_db):
+    """Benchmark SELECT with WHERE clause on vibesql (filter 10% of 10K rows)."""
+    setup_database_for_benchmark(vibesql_db, 'vibesql', 10000)
 
     def run_query():
-        cursor = nistmemsql_db.cursor()
-        rows = run_select_where_scenario(cursor, 1000, 'nistmemsql')
+        cursor = vibesql_db.cursor()
+        rows = run_select_where_scenario(cursor, 1000, 'vibesql')
         assert_row_count(rows, 1000)
 
     benchmark(run_query)
@@ -459,13 +459,13 @@ def test_select_where_100k_sqlite(benchmark, sqlite_db):
     benchmark(run_query)
 
 
-def test_select_where_100k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark SELECT with WHERE clause on nistmemsql (filter 10% of 100K rows)."""
-    setup_database_for_benchmark(nistmemsql_db, 'nistmemsql', 100000)
+def test_select_where_100k_vibesql(benchmark, vibesql_db):
+    """Benchmark SELECT with WHERE clause on vibesql (filter 10% of 100K rows)."""
+    setup_database_for_benchmark(vibesql_db, 'vibesql', 100000)
 
     def run_query():
-        cursor = nistmemsql_db.cursor()
-        rows = run_select_where_scenario(cursor, 10000, 'nistmemsql')
+        cursor = vibesql_db.cursor()
+        rows = run_select_where_scenario(cursor, 10000, 'vibesql')
         assert_row_count(rows, 10000)
 
     benchmark(run_query)
@@ -499,13 +499,13 @@ def test_count_1k_sqlite(benchmark, sqlite_db):
     benchmark(run_query)
 
 
-def test_count_1k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark COUNT(*) aggregation on nistmemsql (1K rows)."""
-    setup_database_for_benchmark(nistmemsql_db, 'nistmemsql', 1000)
+def test_count_1k_vibesql(benchmark, vibesql_db):
+    """Benchmark COUNT(*) aggregation on vibesql (1K rows)."""
+    setup_database_for_benchmark(vibesql_db, 'vibesql', 1000)
 
     def run_query():
-        cursor = nistmemsql_db.cursor()
-        result = run_aggregate_scenario(cursor, 'COUNT', 'nistmemsql')
+        cursor = vibesql_db.cursor()
+        result = run_aggregate_scenario(cursor, 'COUNT', 'vibesql')
         assert_aggregate_result(result, 'COUNT', 1000)
 
     benchmark(run_query)
@@ -535,13 +535,13 @@ def test_count_10k_sqlite(benchmark, sqlite_db):
     benchmark(run_query)
 
 
-def test_count_10k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark COUNT(*) aggregation on nistmemsql (10K rows)."""
-    setup_database_for_benchmark(nistmemsql_db, 'nistmemsql', 10000)
+def test_count_10k_vibesql(benchmark, vibesql_db):
+    """Benchmark COUNT(*) aggregation on vibesql (10K rows)."""
+    setup_database_for_benchmark(vibesql_db, 'vibesql', 10000)
 
     def run_query():
-        cursor = nistmemsql_db.cursor()
-        result = run_aggregate_scenario(cursor, 'COUNT', 'nistmemsql')
+        cursor = vibesql_db.cursor()
+        result = run_aggregate_scenario(cursor, 'COUNT', 'vibesql')
         assert_aggregate_result(result, 'COUNT', 10000)
 
     benchmark(run_query)
@@ -571,13 +571,13 @@ def test_count_100k_sqlite(benchmark, sqlite_db):
     benchmark(run_query)
 
 
-def test_count_100k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark COUNT(*) aggregation on nistmemsql (100K rows)."""
-    setup_database_for_benchmark(nistmemsql_db, 'nistmemsql', 100000)
+def test_count_100k_vibesql(benchmark, vibesql_db):
+    """Benchmark COUNT(*) aggregation on vibesql (100K rows)."""
+    setup_database_for_benchmark(vibesql_db, 'vibesql', 100000)
 
     def run_query():
-        cursor = nistmemsql_db.cursor()
-        result = run_aggregate_scenario(cursor, 'COUNT', 'nistmemsql')
+        cursor = vibesql_db.cursor()
+        result = run_aggregate_scenario(cursor, 'COUNT', 'vibesql')
         assert_aggregate_result(result, 'COUNT', 100000)
 
     benchmark(run_query)
@@ -607,13 +607,13 @@ def test_sum_1k_sqlite(benchmark, sqlite_db):
     benchmark(run_query)
 
 
-def test_sum_1k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark SUM(value) aggregation on nistmemsql (1K rows)."""
-    setup_database_for_benchmark(nistmemsql_db, 'nistmemsql', 1000)
+def test_sum_1k_vibesql(benchmark, vibesql_db):
+    """Benchmark SUM(value) aggregation on vibesql (1K rows)."""
+    setup_database_for_benchmark(vibesql_db, 'vibesql', 1000)
 
     def run_query():
-        cursor = nistmemsql_db.cursor()
-        result = run_aggregate_scenario(cursor, 'SUM', 'nistmemsql')
+        cursor = vibesql_db.cursor()
+        result = run_aggregate_scenario(cursor, 'SUM', 'vibesql')
         assert_aggregate_result(result, 'SUM')
 
     benchmark(run_query)
@@ -643,13 +643,13 @@ def test_sum_10k_sqlite(benchmark, sqlite_db):
     benchmark(run_query)
 
 
-def test_sum_10k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark SUM(value) aggregation on nistmemsql (10K rows)."""
-    setup_database_for_benchmark(nistmemsql_db, 'nistmemsql', 10000)
+def test_sum_10k_vibesql(benchmark, vibesql_db):
+    """Benchmark SUM(value) aggregation on vibesql (10K rows)."""
+    setup_database_for_benchmark(vibesql_db, 'vibesql', 10000)
 
     def run_query():
-        cursor = nistmemsql_db.cursor()
-        result = run_aggregate_scenario(cursor, 'SUM', 'nistmemsql')
+        cursor = vibesql_db.cursor()
+        result = run_aggregate_scenario(cursor, 'SUM', 'vibesql')
         assert_aggregate_result(result, 'SUM')
 
     benchmark(run_query)
@@ -679,13 +679,13 @@ def test_sum_100k_sqlite(benchmark, sqlite_db):
     benchmark(run_query)
 
 
-def test_sum_100k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark SUM(value) aggregation on nistmemsql (100K rows)."""
-    setup_database_for_benchmark(nistmemsql_db, 'nistmemsql', 100000)
+def test_sum_100k_vibesql(benchmark, vibesql_db):
+    """Benchmark SUM(value) aggregation on vibesql (100K rows)."""
+    setup_database_for_benchmark(vibesql_db, 'vibesql', 100000)
 
     def run_query():
-        cursor = nistmemsql_db.cursor()
-        result = run_aggregate_scenario(cursor, 'SUM', 'nistmemsql')
+        cursor = vibesql_db.cursor()
+        result = run_aggregate_scenario(cursor, 'SUM', 'vibesql')
         assert_aggregate_result(result, 'SUM')
 
     benchmark(run_query)
@@ -715,13 +715,13 @@ def test_avg_1k_sqlite(benchmark, sqlite_db):
     benchmark(run_query)
 
 
-def test_avg_1k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark AVG(value) aggregation on nistmemsql (1K rows)."""
-    setup_database_for_benchmark(nistmemsql_db, 'nistmemsql', 1000)
+def test_avg_1k_vibesql(benchmark, vibesql_db):
+    """Benchmark AVG(value) aggregation on vibesql (1K rows)."""
+    setup_database_for_benchmark(vibesql_db, 'vibesql', 1000)
 
     def run_query():
-        cursor = nistmemsql_db.cursor()
-        result = run_aggregate_scenario(cursor, 'AVG', 'nistmemsql')
+        cursor = vibesql_db.cursor()
+        result = run_aggregate_scenario(cursor, 'AVG', 'vibesql')
         assert_aggregate_result(result, 'AVG')
 
     benchmark(run_query)
@@ -751,13 +751,13 @@ def test_avg_10k_sqlite(benchmark, sqlite_db):
     benchmark(run_query)
 
 
-def test_avg_10k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark AVG(value) aggregation on nistmemsql (10K rows)."""
-    setup_database_for_benchmark(nistmemsql_db, 'nistmemsql', 10000)
+def test_avg_10k_vibesql(benchmark, vibesql_db):
+    """Benchmark AVG(value) aggregation on vibesql (10K rows)."""
+    setup_database_for_benchmark(vibesql_db, 'vibesql', 10000)
 
     def run_query():
-        cursor = nistmemsql_db.cursor()
-        result = run_aggregate_scenario(cursor, 'AVG', 'nistmemsql')
+        cursor = vibesql_db.cursor()
+        result = run_aggregate_scenario(cursor, 'AVG', 'vibesql')
         assert_aggregate_result(result, 'AVG')
 
     benchmark(run_query)
@@ -787,13 +787,13 @@ def test_avg_100k_sqlite(benchmark, sqlite_db):
     benchmark(run_query)
 
 
-def test_avg_100k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark AVG(value) aggregation on nistmemsql (100K rows)."""
-    setup_database_for_benchmark(nistmemsql_db, 'nistmemsql', 100000)
+def test_avg_100k_vibesql(benchmark, vibesql_db):
+    """Benchmark AVG(value) aggregation on vibesql (100K rows)."""
+    setup_database_for_benchmark(vibesql_db, 'vibesql', 100000)
 
     def run_query():
-        cursor = nistmemsql_db.cursor()
-        result = run_aggregate_scenario(cursor, 'AVG', 'nistmemsql')
+        cursor = vibesql_db.cursor()
+        result = run_aggregate_scenario(cursor, 'AVG', 'vibesql')
         assert_aggregate_result(result, 'AVG')
 
     benchmark(run_query)

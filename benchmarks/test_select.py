@@ -1,7 +1,7 @@
 """
 SELECT Benchmarks: Compare SELECT WHERE performance across databases at various scales.
 
-Tests SELECT with WHERE clause for SQLite, nistmemsql, and DuckDB at:
+Tests SELECT with WHERE clause for SQLite, vibesql, and DuckDB at:
 - 1k, 2k, 5k, 10k, and 20k rows (filtering 10% of rows)
 """
 import pytest
@@ -14,10 +14,10 @@ def test_select_where_1k_sqlite(benchmark, sqlite_db):
     setup_test_table(sqlite_db, 1000, 'sqlite')
     _run_select_test(benchmark, sqlite_db, 100, 'sqlite')
 
-def test_select_where_1k_nistmemsql(benchmark, nistmemsql_db):
-    """Benchmark SELECT WHERE on nistmemsql (filter 10% of 1k rows)."""
-    setup_test_table(nistmemsql_db, 1000, 'nistmemsql')
-    _run_select_test(benchmark, nistmemsql_db, 100, 'nistmemsql')
+def test_select_where_1k_vibesql(benchmark, vibesql_db):
+    """Benchmark SELECT WHERE on vibesql (filter 10% of 1k rows)."""
+    setup_test_table(vibesql_db, 1000, 'vibesql')
+    _run_select_test(benchmark, vibesql_db, 100, 'vibesql')
 
 def test_select_where_1k_duckdb(benchmark, duckdb_db):
     """Benchmark SELECT WHERE on duckdb (filter 10% of 1k rows)."""
