@@ -189,6 +189,20 @@ def merge_results(
                 summary = data.get("summary", {})
                 print("\n=== Final Results ===")
                 print(json.dumps(summary, indent=2))
+
+                # Print detailed failure summary if available
+                detailed_failures = data.get("detailed_failures", [])
+                if detailed_failures:
+                    print(f"\n=== Detailed Failures ({len(detailed_failures)} files) ===")
+                    for failure_info in detailed_failures[:5]:  # Show first 5
+                        file_path = failure_info.get("file_path", "unknown")
+                        failures = failure_info.get("failures", [])
+                        print(f"  {file_path}: {len(failures)} failures")
+                        for failure in failures[:2]:  # Show first 2 failures per file
+                            error_msg = failure.get("error_message", "")[:100]  # Truncate long messages
+                            print(f"    - {error_msg}")
+                    if len(detailed_failures) > 5:
+                        print(f"  ... and {len(detailed_failures) - 5} more files")
         except Exception as e:
             print(f"Warning: Could not read summary: {e}", file=sys.stderr)
 

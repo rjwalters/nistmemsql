@@ -299,6 +299,16 @@ impl AsyncDB for NistMemSqlDB {
     }
 }
 
+/// Detailed failure information for a single test file
+#[derive(Debug, Clone)]
+struct TestFailure {
+    sql_statement: String,
+    expected_result: Option<String>,
+    actual_result: Option<String>,
+    error_message: String,
+    line_number: Option<usize>,
+}
+
 /// Test result statistics
 #[derive(Debug, Default)]
 struct TestStats {
@@ -308,6 +318,7 @@ struct TestStats {
     errors: usize,
     skipped: usize,
     tested_files: HashSet<String>, // Files that were actually tested this run
+    detailed_failures: Vec<(String, Vec<TestFailure>)>, // (file_path, failures) pairs
 }
 
 impl TestStats {
@@ -468,6 +479,49 @@ fn partition_files(files: &[PathBuf], worker_id: usize, total_workers: usize) ->
         .to_vec()
 }
 
+/// Run a test file and capture detailed failure information
+fn run_test_file_with_details(contents: &str) -> (Result<(), TestError>, Vec<TestFailure>) {
+    // For now, use the existing approach but prepare for detailed capture
+    // This is a placeholder that will be enhanced to parse and run individual records
+    let result = std::panic::catch_unwind(|| {
+        tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(
+            async {
+                let mut tester = Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+                tester.run_script(contents)
+            },
+        )
+    });
+
+    match result {
+        Ok(Ok(_)) => (Ok(()), vec![]),
+        Ok(Err(e)) => {
+            // For now, capture basic error information
+            // TODO: Parse individual records and capture per-statement failures
+            let failure = TestFailure {
+                sql_statement: "Unknown - script failed".to_string(),
+                expected_result: None,
+                actual_result: None,
+                error_message: e.to_string(),
+                line_number: None,
+            };
+            (Err(TestError(e.to_string())), vec![failure])
+        }
+        Err(e) => {
+            let error_msg = e.downcast_ref::<String>()
+                .unwrap_or(&"Unknown panic".to_string())
+                .clone();
+            let failure = TestFailure {
+                sql_statement: "Unknown - panic occurred".to_string(),
+                expected_result: None,
+                actual_result: None,
+                error_message: format!("Test panicked: {}", error_msg),
+                line_number: None,
+            };
+            (Err(TestError(format!("Test panicked: {}", error_msg))), vec![failure])
+        }
+    }
+}
+
 /// Run SQLLogicTest files from the submodule (prioritized by failure history, then randomly selected with time budget)
 fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
     let test_dir = PathBuf::from("third_party/sqllogictest/test");
@@ -555,33 +609,20 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
             }
         };
 
-        // Create a new database for each test file
-        // We need to create a runtime because this is a sync test
-        let result = std::panic::catch_unwind(|| {
-            tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(
-                async {
-                    let mut tester = Runner::new(|| async { Ok(NistMemSqlDB::new()) });
-                    tester.run_script(&contents)
-                },
-            )
-        });
+        // Create a new database for each test file and run with detailed failure capture
+        let (test_result, detailed_failures) = run_test_file_with_details(&contents);
 
-        match result {
-            Ok(Ok(_)) => {
+        match test_result {
+            Ok(_) => {
                 println!("✓ {}", relative_path);
                 stats.passed += 1;
             }
-            Ok(Err(e)) => {
+            Err(e) => {
                 eprintln!("✗ {} - {}", relative_path, e);
                 stats.failed += 1;
-            }
-            Err(e) => {
-                eprintln!(
-                    "✗ {} - Test panicked: {:?}",
-                    relative_path,
-                    e.downcast_ref::<String>().unwrap_or(&"Unknown panic".to_string())
-                );
-                stats.errors += 1;
+                if !detailed_failures.is_empty() {
+                    stats.detailed_failures.push((relative_path.clone(), detailed_failures));
+                }
             }
         }
     }
@@ -654,15 +695,34 @@ fn run_sqllogictest_suite() {
 
     // Write results to JSON file for CI/badge generation
     let tested_files_vec: Vec<String> = all_tested_files.into_iter().collect();
+
+    // Collect all detailed failures across categories
+    let mut all_detailed_failures = Vec::new();
+    for stats in results.values() {
+        all_detailed_failures.extend(stats.detailed_failures.clone());
+    }
+
     let results_json = serde_json::json!({
-        "total": grand_total.total,
-        "passed": grand_total.passed,
-        "failed": grand_total.failed,
-        "errors": grand_total.errors,
-        "skipped": grand_total.skipped,
-        "pass_rate": grand_total.pass_rate(),
-        "total_available_files": total_available_files,
-        "tested_files": tested_files_vec,
+        "summary": {
+            "total": grand_total.total,
+            "passed": grand_total.passed,
+            "failed": grand_total.failed,
+            "errors": grand_total.errors,
+            "skipped": grand_total.skipped,
+            "pass_rate": grand_total.pass_rate(),
+            "total_available_files": total_available_files,
+            "tested_files": tested_files_vec.len(),
+        },
+        "tested_files": {
+            "passed": results.values().flat_map(|s| &s.tested_files).filter(|f| {
+                // Check if this file passed (not in detailed_failures)
+                !all_detailed_failures.iter().any(|(path, _)| path == *f)
+            }).collect::<Vec<_>>(),
+            "failed": results.values().flat_map(|s| &s.tested_files).filter(|f| {
+                // Check if this file failed (in detailed_failures)
+                all_detailed_failures.iter().any(|(path, _)| path == *f)
+            }).collect::<Vec<_>>(),
+        },
         "categories": {
             "select": results.get("select").map(|s| serde_json::json!({
                 "total": s.total,
@@ -712,7 +772,21 @@ fn run_sqllogictest_suite() {
                 "skipped": s.skipped,
                 "pass_rate": s.pass_rate()
             })),
-        }
+        },
+        "detailed_failures": all_detailed_failures.iter().map(|(file_path, failures)| {
+            serde_json::json!({
+                "file_path": file_path,
+                "failures": failures.iter().map(|f| {
+                    serde_json::json!({
+                        "sql_statement": f.sql_statement,
+                        "expected_result": f.expected_result,
+                        "actual_result": f.actual_result,
+                        "error_message": f.error_message,
+                        "line_number": f.line_number
+                    })
+                }).collect::<Vec<_>>()
+            })
+        }).collect::<Vec<_>>()
     });
 
     // Ensure target directory exists
