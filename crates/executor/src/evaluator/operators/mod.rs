@@ -53,6 +53,8 @@ impl OperatorRegistry {
             Minus => ArithmeticOps::subtract(left, right),
             Multiply => ArithmeticOps::multiply(left, right),
             Divide => ArithmeticOps::divide(left, right),
+            IntegerDivide => ArithmeticOps::integer_divide(left, right),
+            Modulo => ArithmeticOps::modulo(left, right),
 
             // Comparison operators
             Equal => ComparisonOps::equal(left, right),
@@ -68,12 +70,6 @@ impl OperatorRegistry {
 
             // String operators
             Concat => StringOps::concat(left, right),
-
-            // Unsupported operator
-            _ => Err(ExecutorError::UnsupportedExpression(format!(
-                "Binary operator {:?} not yet supported",
-                op
-            ))),
         }
     }
 }
