@@ -29,6 +29,7 @@ fn test_index_ordering() {
             },
         ],
         table_constraints: vec![],
+        table_options: vec![],
     };
     
     executor::CreateTableExecutor::execute(&create_table_stmt, &mut db).unwrap();
@@ -36,8 +37,8 @@ fn test_index_ordering() {
     // Insert data
     let insert_stmt = ast::InsertStmt {
         table_name: "users".to_string(),
-        columns: None,
-        values: vec![
+        columns: vec![],
+        source: ast::InsertSource::Values(vec![
             vec![
                 ast::Expression::Literal(types::SqlValue::Integer(1)),
                 ast::Expression::Literal(types::SqlValue::Varchar("Charlie".to_string())),
@@ -50,7 +51,7 @@ fn test_index_ordering() {
                 ast::Expression::Literal(types::SqlValue::Integer(3)),
                 ast::Expression::Literal(types::SqlValue::Varchar("Bob".to_string())),
             ],
-        ],
+        ]),
     };
     
     executor::InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
