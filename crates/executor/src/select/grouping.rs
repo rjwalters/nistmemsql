@@ -55,11 +55,17 @@ impl AggregateAccumulator {
                 }
             }
 
-            // SUM - sums numeric values (Integer or Numeric), ignores NULLs
+            // SUM - sums numeric values (all numeric types), ignores NULLs
             AggregateAccumulator::Sum { ref mut sum, distinct, seen } => {
                 match value {
                     types::SqlValue::Null => {} // Skip NULL
-                    types::SqlValue::Integer(_) | types::SqlValue::Numeric(_) => {
+                    types::SqlValue::Integer(_)
+                    | types::SqlValue::Smallint(_)
+                    | types::SqlValue::Bigint(_)
+                    | types::SqlValue::Numeric(_)
+                    | types::SqlValue::Float(_)
+                    | types::SqlValue::Real(_)
+                    | types::SqlValue::Double(_) => {
                         if *distinct {
                             // Only sum if we haven't seen this value before
                             if seen.as_mut().unwrap().insert(value.clone()) {
@@ -73,11 +79,17 @@ impl AggregateAccumulator {
                 }
             }
 
-            // AVG - computes average of numeric values (Integer or Numeric), ignores NULLs
+            // AVG - computes average of numeric values (all numeric types), ignores NULLs
             AggregateAccumulator::Avg { ref mut sum, ref mut count, distinct, seen } => {
                 match value {
                     types::SqlValue::Null => {} // Skip NULL
-                    types::SqlValue::Integer(_) | types::SqlValue::Numeric(_) => {
+                    types::SqlValue::Integer(_)
+                    | types::SqlValue::Smallint(_)
+                    | types::SqlValue::Bigint(_)
+                    | types::SqlValue::Numeric(_)
+                    | types::SqlValue::Float(_)
+                    | types::SqlValue::Real(_)
+                    | types::SqlValue::Double(_) => {
                         if *distinct {
                             // Only include if we haven't seen this value before
                             if seen.as_mut().unwrap().insert(value.clone()) {
@@ -107,8 +119,18 @@ impl AggregateAccumulator {
 
                 match value {
                     types::SqlValue::Integer(_)
+                    | types::SqlValue::Smallint(_)
+                    | types::SqlValue::Bigint(_)
+                    | types::SqlValue::Numeric(_)
+                    | types::SqlValue::Float(_)
+                    | types::SqlValue::Real(_)
+                    | types::SqlValue::Double(_)
                     | types::SqlValue::Varchar(_)
-                    | types::SqlValue::Boolean(_) => {
+                    | types::SqlValue::Character(_)
+                    | types::SqlValue::Boolean(_)
+                    | types::SqlValue::Date(_)
+                    | types::SqlValue::Time(_)
+                    | types::SqlValue::Timestamp(_) => {
                         if let Some(ref current) = current_min {
                             if compare_sql_values(value, current) == Ordering::Less {
                                 *current_min = Some(value.clone());
@@ -135,8 +157,18 @@ impl AggregateAccumulator {
 
                 match value {
                     types::SqlValue::Integer(_)
+                    | types::SqlValue::Smallint(_)
+                    | types::SqlValue::Bigint(_)
+                    | types::SqlValue::Numeric(_)
+                    | types::SqlValue::Float(_)
+                    | types::SqlValue::Real(_)
+                    | types::SqlValue::Double(_)
                     | types::SqlValue::Varchar(_)
-                    | types::SqlValue::Boolean(_) => {
+                    | types::SqlValue::Character(_)
+                    | types::SqlValue::Boolean(_)
+                    | types::SqlValue::Date(_)
+                    | types::SqlValue::Time(_)
+                    | types::SqlValue::Timestamp(_) => {
                         if let Some(ref current) = current_max {
                             if compare_sql_values(value, current) == Ordering::Greater {
                                 *current_max = Some(value.clone());
@@ -172,37 +204,38 @@ impl AggregateAccumulator {
     }
 }
 
-/// Add two SqlValues together, handling Integer and Numeric types with type coercion
+/// Add two SqlValues together, handling all numeric types with type coercion to Numeric
 fn add_sql_values(a: &types::SqlValue, b: &types::SqlValue) -> types::SqlValue {
-    match (a, b) {
-        // Integer + Integer => Integer
-        (types::SqlValue::Integer(x), types::SqlValue::Integer(y)) => {
-            types::SqlValue::Integer(x + y)
-        }
-        // Integer + Numeric => Numeric (promote Integer to Numeric)
-        (types::SqlValue::Integer(x), types::SqlValue::Numeric(y)) => {
-            types::SqlValue::Numeric(*x as f64 + *y)
-        }
-        // Numeric + Integer => Numeric (promote Integer to Numeric)
-        (types::SqlValue::Numeric(x), types::SqlValue::Integer(y)) => {
-            types::SqlValue::Numeric(*x + *y as f64)
-        }
-        // Numeric + Numeric => Numeric
-        (types::SqlValue::Numeric(x), types::SqlValue::Numeric(y)) => {
-            types::SqlValue::Numeric(*x + *y)
-        }
-        // Default: return first value unchanged
-        _ => a.clone(),
+    // Convert both values to f64 for addition, then return as Numeric
+    let a_f64 = sql_value_to_f64(a);
+    let b_f64 = sql_value_to_f64(b);
+
+    match (a_f64, b_f64) {
+        (Some(x), Some(y)) => types::SqlValue::Numeric(x + y),
+        _ => types::SqlValue::Null, // If either is not numeric, return NULL
     }
 }
 
-/// Divide a SqlValue by an integer count, handling Integer and Numeric types
-fn divide_sql_value(value: &types::SqlValue, count: i64) -> types::SqlValue {
+/// Convert SqlValue to f64 for numeric operations
+fn sql_value_to_f64(value: &types::SqlValue) -> Option<f64> {
     match value {
-        types::SqlValue::Integer(sum) => types::SqlValue::Integer(sum / count),
-        types::SqlValue::Numeric(sum) => types::SqlValue::Numeric(*sum / count as f64),
-        // Default: return NULL for unsupported types
-        _ => types::SqlValue::Null,
+        types::SqlValue::Integer(x) => Some(*x as f64),
+        types::SqlValue::Smallint(x) => Some(*x as f64),
+        types::SqlValue::Bigint(x) => Some(*x as f64),
+        types::SqlValue::Numeric(x) => Some(*x),
+        types::SqlValue::Float(x) => Some(*x as f64),
+        types::SqlValue::Real(x) => Some(*x as f64),
+        types::SqlValue::Double(x) => Some(*x),
+        _ => None,
+    }
+}
+
+/// Divide a SqlValue by an integer count, handling all numeric types
+fn divide_sql_value(value: &types::SqlValue, count: i64) -> types::SqlValue {
+    if let Some(sum_f64) = sql_value_to_f64(value) {
+        types::SqlValue::Numeric(sum_f64 / count as f64)
+    } else {
+        types::SqlValue::Null
     }
 }
 

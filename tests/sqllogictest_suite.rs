@@ -575,10 +575,11 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
                 eprintln!("✗ {} - {}", relative_path, e);
                 stats.failed += 1;
             }
-            Err(_) => {
+            Err(e) => {
                 eprintln!(
-                    "✗ {} - Test panicked (likely unsupported SQLLogicTest syntax)",
-                    relative_path
+                    "✗ {} - Test panicked: {:?}",
+                    relative_path,
+                    e.downcast_ref::<String>().unwrap_or(&"Unknown panic".to_string())
                 );
                 stats.errors += 1;
             }
