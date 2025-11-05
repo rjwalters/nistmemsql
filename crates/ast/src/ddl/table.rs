@@ -17,12 +17,67 @@ pub enum ReferentialAction {
     SetDefault,
 }
 
+/// MySQL table options for CREATE TABLE
+#[derive(Debug, Clone, PartialEq)]
+pub enum TableOption {
+    /// KEY_BLOCK_SIZE [=] value
+    KeyBlockSize(Option<i64>),
+    /// CONNECTION [=] 'string'
+    Connection(Option<String>),
+    /// INSERT_METHOD = {FIRST | LAST | NO}
+    InsertMethod(InsertMethod),
+    /// UNION [=] (col1, col2, ...)
+    Union(Option<Vec<String>>),
+    /// ROW_FORMAT [=] {DEFAULT | DYNAMIC | FIXED | COMPRESSED | REDUNDANT | COMPACT}
+    RowFormat(Option<RowFormat>),
+    /// DELAY_KEY_WRITE [=] value
+    DelayKeyWrite(Option<i64>),
+    /// TABLE_CHECKSUM [=] value | CHECKSUM [=] value
+    TableChecksum(Option<i64>),
+    /// STATS_SAMPLE_PAGES [=] value
+    StatsSamplePages(Option<i64>),
+    /// PASSWORD [=] 'string'
+    Password(Option<String>),
+    /// AVG_ROW_LENGTH [=] value
+    AvgRowLength(Option<i64>),
+    /// MIN_ROWS [=] value
+    MinRows(Option<i64>),
+    /// MAX_ROWS [=] value
+    MaxRows(Option<i64>),
+    /// SECONDARY_ENGINE [=] identifier | NULL
+    SecondaryEngine(Option<String>),
+    /// COLLATE [=] collation_name
+    Collate(Option<String>),
+    /// COMMENT [=] 'string'
+    Comment(Option<String>),
+}
+
+/// MySQL INSERT_METHOD values
+#[derive(Debug, Clone, PartialEq)]
+pub enum InsertMethod {
+    First,
+    Last,
+    No,
+}
+
+/// MySQL ROW_FORMAT values
+#[derive(Debug, Clone, PartialEq)]
+pub enum RowFormat {
+    Default,
+    Dynamic,
+    Fixed,
+    Compressed,
+    Redundant,
+    Compact,
+}
+
 /// CREATE TABLE statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct CreateTableStmt {
     pub table_name: String,
     pub columns: Vec<ColumnDef>,
     pub table_constraints: Vec<TableConstraint>,
+    pub table_options: Vec<TableOption>,
 }
 
 /// Column definition

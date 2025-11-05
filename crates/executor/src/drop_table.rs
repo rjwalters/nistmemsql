@@ -42,7 +42,7 @@ impl DropTableExecutor {
     ///             comment: None,
     ///         },
     ///     ],
-    ///     table_constraints: vec![],
+    ///     table_constraints: vec![], table_options: vec![],
     /// };
     /// CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
     ///
@@ -103,7 +103,7 @@ mod tests {
                 default_value: None,
                 comment: None,
             }],
-            table_constraints: vec![],
+            table_constraints: vec![], table_options: vec![],
         };
         CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
         assert!(db.catalog.table_exists("users"));
@@ -157,7 +157,7 @@ mod tests {
                 default_value: None,
                 comment: None,
             }],
-            table_constraints: vec![],
+            table_constraints: vec![], table_options: vec![],
         };
         CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
 
@@ -197,7 +197,7 @@ mod tests {
                     comment: None,
                 },
             ],
-            table_constraints: vec![],
+            table_constraints: vec![], table_options: vec![],
         };
         CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
 
@@ -236,7 +236,7 @@ mod tests {
                 default_value: None,
                 comment: None,
             }],
-            table_constraints: vec![],
+            table_constraints: vec![], table_options: vec![],
         };
         CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
 
@@ -266,7 +266,7 @@ mod tests {
                     default_value: None,
                     comment: None,
                 }],
-                table_constraints: vec![],
+                table_constraints: vec![], table_options: vec![],
             };
             CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
         }
@@ -298,7 +298,7 @@ mod tests {
                 default_value: None,
                 comment: None,
             }],
-            table_constraints: vec![],
+            table_constraints: vec![], table_options: vec![],
         };
         CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
 

@@ -29,7 +29,7 @@ fn test_create_table_with_column_primary_key() {
                 comment: None,
             },
         ],
-        table_constraints: vec![],
+        table_constraints: vec![], table_options: vec![],
     };
 
     let result = CreateTableExecutor::execute(&stmt, &mut db);
@@ -125,7 +125,7 @@ fn test_create_table_with_column_unique_constraint() {
                 comment: None,
             },
         ],
-        table_constraints: vec![],
+        table_constraints: vec![], table_options: vec![],
     };
 
     let result = CreateTableExecutor::execute(&stmt, &mut db);
@@ -194,7 +194,7 @@ fn test_create_table_with_check_constraint() {
             default_value: None,
             comment: None,
         }],
-        table_constraints: vec![],
+        table_constraints: vec![], table_options: vec![],
     };
 
     let result = CreateTableExecutor::execute(&stmt, &mut db);

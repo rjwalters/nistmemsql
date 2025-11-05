@@ -1,6 +1,7 @@
 mod basic;
 mod constraints_column;
 mod constraints_table;
+mod mysql_table_options;
 mod northwind;
 mod numeric_types;
 mod spatial_types;

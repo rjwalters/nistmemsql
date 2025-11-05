@@ -204,6 +204,26 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "SERIALIZABLE" => Token::Keyword(Keyword::Serializable),
         "ISOLATION" => Token::Keyword(Keyword::Isolation),
         "LEVEL" => Token::Keyword(Keyword::Level),
+        // MySQL table option keywords
+        "KEY_BLOCK_SIZE" => Token::Keyword(Keyword::KeyBlockSize),
+        "CONNECTION" => Token::Keyword(Keyword::Connection),
+        "INSERT_METHOD" => Token::Keyword(Keyword::InsertMethod),
+        "ROW_FORMAT" => Token::Keyword(Keyword::RowFormat),
+        "DELAY_KEY_WRITE" => Token::Keyword(Keyword::DelayKeyWrite),
+        "TABLE_CHECKSUM" => Token::Keyword(Keyword::TableChecksum),
+        "CHECKSUM" => Token::Keyword(Keyword::Checksum),
+        "STATS_SAMPLE_PAGES" => Token::Keyword(Keyword::StatsSamplePages),
+        "PASSWORD" => Token::Keyword(Keyword::Password),
+        "AVG_ROW_LENGTH" => Token::Keyword(Keyword::AvgRowLength),
+        "MIN_ROWS" => Token::Keyword(Keyword::MinRows),
+        "MAX_ROWS" => Token::Keyword(Keyword::MaxRows),
+        "SECONDARY_ENGINE" => Token::Keyword(Keyword::SecondaryEngine),
+        // MySQL table option values
+        "DYNAMIC" => Token::Keyword(Keyword::Dynamic),
+        "FIXED" => Token::Keyword(Keyword::Fixed),
+        "COMPRESSED" => Token::Keyword(Keyword::Compressed),
+        "REDUNDANT" => Token::Keyword(Keyword::Redundant),
+        "COMPACT" => Token::Keyword(Keyword::Compact),
         _ => Token::Identifier(upper_text), // Regular identifiers are normalized to uppercase
     }
 }
