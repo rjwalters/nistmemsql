@@ -17,8 +17,9 @@ impl Parser {
         self.advance();
 
         match type_upper.as_str() {
-            "INTEGER" | "INT" => Ok(types::DataType::Integer),
-            "SMALLINT" => Ok(types::DataType::Smallint),
+        "INTEGER" | "INT" => Ok(types::DataType::Integer),
+        "SIGNED" => Ok(types::DataType::Integer), // MySQL-specific: SIGNED is equivalent to INTEGER
+        "SMALLINT" => Ok(types::DataType::Smallint),
             "BIGINT" => Ok(types::DataType::Bigint),
             "BOOLEAN" | "BOOL" => Ok(types::DataType::Boolean),
             "FLOAT" => {

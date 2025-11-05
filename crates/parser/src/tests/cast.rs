@@ -44,8 +44,35 @@ fn test_parse_cast_integer_to_varchar() {
 
 #[test]
 fn test_parse_cast_varchar_to_integer() {
-    let result = Parser::parse_sql("SELECT CAST('123' AS INTEGER);");
-    assert!(result.is_ok(), "CAST to INTEGER should parse: {:?}", result);
+let result = Parser::parse_sql("SELECT CAST('123' AS INTEGER);");
+assert!(result.is_ok(), "CAST to INTEGER should parse: {:?}", result);
+
+let stmt = result.unwrap();
+match stmt {
+ast::Statement::Select(select) => {
+match &select.select_list[0] {
+ast::SelectItem::Expression { expr, alias: _ } => {
+match expr {
+ast::Expression::Cast { expr: _, data_type } => {
+match data_type {
+types::DataType::Integer => {} // Success
+_ => panic!("Expected INTEGER, got {:?}", data_type),
+}
+}
+_ => panic!("Expected CAST expression"),
+}
+}
+_ => panic!("Expected expression"),
+}
+}
+_ => panic!("Expected SELECT statement"),
+}
+}
+
+#[test]
+fn test_parse_cast_to_signed() {
+    let result = Parser::parse_sql("SELECT CAST(value AS SIGNED);");
+    assert!(result.is_ok(), "CAST to SIGNED should parse: {:?}", result);
 
     let stmt = result.unwrap();
     match stmt {
@@ -55,8 +82,8 @@ fn test_parse_cast_varchar_to_integer() {
                     match expr {
                         ast::Expression::Cast { expr: _, data_type } => {
                             match data_type {
-                                types::DataType::Integer => {} // Success
-                                _ => panic!("Expected INTEGER, got {:?}", data_type),
+                                types::DataType::Integer => {} // SIGNED maps to INTEGER
+                                _ => panic!("Expected INTEGER (SIGNED), got {:?}", data_type),
                             }
                         }
                         _ => panic!("Expected CAST expression"),

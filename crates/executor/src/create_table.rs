@@ -51,7 +51,7 @@ impl CreateTableExecutor {
     ///             comment: None,
     ///         },
     ///     ],
-    ///     table_constraints: vec![], table_options: vec![],
+    ///     table_constraints: vec![],
     ///     table_options: vec![],
     /// };
     ///
@@ -190,8 +190,8 @@ mod tests {
         comment: None,
         },
         ],
-        table_constraints: vec![], table_options: vec![],
-            table_options: vec![],
+        table_constraints: vec![],
+        table_options: vec![],
         };
 
         let result = CreateTableExecutor::execute(&stmt, &mut db);
@@ -253,8 +253,8 @@ mod tests {
         comment: None,
         },
         ],
-        table_constraints: vec![], table_options: vec![],
-            table_options: vec![],
+        table_constraints: vec![],
+        table_options: vec![],
         };
 
         let result = CreateTableExecutor::execute(&stmt, &mut db);
