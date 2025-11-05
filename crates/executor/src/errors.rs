@@ -140,6 +140,15 @@ impl From<storage::StorageError> for ExecutorError {
                     column, expected, actual
                 ))
             }
+            storage::StorageError::ColumnNotFound { column_name, table_name } => {
+                ExecutorError::StorageError(format!(
+                    "Column '{}' not found in table '{}'",
+                    column_name, table_name
+                ))
+            }
+            storage::StorageError::NotImplemented(msg) => {
+                ExecutorError::StorageError(format!("Not implemented: {}", msg))
+            }
         }
     }
 }

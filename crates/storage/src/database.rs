@@ -5,6 +5,7 @@
 use crate::{Row, StorageError, Table};
 use ast::IndexColumn;
 use std::collections::HashMap;
+use types::SqlValue;
 
 /// A single change made during a transaction
 #[derive(Debug, Clone)]
@@ -52,6 +53,13 @@ pub struct IndexMetadata {
     pub columns: Vec<IndexColumn>,
 }
 
+/// Actual index data structure - maps key values to row indices
+#[derive(Debug, Clone)]
+pub struct IndexData {
+    /// Sorted vector of (key_value, row_indices) for ordered access
+    pub data: Vec<(SqlValue, Vec<usize>)>,
+}
+
 /// In-memory database - manages catalog and tables
 #[derive(Debug, Clone)]
 pub struct Database {
@@ -59,6 +67,8 @@ pub struct Database {
     tables: HashMap<String, Table>,
     /// Index metadata storage (index_name -> metadata)
     indexes: HashMap<String, IndexMetadata>,
+    /// Actual index data (index_name -> data)
+    index_data: HashMap<String, IndexData>,
     /// Current transaction state
     transaction_state: TransactionState,
     /// Next transaction ID
@@ -79,6 +89,7 @@ impl Database {
             catalog: catalog::Catalog::new(),
             tables: HashMap::new(),
             indexes: HashMap::new(),
+            index_data: HashMap::new(),
             transaction_state: TransactionState::None,
             next_transaction_id: 1,
             current_role: None,
@@ -454,10 +465,40 @@ impl Database {
             return Err(StorageError::IndexAlreadyExists(index_name));
         }
 
+        // For now, only support single-column indexes
+        if columns.len() != 1 {
+            return Err(StorageError::NotImplemented("Multi-column indexes not yet supported".to_string()));
+        }
+
+        // Get the table to build the index
+        let table = self.tables.get(&table_name)
+            .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
+
+        // Get column index in the table
+        let column_name = &columns[0].column_name;
+        let column_idx = table.schema.get_column_index(column_name)
+            .ok_or_else(|| StorageError::ColumnNotFound {
+                column_name: column_name.clone(),
+                table_name: table_name.clone(),
+            })?;
+
+        // Build the index data
+        let mut index_data_map = HashMap::new();
+        for (row_idx, row) in table.scan().iter().enumerate() {
+        let key_value = row.values[column_idx].clone();
+        index_data_map.entry(key_value).or_insert_with(Vec::new).push(row_idx);
+        }
+
+        // Convert to sorted vector
+        let mut index_data_vec: Vec<(SqlValue, Vec<usize>)> = index_data_map.into_iter().collect();
+        index_data_vec.sort_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
         // Store index metadata
         let metadata =
             IndexMetadata { index_name: index_name.clone(), table_name, unique, columns };
-        self.indexes.insert(index_name, metadata);
+
+        self.indexes.insert(index_name.clone(), metadata);
+        self.index_data.insert(index_name, IndexData { data: index_data_vec });
 
         Ok(())
     }
@@ -472,11 +513,18 @@ impl Database {
         self.indexes.get(index_name)
     }
 
+    /// Get index data
+    pub fn get_index_data(&self, index_name: &str) -> Option<&IndexData> {
+        self.index_data.get(index_name)
+    }
+
     /// Drop an index
     pub fn drop_index(&mut self, index_name: &str) -> Result<(), StorageError> {
         if self.indexes.remove(index_name).is_none() {
             return Err(StorageError::IndexNotFound(index_name.to_string()));
         }
+        // Also remove the index data
+        self.index_data.remove(index_name);
         Ok(())
     }
 
