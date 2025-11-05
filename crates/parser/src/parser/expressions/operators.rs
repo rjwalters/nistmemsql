@@ -337,10 +337,9 @@ impl Parser {
     pub(super) fn parse_expression_list(&mut self) -> Result<Vec<ast::Expression>, ParseError> {
         let mut expressions = Vec::new();
 
-        // Empty list check
+        // Check for empty list (SQLite compatibility)
         if matches!(self.peek(), Token::RParen) {
-            // Empty list - SQL standard requires at least one value in IN list
-            return Err(ParseError { message: "Expected at least one value in list".to_string() });
+            return Ok(expressions);
         }
 
         // Parse first expression
