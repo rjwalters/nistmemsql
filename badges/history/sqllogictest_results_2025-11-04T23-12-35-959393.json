@@ -1,0 +1,85 @@
+{
+  "timestamp": "2025-11-04T23:12:35.959393",
+  "summary": {
+    "total_available_files": 623,
+    "total_tested_files": 3,
+    "passed": 1,
+    "failed": 2,
+    "untested": 620,
+    "pass_rate": 33.33,
+    "coverage_rate": 0.48
+  },
+  "tested_files": {
+    "passed": [
+      "index/between/100/slt_good_1.test"
+    ],
+    "failed": [
+      "random/aggregates/slt_good_56.test",
+      "random/aggregates/slt_good_58.test"
+    ]
+  },
+  "detailed_failures": [
+    {
+      "failures": [
+        {
+          "actual_result": null,
+          "error_message": "Test panicked: failed to parse sqllogictest: ParseError { kind: InvalidLine(\"onlyif mysql # CAST syntax: SIGNED type: \"), loc: Location { file: \"<unknown>\", line: 46, upper: None } }",
+          "expected_result": null,
+          "line_number": null,
+          "sql_statement": "Unknown - panic occurred"
+        }
+      ],
+      "file_path": "random/aggregates/slt_good_58.test"
+    },
+    {
+      "failures": [
+        {
+          "actual_result": null,
+          "error_message": "Test panicked: failed to parse sqllogictest: ParseError { kind: InvalidLine(\"onlyif mysql # aggregate syntax: \"), loc: Location { file: \"<unknown>\", line: 43, upper: None } }",
+          "expected_result": null,
+          "line_number": null,
+          "sql_statement": "Unknown - panic occurred"
+        }
+      ],
+      "file_path": "random/aggregates/slt_good_56.test"
+    }
+  ],
+  "categories": {
+    "select": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "evidence": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "index": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "random": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "ddl": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "other": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    }
+  },
+  "merge_info": {
+    "current_run_tested": 3,
+    "historical_tested": 0,
+    "new_files_tested": 3,
+    "status_changes": 0
+  }
+}
