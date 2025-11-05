@@ -122,24 +122,9 @@ jobs:
 
       - name: Setup Rust
         if: steps.should_run.outputs.run == 'true'
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: ./.github/actions/setup-rust
         with:
-          toolchain: stable
-
-      - name: Cache Rust dependencies
-        if: steps.should_run.outputs.run == 'true'
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-boost-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-boost-
-            ${{ runner.os }}-cargo-
+          cache-key-suffix: boost
 
       - name: Setup Python
         if: steps.should_run.outputs.run == 'true'
@@ -330,12 +315,9 @@ jobs:
             boost_summary.md
           retention-days: 90
 
-  # Aggregation job: Collects results from all parallel runners and pushes once
-  # IMPORTANT: This job downloads the FULL GitHub Pages site to preserve all
-  # web demo files (HTML, JS, WASM, CSS) before updating only the cumulative
-  # SQLLogicTest results. This prevents corrupting the web demo deployment.
+  # Aggregation job: Collects results from all parallel runners
   aggregate-results:
-    name: Aggregate Results and Update gh-pages
+    name: Aggregate Results
     runs-on: ubuntu-latest
     needs: boost-coverage
     if: always() && github.ref == 'refs/heads/main'
@@ -413,155 +395,21 @@ jobs:
           echo "=== Final Aggregated Results ==="
           jq '.summary' aggregated/sqllogictest_merged.json
 
-      - name: Download current Pages site
-        run: |
-          echo "Downloading current Pages site content..."
-          mkdir -p pages-site
-
-          # Download the entire current Pages site recursively
-          # -r: recursive, -np: no parent, -nH: no host directory
-          # -E: adjust extension, -k: convert links
-          # -A: accept specific file types to ensure all assets are downloaded
-          # --reject: reject patterns we don't want
-          wget -r -np -nH -E -k --cut-dirs=1 \
-            -A "*.html,*.js,*.wasm,*.css,*.json,*.svg,*.png,*.jpg,*.jpeg,*.gif,*.woff,*.woff2,*.ttf,*.eot,*.ico,*.md" \
-            --reject "*.html.tmp,*.html?*" \
-            -P pages-site \
-            https://rjwalters.github.io/vibesql/ || {
-            echo "⚠️  Could not download full Pages site"
-            echo "This might be the first boost run - creating minimal structure"
-            mkdir -p pages-site/badges
-          }
-
-          # Explicitly download the /pkg/ directory (WASM files not linked in HTML)
-          echo ""
-          echo "Downloading /pkg/ directory with WASM files..."
-          mkdir -p pages-site/pkg
-          wget -q -P pages-site/pkg \
-            https://rjwalters.github.io/vibesql/pkg/vibesql_wasm_bg.wasm \
-            https://rjwalters.github.io/vibesql/pkg/vibesql_wasm.js \
-            https://rjwalters.github.io/vibesql/pkg/package.json || {
-            echo "⚠️  Could not download pkg directory - may not exist yet"
-          }
-
-          # Clean up wget artifacts
-          rm -f pages-site/robots.txt.tmp 2>/dev/null || true
-          rm -f pages-site/.listing 2>/dev/null || true
-
-          echo ""
-          echo "=== Downloaded Pages site structure ==="
-          find pages-site -type f | head -30
-          echo ""
-          echo "=== JavaScript and WASM files ==="
-          find pages-site -name "*.js" -o -name "*.wasm" | head -20
-          echo ""
-          echo "=== Key asset counts ==="
-          echo "HTML files: $(find pages-site -name "*.html" | wc -l)"
-          echo "JS files: $(find pages-site -name "*.js" | wc -l)"
-          echo "WASM files: $(find pages-site -name "*.wasm" | wc -l)"
-          echo "CSS files: $(find pages-site -name "*.css" | wc -l)"
-          echo "JSON files: $(find pages-site -name "*.json" | wc -l)"
-
-      - name: Verify downloaded site integrity
-        run: |
-          echo "=== Verifying critical files exist ==="
-
-          # Check for essential HTML files
-          if [ ! -f pages-site/index.html ]; then
-            echo "❌ ERROR: index.html not found! Site download may have failed."
-            echo "This could corrupt the deployment. Aborting to preserve current site."
-            exit 1
-          fi
-
-          # Check for WASM files (critical for database functionality)
-          WASM_COUNT=$(find pages-site -name "*.wasm" 2>/dev/null | wc -l | tr -d ' ')
-          if [ "$WASM_COUNT" -eq 0 ]; then
-            echo "❌ ERROR: No WASM files found! Database will not function."
-            echo "This could corrupt the deployment. Aborting to preserve current site."
-            exit 1
-          fi
-
-          # Check for JavaScript files
-          JS_COUNT=$(find pages-site -name "*.js" 2>/dev/null | wc -l | tr -d ' ')
-          if [ "$JS_COUNT" -eq 0 ]; then
-            echo "❌ ERROR: No JavaScript files found! Site will not function."
-            echo "This could corrupt the deployment. Aborting to preserve current site."
-            exit 1
-          fi
-
-          echo "✓ Found index.html"
-          echo "✓ Found $WASM_COUNT WASM files"
-          echo "✓ Found $JS_COUNT JavaScript files"
-          echo ""
-          echo "Site integrity check PASSED"
-
-      - name: Update cumulative results in Pages site
-        run: |
-          if [ ! -f aggregated/sqllogictest_merged.json ]; then
-            echo "No aggregated results to publish"
-            exit 1
-          fi
-
-          # Create badges directory if it doesn't exist
-          mkdir -p pages-site/badges
-
-          # Copy aggregated results
-          cp aggregated/sqllogictest_merged.json pages-site/badges/sqllogictest_cumulative.json
-
-          echo ""
-          echo "=== Updated Cumulative Results ==="
-          jq '.summary' pages-site/badges/sqllogictest_cumulative.json
-
-          # Generate badge JSON from cumulative results
-          echo ""
-          echo "=== Generating Badge JSON ==="
-          SLT_PASS_RATE=$(jq -r '.summary.pass_rate // "0"' pages-site/badges/sqllogictest_cumulative.json | xargs printf "%.1f")
-          SLT_COVERAGE=$(jq -r '.summary.coverage_rate // "0"' pages-site/badges/sqllogictest_cumulative.json | xargs printf "%.1f")
-          SLT_PASSED=$(jq -r '.summary.passed // "0"' pages-site/badges/sqllogictest_cumulative.json)
-          SLT_FAILED=$(jq -r '.summary.failed // "0"' pages-site/badges/sqllogictest_cumulative.json)
-
-          # Determine badge color (based on coverage rate)
-          if (( $(echo "$SLT_COVERAGE >= 80" | bc -l) )); then
-            SLT_COLOR="brightgreen"
-          elif (( $(echo "$SLT_COVERAGE >= 60" | bc -l) )); then
-            SLT_COLOR="green"
-          elif (( $(echo "$SLT_COVERAGE >= 40" | bc -l) )); then
-            SLT_COLOR="yellow"
-          elif (( $(echo "$SLT_COVERAGE >= 20" | bc -l) )); then
-            SLT_COLOR="orange"
-          else
-            SLT_COLOR="red"
-          fi
-
-          # Create SQLLogicTest badge JSON (showing coverage)
-          cat > pages-site/badges/sqllogictest.json <<JSON
-          {
-            "schemaVersion": 1,
-            "label": "SQLLogicTest",
-            "message": "${SLT_PASSED}✓ ${SLT_FAILED}✗ (${SLT_COVERAGE}% tested)",
-            "color": "$SLT_COLOR"
-          }
-          JSON
-
-          echo "Generated SQLLogicTest badge: ${SLT_PASSED}✓ ${SLT_FAILED}✗ (${SLT_COVERAGE}% coverage, $SLT_COLOR)"
-          echo ""
-          echo "Badge JSON:"
-          cat pages-site/badges/sqllogictest.json
-
-          echo ""
-          echo "=== Pages site structure ==="
-          ls -la pages-site/
-          echo ""
-          echo "=== Badges directory ==="
-          ls -la pages-site/badges/ || echo "No badges directory"
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Upload aggregated results artifact
+        uses: actions/upload-artifact@v4
         with:
-          path: './pages-site'
+          name: boost-aggregated-results
+          path: aggregated/sqllogictest_merged.json
+          retention-days: 90
 
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
+  # Deploy job: Calls centralized deployment workflow
+  deploy:
+    needs: aggregate-results
+    uses: ./.github/workflows/deploy-pages.yml
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    with:
+      artifact-name: boost-aggregated-results
+      rebuild-web-demo: false  # Boost doesn't need to rebuild web demo

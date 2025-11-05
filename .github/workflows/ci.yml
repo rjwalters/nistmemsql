@@ -25,12 +25,9 @@ jobs:
           submodules: recursive
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
+        uses: ./.github/actions/setup-rust
         with:
-          shared-key: "rust-ci-cache"
+          cache-key-suffix: ci
 
       - name: Run unit tests
         run: cargo test --release -- --skip run_sqllogictest_suite
@@ -51,12 +48,9 @@ jobs:
           submodules: recursive
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
+        uses: ./.github/actions/setup-rust
         with:
-          shared-key: "rust-ci-cache"
+          cache-key-suffix: ci
 
       - name: Setup Python
         uses: actions/setup-python@v5

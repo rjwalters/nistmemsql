@@ -5,17 +5,15 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Sets permissions for GitHub Pages deployment
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Prevent concurrent Pages deployments (queue them instead)
-# Also allow only one CI run per branch at a time
+# Simpler concurrency: just prevent multiple CI runs on main
 concurrency:
-  group: ${{ github.workflow == 'CI and Deploy' && github.ref == 'refs/heads/main' && 'pages-deployment' || format('{0}-{1}', github.workflow, github.event.pull_request.number || github.ref) }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  group: ci-main-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   # ============================================================================
@@ -29,12 +27,9 @@ jobs:
           submodules: recursive
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
+        uses: ./.github/actions/setup-rust
         with:
-          shared-key: "rust-ci-cache"
+          cache-key-suffix: ci
 
       - name: Run unit tests
         run: cargo test --release -- --skip run_sqllogictest_suite
@@ -51,56 +46,20 @@ jobs:
           SQLLOGICTEST_TIME_BUDGET: "300"
           GITHUB_SHA: ${{ github.sha }}
 
-      - name: Download historical SQLLogicTest results
-        continue-on-error: true
-        run: |
-          echo "Downloading cumulative SQLLogicTest results..."
-          echo "Note: This includes results from both regular CI runs and boost runs"
-          echo ""
-
-          # Download and validate JSON
-          if curl -sL https://rjwalters.github.io/vibesql/badges/sqllogictest_cumulative.json \
-            -o target/sqllogictest_historical.json 2>/dev/null; then
-
-            # Check if it's valid JSON (not an HTML error page)
-            if jq empty target/sqllogictest_historical.json 2>/dev/null; then
-              echo "✓ Downloaded existing cumulative results"
-              echo ""
-              echo "Current coverage:"
-              jq '.summary' target/sqllogictest_historical.json || echo "{}"
-            else
-              echo "Downloaded file is not valid JSON (likely 404 page) - starting fresh"
-              echo '{}' > target/sqllogictest_historical.json
-            fi
-          else
-            echo "No existing cumulative results found - this will be the first run"
-            echo '{}' > target/sqllogictest_historical.json
-          fi
-
-      - name: Merge SQLLogicTest results with historical data
-        run: |
-          echo "Merging current results with historical data..."
-          python3 scripts/merge_sqllogictest_results.py \
-            target/sqllogictest_analysis.json \
-            target/sqllogictest_historical.json \
-            target/sqllogictest_cumulative.json
-        continue-on-error: true
-
       - name: Upload test results
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: ci-test-results
           path: |
             target/sqltest_results.json
             target/sqllogictest_results.json
             target/sqllogictest_analysis.json
             target/sqllogictest_analysis.md
-            target/sqllogictest_cumulative.json
             target/sqllogictest_raw.log
           retention-days: 90
 
   # ============================================================================
-  # JOB 2: Benchmarks (depends on test)
+  # JOB 2: Benchmarks
   # ============================================================================
   benchmark:
     runs-on: ubuntu-latest
@@ -111,12 +70,9 @@ jobs:
           submodules: recursive
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
+        uses: ./.github/actions/setup-rust
         with:
-          shared-key: "rust-ci-cache"
+          cache-key-suffix: ci
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -150,7 +106,7 @@ jobs:
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-results
+          name: ci-benchmark-results
           path: benchmark_results.json
           retention-days: 90
 
@@ -161,304 +117,15 @@ jobs:
           python benchmarks/format_results.py benchmark_results.json >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
-  # JOB 3: Deploy (depends on test and benchmark)
+  # JOB 3: Deploy (calls centralized workflow)
   # ============================================================================
   deploy:
-    runs-on: ubuntu-latest
     needs: [test, benchmark]
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: "rust-ci-cache"
-
-      - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-
-      - name: Clean old WASM files (rebrand from nistmemsql to vibesql)
-        run: rm -rf web-demo/public/pkg
-
-      - name: Build WASM bindings
-        run: wasm-pack build --target web --out-dir ${{ github.workspace }}/web-demo/public/pkg crates/wasm-bindings --release
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: web-demo/package-lock.json
-
-      - name: Install and build web demo
-        working-directory: web-demo
-        run: |
-          npm ci
-          npm run build
-
-      # Download artifacts from previous jobs
-      - name: Download test results
-        uses: actions/download-artifact@v4
-        with:
-          name: test-results
-          path: target
-
-      - name: Download benchmark results
-        uses: actions/download-artifact@v4
-        with:
-          name: benchmark-results
-
-      - name: Verify downloaded artifacts
-        run: |
-          echo "=== Checking downloaded benchmark artifacts ==="
-          ls -la benchmark_results.json || echo "ERROR: benchmark_results.json not found!"
-          echo "=== Checking test artifacts ==="
-          ls -la target/sqltest_results.json || echo "ERROR: sqltest_results.json not found!"
-          ls -la target/sqllogictest_results.json || echo "ERROR: sqllogictest_results.json not found!"
-
-      - name: Download benchmark history from gh-pages
-        continue-on-error: true
-        run: |
-          if curl -sL https://rjwalters.github.io/vibesql/benchmarks/benchmark_history.json \
-            -o benchmark_history.json; then
-            echo "Downloaded existing benchmark history"
-          else
-            echo "No existing history found - will create new file"
-            # Don't create the file if it doesn't exist
-          fi
-
-      - name: Update benchmark history
-        run: |
-          python benchmarks/update_history.py \
-            benchmark_results.json \
-            benchmark_history.json \
-            ${{ github.sha }}
-        continue-on-error: true
-
-      # Generate badges
-      - name: Verify cumulative results were created
-        run: |
-          echo "=== Checking merged cumulative results ==="
-          if [ -f target/sqllogictest_cumulative.json ]; then
-            echo "✓ Cumulative results file exists"
-            echo ""
-            echo "Summary:"
-            jq '.summary' target/sqllogictest_cumulative.json || echo "No summary found"
-            echo ""
-            echo "Merge info:"
-            jq '.merge_info' target/sqllogictest_cumulative.json || echo "No merge info found"
-          else
-            echo "⚠️  WARNING: No cumulative results file found!"
-            echo "This means the merge step may have failed."
-          fi
-
-      - name: Generate badge JSON
-        run: |
-          mkdir -p badges
-
-          # Extract pass rate from sqltest results
-          if [ -f target/sqltest_results.json ]; then
-            PASS_RATE=$(jq -r '.pass_rate // "0"' target/sqltest_results.json | xargs printf "%.1f")
-          else
-            PASS_RATE="0.0"
-          fi
-
-          # Determine badge color
-          if (( $(echo "$PASS_RATE >= 80" | bc -l) )); then
-            COLOR="brightgreen"
-          elif (( $(echo "$PASS_RATE >= 60" | bc -l) )); then
-            COLOR="green"
-          elif (( $(echo "$PASS_RATE >= 40" | bc -l) )); then
-            COLOR="yellow"
-          elif (( $(echo "$PASS_RATE >= 20" | bc -l) )); then
-            COLOR="orange"
-          else
-            COLOR="red"
-          fi
-
-          # Create SQL:1999 badge JSON
-          cat > badges/sql1999-conformance.json <<JSON
-          {
-            "schemaVersion": 1,
-            "label": "SQL:1999",
-            "message": "${PASS_RATE}%",
-            "color": "$COLOR"
-          }
-          JSON
-
-          echo "Generated SQL:1999 badge: ${PASS_RATE}% ($COLOR)"
-
-          # Use the merged cumulative results for badge display (includes this run's contribution)
-          if [ -f target/sqllogictest_cumulative.json ]; then
-            echo "Using merged cumulative results for badge (includes current run)"
-            SLT_PASS_RATE=$(jq -r '.summary.pass_rate // "0"' target/sqllogictest_cumulative.json | xargs printf "%.1f")
-            SLT_COVERAGE=$(jq -r '.summary.coverage_rate // "0"' target/sqllogictest_cumulative.json | xargs printf "%.1f")
-            SLT_PASSED=$(jq -r '.summary.passed // "0"' target/sqllogictest_cumulative.json)
-            SLT_FAILED=$(jq -r '.summary.failed // "0"' target/sqllogictest_cumulative.json)
-            SLT_TOTAL=$(jq -r '.summary.total_available_files // "0"' target/sqllogictest_cumulative.json)
-          elif [ -f target/sqllogictest_results.json ]; then
-            echo "Using single-run results for badge display (merge may have failed)"
-            SLT_PASS_RATE=$(jq -r '.pass_rate // "0"' target/sqllogictest_results.json | xargs printf "%.1f")
-            SLT_COVERAGE="0.0"
-            SLT_PASSED=$(jq -r '.passed // "0"' target/sqllogictest_results.json)
-            SLT_FAILED=$(jq -r '.failed // "0"' target/sqllogictest_results.json)
-            SLT_TOTAL="0"
-          else
-            echo "No SQLLogicTest results available"
-            SLT_PASS_RATE="0.0"
-            SLT_COVERAGE="0.0"
-            SLT_PASSED="0"
-            SLT_FAILED="0"
-            SLT_TOTAL="0"
-          fi
-
-          # Determine SQLLogicTest badge color (based on coverage rate)
-          if (( $(echo "$SLT_COVERAGE >= 80" | bc -l) )); then
-            SLT_COLOR="brightgreen"
-          elif (( $(echo "$SLT_COVERAGE >= 60" | bc -l) )); then
-            SLT_COLOR="green"
-          elif (( $(echo "$SLT_COVERAGE >= 40" | bc -l) )); then
-            SLT_COLOR="yellow"
-          elif (( $(echo "$SLT_PASS_RATE >= 20" | bc -l) )); then
-            SLT_COLOR="orange"
-          else
-            SLT_COLOR="red"
-          fi
-
-          # Create SQLLogicTest badge JSON (showing coverage)
-          cat > badges/sqllogictest.json <<JSON
-          {
-            "schemaVersion": 1,
-            "label": "SQLLogicTest",
-            "message": "${SLT_PASSED}✓ ${SLT_FAILED}✗ (${SLT_COVERAGE}% tested)",
-            "color": "$SLT_COLOR"
-          }
-          JSON
-
-          echo "Generated SQLLogicTest badge: ${SLT_PASSED}✓ ${SLT_FAILED}✗ (${SLT_COVERAGE}% coverage, $SLT_COLOR)"
-
-          # Copy all results including the updated cumulative file
-          [ -f target/sqltest_results.json ] && cp target/sqltest_results.json badges/
-          [ -f target/sqllogictest_results.json ] && cp target/sqllogictest_results.json badges/
-          [ -f target/sqllogictest_analysis.json ] && cp target/sqllogictest_analysis.json badges/
-          [ -f target/sqllogictest_analysis.md ] && cp target/sqllogictest_analysis.md badges/
-          [ -f target/sqllogictest_cumulative.json ] && cp target/sqllogictest_cumulative.json badges/
-          [ -f benchmark_results.json ] && cp benchmark_results.json badges/
-          [ -f benchmark_history.json ] && cp benchmark_history.json badges/
-
-      # Download existing Pages site to preserve cumulative results
-      - name: Download current Pages site
-        continue-on-error: true
-        run: |
-          echo "Downloading current Pages site to preserve cumulative results..."
-          mkdir -p pages-temp
-
-          # Download existing cumulative results (most important)
-          if curl -sL https://rjwalters.github.io/vibesql/badges/sqllogictest_cumulative.json \
-            -o pages-temp/sqllogictest_cumulative_existing.json 2>/dev/null; then
-            if jq empty pages-temp/sqllogictest_cumulative_existing.json 2>/dev/null; then
-              echo "✓ Downloaded existing cumulative results"
-              jq '.summary' pages-temp/sqllogictest_cumulative_existing.json
-            else
-              echo "Downloaded file is not valid JSON - will use fresh results"
-            fi
-          else
-            echo "No existing cumulative results found on Pages"
-          fi
-
-      # Re-merge with latest cumulative from Pages (not the one from start of test job)
-      - name: Re-merge with latest cumulative results
-        continue-on-error: true
-        run: |
-          if [ -f pages-temp/sqllogictest_cumulative_existing.json ]; then
-            echo "Re-merging with latest cumulative results from Pages..."
-            python3 scripts/merge_sqllogictest_results.py \
-              target/sqllogictest_analysis.json \
-              pages-temp/sqllogictest_cumulative_existing.json \
-              target/sqllogictest_cumulative_updated.json
-
-            if [ -f target/sqllogictest_cumulative_updated.json ]; then
-              cp target/sqllogictest_cumulative_updated.json target/sqllogictest_cumulative.json
-              cp target/sqllogictest_cumulative_updated.json badges/sqllogictest_cumulative.json
-              echo "✓ Re-merged with latest Pages cumulative results"
-              jq '.summary' target/sqllogictest_cumulative.json
-            fi
-          else
-            echo "Using cumulative results from test job (no Pages version found)"
-          fi
-
-      # Prepare deployment
-      - name: Prepare deployment
-        run: |
-          mkdir -p deploy
-          cp -r web-demo/dist/* deploy/
-          mkdir -p deploy/benchmarks
-          mkdir -p deploy/badges
-          cp badges/* deploy/badges/ 2>/dev/null || true
-
-          # Copy benchmark files with verification
-          if [ -f badges/benchmark_results.json ]; then
-            cp badges/benchmark_results.json deploy/benchmarks/
-            echo "✓ Copied benchmark_results.json to deploy/benchmarks/"
-          else
-            echo "⚠️  WARNING: badges/benchmark_results.json not found!"
-          fi
-
-          if [ -f badges/benchmark_history.json ]; then
-            cp badges/benchmark_history.json deploy/benchmarks/
-            echo "✓ Copied benchmark_history.json to deploy/benchmarks/"
-          else
-            echo "⚠️  WARNING: badges/benchmark_history.json not found!"
-          fi
-
-          # Copy SQLLogicTest analysis files
-          if [ -f badges/sqllogictest_analysis.json ]; then
-            cp badges/sqllogictest_analysis.json deploy/badges/
-            echo "✓ Copied sqllogictest_analysis.json to deploy/badges/"
-          fi
-
-          if [ -f badges/sqllogictest_analysis.md ]; then
-            cp badges/sqllogictest_analysis.md deploy/badges/
-            echo "✓ Copied sqllogictest_analysis.md to deploy/badges/"
-          fi
-
-          # Copy updated cumulative results (includes this run's contribution)
-          if [ -f badges/sqllogictest_cumulative.json ]; then
-            cp badges/sqllogictest_cumulative.json deploy/badges/
-            echo "✓ Copied sqllogictest_cumulative.json to deploy/badges/"
-          fi
-
-          echo ""
-          echo "=== Deployment structure ==="
-          ls -la deploy/
-          echo ""
-          echo "=== Badges directory ==="
-          ls -la deploy/badges/ || echo "No badges directory"
-          echo ""
-          echo "=== Benchmarks directory ==="
-          ls -la deploy/benchmarks/ || echo "No benchmarks directory"
-
-      # Deploy to GitHub Pages
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: './deploy'
-
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
+    uses: ./.github/workflows/deploy-pages.yml
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    with:
+      artifact-name: ci-test-results
+      rebuild-web-demo: true

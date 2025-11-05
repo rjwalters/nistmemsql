@@ -1,0 +1,303 @@
+name: Deploy to GitHub Pages
+
+on:
+  workflow_call:
+    inputs:
+      artifact-name:
+        description: 'Name of the artifact containing test results/data to deploy (optional)'
+        type: string
+        required: false
+        default: ''
+      rebuild-web-demo:
+        description: 'Whether to rebuild the web demo from scratch'
+        type: boolean
+        required: false
+        default: true
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual deployment'
+        type: string
+        required: false
+        default: 'Manual deployment'
+      rebuild-web-demo:
+        description: 'Rebuild web demo'
+        type: boolean
+        required: false
+        default: true
+
+# Sets permissions for GitHub Pages deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# CRITICAL: Single concurrency group for ALL Pages deployments
+# This prevents race conditions from ci-and-deploy, boost, and manual redeploys
+concurrency:
+  group: pages-deployment
+  cancel-in-progress: false  # Queue deployments, don't cancel
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # ============================================================================
+      # Build Web Demo (if requested)
+      # ============================================================================
+      - name: Setup Rust for WASM
+        if: inputs.rebuild-web-demo || github.event_name == 'workflow_dispatch'
+        uses: ./.github/actions/setup-rust
+        with:
+          targets: wasm32-unknown-unknown
+          cache-key-suffix: wasm
+
+      - name: Install wasm-pack
+        if: inputs.rebuild-web-demo || github.event_name == 'workflow_dispatch'
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        shell: bash
+
+      - name: Clean old WASM files
+        if: inputs.rebuild-web-demo || github.event_name == 'workflow_dispatch'
+        run: rm -rf web-demo/public/pkg
+        shell: bash
+
+      - name: Build WASM bindings
+        if: inputs.rebuild-web-demo || github.event_name == 'workflow_dispatch'
+        run: wasm-pack build --target web --out-dir ${{ github.workspace }}/web-demo/public/pkg crates/wasm-bindings --release
+        shell: bash
+
+      - name: Setup Node.js
+        if: inputs.rebuild-web-demo || github.event_name == 'workflow_dispatch'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web-demo/package-lock.json
+
+      - name: Build web demo
+        if: inputs.rebuild-web-demo || github.event_name == 'workflow_dispatch'
+        working-directory: web-demo
+        run: |
+          npm ci
+          npm run build
+
+      # ============================================================================
+      # Download Existing Pages Site (to preserve all files)
+      # ============================================================================
+      - name: Download current Pages site
+        if: inputs.rebuild-web-demo == false
+        continue-on-error: true
+        run: |
+          echo "Downloading current Pages site to preserve existing files..."
+          mkdir -p pages-temp
+
+          # Download the entire site
+          wget -r -np -nH -E -k --cut-dirs=1 \
+            -A "*.html,*.js,*.wasm,*.css,*.json,*.svg,*.png,*.jpg,*.jpeg,*.gif,*.woff,*.woff2,*.ttf,*.eot,*.ico,*.md" \
+            --reject "*.html.tmp,*.html?*" \
+            -P pages-temp \
+            https://rjwalters.github.io/vibesql/ || echo "No existing site found"
+
+          # Explicitly download /pkg/ directory
+          mkdir -p pages-temp/pkg
+          wget -q -P pages-temp/pkg \
+            https://rjwalters.github.io/vibesql/pkg/vibesql_wasm_bg.wasm \
+            https://rjwalters.github.io/vibesql/pkg/vibesql_wasm.js \
+            https://rjwalters.github.io/vibesql/pkg/package.json || echo "No pkg directory found"
+
+      # ============================================================================
+      # Download Artifacts from Triggering Workflow
+      # ============================================================================
+      - name: Download artifacts
+        if: inputs.artifact-name != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: artifacts/
+
+      # ============================================================================
+      # Download Historical Data from Pages
+      # ============================================================================
+      - name: Download historical cumulative results
+        continue-on-error: true
+        run: |
+          echo "Downloading historical SQLLogicTest cumulative results..."
+          mkdir -p historical
+
+          if curl -sL https://rjwalters.github.io/vibesql/badges/sqllogictest_cumulative.json \
+            -o historical/sqllogictest_cumulative.json 2>/dev/null; then
+            if jq empty historical/sqllogictest_cumulative.json 2>/dev/null; then
+              echo "✓ Downloaded existing cumulative results"
+              jq '.summary' historical/sqllogictest_cumulative.json || echo "{}"
+            else
+              echo "Invalid JSON - starting fresh"
+              echo '{}' > historical/sqllogictest_cumulative.json
+            fi
+          else
+            echo "No existing cumulative results - starting fresh"
+            echo '{}' > historical/sqllogictest_cumulative.json
+          fi
+
+      - name: Download historical benchmark data
+        continue-on-error: true
+        run: |
+          echo "Downloading historical benchmark data..."
+          mkdir -p historical
+
+          if curl -sL https://rjwalters.github.io/vibesql/benchmarks/benchmark_history.json \
+            -o historical/benchmark_history.json; then
+            echo "✓ Downloaded benchmark history"
+          else
+            echo "No existing benchmark history found"
+          fi
+
+      # ============================================================================
+      # Merge Data (if we have new test results)
+      # ============================================================================
+      - name: Setup Python for merging
+        if: inputs.artifact-name != ''
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Merge SQLLogicTest results
+        if: inputs.artifact-name != ''
+        continue-on-error: true
+        run: |
+          # Find SQLLogicTest analysis files in artifacts
+          if find artifacts -name "sqllogictest_analysis.json" -o -name "sqllogictest_cumulative.json" | grep -q .; then
+            echo "Found SQLLogicTest results to merge"
+
+            # Use the most recent analysis or cumulative file
+            LATEST_RESULT=$(find artifacts -name "sqllogictest_cumulative.json" -o -name "sqllogictest_analysis.json" | head -1)
+
+            if [ -n "$LATEST_RESULT" ]; then
+              echo "Merging $LATEST_RESULT with historical data..."
+              python3 scripts/merge_sqllogictest_results.py \
+                "$LATEST_RESULT" \
+                historical/sqllogictest_cumulative.json \
+                merged/sqllogictest_cumulative.json || echo "Merge failed, using latest"
+
+              # Fallback: if merge failed, use the latest result
+              if [ ! -f merged/sqllogictest_cumulative.json ]; then
+                mkdir -p merged
+                cp "$LATEST_RESULT" merged/sqllogictest_cumulative.json
+              fi
+            fi
+          else
+            echo "No SQLLogicTest results in artifacts - using historical"
+            mkdir -p merged
+            cp historical/sqllogictest_cumulative.json merged/sqllogictest_cumulative.json || echo "{}" > merged/sqllogictest_cumulative.json
+          fi
+
+      - name: Update benchmark history
+        if: inputs.artifact-name != ''
+        continue-on-error: true
+        run: |
+          # Find benchmark results in artifacts
+          BENCHMARK_RESULT=$(find artifacts -name "benchmark_results.json" | head -1)
+
+          if [ -n "$BENCHMARK_RESULT" ] && [ -f "$BENCHMARK_RESULT" ]; then
+            echo "Updating benchmark history..."
+            python3 benchmarks/update_history.py \
+              "$BENCHMARK_RESULT" \
+              historical/benchmark_history.json \
+              ${{ github.sha }} || echo "Benchmark history update failed"
+          else
+            echo "No benchmark results in artifacts"
+          fi
+
+      # ============================================================================
+      # Generate Badges
+      # ============================================================================
+      - name: Generate badge JSON
+        run: |
+          mkdir -p badges
+
+          # Find test results (from artifacts or historical)
+          SQLTEST_RESULTS=$(find artifacts -name "sqltest_results.json" 2>/dev/null | head -1)
+          if [ -z "$SQLTEST_RESULTS" ]; then
+            # Try downloading from Pages as fallback
+            curl -sL https://rjwalters.github.io/vibesql/badges/sqltest_results.json \
+              -o badges/sqltest_results.json 2>/dev/null || echo "{}" > badges/sqltest_results.json
+            SQLTEST_RESULTS="badges/sqltest_results.json"
+          fi
+
+          # Use merged cumulative results
+          SQLLOGICTEST_CUMULATIVE="merged/sqllogictest_cumulative.json"
+          if [ ! -f "$SQLLOGICTEST_CUMULATIVE" ]; then
+            SQLLOGICTEST_CUMULATIVE="historical/sqllogictest_cumulative.json"
+          fi
+
+          # Generate badges using the new script
+          ./.github/scripts/generate_badges.sh badges "$SQLTEST_RESULTS" "$SQLLOGICTEST_CUMULATIVE"
+
+      # ============================================================================
+      # Prepare Deployment Directory
+      # ============================================================================
+      - name: Prepare deployment
+        run: |
+          mkdir -p deploy
+
+          # If we rebuilt web demo, use that
+          if [ -d web-demo/dist ]; then
+            echo "Using freshly built web demo"
+            WEB_DEMO_SOURCE="web-demo/dist"
+          # Otherwise use downloaded Pages site
+          elif [ -d pages-temp ]; then
+            echo "Using existing Pages site"
+            WEB_DEMO_SOURCE="pages-temp"
+          else
+            echo "ERROR: No web demo source found!"
+            exit 1
+          fi
+
+          # Prepare deployment using the new script
+          ./.github/scripts/prepare_deployment.sh \
+            deploy \
+            "$WEB_DEMO_SOURCE" \
+            badges \
+            "$(find artifacts historical -name 'benchmark_results.json' 2>/dev/null | head -1)" \
+            "historical/benchmark_history.json"
+
+          # Copy merged cumulative results
+          if [ -f merged/sqllogictest_cumulative.json ]; then
+            cp merged/sqllogictest_cumulative.json deploy/badges/
+            echo "✓ Copied merged cumulative results"
+          fi
+
+      # ============================================================================
+      # Deploy to GitHub Pages
+      # ============================================================================
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './deploy'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Deployment summary
+        run: |
+          echo "## 🚀 Deployed to GitHub Pages" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** https://rjwalters.github.io/vibesql/" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Rebuilt web demo:** ${{ inputs.rebuild-web-demo || github.event_name == 'workflow_dispatch' }}" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f deploy/badges/sqllogictest_cumulative.json ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### SQLLogicTest Coverage" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            jq '.summary' deploy/badges/sqllogictest_cumulative.json >> $GITHUB_STEP_SUMMARY || echo "{}"
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi

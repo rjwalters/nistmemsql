@@ -12,202 +12,24 @@ on:
         required: false
         default: 'Manual redeploy of web demo with latest data'
         type: string
+      rebuild-web-demo:
+        description: 'Rebuild web demo from source'
+        required: false
+        default: true
+        type: boolean
 
-# Sets permissions for GitHub Pages deployment
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment
-concurrency:
-  group: "redeploy-web-demo"
-  cancel-in-progress: false
-
 jobs:
+  # Simply call the centralized deployment workflow
   redeploy:
-    runs-on: ubuntu-latest
-    # Only run if boost workflow succeeded or manually triggered
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      # Setup Rust for WASM build
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: "rust-ci-cache"
-
-      # Install wasm-pack for building WASM bindings
-      - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-
-      # Build WASM bindings
-      - name: Build WASM bindings
-        run: wasm-pack build --target web --out-dir ${{ github.workspace }}/web-demo/public/pkg crates/wasm-bindings --release
-
-      # Setup Node.js for web demo
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: web-demo/package-lock.json
-
-      # Install and build web demo
-      - name: Install dependencies
-        working-directory: web-demo
-        run: npm ci
-
-      - name: Build web demo
-        working-directory: web-demo
-        run: npm run build
-
-      # Download latest conformance data from gh-pages
-      - name: Download latest conformance data
-        run: |
-          echo "Downloading latest conformance data from gh-pages..."
-
-          # Create badges directory
-          mkdir -p badges
-
-          # Download cumulative SQLLogicTest results (updated by boost workflow)
-          if curl -sL https://rjwalters.github.io/vibesql/badges/sqllogictest_cumulative.json \
-              -o badges/sqllogictest_cumulative.json; then
-            echo "✓ Downloaded cumulative SQLLogicTest results"
-            jq '.summary' badges/sqllogictest_cumulative.json || echo "Invalid JSON"
-          else
-            echo "✗ Failed to download cumulative SQLLogicTest results"
-          fi
-
-          # Download sqltest results (from main CI workflow)
-          if curl -sL https://rjwalters.github.io/vibesql/badges/sqltest_results.json \
-              -o badges/sqltest_results.json; then
-            echo "✓ Downloaded sqltest results"
-          else
-            echo "✗ Failed to download sqltest results"
-          fi
-
-          # Download benchmark data
-          if curl -sL https://rjwalters.github.io/vibesql/benchmarks/benchmark_results.json \
-              -o badges/benchmark_results.json; then
-            echo "✓ Downloaded benchmark results"
-          else
-            echo "✗ Failed to download benchmark results"
-          fi
-
-          if curl -sL https://rjwalters.github.io/vibesql/benchmarks/benchmark_history.json \
-              -o badges/benchmark_history.json; then
-            echo "✓ Downloaded benchmark history"
-          else
-            echo "✗ Failed to download benchmark history"
-          fi
-
-      # Prepare deployment directory
-      - name: Prepare deployment
-        run: |
-          # Create deployment directory
-          mkdir -p deploy
-
-          # Copy web demo build output
-          cp -r web-demo/dist/* deploy/
-
-          # Create directories for data
-          mkdir -p deploy/badges
-          mkdir -p deploy/benchmarks
-
-          # Generate badge JSON from cumulative results (if available)
-          if [ -f badges/sqllogictest_cumulative.json ] && jq -e '.summary' badges/sqllogictest_cumulative.json > /dev/null 2>&1; then
-            echo "Generating SQLLogicTest badge from cumulative results..."
-
-            SLT_PASS_RATE=$(jq -r '.summary.pass_rate // "0"' badges/sqllogictest_cumulative.json | xargs printf "%.1f")
-            SLT_COVERAGE=$(jq -r '.summary.coverage_rate // "0"' badges/sqllogictest_cumulative.json | xargs printf "%.1f")
-            SLT_PASSED=$(jq -r '.summary.passed // "0"' badges/sqllogictest_cumulative.json)
-            SLT_FAILED=$(jq -r '.summary.failed // "0"' badges/sqllogictest_cumulative.json)
-
-            # Determine badge color (based on coverage rate)
-            if (( $(echo "$SLT_COVERAGE >= 80" | bc -l) )); then
-              SLT_COLOR="brightgreen"
-            elif (( $(echo "$SLT_COVERAGE >= 60" | bc -l) )); then
-              SLT_COLOR="green"
-            elif (( $(echo "$SLT_COVERAGE >= 40" | bc -l) )); then
-              SLT_COLOR="yellow"
-            elif (( $(echo "$SLT_COVERAGE >= 20" | bc -l) )); then
-              SLT_COLOR="orange"
-            else
-              SLT_COLOR="red"
-            fi
-
-            # Create SQLLogicTest badge JSON
-            cat > badges/sqllogictest.json <<JSON
-          {
-            "schemaVersion": 1,
-            "label": "SQLLogicTest",
-            "message": "${SLT_PASSED}✓ ${SLT_FAILED}✗ (${SLT_COVERAGE}% tested)",
-            "color": "$SLT_COLOR"
-          }
-          JSON
-
-            echo "✓ Generated badge: ${SLT_PASSED}✓ ${SLT_FAILED}✗ (${SLT_COVERAGE}% coverage, $SLT_COLOR)"
-          else
-            echo "⚠️  No cumulative results available - badge will not be updated"
-          fi
-
-          # Copy all downloaded data
-          cp badges/* deploy/badges/ 2>/dev/null || true
-          cp badges/benchmark_results.json deploy/benchmarks/ 2>/dev/null || true
-          cp badges/benchmark_history.json deploy/benchmarks/ 2>/dev/null || true
-
-          echo "Deployment directory contents:"
-          ls -la deploy/
-          echo "Badges directory:"
-          ls -la deploy/badges/ || echo "No badges"
-
-      # Deploy to GitHub Pages
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: './deploy'
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-      - name: Post-deployment summary
-        run: |
-          echo "## 🚀 Web Demo Redeployed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Trigger:** ${{ github.event_name == 'workflow_dispatch' && 'Manual' || 'Boost workflow completion' }}" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "**Reason:** ${{ github.event.inputs.reason }}" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "**Deployment URL:** https://rjwalters.github.io/vibesql/" >> $GITHUB_STEP_SUMMARY
-          echo "**Conformance Page:** https://rjwalters.github.io/vibesql/conformance.html" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Show updated conformance stats if available and valid
-          if [ -f badges/sqllogictest_cumulative.json ] && jq -e '.summary' badges/sqllogictest_cumulative.json > /dev/null 2>&1; then
-            echo "### Latest Conformance Data" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
-            jq '.summary' badges/sqllogictest_cumulative.json >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "### Latest Conformance Data" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "_Conformance data not yet available. Will be populated after the first boost workflow run._" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
+    uses: ./.github/workflows/deploy-pages.yml
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    with:
+      rebuild-web-demo: ${{ github.event.inputs.rebuild-web-demo == 'true' }}
