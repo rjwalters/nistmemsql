@@ -9,6 +9,7 @@ use crate::select::helpers::{apply_distinct, apply_limit_offset};
 use crate::select::join::FromResult;
 use crate::select::order::{apply_order_by, RowWithSortKeys};
 use crate::select::projection::project_row_combined;
+use crate::schema::CombinedSchema;
 use crate::select::window::{
     collect_order_by_window_functions, evaluate_order_by_window_functions,
     evaluate_window_functions, expression_has_window_function, has_window_functions,
@@ -109,18 +110,24 @@ impl SelectExecutor<'_> {
 
         // Apply ORDER BY sorting if present
         if let Some(order_by) = &stmt.order_by {
-            // Create evaluator with window mapping for ORDER BY (if window functions are present)
-            let order_by_evaluator = if let Some(ref mapping) = window_mapping {
-                CombinedExpressionEvaluator::with_database_and_windows(
-                    &schema,
-                    self.database,
-                    mapping,
-                )
+            // Try to use index for ordering first
+            if let Some(ordered_rows) = self.try_index_based_ordering(&result_rows, order_by, &schema, &stmt.from)? {
+                result_rows = ordered_rows;
             } else {
-                CombinedExpressionEvaluator::with_database(&schema, self.database)
-            };
-            result_rows =
-                apply_order_by(result_rows, order_by, &order_by_evaluator, &stmt.select_list)?;
+                // Fall back to sorting
+                // Create evaluator with window mapping for ORDER BY (if window functions are present)
+                let order_by_evaluator = if let Some(ref mapping) = window_mapping {
+                    CombinedExpressionEvaluator::with_database_and_windows(
+                        &schema,
+                        self.database,
+                        mapping,
+                    )
+                } else {
+                    CombinedExpressionEvaluator::with_database(&schema, self.database)
+                };
+                result_rows =
+                    apply_order_by(result_rows, order_by, &order_by_evaluator, &stmt.select_list)?;
+            }
         }
 
         // Project columns from the sorted rows
@@ -189,4 +196,107 @@ impl SelectExecutor<'_> {
         // Return a single row with the evaluated values
         Ok(vec![storage::Row::new(values)])
     }
+
+    /// Try to use an index for ORDER BY optimization
+    /// Returns ordered rows if an index can be used, None otherwise
+    fn try_index_based_ordering(
+        &self,
+        rows: &[RowWithSortKeys],
+        order_by: &[ast::OrderByItem],
+        schema: &CombinedSchema,
+        _from_clause: &Option<ast::FromClause>,
+    ) -> Result<Option<Vec<RowWithSortKeys>>, ExecutorError> {
+        // For now, only support single-column ORDER BY
+        if order_by.len() != 1 {
+            return Ok(None);
+        }
+
+        let order_item = &order_by[0];
+
+        // Check if ORDER BY is on a simple column reference
+        let column_name = match &order_item.expr {
+            ast::Expression::ColumnRef { table: None, column } => column,
+            _ => return Ok(None), // Complex expressions can't use index
+        };
+
+        // For now, assume single table and try to find any table that has this column
+        let mut found_table = None;
+        for (table_name, (_start_idx, table_schema)) in &schema.table_schemas {
+        if table_schema.get_column_index(column_name).is_some() {
+                found_table = Some(table_name.clone());
+                break;
+        }
+        }
+
+        let table_name = match found_table {
+            Some(name) => name,
+            None => return Ok(None),
+        };
+
+    // Find an index on this table and column
+    let index_name = self.find_index_for_ordering(&table_name, column_name, order_item.direction.clone())?;
+    if index_name.is_none() {
+    return Ok(None);
+    }
+        let index_name = index_name.unwrap();
+
+        // Get the index data
+        let index_data = match self.database.get_index_data(&index_name) {
+        Some(data) => data,
+            None => return Ok(None),
+        };
+
+        // For this proof of concept, only use index when we have all rows from the table
+        // Check by getting the table and comparing row counts
+        let table_row_count = match self.database.get_table(&table_name) {
+        Some(table) => table.row_count(),
+            None => return Ok(None),
+        };
+
+        if rows.len() != table_row_count {
+            // WHERE filtering was applied, can't use index easily
+            return Ok(None);
+        }
+
+        // All rows are included, we can use the index directly
+        // The index contains sorted key-value pairs with row indices
+        let mut ordered_rows = Vec::new();
+        for (_key, indices) in &index_data.data {
+            for &row_idx in indices {
+                if row_idx < rows.len() {
+                    ordered_rows.push(rows[row_idx].clone());
+                }
+        }
+        }
+
+        // Reverse if DESC
+        if order_item.direction == ast::OrderDirection::Desc {
+        ordered_rows.reverse();
+        }
+
+        Ok(Some(ordered_rows))
+        }
+
+    /// Find an index that can be used for ordering by the given column
+    fn find_index_for_ordering(
+        &self,
+        table_name: &str,
+        column_name: &str,
+        direction: ast::OrderDirection,
+    ) -> Result<Option<String>, ExecutorError> {
+        // For now, look through all indexes (this is inefficient but works for the proof of concept)
+        // In a real implementation, we'd have better index lookup
+        let all_indexes = self.database.list_indexes();
+        for index_name in all_indexes {
+            if let Some(metadata) = self.database.get_index(&index_name) {
+            if metadata.table_name == table_name
+                && metadata.columns.len() == 1
+                    && metadata.columns[0].column_name == column_name
+                    && metadata.columns[0].direction == direction {
+                    return Ok(Some(index_name));
+                }
+            }
+        }
+        Ok(None)
+        }
 }
