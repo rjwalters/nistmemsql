@@ -205,6 +205,26 @@ pub enum Keyword {
     Level,
     Write,
     Comment,
+    // MySQL table option keywords
+    KeyBlockSize,
+    Connection,
+    InsertMethod,
+    RowFormat,
+    DelayKeyWrite,
+    TableChecksum,
+    Checksum,
+    StatsSamplePages,
+    Password,
+    AvgRowLength,
+    MinRows,
+    MaxRows,
+    SecondaryEngine,
+    // MySQL table option values
+    Dynamic,
+    Fixed,
+    Compressed,
+    Redundant,
+    Compact,
 }
 
 impl fmt::Display for Keyword {
@@ -387,6 +407,26 @@ impl fmt::Display for Keyword {
             Keyword::Level => "LEVEL",
             Keyword::Write => "WRITE",
             Keyword::Comment => "COMMENT",
+            // MySQL table option keywords
+            Keyword::KeyBlockSize => "KEY_BLOCK_SIZE",
+            Keyword::Connection => "CONNECTION",
+            Keyword::InsertMethod => "INSERT_METHOD",
+            Keyword::RowFormat => "ROW_FORMAT",
+            Keyword::DelayKeyWrite => "DELAY_KEY_WRITE",
+            Keyword::TableChecksum => "TABLE_CHECKSUM",
+            Keyword::Checksum => "CHECKSUM",
+            Keyword::StatsSamplePages => "STATS_SAMPLE_PAGES",
+            Keyword::Password => "PASSWORD",
+            Keyword::AvgRowLength => "AVG_ROW_LENGTH",
+            Keyword::MinRows => "MIN_ROWS",
+            Keyword::MaxRows => "MAX_ROWS",
+            Keyword::SecondaryEngine => "SECONDARY_ENGINE",
+            // MySQL table option values
+            Keyword::Dynamic => "DYNAMIC",
+            Keyword::Fixed => "FIXED",
+            Keyword::Compressed => "COMPRESSED",
+            Keyword::Redundant => "REDUNDANT",
+            Keyword::Compact => "COMPACT",
         };
         write!(f, "{}", keyword_str)
     }

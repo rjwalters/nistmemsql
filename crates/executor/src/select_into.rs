@@ -54,6 +54,7 @@ impl SelectIntoExecutor {
             table_name: target_table.to_string(),
             columns: column_defs,
             table_constraints: vec![],
+            table_options: vec![],
         };
 
         crate::CreateTableExecutor::execute(&create_stmt, database)?;

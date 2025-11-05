@@ -168,7 +168,7 @@ mod tests {
                     comment: None,
                 },
             ],
-            table_constraints: vec![],
+            table_constraints: vec![], table_options: vec![],
         };
 
         CreateTableExecutor::execute(&stmt, db).unwrap();

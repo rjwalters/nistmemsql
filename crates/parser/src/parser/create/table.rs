@@ -100,6 +100,9 @@ impl Parser {
 
         self.expect_token(Token::RParen)?;
 
+        // Parse optional table options (MySQL extensions)
+        let table_options = self.parse_table_options()?;
+
         // Parse optional WITH OIDS / WITHOUT OIDS clause
         // This is a PostgreSQL extension that we parse but ignore in execution
         if self.peek_keyword(Keyword::With) {
@@ -117,6 +120,6 @@ impl Parser {
             self.advance();
         }
 
-        Ok(ast::CreateTableStmt { table_name, columns, table_constraints })
+        Ok(ast::CreateTableStmt { table_name, columns, table_constraints, table_options })
     }
 }
