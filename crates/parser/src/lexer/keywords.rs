@@ -113,6 +113,8 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "BOTH" => Token::Keyword(Keyword::Both),
         "LEADING" => Token::Keyword(Keyword::Leading),
         "TRAILING" => Token::Keyword(Keyword::Trailing),
+        // MySQL arithmetic operators
+        "DIV" => Token::Keyword(Keyword::Div),
         // Data type keywords
         "VARYING" => Token::Keyword(Keyword::Varying),
         "CHARACTERS" => Token::Keyword(Keyword::Characters),

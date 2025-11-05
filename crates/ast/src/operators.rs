@@ -8,6 +8,7 @@ pub enum BinaryOperator {
     Minus,
     Multiply,
     Divide,
+    IntegerDivide, // DIV (MySQL-specific integer division)
     Modulo,
 
     // Comparison

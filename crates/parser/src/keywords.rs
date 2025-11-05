@@ -110,6 +110,8 @@ pub enum Keyword {
     Both,
     Leading,
     Trailing,
+    // MySQL arithmetic operators
+    Div,
     // Data type keywords
     Varying,
     Characters,
@@ -326,6 +328,7 @@ impl fmt::Display for Keyword {
             Keyword::Both => "BOTH",
             Keyword::Leading => "LEADING",
             Keyword::Trailing => "TRAILING",
+            Keyword::Div => "DIV",
             Keyword::Varying => "VARYING",
             Keyword::Characters => "CHARACTERS",
             Keyword::Octets => "OCTETS",

@@ -55,17 +55,19 @@ impl Parser {
         Ok(left)
     }
 
-    /// Parse multiplicative expression (handles * and /)
+    /// Parse multiplicative expression (handles *, /, DIV, %)
     pub(super) fn parse_multiplicative_expression(
         &mut self,
     ) -> Result<ast::Expression, ParseError> {
         let mut left = self.parse_comparison_expression()?;
 
-        while matches!(self.peek(), Token::Symbol('*') | Token::Symbol('/')) {
+        loop {
             let op = match self.peek() {
                 Token::Symbol('*') => ast::BinaryOperator::Multiply,
                 Token::Symbol('/') => ast::BinaryOperator::Divide,
-                _ => unreachable!(),
+                Token::Symbol('%') => ast::BinaryOperator::Modulo,
+                Token::Keyword(Keyword::Div) => ast::BinaryOperator::IntegerDivide,
+                _ => break,
             };
             self.advance();
 
