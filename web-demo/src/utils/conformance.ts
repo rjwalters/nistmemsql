@@ -15,7 +15,9 @@ interface ConformanceData {
  */
 export async function fetchConformanceRate(): Promise<number> {
   try {
-    const response = await fetch('/vibesql/badges/sqltest_results.json')
+    // Add cache-busting parameter to prevent CDN from serving stale 404s
+    const cacheBust = Math.floor(Date.now() / 60000) // Update every minute
+    const response = await fetch(`/vibesql/badges/sqltest_results.json?v=${cacheBust}`)
     if (!response.ok) {
       console.warn('Failed to load conformance data, using fallback')
       return 85.4 // Fallback value

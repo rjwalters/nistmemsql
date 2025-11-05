@@ -8,7 +8,9 @@ export class DataProcessor {
    * Load sqltest conformance data from JSON file
    */
   async loadSqltestData(): Promise<ConformanceData> {
-    const response = await fetch('/vibesql/badges/sqltest_results.json')
+    // Add cache-busting parameter to prevent CDN from serving stale 404s
+    const cacheBust = Math.floor(Date.now() / 60000) // Update every minute
+    const response = await fetch(`/vibesql/badges/sqltest_results.json?v=${cacheBust}`)
     if (!response.ok) {
       throw new Error(`Failed to load sqltest data: ${response.statusText}`)
     }
@@ -20,8 +22,11 @@ export class DataProcessor {
    */
   async loadSQLLogicTestData(): Promise<SQLLogicTestData | null> {
     try {
+      // Add cache-busting parameter to prevent CDN from serving stale 404s
+      const cacheBust = Math.floor(Date.now() / 60000) // Update every minute
+
       // Try cumulative results first (updated by boost workflow)
-      let sltResponse = await fetch('/vibesql/badges/sqllogictest_cumulative.json')
+      let sltResponse = await fetch(`/vibesql/badges/sqllogictest_cumulative.json?v=${cacheBust}`)
       if (sltResponse.ok) {
         const cumulativeData = await sltResponse.json()
         // Transform cumulative data structure to match interface
@@ -38,7 +43,7 @@ export class DataProcessor {
       } else {
         // Fall back to single-run results (from CI workflow)
         console.log('Cumulative results not available, trying single-run results')
-        sltResponse = await fetch('/vibesql/badges/sqllogictest_results.json')
+        sltResponse = await fetch(`/vibesql/badges/sqllogictest_results.json?v=${cacheBust}`)
         if (sltResponse.ok) {
           const singleRunData = await sltResponse.json()
           // Transform single-run data structure to match interface
