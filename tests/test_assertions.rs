@@ -189,3 +189,84 @@ fn test_assertion_with_complex_condition() {
     let assertion = db.catalog.get_assertion("complex_check").unwrap();
     assert_eq!(assertion.name, "complex_check");
 }
+
+#[test]
+fn test_in_operator_empty_list() {
+    use executor::SelectExecutor;
+    use parser::Parser;
+
+    let db = Database::new();
+
+    // Test SELECT 1 IN ()
+    let sql = "SELECT 1 IN ()";
+    let stmt = Parser::parse_sql(sql).expect("Failed to parse SQL");
+
+    match stmt {
+        ast::Statement::Select(select_stmt) => {
+            let executor = SelectExecutor::new(&db);
+            let rows = executor.execute(&select_stmt).expect("Failed to execute query");
+
+            assert_eq!(rows.len(), 1, "Should return one row");
+            assert_eq!(rows[0].values.len(), 1, "Should return one column");
+
+            match &rows[0].values[0] {
+                types::SqlValue::Boolean(false) => (), // Expected: false (0)
+                other => panic!("Expected Boolean(false), got {:?}", other),
+            }
+        }
+        _ => panic!("Not a SELECT statement"),
+    }
+
+    // Test SELECT 1 NOT IN ()
+    let sql = "SELECT 1 NOT IN ()";
+    let stmt = Parser::parse_sql(sql).expect("Failed to parse SQL");
+
+    match stmt {
+        ast::Statement::Select(select_stmt) => {
+            let executor = SelectExecutor::new(&db);
+            let rows = executor.execute(&select_stmt).expect("Failed to execute query");
+
+            assert_eq!(rows.len(), 1, "Should return one row");
+            assert_eq!(rows[0].values.len(), 1, "Should return one column");
+
+            match &rows[0].values[0] {
+                types::SqlValue::Boolean(true) => (), // Expected: true (1)
+                other => panic!("Expected Boolean(true), got {:?}", other),
+            }
+        }
+        _ => panic!("Not a SELECT statement"),
+    }
+
+    // Test additional cases from evidence tests
+    let test_cases = vec![
+        ("SELECT 1 IN (2)", "false"),
+        ("SELECT 1 NOT IN (2)", "true"),
+        ("SELECT 1 IN (1)", "true"),
+        ("SELECT 1 NOT IN (1)", "false"),
+    ];
+
+    for (sql, expected_desc) in test_cases {
+        let expected = match expected_desc {
+            "true" => true,
+            "false" => false,
+            _ => panic!("Invalid expected value"),
+        };
+
+        let stmt = Parser::parse_sql(sql).expect("Failed to parse SQL");
+        match stmt {
+            ast::Statement::Select(select_stmt) => {
+                let executor = SelectExecutor::new(&db);
+                let rows = executor.execute(&select_stmt).expect("Failed to execute query");
+
+                assert_eq!(rows.len(), 1, "Should return one row");
+                assert_eq!(rows[0].values.len(), 1, "Should return one column");
+
+                match &rows[0].values[0] {
+                    types::SqlValue::Boolean(actual) if *actual == expected => (),
+                    other => panic!("Query '{}' expected Boolean({}), got {:?}", sql, expected, other),
+                }
+            }
+            _ => panic!("Not a SELECT statement"),
+        }
+    }
+}
