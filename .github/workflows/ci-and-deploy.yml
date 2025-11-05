@@ -128,4 +128,5 @@ jobs:
       id-token: write
     with:
       artifact-name: ci-test-results
+      benchmark-artifact-name: ci-benchmark-results
       rebuild-web-demo: true

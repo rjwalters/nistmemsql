@@ -8,6 +8,11 @@ on:
         type: string
         required: false
         default: ''
+      benchmark-artifact-name:
+        description: 'Name of the artifact containing benchmark results (optional)'
+        type: string
+        required: false
+        default: ''
       rebuild-web-demo:
         description: 'Whether to rebuild the web demo from scratch'
         type: boolean
@@ -113,11 +118,18 @@ jobs:
       # ============================================================================
       # Download Artifacts from Triggering Workflow
       # ============================================================================
-      - name: Download artifacts
+      - name: Download test artifacts
         if: inputs.artifact-name != ''
         uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.artifact-name }}
+          path: artifacts/
+
+      - name: Download benchmark artifacts
+        if: inputs.benchmark-artifact-name != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.benchmark-artifact-name }}
           path: artifacts/
 
       # ============================================================================
