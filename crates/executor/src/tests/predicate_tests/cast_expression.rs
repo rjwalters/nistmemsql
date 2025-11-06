@@ -105,3 +105,134 @@ fn test_cast_null() {
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].values[0], types::SqlValue::Null);
 }
+
+#[test]
+fn test_cast_integer_to_unsigned() {
+    let mut db = storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    // SELECT CAST(42 AS UNSIGNED)
+    let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::Cast {
+                expr: Box::new(ast::Expression::Literal(types::SqlValue::Integer(42))),
+                data_type: types::DataType::Unsigned,
+            },
+            alias: Some("result".to_string()),
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+        into_table: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].values[0], types::SqlValue::Unsigned(42));
+}
+
+#[test]
+fn test_cast_negative_integer_to_unsigned() {
+    let mut db = storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    // SELECT CAST(-1 AS UNSIGNED) - should wrap around (MySQL behavior)
+    let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::Cast {
+                expr: Box::new(ast::Expression::Literal(types::SqlValue::Integer(-1))),
+                data_type: types::DataType::Unsigned,
+            },
+            alias: Some("result".to_string()),
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+        into_table: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1);
+    // -1 as u64 wraps to u64::MAX
+    assert_eq!(result[0].values[0], types::SqlValue::Unsigned(u64::MAX));
+}
+
+#[test]
+fn test_cast_varchar_to_unsigned() {
+    let mut db = storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    // SELECT CAST('123' AS UNSIGNED)
+    let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::Cast {
+                expr: Box::new(ast::Expression::Literal(types::SqlValue::Varchar(
+                    "123".to_string(),
+                ))),
+                data_type: types::DataType::Unsigned,
+            },
+            alias: Some("result".to_string()),
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+        into_table: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].values[0], types::SqlValue::Unsigned(123));
+}
+
+#[test]
+fn test_cast_float_to_unsigned() {
+    let mut db = storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    // SELECT CAST(5.7 AS UNSIGNED) - should truncate
+    let stmt = ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::Cast {
+                expr: Box::new(ast::Expression::Literal(types::SqlValue::Float(5.7))),
+                data_type: types::DataType::Unsigned,
+            },
+            alias: Some("result".to_string()),
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+        into_table: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].values[0], types::SqlValue::Unsigned(5));
+}

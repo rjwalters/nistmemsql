@@ -4,12 +4,12 @@ use crate::errors::ExecutorError;
 // Type Coercion Helper Functions
 // ========================================================================
 
-/// Check if a value is an exact numeric type (SMALLINT, INTEGER, BIGINT)
+/// Check if a value is an exact numeric type (SMALLINT, INTEGER, BIGINT, UNSIGNED)
 pub(crate) fn is_exact_numeric(value: &types::SqlValue) -> bool {
-    matches!(
-        value,
-        types::SqlValue::Smallint(_) | types::SqlValue::Integer(_) | types::SqlValue::Bigint(_)
-    )
+matches!(
+value,
+types::SqlValue::Smallint(_) | types::SqlValue::Integer(_) | types::SqlValue::Bigint(_) | types::SqlValue::Unsigned(_)
+)
 }
 
 /// Check if a value is an approximate numeric type (FLOAT, REAL, DOUBLE)
@@ -22,15 +22,16 @@ pub(crate) fn is_approximate_numeric(value: &types::SqlValue) -> bool {
 
 /// Convert exact numeric types to i64 for comparison
 pub(crate) fn to_i64(value: &types::SqlValue) -> Result<i64, ExecutorError> {
-    match value {
-        types::SqlValue::Smallint(n) => Ok(*n as i64),
-        types::SqlValue::Integer(n) => Ok(*n),
-        types::SqlValue::Bigint(n) => Ok(*n),
-        _ => Err(ExecutorError::TypeMismatch {
-            left: value.clone(),
-            op: "numeric_conversion".to_string(),
-            right: types::SqlValue::Null,
-        }),
+match value {
+types::SqlValue::Smallint(n) => Ok(*n as i64),
+types::SqlValue::Integer(n) => Ok(*n),
+types::SqlValue::Bigint(n) => Ok(*n),
+types::SqlValue::Unsigned(n) => Ok(*n as i64), // Note: may overflow for large unsigned values
+_ => Err(ExecutorError::TypeMismatch {
+left: value.clone(),
+op: "numeric_conversion".to_string(),
+    right: types::SqlValue::Null,
+    }),
     }
 }
 
@@ -103,18 +104,57 @@ pub(crate) fn cast_value(
 
         // Cast to BIGINT
         Bigint => match value {
-            SqlValue::Bigint(n) => Ok(SqlValue::Bigint(*n)),
-            SqlValue::Integer(n) => Ok(SqlValue::Bigint(*n)),
-            SqlValue::Smallint(n) => Ok(SqlValue::Bigint(*n as i64)),
+        SqlValue::Bigint(n) => Ok(SqlValue::Bigint(*n)),
+        SqlValue::Integer(n) => Ok(SqlValue::Bigint(*n)),
+        SqlValue::Smallint(n) => Ok(SqlValue::Bigint(*n as i64)),
+        SqlValue::Varchar(s) => {
+        s.parse::<i64>().map(SqlValue::Bigint).map_err(|_| ExecutorError::CastError {
+        from_type: format!("{:?}", value),
+        to_type: "BIGINT".to_string(),
+        })
+        }
+        _ => Err(ExecutorError::CastError {
+        from_type: format!("{:?}", value),
+        to_type: "BIGINT".to_string(),
+        }),
+        },
+
+        // Cast to UNSIGNED
+        Unsigned => match value {
+            SqlValue::Unsigned(n) => Ok(SqlValue::Unsigned(*n)),
+            SqlValue::Integer(n) => {
+                // Convert with wrap-around for negative values (MySQL behavior)
+                Ok(SqlValue::Unsigned(*n as u64))
+            }
+            SqlValue::Smallint(n) => {
+                // Convert with wrap-around for negative values (MySQL behavior)
+                Ok(SqlValue::Unsigned(*n as u64))
+            }
+            SqlValue::Bigint(n) => {
+                // Convert with wrap-around for negative values (MySQL behavior)
+                Ok(SqlValue::Unsigned(*n as u64))
+            }
+            SqlValue::Float(f) => {
+                // Truncate float to unsigned (MySQL behavior)
+                Ok(SqlValue::Unsigned(*f as u64))
+            }
+            SqlValue::Real(f) => {
+                // Truncate real to unsigned (MySQL behavior)
+                Ok(SqlValue::Unsigned(*f as u64))
+            }
+            SqlValue::Double(f) => {
+                // Truncate double to unsigned (MySQL behavior)
+                Ok(SqlValue::Unsigned(*f as u64))
+            }
             SqlValue::Varchar(s) => {
-                s.parse::<i64>().map(SqlValue::Bigint).map_err(|_| ExecutorError::CastError {
+                s.parse::<u64>().map(SqlValue::Unsigned).map_err(|_| ExecutorError::CastError {
                     from_type: format!("{:?}", value),
-                    to_type: "BIGINT".to_string(),
+                    to_type: "UNSIGNED".to_string(),
                 })
             }
             _ => Err(ExecutorError::CastError {
                 from_type: format!("{:?}", value),
-                to_type: "BIGINT".to_string(),
+                to_type: "UNSIGNED".to_string(),
             }),
         },
 
@@ -182,10 +222,11 @@ pub(crate) fn cast_value(
         // Cast to VARCHAR
         Varchar { max_length } => {
             let string_val = match value {
-                SqlValue::Varchar(s) => s.clone(),
-                SqlValue::Integer(n) => n.to_string(),
-                SqlValue::Smallint(n) => n.to_string(),
-                SqlValue::Bigint(n) => n.to_string(),
+            SqlValue::Varchar(s) => s.clone(),
+            SqlValue::Integer(n) => n.to_string(),
+            SqlValue::Smallint(n) => n.to_string(),
+            SqlValue::Bigint(n) => n.to_string(),
+            SqlValue::Unsigned(n) => n.to_string(),
                 SqlValue::Float(n) => n.to_string(),
                 SqlValue::Real(n) => n.to_string(),
                 SqlValue::Double(n) => n.to_string(),

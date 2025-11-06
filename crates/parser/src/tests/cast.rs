@@ -71,8 +71,35 @@ _ => panic!("Expected SELECT statement"),
 
 #[test]
 fn test_parse_cast_to_signed() {
-    let result = Parser::parse_sql("SELECT CAST(value AS SIGNED);");
-    assert!(result.is_ok(), "CAST to SIGNED should parse: {:?}", result);
+let result = Parser::parse_sql("SELECT CAST(value AS SIGNED);");
+assert!(result.is_ok(), "CAST to SIGNED should parse: {:?}", result);
+
+let stmt = result.unwrap();
+match stmt {
+ast::Statement::Select(select) => {
+match &select.select_list[0] {
+ast::SelectItem::Expression { expr, alias: _ } => {
+match expr {
+ast::Expression::Cast { expr: _, data_type } => {
+match data_type {
+types::DataType::Integer => {} // SIGNED maps to INTEGER
+_ => panic!("Expected INTEGER (SIGNED), got {:?}", data_type),
+}
+}
+_ => panic!("Expected CAST expression"),
+}
+}
+_ => panic!("Expected expression"),
+}
+}
+_ => panic!("Expected SELECT statement"),
+}
+}
+
+#[test]
+fn test_parse_cast_to_unsigned() {
+    let result = Parser::parse_sql("SELECT CAST(value AS UNSIGNED);");
+    assert!(result.is_ok(), "CAST to UNSIGNED should parse: {:?}", result);
 
     let stmt = result.unwrap();
     match stmt {
@@ -82,8 +109,8 @@ fn test_parse_cast_to_signed() {
                     match expr {
                         ast::Expression::Cast { expr: _, data_type } => {
                             match data_type {
-                                types::DataType::Integer => {} // SIGNED maps to INTEGER
-                                _ => panic!("Expected INTEGER (SIGNED), got {:?}", data_type),
+                                types::DataType::Unsigned => {} // UNSIGNED maps to Unsigned
+                                _ => panic!("Expected UNSIGNED, got {:?}", data_type),
                             }
                         }
                         _ => panic!("Expected CAST expression"),
