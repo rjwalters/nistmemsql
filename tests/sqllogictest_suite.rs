@@ -43,6 +43,41 @@ impl NistMemSqlDB {
         Self { db: Database::new() }
     }
 
+    /// Format and optionally hash result rows
+    /// Returns either the full result set or an MD5 hash for large results (>8 values)
+    fn format_result_rows(
+        &self,
+        rows: &[storage::Row],
+        types: Vec<DefaultColumnType>
+    ) -> Result<DBOutput<DefaultColumnType>, TestError> {
+        let mut formatted_rows: Vec<Vec<String>> = rows
+            .iter()
+            .map(|row| row.values.iter().map(|val| self.format_sql_value(val)).collect())
+            .collect();
+
+        // Sort rows for consistent ordering (required for hashing and rowsort)
+        formatted_rows.sort_by(|a, b| a.join(" ").cmp(&b.join(" ")));
+
+        let total_values: usize = formatted_rows.iter().map(|r| r.len()).sum();
+
+        // If there are many values, return hash instead of rows
+        if total_values > 8 {
+            let mut hasher = Md5::new();
+            for row in &formatted_rows {
+                hasher.update(row.join(" "));
+                hasher.update("\n");
+            }
+            let hash = format!("{:x}", hasher.finalize());
+            let hash_string = format!("{} values hashing to {}", total_values, hash);
+            Ok(DBOutput::Rows {
+                types: vec![DefaultColumnType::Text],
+                rows: vec![vec![hash_string]],
+            })
+        } else {
+            Ok(DBOutput::Rows { types, rows: formatted_rows })
+        }
+    }
+
     fn execute_sql(&mut self, sql: &str) -> Result<DBOutput<DefaultColumnType>, TestError> {
         let stmt =
             Parser::parse_sql(sql).map_err(|e| TestError(format!("Parse error: {:?}", e)))?;
@@ -229,7 +264,7 @@ impl NistMemSqlDB {
             .values
             .iter()
             .map(|val| match val {
-                SqlValue::Integer(_) | SqlValue::Smallint(_) | SqlValue::Bigint(_) => {
+                SqlValue::Integer(_) | SqlValue::Smallint(_) | SqlValue::Bigint(_) | SqlValue::Unsigned(_) => {
                     DefaultColumnType::Integer
                 }
                 SqlValue::Float(_)
@@ -247,32 +282,7 @@ impl NistMemSqlDB {
             })
             .collect();
 
-        let mut formatted_rows: Vec<Vec<String>> = rows
-            .iter()
-            .map(|row| row.values.iter().map(|val| self.format_sql_value(val)).collect())
-            .collect();
-
-        // Sort rows for consistent ordering (required for hashing and rowsort)
-        formatted_rows.sort_by(|a, b| a.join(" ").cmp(&b.join(" ")));
-
-        let total_values: usize = formatted_rows.iter().map(|r| r.len()).sum();
-
-        // If there are many values, return hash instead of rows
-        if total_values > 8 {
-            let mut hasher = Md5::new();
-            for row in &formatted_rows {
-                hasher.update(row.join(" "));
-                hasher.update("\n");
-            }
-            let hash = format!("{:x}", hasher.finalize());
-            let hash_string = format!("{} values hashing to {}", total_values, hash);
-            Ok(DBOutput::Rows {
-                types: vec![DefaultColumnType::Text],
-                rows: vec![vec![hash_string]],
-            })
-        } else {
-            Ok(DBOutput::Rows { types, rows: formatted_rows })
-        }
+        self.format_result_rows(&rows, types)
     }
 
     fn format_sql_value(&self, value: &SqlValue) -> String {
@@ -280,6 +290,7 @@ impl NistMemSqlDB {
             SqlValue::Integer(i) => i.to_string(),
             SqlValue::Smallint(i) => i.to_string(),
             SqlValue::Bigint(i) => i.to_string(),
+            SqlValue::Unsigned(i) => i.to_string(),
             SqlValue::Numeric(f) => f.to_string(),
             SqlValue::Float(f) | SqlValue::Real(f) => {
                 if f.fract() == 0.0 {
