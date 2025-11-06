@@ -169,6 +169,9 @@ async fn test_file(path: &str) -> Result<(), Box<dyn std::error::Error>> {
     let contents = std::fs::read_to_string(path)?;
     let mut tester = Runner::new(|| async { Ok(NistMemSqlDB::new()) });
 
+    // Enable hash mode with threshold of 8 (standard SQLLogicTest behavior)
+    tester.with_hash_threshold(8);
+
     match tester.run_script(&contents) {
         Ok(_) => {
             println!("✓ PASSED");
