@@ -644,10 +644,10 @@ fn run_sqllogictest_suite() {
                 println!("✗ select1.test failed: {}", e);
                 for failure in detailed_failures {
                     println!("  SQL: {}", failure.sql_statement);
-                    println!("  Expected: {}", failure.expected_result);
-                    println!("  Actual: {}", failure.actual_result);
+                    println!("  Expected: {:?}", failure.expected_result);
+                    println!("  Actual: {:?}", failure.actual_result);
                     println!("  Error: {}", failure.error_message);
-                    println!("  Line: {}", failure.line_number);
+                    println!("  Line: {:?}", failure.line_number);
                     println!();
                 }
                 panic!("select1.test failed");
