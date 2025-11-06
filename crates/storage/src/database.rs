@@ -56,8 +56,9 @@ pub struct IndexMetadata {
 /// Actual index data structure - maps key values to row indices
 #[derive(Debug, Clone)]
 pub struct IndexData {
-    /// Sorted vector of (key_value, row_indices) for ordered access
-    pub data: Vec<(SqlValue, Vec<usize>)>,
+    /// Sorted vector of (key_values, row_indices) for ordered access
+    /// For multi-column indexes, key_values contains multiple SqlValue entries
+    pub data: Vec<(Vec<SqlValue>, Vec<usize>)>,
 }
 
 /// In-memory database - manages catalog and tables
@@ -465,33 +466,42 @@ impl Database {
             return Err(StorageError::IndexAlreadyExists(index_name));
         }
 
-        // For now, only support single-column indexes
-        if columns.len() != 1 {
-            return Err(StorageError::NotImplemented("Multi-column indexes not yet supported".to_string()));
-        }
-
         // Get the table to build the index
         let table = self.tables.get(&table_name)
             .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
 
-        // Get column index in the table
-        let column_name = &columns[0].column_name;
-        let column_idx = table.schema.get_column_index(column_name)
-            .ok_or_else(|| StorageError::ColumnNotFound {
-                column_name: column_name.clone(),
-                table_name: table_name.clone(),
-            })?;
+        // Get column indices in the table for all indexed columns
+        let mut column_indices = Vec::new();
+        for index_col in &columns {
+            let column_idx = table.schema.get_column_index(&index_col.column_name)
+                .ok_or_else(|| StorageError::ColumnNotFound {
+                    column_name: index_col.column_name.clone(),
+                    table_name: table_name.clone(),
+                })?;
+            column_indices.push(column_idx);
+        }
 
         // Build the index data
-        let mut index_data_map = HashMap::new();
+        let mut index_data_map: HashMap<Vec<SqlValue>, Vec<usize>> = HashMap::new();
         for (row_idx, row) in table.scan().iter().enumerate() {
-        let key_value = row.values[column_idx].clone();
-        index_data_map.entry(key_value).or_insert_with(Vec::new).push(row_idx);
+            let key_values: Vec<SqlValue> = column_indices.iter()
+                .map(|&idx| row.values[idx].clone())
+                .collect();
+            index_data_map.entry(key_values).or_insert_with(Vec::new).push(row_idx);
         }
 
         // Convert to sorted vector
-        let mut index_data_vec: Vec<(SqlValue, Vec<usize>)> = index_data_map.into_iter().collect();
-        index_data_vec.sort_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let mut index_data_vec: Vec<(Vec<SqlValue>, Vec<usize>)> = index_data_map.into_iter().collect();
+        // Sort by the composite key (lexicographical comparison)
+        index_data_vec.sort_by(|(a, _), (b, _)| {
+            for (val_a, val_b) in a.iter().zip(b.iter()) {
+                match val_a.partial_cmp(val_b) {
+                    Some(std::cmp::Ordering::Equal) => continue,
+                    other => return other.unwrap_or(std::cmp::Ordering::Equal),
+                }
+            }
+            std::cmp::Ordering::Equal
+        });
 
         // Store index metadata
         let metadata =

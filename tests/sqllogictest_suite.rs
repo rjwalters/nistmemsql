@@ -13,6 +13,7 @@
 
 use async_trait::async_trait;
 use executor::SelectExecutor;
+use md5::{Md5, Digest};
 use parser::Parser;
 use sqllogictest::{AsyncDB, DBOutput, DefaultColumnType, Runner};
 use std::collections::{HashMap, HashSet};
@@ -246,12 +247,32 @@ impl NistMemSqlDB {
             })
             .collect();
 
-        let formatted_rows: Vec<Vec<String>> = rows
+        let mut formatted_rows: Vec<Vec<String>> = rows
             .iter()
             .map(|row| row.values.iter().map(|val| self.format_sql_value(val)).collect())
             .collect();
 
-        Ok(DBOutput::Rows { types, rows: formatted_rows })
+        // Sort rows for consistent ordering (required for hashing and rowsort)
+        formatted_rows.sort_by(|a, b| a.join(" ").cmp(&b.join(" ")));
+
+        let total_values: usize = formatted_rows.iter().map(|r| r.len()).sum();
+
+        // If there are many values, return hash instead of rows
+        if total_values > 8 {
+            let mut hasher = Md5::new();
+            for row in &formatted_rows {
+                hasher.update(row.join(" "));
+                hasher.update("\n");
+            }
+            let hash = format!("{:x}", hasher.finalize());
+            let hash_string = format!("{} values hashing to {}", total_values, hash);
+            Ok(DBOutput::Rows {
+                types: vec![DefaultColumnType::Text],
+                rows: vec![vec![hash_string]],
+            })
+        } else {
+            Ok(DBOutput::Rows { types, rows: formatted_rows })
+        }
     }
 
     fn format_sql_value(&self, value: &SqlValue) -> String {
@@ -479,17 +500,58 @@ fn partition_files(files: &[PathBuf], worker_id: usize, total_workers: usize) ->
         .to_vec()
 }
 
+/// Preprocess test file content to filter MySQL-specific directives
+fn preprocess_for_mysql(content: &str) -> String {
+    let mut output_lines = Vec::new();
+    let mut skip_next_record = false;
+
+    for line in content.lines() {
+        // Check for dialect directives
+        if line.starts_with("onlyif ") {
+            let dialect = line.trim_start_matches("onlyif ")
+                .split_whitespace()
+                .next()
+                .unwrap_or("");
+            skip_next_record = dialect != "mysql";
+            continue; // Don't include the directive line
+        } else if line.starts_with("skipif ") {
+            let dialect = line.trim_start_matches("skipif ")
+                .split_whitespace()
+                .next()
+                .unwrap_or("");
+            skip_next_record = dialect == "mysql";
+            continue; // Don't include the directive line
+        }
+
+        // If we're not skipping, include the line
+        // The skip applies to the entire test record (until next blank line or new test)
+        if skip_next_record {
+            // Skip this line, but check if we've reached the end of the record
+            if line.trim().is_empty() {
+                skip_next_record = false;
+                output_lines.push(line); // Include blank lines
+            }
+            // Continue skipping until blank line or new test starts (implicitly via next directive)
+        } else {
+            output_lines.push(line);
+        }
+    }
+
+    output_lines.join("\n")
+}
+
 /// Run a test file and capture detailed failure information
 fn run_test_file_with_details(contents: &str) -> (Result<(), TestError>, Vec<TestFailure>) {
-    // For now, use the existing approach but prepare for detailed capture
-    // This is a placeholder that will be enhanced to parse and run individual records
+    // Preprocess content to handle MySQL dialect directives
+    let preprocessed = preprocess_for_mysql(contents);
+
     let result = std::panic::catch_unwind(|| {
         tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(
             async {
                 let mut tester = Runner::new(|| async { Ok(NistMemSqlDB::new()) });
                 // Enable hash mode with threshold of 8 (standard SQLLogicTest behavior)
                 tester.with_hash_threshold(8);
-                tester.run_script(contents)
+                tester.run_script(&preprocessed)
             },
         )
     });
@@ -634,6 +696,30 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
 
 #[test]
 fn run_sqllogictest_suite() {
+    // If SELECT1_ONLY is set, run only select1.test
+    if env::var("SELECT1_ONLY").is_ok() {
+        let test_file = PathBuf::from("third_party/sqllogictest/test/select1.test");
+        let contents = std::fs::read_to_string(&test_file).expect("Failed to read select1.test");
+        let (test_result, detailed_failures) = run_test_file_with_details(&contents);
+
+        match test_result {
+            Ok(_) => println!("✓ select1.test passed"),
+            Err(e) => {
+                println!("✗ select1.test failed: {}", e);
+                for failure in detailed_failures {
+                    println!("  SQL: {}", failure.sql_statement);
+                    println!("  Expected: {:?}", failure.expected_result);
+                    println!("  Actual: {:?}", failure.actual_result);
+                    println!("  Error: {}", failure.error_message);
+                    println!("  Line: {:?}", failure.line_number);
+                    println!();
+                }
+                panic!("select1.test failed");
+            }
+        }
+        return;
+    }
+
     // Check if submodule is initialized
     let test_dir = PathBuf::from("third_party/sqllogictest/test");
     if !test_dir.exists() {
@@ -798,5 +884,86 @@ fn run_sqllogictest_suite() {
     if let Ok(mut file) = fs::File::create("target/sqllogictest_results.json") {
         let _ = file.write_all(serde_json::to_string_pretty(&results_json).unwrap().as_bytes());
         println!("\n✓ Results written to target/sqllogictest_results.json");
+    }
+}
+
+#[cfg(test)]
+mod preprocessing_tests {
+    use super::preprocess_for_mysql;
+
+    #[test]
+    fn test_preprocess_onlyif_mysql() {
+        let input = "statement ok\nCREATE TABLE t1 (x INT)\n\nonlyif mysql\nstatement ok\nINSERT INTO t1 VALUES (1)\n\nonlyif postgresql\nstatement ok\nINSERT INTO t1 VALUES (2)\n";
+        let output = preprocess_for_mysql(input);
+
+        // Should include MySQL-specific statement
+        assert!(output.contains("INSERT INTO t1 VALUES (1)"));
+        // Should exclude PostgreSQL-specific statement
+        assert!(!output.contains("INSERT INTO t1 VALUES (2)"));
+        // Should not include directive lines
+        assert!(!output.contains("onlyif"));
+    }
+
+    #[test]
+    fn test_preprocess_skipif_mysql() {
+        let input = "statement ok\nCREATE TABLE t1 (x INT)\n\nskipif mysql\nstatement ok\nINSERT INTO t1 VALUES (1)\n\nskipif postgresql\nstatement ok\nINSERT INTO t1 VALUES (2)\n";
+        let output = preprocess_for_mysql(input);
+
+        // Should exclude MySQL-skipped statement
+        assert!(!output.contains("INSERT INTO t1 VALUES (1)"));
+        // Should include statement not skipped for MySQL
+        assert!(output.contains("INSERT INTO t1 VALUES (2)"));
+        // Should not include directive lines
+        assert!(!output.contains("skipif"));
+    }
+
+    #[test]
+    fn test_preprocess_directive_with_comment() {
+        let input = "onlyif mysql # aggregate syntax:\nstatement ok\nSELECT SUM(x) FROM t1\n\nskipif mysql # unsupported feature\nstatement ok\nINSERT INTO t1 VALUES (99)\n";
+        let output = preprocess_for_mysql(input);
+
+        // MySQL directive with comment should include statement
+        assert!(output.contains("SELECT SUM(x) FROM t1"), "onlyif mysql with comment should include MySQL statement");
+        // MySQL skipif with comment should exclude statement
+        assert!(!output.contains("INSERT INTO t1 VALUES (99)"), "skipif mysql with comment should exclude MySQL statement");
+        // Directives should be removed
+        assert!(!output.contains("onlyif"));
+        assert!(!output.contains("skipif"));
+    }
+
+    #[test]
+    fn test_preprocess_mixed_directives() {
+        let input = r#"statement ok
+CREATE TABLE t1 (x INT)
+
+onlyif mysql
+statement ok
+INSERT INTO t1 VALUES (1)
+
+skipif mysql
+query I
+SELECT * FROM t1 WHERE x > 10
+----
+
+onlyif postgresql
+statement ok
+INSERT INTO t1 VALUES (2)
+
+statement ok
+INSERT INTO t1 VALUES (3)
+"#;
+        let output = preprocess_for_mysql(input);
+
+        // MySQL-only statement should be included
+        assert!(output.contains("INSERT INTO t1 VALUES (1)"));
+        // MySQL-skipped query should be excluded
+        assert!(!output.contains("SELECT * FROM t1 WHERE x > 10"));
+        // PostgreSQL-only statement should be excluded
+        assert!(!output.contains("INSERT INTO t1 VALUES (2)"));
+        // Universal statement should be included
+        assert!(output.contains("INSERT INTO t1 VALUES (3)"));
+        // No directives should remain
+        assert!(!output.contains("onlyif"));
+        assert!(!output.contains("skipif"));
     }
 }

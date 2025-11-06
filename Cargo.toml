@@ -20,6 +20,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
 glob = "0.3"
+md-5 = "0.10"
 
 [workspace]
 members = [
@@ -40,6 +41,10 @@ edition = "2021"
 authors = ["vibesql contributors"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rjwalters/vibesql"
+
+[[bin]]
+name = "debug_select1"
+path = "debug_select1.rs"
 
 [workspace.dependencies]
 # Will add dependencies as needed for each phase
