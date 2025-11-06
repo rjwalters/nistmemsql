@@ -49,6 +49,64 @@ fn test_parse_select_with_alias() {
 }
 
 #[test]
+fn test_parse_select_with_alias_without_as() {
+    let result = Parser::parse_sql("SELECT id user_id FROM users;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Select(select) => {
+            assert_eq!(select.select_list.len(), 1);
+            match &select.select_list[0] {
+                ast::SelectItem::Expression { alias, .. } => {
+                    assert_eq!(alias.as_ref().unwrap(), "USER_ID");
+                }
+                _ => panic!("Expected Expression select item"),
+            }
+        }
+        _ => panic!("Expected SELECT statement"),
+    }
+}
+
+#[test]
+fn test_parse_select_mixed_aliases() {
+    let result = Parser::parse_sql("SELECT id AS user_id, name username, age FROM users;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Select(select) => {
+            assert_eq!(select.select_list.len(), 3);
+
+            // First column: id AS user_id
+            match &select.select_list[0] {
+                ast::SelectItem::Expression { alias, .. } => {
+                    assert_eq!(alias.as_ref().unwrap(), "USER_ID");
+                }
+                _ => panic!("Expected Expression select item"),
+            }
+
+            // Second column: name username (without AS)
+            match &select.select_list[1] {
+                ast::SelectItem::Expression { alias, .. } => {
+                    assert_eq!(alias.as_ref().unwrap(), "USERNAME");
+                }
+                _ => panic!("Expected Expression select item"),
+            }
+
+            // Third column: age (no alias)
+            match &select.select_list[2] {
+                ast::SelectItem::Expression { alias, .. } => {
+                    assert!(alias.is_none());
+                }
+                _ => panic!("Expected Expression select item"),
+            }
+        }
+        _ => panic!("Expected SELECT statement"),
+    }
+}
+
+#[test]
 fn test_parse_precedence() {
     // Test that 1 + 2 * 3 parses as 1 + (2 * 3)
     let result = Parser::parse_sql("SELECT 1 + 2 * 3;");

@@ -158,6 +158,29 @@ fn test_parse_aggregate_with_alias() {
 }
 
 #[test]
+fn test_parse_aggregate_with_alias_without_as() {
+    let result = Parser::parse_sql("SELECT COUNT(*) total FROM users;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Select(select) => match &select.select_list[0] {
+            ast::SelectItem::Expression { expr, alias } => {
+                match expr {
+                    ast::Expression::AggregateFunction { name, .. } => {
+                        assert_eq!(name, "COUNT");
+                    }
+                    _ => panic!("Expected aggregate function"),
+                }
+                assert_eq!(alias.as_ref().unwrap(), "TOTAL");
+            }
+            _ => panic!("Expected expression with alias"),
+        },
+        _ => panic!("Expected SELECT"),
+    }
+}
+
+#[test]
 fn test_parse_multiple_aggregates() {
     let result = Parser::parse_sql("SELECT COUNT(*), SUM(amount), AVG(amount) FROM orders;");
     assert!(result.is_ok());
