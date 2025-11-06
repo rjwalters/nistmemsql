@@ -549,6 +549,8 @@ fn run_test_file_with_details(contents: &str) -> (Result<(), TestError>, Vec<Tes
         tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(
             async {
                 let mut tester = Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+                // Enable hash mode with threshold of 8 (standard SQLLogicTest behavior)
+                tester.with_hash_threshold(8);
                 tester.run_script(&preprocessed)
             },
         )
