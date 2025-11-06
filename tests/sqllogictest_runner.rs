@@ -204,7 +204,7 @@ impl NistMemSqlDB {
             .values
             .iter()
             .map(|val| match val {
-                SqlValue::Integer(_) | SqlValue::Smallint(_) | SqlValue::Bigint(_) => {
+                SqlValue::Integer(_) | SqlValue::Smallint(_) | SqlValue::Bigint(_) | SqlValue::Unsigned(_) => {
                     DefaultColumnType::Integer
                 }
                 SqlValue::Float(_)
@@ -231,32 +231,33 @@ impl NistMemSqlDB {
     }
 
     fn format_sql_value(&self, value: &SqlValue) -> String {
-        match value {
-            SqlValue::Integer(i) => i.to_string(),
-            SqlValue::Smallint(i) => i.to_string(),
-            SqlValue::Bigint(i) => i.to_string(),
-            SqlValue::Numeric(f) => f.to_string(),
-            SqlValue::Float(f) | SqlValue::Real(f) => {
-                if f.fract() == 0.0 {
-                    format!("{:.1}", f)
-                } else {
-                    f.to_string()
-                }
-            }
-            SqlValue::Double(f) => {
-                if f.fract() == 0.0 {
-                    format!("{:.1}", f)
-                } else {
-                    f.to_string()
-                }
-            }
-            SqlValue::Varchar(s) | SqlValue::Character(s) => s.clone(),
-            SqlValue::Boolean(b) => if *b { "1" } else { "0" }.to_string(),
-            SqlValue::Null => "NULL".to_string(),
-            SqlValue::Date(d)
-            | SqlValue::Time(d)
-            | SqlValue::Timestamp(d)
-            | SqlValue::Interval(d) => d.clone(),
+    match value {
+    SqlValue::Integer(i) => i.to_string(),
+    SqlValue::Smallint(i) => i.to_string(),
+    SqlValue::Bigint(i) => i.to_string(),
+    SqlValue::Unsigned(i) => i.to_string(),
+    SqlValue::Numeric(f) => f.to_string(),
+    SqlValue::Float(f) | SqlValue::Real(f) => {
+    if f.fract() == 0.0 {
+        format!("{:.1}", f)
+    } else {
+        f.to_string()
+        }
+    }
+    SqlValue::Double(f) => {
+    if f.fract() == 0.0 {
+        format!("{:.1}", f)
+    } else {
+        f.to_string()
+        }
+    }
+    SqlValue::Varchar(s) | SqlValue::Character(s) => s.clone(),
+    SqlValue::Boolean(b) => if *b { "1" } else { "0" }.to_string(),
+    SqlValue::Null => "NULL".to_string(),
+    SqlValue::Date(d)
+    | SqlValue::Time(d)
+    | SqlValue::Timestamp(d)
+        | SqlValue::Interval(d) => d.clone(),
         }
     }
 }

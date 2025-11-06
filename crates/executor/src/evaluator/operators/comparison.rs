@@ -136,7 +136,7 @@ impl ComparisonOps {
             (left_val, right_val @ Numeric(_))
                 if matches!(
                     left_val,
-                    Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_)
+                    Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_) | Numeric(_)
                 ) =>
             {
                 let left_f64 = to_f64(left_val)?;
@@ -229,11 +229,28 @@ mod tests {
 
     #[test]
     fn test_temporal_comparisons() {
-        let result = ComparisonOps::less_than(
-            &SqlValue::Date("2024-01-01".to_string()),
-            &SqlValue::Date("2024-12-31".to_string()),
+    let result = ComparisonOps::less_than(
+    &SqlValue::Date("2024-01-01".to_string()),
+    &SqlValue::Date("2024-12-31".to_string()),
+    )
+    .unwrap();
+    assert_eq!(result, SqlValue::Boolean(true));
+    }
+
+    #[test]
+    fn test_integer_vs_numeric() {
+        let result = ComparisonOps::greater_than(
+            &SqlValue::Integer(200),
+            &SqlValue::Numeric(174.36666666666667),
         )
         .unwrap();
         assert_eq!(result, SqlValue::Boolean(true));
+
+        let result = ComparisonOps::greater_than(
+            &SqlValue::Integer(150),
+            &SqlValue::Numeric(174.36666666666667),
+        )
+        .unwrap();
+        assert_eq!(result, SqlValue::Boolean(false));
     }
 }

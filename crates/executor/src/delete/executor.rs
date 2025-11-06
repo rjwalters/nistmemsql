@@ -158,6 +158,9 @@ impl DeleteExecutor {
             should_delete
         });
 
+        // Rebuild user-defined indexes since row indices may have changed
+        database.rebuild_indexes(&stmt.table_name);
+
         Ok(deleted_count)
     }
 

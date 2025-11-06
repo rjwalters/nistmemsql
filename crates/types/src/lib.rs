@@ -32,6 +32,7 @@ pub enum DataType {
     Integer,
     Smallint,
     Bigint,
+    Unsigned, // 64-bit unsigned integer (MySQL compatibility)
     Numeric { precision: u8, scale: u8 },
     Decimal { precision: u8, scale: u8 },
 
@@ -83,6 +84,7 @@ impl DataType {
         match (self, other) {
             // Same types are compatible
             (DataType::Integer, DataType::Integer) => true,
+            (DataType::Unsigned, DataType::Unsigned) => true,
             (DataType::Boolean, DataType::Boolean) => true,
             (DataType::Date, DataType::Date) => true,
 
@@ -114,6 +116,7 @@ pub enum SqlValue {
     Integer(i64),
     Smallint(i16),
     Bigint(i64),
+    Unsigned(u64), // 64-bit unsigned integer (MySQL compatibility)
     Numeric(f64), // f64 for performance (was: String)
 
     Float(f32),
@@ -148,6 +151,7 @@ impl SqlValue {
             SqlValue::Integer(_) => "INTEGER",
             SqlValue::Smallint(_) => "SMALLINT",
             SqlValue::Bigint(_) => "BIGINT",
+            SqlValue::Unsigned(_) => "UNSIGNED",
             SqlValue::Numeric(_) => "NUMERIC",
             SqlValue::Float(_) => "FLOAT",
             SqlValue::Real(_) => "REAL",
@@ -169,6 +173,7 @@ impl SqlValue {
             SqlValue::Integer(_) => DataType::Integer,
             SqlValue::Smallint(_) => DataType::Smallint,
             SqlValue::Bigint(_) => DataType::Bigint,
+            SqlValue::Unsigned(_) => DataType::Unsigned,
             SqlValue::Numeric(_) => DataType::Numeric { precision: 38, scale: 0 }, // Default
             SqlValue::Float(_) => DataType::Float { precision: 53 }, // Default to double precision
             SqlValue::Real(_) => DataType::Real,
@@ -206,6 +211,7 @@ impl PartialOrd for SqlValue {
             (Integer(a), Integer(b)) => a.partial_cmp(b),
             (Smallint(a), Smallint(b)) => a.partial_cmp(b),
             (Bigint(a), Bigint(b)) => a.partial_cmp(b),
+            (Unsigned(a), Unsigned(b)) => a.partial_cmp(b),
 
             // Floating point (handles NaN properly via IEEE 754)
             (Float(a), Float(b)) => a.partial_cmp(b),
@@ -263,6 +269,7 @@ impl Hash for SqlValue {
             Integer(i) => i.hash(state),
             Smallint(i) => i.hash(state),
             Bigint(i) => i.hash(state),
+            Unsigned(u) => u.hash(state),
             Numeric(f) => {
                 if f.is_nan() {
                     f64::NAN.to_bits().hash(state);
@@ -315,6 +322,7 @@ impl fmt::Display for SqlValue {
             SqlValue::Integer(i) => write!(f, "{}", i),
             SqlValue::Smallint(i) => write!(f, "{}", i),
             SqlValue::Bigint(i) => write!(f, "{}", i),
+            SqlValue::Unsigned(u) => write!(f, "{}", u),
             SqlValue::Numeric(s) => write!(f, "{}", s),
             SqlValue::Float(n) => write!(f, "{}", n),
             SqlValue::Real(n) => write!(f, "{}", n),
