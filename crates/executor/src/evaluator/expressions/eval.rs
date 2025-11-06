@@ -11,6 +11,14 @@ impl ExpressionEvaluator<'_> {
         expr: &ast::Expression,
         row: &storage::Row,
     ) -> Result<types::SqlValue, ExecutorError> {
+        // Check depth limit to prevent stack overflow from deeply nested expressions
+        if self.depth >= crate::limits::MAX_EXPRESSION_DEPTH {
+            return Err(ExecutorError::ExpressionDepthExceeded {
+                depth: self.depth,
+                max_depth: crate::limits::MAX_EXPRESSION_DEPTH,
+            });
+        }
+
         match expr {
             // Literals - just return the value
             ast::Expression::Literal(val) => Ok(val.clone()),

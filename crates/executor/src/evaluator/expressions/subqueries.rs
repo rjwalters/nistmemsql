@@ -12,6 +12,14 @@ impl ExpressionEvaluator<'_> {
         negated: bool,
         row: &storage::Row,
     ) -> Result<types::SqlValue, ExecutorError> {
+        // Check depth limit to prevent stack overflow
+        if self.depth >= crate::limits::MAX_EXPRESSION_DEPTH {
+            return Err(ExecutorError::ExpressionDepthExceeded {
+                depth: self.depth,
+                max_depth: crate::limits::MAX_EXPRESSION_DEPTH,
+            });
+        }
+
         let database = self.database.ok_or(ExecutorError::UnsupportedFeature(
             "IN with subquery requires database reference".to_string(),
         ))?;
@@ -34,8 +42,12 @@ impl ExpressionEvaluator<'_> {
             self.schema.name.clone(),
             self.schema.clone(),
         );
-        let select_executor =
-            crate::select::SelectExecutor::new_with_outer_context(database, row, &outer_combined);
+        let select_executor = crate::select::SelectExecutor::new_with_outer_context_and_depth(
+            database,
+            row,
+            &outer_combined,
+            self.depth,
+        );
         let rows = select_executor.execute(subquery)?;
 
         let mut found_null = false;
@@ -75,8 +87,12 @@ impl ExpressionEvaluator<'_> {
             self.schema.name.clone(),
             self.schema.clone(),
         );
-        let select_executor =
-            crate::select::SelectExecutor::new_with_outer_context(database, row, &outer_combined);
+        let select_executor = crate::select::SelectExecutor::new_with_outer_context_and_depth(
+            database,
+            row,
+            &outer_combined,
+            self.depth,
+        );
         let rows = select_executor.execute(subquery)?;
 
         if rows.len() > 1 {
@@ -116,8 +132,12 @@ impl ExpressionEvaluator<'_> {
             self.schema.name.clone(),
             self.schema.clone(),
         );
-        let select_executor =
-            crate::select::SelectExecutor::new_with_outer_context(database, row, &outer_combined);
+        let select_executor = crate::select::SelectExecutor::new_with_outer_context_and_depth(
+            database,
+            row,
+            &outer_combined,
+            self.depth,
+        );
         let rows = select_executor.execute(subquery)?;
 
         let has_rows = !rows.is_empty();
@@ -150,8 +170,12 @@ impl ExpressionEvaluator<'_> {
             self.schema.name.clone(),
             self.schema.clone(),
         );
-        let select_executor =
-            crate::select::SelectExecutor::new_with_outer_context(database, row, &outer_combined);
+        let select_executor = crate::select::SelectExecutor::new_with_outer_context_and_depth(
+            database,
+            row,
+            &outer_combined,
+            self.depth,
+        );
         let rows = select_executor.execute(subquery)?;
 
         if rows.is_empty() {

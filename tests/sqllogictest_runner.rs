@@ -359,3 +359,54 @@ SELECT 4 * 5
 
     tester.run_script(script).expect("Arithmetic test should pass");
 }
+
+// Issue #919: Reproduction test for infinite loop in IN subquery evaluation
+// This test contains the exact query from slt_good_32.test line 780 that causes a hang
+#[tokio::test]
+async fn test_issue_919_in_subquery_hang() {
+    let mut tester = sqllogictest::Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+
+    let script = r#"
+hash-threshold 8
+
+statement ok
+CREATE TABLE tab0(pk INTEGER PRIMARY KEY, col0 INTEGER, col1 FLOAT, col2 TEXT, col3 INTEGER, col4 FLOAT, col5 TEXT)
+
+statement ok
+INSERT INTO tab0 VALUES(0,1058,996.42,'dpqjl',1029,993.33,'ixhua')
+
+statement ok
+INSERT INTO tab0 VALUES(1,1060,1001.62,'xlshf',1030,998.70,'raykp')
+
+statement ok
+INSERT INTO tab0 VALUES(2,1061,1002.38,'cffkv',1031,1000.64,'oiimp')
+
+statement ok
+INSERT INTO tab0 VALUES(3,1062,1003.98,'rqvjo',1033,1001.43,'ymmtc')
+
+statement ok
+INSERT INTO tab0 VALUES(4,1063,1004.20,'bapcy',1034,1002.90,'cizha')
+
+statement ok
+INSERT INTO tab0 VALUES(5,1064,1005.45,'vlixf',1035,1003.57,'gxput')
+
+statement ok
+INSERT INTO tab0 VALUES(6,1065,1008.91,'evlsa',1036,1004.80,'ctyjb')
+
+statement ok
+INSERT INTO tab0 VALUES(7,1066,1009.64,'uaiby',1037,1005.89,'nwyak')
+
+statement ok
+INSERT INTO tab0 VALUES(8,1067,1010.72,'dyeih',1038,1006.22,'fwrms')
+
+statement ok
+INSERT INTO tab0 VALUES(9,1068,1011.34,'luoso',1039,1007.34,'fgwoy')
+
+query I rowsort
+SELECT pk FROM tab0 WHERE col3 >= 94 OR (col1 IN (63.39,21.7,52.63,42.27,35.11,72.69)) OR col3 > 30 AND col0 IN (SELECT col3 FROM tab0 WHERE col1 < 71.54) OR (col3 > 35)
+----
+10 values hashing to e20b902b49a98b1a05ed62804c757f94
+"#;
+
+    tester.run_script(script).expect("IN subquery test should pass");
+}

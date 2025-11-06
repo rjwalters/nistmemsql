@@ -28,6 +28,13 @@ pub enum ExecutorError {
     CastError { from_type: String, to_type: String },
     ConstraintViolation(String),
     CannotDropColumn(String),
+    /// Expression evaluation exceeded maximum recursion depth
+    /// This prevents stack overflow from deeply nested expressions or subqueries
+    ExpressionDepthExceeded { depth: usize, max_depth: usize },
+    /// Query exceeded maximum execution time
+    QueryTimeoutExceeded { elapsed_seconds: u64, max_seconds: u64 },
+    /// Query exceeded maximum row processing limit
+    RowLimitExceeded { rows_processed: usize, max_rows: usize },
     Other(String),
 }
 
@@ -101,6 +108,27 @@ impl std::fmt::Display for ExecutorError {
             }
             ExecutorError::CannotDropColumn(msg) => {
                 write!(f, "Cannot drop column: {}", msg)
+            }
+            ExecutorError::ExpressionDepthExceeded { depth, max_depth } => {
+                write!(
+                    f,
+                    "Expression depth limit exceeded: {} > {} (prevents stack overflow)",
+                    depth, max_depth
+                )
+            }
+            ExecutorError::QueryTimeoutExceeded { elapsed_seconds, max_seconds } => {
+                write!(
+                    f,
+                    "Query timeout exceeded: {}s > {}s",
+                    elapsed_seconds, max_seconds
+                )
+            }
+            ExecutorError::RowLimitExceeded { rows_processed, max_rows } => {
+                write!(
+                    f,
+                    "Row processing limit exceeded: {} > {}",
+                    rows_processed, max_rows
+                )
             }
             ExecutorError::Other(msg) => write!(f, "{}", msg),
         }
