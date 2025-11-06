@@ -138,8 +138,8 @@ impl UpdateExecutor {
         let value_updater = ValueUpdater::new(schema, &evaluator, &stmt.table_name);
 
         // Step 6: Build list of updates (two-phase execution for SQL semantics)
-        // Each update consists of: (row_index, new_row, changed_columns)
-        let mut updates: Vec<(usize, storage::Row, std::collections::HashSet<usize>)> = Vec::new();
+        // Each update consists of: (row_index, old_row, new_row, changed_columns)
+        let mut updates: Vec<(usize, storage::Row, storage::Row, std::collections::HashSet<usize>)> = Vec::new();
 
         for (row_index, row) in candidate_rows {
             // If the primary key is being updated, we need to check for child references
@@ -166,7 +166,7 @@ impl UpdateExecutor {
                 ForeignKeyValidator::validate_constraints(database, &stmt.table_name, &new_row.values)?;
             }
 
-            updates.push((row_index, new_row, changed_columns));
+            updates.push((row_index, row.clone(), new_row, changed_columns));
         }
 
         // Step 5: Apply all updates (after evaluation phase completes)
@@ -177,10 +177,19 @@ impl UpdateExecutor {
             .get_table_mut(&stmt.table_name)
             .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
 
-        for (index, new_row, changed_columns) in updates {
+        // Collect the updates first
+        let mut index_updates = Vec::new();
+        for (index, old_row, new_row, changed_columns) in &updates {
             table_mut
-                .update_row_selective(index, new_row, &changed_columns)
+                .update_row_selective(*index, new_row.clone(), changed_columns)
                 .map_err(|e| ExecutorError::StorageError(e.to_string()))?;
+
+            index_updates.push((*index, old_row.clone(), new_row.clone()));
+        }
+
+        // Now update user-defined indexes after releasing table borrow
+        for (index, old_row, new_row) in index_updates {
+            database.update_indexes_for_update(&stmt.table_name, &old_row, &new_row, index);
         }
 
         Ok(update_count)

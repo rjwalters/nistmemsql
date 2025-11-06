@@ -56,9 +56,9 @@ pub struct IndexMetadata {
 /// Actual index data structure - maps key values to row indices
 #[derive(Debug, Clone)]
 pub struct IndexData {
-    /// Sorted vector of (key_values, row_indices) for ordered access
+    /// HashMap of (key_values, row_indices) for fast lookups
     /// For multi-column indexes, key_values contains multiple SqlValue entries
-    pub data: Vec<(Vec<SqlValue>, Vec<usize>)>,
+    pub data: HashMap<Vec<SqlValue>, Vec<usize>>,
 }
 
 /// In-memory database - manages catalog and tables
@@ -184,7 +184,12 @@ impl Database {
             .get_table_mut(table_name)
             .ok_or_else(|| StorageError::TableNotFound(table_name.to_string()))?;
 
+        // Get row index before insertion
+        let row_index = table.row_count();
         table.insert(row.clone())?;
+
+        // Update user-defined indexes
+        self.update_indexes_for_insert(table_name, &row, row_index);
 
         // Record the change for transaction rollback
         self.record_change(TransactionChange::Insert { table_name: table_name.to_string(), row });
@@ -490,25 +495,12 @@ impl Database {
             index_data_map.entry(key_values).or_insert_with(Vec::new).push(row_idx);
         }
 
-        // Convert to sorted vector
-        let mut index_data_vec: Vec<(Vec<SqlValue>, Vec<usize>)> = index_data_map.into_iter().collect();
-        // Sort by the composite key (lexicographical comparison)
-        index_data_vec.sort_by(|(a, _), (b, _)| {
-            for (val_a, val_b) in a.iter().zip(b.iter()) {
-                match val_a.partial_cmp(val_b) {
-                    Some(std::cmp::Ordering::Equal) => continue,
-                    other => return other.unwrap_or(std::cmp::Ordering::Equal),
-                }
-            }
-            std::cmp::Ordering::Equal
-        });
-
         // Store index metadata
         let metadata =
             IndexMetadata { index_name: index_name.clone(), table_name, unique, columns };
 
         self.indexes.insert(index_name.clone(), metadata);
-        self.index_data.insert(index_name, IndexData { data: index_data_vec });
+        self.index_data.insert(index_name, IndexData { data: index_data_map });
 
         Ok(())
     }
@@ -526,6 +518,149 @@ impl Database {
     /// Get index data
     pub fn get_index_data(&self, index_name: &str) -> Option<&IndexData> {
         self.index_data.get(index_name)
+    }
+
+    /// Update user-defined indexes for insert operation
+    pub fn update_indexes_for_insert(&mut self, table_name: &str, row: &Row, row_index: usize) {
+        // Get the table schema once
+        if let Some(table_schema) = self.catalog.get_table(table_name) {
+            for (index_name, metadata) in &self.indexes {
+                if metadata.table_name == table_name {
+                    if let Some(index_data) = self.index_data.get_mut(index_name) {
+                        // Build composite key from the indexed columns
+                        let key_values: Vec<SqlValue> = metadata.columns.iter()
+                            .map(|col| {
+                                let col_idx = table_schema.get_column_index(&col.column_name)
+                                    .expect("Index column should exist");
+                                row.values[col_idx].clone()
+                            })
+                            .collect();
+
+                        // Insert into the index data
+                        index_data.data.entry(key_values).or_insert_with(Vec::new).push(row_index);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Update user-defined indexes for update operation
+    pub fn update_indexes_for_update(&mut self, table_name: &str, old_row: &Row, new_row: &Row, row_index: usize) {
+        // Get the table schema once
+        if let Some(table_schema) = self.catalog.get_table(table_name) {
+            for (index_name, metadata) in &self.indexes {
+                if metadata.table_name == table_name {
+                    if let Some(index_data) = self.index_data.get_mut(index_name) {
+                        // Build keys from old and new rows
+                        let old_key_values: Vec<SqlValue> = metadata.columns.iter()
+                            .map(|col| {
+                                let col_idx = table_schema.get_column_index(&col.column_name)
+                                    .expect("Index column should exist");
+                                old_row.values[col_idx].clone()
+                            })
+                            .collect();
+
+                        let new_key_values: Vec<SqlValue> = metadata.columns.iter()
+                            .map(|col| {
+                                let col_idx = table_schema.get_column_index(&col.column_name)
+                                    .expect("Index column should exist");
+                                new_row.values[col_idx].clone()
+                            })
+                            .collect();
+
+                        // If keys are different, remove old and add new
+                        if old_key_values != new_key_values {
+                            // Remove old key
+                            if let Some(row_indices) = index_data.data.get_mut(&old_key_values) {
+                                row_indices.retain(|&idx| idx != row_index);
+                                // Remove empty entries
+                                if row_indices.is_empty() {
+                                    index_data.data.remove(&old_key_values);
+                                }
+                            }
+
+                            // Add new key
+                            index_data.data.entry(new_key_values).or_insert_with(Vec::new).push(row_index);
+                        }
+                        // If keys are the same, no change needed
+                    }
+                }
+            }
+        }
+    }
+
+    /// Update user-defined indexes for delete operation
+    fn update_indexes_for_delete(&mut self, table_name: &str, row: &Row, row_index: usize) {
+        // Get the table schema once
+        if let Some(table_schema) = self.catalog.get_table(table_name) {
+            for (index_name, metadata) in &self.indexes {
+                if metadata.table_name == table_name {
+                    if let Some(index_data) = self.index_data.get_mut(index_name) {
+                        // Build key from the row
+                        let key_values: Vec<SqlValue> = metadata.columns.iter()
+                            .map(|col| {
+                                let col_idx = table_schema.get_column_index(&col.column_name)
+                                    .expect("Index column should exist");
+                                row.values[col_idx].clone()
+                            })
+                            .collect();
+
+                        // Remove the row index from this key
+                        if let Some(row_indices) = index_data.data.get_mut(&key_values) {
+                            row_indices.retain(|&idx| idx != row_index);
+                            // Remove empty entries
+                            if row_indices.is_empty() {
+                                index_data.data.remove(&key_values);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Rebuild user-defined indexes after bulk operations that change row indices
+    pub fn rebuild_indexes(&mut self, table_name: &str) {
+        // Get table and schema first to avoid borrow checker issues
+        let table_rows: Vec<Row> = if let Some(table) = self.get_table(table_name) {
+            table.scan().iter().cloned().collect()
+        } else {
+            return;
+        };
+
+        let table_schema = match self.catalog.get_table(table_name) {
+            Some(schema) => schema,
+            None => return,
+        };
+
+        // Collect index names that need rebuilding
+        let indexes_to_rebuild: Vec<String> = self.indexes.iter()
+            .filter(|(_, metadata)| metadata.table_name == table_name)
+            .map(|(name, _)| name.clone())
+            .collect();
+
+        // Rebuild each index
+        for index_name in indexes_to_rebuild {
+            if let Some(index_data) = self.index_data.get_mut(&index_name) {
+                if let Some(metadata) = self.indexes.get(&index_name) {
+                    // Clear existing data
+                    index_data.data.clear();
+
+                    // Rebuild from current table rows
+                    for (row_index, row) in table_rows.iter().enumerate() {
+                        let key_values: Vec<SqlValue> = metadata.columns.iter()
+                            .map(|col| {
+                                let col_idx = table_schema.get_column_index(&col.column_name)
+                                    .expect("Index column should exist");
+                                row.values[col_idx].clone()
+                            })
+                            .collect();
+
+                        index_data.data.entry(key_values).or_insert_with(Vec::new).push(row_index);
+                    }
+                }
+            }
+        }
     }
 
     /// Drop an index
