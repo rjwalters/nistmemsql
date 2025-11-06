@@ -13,6 +13,7 @@ use crate::schema::CombinedSchema;
 use crate::select::grouping::compare_sql_values;
 use storage::database::IndexData;
 use types::SqlValue;
+use std::collections::HashMap;
 use crate::select::window::{
     collect_order_by_window_functions, evaluate_order_by_window_functions,
     evaluate_window_functions, expression_has_window_function, has_window_functions,
@@ -255,7 +256,7 @@ impl SelectExecutor<'_> {
             if let Some(table) = self.database.get_table(&qualified_table_name) {
                 if let Some(pk_index) = table.primary_key_index() {
                     // Convert to IndexData format (HashMap)
-                    let data: std::collections::HashMap<Vec<SqlValue>, Vec<usize>> = pk_index
+                    let data: HashMap<Vec<SqlValue>, Vec<usize>> = pk_index
                         .iter()
                         .map(|(key, &row_idx)| (key.clone(), vec![row_idx]))
                         .collect();
@@ -286,11 +287,12 @@ impl SelectExecutor<'_> {
         }
 
         // All rows are included, we can use the index directly
-        // Convert HashMap to sorted Vec, then optionally reverse for DESC
+        // Convert HashMap to Vec and sort for consistent ordering
         let mut data_vec: Vec<(Vec<SqlValue>, Vec<usize>)> = index_data.data.iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
-        // Sort by key for consistent ordering
+
+        // Sort by key
         data_vec.sort_by(|(a, _), (b, _)| {
             for (val_a, val_b) in a.iter().zip(b.iter()) {
                 match compare_sql_values(val_a, val_b) {
@@ -301,17 +303,14 @@ impl SelectExecutor<'_> {
             std::cmp::Ordering::Equal
         });
 
-        let data_to_use = if order_item.direction == ast::OrderDirection::Desc {
-            // Reverse the order for DESC
+        // Reverse if DESC
+        if order_item.direction == ast::OrderDirection::Desc {
             data_vec.reverse();
-            data_vec
-        } else {
-            data_vec
-        };
+        }
 
         // Build ordered rows
         let mut ordered_rows = Vec::new();
-        for (_, indices) in data_to_use {
+        for (_, indices) in data_vec {
             for &row_idx in &indices {
                 if row_idx < rows.len() {
                     ordered_rows.push(rows[row_idx].clone());
