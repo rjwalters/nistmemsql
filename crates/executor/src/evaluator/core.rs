@@ -10,6 +10,8 @@ pub struct ExpressionEvaluator<'a> {
     pub(super) outer_row: Option<&'a storage::Row>,
     pub(super) outer_schema: Option<&'a catalog::TableSchema>,
     pub(super) database: Option<&'a storage::Database>,
+    /// Current depth in expression tree (for preventing stack overflow)
+    pub(super) depth: usize,
 }
 
 /// Evaluates expressions with combined schema (for JOINs)
@@ -21,12 +23,20 @@ pub struct CombinedExpressionEvaluator<'a> {
     pub(super) window_mapping: Option<&'a std::collections::HashMap<WindowFunctionKey, usize>>,
     /// Cache for column lookups to avoid repeated schema traversals
     column_cache: RefCell<HashMap<(Option<String>, String), usize>>,
+    /// Current depth in expression tree (for preventing stack overflow)
+    pub(super) depth: usize,
 }
 
 impl<'a> ExpressionEvaluator<'a> {
     /// Create a new expression evaluator for a given schema
     pub fn new(schema: &'a catalog::TableSchema) -> Self {
-        ExpressionEvaluator { schema, outer_row: None, outer_schema: None, database: None }
+        ExpressionEvaluator {
+            schema,
+            outer_row: None,
+            outer_schema: None,
+            database: None,
+            depth: 0,
+        }
     }
 
     /// Create a new expression evaluator with outer query context for correlated subqueries
@@ -40,6 +50,7 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_row: Some(outer_row),
             outer_schema: Some(outer_schema),
             database: None,
+            depth: 0,
         }
     }
 
@@ -53,6 +64,7 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_row: None,
             outer_schema: None,
             database: Some(database),
+            depth: 0,
         }
     }
 
@@ -68,6 +80,7 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_row: Some(outer_row),
             outer_schema: Some(outer_schema),
             database: Some(database),
+            depth: 0,
         }
     }
 
@@ -125,6 +138,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             outer_schema: None,
             window_mapping: None,
             column_cache: RefCell::new(HashMap::new()),
+            depth: 0,
         }
     }
 
@@ -140,6 +154,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             outer_schema: None,
             window_mapping: None,
             column_cache: RefCell::new(HashMap::new()),
+            depth: 0,
         }
     }
 
@@ -157,6 +172,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             outer_schema: Some(outer_schema),
             window_mapping: None,
             column_cache: RefCell::new(HashMap::new()),
+            depth: 0,
         }
     }
 
@@ -173,6 +189,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             outer_schema: None,
             window_mapping: Some(window_mapping),
             column_cache: RefCell::new(HashMap::new()),
+            depth: 0,
         }
     }
 

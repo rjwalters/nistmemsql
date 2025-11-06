@@ -12,6 +12,14 @@ use std::collections::HashMap;
 impl SelectExecutor<'_> {
     /// Execute a SELECT statement
     pub fn execute(&self, stmt: &ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> {
+        // Check subquery depth limit to prevent stack overflow
+        if self.subquery_depth >= crate::limits::MAX_EXPRESSION_DEPTH {
+            return Err(ExecutorError::ExpressionDepthExceeded {
+                depth: self.subquery_depth,
+                max_depth: crate::limits::MAX_EXPRESSION_DEPTH,
+            });
+        }
+
         // Execute CTEs if present
         let cte_results = if let Some(with_clause) = &stmt.with_clause {
             execute_ctes(with_clause, |query, cte_ctx| self.execute_with_ctes(query, cte_ctx))?

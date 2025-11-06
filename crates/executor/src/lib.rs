@@ -13,6 +13,7 @@ pub mod evaluator;
 mod grant;
 mod index_ddl;
 mod insert;
+pub mod limits;
 mod optimizer;
 mod privilege_checker;
 mod revoke;

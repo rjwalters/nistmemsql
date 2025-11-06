@@ -1,0 +1,88 @@
+//! Execution limits and safeguards
+//!
+//! This module defines limits to prevent infinite loops, stack overflow, and runaway queries.
+//! These limits follow industry best practices established by SQLite and other production databases.
+//!
+//! ## Design Philosophy
+//!
+//! These limits serve multiple purposes:
+//! 1. **Safety**: Prevent crashes from stack overflow or infinite recursion
+//! 2. **Performance**: Kill runaway queries that would hang the system
+//! 3. **Debugging**: Provide clear error messages when limits are exceeded
+//! 4. **Compatibility**: Match SQLite's limit philosophy for consistency
+//!
+//! ## Limit Values
+//!
+//! Default values are chosen conservatively to allow legitimate queries while catching
+//! pathological cases. They can be adjusted based on real-world usage patterns.
+
+/// Maximum depth of expression tree evaluation (subqueries, nested expressions)
+///
+/// SQLite uses 1000 for SQLITE_MAX_EXPR_DEPTH
+/// We use a more conservative 500 to catch issues earlier
+///
+/// This prevents stack overflow from deeply nested:
+/// - Subqueries (IN, EXISTS, scalar subqueries)
+/// - Arithmetic expressions
+/// - Function calls
+/// - Boolean logic (AND/OR chains)
+pub const MAX_EXPRESSION_DEPTH: usize = 500;
+
+/// Maximum number of compound SELECT terms
+///
+/// SQLite uses 500 for SQLITE_MAX_COMPOUND_SELECT
+/// We match this value
+///
+/// This prevents stack overflow from deeply nested UNION/INTERSECT/EXCEPT chains
+pub const MAX_COMPOUND_SELECT: usize = 500;
+
+/// Maximum number of rows to process in a single query execution
+///
+/// This prevents infinite loops in:
+/// - WHERE clause evaluation
+/// - Join operations
+/// - Aggregate processing
+///
+/// Set high enough for legitimate large queries (10 million rows)
+pub const MAX_ROWS_PROCESSED: usize = 10_000_000;
+
+/// Maximum execution time for a single query (in seconds)
+///
+/// This is a soft timeout - checked periodically, not enforced precisely
+/// Set to 60 seconds for now, can be made configurable per-query later
+pub const MAX_QUERY_EXECUTION_SECONDS: u64 = 60;
+
+/// Maximum number of iterations in a single loop (e.g., WHERE filtering)
+///
+/// This catches infinite loops in iteration logic
+/// Should be higher than MAX_ROWS_PROCESSED to avoid false positives
+pub const MAX_LOOP_ITERATIONS: usize = 50_000_000;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_limits_are_reasonable() {
+        // Expression depth should handle realistic queries
+        assert!(MAX_EXPRESSION_DEPTH >= 100, "Expression depth too low");
+        assert!(MAX_EXPRESSION_DEPTH <= 10000, "Expression depth too high");
+
+        // Row limits should handle large but not infinite datasets
+        assert!(MAX_ROWS_PROCESSED >= 1_000_000, "Row limit too low");
+        assert!(MAX_ROWS_PROCESSED <= 1_000_000_000, "Row limit too high");
+
+        // Query timeout should allow complex queries but catch hangs
+        assert!(MAX_QUERY_EXECUTION_SECONDS >= 10, "Timeout too short");
+        assert!(MAX_QUERY_EXECUTION_SECONDS <= 3600, "Timeout too long");
+    }
+
+    #[test]
+    fn test_limits_relationship() {
+        // Loop iterations should be higher than row processing limit
+        assert!(
+            MAX_LOOP_ITERATIONS > MAX_ROWS_PROCESSED,
+            "Loop iterations should exceed row processing limit to avoid false positives"
+        );
+    }
+}
