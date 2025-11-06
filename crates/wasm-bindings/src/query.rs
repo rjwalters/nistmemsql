@@ -38,6 +38,7 @@ pub fn execute_query(db: &Database, sql: &str) -> Result<JsValue, JsValue> {
                     types::SqlValue::Integer(i) => serde_json::Value::Number((*i).into()),
                     types::SqlValue::Smallint(i) => serde_json::Value::Number((*i).into()),
                     types::SqlValue::Bigint(i) => serde_json::Value::Number((*i).into()),
+                    types::SqlValue::Unsigned(u) => serde_json::Value::Number((*u).into()),
                     types::SqlValue::Float(f) => serde_json::Number::from_f64(*f as f64)
                         .map(serde_json::Value::Number)
                         .unwrap_or(serde_json::Value::Null),
