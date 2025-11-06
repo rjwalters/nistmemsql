@@ -405,6 +405,7 @@ jobs:
   # Deploy job: Calls centralized deployment workflow
   deploy:
     needs: aggregate-results
+    if: always() && needs.aggregate-results.result == 'success' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/deploy-pages.yml
     permissions:
       contents: read
