@@ -28,11 +28,6 @@ permissions:
   pages: write
   id-token: write
 
-# Prevent concurrent Pages deployments (queue them instead)
-concurrency:
-  group: pages-deployment
-  cancel-in-progress: false
-
 jobs:
   check-remaining-work:
     name: Check if there are untested files
@@ -413,4 +408,4 @@ jobs:
       id-token: write
     with:
       artifact-name: boost-aggregated-results
-      rebuild-web-demo: false  # Boost doesn't need to rebuild web demo
+      rebuild-web-demo: true  # Boost needs to rebuild web demo to avoid download issues
