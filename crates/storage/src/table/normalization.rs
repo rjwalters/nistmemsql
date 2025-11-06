@@ -92,6 +92,15 @@ impl<'a> RowNormalizer<'a> {
                     });
                 }
             }
+            DataType::Unsigned => {
+                if !matches!(value, SqlValue::Unsigned(_)) {
+                    return Err(StorageError::TypeMismatch {
+                        column: column_name.to_string(),
+                        expected: "UNSIGNED".to_string(),
+                        actual: value.type_name().to_string(),
+                    });
+                }
+            }
             DataType::Numeric { .. } | DataType::Decimal { .. } => {
                 if !matches!(value, SqlValue::Numeric(_)) {
                     return Err(StorageError::TypeMismatch {
