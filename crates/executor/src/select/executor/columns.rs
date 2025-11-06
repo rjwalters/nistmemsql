@@ -156,7 +156,6 @@ fn derive_expression_name_impl(expr: &ast::Expression) -> String {
                 types::SqlValue::Integer(n) => n.to_string(),
                 types::SqlValue::Smallint(n) => n.to_string(),
                 types::SqlValue::Bigint(n) => n.to_string(),
-                types::SqlValue::Unsigned(n) => n.to_string(),
                 types::SqlValue::Double(f) => f.to_string(),
                 types::SqlValue::Float(f) => f.to_string(),
                 types::SqlValue::Real(f) => f.to_string(),
