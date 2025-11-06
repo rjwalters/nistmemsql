@@ -11,8 +11,8 @@ use crate::select::order::{apply_order_by, RowWithSortKeys};
 use crate::select::projection::project_row_combined;
 use crate::schema::CombinedSchema;
 use crate::select::grouping::compare_sql_values;
-use std::collections::HashMap;
-use storage::IndexData;
+use storage::database::IndexData;
+use types::SqlValue;
 use crate::select::window::{
     collect_order_by_window_functions, evaluate_order_by_window_functions,
     evaluate_window_functions, expression_has_window_function, has_window_functions,
@@ -254,11 +254,21 @@ impl SelectExecutor<'_> {
             let qualified_table_name = format!("public.{}", table_name);
             if let Some(table) = self.database.get_table(&qualified_table_name) {
                 if let Some(pk_index) = table.primary_key_index() {
-                    // Convert to IndexData format
-                    let mut data = HashMap::new();
-                    for (key, &row_idx) in pk_index {
-                        data.insert(key.clone(), vec![row_idx]);
-                    }
+                    // Convert to IndexData format (Vec of tuples)
+                    let mut data: Vec<(Vec<SqlValue>, Vec<usize>)> = pk_index
+                        .iter()
+                        .map(|(key, &row_idx)| (key.clone(), vec![row_idx]))
+                        .collect();
+                    // Sort by key for consistent ordering
+                    data.sort_by(|(a, _): &(Vec<SqlValue>, Vec<usize>), (b, _): &(Vec<SqlValue>, Vec<usize>)| {
+                        for (val_a, val_b) in a.iter().zip(b.iter()) {
+                            match compare_sql_values(val_a, val_b) {
+                                std::cmp::Ordering::Equal => continue,
+                                other => return other,
+                            }
+                        }
+                        std::cmp::Ordering::Equal
+                    });
                     IndexData { data }
                 } else {
                     return Ok(None);
@@ -268,7 +278,7 @@ impl SelectExecutor<'_> {
             }
         } else {
             match self.database.get_index_data(&index_name) {
-                Some(data) => data,
+                Some(data) => data.clone(),
                 None => return Ok(None),
             }
         };
@@ -286,23 +296,22 @@ impl SelectExecutor<'_> {
         }
 
         // All rows are included, we can use the index directly
-        // Collect all keys and sort them
-        let mut keys: Vec<_> = index_data.data.keys().collect();
-        keys.sort_by(|a, b| compare_sql_values(a, b));
-
-        // Reverse sort order if DESC
-        if order_item.direction == ast::OrderDirection::Desc {
-        keys.reverse();
-        }
+        // The index data is already sorted, but may need reversing for DESC
+        let data_to_use = if order_item.direction == ast::OrderDirection::Desc {
+            // Reverse the order for DESC
+            let mut reversed = index_data.data.clone();
+            reversed.reverse();
+            reversed
+        } else {
+            index_data.data.clone()
+        };
 
         // Build ordered rows
         let mut ordered_rows = Vec::new();
-        for key in keys {
-            if let Some(indices) = index_data.data.get(key) {
-                for &row_idx in indices {
-                    if row_idx < rows.len() {
-                        ordered_rows.push(rows[row_idx].clone());
-                    }
+        for (_, indices) in data_to_use {
+            for &row_idx in &indices {
+                if row_idx < rows.len() {
+                    ordered_rows.push(rows[row_idx].clone());
                 }
             }
         }
@@ -394,10 +403,10 @@ impl SelectExecutor<'_> {
 
         // Look up the value in the index
         let search_key = vec![value]; // Single column index
-        let matching_row_indices = match index_data.data.get(&search_key) {
-            Some(indices) => indices.clone(),
-            None => Vec::new(), // No matches
-        };
+        let matching_row_indices = index_data.data.iter()
+            .find(|(key, _)| key == &search_key)
+            .map(|(_, indices)| indices.clone())
+            .unwrap_or_else(Vec::new);
 
         // Convert row indices to actual rows
         let mut result_rows = Vec::new();
