@@ -41,6 +41,10 @@ authors = ["vibesql contributors"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rjwalters/vibesql"
 
+[[bin]]
+name = "debug_select1"
+path = "debug_select1.rs"
+
 [workspace.dependencies]
 # Will add dependencies as needed for each phase
 pyo3 = { version = "0.27", features = ["extension-module"] }
