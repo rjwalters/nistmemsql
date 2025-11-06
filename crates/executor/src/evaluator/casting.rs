@@ -53,6 +53,16 @@ pub(crate) fn to_f64(value: &types::SqlValue) -> Result<f64, ExecutorError> {
     }
 }
 
+/// Convert Boolean to i64 (TRUE = 1, FALSE = 0)
+/// Used for implicit type coercion in arithmetic operations
+pub(crate) fn boolean_to_i64(value: &types::SqlValue) -> Option<i64> {
+    match value {
+        types::SqlValue::Boolean(true) => Some(1),
+        types::SqlValue::Boolean(false) => Some(0),
+        _ => None,
+    }
+}
+
 /// Cast a value to the target data type
 /// Implements SQL:1999 CAST semantics for explicit type conversion
 pub(crate) fn cast_value(

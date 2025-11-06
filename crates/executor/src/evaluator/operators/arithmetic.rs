@@ -5,7 +5,7 @@
 //! Includes: Type coercion, mixed-type arithmetic, division-by-zero handling
 
 use crate::errors::ExecutorError;
-use crate::evaluator::casting::{is_approximate_numeric, is_exact_numeric, to_f64, to_i64};
+use crate::evaluator::casting::{boolean_to_i64, is_approximate_numeric, is_exact_numeric, to_f64, to_i64};
 use types::SqlValue;
 
 pub(crate) struct ArithmeticOps;
@@ -66,6 +66,28 @@ impl ArithmeticOps {
                 let left_f64 = to_f64(left_val)?;
                 let right_f64 = to_f64(right_val)?;
                 Ok(Float((left_f64 + right_f64) as f32))
+            }
+
+            // Boolean coercion - treat TRUE as 1, FALSE as 0
+            (left_val, right_val @ Boolean(_))
+            | (left_val @ Boolean(_), right_val) => {
+                let left_i64 = boolean_to_i64(left_val)
+                    .or_else(|| to_i64(left_val).ok())
+                    .ok_or_else(|| ExecutorError::TypeMismatch {
+                        left: left_val.clone(),
+                        op: "+".to_string(),
+                        right: right_val.clone(),
+                    })?;
+
+                let right_i64 = boolean_to_i64(right_val)
+                    .or_else(|| to_i64(right_val).ok())
+                    .ok_or_else(|| ExecutorError::TypeMismatch {
+                        left: left_val.clone(),
+                        op: "+".to_string(),
+                        right: right_val.clone(),
+                    })?;
+
+                Ok(Integer(left_i64 + right_i64))
             }
 
             // Type mismatch
@@ -134,6 +156,28 @@ impl ArithmeticOps {
                 Ok(Float((left_f64 - right_f64) as f32))
             }
 
+            // Boolean coercion - treat TRUE as 1, FALSE as 0
+            (left_val, right_val @ Boolean(_))
+            | (left_val @ Boolean(_), right_val) => {
+                let left_i64 = boolean_to_i64(left_val)
+                    .or_else(|| to_i64(left_val).ok())
+                    .ok_or_else(|| ExecutorError::TypeMismatch {
+                        left: left_val.clone(),
+                        op: "-".to_string(),
+                        right: right_val.clone(),
+                    })?;
+
+                let right_i64 = boolean_to_i64(right_val)
+                    .or_else(|| to_i64(right_val).ok())
+                    .ok_or_else(|| ExecutorError::TypeMismatch {
+                        left: left_val.clone(),
+                        op: "-".to_string(),
+                        right: right_val.clone(),
+                    })?;
+
+                Ok(Integer(left_i64 - right_i64))
+            }
+
             // Type mismatch
             _ => Err(ExecutorError::TypeMismatch {
                 left: left.clone(),
@@ -198,6 +242,28 @@ impl ArithmeticOps {
                 let left_f64 = to_f64(left_val)?;
                 let right_f64 = to_f64(right_val)?;
                 Ok(Float((left_f64 * right_f64) as f32))
+            }
+
+            // Boolean coercion - treat TRUE as 1, FALSE as 0
+            (left_val, right_val @ Boolean(_))
+            | (left_val @ Boolean(_), right_val) => {
+                let left_i64 = boolean_to_i64(left_val)
+                    .or_else(|| to_i64(left_val).ok())
+                    .ok_or_else(|| ExecutorError::TypeMismatch {
+                        left: left_val.clone(),
+                        op: "*".to_string(),
+                        right: right_val.clone(),
+                    })?;
+
+                let right_i64 = boolean_to_i64(right_val)
+                    .or_else(|| to_i64(right_val).ok())
+                    .ok_or_else(|| ExecutorError::TypeMismatch {
+                        left: left_val.clone(),
+                        op: "*".to_string(),
+                        right: right_val.clone(),
+                    })?;
+
+                Ok(Integer(left_i64 * right_i64))
             }
 
             // Type mismatch
@@ -284,6 +350,31 @@ impl ArithmeticOps {
                     return Err(ExecutorError::DivisionByZero);
                 }
                 Ok(Float((left_f64 / right_f64) as f32))
+            }
+
+            // Boolean coercion - treat TRUE as 1, FALSE as 0
+            (left_val, right_val @ Boolean(_))
+            | (left_val @ Boolean(_), right_val) => {
+                let left_i64 = boolean_to_i64(left_val)
+                    .or_else(|| to_i64(left_val).ok())
+                    .ok_or_else(|| ExecutorError::TypeMismatch {
+                        left: left_val.clone(),
+                        op: "/".to_string(),
+                        right: right_val.clone(),
+                    })?;
+
+                let right_i64 = boolean_to_i64(right_val)
+                    .or_else(|| to_i64(right_val).ok())
+                    .ok_or_else(|| ExecutorError::TypeMismatch {
+                        left: left_val.clone(),
+                        op: "/".to_string(),
+                        right: right_val.clone(),
+                    })?;
+
+                if right_i64 == 0 {
+                    return Err(ExecutorError::DivisionByZero);
+                }
+                Ok(Float((left_i64 as f64 / right_i64 as f64) as f32))
             }
 
             // Type mismatch
@@ -374,6 +465,31 @@ impl ArithmeticOps {
                 Ok(Integer((left_f64 / right_f64) as i64))
             }
 
+            // Boolean coercion - treat TRUE as 1, FALSE as 0
+            (left_val, right_val @ Boolean(_))
+            | (left_val @ Boolean(_), right_val) => {
+                let left_i64 = boolean_to_i64(left_val)
+                    .or_else(|| to_i64(left_val).ok())
+                    .ok_or_else(|| ExecutorError::TypeMismatch {
+                        left: left_val.clone(),
+                        op: "DIV".to_string(),
+                        right: right_val.clone(),
+                    })?;
+
+                let right_i64 = boolean_to_i64(right_val)
+                    .or_else(|| to_i64(right_val).ok())
+                    .ok_or_else(|| ExecutorError::TypeMismatch {
+                        left: left_val.clone(),
+                        op: "DIV".to_string(),
+                        right: right_val.clone(),
+                    })?;
+
+                if right_i64 == 0 {
+                    return Err(ExecutorError::DivisionByZero);
+                }
+                Ok(Integer(left_i64 / right_i64))
+            }
+
             // Type mismatch
             _ => Err(ExecutorError::TypeMismatch {
                 left: left.clone(),
@@ -461,6 +577,31 @@ impl ArithmeticOps {
                 Ok(Float((left_f64 % right_f64) as f32))
             }
 
+            // Boolean coercion - treat TRUE as 1, FALSE as 0
+            (left_val, right_val @ Boolean(_))
+            | (left_val @ Boolean(_), right_val) => {
+                let left_i64 = boolean_to_i64(left_val)
+                    .or_else(|| to_i64(left_val).ok())
+                    .ok_or_else(|| ExecutorError::TypeMismatch {
+                        left: left_val.clone(),
+                        op: "%".to_string(),
+                        right: right_val.clone(),
+                    })?;
+
+                let right_i64 = boolean_to_i64(right_val)
+                    .or_else(|| to_i64(right_val).ok())
+                    .ok_or_else(|| ExecutorError::TypeMismatch {
+                        left: left_val.clone(),
+                        op: "%".to_string(),
+                        right: right_val.clone(),
+                    })?;
+
+                if right_i64 == 0 {
+                    return Err(ExecutorError::DivisionByZero);
+                }
+                Ok(Integer(left_i64 % right_i64))
+            }
+
             // Type mismatch
             _ => Err(ExecutorError::TypeMismatch {
                 left: left.clone(),
@@ -529,5 +670,89 @@ mod tests {
             SqlValue::Float(f) => assert!((f - 8.5).abs() < 0.01),
             _ => panic!("Expected Float result"),
         }
+    }
+
+    // Boolean coercion tests
+    #[test]
+    fn test_boolean_true_addition() {
+        // TRUE + 40 = 41
+        let result = ArithmeticOps::add(&SqlValue::Boolean(true), &SqlValue::Integer(40)).unwrap();
+        assert_eq!(result, SqlValue::Integer(41));
+    }
+
+    #[test]
+    fn test_boolean_false_addition() {
+        // FALSE + 40 = 40
+        let result = ArithmeticOps::add(&SqlValue::Boolean(false), &SqlValue::Integer(40)).unwrap();
+        assert_eq!(result, SqlValue::Integer(40));
+    }
+
+    #[test]
+    fn test_integer_plus_boolean() {
+        // 40 + TRUE = 41
+        let result = ArithmeticOps::add(&SqlValue::Integer(40), &SqlValue::Boolean(true)).unwrap();
+        assert_eq!(result, SqlValue::Integer(41));
+    }
+
+    #[test]
+    fn test_boolean_multiplication() {
+        // 97 * TRUE = 97
+        let result = ArithmeticOps::multiply(&SqlValue::Integer(97), &SqlValue::Boolean(true)).unwrap();
+        assert_eq!(result, SqlValue::Integer(97));
+
+        // 97 * FALSE = 0
+        let result = ArithmeticOps::multiply(&SqlValue::Integer(97), &SqlValue::Boolean(false)).unwrap();
+        assert_eq!(result, SqlValue::Integer(0));
+    }
+
+    #[test]
+    fn test_boolean_subtraction() {
+        // TRUE - FALSE = 1
+        let result = ArithmeticOps::subtract(&SqlValue::Boolean(true), &SqlValue::Boolean(false)).unwrap();
+        assert_eq!(result, SqlValue::Integer(1));
+
+        // 5 - TRUE = 4
+        let result = ArithmeticOps::subtract(&SqlValue::Integer(5), &SqlValue::Boolean(true)).unwrap();
+        assert_eq!(result, SqlValue::Integer(4));
+    }
+
+    #[test]
+    fn test_boolean_division() {
+        // 10 / TRUE = 10.0
+        let result = ArithmeticOps::divide(&SqlValue::Integer(10), &SqlValue::Boolean(true)).unwrap();
+        assert_eq!(result, SqlValue::Float(10.0));
+
+        // TRUE / TRUE = 1.0
+        let result = ArithmeticOps::divide(&SqlValue::Boolean(true), &SqlValue::Boolean(true)).unwrap();
+        assert_eq!(result, SqlValue::Float(1.0));
+    }
+
+    #[test]
+    fn test_boolean_division_by_false() {
+        // 10 / FALSE should return DivisionByZero error
+        let result = ArithmeticOps::divide(&SqlValue::Integer(10), &SqlValue::Boolean(false));
+        assert!(matches!(result, Err(ExecutorError::DivisionByZero)));
+    }
+
+    #[test]
+    fn test_boolean_modulo() {
+        // 10 % TRUE = 0 (10 % 1 = 0)
+        let result = ArithmeticOps::modulo(&SqlValue::Integer(10), &SqlValue::Boolean(true)).unwrap();
+        assert_eq!(result, SqlValue::Integer(0));
+
+        // TRUE % TRUE = 0 (1 % 1 = 0)
+        let result = ArithmeticOps::modulo(&SqlValue::Boolean(true), &SqlValue::Boolean(true)).unwrap();
+        assert_eq!(result, SqlValue::Integer(0));
+    }
+
+    #[test]
+    fn test_boolean_integer_divide() {
+        // 10 DIV TRUE = 10
+        let result = ArithmeticOps::integer_divide(&SqlValue::Integer(10), &SqlValue::Boolean(true)).unwrap();
+        assert_eq!(result, SqlValue::Integer(10));
+
+        // TRUE DIV TRUE = 1
+        let result = ArithmeticOps::integer_divide(&SqlValue::Boolean(true), &SqlValue::Boolean(true)).unwrap();
+        assert_eq!(result, SqlValue::Integer(1));
     }
 }
