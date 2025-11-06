@@ -99,7 +99,7 @@ impl Parser {
         // Parse expression
         let expr = self.parse_expression()?;
 
-        // Check for optional AS alias
+        // Check for optional AS alias (MySQL allows aliases without AS keyword)
         let alias = if self.peek_keyword(Keyword::As) {
             self.consume_keyword(Keyword::As)?;
             match self.peek() {
@@ -111,6 +111,16 @@ impl Parser {
                 _ => {
                     return Err(ParseError { message: "Expected identifier after AS".to_string() })
                 }
+            }
+        } else if matches!(self.peek(), Token::Identifier(_) | Token::DelimitedIdentifier(_)) {
+            // MySQL compatibility: allow aliases without AS keyword
+            match self.peek() {
+                Token::Identifier(id) | Token::DelimitedIdentifier(id) => {
+                    let alias = id.clone();
+                    self.advance();
+                    Some(alias)
+                }
+                _ => None,
             }
         } else {
             None
