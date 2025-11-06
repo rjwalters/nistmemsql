@@ -134,6 +134,7 @@ impl SelectIntoExecutor {
             types::SqlValue::Null => DataType::Varchar { max_length: Some(255) }, // Default for NULL
             types::SqlValue::Integer(_) => DataType::Integer,
             types::SqlValue::Bigint(_) => DataType::Bigint,
+            types::SqlValue::Unsigned(_) => DataType::Unsigned,
             types::SqlValue::Smallint(_) => DataType::Smallint,
             types::SqlValue::Numeric(_) => DataType::Numeric { precision: 38, scale: 0 },
             types::SqlValue::Float(_) => DataType::Float { precision: 53 },
