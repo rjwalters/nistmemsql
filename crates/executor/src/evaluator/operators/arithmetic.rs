@@ -223,7 +223,7 @@ impl ArithmeticOps {
                 Ok(Float((*a as f64 / *b as f64) as f32))
             }
 
-            // Mixed exact numeric types - promote to Float for precision
+            // Mixed exact numeric types - promote to i64, return Float for precision
             (left_val, right_val)
                 if is_exact_numeric(left_val) && is_exact_numeric(right_val) =>
             {
@@ -232,7 +232,7 @@ impl ArithmeticOps {
                 if right_i64 == 0 {
                     return Err(ExecutorError::DivisionByZero);
                 }
-                Ok(Float(((left_i64 as f64) / (right_i64 as f64)) as f32))
+                Ok(Float((left_i64 as f64 / right_i64 as f64) as f32))
             }
 
             // Approximate numeric types - promote to f64
