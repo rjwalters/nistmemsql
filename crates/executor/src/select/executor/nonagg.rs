@@ -10,6 +10,9 @@ use crate::select::join::FromResult;
 use crate::select::order::{apply_order_by, RowWithSortKeys};
 use crate::select::projection::project_row_combined;
 use crate::schema::CombinedSchema;
+use crate::select::grouping::compare_sql_values;
+use std::collections::HashMap;
+use storage::database::IndexData;
 use crate::select::window::{
     collect_order_by_window_functions, evaluate_order_by_window_functions,
     evaluate_window_functions, expression_has_window_function, has_window_functions,
@@ -37,26 +40,30 @@ impl SelectExecutor<'_> {
                 CombinedExpressionEvaluator::with_database(&schema, self.database)
             };
 
-        // Optimize WHERE clause with constant folding and dead code elimination
+        // Try index-based WHERE optimization first
+        let mut filtered_rows = if let Some(index_filtered) = self.try_index_based_where_filtering(stmt.where_clause.as_ref(), &rows, &schema)? {
+            index_filtered
+        } else {
+            // Fall back to full WHERE clause evaluation
         let where_optimization = optimize_where_clause(stmt.where_clause.as_ref(), &evaluator)?;
 
-        // Apply WHERE clause filter (optimized)
-        let mut filtered_rows = match where_optimization {
+        match where_optimization {
             crate::optimizer::WhereOptimization::AlwaysTrue => {
                 // WHERE TRUE - no filtering needed
-                rows
-            }
+            rows
+        }
             crate::optimizer::WhereOptimization::AlwaysFalse => {
                 // WHERE FALSE - return empty result
-                Vec::new()
-            }
+            Vec::new()
+        }
             crate::optimizer::WhereOptimization::Optimized(ref expr) => {
                 // Apply optimized WHERE clause
-                apply_where_filter_combined(rows, Some(expr), &evaluator)?
-            }
+            apply_where_filter_combined(rows, Some(expr), &evaluator)?
+        }
             crate::optimizer::WhereOptimization::Unchanged(where_expr) => {
-                // Apply original WHERE clause
-                apply_where_filter_combined(rows, where_expr.as_ref(), &evaluator)?
+                    // Apply original WHERE clause
+                    apply_where_filter_combined(rows, where_expr.as_ref(), &evaluator)?
+                }
             }
         };
 
@@ -241,9 +248,29 @@ impl SelectExecutor<'_> {
         let index_name = index_name.unwrap();
 
         // Get the index data
-        let index_data = match self.database.get_index_data(&index_name) {
-        Some(data) => data,
-            None => return Ok(None),
+        let index_data = if index_name.starts_with("__pk_") {
+            // Primary key index
+            let table_name = &index_name[5..]; // Remove "__pk_" prefix
+            let qualified_table_name = format!("public.{}", table_name);
+            if let Some(table) = self.database.get_table(&qualified_table_name) {
+                if let Some(pk_index) = table.primary_key_index() {
+                    // Convert to IndexData format
+                    let mut data = HashMap::new();
+                    for (key, &row_idx) in pk_index {
+                        data.insert(key.clone(), vec![row_idx]);
+                    }
+                    IndexData { data }
+                } else {
+                    return Ok(None);
+                }
+            } else {
+                return Ok(None);
+            }
+        } else {
+            match self.database.get_index_data(&index_name) {
+                Some(data) => data.clone(),
+                None => return Ok(None),
+            }
         };
 
         // For this proof of concept, only use index when we have all rows from the table
@@ -259,19 +286,34 @@ impl SelectExecutor<'_> {
         }
 
         // All rows are included, we can use the index directly
-        // The index contains sorted key-value pairs with row indices
-        let mut ordered_rows = Vec::new();
-        for (_key, indices) in &index_data.data {
-            for &row_idx in indices {
-                if row_idx < rows.len() {
-                    ordered_rows.push(rows[row_idx].clone());
+        // Collect all keys and sort them
+        let mut keys: Vec<_> = index_data.data.keys().collect();
+        keys.sort_by(|a, b| {
+            use std::cmp::Ordering;
+            for (x, y) in a.iter().zip(b.iter()) {
+                match compare_sql_values(x, y) {
+                    Ordering::Equal => continue,
+                    ord => return ord,
                 }
-        }
+            }
+            Ordering::Equal
+        });
+
+        // Reverse sort order if DESC
+        if order_item.direction == ast::OrderDirection::Desc {
+        keys.reverse();
         }
 
-        // Reverse if DESC
-        if order_item.direction == ast::OrderDirection::Desc {
-        ordered_rows.reverse();
+        // Build ordered rows
+        let mut ordered_rows: Vec<RowWithSortKeys> = Vec::new();
+        for key in keys {
+            if let Some(indices) = index_data.data.get(key) {
+                for &row_idx in indices {
+                    if row_idx < rows.len() {
+                        ordered_rows.push(rows[row_idx].clone());
+                    }
+                }
+            }
         }
 
         Ok(Some(ordered_rows))
@@ -297,6 +339,103 @@ impl SelectExecutor<'_> {
                 }
             }
         }
+
+        // Check if this is a primary key column (implicit ASC index)
+        if direction == ast::OrderDirection::Asc {
+            if let Some(table) = self.database.get_table(&format!("public.{}", table_name)) {
+                if let Some(pk_columns) = &table.schema.primary_key {
+                    if pk_columns.len() == 1 && pk_columns[0] == column_name {
+                        // Return a special name for primary key index
+                        return Ok(Some(format!("__pk_{}", table_name)));
+                    }
+                }
+            }
+        }
+
         Ok(None)
         }
+
+    /// Try to use indexes for WHERE clause filtering
+    /// Returns Some(rows) if index optimization was applied, None if not applicable
+    fn try_index_based_where_filtering(
+        &self,
+        where_expr: Option<&ast::Expression>,
+        all_rows: &[storage::Row],
+        schema: &CombinedSchema,
+    ) -> Result<Option<Vec<storage::Row>>, ExecutorError> {
+        // For now, only handle simple equality: column = value
+        let (table_name, column_name, value) = match where_expr {
+            Some(ast::Expression::BinaryOp { left, op: ast::BinaryOperator::Equal, right }) => {
+                // Check if left is a column reference and right is a literal
+                match (left.as_ref(), right.as_ref()) {
+                    (ast::Expression::ColumnRef { table: None, column }, ast::Expression::Literal(val)) => {
+                        // Find which table this column belongs to
+                        let mut found_table = None;
+                        for (table, (_start_idx, _table_schema)) in &schema.table_schemas {
+                            if _table_schema.get_column_index(column).is_some() {
+                                found_table = Some(table.clone());
+                                break;
+                            }
+                        }
+                        match found_table {
+                            Some(table) => (table, column.clone(), val.clone()),
+                            None => return Ok(None), // Column not found
+                        }
+                    }
+                    _ => return Ok(None), // Not a simple column = literal
+                }
+            }
+            _ => return Ok(None), // Not a simple equality
+        };
+
+        // Find an index on this table and column
+        let index_name = self.find_index_for_where(&table_name, &column_name)?;
+        if index_name.is_none() {
+            return Ok(None);
+        }
+        let index_name = index_name.unwrap();
+
+        // Get the index data
+        let index_data = match self.database.get_index_data(&index_name) {
+            Some(data) => data,
+            None => return Ok(None),
+        };
+
+        // Look up the value in the index
+        let search_key = vec![value]; // Single column index
+        let matching_row_indices = match index_data.data.get(&search_key) {
+            Some(indices) => indices.clone(),
+            None => Vec::new(), // No matches
+        };
+
+        // Convert row indices to actual rows
+        let mut result_rows = Vec::new();
+        for &row_idx in &matching_row_indices {
+            if row_idx < all_rows.len() {
+                result_rows.push(all_rows[row_idx].clone());
+            }
+        }
+
+        Ok(Some(result_rows))
+    }
+
+    /// Find an index that can be used for WHERE clause filtering
+    fn find_index_for_where(
+        &self,
+        table_name: &str,
+        column_name: &str,
+    ) -> Result<Option<String>, ExecutorError> {
+        // Look through all indexes for one on this table and column
+        let all_indexes = self.database.list_indexes();
+        for index_name in all_indexes {
+            if let Some(metadata) = self.database.get_index(&index_name) {
+                if metadata.table_name == table_name
+                    && metadata.columns.len() == 1
+                    && metadata.columns[0].column_name == column_name {
+                    return Ok(Some(index_name));
+                }
+            }
+        }
+        Ok(None)
+    }
 }

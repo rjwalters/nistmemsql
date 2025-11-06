@@ -215,12 +215,12 @@ impl ArithmeticOps {
         use SqlValue::*;
 
         match (left, right) {
-            // Integer division with zero check
+            // Integer division with zero check - returns Numeric to preserve precision
             (Integer(a), Integer(b)) => {
                 if *b == 0 {
                     return Err(ExecutorError::DivisionByZero);
                 }
-                Ok(Integer(a / b))
+                Ok(Numeric(*a as f64 / *b as f64))
             }
 
             // Mixed exact numeric types - promote to i64
@@ -498,7 +498,7 @@ mod tests {
     #[test]
     fn test_integer_division() {
         let result = ArithmeticOps::divide(&SqlValue::Integer(15), &SqlValue::Integer(3)).unwrap();
-        assert_eq!(result, SqlValue::Integer(5));
+        assert_eq!(result, SqlValue::Float(5.0));
     }
 
     #[test]

@@ -135,6 +135,7 @@ impl SelectIntoExecutor {
             types::SqlValue::Integer(_) => DataType::Integer,
             types::SqlValue::Bigint(_) => DataType::Bigint,
             types::SqlValue::Smallint(_) => DataType::Smallint,
+            types::SqlValue::Unsigned(_) => DataType::Unsigned,
             types::SqlValue::Numeric(_) => DataType::Numeric { precision: 38, scale: 0 },
             types::SqlValue::Float(_) => DataType::Float { precision: 53 },
             types::SqlValue::Real(_) => DataType::Real,
