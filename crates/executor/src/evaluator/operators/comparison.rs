@@ -136,7 +136,7 @@ impl ComparisonOps {
             (left_val, right_val @ Numeric(_))
                 if matches!(
                     left_val,
-                    Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_)
+                    Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_) | Numeric(_)
                 ) =>
             {
                 let left_f64 = to_f64(left_val)?;
