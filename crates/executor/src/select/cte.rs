@@ -138,6 +138,7 @@ pub(super) fn infer_type_from_value(value: &types::SqlValue) -> types::DataType 
         types::SqlValue::Real(_) => types::DataType::Real,
         types::SqlValue::Smallint(_) => types::DataType::Smallint,
         types::SqlValue::Bigint(_) => types::DataType::Bigint,
+        types::SqlValue::Unsigned(_) => types::DataType::Unsigned,
         types::SqlValue::Date(_) => types::DataType::Varchar { max_length: Some(255) }, // TODO: proper date type
         types::SqlValue::Time(_) => types::DataType::Varchar { max_length: Some(255) }, // TODO: proper time type
         types::SqlValue::Timestamp(_) => types::DataType::Varchar { max_length: Some(255) }, // TODO: proper timestamp type

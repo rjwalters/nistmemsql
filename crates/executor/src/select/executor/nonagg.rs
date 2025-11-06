@@ -13,6 +13,7 @@ use crate::schema::CombinedSchema;
 use crate::select::grouping::compare_sql_values;
 use storage::database::IndexData;
 use types::SqlValue;
+use std::collections::HashMap;
 use crate::select::window::{
     collect_order_by_window_functions, evaluate_order_by_window_functions,
     evaluate_window_functions, expression_has_window_function, has_window_functions,
@@ -254,21 +255,11 @@ impl SelectExecutor<'_> {
             let qualified_table_name = format!("public.{}", table_name);
             if let Some(table) = self.database.get_table(&qualified_table_name) {
                 if let Some(pk_index) = table.primary_key_index() {
-                    // Convert to IndexData format (Vec of tuples)
-                    let mut data: Vec<(Vec<SqlValue>, Vec<usize>)> = pk_index
+                    // Convert to IndexData format (HashMap)
+                    let data: HashMap<Vec<SqlValue>, Vec<usize>> = pk_index
                         .iter()
                         .map(|(key, &row_idx)| (key.clone(), vec![row_idx]))
                         .collect();
-                    // Sort by key for consistent ordering
-                    data.sort_by(|(a, _): &(Vec<SqlValue>, Vec<usize>), (b, _): &(Vec<SqlValue>, Vec<usize>)| {
-                        for (val_a, val_b) in a.iter().zip(b.iter()) {
-                            match compare_sql_values(val_a, val_b) {
-                                std::cmp::Ordering::Equal => continue,
-                                other => return other,
-                            }
-                        }
-                        std::cmp::Ordering::Equal
-                    });
                     IndexData { data }
                 } else {
                     return Ok(None);
@@ -296,19 +287,30 @@ impl SelectExecutor<'_> {
         }
 
         // All rows are included, we can use the index directly
-        // The index data is already sorted, but may need reversing for DESC
-        let data_to_use = if order_item.direction == ast::OrderDirection::Desc {
-            // Reverse the order for DESC
-            let mut reversed = index_data.data.clone();
-            reversed.reverse();
-            reversed
-        } else {
-            index_data.data.clone()
-        };
+        // Convert HashMap to Vec and sort for consistent ordering
+        let mut data_vec: Vec<(Vec<SqlValue>, Vec<usize>)> = index_data.data.iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+
+        // Sort by key
+        data_vec.sort_by(|(a, _), (b, _)| {
+            for (val_a, val_b) in a.iter().zip(b.iter()) {
+                match compare_sql_values(val_a, val_b) {
+                    std::cmp::Ordering::Equal => continue,
+                    other => return other,
+                }
+            }
+            std::cmp::Ordering::Equal
+        });
+
+        // Reverse if DESC
+        if order_item.direction == ast::OrderDirection::Desc {
+            data_vec.reverse();
+        }
 
         // Build ordered rows
         let mut ordered_rows = Vec::new();
-        for (_, indices) in data_to_use {
+        for (_, indices) in data_vec {
             for &row_idx in &indices {
                 if row_idx < rows.len() {
                     ordered_rows.push(rows[row_idx].clone());
@@ -404,7 +406,7 @@ impl SelectExecutor<'_> {
         // Look up the value in the index
         let search_key = vec![value]; // Single column index
         let matching_row_indices = index_data.data.iter()
-            .find(|(key, _)| key == &search_key)
+            .find(|(key, _)| *key == &search_key)
             .map(|(_, indices)| indices.clone())
             .unwrap_or_else(Vec::new);
 

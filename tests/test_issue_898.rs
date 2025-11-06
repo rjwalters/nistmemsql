@@ -90,7 +90,7 @@ impl NistMemSqlDB {
             .values
             .iter()
             .map(|val| match val {
-                SqlValue::Integer(_) | SqlValue::Smallint(_) | SqlValue::Bigint(_) => {
+                SqlValue::Integer(_) | SqlValue::Smallint(_) | SqlValue::Bigint(_) | SqlValue::Unsigned(_) => {
                     DefaultColumnType::Integer
                 }
                 SqlValue::Float(_)
@@ -121,6 +121,7 @@ impl NistMemSqlDB {
             SqlValue::Integer(i) => i.to_string(),
             SqlValue::Smallint(i) => i.to_string(),
             SqlValue::Bigint(i) => i.to_string(),
+            SqlValue::Unsigned(i) => i.to_string(),
             SqlValue::Numeric(f) => f.to_string(),
             SqlValue::Float(f) | SqlValue::Real(f) => {
                 if f.fract() == 0.0 {
