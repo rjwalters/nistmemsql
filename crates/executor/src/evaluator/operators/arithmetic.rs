@@ -215,15 +215,16 @@ impl ArithmeticOps {
         use SqlValue::*;
 
         match (left, right) {
-            // Integer division with zero check
+            // Integer division - convert to Numeric (f64) to preserve precision (SQL standard behavior)
             (Integer(a), Integer(b)) => {
                 if *b == 0 {
                     return Err(ExecutorError::DivisionByZero);
                 }
-                Ok(Integer(a / b))
+                // Convert to Numeric (f64) to preserve precision: 7 / 2 = 3.5 (not 3)
+                Ok(Numeric((*a as f64) / (*b as f64)))
             }
 
-            // Mixed exact numeric types - promote to i64
+            // Mixed exact numeric types - promote to Numeric (f64) for precision
             (left_val, right_val)
                 if is_exact_numeric(left_val) && is_exact_numeric(right_val) =>
             {
@@ -232,7 +233,8 @@ impl ArithmeticOps {
                 if right_i64 == 0 {
                     return Err(ExecutorError::DivisionByZero);
                 }
-                Ok(Integer(left_i64 / right_i64))
+                // Convert to Numeric (f64) to preserve precision (SQL standard behavior)
+                Ok(Numeric((left_i64 as f64) / (right_i64 as f64)))
             }
 
             // Approximate numeric types - promote to f64
