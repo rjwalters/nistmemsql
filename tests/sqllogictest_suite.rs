@@ -632,6 +632,30 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
 
 #[test]
 fn run_sqllogictest_suite() {
+    // If SELECT1_ONLY is set, run only select1.test
+    if env::var("SELECT1_ONLY").is_ok() {
+        let test_file = PathBuf::from("third_party/sqllogictest/test/select1.test");
+        let contents = std::fs::read_to_string(&test_file).expect("Failed to read select1.test");
+        let (test_result, detailed_failures) = run_test_file_with_details(&contents);
+
+        match test_result {
+            Ok(_) => println!("✓ select1.test passed"),
+            Err(e) => {
+                println!("✗ select1.test failed: {}", e);
+                for failure in detailed_failures {
+                    println!("  SQL: {}", failure.sql_statement);
+                    println!("  Expected: {}", failure.expected_result);
+                    println!("  Actual: {}", failure.actual_result);
+                    println!("  Error: {}", failure.error_message);
+                    println!("  Line: {}", failure.line_number);
+                    println!();
+                }
+                panic!("select1.test failed");
+            }
+        }
+        return;
+    }
+
     // Check if submodule is initialized
     let test_dir = PathBuf::from("third_party/sqllogictest/test");
     if !test_dir.exists() {
