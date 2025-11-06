@@ -13,6 +13,7 @@
 
 use async_trait::async_trait;
 use executor::SelectExecutor;
+use md5::{Md5, Digest};
 use parser::Parser;
 use sqllogictest::{AsyncDB, DBOutput, DefaultColumnType, Runner};
 use std::collections::{HashMap, HashSet};
@@ -246,12 +247,32 @@ impl NistMemSqlDB {
             })
             .collect();
 
-        let formatted_rows: Vec<Vec<String>> = rows
+        let mut formatted_rows: Vec<Vec<String>> = rows
             .iter()
             .map(|row| row.values.iter().map(|val| self.format_sql_value(val)).collect())
             .collect();
 
-        Ok(DBOutput::Rows { types, rows: formatted_rows })
+        // Sort rows for consistent ordering (required for hashing and rowsort)
+        formatted_rows.sort_by(|a, b| a.join(" ").cmp(&b.join(" ")));
+
+        let total_values: usize = formatted_rows.iter().map(|r| r.len()).sum();
+
+        // If there are many values, return hash instead of rows
+        if total_values > 8 {
+            let mut hasher = Md5::new();
+            for row in &formatted_rows {
+                hasher.update(row.join(" "));
+                hasher.update("\n");
+            }
+            let hash = format!("{:x}", hasher.finalize());
+            let hash_string = format!("{} values hashing to {}", total_values, hash);
+            Ok(DBOutput::Rows {
+                types: vec![DefaultColumnType::Text],
+                rows: vec![vec![hash_string]],
+            })
+        } else {
+            Ok(DBOutput::Rows { types, rows: formatted_rows })
+        }
     }
 
     fn format_sql_value(&self, value: &SqlValue) -> String {
@@ -529,6 +550,8 @@ fn run_test_file_with_details(contents: &str) -> (Result<(), TestError>, Vec<Tes
         tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(
             async {
                 let mut tester = Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+                // Enable hash mode with threshold of 8 (standard SQLLogicTest behavior)
+                tester.with_hash_threshold(8);
                 tester.run_script(&preprocessed)
             },
         )
