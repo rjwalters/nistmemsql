@@ -121,7 +121,7 @@ impl NistMemSqlDB {
             SqlValue::Integer(i) => i.to_string(),
             SqlValue::Smallint(i) => i.to_string(),
             SqlValue::Bigint(i) => i.to_string(),
-            SqlValue::Unsigned(i) => i.to_string(),
+            SqlValue::Unsigned(u) => u.to_string(),
             SqlValue::Numeric(f) => f.to_string(),
             SqlValue::Float(f) | SqlValue::Real(f) => {
                 if f.fract() == 0.0 {

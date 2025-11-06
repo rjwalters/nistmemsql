@@ -405,9 +405,8 @@ impl SelectExecutor<'_> {
 
         // Look up the value in the index
         let search_key = vec![value]; // Single column index
-        let matching_row_indices = index_data.data.iter()
-            .find(|(key, _)| *key == &search_key)
-            .map(|(_, indices)| indices.clone())
+        let matching_row_indices = index_data.data.get(&search_key)
+            .cloned()
             .unwrap_or_else(Vec::new);
 
         // Convert row indices to actual rows
