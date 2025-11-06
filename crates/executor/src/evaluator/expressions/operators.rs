@@ -37,6 +37,10 @@ pub(crate) fn eval_unary_op(
         // NULL propagation - unary operations on NULL return NULL
         (Plus | Minus, SqlValue::Null) => Ok(SqlValue::Null),
 
+        // Unary NOT - logical negation
+        (Not, SqlValue::Boolean(b)) => Ok(SqlValue::Boolean(!b)),
+        (Not, SqlValue::Null) => Ok(SqlValue::Null), // NULL propagation for NOT
+
         // Type errors
         (Plus, val) => Err(ExecutorError::TypeMismatch {
             left: val.clone(),
@@ -48,8 +52,13 @@ pub(crate) fn eval_unary_op(
             op: "unary -".to_string(),
             right: SqlValue::Null,
         }),
+        (Not, val) => Err(ExecutorError::TypeMismatch {
+            left: val.clone(),
+            op: "NOT".to_string(),
+            right: SqlValue::Null,
+        }),
 
-        // Other unary operators (NOT, IS NULL, etc.) are handled elsewhere
+        // Other unary operators are handled elsewhere
         _ => Err(ExecutorError::UnsupportedExpression(format!(
             "Unary operator {:?} not supported in this context",
             op
