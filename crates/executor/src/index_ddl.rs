@@ -382,8 +382,7 @@ mod tests {
         match stmt {
             Statement::Select(select_stmt) => {
                 let executor = SelectExecutor::new(&db);
-                let from_result = executor.build_from_clause(&select_stmt.from).unwrap();
-                let rows = executor.execute_without_aggregation(&select_stmt, from_result).unwrap();
+                let rows = executor.execute(&select_stmt).unwrap();
 
                 // Should return 2 rows (both Alice entries)
                 assert_eq!(rows.len(), 2);
