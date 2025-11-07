@@ -52,7 +52,13 @@ impl NistMemSqlDB {
     ) -> Result<DBOutput<DefaultColumnType>, TestError> {
         let mut formatted_rows: Vec<Vec<String>> = rows
             .iter()
-            .map(|row| row.values.iter().map(|val| self.format_sql_value(val)).collect())
+            .map(|row| {
+                row.values
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, val)| self.format_sql_value(val, types.get(idx)))
+                    .collect()
+            })
             .collect();
 
         // Sort rows for consistent ordering (required for hashing and rowsort)
@@ -285,12 +291,36 @@ impl NistMemSqlDB {
         self.format_result_rows(&rows, types)
     }
 
-    fn format_sql_value(&self, value: &SqlValue) -> String {
+    fn format_sql_value(&self, value: &SqlValue, expected_type: Option<&DefaultColumnType>) -> String {
         match value {
-            SqlValue::Integer(i) => i.to_string(),
-            SqlValue::Smallint(i) => i.to_string(),
-            SqlValue::Bigint(i) => i.to_string(),
-            SqlValue::Unsigned(i) => i.to_string(),
+            SqlValue::Integer(i) => {
+                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
+                    format!("{:.3}", *i as f64)
+                } else {
+                    i.to_string()
+                }
+            }
+            SqlValue::Smallint(i) => {
+                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
+                    format!("{:.3}", *i as f64)
+                } else {
+                    i.to_string()
+                }
+            }
+            SqlValue::Bigint(i) => {
+                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
+                    format!("{:.3}", *i as f64)
+                } else {
+                    i.to_string()
+                }
+            }
+            SqlValue::Unsigned(i) => {
+                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
+                    format!("{:.3}", *i as f64)
+                } else {
+                    i.to_string()
+                }
+            }
             SqlValue::Numeric(f) => f.to_string(),
             SqlValue::Float(f) | SqlValue::Real(f) => {
                 if f.fract() == 0.0 {
