@@ -148,6 +148,7 @@ pub struct DropTriggerStmt {
 /// CREATE INDEX statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct CreateIndexStmt {
+    pub if_not_exists: bool,
     pub index_name: String,
     pub table_name: String,
     pub unique: bool,
@@ -164,5 +165,6 @@ pub struct IndexColumn {
 /// DROP INDEX statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct DropIndexStmt {
+    pub if_exists: bool,
     pub index_name: String,
 }

@@ -89,7 +89,12 @@ impl IndexExecutor {
         // Check if index already exists
         let index_name = &stmt.index_name;
         if database.index_exists(index_name) {
-            return Err(ExecutorError::IndexAlreadyExists(index_name.clone()));
+            if stmt.if_not_exists {
+                // IF NOT EXISTS: silently succeed if index already exists
+                return Ok(format!("Index '{}' already exists (skipped)", index_name));
+            } else {
+                return Err(ExecutorError::IndexAlreadyExists(index_name.clone()));
+            }
         }
 
         // Create the index
@@ -124,7 +129,12 @@ impl IndexExecutor {
 
         // Check if index exists
         if !database.index_exists(index_name) {
-            return Err(ExecutorError::IndexNotFound(index_name.clone()));
+            if stmt.if_exists {
+                // IF EXISTS: silently succeed if index doesn't exist
+                return Ok(format!("Index '{}' does not exist (skipped)", index_name));
+            } else {
+                return Err(ExecutorError::IndexNotFound(index_name.clone()));
+            }
         }
 
         // Drop the index
