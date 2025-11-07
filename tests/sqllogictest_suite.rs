@@ -321,7 +321,7 @@ impl NistMemSqlDB {
                     i.to_string()
                 }
             }
-            SqlValue::Numeric(f) => f.to_string(),
+            SqlValue::Numeric(_) => value.to_string(), // Use Display trait for consistent formatting
             SqlValue::Float(f) | SqlValue::Real(f) => {
                 if f.fract() == 0.0 {
                     format!("{:.1}", f)
