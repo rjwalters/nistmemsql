@@ -247,3 +247,196 @@ fn test_aggregate_with_case_expression() {
     // SUM of credits only: 100 + 200 = 300 (debit of 50 becomes 0)
     assert_eq!(result[0].values[0], types::SqlValue::Integer(300));
 }
+
+#[test]
+fn test_max_with_unary_plus() {
+    // Test MAX(+column) - unary plus operator
+    let mut db = storage::Database::new();
+    let schema = catalog::TableSchema::new(
+        "tab0".to_string(),
+        vec![catalog::ColumnSchema::new(
+            "col0".to_string(),
+            types::DataType::Integer,
+            false,
+        )],
+    );
+    db.create_table(schema).unwrap();
+    db.insert_row(
+        "tab0",
+        storage::Row::new(vec![types::SqlValue::Integer(1)]),
+    )
+    .unwrap();
+    db.insert_row(
+        "tab0",
+        storage::Row::new(vec![types::SqlValue::Integer(5)]),
+    )
+    .unwrap();
+    db.insert_row(
+        "tab0",
+        storage::Row::new(vec![types::SqlValue::Integer(3)]),
+    )
+    .unwrap();
+
+    let executor = SelectExecutor::new(&db);
+    let stmt = ast::SelectStmt {
+        into_table: None,
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::AggregateFunction {
+                name: "MAX".to_string(),
+                distinct: false,
+                args: vec![ast::Expression::UnaryOp {
+                    op: ast::UnaryOperator::Plus,
+                    expr: Box::new(ast::Expression::ColumnRef {
+                        table: None,
+                        column: "col0".to_string(),
+                    }),
+                }],
+            },
+            alias: None,
+        }],
+        from: Some(ast::FromClause::Table { name: "tab0".to_string(), alias: None }),
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(5));
+}
+
+#[test]
+fn test_max_with_unary_minus() {
+    // Test MAX(-column) - unary minus operator
+    let mut db = storage::Database::new();
+    let schema = catalog::TableSchema::new(
+        "tab0".to_string(),
+        vec![catalog::ColumnSchema::new(
+            "col0".to_string(),
+            types::DataType::Integer,
+            false,
+        )],
+    );
+    db.create_table(schema).unwrap();
+    db.insert_row(
+        "tab0",
+        storage::Row::new(vec![types::SqlValue::Integer(1)]),
+    )
+    .unwrap();
+    db.insert_row(
+        "tab0",
+        storage::Row::new(vec![types::SqlValue::Integer(5)]),
+    )
+    .unwrap();
+    db.insert_row(
+        "tab0",
+        storage::Row::new(vec![types::SqlValue::Integer(3)]),
+    )
+    .unwrap();
+
+    let executor = SelectExecutor::new(&db);
+    let stmt = ast::SelectStmt {
+        into_table: None,
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::AggregateFunction {
+                name: "MAX".to_string(),
+                distinct: false,
+                args: vec![ast::Expression::UnaryOp {
+                    op: ast::UnaryOperator::Minus,
+                    expr: Box::new(ast::Expression::ColumnRef {
+                        table: None,
+                        column: "col0".to_string(),
+                    }),
+                }],
+            },
+            alias: None,
+        }],
+        from: Some(ast::FromClause::Table { name: "tab0".to_string(), alias: None }),
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1);
+    // MAX(-col0) where col0 = {1, 5, 3} → {-1, -5, -3} → max is -1
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(-1));
+}
+
+#[test]
+fn test_count_with_not() {
+    // Test COUNT(NOT column) - unary NOT operator
+    let mut db = storage::Database::new();
+    let schema = catalog::TableSchema::new(
+        "tab0".to_string(),
+        vec![catalog::ColumnSchema::new(
+            "col1".to_string(),
+            types::DataType::Boolean,
+            true, // nullable
+        )],
+    );
+    db.create_table(schema).unwrap();
+    db.insert_row(
+        "tab0",
+        storage::Row::new(vec![types::SqlValue::Boolean(true)]),
+    )
+    .unwrap();
+    db.insert_row(
+        "tab0",
+        storage::Row::new(vec![types::SqlValue::Boolean(false)]),
+    )
+    .unwrap();
+    db.insert_row(
+        "tab0",
+        storage::Row::new(vec![types::SqlValue::Boolean(true)]),
+    )
+    .unwrap();
+
+    let executor = SelectExecutor::new(&db);
+    let stmt = ast::SelectStmt {
+        into_table: None,
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Expression {
+            expr: ast::Expression::AggregateFunction {
+                name: "COUNT".to_string(),
+                distinct: false,
+                args: vec![ast::Expression::UnaryOp {
+                    op: ast::UnaryOperator::Not,
+                    expr: Box::new(ast::Expression::ColumnRef {
+                        table: None,
+                        column: "col1".to_string(),
+                    }),
+                }],
+            },
+            alias: None,
+        }],
+        from: Some(ast::FromClause::Table { name: "tab0".to_string(), alias: None }),
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1);
+    // COUNT counts non-NULL values
+    // NOT true = false, NOT false = true, NOT true = false
+    // All non-NULL, so COUNT = 3
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(3));
+}
