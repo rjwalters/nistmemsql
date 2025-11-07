@@ -21,7 +21,7 @@ impl ExpressionEvaluator<'_> {
             )),
 
             // Column reference - look up column index and get value from row
-            ast::Expression::ColumnRef { table: _, column } => self.eval_column_ref(column, row),
+            ast::Expression::ColumnRef { table, column } => self.eval_column_ref(table.as_deref(), column, row),
 
             // Binary operations
             ast::Expression::BinaryOp { left, op, right } => {
@@ -147,10 +147,20 @@ impl ExpressionEvaluator<'_> {
     /// Evaluate column reference
     fn eval_column_ref(
         &self,
+        table_qualifier: Option<&str>,
         column: &str,
         row: &storage::Row,
     ) -> Result<types::SqlValue, ExecutorError> {
+        // Track which tables we searched for better error messages
+        let mut searched_tables = Vec::new();
+        let mut available_columns = Vec::new();
+
+        // If table qualifier is provided, we should only search that specific schema
+        // For now, we don't have full qualified name support, so we ignore it
+        // TODO: In the future, validate the table qualifier matches the schema name
+
         // Try to resolve in inner schema first
+        searched_tables.push(self.schema.name.clone());
         if let Some(col_index) = self.schema.get_column_index(column) {
             return row
                 .get(col_index)
@@ -160,6 +170,7 @@ impl ExpressionEvaluator<'_> {
 
         // If not found in inner schema and outer context exists, try outer schema
         if let (Some(outer_row), Some(outer_schema)) = (self.outer_row, self.outer_schema) {
+            searched_tables.push(outer_schema.name.clone());
             if let Some(col_index) = outer_schema.get_column_index(column) {
                 return outer_row
                     .get(col_index)
@@ -168,10 +179,18 @@ impl ExpressionEvaluator<'_> {
             }
         }
 
+        // Column not found - collect available columns for suggestions
+        available_columns.extend(self.schema.columns.iter().map(|c| c.name.clone()));
+        if let Some(outer_schema) = self.outer_schema {
+            available_columns.extend(outer_schema.columns.iter().map(|c| c.name.clone()));
+        }
+
         // Column not found in either schema
         Err(ExecutorError::ColumnNotFound {
             column_name: column.to_string(),
-            table_name: "unknown".to_string(),
+            table_name: table_qualifier.unwrap_or("unknown").to_string(),
+            searched_tables,
+            available_columns,
         })
     }
 }

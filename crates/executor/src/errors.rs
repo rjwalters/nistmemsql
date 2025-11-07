@@ -2,7 +2,12 @@
 pub enum ExecutorError {
     TableNotFound(String),
     TableAlreadyExists(String),
-    ColumnNotFound { column_name: String, table_name: String },
+    ColumnNotFound {
+        column_name: String,
+        table_name: String,
+        searched_tables: Vec<String>,
+        available_columns: Vec<String>,
+    },
     ColumnAlreadyExists(String),
     IndexNotFound(String),
     IndexAlreadyExists(String),
@@ -36,8 +41,25 @@ impl std::fmt::Display for ExecutorError {
         match self {
             ExecutorError::TableNotFound(name) => write!(f, "Table '{}' not found", name),
             ExecutorError::TableAlreadyExists(name) => write!(f, "Table '{}' already exists", name),
-            ExecutorError::ColumnNotFound { column_name, table_name } => {
-                write!(f, "Column '{}' not found in table '{}'", column_name, table_name)
+            ExecutorError::ColumnNotFound { column_name, table_name, searched_tables, available_columns } => {
+                if searched_tables.is_empty() {
+                    write!(f, "Column '{}' not found in table '{}'", column_name, table_name)
+                } else if available_columns.is_empty() {
+                    write!(
+                        f,
+                        "Column '{}' not found (searched tables: {})",
+                        column_name,
+                        searched_tables.join(", ")
+                    )
+                } else {
+                    write!(
+                        f,
+                        "Column '{}' not found (searched tables: {}). Available columns: {}",
+                        column_name,
+                        searched_tables.join(", "),
+                        available_columns.join(", ")
+                    )
+                }
             }
             ExecutorError::ColumnAlreadyExists(name) => {
                 write!(f, "Column '{}' already exists", name)
@@ -166,6 +188,8 @@ impl From<catalog::CatalogError> for ExecutorError {
             catalog::CatalogError::ColumnNotFound(name) => ExecutorError::ColumnNotFound {
                 column_name: name,
                 table_name: "unknown".to_string(),
+                searched_tables: vec![],
+                available_columns: vec![],
             },
             catalog::CatalogError::SchemaNotFound(name) => ExecutorError::SchemaNotFound(name),
             catalog::CatalogError::SchemaAlreadyExists(name) => {

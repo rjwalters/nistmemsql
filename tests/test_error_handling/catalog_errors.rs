@@ -82,12 +82,14 @@ fn test_column_not_found_error() {
         assert!(result.is_err(), "Should fail with ColumnNotFound");
 
         match result {
-            Err(ExecutorError::ColumnNotFound { column_name, table_name }) => {
+            Err(ExecutorError::ColumnNotFound { column_name, table_name, searched_tables, available_columns }) => {
                 let error_msg = format!(
                     "{}",
                     ExecutorError::ColumnNotFound {
                         column_name: column_name.clone(),
                         table_name: table_name.clone(),
+                        searched_tables: searched_tables.clone(),
+                        available_columns: available_columns.clone(),
                     }
                 );
                 assert!(error_msg.contains("not found"));

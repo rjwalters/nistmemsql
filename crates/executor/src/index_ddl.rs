@@ -80,6 +80,8 @@ impl IndexExecutor {
                 return Err(ExecutorError::ColumnNotFound {
                     column_name: index_col.column_name.clone(),
                     table_name: stmt.table_name.clone(),
+                    searched_tables: vec![stmt.table_name.clone()],
+                    available_columns: table_schema.columns.iter().map(|c| c.name.clone()).collect(),
                 });
             }
         }

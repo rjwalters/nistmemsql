@@ -42,6 +42,8 @@ impl<'a> ValueUpdater<'a> {
                 ExecutorError::ColumnNotFound {
                     column_name: assignment.column.clone(),
                     table_name: self.table_name.to_string(),
+                    searched_tables: vec![self.table_name.to_string()],
+                    available_columns: self.schema.columns.iter().map(|c| c.name.clone()).collect(),
                 }
             })?;
 

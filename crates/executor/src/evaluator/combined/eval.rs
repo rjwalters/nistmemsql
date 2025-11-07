@@ -44,10 +44,23 @@ impl CombinedExpressionEvaluator<'_> {
                     }
                 }
 
-                // Column not found in either schema
+                // Column not found in either schema - collect diagnostic info
+                let searched_tables: Vec<String> = self.schema.table_schemas.keys().cloned().collect();
+                let mut available_columns = Vec::new();
+                for (_start, schema) in self.schema.table_schemas.values() {
+                    available_columns.extend(schema.columns.iter().map(|c| c.name.clone()));
+                }
+                if let Some(outer_schema) = self.outer_schema {
+                    for (_start, schema) in outer_schema.table_schemas.values() {
+                        available_columns.extend(schema.columns.iter().map(|c| c.name.clone()));
+                    }
+                }
+
                 Err(ExecutorError::ColumnNotFound {
                     column_name: column.clone(),
-                    table_name: "unknown".to_string(),
+                    table_name: table.clone().unwrap_or_else(|| "unknown".to_string()),
+                    searched_tables,
+                    available_columns,
                 })
             }
 
