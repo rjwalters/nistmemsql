@@ -48,6 +48,13 @@ impl SelectExecutor<'_> {
             // Literals can be evaluated without row context
             ast::Expression::Literal(val) => Ok(val.clone()),
 
+            // Unary operations - recursively evaluate inner expression with aggregates
+            ast::Expression::UnaryOp { op, expr: inner_expr } => {
+                let val = self.evaluate_with_aggregates(inner_expr, group_rows, _group_key, evaluator)?;
+                // Evaluate unary operator on the result
+                Self::eval_unary_op(op, &val)
+            }
+
             // Other expressions that might contain subqueries or be useful in HAVING:
             // Delegate to evaluator using first row from group as context
             ast::Expression::ColumnRef { .. }
@@ -56,7 +63,6 @@ impl SelectExecutor<'_> {
             | ast::Expression::Cast { .. }
             | ast::Expression::Like { .. }
             | ast::Expression::IsNull { .. }
-            | ast::Expression::UnaryOp { .. }
             | ast::Expression::Case { .. } => {
                 // Use first row from group as context
                 if let Some(first_row) = group_rows.first() {
@@ -409,5 +415,67 @@ impl SelectExecutor<'_> {
 
         // Extract rows without sort keys
         Ok(rows_with_keys.into_iter().map(|(row, _)| row).collect())
+    }
+
+    /// Evaluate a unary operation in aggregate context
+    ///
+    /// This is a helper function for evaluating unary operators (+, -, NOT) on values
+    /// that may result from aggregate functions like COUNT(*).
+    fn eval_unary_op(
+        op: &ast::UnaryOperator,
+        val: &types::SqlValue,
+    ) -> Result<types::SqlValue, ExecutorError> {
+        use ast::UnaryOperator::*;
+        use types::SqlValue;
+
+        match (op, val) {
+            // Unary plus - identity operation (return value unchanged)
+            (Plus, SqlValue::Integer(n)) => Ok(SqlValue::Integer(*n)),
+            (Plus, SqlValue::Smallint(n)) => Ok(SqlValue::Smallint(*n)),
+            (Plus, SqlValue::Bigint(n)) => Ok(SqlValue::Bigint(*n)),
+            (Plus, SqlValue::Float(n)) => Ok(SqlValue::Float(*n)),
+            (Plus, SqlValue::Real(n)) => Ok(SqlValue::Real(*n)),
+            (Plus, SqlValue::Double(n)) => Ok(SqlValue::Double(*n)),
+            (Plus, SqlValue::Numeric(s)) => Ok(SqlValue::Numeric(*s)),
+
+            // Unary minus - negation
+            (Minus, SqlValue::Integer(n)) => Ok(SqlValue::Integer(-n)),
+            (Minus, SqlValue::Smallint(n)) => Ok(SqlValue::Smallint(-n)),
+            (Minus, SqlValue::Bigint(n)) => Ok(SqlValue::Bigint(-n)),
+            (Minus, SqlValue::Float(n)) => Ok(SqlValue::Float(-n)),
+            (Minus, SqlValue::Real(n)) => Ok(SqlValue::Real(-n)),
+            (Minus, SqlValue::Double(n)) => Ok(SqlValue::Double(-n)),
+            (Minus, SqlValue::Numeric(f)) => Ok(SqlValue::Numeric(-*f)),
+
+            // NULL propagation - unary operations on NULL return NULL
+            (Plus | Minus, SqlValue::Null) => Ok(SqlValue::Null),
+
+            // Unary NOT - logical negation
+            (Not, SqlValue::Boolean(b)) => Ok(SqlValue::Boolean(!b)),
+            (Not, SqlValue::Null) => Ok(SqlValue::Null), // NULL propagation for NOT
+
+            // Type errors
+            (Plus, val) => Err(ExecutorError::TypeMismatch {
+                left: val.clone(),
+                op: "unary +".to_string(),
+                right: SqlValue::Null,
+            }),
+            (Minus, val) => Err(ExecutorError::TypeMismatch {
+                left: val.clone(),
+                op: "unary -".to_string(),
+                right: SqlValue::Null,
+            }),
+            (Not, val) => Err(ExecutorError::TypeMismatch {
+                left: val.clone(),
+                op: "NOT".to_string(),
+                right: SqlValue::Null,
+            }),
+
+            // Other unary operators are handled elsewhere
+            _ => Err(ExecutorError::UnsupportedExpression(format!(
+                "Unary operator {:?} not supported in aggregate context",
+                op
+            ))),
+        }
     }
 }
