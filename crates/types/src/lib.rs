@@ -323,7 +323,21 @@ impl fmt::Display for SqlValue {
             SqlValue::Smallint(i) => write!(f, "{}", i),
             SqlValue::Bigint(i) => write!(f, "{}", i),
             SqlValue::Unsigned(u) => write!(f, "{}", u),
-            SqlValue::Numeric(s) => write!(f, "{}", s),
+            // Format Numeric with 3 decimal places (SQL:1999 DECIMAL default)
+            // This ensures whole numbers display as "92.000" instead of "92"
+            SqlValue::Numeric(n) => {
+                if n.is_nan() {
+                    write!(f, "NaN")
+                } else if n.is_infinite() {
+                    if *n > 0.0 {
+                        write!(f, "Infinity")
+                    } else {
+                        write!(f, "-Infinity")
+                    }
+                } else {
+                    write!(f, "{:.3}", n)
+                }
+            }
             SqlValue::Float(n) => write!(f, "{}", n),
             SqlValue::Real(n) => write!(f, "{}", n),
             SqlValue::Double(n) => write!(f, "{}", n),
