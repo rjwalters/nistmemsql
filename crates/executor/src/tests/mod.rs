@@ -37,6 +37,7 @@ mod comparison_ops;
 mod count_star_fast_path;
 mod error_display;
 mod expression_eval;
+mod issue_938_integer_type_preservation;
 mod join_aggregation;
 mod limit_offset;
 mod operator_edge_cases;
