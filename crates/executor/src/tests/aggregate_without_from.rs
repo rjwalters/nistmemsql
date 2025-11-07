@@ -89,7 +89,7 @@ fn test_aggregate_in_expression_without_from() {
                     distinct: false,
                     args: vec![ast::Expression::Literal(types::SqlValue::Integer(5))],
                 }),
-                op: ast::BinaryOperator::Add,
+                op: ast::BinaryOperator::Plus,
                 right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(10))),
             },
             alias: None,
