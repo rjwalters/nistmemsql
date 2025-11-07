@@ -134,7 +134,7 @@ mod evaluator_tests {
             "users".to_string(),
             vec![
                 ColumnSchema::new("id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("name".to_string(), DataType::Varchar, false),
+                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(255) }, false),
             ],
         );
 
