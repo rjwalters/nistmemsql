@@ -260,3 +260,22 @@ fn test_parse_multiple_casts() {
         _ => panic!("Expected SELECT statement"),
     }
 }
+
+#[test]
+fn test_parse_cast_signed_in_aggregate() {
+    // Test case from issue #949: CAST AS SIGNED works fine
+    let result = Parser::parse_sql(
+        "SELECT DISTINCT - MIN( CAST( NULL AS SIGNED ) ) FROM tab0"
+    );
+    assert!(result.is_ok(), "CAST AS SIGNED in aggregate should parse: {:?}", result);
+}
+
+#[test]
+fn test_parse_cast_signed_cross_join_subquery() {
+    // Full test case from issue #949: random/aggregates/slt_good_56.test
+    // The issue is actually the FROM clause with parenthesized table reference, not CAST AS SIGNED
+    let result = Parser::parse_sql(
+        "SELECT DISTINCT - MIN( CAST( NULL AS SIGNED ) ) FROM ( tab0 AS cor0 CROSS JOIN tab2 AS cor1 )"
+    );
+    assert!(result.is_ok(), "CAST AS SIGNED with CROSS JOIN subquery should parse: {:?}", result);
+}

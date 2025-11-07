@@ -37,48 +37,72 @@ impl Parser {
     pub(crate) fn parse_table_reference(&mut self) -> Result<ast::FromClause, ParseError> {
         match self.peek() {
             Token::LParen => {
-                // Subquery in FROM clause (derived table)
+                // Parenthesized expression: could be a subquery or a JOIN expression
                 self.advance(); // Consume '('
 
-                // Parse the SELECT statement
-                let query = Box::new(self.parse_select_statement()?);
+                // Check if this is a subquery (starts with SELECT) or a table reference/JOIN
+                let result = if self.peek_keyword(Keyword::Select) {
+                    // Parse the SELECT statement (subquery)
+                    let query = Box::new(self.parse_select_statement()?);
 
-                // Expect closing ')'
-                match self.peek() {
-                    Token::RParen => {
-                        self.advance();
+                    // Expect closing ')'
+                    match self.peek() {
+                        Token::RParen => {
+                            self.advance();
+                        }
+                        _ => {
+                            return Err(ParseError {
+                                message: "Expected ')' after subquery".to_string(),
+                            })
+                        }
                     }
-                    _ => {
+
+                    // SQL:1999 requires AS alias for derived tables
+                    if !self.peek_keyword(Keyword::As) {
                         return Err(ParseError {
-                            message: "Expected ')' after subquery".to_string(),
-                        })
+                            message: "Derived table must have AS alias (SQL:1999 requirement)"
+                                .to_string(),
+                        });
                     }
-                }
+                    self.consume_keyword(Keyword::As)?;
 
-                // SQL:1999 requires AS alias for derived tables
-                if !self.peek_keyword(Keyword::As) {
-                    return Err(ParseError {
-                        message: "Derived table must have AS alias (SQL:1999 requirement)"
-                            .to_string(),
-                    });
-                }
-                self.consume_keyword(Keyword::As)?;
+                    // Parse alias
+                    let alias = match self.peek() {
+                        Token::Identifier(id) | Token::DelimitedIdentifier(id) => {
+                            let alias = id.clone();
+                            self.advance();
+                            alias
+                        }
+                        _ => {
+                            return Err(ParseError {
+                                message: "Expected alias after AS keyword".to_string(),
+                            })
+                        }
+                    };
 
-                // Parse alias
-                let alias = match self.peek() {
-                    Token::Identifier(id) | Token::DelimitedIdentifier(id) => {
-                        let alias = id.clone();
-                        self.advance();
-                        alias
+                    ast::FromClause::Subquery { query, alias }
+                } else {
+                    // Parenthesized table reference or JOIN expression
+                    // Parse as a FROM clause (which handles JOINs)
+                    let from_clause = self.parse_from_clause()?;
+
+                    // Expect closing ')'
+                    match self.peek() {
+                        Token::RParen => {
+                            self.advance();
+                        }
+                        _ => {
+                            return Err(ParseError {
+                                message: "Expected ')' after parenthesized table reference"
+                                    .to_string(),
+                            })
+                        }
                     }
-                    _ => {
-                        return Err(ParseError {
-                            message: "Expected alias after AS keyword".to_string(),
-                        })
-                    }
+
+                    from_clause
                 };
 
-                Ok(ast::FromClause::Subquery { query, alias })
+                Ok(result)
             }
             Token::Identifier(_) | Token::DelimitedIdentifier(_) => {
                 let name = self.parse_qualified_identifier()?;
