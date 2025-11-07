@@ -30,6 +30,8 @@ pub fn resolve_target_columns(
                     .ok_or_else(|| ExecutorError::ColumnNotFound {
                         column_name: col_name.clone(),
                         table_name: table_name.to_string(),
+                        searched_tables: vec![table_name.to_string()],
+                        available_columns: schema.columns.iter().map(|c| c.name.clone()).collect(),
                     })
             })
             .collect::<Result<Vec<_>, _>>()

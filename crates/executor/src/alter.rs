@@ -104,6 +104,8 @@ impl AlterTableExecutor {
             return Err(ExecutorError::ColumnNotFound {
                 column_name: stmt.column_name.clone(),
                 table_name: stmt.table_name.clone(),
+                searched_tables: vec![stmt.table_name.clone()],
+                available_columns: table.schema.columns.iter().map(|c| c.name.clone()).collect(),
             });
         }
 
@@ -119,6 +121,8 @@ impl AlterTableExecutor {
             ExecutorError::ColumnNotFound {
                 column_name: stmt.column_name.clone(),
                 table_name: stmt.table_name.clone(),
+                searched_tables: vec![stmt.table_name.clone()],
+                available_columns: table.schema.columns.iter().map(|c| c.name.clone()).collect(),
             }
         })?;
 
@@ -159,6 +163,8 @@ impl AlterTableExecutor {
                     ExecutorError::ColumnNotFound {
                         column_name: column_name.clone(),
                         table_name: table_name.clone(),
+                        searched_tables: vec![table_name.clone()],
+                        available_columns: table.schema.columns.iter().map(|c| c.name.clone()).collect(),
                     }
                 })?;
 
@@ -185,6 +191,8 @@ impl AlterTableExecutor {
                     ExecutorError::ColumnNotFound {
                         column_name: column_name.clone(),
                         table_name: table_name.clone(),
+                        searched_tables: vec![table_name.clone()],
+                        available_columns: table.schema.columns.iter().map(|c| c.name.clone()).collect(),
                     }
                 })?;
 
