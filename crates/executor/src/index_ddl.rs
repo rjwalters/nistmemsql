@@ -78,9 +78,12 @@ impl IndexExecutor {
         // Validate that all indexed columns exist in the table
         for index_col in &stmt.columns {
             if table_schema.get_column(&index_col.column_name).is_none() {
+                let available_columns = table_schema.columns.iter().map(|c| c.name.clone()).collect();
                 return Err(ExecutorError::ColumnNotFound {
                     column_name: index_col.column_name.clone(),
                     table_name: stmt.table_name.clone(),
+                    searched_tables: vec![qualified_table_name.clone()],
+                    available_columns,
                 });
             }
         }
