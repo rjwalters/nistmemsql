@@ -37,14 +37,18 @@ impl SelectExecutor<'_> {
         let from_result = match &stmt.from {
             Some(from_clause) => self.execute_from(from_clause, cte_results)?,
             None => {
-                // SELECT without FROM - create empty schema and no rows
-                // This allows aggregate functions like COUNT(*) to work (returns 0)
+                // SELECT without FROM - create empty table for aggregates
+                // SQL standard behavior: aggregate functions operate on empty set
+                // - COUNT(*) returns 0 (no rows to count)
+                // - COUNT(expr) returns 0 (no rows to evaluate)
+                // - Other aggregates return NULL (no rows to aggregate)
                 use crate::schema::CombinedSchema;
                 use crate::select::join::FromResult;
 
                 let empty_schema = catalog::TableSchema::new("".to_string(), vec![]);
                 let combined_schema = CombinedSchema::from_table("".to_string(), empty_schema);
 
+                // Empty result set - no rows to aggregate over
                 FromResult { schema: combined_schema, rows: vec![] }
             }
         };
