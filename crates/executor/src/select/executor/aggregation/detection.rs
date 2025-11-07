@@ -35,6 +35,7 @@ impl SelectExecutor<'_> {
             ast::Expression::BinaryOp { left, right, .. } => {
                 self.expression_has_aggregate(left) || self.expression_has_aggregate(right)
             }
+            // Unary operations - check if inner expression contains aggregate
             ast::Expression::UnaryOp { expr, .. } => {
                 self.expression_has_aggregate(expr)
             }
