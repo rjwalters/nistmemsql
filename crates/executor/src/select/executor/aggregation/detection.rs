@@ -23,12 +23,32 @@ impl SelectExecutor<'_> {
         match expr {
             // New AggregateFunction variant
             ast::Expression::AggregateFunction { .. } => true,
-            // Old Function variant (backwards compatibility)
-            ast::Expression::Function { name, .. } => {
-                matches!(name.to_uppercase().as_str(), "COUNT" | "SUM" | "AVG" | "MIN" | "MAX")
+            // Old Function variant (backwards compatibility for aggregates)
+            ast::Expression::Function { name, args, .. } => {
+                // Check if this is an aggregate function name
+                if matches!(name.to_uppercase().as_str(), "COUNT" | "SUM" | "AVG" | "MIN" | "MAX") {
+                    return true;
+                }
+                // Otherwise, check if any arguments contain aggregates
+                args.iter().any(|arg| self.expression_has_aggregate(arg))
             }
             ast::Expression::BinaryOp { left, right, .. } => {
                 self.expression_has_aggregate(left) || self.expression_has_aggregate(right)
+            }
+            // Unary operations - check if inner expression contains aggregate
+            ast::Expression::UnaryOp { expr, .. } => {
+                self.expression_has_aggregate(expr)
+            }
+            ast::Expression::Cast { expr, .. } => {
+                self.expression_has_aggregate(expr)
+            }
+            ast::Expression::Case { operand, when_clauses, else_result } => {
+                operand.as_ref().is_some_and(|e| self.expression_has_aggregate(e))
+                    || when_clauses.iter().any(|when_clause| {
+                        when_clause.conditions.iter().any(|c| self.expression_has_aggregate(c))
+                            || self.expression_has_aggregate(&when_clause.result)
+                    })
+                    || else_result.as_ref().is_some_and(|e| self.expression_has_aggregate(e))
             }
             _ => false,
         }

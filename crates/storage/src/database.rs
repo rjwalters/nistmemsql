@@ -7,6 +7,12 @@ use ast::IndexColumn;
 use std::collections::HashMap;
 use types::SqlValue;
 
+/// Normalize an index name to uppercase for case-insensitive comparison
+/// This follows SQL standard identifier rules
+fn normalize_index_name(name: &str) -> String {
+    name.to_uppercase()
+}
+
 /// A single change made during a transaction
 #[derive(Debug, Clone)]
 pub enum TransactionChange {
@@ -466,8 +472,11 @@ impl Database {
         unique: bool,
         columns: Vec<IndexColumn>,
     ) -> Result<(), StorageError> {
+        // Normalize index name for case-insensitive comparison
+        let normalized_name = normalize_index_name(&index_name);
+
         // Check if index already exists
-        if self.indexes.contains_key(&index_name) {
+        if self.indexes.contains_key(&normalized_name) {
             return Err(StorageError::IndexAlreadyExists(index_name));
         }
 
@@ -495,29 +504,32 @@ impl Database {
             index_data_map.entry(key_values).or_insert_with(Vec::new).push(row_idx);
         }
 
-        // Store index metadata
+        // Store index metadata (use normalized name as key)
         let metadata =
             IndexMetadata { index_name: index_name.clone(), table_name, unique, columns };
 
-        self.indexes.insert(index_name.clone(), metadata);
-        self.index_data.insert(index_name, IndexData { data: index_data_map });
+        self.indexes.insert(normalized_name.clone(), metadata);
+        self.index_data.insert(normalized_name, IndexData { data: index_data_map });
 
         Ok(())
     }
 
     /// Check if an index exists
     pub fn index_exists(&self, index_name: &str) -> bool {
-        self.indexes.contains_key(index_name)
+        let normalized = normalize_index_name(index_name);
+        self.indexes.contains_key(&normalized)
     }
 
     /// Get index metadata
     pub fn get_index(&self, index_name: &str) -> Option<&IndexMetadata> {
-        self.indexes.get(index_name)
+        let normalized = normalize_index_name(index_name);
+        self.indexes.get(&normalized)
     }
 
     /// Get index data
     pub fn get_index_data(&self, index_name: &str) -> Option<&IndexData> {
-        self.index_data.get(index_name)
+        let normalized = normalize_index_name(index_name);
+        self.index_data.get(&normalized)
     }
 
     /// Update user-defined indexes for insert operation
@@ -665,11 +677,14 @@ impl Database {
 
     /// Drop an index
     pub fn drop_index(&mut self, index_name: &str) -> Result<(), StorageError> {
-        if self.indexes.remove(index_name).is_none() {
+        // Normalize index name for case-insensitive comparison
+        let normalized = normalize_index_name(index_name);
+
+        if self.indexes.remove(&normalized).is_none() {
             return Err(StorageError::IndexNotFound(index_name.to_string()));
         }
         // Also remove the index data
-        self.index_data.remove(index_name);
+        self.index_data.remove(&normalized);
         Ok(())
     }
 

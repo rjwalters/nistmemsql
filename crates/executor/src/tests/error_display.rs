@@ -17,11 +17,26 @@ fn test_table_already_exists_display() {
 
 #[test]
 fn test_column_not_found_display() {
+    // Test basic error without search info
     let error = ExecutorError::ColumnNotFound {
         column_name: "email".to_string(),
         table_name: "users".to_string(),
+        searched_tables: vec![],
+        available_columns: vec![],
     };
     assert_eq!(error.to_string(), "Column 'email' not found in table 'users'");
+
+    // Test error with search info
+    let error_with_info = ExecutorError::ColumnNotFound {
+        column_name: "email".to_string(),
+        table_name: "users".to_string(),
+        searched_tables: vec!["users".to_string(), "profiles".to_string()],
+        available_columns: vec!["id".to_string(), "name".to_string(), "age".to_string()],
+    };
+    assert_eq!(
+        error_with_info.to_string(),
+        "Column 'email' not found (searched tables: users, profiles). Available columns: id, name, age"
+    );
 }
 
 #[test]

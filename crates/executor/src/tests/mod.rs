@@ -14,6 +14,7 @@
 //! - `aggregate_having_tests`: HAVING clause filtering
 //! - `aggregate_edge_case_tests`: Decimal precision, mixed types, CASE expressions
 //! - `aggregate_distinct`: DISTINCT aggregation tests
+//! - `aggregate_without_from`: Aggregate functions without FROM clause (issue #937)
 //! - `select_joins`: JOIN operation tests
 //! - `scalar_subquery_basic_tests`: Basic scalar subquery execution tests
 //! - `scalar_subquery_error_tests`: Scalar subquery error handling tests
@@ -31,6 +32,7 @@ mod aggregate_edge_case_tests;
 mod aggregate_group_by_tests;
 mod aggregate_having_tests;
 mod aggregate_min_max_tests;
+mod aggregate_without_from;
 mod between_predicates;
 mod case_bug;
 mod comparison_ops;

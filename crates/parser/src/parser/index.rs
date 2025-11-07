@@ -8,7 +8,7 @@ impl Parser {
     /// Parse CREATE INDEX statement
     ///
     /// Syntax:
-    ///   CREATE [UNIQUE] INDEX index_name ON table_name (column_list)
+    ///   CREATE [UNIQUE] INDEX [IF NOT EXISTS] index_name ON table_name (column_list)
     pub(super) fn parse_create_index_statement(
         &mut self,
     ) -> Result<ast::CreateIndexStmt, ParseError> {
@@ -25,6 +25,16 @@ impl Parser {
 
         // Expect INDEX keyword
         self.expect_keyword(Keyword::Index)?;
+
+        // Check for optional IF NOT EXISTS clause
+        let if_not_exists = if self.peek_keyword(Keyword::If) {
+            self.advance(); // consume IF
+            self.expect_keyword(Keyword::Not)?;
+            self.expect_keyword(Keyword::Exists)?;
+            true
+        } else {
+            false
+        };
 
         // Parse index name
         let index_name = self.parse_identifier()?;
@@ -67,13 +77,13 @@ impl Parser {
         // Expect closing parenthesis
         self.expect_token(Token::RParen)?;
 
-        Ok(ast::CreateIndexStmt { index_name, table_name, unique, columns })
+        Ok(ast::CreateIndexStmt { if_not_exists, index_name, table_name, unique, columns })
     }
 
     /// Parse DROP INDEX statement
     ///
     /// Syntax:
-    ///   DROP INDEX index_name
+    ///   DROP INDEX [IF EXISTS] index_name
     pub(super) fn parse_drop_index_statement(&mut self) -> Result<ast::DropIndexStmt, ParseError> {
         // Expect DROP keyword
         self.expect_keyword(Keyword::Drop)?;
@@ -81,9 +91,18 @@ impl Parser {
         // Expect INDEX keyword
         self.expect_keyword(Keyword::Index)?;
 
+        // Check for optional IF EXISTS clause
+        let if_exists = if self.peek_keyword(Keyword::If) {
+            self.advance(); // consume IF
+            self.expect_keyword(Keyword::Exists)?;
+            true
+        } else {
+            false
+        };
+
         // Parse index name
         let index_name = self.parse_identifier()?;
 
-        Ok(ast::DropIndexStmt { index_name })
+        Ok(ast::DropIndexStmt { if_exists, index_name })
     }
 }
