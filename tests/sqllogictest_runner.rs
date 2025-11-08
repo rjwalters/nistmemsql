@@ -301,8 +301,11 @@ impl NistMemSqlDB {
     fn format_sql_value(&self, value: &SqlValue, expected_type: Option<&DefaultColumnType>) -> String {
         match value {
             SqlValue::Integer(i) => {
-                // SQLLogicTest expects integers to be formatted with 3 decimal places
-                format!("{}.000", i)
+                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
+                    format!("{:.3}", *i as f64)
+                } else {
+                    i.to_string()
+                }
             }
             SqlValue::Smallint(i) => {
                 if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
