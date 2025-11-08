@@ -123,6 +123,41 @@ gh workflow run boost-sqllogictest.yml -f run_count=5 -f time_budget=300
 
 See [`.github/workflows/README.md`](.github/workflows/README.md) for details on the boost workflow.
 
+### SQLLogicTest Conformance Punchlist
+
+To systematically track progress toward 100% SQLLogicTest conformance, we've created a comprehensive punchlist system:
+
+**Quick Start**:
+```bash
+# Read the strategic guide
+cat QUICK_START.md
+
+# View the full punchlist
+cat target/sqllogictest_punchlist.csv
+
+# Test a single file to understand the current failures
+./scripts/test_one_file.sh index/delete/10/slt_good_0.test
+
+# Refresh the punchlist after fixes
+python3 scripts/generate_punchlist.py
+```
+
+**Documentation**:
+- **[QUICK_START.md](QUICK_START.md)** - 2-minute overview with key commands
+- **[PUNCHLIST_100_CONFORMANCE.md](PUNCHLIST_100_CONFORMANCE.md)** - Full strategic guide with workflow and phase breakdown
+- **[PUNCHLIST_README.md](PUNCHLIST_README.md)** - Complete setup documentation and detailed instructions
+- **[PUNCHLIST_MANIFEST.md](PUNCHLIST_MANIFEST.md)** - Manifest of all deliverables and their purposes
+- **[.loom/punchlist_guide.md](.loom/punchlist_guide.md)** - Builder-specific reference for implementing fixes
+
+**Current Status**:
+| Category | Total | Passing | % | Priority |
+|----------|-------|---------|---|----------|
+| index | 214 | 75 | 35.0% | 🔴 High - Best opportunity for quick wins |
+| evidence | 12 | 6 | 50.0% | 🟡 Medium |
+| random | 391 | 2 | 0.5% | 🟠 High volume, harder issues |
+| ddl | 1 | 0 | 0.0% | Low |
+| **TOTAL** | **623** | **83** | **13.3%** | → Goal: 100% |
+
 ---
 
 ## 💭 Backstory: The Inflection Point Challenge
