@@ -31,7 +31,17 @@ pub(super) fn project_row_combined(
             }
             ast::SelectItem::QualifiedWildcard { qualifier, .. } => {
                 // SELECT table.* or SELECT alias.* - include columns from specific table/alias
-                if let Some((start_index, table_schema)) = schema.table_schemas.get(qualifier) {
+                // Try exact match first for performance
+                let result = schema.table_schemas.get(qualifier).cloned()
+                    .or_else(|| {
+                        // Fall back to case-insensitive lookup
+                        let qualifier_lower = qualifier.to_lowercase();
+                        schema.table_schemas.iter()
+                            .find(|(key, _)| key.to_lowercase() == qualifier_lower)
+                            .map(|(_, value)| value.clone())
+                    });
+                
+                if let Some((start_index, table_schema)) = result {
                     let num_columns = table_schema.columns.len();
                     let end_index = start_index + num_columns;
 
@@ -50,8 +60,8 @@ pub(super) fn project_row_combined(
                     };
 
                     // Extract the columns for this table
-                    if *start_index < effective_end && effective_end <= row.values.len() {
-                        values.extend(row.values[*start_index..effective_end].iter().cloned());
+                    if start_index < effective_end && effective_end <= row.values.len() {
+                        values.extend(row.values[start_index..effective_end].iter().cloned());
                     }
                     // If indices are out of bounds, this might be an error, but we'll be silent for now
                 }
