@@ -191,8 +191,8 @@ impl Parser {
                     }))
                 } else {
                     // It's a unary NOT operator on another expression
-                    // Parse the inner expression
-                    let expr = self.parse_primary_expression()?;
+                    // Parse the inner expression (including unary operators like +/-)
+                    let expr = self.parse_unary_expression()?;
 
                     Ok(Some(ast::Expression::UnaryOp {
                         op: ast::UnaryOperator::Not,
