@@ -46,10 +46,6 @@ repository = "https://github.com/rjwalters/vibesql"
 name = "debug_select1"
 path = "debug_select1.rs"
 
-[[bin]]
-name = "test_is_null_debug"
-path = "test_is_null_debug.rs"
-
 [workspace.dependencies]
 # Will add dependencies as needed for each phase
 pyo3 = { version = "0.27", features = ["extension-module"] }
