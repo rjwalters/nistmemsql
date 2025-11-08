@@ -6,28 +6,46 @@ impl Parser {
         // Parse the first table reference
         let mut left = self.parse_table_reference()?;
 
-        // Check for JOINs (left-associative)
-        while self.is_join_keyword() {
-            let join_type = self.parse_join_type()?;
+        // Check for JOINs and commas (left-associative)
+        // SQL treats comma-separated tables as CROSS JOINs
+        loop {
+            if self.is_join_keyword() {
+                let join_type = self.parse_join_type()?;
 
-            // Parse right table reference
-            let right = self.parse_table_reference()?;
+                // Parse right table reference
+                let right = self.parse_table_reference()?;
 
-            // Parse ON condition
-            let condition = if self.peek_keyword(Keyword::On) {
-                self.consume_keyword(Keyword::On)?;
-                Some(self.parse_expression()?)
+                // Parse ON condition
+                let condition = if self.peek_keyword(Keyword::On) {
+                    self.consume_keyword(Keyword::On)?;
+                    Some(self.parse_expression()?)
+                } else {
+                    None
+                };
+
+                // Build JOIN node
+                left = ast::FromClause::Join {
+                    left: Box::new(left),
+                    right: Box::new(right),
+                    join_type,
+                    condition,
+                };
+            } else if matches!(self.peek(), Token::Comma) {
+                // Comma-separated table reference (equivalent to CROSS JOIN)
+                self.advance(); // consume comma
+                let right = self.parse_table_reference()?;
+
+                // Build CROSS JOIN node for comma-separated tables
+                left = ast::FromClause::Join {
+                    left: Box::new(left),
+                    right: Box::new(right),
+                    join_type: ast::JoinType::Cross,
+                    condition: None,
+                };
             } else {
-                None
-            };
-
-            // Build JOIN node
-            left = ast::FromClause::Join {
-                left: Box::new(left),
-                right: Box::new(right),
-                join_type,
-                condition,
-            };
+                // No more JOINs or commas
+                break;
+            }
         }
 
         Ok(left)
@@ -121,9 +139,9 @@ impl Parser {
                 } else if matches!(
                     self.peek(),
                     Token::Identifier(_) | Token::DelimitedIdentifier(_)
-                ) && !self.is_join_keyword()
+                ) && !self.is_join_keyword() && !matches!(self.peek(), Token::Comma)
                 {
-                    // Implicit alias (no AS keyword) - but not a JOIN keyword
+                    // Implicit alias (no AS keyword) - but not a JOIN keyword or comma
                     match self.peek() {
                         Token::Identifier(id) | Token::DelimitedIdentifier(id) => {
                             let alias = id.clone();
