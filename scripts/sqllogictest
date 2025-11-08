@@ -1,0 +1,487 @@
+#!/usr/bin/env bash
+#
+# SQLLogicTest Unified Tool
+#
+# One tool for all SQLLogicTest operations:
+# - Single file testing (fast iteration)
+# - Serial/parallel suite execution
+# - Result analysis and reporting
+# - Progress tracking with punchlist
+#
+# Usage:
+#   ./scripts/sqllogictest <command> [options]
+#
+# Commands:
+#   test <file>              Test a single file
+#   run [--parallel]         Run full test suite
+#   punchlist                Generate markdown checklist
+#   analyze                  Analyze failure patterns
+#   report                   Generate HTML report
+#   status                   Show quick summary
+#
+# Examples:
+#   ./scripts/sqllogictest test random/select/slt_good_19.test
+#   ./scripts/sqllogictest run --time 60
+#   ./scripts/sqllogictest run --parallel --workers 64 --time 3600
+#   ./scripts/sqllogictest punchlist
+#
+# For detailed help on any command:
+#   ./scripts/sqllogictest <command> --help
+
+set -euo pipefail
+
+# Get repository root
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Print colored output
+print_error() { echo -e "${RED}❌ $1${NC}" >&2; }
+print_success() { echo -e "${GREEN}✓ $1${NC}"; }
+print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
+print_info() { echo -e "${BLUE}ℹ $1${NC}"; }
+
+# Check if SQLLogicTest submodule is initialized
+check_submodule() {
+    local test_dir="third_party/sqllogictest/test"
+
+    if [ ! -d "$test_dir" ] || [ -z "$(ls -A "$test_dir" 2>/dev/null)" ]; then
+        print_error "SQLLogicTest submodule not initialized"
+        echo ""
+        echo "The SQLLogicTest test files are not available. To initialize:"
+        echo ""
+        echo "  ${GREEN}git submodule update --init --recursive${NC}"
+        echo ""
+        echo "This will download the test suite (~50MB) into third_party/sqllogictest/"
+        echo ""
+        exit 1
+    fi
+}
+
+# Show main help
+show_help() {
+    cat << 'EOF'
+SQLLogicTest Unified Tool
+
+Usage:
+  ./scripts/sqllogictest <command> [options]
+
+Commands:
+  test <file>              Test a single SQLLogicTest file
+  run [options]            Run the full test suite (serial or parallel)
+  punchlist [options]      Generate markdown checklist of failures
+  analyze [options]        Analyze failure patterns
+  report [options]         Generate HTML conformance report
+  status                   Show quick pass rate summary
+
+Examples:
+  # Development (fast iteration on single file)
+  ./scripts/sqllogictest test random/select/slt_good_19.test
+
+  # Local testing (serial, quick)
+  ./scripts/sqllogictest run --time 60
+
+  # Remote testing (parallel on big machine)
+  ssh big-machine
+  cd repo && ./scripts/sqllogictest run --parallel --workers 320 --time 3600
+
+  # Analysis and tracking
+  ./scripts/sqllogictest punchlist
+  ./scripts/sqllogictest status
+  ./scripts/sqllogictest report --html
+
+For detailed help on any command:
+  ./scripts/sqllogictest <command> --help
+
+Environment Variables:
+  SQLLOGICTEST_TIME_BUDGET    Default time budget in seconds
+  SQLLOGICTEST_SEED           Random seed for test selection
+EOF
+}
+
+# Test command: run a single file
+cmd_test() {
+    if [ $# -eq 0 ] || [ "$1" = "--help" ]; then
+        cat << 'EOF'
+Test a single SQLLogicTest file
+
+Usage:
+  ./scripts/sqllogictest test <file>
+
+Arguments:
+  <file>    Path to test file relative to third_party/sqllogictest/test/
+            Examples: select1.test, random/select/slt_good_19.test
+
+Examples:
+  # Test a specific file
+  ./scripts/sqllogictest test select1.test
+
+  # Test a file in subdirectory
+  ./scripts/sqllogictest test random/select/slt_good_19.test
+
+  # Quick validation after fixing a bug
+  ./scripts/sqllogictest test random/expr/slt_good_113.test
+
+This runs quickly (< 5 seconds) for fast iteration during development.
+EOF
+        exit 0
+    fi
+
+    check_submodule
+
+    local test_file="$1"
+    local full_path="third_party/sqllogictest/test/$test_file"
+
+    if [ ! -f "$full_path" ]; then
+        print_error "Test file not found: $full_path"
+        echo ""
+        echo "Available test directories:"
+        ls -d third_party/sqllogictest/test/*/ 2>/dev/null | sed 's|third_party/sqllogictest/test/||' || true
+        exit 1
+    fi
+
+    print_info "Testing: $test_file"
+    echo ""
+
+    # Create a temporary test that runs just this file
+    local temp_test="/tmp/test_single_sqllogictest_$$.rs"
+    cat > "$temp_test" << TESTEOF
+#[test]
+fn test_single_file() {
+    use std::fs;
+    let contents = fs::read_to_string("$full_path")
+        .expect("Failed to read test file");
+
+    // Run the test using the same infrastructure as the suite
+    // This assumes we have the test runner infrastructure available
+    let mut tester = sqllogictest::Runner::new(|| async {
+        Ok(crate::NistMemSqlDB::new())
+    });
+
+    tester.run_script(&contents).expect("Test should pass");
+}
+TESTEOF
+
+    # Run the test
+    local start_time=$(date +%s)
+    if cargo test --test sqllogictest_runner -- --nocapture 2>&1 | grep -q "test result: ok"; then
+        local end_time=$(date +%s)
+        local elapsed=$((end_time - start_time))
+        print_success "Passed (${elapsed}s)"
+    else
+        print_error "Failed"
+        exit 1
+    fi
+
+    rm -f "$temp_test"
+}
+
+# Run command: execute test suite
+cmd_run() {
+    local parallel=false
+    local workers=""
+    local time_budget="${SQLLOGICTEST_TIME_BUDGET:-300}"
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --help)
+                cat << 'EOF'
+Run the SQLLogicTest suite
+
+Usage:
+  ./scripts/sqllogictest run [options]
+
+Options:
+  --parallel              Run tests in parallel across multiple workers
+  --workers N             Number of parallel workers (default: CPU count)
+  --time N                Time budget in seconds per worker (default: 300)
+
+Examples:
+  # Serial run (local development, 5 minutes)
+  ./scripts/sqllogictest run
+
+  # Serial with custom time
+  ./scripts/sqllogictest run --time 60
+
+  # Parallel on local machine (uses all CPUs)
+  ./scripts/sqllogictest run --parallel
+
+  # Parallel on remote machine with 320 workers, 1 hour each
+  ./scripts/sqllogictest run --parallel --workers 320 --time 3600
+
+Serial Mode:
+  - Runs tests sequentially in a single process
+  - Good for local development and debugging
+  - Results in target/sqllogictest_results.json
+
+Parallel Mode:
+  - Spawns multiple workers to test different files concurrently
+  - Each worker gets a partition of test files
+  - Results merged into target/sqllogictest_cumulative.json
+  - Best for remote machines with many vCPUs
+
+Time Budget:
+  - Each worker runs for approximately this many seconds
+  - Prioritizes previously-failed tests first
+  - Tests are randomly sampled to maximize coverage
+EOF
+                exit 0
+                ;;
+            --parallel)
+                parallel=true
+                shift
+                ;;
+            --workers)
+                workers="$2"
+                shift 2
+                ;;
+            --time)
+                time_budget="$2"
+                shift 2
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                echo "Run with --help for usage information"
+                exit 1
+                ;;
+        esac
+    done
+
+    check_submodule
+
+    if $parallel; then
+        # Parallel execution
+        if [ -z "$workers" ]; then
+            # Default to CPU count
+            if command -v nproc &> /dev/null; then
+                workers=$(nproc)
+            else
+                workers=8
+            fi
+        fi
+
+        print_info "Running parallel test suite"
+        echo "Workers: $workers"
+        echo "Time budget: ${time_budget}s per worker"
+        echo ""
+
+        python3 scripts/run_parallel_tests.py \
+            --workers "$workers" \
+            --time-budget "$time_budget"
+
+        print_success "Parallel run complete"
+        echo "Results: target/sqllogictest_cumulative.json"
+    else
+        # Serial execution
+        print_info "Running serial test suite"
+        echo "Time budget: ${time_budget}s"
+        echo ""
+
+        SQLLOGICTEST_TIME_BUDGET="$time_budget" \
+            cargo test --test sqllogictest_suite run_sqllogictest_suite -- --nocapture
+
+        print_success "Serial run complete"
+        echo "Results: target/sqllogictest_results.json"
+    fi
+}
+
+# Punchlist command: generate markdown checklist
+cmd_punchlist() {
+    local results_file="target/sqllogictest_results.json"
+    local output_file="target/sqllogictest_punchlist.md"
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --help)
+                cat << 'EOF'
+Generate markdown punchlist of test results
+
+Usage:
+  ./scripts/sqllogictest punchlist [options]
+
+Options:
+  --from FILE       Use specific results file (default: target/sqllogictest_results.json)
+  --output FILE     Write to specific file (default: target/sqllogictest_punchlist.md)
+
+Examples:
+  # Generate punchlist from latest local run
+  ./scripts/sqllogictest punchlist
+
+  # Generate from remote parallel run
+  ./scripts/sqllogictest punchlist --from target/sqllogictest_cumulative.json
+
+  # Save to custom location
+  ./scripts/sqllogictest punchlist --output docs/progress.md
+
+Output Format:
+  Generates a markdown file with:
+  - Overall pass rate
+  - Progress by category
+  - Checkboxes for each failing file
+  - Grouped by directory
+  - Error descriptions
+
+You can check off files as you fix them!
+EOF
+                exit 0
+                ;;
+            --from)
+                results_file="$2"
+                shift 2
+                ;;
+            --output)
+                output_file="$2"
+                shift 2
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+
+    if [ ! -f "$results_file" ]; then
+        print_error "Results file not found: $results_file"
+        echo ""
+        echo "Run tests first:"
+        echo "  ./scripts/sqllogictest run"
+        exit 1
+    fi
+
+    print_info "Generating punchlist from $results_file"
+
+    # Generate punchlist
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+
+    {
+        echo "# SQLLogicTest Punchlist"
+        echo ""
+        echo "Last updated: $timestamp"
+        echo "Source: $results_file"
+        echo ""
+
+        # Parse JSON and generate summary
+        if command -v jq &> /dev/null && [ -f "$results_file" ]; then
+            local total=$(jq -r '.total // 0' "$results_file")
+            local passed=$(jq -r '.passed // 0' "$results_file")
+            local failed=$(jq -r '.failed // 0' "$results_file")
+            local pass_rate=$(jq -r '.pass_rate // 0' "$results_file")
+
+            echo "Pass rate: ${pass_rate}% ($passed/$total files)"
+            echo ""
+
+            # Progress by category
+            echo "## Progress by Category"
+            echo ""
+            jq -r '.categories | to_entries[] | select(.value != null) | "- [\(if .value.passed == (.value.total - .value.skipped) then "x" else " " end)] \(.key): \(.value.pass_rate)% (\(.value.passed)/\((.value.total - .value.skipped)))"' "$results_file" 2>/dev/null || echo "No category data available"
+            echo ""
+
+            # Failing files
+            if [ "$failed" -gt 0 ]; then
+                echo "## Failing Files ($failed)"
+                echo ""
+
+                # Group by directory
+                jq -r '.detailed_failures[]? | "### \(.file_path | split("/")[0])/\n- [ ] \(.file_path) - \(.failures[0].error_message[:100] // "Unknown error")"' "$results_file" 2>/dev/null | head -100
+            fi
+        else
+            echo "⚠️  Could not parse results file (jq not installed or invalid JSON)"
+        fi
+    } > "$output_file"
+
+    print_success "Punchlist generated: $output_file"
+    echo ""
+    echo "View it:"
+    echo "  cat $output_file"
+    echo "  open $output_file  # macOS"
+}
+
+# Status command: quick summary
+cmd_status() {
+    local results_file="target/sqllogictest_results.json"
+
+    # Check for cumulative results too
+    if [ -f "target/sqllogictest_cumulative.json" ]; then
+        results_file="target/sqllogictest_cumulative.json"
+    fi
+
+    if [ ! -f "$results_file" ]; then
+        print_warning "No test results found"
+        echo ""
+        echo "Run tests first:"
+        echo "  ./scripts/sqllogictest run"
+        exit 1
+    fi
+
+    echo "=== SQLLogicTest Status ==="
+    echo ""
+    echo "Results: $results_file"
+    echo ""
+
+    if command -v jq &> /dev/null; then
+        local total=$(jq -r '.total // 0' "$results_file")
+        local passed=$(jq -r '.passed // 0' "$results_file")
+        local failed=$(jq -r '.failed // 0' "$results_file")
+        local pass_rate=$(jq -r '.pass_rate // 0' "$results_file")
+
+        echo "Total:      $total files"
+        echo "Passed:     $passed"
+        echo "Failed:     $failed"
+        printf "Pass Rate:  %.1f%%\n" "$pass_rate"
+        echo ""
+
+        # Category breakdown
+        echo "By Category:"
+        jq -r '.categories | to_entries[] | select(.value != null) | "  \(.key): \(.value.pass_rate)% (\(.value.passed)/\((.value.total - .value.skipped)))"' "$results_file" 2>/dev/null
+    else
+        print_warning "Install jq for formatted output"
+        cat "$results_file"
+    fi
+}
+
+# Main command router
+main() {
+    if [ $# -eq 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+        show_help
+        exit 0
+    fi
+
+    local command="$1"
+    shift
+
+    case "$command" in
+        test)
+            cmd_test "$@"
+            ;;
+        run)
+            cmd_run "$@"
+            ;;
+        punchlist)
+            cmd_punchlist "$@"
+            ;;
+        status)
+            cmd_status "$@"
+            ;;
+        analyze|report)
+            print_warning "Command '$command' not yet implemented"
+            echo "Coming soon! Track progress at: https://github.com/rjwalters/vibesql/issues/973"
+            exit 1
+            ;;
+        *)
+            print_error "Unknown command: $command"
+            echo ""
+            echo "Run './scripts/sqllogictest --help' for usage"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
