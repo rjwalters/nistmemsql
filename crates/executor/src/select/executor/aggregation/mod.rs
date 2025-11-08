@@ -134,6 +134,19 @@ impl SelectExecutor<'_> {
                 match having_result {
                     types::SqlValue::Boolean(true) => true,
                     types::SqlValue::Boolean(false) | types::SqlValue::Null => false,
+                    // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)
+                    types::SqlValue::Integer(0) => false,
+                    types::SqlValue::Integer(_) => true,
+                    types::SqlValue::Smallint(0) => false,
+                    types::SqlValue::Smallint(_) => true,
+                    types::SqlValue::Bigint(0) => false,
+                    types::SqlValue::Bigint(_) => true,
+                    types::SqlValue::Float(f) if f == 0.0 => false,
+                    types::SqlValue::Float(_) => true,
+                    types::SqlValue::Real(f) if f == 0.0 => false,
+                    types::SqlValue::Real(_) => true,
+                    types::SqlValue::Double(f) if f == 0.0 => false,
+                    types::SqlValue::Double(_) => true,
                     other => {
                         return Err(ExecutorError::InvalidWhereClause(format!(
                             "HAVING must evaluate to boolean, got: {:?}",
