@@ -422,8 +422,8 @@ impl ArithmeticOps {
                 if right_f64 == 0.0 {
                     return Err(ExecutorError::DivisionByZero);
                 }
-                // Truncate toward zero (same as Rust's as i64 cast)
-                Ok(Integer((left_f64 / right_f64) as i64))
+                // Truncate toward zero (same as Rust's as i64 cast) - return Numeric for SQLLogicTest compatibility
+                Ok(Numeric(((left_f64 / right_f64) as i64) as f64))
             }
 
             // Mixed Float/Integer - promote to float, divide, truncate to int
@@ -434,7 +434,8 @@ impl ArithmeticOps {
                 if right_f64 == 0.0 {
                     return Err(ExecutorError::DivisionByZero);
                 }
-                Ok(Integer((left_f64 / right_f64) as i64))
+                // Return Numeric for SQLLogicTest compatibility
+                Ok(Numeric(((left_f64 / right_f64) as i64) as f64))
             }
 
             // NUMERIC with any numeric type - return Numeric for SQLLogicTest compatibility
@@ -487,7 +488,8 @@ impl ArithmeticOps {
                 if right_i64 == 0 {
                     return Err(ExecutorError::DivisionByZero);
                 }
-                Ok(Integer(left_i64 / right_i64))
+                // Return Numeric for SQLLogicTest compatibility
+                Ok(Numeric((left_i64 / right_i64) as f64))
             }
 
             // Type mismatch
@@ -599,7 +601,8 @@ impl ArithmeticOps {
                 if right_i64 == 0 {
                     return Err(ExecutorError::DivisionByZero);
                 }
-                Ok(Integer(left_i64 % right_i64))
+                // Return Numeric for SQLLogicTest compatibility
+                Ok(Numeric((left_i64 % right_i64) as f64))
             }
 
             // Type mismatch
