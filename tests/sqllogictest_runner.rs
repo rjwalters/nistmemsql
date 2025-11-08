@@ -35,7 +35,7 @@ impl NistMemSqlDB {
         rows: &[storage::Row],
         types: Vec<DefaultColumnType>
     ) -> Result<DBOutput<DefaultColumnType>, TestError> {
-        let mut formatted_rows: Vec<Vec<String>> = rows
+        let formatted_rows: Vec<Vec<String>> = rows
             .iter()
             .map(|row| {
                 row.values
@@ -46,16 +46,19 @@ impl NistMemSqlDB {
             })
             .collect();
 
-        // Sort rows for consistent ordering (required for hashing and rowsort)
-        formatted_rows.sort_by(|a, b| a.join(" ").cmp(&b.join(" ")));
-
+        // Count total values before flattening
         let total_values: usize = formatted_rows.iter().map(|r| r.len()).sum();
 
-        // If there are many values, return hash instead of rows
+        // For hashing, we need to sort and join the original rows
         if total_values > 8 {
             let mut hasher = Md5::new();
-            for row in &formatted_rows {
-                hasher.update(row.join(" "));
+            let mut sort_keys: Vec<_> = formatted_rows
+                .iter()
+                .map(|row| row.join(" "))
+                .collect();
+            sort_keys.sort();
+            for key in &sort_keys {
+                hasher.update(key);
                 hasher.update("\n");
             }
             let hash = format!("{:x}", hasher.finalize());
@@ -65,7 +68,23 @@ impl NistMemSqlDB {
                 rows: vec![vec![hash_string]],
             })
         } else {
-            Ok(DBOutput::Rows { types, rows: formatted_rows })
+            // Flatten multi-column results: each value becomes its own row
+            // This is required for SQLLogicTest format where each value is on separate rows
+            let mut flattened_rows: Vec<Vec<String>> = Vec::new();
+            let mut flattened_types: Vec<DefaultColumnType> = Vec::new();
+            
+            // Get the type for single values (they're all treated as individual rows now)
+            if !types.is_empty() {
+                flattened_types = vec![types[0].clone(); total_values];
+            }
+            
+            for row in formatted_rows {
+                for val in row {
+                    flattened_rows.push(vec![val]);
+                }
+            }
+            
+            Ok(DBOutput::Rows { types: flattened_types, rows: flattened_rows })
         }
     }
 
@@ -354,8 +373,10 @@ INSERT INTO test VALUES (3, 4)
 query II rowsort
 SELECT * FROM test
 ----
-1 2
-3 4
+1
+2
+3
+4
 
 query I
 SELECT x FROM test WHERE y = 4
