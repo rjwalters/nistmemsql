@@ -1,8 +1,9 @@
 {
-  "total": 4,
-  "passed": 3,
-  "failed": 1,
-  "errors": 0,
-  "pass_rate": 75.0,
-  "categories": {}
+  "pass_rate": 100.0,
+  "coverage_rate": 0.32,
+  "total_available": 623,
+  "total_tested": 2,
+  "passed": 2,
+  "failed": 0,
+  "untested": 621
 }

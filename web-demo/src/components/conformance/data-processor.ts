@@ -11,11 +11,12 @@ export class DataProcessor {
   async loadSqltestData(): Promise<ConformanceData> {
     // Add cache-busting parameter to prevent CDN from serving stale 404s
     const cacheBust = Math.floor(Date.now() / 60000) // Update every minute
-    const response = await fetch(`/vibesql/badges/sqltest_results.json?v=${cacheBust}`)
+    const baseUrl = import.meta.env.BASE_URL || '/'
+    const response = await fetch(`${baseUrl}badges/sqltest_results.json?v=${cacheBust}`)
     if (!response.ok) {
       console.warn('sqltest_results.json not available, attempting to use cumulative data as fallback')
       // Try to use cumulative results as fallback
-      const fallbackResponse = await fetch(`/vibesql/badges/sqllogictest_cumulative.json?v=${cacheBust}`)
+      const fallbackResponse = await fetch(`${baseUrl}badges/sqllogictest_cumulative.json?v=${cacheBust}`)
       if (fallbackResponse.ok) {
         const cumulativeData = await fallbackResponse.json()
         // Transform cumulative data to ConformanceData format
@@ -39,10 +40,14 @@ export class DataProcessor {
     try {
       // Add cache-busting parameter to prevent CDN from serving stale 404s
       const cacheBust = Math.floor(Date.now() / 60000) // Update every minute
+      const baseUrl = import.meta.env.BASE_URL || '/'
 
       // Try cumulative results first (updated by boost workflow)
-      let sltResponse = await fetch(`/vibesql/badges/sqllogictest_cumulative.json?v=${cacheBust}`)
-      if (sltResponse.ok) {
+      const cumulativeUrl = `${baseUrl}badges/sqllogictest_cumulative.json?v=${cacheBust}`
+      let sltResponse = await fetch(cumulativeUrl)
+      const contentType = sltResponse.headers.get('content-type')
+      // Check if we got JSON (not HTML from Vite's SPA fallback)
+      if (sltResponse.ok && contentType && contentType.includes('application/json')) {
         const cumulativeData = await sltResponse.json()
         // Transform cumulative data structure to match interface
         const result: SQLLogicTestData = {
@@ -53,13 +58,13 @@ export class DataProcessor {
           pass_rate: cumulativeData.summary.pass_rate,
           categories: {}, // Not available in cumulative data
         }
-        console.log('Loaded cumulative SQLLogicTest results')
         return result
       } else {
         // Fall back to single-run results (from CI workflow)
-        console.log('Cumulative results not available, trying single-run results')
-        sltResponse = await fetch(`/vibesql/badges/sqllogictest_results.json?v=${cacheBust}`)
-        if (sltResponse.ok) {
+        const singleRunUrl = `${baseUrl}badges/sqllogictest_results.json?v=${cacheBust}`
+        sltResponse = await fetch(singleRunUrl)
+        const singleRunContentType = sltResponse.headers.get('content-type')
+        if (sltResponse.ok && singleRunContentType && singleRunContentType.includes('application/json')) {
           const singleRunData = await sltResponse.json()
           // Transform single-run data structure to match interface
           const result: SQLLogicTestData = {
@@ -70,7 +75,6 @@ export class DataProcessor {
             pass_rate: singleRunData.pass_rate,
             categories: {}, // Not available in single-run data
           }
-          console.log('Loaded single-run SQLLogicTest results')
           return result
         }
       }
