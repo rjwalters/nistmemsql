@@ -17,16 +17,16 @@ impl ArithmeticOps {
         use SqlValue::*;
 
         match (left, right) {
-            // Integer arithmetic
-            (Integer(a), Integer(b)) => Ok(Integer(a + b)),
+            // Integer arithmetic - return Numeric for SQLLogicTest compatibility
+            (Integer(a), Integer(b)) => Ok(Numeric((*a + *b) as f64)),
 
-            // Mixed exact numeric types - promote to i64
+            // Mixed exact numeric types - promote to i64, return Numeric
             (left_val, right_val)
                 if is_exact_numeric(left_val) && is_exact_numeric(right_val) =>
             {
                 let left_i64 = to_i64(left_val)?;
                 let right_i64 = to_i64(right_val)?;
-                Ok(Integer(left_i64 + right_i64))
+                Ok(Numeric((left_i64 + right_i64) as f64))
             }
 
             // Approximate numeric types - promote to f64
@@ -87,7 +87,7 @@ impl ArithmeticOps {
                         right: right_val.clone(),
                     })?;
 
-                Ok(Integer(left_i64 + right_i64))
+                Ok(Numeric((left_i64 + right_i64) as f64))
             }
 
             // Type mismatch
@@ -105,16 +105,16 @@ impl ArithmeticOps {
         use SqlValue::*;
 
         match (left, right) {
-            // Integer arithmetic
-            (Integer(a), Integer(b)) => Ok(Integer(a - b)),
+            // Integer arithmetic - return Numeric for SQLLogicTest compatibility
+            (Integer(a), Integer(b)) => Ok(Numeric((*a - *b) as f64)),
 
-            // Mixed exact numeric types - promote to i64
+            // Mixed exact numeric types - promote to i64, return Numeric
             (left_val, right_val)
                 if is_exact_numeric(left_val) && is_exact_numeric(right_val) =>
             {
                 let left_i64 = to_i64(left_val)?;
                 let right_i64 = to_i64(right_val)?;
-                Ok(Integer(left_i64 - right_i64))
+                Ok(Numeric((left_i64 - right_i64) as f64))
             }
 
             // Approximate numeric types - promote to f64
@@ -175,7 +175,7 @@ impl ArithmeticOps {
                         right: right_val.clone(),
                     })?;
 
-                Ok(Integer(left_i64 - right_i64))
+                Ok(Numeric((left_i64 - right_i64) as f64))
             }
 
             // Type mismatch
@@ -193,16 +193,16 @@ impl ArithmeticOps {
         use SqlValue::*;
 
         match (left, right) {
-            // Integer arithmetic
-            (Integer(a), Integer(b)) => Ok(Integer(a * b)),
+            // Integer arithmetic - return Numeric for SQLLogicTest compatibility
+            (Integer(a), Integer(b)) => Ok(Numeric((*a * *b) as f64)),
 
-            // Mixed exact numeric types - promote to i64
+            // Mixed exact numeric types - promote to i64, return Numeric
             (left_val, right_val)
                 if is_exact_numeric(left_val) && is_exact_numeric(right_val) =>
             {
                 let left_i64 = to_i64(left_val)?;
                 let right_i64 = to_i64(right_val)?;
-                Ok(Integer(left_i64 * right_i64))
+                Ok(Numeric((left_i64 * right_i64) as f64))
             }
 
             // Approximate numeric types - promote to f64
@@ -263,7 +263,7 @@ impl ArithmeticOps {
                         right: right_val.clone(),
                     })?;
 
-                Ok(Integer(left_i64 * right_i64))
+                Ok(Numeric((left_i64 * right_i64) as f64))
             }
 
             // Type mismatch
@@ -393,15 +393,15 @@ impl ArithmeticOps {
         use SqlValue::*;
 
         match (left, right) {
-            // Integer division - already returns integer
+            // Integer division - return Numeric for SQLLogicTest compatibility
             (Integer(a), Integer(b)) => {
                 if *b == 0 {
                     return Err(ExecutorError::DivisionByZero);
                 }
-                Ok(Integer(a / b))
+                Ok(Numeric((*a / *b) as f64))
             }
 
-            // Mixed exact numeric types - promote to i64, then divide
+            // Mixed exact numeric types - promote to i64, then divide, return Numeric
             (left_val, right_val)
                 if is_exact_numeric(left_val) && is_exact_numeric(right_val) =>
             {
@@ -410,7 +410,7 @@ impl ArithmeticOps {
                 if right_i64 == 0 {
                     return Err(ExecutorError::DivisionByZero);
                 }
-                Ok(Integer(left_i64 / right_i64))
+                Ok(Numeric((left_i64 / right_i64) as f64))
             }
 
             // Approximate numeric types - convert to float, divide, truncate to int
@@ -506,15 +506,15 @@ impl ArithmeticOps {
         use SqlValue::*;
 
         match (left, right) {
-            // Integer modulo
+            // Integer modulo - return Numeric for SQLLogicTest compatibility
             (Integer(a), Integer(b)) => {
                 if *b == 0 {
                     return Err(ExecutorError::DivisionByZero);
                 }
-                Ok(Integer(a % b))
+                Ok(Numeric((*a % *b) as f64))
             }
 
-            // Mixed exact numeric types - promote to i64
+            // Mixed exact numeric types - promote to i64, return Numeric
             (left_val, right_val)
                 if is_exact_numeric(left_val) && is_exact_numeric(right_val) =>
             {
@@ -523,7 +523,7 @@ impl ArithmeticOps {
                 if right_i64 == 0 {
                     return Err(ExecutorError::DivisionByZero);
                 }
-                Ok(Integer(left_i64 % right_i64))
+                Ok(Numeric((left_i64 % right_i64) as f64))
             }
 
             // Approximate numeric types - use fmod
@@ -619,21 +619,21 @@ mod tests {
     #[test]
     fn test_integer_addition() {
         let result = ArithmeticOps::add(&SqlValue::Integer(5), &SqlValue::Integer(3)).unwrap();
-        assert_eq!(result, SqlValue::Integer(8));
+        assert_eq!(result, SqlValue::Numeric(8.0));
     }
 
     #[test]
     fn test_integer_subtraction() {
         let result =
             ArithmeticOps::subtract(&SqlValue::Integer(5), &SqlValue::Integer(3)).unwrap();
-        assert_eq!(result, SqlValue::Integer(2));
+        assert_eq!(result, SqlValue::Numeric(2.0));
     }
 
     #[test]
     fn test_integer_multiplication() {
         let result =
             ArithmeticOps::multiply(&SqlValue::Integer(5), &SqlValue::Integer(3)).unwrap();
-        assert_eq!(result, SqlValue::Integer(15));
+        assert_eq!(result, SqlValue::Numeric(15.0));
     }
 
     #[test]
@@ -651,7 +651,7 @@ mod tests {
     #[test]
     fn test_mixed_exact_numeric() {
         let result = ArithmeticOps::add(&SqlValue::Smallint(5), &SqlValue::Bigint(3)).unwrap();
-        assert_eq!(result, SqlValue::Integer(8));
+        assert_eq!(result, SqlValue::Numeric(8.0));
     }
 
     #[test]
@@ -677,43 +677,43 @@ mod tests {
     fn test_boolean_true_addition() {
         // TRUE + 40 = 41
         let result = ArithmeticOps::add(&SqlValue::Boolean(true), &SqlValue::Integer(40)).unwrap();
-        assert_eq!(result, SqlValue::Integer(41));
+        assert_eq!(result, SqlValue::Numeric(41.0));
     }
 
     #[test]
     fn test_boolean_false_addition() {
         // FALSE + 40 = 40
         let result = ArithmeticOps::add(&SqlValue::Boolean(false), &SqlValue::Integer(40)).unwrap();
-        assert_eq!(result, SqlValue::Integer(40));
+        assert_eq!(result, SqlValue::Numeric(40.0));
     }
 
     #[test]
     fn test_integer_plus_boolean() {
         // 40 + TRUE = 41
         let result = ArithmeticOps::add(&SqlValue::Integer(40), &SqlValue::Boolean(true)).unwrap();
-        assert_eq!(result, SqlValue::Integer(41));
+        assert_eq!(result, SqlValue::Numeric(41.0));
     }
 
     #[test]
     fn test_boolean_multiplication() {
         // 97 * TRUE = 97
         let result = ArithmeticOps::multiply(&SqlValue::Integer(97), &SqlValue::Boolean(true)).unwrap();
-        assert_eq!(result, SqlValue::Integer(97));
+        assert_eq!(result, SqlValue::Numeric(97.0));
 
         // 97 * FALSE = 0
         let result = ArithmeticOps::multiply(&SqlValue::Integer(97), &SqlValue::Boolean(false)).unwrap();
-        assert_eq!(result, SqlValue::Integer(0));
+        assert_eq!(result, SqlValue::Numeric(0.0));
     }
 
     #[test]
     fn test_boolean_subtraction() {
         // TRUE - FALSE = 1
         let result = ArithmeticOps::subtract(&SqlValue::Boolean(true), &SqlValue::Boolean(false)).unwrap();
-        assert_eq!(result, SqlValue::Integer(1));
+        assert_eq!(result, SqlValue::Numeric(1.0));
 
         // 5 - TRUE = 4
         let result = ArithmeticOps::subtract(&SqlValue::Integer(5), &SqlValue::Boolean(true)).unwrap();
-        assert_eq!(result, SqlValue::Integer(4));
+        assert_eq!(result, SqlValue::Numeric(4.0));
     }
 
     #[test]
@@ -738,21 +738,21 @@ mod tests {
     fn test_boolean_modulo() {
         // 10 % TRUE = 0 (10 % 1 = 0)
         let result = ArithmeticOps::modulo(&SqlValue::Integer(10), &SqlValue::Boolean(true)).unwrap();
-        assert_eq!(result, SqlValue::Integer(0));
+        assert_eq!(result, SqlValue::Numeric(0.0));
 
         // TRUE % TRUE = 0 (1 % 1 = 0)
         let result = ArithmeticOps::modulo(&SqlValue::Boolean(true), &SqlValue::Boolean(true)).unwrap();
-        assert_eq!(result, SqlValue::Integer(0));
+        assert_eq!(result, SqlValue::Numeric(0.0));
     }
 
     #[test]
     fn test_boolean_integer_divide() {
         // 10 DIV TRUE = 10
         let result = ArithmeticOps::integer_divide(&SqlValue::Integer(10), &SqlValue::Boolean(true)).unwrap();
-        assert_eq!(result, SqlValue::Integer(10));
+        assert_eq!(result, SqlValue::Numeric(10.0));
 
         // TRUE DIV TRUE = 1
         let result = ArithmeticOps::integer_divide(&SqlValue::Boolean(true), &SqlValue::Boolean(true)).unwrap();
-        assert_eq!(result, SqlValue::Integer(1));
+        assert_eq!(result, SqlValue::Numeric(1.0));
     }
 }
