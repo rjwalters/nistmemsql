@@ -46,7 +46,7 @@ impl ArithmeticOps {
                 Ok(Float((left_f64 + right_f64) as f32))
             }
 
-            // NUMERIC with any numeric type
+            // NUMERIC with any numeric type - return Numeric for SQLLogicTest compatibility
             (left_val @ Numeric(_), right_val)
                 if matches!(
                     right_val,
@@ -55,7 +55,7 @@ impl ArithmeticOps {
             {
                 let left_f64 = to_f64(left_val)?;
                 let right_f64 = to_f64(right_val)?;
-                Ok(Float((left_f64 + right_f64) as f32))
+                Ok(Numeric(left_f64 + right_f64))
             }
             (left_val, right_val @ Numeric(_))
                 if matches!(
@@ -65,7 +65,7 @@ impl ArithmeticOps {
             {
                 let left_f64 = to_f64(left_val)?;
                 let right_f64 = to_f64(right_val)?;
-                Ok(Float((left_f64 + right_f64) as f32))
+                Ok(Numeric(left_f64 + right_f64))
             }
 
             // Boolean coercion - treat TRUE as 1, FALSE as 0
@@ -134,7 +134,7 @@ impl ArithmeticOps {
                 Ok(Float((left_f64 - right_f64) as f32))
             }
 
-            // NUMERIC with any numeric type
+            // NUMERIC with any numeric type - return Numeric for SQLLogicTest compatibility
             (left_val @ Numeric(_), right_val)
                 if matches!(
                     right_val,
@@ -143,7 +143,7 @@ impl ArithmeticOps {
             {
                 let left_f64 = to_f64(left_val)?;
                 let right_f64 = to_f64(right_val)?;
-                Ok(Float((left_f64 - right_f64) as f32))
+                Ok(Numeric(left_f64 - right_f64))
             }
             (left_val, right_val @ Numeric(_))
                 if matches!(
@@ -153,7 +153,7 @@ impl ArithmeticOps {
             {
                 let left_f64 = to_f64(left_val)?;
                 let right_f64 = to_f64(right_val)?;
-                Ok(Float((left_f64 - right_f64) as f32))
+                Ok(Numeric(left_f64 - right_f64))
             }
 
             // Boolean coercion - treat TRUE as 1, FALSE as 0
@@ -222,7 +222,7 @@ impl ArithmeticOps {
                 Ok(Float((left_f64 * right_f64) as f32))
             }
 
-            // NUMERIC with any numeric type
+            // NUMERIC with any numeric type - return Numeric for SQLLogicTest compatibility
             (left_val @ Numeric(_), right_val)
                 if matches!(
                     right_val,
@@ -231,7 +231,7 @@ impl ArithmeticOps {
             {
                 let left_f64 = to_f64(left_val)?;
                 let right_f64 = to_f64(right_val)?;
-                Ok(Float((left_f64 * right_f64) as f32))
+                Ok(Numeric(left_f64 * right_f64))
             }
             (left_val, right_val @ Numeric(_))
                 if matches!(
@@ -241,7 +241,7 @@ impl ArithmeticOps {
             {
                 let left_f64 = to_f64(left_val)?;
                 let right_f64 = to_f64(right_val)?;
-                Ok(Float((left_f64 * right_f64) as f32))
+                Ok(Numeric(left_f64 * right_f64))
             }
 
             // Boolean coercion - treat TRUE as 1, FALSE as 0
@@ -324,7 +324,7 @@ impl ArithmeticOps {
                 Ok(Float((left_f64 / right_f64) as f32))
             }
 
-            // NUMERIC with any numeric type
+            // NUMERIC with any numeric type - return Numeric for SQLLogicTest compatibility
             (left_val @ Numeric(_), right_val)
                 if matches!(
                     right_val,
@@ -336,7 +336,7 @@ impl ArithmeticOps {
                 if right_f64 == 0.0 {
                     return Err(ExecutorError::DivisionByZero);
                 }
-                Ok(Float((left_f64 / right_f64) as f32))
+                Ok(Numeric(left_f64 / right_f64))
             }
             (left_val, right_val @ Numeric(_))
                 if matches!(
@@ -349,7 +349,7 @@ impl ArithmeticOps {
                 if right_f64 == 0.0 {
                     return Err(ExecutorError::DivisionByZero);
                 }
-                Ok(Float((left_f64 / right_f64) as f32))
+                Ok(Numeric(left_f64 / right_f64))
             }
 
             // Boolean coercion - treat TRUE as 1, FALSE as 0
@@ -437,7 +437,7 @@ impl ArithmeticOps {
                 Ok(Integer((left_f64 / right_f64) as i64))
             }
 
-            // NUMERIC with any numeric type
+            // NUMERIC with any numeric type - return Numeric for SQLLogicTest compatibility
             (left_val @ Numeric(_), right_val)
                 if matches!(
                     right_val,
@@ -449,7 +449,7 @@ impl ArithmeticOps {
                 if right_f64 == 0.0 {
                     return Err(ExecutorError::DivisionByZero);
                 }
-                Ok(Integer((left_f64 / right_f64) as i64))
+                Ok(Numeric((left_f64 / right_f64).trunc()))
             }
             (left_val, right_val @ Numeric(_))
                 if matches!(
@@ -462,7 +462,7 @@ impl ArithmeticOps {
                 if right_f64 == 0.0 {
                     return Err(ExecutorError::DivisionByZero);
                 }
-                Ok(Integer((left_f64 / right_f64) as i64))
+                Ok(Numeric((left_f64 / right_f64).trunc()))
             }
 
             // Boolean coercion - treat TRUE as 1, FALSE as 0
@@ -549,7 +549,7 @@ impl ArithmeticOps {
                 Ok(Float((left_f64 % right_f64) as f32))
             }
 
-            // NUMERIC with any numeric type
+            // NUMERIC with any numeric type - return Numeric for SQLLogicTest compatibility
             (left_val @ Numeric(_), right_val)
                 if matches!(
                     right_val,
@@ -561,7 +561,7 @@ impl ArithmeticOps {
                 if right_f64 == 0.0 {
                     return Err(ExecutorError::DivisionByZero);
                 }
-                Ok(Float((left_f64 % right_f64) as f32))
+                Ok(Numeric(left_f64 % right_f64))
             }
             (left_val, right_val @ Numeric(_))
                 if matches!(
@@ -574,7 +574,7 @@ impl ArithmeticOps {
                 if right_f64 == 0.0 {
                     return Err(ExecutorError::DivisionByZero);
                 }
-                Ok(Float((left_f64 % right_f64) as f32))
+                Ok(Numeric(left_f64 % right_f64))
             }
 
             // Boolean coercion - treat TRUE as 1, FALSE as 0
