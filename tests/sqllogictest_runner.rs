@@ -301,8 +301,11 @@ impl NistMemSqlDB {
     fn format_sql_value(&self, value: &SqlValue, expected_type: Option<&DefaultColumnType>) -> String {
         match value {
             SqlValue::Integer(i) => {
-                // SQLLogicTest expects integers to be formatted with 3 decimal places
-                format!("{}.000", i)
+                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
+                    format!("{:.3}", *i as f64)
+                } else {
+                    i.to_string()
+                }
             }
             SqlValue::Smallint(i) => {
                 if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
@@ -432,15 +435,15 @@ INSERT INTO test VALUES (3, 4)
 query II rowsort
 SELECT * FROM test
 ----
-1.000
-2.000
-3.000
-4.000
+1
+2
+3
+4
 
 query I
 SELECT x FROM test WHERE y = 4
 ----
-3.000
+3
 "#;
 
     tester.run_script(script).expect("Basic SELECT test should pass");
@@ -454,17 +457,17 @@ async fn test_arithmetic() {
 query I
 SELECT 1 + 1
 ----
-2.000
+2
 
 query I
 SELECT 10 - 3
 ----
-7.000
+7
 
 query I
 SELECT 4 * 5
 ----
-20.000
+20
 "#;
 
     tester.run_script(script).expect("Arithmetic test should pass");
