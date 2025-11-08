@@ -1,5 +1,8 @@
-//! Comprehensive test for NULLIF and COALESCE functions
+//! Test COALESCE function implementation
 //! Tests from issue #961
+//!
+//! Note: NULLIF tests are in test_nullif_basic.rs
+//! This file focuses on COALESCE and its interaction with NULLIF
 
 use executor::SelectExecutor;
 use parser::Parser;
@@ -70,68 +73,13 @@ fn test_coalesce_with_arithmetic() {
     assert_eq!(
         results[0].values[0],
         SqlValue::Integer(15),
-        "COALESCE should evaluate second argument"
+        "COALESCE should evaluate expressions"
     );
 }
 
-// NULLIF tests  
+// Combined tests with NULLIF
 #[test]
-fn test_nullif_equal() {
-    let results = execute_select("SELECT NULLIF(5, 5)").unwrap();
-    assert_eq!(results.len(), 1);
-    assert_eq!(results[0].values[0], SqlValue::Null, "NULLIF(5, 5) should return NULL");
-}
-
-#[test]
-fn test_nullif_not_equal() {
-    let results = execute_select("SELECT NULLIF(5, 10)").unwrap();
-    assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Integer(5),
-        "NULLIF(5, 10) should return 5"
-    );
-}
-
-#[test]
-fn test_nullif_with_null_first_arg() {
-    let results = execute_select("SELECT NULLIF(NULL, 10)").unwrap();
-    assert_eq!(results.len(), 1);
-    assert_eq!(results[0].values[0], SqlValue::Null, "NULLIF(NULL, x) should return NULL");
-}
-
-#[test]
-fn test_nullif_with_null_second_arg() {
-    let results = execute_select("SELECT NULLIF(10, NULL)").unwrap();
-    assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Integer(10),
-        "NULLIF(10, NULL) should return 10"
-    );
-}
-
-#[test]
-fn test_nullif_string_equal() {
-    let results = execute_select("SELECT NULLIF('hello', 'hello')").unwrap();
-    assert_eq!(results.len(), 1);
-    assert_eq!(results[0].values[0], SqlValue::Null, "NULLIF('hello', 'hello') should return NULL");
-}
-
-#[test]
-fn test_nullif_string_not_equal() {
-    let results = execute_select("SELECT NULLIF('hello', 'world')").unwrap();
-    assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Varchar("hello".to_string()),
-        "NULLIF('hello', 'world') should return 'hello'"
-    );
-}
-
-// Combined tests
-#[test]
-fn test_coalesce_with_nullif() {
+fn test_coalesce_with_nullif_equal() {
     let results = execute_select("SELECT COALESCE(NULLIF(5, 5), 10)").unwrap();
     assert_eq!(results.len(), 1);
     // NULLIF(5, 5) returns NULL, so COALESCE returns 10
@@ -143,17 +91,13 @@ fn test_coalesce_with_nullif() {
 }
 
 #[test]
-fn test_nullif_with_expressions() {
-    let results = execute_select("SELECT NULLIF(21, -40 * 93 / 67)").unwrap();
+fn test_coalesce_with_nullif_not_equal() {
+    let results = execute_select("SELECT COALESCE(NULLIF(5, 10), 99)").unwrap();
     assert_eq!(results.len(), 1);
+    // NULLIF(5, 10) returns 5 (not equal), so COALESCE returns 5
     assert_eq!(
         results[0].values[0],
-        SqlValue::Integer(21),
-        "NULLIF with expressions should work"
+        SqlValue::Integer(5),
+        "COALESCE(NULLIF(5, 10), 99) should return 5"
     );
 }
-
-// Aggregate tests are covered in the existing test_nullif_basic.rs file
-// These tests demonstrate that NULLIF and COALESCE work correctly as scalar functions
-// and can contain aggregate functions in their arguments. The SQLLogicTest suite
-// verifies correct behavior in various contexts.
