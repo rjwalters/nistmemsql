@@ -55,8 +55,17 @@ impl SelectExecutor<'_> {
                     // SELECT table.* [AS (col1, col2, ...)] or SELECT alias.* [AS (col1, col2, ...)]
                     if let Some(from_res) = from_result {
                         // Find the table/alias in the schema
-                        if let Some((_start_index, schema)) =
-                            from_res.schema.table_schemas.get(qualifier)
+                        // Try exact match first for performance
+                        let result = from_res.schema.table_schemas.get(qualifier).cloned()
+                            .or_else(|| {
+                                // Fall back to case-insensitive lookup
+                                let qualifier_lower = qualifier.to_lowercase();
+                                from_res.schema.table_schemas.iter()
+                                    .find(|(key, _)| key.to_lowercase() == qualifier_lower)
+                                    .map(|(_, value)| value.clone())
+                            });
+                        
+                        if let Some((_start_index, schema)) = result
                         {
                             // Apply derived column list if present
                             if let Some(derived_cols) = alias {
