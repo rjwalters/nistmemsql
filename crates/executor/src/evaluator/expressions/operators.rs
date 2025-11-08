@@ -38,8 +38,30 @@ pub(crate) fn eval_unary_op(
         (Plus | Minus, SqlValue::Null) => Ok(SqlValue::Null),
 
         // Unary NOT - logical negation
-        (Not, SqlValue::Boolean(b)) => Ok(SqlValue::Boolean(!b)),
+        // Per SQL standard three-valued logic:
+        // - NOT NULL returns NULL
+        // - NOT TRUE returns FALSE
+        // - NOT FALSE returns TRUE
+        // - NOT non-boolean values are coerced to boolean first
         (Not, SqlValue::Null) => Ok(SqlValue::Null), // NULL propagation for NOT
+        (Not, SqlValue::Boolean(b)) => Ok(SqlValue::Boolean(!b)),
+        
+        // For non-boolean values, coerce to boolean first
+        // In SQL, any non-zero number is TRUE, zero is FALSE
+        (Not, SqlValue::Integer(n)) => Ok(SqlValue::Boolean(!(*n != 0))),
+        (Not, SqlValue::Smallint(n)) => Ok(SqlValue::Boolean(!(*n != 0))),
+        (Not, SqlValue::Bigint(n)) => Ok(SqlValue::Boolean(!(*n != 0))),
+        (Not, SqlValue::Unsigned(n)) => Ok(SqlValue::Boolean(!(*n != 0))),
+        (Not, SqlValue::Float(f)) => Ok(SqlValue::Boolean(!(*f != 0.0))),
+        (Not, SqlValue::Real(f)) => Ok(SqlValue::Boolean(!(*f != 0.0))),
+        (Not, SqlValue::Double(f)) => Ok(SqlValue::Boolean(!(*f != 0.0))),
+        (Not, SqlValue::Numeric(d)) => Ok(SqlValue::Boolean(!(*d != 0.0))),
+        (Not, SqlValue::Character(_)) => Ok(SqlValue::Boolean(false)), // Non-empty character is truthy, so NOT is false
+        (Not, SqlValue::Varchar(_)) => Ok(SqlValue::Boolean(false)), // Non-empty varchar is truthy, so NOT is false
+        (Not, SqlValue::Date(_)) => Ok(SqlValue::Boolean(false)), // Date values are truthy
+        (Not, SqlValue::Time(_)) => Ok(SqlValue::Boolean(false)), // Time values are truthy
+        (Not, SqlValue::Timestamp(_)) => Ok(SqlValue::Boolean(false)), // Timestamp values are truthy
+        (Not, SqlValue::Interval(_)) => Ok(SqlValue::Boolean(false)), // Interval values are truthy
 
         // Type errors
         (Plus, val) => Err(ExecutorError::TypeMismatch {
@@ -52,16 +74,97 @@ pub(crate) fn eval_unary_op(
             op: "unary -".to_string(),
             right: SqlValue::Null,
         }),
-        (Not, val) => Err(ExecutorError::TypeMismatch {
-            left: val.clone(),
-            op: "NOT".to_string(),
-            right: SqlValue::Null,
-        }),
 
         // Other unary operators are handled elsewhere
         _ => Err(ExecutorError::UnsupportedExpression(format!(
             "Unary operator {:?} not supported in this context",
             op
         ))),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ast::UnaryOperator;
+
+    #[test]
+    fn test_not_boolean() {
+        assert_eq!(
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Boolean(true)).unwrap(),
+            SqlValue::Boolean(false)
+        );
+        assert_eq!(
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Boolean(false)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+    }
+
+    #[test]
+    fn test_not_null() {
+        assert_eq!(
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Null).unwrap(),
+            SqlValue::Null
+        );
+    }
+
+    #[test]
+    fn test_not_integer() {
+        // Non-zero values are true, so NOT should return false
+        assert_eq!(
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Integer(77)).unwrap(),
+            SqlValue::Boolean(false)
+        );
+        assert_eq!(
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Integer(-4931)).unwrap(),
+            SqlValue::Boolean(false)
+        );
+        // Zero is false, so NOT should return true
+        assert_eq!(
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Integer(0)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+    }
+
+    #[test]
+    fn test_not_float() {
+        // Non-zero values are true, so NOT should return false
+        assert_eq!(
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Float(3.14)).unwrap(),
+            SqlValue::Boolean(false)
+        );
+        // Zero is false, so NOT should return true
+        assert_eq!(
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Float(0.0)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+    }
+
+    #[test]
+    fn test_not_varchar() {
+        // Non-empty varchar is truthy, so NOT should return false
+        assert_eq!(
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Varchar("hello".to_string())).unwrap(),
+            SqlValue::Boolean(false)
+        );
+        // Empty varchar is also considered truthy in this implementation
+        assert_eq!(
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Varchar("".to_string())).unwrap(),
+            SqlValue::Boolean(false)
+        );
+    }
+
+    #[test]
+    fn test_not_numeric() {
+        // Non-zero values are true, so NOT should return false
+        assert_eq!(
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Numeric(3.14)).unwrap(),
+            SqlValue::Boolean(false)
+        );
+        // Zero is false, so NOT should return true
+        assert_eq!(
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Numeric(0.0)).unwrap(),
+            SqlValue::Boolean(true)
+        );
     }
 }
