@@ -16,9 +16,45 @@ impl SelectExecutor<'_> {
         evaluator: &CombinedExpressionEvaluator,
     ) -> Result<types::SqlValue, ExecutorError> {
         match expr {
-            // Aggregate functions (both new and old variants)
-            ast::Expression::AggregateFunction { .. } | ast::Expression::Function { .. } => {
+            // Aggregate functions (AggregateFunction variant only)
+            ast::Expression::AggregateFunction { .. } => {
                 self.evaluate_aggregate_function(expr, group_rows, evaluator)
+            }
+
+            // Regular functions (e.g., NULLIF wrapping an aggregate) - may contain aggregates in arguments
+            ast::Expression::Function { .. } => {
+                // Build a new function expression with evaluated arguments
+                if let ast::Expression::Function { name, args, character_unit } = expr {
+                    // Evaluate function arguments (which may contain aggregates)
+                    let evaluated_args: Result<Vec<_>, _> =
+                        args.iter().map(|arg| self.evaluate_with_aggregates(arg, group_rows, _group_key, evaluator)).collect();
+                    let evaluated_args = evaluated_args?;
+                    
+                    // Create a temporary row with the evaluated arguments as its values
+                    let temp_row = storage::Row::new(evaluated_args);
+                    
+                    // Build a new function call expression with the evaluated values as literal constants
+                    let literal_args: Vec<ast::Expression> = temp_row.values.iter()
+                        .map(|val| ast::Expression::Literal(val.clone()))
+                        .collect();
+                    let new_func_expr = ast::Expression::Function { 
+                        name: name.clone(), 
+                        args: literal_args, 
+                        character_unit: character_unit.clone() 
+                    };
+                    
+                    // Evaluate the function with literal arguments
+                    if let Some(first_row) = group_rows.first() {
+                        evaluator.eval(&new_func_expr, first_row)
+                    } else {
+                        // No rows - evaluate function with empty context
+                        let temp_schema = catalog::TableSchema::new("temp".to_string(), vec![]);
+                        let temp_evaluator = ExpressionEvaluator::new(&temp_schema);
+                        temp_evaluator.eval(&new_func_expr, &storage::Row::new(vec![]))
+                    }
+                } else {
+                    unreachable!()
+                }
             }
 
             // Binary operation - recursively evaluate both sides
@@ -80,17 +116,16 @@ impl SelectExecutor<'_> {
     }
 
     /// Evaluate aggregate function expressions (COUNT, SUM, AVG, MIN, MAX)
-    /// Handles both AggregateFunction and Function variants (for backwards compatibility)
+    /// Only handles AggregateFunction variant
     pub(in crate::select::executor) fn evaluate_aggregate_function(
         &self,
         expr: &ast::Expression,
         group_rows: &[storage::Row],
         evaluator: &CombinedExpressionEvaluator,
     ) -> Result<types::SqlValue, ExecutorError> {
-        // Extract name, distinct, and args from either variant
+        // Extract name, distinct, and args from AggregateFunction
         let (name, distinct, args) = match expr {
             ast::Expression::AggregateFunction { name, distinct, args } => (name, *distinct, args),
-            ast::Expression::Function { name, args, character_unit: _ } => (name, false, args),
             _ => unreachable!("evaluate_aggregate_function called with non-aggregate expression"),
         };
 
