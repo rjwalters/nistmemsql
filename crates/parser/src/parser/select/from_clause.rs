@@ -8,25 +8,26 @@ impl Parser {
 
         // Check for JOINs or commas (left-associative)
         while self.is_join_keyword() || self.peek() == &Token::Comma {
-            let (join_type, condition) = if self.peek() == &Token::Comma {
+            let (join_type, right, condition) = if self.peek() == &Token::Comma {
                 // Comma represents CROSS JOIN
                 self.advance(); // Consume comma
-                (ast::JoinType::Cross, None)
+                let right = self.parse_table_reference()?;
+                (ast::JoinType::Cross, right, None)
             } else {
                 let join_type = self.parse_join_type()?;
+                
+                // Parse right table reference
+                let right = self.parse_table_reference()?;
 
-                // Parse ON condition
+                // Parse ON condition (comes after table reference)
                 let condition = if self.peek_keyword(Keyword::On) {
                     self.consume_keyword(Keyword::On)?;
                     Some(self.parse_expression()?)
                 } else {
                     None
                 };
-                (join_type, condition)
+                (join_type, right, condition)
             };
-
-            // Parse right table reference
-            let right = self.parse_table_reference()?;
 
             // Build JOIN node
             left = ast::FromClause::Join {
