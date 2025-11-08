@@ -64,10 +64,22 @@ impl NistMemSqlDB {
         // Count total values before flattening
         let total_values: usize = formatted_rows.iter().map(|r| r.len()).sum();
 
-        // For hashing, we need to sort and join the original rows
+        // For hashing, we need to sort and join the original rows using canonical format
         if total_values > 8 {
             let mut hasher = Md5::new();
-            let mut sort_keys: Vec<_> = formatted_rows
+            // Use canonical format for hashing (no .000 suffix for integers)
+            let canonical_rows: Vec<Vec<String>> = rows
+                .iter()
+                .map(|row| {
+                    row.values
+                        .iter()
+                        .enumerate()
+                        .map(|(idx, val)| self.format_sql_value_canonical(val, types.get(idx)))
+                        .collect()
+                })
+                .collect();
+            
+            let mut sort_keys: Vec<_> = canonical_rows
                 .iter()
                 .map(|row| row.join(" "))
                 .collect();
@@ -338,6 +350,56 @@ impl NistMemSqlDB {
                 }
             }
             SqlValue::Numeric(_) => value.to_string(), // Use Display trait for consistent formatting
+            SqlValue::Float(f) | SqlValue::Real(f) => {
+                if f.fract() == 0.0 {
+                    format!("{:.1}", f)
+                } else {
+                    f.to_string()
+                }
+            }
+            SqlValue::Double(f) => {
+                if f.fract() == 0.0 {
+                    format!("{:.1}", f)
+                } else {
+                    f.to_string()
+                }
+            }
+            SqlValue::Varchar(s) | SqlValue::Character(s) => s.clone(),
+            SqlValue::Boolean(b) => if *b { "1" } else { "0" }.to_string(),
+            SqlValue::Null => "NULL".to_string(),
+            SqlValue::Date(d)
+            | SqlValue::Time(d)
+            | SqlValue::Timestamp(d)
+            | SqlValue::Interval(d) => d.clone(),
+        }
+    }
+
+    /// Format value in canonical form for hashing (plain format without display decorations)
+    fn format_sql_value_canonical(&self, value: &SqlValue, expected_type: Option<&DefaultColumnType>) -> String {
+        match value {
+            SqlValue::Integer(i) => i.to_string(),
+            SqlValue::Smallint(i) => {
+                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
+                    format!("{:.3}", *i as f64)
+                } else {
+                    i.to_string()
+                }
+            }
+            SqlValue::Bigint(i) => {
+                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
+                    format!("{:.3}", *i as f64)
+                } else {
+                    i.to_string()
+                }
+            }
+            SqlValue::Unsigned(i) => {
+                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
+                    format!("{:.3}", *i as f64)
+                } else {
+                    i.to_string()
+                }
+            }
+            SqlValue::Numeric(_) => value.to_string(),
             SqlValue::Float(f) | SqlValue::Real(f) => {
                 if f.fract() == 0.0 {
                     format!("{:.1}", f)
