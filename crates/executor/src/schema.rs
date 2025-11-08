@@ -59,14 +59,23 @@ impl CombinedSchema {
     }
 
     /// Look up a column by name (optionally qualified with table name)
+    /// Uses case-insensitive matching for table/alias and column names
     pub fn get_column_index(&self, table: Option<&str>, column: &str) -> Option<usize> {
         if let Some(table_name) = table {
             // Qualified column reference (table.column)
+            // Try exact match first for performance
             if let Some((start_index, schema)) = self.table_schemas.get(table_name) {
-                schema.get_column_index(column).map(|idx| start_index + idx)
-            } else {
-                None
+                return schema.get_column_index(column).map(|idx| start_index + idx);
             }
+            
+            // Fall back to case-insensitive table/alias name lookup
+            let table_name_lower = table_name.to_lowercase();
+            for (key, (start_index, schema)) in self.table_schemas.iter() {
+                if key.to_lowercase() == table_name_lower {
+                    return schema.get_column_index(column).map(|idx| start_index + idx);
+                }
+            }
+            None
         } else {
             // Unqualified column reference - search all tables
             for (start_index, schema) in self.table_schemas.values() {
