@@ -55,6 +55,42 @@ fn test_parse_inner_join() {
             _ => panic!("Expected JOIN"),
         },
         _ => panic!("Expected SELECT"),
+        }
+}
+
+#[test]
+fn test_parse_comma_separated_from() {
+    let result = Parser::parse_sql("SELECT * FROM tab0, tab1 AS cor0;");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        ast::Statement::Select(select) => {
+            assert!(select.from.is_some());
+            match select.from.as_ref().unwrap() {
+                ast::FromClause::Join { join_type, left, right, condition } => {
+                    // Comma should be parsed as CROSS JOIN
+                    assert_eq!(*join_type, ast::JoinType::Cross);
+
+                    // Left should be tab0 table
+                    match **left {
+                        ast::FromClause::Table { ref name, alias: None } if name == "TAB0" => {} // Success
+                        _ => panic!("Expected left table to be 'tab0'"),
+                    }
+
+                    // Right should be tab1 table with alias cor0
+                    match **right {
+                        ast::FromClause::Table { ref name, alias: Some(ref alias) } if name == "TAB1" && alias == "COR0" => {} // Success
+                        _ => panic!("Expected right table to be 'tab1' with alias 'cor0'"),
+                    }
+
+                    // Should have no condition (CROSS JOIN)
+                    assert!(condition.is_none());
+                }
+                _ => panic!("Expected JOIN in FROM clause"),
+            }
+        }
+        _ => panic!("Expected SELECT statement"),
     }
 }
 
