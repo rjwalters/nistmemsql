@@ -20,11 +20,11 @@ impl Parser {
 
     /// Parse AND expression
     pub(super) fn parse_and_expression(&mut self) -> Result<ast::Expression, ParseError> {
-        let mut left = self.parse_additive_expression()?;
+        let mut left = self.parse_comparison_expression()?;
 
         while self.peek_keyword(Keyword::And) {
             self.consume_keyword(Keyword::And)?;
-            let right = self.parse_additive_expression()?;
+            let right = self.parse_comparison_expression()?;
             left = ast::Expression::BinaryOp {
                 op: ast::BinaryOperator::And,
                 left: Box::new(left),
@@ -59,7 +59,7 @@ impl Parser {
     pub(super) fn parse_multiplicative_expression(
         &mut self,
     ) -> Result<ast::Expression, ParseError> {
-        let mut left = self.parse_comparison_expression()?;
+        let mut left = self.parse_unary_expression()?;
 
         loop {
             let op = match self.peek() {
@@ -71,16 +71,17 @@ impl Parser {
             };
             self.advance();
 
-            let right = self.parse_comparison_expression()?;
+            let right = self.parse_unary_expression()?;
             left = ast::Expression::BinaryOp { op, left: Box::new(left), right: Box::new(right) };
         }
 
         Ok(left)
     }
 
-    /// Parse comparison expression (handles =, <, >, <=, >=, !=, <>, IN)
+    /// Parse comparison expression (handles =, <, >, <=, >=, !=, <>, IN, BETWEEN, LIKE, IS NULL)
+    /// These operators have lower precedence than arithmetic operators
     pub(super) fn parse_comparison_expression(&mut self) -> Result<ast::Expression, ParseError> {
-        let mut left = self.parse_unary_expression()?;
+        let mut left = self.parse_additive_expression()?;
 
         // Check for IN operator (including NOT IN) and BETWEEN (including NOT BETWEEN)
         if self.peek_keyword(Keyword::Not) {
@@ -290,7 +291,7 @@ impl Parser {
                 });
             }
 
-            let right = self.parse_unary_expression()?;
+            let right = self.parse_additive_expression()?;
             left = ast::Expression::BinaryOp { op, left: Box::new(left), right: Box::new(right) };
         }
 
