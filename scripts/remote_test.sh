@@ -127,13 +127,23 @@ fi
 if ! command -v cargo &> /dev/null; then
     echo "Installing Rust..."
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+fi
+
+# Ensure cargo is in PATH
+if [ -f "$HOME/.cargo/env" ]; then
     source "$HOME/.cargo/env"
 fi
 
 # Install dependencies
 echo "Installing system dependencies..."
-sudo apt-get update
-sudo apt-get install -y build-essential python3 python3-pip jq
+# Use sudo only if not root
+if [ "$(id -u)" -eq 0 ]; then
+    apt-get update
+    apt-get install -y build-essential python3 python3-pip jq
+else
+    sudo apt-get update
+    sudo apt-get install -y build-essential python3 python3-pip jq
+fi
 
 # Initialize submodules
 echo "Initializing SQLLogicTest submodule..."
