@@ -13,8 +13,16 @@ pub enum CatalogError {
     // Advanced SQL:1999 objects
     DomainAlreadyExists(String),
     DomainNotFound(String),
+    DomainInUse {
+        domain_name: String,
+        dependent_columns: Vec<(String, String)>, // (table_name, column_name)
+    },
     SequenceAlreadyExists(String),
     SequenceNotFound(String),
+    SequenceInUse {
+        sequence_name: String,
+        dependent_columns: Vec<(String, String)>, // (table_name, column_name)
+    },
     TypeAlreadyExists(String),
     TypeNotFound(String),
     TypeInUse(String),
@@ -26,6 +34,10 @@ pub enum CatalogError {
     TranslationNotFound(String),
     ViewAlreadyExists(String),
     ViewNotFound(String),
+    ViewInUse {
+        view_name: String,
+        dependent_views: Vec<String>,
+    },
     TriggerAlreadyExists(String),
     TriggerNotFound(String),
     AssertionAlreadyExists(String),
@@ -64,10 +76,36 @@ impl std::fmt::Display for CatalogError {
                 write!(f, "Domain '{}' already exists", name)
             }
             CatalogError::DomainNotFound(name) => write!(f, "Domain '{}' not found", name),
+            CatalogError::DomainInUse { domain_name, dependent_columns } => {
+                write!(
+                    f,
+                    "Domain '{}' is still in use by {} column(s): {}",
+                    domain_name,
+                    dependent_columns.len(),
+                    dependent_columns
+                        .iter()
+                        .map(|(t, c)| format!("{}.{}", t, c))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
             CatalogError::SequenceAlreadyExists(name) => {
                 write!(f, "Sequence '{}' already exists", name)
             }
             CatalogError::SequenceNotFound(name) => write!(f, "Sequence '{}' not found", name),
+            CatalogError::SequenceInUse { sequence_name, dependent_columns } => {
+                write!(
+                    f,
+                    "Sequence '{}' is still in use by {} column(s): {}",
+                    sequence_name,
+                    dependent_columns.len(),
+                    dependent_columns
+                        .iter()
+                        .map(|(t, c)| format!("{}.{}", t, c))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
             CatalogError::TypeAlreadyExists(name) => {
                 write!(f, "Type '{}' already exists", name)
             }
@@ -98,6 +136,15 @@ impl std::fmt::Display for CatalogError {
             }
             CatalogError::ViewNotFound(name) => {
                 write!(f, "View '{}' not found", name)
+            }
+            CatalogError::ViewInUse { view_name, dependent_views } => {
+                write!(
+                    f,
+                    "View or table '{}' is still in use by {} view(s): {}",
+                    view_name,
+                    dependent_views.len(),
+                    dependent_views.join(", ")
+                )
             }
             CatalogError::TriggerAlreadyExists(name) => {
                 write!(f, "Trigger '{}' already exists", name)

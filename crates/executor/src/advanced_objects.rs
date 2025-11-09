@@ -29,8 +29,8 @@ pub fn execute_drop_sequence(
     stmt: &DropSequenceStmt,
     db: &mut Database,
 ) -> Result<(), ExecutorError> {
-    // TODO: Handle CASCADE to remove sequence dependencies from columns
-    db.catalog.drop_sequence(&stmt.sequence_name)?;
+    // Handle CASCADE to remove sequence dependencies from columns
+    db.catalog.drop_sequence(&stmt.sequence_name, stmt.cascade)?;
     Ok(())
 }
 
@@ -178,8 +178,8 @@ pub fn execute_drop_view(stmt: &DropViewStmt, db: &mut Database) -> Result<(), E
         return Ok(());
     }
 
-    // TODO: Handle CASCADE to drop dependent views
-    db.catalog.drop_view(&stmt.view_name)?;
+    // Handle CASCADE to drop dependent views
+    db.catalog.drop_view(&stmt.view_name, stmt.cascade)?;
     Ok(())
 }
 

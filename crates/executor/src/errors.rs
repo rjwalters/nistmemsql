@@ -290,11 +290,35 @@ impl From<catalog::CatalogError> for ExecutorError {
             catalog::CatalogError::DomainNotFound(name) => {
                 ExecutorError::Other(format!("Domain '{}' not found", name))
             }
+            catalog::CatalogError::DomainInUse { domain_name, dependent_columns } => {
+                ExecutorError::Other(format!(
+                    "Domain '{}' is still in use by {} column(s): {}",
+                    domain_name,
+                    dependent_columns.len(),
+                    dependent_columns
+                        .iter()
+                        .map(|(t, c)| format!("{}.{}", t, c))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ))
+            }
             catalog::CatalogError::SequenceAlreadyExists(name) => {
                 ExecutorError::Other(format!("Sequence '{}' already exists", name))
             }
             catalog::CatalogError::SequenceNotFound(name) => {
                 ExecutorError::Other(format!("Sequence '{}' not found", name))
+            }
+            catalog::CatalogError::SequenceInUse { sequence_name, dependent_columns } => {
+                ExecutorError::Other(format!(
+                    "Sequence '{}' is still in use by {} column(s): {}",
+                    sequence_name,
+                    dependent_columns.len(),
+                    dependent_columns
+                        .iter()
+                        .map(|(t, c)| format!("{}.{}", t, c))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ))
             }
             catalog::CatalogError::TypeAlreadyExists(name) => {
                 ExecutorError::TypeAlreadyExists(name)
@@ -324,6 +348,14 @@ impl From<catalog::CatalogError> for ExecutorError {
             }
             catalog::CatalogError::ViewNotFound(name) => {
                 ExecutorError::Other(format!("View '{}' not found", name))
+            }
+            catalog::CatalogError::ViewInUse { view_name, dependent_views } => {
+                ExecutorError::Other(format!(
+                    "View or table '{}' is still in use by {} view(s): {}",
+                    view_name,
+                    dependent_views.len(),
+                    dependent_views.join(", ")
+                ))
             }
             catalog::CatalogError::TriggerAlreadyExists(name) => {
                 ExecutorError::Other(format!("Trigger '{}' already exists", name))
