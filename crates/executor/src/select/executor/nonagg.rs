@@ -141,6 +141,9 @@ impl SelectExecutor<'_> {
         // Project columns from the sorted rows
         let mut final_rows = Vec::new();
         for (row, _) in result_rows {
+            // Check timeout during projection
+            self.check_timeout()?;
+
             let projected_row = project_row_combined(
                 &row,
                 &stmt.select_list,

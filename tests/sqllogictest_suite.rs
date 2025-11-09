@@ -885,8 +885,14 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
             }
         };
 
+        // Log test file start
+        eprintln!("[Worker] Starting: {}", relative_path);
+        let test_start = Instant::now();
+
         // Create a new database for each test file and run with detailed failure capture
         let (test_result, detailed_failures) = run_test_file_with_details(&contents, &relative_path);
+
+        let elapsed = test_start.elapsed().as_secs_f64();
 
         match test_result {
             Ok(_) => {
