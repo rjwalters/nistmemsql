@@ -33,17 +33,15 @@
 // Suppress PyO3 macro warnings
 #![allow(non_local_definitions)]
 
-mod conversions;
 mod connection;
+mod conversions;
 mod cursor;
 mod profiling;
-
-use pyo3::exceptions::PyException;
-use pyo3::prelude::*;
 
 // Re-export public types for use in submodules
 pub use connection::Database;
 pub use cursor::Cursor;
+use pyo3::{exceptions::PyException, prelude::*};
 
 pyo3::create_exception!(vibesql, DatabaseError, PyException);
 pyo3::create_exception!(vibesql, OperationalError, DatabaseError);

@@ -1,5 +1,8 @@
-use std::fs::File;
-use std::io::{BufRead, BufReader, Write};
+use std::{
+    fs::File,
+    io::{BufRead, BufReader, Write},
+};
+
 use crate::executor::QueryResult;
 
 /// Data import/export utilities
@@ -30,10 +33,7 @@ impl DataIO {
             let mut json_obj = serde_json::Map::new();
             for (i, col) in result.columns.iter().enumerate() {
                 if i < row.len() {
-                    json_obj.insert(
-                        col.clone(),
-                        serde_json::Value::String(row[i].clone()),
-                    );
+                    json_obj.insert(col.clone(), serde_json::Value::String(row[i].clone()));
                 }
             }
             json_rows.push(serde_json::Value::Object(json_obj));
@@ -67,7 +67,8 @@ impl DataIO {
 
         // Read data rows
         for (idx, line) in lines.enumerate() {
-            let line = line.map_err(|e| anyhow::anyhow!("Failed to read line {}: {}", idx + 2, e))?;
+            let line =
+                line.map_err(|e| anyhow::anyhow!("Failed to read line {}: {}", idx + 2, e))?;
             let values: Vec<&str> = line.split(',').collect();
 
             if values.len() != columns.len() {
@@ -101,12 +102,8 @@ impl DataIO {
 }
 
 fn write_csv_row<W: Write>(writer: &mut W, values: &[String]) -> anyhow::Result<()> {
-    let csv_line = values
-        .iter()
-        .map(|v| escape_csv_value(v))
-        .collect::<Vec<_>>()
-        .join(",");
-    
+    let csv_line = values.iter().map(|v| escape_csv_value(v)).collect::<Vec<_>>().join(",");
+
     writeln!(writer, "{}", csv_line)?;
     Ok(())
 }

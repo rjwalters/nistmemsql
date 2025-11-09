@@ -1,7 +1,6 @@
 //! Constraint validation for UPDATE operations
 
-use crate::errors::ExecutorError;
-use crate::evaluator::ExpressionEvaluator;
+use crate::{errors::ExecutorError, evaluator::ExpressionEvaluator};
 
 /// Validator for table constraints
 pub struct ConstraintValidator<'a> {
@@ -79,8 +78,9 @@ impl<'a> ConstraintValidator<'a> {
             // Use hash index for O(1) lookup instead of O(n) scan
             if let Some(pk_index) = table.primary_key_index() {
                 if pk_index.contains_key(&new_pk_values) {
-                    // Check if it's not the same row (hash index doesn't store row index for easy exclusion)
-                    // We need to verify it's actually a different row by checking if this is an update to the same PK
+                    // Check if it's not the same row (hash index doesn't store row index for easy
+                    // exclusion) We need to verify it's actually a different
+                    // row by checking if this is an update to the same PK
                     let original_pk_values: Vec<types::SqlValue> =
                         pk_indices.iter().map(|&idx| original_row.values[idx].clone()).collect();
 
@@ -94,7 +94,8 @@ impl<'a> ConstraintValidator<'a> {
                     }
                 }
             } else {
-                // Fallback to table scan if index not available (should not happen in normal operation)
+                // Fallback to table scan if index not available (should not happen in normal
+                // operation)
                 for (other_idx, other_row) in table.scan().iter().enumerate() {
                     // Skip the row being updated
                     if other_idx == row_index {
@@ -145,8 +146,10 @@ impl<'a> ConstraintValidator<'a> {
                 let unique_index = &unique_indexes[constraint_idx];
                 if unique_index.contains_key(&new_unique_values) {
                     // Check if it's not the same row by comparing original values
-                    let original_unique_values: Vec<types::SqlValue> =
-                        unique_indices.iter().map(|&idx| original_row.values[idx].clone()).collect();
+                    let original_unique_values: Vec<types::SqlValue> = unique_indices
+                        .iter()
+                        .map(|&idx| original_row.values[idx].clone())
+                        .collect();
 
                     if new_unique_values != original_unique_values {
                         let unique_col_names: Vec<String> =
@@ -158,7 +161,8 @@ impl<'a> ConstraintValidator<'a> {
                     }
                 }
             } else {
-                // Fallback to table scan if index not available (should not happen in normal operation)
+                // Fallback to table scan if index not available (should not happen in normal
+                // operation)
                 for (other_idx, other_row) in table.scan().iter().enumerate() {
                     // Skip the row being updated
                     if other_idx == row_index {

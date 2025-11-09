@@ -12,6 +12,7 @@ pub enum MetaCommand {
     SetFormat(OutputFormat),
     Timing,
     Copy { table: String, file_path: String, direction: CopyDirection, format: CopyFormat },
+    Save(Option<String>),
 }
 
 #[derive(Debug, Clone)]
@@ -29,7 +30,7 @@ pub enum CopyFormat {
 impl MetaCommand {
     pub fn parse(line: &str) -> Option<Self> {
         let trimmed = line.trim();
-        
+
         if !trimmed.starts_with('\\') {
             return None;
         }
@@ -89,6 +90,11 @@ impl MetaCommand {
 
                 Some(MetaCommand::Copy { table, file_path, direction, format })
             }
+            Some(&"\\save") => {
+                // Optional filename argument
+                let filename = parts.get(1).map(|s| s.to_string());
+                Some(MetaCommand::Save(filename))
+            }
             _ => None,
         }
     }
@@ -147,9 +153,18 @@ mod tests {
 
     #[test]
     fn test_parse_set_format() {
-        assert!(matches!(MetaCommand::parse("\\f table"), Some(MetaCommand::SetFormat(OutputFormat::Table))));
-        assert!(matches!(MetaCommand::parse("\\f json"), Some(MetaCommand::SetFormat(OutputFormat::Json))));
-        assert!(matches!(MetaCommand::parse("\\f csv"), Some(MetaCommand::SetFormat(OutputFormat::Csv))));
+        assert!(matches!(
+            MetaCommand::parse("\\f table"),
+            Some(MetaCommand::SetFormat(OutputFormat::Table))
+        ));
+        assert!(matches!(
+            MetaCommand::parse("\\f json"),
+            Some(MetaCommand::SetFormat(OutputFormat::Json))
+        ));
+        assert!(matches!(
+            MetaCommand::parse("\\f csv"),
+            Some(MetaCommand::SetFormat(OutputFormat::Csv))
+        ));
     }
 
     #[test]

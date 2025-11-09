@@ -1,22 +1,20 @@
 //! Tests for lazy evaluation optimizations
-//! 
+//!
 //! These tests verify that COALESCE and NULLIF use lazy evaluation
 //! to avoid evaluating unnecessary expressions, which is critical for
 //! performance when dealing with complex nested expressions.
 
-use crate::evaluator::ExpressionEvaluator;
-use catalog::TableSchema;
-use types::SqlValue;
-use storage::Row;
 use ast;
+use catalog::TableSchema;
+use storage::Row;
+use types::SqlValue;
+
+use crate::evaluator::ExpressionEvaluator;
 
 #[test]
 fn test_coalesce_lazy_evaluation_short_circuits() {
     // COALESCE(10, expensive_expr) should return 10 without evaluating expensive_expr
-    let schema = TableSchema::new(
-        "test".to_string(),
-        vec![],
-    );
+    let schema = TableSchema::new("test".to_string(), vec![]);
 
     let evaluator = ExpressionEvaluator::new(&schema);
     let row = Row::new(vec![]);
@@ -45,10 +43,7 @@ fn test_coalesce_lazy_evaluation_short_circuits() {
 #[test]
 fn test_coalesce_evaluates_all_when_all_null() {
     // COALESCE(NULL, NULL, 42) should evaluate all arguments until non-NULL found
-    let schema = TableSchema::new(
-        "test".to_string(),
-        vec![],
-    );
+    let schema = TableSchema::new("test".to_string(), vec![]);
 
     let evaluator = ExpressionEvaluator::new(&schema);
     let row = Row::new(vec![]);
@@ -71,15 +66,13 @@ fn test_coalesce_evaluates_all_when_all_null() {
 #[test]
 fn test_nullif_lazy_evaluation_short_circuits() {
     // NULLIF(val1, val2) should not evaluate val2 if val1 is NULL
-    let schema = TableSchema::new(
-        "test".to_string(),
-        vec![],
-    );
+    let schema = TableSchema::new("test".to_string(), vec![]);
 
     let evaluator = ExpressionEvaluator::new(&schema);
     let row = Row::new(vec![]);
 
-    // Create expression: NULLIF(NULL, expensive_expr) - should return NULL without evaluating division
+    // Create expression: NULLIF(NULL, expensive_expr) - should return NULL without evaluating
+    // division
     let expr = ast::Expression::Function {
         name: "NULLIF".to_string(),
         args: vec![
@@ -103,10 +96,7 @@ fn test_nullif_lazy_evaluation_short_circuits() {
 #[test]
 fn test_nullif_evaluates_second_when_first_not_null() {
     // NULLIF(42, 42) should return NULL
-    let schema = TableSchema::new(
-        "test".to_string(),
-        vec![],
-    );
+    let schema = TableSchema::new("test".to_string(), vec![]);
 
     let evaluator = ExpressionEvaluator::new(&schema);
     let row = Row::new(vec![]);
@@ -128,10 +118,7 @@ fn test_nullif_evaluates_second_when_first_not_null() {
 #[test]
 fn test_nullif_returns_first_when_not_equal() {
     // NULLIF(42, 43) should return 42
-    let schema = TableSchema::new(
-        "test".to_string(),
-        vec![],
-    );
+    let schema = TableSchema::new("test".to_string(), vec![]);
 
     let evaluator = ExpressionEvaluator::new(&schema);
     let row = Row::new(vec![]);
@@ -153,10 +140,7 @@ fn test_nullif_returns_first_when_not_equal() {
 #[test]
 fn test_coalesce_with_strings() {
     // COALESCE should work with string values
-    let schema = TableSchema::new(
-        "test".to_string(),
-        vec![],
-    );
+    let schema = TableSchema::new("test".to_string(), vec![]);
 
     let evaluator = ExpressionEvaluator::new(&schema);
     let row = Row::new(vec![]);
@@ -179,10 +163,7 @@ fn test_coalesce_with_strings() {
 #[test]
 fn test_nested_coalesce() {
     // Test nested COALESCE: COALESCE(NULL, COALESCE(NULL, 42))
-    let schema = TableSchema::new(
-        "test".to_string(),
-        vec![],
-    );
+    let schema = TableSchema::new("test".to_string(), vec![]);
 
     let evaluator = ExpressionEvaluator::new(&schema);
     let row = Row::new(vec![]);

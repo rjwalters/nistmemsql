@@ -3,9 +3,10 @@
 //! Tests for error message formatting and error type conversions between
 //! catalog, executor, and storage layers.
 
+use std::error::Error;
+
 use catalog::CatalogError;
 use executor::ExecutorError;
-use std::error::Error;
 
 #[test]
 fn test_catalog_error_display_formats() {

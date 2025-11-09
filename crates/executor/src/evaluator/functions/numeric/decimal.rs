@@ -2,8 +2,9 @@
 //!
 //! Implements FORMAT function and helper utilities for number formatting.
 
-use crate::errors::ExecutorError;
 use types::SqlValue;
+
+use crate::errors::ExecutorError;
 
 /// FORMAT(number, decimal_places) - Format number with thousand separators
 pub fn format(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {

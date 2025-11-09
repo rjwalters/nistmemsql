@@ -1,9 +1,10 @@
 #[cfg(test)]
 mod evaluator_tests {
-    use super::super::ExpressionEvaluator;
-    use crate::errors::ExecutorError;
     use catalog::{ColumnSchema, TableSchema};
     use types::{DataType, SqlValue};
+
+    use super::super::ExpressionEvaluator;
+    use crate::errors::ExecutorError;
 
     #[test]
     fn test_evaluator_with_outer_context_resolves_inner_column() {
@@ -134,7 +135,11 @@ mod evaluator_tests {
             "users".to_string(),
             vec![
                 ColumnSchema::new("id".to_string(), DataType::Integer, false),
-                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(255) }, false),
+                ColumnSchema::new(
+                    "name".to_string(),
+                    DataType::Varchar { max_length: Some(255) },
+                    false,
+                ),
             ],
         );
 
@@ -147,7 +152,8 @@ mod evaluator_tests {
         );
 
         let outer_row = storage::Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(100)]);
-        let inner_row = storage::Row::new(vec![SqlValue::Integer(42), SqlValue::Varchar("Alice".to_string())]);
+        let inner_row =
+            storage::Row::new(vec![SqlValue::Integer(42), SqlValue::Varchar("Alice".to_string())]);
 
         let evaluator =
             ExpressionEvaluator::with_outer_context(&inner_schema, &outer_row, &outer_schema);
@@ -158,14 +164,37 @@ mod evaluator_tests {
         let result = evaluator.eval(&expr, &inner_row);
 
         match result {
-            Err(ExecutorError::ColumnNotFound { column_name, searched_tables, available_columns, .. }) => {
+            Err(ExecutorError::ColumnNotFound {
+                column_name,
+                searched_tables,
+                available_columns,
+                ..
+            }) => {
                 assert_eq!(column_name, "email");
-                assert!(searched_tables.contains(&"users".to_string()), "Should have searched 'users' table");
-                assert!(searched_tables.contains(&"orders".to_string()), "Should have searched 'orders' table");
-                assert!(available_columns.contains(&"id".to_string()), "Should list 'id' as available");
-                assert!(available_columns.contains(&"name".to_string()), "Should list 'name' as available");
-                assert!(available_columns.contains(&"order_id".to_string()), "Should list 'order_id' as available");
-                assert!(available_columns.contains(&"amount".to_string()), "Should list 'amount' as available");
+                assert!(
+                    searched_tables.contains(&"users".to_string()),
+                    "Should have searched 'users' table"
+                );
+                assert!(
+                    searched_tables.contains(&"orders".to_string()),
+                    "Should have searched 'orders' table"
+                );
+                assert!(
+                    available_columns.contains(&"id".to_string()),
+                    "Should list 'id' as available"
+                );
+                assert!(
+                    available_columns.contains(&"name".to_string()),
+                    "Should list 'name' as available"
+                );
+                assert!(
+                    available_columns.contains(&"order_id".to_string()),
+                    "Should list 'order_id' as available"
+                );
+                assert!(
+                    available_columns.contains(&"amount".to_string()),
+                    "Should list 'amount' as available"
+                );
             }
             other => panic!("Expected ColumnNotFound with diagnostic info, got: {:?}", other),
         }
@@ -188,13 +217,18 @@ mod evaluator_tests {
         // Try to resolve with table qualifier
         let expr = ast::Expression::ColumnRef {
             table: Some("products".to_string()),
-            column: "description".to_string()
+            column: "description".to_string(),
         };
 
         let result = evaluator.eval(&expr, &row);
 
         match result {
-            Err(ExecutorError::ColumnNotFound { column_name, table_name, searched_tables, available_columns }) => {
+            Err(ExecutorError::ColumnNotFound {
+                column_name,
+                table_name,
+                searched_tables,
+                available_columns,
+            }) => {
                 assert_eq!(column_name, "description");
                 assert_eq!(table_name, "products", "Should capture table qualifier");
                 assert!(searched_tables.contains(&"products".to_string()));
@@ -208,11 +242,12 @@ mod evaluator_tests {
 
 #[cfg(test)]
 mod deep_expression_tests {
-    use super::super::ExpressionEvaluator;
-    use crate::errors::ExecutorError;
     use catalog::TableSchema;
     use storage::Row;
     use types::SqlValue;
+
+    use super::super::ExpressionEvaluator;
+    use crate::errors::ExecutorError;
 
     /// Helper to generate a deeply nested arithmetic expression
     /// Generates: (((1 + 1) + 1) + 1) ... ) for the specified depth
@@ -254,10 +289,7 @@ mod deep_expression_tests {
     fn generate_nested_unary(depth: usize) -> ast::Expression {
         let mut expr = ast::Expression::Literal(SqlValue::Integer(1));
         for _ in 0..depth {
-            expr = ast::Expression::UnaryOp {
-                op: ast::UnaryOperator::Minus,
-                expr: Box::new(expr),
-            };
+            expr = ast::Expression::UnaryOp { op: ast::UnaryOperator::Minus, expr: Box::new(expr) };
         }
         expr
     }
@@ -293,9 +325,9 @@ mod deep_expression_tests {
     #[test]
     fn test_depth_limit_enforced() {
         // Test that depth limit is properly enforced
-        // Note: Building expressions deeper than ~1000 causes stack overflow during AST construction
-        // This is a Rust limitation, not an evaluator issue. In practice, parser-generated ASTs
-        // from actual SQL won't hit this limit.
+        // Note: Building expressions deeper than ~1000 causes stack overflow during AST
+        // construction This is a Rust limitation, not an evaluator issue. In practice,
+        // parser-generated ASTs from actual SQL won't hit this limit.
         let schema = TableSchema::new("test".to_string(), vec![]);
         let evaluator = ExpressionEvaluator::new(&schema);
         let row = Row::new(vec![]);
@@ -390,11 +422,8 @@ mod deep_expression_tests {
         // Create evaluator with outer context - should still start at depth 0
         let outer_schema = TableSchema::new("outer".to_string(), vec![]);
         let outer_row = Row::new(vec![]);
-        let evaluator_with_outer = ExpressionEvaluator::with_outer_context(
-            &schema,
-            &outer_row,
-            &outer_schema,
-        );
+        let evaluator_with_outer =
+            ExpressionEvaluator::with_outer_context(&schema, &outer_row, &outer_schema);
 
         assert_eq!(evaluator_with_outer.depth, 0);
     }

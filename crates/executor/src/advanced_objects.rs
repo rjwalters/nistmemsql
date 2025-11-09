@@ -1,9 +1,10 @@
 //! Executor for advanced SQL:1999 objects (SEQUENCE, TYPE, COLLATION, etc.)
 //! Note: DOMAIN has a full implementation in domain_ddl module
 
-use crate::errors::ExecutorError;
 use ast::*;
 use storage::Database;
+
+use crate::errors::ExecutorError;
 
 // DOMAIN functions are in domain_ddl module with full implementation
 

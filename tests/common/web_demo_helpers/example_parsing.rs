@@ -8,10 +8,10 @@
 
 #![allow(dead_code)]
 
+use std::{fs, path::Path};
+
 use regex::Regex;
 use serde_json;
-use std::fs;
-use std::path::Path;
 
 /// Represents a parsed SQL example from the web demo
 #[derive(Debug, Clone)]

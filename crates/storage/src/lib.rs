@@ -10,16 +10,17 @@ pub mod table;
 
 pub use database::{Database, IndexData, IndexManager, IndexMetadata, TransactionState};
 pub use error::StorageError;
+pub use persistence::load::{parse_sql_statements, read_sql_dump};
 pub use row::Row;
 pub use table::Table;
 
 #[cfg(test)]
 mod tests {
+    use catalog::{ColumnSchema, TableSchema};
+    use types::{DataType, SqlValue};
+
     use super::*;
     use crate::Row;
-    use catalog::{ColumnSchema, TableSchema};
-    use types::DataType;
-    use types::SqlValue;
 
     #[test]
     fn test_hash_indexes_primary_key() {
@@ -52,7 +53,8 @@ mod tests {
         // Try to insert duplicate - should work at table level (constraint check is in executor)
         let duplicate_row =
             Row::new(vec![SqlValue::Integer(0), SqlValue::Varchar("Duplicate User".to_string())]);
-        table.insert(duplicate_row).unwrap(); // This succeeds because constraint checking is in executor
+        table.insert(duplicate_row).unwrap(); // This succeeds because constraint checking is in
+                                              // executor
     }
 
     #[test]

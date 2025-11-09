@@ -1,9 +1,10 @@
 //! End-to-end tests for numeric SQL data types.
 
-use super::fixtures::*;
 use catalog::ColumnSchema;
 use storage::{Database, Row};
 use types::{DataType, SqlValue};
+
+use super::fixtures::*;
 
 #[test]
 fn test_e2e_smallint_type() {

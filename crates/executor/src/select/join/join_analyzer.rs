@@ -3,8 +3,9 @@
 //! This module analyzes join conditions to identify equi-joins (equality-based joins)
 //! which can be optimized using hash join algorithms instead of nested loop joins.
 
-use crate::schema::CombinedSchema;
 use ast::{BinaryOperator, Expression};
+
+use crate::schema::CombinedSchema;
 
 /// Information about an equi-join condition
 #[derive(Debug, Clone)]

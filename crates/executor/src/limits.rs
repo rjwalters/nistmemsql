@@ -1,7 +1,8 @@
 //! Execution limits and safeguards
 //!
 //! This module defines limits to prevent infinite loops, stack overflow, and runaway queries.
-//! These limits follow industry best practices established by SQLite and other production databases.
+//! These limits follow industry best practices established by SQLite and other production
+//! databases.
 //!
 //! ## Design Philosophy
 //!

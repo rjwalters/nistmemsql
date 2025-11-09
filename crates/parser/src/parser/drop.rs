@@ -1,8 +1,7 @@
 //! DROP TABLE statement parser
 
 use super::{ParseError, Parser};
-use crate::keywords::Keyword;
-use crate::token::Token;
+use crate::{keywords::Keyword, token::Token};
 
 impl Parser {
     /// Parse DROP TABLE statement

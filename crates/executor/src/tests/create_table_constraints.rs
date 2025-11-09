@@ -1,10 +1,11 @@
-
-use ast::{ColumnConstraint, ColumnConstraintKind, ColumnDef, CreateTableStmt, Expression, TableConstraint, TableConstraintKind};
+use ast::{
+    ColumnConstraint, ColumnConstraintKind, ColumnDef, CreateTableStmt, Expression,
+    TableConstraint, TableConstraintKind,
+};
 use storage::Database;
 use types::DataType;
 
-use crate::create_table::CreateTableExecutor;
-use crate::errors::ExecutorError;
+use crate::{create_table::CreateTableExecutor, errors::ExecutorError};
 
 #[test]
 fn test_create_table_with_column_primary_key() {
@@ -16,7 +17,10 @@ fn test_create_table_with_column_primary_key() {
                 name: "id".to_string(),
                 data_type: DataType::Integer,
                 nullable: true, // This should be overridden by the PK constraint
-                constraints: vec![ColumnConstraint { name: None, kind: ColumnConstraintKind::PrimaryKey }],
+                constraints: vec![ColumnConstraint {
+                    name: None,
+                    kind: ColumnConstraintKind::PrimaryKey,
+                }],
                 default_value: None,
                 comment: None,
             },
@@ -29,7 +33,8 @@ fn test_create_table_with_column_primary_key() {
                 comment: None,
             },
         ],
-        table_constraints: vec![], table_options: vec![],
+        table_constraints: vec![],
+        table_options: vec![],
     };
 
     let result = CreateTableExecutor::execute(&stmt, &mut db);
@@ -76,10 +81,7 @@ fn test_create_table_with_table_primary_key() {
     assert!(result.is_ok());
 
     let schema = db.catalog.get_table("users").unwrap();
-    assert_eq!(
-        schema.primary_key,
-        Some(vec!["id".to_string(), "tenant_id".to_string()])
-    );
+    assert_eq!(schema.primary_key, Some(vec!["id".to_string(), "tenant_id".to_string()]));
     assert_eq!(schema.get_column("id").unwrap().nullable, false);
     assert_eq!(schema.get_column("tenant_id").unwrap().nullable, false);
 }
@@ -93,15 +95,16 @@ fn test_create_table_with_multiple_primary_keys_fails() {
             name: "id".to_string(),
             data_type: DataType::Integer,
             nullable: false,
-            constraints: vec![ColumnConstraint { name: None, kind: ColumnConstraintKind::PrimaryKey }],
+            constraints: vec![ColumnConstraint {
+                name: None,
+                kind: ColumnConstraintKind::PrimaryKey,
+            }],
             default_value: None,
             comment: None,
         }],
         table_constraints: vec![TableConstraint {
             name: None,
-            kind: TableConstraintKind::PrimaryKey {
-                columns: vec!["id".to_string()],
-            },
+            kind: TableConstraintKind::PrimaryKey { columns: vec!["id".to_string()] },
         }],
         table_options: vec![],
     };
@@ -128,12 +131,16 @@ fn test_create_table_with_column_unique_constraint() {
                 name: "email".to_string(),
                 data_type: DataType::Varchar { max_length: Some(100) },
                 nullable: false,
-                constraints: vec![ColumnConstraint { name: None, kind: ColumnConstraintKind::Unique }],
+                constraints: vec![ColumnConstraint {
+                    name: None,
+                    kind: ColumnConstraintKind::Unique,
+                }],
                 default_value: None,
                 comment: None,
             },
         ],
-        table_constraints: vec![], table_options: vec![],
+        table_constraints: vec![],
+        table_options: vec![],
     };
 
     let result = CreateTableExecutor::execute(&stmt, &mut db);
@@ -202,11 +209,15 @@ fn test_create_table_with_check_constraint() {
             name: "price".to_string(),
             data_type: DataType::Integer,
             nullable: false,
-            constraints: vec![ColumnConstraint { name: None, kind: ColumnConstraintKind::Check(Box::new(check_expr.clone())) }],
+            constraints: vec![ColumnConstraint {
+                name: None,
+                kind: ColumnConstraintKind::Check(Box::new(check_expr.clone())),
+            }],
             default_value: None,
             comment: None,
         }],
-        table_constraints: vec![], table_options: vec![],
+        table_constraints: vec![],
+        table_options: vec![],
     };
 
     let result = CreateTableExecutor::execute(&stmt, &mut db);

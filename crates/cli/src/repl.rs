@@ -1,31 +1,30 @@
-use rustyline::DefaultEditor;
-use rustyline::error::ReadlineError;
+use rustyline::{error::ReadlineError, DefaultEditor};
 
-use crate::executor::SqlExecutor;
-use crate::formatter::{ResultFormatter, OutputFormat};
-use crate::commands::MetaCommand;
+use crate::{
+    commands::MetaCommand,
+    executor::SqlExecutor,
+    formatter::{OutputFormat, ResultFormatter},
+};
 
 pub struct Repl {
     executor: SqlExecutor,
     editor: DefaultEditor,
     formatter: ResultFormatter,
+    database_path: Option<String>,
 }
 
 impl Repl {
     pub fn new(database: Option<String>, format: Option<OutputFormat>) -> anyhow::Result<Self> {
+        let database_path = database.clone();
         let executor = SqlExecutor::new(database)?;
         let editor = DefaultEditor::new()?;
         let mut formatter = ResultFormatter::new();
-        
+
         if let Some(fmt) = format {
             formatter.set_format(fmt);
         }
 
-        Ok(Repl {
-            executor,
-            editor,
-            formatter,
-        })
+        Ok(Repl { executor, editor, formatter, database_path })
     }
 
     pub fn run(&mut self) -> anyhow::Result<()> {
@@ -59,6 +58,19 @@ impl Repl {
                         match self.executor.execute(&line) {
                             Ok(result) => {
                                 self.formatter.print_result(&result);
+
+                                // Auto-save if database path is provided and this was a
+                                // modification
+                                if let Some(ref path) = self.database_path {
+                                    if is_modification_statement(&line) {
+                                        if let Err(e) = self.executor.save_database(path) {
+                                            eprintln!(
+                                                "Warning: Failed to auto-save database: {}",
+                                                e
+                                            );
+                                        }
+                                    }
+                                }
                             }
                             Err(e) => {
                                 eprintln!("Error: {}", e);
@@ -123,6 +135,18 @@ impl Repl {
             MetaCommand::Copy { table, file_path, direction, format } => {
                 self.executor.handle_copy(&table, &file_path, direction, format)?;
             }
+            MetaCommand::Save(path) => {
+                let save_path = path.or_else(|| self.database_path.clone());
+                match save_path {
+                    Some(ref p) => {
+                        self.executor.save_database(p)?;
+                        println!("Database saved to: {}", p);
+                    }
+                    None => {
+                        eprintln!("Error: No database file specified. Use \\save <filename> or start with --database flag");
+                    }
+                }
+            }
         }
         Ok(false)
     }
@@ -137,7 +161,8 @@ impl Repl {
     }
 
     fn print_help(&self) {
-        println!("
+        println!(
+            "
 Meta-commands:
   \\d [table]      - Describe table or list all tables
   \\dt             - List tables
@@ -148,6 +173,7 @@ Meta-commands:
   \\timing         - Toggle query timing
   \\copy <table> TO <file>   - Export table to CSV/JSON file
   \\copy <table> FROM <file> - Import CSV file into table
+  \\save [file]    - Save database to SQL dump file
   \\h, \\help      - Show this help
   \\q, \\quit      - Exit
 
@@ -159,6 +185,18 @@ Examples:
   \\copy users TO '/tmp/users.csv'
   \\copy users FROM '/tmp/users.csv'
   \\copy users TO '/tmp/users.json'
-");
+"
+        );
     }
+}
+
+/// Check if a SQL statement is a modification (DDL/DML) that should trigger auto-save
+fn is_modification_statement(sql: &str) -> bool {
+    let upper = sql.trim().to_uppercase();
+    upper.starts_with("CREATE ")
+        || upper.starts_with("DROP ")
+        || upper.starts_with("ALTER ")
+        || upper.starts_with("INSERT ")
+        || upper.starts_with("UPDATE ")
+        || upper.starts_with("DELETE ")
 }

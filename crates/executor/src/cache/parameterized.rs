@@ -3,22 +3,71 @@
 //! Allows queries with different literal values to share the same execution plan
 //! by extracting literals into parameters and binding them at execution time.
 
+use ast::{Expression, Statement};
+use types::SqlValue;
+
 /// Type-safe literal value representation
 #[derive(Clone, Debug, PartialEq)]
 pub enum LiteralValue {
     Integer(i64),
-    String(String),
+    Smallint(i16),
+    Bigint(i64),
+    Unsigned(u64),
+    Numeric(f64),
+    Float(f32),
+    Real(f32),
+    Double(f64),
+    Character(String),
+    Varchar(String),
     Boolean(bool),
+    Date(String),
+    Time(String),
+    Timestamp(String),
     Null,
 }
 
 impl LiteralValue {
+    /// Convert from SqlValue
+    pub fn from_sql_value(value: &SqlValue) -> Self {
+        match value {
+            SqlValue::Integer(n) => LiteralValue::Integer(*n),
+            SqlValue::Smallint(n) => LiteralValue::Smallint(*n),
+            SqlValue::Bigint(n) => LiteralValue::Bigint(*n),
+            SqlValue::Unsigned(n) => LiteralValue::Unsigned(*n),
+            SqlValue::Numeric(n) => LiteralValue::Numeric(*n),
+            SqlValue::Float(n) => LiteralValue::Float(*n),
+            SqlValue::Real(n) => LiteralValue::Real(*n),
+            SqlValue::Double(n) => LiteralValue::Double(*n),
+            SqlValue::Character(s) => LiteralValue::Character(s.clone()),
+            SqlValue::Varchar(s) => LiteralValue::Varchar(s.clone()),
+            SqlValue::Boolean(b) => LiteralValue::Boolean(*b),
+            SqlValue::Date(s) => LiteralValue::Date(s.clone()),
+            SqlValue::Time(s) => LiteralValue::Time(s.clone()),
+            SqlValue::Timestamp(s) => LiteralValue::Timestamp(s.clone()),
+            SqlValue::Interval(s) => LiteralValue::Varchar(s.clone()), /* Treat interval as */
+            // string for now
+            SqlValue::Null => LiteralValue::Null,
+        }
+    }
+
     /// Convert to SQL string representation
     pub fn to_sql(&self) -> String {
         match self {
             LiteralValue::Integer(n) => n.to_string(),
-            LiteralValue::String(s) => format!("'{}'", s.replace("'", "''")),
+            LiteralValue::Smallint(n) => n.to_string(),
+            LiteralValue::Bigint(n) => n.to_string(),
+            LiteralValue::Unsigned(n) => n.to_string(),
+            LiteralValue::Numeric(n) => n.to_string(),
+            LiteralValue::Float(n) => n.to_string(),
+            LiteralValue::Real(n) => n.to_string(),
+            LiteralValue::Double(n) => n.to_string(),
+            LiteralValue::Character(s) | LiteralValue::Varchar(s) => {
+                format!("'{}'", s.replace("'", "''"))
+            }
             LiteralValue::Boolean(b) => if *b { "true" } else { "false" }.to_string(),
+            LiteralValue::Date(s) => format!("DATE '{}'", s),
+            LiteralValue::Time(s) => format!("TIME '{}'", s),
+            LiteralValue::Timestamp(s) => format!("TIMESTAMP '{}'", s),
             LiteralValue::Null => "NULL".to_string(),
         }
     }
@@ -46,11 +95,7 @@ impl ParameterizedPlan {
         param_positions: Vec<ParameterPosition>,
         literal_values: Vec<LiteralValue>,
     ) -> Self {
-        Self {
-            normalized_query,
-            param_positions,
-            literal_values,
-        }
+        Self { normalized_query, param_positions, literal_values }
     }
 
     /// Bind literal values to create executable query
@@ -88,15 +133,276 @@ impl ParameterizedPlan {
     }
 }
 
-/// Utility for extracting literals from queries
+/// Utility for extracting literals from AST
 pub struct LiteralExtractor;
 
 impl LiteralExtractor {
-    /// Extract literals from a query (placeholder implementation)
-    pub fn extract(query: &str) -> (String, Vec<LiteralValue>) {
-        // Simple implementation: just return the query as-is
-        // Full implementation would parse and extract actual literals
-        (query.to_string(), Vec::new())
+    /// Extract literals from a statement AST in order of appearance
+    pub fn extract(stmt: &Statement) -> Vec<LiteralValue> {
+        let mut literals = Vec::new();
+        Self::extract_from_statement(stmt, &mut literals);
+        literals
+    }
+
+    fn extract_from_statement(stmt: &Statement, literals: &mut Vec<LiteralValue>) {
+        match stmt {
+            Statement::Select(select) => Self::extract_from_select(select, literals),
+            Statement::Insert(insert) => {
+                // Extract from VALUES or SELECT source
+                match &insert.source {
+                    ast::InsertSource::Values(rows) => {
+                        for row in rows {
+                            for expr in row {
+                                Self::extract_from_expression(expr, literals);
+                            }
+                        }
+                    }
+                    ast::InsertSource::Select(select) => {
+                        Self::extract_from_select(select, literals);
+                    }
+                }
+            }
+            Statement::Update(update) => {
+                // Extract from assignments
+                for assignment in &update.assignments {
+                    Self::extract_from_expression(&assignment.value, literals);
+                }
+                // Extract from WHERE clause
+                if let Some(ref where_clause) = update.where_clause {
+                    match where_clause {
+                        ast::WhereClause::Condition(expr) => {
+                            Self::extract_from_expression(expr, literals);
+                        }
+                        ast::WhereClause::CurrentOf(_) => {
+                            // No literals in positioned update/delete
+                        }
+                    }
+                }
+            }
+            Statement::Delete(delete) => {
+                // Extract from WHERE clause
+                if let Some(ref where_clause) = delete.where_clause {
+                    match where_clause {
+                        ast::WhereClause::Condition(expr) => {
+                            Self::extract_from_expression(expr, literals);
+                        }
+                        ast::WhereClause::CurrentOf(_) => {
+                            // No literals in positioned update/delete
+                        }
+                    }
+                }
+            }
+            // Other statement types don't have literals we need to extract
+            _ => {}
+        }
+    }
+
+    fn extract_from_select(select: &ast::SelectStmt, literals: &mut Vec<LiteralValue>) {
+        // Extract from SELECT items
+        for item in &select.select_list {
+            if let ast::SelectItem::Expression { expr, .. } = item {
+                Self::extract_from_expression(expr, literals);
+            }
+        }
+
+        // Extract from FROM clause
+        if let Some(ref from) = select.from {
+            Self::extract_from_from_clause(from, literals);
+        }
+
+        // Extract from WHERE
+        if let Some(ref where_clause) = select.where_clause {
+            Self::extract_from_expression(where_clause, literals);
+        }
+
+        // Extract from GROUP BY
+        if let Some(ref group_by) = select.group_by {
+            for expr in group_by {
+                Self::extract_from_expression(expr, literals);
+            }
+        }
+
+        // Extract from HAVING
+        if let Some(ref having) = select.having {
+            Self::extract_from_expression(having, literals);
+        }
+
+        // Extract from ORDER BY
+        if let Some(ref order_by) = select.order_by {
+            for item in order_by {
+                Self::extract_from_expression(&item.expr, literals);
+            }
+        }
+    }
+
+    fn extract_from_from_clause(from: &ast::FromClause, literals: &mut Vec<LiteralValue>) {
+        match from {
+            ast::FromClause::Join { left, right, condition, .. } => {
+                Self::extract_from_from_clause(left, literals);
+                Self::extract_from_from_clause(right, literals);
+                if let Some(expr) = condition {
+                    Self::extract_from_expression(expr, literals);
+                }
+            }
+            ast::FromClause::Subquery { query, .. } => {
+                Self::extract_from_select(query, literals);
+            }
+            ast::FromClause::Table { .. } => {
+                // No literals in table references
+            }
+        }
+    }
+
+    fn extract_from_expression(expr: &Expression, literals: &mut Vec<LiteralValue>) {
+        match expr {
+            Expression::Literal(value) => {
+                literals.push(LiteralValue::from_sql_value(value));
+            }
+
+            Expression::BinaryOp { left, right, .. } => {
+                Self::extract_from_expression(left, literals);
+                Self::extract_from_expression(right, literals);
+            }
+
+            Expression::UnaryOp { expr, .. } => {
+                Self::extract_from_expression(expr, literals);
+            }
+
+            Expression::Function { args, .. } => {
+                for arg in args {
+                    Self::extract_from_expression(arg, literals);
+                }
+            }
+
+            Expression::AggregateFunction { args, .. } => {
+                for arg in args {
+                    Self::extract_from_expression(arg, literals);
+                }
+            }
+
+            Expression::IsNull { expr, .. } => {
+                Self::extract_from_expression(expr, literals);
+            }
+
+            Expression::Case { operand, when_clauses, else_result } => {
+                if let Some(ref op) = operand {
+                    Self::extract_from_expression(op, literals);
+                }
+                for when in when_clauses {
+                    for cond in &when.conditions {
+                        Self::extract_from_expression(cond, literals);
+                    }
+                    Self::extract_from_expression(&when.result, literals);
+                }
+                if let Some(ref else_expr) = else_result {
+                    Self::extract_from_expression(else_expr, literals);
+                }
+            }
+
+            Expression::ScalarSubquery(subquery) => {
+                Self::extract_from_select(subquery, literals);
+            }
+
+            Expression::In { expr, subquery, .. } => {
+                Self::extract_from_expression(expr, literals);
+                Self::extract_from_select(subquery, literals);
+            }
+
+            Expression::InList { expr, values, .. } => {
+                Self::extract_from_expression(expr, literals);
+                for val in values {
+                    Self::extract_from_expression(val, literals);
+                }
+            }
+
+            Expression::Between { expr, low, high, .. } => {
+                Self::extract_from_expression(expr, literals);
+                Self::extract_from_expression(low, literals);
+                Self::extract_from_expression(high, literals);
+            }
+
+            Expression::Cast { expr, .. } => {
+                Self::extract_from_expression(expr, literals);
+            }
+
+            Expression::Position { substring, string, .. } => {
+                Self::extract_from_expression(substring, literals);
+                Self::extract_from_expression(string, literals);
+            }
+
+            Expression::Trim { removal_char, string, .. } => {
+                if let Some(ref ch) = removal_char {
+                    Self::extract_from_expression(ch, literals);
+                }
+                Self::extract_from_expression(string, literals);
+            }
+
+            Expression::Like { expr, pattern, .. } => {
+                Self::extract_from_expression(expr, literals);
+                Self::extract_from_expression(pattern, literals);
+            }
+
+            Expression::Exists { subquery, .. } => {
+                Self::extract_from_select(subquery, literals);
+            }
+
+            Expression::QuantifiedComparison { expr, subquery, .. } => {
+                Self::extract_from_expression(expr, literals);
+                Self::extract_from_select(subquery, literals);
+            }
+
+            Expression::WindowFunction { function, over } => {
+                // Extract from function arguments
+                match function {
+                    ast::WindowFunctionSpec::Aggregate { args, .. }
+                    | ast::WindowFunctionSpec::Ranking { args, .. }
+                    | ast::WindowFunctionSpec::Value { args, .. } => {
+                        for arg in args {
+                            Self::extract_from_expression(arg, literals);
+                        }
+                    }
+                }
+
+                // Extract from PARTITION BY
+                if let Some(ref partition_by) = over.partition_by {
+                    for expr in partition_by {
+                        Self::extract_from_expression(expr, literals);
+                    }
+                }
+
+                // Extract from ORDER BY
+                if let Some(ref order_by) = over.order_by {
+                    for item in order_by {
+                        Self::extract_from_expression(&item.expr, literals);
+                    }
+                }
+
+                // Extract from frame bounds
+                if let Some(ref frame) = over.frame {
+                    if let ast::FrameBound::Preceding(expr) | ast::FrameBound::Following(expr) =
+                        &frame.start
+                    {
+                        Self::extract_from_expression(expr, literals);
+                    }
+                    if let Some(ref end) = frame.end {
+                        if let ast::FrameBound::Preceding(expr) | ast::FrameBound::Following(expr) =
+                            end
+                        {
+                            Self::extract_from_expression(expr, literals);
+                        }
+                    }
+                }
+            }
+
+            // These expressions don't contain literals
+            Expression::ColumnRef { .. }
+            | Expression::Wildcard
+            | Expression::CurrentDate
+            | Expression::CurrentTime { .. }
+            | Expression::CurrentTimestamp { .. }
+            | Expression::Default
+            | Expression::NextValue { .. } => {}
+        }
     }
 }
 
@@ -107,27 +413,105 @@ mod tests {
     #[test]
     fn test_literal_value_to_string() {
         assert_eq!(LiteralValue::Integer(42).to_sql(), "42");
-        assert_eq!(LiteralValue::String("hello".to_string()).to_sql(), "'hello'");
+        assert_eq!(LiteralValue::Varchar("hello".to_string()).to_sql(), "'hello'");
         assert_eq!(LiteralValue::Boolean(true).to_sql(), "true");
         assert_eq!(LiteralValue::Null.to_sql(), "NULL");
     }
 
     #[test]
     fn test_literal_value_string_escape() {
-        assert_eq!(
-            LiteralValue::String("it's".to_string()).to_sql(),
-            "'it''s'"
-        );
+        assert_eq!(LiteralValue::Varchar("it's".to_string()).to_sql(), "'it''s'");
+    }
+
+    #[test]
+    fn test_literal_extraction_simple() {
+        use ast::{BinaryOperator, Expression, FromClause, SelectItem, SelectStmt, Statement};
+
+        // SELECT col0 FROM tab WHERE col1 > 25 AND col2 = 'John'
+        let stmt = Statement::Select(Box::new(SelectStmt {
+            with_clause: None,
+            distinct: false,
+            select_list: vec![SelectItem::Expression {
+                expr: Expression::ColumnRef { table: None, column: "col0".to_string() },
+                alias: None,
+            }],
+            into_table: None,
+            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
+            where_clause: Some(Expression::BinaryOp {
+                op: BinaryOperator::And,
+                left: Box::new(Expression::BinaryOp {
+                    op: BinaryOperator::GreaterThan,
+                    left: Box::new(Expression::ColumnRef {
+                        table: None,
+                        column: "col1".to_string(),
+                    }),
+                    right: Box::new(Expression::Literal(SqlValue::Integer(25))),
+                }),
+                right: Box::new(Expression::BinaryOp {
+                    op: BinaryOperator::Equal,
+                    left: Box::new(Expression::ColumnRef {
+                        table: None,
+                        column: "col2".to_string(),
+                    }),
+                    right: Box::new(Expression::Literal(SqlValue::Varchar("John".to_string()))),
+                }),
+            }),
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: None,
+            offset: None,
+            set_operation: None,
+        }));
+
+        let literals = LiteralExtractor::extract(&stmt);
+
+        assert_eq!(literals.len(), 2);
+        assert_eq!(literals[0], LiteralValue::Integer(25));
+        assert_eq!(literals[1], LiteralValue::Varchar("John".to_string()));
+    }
+
+    #[test]
+    fn test_literal_extraction_in_list() {
+        use ast::{Expression, FromClause, SelectItem, SelectStmt, Statement};
+
+        // SELECT * FROM tab WHERE id IN (1, 2, 3)
+        let stmt = Statement::Select(Box::new(SelectStmt {
+            with_clause: None,
+            distinct: false,
+            select_list: vec![SelectItem::Wildcard { alias: None }],
+            into_table: None,
+            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
+            where_clause: Some(Expression::InList {
+                expr: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
+                values: vec![
+                    Expression::Literal(SqlValue::Integer(1)),
+                    Expression::Literal(SqlValue::Integer(2)),
+                    Expression::Literal(SqlValue::Integer(3)),
+                ],
+                negated: false,
+            }),
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: None,
+            offset: None,
+            set_operation: None,
+        }));
+
+        let literals = LiteralExtractor::extract(&stmt);
+
+        assert_eq!(literals.len(), 3);
+        assert_eq!(literals[0], LiteralValue::Integer(1));
+        assert_eq!(literals[1], LiteralValue::Integer(2));
+        assert_eq!(literals[2], LiteralValue::Integer(3));
     }
 
     #[test]
     fn test_parameterized_plan_bind() {
         let plan = ParameterizedPlan::new(
             "SELECT * FROM users WHERE age > ?".to_string(),
-            vec![ParameterPosition {
-                position: 40,
-                context: "age".to_string(),
-            }],
+            vec![ParameterPosition { position: 40, context: "age".to_string() }],
             vec![LiteralValue::Integer(25)],
         );
 
@@ -139,14 +523,11 @@ mod tests {
     fn test_parameterized_plan_bind_string() {
         let plan = ParameterizedPlan::new(
             "SELECT * FROM users WHERE name = ?".to_string(),
-            vec![ParameterPosition {
-                position: 40,
-                context: "name".to_string(),
-            }],
-            vec![LiteralValue::String("John".to_string())],
+            vec![ParameterPosition { position: 40, context: "name".to_string() }],
+            vec![LiteralValue::Varchar("John".to_string())],
         );
 
-        let result = plan.bind(&[LiteralValue::String("Jane".to_string())]).unwrap();
+        let result = plan.bind(&[LiteralValue::Varchar("Jane".to_string())]).unwrap();
         assert_eq!(result, "SELECT * FROM users WHERE name = 'Jane'");
     }
 
@@ -154,10 +535,7 @@ mod tests {
     fn test_parameterized_plan_bind_error() {
         let plan = ParameterizedPlan::new(
             "SELECT * FROM users WHERE age > ?".to_string(),
-            vec![ParameterPosition {
-                position: 40,
-                context: "age".to_string(),
-            }],
+            vec![ParameterPosition { position: 40, context: "age".to_string() }],
             vec![LiteralValue::Integer(25)],
         );
 
@@ -167,11 +545,7 @@ mod tests {
 
     #[test]
     fn test_comparison_key() {
-        let plan = ParameterizedPlan::new(
-            "SELECT * FROM users".to_string(),
-            vec![],
-            vec![],
-        );
+        let plan = ParameterizedPlan::new("SELECT * FROM users".to_string(), vec![], vec![]);
 
         assert_eq!(plan.comparison_key(), "SELECT * FROM users");
     }

@@ -1,7 +1,12 @@
-use std::fs;
-use std::io::{self, Read};
-use crate::executor::SqlExecutor;
-use crate::formatter::{ResultFormatter, OutputFormat};
+use std::{
+    fs,
+    io::{self, Read},
+};
+
+use crate::{
+    executor::SqlExecutor,
+    formatter::{OutputFormat, ResultFormatter},
+};
 
 /// Script executor - runs multiple SQL statements from files or stdin
 pub struct ScriptExecutor {
@@ -11,26 +16,26 @@ pub struct ScriptExecutor {
 }
 
 impl ScriptExecutor {
-    pub fn new(database: Option<String>, verbose: bool, format: Option<OutputFormat>) -> anyhow::Result<Self> {
+    pub fn new(
+        database: Option<String>,
+        verbose: bool,
+        format: Option<OutputFormat>,
+    ) -> anyhow::Result<Self> {
         let executor = SqlExecutor::new(database)?;
         let mut formatter = ResultFormatter::new();
-        
+
         if let Some(fmt) = format {
             formatter.set_format(fmt);
         }
 
-        Ok(ScriptExecutor {
-            executor,
-            formatter,
-            verbose,
-        })
+        Ok(ScriptExecutor { executor, formatter, verbose })
     }
 
     /// Execute SQL from a file
     pub fn execute_file(&mut self, file_path: &str) -> anyhow::Result<()> {
         let contents = fs::read_to_string(file_path)
             .map_err(|e| anyhow::anyhow!("Failed to read file '{}': {}", file_path, e))?;
-        
+
         self.execute_script(&contents)
     }
 
@@ -40,7 +45,7 @@ impl ScriptExecutor {
         io::stdin()
             .read_to_string(&mut contents)
             .map_err(|e| anyhow::anyhow!("Failed to read from stdin: {}", e))?;
-        
+
         self.execute_script(&contents)
     }
 
@@ -95,7 +100,7 @@ impl ScriptExecutor {
 }
 
 /// Parse SQL script into individual statements
-/// 
+///
 /// This is a simple implementation that:
 /// 1. Removes comments (lines starting with -- or blocks with /* */)
 /// 2. Splits on semicolons
@@ -113,7 +118,7 @@ fn parse_statements(script: &str) -> Vec<String> {
         })
         .collect::<Vec<_>>()
         .join("\n");
-    
+
     // Then split on semicolons
     no_comments
         .split(';')

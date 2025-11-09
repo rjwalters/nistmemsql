@@ -2,8 +2,9 @@
 //!
 //! Implements YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, and EXTRACT functions.
 
-use crate::errors::ExecutorError;
 use types::SqlValue;
+
+use crate::errors::ExecutorError;
 
 /// YEAR(date) - Extract year from date/timestamp
 /// SQL:1999 Section 6.32: Datetime field extraction

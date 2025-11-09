@@ -1,7 +1,8 @@
 //! Tests for DECLARE CURSOR statement parsing (SQL:1999 Feature E121)
 
-use crate::parser::Parser;
 use ast::{CursorUpdatability, Statement};
+
+use crate::parser::Parser;
 
 #[test]
 fn test_declare_cursor_basic() {

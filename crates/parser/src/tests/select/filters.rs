@@ -233,7 +233,7 @@ fn test_parse_complex_where() {
                     assert_eq!(*op, ast::BinaryOperator::And);
                     // Right side should be OR (in parentheses)
                     match **right {
-                        ast::Expression::BinaryOp { op: ast::BinaryOperator::Or, .. } => {} // Success
+                        ast::Expression::BinaryOp { op: ast::BinaryOperator::Or, .. } => {} /* Success */
                         _ => panic!("Expected OR in right side"),
                     }
                 }

@@ -204,7 +204,8 @@ impl Parser {
         }
     }
 
-    /// Parse current date/time functions (CURRENT_DATE, CURRENT_TIME[(precision)], CURRENT_TIMESTAMP[(precision)])
+    /// Parse current date/time functions (CURRENT_DATE, CURRENT_TIME[(precision)],
+    /// CURRENT_TIMESTAMP[(precision)])
     pub(super) fn parse_current_datetime_function(
         &mut self,
     ) -> Result<Option<ast::Expression>, ParseError> {

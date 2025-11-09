@@ -14,19 +14,13 @@ fn test_repeated_count_star_cached() {
     let mut db = storage::Database::new();
     let schema = catalog::TableSchema::new(
         "test".to_string(),
-        vec![
-            catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-        ],
+        vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
 
     // Insert 5 rows
     for i in 1..=5 {
-        db.insert_row(
-            "test",
-            storage::Row::new(vec![types::SqlValue::Integer(i)]),
-        )
-        .unwrap();
+        db.insert_row("test", storage::Row::new(vec![types::SqlValue::Integer(i)])).unwrap();
     }
 
     let executor = SelectExecutor::new(&db);
@@ -56,10 +50,7 @@ fn test_repeated_count_star_cached() {
     // NULLIF(45, COUNT(*) * 13)
     let nullif_expr = ast::Expression::Function {
         name: "NULLIF".to_string(),
-        args: vec![
-            ast::Expression::Literal(types::SqlValue::Integer(45)),
-            count_times_13,
-        ],
+        args: vec![ast::Expression::Literal(types::SqlValue::Integer(45)), count_times_13],
         character_unit: None,
     };
 
@@ -89,10 +80,7 @@ fn test_repeated_count_star_cached() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Expression {
-            expr: final_expr,
-            alias: None,
-        }],
+        select_list: vec![ast::SelectItem::Expression { expr: final_expr, alias: None }],
         from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -115,9 +103,7 @@ fn test_repeated_sum_cached() {
     let mut db = storage::Database::new();
     let schema = catalog::TableSchema::new(
         "sales".to_string(),
-        vec![
-            catalog::ColumnSchema::new("amount".to_string(), types::DataType::Integer, false),
-        ],
+        vec![catalog::ColumnSchema::new("amount".to_string(), types::DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
 
@@ -130,10 +116,7 @@ fn test_repeated_sum_cached() {
     let sum_amount = ast::Expression::AggregateFunction {
         name: "SUM".to_string(),
         distinct: false,
-        args: vec![ast::Expression::ColumnRef {
-            table: None,
-            column: "amount".to_string(),
-        }],
+        args: vec![ast::Expression::ColumnRef { table: None, column: "amount".to_string() }],
     };
 
     // SUM(amount) * 2
@@ -155,10 +138,7 @@ fn test_repeated_sum_cached() {
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Expression {
-            expr,
-            alias: None,
-        }],
+        select_list: vec![ast::SelectItem::Expression { expr, alias: None }],
         from: Some(ast::FromClause::Table { name: "sales".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
@@ -183,35 +163,63 @@ fn test_cache_cleared_between_groups() {
     let schema = catalog::TableSchema::new(
         "items".to_string(),
         vec![
-            catalog::ColumnSchema::new("category".to_string(), types::DataType::Varchar { max_length: Some(50) }, false),
-            catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(100) }, false),
+            catalog::ColumnSchema::new(
+                "category".to_string(),
+                types::DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
+            catalog::ColumnSchema::new(
+                "name".to_string(),
+                types::DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
         ],
     );
     db.create_table(schema).unwrap();
 
     // Category A: 2 items
-    db.insert_row("items", storage::Row::new(vec![
-        types::SqlValue::Varchar("A".to_string()),
-        types::SqlValue::Varchar("item1".to_string()),
-    ])).unwrap();
-    db.insert_row("items", storage::Row::new(vec![
-        types::SqlValue::Varchar("A".to_string()),
-        types::SqlValue::Varchar("item2".to_string()),
-    ])).unwrap();
+    db.insert_row(
+        "items",
+        storage::Row::new(vec![
+            types::SqlValue::Varchar("A".to_string()),
+            types::SqlValue::Varchar("item1".to_string()),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "items",
+        storage::Row::new(vec![
+            types::SqlValue::Varchar("A".to_string()),
+            types::SqlValue::Varchar("item2".to_string()),
+        ]),
+    )
+    .unwrap();
 
     // Category B: 3 items
-    db.insert_row("items", storage::Row::new(vec![
-        types::SqlValue::Varchar("B".to_string()),
-        types::SqlValue::Varchar("item3".to_string()),
-    ])).unwrap();
-    db.insert_row("items", storage::Row::new(vec![
-        types::SqlValue::Varchar("B".to_string()),
-        types::SqlValue::Varchar("item4".to_string()),
-    ])).unwrap();
-    db.insert_row("items", storage::Row::new(vec![
-        types::SqlValue::Varchar("B".to_string()),
-        types::SqlValue::Varchar("item5".to_string()),
-    ])).unwrap();
+    db.insert_row(
+        "items",
+        storage::Row::new(vec![
+            types::SqlValue::Varchar("B".to_string()),
+            types::SqlValue::Varchar("item3".to_string()),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "items",
+        storage::Row::new(vec![
+            types::SqlValue::Varchar("B".to_string()),
+            types::SqlValue::Varchar("item4".to_string()),
+        ]),
+    )
+    .unwrap();
+    db.insert_row(
+        "items",
+        storage::Row::new(vec![
+            types::SqlValue::Varchar("B".to_string()),
+            types::SqlValue::Varchar("item5".to_string()),
+        ]),
+    )
+    .unwrap();
 
     let executor = SelectExecutor::new(&db);
 
@@ -235,16 +243,10 @@ fn test_cache_cleared_between_groups() {
         distinct: false,
         select_list: vec![
             ast::SelectItem::Expression {
-                expr: ast::Expression::ColumnRef {
-                    table: None,
-                    column: "category".to_string(),
-                },
+                expr: ast::Expression::ColumnRef { table: None, column: "category".to_string() },
                 alias: None,
             },
-            ast::SelectItem::Expression {
-                expr: doubled_count,
-                alias: None,
-            },
+            ast::SelectItem::Expression { expr: doubled_count, alias: None },
         ],
         from: Some(ast::FromClause::Table { name: "items".to_string(), alias: None }),
         where_clause: None,
@@ -254,10 +256,7 @@ fn test_cache_cleared_between_groups() {
         }]),
         having: None,
         order_by: Some(vec![ast::OrderByItem {
-            expr: ast::Expression::ColumnRef {
-                table: None,
-                column: "category".to_string(),
-            },
+            expr: ast::Expression::ColumnRef { table: None, column: "category".to_string() },
             direction: ast::OrderDirection::Asc,
         }]),
         limit: None,
@@ -283,9 +282,7 @@ fn test_distinct_aggregates_not_confused() {
     let mut db = storage::Database::new();
     let schema = catalog::TableSchema::new(
         "values".to_string(),
-        vec![
-            catalog::ColumnSchema::new("val".to_string(), types::DataType::Integer, false),
-        ],
+        vec![catalog::ColumnSchema::new("val".to_string(), types::DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
 
@@ -301,19 +298,13 @@ fn test_distinct_aggregates_not_confused() {
     let count_val = ast::Expression::AggregateFunction {
         name: "COUNT".to_string(),
         distinct: false,
-        args: vec![ast::Expression::ColumnRef {
-            table: None,
-            column: "val".to_string(),
-        }],
+        args: vec![ast::Expression::ColumnRef { table: None, column: "val".to_string() }],
     };
 
     let count_distinct_val = ast::Expression::AggregateFunction {
         name: "COUNT".to_string(),
         distinct: true,
-        args: vec![ast::Expression::ColumnRef {
-            table: None,
-            column: "val".to_string(),
-        }],
+        args: vec![ast::Expression::ColumnRef { table: None, column: "val".to_string() }],
     };
 
     let stmt = ast::SelectStmt {
@@ -322,10 +313,7 @@ fn test_distinct_aggregates_not_confused() {
         set_operation: None,
         distinct: false,
         select_list: vec![
-            ast::SelectItem::Expression {
-                expr: count_val,
-                alias: Some("count_all".to_string()),
-            },
+            ast::SelectItem::Expression { expr: count_val, alias: Some("count_all".to_string()) },
             ast::SelectItem::Expression {
                 expr: count_distinct_val,
                 alias: Some("count_distinct".to_string()),

@@ -83,7 +83,9 @@ fn test_parse_create_table_with_row_format() {
 
 #[test]
 fn test_parse_create_table_with_multiple_options() {
-    let result = Parser::parse_sql("CREATE TABLE t1 (c1 INT) KEY_BLOCK_SIZE 4 CONNECTION 'conn' ROW_FORMAT COMPRESSED;");
+    let result = Parser::parse_sql(
+        "CREATE TABLE t1 (c1 INT) KEY_BLOCK_SIZE 4 CONNECTION 'conn' ROW_FORMAT COMPRESSED;",
+    );
     assert!(result.is_ok(), "Should parse multiple table options");
 
     let stmt = result.unwrap();

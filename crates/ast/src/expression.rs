@@ -1,7 +1,8 @@
 //! SQL Expression types for use in SELECT, WHERE, and other clauses
 
-use crate::{BinaryOperator, OrderByItem, SelectStmt, UnaryOperator};
 use types::SqlValue;
+
+use crate::{BinaryOperator, OrderByItem, SelectStmt, UnaryOperator};
 
 /// SQL Expression (can appear in SELECT, WHERE, etc.)
 #[derive(Debug, Clone, PartialEq)]

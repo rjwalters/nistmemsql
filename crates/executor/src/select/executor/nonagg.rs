@@ -1,22 +1,28 @@
 //! Non-aggregation execution methods for SelectExecutor
 
-use super::builder::SelectExecutor;
-use crate::errors::ExecutorError;
-use crate::evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator};
-use crate::optimizer::{optimize_where_clause, decompose_where_clause};
-use crate::select::filter::apply_where_filter_combined;
-use crate::select::helpers::{apply_distinct, apply_limit_offset};
-use crate::select::join::FromResult;
-use crate::select::order::{apply_order_by, RowWithSortKeys};
-use crate::select::projection::project_row_combined;
-use crate::schema::CombinedSchema;
-use crate::select::grouping::compare_sql_values;
+use std::collections::HashMap;
+
 use storage::database::IndexData;
 use types::SqlValue;
-use std::collections::HashMap;
-use crate::select::window::{
-    collect_order_by_window_functions, evaluate_order_by_window_functions,
-    evaluate_window_functions, expression_has_window_function, has_window_functions,
+
+use super::builder::SelectExecutor;
+use crate::{
+    errors::ExecutorError,
+    evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator},
+    optimizer::{decompose_where_clause, optimize_where_clause},
+    schema::CombinedSchema,
+    select::{
+        filter::apply_where_filter_combined,
+        grouping::compare_sql_values,
+        helpers::{apply_distinct, apply_limit_offset},
+        join::FromResult,
+        order::{apply_order_by, RowWithSortKeys},
+        projection::project_row_combined,
+        window::{
+            collect_order_by_window_functions, evaluate_order_by_window_functions,
+            evaluate_window_functions, expression_has_window_function, has_window_functions,
+        },
+    },
 };
 
 impl SelectExecutor<'_> {
@@ -50,7 +56,8 @@ impl SelectExecutor<'_> {
             None
         };
 
-        // Create evaluator with outer context if available (outer schema is already a CombinedSchema)
+        // Create evaluator with outer context if available (outer schema is already a
+        // CombinedSchema)
         let evaluator =
             if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
                 CombinedExpressionEvaluator::with_database_and_outer_context(
@@ -64,15 +71,18 @@ impl SelectExecutor<'_> {
             };
 
         // Try index-based WHERE optimization first
-        let mut filtered_rows = if let Some(index_filtered) = self.try_index_based_where_filtering(stmt.where_clause.as_ref(), &rows, &schema)? {
+        let mut filtered_rows = if let Some(index_filtered) =
+            self.try_index_based_where_filtering(stmt.where_clause.as_ref(), &rows, &schema)?
+        {
             index_filtered
         } else {
             // Fall back to full WHERE clause evaluation
-            // Note: Table-local predicates have already been pushed down and applied during table scan.
-            // However, we still apply the full WHERE clause here for correctness with JOINs
-            // and complex predicates that can't be pushed down.
+            // Note: Table-local predicates have already been pushed down and applied during table
+            // scan. However, we still apply the full WHERE clause here for correctness
+            // with JOINs and complex predicates that can't be pushed down.
             // The table-local predicates being applied twice is safe (same result) but not optimal.
-            // TODO: In Phase 3, extract and remove table-local predicates here to avoid double filtering
+            // TODO: In Phase 3, extract and remove table-local predicates here to avoid double
+            // filtering
             let where_optimization = optimize_where_clause(stmt.where_clause.as_ref(), &evaluator)?;
 
             match where_optimization {
@@ -158,11 +168,14 @@ impl SelectExecutor<'_> {
         // Apply ORDER BY sorting if present
         if let Some(order_by) = &stmt.order_by {
             // Try to use index for ordering first
-            if let Some(ordered_rows) = self.try_index_based_ordering(&result_rows, order_by, &schema, &stmt.from)? {
+            if let Some(ordered_rows) =
+                self.try_index_based_ordering(&result_rows, order_by, &schema, &stmt.from)?
+            {
                 result_rows = ordered_rows;
             } else {
                 // Fall back to sorting
-                // Create evaluator with window mapping for ORDER BY (if window functions are present)
+                // Create evaluator with window mapping for ORDER BY (if window functions are
+                // present)
                 let order_by_evaluator = if let Some(ref mapping) = window_mapping {
                     CombinedExpressionEvaluator::with_database_and_windows(
                         &schema,
@@ -278,10 +291,10 @@ impl SelectExecutor<'_> {
         // For now, assume single table and try to find any table that has this column
         let mut found_table = None;
         for (table_name, (_start_idx, table_schema)) in &schema.table_schemas {
-        if table_schema.get_column_index(column_name).is_some() {
+            if table_schema.get_column_index(column_name).is_some() {
                 found_table = Some(table_name.clone());
                 break;
-        }
+            }
         }
 
         let table_name = match found_table {
@@ -289,11 +302,12 @@ impl SelectExecutor<'_> {
             None => return Ok(None),
         };
 
-    // Find an index on this table and column
-    let index_name = self.find_index_for_ordering(&table_name, column_name, order_item.direction.clone())?;
-    if index_name.is_none() {
-    return Ok(None);
-    }
+        // Find an index on this table and column
+        let index_name =
+            self.find_index_for_ordering(&table_name, column_name, order_item.direction.clone())?;
+        if index_name.is_none() {
+            return Ok(None);
+        }
         let index_name = index_name.unwrap();
 
         // Get the index data
@@ -325,7 +339,7 @@ impl SelectExecutor<'_> {
         // For this proof of concept, only use index when we have all rows from the table
         // Check by getting the table and comparing row counts
         let table_row_count = match self.database.get_table(&table_name) {
-        Some(table) => table.row_count(),
+            Some(table) => table.row_count(),
             None => return Ok(None),
         };
 
@@ -336,9 +350,8 @@ impl SelectExecutor<'_> {
 
         // All rows are included, we can use the index directly
         // Convert HashMap to Vec and sort for consistent ordering
-        let mut data_vec: Vec<(Vec<SqlValue>, Vec<usize>)> = index_data.data.iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect();
+        let mut data_vec: Vec<(Vec<SqlValue>, Vec<usize>)> =
+            index_data.data.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
 
         // Sort by key
         data_vec.sort_by(|(a, _), (b, _)| {
@@ -367,7 +380,7 @@ impl SelectExecutor<'_> {
         }
 
         Ok(Some(ordered_rows))
-        }
+    }
 
     /// Find an index that can be used for ordering by the given column
     fn find_index_for_ordering(
@@ -376,15 +389,16 @@ impl SelectExecutor<'_> {
         column_name: &str,
         direction: ast::OrderDirection,
     ) -> Result<Option<String>, ExecutorError> {
-        // For now, look through all indexes (this is inefficient but works for the proof of concept)
-        // In a real implementation, we'd have better index lookup
+        // For now, look through all indexes (this is inefficient but works for the proof of
+        // concept) In a real implementation, we'd have better index lookup
         let all_indexes = self.database.list_indexes();
         for index_name in all_indexes {
             if let Some(metadata) = self.database.get_index(&index_name) {
-            if metadata.table_name == table_name
-                && metadata.columns.len() == 1
+                if metadata.table_name == table_name
+                    && metadata.columns.len() == 1
                     && metadata.columns[0].column_name == column_name
-                    && metadata.columns[0].direction == direction {
+                    && metadata.columns[0].direction == direction
+                {
                     return Ok(Some(index_name));
                 }
             }
@@ -403,7 +417,7 @@ impl SelectExecutor<'_> {
         }
 
         Ok(None)
-        }
+    }
 
     /// Try to use indexes for WHERE clause filtering
     /// Returns Some(rows) if index optimization was applied, None if not applicable
@@ -530,57 +544,50 @@ impl SelectExecutor<'_> {
         // Try to detect BETWEEN pattern: (col >= start) AND (col <= end)
         // or variations like (col > start) AND (col < end)
 
-        let (col_name, start_val, start_inclusive, end_val, end_inclusive) =
-            match (left, right) {
-                (
-                    ast::Expression::BinaryOp {
-                        left: left_col,
-                        op: left_op,
-                        right: left_val
-                    },
-                    ast::Expression::BinaryOp {
-                        left: right_col,
-                        op: right_op,
-                        right: right_val
-                    }
-                ) => {
-                    // Both sides are binary operations
-                    // Check if both refer to the same column
-                    let (left_col_name, _right_col_name) = match (left_col.as_ref(), right_col.as_ref()) {
-                        (
-                            ast::Expression::ColumnRef { table: None, column: lc },
-                            ast::Expression::ColumnRef { table: None, column: rc }
-                        ) if lc == rc => (lc, rc),
-                        _ => return Ok(None), // Not the same column
-                    };
+        let (col_name, start_val, start_inclusive, end_val, end_inclusive) = match (left, right) {
+            (
+                ast::Expression::BinaryOp { left: left_col, op: left_op, right: left_val },
+                ast::Expression::BinaryOp { left: right_col, op: right_op, right: right_val },
+            ) => {
+                // Both sides are binary operations
+                // Check if both refer to the same column
+                let (left_col_name, _right_col_name) = match (left_col.as_ref(), right_col.as_ref())
+                {
+                    (
+                        ast::Expression::ColumnRef { table: None, column: lc },
+                        ast::Expression::ColumnRef { table: None, column: rc },
+                    ) if lc == rc => (lc, rc),
+                    _ => return Ok(None), // Not the same column
+                };
 
-                    // Extract values
-                    let (left_lit, right_lit) = match (left_val.as_ref(), right_val.as_ref()) {
-                        (ast::Expression::Literal(lv), ast::Expression::Literal(rv)) => (lv, rv),
-                        _ => return Ok(None), // Not literals
-                    };
+                // Extract values
+                let (left_lit, right_lit) = match (left_val.as_ref(), right_val.as_ref()) {
+                    (ast::Expression::Literal(lv), ast::Expression::Literal(rv)) => (lv, rv),
+                    _ => return Ok(None), // Not literals
+                };
 
-                    // Determine the bounds based on operators
-                    // left is lower bound operation (>= or >)
-                    // right is upper bound operation (<= or <)
-                    match (left_op, right_op) {
-                        (ast::BinaryOperator::GreaterThanOrEqual, ast::BinaryOperator::LessThanOrEqual) => {
-                            (left_col_name.clone(), left_lit.clone(), true, right_lit.clone(), true)
-                        }
-                        (ast::BinaryOperator::GreaterThanOrEqual, ast::BinaryOperator::LessThan) => {
-                            (left_col_name.clone(), left_lit.clone(), true, right_lit.clone(), false)
-                        }
-                        (ast::BinaryOperator::GreaterThan, ast::BinaryOperator::LessThanOrEqual) => {
-                            (left_col_name.clone(), left_lit.clone(), false, right_lit.clone(), true)
-                        }
-                        (ast::BinaryOperator::GreaterThan, ast::BinaryOperator::LessThan) => {
-                            (left_col_name.clone(), left_lit.clone(), false, right_lit.clone(), false)
-                        }
-                        _ => return Ok(None), // Not a BETWEEN-like pattern
+                // Determine the bounds based on operators
+                // left is lower bound operation (>= or >)
+                // right is upper bound operation (<= or <)
+                match (left_op, right_op) {
+                    (
+                        ast::BinaryOperator::GreaterThanOrEqual,
+                        ast::BinaryOperator::LessThanOrEqual,
+                    ) => (left_col_name.clone(), left_lit.clone(), true, right_lit.clone(), true),
+                    (ast::BinaryOperator::GreaterThanOrEqual, ast::BinaryOperator::LessThan) => {
+                        (left_col_name.clone(), left_lit.clone(), true, right_lit.clone(), false)
                     }
+                    (ast::BinaryOperator::GreaterThan, ast::BinaryOperator::LessThanOrEqual) => {
+                        (left_col_name.clone(), left_lit.clone(), false, right_lit.clone(), true)
+                    }
+                    (ast::BinaryOperator::GreaterThan, ast::BinaryOperator::LessThan) => {
+                        (left_col_name.clone(), left_lit.clone(), false, right_lit.clone(), false)
+                    }
+                    _ => return Ok(None), // Not a BETWEEN-like pattern
                 }
-                _ => return Ok(None), // Not a BETWEEN-like pattern
-            };
+            }
+            _ => return Ok(None), // Not a BETWEEN-like pattern
+        };
 
         // Find which table this column belongs to
         let mut found_table = None;
@@ -609,12 +616,8 @@ impl SelectExecutor<'_> {
         };
 
         // Use range_scan with both bounds
-        let matching_row_indices = index_data.range_scan(
-            Some(&start_val),
-            Some(&end_val),
-            start_inclusive,
-            end_inclusive,
-        );
+        let matching_row_indices =
+            index_data.range_scan(Some(&start_val), Some(&end_val), start_inclusive, end_inclusive);
 
         // Convert row indices to actual rows
         let result_rows = matching_row_indices
@@ -711,7 +714,8 @@ impl SelectExecutor<'_> {
             if let Some(metadata) = self.database.get_index(&index_name) {
                 if metadata.table_name == table_name
                     && metadata.columns.len() == 1
-                    && metadata.columns[0].column_name == column_name {
+                    && metadata.columns[0].column_name == column_name
+                {
                     return Ok(Some(index_name));
                 }
             }

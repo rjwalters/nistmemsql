@@ -2,10 +2,10 @@
 //!
 //! Implements GREATEST and LEAST functions.
 
-use crate::errors::ExecutorError;
 use types::SqlValue;
 
 use super::exponential::numeric_to_f64;
+use crate::errors::ExecutorError;
 
 /// GREATEST(val1, val2, ...) - Returns greatest value
 pub fn greatest(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {

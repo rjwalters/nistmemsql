@@ -74,7 +74,7 @@ fn test_coalesce_with_arithmetic() {
     );
 }
 
-// NULLIF tests  
+// NULLIF tests
 #[test]
 fn test_nullif_equal() {
     let results = execute_select("SELECT NULLIF(5, 5)").unwrap();
@@ -86,11 +86,7 @@ fn test_nullif_equal() {
 fn test_nullif_not_equal() {
     let results = execute_select("SELECT NULLIF(5, 10)").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Integer(5),
-        "NULLIF(5, 10) should return 5"
-    );
+    assert_eq!(results[0].values[0], SqlValue::Integer(5), "NULLIF(5, 10) should return 5");
 }
 
 #[test]
@@ -104,11 +100,7 @@ fn test_nullif_with_null_first_arg() {
 fn test_nullif_with_null_second_arg() {
     let results = execute_select("SELECT NULLIF(10, NULL)").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Integer(10),
-        "NULLIF(10, NULL) should return 10"
-    );
+    assert_eq!(results[0].values[0], SqlValue::Integer(10), "NULLIF(10, NULL) should return 10");
 }
 
 #[test]
@@ -146,11 +138,7 @@ fn test_coalesce_with_nullif() {
 fn test_nullif_with_expressions() {
     let results = execute_select("SELECT NULLIF(21, -40 * 93 / 67)").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Integer(21),
-        "NULLIF with expressions should work"
-    );
+    assert_eq!(results[0].values[0], SqlValue::Integer(21), "NULLIF with expressions should work");
 }
 
 // Aggregate tests are covered in the existing test_nullif_basic.rs file

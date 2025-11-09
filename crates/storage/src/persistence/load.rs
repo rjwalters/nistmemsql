@@ -1,0 +1,154 @@
+// ============================================================================
+// SQL Dump Loading Utilities (Load Operations)
+// ============================================================================
+//
+// Provides utilities for parsing and loading SQL dump files.
+// Actual execution of statements happens at the CLI layer via the parser
+// and executor, but the parsing logic lives here for reusability.
+
+use std::{fs, path::Path};
+
+use crate::StorageError;
+
+/// Read SQL dump content from file
+///
+/// # Errors
+/// Returns `StorageError::NotImplemented` if the file cannot be read
+pub fn read_sql_dump<P: AsRef<Path>>(path: P) -> Result<String, StorageError> {
+    let path_ref = path.as_ref();
+    if !path_ref.exists() {
+        return Err(StorageError::NotImplemented(format!("File does not exist: {:?}", path_ref)));
+    }
+    fs::read_to_string(path)
+        .map_err(|e| StorageError::NotImplemented(format!("Failed to read file: {}", e)))
+}
+
+/// Parse SQL dump content into individual statements
+///
+/// Handles:
+/// - Comments (lines starting with --)
+/// - Multi-line statements
+/// - Statement termination by semicolon
+/// - String literals (preserves content within quotes)
+///
+/// # Returns
+/// A vector of SQL statement strings, trimmed and ready to parse
+pub fn parse_sql_statements(content: &str) -> Result<Vec<String>, StorageError> {
+    let mut statements = Vec::new();
+    let mut current_statement = String::new();
+    let mut in_string = false;
+    let mut string_char = ' ';
+    let mut escape_next = false;
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+
+        // Skip comments and empty lines
+        if trimmed.starts_with("--") || trimmed.is_empty() {
+            continue;
+        }
+
+        // Process line character by character to handle string literals
+        for ch in line.chars() {
+            if escape_next {
+                current_statement.push(ch);
+                escape_next = false;
+                continue;
+            }
+
+            match ch {
+                '\\' if in_string && string_char == '\'' => {
+                    current_statement.push(ch);
+                    escape_next = true;
+                }
+                '\'' | '"' if !in_string => {
+                    in_string = true;
+                    string_char = ch;
+                    current_statement.push(ch);
+                }
+                c if in_string && c == string_char => {
+                    in_string = false;
+                    current_statement.push(ch);
+                }
+                ';' if !in_string => {
+                    current_statement.push(ch);
+                    // Statement complete
+                    if !current_statement.trim().is_empty() {
+                        statements.push(current_statement.trim_end_matches(';').to_string());
+                    }
+                    current_statement.clear();
+                }
+                _ => {
+                    current_statement.push(ch);
+                }
+            }
+        }
+
+        // Add space between lines (preserves SQL readability)
+        if !in_string {
+            current_statement.push(' ');
+        }
+    }
+
+    // Handle any remaining statement
+    if !current_statement.trim().is_empty() {
+        statements.push(current_statement.trim().to_string());
+    }
+
+    Ok(statements)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_simple_statements() {
+        let content = r#"
+            -- Comment
+            CREATE TABLE users (id INTEGER);
+            INSERT INTO users VALUES (1);
+        "#;
+
+        let statements = parse_sql_statements(content).unwrap();
+        assert_eq!(statements.len(), 2);
+        assert!(statements[0].contains("CREATE TABLE"));
+        assert!(statements[1].contains("INSERT INTO"));
+    }
+
+    #[test]
+    fn test_parse_with_string_literals() {
+        let content = r#"INSERT INTO users VALUES (1, 'John; Doe');"#;
+
+        let statements = parse_sql_statements(content).unwrap();
+        assert_eq!(statements.len(), 1);
+        assert!(statements[0].contains("John; Doe"));
+    }
+
+    #[test]
+    fn test_skip_comments() {
+        let content = r#"
+            -- This is a comment
+            CREATE TABLE users (id INTEGER);
+            -- Another comment
+        "#;
+
+        let statements = parse_sql_statements(content).unwrap();
+        assert_eq!(statements.len(), 1);
+    }
+
+    #[test]
+    fn test_multiline_statements() {
+        let content = r#"
+            CREATE TABLE users (
+                id INTEGER,
+                name VARCHAR(100)
+            );
+        "#;
+
+        let statements = parse_sql_statements(content).unwrap();
+        assert_eq!(statements.len(), 1);
+        assert!(statements[0].contains("id INTEGER"));
+        assert!(statements[0].contains("name VARCHAR"));
+    }
+}

@@ -2,12 +2,12 @@
 //!
 //! Sorts rows within partitions according to ORDER BY specifications.
 
-use ast::{OrderByItem, OrderDirection};
 use std::cmp::Ordering;
+
+use ast::{OrderByItem, OrderDirection};
 use types::SqlValue;
 
-use super::partitioning::Partition;
-use super::utils::evaluate_expression;
+use super::{partitioning::Partition, utils::evaluate_expression};
 
 /// Sort a partition by ORDER BY clauses
 ///

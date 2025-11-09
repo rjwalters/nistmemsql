@@ -36,12 +36,8 @@ impl SelectExecutor<'_> {
                 self.expression_has_aggregate(left) || self.expression_has_aggregate(right)
             }
             // Unary operations - check if inner expression contains aggregate
-            ast::Expression::UnaryOp { expr, .. } => {
-                self.expression_has_aggregate(expr)
-            }
-            ast::Expression::Cast { expr, .. } => {
-                self.expression_has_aggregate(expr)
-            }
+            ast::Expression::UnaryOp { expr, .. } => self.expression_has_aggregate(expr),
+            ast::Expression::Cast { expr, .. } => self.expression_has_aggregate(expr),
             ast::Expression::Case { operand, when_clauses, else_result } => {
                 operand.as_ref().is_some_and(|e| self.expression_has_aggregate(e))
                     || when_clauses.iter().any(|when_clause| {

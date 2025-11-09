@@ -19,30 +19,64 @@ pub enum ExecutorError {
     TypeAlreadyExists(String),
     TypeInUse(String),
     DependentPrivilegesExist(String),
-    PermissionDenied { role: String, privilege: String, object: String },
-    ColumnIndexOutOfBounds { index: usize },
-    TypeMismatch { left: types::SqlValue, op: String, right: types::SqlValue },
+    PermissionDenied {
+        role: String,
+        privilege: String,
+        object: String,
+    },
+    ColumnIndexOutOfBounds {
+        index: usize,
+    },
+    TypeMismatch {
+        left: types::SqlValue,
+        op: String,
+        right: types::SqlValue,
+    },
     DivisionByZero,
     InvalidWhereClause(String),
     UnsupportedExpression(String),
     UnsupportedFeature(String),
     StorageError(String),
-    SubqueryReturnedMultipleRows { expected: usize, actual: usize },
-    SubqueryColumnCountMismatch { expected: usize, actual: usize },
-    ColumnCountMismatch { expected: usize, provided: usize },
-    CastError { from_type: String, to_type: String },
+    SubqueryReturnedMultipleRows {
+        expected: usize,
+        actual: usize,
+    },
+    SubqueryColumnCountMismatch {
+        expected: usize,
+        actual: usize,
+    },
+    ColumnCountMismatch {
+        expected: usize,
+        provided: usize,
+    },
+    CastError {
+        from_type: String,
+        to_type: String,
+    },
     ConstraintViolation(String),
     MultiplePrimaryKeys,
     CannotDropColumn(String),
     /// Expression evaluation exceeded maximum recursion depth
     /// This prevents stack overflow from deeply nested expressions or subqueries
-    ExpressionDepthExceeded { depth: usize, max_depth: usize },
+    ExpressionDepthExceeded {
+        depth: usize,
+        max_depth: usize,
+    },
     /// Query exceeded maximum execution time
-    QueryTimeoutExceeded { elapsed_seconds: u64, max_seconds: u64 },
+    QueryTimeoutExceeded {
+        elapsed_seconds: u64,
+        max_seconds: u64,
+    },
     /// Query exceeded maximum row processing limit
-    RowLimitExceeded { rows_processed: usize, max_rows: usize },
+    RowLimitExceeded {
+        rows_processed: usize,
+        max_rows: usize,
+    },
     /// Query exceeded maximum memory limit
-    MemoryLimitExceeded { used_bytes: usize, max_bytes: usize },
+    MemoryLimitExceeded {
+        used_bytes: usize,
+        max_bytes: usize,
+    },
     Other(String),
 }
 
@@ -51,7 +85,12 @@ impl std::fmt::Display for ExecutorError {
         match self {
             ExecutorError::TableNotFound(name) => write!(f, "Table '{}' not found", name),
             ExecutorError::TableAlreadyExists(name) => write!(f, "Table '{}' already exists", name),
-            ExecutorError::ColumnNotFound { column_name, table_name, searched_tables, available_columns } => {
+            ExecutorError::ColumnNotFound {
+                column_name,
+                table_name,
+                searched_tables,
+                available_columns,
+            } => {
                 if searched_tables.is_empty() {
                     write!(f, "Column '{}' not found in table '{}'", column_name, table_name)
                 } else if available_columns.is_empty() {
@@ -145,18 +184,10 @@ impl std::fmt::Display for ExecutorError {
                 )
             }
             ExecutorError::QueryTimeoutExceeded { elapsed_seconds, max_seconds } => {
-                write!(
-                    f,
-                    "Query timeout exceeded: {}s > {}s",
-                    elapsed_seconds, max_seconds
-                )
+                write!(f, "Query timeout exceeded: {}s > {}s", elapsed_seconds, max_seconds)
             }
             ExecutorError::RowLimitExceeded { rows_processed, max_rows } => {
-                write!(
-                    f,
-                    "Row processing limit exceeded: {} > {}",
-                    rows_processed, max_rows
-                )
+                write!(f, "Row processing limit exceeded: {} > {}", rows_processed, max_rows)
             }
             ExecutorError::MemoryLimitExceeded { used_bytes, max_bytes } => {
                 write!(

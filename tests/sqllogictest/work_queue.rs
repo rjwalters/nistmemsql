@@ -5,9 +5,10 @@
 //! - Each file is tested exactly once across all workers
 //! - When the queue is empty, workers exit (all files tested)
 
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::env;
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
 /// Work queue directory structure
 pub struct WorkQueue {
@@ -28,11 +29,7 @@ impl WorkQueue {
         fs::create_dir_all(&claimed_dir)?;
         fs::create_dir_all(&completed_dir)?;
 
-        Ok(WorkQueue {
-            pending_dir,
-            claimed_dir,
-            completed_dir,
-        })
+        Ok(WorkQueue { pending_dir, claimed_dir, completed_dir })
     }
 
     /// Get work queue from environment or use default location
@@ -103,4 +100,3 @@ impl WorkQueue {
             .unwrap_or(0)
     }
 }
-

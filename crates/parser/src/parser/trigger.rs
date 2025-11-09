@@ -1,8 +1,7 @@
 //! CREATE TRIGGER and DROP TRIGGER statement parsers
 
 use super::{ParseError, Parser};
-use crate::keywords::Keyword;
-use crate::token::Token;
+use crate::{keywords::Keyword, token::Token};
 
 impl Parser {
     /// Parse CREATE TRIGGER statement

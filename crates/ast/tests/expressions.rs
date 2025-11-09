@@ -38,7 +38,7 @@ fn test_qualified_column_reference() {
     let expr = Expression::ColumnRef { table: Some("users".to_string()), column: "id".to_string() };
 
     match expr {
-        Expression::ColumnRef { table: Some(t), column: c } if t == "users" && c == "id" => {} // Success
+        Expression::ColumnRef { table: Some(t), column: c } if t == "users" && c == "id" => {} /* Success */
         _ => panic!("Expected qualified column reference"),
     }
 }

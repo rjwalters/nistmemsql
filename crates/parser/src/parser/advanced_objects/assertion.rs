@@ -1,10 +1,9 @@
 //! ASSERTION DDL parsing (SQL:1999)
 //! Includes: CREATE/DROP ASSERTION
 
-use crate::keywords::Keyword;
-use crate::parser::ParseError;
-use crate::token::Token;
 use ast::*;
+
+use crate::{keywords::Keyword, parser::ParseError, token::Token};
 
 /// Parse CREATE ASSERTION statement
 ///

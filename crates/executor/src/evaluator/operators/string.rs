@@ -3,8 +3,9 @@
 //! Handles: || (concatenation)
 //! Supports: VARCHAR and CHAR types
 
-use crate::errors::ExecutorError;
 use types::SqlValue;
+
+use crate::errors::ExecutorError;
 
 pub(crate) struct StringOps;
 
@@ -74,7 +75,8 @@ mod tests {
 
     #[test]
     fn test_type_error() {
-        let result = StringOps::concat(&SqlValue::Integer(1), &SqlValue::Varchar("test".to_string()));
+        let result =
+            StringOps::concat(&SqlValue::Integer(1), &SqlValue::Varchar("test".to_string()));
         assert!(result.is_err());
     }
 }

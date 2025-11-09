@@ -31,11 +31,7 @@ fn test_nullif_unequal_values() {
     // NULLIF(5, 10) should return 5
     let results = execute_select("SELECT NULLIF(5, 10)").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Integer(5),
-        "NULLIF(5, 10) should return 5"
-    );
+    assert_eq!(results[0].values[0], SqlValue::Integer(5), "NULLIF(5, 10) should return 5");
 }
 
 #[test]
@@ -43,11 +39,7 @@ fn test_nullif_null_first() {
     // NULLIF(NULL, 10) should return NULL
     let results = execute_select("SELECT NULLIF(NULL, 10)").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Null,
-        "NULLIF(NULL, 10) should return NULL"
-    );
+    assert_eq!(results[0].values[0], SqlValue::Null, "NULLIF(NULL, 10) should return NULL");
 }
 
 #[test]
@@ -55,11 +47,7 @@ fn test_nullif_null_second() {
     // NULLIF(10, NULL) should return 10
     let results = execute_select("SELECT NULLIF(10, NULL)").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Integer(10),
-        "NULLIF(10, NULL) should return 10"
-    );
+    assert_eq!(results[0].values[0], SqlValue::Integer(10), "NULLIF(10, NULL) should return 10");
 }
 
 #[test]
@@ -67,11 +55,7 @@ fn test_nullif_string_comparison() {
     // NULLIF('hello', 'hello') should return NULL
     let results = execute_select("SELECT NULLIF('hello', 'hello')").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Null,
-        "NULLIF('hello', 'hello') should return NULL"
-    );
+    assert_eq!(results[0].values[0], SqlValue::Null, "NULLIF('hello', 'hello') should return NULL");
 }
 
 #[test]

@@ -4,9 +4,14 @@
 //! Supports: Integer, Smallint, Bigint, Float, Real, Double, Numeric types
 //! Includes: Type coercion, mixed-type arithmetic, division-by-zero handling
 
-use crate::errors::ExecutorError;
-use crate::evaluator::casting::{boolean_to_i64, is_approximate_numeric, is_exact_numeric, to_f64, to_i64};
 use types::SqlValue;
+
+use crate::{
+    errors::ExecutorError,
+    evaluator::casting::{
+        boolean_to_i64, is_approximate_numeric, is_exact_numeric, to_f64, to_i64,
+    },
+};
 
 /// Result of type coercion for arithmetic operations
 enum CoercedValues {
@@ -24,21 +29,21 @@ fn coerce_numeric_values(
 
     // Handle Boolean coercion first
     if matches!(left, Boolean(_)) || matches!(right, Boolean(_)) {
-        let left_i64 = boolean_to_i64(left)
-            .or_else(|| to_i64(left).ok())
-            .ok_or_else(|| ExecutorError::TypeMismatch {
+        let left_i64 = boolean_to_i64(left).or_else(|| to_i64(left).ok()).ok_or_else(|| {
+            ExecutorError::TypeMismatch {
                 left: left.clone(),
                 op: op.to_string(),
                 right: right.clone(),
-            })?;
+            }
+        })?;
 
-        let right_i64 = boolean_to_i64(right)
-            .or_else(|| to_i64(right).ok())
-            .ok_or_else(|| ExecutorError::TypeMismatch {
+        let right_i64 = boolean_to_i64(right).or_else(|| to_i64(right).ok()).ok_or_else(|| {
+            ExecutorError::TypeMismatch {
                 left: left.clone(),
                 op: op.to_string(),
                 right: right.clone(),
-            })?;
+            }
+        })?;
 
         return Ok(CoercedValues::ExactNumeric(left_i64, right_i64));
     }
@@ -58,8 +63,10 @@ fn coerce_numeric_values(
     }
 
     // Mixed Float/Integer - promote to f64
-    if (matches!(left, Float(_) | Real(_) | Double(_)) && matches!(right, Integer(_) | Smallint(_) | Bigint(_)))
-        || (matches!(left, Integer(_) | Smallint(_) | Bigint(_)) && matches!(right, Float(_) | Real(_) | Double(_)))
+    if (matches!(left, Float(_) | Real(_) | Double(_))
+        && matches!(right, Integer(_) | Smallint(_) | Bigint(_)))
+        || (matches!(left, Integer(_) | Smallint(_) | Bigint(_))
+            && matches!(right, Float(_) | Real(_) | Double(_)))
     {
         let left_f64 = to_f64(left)?;
         let right_f64 = to_f64(right)?;
@@ -72,10 +79,8 @@ fn coerce_numeric_values(
             right,
             Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_) | Numeric(_)
         ))
-        || (matches!(
-            left,
-            Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_)
-        ) && matches!(right, Numeric(_)))
+        || (matches!(left, Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_))
+            && matches!(right, Numeric(_)))
     {
         let left_f64 = to_f64(left)?;
         let right_f64 = to_f64(right)?;
@@ -241,15 +246,13 @@ mod tests {
 
     #[test]
     fn test_integer_subtraction() {
-        let result =
-            ArithmeticOps::subtract(&SqlValue::Integer(5), &SqlValue::Integer(3)).unwrap();
+        let result = ArithmeticOps::subtract(&SqlValue::Integer(5), &SqlValue::Integer(3)).unwrap();
         assert_eq!(result, SqlValue::Integer(2));
     }
 
     #[test]
     fn test_integer_multiplication() {
-        let result =
-            ArithmeticOps::multiply(&SqlValue::Integer(5), &SqlValue::Integer(3)).unwrap();
+        let result = ArithmeticOps::multiply(&SqlValue::Integer(5), &SqlValue::Integer(3)).unwrap();
         assert_eq!(result, SqlValue::Integer(15));
     }
 
@@ -314,33 +317,39 @@ mod tests {
     #[test]
     fn test_boolean_multiplication() {
         // 97 * TRUE = 97
-        let result = ArithmeticOps::multiply(&SqlValue::Integer(97), &SqlValue::Boolean(true)).unwrap();
+        let result =
+            ArithmeticOps::multiply(&SqlValue::Integer(97), &SqlValue::Boolean(true)).unwrap();
         assert_eq!(result, SqlValue::Integer(97));
 
         // 97 * FALSE = 0
-        let result = ArithmeticOps::multiply(&SqlValue::Integer(97), &SqlValue::Boolean(false)).unwrap();
+        let result =
+            ArithmeticOps::multiply(&SqlValue::Integer(97), &SqlValue::Boolean(false)).unwrap();
         assert_eq!(result, SqlValue::Integer(0));
     }
 
     #[test]
     fn test_boolean_subtraction() {
         // TRUE - FALSE = 1
-        let result = ArithmeticOps::subtract(&SqlValue::Boolean(true), &SqlValue::Boolean(false)).unwrap();
+        let result =
+            ArithmeticOps::subtract(&SqlValue::Boolean(true), &SqlValue::Boolean(false)).unwrap();
         assert_eq!(result, SqlValue::Integer(1));
 
         // 5 - TRUE = 4
-        let result = ArithmeticOps::subtract(&SqlValue::Integer(5), &SqlValue::Boolean(true)).unwrap();
+        let result =
+            ArithmeticOps::subtract(&SqlValue::Integer(5), &SqlValue::Boolean(true)).unwrap();
         assert_eq!(result, SqlValue::Integer(4));
     }
 
     #[test]
     fn test_boolean_division() {
         // 10 / TRUE = 10.0
-        let result = ArithmeticOps::divide(&SqlValue::Integer(10), &SqlValue::Boolean(true)).unwrap();
+        let result =
+            ArithmeticOps::divide(&SqlValue::Integer(10), &SqlValue::Boolean(true)).unwrap();
         assert_eq!(result, SqlValue::Float(10.0));
 
         // TRUE / TRUE = 1.0
-        let result = ArithmeticOps::divide(&SqlValue::Boolean(true), &SqlValue::Boolean(true)).unwrap();
+        let result =
+            ArithmeticOps::divide(&SqlValue::Boolean(true), &SqlValue::Boolean(true)).unwrap();
         assert_eq!(result, SqlValue::Float(1.0));
     }
 
@@ -354,22 +363,28 @@ mod tests {
     #[test]
     fn test_boolean_modulo() {
         // 10 % TRUE = 0 (10 % 1 = 0)
-        let result = ArithmeticOps::modulo(&SqlValue::Integer(10), &SqlValue::Boolean(true)).unwrap();
+        let result =
+            ArithmeticOps::modulo(&SqlValue::Integer(10), &SqlValue::Boolean(true)).unwrap();
         assert_eq!(result, SqlValue::Integer(0));
 
         // TRUE % TRUE = 0 (1 % 1 = 0)
-        let result = ArithmeticOps::modulo(&SqlValue::Boolean(true), &SqlValue::Boolean(true)).unwrap();
+        let result =
+            ArithmeticOps::modulo(&SqlValue::Boolean(true), &SqlValue::Boolean(true)).unwrap();
         assert_eq!(result, SqlValue::Integer(0));
     }
 
     #[test]
     fn test_boolean_integer_divide() {
         // 10 DIV TRUE = 10
-        let result = ArithmeticOps::integer_divide(&SqlValue::Integer(10), &SqlValue::Boolean(true)).unwrap();
+        let result =
+            ArithmeticOps::integer_divide(&SqlValue::Integer(10), &SqlValue::Boolean(true))
+                .unwrap();
         assert_eq!(result, SqlValue::Integer(10));
 
         // TRUE DIV TRUE = 1
-        let result = ArithmeticOps::integer_divide(&SqlValue::Boolean(true), &SqlValue::Boolean(true)).unwrap();
+        let result =
+            ArithmeticOps::integer_divide(&SqlValue::Boolean(true), &SqlValue::Boolean(true))
+                .unwrap();
         assert_eq!(result, SqlValue::Integer(1));
     }
 }

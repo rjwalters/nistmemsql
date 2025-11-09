@@ -7,14 +7,15 @@
 //! Example:
 //! ```
 //! let mut mapper = ExpressionMapper::new();
-//! mapper.add_table("users", &users_schema);  // cols 0-1
+//! mapper.add_table("users", &users_schema); // cols 0-1
 //! mapper.add_table("orders", &orders_schema); // cols 2-3
 //!
 //! // Now users.id resolves to index 0, orders.user_id to index 3
-//! let idx = mapper.resolve_column(Some("users"), "id");  // Some(0)
+//! let idx = mapper.resolve_column(Some("users"), "id"); // Some(0)
 //! ```
 
 use std::collections::{HashMap, HashSet};
+
 use ast::Expression;
 use catalog::TableSchema;
 
@@ -35,11 +36,7 @@ pub struct ExpressionMapper {
 impl ExpressionMapper {
     /// Create a new empty mapper
     pub fn new() -> Self {
-        Self {
-            column_positions: HashMap::new(),
-            table_offsets: HashMap::new(),
-            total_columns: 0,
-        }
+        Self { column_positions: HashMap::new(), table_offsets: HashMap::new(), total_columns: 0 }
     }
 
     /// Add a table to the schema (happens after each join)
@@ -109,11 +106,7 @@ impl ExpressionMapper {
 
         self.walk_expression(expr, &mut tables_referenced, &mut columns_used, &mut resolvable);
 
-        ExpressionAnalysis {
-            tables_referenced,
-            columns_used,
-            all_resolvable: resolvable,
-        }
+        ExpressionAnalysis { tables_referenced, columns_used, all_resolvable: resolvable }
     }
 
     /// Check if an expression only references tables in a specific set
@@ -126,10 +119,7 @@ impl ExpressionMapper {
     ) -> bool {
         let analysis = self.analyze_expression(expr);
         analysis.all_resolvable
-            && analysis
-                .tables_referenced
-                .iter()
-                .all(|t| allowed_tables.contains(t))
+            && analysis.tables_referenced.iter().all(|t| allowed_tables.contains(t))
     }
 
     /// Walk an expression tree, collecting table and column references
@@ -235,7 +225,8 @@ impl ExpressionMapper {
                 self.walk_expression(e, tables, columns, resolvable);
                 self.walk_expression(pattern, tables, columns, resolvable);
             }
-            Expression::ScalarSubquery(_) | Expression::Exists { .. }
+            Expression::ScalarSubquery(_)
+            | Expression::Exists { .. }
             | Expression::QuantifiedComparison { .. } => {
                 // Subqueries can reference outer columns - mark as not resolvable
                 *resolvable = false;
@@ -245,9 +236,13 @@ impl ExpressionMapper {
                 *resolvable = false;
             }
             // Literals and other terminal expressions don't reference columns
-            Expression::Literal(_) | Expression::Wildcard | Expression::CurrentDate
-            | Expression::CurrentTime { .. } | Expression::CurrentTimestamp { .. }
-            | Expression::Default | Expression::NextValue { .. } => {
+            Expression::Literal(_)
+            | Expression::Wildcard
+            | Expression::CurrentDate
+            | Expression::CurrentTime { .. }
+            | Expression::CurrentTimestamp { .. }
+            | Expression::Default
+            | Expression::NextValue { .. } => {
                 // No column references
             }
         }
@@ -283,15 +278,14 @@ impl ExpressionAnalysis {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use catalog::ColumnSchema;
     use types::DataType;
 
+    use super::*;
+
     fn create_test_schema(name: &str, columns: Vec<(&str, DataType)>) -> TableSchema {
-        let cols = columns
-            .into_iter()
-            .map(|(n, t)| ColumnSchema::new(n.to_string(), t, false))
-            .collect();
+        let cols =
+            columns.into_iter().map(|(n, t)| ColumnSchema::new(n.to_string(), t, false)).collect();
         TableSchema::new(name.to_string(), cols)
     }
 
@@ -330,8 +324,10 @@ mod tests {
         let mut mapper = ExpressionMapper::new();
         let varchar_100 = DataType::Varchar { max_length: Some(100) };
 
-        let users_schema =
-            create_test_schema("users", vec![("id", DataType::Integer), ("name", varchar_100.clone())]);
+        let users_schema = create_test_schema(
+            "users",
+            vec![("id", DataType::Integer), ("name", varchar_100.clone())],
+        );
         mapper.add_table("users", &users_schema);
 
         let orders_schema = create_test_schema(
@@ -353,8 +349,10 @@ mod tests {
     fn test_case_insensitive_resolution() {
         let mut mapper = ExpressionMapper::new();
         let varchar_100 = DataType::Varchar { max_length: Some(100) };
-        let schema =
-            create_test_schema("users", vec![("ID", DataType::Integer), ("Name", varchar_100.clone())]);
+        let schema = create_test_schema(
+            "users",
+            vec![("ID", DataType::Integer), ("Name", varchar_100.clone())],
+        );
         mapper.add_table("USERS", &schema);
 
         // Case variations should resolve
@@ -369,7 +367,8 @@ mod tests {
 
         assert_eq!(mapper.total_columns(), 0);
 
-        let schema1 = create_test_schema("t1", vec![("a", DataType::Integer), ("b", DataType::Integer)]);
+        let schema1 =
+            create_test_schema("t1", vec![("a", DataType::Integer), ("b", DataType::Integer)]);
         mapper.add_table("t1", &schema1);
         assert_eq!(mapper.total_columns(), 2);
 
@@ -382,7 +381,8 @@ mod tests {
     fn test_table_offset() {
         let mut mapper = ExpressionMapper::new();
 
-        let schema1 = create_test_schema("t1", vec![("a", DataType::Integer), ("b", DataType::Integer)]);
+        let schema1 =
+            create_test_schema("t1", vec![("a", DataType::Integer), ("b", DataType::Integer)]);
         mapper.add_table("t1", &schema1);
 
         let schema2 = create_test_schema("t2", vec![("c", DataType::Integer)]);
@@ -399,10 +399,8 @@ mod tests {
         mapper.add_table("users", &schema);
 
         // Single column reference
-        let expr = Expression::ColumnRef {
-            table: Some("users".to_string()),
-            column: "id".to_string(),
-        };
+        let expr =
+            Expression::ColumnRef { table: Some("users".to_string()), column: "id".to_string() };
 
         let analysis = mapper.analyze_expression(&expr);
         assert!(analysis.all_resolvable);
@@ -413,10 +411,7 @@ mod tests {
     #[test]
     fn test_expression_analysis_two_tables() {
         let mut mapper = ExpressionMapper::new();
-        mapper.add_table(
-            "users",
-            &create_test_schema("users", vec![("id", DataType::Integer)]),
-        );
+        mapper.add_table("users", &create_test_schema("users", vec![("id", DataType::Integer)]));
         mapper.add_table(
             "orders",
             &create_test_schema("orders", vec![("user_id", DataType::Integer)]),
@@ -446,10 +441,8 @@ mod tests {
         let mapper = ExpressionMapper::new();
 
         // Try to reference non-existent column
-        let expr = Expression::ColumnRef {
-            table: Some("users".to_string()),
-            column: "id".to_string(),
-        };
+        let expr =
+            Expression::ColumnRef { table: Some("users".to_string()), column: "id".to_string() };
 
         let analysis = mapper.analyze_expression(&expr);
         assert!(!analysis.all_resolvable);
@@ -458,10 +451,7 @@ mod tests {
     #[test]
     fn test_expression_refs_only_tables() {
         let mut mapper = ExpressionMapper::new();
-        mapper.add_table(
-            "users",
-            &create_test_schema("users", vec![("id", DataType::Integer)]),
-        );
+        mapper.add_table("users", &create_test_schema("users", vec![("id", DataType::Integer)]));
         mapper.add_table(
             "orders",
             &create_test_schema("orders", vec![("user_id", DataType::Integer)]),

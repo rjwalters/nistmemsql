@@ -35,7 +35,7 @@ fn test_is_null_on_arithmetic_expression() {
     // since 15 * -99 = -1485, which is not NULL
     let results = execute_select(&db, "SELECT col0 FROM tab0 WHERE 15 * - 99 IS NULL")
         .expect("Query should succeed");
-    
+
     assert_eq!(results.len(), 0, "15 * -99 is not NULL, should return 0 rows");
 }
 
@@ -51,16 +51,14 @@ fn test_is_null_with_unary_and_binary_ops() {
 
     let mut db = Database::new();
     db.create_table(schema).unwrap();
-    db.insert_row("TAB0", Row::new(vec![SqlValue::Integer(10), SqlValue::Integer(20)]))
-        .unwrap();
-    db.insert_row("TAB0", Row::new(vec![SqlValue::Integer(30), SqlValue::Integer(30)]))
-        .unwrap();
+    db.insert_row("TAB0", Row::new(vec![SqlValue::Integer(10), SqlValue::Integer(20)])).unwrap();
+    db.insert_row("TAB0", Row::new(vec![SqlValue::Integer(30), SqlValue::Integer(30)])).unwrap();
 
     // Test: Complex expression with unary and binary operators
     // + col0 - col1 should be an integer, not NULL
     let results = execute_select(&db, "SELECT col0 FROM tab0 WHERE + col0 - col1 IS NULL")
         .expect("Query should succeed");
-    
+
     assert_eq!(results.len(), 0, "Arithmetic expression is not NULL");
 }
 
@@ -76,15 +74,13 @@ fn test_is_null_on_column_with_null_value() {
 
     let mut db = Database::new();
     db.create_table(schema).unwrap();
-    db.insert_row("TAB0", Row::new(vec![SqlValue::Integer(10), SqlValue::Integer(20)]))
-        .unwrap();
-    db.insert_row("TAB0", Row::new(vec![SqlValue::Integer(30), SqlValue::Null]))
-        .unwrap();
+    db.insert_row("TAB0", Row::new(vec![SqlValue::Integer(10), SqlValue::Integer(20)])).unwrap();
+    db.insert_row("TAB0", Row::new(vec![SqlValue::Integer(30), SqlValue::Null])).unwrap();
 
     // Test: IS NULL should find rows where column is actually NULL
     let results = execute_select(&db, "SELECT col0 FROM tab0 WHERE col1 IS NULL")
         .expect("Query should succeed");
-    
+
     assert_eq!(results.len(), 1, "Should find one row with NULL");
 }
 
@@ -103,6 +99,6 @@ fn test_is_not_null_on_arithmetic() {
     // Test: IS NOT NULL on arithmetic expression should return all rows
     let results = execute_select(&db, "SELECT col0 FROM tab0 WHERE (col0 * 5) IS NOT NULL")
         .expect("Query should succeed");
-    
+
     assert_eq!(results.len(), 2, "All arithmetic results are NOT NULL");
 }

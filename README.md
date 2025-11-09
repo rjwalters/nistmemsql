@@ -118,8 +118,8 @@ We use comprehensive test suites to track SQL:1999 compliance:
 - 🎯 **Manual testing workflow**: Query your progress as you work through tests
 
 **Documentation**:
-- [Quick Start Guide](docs/SQLLOGICTEST_QUICKSTART.md) - 30-second introduction
-- [Complete Documentation](docs/SQLLOGICTEST_DATABASE.md) - Architecture, schema, queries, workflow
+- [Quick Start Guide](docs/sqllogictest/SQLLOGICTEST_QUICKSTART.md) - 30-second introduction
+- [Complete Documentation](docs/sqllogictest/SQLLOGICTEST_DATABASE.md) - Architecture, schema, queries, workflow
 
 ### Running Tests
 
@@ -156,7 +156,7 @@ python3 scripts/generate_punchlist.py
 cat target/sqllogictest_punchlist.csv
 ```
 
-See [`PUNCHLIST_100_CONFORMANCE.md`](PUNCHLIST_100_CONFORMANCE.md) for the complete strategic guide.
+See [`docs/roadmaps/PUNCHLIST_100_CONFORMANCE.md`](docs/roadmaps/PUNCHLIST_100_CONFORMANCE.md) for the complete strategic guide.
 
 ### SQLLogicTest Conformance Punchlist
 
@@ -165,7 +165,7 @@ To systematically track progress toward 100% SQLLogicTest conformance, we've cre
 **Quick Start**:
 ```bash
 # Read the strategic guide
-cat QUICK_START.md
+cat docs/sqllogictest/QUICK_START.md
 
 # View the full punchlist
 cat target/sqllogictest_punchlist.csv
@@ -178,10 +178,10 @@ python3 scripts/generate_punchlist.py
 ```
 
 **Documentation**:
-- **[QUICK_START.md](QUICK_START.md)** - 2-minute overview with key commands
-- **[PUNCHLIST_100_CONFORMANCE.md](PUNCHLIST_100_CONFORMANCE.md)** - Full strategic guide with workflow and phase breakdown
-- **[PUNCHLIST_README.md](PUNCHLIST_README.md)** - Complete setup documentation and detailed instructions
-- **[PUNCHLIST_MANIFEST.md](PUNCHLIST_MANIFEST.md)** - Manifest of all deliverables and their purposes
+- **[docs/sqllogictest/QUICK_START.md](docs/sqllogictest/QUICK_START.md)** - 2-minute overview with key commands
+- **[docs/roadmaps/PUNCHLIST_100_CONFORMANCE.md](docs/roadmaps/PUNCHLIST_100_CONFORMANCE.md)** - Full strategic guide with workflow and phase breakdown
+- **[docs/roadmaps/PUNCHLIST_README.md](docs/roadmaps/PUNCHLIST_README.md)** - Complete setup documentation and detailed instructions
+- **[docs/roadmaps/PUNCHLIST_MANIFEST.md](docs/roadmaps/PUNCHLIST_MANIFEST.md)** - Manifest of all deliverables and their purposes
 - **[.loom/punchlist_guide.md](.loom/punchlist_guide.md)** - Builder-specific reference for implementing fixes
 
 **Current Status**:

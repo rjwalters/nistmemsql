@@ -1,7 +1,8 @@
 //! Tests for subquery parsing (both IN and scalar subqueries)
 
-use crate::Parser;
 use ast::Expression;
+
+use crate::Parser;
 
 // ============================================================================
 // IN Operator Subquery Tests (from PR #96)

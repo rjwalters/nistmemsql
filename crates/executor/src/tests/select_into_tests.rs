@@ -27,7 +27,8 @@ fn test_select_into_single_row() {
                 comment: None,
             },
         ],
-        table_constraints: vec![], table_options: vec![],
+        table_constraints: vec![],
+        table_options: vec![],
     };
     CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
 
@@ -111,7 +112,8 @@ fn test_select_into_no_rows_error() {
             default_value: None,
             comment: None,
         }],
-        table_constraints: vec![], table_options: vec![],
+        table_constraints: vec![],
+        table_options: vec![],
     };
     CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
 
@@ -161,7 +163,8 @@ fn test_select_into_multiple_rows_error() {
             default_value: None,
             comment: None,
         }],
-        table_constraints: vec![], table_options: vec![],
+        table_constraints: vec![],
+        table_options: vec![],
     };
     CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
 
@@ -213,7 +216,8 @@ fn test_select_into_with_expressions() {
             default_value: None,
             comment: None,
         }],
-        table_constraints: vec![], table_options: vec![],
+        table_constraints: vec![],
+        table_options: vec![],
     };
     CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
 

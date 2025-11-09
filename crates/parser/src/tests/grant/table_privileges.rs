@@ -9,8 +9,9 @@
 //! - Case insensitive parsing
 //! - WITH GRANT OPTION combinations
 
-use super::grant_test_utils::*;
 use ast::*;
+
+use super::grant_test_utils::*;
 
 #[test]
 fn test_parse_grant_select_on_table() {

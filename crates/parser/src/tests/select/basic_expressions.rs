@@ -39,7 +39,7 @@ fn test_parse_select_string() {
             assert_eq!(select.select_list.len(), 1);
             match &select.select_list[0] {
                 ast::SelectItem::Expression { expr, .. } => match expr {
-                    ast::Expression::Literal(types::SqlValue::Varchar(s)) if s == "hello" => {} // Success
+                    ast::Expression::Literal(types::SqlValue::Varchar(s)) if s == "hello" => {} /* Success */
                     _ => panic!("Expected Varchar('hello'), got {:?}", expr),
                 },
                 _ => panic!("Expected Expression select item"),

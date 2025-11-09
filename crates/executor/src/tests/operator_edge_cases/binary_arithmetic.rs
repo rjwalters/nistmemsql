@@ -94,13 +94,12 @@ fn test_integer_division_with_floats() {
     use crate::evaluator::operators::OperatorRegistry;
 
     // 10.7 DIV 3.2 should return 3 (not 3.34)
-    let result =
-        OperatorRegistry::eval_binary_op(
-            &types::SqlValue::Float(10.7),
-            &ast::BinaryOperator::IntegerDivide,
-            &types::SqlValue::Float(3.2),
-        )
-        .unwrap();
+    let result = OperatorRegistry::eval_binary_op(
+        &types::SqlValue::Float(10.7),
+        &ast::BinaryOperator::IntegerDivide,
+        &types::SqlValue::Float(3.2),
+    )
+    .unwrap();
     assert_eq!(result, types::SqlValue::Integer(3));
 }
 
@@ -109,40 +108,36 @@ fn test_integer_division_negative_operands() {
     use crate::evaluator::operators::OperatorRegistry;
 
     // 96 DIV -2 should return -48
-    let result =
-        OperatorRegistry::eval_binary_op(
-            &types::SqlValue::Integer(96),
-            &ast::BinaryOperator::IntegerDivide,
-            &types::SqlValue::Integer(-2),
-        )
-        .unwrap();
+    let result = OperatorRegistry::eval_binary_op(
+        &types::SqlValue::Integer(96),
+        &ast::BinaryOperator::IntegerDivide,
+        &types::SqlValue::Integer(-2),
+    )
+    .unwrap();
     assert_eq!(result, types::SqlValue::Integer(-48));
 
     // -96 DIV 2 should return -48
-    let result =
-        OperatorRegistry::eval_binary_op(
-            &types::SqlValue::Integer(-96),
-            &ast::BinaryOperator::IntegerDivide,
-            &types::SqlValue::Integer(2),
-        )
-        .unwrap();
+    let result = OperatorRegistry::eval_binary_op(
+        &types::SqlValue::Integer(-96),
+        &ast::BinaryOperator::IntegerDivide,
+        &types::SqlValue::Integer(2),
+    )
+    .unwrap();
     assert_eq!(result, types::SqlValue::Integer(-48));
 
     // -96 DIV -2 should return 48
-    let result =
-        OperatorRegistry::eval_binary_op(
-            &types::SqlValue::Integer(-96),
-            &ast::BinaryOperator::IntegerDivide,
-            &types::SqlValue::Integer(-2),
-        )
-        .unwrap();
+    let result = OperatorRegistry::eval_binary_op(
+        &types::SqlValue::Integer(-96),
+        &ast::BinaryOperator::IntegerDivide,
+        &types::SqlValue::Integer(-2),
+    )
+    .unwrap();
     assert_eq!(result, types::SqlValue::Integer(48));
 }
 
 #[test]
 fn test_integer_division_by_zero() {
-    use crate::evaluator::operators::OperatorRegistry;
-    use crate::errors::ExecutorError;
+    use crate::{errors::ExecutorError, evaluator::operators::OperatorRegistry};
 
     // 5 DIV 0 should return DivisionByZero error
     let result = OperatorRegistry::eval_binary_op(
@@ -158,13 +153,12 @@ fn test_integer_division_equal_operands() {
     use crate::evaluator::operators::OperatorRegistry;
 
     // 5 DIV 5 should return 1
-    let result =
-        OperatorRegistry::eval_binary_op(
-            &types::SqlValue::Integer(5),
-            &ast::BinaryOperator::IntegerDivide,
-            &types::SqlValue::Integer(5),
-        )
-        .unwrap();
+    let result = OperatorRegistry::eval_binary_op(
+        &types::SqlValue::Integer(5),
+        &ast::BinaryOperator::IntegerDivide,
+        &types::SqlValue::Integer(5),
+    )
+    .unwrap();
     assert_eq!(result, types::SqlValue::Integer(1));
 }
 

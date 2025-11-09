@@ -1,8 +1,9 @@
 //! Main evaluation entry point and basic expression types
 
+use types::SqlValue;
+
 use super::super::core::ExpressionEvaluator;
 use crate::errors::ExecutorError;
-use types::SqlValue;
 
 impl ExpressionEvaluator<'_> {
     /// Evaluate an expression in the context of a row
@@ -39,7 +40,9 @@ impl ExpressionEvaluator<'_> {
             )),
 
             // Column reference - look up column index and get value from row
-            ast::Expression::ColumnRef { table, column } => self.eval_column_ref(table.as_deref(), column, row),
+            ast::Expression::ColumnRef { table, column } => {
+                self.eval_column_ref(table.as_deref(), column, row)
+            }
 
             // Binary operations
             ast::Expression::BinaryOp { left, op, right } => {
@@ -59,7 +62,9 @@ impl ExpressionEvaluator<'_> {
                                 let right_val = self.eval(right, row)?;
 
                                 // Special case: NULL AND FALSE = FALSE
-                                if matches!(left_val, SqlValue::Null) && matches!(right_val, SqlValue::Boolean(false)) {
+                                if matches!(left_val, SqlValue::Null)
+                                    && matches!(right_val, SqlValue::Boolean(false))
+                                {
                                     return Ok(SqlValue::Boolean(false));
                                 }
 
@@ -81,7 +86,9 @@ impl ExpressionEvaluator<'_> {
                                 let right_val = self.eval(right, row)?;
 
                                 // Special case: NULL OR TRUE = TRUE
-                                if matches!(left_val, SqlValue::Null) && matches!(right_val, SqlValue::Boolean(true)) {
+                                if matches!(left_val, SqlValue::Null)
+                                    && matches!(right_val, SqlValue::Boolean(true))
+                                {
                                     return Ok(SqlValue::Boolean(true));
                                 }
 

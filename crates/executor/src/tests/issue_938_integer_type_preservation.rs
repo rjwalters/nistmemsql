@@ -3,10 +3,11 @@
 //! Ensures that integer expressions with unary operators return Integer types,
 //! not Numeric or Float types.
 
-use crate::SelectExecutor;
 use parser::Parser;
 use storage::Database;
 use types::SqlValue;
+
+use crate::SelectExecutor;
 
 #[test]
 fn test_integer_unary_operations_from_table() {
@@ -39,7 +40,7 @@ fn test_integer_unary_operations_from_table() {
 
         // The result MUST be Integer(92), not any float type
         match &rows[0].values[0] {
-            SqlValue::Integer(92) => {}, // Success!
+            SqlValue::Integer(92) => {} // Success!
             SqlValue::Numeric(f) if *f == 92.0 => {
                 panic!("BUG: Integer expression returned Numeric({}). Expected Integer(92).", f);
             }
@@ -82,7 +83,7 @@ fn test_integer_subtraction_unary() {
         assert_eq!(rows[0].values.len(), 1);
 
         match &rows[0].values[0] {
-            SqlValue::Integer(-56) => {}, // Success!
+            SqlValue::Integer(-56) => {} // Success!
             other => {
                 panic!("Expected Integer(-56), got {:?}", other);
             }
@@ -118,7 +119,7 @@ fn test_simple_integer_literal() {
         assert_eq!(rows[0].values.len(), 1);
 
         match &rows[0].values[0] {
-            SqlValue::Integer(42) => {}, // Success!
+            SqlValue::Integer(42) => {} // Success!
             other => {
                 panic!("Expected Integer(42), got {:?}", other);
             }

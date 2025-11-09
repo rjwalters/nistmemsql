@@ -1,7 +1,6 @@
 //! Special expression forms (CASE, Function calls)
 
-use super::super::core::ExpressionEvaluator;
-use super::super::functions::eval_scalar_function;
+use super::super::{core::ExpressionEvaluator, functions::eval_scalar_function};
 use crate::errors::ExecutorError;
 
 impl ExpressionEvaluator<'_> {

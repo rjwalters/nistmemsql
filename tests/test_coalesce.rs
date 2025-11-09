@@ -70,11 +70,7 @@ fn test_coalesce_two_args() {
 fn test_coalesce_with_arithmetic() {
     let results = execute_select("SELECT COALESCE(NULL, 10 + 5)").unwrap();
     assert_eq!(results.len(), 1);
-    assert_eq!(
-        results[0].values[0],
-        SqlValue::Integer(15),
-        "COALESCE should evaluate expressions"
-    );
+    assert_eq!(results[0].values[0], SqlValue::Integer(15), "COALESCE should evaluate expressions");
 }
 
 // Combined tests with NULLIF

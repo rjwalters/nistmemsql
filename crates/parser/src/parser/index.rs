@@ -1,8 +1,7 @@
 //! Parser for CREATE INDEX and DROP INDEX statements
 
 use super::{ParseError, Parser};
-use crate::keywords::Keyword;
-use crate::token::Token;
+use crate::{keywords::Keyword, token::Token};
 
 impl Parser {
     /// Parse CREATE INDEX statement

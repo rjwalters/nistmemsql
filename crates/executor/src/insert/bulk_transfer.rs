@@ -4,11 +4,12 @@
 //! queries, achieving 10-50x performance improvement by bypassing unnecessary
 //! serialization/deserialization cycles when schemas are compatible.
 
-use crate::errors::ExecutorError;
 use ast::{FromClause, SelectItem, SelectStmt};
 use catalog::TableSchema;
 use storage::Database;
 use types::SqlValue;
+
+use crate::errors::ExecutorError;
 
 /// Attempt bulk transfer optimization for INSERT INTO ... SELECT
 ///
@@ -259,9 +260,10 @@ fn execute_bulk_transfer(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use ast::*;
     use types::DataType;
+
+    use super::*;
 
     #[test]
     fn test_extract_simple_table_select_valid() {
@@ -407,12 +409,12 @@ mod tests {
     fn test_schema_compatibility_not_null_mismatch() {
         let schema1 = TableSchema::new(
             "t1".to_string(),
-            vec![catalog::ColumnSchema::new("id".to_string(), DataType::Integer, false)], // NOT NULL
+            vec![catalog::ColumnSchema::new("id".to_string(), DataType::Integer, false)], /* NOT NULL */
         );
 
         let schema2 = TableSchema::new(
             "t2".to_string(),
-            vec![catalog::ColumnSchema::new("id".to_string(), DataType::Integer, true)], // nullable
+            vec![catalog::ColumnSchema::new("id".to_string(), DataType::Integer, true)], /* nullable */
         );
 
         let result = check_schema_compatibility(&schema1, &schema2).unwrap();

@@ -2,9 +2,10 @@
 // Row Normalization
 // ============================================================================
 
-use crate::{Row, StorageError};
 use catalog::TableSchema;
 use types::{DataType, SqlValue};
+
+use crate::{Row, StorageError};
 
 /// Handles row value normalization and validation
 pub struct RowNormalizer<'a> {
@@ -292,8 +293,9 @@ impl<'a> RowNormalizer<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use catalog::ColumnSchema;
+
+    use super::*;
 
     fn create_test_schema() -> TableSchema {
         let columns = vec![

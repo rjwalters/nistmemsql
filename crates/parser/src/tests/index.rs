@@ -1,7 +1,8 @@
 //! Tests for INDEX DDL statements (CREATE INDEX, DROP INDEX)
 
-use crate::Parser;
 use ast::Statement;
+
+use crate::Parser;
 
 #[test]
 fn test_create_index_simple() {

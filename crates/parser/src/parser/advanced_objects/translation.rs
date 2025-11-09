@@ -1,9 +1,9 @@
 //! TRANSLATION DDL parsing (SQL:1999)
 //! Includes: CREATE/DROP TRANSLATION
 
-use crate::keywords::Keyword;
-use crate::parser::ParseError;
 use ast::*;
+
+use crate::{keywords::Keyword, parser::ParseError};
 
 /// Parse CREATE TRANSLATION statement
 ///

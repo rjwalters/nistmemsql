@@ -1,12 +1,14 @@
 //! Test file execution with timeout handling.
 
-use super::db_adapter::NistMemSqlDB;
-use super::preprocessing::preprocess_for_mysql;
-use super::scheduler::get_test_file_timeout;
-use super::stats::TestFailure;
-use sqllogictest::Runner;
 use std::time::Duration;
+
+use sqllogictest::Runner;
 use tokio::time::timeout;
+
+use super::{
+    db_adapter::NistMemSqlDB, preprocessing::preprocess_for_mysql,
+    scheduler::get_test_file_timeout, stats::TestFailure,
+};
 
 #[derive(Debug)]
 pub enum TestError {
@@ -28,9 +30,7 @@ impl std::fmt::Display for TestError {
 impl std::error::Error for TestError {}
 
 /// Run a test file asynchronously and capture detailed failure information
-async fn run_test_file_async(
-    contents: &str,
-) -> (Result<(), TestError>, Vec<TestFailure>) {
+async fn run_test_file_async(contents: &str) -> (Result<(), TestError>, Vec<TestFailure>) {
     let preprocessed = preprocess_for_mysql(contents);
     let mut tester = Runner::new(|| async { Ok(NistMemSqlDB::new()) });
     // Enable hash mode with threshold of 8 (standard SQLLogicTest behavior)
@@ -84,21 +84,25 @@ async fn run_test_file_with_timeout_impl(
 }
 
 /// Run a test file and capture detailed failure information
-pub fn run_test_file_with_details(contents: &str, file_name: &str) -> (Result<(), TestError>, Vec<TestFailure>) {
+pub fn run_test_file_with_details(
+    contents: &str,
+    file_name: &str,
+) -> (Result<(), TestError>, Vec<TestFailure>) {
     let timeout_secs = get_test_file_timeout();
 
     let result = std::panic::catch_unwind(|| {
-        tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(
-            run_test_file_with_timeout_impl(contents, file_name, timeout_secs)
-        )
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(run_test_file_with_timeout_impl(contents, file_name, timeout_secs))
     });
 
     match result {
         Ok(result) => result,
         Err(e) => {
-            let error_msg = e.downcast_ref::<String>()
-                .unwrap_or(&"Unknown panic".to_string())
-                .clone();
+            let error_msg =
+                e.downcast_ref::<String>().unwrap_or(&"Unknown panic".to_string()).clone();
 
             let failure = TestFailure {
                 sql_statement: "Unknown - panic occurred".to_string(),
@@ -107,15 +111,16 @@ pub fn run_test_file_with_details(contents: &str, file_name: &str) -> (Result<()
                 error_message: format!("Test harness panicked: {}", error_msg),
                 line_number: None,
             };
-            (Err(TestError::Execution(format!("Test harness panicked: {}", error_msg))), vec![failure])
+            (
+                Err(TestError::Execution(format!("Test harness panicked: {}", error_msg))),
+                vec![failure],
+            )
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    
-    
 
     #[test]
     fn test_timeout_wraps_execution() {

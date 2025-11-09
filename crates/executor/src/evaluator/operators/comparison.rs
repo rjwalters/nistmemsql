@@ -4,9 +4,12 @@
 //! Supports: All SQL types with proper type coercion
 //! Includes: NULL handling (three-valued logic), cross-type comparisons
 
-use crate::errors::ExecutorError;
-use crate::evaluator::casting::{is_approximate_numeric, is_exact_numeric, to_f64, to_i64};
 use types::SqlValue;
+
+use crate::{
+    errors::ExecutorError,
+    evaluator::casting::{is_approximate_numeric, is_exact_numeric, to_f64, to_i64},
+};
 
 pub(crate) struct ComparisonOps;
 
@@ -35,12 +38,7 @@ impl ComparisonOps {
         left: &SqlValue,
         right: &SqlValue,
     ) -> Result<SqlValue, ExecutorError> {
-        Self::compare(
-            left,
-            right,
-            |cmp| cmp != std::cmp::Ordering::Greater,
-            "<=",
-        )
+        Self::compare(left, right, |cmp| cmp != std::cmp::Ordering::Greater, "<=")
     }
 
     /// Greater than operator (>)
@@ -91,9 +89,7 @@ impl ComparisonOps {
             (Boolean(a), Boolean(b)) => Ok(Boolean(predicate(a.cmp(b)))),
 
             // Cross-type numeric comparisons - exact numeric types
-            (left_val, right_val)
-                if is_exact_numeric(left_val) && is_exact_numeric(right_val) =>
-            {
+            (left_val, right_val) if is_exact_numeric(left_val) && is_exact_numeric(right_val) => {
                 let left_i64 = to_i64(left_val)?;
                 let right_i64 = to_i64(right_val)?;
                 Ok(Boolean(predicate(left_i64.cmp(&right_i64))))
@@ -111,8 +107,14 @@ impl ComparisonOps {
             }
 
             // Mixed Float/Integer comparisons - promote Integer to Float
-            (left_val @ (Float(_) | Real(_) | Double(_)), right_val @ (Integer(_) | Smallint(_) | Bigint(_)))
-            | (left_val @ (Integer(_) | Smallint(_) | Bigint(_)), right_val @ (Float(_) | Real(_) | Double(_))) => {
+            (
+                left_val @ (Float(_) | Real(_) | Double(_)),
+                right_val @ (Integer(_) | Smallint(_) | Bigint(_)),
+            )
+            | (
+                left_val @ (Integer(_) | Smallint(_) | Bigint(_)),
+                right_val @ (Float(_) | Real(_) | Double(_)),
+            ) => {
                 let left_f64 = to_f64(left_val)?;
                 let right_f64 = to_f64(right_val)?;
                 Ok(Boolean(predicate(
@@ -124,7 +126,13 @@ impl ComparisonOps {
             (left_val @ Numeric(_), right_val)
                 if matches!(
                     right_val,
-                    Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_) | Numeric(_)
+                    Integer(_)
+                        | Smallint(_)
+                        | Bigint(_)
+                        | Float(_)
+                        | Real(_)
+                        | Double(_)
+                        | Numeric(_)
                 ) =>
             {
                 let left_f64 = to_f64(left_val)?;
@@ -136,7 +144,13 @@ impl ComparisonOps {
             (left_val, right_val @ Numeric(_))
                 if matches!(
                     left_val,
-                    Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_) | Numeric(_)
+                    Integer(_)
+                        | Smallint(_)
+                        | Bigint(_)
+                        | Float(_)
+                        | Real(_)
+                        | Double(_)
+                        | Numeric(_)
                 ) =>
             {
                 let left_f64 = to_f64(left_val)?;
@@ -215,26 +229,24 @@ mod tests {
 
     #[test]
     fn test_mixed_exact_numeric() {
-        let result =
-            ComparisonOps::equal(&SqlValue::Smallint(5), &SqlValue::Bigint(5)).unwrap();
+        let result = ComparisonOps::equal(&SqlValue::Smallint(5), &SqlValue::Bigint(5)).unwrap();
         assert_eq!(result, SqlValue::Boolean(true));
     }
 
     #[test]
     fn test_mixed_float_integer() {
-        let result =
-            ComparisonOps::equal(&SqlValue::Float(5.0), &SqlValue::Integer(5)).unwrap();
+        let result = ComparisonOps::equal(&SqlValue::Float(5.0), &SqlValue::Integer(5)).unwrap();
         assert_eq!(result, SqlValue::Boolean(true));
     }
 
     #[test]
     fn test_temporal_comparisons() {
-    let result = ComparisonOps::less_than(
-    &SqlValue::Date("2024-01-01".to_string()),
-    &SqlValue::Date("2024-12-31".to_string()),
-    )
-    .unwrap();
-    assert_eq!(result, SqlValue::Boolean(true));
+        let result = ComparisonOps::less_than(
+            &SqlValue::Date("2024-01-01".to_string()),
+            &SqlValue::Date("2024-12-31".to_string()),
+        )
+        .unwrap();
+        assert_eq!(result, SqlValue::Boolean(true));
     }
 
     #[test]

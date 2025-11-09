@@ -1,8 +1,6 @@
-use crate::errors::ExecutorError;
-use crate::schema::CombinedSchema;
-use crate::select::WindowFunctionKey;
-use std::cell::RefCell;
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap};
+
+use crate::{errors::ExecutorError, schema::CombinedSchema, select::WindowFunctionKey};
 
 /// Evaluates expressions in the context of a row
 pub struct ExpressionEvaluator<'a> {
@@ -68,7 +66,8 @@ impl<'a> ExpressionEvaluator<'a> {
         }
     }
 
-    /// Create a new expression evaluator with database and outer context (for correlated subqueries)
+    /// Create a new expression evaluator with database and outer context (for correlated
+    /// subqueries)
     pub fn with_database_and_outer_context(
         schema: &'a catalog::TableSchema,
         database: &'a storage::Database,
@@ -174,7 +173,8 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         }
     }
 
-    /// Create a new combined expression evaluator with database and outer context for correlated subqueries
+    /// Create a new combined expression evaluator with database and outer context for correlated
+    /// subqueries
     pub(crate) fn with_database_and_outer_context(
         schema: &'a CombinedSchema,
         database: &'a storage::Database,

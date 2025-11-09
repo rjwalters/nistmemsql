@@ -1,9 +1,10 @@
 //! Type DDL executor
 
-use crate::errors::ExecutorError;
 use ast::*;
 use catalog::{TypeAttribute, TypeDefinition, TypeDefinitionKind};
 use storage::Database;
+
+use crate::errors::ExecutorError;
 
 /// Executor for type DDL statements
 pub struct TypeExecutor;

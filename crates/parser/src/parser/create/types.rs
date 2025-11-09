@@ -17,10 +17,12 @@ impl Parser {
         self.advance();
 
         match type_upper.as_str() {
-        "INTEGER" | "INT" => Ok(types::DataType::Integer),
-        "SIGNED" => Ok(types::DataType::Integer), // MySQL-specific: SIGNED is equivalent to INTEGER
-        "UNSIGNED" => Ok(types::DataType::Unsigned), // MySQL-specific: UNSIGNED is 64-bit unsigned integer
-        "SMALLINT" => Ok(types::DataType::Smallint),
+            "INTEGER" | "INT" => Ok(types::DataType::Integer),
+            "SIGNED" => Ok(types::DataType::Integer), /* MySQL-specific: SIGNED is equivalent to */
+            // INTEGER
+            "UNSIGNED" => Ok(types::DataType::Unsigned), /* MySQL-specific: UNSIGNED is 64-bit */
+            // unsigned integer
+            "SMALLINT" => Ok(types::DataType::Smallint),
             "BIGINT" => Ok(types::DataType::Bigint),
             "BOOLEAN" | "BOOL" => Ok(types::DataType::Boolean),
             "FLOAT" => {
@@ -108,7 +110,8 @@ impl Parser {
                     // DEC, DECIMAL, and NUMERIC all map to DataType::Numeric
                     Ok(types::DataType::Numeric { precision, scale })
                 } else {
-                    // NUMERIC/DECIMAL/DEC without parameters - use defaults (38, 0) per SQL standard
+                    // NUMERIC/DECIMAL/DEC without parameters - use defaults (38, 0) per SQL
+                    // standard
                     Ok(types::DataType::Numeric { precision: 38, scale: 0 })
                 }
             }
@@ -273,7 +276,8 @@ impl Parser {
             }
             _ => {
                 // Check if this is a spatial/geometric type (SQL/MM standard)
-                // These are outside SQL:1999 scope but should parse gracefully as user-defined types
+                // These are outside SQL:1999 scope but should parse gracefully as user-defined
+                // types
                 if Self::is_spatial_type(&type_upper) {
                     Ok(types::DataType::UserDefined { type_name: type_upper })
                 } else {

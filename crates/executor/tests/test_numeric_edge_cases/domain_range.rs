@@ -1,8 +1,8 @@
 //! Domain and range error tests
 
-use super::basic::assert_function_errors;
-use super::common::create_test_evaluator;
 use types::SqlValue;
+
+use super::{basic::assert_function_errors, common::create_test_evaluator};
 
 #[test]
 fn test_trig_domain_errors() {

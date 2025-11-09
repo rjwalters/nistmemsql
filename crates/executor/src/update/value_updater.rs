@@ -1,10 +1,10 @@
 //! Value update logic for UPDATE operations
 
-use ast::Assignment;
 use std::collections::HashSet;
 
-use crate::errors::ExecutorError;
-use crate::evaluator::ExpressionEvaluator;
+use ast::Assignment;
+
+use crate::{errors::ExecutorError, evaluator::ExpressionEvaluator};
 
 /// Applies assignment expressions to rows
 pub struct ValueUpdater<'a> {

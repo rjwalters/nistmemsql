@@ -8,7 +8,8 @@ use ast::{ObjectType, PrivilegeType};
 /// A privilege grant record tracking who has what privilege on which object.
 #[derive(Debug, Clone)]
 pub struct PrivilegeGrant {
-    /// The database object name (table, schema, etc.) - supports qualified names like "schema.table"
+    /// The database object name (table, schema, etc.) - supports qualified names like
+    /// "schema.table"
     pub object: String,
     /// Type of object (TABLE, SCHEMA, etc.)
     pub object_type: ObjectType,

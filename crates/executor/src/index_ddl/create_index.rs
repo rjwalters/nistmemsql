@@ -3,8 +3,7 @@
 use ast::CreateIndexStmt;
 use storage::Database;
 
-use crate::errors::ExecutorError;
-use crate::privilege_checker::PrivilegeChecker;
+use crate::{errors::ExecutorError, privilege_checker::PrivilegeChecker};
 
 /// Executor for CREATE INDEX statements
 pub struct CreateIndexExecutor;
@@ -25,8 +24,8 @@ impl CreateIndexExecutor {
     ///
     /// ```
     /// use ast::{CreateIndexStmt, IndexColumn, OrderDirection};
-    /// use storage::Database;
     /// use executor::CreateIndexExecutor;
+    /// use storage::Database;
     ///
     /// let mut db = Database::new();
     /// // First create a table
@@ -37,12 +36,10 @@ impl CreateIndexExecutor {
     ///     if_not_exists: false,
     ///     table_name: "users".to_string(),
     ///     unique: false,
-    ///     columns: vec![
-    ///         IndexColumn {
-    ///             column_name: "email".to_string(),
-    ///             direction: OrderDirection::Asc,
-    ///         },
-    ///     ],
+    ///     columns: vec![IndexColumn {
+    ///         column_name: "email".to_string(),
+    ///         direction: OrderDirection::Asc,
+    ///     }],
     /// };
     ///
     /// let result = CreateIndexExecutor::execute(&stmt, &mut db);
@@ -78,7 +75,8 @@ impl CreateIndexExecutor {
         // Validate that all indexed columns exist in the table
         for index_col in &stmt.columns {
             if table_schema.get_column(&index_col.column_name).is_none() {
-                let available_columns = table_schema.columns.iter().map(|c| c.name.clone()).collect();
+                let available_columns =
+                    table_schema.columns.iter().map(|c| c.name.clone()).collect();
                 return Err(ExecutorError::ColumnNotFound {
                     column_name: index_col.column_name.clone(),
                     table_name: stmt.table_name.clone(),
@@ -116,10 +114,11 @@ impl CreateIndexExecutor {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::CreateTableExecutor;
     use ast::{ColumnDef, CreateTableStmt, IndexColumn, OrderDirection};
     use types::DataType;
+
+    use super::*;
+    use crate::CreateTableExecutor;
 
     fn create_test_table(db: &mut Database) {
         let stmt = CreateTableStmt {

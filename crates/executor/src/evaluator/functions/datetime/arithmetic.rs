@@ -2,11 +2,11 @@
 //!
 //! Implements DATEDIFF, DATE_ADD, DATE_SUB, AGE, and supporting helpers.
 
-use crate::errors::ExecutorError;
 use chrono::{Datelike, Duration, Local, NaiveDate, NaiveDateTime};
 use types::SqlValue;
 
 use super::extract::{day, hour, minute, month, second, year};
+use crate::errors::ExecutorError;
 
 /// DATEDIFF(date1, date2) - Calculate day difference between two dates
 /// SQL:1999 Core Feature E021-02: Date and time arithmetic

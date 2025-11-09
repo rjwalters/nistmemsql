@@ -81,9 +81,10 @@ impl NistMemSqlDB {
             .values
             .iter()
             .map(|val| match val {
-                SqlValue::Integer(_) | SqlValue::Smallint(_) | SqlValue::Bigint(_) | SqlValue::Unsigned(_) => {
-                    DefaultColumnType::Integer
-                }
+                SqlValue::Integer(_)
+                | SqlValue::Smallint(_)
+                | SqlValue::Bigint(_)
+                | SqlValue::Unsigned(_) => DefaultColumnType::Integer,
                 SqlValue::Float(_)
                 | SqlValue::Real(_)
                 | SqlValue::Double(_)
@@ -113,7 +114,11 @@ impl NistMemSqlDB {
         Ok(DBOutput::Rows { types, rows: formatted_rows })
     }
 
-    fn format_sql_value(&self, value: &SqlValue, expected_type: Option<&DefaultColumnType>) -> String {
+    fn format_sql_value(
+        &self,
+        value: &SqlValue,
+        expected_type: Option<&DefaultColumnType>,
+    ) -> String {
         match value {
             SqlValue::Integer(i) => {
                 if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {

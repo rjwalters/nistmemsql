@@ -1,7 +1,8 @@
 //! Common Table Expression (CTE) handling for SELECT queries
 
-use crate::errors::ExecutorError;
 use std::collections::HashMap;
+
+use crate::errors::ExecutorError;
 
 /// CTE result: (schema, rows)
 pub(super) type CteResult = (catalog::TableSchema, Vec<storage::Row>);
@@ -60,7 +61,8 @@ pub(super) fn derive_cte_schema(
                 .zip(&first_row.values)
                 .map(|(name, value)| {
                     let data_type = infer_type_from_value(value);
-                    catalog::ColumnSchema::new(name.clone(), data_type, true) // nullable for simplicity
+                    catalog::ColumnSchema::new(name.clone(), data_type, true) // nullable for
+                                                                              // simplicity
                 })
                 .collect();
 
@@ -139,9 +141,9 @@ pub(super) fn infer_type_from_value(value: &types::SqlValue) -> types::DataType 
         types::SqlValue::Smallint(_) => types::DataType::Smallint,
         types::SqlValue::Bigint(_) => types::DataType::Bigint,
         types::SqlValue::Unsigned(_) => types::DataType::Unsigned,
-        types::SqlValue::Date(_) => types::DataType::Varchar { max_length: Some(255) }, // TODO: proper date type
-        types::SqlValue::Time(_) => types::DataType::Varchar { max_length: Some(255) }, // TODO: proper time type
-        types::SqlValue::Timestamp(_) => types::DataType::Varchar { max_length: Some(255) }, // TODO: proper timestamp type
-        types::SqlValue::Interval(_) => types::DataType::Varchar { max_length: Some(255) }, // TODO: proper interval type
+        types::SqlValue::Date(_) => types::DataType::Varchar { max_length: Some(255) }, /* TODO: proper date type */
+        types::SqlValue::Time(_) => types::DataType::Varchar { max_length: Some(255) }, /* TODO: proper time type */
+        types::SqlValue::Timestamp(_) => types::DataType::Varchar { max_length: Some(255) }, /* TODO: proper timestamp type */
+        types::SqlValue::Interval(_) => types::DataType::Varchar { max_length: Some(255) }, /* TODO: proper interval type */
     }
 }
