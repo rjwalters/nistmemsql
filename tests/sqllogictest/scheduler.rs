@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::{env, fs};
 
 /// Load historical test results from JSON file
+#[allow(dead_code)]
 pub fn load_historical_results() -> serde_json::Value {
     // Try to load from target/sqllogictest_cumulative.json (workflow format)
     if let Ok(content) = fs::read_to_string("target/sqllogictest_cumulative.json") {
@@ -25,6 +26,7 @@ pub fn load_historical_results() -> serde_json::Value {
 }
 
 /// Prioritize test files based on historical results: failed first, then untested, then passed
+#[allow(dead_code)]
 pub fn prioritize_test_files(
     all_files: &[PathBuf],
     historical: &serde_json::Value,
@@ -120,6 +122,7 @@ pub fn prioritize_test_files(
 }
 
 /// Extract worker configuration from environment variables
+#[allow(dead_code)]
 pub fn get_worker_config() -> (usize, usize) {
     let worker_id = env::var("SQLLOGICTEST_WORKER_ID")
         .ok()
@@ -145,6 +148,7 @@ pub fn get_test_file_timeout() -> u64 {
 
 /// Partition files into equal slices for parallel workers
 /// Returns the slice for the specified worker_id (1-indexed)
+#[allow(dead_code)]
 fn partition_files(files: &[PathBuf], worker_id: usize, total_workers: usize) -> Vec<PathBuf> {
     if total_workers <= 1 || worker_id == 0 || worker_id > total_workers {
         return files.to_vec();

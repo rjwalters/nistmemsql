@@ -7,6 +7,8 @@
 //! equijoin graph to find chains where early tables have high selectivity,
 //! preventing cascading intermediate results.
 
+#![allow(dead_code)]
+
 use std::collections::{HashMap, HashSet};
 use ast::{Expression, BinaryOperator};
 use types::SqlValue;

@@ -30,6 +30,7 @@ members = [
     "crates/catalog",
     "crates/storage",
     "crates/executor",
+    "crates/cli",
     "crates/wasm-bindings",
     "crates/python-bindings",
 ]

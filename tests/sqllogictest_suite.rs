@@ -128,8 +128,6 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
             }
         }
     }
-
-    (results, total_available_files)
 }
 
 fn main() {

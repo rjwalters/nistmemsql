@@ -123,7 +123,7 @@ fn test_parse_count_distinct_star_should_fail() {
         match &stmt.select_list[0] {
             ast::SelectItem::Expression { expr, .. } => {
                 match expr {
-                    ast::Expression::AggregateFunction { name, distinct, args, .. } => {
+                    ast::Expression::AggregateFunction { name, distinct, .. } => {
                         assert_eq!(name, "COUNT");
                         assert_eq!(*distinct, true);
                         // Parser allows it, but executor should reject it
