@@ -273,7 +273,7 @@ fn test_age_null_second_date() {
 
 #[test]
 fn test_datediff_invalid_date_format() {
-    eval_function_expect_error("DATEDIFF", vec![date_lit("invalid-date"), date_lit("2024-01-05")]);
+    eval_function_expect_error("DATEDIFF", vec![varchar_lit("invalid-date"), date_lit("2024-01-05")]);
 }
 
 #[test]

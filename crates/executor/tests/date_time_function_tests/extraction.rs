@@ -85,7 +85,7 @@ fn test_day_from_timestamp() {
     let expr = create_datetime_function(
         "DAY",
         vec![create_literal(types::SqlValue::Timestamp(
-            TEST_DATE_LATE_MONTH.to_string() + " 14:30:45",
+            (TEST_DATE_LATE_MONTH.to_string() + " 14:30:45").parse().unwrap(),
         ))],
     );
     let result = evaluator.eval(&expr, &row).unwrap();

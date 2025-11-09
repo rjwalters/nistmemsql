@@ -20,8 +20,8 @@ fn test_current_time_precision_0() {
     // Precision 0: HH:MM:SS (no fractional)
     match result {
         types::SqlValue::Time(s) => {
-            validate_fractional_precision(&s, 0);
-            validate_time_format(&s);
+            validate_fractional_precision(&s.to_string(), 0);
+            validate_time_format(&s.to_string());
         }
         _ => panic!("CURRENT_TIME should return Time type"),
     }
@@ -38,7 +38,7 @@ fn test_current_time_precision_3() {
     // Precision 3: HH:MM:SS.fff
     match result {
         types::SqlValue::Time(s) => {
-            validate_fractional_precision(&s, 3);
+            validate_fractional_precision(&s.to_string(), 3);
         }
         _ => panic!("CURRENT_TIME should return Time type"),
     }
@@ -55,7 +55,7 @@ fn test_current_time_precision_6() {
     // Precision 6: HH:MM:SS.ffffff
     match result {
         types::SqlValue::Time(s) => {
-            validate_fractional_precision(&s, 6);
+            validate_fractional_precision(&s.to_string(), 6);
         }
         _ => panic!("CURRENT_TIME should return Time type"),
     }
@@ -72,7 +72,7 @@ fn test_current_time_precision_9() {
     // Precision 9: HH:MM:SS.nnnnnnnnn (max precision)
     match result {
         types::SqlValue::Time(s) => {
-            validate_fractional_precision(&s, 9);
+            validate_fractional_precision(&s.to_string(), 9);
         }
         _ => panic!("CURRENT_TIME should return Time type"),
     }
@@ -123,8 +123,8 @@ fn test_current_timestamp_precision_0() {
     // Precision 0: YYYY-MM-DD HH:MM:SS (no fractional)
     match result {
         types::SqlValue::Timestamp(s) => {
-            validate_fractional_precision(&s, 0);
-            validate_timestamp_format(&s);
+            validate_fractional_precision(&s.to_string(), 0);
+            validate_timestamp_format(&s.to_string());
         }
         _ => panic!("CURRENT_TIMESTAMP should return Timestamp type"),
     }
@@ -143,7 +143,7 @@ fn test_current_timestamp_precision_3() {
     // Precision 3: YYYY-MM-DD HH:MM:SS.fff
     match result {
         types::SqlValue::Timestamp(s) => {
-            validate_fractional_precision(&s, 3);
+            validate_fractional_precision(&s.to_string(), 3);
         }
         _ => panic!("CURRENT_TIMESTAMP should return Timestamp type"),
     }
@@ -162,7 +162,7 @@ fn test_current_timestamp_precision_6() {
     // Precision 6: YYYY-MM-DD HH:MM:SS.ffffff
     match result {
         types::SqlValue::Timestamp(s) => {
-            validate_fractional_precision(&s, 6);
+            validate_fractional_precision(&s.to_string(), 6);
         }
         _ => panic!("CURRENT_TIMESTAMP should return Timestamp type"),
     }
