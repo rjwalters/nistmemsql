@@ -10,7 +10,6 @@ use crate::optimizer::PredicateDecomposition;
 use super::join::{nested_loop_join, FromResult};
 use super::cte::CteResult;
 use ast::FromClause;
-use storage::Database;
 
 /// Specification for reordered join execution
 #[derive(Debug, Clone)]
@@ -156,7 +155,7 @@ fn extract_join_conditions(
 ///   (not just the immediately preceding one, which is critical for star joins)
 pub(super) fn execute_reordered_join<F>(
     from: &FromClause,
-    cte_results: &HashMap<String, CteResult>,
+    _cte_results: &HashMap<String, CteResult>,
     database: &storage::Database,
     execute_from_fn: F,
     predicates: Option<&PredicateDecomposition>,

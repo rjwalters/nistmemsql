@@ -156,7 +156,7 @@ impl ExpressionMapper {
                     if let Some(idx) = self.resolve_column(None, column) {
                         columns.push(("*".to_string(), column_lower.clone()));
                         // Find which table this column belongs to
-                        for ((tbl, col), &col_idx) in &self.column_positions {
+                        for ((tbl, _col), &col_idx) in &self.column_positions {
                             if col_idx == idx {
                                 tables.insert(tbl.clone());
                                 break;

@@ -58,7 +58,7 @@ pub const MAX_QUERY_EXECUTION_SECONDS: u64 = 60;
 /// Should be higher than MAX_ROWS_PROCESSED to avoid false positives
 pub const MAX_LOOP_ITERATIONS: usize = 50_000_000;
 
-/// Maximum memory usage per query execution (10 GB)
+/// Maximum memory usage per query execution
 ///
 /// This prevents:
 /// - Cartesian product explosions
@@ -67,10 +67,21 @@ pub const MAX_LOOP_ITERATIONS: usize = 50_000_000;
 /// - Swapping/OOM kills
 ///
 /// Large enough for legitimate queries, small enough to catch pathological cases
-pub const MAX_MEMORY_BYTES: usize = 10 * 1024 * 1024 * 1024; // 10 GB
+///
+/// WASM targets have more constrained memory (typically 2-4 GB addressable),
+/// so we use smaller limits there to avoid overflow
+#[cfg(target_family = "wasm")]
+pub const MAX_MEMORY_BYTES: usize = 1 * 1024 * 1024 * 1024; // 1 GB for WASM
 
-/// Warning threshold - log when memory exceeds this (5 GB)
-pub const MEMORY_WARNING_BYTES: usize = 5 * 1024 * 1024 * 1024;
+#[cfg(not(target_family = "wasm"))]
+pub const MAX_MEMORY_BYTES: usize = 10 * 1024 * 1024 * 1024; // 10 GB for native
+
+/// Warning threshold - log when memory exceeds this
+#[cfg(target_family = "wasm")]
+pub const MEMORY_WARNING_BYTES: usize = 512 * 1024 * 1024; // 512 MB for WASM
+
+#[cfg(not(target_family = "wasm"))]
+pub const MEMORY_WARNING_BYTES: usize = 5 * 1024 * 1024 * 1024; // 5 GB for native
 
 #[cfg(test)]
 mod tests {

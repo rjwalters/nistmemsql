@@ -10,8 +10,6 @@ mod nested_loop;
 pub mod reorder;
 pub mod search;
 
-// Re-export expression mapper for use in join reordering
-pub(super) use expression_mapper::ExpressionMapper;
 // Re-export join reorder analyzer for public tests
 pub use reorder::JoinOrderAnalyzer;
 // Re-export join order search for public tests

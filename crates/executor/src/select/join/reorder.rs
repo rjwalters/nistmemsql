@@ -154,7 +154,7 @@ impl JoinOrderAnalyzer {
                         self.edges.push(edge);
                     }
                     // Local predicate: column = constant
-                    (Some(table), None, Some(col), _) => {
+                    (Some(table), None, Some(_col), _) => {
                         if let Some(table_info) = self.tables.get_mut(&table.to_lowercase()) {
                             table_info.local_predicates.push(expr.clone());
                             // Heuristic: equality predicate has ~10% selectivity

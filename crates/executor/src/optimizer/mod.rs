@@ -15,4 +15,4 @@ pub use where_pushdown::{
     get_equijoin_predicates, combine_with_and, get_predicates_for_tables,
 };
 // Also export branch-specific types for join reordering
-pub use where_pushdown::{decompose_where_clause, PredicateDecomposition, PredicateCategory};
+pub use where_pushdown::{decompose_where_clause, PredicateDecomposition};
