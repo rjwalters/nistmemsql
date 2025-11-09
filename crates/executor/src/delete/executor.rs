@@ -234,6 +234,10 @@ impl DeleteExecutor {
         rows_and_indices: &mut Vec<(usize, storage::Row)>,
     ) -> Result<(), ExecutorError> {
         for (index, row) in table.scan().iter().enumerate() {
+            // Clear CSE cache before evaluating each row to prevent column values
+            // from being incorrectly cached across different rows
+            evaluator.clear_cse_cache();
+
             let should_delete = if let Some(ref where_clause) = where_clause {
                 match where_clause {
                     ast::WhereClause::Condition(where_expr) => {

@@ -289,6 +289,10 @@ pub(super) fn group_rows<'a>(
             executor.check_timeout()?;
         }
 
+        // Clear CSE cache before evaluating each row to prevent column values
+        // from being incorrectly cached across different rows
+        evaluator.clear_cse_cache();
+
         // Evaluate GROUP BY expressions to get the group key
         let mut key = Vec::new();
         for expr in group_by_exprs {

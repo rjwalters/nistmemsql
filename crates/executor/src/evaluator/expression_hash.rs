@@ -39,14 +39,16 @@ impl ExpressionHasher {
             | ast::Expression::CurrentTime { .. }
             | ast::Expression::CurrentTimestamp { .. } => false,
 
-            // Non-deterministic functions
+            // Non-deterministic functions and aggregate functions used as regular functions
             ast::Expression::Function { name, args, .. } => {
                 let name_upper = name.to_uppercase();
-                // List of known non-deterministic functions
+                // List of known non-deterministic functions and aggregate functions
+                // (aggregate functions should not be cached at row level)
                 if matches!(
                     name_upper.as_str(),
                     "RAND" | "RANDOM" | "NOW" | "CURRENT_DATE" | "CURRENT_TIME"
                         | "CURRENT_TIMESTAMP"
+                        | "COUNT" | "SUM" | "AVG" | "MIN" | "MAX"
                 ) {
                     return false;
                 }

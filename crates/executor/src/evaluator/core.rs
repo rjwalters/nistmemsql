@@ -128,6 +128,12 @@ impl<'a> ExpressionEvaluator<'a> {
         super::operators::OperatorRegistry::eval_binary_op(left, op, right)
     }
 
+    /// Clear the CSE cache
+    /// Should be called before evaluating expressions for a new row in multi-row contexts
+    pub fn clear_cse_cache(&self) {
+        self.cse_cache.borrow_mut().clear();
+    }
+
     /// Compare two SQL values for equality (NULL-safe for simple CASE)
     /// Uses IS NOT DISTINCT FROM semantics where NULL = NULL is TRUE
     pub(crate) fn values_are_equal(left: &types::SqlValue, right: &types::SqlValue) -> bool {
@@ -247,6 +253,12 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             cse_cache: RefCell::new(HashMap::new()),
             enable_cse: Self::is_cse_enabled(),
         }
+    }
+
+    /// Clear the CSE cache
+    /// Should be called before evaluating expressions for a new row in multi-row contexts
+    pub(crate) fn clear_cse_cache(&self) {
+        self.cse_cache.borrow_mut().clear();
     }
 
     /// Get column index with caching to avoid repeated schema lookups

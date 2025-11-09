@@ -196,6 +196,10 @@ impl SelectExecutor<'_> {
             // Check timeout during projection
             self.check_timeout()?;
 
+            // Clear CSE cache before projecting each row to prevent column values
+            // from being incorrectly cached across different rows
+            evaluator.clear_cse_cache();
+
             let projected_row = project_row_combined(
                 &row,
                 &stmt.select_list,
