@@ -91,6 +91,36 @@ We use comprehensive test suites to track SQL:1999 compliance:
 
 **See [SQL:1999 Conformance Report](https://rjwalters.github.io/vibesql/conformance.html) for detailed test results and remaining work.**
 
+### 🐕 Dogfooding: SQLLogicTest Database Integration (NEW!)
+
+**VibeSQL now stores its own test results in VibeSQL!** We've implemented a complete database-integrated workflow for SQLLogicTest, demonstrating real-world usage.
+
+**Quick Start**:
+```bash
+# Run tests (database auto-updates)
+./scripts/sqllogictest run --time 60
+
+# Query results with SQL!
+./scripts/sqllogictest query --preset failed-files
+./scripts/sqllogictest query --preset by-category
+
+# Custom queries
+./scripts/sqllogictest query --query "
+    SELECT category, COUNT(*) FROM test_files
+    WHERE status='FAIL' GROUP BY category
+"
+```
+
+**Features**:
+- 📊 **3 tables**: test_files, test_runs, test_results
+- 🔍 **9 preset queries**: failed-files, by-category, progress, flaky-tests, etc.
+- 📈 **Historical tracking**: Track pass rate over time with git commits
+- 🎯 **Manual testing workflow**: Query your progress as you work through tests
+
+**Documentation**:
+- [Quick Start Guide](docs/SQLLOGICTEST_QUICKSTART.md) - 30-second introduction
+- [Complete Documentation](docs/SQLLOGICTEST_DATABASE.md) - Architecture, schema, queries, workflow
+
 ### Running Tests
 
 ```bash

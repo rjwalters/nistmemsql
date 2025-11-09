@@ -6,7 +6,12 @@ This directory contains active documentation for VibeSQL, organized into focused
 
 ### Most Frequently Used
 - **[WORK_PLAN.md](WORK_PLAN.md)** - Comprehensive roadmap tracking SQL:1999 compliance progress, milestones, and development velocity
+- **[SQLLOGICTEST_QUICKSTART.md](SQLLOGICTEST_QUICKSTART.md)** - 30-second quick start for database-integrated SQLLogicTest workflow (NEW!)
 - **[README.md](README.md)** - Documentation guide explaining the structure and purpose of all documentation
+
+### SQLLogicTest Database Integration (Dogfooding!)
+- **[SQLLOGICTEST_QUICKSTART.md](SQLLOGICTEST_QUICKSTART.md)** - Quick start guide with examples
+- **[SQLLOGICTEST_DATABASE.md](SQLLOGICTEST_DATABASE.md)** - Complete documentation: architecture, schema, queries, workflow
 
 ## 📁 Subdirectories
 
@@ -15,6 +20,7 @@ Project vision, requirements, and roadmaps. Start here to understand the big pic
 - PROBLEM_STATEMENT.md - Original challenge and vision
 - REQUIREMENTS.md - Project requirements and constraints
 - ROADMAP_CORE_COMPLIANCE.md - 10-phase plan to Core compliance
+- PERSISTENCE_AND_DOGFOODING.md - Database persistence and dogfooding plan (✅ Phases 2-3 complete)
 
 ### [testing/](testing/) - Testing & Conformance
 Testing strategies, conformance tracking, and quality assurance.
@@ -53,6 +59,8 @@ Feature proposals and design documents.
 
 **Starting the project?** → Read [planning/PROBLEM_STATEMENT.md](planning/PROBLEM_STATEMENT.md), then [WORK_PLAN.md](WORK_PLAN.md)
 
+**Testing SQLLogicTest?** → Start with [SQLLOGICTEST_QUICKSTART.md](SQLLOGICTEST_QUICKSTART.md) for database-integrated workflow
+
 **Contributing code?** → Check [testing/TESTING_STRATEGY.md](testing/TESTING_STRATEGY.md) and [lessons/TDD_APPROACH.md](lessons/TDD_APPROACH.md)
 
 **Optimizing performance?** → See [performance/](performance/) directory for all optimization docs
@@ -65,4 +73,4 @@ Feature proposals and design documents.
 
 ---
 
-**Last Updated**: 2025-11-03
+**Last Updated**: 2025-11-08
