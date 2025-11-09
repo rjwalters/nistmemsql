@@ -1,11 +1,12 @@
 //! Thread-safe query plan cache with LRU eviction
 //!
-//! Caches execution plans by query signature to avoid repeated parsing and
-//! planning for structurally identical queries.
+//! Caches parsed AST and execution plans to avoid repeated parsing and
+//! planning for structurally identical queries. This is NOT a result cache -
+//! plans are still executed, we just skip parsing and analysis.
 
 use super::QuerySignature;
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::collections::{HashMap, HashSet};
+use std::sync::RwLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Statistics about cache performance
@@ -18,9 +19,17 @@ pub struct CacheStats {
     pub hit_rate: f64,
 }
 
-/// Thread-safe cache with LRU eviction policy
+/// Wrapper for cached plans that tracks table dependencies
+#[derive(Clone)]
+struct CachedEntry {
+    sql: String,
+    tables: HashSet<String>,
+}
+
+/// Generic type-erased cache for storing parsed AST and plans
+/// This intentionally avoids caching results - plans are still executed
 pub struct QueryPlanCache {
-    cache: RwLock<HashMap<QuerySignature, Arc<String>>>,
+    cache: RwLock<HashMap<QuerySignature, CachedEntry>>,
     max_size: usize,
     hits: AtomicUsize,
     misses: AtomicUsize,
@@ -40,20 +49,31 @@ impl QueryPlanCache {
     }
 
     /// Check if query is in cache and update statistics
-    pub fn get(&self, signature: &QuerySignature) -> Option<Arc<String>> {
+    pub fn get(&self, signature: &QuerySignature) -> Option<String> {
         let cache = self.cache.read().unwrap();
-        if let Some(plan) = cache.get(signature) {
+        if let Some(entry) = cache.get(signature) {
             self.hits.fetch_add(1, Ordering::Relaxed);
-            Some(Arc::clone(plan))
+            Some(entry.sql.clone())
         } else {
             self.misses.fetch_add(1, Ordering::Relaxed);
             None
         }
     }
 
-    /// Insert plan into cache, evicting LRU entry if at capacity
-    pub fn insert(&self, signature: QuerySignature, plan: String) {
-        let plan = Arc::new(plan);
+    /// Insert plan into cache with table metadata, evicting LRU entry if at capacity
+    /// The sql should be the normalized original query
+    pub fn insert(&self, signature: QuerySignature, sql: String) {
+        self.insert_with_tables(signature, sql, HashSet::new());
+    }
+
+    /// Insert plan with explicit table dependencies for better invalidation
+    pub fn insert_with_tables(
+        &self,
+        signature: QuerySignature,
+        sql: String,
+        tables: HashSet<String>,
+    ) {
+        let entry = CachedEntry { sql, tables };
         let mut cache = self.cache.write().unwrap();
 
         if cache.len() >= self.max_size {
@@ -64,7 +84,7 @@ impl QueryPlanCache {
             }
         }
 
-        cache.insert(signature, plan);
+        cache.insert(signature, entry);
     }
 
     /// Check if signature is cached
@@ -80,7 +100,7 @@ impl QueryPlanCache {
     /// Invalidate all plans referencing a table
     pub fn invalidate_table(&self, table: &str) {
         let mut cache = self.cache.write().unwrap();
-        cache.retain(|_, plan| !plan.to_lowercase().contains(&format!("from {}", table.to_lowercase())));
+        cache.retain(|_, entry| !entry.tables.iter().any(|t| t.eq_ignore_ascii_case(table)));
     }
 
     /// Get cache statistics
@@ -114,13 +134,13 @@ mod tests {
     fn test_cache_hit() {
         let cache = QueryPlanCache::new(10);
         let sig = QuerySignature::from_sql("SELECT * FROM users");
-        let plan = "plan".to_string();
+        let sql = "select * from users".to_string();
 
-        cache.insert(sig.clone(), plan.clone());
+        cache.insert(sig.clone(), sql.clone());
         let result = cache.get(&sig);
 
         assert!(result.is_some());
-        assert_eq!(*result.unwrap(), plan);
+        assert_eq!(result.unwrap(), sql);
     }
 
     #[test]
@@ -140,11 +160,11 @@ mod tests {
         let sig2 = QuerySignature::from_sql("SELECT * FROM orders");
         let sig3 = QuerySignature::from_sql("SELECT * FROM products");
 
-        cache.insert(sig1.clone(), "plan1".to_string());
-        cache.insert(sig2.clone(), "plan2".to_string());
+        cache.insert(sig1, "select * from users".to_string());
+        cache.insert(sig2, "select * from orders".to_string());
         assert_eq!(cache.stats().size, 2);
 
-        cache.insert(sig3, "plan3".to_string());
+        cache.insert(sig3, "select * from products".to_string());
         assert_eq!(cache.stats().size, 2);
         assert_eq!(cache.stats().evictions, 1);
     }
@@ -154,7 +174,7 @@ mod tests {
         let cache = QueryPlanCache::new(10);
         let sig = QuerySignature::from_sql("SELECT * FROM users");
 
-        cache.insert(sig.clone(), "plan".to_string());
+        cache.insert(sig.clone(), "select * from users".to_string());
         assert!(cache.contains(&sig));
 
         cache.clear();
@@ -165,8 +185,10 @@ mod tests {
     fn test_table_invalidation() {
         let cache = QueryPlanCache::new(10);
         let sig = QuerySignature::from_sql("SELECT * FROM users WHERE id = 1");
+        let mut tables = std::collections::HashSet::new();
+        tables.insert("users".to_string());
 
-        cache.insert(sig.clone(), "SELECT * FROM users WHERE id = 1".to_string());
+        cache.insert_with_tables(sig.clone(), "select * from users where id = 1".to_string(), tables);
         assert!(cache.contains(&sig));
 
         cache.invalidate_table("users");
@@ -178,7 +200,7 @@ mod tests {
         let cache = QueryPlanCache::new(10);
         let sig = QuerySignature::from_sql("SELECT * FROM users");
 
-        cache.insert(sig.clone(), "plan".to_string());
+        cache.insert(sig.clone(), "select * from users".to_string());
 
         // Generate hits
         cache.get(&sig);
