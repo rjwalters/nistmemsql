@@ -35,8 +35,8 @@ impl MetaCommand {
         }
 
         let parts: Vec<&str> = trimmed.split_whitespace().collect();
-        
-        match parts.get(0) {
+
+        match parts.first() {
             Some(&"\\q") | Some(&"\\quit") => Some(MetaCommand::Quit),
             Some(&"\\h") | Some(&"\\help") => Some(MetaCommand::Help),
             Some(&"\\d") => {
