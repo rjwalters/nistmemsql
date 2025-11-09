@@ -76,23 +76,6 @@ impl WorkQueue {
         None
     }
 
-    /// Mark a test file as completed
-    pub fn mark_completed(&self, work_item_name: &str) -> std::io::Result<()> {
-        let claimed_path = self.claimed_dir.join(work_item_name);
-        let completed_path = self.completed_dir.join(work_item_name);
-        fs::rename(claimed_path, completed_path)
-    }
-
-    /// Encode a test file path into a work item filename
-    /// Format: {counter:04}-{sanitized_path}
-    pub fn encode_work_item(counter: usize, test_file: &Path) -> String {
-        let path_str = test_file.to_string_lossy();
-        // Sanitize path: replace / and \ with __ (double underscore)
-        // This is safe on all filesystems and won't conflict with single _ in filenames
-        let sanitized = path_str.replace('/', "__").replace('\\', "__");
-        format!("{:04}-{}", counter, sanitized)
-    }
-
     /// Decode a work item filename back to the test file path
     fn decode_work_item(&self, work_item_name: &str) -> Option<PathBuf> {
         // Format: {counter:04}-{sanitized_path}
@@ -121,25 +104,3 @@ impl WorkQueue {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::WorkQueue;
-    use std::path::PathBuf;
-
-    #[test]
-    fn test_encode_decode_work_item() {
-        let test_file = PathBuf::from("third_party/sqllogictest/test/select1.test");
-        let encoded = WorkQueue::encode_work_item(42, &test_file);
-        assert_eq!(encoded, "0042-third_party__sqllogictest__test__select1.test");
-
-        // Create a dummy work queue to test decoding
-        let temp_dir = std::env::temp_dir().join("test_work_queue");
-        let queue = WorkQueue::new(&temp_dir).unwrap();
-
-        let decoded = queue.decode_work_item(&encoded).unwrap();
-        assert_eq!(decoded.to_string_lossy(), "third_party/sqllogictest/test/select1.test");
-
-        // Cleanup
-        let _ = fs::remove_dir_all(temp_dir);
-    }
-}

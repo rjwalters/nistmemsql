@@ -1,10 +1,10 @@
 # Agent Task: Fix SQLLogicTest Parallel Testing - Work Queue Implementation
 
-## Status: IN PROGRESS
+## Status: COMPLETED ✅
 
-This task has been partially completed. The work queue system is implemented but needs final testing and verification.
+The work queue system is fully implemented, tested, and simplified.
 
-## What Has Been Done
+## What Was Completed
 
 1. ✅ **Fixed time budget looping** (Commit 7840c2f)
    - Workers now loop through files until time budget expires
@@ -16,102 +16,69 @@ This task has been partially completed. The work queue system is implemented but
    - Updated Python orchestrator to initialize queue
    - Each file tested exactly once (no redundant work)
 
-## What Needs To Be Done
+3. ✅ **Verified work queue on remote**
+   - 64 workers successfully claimed and tested all 623 files
+   - Dynamic work distribution working correctly
+   - Workers exit cleanly when queue is empty
 
-### Immediate Tasks
+4. ✅ **Simplified test infrastructure**
+   - Removed legacy iteration mode (~150 lines)
+   - Removed unused imports and variables
+   - Work queue is now the only mode
+   - Code is cleaner and easier to maintain
 
-1. **Test work queue locally**
-   - Run: `python3 scripts/run_parallel_tests.py --workers 2 --time-budget 30`
-   - Verify both workers claim files from queue
-   - Check that all 623 files get tested exactly once
-   - Verify queue directories: pending → claimed → completed
+## Implementation Details
 
-2. **Test on remote with 8 workers**
-   - Run: `./scripts/remote_test.sh --sync --workers 8 --time 300`
-   - Monitor: `ssh rwalters-sandbox-1 'ls /tmp/sqllogictest_work_queue/*/ | wc -l'`
-   - Verify all files tested and workers exit cleanly
-
-3. **Full scale test with 64 workers**
-   - Run: `./scripts/remote_quick.sh sync && ./scripts/remote_quick.sh run`
-   - Should complete all 623 files in under 10 minutes
-   - All workers should exit when queue is empty
-
-### Known Issues Being Debugged
-
-- Path resolution: Work queue returns relative paths, need to prepend test_dir
-- Workers are claiming files but may fail to read them (check logs)
-- Need to verify `__` path separator works correctly on all platforms
-
-## Root Cause
-
-The test suite in `tests/sqllogictest_suite.rs` iterates through the prioritized file list ONCE and then exits:
+The work queue system uses filesystem operations for coordination:
 
 ```rust
-for (files_tested, test_file) in prioritized_files.into_iter().enumerate() {
-    if start_time.elapsed() >= time_budget {
-        break;  // Only checked between files
-    }
-    // Test the file...
-}
-// Loop exits - worker terminates even if time remains!
-```
-
-When a worker's partition only has 10 files that test in seconds, it exits in ~30 seconds despite having a 3600 second time budget.
-
-## Your Task
-
-### Primary Objective
-
-Modify `tests/sqllogictest_suite.rs` to make workers continue testing until their time budget is exhausted.
-
-### Recommended Approach
-
-1. **Wrap the file iteration in an outer loop** that continues until time budget expires:
-
-```rust
-let mut iteration = 0;
 loop {
-    for (files_tested, test_file) in prioritized_files.iter().enumerate() {
-        // Check time budget frequently
-        if start_time.elapsed() >= time_budget {
-            println!("\n⏱️  Time budget exhausted");
-            return (results, files_tested);
-        }
-        // Test the file...
-    }
+    // Try to atomically claim next file from queue
+    let Some(rel_path_buf) = work_queue.claim_next_file() else {
+        // Queue empty - all files tested, exit cleanly
+        return (results, total_available_files);
+    };
 
-    iteration += 1;
-    println!("Completed iteration {}, cycling through files again...", iteration);
-
-    if start_time.elapsed() >= time_budget {
-        break;
-    }
+    // Test the file...
+    // Workers continue until queue is empty
 }
 ```
 
-2. **Test incrementally**:
-   - First test locally with short time budget: `SQLLOGICTEST_TIME_BUDGET=60 cargo test --test sqllogictest_suite -- --nocapture`
-   - Verify it runs for 60 seconds, cycling through files multiple times
-   - Then test on remote with 1 worker: `./scripts/remote_test.sh --sync --workers 1 --time 300`
-   - Then with 8 workers: `./scripts/remote_test.sh --sync --workers 8 --time 300`
-   - Finally full scale: `./scripts/remote_quick.sh sync && ./scripts/remote_quick.sh quick`
+Each worker claims files atomically using `fs::rename()`, ensuring each file is tested exactly once across all workers.
 
-3. **Monitor success**:
-   ```bash
-   # SSH to remote and watch processes
-   ssh rwalters-sandbox-1 'watch -n 5 "ps aux | grep sqllogictest_suite | grep -v grep | wc -l"'
+## Usage
 
-   # Check CPU utilization
-   ssh rwalters-sandbox-1 'top -bn1 | head -20'
-   ```
+### Running Tests Locally
 
-### Success Criteria
+```bash
+# With Python orchestrator (work queue mode)
+python3 scripts/run_parallel_tests.py --workers 4 --time-budget 300
 
-✅ Workers run for their full time budget (verified by timestamps in logs)
-✅ CPU utilization >70% when running parallel tests
-✅ `ps aux | grep sqllogictest | wc -l` shows 8+ active processes consistently
-✅ Worker log files show multiple iterations through file lists
-✅ Each worker tests hundreds of files instead of just ~10
+# Direct cargo test (requires SQLLOGICTEST_USE_WORK_QUEUE and SQLLOGICTEST_WORK_QUEUE env vars)
+SQLLOGICTEST_USE_WORK_QUEUE=1 SQLLOGICTEST_WORK_QUEUE=/tmp/sqllogictest_work_queue \
+SQLLOGICTEST_TIME_BUDGET=60 cargo test --test sqllogictest_suite -- --nocapture
+```
+
+### Running Tests on Remote
+
+```bash
+# Sync code and run 64 workers for 1 hour
+./scripts/remote_test.sh --sync --workers 64 --time 3600
+
+# Monitor progress
+ssh rwalters-sandbox-1 'top -bn1 | head -20'
+ssh rwalters-sandbox-1 'ps aux | grep sqllogictest | grep -v grep | wc -l'
+
+# Fetch results
+./scripts/remote_test.sh --fetch-results
+```
+
+### Via Unified CLI
+
+```bash
+# Use the main CLI wrapper
+./scripts/sqllogictest run --parallel --workers 8 --time 300
+```
 
 ## Context Files
 
@@ -128,17 +95,15 @@ loop {
 # Local test - should run for 60 seconds
 SQLLOGICTEST_TIME_BUDGET=60 cargo test --test sqllogictest_suite -- --nocapture
 
-# Remote quick test - 8 workers, 5 minutes
-./scripts/remote_quick.sh sync
-./scripts/remote_quick.sh quick
+# Remote test - 8 workers, 5 minutes
+./scripts/remote_test.sh --sync --workers 8 --time 300
 
 # Monitor on remote
 ssh rwalters-sandbox-1 'top -bn1 | head -20'
 ssh rwalters-sandbox-1 'ps aux | grep sqllogictest_suite | grep -v grep'
 
 # Fetch results
-./scripts/remote_quick.sh fetch
-./scripts/remote_quick.sh status
+./scripts/remote_test.sh --fetch-results
 ```
 
 ## Additional Considerations

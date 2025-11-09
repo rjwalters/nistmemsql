@@ -3,7 +3,7 @@
 //! This module provides reusable constraint validation that can be used by
 //! CREATE TABLE, ALTER TABLE, and other DDL executors.
 
-use ast::{ColumnConstraint, ColumnConstraintKind, ColumnDef, Expression, TableConstraint, TableConstraintKind};
+use ast::{ColumnConstraintKind, ColumnDef, Expression, TableConstraint, TableConstraintKind};
 use catalog::{ColumnSchema, TableSchema};
 use crate::errors::ExecutorError;
 
@@ -176,6 +176,7 @@ impl ConstraintValidator {
 mod tests {
     use super::*;
     use types::DataType;
+    use ast::ColumnConstraint;
 
     fn make_column_def(name: &str, constraint_kinds: Vec<ColumnConstraintKind>) -> ColumnDef {
         ColumnDef {
