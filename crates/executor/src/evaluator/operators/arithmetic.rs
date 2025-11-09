@@ -8,6 +8,99 @@ use crate::errors::ExecutorError;
 use crate::evaluator::casting::{boolean_to_i64, is_approximate_numeric, is_exact_numeric, to_f64, to_i64};
 use types::SqlValue;
 
+/// Result of type coercion for arithmetic operations
+enum CoercedValues {
+    ExactNumeric(i64, i64),
+    ApproximateNumeric(f64, f64),
+}
+
+/// Helper function to coerce two values to a common numeric type
+fn coerce_numeric_values(
+    left: &SqlValue,
+    right: &SqlValue,
+    op: &str,
+) -> Result<CoercedValues, ExecutorError> {
+    use SqlValue::*;
+
+    // Handle Boolean coercion first
+    if matches!(left, Boolean(_)) || matches!(right, Boolean(_)) {
+        let left_i64 = boolean_to_i64(left)
+            .or_else(|| to_i64(left).ok())
+            .ok_or_else(|| ExecutorError::TypeMismatch {
+                left: left.clone(),
+                op: op.to_string(),
+                right: right.clone(),
+            })?;
+
+        let right_i64 = boolean_to_i64(right)
+            .or_else(|| to_i64(right).ok())
+            .ok_or_else(|| ExecutorError::TypeMismatch {
+                left: left.clone(),
+                op: op.to_string(),
+                right: right.clone(),
+            })?;
+
+        return Ok(CoercedValues::ExactNumeric(left_i64, right_i64));
+    }
+
+    // Mixed exact numeric types - promote to i64
+    if is_exact_numeric(left) && is_exact_numeric(right) {
+        let left_i64 = to_i64(left)?;
+        let right_i64 = to_i64(right)?;
+        return Ok(CoercedValues::ExactNumeric(left_i64, right_i64));
+    }
+
+    // Approximate numeric types - promote to f64
+    if is_approximate_numeric(left) && is_approximate_numeric(right) {
+        let left_f64 = to_f64(left)?;
+        let right_f64 = to_f64(right)?;
+        return Ok(CoercedValues::ApproximateNumeric(left_f64, right_f64));
+    }
+
+    // Mixed Float/Integer - promote to f64
+    if (matches!(left, Float(_) | Real(_) | Double(_)) && matches!(right, Integer(_) | Smallint(_) | Bigint(_)))
+        || (matches!(left, Integer(_) | Smallint(_) | Bigint(_)) && matches!(right, Float(_) | Real(_) | Double(_)))
+    {
+        let left_f64 = to_f64(left)?;
+        let right_f64 = to_f64(right)?;
+        return Ok(CoercedValues::ApproximateNumeric(left_f64, right_f64));
+    }
+
+    // NUMERIC with any numeric type - promote to f64
+    if (matches!(left, Numeric(_))
+        && matches!(
+            right,
+            Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_) | Numeric(_)
+        ))
+        || (matches!(
+            left,
+            Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_)
+        ) && matches!(right, Numeric(_)))
+    {
+        let left_f64 = to_f64(left)?;
+        let right_f64 = to_f64(right)?;
+        return Ok(CoercedValues::ApproximateNumeric(left_f64, right_f64));
+    }
+
+    // Type mismatch
+    Err(ExecutorError::TypeMismatch {
+        left: left.clone(),
+        op: op.to_string(),
+        right: right.clone(),
+    })
+}
+
+/// Helper function to check for division by zero
+fn check_division_by_zero(value: &CoercedValues) -> Result<(), ExecutorError> {
+    match value {
+        CoercedValues::ExactNumeric(_, right) if *right == 0 => Err(ExecutorError::DivisionByZero),
+        CoercedValues::ApproximateNumeric(_, right) if *right == 0.0 => {
+            Err(ExecutorError::DivisionByZero)
+        }
+        _ => Ok(()),
+    }
+}
+
 pub(crate) struct ArithmeticOps;
 
 impl ArithmeticOps {
@@ -16,86 +109,15 @@ impl ArithmeticOps {
     pub fn add(left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError> {
         use SqlValue::*;
 
-        match (left, right) {
-            // Integer arithmetic
-            (Integer(a), Integer(b)) => Ok(Integer(a + b)),
+        // Fast path for common case
+        if let (Integer(a), Integer(b)) = (left, right) {
+            return Ok(Integer(a + b));
+        }
 
-            // Mixed exact numeric types - promote to i64
-            (left_val, right_val)
-                if is_exact_numeric(left_val) && is_exact_numeric(right_val) =>
-            {
-                let left_i64 = to_i64(left_val)?;
-                let right_i64 = to_i64(right_val)?;
-                Ok(Integer(left_i64 + right_i64))
-            }
-
-            // Approximate numeric types - promote to f64
-            (left_val, right_val)
-                if is_approximate_numeric(left_val) && is_approximate_numeric(right_val) =>
-            {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                Ok(Float((left_f64 + right_f64) as f32))
-            }
-
-            // Mixed Float/Integer - promote Integer to Float
-            (left_val @ (Float(_) | Real(_) | Double(_)), right_val @ (Integer(_) | Smallint(_) | Bigint(_)))
-            | (left_val @ (Integer(_) | Smallint(_) | Bigint(_)), right_val @ (Float(_) | Real(_) | Double(_))) => {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                Ok(Float((left_f64 + right_f64) as f32))
-            }
-
-            // NUMERIC with any numeric type
-            (left_val @ Numeric(_), right_val)
-                if matches!(
-                    right_val,
-                    Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_) | Numeric(_)
-                ) =>
-            {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                Ok(Float((left_f64 + right_f64) as f32))
-            }
-            (left_val, right_val @ Numeric(_))
-                if matches!(
-                    left_val,
-                    Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_)
-                ) =>
-            {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                Ok(Float((left_f64 + right_f64) as f32))
-            }
-
-            // Boolean coercion - treat TRUE as 1, FALSE as 0
-            (left_val, right_val @ Boolean(_))
-            | (left_val @ Boolean(_), right_val) => {
-                let left_i64 = boolean_to_i64(left_val)
-                    .or_else(|| to_i64(left_val).ok())
-                    .ok_or_else(|| ExecutorError::TypeMismatch {
-                        left: left_val.clone(),
-                        op: "+".to_string(),
-                        right: right_val.clone(),
-                    })?;
-
-                let right_i64 = boolean_to_i64(right_val)
-                    .or_else(|| to_i64(right_val).ok())
-                    .ok_or_else(|| ExecutorError::TypeMismatch {
-                        left: left_val.clone(),
-                        op: "+".to_string(),
-                        right: right_val.clone(),
-                    })?;
-
-                Ok(Integer(left_i64 + right_i64))
-            }
-
-            // Type mismatch
-            _ => Err(ExecutorError::TypeMismatch {
-                left: left.clone(),
-                op: "+".to_string(),
-                right: right.clone(),
-            }),
+        // Use helper for type coercion
+        match coerce_numeric_values(left, right, "+")? {
+            CoercedValues::ExactNumeric(a, b) => Ok(Integer(a + b)),
+            CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a + b) as f32)),
         }
     }
 
@@ -104,86 +126,15 @@ impl ArithmeticOps {
     pub fn subtract(left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError> {
         use SqlValue::*;
 
-        match (left, right) {
-            // Integer arithmetic
-            (Integer(a), Integer(b)) => Ok(Integer(a - b)),
+        // Fast path for common case
+        if let (Integer(a), Integer(b)) = (left, right) {
+            return Ok(Integer(a - b));
+        }
 
-            // Mixed exact numeric types - promote to i64
-            (left_val, right_val)
-                if is_exact_numeric(left_val) && is_exact_numeric(right_val) =>
-            {
-                let left_i64 = to_i64(left_val)?;
-                let right_i64 = to_i64(right_val)?;
-                Ok(Integer(left_i64 - right_i64))
-            }
-
-            // Approximate numeric types - promote to f64
-            (left_val, right_val)
-                if is_approximate_numeric(left_val) && is_approximate_numeric(right_val) =>
-            {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                Ok(Float((left_f64 - right_f64) as f32))
-            }
-
-            // Mixed Float/Integer - promote Integer to Float
-            (left_val @ (Float(_) | Real(_) | Double(_)), right_val @ (Integer(_) | Smallint(_) | Bigint(_)))
-            | (left_val @ (Integer(_) | Smallint(_) | Bigint(_)), right_val @ (Float(_) | Real(_) | Double(_))) => {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                Ok(Float((left_f64 - right_f64) as f32))
-            }
-
-            // NUMERIC with any numeric type
-            (left_val @ Numeric(_), right_val)
-                if matches!(
-                    right_val,
-                    Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_) | Numeric(_)
-                ) =>
-            {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                Ok(Float((left_f64 - right_f64) as f32))
-            }
-            (left_val, right_val @ Numeric(_))
-                if matches!(
-                    left_val,
-                    Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_)
-                ) =>
-            {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                Ok(Float((left_f64 - right_f64) as f32))
-            }
-
-            // Boolean coercion - treat TRUE as 1, FALSE as 0
-            (left_val, right_val @ Boolean(_))
-            | (left_val @ Boolean(_), right_val) => {
-                let left_i64 = boolean_to_i64(left_val)
-                    .or_else(|| to_i64(left_val).ok())
-                    .ok_or_else(|| ExecutorError::TypeMismatch {
-                        left: left_val.clone(),
-                        op: "-".to_string(),
-                        right: right_val.clone(),
-                    })?;
-
-                let right_i64 = boolean_to_i64(right_val)
-                    .or_else(|| to_i64(right_val).ok())
-                    .ok_or_else(|| ExecutorError::TypeMismatch {
-                        left: left_val.clone(),
-                        op: "-".to_string(),
-                        right: right_val.clone(),
-                    })?;
-
-                Ok(Integer(left_i64 - right_i64))
-            }
-
-            // Type mismatch
-            _ => Err(ExecutorError::TypeMismatch {
-                left: left.clone(),
-                op: "-".to_string(),
-                right: right.clone(),
-            }),
+        // Use helper for type coercion
+        match coerce_numeric_values(left, right, "-")? {
+            CoercedValues::ExactNumeric(a, b) => Ok(Integer(a - b)),
+            CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a - b) as f32)),
         }
     }
 
@@ -192,86 +143,15 @@ impl ArithmeticOps {
     pub fn multiply(left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError> {
         use SqlValue::*;
 
-        match (left, right) {
-            // Integer arithmetic
-            (Integer(a), Integer(b)) => Ok(Integer(a * b)),
+        // Fast path for common case
+        if let (Integer(a), Integer(b)) = (left, right) {
+            return Ok(Integer(a * b));
+        }
 
-            // Mixed exact numeric types - promote to i64
-            (left_val, right_val)
-                if is_exact_numeric(left_val) && is_exact_numeric(right_val) =>
-            {
-                let left_i64 = to_i64(left_val)?;
-                let right_i64 = to_i64(right_val)?;
-                Ok(Integer(left_i64 * right_i64))
-            }
-
-            // Approximate numeric types - promote to f64
-            (left_val, right_val)
-                if is_approximate_numeric(left_val) && is_approximate_numeric(right_val) =>
-            {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                Ok(Float((left_f64 * right_f64) as f32))
-            }
-
-            // Mixed Float/Integer - promote Integer to Float
-            (left_val @ (Float(_) | Real(_) | Double(_)), right_val @ (Integer(_) | Smallint(_) | Bigint(_)))
-            | (left_val @ (Integer(_) | Smallint(_) | Bigint(_)), right_val @ (Float(_) | Real(_) | Double(_))) => {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                Ok(Float((left_f64 * right_f64) as f32))
-            }
-
-            // NUMERIC with any numeric type
-            (left_val @ Numeric(_), right_val)
-                if matches!(
-                    right_val,
-                    Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_) | Numeric(_)
-                ) =>
-            {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                Ok(Float((left_f64 * right_f64) as f32))
-            }
-            (left_val, right_val @ Numeric(_))
-                if matches!(
-                    left_val,
-                    Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_)
-                ) =>
-            {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                Ok(Float((left_f64 * right_f64) as f32))
-            }
-
-            // Boolean coercion - treat TRUE as 1, FALSE as 0
-            (left_val, right_val @ Boolean(_))
-            | (left_val @ Boolean(_), right_val) => {
-                let left_i64 = boolean_to_i64(left_val)
-                    .or_else(|| to_i64(left_val).ok())
-                    .ok_or_else(|| ExecutorError::TypeMismatch {
-                        left: left_val.clone(),
-                        op: "*".to_string(),
-                        right: right_val.clone(),
-                    })?;
-
-                let right_i64 = boolean_to_i64(right_val)
-                    .or_else(|| to_i64(right_val).ok())
-                    .ok_or_else(|| ExecutorError::TypeMismatch {
-                        left: left_val.clone(),
-                        op: "*".to_string(),
-                        right: right_val.clone(),
-                    })?;
-
-                Ok(Integer(left_i64 * right_i64))
-            }
-
-            // Type mismatch
-            _ => Err(ExecutorError::TypeMismatch {
-                left: left.clone(),
-                op: "*".to_string(),
-                right: right.clone(),
-            }),
+        // Use helper for type coercion
+        match coerce_numeric_values(left, right, "*")? {
+            CoercedValues::ExactNumeric(a, b) => Ok(Integer(a * b)),
+            CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a * b) as f32)),
         }
     }
 
@@ -280,109 +160,22 @@ impl ArithmeticOps {
     pub fn divide(left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError> {
         use SqlValue::*;
 
-        match (left, right) {
-            // Integer division with zero check - returns Float to preserve precision
-            (Integer(a), Integer(b)) => {
-                if *b == 0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                Ok(Float((*a as f64 / *b as f64) as f32))
+        // Fast path for common case
+        if let (Integer(a), Integer(b)) = (left, right) {
+            if *b == 0 {
+                return Err(ExecutorError::DivisionByZero);
             }
+            return Ok(Float((*a as f64 / *b as f64) as f32));
+        }
 
-            // Mixed exact numeric types - promote to i64, return Float for precision
-            (left_val, right_val)
-                if is_exact_numeric(left_val) && is_exact_numeric(right_val) =>
-            {
-                let left_i64 = to_i64(left_val)?;
-                let right_i64 = to_i64(right_val)?;
-                if right_i64 == 0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                Ok(Float((left_i64 as f64 / right_i64 as f64) as f32))
-            }
+        // Use helper for type coercion
+        let coerced = coerce_numeric_values(left, right, "/")?;
+        check_division_by_zero(&coerced)?;
 
-            // Approximate numeric types - promote to f64
-            (left_val, right_val)
-                if is_approximate_numeric(left_val) && is_approximate_numeric(right_val) =>
-            {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                if right_f64 == 0.0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                Ok(Float((left_f64 / right_f64) as f32))
-            }
-
-            // Mixed Float/Integer - promote Integer to Float
-            (left_val @ (Float(_) | Real(_) | Double(_)), right_val @ (Integer(_) | Smallint(_) | Bigint(_)))
-            | (left_val @ (Integer(_) | Smallint(_) | Bigint(_)), right_val @ (Float(_) | Real(_) | Double(_))) => {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                if right_f64 == 0.0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                Ok(Float((left_f64 / right_f64) as f32))
-            }
-
-            // NUMERIC with any numeric type
-            (left_val @ Numeric(_), right_val)
-                if matches!(
-                    right_val,
-                    Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_) | Numeric(_)
-                ) =>
-            {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                if right_f64 == 0.0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                Ok(Float((left_f64 / right_f64) as f32))
-            }
-            (left_val, right_val @ Numeric(_))
-                if matches!(
-                    left_val,
-                    Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_)
-                ) =>
-            {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                if right_f64 == 0.0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                Ok(Float((left_f64 / right_f64) as f32))
-            }
-
-            // Boolean coercion - treat TRUE as 1, FALSE as 0
-            (left_val, right_val @ Boolean(_))
-            | (left_val @ Boolean(_), right_val) => {
-                let left_i64 = boolean_to_i64(left_val)
-                    .or_else(|| to_i64(left_val).ok())
-                    .ok_or_else(|| ExecutorError::TypeMismatch {
-                        left: left_val.clone(),
-                        op: "/".to_string(),
-                        right: right_val.clone(),
-                    })?;
-
-                let right_i64 = boolean_to_i64(right_val)
-                    .or_else(|| to_i64(right_val).ok())
-                    .ok_or_else(|| ExecutorError::TypeMismatch {
-                        left: left_val.clone(),
-                        op: "/".to_string(),
-                        right: right_val.clone(),
-                    })?;
-
-                if right_i64 == 0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                Ok(Float((left_i64 as f64 / right_i64 as f64) as f32))
-            }
-
-            // Type mismatch
-            _ => Err(ExecutorError::TypeMismatch {
-                left: left.clone(),
-                op: "/".to_string(),
-                right: right.clone(),
-            }),
+        // Division always returns Float for precision
+        match coerced {
+            CoercedValues::ExactNumeric(a, b) => Ok(Float((a as f64 / b as f64) as f32)),
+            CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a / b) as f32)),
         }
     }
 
@@ -392,110 +185,22 @@ impl ArithmeticOps {
     pub fn integer_divide(left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError> {
         use SqlValue::*;
 
-        match (left, right) {
-            // Integer division - already returns integer
-            (Integer(a), Integer(b)) => {
-                if *b == 0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                Ok(Integer(a / b))
+        // Fast path for common case
+        if let (Integer(a), Integer(b)) = (left, right) {
+            if *b == 0 {
+                return Err(ExecutorError::DivisionByZero);
             }
+            return Ok(Integer(a / b));
+        }
 
-            // Mixed exact numeric types - promote to i64, then divide
-            (left_val, right_val)
-                if is_exact_numeric(left_val) && is_exact_numeric(right_val) =>
-            {
-                let left_i64 = to_i64(left_val)?;
-                let right_i64 = to_i64(right_val)?;
-                if right_i64 == 0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                Ok(Integer(left_i64 / right_i64))
-            }
+        // Use helper for type coercion
+        let coerced = coerce_numeric_values(left, right, "DIV")?;
+        check_division_by_zero(&coerced)?;
 
-            // Approximate numeric types - convert to float, divide, truncate to int
-            (left_val, right_val)
-                if is_approximate_numeric(left_val) && is_approximate_numeric(right_val) =>
-            {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                if right_f64 == 0.0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                // Truncate toward zero (same as Rust's as i64 cast)
-                Ok(Integer((left_f64 / right_f64) as i64))
-            }
-
-            // Mixed Float/Integer - promote to float, divide, truncate to int
-            (left_val @ (Float(_) | Real(_) | Double(_)), right_val @ (Integer(_) | Smallint(_) | Bigint(_)))
-            | (left_val @ (Integer(_) | Smallint(_) | Bigint(_)), right_val @ (Float(_) | Real(_) | Double(_))) => {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                if right_f64 == 0.0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                Ok(Integer((left_f64 / right_f64) as i64))
-            }
-
-            // NUMERIC with any numeric type
-            (left_val @ Numeric(_), right_val)
-                if matches!(
-                    right_val,
-                    Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_) | Numeric(_)
-                ) =>
-            {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                if right_f64 == 0.0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                Ok(Integer((left_f64 / right_f64) as i64))
-            }
-            (left_val, right_val @ Numeric(_))
-                if matches!(
-                    left_val,
-                    Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_)
-                ) =>
-            {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                if right_f64 == 0.0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                Ok(Integer((left_f64 / right_f64) as i64))
-            }
-
-            // Boolean coercion - treat TRUE as 1, FALSE as 0
-            (left_val, right_val @ Boolean(_))
-            | (left_val @ Boolean(_), right_val) => {
-                let left_i64 = boolean_to_i64(left_val)
-                    .or_else(|| to_i64(left_val).ok())
-                    .ok_or_else(|| ExecutorError::TypeMismatch {
-                        left: left_val.clone(),
-                        op: "DIV".to_string(),
-                        right: right_val.clone(),
-                    })?;
-
-                let right_i64 = boolean_to_i64(right_val)
-                    .or_else(|| to_i64(right_val).ok())
-                    .ok_or_else(|| ExecutorError::TypeMismatch {
-                        left: left_val.clone(),
-                        op: "DIV".to_string(),
-                        right: right_val.clone(),
-                    })?;
-
-                if right_i64 == 0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                Ok(Integer(left_i64 / right_i64))
-            }
-
-            // Type mismatch
-            _ => Err(ExecutorError::TypeMismatch {
-                left: left.clone(),
-                op: "DIV".to_string(),
-                right: right.clone(),
-            }),
+        // Integer division truncates toward zero
+        match coerced {
+            CoercedValues::ExactNumeric(a, b) => Ok(Integer(a / b)),
+            CoercedValues::ApproximateNumeric(a, b) => Ok(Integer((a / b) as i64)),
         }
     }
 
@@ -505,109 +210,21 @@ impl ArithmeticOps {
     pub fn modulo(left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError> {
         use SqlValue::*;
 
-        match (left, right) {
-            // Integer modulo
-            (Integer(a), Integer(b)) => {
-                if *b == 0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                Ok(Integer(a % b))
+        // Fast path for common case
+        if let (Integer(a), Integer(b)) = (left, right) {
+            if *b == 0 {
+                return Err(ExecutorError::DivisionByZero);
             }
+            return Ok(Integer(a % b));
+        }
 
-            // Mixed exact numeric types - promote to i64
-            (left_val, right_val)
-                if is_exact_numeric(left_val) && is_exact_numeric(right_val) =>
-            {
-                let left_i64 = to_i64(left_val)?;
-                let right_i64 = to_i64(right_val)?;
-                if right_i64 == 0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                Ok(Integer(left_i64 % right_i64))
-            }
+        // Use helper for type coercion
+        let coerced = coerce_numeric_values(left, right, "%")?;
+        check_division_by_zero(&coerced)?;
 
-            // Approximate numeric types - use fmod
-            (left_val, right_val)
-                if is_approximate_numeric(left_val) && is_approximate_numeric(right_val) =>
-            {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                if right_f64 == 0.0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                Ok(Float((left_f64 % right_f64) as f32))
-            }
-
-            // Mixed Float/Integer - promote to float
-            (left_val @ (Float(_) | Real(_) | Double(_)), right_val @ (Integer(_) | Smallint(_) | Bigint(_)))
-            | (left_val @ (Integer(_) | Smallint(_) | Bigint(_)), right_val @ (Float(_) | Real(_) | Double(_))) => {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                if right_f64 == 0.0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                Ok(Float((left_f64 % right_f64) as f32))
-            }
-
-            // NUMERIC with any numeric type
-            (left_val @ Numeric(_), right_val)
-                if matches!(
-                    right_val,
-                    Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_) | Numeric(_)
-                ) =>
-            {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                if right_f64 == 0.0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                Ok(Float((left_f64 % right_f64) as f32))
-            }
-            (left_val, right_val @ Numeric(_))
-                if matches!(
-                    left_val,
-                    Integer(_) | Smallint(_) | Bigint(_) | Float(_) | Real(_) | Double(_)
-                ) =>
-            {
-                let left_f64 = to_f64(left_val)?;
-                let right_f64 = to_f64(right_val)?;
-                if right_f64 == 0.0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                Ok(Float((left_f64 % right_f64) as f32))
-            }
-
-            // Boolean coercion - treat TRUE as 1, FALSE as 0
-            (left_val, right_val @ Boolean(_))
-            | (left_val @ Boolean(_), right_val) => {
-                let left_i64 = boolean_to_i64(left_val)
-                    .or_else(|| to_i64(left_val).ok())
-                    .ok_or_else(|| ExecutorError::TypeMismatch {
-                        left: left_val.clone(),
-                        op: "%".to_string(),
-                        right: right_val.clone(),
-                    })?;
-
-                let right_i64 = boolean_to_i64(right_val)
-                    .or_else(|| to_i64(right_val).ok())
-                    .ok_or_else(|| ExecutorError::TypeMismatch {
-                        left: left_val.clone(),
-                        op: "%".to_string(),
-                        right: right_val.clone(),
-                    })?;
-
-                if right_i64 == 0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                Ok(Integer(left_i64 % right_i64))
-            }
-
-            // Type mismatch
-            _ => Err(ExecutorError::TypeMismatch {
-                left: left.clone(),
-                op: "%".to_string(),
-                right: right.clone(),
-            }),
+        match coerced {
+            CoercedValues::ExactNumeric(a, b) => Ok(Integer(a % b)),
+            CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a % b) as f32)),
         }
     }
 }

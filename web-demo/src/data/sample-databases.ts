@@ -501,6 +501,59 @@ export const universityDatabase: SampleDatabase = {
 }
 
 /**
+ * SQLLogicTest Results Database
+ * Purpose: Real-world dogfooding - explore VibeSQL's own conformance test results
+ * Note: Data loaded from SQL dump file at runtime
+ */
+export const sqlLogicTestDatabase: SampleDatabase = {
+  id: 'sqllogictest',
+  name: 'SQLLogicTest Results',
+  description: 'Live conformance test results - real production data from CI runs',
+  tables: [
+    {
+      name: 'test_files',
+      createSql: `CREATE TABLE test_files (
+        file_path VARCHAR(500),
+        category VARCHAR(50),
+        subcategory VARCHAR(50),
+        status VARCHAR(20),
+        last_tested VARCHAR(30),
+        last_passed VARCHAR(30)
+      );`,
+      insertSql: [], // Loaded from SQL dump
+    },
+    {
+      name: 'test_runs',
+      createSql: `CREATE TABLE test_runs (
+        run_id INTEGER,
+        started_at VARCHAR(30),
+        completed_at VARCHAR(30),
+        total_files INTEGER,
+        passed INTEGER,
+        failed INTEGER,
+        untested INTEGER,
+        git_commit VARCHAR(40),
+        ci_run_id VARCHAR(100)
+      );`,
+      insertSql: [], // Loaded from SQL dump
+    },
+    {
+      name: 'test_results',
+      createSql: `CREATE TABLE test_results (
+        result_id INTEGER,
+        run_id INTEGER,
+        file_path VARCHAR(500),
+        status VARCHAR(20),
+        tested_at VARCHAR(30),
+        duration_ms INTEGER,
+        error_message VARCHAR(2000)
+      );`,
+      insertSql: [], // Loaded from SQL dump
+    },
+  ],
+}
+
+/**
  * Empty Database
  * Purpose: Clean slate for user experimentation
  */
@@ -519,6 +572,7 @@ export const sampleDatabases = [
   northwindDatabase,
   companyDatabase,
   universityDatabase,
+  sqlLogicTestDatabase,
   emptyDatabase,
 ]
 
@@ -560,4 +614,39 @@ export function loadSampleDatabase(database: Database, sampleDb: SampleDatabase)
  */
 export function getSampleDatabase(id: string): SampleDatabase | undefined {
   return sampleDatabases.find(db => db.id === id)
+}
+
+/**
+ * Load SQL dump file and execute statements
+ *
+ * @param database - WASM database instance
+ * @param sqlDumpPath - Path to SQL dump file (relative to public directory)
+ * @returns Promise that resolves when SQL dump is loaded
+ */
+export async function loadSqlDump(database: Database, sqlDumpPath: string): Promise<void> {
+  try {
+    const response = await fetch(sqlDumpPath)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch SQL dump: ${response.statusText}`)
+    }
+
+    const sqlDump = await response.text()
+
+    // Split SQL dump into individual statements
+    // Handle both semicolon-terminated and newline-separated statements
+    const statements = sqlDump
+      .split(';')
+      .map(stmt => stmt.trim())
+      .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'))
+
+    // Execute each statement
+    for (const statement of statements) {
+      if (statement.trim()) {
+        database.execute(statement + ';')
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load SQL dump:', error)
+    throw error
+  }
 }

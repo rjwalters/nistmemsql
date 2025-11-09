@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { exampleCategories, getAllExamples, findExample, getExamplesForDatabase } from '../data/examples'
 
 describe('Examples Integration', () => {
-  it('should load all 23 categories', () => {
-    expect(exampleCategories).toHaveLength(23)
+  it('should load all 24 categories', () => {
+    expect(exampleCategories).toHaveLength(24)
   })
 
   it('should have queries in each category', () => {
