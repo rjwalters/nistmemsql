@@ -1,9 +1,10 @@
 //! Query signature generation for cache keys
 //!
-//! Generates deterministic cache keys from SQL queries by normalizing whitespace
+//! Generates deterministic cache keys from SQL queries by normalizing the AST
 //! and creating a hash. Queries with identical structure (different literals)
 //! will have the same signature.
 
+use ast::{Expression, Statement};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
@@ -14,11 +15,20 @@ pub struct QuerySignature {
 }
 
 impl QuerySignature {
-    /// Create a signature from SQL text
+    /// Create a signature from SQL text (legacy string-based approach)
     pub fn from_sql(sql: &str) -> Self {
         let normalized = Self::normalize(sql);
         let mut hasher = DefaultHasher::new();
         normalized.hash(&mut hasher);
+        let hash = hasher.finish();
+        Self { hash }
+    }
+
+    /// Create a signature from parsed AST, ignoring literal values
+    /// This allows queries with different literals but identical structure to share cached plans
+    pub fn from_ast(stmt: &Statement) -> Self {
+        let mut hasher = DefaultHasher::new();
+        Self::hash_statement(stmt, &mut hasher);
         let hash = hasher.finish();
         Self { hash }
     }
@@ -34,6 +44,422 @@ impl QuerySignature {
             .collect::<Vec<_>>()
             .join(" ")
             .to_lowercase()
+    }
+
+    /// Hash a statement, replacing literals with a placeholder marker
+    fn hash_statement(stmt: &Statement, hasher: &mut DefaultHasher) {
+        match stmt {
+            Statement::Select(select) => {
+                "SELECT".hash(hasher);
+                Self::hash_select(select, hasher);
+            }
+            Statement::Insert(insert) => {
+                "INSERT".hash(hasher);
+                insert.table_name.hash(hasher);
+                for col in &insert.columns {
+                    col.hash(hasher);
+                }
+                // Hash the insert source structure without literals
+                match &insert.source {
+                    ast::InsertSource::Values(rows) => {
+                        "VALUES".hash(hasher);
+                        rows.len().hash(hasher);
+                        for row in rows {
+                            row.len().hash(hasher);
+                            for expr in row {
+                                Self::hash_expression(expr, hasher);
+                            }
+                        }
+                    }
+                    ast::InsertSource::Select(select) => {
+                        "SELECT".hash(hasher);
+                        Self::hash_select(select, hasher);
+                    }
+                }
+            }
+            Statement::Update(update) => {
+                "UPDATE".hash(hasher);
+                update.table_name.hash(hasher);
+                for assignment in &update.assignments {
+                    assignment.column.hash(hasher);
+                    Self::hash_expression(&assignment.value, hasher);
+                }
+                if let Some(ref where_clause) = update.where_clause {
+                    match where_clause {
+                        ast::WhereClause::Condition(expr) => {
+                            Self::hash_expression(expr, hasher);
+                        }
+                        ast::WhereClause::CurrentOf(cursor) => {
+                            "CURRENT_OF".hash(hasher);
+                            cursor.hash(hasher);
+                        }
+                    }
+                }
+            }
+            Statement::Delete(delete) => {
+                "DELETE".hash(hasher);
+                delete.table_name.hash(hasher);
+                if let Some(ref where_clause) = delete.where_clause {
+                    match where_clause {
+                        ast::WhereClause::Condition(expr) => {
+                            Self::hash_expression(expr, hasher);
+                        }
+                        ast::WhereClause::CurrentOf(cursor) => {
+                            "CURRENT_OF".hash(hasher);
+                            cursor.hash(hasher);
+                        }
+                    }
+                }
+            }
+            // For other statement types, fall back to discriminant hashing
+            _ => {
+                std::mem::discriminant(stmt).hash(hasher);
+            }
+        }
+    }
+
+    /// Hash a SELECT statement structure
+    fn hash_select(select: &ast::SelectStmt, hasher: &mut DefaultHasher) {
+        // Hash DISTINCT
+        select.distinct.hash(hasher);
+
+        // Hash select items
+        for item in &select.select_list {
+            match item {
+                ast::SelectItem::Wildcard { .. } => "WILDCARD".hash(hasher),
+                ast::SelectItem::QualifiedWildcard { qualifier, .. } => {
+                    "QUALIFIED_WILDCARD".hash(hasher);
+                    qualifier.hash(hasher);
+                }
+                ast::SelectItem::Expression { expr, alias } => {
+                    Self::hash_expression(expr, hasher);
+                    alias.hash(hasher);
+                }
+            }
+        }
+
+        // Hash FROM clause
+        if let Some(ref from) = select.from {
+            Self::hash_from_clause(from, hasher);
+        }
+
+        // Hash WHERE clause
+        if let Some(ref where_clause) = select.where_clause {
+            Self::hash_expression(where_clause, hasher);
+        }
+
+        // Hash GROUP BY
+        if let Some(ref group_by) = select.group_by {
+            for expr in group_by {
+                Self::hash_expression(expr, hasher);
+            }
+        }
+
+        // Hash HAVING
+        if let Some(ref having) = select.having {
+            Self::hash_expression(having, hasher);
+        }
+
+        // Hash ORDER BY
+        if let Some(ref order_by) = select.order_by {
+            for item in order_by {
+                Self::hash_expression(&item.expr, hasher);
+                std::mem::discriminant(&item.direction).hash(hasher);
+            }
+        }
+
+        // Hash LIMIT/OFFSET (these are often literals, but we treat them as part of structure)
+        select.limit.hash(hasher);
+        select.offset.hash(hasher);
+    }
+
+    /// Hash a FROM clause structure
+    fn hash_from_clause(from: &ast::FromClause, hasher: &mut DefaultHasher) {
+        match from {
+            ast::FromClause::Table { name, alias } => {
+                "TABLE".hash(hasher);
+                name.hash(hasher);
+                alias.hash(hasher);
+            }
+            ast::FromClause::Join {
+                left,
+                join_type,
+                right,
+                condition,
+            } => {
+                "JOIN".hash(hasher);
+                Self::hash_from_clause(left, hasher);
+                std::mem::discriminant(join_type).hash(hasher);
+                Self::hash_from_clause(right, hasher);
+                if let Some(expr) = condition {
+                    Self::hash_expression(expr, hasher);
+                }
+            }
+            ast::FromClause::Subquery { query, alias } => {
+                "SUBQUERY".hash(hasher);
+                Self::hash_select(query, hasher);
+                alias.hash(hasher);
+            }
+        }
+    }
+
+    /// Hash an expression, replacing literals with a placeholder marker
+    fn hash_expression(expr: &Expression, hasher: &mut DefaultHasher) {
+        match expr {
+            // Key difference: All literals hash to the same value
+            Expression::Literal(_) => "LITERAL_PLACEHOLDER".hash(hasher),
+
+            Expression::ColumnRef { table, column } => {
+                "COLUMN".hash(hasher);
+                table.hash(hasher);
+                column.hash(hasher);
+            }
+
+            Expression::BinaryOp { op, left, right } => {
+                "BINARY_OP".hash(hasher);
+                std::mem::discriminant(op).hash(hasher);
+                Self::hash_expression(left, hasher);
+                Self::hash_expression(right, hasher);
+            }
+
+            Expression::UnaryOp { op, expr } => {
+                "UNARY_OP".hash(hasher);
+                std::mem::discriminant(op).hash(hasher);
+                Self::hash_expression(expr, hasher);
+            }
+
+            Expression::Function {
+                name,
+                args,
+                character_unit,
+            } => {
+                "FUNCTION".hash(hasher);
+                name.to_lowercase().hash(hasher);
+                for arg in args {
+                    Self::hash_expression(arg, hasher);
+                }
+                if let Some(ref unit) = character_unit {
+                    std::mem::discriminant(unit).hash(hasher);
+                }
+            }
+
+            Expression::AggregateFunction {
+                name,
+                distinct,
+                args,
+            } => {
+                "AGGREGATE".hash(hasher);
+                name.to_lowercase().hash(hasher);
+                distinct.hash(hasher);
+                for arg in args {
+                    Self::hash_expression(arg, hasher);
+                }
+            }
+
+            Expression::IsNull { expr, negated } => {
+                "IS_NULL".hash(hasher);
+                Self::hash_expression(expr, hasher);
+                negated.hash(hasher);
+            }
+
+            Expression::Wildcard => "WILDCARD".hash(hasher),
+
+            Expression::Case {
+                operand,
+                when_clauses,
+                else_result,
+            } => {
+                "CASE".hash(hasher);
+                if let Some(ref op) = operand {
+                    Self::hash_expression(op, hasher);
+                }
+                for when in when_clauses {
+                    for cond in &when.conditions {
+                        Self::hash_expression(cond, hasher);
+                    }
+                    Self::hash_expression(&when.result, hasher);
+                }
+                if let Some(ref else_expr) = else_result {
+                    Self::hash_expression(else_expr, hasher);
+                }
+            }
+
+            Expression::ScalarSubquery(subquery) => {
+                "SCALAR_SUBQUERY".hash(hasher);
+                Self::hash_select(subquery, hasher);
+            }
+
+            Expression::In {
+                expr,
+                subquery,
+                negated,
+            } => {
+                "IN_SUBQUERY".hash(hasher);
+                Self::hash_expression(expr, hasher);
+                Self::hash_select(subquery, hasher);
+                negated.hash(hasher);
+            }
+
+            Expression::InList {
+                expr,
+                values,
+                negated,
+            } => {
+                "IN_LIST".hash(hasher);
+                Self::hash_expression(expr, hasher);
+                values.len().hash(hasher);
+                for val in values {
+                    Self::hash_expression(val, hasher);
+                }
+                negated.hash(hasher);
+            }
+
+            Expression::Between {
+                expr,
+                low,
+                high,
+                negated,
+                symmetric,
+            } => {
+                "BETWEEN".hash(hasher);
+                Self::hash_expression(expr, hasher);
+                Self::hash_expression(low, hasher);
+                Self::hash_expression(high, hasher);
+                negated.hash(hasher);
+                symmetric.hash(hasher);
+            }
+
+            Expression::Cast { expr, data_type } => {
+                "CAST".hash(hasher);
+                Self::hash_expression(expr, hasher);
+                std::mem::discriminant(data_type).hash(hasher);
+            }
+
+            Expression::Position {
+                substring,
+                string,
+                character_unit,
+            } => {
+                "POSITION".hash(hasher);
+                Self::hash_expression(substring, hasher);
+                Self::hash_expression(string, hasher);
+                if let Some(ref unit) = character_unit {
+                    std::mem::discriminant(unit).hash(hasher);
+                }
+            }
+
+            Expression::Trim {
+                position,
+                removal_char,
+                string,
+            } => {
+                "TRIM".hash(hasher);
+                if let Some(ref pos) = position {
+                    std::mem::discriminant(pos).hash(hasher);
+                }
+                if let Some(ref ch) = removal_char {
+                    Self::hash_expression(ch, hasher);
+                }
+                Self::hash_expression(string, hasher);
+            }
+
+            Expression::Like {
+                expr,
+                pattern,
+                negated,
+            } => {
+                "LIKE".hash(hasher);
+                Self::hash_expression(expr, hasher);
+                Self::hash_expression(pattern, hasher);
+                negated.hash(hasher);
+            }
+
+            Expression::Exists { subquery, negated } => {
+                "EXISTS".hash(hasher);
+                Self::hash_select(subquery, hasher);
+                negated.hash(hasher);
+            }
+
+            Expression::QuantifiedComparison {
+                expr,
+                op,
+                quantifier,
+                subquery,
+            } => {
+                "QUANTIFIED".hash(hasher);
+                Self::hash_expression(expr, hasher);
+                std::mem::discriminant(op).hash(hasher);
+                std::mem::discriminant(quantifier).hash(hasher);
+                Self::hash_select(subquery, hasher);
+            }
+
+            Expression::CurrentDate => "CURRENT_DATE".hash(hasher),
+
+            Expression::CurrentTime { precision } => {
+                "CURRENT_TIME".hash(hasher);
+                precision.hash(hasher);
+            }
+
+            Expression::CurrentTimestamp { precision } => {
+                "CURRENT_TIMESTAMP".hash(hasher);
+                precision.hash(hasher);
+            }
+
+            Expression::Default => "DEFAULT".hash(hasher),
+
+            Expression::WindowFunction { function, over } => {
+                "WINDOW_FUNCTION".hash(hasher);
+                // Hash function type and arguments
+                match function {
+                    ast::WindowFunctionSpec::Aggregate { name, args } => {
+                        "AGGREGATE".hash(hasher);
+                        name.to_lowercase().hash(hasher);
+                        for arg in args {
+                            Self::hash_expression(arg, hasher);
+                        }
+                    }
+                    ast::WindowFunctionSpec::Ranking { name, args } => {
+                        "RANKING".hash(hasher);
+                        name.to_lowercase().hash(hasher);
+                        for arg in args {
+                            Self::hash_expression(arg, hasher);
+                        }
+                    }
+                    ast::WindowFunctionSpec::Value { name, args } => {
+                        "VALUE".hash(hasher);
+                        name.to_lowercase().hash(hasher);
+                        for arg in args {
+                            Self::hash_expression(arg, hasher);
+                        }
+                    }
+                }
+
+                // Hash OVER clause components
+                if let Some(ref partition_by) = over.partition_by {
+                    for expr in partition_by {
+                        Self::hash_expression(expr, hasher);
+                    }
+                }
+                if let Some(ref order_by) = over.order_by {
+                    for item in order_by {
+                        Self::hash_expression(&item.expr, hasher);
+                        std::mem::discriminant(&item.direction).hash(hasher);
+                    }
+                }
+                if let Some(ref frame) = over.frame {
+                    std::mem::discriminant(&frame.unit).hash(hasher);
+                    std::mem::discriminant(&frame.start).hash(hasher);
+                    if let Some(ref end) = frame.end {
+                        std::mem::discriminant(end).hash(hasher);
+                    }
+                }
+            }
+
+            Expression::NextValue { sequence_name } => {
+                "NEXT_VALUE".hash(hasher);
+                sequence_name.hash(hasher);
+            }
+        }
     }
 }
 
@@ -70,13 +496,163 @@ mod tests {
     }
 
     #[test]
-    fn test_different_literals_different_signature() {
-        // Different literals create different signatures with simple hashing
-        // Future improvement: implement AST-based normalization to handle this
+    fn test_different_literals_different_signature_string_based() {
+        // Different literals create different signatures with string-based hashing
         let sig1 = QuerySignature::from_sql("SELECT col0 FROM tab WHERE col1 > 5");
         let sig2 = QuerySignature::from_sql("SELECT col0 FROM tab WHERE col1 > 10");
-        // For now, these have different signatures due to numeric differences
-        // This is a limitation of string-based hashing
+        // String-based hashing includes literals in the signature
+        assert_ne!(sig1, sig2);
+    }
+
+    #[test]
+    fn test_ast_based_same_structure_different_literals() {
+        use ast::{Expression, SelectItem, SelectStmt, Statement, BinaryOperator, FromClause};
+        use types::SqlValue;
+
+        // SELECT col0 FROM tab WHERE col1 > 5
+        let stmt1 = Statement::Select(Box::new(SelectStmt {
+            with_clause: None,
+            distinct: false,
+            select_list: vec![SelectItem::Expression {
+                expr: Expression::ColumnRef {
+                    table: None,
+                    column: "col0".to_string(),
+                },
+                alias: None,
+            }],
+            into_table: None,
+            from: Some(FromClause::Table {
+                name: "tab".to_string(),
+                alias: None,
+            }),
+            where_clause: Some(Expression::BinaryOp {
+                op: BinaryOperator::GreaterThan,
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "col1".to_string(),
+                }),
+                right: Box::new(Expression::Literal(SqlValue::Integer(5))),
+            }),
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: None,
+            offset: None,
+            set_operation: None,
+        }));
+
+        // SELECT col0 FROM tab WHERE col1 > 10 (different literal)
+        let stmt2 = Statement::Select(Box::new(SelectStmt {
+            with_clause: None,
+            distinct: false,
+            select_list: vec![SelectItem::Expression {
+                expr: Expression::ColumnRef {
+                    table: None,
+                    column: "col0".to_string(),
+                },
+                alias: None,
+            }],
+            into_table: None,
+            from: Some(FromClause::Table {
+                name: "tab".to_string(),
+                alias: None,
+            }),
+            where_clause: Some(Expression::BinaryOp {
+                op: BinaryOperator::GreaterThan,
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "col1".to_string(),
+                }),
+                right: Box::new(Expression::Literal(SqlValue::Integer(10))),
+            }),
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: None,
+            offset: None,
+            set_operation: None,
+        }));
+
+        let sig1 = QuerySignature::from_ast(&stmt1);
+        let sig2 = QuerySignature::from_ast(&stmt2);
+
+        // AST-based signatures should be the same despite different literals
+        assert_eq!(sig1, sig2);
+    }
+
+    #[test]
+    fn test_ast_based_different_structure() {
+        use ast::{Expression, SelectItem, SelectStmt, Statement, BinaryOperator, FromClause};
+        use types::SqlValue;
+
+        // SELECT col0 FROM tab WHERE col1 > 5
+        let stmt1 = Statement::Select(Box::new(SelectStmt {
+            with_clause: None,
+            distinct: false,
+            select_list: vec![SelectItem::Expression {
+                expr: Expression::ColumnRef {
+                    table: None,
+                    column: "col0".to_string(),
+                },
+                alias: None,
+            }],
+            into_table: None,
+            from: Some(FromClause::Table {
+                name: "tab".to_string(),
+                alias: None,
+            }),
+            where_clause: Some(Expression::BinaryOp {
+                op: BinaryOperator::GreaterThan,
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "col1".to_string(),
+                }),
+                right: Box::new(Expression::Literal(SqlValue::Integer(5))),
+            }),
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: None,
+            offset: None,
+            set_operation: None,
+        }));
+
+        // SELECT col0 FROM tab WHERE col1 < 5 (different operator)
+        let stmt2 = Statement::Select(Box::new(SelectStmt {
+            with_clause: None,
+            distinct: false,
+            select_list: vec![SelectItem::Expression {
+                expr: Expression::ColumnRef {
+                    table: None,
+                    column: "col0".to_string(),
+                },
+                alias: None,
+            }],
+            into_table: None,
+            from: Some(FromClause::Table {
+                name: "tab".to_string(),
+                alias: None,
+            }),
+            where_clause: Some(Expression::BinaryOp {
+                op: BinaryOperator::LessThan, // Different operator!
+                left: Box::new(Expression::ColumnRef {
+                    table: None,
+                    column: "col1".to_string(),
+                }),
+                right: Box::new(Expression::Literal(SqlValue::Integer(5))),
+            }),
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: None,
+            offset: None,
+            set_operation: None,
+        }));
+
+        let sig1 = QuerySignature::from_ast(&stmt1);
+        let sig2 = QuerySignature::from_ast(&stmt2);
+
+        // Different structure should produce different signatures
         assert_ne!(sig1, sig2);
     }
 }
