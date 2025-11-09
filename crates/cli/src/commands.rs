@@ -1,9 +1,15 @@
+use crate::formatter::OutputFormat;
+
 #[derive(Debug, Clone)]
 pub enum MetaCommand {
     Quit,
     Help,
     DescribeTable(String),
     ListTables,
+    ListSchemas,
+    ListIndexes,
+    ListRoles,
+    SetFormat(OutputFormat),
     Timing,
 }
 
@@ -28,6 +34,21 @@ impl MetaCommand {
                 }
             }
             Some(&"\\dt") => Some(MetaCommand::ListTables),
+            Some(&"\\ds") => Some(MetaCommand::ListSchemas),
+            Some(&"\\di") => Some(MetaCommand::ListIndexes),
+            Some(&"\\du") => Some(MetaCommand::ListRoles),
+            Some(&"\\f") => {
+                if let Some(format_str) = parts.get(1) {
+                    match *format_str {
+                        "table" => Some(MetaCommand::SetFormat(OutputFormat::Table)),
+                        "json" => Some(MetaCommand::SetFormat(OutputFormat::Json)),
+                        "csv" => Some(MetaCommand::SetFormat(OutputFormat::Csv)),
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
+            }
             Some(&"\\timing") => Some(MetaCommand::Timing),
             _ => None,
         }
@@ -68,6 +89,28 @@ mod tests {
     #[test]
     fn test_parse_timing() {
         assert!(matches!(MetaCommand::parse("\\timing"), Some(MetaCommand::Timing)));
+    }
+
+    #[test]
+    fn test_parse_list_schemas() {
+        assert!(matches!(MetaCommand::parse("\\ds"), Some(MetaCommand::ListSchemas)));
+    }
+
+    #[test]
+    fn test_parse_list_indexes() {
+        assert!(matches!(MetaCommand::parse("\\di"), Some(MetaCommand::ListIndexes)));
+    }
+
+    #[test]
+    fn test_parse_list_roles() {
+        assert!(matches!(MetaCommand::parse("\\du"), Some(MetaCommand::ListRoles)));
+    }
+
+    #[test]
+    fn test_parse_set_format() {
+        assert!(matches!(MetaCommand::parse("\\f table"), Some(MetaCommand::SetFormat(OutputFormat::Table))));
+        assert!(matches!(MetaCommand::parse("\\f json"), Some(MetaCommand::SetFormat(OutputFormat::Json))));
+        assert!(matches!(MetaCommand::parse("\\f csv"), Some(MetaCommand::SetFormat(OutputFormat::Csv))));
     }
 
     #[test]

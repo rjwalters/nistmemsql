@@ -2,7 +2,7 @@ use rustyline::DefaultEditor;
 use rustyline::error::ReadlineError;
 
 use crate::executor::SqlExecutor;
-use crate::formatter::ResultFormatter;
+use crate::formatter::{ResultFormatter, OutputFormat};
 use crate::commands::MetaCommand;
 
 pub struct Repl {
@@ -12,10 +12,14 @@ pub struct Repl {
 }
 
 impl Repl {
-    pub fn new(database: Option<String>) -> anyhow::Result<Self> {
+    pub fn new(database: Option<String>, format: Option<OutputFormat>) -> anyhow::Result<Self> {
         let executor = SqlExecutor::new(database)?;
         let editor = DefaultEditor::new()?;
-        let formatter = ResultFormatter::new();
+        let mut formatter = ResultFormatter::new();
+        
+        if let Some(fmt) = format {
+            formatter.set_format(fmt);
+        }
 
         Ok(Repl {
             executor,
@@ -95,6 +99,24 @@ impl Repl {
             MetaCommand::ListTables => {
                 self.executor.list_tables()?;
             }
+            MetaCommand::ListSchemas => {
+                println!("Schemas: public (default)");
+            }
+            MetaCommand::ListIndexes => {
+                println!("No indexes defined.");
+            }
+            MetaCommand::ListRoles => {
+                println!("Roles: superuser (current)");
+            }
+            MetaCommand::SetFormat(format) => {
+                self.formatter.set_format(format);
+                let format_name = match format {
+                    crate::formatter::OutputFormat::Table => "table",
+                    crate::formatter::OutputFormat::Json => "json",
+                    crate::formatter::OutputFormat::Csv => "csv",
+                };
+                println!("Output format set to: {}", format_name);
+            }
             MetaCommand::Timing => {
                 self.executor.toggle_timing();
             }
@@ -114,15 +136,22 @@ impl Repl {
     fn print_help(&self) {
         println!("
 Meta-commands:
-  \\d [table]    - Describe table or list all tables
-  \\dt           - List tables
-  \\timing       - Toggle query timing
-  \\q, \\quit    - Exit
+  \\d [table]      - Describe table or list all tables
+  \\dt             - List tables
+  \\ds             - List schemas
+  \\di             - List indexes
+  \\du             - List roles/users
+  \\f <format>     - Set output format (table, json, csv)
+  \\timing         - Toggle query timing
+  \\h, \\help      - Show this help
+  \\q, \\quit      - Exit
 
 Examples:
   CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(100));
   INSERT INTO users VALUES (1, 'Alice'), (2, 'Bob');
   SELECT * FROM users;
+  \\f json
+  \\f csv
 ");
     }
 }

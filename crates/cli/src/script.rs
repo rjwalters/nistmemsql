@@ -1,7 +1,7 @@
 use std::fs;
 use std::io::{self, Read};
 use crate::executor::SqlExecutor;
-use crate::formatter::ResultFormatter;
+use crate::formatter::{ResultFormatter, OutputFormat};
 
 /// Script executor - runs multiple SQL statements from files or stdin
 pub struct ScriptExecutor {
@@ -11,9 +11,13 @@ pub struct ScriptExecutor {
 }
 
 impl ScriptExecutor {
-    pub fn new(database: Option<String>, verbose: bool) -> anyhow::Result<Self> {
+    pub fn new(database: Option<String>, verbose: bool, format: Option<OutputFormat>) -> anyhow::Result<Self> {
         let executor = SqlExecutor::new(database)?;
-        let formatter = ResultFormatter::new();
+        let mut formatter = ResultFormatter::new();
+        
+        if let Some(fmt) = format {
+            formatter.set_format(fmt);
+        }
 
         Ok(ScriptExecutor {
             executor,

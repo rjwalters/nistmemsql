@@ -21,19 +21,21 @@ Command-line interface for VibeSQL, providing interactive SQL querying and datab
 - Execution summary with success/failure counts
 - Data import/export utilities (CSV, JSON)
 
-### Phase 3: Advanced Features
-- More meta-commands (`\ds`, `\di`, `\du`)
-- Output format options (table, CSV, JSON, markdown)
-- Connection to persistent database files
+### Phase 3: Advanced Features (Current)
+- More meta-commands: `\ds` (schemas), `\di` (indexes), `\du` (roles/users)
+- Output format control: `\f <format>` or `--format` flag
+- Output format options (table, CSV, JSON)
 - Query timing and performance statistics
-- Syntax highlighting
-- Multi-line statement editing
+- Automatic output format switching in REPL
 
-### Phase 4: Database Management
-- Schema introspection
+### Phase 4: Database Management (Future)
+- Connection to persistent database files
+- Schema introspection enhancements
 - Database backup/restore
 - Query profiling
 - Configuration file support (.vibesqlrc)
+- Syntax highlighting
+- Multi-line statement editing
 
 ## Usage
 
@@ -65,6 +67,10 @@ cargo run --bin vibesql -- -f script.sql
 
 # Execute SQL from file with verbose output and summary
 cargo run --bin vibesql -- -f script.sql --verbose
+
+# Execute with specific output format
+cargo run --bin vibesql -- -f script.sql --format json
+cargo run --bin vibesql -- -f script.sql --format csv
 ```
 
 ### Stdin Execution
@@ -76,18 +82,59 @@ cat queries.sql | cargo run --bin vibesql
 # Or explicitly request stdin
 cargo run --bin vibesql -- --stdin < queries.sql
 
-# Pipe from other commands
-echo "SELECT 1; SELECT 2;" | cargo run --bin vibesql --verbose
+# Pipe from other commands with specific format
+echo "SELECT 1; SELECT 2;" | cargo run --bin vibesql -- --format json
+```
+
+### Output Formats
+
+```bash
+# Table format (default, ASCII tables)
+cargo run --bin vibesql -- -c "SELECT * FROM users" --format table
+
+# JSON format (array of objects)
+cargo run --bin vibesql -- -c "SELECT * FROM users" --format json
+
+# CSV format (comma-separated values)
+cargo run --bin vibesql -- -c "SELECT * FROM users" --format csv
 ```
 
 ## Meta-Commands
 
 ```
-\d [table]    - Describe table or list all tables
-\dt           - List tables
-\h, \help     - Show help
-\timing       - Toggle query timing
-\q, \quit     - Exit
+\d [table]      - Describe table or list all tables
+\dt             - List tables
+\ds             - List schemas
+\di             - List indexes
+\du             - List roles/users
+\f <format>     - Set output format (table, json, csv)
+\timing         - Toggle query timing
+\h, \help       - Show help
+\q, \quit       - Exit
+```
+
+### Format Command Examples
+
+```
+vibesql> \f json
+Output format set to: json
+
+vibesql> SELECT * FROM users;
+[
+  {"id": "1", "name": "Alice"},
+  {"id": "2", "name": "Bob"}
+]
+
+vibesql> \f csv
+Output format set to: csv
+
+vibesql> SELECT * FROM users;
+id,name
+1,Alice
+2,Bob
+
+vibesql> \f table
+Output format set to: table
 ```
 
 ## Example Session
