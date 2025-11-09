@@ -170,9 +170,9 @@ impl SqlExecutor {
             ast::Statement::Insert(insert_stmt) => {
                 let mut db_mut = self.db.clone();
                 match executor::InsertExecutor::execute(&mut db_mut, &insert_stmt) {
-                    Ok(_) => {
+                    Ok(affected_rows) => {
                         self.db = db_mut;
-                        result.row_count = 0; // TODO: Get actual row count from executor
+                        result.row_count = affected_rows;
                     }
                     Err(e) => return Err(anyhow::anyhow!("{}", e)),
                 }
@@ -762,5 +762,63 @@ mod tests {
         executor.execute("CREATE TABLE products (id INT PRIMARY KEY, name VARCHAR(100), price DECIMAL(10, 2))").unwrap();
         // Should print table with multiple columns of different types
         assert!(executor.describe_table("products").is_ok());
+    }
+
+    #[test]
+    fn test_insert_row_count_single() {
+        let mut executor = SqlExecutor::new(None).unwrap();
+        executor.execute("CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(50))").unwrap();
+
+        let result = executor.execute("INSERT INTO users (id, name) VALUES (1, 'Alice')").unwrap();
+        assert_eq!(result.row_count, 1, "Single INSERT should return row count of 1");
+    }
+
+    #[test]
+    fn test_insert_row_count_multiple() {
+        let mut executor = SqlExecutor::new(None).unwrap();
+        executor.execute("CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(50))").unwrap();
+
+        let result = executor.execute(
+            "INSERT INTO users (id, name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')"
+        ).unwrap();
+        assert_eq!(result.row_count, 3, "Multiple value INSERT should return row count of 3");
+    }
+
+    #[test]
+    fn test_update_row_count() {
+        let mut executor = SqlExecutor::new(None).unwrap();
+        executor.execute("CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(50))").unwrap();
+        executor.execute("INSERT INTO users (id, name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')").unwrap();
+
+        let result = executor.execute("UPDATE users SET name = 'Updated' WHERE id > 1").unwrap();
+        assert_eq!(result.row_count, 2, "UPDATE should return row count of 2");
+    }
+
+    #[test]
+    fn test_delete_row_count() {
+        let mut executor = SqlExecutor::new(None).unwrap();
+        executor.execute("CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(50))").unwrap();
+        executor.execute("INSERT INTO users (id, name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')").unwrap();
+
+        let result = executor.execute("DELETE FROM users WHERE id IN (1, 3)").unwrap();
+        assert_eq!(result.row_count, 2, "DELETE should return row count of 2");
+    }
+
+    #[test]
+    fn test_select_row_count() {
+        let mut executor = SqlExecutor::new(None).unwrap();
+        executor.execute("CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(50))").unwrap();
+        executor.execute("INSERT INTO users (id, name) VALUES (1, 'Alice'), (2, 'Bob')").unwrap();
+
+        let result = executor.execute("SELECT * FROM users").unwrap();
+        assert_eq!(result.row_count, 2, "SELECT should return row count of 2");
+        assert_eq!(result.rows.len(), 2, "SELECT should return 2 rows");
+    }
+
+    #[test]
+    fn test_create_table_row_count() {
+        let mut executor = SqlExecutor::new(None).unwrap();
+        let result = executor.execute("CREATE TABLE test (id INT PRIMARY KEY)").unwrap();
+        assert_eq!(result.row_count, 0, "CREATE TABLE should return row count of 0 (DDL)");
     }
 }
