@@ -72,31 +72,44 @@ impl CombinedExpressionEvaluator<'_> {
                 match op {
                     ast::BinaryOperator::And => {
                         let left_val = self.eval(left, row)?;
-                        // Short-circuit: if left is false or null, don't evaluate right
+                        // Short-circuit: if left is false, return false immediately
                         match left_val {
                             SqlValue::Boolean(false) => return Ok(SqlValue::Boolean(false)),
-                            SqlValue::Null => return Ok(SqlValue::Null),
-                            SqlValue::Boolean(true) => {
-                                let right_val = self.eval(right, row)?;
-                                ExpressionEvaluator::eval_binary_op_static(&left_val, op, &right_val)
-                            }
+                            // For NULL and TRUE, must evaluate right side
+                            // SQL three-valued logic:
+                            // - NULL AND FALSE = FALSE (not NULL!)
+                            // - NULL AND TRUE = NULL
+                            // - TRUE AND x = x
                             _ => {
                                 let right_val = self.eval(right, row)?;
+
+                                // Special case: NULL AND FALSE = FALSE
+                                if matches!(left_val, SqlValue::Null) && matches!(right_val, SqlValue::Boolean(false)) {
+                                    return Ok(SqlValue::Boolean(false));
+                                }
+
                                 ExpressionEvaluator::eval_binary_op_static(&left_val, op, &right_val)
                             }
                         }
                     }
                     ast::BinaryOperator::Or => {
                         let left_val = self.eval(left, row)?;
-                        // Short-circuit: if left is true, don't evaluate right
+                        // Short-circuit: if left is true, return true immediately
                         match left_val {
                             SqlValue::Boolean(true) => return Ok(SqlValue::Boolean(true)),
-                            SqlValue::Boolean(false) | SqlValue::Null => {
-                                let right_val = self.eval(right, row)?;
-                                ExpressionEvaluator::eval_binary_op_static(&left_val, op, &right_val)
-                            }
+                            // For NULL and FALSE, must evaluate right side
+                            // SQL three-valued logic:
+                            // - NULL OR TRUE = TRUE (not NULL!)
+                            // - NULL OR FALSE = NULL
+                            // - FALSE OR x = x
                             _ => {
                                 let right_val = self.eval(right, row)?;
+
+                                // Special case: NULL OR TRUE = TRUE
+                                if matches!(left_val, SqlValue::Null) && matches!(right_val, SqlValue::Boolean(true)) {
+                                    return Ok(SqlValue::Boolean(true));
+                                }
+
                                 ExpressionEvaluator::eval_binary_op_static(&left_val, op, &right_val)
                             }
                         }

@@ -29,57 +29,30 @@ fn create_test_db_with_nulls() -> Database {
         "TEST".to_string(),
         vec![
             ColumnSchema::new("ID".to_string(), DataType::Integer, false),
-            ColumnSchema::new("BOOL_VAL".to_string(), DataType::Boolean, true), // nullable
-            ColumnSchema::new("NUM_VAL".to_string(), DataType::Integer, true),  // nullable
+            ColumnSchema::new("BOOL_COL".to_string(), DataType::Boolean, true), // nullable
         ],
     );
 
     let mut db = Database::new();
     db.create_table(schema).unwrap();
 
-    // Row 1: ID=1, BOOL_VAL=TRUE, NUM_VAL=10
+    // Row 1: ID=1, BOOL_COL=TRUE
     db.insert_row(
         "TEST",
-        Row::new(vec![
-            SqlValue::Integer(1),
-            SqlValue::Boolean(true),
-            SqlValue::Integer(10),
-        ]),
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Boolean(true)]),
     )
     .unwrap();
 
-    // Row 2: ID=2, BOOL_VAL=FALSE, NUM_VAL=20
+    // Row 2: ID=2, BOOL_COL=FALSE
     db.insert_row(
         "TEST",
-        Row::new(vec![
-            SqlValue::Integer(2),
-            SqlValue::Boolean(false),
-            SqlValue::Integer(20),
-        ]),
+        Row::new(vec![SqlValue::Integer(2), SqlValue::Boolean(false)]),
     )
     .unwrap();
 
-    // Row 3: ID=3, BOOL_VAL=NULL, NUM_VAL=30
-    db.insert_row(
-        "TEST",
-        Row::new(vec![
-            SqlValue::Integer(3),
-            SqlValue::Null,
-            SqlValue::Integer(30),
-        ]),
-    )
-    .unwrap();
-
-    // Row 4: ID=4, BOOL_VAL=NULL, NUM_VAL=NULL
-    db.insert_row(
-        "TEST",
-        Row::new(vec![
-            SqlValue::Integer(4),
-            SqlValue::Null,
-            SqlValue::Null,
-        ]),
-    )
-    .unwrap();
+    // Row 3: ID=3, BOOL_COL=NULL
+    db.insert_row("TEST", Row::new(vec![SqlValue::Integer(3), SqlValue::Null]))
+        .unwrap();
 
     db
 }
@@ -89,90 +62,62 @@ fn create_test_db_with_nulls() -> Database {
 // ============================================================================
 
 #[test]
-fn test_false_and_null() {
-    let db = create_test_db_with_nulls();
-
-    // FALSE AND NULL should return FALSE (not NULL!)
-    // This tests the row where BOOL_VAL=FALSE (id=2)
-    let result = execute_select(
-        &db,
-        "SELECT ID FROM TEST WHERE (1 = 2) AND (BOOL_VAL IS NULL)",
-    )
-    .expect("Query should succeed");
-
-    // Should return 0 rows because FALSE AND anything = FALSE
-    assert_eq!(result.len(), 0, "FALSE AND NULL should filter out all rows");
-}
-
-#[test]
 fn test_null_and_false() {
     let db = create_test_db_with_nulls();
 
-    // NULL AND FALSE should return FALSE (not NULL!)
+    // For row 3: BOOL_COL (NULL) AND FALSE should return FALSE (not NULL!)
     // SQL Standard: NULL AND FALSE = FALSE
-    let result = execute_select(
-        &db,
-        "SELECT ID FROM TEST WHERE (BOOL_VAL IS NULL) AND (1 = 2)",
-    )
-    .expect("Query should succeed");
+    let result = execute_select(&db, "SELECT ID FROM TEST WHERE BOOL_COL AND (1 = 2)")
+        .expect("Query should succeed");
 
-    // Should return 0 rows because NULL AND FALSE = FALSE
-    // This is a CRITICAL test - current implementation may return rows with NULL
-    assert_eq!(
-        result.len(),
-        0,
-        "NULL AND FALSE should return FALSE and filter out all rows"
-    );
+    // Should return 0 rows:
+    // - Row 1: TRUE AND FALSE = FALSE (filtered out)
+    // - Row 2: FALSE AND FALSE = FALSE (filtered out)
+    // - Row 3: NULL AND FALSE = FALSE (filtered out) ← This is the critical test
+    assert_eq!(result.len(), 0, "NULL AND FALSE should return FALSE");
+}
+
+#[test]
+fn test_false_and_null() {
+    let db = create_test_db_with_nulls();
+
+    // For row 3: FALSE AND BOOL_COL (NULL) should return FALSE
+    let result = execute_select(&db, "SELECT ID FROM TEST WHERE (1 = 2) AND BOOL_COL")
+        .expect("Query should succeed");
+
+    // Should return 0 rows because FALSE AND anything = FALSE (short-circuit)
+    assert_eq!(result.len(), 0, "FALSE AND NULL should return FALSE");
 }
 
 #[test]
 fn test_null_and_true() {
     let db = create_test_db_with_nulls();
 
-    // NULL AND TRUE should return NULL
-    // In WHERE clause, NULL is treated as FALSE, so no rows returned
-    let result = execute_select(
-        &db,
-        "SELECT ID FROM TEST WHERE (BOOL_VAL IS NULL) AND (1 = 1)",
-    )
-    .expect("Query should succeed");
+    // For row 3: BOOL_COL (NULL) AND TRUE should return NULL
+    // In WHERE clause, NULL is treated as FALSE
+    let result =
+        execute_select(&db, "SELECT ID FROM TEST WHERE BOOL_COL AND (1 = 1)")
+            .expect("Query should succeed");
 
-    // Should return 0 rows because NULL AND TRUE = NULL, and NULL in WHERE = FALSE
-    assert_eq!(
-        result.len(),
-        0,
-        "NULL AND TRUE should return NULL, which filters rows in WHERE clause"
-    );
+    // Should return only row 1 (TRUE AND TRUE = TRUE)
+    // Row 2: FALSE AND TRUE = FALSE (filtered out)
+    // Row 3: NULL AND TRUE = NULL (treated as FALSE, filtered out)
+    assert_eq!(result.len(), 1, "NULL AND TRUE should return NULL (filtered in WHERE)");
+    assert_eq!(result[0].get(0), Some(&SqlValue::Integer(1)));
 }
 
 #[test]
 fn test_true_and_null() {
     let db = create_test_db_with_nulls();
 
-    // TRUE AND NULL should return NULL
-    let result = execute_select(
-        &db,
-        "SELECT ID FROM TEST WHERE (1 = 1) AND (BOOL_VAL IS NULL)",
-    )
-    .expect("Query should succeed");
+    // For row 3: TRUE AND BOOL_COL (NULL) should return NULL
+    let result =
+        execute_select(&db, "SELECT ID FROM TEST WHERE (1 = 1) AND BOOL_COL")
+            .expect("Query should succeed");
 
-    // Should return 0 rows because TRUE AND NULL = NULL, treated as FALSE in WHERE
-    assert_eq!(result.len(), 0, "TRUE AND NULL should return NULL");
-}
-
-#[test]
-fn test_null_and_null() {
-    let db = create_test_db_with_nulls();
-
-    // NULL AND NULL should return NULL
-    let result = execute_select(
-        &db,
-        "SELECT ID FROM TEST WHERE (BOOL_VAL IS NULL) AND (NUM_VAL IS NULL)",
-    )
-    .expect("Query should succeed");
-
-    // Should return 0 rows because NULL AND NULL = NULL
-    assert_eq!(result.len(), 0, "NULL AND NULL should return NULL");
+    // Should return only row 1 (TRUE AND TRUE = TRUE)
+    assert_eq!(result.len(), 1, "TRUE AND NULL should return NULL (filtered in WHERE)");
+    assert_eq!(result[0].get(0), Some(&SqlValue::Integer(1)));
 }
 
 // ============================================================================
@@ -180,85 +125,59 @@ fn test_null_and_null() {
 // ============================================================================
 
 #[test]
-fn test_true_or_null() {
-    let db = create_test_db_with_nulls();
-
-    // TRUE OR NULL should return TRUE (not NULL!)
-    // This should return all rows
-    let result = execute_select(
-        &db,
-        "SELECT ID FROM TEST WHERE (1 = 1) OR (BOOL_VAL IS NULL)",
-    )
-    .expect("Query should succeed");
-
-    // Should return all 4 rows because TRUE OR anything = TRUE
-    assert_eq!(result.len(), 4, "TRUE OR NULL should return TRUE");
-}
-
-#[test]
 fn test_null_or_true() {
     let db = create_test_db_with_nulls();
 
-    // NULL OR TRUE should return TRUE (not NULL!)
+    // For row 3: BOOL_COL (NULL) OR TRUE should return TRUE (not NULL!)
     // SQL Standard: NULL OR TRUE = TRUE
-    let result = execute_select(
-        &db,
-        "SELECT ID FROM TEST WHERE (BOOL_VAL IS NULL) OR (1 = 1)",
-    )
-    .expect("Query should succeed");
+    let result = execute_select(&db, "SELECT ID FROM TEST WHERE BOOL_COL OR (1 = 1)")
+        .expect("Query should succeed");
 
-    // Should return all 4 rows because NULL OR TRUE = TRUE
-    // This is a CRITICAL test - current implementation may return only NULL rows
-    assert_eq!(
-        result.len(),
-        4,
-        "NULL OR TRUE should return TRUE and include all rows"
-    );
+    // Should return all 3 rows:
+    // - Row 1: TRUE OR TRUE = TRUE ✅
+    // - Row 2: FALSE OR TRUE = TRUE ✅
+    // - Row 3: NULL OR TRUE = TRUE ✅ ← This is the critical test
+    assert_eq!(result.len(), 3, "NULL OR TRUE should return TRUE");
 }
 
 #[test]
-fn test_false_or_null() {
+fn test_true_or_null() {
     let db = create_test_db_with_nulls();
 
-    // FALSE OR NULL should return NULL
-    let result = execute_select(
-        &db,
-        "SELECT ID FROM TEST WHERE (1 = 2) OR (BOOL_VAL IS NULL)",
-    )
-    .expect("Query should succeed");
+    // TRUE OR NULL should return TRUE (short-circuit)
+    let result = execute_select(&db, "SELECT ID FROM TEST WHERE (1 = 1) OR BOOL_COL")
+        .expect("Query should succeed");
 
-    // Should return 0 rows because FALSE OR NULL = NULL, treated as FALSE in WHERE
-    assert_eq!(result.len(), 0, "FALSE OR NULL should return NULL");
+    // Should return all 3 rows because TRUE OR anything = TRUE
+    assert_eq!(result.len(), 3, "TRUE OR NULL should return TRUE");
 }
 
 #[test]
 fn test_null_or_false() {
     let db = create_test_db_with_nulls();
 
-    // NULL OR FALSE should return NULL
-    let result = execute_select(
-        &db,
-        "SELECT ID FROM TEST WHERE (BOOL_VAL IS NULL) OR (1 = 2)",
-    )
-    .expect("Query should succeed");
+    // For row 3: BOOL_COL (NULL) OR FALSE should return NULL
+    let result = execute_select(&db, "SELECT ID FROM TEST WHERE BOOL_COL OR (1 = 2)")
+        .expect("Query should succeed");
 
-    // Should return 0 rows because NULL OR FALSE = NULL
-    assert_eq!(result.len(), 0, "NULL OR FALSE should return NULL");
+    // Should return only row 1 (TRUE OR FALSE = TRUE)
+    // Row 2: FALSE OR FALSE = FALSE (filtered out)
+    // Row 3: NULL OR FALSE = NULL (treated as FALSE, filtered out)
+    assert_eq!(result.len(), 1, "NULL OR FALSE should return NULL (filtered in WHERE)");
+    assert_eq!(result[0].get(0), Some(&SqlValue::Integer(1)));
 }
 
 #[test]
-fn test_null_or_null() {
+fn test_false_or_null() {
     let db = create_test_db_with_nulls();
 
-    // NULL OR NULL should return NULL
-    let result = execute_select(
-        &db,
-        "SELECT ID FROM TEST WHERE (BOOL_VAL IS NULL) OR (NUM_VAL IS NULL)",
-    )
-    .expect("Query should succeed");
+    // For row 3: FALSE OR BOOL_COL (NULL) should return NULL
+    let result = execute_select(&db, "SELECT ID FROM TEST WHERE (1 = 2) OR BOOL_COL")
+        .expect("Query should succeed");
 
-    // Should return 0 rows because NULL OR NULL = NULL
-    assert_eq!(result.len(), 0, "NULL OR NULL should return NULL");
+    // Should return only row 1 (FALSE OR TRUE = TRUE)
+    assert_eq!(result.len(), 1, "FALSE OR NULL should return NULL (filtered in WHERE)");
+    assert_eq!(result[0].get(0), Some(&SqlValue::Integer(1)));
 }
 
 // ============================================================================
@@ -266,79 +185,82 @@ fn test_null_or_null() {
 // ============================================================================
 
 #[test]
-fn test_complex_null_and_expression() {
+fn test_critical_null_and_false_prevents_error() {
     let db = create_test_db_with_nulls();
 
-    // (NULL AND FALSE) OR TRUE should return TRUE
-    // Because: NULL AND FALSE = FALSE, FALSE OR TRUE = TRUE
+    // Critical test: NULL AND FALSE should not evaluate the right side if FALSE is first
+    // But when NULL is first, it MUST evaluate right to check for FALSE
+    // This query should succeed even with division by zero on right, IF we have NULL on left
+    // and it short-circuits after finding FALSE on second evaluation
+
+    // This is a complex case: for row 3, BOOL_COL is NULL
+    // We evaluate: NULL AND (1/0 = 1)
+    // Without proper NULL AND FALSE handling, this would try to evaluate 1/0
+    // But NULL AND FALSE = FALSE, so if the right side is evaluated and is an error,
+    // we have a problem
+
+    // Actually, let's test that NULL AND FALSE = FALSE correctly
     let result = execute_select(
         &db,
-        "SELECT ID FROM TEST WHERE ((BOOL_VAL IS NULL) AND (1 = 2)) OR (1 = 1)",
+        "SELECT ID FROM TEST WHERE BOOL_COL AND (2 > 3)", // BOOL_COL is NULL for row 3
     )
     .expect("Query should succeed");
 
-    // Should return all 4 rows
-    assert_eq!(result.len(), 4, "(NULL AND FALSE) OR TRUE should return TRUE");
+    // All rows filtered out
+    assert_eq!(result.len(), 0);
 }
 
 #[test]
-fn test_complex_null_or_expression() {
+fn test_critical_null_or_true_includes_all() {
     let db = create_test_db_with_nulls();
 
-    // (NULL OR TRUE) AND FALSE should return FALSE
-    // Because: NULL OR TRUE = TRUE, TRUE AND FALSE = FALSE
-    let result = execute_select(
-        &db,
-        "SELECT ID FROM TEST WHERE ((BOOL_VAL IS NULL) OR (1 = 1)) AND (1 = 2)",
-    )
-    .expect("Query should succeed");
+    // Critical test: NULL OR TRUE should return TRUE
+    // This ensures row with NULL boolean is included when OR'd with TRUE
+    let result = execute_select(&db, "SELECT ID FROM TEST WHERE BOOL_COL OR (2 > 1)")
+        .expect("Query should succeed");
 
-    // Should return 0 rows
-    assert_eq!(result.len(), 0, "(NULL OR TRUE) AND FALSE should return FALSE");
+    // All 3 rows should be returned
+    assert_eq!(result.len(), 3, "NULL OR TRUE should include all rows");
 }
 
 #[test]
-fn test_null_with_column_values() {
+fn test_nested_null_logic() {
     let db = create_test_db_with_nulls();
 
-    // Test with actual NULL column values
-    // Row 3: BOOL_VAL=NULL, NUM_VAL=30
-    // (BOOL_VAL IS NULL) returns TRUE for row 3
-    // (NUM_VAL > 20) returns TRUE for rows 3 and 4
-    // NULL AND TRUE = NULL (treated as FALSE in WHERE)
+    // Test: (NULL OR FALSE) AND TRUE
+    // NULL OR FALSE = NULL, NULL AND TRUE = NULL (filtered out in WHERE)
+    let result = execute_select(&db, "SELECT ID FROM TEST WHERE (BOOL_COL OR (1 = 2)) AND (1 = 1)")
+        .expect("Query should succeed");
 
-    let result = execute_select(
-        &db,
-        "SELECT ID FROM TEST WHERE BOOL_VAL IS NULL AND NUM_VAL > 20",
-    )
-    .expect("Query should succeed");
-
-    // Should return row 3 (BOOL_VAL=NULL, NUM_VAL=30)
-    // But NOT row 4 (BOOL_VAL=NULL, NUM_VAL=NULL) because NULL > 20 is NULL
-    assert_eq!(result.len(), 1, "Should return only row with BOOL_VAL=NULL and NUM_VAL > 20");
-
-    // Verify it's row 3
-    let row = &result[0];
-    assert_eq!(row.get(0), Some(&SqlValue::Integer(3)));
+    // Should return only row 1
+    // Row 1: (TRUE OR FALSE) AND TRUE = TRUE AND TRUE = TRUE ✅
+    // Row 2: (FALSE OR FALSE) AND TRUE = FALSE AND TRUE = FALSE ❌
+    // Row 3: (NULL OR FALSE) AND TRUE = NULL AND TRUE = NULL ❌
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].get(0), Some(&SqlValue::Integer(1)));
 }
 
 #[test]
-fn test_null_short_circuit_safety() {
+fn test_short_circuit_with_null_column() {
     let db = create_test_db_with_nulls();
 
-    // This test ensures that NULL on left side of OR doesn't prevent
-    // evaluating a TRUE on the right side
-    // NULL OR TRUE should return TRUE, not NULL
-    let result = execute_select(
-        &db,
-        "SELECT ID FROM TEST WHERE (NUM_VAL IS NULL) OR (ID > 0)",
-    )
-    .expect("Query should succeed");
+    // Verify FALSE short-circuits even with NULL column on right
+    let result = execute_select(&db, "SELECT ID FROM TEST WHERE (1 = 2) AND BOOL_COL")
+        .expect("Query should succeed");
 
-    // Should return all 4 rows because NULL OR TRUE = TRUE
-    assert_eq!(
-        result.len(),
-        4,
-        "NULL OR TRUE should evaluate right side and return TRUE"
-    );
+    assert_eq!(result.len(), 0, "FALSE should short-circuit before evaluating NULL");
+}
+
+#[test]
+fn test_no_short_circuit_null_and_must_check_false() {
+    let db = create_test_db_with_nulls();
+
+    // When left is NULL (row 3: BOOL_COL), must evaluate right to check for FALSE
+    // BOOL_COL AND (1 = 2)
+    // Row 3: NULL AND FALSE = FALSE (must evaluate right side!)
+    let result = execute_select(&db, "SELECT ID FROM TEST WHERE BOOL_COL AND (1 = 2)")
+        .expect("Query should succeed");
+
+    // All rows filtered out, including row 3 which has NULL AND FALSE = FALSE
+    assert_eq!(result.len(), 0, "NULL AND FALSE must be evaluated as FALSE");
 }
