@@ -268,15 +268,25 @@ pub(super) type GroupedRows = Vec<(Vec<types::SqlValue>, Vec<storage::Row>)>;
 ///
 /// Optimized implementation using HashMap for O(1) group lookups instead of O(n) linear search.
 /// This significantly improves performance for queries with many groups.
-pub(super) fn group_rows(
+/// Timeout is checked every 1000 rows.
+pub(super) fn group_rows<'a>(
     rows: &[storage::Row],
     group_by_exprs: &[ast::Expression],
     evaluator: &crate::evaluator::CombinedExpressionEvaluator,
+    executor: &crate::SelectExecutor<'a>,
 ) -> Result<GroupedRows, crate::errors::ExecutorError> {
     // Use HashMap for O(1) group lookups
     let mut groups_map: HashMap<Vec<types::SqlValue>, Vec<storage::Row>> = HashMap::new();
+    let mut rows_processed = 0;
+    const CHECK_INTERVAL: usize = 1000;
 
     for row in rows {
+        // Check timeout every 1000 rows
+        rows_processed += 1;
+        if rows_processed % CHECK_INTERVAL == 0 {
+            executor.check_timeout()?;
+        }
+
         // Evaluate GROUP BY expressions to get the group key
         let mut key = Vec::new();
         for expr in group_by_exprs {

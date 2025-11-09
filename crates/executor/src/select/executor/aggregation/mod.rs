@@ -81,17 +81,17 @@ impl SelectExecutor<'_> {
             }
             crate::optimizer::WhereOptimization::Optimized(ref expr) => {
                 // Apply optimized WHERE clause
-                apply_where_filter_combined(from_result.rows, Some(expr), &evaluator)?
+                apply_where_filter_combined(from_result.rows, Some(expr), &evaluator, self)?
             }
             crate::optimizer::WhereOptimization::Unchanged(where_expr) => {
                 // Apply original WHERE clause
-                apply_where_filter_combined(from_result.rows, where_expr.as_ref(), &evaluator)?
+                apply_where_filter_combined(from_result.rows, where_expr.as_ref(), &evaluator, self)?
             }
         };
 
         // Group rows
         let groups = if let Some(group_by_exprs) = &stmt.group_by {
-            group_rows(&filtered_rows, group_by_exprs, &evaluator)?
+            group_rows(&filtered_rows, group_by_exprs, &evaluator, self)?
         } else {
             // No GROUP BY - treat all rows as one group
             vec![(Vec::new(), filtered_rows)]
