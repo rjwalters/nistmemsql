@@ -1,23 +1,46 @@
-# Agent Task: Fix SQLLogicTest Parallel Execution Time Budget Issue
+# Agent Task: Fix SQLLogicTest Parallel Testing - Work Queue Implementation
 
-## Your Mission
+## Status: IN PROGRESS
 
-Fix the remote SQLLogicTest parallel execution so that workers utilize their full time budget instead of exiting early after completing small file partitions.
+This task has been partially completed. The work queue system is implemented but needs final testing and verification.
 
-## The Problem
+## What Has Been Done
 
-**Current Behavior**:
-- 64 Python workers spawn correctly ✓
-- Each worker gets ~10 test files from their partition
-- Workers complete their 10 files in ~30 seconds
-- Workers exit instead of continuing for the full 3600 second (1 hour) time budget
-- Result: Only 2-4 active test processes at any time, ~3% CPU utilization
+1. ✅ **Fixed time budget looping** (Commit 7840c2f)
+   - Workers now loop through files until time budget expires
+   - Verified 94%+ CPU utilization with 64 workers
 
-**Expected Behavior**:
-- 64 workers should run for the FULL time budget (3600 seconds)
-- Workers should loop/cycle through their files until time expires
-- CPU utilization should be >70% across all 64 cores
-- Each worker should test hundreds of files over the hour
+2. ✅ **Implemented work queue system** (Commit 8a80ed6)
+   - Created `tests/sqllogictest/work_queue.rs`
+   - Modified test suite to claim files dynamically
+   - Updated Python orchestrator to initialize queue
+   - Each file tested exactly once (no redundant work)
+
+## What Needs To Be Done
+
+### Immediate Tasks
+
+1. **Test work queue locally**
+   - Run: `python3 scripts/run_parallel_tests.py --workers 2 --time-budget 30`
+   - Verify both workers claim files from queue
+   - Check that all 623 files get tested exactly once
+   - Verify queue directories: pending → claimed → completed
+
+2. **Test on remote with 8 workers**
+   - Run: `./scripts/remote_test.sh --sync --workers 8 --time 300`
+   - Monitor: `ssh rwalters-sandbox-1 'ls /tmp/sqllogictest_work_queue/*/ | wc -l'`
+   - Verify all files tested and workers exit cleanly
+
+3. **Full scale test with 64 workers**
+   - Run: `./scripts/remote_quick.sh sync && ./scripts/remote_quick.sh run`
+   - Should complete all 623 files in under 10 minutes
+   - All workers should exit when queue is empty
+
+### Known Issues Being Debugged
+
+- Path resolution: Work queue returns relative paths, need to prepend test_dir
+- Workers are claiming files but may fail to read them (check logs)
+- Need to verify `__` path separator works correctly on all platforms
 
 ## Root Cause
 
