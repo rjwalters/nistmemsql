@@ -199,6 +199,9 @@ impl From<storage::StorageError> for ExecutorError {
             storage::StorageError::NotImplemented(msg) => {
                 ExecutorError::StorageError(format!("Not implemented: {}", msg))
             }
+            storage::StorageError::IoError(msg) => {
+                ExecutorError::StorageError(format!("I/O error: {}", msg))
+            }
         }
     }
 }
