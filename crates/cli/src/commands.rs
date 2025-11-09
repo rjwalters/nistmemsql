@@ -13,6 +13,7 @@ pub enum MetaCommand {
     Timing,
     Copy { table: String, file_path: String, direction: CopyDirection, format: CopyFormat },
     Save(Option<String>),
+    Errors,
 }
 
 #[derive(Debug, Clone)]
@@ -57,6 +58,8 @@ impl MetaCommand {
                         "table" => Some(MetaCommand::SetFormat(OutputFormat::Table)),
                         "json" => Some(MetaCommand::SetFormat(OutputFormat::Json)),
                         "csv" => Some(MetaCommand::SetFormat(OutputFormat::Csv)),
+                        "markdown" | "md" => Some(MetaCommand::SetFormat(OutputFormat::Markdown)),
+                        "html" => Some(MetaCommand::SetFormat(OutputFormat::Html)),
                         _ => None,
                     }
                 } else {
@@ -95,6 +98,7 @@ impl MetaCommand {
                 let filename = parts.get(1).map(|s| s.to_string());
                 Some(MetaCommand::Save(filename))
             }
+            Some(&"\\errors") => Some(MetaCommand::Errors),
             _ => None,
         }
     }
@@ -165,6 +169,18 @@ mod tests {
             MetaCommand::parse("\\f csv"),
             Some(MetaCommand::SetFormat(OutputFormat::Csv))
         ));
+        assert!(matches!(
+            MetaCommand::parse("\\f markdown"),
+            Some(MetaCommand::SetFormat(OutputFormat::Markdown))
+        ));
+        assert!(matches!(
+            MetaCommand::parse("\\f md"),
+            Some(MetaCommand::SetFormat(OutputFormat::Markdown))
+        ));
+        assert!(matches!(
+            MetaCommand::parse("\\f html"),
+            Some(MetaCommand::SetFormat(OutputFormat::Html))
+        ));
     }
 
     #[test]
@@ -209,5 +225,10 @@ mod tests {
         } else {
             panic!("Failed to parse copy export JSON command");
         }
+    }
+
+    #[test]
+    fn test_parse_errors() {
+        assert!(matches!(MetaCommand::parse("\\errors"), Some(MetaCommand::Errors)));
     }
 }
