@@ -318,6 +318,7 @@ impl JoinOrderAnalyzer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use types::SqlValue;
 
     #[test]
     fn test_simple_chain_detection() {
