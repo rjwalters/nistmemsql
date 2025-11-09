@@ -4,6 +4,8 @@
 
 mod database;
 pub mod indexes;
+pub mod transactions;
 
-pub use database::{Database, Savepoint, TransactionChange, TransactionState};
+pub use database::Database;
 pub use indexes::{IndexData, IndexManager, IndexMetadata};
+pub use transactions::{Savepoint, TransactionChange, TransactionManager, TransactionState};

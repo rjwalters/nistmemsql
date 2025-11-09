@@ -3,46 +3,10 @@
 // ============================================================================
 
 use super::indexes::IndexManager;
+use super::transactions::{TransactionChange, TransactionManager};
 use crate::{Row, StorageError, Table};
 use ast::IndexColumn;
 use std::collections::HashMap;
-
-/// A single change made during a transaction
-#[derive(Debug, Clone)]
-pub enum TransactionChange {
-    Insert { table_name: String, row: Row },
-    Update { table_name: String, old_row: Row, new_row: Row },
-    Delete { table_name: String, row: Row },
-}
-
-/// A savepoint within a transaction
-#[derive(Debug, Clone)]
-pub struct Savepoint {
-    pub name: String,
-    /// Index in the changes vector where this savepoint was created
-    pub snapshot_index: usize,
-}
-
-/// Transaction state
-#[derive(Debug, Clone)]
-#[allow(clippy::large_enum_variant)]
-pub enum TransactionState {
-    /// No active transaction
-    None,
-    /// Transaction is active
-    Active {
-        /// Transaction ID for debugging
-        id: u64,
-        /// Original catalog snapshot for full rollback
-        original_catalog: catalog::Catalog,
-        /// Original table snapshots for full rollback
-        original_tables: HashMap<String, Table>,
-        /// Stack of savepoints (newest at end)
-        savepoints: Vec<Savepoint>,
-        /// All changes made since transaction start (for incremental undo)
-        changes: Vec<TransactionChange>,
-    },
-}
 
 /// In-memory database - manages catalog and tables
 #[derive(Debug, Clone)]
@@ -51,10 +15,8 @@ pub struct Database {
     tables: HashMap<String, Table>,
     /// User-defined index manager
     index_manager: IndexManager,
-    /// Current transaction state
-    transaction_state: TransactionState,
-    /// Next transaction ID
-    next_transaction_id: u64,
+    /// Transaction manager
+    transaction_manager: TransactionManager,
     /// Current session role for privilege checks
     current_role: Option<String>,
     /// Whether security checks are enabled (can be disabled for testing)
@@ -71,8 +33,7 @@ impl Database {
             catalog: catalog::Catalog::new(),
             tables: HashMap::new(),
             index_manager: IndexManager::new(),
-            transaction_state: TransactionState::None,
-            next_transaction_id: 1,
+            transaction_manager: TransactionManager::new(),
             current_role: None,
             // Disabled by default for backward compatibility
             security_enabled: false,
@@ -81,9 +42,7 @@ impl Database {
 
     /// Record a change in the current transaction (if any)
     pub fn record_change(&mut self, change: TransactionChange) {
-        if let TransactionState::Active { changes, .. } = &mut self.transaction_state {
-            changes.push(change);
-        }
+        self.transaction_manager.record_change(change);
     }
 
     /// Create a table
@@ -239,142 +198,44 @@ impl Database {
 
     /// Begin a new transaction
     pub fn begin_transaction(&mut self) -> Result<(), StorageError> {
-        match self.transaction_state {
-            TransactionState::None => {
-                // Create snapshots of catalog and all current tables
-                let original_catalog = self.catalog.clone();
-                let mut original_tables = HashMap::new();
-                for (name, table) in &self.tables {
-                    original_tables.insert(name.clone(), table.clone());
-                }
-
-                let transaction_id = self.next_transaction_id;
-                self.next_transaction_id += 1;
-
-                self.transaction_state = TransactionState::Active {
-                    id: transaction_id,
-                    original_catalog,
-                    original_tables,
-                    savepoints: Vec::new(),
-                    changes: Vec::new(),
-                };
-                Ok(())
-            }
-            TransactionState::Active { .. } => {
-                Err(StorageError::TransactionError("Transaction already active".to_string()))
-            }
-        }
+        self.transaction_manager.begin_transaction(&self.catalog, &self.tables)
     }
 
     /// Commit the current transaction
     pub fn commit_transaction(&mut self) -> Result<(), StorageError> {
-        match self.transaction_state {
-            TransactionState::None => {
-                Err(StorageError::TransactionError("No active transaction to commit".to_string()))
-            }
-            TransactionState::Active { .. } => {
-                // Transaction committed - just clear the state
-                // Changes are already in the tables
-                self.transaction_state = TransactionState::None;
-                Ok(())
-            }
-        }
+        self.transaction_manager.commit_transaction()
     }
 
     /// Rollback the current transaction
     pub fn rollback_transaction(&mut self) -> Result<(), StorageError> {
-        match &self.transaction_state {
-            TransactionState::None => {
-                Err(StorageError::TransactionError("No active transaction to rollback".to_string()))
-            }
-            TransactionState::Active { original_catalog, original_tables, .. } => {
-                // Restore catalog and all tables from snapshots
-                self.catalog = original_catalog.clone();
-                self.tables = original_tables.clone();
-                self.transaction_state = TransactionState::None;
-                Ok(())
-            }
-        }
+        self.transaction_manager.rollback_transaction(&mut self.catalog, &mut self.tables)
     }
 
     /// Check if we're currently in a transaction
     pub fn in_transaction(&self) -> bool {
-        matches!(self.transaction_state, TransactionState::Active { .. })
+        self.transaction_manager.in_transaction()
     }
 
     /// Get current transaction ID (for debugging)
     pub fn transaction_id(&self) -> Option<u64> {
-        match &self.transaction_state {
-            TransactionState::Active { id, .. } => Some(*id),
-            TransactionState::None => None,
-        }
+        self.transaction_manager.transaction_id()
     }
 
     /// Create a savepoint within the current transaction
     pub fn create_savepoint(&mut self, name: String) -> Result<(), StorageError> {
-        match &mut self.transaction_state {
-            TransactionState::None => {
-                Err(StorageError::TransactionError("No active transaction".to_string()))
-            }
-            TransactionState::Active { savepoints, changes, .. } => {
-                let savepoint = Savepoint { name, snapshot_index: changes.len() };
-                savepoints.push(savepoint);
-                Ok(())
-            }
-        }
+        self.transaction_manager.create_savepoint(name)
     }
 
     /// Rollback to a named savepoint
     pub fn rollback_to_savepoint(&mut self, name: String) -> Result<(), StorageError> {
-        let (_snapshot_index, changes_to_undo) = match &mut self.transaction_state {
-            TransactionState::None => {
-                return Err(StorageError::TransactionError("No active transaction".to_string()))
-            }
-            TransactionState::Active { savepoints, changes, .. } => {
-                // Find the savepoint
-                let savepoint_idx =
-                    savepoints.iter().position(|sp| sp.name == name).ok_or_else(|| {
-                        StorageError::TransactionError(format!("Savepoint '{}' not found", name))
-                    })?;
+        let changes_to_undo = self.transaction_manager.rollback_to_savepoint(name)?;
 
-                let snapshot_index = savepoints[savepoint_idx].snapshot_index;
-
-                // Collect changes to undo (from snapshot_index to end)
-                let changes_to_undo: Vec<_> = changes.drain(snapshot_index..).collect();
-
-                // Destroy later savepoints
-                savepoints.truncate(savepoint_idx + 1);
-
-                (snapshot_index, changes_to_undo)
-            }
-        };
-
-        // Undo the changes (now we don't have the mutable borrow conflict)
+        // Undo the changes in reverse order
         for change in changes_to_undo.into_iter().rev() {
             self.undo_change(change)?;
         }
 
         Ok(())
-    }
-
-    /// Release (destroy) a named savepoint
-    pub fn release_savepoint(&mut self, name: String) -> Result<(), StorageError> {
-        match &mut self.transaction_state {
-            TransactionState::None => {
-                Err(StorageError::TransactionError("No active transaction".to_string()))
-            }
-            TransactionState::Active { savepoints, .. } => {
-                let savepoint_idx =
-                    savepoints.iter().position(|sp| sp.name == name).ok_or_else(|| {
-                        StorageError::TransactionError(format!("Savepoint '{}' not found", name))
-                    })?;
-
-                // Remove the savepoint
-                savepoints.remove(savepoint_idx);
-
-                Ok(())
-            }
-        }
     }
 
     /// Undo a single transaction change
@@ -405,6 +266,11 @@ impl Database {
             }
         }
         Ok(())
+    }
+
+    /// Release (destroy) a named savepoint
+    pub fn release_savepoint(&mut self, name: String) -> Result<(), StorageError> {
+        self.transaction_manager.release_savepoint(name)
     }
 
     // ============================================================================

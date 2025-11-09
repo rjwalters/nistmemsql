@@ -32,6 +32,7 @@ pub enum ExecutorError {
     ColumnCountMismatch { expected: usize, provided: usize },
     CastError { from_type: String, to_type: String },
     ConstraintViolation(String),
+    MultiplePrimaryKeys,
     CannotDropColumn(String),
     /// Expression evaluation exceeded maximum recursion depth
     /// This prevents stack overflow from deeply nested expressions or subqueries
@@ -129,6 +130,9 @@ impl std::fmt::Display for ExecutorError {
             }
             ExecutorError::ConstraintViolation(msg) => {
                 write!(f, "Constraint violation: {}", msg)
+            }
+            ExecutorError::MultiplePrimaryKeys => {
+                write!(f, "Multiple PRIMARY KEY constraints are not allowed")
             }
             ExecutorError::CannotDropColumn(msg) => {
                 write!(f, "Cannot drop column: {}", msg)

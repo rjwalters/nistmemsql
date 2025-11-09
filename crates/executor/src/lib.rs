@@ -4,6 +4,7 @@
 
 pub mod advanced_objects;
 mod alter;
+mod constraint_validator;
 mod create_table;
 mod delete;
 mod domain_ddl;
@@ -11,7 +12,7 @@ mod drop_table;
 pub mod errors;
 pub mod evaluator;
 mod grant;
-mod index_ddl;
+pub mod index_ddl;
 mod insert;
 pub mod limits;
 mod optimizer;
@@ -27,6 +28,7 @@ mod type_ddl;
 mod update;
 
 pub use alter::AlterTableExecutor;
+pub use constraint_validator::ConstraintValidator;
 pub use create_table::CreateTableExecutor;
 pub use delete::DeleteExecutor;
 pub use domain_ddl::DomainExecutor;
@@ -34,7 +36,7 @@ pub use drop_table::DropTableExecutor;
 pub use errors::ExecutorError;
 pub use evaluator::ExpressionEvaluator;
 pub use grant::GrantExecutor;
-pub use index_ddl::IndexExecutor;
+pub use index_ddl::{CreateIndexExecutor, DropIndexExecutor, IndexExecutor};
 pub use insert::InsertExecutor;
 pub use privilege_checker::PrivilegeChecker;
 pub use revoke::RevokeExecutor;
