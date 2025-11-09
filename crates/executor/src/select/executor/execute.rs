@@ -12,6 +12,9 @@ use std::collections::HashMap;
 impl SelectExecutor<'_> {
     /// Execute a SELECT statement
     pub fn execute(&self, stmt: &ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> {
+        // Check timeout before starting execution
+        self.check_timeout()?;
+
         // Check subquery depth limit to prevent stack overflow
         if self.subquery_depth >= crate::limits::MAX_EXPRESSION_DEPTH {
             return Err(ExecutorError::ExpressionDepthExceeded {
