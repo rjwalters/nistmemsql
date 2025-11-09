@@ -19,7 +19,7 @@ pub struct SelectExecutor<'a> {
     /// Query start time (for timeout enforcement)
     pub(super) start_time: Instant,
     /// Timeout in seconds (defaults to MAX_QUERY_EXECUTION_SECONDS)
-    pub(super) timeout_seconds: u64,
+    pub(crate) timeout_seconds: u64,
 }
 
 impl<'a> SelectExecutor<'a> {
@@ -129,7 +129,7 @@ impl<'a> SelectExecutor<'a> {
 
     /// Check if query has exceeded timeout
     /// Call this in hot loops to prevent infinite execution
-    pub(super) fn check_timeout(&self) -> Result<(), crate::errors::ExecutorError> {
+    pub(crate) fn check_timeout(&self) -> Result<(), crate::errors::ExecutorError> {
         let elapsed = self.start_time.elapsed().as_secs();
         if elapsed >= self.timeout_seconds {
             return Err(crate::errors::ExecutorError::QueryTimeoutExceeded {
