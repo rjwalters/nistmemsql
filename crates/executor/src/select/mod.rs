@@ -3,7 +3,7 @@ mod executor;
 mod filter;
 mod grouping;
 mod helpers;
-mod join;
+pub mod join;
 mod order;
 mod projection;
 mod scan;
