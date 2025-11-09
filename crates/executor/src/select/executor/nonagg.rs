@@ -28,6 +28,11 @@ impl SelectExecutor<'_> {
     ) -> Result<Vec<storage::Row>, ExecutorError> {
         let FromResult { schema, rows } = from_result;
 
+        // Track memory used by FROM clause results (JOINs, table scans, etc.)
+        let from_memory_bytes = std::mem::size_of::<storage::Row>() * rows.len()
+            + rows.iter().map(|r| std::mem::size_of_val(r.values.as_slice())).sum::<usize>();
+        self.track_memory_allocation(from_memory_bytes)?;
+
         // Create evaluator with outer context if available (outer schema is already a CombinedSchema)
         let evaluator =
             if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
@@ -148,6 +153,12 @@ impl SelectExecutor<'_> {
                 &schema,
                 &window_mapping,
             )?;
+
+            // Track memory for each projected row
+            let row_memory = std::mem::size_of::<storage::Row>()
+                + std::mem::size_of_val(projected_row.values.as_slice());
+            self.track_memory_allocation(row_memory)?;
+
             final_rows.push(projected_row);
         }
 
