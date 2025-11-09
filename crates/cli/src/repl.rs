@@ -1,0 +1,128 @@
+use rustyline::DefaultEditor;
+use rustyline::error::ReadlineError;
+
+use crate::executor::SqlExecutor;
+use crate::formatter::ResultFormatter;
+use crate::commands::MetaCommand;
+
+pub struct Repl {
+    executor: SqlExecutor,
+    editor: DefaultEditor,
+    formatter: ResultFormatter,
+}
+
+impl Repl {
+    pub fn new(database: Option<String>) -> anyhow::Result<Self> {
+        let executor = SqlExecutor::new(database)?;
+        let editor = DefaultEditor::new()?;
+        let formatter = ResultFormatter::new();
+
+        Ok(Repl {
+            executor,
+            editor,
+            formatter,
+        })
+    }
+
+    pub fn run(&mut self) -> anyhow::Result<()> {
+        self.print_banner();
+
+        loop {
+            let prompt = "vibesql> ";
+            match self.editor.readline(prompt) {
+                Ok(line) => {
+                    if line.trim().is_empty() {
+                        continue;
+                    }
+
+                    // Add to history
+                    let _ = self.editor.add_history_entry(line.as_str());
+
+                    // Check if it's a meta-command
+                    if let Some(meta_cmd) = MetaCommand::parse(&line) {
+                        match self.handle_meta_command(meta_cmd) {
+                            Ok(should_exit) => {
+                                if should_exit {
+                                    break;
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("Error: {}", e);
+                            }
+                        }
+                    } else {
+                        // Execute as SQL
+                        match self.executor.execute(&line) {
+                            Ok(result) => {
+                                self.formatter.print_result(&result);
+                            }
+                            Err(e) => {
+                                eprintln!("Error: {}", e);
+                            }
+                        }
+                    }
+                }
+                Err(ReadlineError::Interrupted) => {
+                    println!("^C");
+                    continue;
+                }
+                Err(ReadlineError::Eof) => {
+                    println!("\\quit");
+                    break;
+                }
+                Err(err) => {
+                    eprintln!("Error: {:?}", err);
+                    break;
+                }
+            }
+        }
+
+        self.print_goodbye();
+        Ok(())
+    }
+
+    fn handle_meta_command(&mut self, cmd: MetaCommand) -> anyhow::Result<bool> {
+        match cmd {
+            MetaCommand::Quit => {
+                return Ok(true);
+            }
+            MetaCommand::Help => {
+                self.print_help();
+            }
+            MetaCommand::DescribeTable(table_name) => {
+                self.executor.describe_table(&table_name)?;
+            }
+            MetaCommand::ListTables => {
+                self.executor.list_tables()?;
+            }
+            MetaCommand::Timing => {
+                self.executor.toggle_timing();
+            }
+        }
+        Ok(false)
+    }
+
+    fn print_banner(&self) {
+        println!("VibeSQL v0.1.0 - SQL:1999 FULL Compliance Database");
+        println!("Type \\help for help, \\quit to exit\n");
+    }
+
+    fn print_goodbye(&self) {
+        println!("Goodbye!");
+    }
+
+    fn print_help(&self) {
+        println!("
+Meta-commands:
+  \\d [table]    - Describe table or list all tables
+  \\dt           - List tables
+  \\timing       - Toggle query timing
+  \\q, \\quit    - Exit
+
+Examples:
+  CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(100));
+  INSERT INTO users VALUES (1, 'Alice'), (2, 'Bob');
+  SELECT * FROM users;
+");
+    }
+}
