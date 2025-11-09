@@ -26,6 +26,10 @@ pub(super) fn apply_order_by(
 ) -> Result<Vec<RowWithSortKeys>, ExecutorError> {
     // Evaluate ORDER BY expressions for each row
     for (row, sort_keys) in &mut rows {
+        // Clear CSE cache before evaluating this row's ORDER BY expressions
+        // to prevent stale cached column values from previous rows
+        evaluator.clear_cse_cache();
+
         let mut keys = Vec::new();
         for order_item in order_by {
             // Check if ORDER BY expression is a SELECT list alias
