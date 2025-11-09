@@ -12,7 +12,7 @@ use types;
 /// Helper function to parse SELECT statements
 fn parse_select(sql: &str) -> ast::SelectStmt {
     match parser::Parser::parse_sql(sql) {
-        Ok(ast::Statement::Select(select_stmt)) => select_stmt,
+        Ok(ast::Statement::Select(select_stmt)) => *select_stmt,
         _ => panic!("Failed to parse SELECT statement: {}", sql),
     }
 }

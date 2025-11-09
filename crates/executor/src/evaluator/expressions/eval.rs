@@ -33,9 +33,46 @@ impl ExpressionEvaluator<'_> {
 
             // Binary operations
             ast::Expression::BinaryOp { left, op, right } => {
-                let left_val = self.eval(left, row)?;
-                let right_val = self.eval(right, row)?;
-                self.eval_binary_op(&left_val, op, &right_val)
+                // Short-circuit evaluation for AND/OR operators
+                match op {
+                    ast::BinaryOperator::And => {
+                        let left_val = self.eval(left, row)?;
+                        // Short-circuit: if left is false or null, don't evaluate right
+                        match left_val {
+                            SqlValue::Boolean(false) => return Ok(SqlValue::Boolean(false)),
+                            SqlValue::Null => return Ok(SqlValue::Null),
+                            SqlValue::Boolean(true) => {
+                                let right_val = self.eval(right, row)?;
+                                self.eval_binary_op(&left_val, op, &right_val)
+                            }
+                            _ => {
+                                let right_val = self.eval(right, row)?;
+                                self.eval_binary_op(&left_val, op, &right_val)
+                            }
+                        }
+                    }
+                    ast::BinaryOperator::Or => {
+                        let left_val = self.eval(left, row)?;
+                        // Short-circuit: if left is true, don't evaluate right
+                        match left_val {
+                            SqlValue::Boolean(true) => return Ok(SqlValue::Boolean(true)),
+                            SqlValue::Boolean(false) | SqlValue::Null => {
+                                let right_val = self.eval(right, row)?;
+                                self.eval_binary_op(&left_val, op, &right_val)
+                            }
+                            _ => {
+                                let right_val = self.eval(right, row)?;
+                                self.eval_binary_op(&left_val, op, &right_val)
+                            }
+                        }
+                    }
+                    // For all other operators, evaluate both sides as before
+                    _ => {
+                        let left_val = self.eval(left, row)?;
+                        let right_val = self.eval(right, row)?;
+                        self.eval_binary_op(&left_val, op, &right_val)
+                    }
+                }
             }
 
             // CASE expression
