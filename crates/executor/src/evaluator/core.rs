@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{errors::ExecutorError, schema::CombinedSchema, select::WindowFunctionKey};
 
@@ -10,8 +10,8 @@ pub struct ExpressionEvaluator<'a> {
     pub(super) database: Option<&'a storage::Database>,
     /// Current depth in expression tree (for preventing stack overflow)
     pub(super) depth: usize,
-    /// CSE cache for common sub-expression elimination
-    pub(super) cse_cache: RefCell<HashMap<u64, types::SqlValue>>,
+    /// CSE cache for common sub-expression elimination (shared via Rc across depth levels)
+    pub(super) cse_cache: Rc<RefCell<HashMap<u64, types::SqlValue>>>,
     /// Whether CSE is enabled (can be disabled for debugging)
     pub(super) enable_cse: bool,
 }
@@ -27,8 +27,8 @@ pub struct CombinedExpressionEvaluator<'a> {
     column_cache: RefCell<HashMap<(Option<String>, String), usize>>,
     /// Current depth in expression tree (for preventing stack overflow)
     pub(super) depth: usize,
-    /// CSE cache for common sub-expression elimination
-    pub(super) cse_cache: RefCell<HashMap<u64, types::SqlValue>>,
+    /// CSE cache for common sub-expression elimination (shared via Rc across depth levels)
+    pub(super) cse_cache: Rc<RefCell<HashMap<u64, types::SqlValue>>>,
     /// Whether CSE is enabled (can be disabled for debugging)
     pub(super) enable_cse: bool,
 }
@@ -42,7 +42,7 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_schema: None,
             database: None,
             depth: 0,
-            cse_cache: RefCell::new(HashMap::new()),
+            cse_cache: Rc::new(RefCell::new(HashMap::new())),
             enable_cse: Self::is_cse_enabled(),
         }
     }
@@ -67,7 +67,7 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_schema: Some(outer_schema),
             database: None,
             depth: 0,
-            cse_cache: RefCell::new(HashMap::new()),
+            cse_cache: Rc::new(RefCell::new(HashMap::new())),
             enable_cse: Self::is_cse_enabled(),
         }
     }
@@ -83,7 +83,7 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_schema: None,
             database: Some(database),
             depth: 0,
-            cse_cache: RefCell::new(HashMap::new()),
+            cse_cache: Rc::new(RefCell::new(HashMap::new())),
             enable_cse: Self::is_cse_enabled(),
         }
     }
@@ -102,7 +102,7 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_schema: Some(outer_schema),
             database: Some(database),
             depth: 0,
-            cse_cache: RefCell::new(HashMap::new()),
+            cse_cache: Rc::new(RefCell::new(HashMap::new())),
             enable_cse: Self::is_cse_enabled(),
         }
     }
@@ -195,7 +195,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: None,
             column_cache: RefCell::new(HashMap::new()),
             depth: 0,
-            cse_cache: RefCell::new(HashMap::new()),
+            cse_cache: Rc::new(RefCell::new(HashMap::new())),
             enable_cse: Self::is_cse_enabled(),
         }
     }
@@ -213,7 +213,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: None,
             column_cache: RefCell::new(HashMap::new()),
             depth: 0,
-            cse_cache: RefCell::new(HashMap::new()),
+            cse_cache: Rc::new(RefCell::new(HashMap::new())),
             enable_cse: Self::is_cse_enabled(),
         }
     }
@@ -234,7 +234,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: None,
             column_cache: RefCell::new(HashMap::new()),
             depth: 0,
-            cse_cache: RefCell::new(HashMap::new()),
+            cse_cache: Rc::new(RefCell::new(HashMap::new())),
             enable_cse: Self::is_cse_enabled(),
         }
     }
@@ -253,7 +253,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: Some(window_mapping),
             column_cache: RefCell::new(HashMap::new()),
             depth: 0,
-            cse_cache: RefCell::new(HashMap::new()),
+            cse_cache: Rc::new(RefCell::new(HashMap::new())),
             enable_cse: Self::is_cse_enabled(),
         }
     }
