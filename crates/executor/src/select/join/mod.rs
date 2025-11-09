@@ -3,10 +3,19 @@ use crate::schema::CombinedSchema;
 use crate::optimizer::combine_with_and;
 use crate::evaluator::CombinedExpressionEvaluator;
 
+mod expression_mapper;
 mod hash_join;
 mod join_analyzer;
 mod nested_loop;
 pub mod reorder;
+pub mod search;
+
+// Re-export expression mapper for use in join reordering
+pub(super) use expression_mapper::ExpressionMapper;
+// Re-export join reorder analyzer for public tests
+pub use reorder::JoinOrderAnalyzer;
+// Re-export join order search for public tests
+pub use search::JoinOrderSearch;
 
 // Re-export hash_join functions for internal use
 use hash_join::hash_join_inner;
