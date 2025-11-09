@@ -206,15 +206,30 @@ impl AggregateAccumulator {
     }
 }
 
-/// Add two SqlValues together, handling all numeric types with type coercion to Numeric
+/// Add two SqlValues together, handling all numeric types with appropriate type promotion
 fn add_sql_values(a: &types::SqlValue, b: &types::SqlValue) -> types::SqlValue {
-    // Convert both values to f64 for addition, then return as Numeric
-    let a_f64 = sql_value_to_f64(a);
-    let b_f64 = sql_value_to_f64(b);
-
-    match (a_f64, b_f64) {
-        (Some(x), Some(y)) => types::SqlValue::Numeric(x + y),
-        _ => types::SqlValue::Null, // If either is not numeric, return NULL
+    match (a, b) {
+        // Integer + Integer => Integer (preserve type)
+        (types::SqlValue::Integer(x), types::SqlValue::Integer(y)) => {
+            types::SqlValue::Integer(x + y)
+        }
+        // Smallint + Smallint => Smallint (preserve type)
+        (types::SqlValue::Smallint(x), types::SqlValue::Smallint(y)) => {
+            types::SqlValue::Smallint(x + y)
+        }
+        // Bigint + Bigint => Bigint (preserve type)
+        (types::SqlValue::Bigint(x), types::SqlValue::Bigint(y)) => {
+            types::SqlValue::Bigint(x + y)
+        }
+        // Any other numeric combinations => Numeric (type promotion)
+        _ => {
+            let a_f64 = sql_value_to_f64(a);
+            let b_f64 = sql_value_to_f64(b);
+            match (a_f64, b_f64) {
+                (Some(x), Some(y)) => types::SqlValue::Numeric(x + y),
+                _ => types::SqlValue::Null,
+            }
+        }
     }
 }
 
@@ -233,11 +248,39 @@ fn sql_value_to_f64(value: &types::SqlValue) -> Option<f64> {
 }
 
 /// Divide a SqlValue by an integer count, handling all numeric types
+/// Preserves integer type when division is exact
 fn divide_sql_value(value: &types::SqlValue, count: i64) -> types::SqlValue {
-    if let Some(sum_f64) = sql_value_to_f64(value) {
-        types::SqlValue::Numeric(sum_f64 / count as f64)
-    } else {
-        types::SqlValue::Null
+    match value {
+        // For integer types, preserve Integer if division is exact
+        types::SqlValue::Integer(sum) => {
+            if sum % count == 0 {
+                types::SqlValue::Integer(sum / count)
+            } else {
+                types::SqlValue::Numeric(*sum as f64 / count as f64)
+            }
+        }
+        types::SqlValue::Smallint(sum) => {
+            if sum % (count as i16) == 0 {
+                types::SqlValue::Smallint(sum / (count as i16))
+            } else {
+                types::SqlValue::Numeric(*sum as f64 / count as f64)
+            }
+        }
+        types::SqlValue::Bigint(sum) => {
+            if sum % count == 0 {
+                types::SqlValue::Bigint(sum / count)
+            } else {
+                types::SqlValue::Numeric(*sum as f64 / count as f64)
+            }
+        }
+        // Other numeric types always become Numeric
+        _ => {
+            if let Some(sum_f64) = sql_value_to_f64(value) {
+                types::SqlValue::Numeric(sum_f64 / count as f64)
+            } else {
+                types::SqlValue::Null
+            }
+        }
     }
 }
 

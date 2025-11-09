@@ -160,12 +160,15 @@ impl<'a> ExpressionEvaluator<'a> {
         F: FnOnce(&Self) -> Result<T, ExecutorError>,
     {
         // Create a new evaluator with incremented depth
+        // Share the CSE cache across depth levels for consistent caching
         let evaluator = ExpressionEvaluator {
             schema: self.schema,
             outer_row: self.outer_row,
             outer_schema: self.outer_schema,
             database: self.database,
             depth: self.depth + 1,
+            cse_cache: self.cse_cache.clone(),
+            enable_cse: self.enable_cse,
         };
         f(&evaluator)
     }
@@ -289,6 +292,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         F: FnOnce(&Self) -> Result<T, ExecutorError>,
     {
         // Create a new evaluator with incremented depth
+        // Share caches between parent and child evaluators
         let evaluator = CombinedExpressionEvaluator {
             schema: self.schema,
             database: self.database,
@@ -298,6 +302,8 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             // Share the column cache between parent and child evaluators
             column_cache: RefCell::new(self.column_cache.borrow().clone()),
             depth: self.depth + 1,
+            cse_cache: self.cse_cache.clone(),
+            enable_cse: self.enable_cse,
         };
         f(&evaluator)
     }
