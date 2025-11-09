@@ -1,10 +1,10 @@
 # SQLLogicTest Suite Status & Testing Guide
 
-**Last Updated**: 2025-11-08 (current run)  
-**Current Status**: 0% pass rate (0/403 files tested) - REGRESSION DETECTED  
-**Previous Status**: 13.5% pass rate (83/613 files) as of 2025-11-06  
-**Coverage**: 64.7% (403/623 files tested in current run)  
-**Note**: All tests timing out after 60 seconds - infinite loop issue (#1001)
+**Last Updated**: 2025-11-08 (current run)
+**Current Status**: 0% pass rate (0/403 files tested) - REGRESSION DETECTED
+**Previous Status**: 13.5% pass rate (83/613 files) as of 2025-11-06
+**Coverage**: 64.7% (403/623 files tested in current run)
+**Note**: All tests timing out after 60 seconds - timeout regression (#1012)
 
 ## Quick Start
 
@@ -617,6 +617,6 @@ rm target/sqllogictest_results.sql
 
 ---
 
-**Last Updated**: 2025-11-08  
-**Maintainer**: VibeSQL Team  
-**Status**: BLOCKED - Infinite loop issue preventing progress (#1001)
+**Last Updated**: 2025-11-08
+**Maintainer**: VibeSQL Team
+**Status**: BLOCKED - Timeout regression preventing progress (#1012)
