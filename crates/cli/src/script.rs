@@ -92,14 +92,29 @@ impl ScriptExecutor {
 
 /// Parse SQL script into individual statements
 /// 
-/// This is a simple implementation that splits on semicolons.
+/// This is a simple implementation that:
+/// 1. Removes comments (lines starting with -- or blocks with /* */)
+/// 2. Splits on semicolons
+/// 3. Filters empty statements
+///
 /// A more robust implementation would need a proper SQL tokenizer
 /// to handle semicolons inside strings, comments, etc.
 fn parse_statements(script: &str) -> Vec<String> {
-    script
+    // First, remove comment lines
+    let no_comments = script
+        .lines()
+        .filter(|line| {
+            let trimmed = line.trim();
+            !trimmed.is_empty() && !trimmed.starts_with("--") && !trimmed.starts_with("/*")
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    
+    // Then split on semicolons
+    no_comments
         .split(';')
         .map(|s| s.trim())
-        .filter(|s| !s.is_empty() && !s.starts_with("--") && !s.starts_with("/*"))
+        .filter(|s| !s.is_empty())
         .map(|s| s.to_string())
         .collect()
 }
@@ -138,8 +153,8 @@ mod tests {
     fn test_parse_with_comments() {
         let script = "-- This is a comment\nSELECT 1;";
         let stmts = parse_statements(script);
-        // Comment line will be filtered as empty after split
-        assert!(stmts.len() >= 1);
+        // Comment lines starting with -- are filtered out, leaving only SELECT 1
+        assert_eq!(stmts.len(), 1);
         assert_eq!(stmts[0], "SELECT 1");
     }
 
