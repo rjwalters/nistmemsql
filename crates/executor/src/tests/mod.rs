@@ -28,6 +28,7 @@
 //!   type)
 //! - `privilege_checker_tests`: Privilege enforcement tests
 //! - `query_timeout_tests`: Query timeout enforcement tests (issue #1014)
+//! - `create_table_tests`: CREATE TABLE executor tests (basic table creation, data types, spatial types)
 
 mod aggregate_caching;
 mod aggregate_count_sum_avg_tests;
@@ -42,6 +43,7 @@ mod case_bug;
 mod comparison_ops;
 mod count_star_fast_path;
 mod create_table_constraints;
+mod create_table_tests;
 mod error_display;
 mod expression_eval;
 mod issue_938_integer_type_preservation;
