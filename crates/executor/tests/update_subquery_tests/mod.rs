@@ -7,10 +7,12 @@
 //!
 //! Tests are split by subquery usage pattern:
 //!
-//! - **simple_scalar_subqueries**: Tests for scalar subqueries in SET clauses (single value returns)
+//! - **simple_scalar_subqueries**: Tests for scalar subqueries in SET clauses (single value
+//!   returns)
 //! - **error_cases**: Tests for error handling (multiple rows, multiple columns, type mismatches)
 //! - **where_in_subqueries**: Tests for IN/NOT IN subqueries in WHERE clauses
-//! - **where_comparison_subqueries**: Tests for comparison operators with scalar subqueries in WHERE clauses
+//! - **where_comparison_subqueries**: Tests for comparison operators with scalar subqueries in
+//!   WHERE clauses
 //!
 //! ## Test Coverage
 //!

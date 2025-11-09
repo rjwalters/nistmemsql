@@ -1,7 +1,7 @@
-use crate::errors::ExecutorError;
-use crate::schema::CombinedSchema;
-use crate::optimizer::combine_with_and;
-use crate::evaluator::CombinedExpressionEvaluator;
+use crate::{
+    errors::ExecutorError, evaluator::CombinedExpressionEvaluator, optimizer::combine_with_and,
+    schema::CombinedSchema,
+};
 
 mod expression_mapper;
 mod hash_join;
@@ -11,10 +11,6 @@ pub mod reorder;
 pub mod search;
 
 // Re-export join reorder analyzer for public tests
-pub use reorder::JoinOrderAnalyzer;
-// Re-export join order search for public tests
-pub use search::JoinOrderSearch;
-
 // Re-export hash_join functions for internal use
 use hash_join::hash_join_inner;
 // Re-export nested loop join variants for internal use
@@ -22,6 +18,9 @@ use nested_loop::{
     nested_loop_cross_join, nested_loop_full_outer_join, nested_loop_inner_join,
     nested_loop_left_outer_join, nested_loop_right_outer_join,
 };
+pub use reorder::JoinOrderAnalyzer;
+// Re-export join order search for public tests
+pub use search::JoinOrderSearch;
 
 /// Result of executing a FROM clause
 #[derive(Clone)]
@@ -41,7 +40,7 @@ fn combine_rows(left_row: &storage::Row, right_row: &storage::Row) -> storage::R
 }
 
 /// Apply a post-join filter expression to join result rows
-/// 
+///
 /// This is used to filter rows produced by hash join with additional conditions
 /// from the WHERE clause that weren't used in the hash join itself.
 fn apply_post_join_filter(
@@ -50,14 +49,14 @@ fn apply_post_join_filter(
     database: &storage::Database,
 ) -> Result<FromResult, ExecutorError> {
     let evaluator = CombinedExpressionEvaluator::with_database(&result.schema, database);
-    
+
     // Filter rows based on the expression
     let mut filtered_rows = Vec::new();
     for row in result.rows {
         match evaluator.eval(filter_expr, &row)? {
             types::SqlValue::Boolean(true) => filtered_rows.push(row),
             types::SqlValue::Boolean(false) => {} // Skip this row
-            types::SqlValue::Null => {} // Skip NULL results
+            types::SqlValue::Null => {}           // Skip NULL results
             // SQLLogicTest compatibility: treat integers as truthy/falsy
             types::SqlValue::Integer(0) => {} // Skip 0
             types::SqlValue::Integer(_) => filtered_rows.push(row),
@@ -79,7 +78,7 @@ fn apply_post_join_filter(
             }
         }
     }
-    
+
     result.rows = filtered_rows;
     Ok(result)
 }
@@ -105,12 +104,8 @@ pub(super) fn nested_loop_join(
         // Get column count and right table info once for analysis
         // IMPORTANT: Sum up columns from ALL tables in the left schema,
         // not just the first table, to handle accumulated multi-table joins
-        let left_col_count: usize = left
-            .schema
-            .table_schemas
-            .values()
-            .map(|(_, schema)| schema.columns.len())
-            .sum();
+        let left_col_count: usize =
+            left.schema.table_schemas.values().map(|(_, schema)| schema.columns.len()).sum();
 
         let right_table_name = right
             .schema
@@ -191,9 +186,15 @@ pub(super) fn nested_loop_join(
     // Fall back to nested loop join for all other cases
     match join_type {
         ast::JoinType::Inner => nested_loop_inner_join(left, right, &combined_condition, database),
-        ast::JoinType::LeftOuter => nested_loop_left_outer_join(left, right, &combined_condition, database),
-        ast::JoinType::RightOuter => nested_loop_right_outer_join(left, right, &combined_condition, database),
-        ast::JoinType::FullOuter => nested_loop_full_outer_join(left, right, &combined_condition, database),
+        ast::JoinType::LeftOuter => {
+            nested_loop_left_outer_join(left, right, &combined_condition, database)
+        }
+        ast::JoinType::RightOuter => {
+            nested_loop_right_outer_join(left, right, &combined_condition, database)
+        }
+        ast::JoinType::FullOuter => {
+            nested_loop_full_outer_join(left, right, &combined_condition, database)
+        }
         ast::JoinType::Cross => nested_loop_cross_join(left, right, &combined_condition, database),
     }
 }

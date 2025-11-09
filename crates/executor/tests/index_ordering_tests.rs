@@ -6,7 +6,7 @@ use types::DataType;
 #[test]
 fn test_index_ordering() {
     let mut db = Database::new();
-    
+
     // Create table
     let create_table_stmt = CreateTableStmt {
         table_name: "users".to_string(),
@@ -31,9 +31,9 @@ fn test_index_ordering() {
         table_constraints: vec![],
         table_options: vec![],
     };
-    
+
     executor::CreateTableExecutor::execute(&create_table_stmt, &mut db).unwrap();
-    
+
     // Insert data
     let insert_stmt = ast::InsertStmt {
         table_name: "users".to_string(),
@@ -53,9 +53,9 @@ fn test_index_ordering() {
             ],
         ]),
     };
-    
+
     executor::InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
-    
+
     // Create index
     let create_index_stmt = CreateIndexStmt {
         index_name: "idx_users_name".to_string(),
@@ -67,43 +67,34 @@ fn test_index_ordering() {
             direction: OrderDirection::Asc,
         }],
     };
-    
+
     executor::IndexExecutor::execute(&create_index_stmt, &mut db).unwrap();
-    
+
     // Query with ORDER BY
     let select_stmt = SelectStmt {
         with_clause: None,
         distinct: false,
         select_list: vec![ast::SelectItem::Expression {
-            expr: ast::Expression::ColumnRef {
-                table: None,
-                column: "name".to_string(),
-            },
+            expr: ast::Expression::ColumnRef { table: None, column: "name".to_string() },
             alias: None,
         }],
         into_table: None,
-        from: Some(ast::FromClause::Table {
-            name: "users".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "users".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
         order_by: Some(vec![ast::OrderByItem {
-            expr: ast::Expression::ColumnRef {
-                table: None,
-                column: "name".to_string(),
-            },
+            expr: ast::Expression::ColumnRef { table: None, column: "name".to_string() },
             direction: OrderDirection::Asc,
         }]),
         limit: None,
         offset: None,
         set_operation: None,
     };
-    
+
     let executor = SelectExecutor::new(&db);
     let result = executor.execute(&select_stmt).unwrap();
-    
+
     // Check that results are ordered
     assert_eq!(result.len(), 3);
     assert_eq!(result[0].values[0], types::SqlValue::Varchar("Alice".to_string()));

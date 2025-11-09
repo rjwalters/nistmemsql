@@ -2,8 +2,9 @@
 // Transaction Management
 // ============================================================================
 
-use crate::{Row, StorageError, Table};
 use std::collections::HashMap;
+
+use crate::{Row, StorageError, Table};
 
 /// A single change made during a transaction
 #[derive(Debug, Clone)]
@@ -54,10 +55,7 @@ pub struct TransactionManager {
 impl TransactionManager {
     /// Create a new transaction manager
     pub fn new() -> Self {
-        TransactionManager {
-            transaction_state: TransactionState::None,
-            next_transaction_id: 1,
-        }
+        TransactionManager { transaction_state: TransactionState::None, next_transaction_id: 1 }
     }
 
     /// Record a change in the current transaction (if any)
@@ -160,7 +158,10 @@ impl TransactionManager {
     }
 
     /// Rollback to a named savepoint - returns the changes that need to be undone
-    pub fn rollback_to_savepoint(&mut self, name: String) -> Result<Vec<TransactionChange>, StorageError> {
+    pub fn rollback_to_savepoint(
+        &mut self,
+        name: String,
+    ) -> Result<Vec<TransactionChange>, StorageError> {
         match &mut self.transaction_state {
             TransactionState::None => {
                 Err(StorageError::TransactionError("No active transaction".to_string()))

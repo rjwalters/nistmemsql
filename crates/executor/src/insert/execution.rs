@@ -1,5 +1,4 @@
-use crate::errors::ExecutorError;
-use crate::privilege_checker::PrivilegeChecker;
+use crate::{errors::ExecutorError, privilege_checker::PrivilegeChecker};
 
 /// Execute an INSERT statement
 /// Returns number of rows inserted

@@ -1,15 +1,20 @@
 //! Core window function evaluation logic
 
-use super::types::WindowFunctionInfo;
-use crate::errors::ExecutorError;
-use crate::evaluator::window::{
-    calculate_frame, evaluate_avg_window, evaluate_count_window, evaluate_max_window,
-    evaluate_min_window, evaluate_sum_window, partition_rows, sort_partition, Partition,
-};
-use crate::evaluator::CombinedExpressionEvaluator;
 use ast::{Expression, WindowFunctionSpec};
 use storage::Row;
 use types::SqlValue;
+
+use super::types::WindowFunctionInfo;
+use crate::{
+    errors::ExecutorError,
+    evaluator::{
+        window::{
+            calculate_frame, evaluate_avg_window, evaluate_count_window, evaluate_max_window,
+            evaluate_min_window, evaluate_sum_window, partition_rows, sort_partition, Partition,
+        },
+        CombinedExpressionEvaluator,
+    },
+};
 
 /// Evaluate a single window function over all rows
 pub(super) fn evaluate_single_window_function(

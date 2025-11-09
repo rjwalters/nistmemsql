@@ -2,10 +2,10 @@
 //!
 //! Implements SIN, COS, TAN, ASIN, ACOS, ATAN, ATAN2, RADIANS, and DEGREES functions.
 
-use crate::errors::ExecutorError;
 use types::SqlValue;
 
 use super::exponential::numeric_to_f64;
+use crate::errors::ExecutorError;
 
 /// SIN(x) - Sine (x in radians)
 pub fn sin(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {

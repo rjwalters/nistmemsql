@@ -30,8 +30,11 @@
 
 #![allow(dead_code)]
 
-use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+};
+
 use ast::{BinaryOperator, Expression};
 use types::SqlValue;
 
@@ -39,8 +42,8 @@ use types::SqlValue;
 #[derive(Debug, Clone)]
 struct TableInfo {
     name: String,
-    local_predicates: Vec<Expression>,  // Predicates that only reference this table
-    local_selectivity: f64,             // Estimated selectivity of local predicates (0.0-1.0)
+    local_predicates: Vec<Expression>, // Predicates that only reference this table
+    local_selectivity: f64,            // Estimated selectivity of local predicates (0.0-1.0)
 }
 
 /// Information about an equijoin between two tables
@@ -59,8 +62,7 @@ pub struct JoinEdge {
 impl JoinEdge {
     /// Check if this edge involves a specific table
     pub fn involves_table(&self, table: &str) -> bool {
-        self.left_table.eq_ignore_ascii_case(table)
-            || self.right_table.eq_ignore_ascii_case(table)
+        self.left_table.eq_ignore_ascii_case(table) || self.right_table.eq_ignore_ascii_case(table)
     }
 
     /// Get the other table in this edge (if input is one side)
@@ -109,11 +111,7 @@ pub struct JoinOrderAnalyzer {
 impl JoinOrderAnalyzer {
     /// Create a new join order analyzer
     pub fn new() -> Self {
-        Self {
-            tables: HashMap::new(),
-            edges: Vec::new(),
-            selectivity: HashMap::new(),
-        }
+        Self { tables: HashMap::new(), edges: Vec::new(), selectivity: HashMap::new() }
     }
 
     /// Register all tables involved in the query
@@ -134,11 +132,7 @@ impl JoinOrderAnalyzer {
     pub fn analyze_predicate(&mut self, expr: &Expression, tables: &HashSet<String>) {
         match expr {
             // Only handle simple binary equality operations
-            Expression::BinaryOp {
-                op: BinaryOperator::Equal,
-                left,
-                right,
-            } => {
+            Expression::BinaryOp { op: BinaryOperator::Equal, left, right } => {
                 let (left_table, left_col) = self.extract_column_ref(left, tables);
                 let (right_table, right_col) = self.extract_column_ref(right, tables);
 
@@ -179,9 +173,7 @@ impl JoinOrderAnalyzer {
         _tables: &HashSet<String>,
     ) -> (Option<String>, Option<String>) {
         match expr {
-            Expression::ColumnRef { table, column } => {
-                (table.clone(), Some(column.clone()))
-            }
+            Expression::ColumnRef { table, column } => (table.clone(), Some(column.clone())),
             Expression::Literal(_) => (None, None),
             _ => (None, None),
         }
@@ -189,16 +181,12 @@ impl JoinOrderAnalyzer {
 
     /// Find all tables that have local predicates (highest selectivity filters)
     pub fn find_most_selective_tables(&self) -> Vec<String> {
-        let mut tables: Vec<_> = self
-            .tables
-            .values()
-            .filter(|t| !t.local_predicates.is_empty())
-            .collect();
+        let mut tables: Vec<_> =
+            self.tables.values().filter(|t| !t.local_predicates.is_empty()).collect();
 
         // Sort by selectivity (most selective first)
         tables.sort_by(|a, b| {
-            a.local_selectivity.partial_cmp(&b.local_selectivity)
-                .unwrap_or(Ordering::Equal)
+            a.local_selectivity.partial_cmp(&b.local_selectivity).unwrap_or(Ordering::Equal)
         });
 
         tables.iter().map(|t| t.name.clone()).collect()
@@ -307,8 +295,9 @@ impl JoinOrderAnalyzer {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use types::SqlValue;
+
+    use super::*;
 
     #[test]
     fn test_join_edge_involvement() {
@@ -341,11 +330,7 @@ mod tests {
     #[test]
     fn test_basic_chain_detection() {
         let mut analyzer = JoinOrderAnalyzer::new();
-        analyzer.register_tables(vec![
-            "t1".to_string(),
-            "t2".to_string(),
-            "t3".to_string(),
-        ]);
+        analyzer.register_tables(vec!["t1".to_string(), "t2".to_string(), "t3".to_string()]);
 
         // Add edges: t1-t2, t2-t3
         analyzer.edges.push(JoinEdge {

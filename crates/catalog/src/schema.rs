@@ -1,8 +1,8 @@
 //! Schema - Named collection of database objects
 
-use crate::errors::CatalogError;
-use crate::table::TableSchema;
 use std::collections::HashMap;
+
+use crate::{errors::CatalogError, table::TableSchema};
 
 /// A schema - named collection of database objects (tables, views, etc.)
 #[derive(Debug, Clone)]

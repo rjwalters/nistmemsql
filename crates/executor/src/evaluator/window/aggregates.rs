@@ -2,14 +2,13 @@
 //!
 //! Implements COUNT, SUM, AVG, MIN, MAX with frame support.
 
+use std::{cmp::Ordering, ops::Range};
+
 use ast::Expression;
-use std::cmp::Ordering;
-use std::ops::Range;
 use storage::Row;
 use types::SqlValue;
 
-use super::partitioning::Partition;
-use super::sorting::compare_values;
+use super::{partitioning::Partition, sorting::compare_values};
 
 /// Evaluate COUNT aggregate window function over a frame
 ///

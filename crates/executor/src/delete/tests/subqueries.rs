@@ -160,11 +160,12 @@ mod common {
 }
 
 mod in_subquery {
-    use super::common::*;
-    use crate::DeleteExecutor;
     use ast::{DeleteStmt, Expression, WhereClause};
     use storage::Database;
     use types::SqlValue;
+
+    use super::common::*;
+    use crate::DeleteExecutor;
 
     #[test]
     fn test_delete_where_in_subquery() {
@@ -279,11 +280,12 @@ mod in_subquery {
 }
 
 mod scalar_subquery {
-    use super::common::*;
-    use crate::DeleteExecutor;
     use ast::{DeleteStmt, Expression, WhereClause};
     use storage::Database;
     use types::SqlValue;
+
+    use super::common::*;
+    use crate::DeleteExecutor;
 
     #[test]
     fn test_delete_where_scalar_subquery_comparison() {
@@ -458,10 +460,11 @@ mod scalar_subquery {
 }
 
 mod empty_subquery {
-    use super::common::*;
-    use crate::DeleteExecutor;
     use ast::{DeleteStmt, Expression, WhereClause};
     use storage::Database;
+
+    use super::common::*;
+    use crate::DeleteExecutor;
 
     #[test]
     fn test_delete_where_subquery_empty_result() {
@@ -515,11 +518,12 @@ mod empty_subquery {
 }
 
 mod complex_subquery {
-    use super::common::*;
-    use crate::DeleteExecutor;
     use ast::{DeleteStmt, Expression, WhereClause};
     use storage::Database;
     use types::SqlValue;
+
+    use super::common::*;
+    use crate::DeleteExecutor;
 
     #[test]
     fn test_delete_where_complex_subquery_with_filter() {
@@ -562,7 +566,8 @@ mod complex_subquery {
             set_operation: None,
         });
 
-        // DELETE FROM orders WHERE customer_id IN (SELECT customer_id FROM inactive_customers WHERE status = 'inactive')
+        // DELETE FROM orders WHERE customer_id IN (SELECT customer_id FROM inactive_customers WHERE
+        // status = 'inactive')
         let stmt = DeleteStmt {
             only: false,
             table_name: "orders".to_string(),

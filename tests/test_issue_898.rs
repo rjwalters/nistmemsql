@@ -90,9 +90,10 @@ impl NistMemSqlDB {
             .values
             .iter()
             .map(|val| match val {
-                SqlValue::Integer(_) | SqlValue::Smallint(_) | SqlValue::Bigint(_) | SqlValue::Unsigned(_) => {
-                    DefaultColumnType::Integer
-                }
+                SqlValue::Integer(_)
+                | SqlValue::Smallint(_)
+                | SqlValue::Bigint(_)
+                | SqlValue::Unsigned(_) => DefaultColumnType::Integer,
                 SqlValue::Float(_)
                 | SqlValue::Real(_)
                 | SqlValue::Double(_)
@@ -179,15 +180,18 @@ async fn test_file(path: &str) -> Result<(), Box<dyn std::error::Error>> {
             Ok(())
         }
         Err(e) => {
-        let error_str = format!("{}", e);
-        println!("✗ FAILED (expected)");
-        println!("Error: {}", e);
+            let error_str = format!("{}", e);
+            println!("✗ FAILED (expected)");
+            println!("Error: {}", e);
 
-            // Verify that hash mode is working - we should get hash mismatches, not raw value comparisons
+            // Verify that hash mode is working - we should get hash mismatches, not raw value
+            // comparisons
             if error_str.contains("values hashing to") {
                 println!("✓ Hash mode confirmed working - got hash comparison");
                 Ok(()) // This is expected - hash mode is working
-            } else if error_str.contains("UnsupportedExpression") || error_str.contains("not supported") {
+            } else if error_str.contains("UnsupportedExpression")
+                || error_str.contains("not supported")
+            {
                 println!("✓ Got expected SQL feature error (not hash mode issue)");
                 Ok(()) // This is expected - SQL feature not implemented
             } else {

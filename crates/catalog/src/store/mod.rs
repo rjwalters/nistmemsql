@@ -11,15 +11,17 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::advanced_objects::{
-    Assertion, CharacterSet, Collation, Function, Procedure, Sequence, Translation,
+use crate::{
+    advanced_objects::{
+        Assertion, CharacterSet, Collation, Function, Procedure, Sequence, Translation,
+    },
+    domain::DomainDefinition,
+    privilege::PrivilegeGrant,
+    schema::Schema,
+    trigger::TriggerDefinition,
+    type_definition::TypeDefinition,
+    view::ViewDefinition,
 };
-use crate::domain::DomainDefinition;
-use crate::privilege::PrivilegeGrant;
-use crate::schema::Schema;
-use crate::trigger::TriggerDefinition;
-use crate::type_definition::TypeDefinition;
-use crate::view::ViewDefinition;
 
 // Submodules - each handles a specific area of catalog operations
 mod advanced;

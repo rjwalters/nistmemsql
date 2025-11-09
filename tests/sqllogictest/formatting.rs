@@ -52,15 +52,17 @@ pub fn format_sql_value(value: &SqlValue, expected_type: Option<&DefaultColumnTy
         SqlValue::Varchar(s) | SqlValue::Character(s) => s.clone(),
         SqlValue::Boolean(b) => if *b { "1" } else { "0" }.to_string(),
         SqlValue::Null => "NULL".to_string(),
-        SqlValue::Date(d)
-        | SqlValue::Time(d)
-        | SqlValue::Timestamp(d)
-        | SqlValue::Interval(d) => d.clone(),
+        SqlValue::Date(d) | SqlValue::Time(d) | SqlValue::Timestamp(d) | SqlValue::Interval(d) => {
+            d.clone()
+        }
     }
 }
 
 /// Format value in canonical form for hashing (plain format without display decorations)
-pub fn format_sql_value_canonical(value: &SqlValue, expected_type: Option<&DefaultColumnType>) -> String {
+pub fn format_sql_value_canonical(
+    value: &SqlValue,
+    expected_type: Option<&DefaultColumnType>,
+) -> String {
     match value {
         SqlValue::Integer(i) => i.to_string(),
         SqlValue::Smallint(i) => {
@@ -102,9 +104,8 @@ pub fn format_sql_value_canonical(value: &SqlValue, expected_type: Option<&Defau
         SqlValue::Varchar(s) | SqlValue::Character(s) => s.clone(),
         SqlValue::Boolean(b) => if *b { "1" } else { "0" }.to_string(),
         SqlValue::Null => "NULL".to_string(),
-        SqlValue::Date(d)
-        | SqlValue::Time(d)
-        | SqlValue::Timestamp(d)
-        | SqlValue::Interval(d) => d.clone(),
+        SqlValue::Date(d) | SqlValue::Time(d) | SqlValue::Timestamp(d) | SqlValue::Interval(d) => {
+            d.clone()
+        }
     }
 }

@@ -1,9 +1,10 @@
 //! Domain DDL executor
 
-use crate::errors::ExecutorError;
 use ast::*;
 use catalog::{DomainConstraintDef, DomainDefinition};
 use storage::Database;
+
+use crate::errors::ExecutorError;
 
 /// Executor for domain DDL statements
 pub struct DomainExecutor;

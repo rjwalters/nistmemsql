@@ -1,8 +1,6 @@
 //! Test file scheduling and prioritization logic.
 
-use std::collections::HashSet;
-use std::path::PathBuf;
-use std::{env, fs};
+use std::{collections::HashSet, env, fs, path::PathBuf};
 
 /// Load historical test results from JSON file
 #[allow(dead_code)]
@@ -73,8 +71,10 @@ pub fn prioritize_test_files(
     }
 
     // Shuffle within each category using deterministic seed
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
+    use std::{
+        collections::hash_map::DefaultHasher,
+        hash::{Hash, Hasher},
+    };
 
     let shuffle_with_seed = |files: &mut Vec<PathBuf>| {
         files.sort_by_cached_key(|path| {
@@ -98,8 +98,11 @@ pub fn prioritize_test_files(
 
         // Partition untested files among workers
         let untested_partition = partition_files(&untested_files, worker_id, total_workers);
-        println!("  Untested files assigned to this worker: {} of {}",
-                 untested_partition.len(), untested_files.len());
+        println!(
+            "  Untested files assigned to this worker: {} of {}",
+            untested_partition.len(),
+            untested_files.len()
+        );
 
         // All workers test failed files (high priority)
         // But each worker gets their own slice of untested files
@@ -124,15 +127,11 @@ pub fn prioritize_test_files(
 /// Extract worker configuration from environment variables
 #[allow(dead_code)]
 pub fn get_worker_config() -> (usize, usize) {
-    let worker_id = env::var("SQLLOGICTEST_WORKER_ID")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0);
+    let worker_id =
+        env::var("SQLLOGICTEST_WORKER_ID").ok().and_then(|s| s.parse().ok()).unwrap_or(0);
 
-    let total_workers = env::var("SQLLOGICTEST_TOTAL_WORKERS")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(1);
+    let total_workers =
+        env::var("SQLLOGICTEST_TOTAL_WORKERS").ok().and_then(|s| s.parse().ok()).unwrap_or(1);
 
     (worker_id, total_workers)
 }
@@ -140,10 +139,7 @@ pub fn get_worker_config() -> (usize, usize) {
 /// Get per-test-file timeout from environment variable or use default
 /// Returns timeout in seconds
 pub fn get_test_file_timeout() -> u64 {
-    env::var("SQLLOGICTEST_FILE_TIMEOUT")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(300) // Default: 5 minutes
+    env::var("SQLLOGICTEST_FILE_TIMEOUT").ok().and_then(|s| s.parse().ok()).unwrap_or(300) // Default: 5 minutes
 }
 
 /// Partition files into equal slices for parallel workers
@@ -158,7 +154,5 @@ fn partition_files(files: &[PathBuf], worker_id: usize, total_workers: usize) ->
     let start = (worker_id - 1) * chunk_size;
     let end = start + chunk_size;
 
-    files.get(start..end.min(files.len()))
-        .unwrap_or(&[])
-        .to_vec()
+    files.get(start..end.min(files.len())).unwrap_or(&[]).to_vec()
 }

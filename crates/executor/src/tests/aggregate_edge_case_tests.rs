@@ -254,28 +254,12 @@ fn test_max_with_unary_plus() {
     let mut db = storage::Database::new();
     let schema = catalog::TableSchema::new(
         "tab0".to_string(),
-        vec![catalog::ColumnSchema::new(
-            "col0".to_string(),
-            types::DataType::Integer,
-            false,
-        )],
+        vec![catalog::ColumnSchema::new("col0".to_string(), types::DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
-    db.insert_row(
-        "tab0",
-        storage::Row::new(vec![types::SqlValue::Integer(1)]),
-    )
-    .unwrap();
-    db.insert_row(
-        "tab0",
-        storage::Row::new(vec![types::SqlValue::Integer(5)]),
-    )
-    .unwrap();
-    db.insert_row(
-        "tab0",
-        storage::Row::new(vec![types::SqlValue::Integer(3)]),
-    )
-    .unwrap();
+    db.insert_row("tab0", storage::Row::new(vec![types::SqlValue::Integer(1)])).unwrap();
+    db.insert_row("tab0", storage::Row::new(vec![types::SqlValue::Integer(5)])).unwrap();
+    db.insert_row("tab0", storage::Row::new(vec![types::SqlValue::Integer(3)])).unwrap();
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
@@ -317,28 +301,12 @@ fn test_max_with_unary_minus() {
     let mut db = storage::Database::new();
     let schema = catalog::TableSchema::new(
         "tab0".to_string(),
-        vec![catalog::ColumnSchema::new(
-            "col0".to_string(),
-            types::DataType::Integer,
-            false,
-        )],
+        vec![catalog::ColumnSchema::new("col0".to_string(), types::DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
-    db.insert_row(
-        "tab0",
-        storage::Row::new(vec![types::SqlValue::Integer(1)]),
-    )
-    .unwrap();
-    db.insert_row(
-        "tab0",
-        storage::Row::new(vec![types::SqlValue::Integer(5)]),
-    )
-    .unwrap();
-    db.insert_row(
-        "tab0",
-        storage::Row::new(vec![types::SqlValue::Integer(3)]),
-    )
-    .unwrap();
+    db.insert_row("tab0", storage::Row::new(vec![types::SqlValue::Integer(1)])).unwrap();
+    db.insert_row("tab0", storage::Row::new(vec![types::SqlValue::Integer(5)])).unwrap();
+    db.insert_row("tab0", storage::Row::new(vec![types::SqlValue::Integer(3)])).unwrap();
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {
@@ -388,21 +356,9 @@ fn test_count_with_not() {
         )],
     );
     db.create_table(schema).unwrap();
-    db.insert_row(
-        "tab0",
-        storage::Row::new(vec![types::SqlValue::Boolean(true)]),
-    )
-    .unwrap();
-    db.insert_row(
-        "tab0",
-        storage::Row::new(vec![types::SqlValue::Boolean(false)]),
-    )
-    .unwrap();
-    db.insert_row(
-        "tab0",
-        storage::Row::new(vec![types::SqlValue::Boolean(true)]),
-    )
-    .unwrap();
+    db.insert_row("tab0", storage::Row::new(vec![types::SqlValue::Boolean(true)])).unwrap();
+    db.insert_row("tab0", storage::Row::new(vec![types::SqlValue::Boolean(false)])).unwrap();
+    db.insert_row("tab0", storage::Row::new(vec![types::SqlValue::Boolean(true)])).unwrap();
 
     let executor = SelectExecutor::new(&db);
     let stmt = ast::SelectStmt {

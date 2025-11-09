@@ -1,7 +1,8 @@
-use super::*;
 use ast::Expression;
 use storage::Row;
 use types::SqlValue;
+
+use super::*;
 
 fn make_test_rows(values: Vec<i64>) -> Vec<Row> {
     values.into_iter().map(|v| Row::new(vec![SqlValue::Integer(v)])).collect()

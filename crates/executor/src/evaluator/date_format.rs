@@ -3,13 +3,15 @@
 //! Converts between SQL format strings (YYYY-MM-DD, Mon DD YYYY, etc.)
 //! and chrono format strings (%Y-%m-%d, %b %d %Y, etc.)
 
-use crate::errors::ExecutorError;
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+
+use crate::errors::ExecutorError;
 
 /// Convert SQL format string to chrono format string
 ///
 /// Supports common SQL format codes:
-/// - Date: YYYY (4-digit year), YY (2-digit year), MM (month), DD (day), Mon (abbreviated month name)
+/// - Date: YYYY (4-digit year), YY (2-digit year), MM (month), DD (day), Mon (abbreviated month
+///   name)
 /// - Time: HH24 (24-hour), HH12 (12-hour), MI (minute), SS (second), AM/PM
 ///
 /// # Examples
@@ -67,8 +69,10 @@ pub fn format_date(date: &NaiveDate, sql_format: &str) -> Result<String, Executo
 /// use chrono::{DateTime, NaiveDateTime};
 /// use executor::evaluator::date_format::format_timestamp;
 /// let timestamp = DateTime::from_timestamp(1700000000, 0).unwrap().naive_utc();
-/// assert_eq!(format_timestamp(&timestamp, "YYYY-MM-DD HH24:MI:SS"),
-///            Ok("2023-11-14 22:13:20".to_string()));
+/// assert_eq!(
+///     format_timestamp(&timestamp, "YYYY-MM-DD HH24:MI:SS"),
+///     Ok("2023-11-14 22:13:20".to_string())
+/// );
 /// ```
 pub fn format_timestamp(
     timestamp: &NaiveDateTime,
@@ -90,10 +94,14 @@ pub fn format_time(time: &NaiveTime, sql_format: &str) -> Result<String, Executo
 /// ```
 /// use chrono::NaiveDate;
 /// use executor::evaluator::date_format::parse_date;
-/// assert_eq!(parse_date("2024-03-15", "YYYY-MM-DD"),
-///            Ok(NaiveDate::from_ymd_opt(2024, 3, 15).unwrap()));
-/// assert_eq!(parse_date("15/03/2024", "DD/MM/YYYY"),
-///            Ok(NaiveDate::from_ymd_opt(2024, 3, 15).unwrap()));
+/// assert_eq!(
+///     parse_date("2024-03-15", "YYYY-MM-DD"),
+///     Ok(NaiveDate::from_ymd_opt(2024, 3, 15).unwrap())
+/// );
+/// assert_eq!(
+///     parse_date("15/03/2024", "DD/MM/YYYY"),
+///     Ok(NaiveDate::from_ymd_opt(2024, 3, 15).unwrap())
+/// );
 /// ```
 pub fn parse_date(input: &str, sql_format: &str) -> Result<NaiveDate, ExecutorError> {
     let chrono_format = sql_to_chrono_format(sql_format)?;
@@ -112,8 +120,7 @@ pub fn parse_date(input: &str, sql_format: &str) -> Result<NaiveDate, ExecutorEr
 /// use chrono::{DateTime, NaiveDateTime};
 /// use executor::evaluator::date_format::parse_timestamp;
 /// let expected = DateTime::from_timestamp(1710513045, 0).unwrap().naive_utc();
-/// assert_eq!(parse_timestamp("2024-03-15 14:30:45", "YYYY-MM-DD HH24:MI:SS"),
-///            Ok(expected));
+/// assert_eq!(parse_timestamp("2024-03-15 14:30:45", "YYYY-MM-DD HH24:MI:SS"), Ok(expected));
 /// ```
 pub fn parse_timestamp(input: &str, sql_format: &str) -> Result<NaiveDateTime, ExecutorError> {
     let chrono_format = sql_to_chrono_format(sql_format)?;

@@ -9,8 +9,7 @@
 use catalog::{ColumnSchema, TableSchema};
 use executor::DeleteExecutor;
 use parser::Parser;
-use storage::Database;
-use storage::Row;
+use storage::{Database, Row};
 use types::{DataType, SqlValue};
 
 /// Helper: Create test database with customers and orders tables
@@ -154,8 +153,8 @@ fn test_delete_with_exists_correlated() {
 fn test_delete_with_not_exists_correlated() {
     let mut db = setup_customers_orders_db();
 
-    // DELETE FROM customers WHERE NOT EXISTS (SELECT 1 FROM orders WHERE customer_id = customers.id)
-    // Should delete customers with NO orders (Charlie and Diana)
+    // DELETE FROM customers WHERE NOT EXISTS (SELECT 1 FROM orders WHERE customer_id =
+    // customers.id) Should delete customers with NO orders (Charlie and Diana)
     let sql = "DELETE FROM customers WHERE NOT EXISTS (SELECT 1 FROM orders WHERE customer_id = customers.id);";
     let stmt = Parser::parse_sql(sql).unwrap();
 
@@ -227,8 +226,8 @@ fn test_delete_with_not_exists_empty_result() {
 fn test_delete_with_exists_and_other_conditions() {
     let mut db = setup_customers_orders_db();
 
-    // DELETE FROM customers WHERE active = TRUE AND EXISTS (SELECT 1 FROM orders WHERE customer_id = customers.id)
-    // Should delete active customers with orders (Alice and Bob)
+    // DELETE FROM customers WHERE active = TRUE AND EXISTS (SELECT 1 FROM orders WHERE customer_id
+    // = customers.id) Should delete active customers with orders (Alice and Bob)
     let sql = "DELETE FROM customers WHERE active = TRUE AND EXISTS (SELECT 1 FROM orders WHERE customer_id = customers.id);";
     let stmt = Parser::parse_sql(sql).unwrap();
 
@@ -278,8 +277,8 @@ fn test_delete_with_exists_uncorrelated() {
 fn test_delete_with_exists_complex_subquery() {
     let mut db = setup_customers_orders_db();
 
-    // DELETE FROM customers WHERE EXISTS (SELECT 1 FROM orders WHERE customer_id = customers.id AND total > 150)
-    // Should delete customers with orders > 150 (Alice only)
+    // DELETE FROM customers WHERE EXISTS (SELECT 1 FROM orders WHERE customer_id = customers.id AND
+    // total > 150) Should delete customers with orders > 150 (Alice only)
     let sql = "DELETE FROM customers WHERE EXISTS (SELECT 1 FROM orders WHERE customer_id = customers.id AND total > 150);";
     let stmt = Parser::parse_sql(sql).unwrap();
 
@@ -360,8 +359,9 @@ fn test_delete_with_nested_exists() {
     db.insert_row("COMMENTS", Row::new(vec![SqlValue::Integer(1001), SqlValue::Integer(101)]))
         .unwrap();
 
-    // DELETE FROM users WHERE EXISTS (SELECT 1 FROM posts WHERE user_id = users.id AND EXISTS (SELECT 1 FROM comments WHERE post_id = posts.id))
-    // Should delete users who have posts that have comments (Alice only)
+    // DELETE FROM users WHERE EXISTS (SELECT 1 FROM posts WHERE user_id = users.id AND EXISTS
+    // (SELECT 1 FROM comments WHERE post_id = posts.id)) Should delete users who have posts
+    // that have comments (Alice only)
     let sql = "DELETE FROM users WHERE EXISTS (SELECT 1 FROM posts WHERE user_id = users.id AND EXISTS (SELECT 1 FROM comments WHERE post_id = posts.id));";
     let stmt = Parser::parse_sql(sql).unwrap();
 
@@ -385,8 +385,8 @@ fn test_delete_with_nested_exists() {
 fn test_delete_with_or_exists() {
     let mut db = setup_customers_orders_db();
 
-    // DELETE FROM customers WHERE id = 3 OR EXISTS (SELECT 1 FROM orders WHERE customer_id = customers.id)
-    // Should delete Charlie (id=3) and customers with orders (Alice, Bob)
+    // DELETE FROM customers WHERE id = 3 OR EXISTS (SELECT 1 FROM orders WHERE customer_id =
+    // customers.id) Should delete Charlie (id=3) and customers with orders (Alice, Bob)
     let sql = "DELETE FROM customers WHERE id = 3 OR EXISTS (SELECT 1 FROM orders WHERE customer_id = customers.id);";
     let stmt = Parser::parse_sql(sql).unwrap();
 

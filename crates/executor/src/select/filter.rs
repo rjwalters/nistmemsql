@@ -1,13 +1,15 @@
 //! WHERE clause filtering logic
 
-use crate::errors::ExecutorError;
-use crate::evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator};
+use crate::{
+    errors::ExecutorError,
+    evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator},
+};
 
 /// Apply WHERE clause filter to rows (Combined evaluator version)
 ///
 /// Same as apply_where_filter but specifically for CombinedExpressionEvaluator.
 /// Used in non-aggregation queries.
-/// 
+///
 /// Accepts SelectExecutor for timeout enforcement. Timeout is checked every 1000 rows.
 pub(super) fn apply_where_filter_combined<'a>(
     rows: Vec<storage::Row>,
@@ -68,7 +70,7 @@ pub(super) fn apply_where_filter_combined<'a>(
 ///
 /// Same as apply_where_filter but specifically for ExpressionEvaluator.
 /// Used in aggregation queries.
-/// 
+///
 /// Accepts SelectExecutor for timeout enforcement. Timeout is checked every 1000 rows.
 #[allow(dead_code)]
 pub(super) fn apply_where_filter_basic<'a>(

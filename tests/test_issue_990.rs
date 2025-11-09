@@ -13,20 +13,12 @@ fn test_issue_990_multiple_unary_plus() {
     let mut db = storage::Database::new();
     let schema = catalog::TableSchema::new(
         "test".to_string(),
-        vec![catalog::ColumnSchema::new(
-            "id".to_string(),
-            types::DataType::Integer,
-            false,
-        )],
+        vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
 
     // Insert 1 row
-    db.insert_row(
-        "test",
-        storage::Row::new(vec![types::SqlValue::Integer(1)]),
-    )
-    .unwrap();
+    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Integer(1)])).unwrap();
 
     let executor = SelectExecutor::new(&db);
 
@@ -58,10 +50,7 @@ fn test_issue_990_multiple_unary_plus() {
             },
             alias: None,
         }],
-        from: Some(ast::FromClause::Table {
-            name: "test".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,
@@ -92,20 +81,12 @@ fn test_issue_990_simpler_case() {
     let mut db = storage::Database::new();
     let schema = catalog::TableSchema::new(
         "test".to_string(),
-        vec![catalog::ColumnSchema::new(
-            "id".to_string(),
-            types::DataType::Integer,
-            false,
-        )],
+        vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
     );
     db.create_table(schema).unwrap();
 
     // Insert 1 row
-    db.insert_row(
-        "test",
-        storage::Row::new(vec![types::SqlValue::Integer(1)]),
-    )
-    .unwrap();
+    db.insert_row("test", storage::Row::new(vec![types::SqlValue::Integer(1)])).unwrap();
 
     let executor = SelectExecutor::new(&db);
 
@@ -131,10 +112,7 @@ fn test_issue_990_simpler_case() {
             },
             alias: None,
         }],
-        from: Some(ast::FromClause::Table {
-            name: "test".to_string(),
-            alias: None,
-        }),
+        from: Some(ast::FromClause::Table { name: "test".to_string(), alias: None }),
         where_clause: None,
         group_by: None,
         having: None,

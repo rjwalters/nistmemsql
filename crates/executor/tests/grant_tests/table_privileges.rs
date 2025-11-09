@@ -1,4 +1,5 @@
-//! Tests for table-level privilege grants (SELECT, INSERT, UPDATE, DELETE, REFERENCES, ALL PRIVILEGES)
+//! Tests for table-level privilege grants (SELECT, INSERT, UPDATE, DELETE, REFERENCES, ALL
+//! PRIVILEGES)
 
 use catalog::{ColumnSchema, TableSchema};
 use executor::GrantExecutor;

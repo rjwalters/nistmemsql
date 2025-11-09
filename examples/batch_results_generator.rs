@@ -1,3 +1,5 @@
+use std::{env, fs};
+
 /**
  * Batch Results Generator for Web Demo Examples
  *
@@ -9,8 +11,6 @@
 use catalog::{ColumnSchema, TableSchema};
 use parser::Parser;
 use regex::Regex;
-use std::env;
-use std::fs;
 use storage::{Database, Row};
 use types::{DataType, SqlValue};
 

@@ -44,17 +44,17 @@ fn test_comma_separated_tables_with_alias() {
     db.create_table(schema2).unwrap();
 
     // Insert test data
-    db.insert_row("TAB1", Row::new(vec![
-        SqlValue::Integer(1),
-        SqlValue::Integer(2),
-        SqlValue::Integer(3),
-    ])).unwrap();
+    db.insert_row(
+        "TAB1",
+        Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(2), SqlValue::Integer(3)]),
+    )
+    .unwrap();
 
-    db.insert_row("TAB2", Row::new(vec![
-        SqlValue::Integer(4),
-        SqlValue::Integer(5),
-        SqlValue::Integer(6),
-    ])).unwrap();
+    db.insert_row(
+        "TAB2",
+        Row::new(vec![SqlValue::Integer(4), SqlValue::Integer(5), SqlValue::Integer(6)]),
+    )
+    .unwrap();
 
     // Test case 1: SELECT cor0.col0 FROM tab1, tab2 AS cor0
     // This should select column 0 from the aliased tab2 (as cor0)
@@ -96,15 +96,9 @@ fn test_multiple_comma_separated_tables_with_alias() {
     db.create_table(schema2.clone()).unwrap();
 
     // Insert test data
-    db.insert_row("TAB1", Row::new(vec![
-        SqlValue::Integer(1),
-        SqlValue::Integer(2),
-    ])).unwrap();
+    db.insert_row("TAB1", Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(2)])).unwrap();
 
-    db.insert_row("TAB2", Row::new(vec![
-        SqlValue::Integer(4),
-        SqlValue::Integer(5),
-    ])).unwrap();
+    db.insert_row("TAB2", Row::new(vec![SqlValue::Integer(4), SqlValue::Integer(5)])).unwrap();
 
     // Test case: SELECT + cor0.col0 FROM tab1, tab2, tab1 cor0
     // This creates a 1x1x1 cross join and selects from the aliased tab1 (as cor0)
@@ -114,7 +108,11 @@ fn test_multiple_comma_separated_tables_with_alias() {
     match result {
         Ok(rows) => {
             assert_eq!(rows.len(), 1, "Expected 1 row (1x1x1 CROSS JOIN)");
-            assert_eq!(rows[0].values[0], SqlValue::Integer(1), "Expected value 1 from tab1 (aliased as cor0).col0");
+            assert_eq!(
+                rows[0].values[0],
+                SqlValue::Integer(1),
+                "Expected value 1 from tab1 (aliased as cor0).col0"
+            );
         }
         Err(e) => {
             panic!("Test 2 failed: {}", e);
@@ -146,25 +144,26 @@ fn test_comma_with_expressions_using_alias() {
     db.create_table(schema2).unwrap();
 
     // Insert test data
-    db.insert_row("TAB0", Row::new(vec![
-        SqlValue::Integer(10),
-        SqlValue::Integer(20),
-    ])).unwrap();
+    db.insert_row("TAB0", Row::new(vec![SqlValue::Integer(10), SqlValue::Integer(20)])).unwrap();
 
-    db.insert_row("TAB2", Row::new(vec![
-        SqlValue::Integer(4),
-        SqlValue::Integer(5),
-    ])).unwrap();
+    db.insert_row("TAB2", Row::new(vec![SqlValue::Integer(4), SqlValue::Integer(5)])).unwrap();
 
     // Test case: SELECT DISTINCT - cor0.col1 + - cor0.col0 AS col1 FROM tab0, tab2 AS cor0
     // This should compute -(5) + -(4) = -9
-    let result = execute_select(&db, "SELECT DISTINCT - cor0.col1 + - cor0.col0 AS col1 FROM tab0, tab2 AS cor0");
+    let result = execute_select(
+        &db,
+        "SELECT DISTINCT - cor0.col1 + - cor0.col0 AS col1 FROM tab0, tab2 AS cor0",
+    );
     println!("Test 3 result: {:?}", result);
 
     match result {
         Ok(rows) => {
             assert_eq!(rows.len(), 1, "Expected 1 row");
-            assert_eq!(rows[0].values[0], SqlValue::Integer(-9), "Expected value -9 from calculation");
+            assert_eq!(
+                rows[0].values[0],
+                SqlValue::Integer(-9),
+                "Expected value -9 from calculation"
+            );
         }
         Err(e) => {
             panic!("Test 3 failed: {}", e);

@@ -1,5 +1,4 @@
-use crate::keywords::Keyword;
-use crate::token::Token;
+use crate::{keywords::Keyword, token::Token};
 
 /// Map a keyword string (uppercase) to its corresponding Token.
 /// Returns Token::Identifier if the string is not a recognized keyword.

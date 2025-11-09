@@ -17,16 +17,15 @@ mod row_selector;
 mod value_updater;
 
 use ast::UpdateStmt;
-use storage::Database;
-
-use crate::errors::ExecutorError;
-use crate::evaluator::ExpressionEvaluator;
-use crate::privilege_checker::PrivilegeChecker;
-
 use constraints::ConstraintValidator;
 use foreign_keys::ForeignKeyValidator;
 use row_selector::RowSelector;
+use storage::Database;
 use value_updater::ValueUpdater;
+
+use crate::{
+    errors::ExecutorError, evaluator::ExpressionEvaluator, privilege_checker::PrivilegeChecker,
+};
 
 /// Executor for UPDATE statements
 pub struct UpdateExecutor;
@@ -46,12 +45,11 @@ impl UpdateExecutor {
     /// # Examples
     ///
     /// ```
-    /// use ast::{UpdateStmt, Assignment, Expression};
-    /// use types::SqlValue;
-    /// use storage::Database;
-    /// use catalog::{TableSchema, ColumnSchema};
-    /// use types::DataType;
+    /// use ast::{Assignment, Expression, UpdateStmt};
+    /// use catalog::{ColumnSchema, TableSchema};
     /// use executor::UpdateExecutor;
+    /// use storage::Database;
+    /// use types::{DataType, SqlValue};
     ///
     /// let mut db = Database::new();
     ///
@@ -66,22 +64,21 @@ impl UpdateExecutor {
     /// db.create_table(schema).unwrap();
     ///
     /// // Insert a row
-    /// db.insert_row("employees", storage::Row::new(vec![
-    ///     SqlValue::Integer(1),
-    ///     SqlValue::Integer(50000),
-    /// ])).unwrap();
+    /// db.insert_row(
+    ///     "employees",
+    ///     storage::Row::new(vec![SqlValue::Integer(1), SqlValue::Integer(50000)]),
+    /// )
+    /// .unwrap();
     ///
     /// // Update salary
     /// let stmt = UpdateStmt {
     ///     table_name: "employees".to_string(),
-    ///     assignments: vec![
-    ///         Assignment {
-    ///             column: "salary".to_string(),
-    ///             value: Expression::Literal(SqlValue::Integer(60000)),
-    ///         },
-    ///     ],
+    ///     assignments: vec![Assignment {
+    ///         column: "salary".to_string(),
+    ///         value: Expression::Literal(SqlValue::Integer(60000)),
+    ///     }],
     ///     where_clause: None,
-    ///};
+    /// };
     ///
     /// let count = UpdateExecutor::execute(&stmt, &mut db).unwrap();
     /// assert_eq!(count, 1);
@@ -139,7 +136,12 @@ impl UpdateExecutor {
 
         // Step 6: Build list of updates (two-phase execution for SQL semantics)
         // Each update consists of: (row_index, old_row, new_row, changed_columns)
-        let mut updates: Vec<(usize, storage::Row, storage::Row, std::collections::HashSet<usize>)> = Vec::new();
+        let mut updates: Vec<(
+            usize,
+            storage::Row,
+            storage::Row,
+            std::collections::HashSet<usize>,
+        )> = Vec::new();
 
         for (row_index, row) in candidate_rows {
             // If the primary key is being updated, we need to check for child references
@@ -150,20 +152,35 @@ impl UpdateExecutor {
                 });
 
                 if updates_pk {
-                    ForeignKeyValidator::check_no_child_references(database, &stmt.table_name, &row)?;
+                    ForeignKeyValidator::check_no_child_references(
+                        database,
+                        &stmt.table_name,
+                        &row,
+                    )?;
                 }
             }
 
             // Apply assignments to build updated row
-            let (new_row, changed_columns) = value_updater.apply_assignments(&row, &stmt.assignments)?;
+            let (new_row, changed_columns) =
+                value_updater.apply_assignments(&row, &stmt.assignments)?;
 
             // Validate all constraints (NOT NULL, PRIMARY KEY, UNIQUE, CHECK)
             let constraint_validator = ConstraintValidator::new(schema);
-            constraint_validator.validate_row(table, &stmt.table_name, row_index, &new_row, &row)?;
+            constraint_validator.validate_row(
+                table,
+                &stmt.table_name,
+                row_index,
+                &new_row,
+                &row,
+            )?;
 
             // Enforce FOREIGN KEY constraints (child table)
             if !schema.foreign_keys.is_empty() {
-                ForeignKeyValidator::validate_constraints(database, &stmt.table_name, &new_row.values)?;
+                ForeignKeyValidator::validate_constraints(
+                    database,
+                    &stmt.table_name,
+                    &new_row.values,
+                )?;
             }
 
             updates.push((row_index, row.clone(), new_row, changed_columns));

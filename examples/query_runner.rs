@@ -1,3 +1,5 @@
+use std::env;
+
 use catalog::{ColumnSchema, TableSchema};
 /**
  * Query Runner for Web Demo Examples
@@ -10,9 +12,7 @@ use catalog::{ColumnSchema, TableSchema};
  */
 use executor::SelectExecutor;
 use parser::Parser;
-use std::env;
-use storage::Database;
-use storage::Row;
+use storage::{Database, Row};
 use types::{DataType, SqlValue};
 
 fn create_northwind_db() -> Database {

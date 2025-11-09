@@ -1,7 +1,8 @@
 //! Tests for role statement parsing
 
-use crate::Parser;
 use ast::*;
+
+use crate::Parser;
 
 #[test]
 fn test_create_role() {

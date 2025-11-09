@@ -2,8 +2,9 @@
 //!
 //! Implements ABS, SIGN, and MOD functions.
 
-use crate::errors::ExecutorError;
 use types::SqlValue;
+
+use crate::errors::ExecutorError;
 
 /// ABS(x) - Absolute value
 /// SQL:1999 Section 6.27: Numeric value functions

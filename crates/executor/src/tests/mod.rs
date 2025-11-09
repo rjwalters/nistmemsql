@@ -24,7 +24,8 @@
 //! - `comparison_ops`: Comparison operator tests
 //! - `between_predicates`: BETWEEN predicate execution tests
 //! - `operator_edge_cases`: Unary operators, NULL propagation, complex nested expressions
-//! - `predicate_tests`: IN/NOT IN, LIKE/NOT LIKE, BETWEEN, POSITION, TRIM, CAST tests (organized by type)
+//! - `predicate_tests`: IN/NOT IN, LIKE/NOT LIKE, BETWEEN, POSITION, TRIM, CAST tests (organized by
+//!   type)
 //! - `privilege_checker_tests`: Privilege enforcement tests
 //! - `query_timeout_tests`: Query timeout enforcement tests (issue #1014)
 
@@ -48,9 +49,9 @@ mod join_aggregation;
 mod lazy_evaluation_tests;
 mod limit_offset;
 mod operator_edge_cases;
+mod phase3_join_optimization;
 mod predicate_tests;
 mod privilege_checker_tests;
-mod phase3_join_optimization;
 mod query_timeout_tests;
 mod scalar_subquery_basic_tests;
 mod scalar_subquery_correlated_tests;

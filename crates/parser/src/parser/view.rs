@@ -1,8 +1,7 @@
 //! CREATE VIEW and DROP VIEW statement parsers
 
 use super::{ParseError, Parser};
-use crate::keywords::Keyword;
-use crate::token::Token;
+use crate::{keywords::Keyword, token::Token};
 
 impl Parser {
     /// Parse CREATE VIEW statement

@@ -3,11 +3,11 @@
 //! Implements SELECT INTO statements which create a new table and insert query results.
 //! Feature E111 requires exactly one row to be returned.
 
-use crate::errors::ExecutorError;
-use crate::select::SelectExecutor;
 use ast::{ColumnDef, CreateTableStmt, SelectItem, SelectStmt};
 use storage::Database;
 use types::DataType;
+
+use crate::{errors::ExecutorError, select::SelectExecutor};
 
 pub struct SelectIntoExecutor;
 
@@ -131,7 +131,8 @@ impl SelectIntoExecutor {
     /// Infer SQL data type from a runtime value
     fn infer_data_type(value: &types::SqlValue) -> DataType {
         match value {
-            types::SqlValue::Null => DataType::Varchar { max_length: Some(255) }, // Default for NULL
+            types::SqlValue::Null => DataType::Varchar { max_length: Some(255) }, /* Default for */
+            // NULL
             types::SqlValue::Integer(_) => DataType::Integer,
             types::SqlValue::Bigint(_) => DataType::Bigint,
             types::SqlValue::Unsigned(_) => DataType::Unsigned,

@@ -1,9 +1,8 @@
 //! GRANT statement parsing
 
-use crate::keywords::Keyword;
-use crate::parser::ParseError;
-use crate::token::Token;
 use ast::*;
+
+use crate::{keywords::Keyword, parser::ParseError, token::Token};
 
 /// Parse GRANT statement
 ///
@@ -167,7 +166,8 @@ pub fn parse_grant(parser: &mut crate::Parser) -> Result<GrantStmt, ParseError> 
 
 /// Parse a comma-separated list of privileges
 ///
-/// Supports: SELECT, INSERT, UPDATE, DELETE, USAGE, CREATE, EXECUTE, TRIGGER, UNDER, ALL [PRIVILEGES]
+/// Supports: SELECT, INSERT, UPDATE, DELETE, USAGE, CREATE, EXECUTE, TRIGGER, UNDER, ALL
+/// [PRIVILEGES]
 fn parse_privilege_list(parser: &mut crate::Parser) -> Result<Vec<PrivilegeType>, ParseError> {
     // Check for ALL [PRIVILEGES] syntax
     if parser.peek() == &Token::Keyword(Keyword::All) {

@@ -15,7 +15,7 @@ impl Parser {
                 (ast::JoinType::Cross, right, None)
             } else {
                 let join_type = self.parse_join_type()?;
-                
+
                 // Parse right table reference
                 let right = self.parse_table_reference()?;
 

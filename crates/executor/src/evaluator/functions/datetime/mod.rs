@@ -1,7 +1,8 @@
 //! Date and time function implementations for SQL scalar functions
 //!
 //! This module contains all date/time manipulation and extraction functions including:
-//! - Current date/time functions (CURRENT_DATE/CURDATE, CURRENT_TIME/CURTIME, CURRENT_TIMESTAMP/NOW)
+//! - Current date/time functions (CURRENT_DATE/CURDATE, CURRENT_TIME/CURTIME,
+//!   CURRENT_TIMESTAMP/NOW)
 //! - Date/time extraction (YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, EXTRACT)
 //! - Date arithmetic (DATE_ADD/ADDDATE, DATE_SUB/SUBDATE, DATEDIFF)
 //! - Age calculation (AGE)

@@ -1,9 +1,10 @@
 //! GRANT statement executor
 
-use crate::errors::ExecutorError;
 use ast::*;
 use catalog::PrivilegeGrant;
 use storage::Database;
+
+use crate::errors::ExecutorError;
 
 /// Executor for GRANT statements
 pub struct GrantExecutor;
@@ -16,7 +17,8 @@ impl GrantExecutor {
         stmt: &GrantStmt,
         database: &mut Database,
     ) -> Result<String, ExecutorError> {
-        // Determine actual object type (may differ from statement if SQL:1999 uses TABLE for schemas)
+        // Determine actual object type (may differ from statement if SQL:1999 uses TABLE for
+        // schemas)
         let mut actual_object_type = stmt.object_type.clone();
 
         // Validate object exists based on object type
@@ -146,8 +148,8 @@ impl GrantExecutor {
                     PrivilegeType::References(None),
                 ],
                 ObjectType::Schema => vec![PrivilegeType::Usage, PrivilegeType::Create],
-                // USAGE-only objects (domains, collations, character sets, translations, types, sequences)
-                // ALL PRIVILEGES on these objects means USAGE privilege
+                // USAGE-only objects (domains, collations, character sets, translations, types,
+                // sequences) ALL PRIVILEGES on these objects means USAGE privilege
                 ObjectType::Domain
                 | ObjectType::Collation
                 | ObjectType::CharacterSet

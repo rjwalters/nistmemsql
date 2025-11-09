@@ -1,8 +1,6 @@
 //! Predicate evaluation methods (BETWEEN, LIKE, IN, POSITION)
 
-use super::super::casting::cast_value;
-use super::super::core::ExpressionEvaluator;
-use super::super::pattern::like_match;
+use super::super::{casting::cast_value, core::ExpressionEvaluator, pattern::like_match};
 use crate::errors::ExecutorError;
 
 impl ExpressionEvaluator<'_> {

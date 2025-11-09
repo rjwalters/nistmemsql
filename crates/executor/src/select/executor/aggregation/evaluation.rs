@@ -1,9 +1,11 @@
 //! Expression evaluation with aggregates for SelectExecutor
 
 use super::super::builder::SelectExecutor;
-use crate::errors::ExecutorError;
-use crate::evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator};
-use crate::select::grouping::AggregateAccumulator;
+use crate::{
+    errors::ExecutorError,
+    evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator},
+    select::grouping::AggregateAccumulator,
+};
 
 impl SelectExecutor<'_> {
     /// Evaluate an expression in the context of aggregation
@@ -21,7 +23,8 @@ impl SelectExecutor<'_> {
                 self.evaluate_aggregate_function(expr, group_rows, evaluator)
             }
 
-            // Regular functions (e.g., NULLIF wrapping an aggregate) - may contain aggregates in arguments
+            // Regular functions (e.g., NULLIF wrapping an aggregate) - may contain aggregates in
+            // arguments
             ast::Expression::Function { name, args, .. } => {
                 // Check if this is actually an aggregate function (backwards compatibility)
                 if matches!(name.to_uppercase().as_str(), "COUNT" | "SUM" | "AVG" | "MIN" | "MAX") {
@@ -37,21 +40,28 @@ impl SelectExecutor<'_> {
                 // Build a new function expression with evaluated arguments
                 if let ast::Expression::Function { name, args, character_unit } = expr {
                     // Evaluate function arguments (which may contain aggregates)
-                    let evaluated_args: Result<Vec<_>, _> =
-                        args.iter().map(|arg| self.evaluate_with_aggregates(arg, group_rows, _group_key, evaluator)).collect();
+                    let evaluated_args: Result<Vec<_>, _> = args
+                        .iter()
+                        .map(|arg| {
+                            self.evaluate_with_aggregates(arg, group_rows, _group_key, evaluator)
+                        })
+                        .collect();
                     let evaluated_args = evaluated_args?;
 
                     // Create a temporary row with the evaluated arguments as its values
                     let temp_row = storage::Row::new(evaluated_args);
 
-                    // Build a new function call expression with the evaluated values as literal constants
-                    let literal_args: Vec<ast::Expression> = temp_row.values.iter()
+                    // Build a new function call expression with the evaluated values as literal
+                    // constants
+                    let literal_args: Vec<ast::Expression> = temp_row
+                        .values
+                        .iter()
                         .map(|val| ast::Expression::Literal(val.clone()))
                         .collect();
                     let new_func_expr = ast::Expression::Function {
                         name: name.clone(),
                         args: literal_args,
-                        character_unit: character_unit.clone()
+                        character_unit: character_unit.clone(),
                     };
 
                     // Evaluate the function with literal arguments
@@ -97,7 +107,8 @@ impl SelectExecutor<'_> {
 
             // Unary operations - recursively evaluate inner expression with aggregates
             ast::Expression::UnaryOp { op, expr: inner_expr } => {
-                let val = self.evaluate_with_aggregates(inner_expr, group_rows, _group_key, evaluator)?;
+                let val =
+                    self.evaluate_with_aggregates(inner_expr, group_rows, _group_key, evaluator)?;
                 // Evaluate unary operator on the result
                 Self::eval_unary_op(op, &val)
             }

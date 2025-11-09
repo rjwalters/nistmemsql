@@ -1,7 +1,8 @@
 //! Tests for schema DDL statements (CREATE SCHEMA, DROP SCHEMA, SET SCHEMA)
 
-use crate::Parser;
 use ast::SchemaElement;
+
+use crate::Parser;
 
 #[test]
 fn test_create_schema_simple() {

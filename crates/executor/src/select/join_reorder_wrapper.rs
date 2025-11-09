@@ -6,9 +6,8 @@
 
 use std::collections::HashMap;
 
-use crate::optimizer::PredicateDecomposition;
-
 use super::join::{JoinOrderAnalyzer, JoinOrderSearch};
+use crate::optimizer::PredicateDecomposition;
 
 /// Configuration for join reordering optimization
 pub struct JoinReorderConfig {
@@ -22,11 +21,7 @@ pub struct JoinReorderConfig {
 
 impl Default for JoinReorderConfig {
     fn default() -> Self {
-        JoinReorderConfig {
-            enabled: true,
-            min_tables: 3,
-            verbose: false,
-        }
+        JoinReorderConfig { enabled: true, min_tables: 3, verbose: false }
     }
 }
 
@@ -52,7 +47,7 @@ pub fn extract_join_info(
 ) -> Option<(Vec<String>, PredicateDecomposition)> {
     // Count tables in the FROM clause
     let table_count = count_tables(from);
-    
+
     if table_count < 2 {
         return None; // Single table, no optimization needed
     }
@@ -154,10 +149,7 @@ mod tests {
 
     #[test]
     fn test_extract_single_table() {
-        let from = ast::FromClause::Table {
-            name: "t1".to_string(),
-            alias: None,
-        };
+        let from = ast::FromClause::Table { name: "t1".to_string(), alias: None };
 
         let result = extract_join_info(&from, None);
         assert!(result.is_none(), "Single table should not trigger optimization");

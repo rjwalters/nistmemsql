@@ -1,6 +1,7 @@
 use std::time::Instant;
-use storage::{Database, parse_sql_statements, read_sql_dump};
+
 use parser::Parser;
+use storage::{parse_sql_statements, read_sql_dump, Database};
 
 pub struct SqlExecutor {
     db: Database,
@@ -33,10 +34,7 @@ impl SqlExecutor {
             Database::new()
         };
 
-        Ok(SqlExecutor {
-            db,
-            timing_enabled: false,
-        })
+        Ok(SqlExecutor { db, timing_enabled: false })
     }
 
     /// Load database from SQL dump file
@@ -63,31 +61,36 @@ impl SqlExecutor {
             }
 
             // Parse the statement
-            let statement = Parser::parse_sql(trimmed)
-                .map_err(|e| anyhow::anyhow!(
+            let statement = Parser::parse_sql(trimmed).map_err(|e| {
+                anyhow::anyhow!(
                     "Failed to parse statement {} in {}: {}\nStatement: {}",
                     idx + 1,
                     path,
                     e,
                     truncate_for_display(trimmed, 100)
-                ))?;
+                )
+            })?;
 
             // Execute the statement
-            Self::execute_statement_for_load(&mut db, statement)
-                .map_err(|e| anyhow::anyhow!(
+            Self::execute_statement_for_load(&mut db, statement).map_err(|e| {
+                anyhow::anyhow!(
                     "Failed to execute statement {} in {}: {}\nStatement: {}",
                     idx + 1,
                     path,
                     e,
                     truncate_for_display(trimmed, 100)
-                ))?;
+                )
+            })?;
         }
 
         Ok(db)
     }
 
     /// Execute a single statement during database load
-    fn execute_statement_for_load(db: &mut Database, statement: ast::Statement) -> anyhow::Result<()> {
+    fn execute_statement_for_load(
+        db: &mut Database,
+        statement: ast::Statement,
+    ) -> anyhow::Result<()> {
         match statement {
             ast::Statement::CreateSchema(schema_stmt) => {
                 executor::SchemaExecutor::execute_create_schema(&schema_stmt, db)?;
@@ -118,8 +121,7 @@ impl SqlExecutor {
         let start = Instant::now();
 
         // Parse SQL
-        let statement = Parser::parse_sql(sql)
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let statement = Parser::parse_sql(sql).map_err(|e| anyhow::anyhow!("{}", e))?;
 
         // Execute statement through appropriate executor
         let mut result = QueryResult {
@@ -141,9 +143,8 @@ impl SqlExecutor {
                             // Get column names from the select statement
                             result.columns = vec!["Column".to_string(); rows[0].values.len()];
                             for row in rows {
-                                let row_strs: Vec<String> = row.values.iter()
-                                    .map(|v| format!("{:?}", v))
-                                    .collect();
+                                let row_strs: Vec<String> =
+                                    row.values.iter().map(|v| format!("{:?}", v)).collect();
                                 result.rows.push(row_strs);
                             }
                         }
@@ -236,7 +237,8 @@ impl SqlExecutor {
 
     /// Save database to SQL dump file
     pub fn save_database(&self, path: &str) -> anyhow::Result<()> {
-        self.db.save_sql_dump(path)
+        self.db
+            .save_sql_dump(path)
             .map_err(|e| anyhow::anyhow!("Failed to save database to {}: {}", path, e))
     }
 }

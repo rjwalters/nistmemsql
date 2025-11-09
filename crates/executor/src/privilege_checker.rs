@@ -1,5 +1,6 @@
-use crate::errors::ExecutorError;
 use storage::Database;
+
+use crate::errors::ExecutorError;
 
 /// Centralized privilege checking for all database operations
 pub struct PrivilegeChecker;

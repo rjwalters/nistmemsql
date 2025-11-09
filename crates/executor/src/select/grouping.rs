@@ -1,5 +1,7 @@
-use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+};
 
 /// Accumulator for aggregate functions
 #[derive(Debug, Clone)]

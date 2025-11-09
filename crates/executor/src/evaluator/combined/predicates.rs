@@ -1,7 +1,9 @@
 //! Predicate evaluation for combined expressions (BETWEEN, LIKE, IN)
 
-use super::super::core::{CombinedExpressionEvaluator, ExpressionEvaluator};
-use super::super::pattern::like_match;
+use super::super::{
+    core::{CombinedExpressionEvaluator, ExpressionEvaluator},
+    pattern::like_match,
+};
 use crate::errors::ExecutorError;
 
 impl CombinedExpressionEvaluator<'_> {

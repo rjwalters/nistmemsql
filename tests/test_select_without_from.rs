@@ -207,7 +207,7 @@ fn test_select_current_date_without_from() {
             assert_eq!(rows[0].values.len(), 1, "Should have exactly 1 column");
             // CURRENT_DATE should return a date value (we don't check the exact value)
             match &rows[0].values[0] {
-                types::SqlValue::Date(_) => {}, // Success
+                types::SqlValue::Date(_) => {} // Success
                 other => panic!("Expected Date, got {:?}", other),
             }
         }

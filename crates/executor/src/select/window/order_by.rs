@@ -1,12 +1,15 @@
 //! ORDER BY window function support
 
-use super::evaluation::evaluate_single_window_function;
-use super::types::{WindowFunctionInfo, WindowFunctionKey};
-use crate::errors::ExecutorError;
-use crate::evaluator::CombinedExpressionEvaluator;
-use ast::{Expression, WindowFunctionSpec};
 use std::collections::HashMap;
+
+use ast::{Expression, WindowFunctionSpec};
 use types::SqlValue;
+
+use super::{
+    evaluation::evaluate_single_window_function,
+    types::{WindowFunctionInfo, WindowFunctionKey},
+};
+use crate::{errors::ExecutorError, evaluator::CombinedExpressionEvaluator};
 
 /// Collect window functions from ORDER BY expressions
 pub(in crate::select) fn collect_order_by_window_functions(

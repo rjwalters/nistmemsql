@@ -125,7 +125,8 @@ impl Parser {
             };
 
             // Parse the right-hand side SELECT statement
-            // Don't allow ORDER BY/LIMIT on the right side - they should only apply to the final result
+            // Don't allow ORDER BY/LIMIT on the right side - they should only apply to the final
+            // result
             let right = Box::new(self.parse_select_statement_internal(false)?);
 
             Some(ast::SetOperation { op, all, right })

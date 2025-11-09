@@ -8,17 +8,13 @@ pub fn preprocess_for_mysql(content: &str) -> String {
     for line in content.lines() {
         // Check for dialect directives
         if line.starts_with("onlyif ") {
-            let dialect = line.trim_start_matches("onlyif ")
-                .split_whitespace()
-                .next()
-                .unwrap_or("");
+            let dialect =
+                line.trim_start_matches("onlyif ").split_whitespace().next().unwrap_or("");
             skip_next_record = dialect != "mysql";
             continue; // Don't include the directive line
         } else if line.starts_with("skipif ") {
-            let dialect = line.trim_start_matches("skipif ")
-                .split_whitespace()
-                .next()
-                .unwrap_or("");
+            let dialect =
+                line.trim_start_matches("skipif ").split_whitespace().next().unwrap_or("");
             skip_next_record = dialect == "mysql";
             continue; // Don't include the directive line
         }
@@ -42,7 +38,6 @@ pub fn preprocess_for_mysql(content: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    
 
     #[test]
     fn test_preprocess_onlyif_mysql() {
@@ -76,9 +71,15 @@ mod tests {
         let output = preprocess_for_mysql(input);
 
         // MySQL directive with comment should include statement
-        assert!(output.contains("SELECT SUM(x) FROM t1"), "onlyif mysql with comment should include MySQL statement");
+        assert!(
+            output.contains("SELECT SUM(x) FROM t1"),
+            "onlyif mysql with comment should include MySQL statement"
+        );
         // MySQL skipif with comment should exclude statement
-        assert!(!output.contains("INSERT INTO t1 VALUES (99)"), "skipif mysql with comment should exclude MySQL statement");
+        assert!(
+            !output.contains("INSERT INTO t1 VALUES (99)"),
+            "skipif mysql with comment should exclude MySQL statement"
+        );
         // Directives should be removed
         assert!(!output.contains("onlyif"));
         assert!(!output.contains("skipif"));

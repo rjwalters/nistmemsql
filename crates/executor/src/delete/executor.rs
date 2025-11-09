@@ -3,11 +3,10 @@
 use ast::DeleteStmt;
 use storage::Database;
 
-use crate::errors::ExecutorError;
-use crate::evaluator::ExpressionEvaluator;
-use crate::privilege_checker::PrivilegeChecker;
-
 use super::integrity::check_no_child_references;
+use crate::{
+    errors::ExecutorError, evaluator::ExpressionEvaluator, privilege_checker::PrivilegeChecker,
+};
 
 /// Executor for DELETE statements
 pub struct DeleteExecutor;
@@ -27,12 +26,11 @@ impl DeleteExecutor {
     /// # Examples
     ///
     /// ```
-    /// use ast::{DeleteStmt, Expression, BinaryOperator, WhereClause};
-    /// use types::SqlValue;
-    /// use storage::Database;
-    /// use catalog::{TableSchema, ColumnSchema};
-    /// use types::DataType;
+    /// use ast::{BinaryOperator, DeleteStmt, Expression, WhereClause};
+    /// use catalog::{ColumnSchema, TableSchema};
     /// use executor::DeleteExecutor;
+    /// use storage::Database;
+    /// use types::{DataType, SqlValue};
     ///
     /// let mut db = Database::new();
     ///
@@ -41,30 +39,33 @@ impl DeleteExecutor {
     ///     "users".to_string(),
     ///     vec![
     ///         ColumnSchema::new("id".to_string(), DataType::Integer, false),
-    ///         ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+    ///         ColumnSchema::new(
+    ///             "name".to_string(),
+    ///             DataType::Varchar { max_length: Some(50) },
+    ///             false,
+    ///         ),
     ///     ],
     /// );
     /// db.create_table(schema).unwrap();
     ///
     /// // Insert rows
-    /// db.insert_row("users", storage::Row::new(vec![
-    ///     SqlValue::Integer(1),
-    ///     SqlValue::Varchar("Alice".to_string()),
-    /// ])).unwrap();
-    /// db.insert_row("users", storage::Row::new(vec![
-    ///     SqlValue::Integer(2),
-    ///     SqlValue::Varchar("Bob".to_string()),
-    /// ])).unwrap();
+    /// db.insert_row(
+    ///     "users",
+    ///     storage::Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]),
+    /// )
+    /// .unwrap();
+    /// db.insert_row(
+    ///     "users",
+    ///     storage::Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())]),
+    /// )
+    /// .unwrap();
     ///
     /// // Delete specific row
     /// let stmt = DeleteStmt {
     ///     only: false,
     ///     table_name: "users".to_string(),
     ///     where_clause: Some(WhereClause::Condition(Expression::BinaryOp {
-    ///         left: Box::new(Expression::ColumnRef {
-    ///             table: None,
-    ///             column: "id".to_string(),
-    ///         }),
+    ///         left: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
     ///         op: BinaryOperator::Equal,
     ///         right: Box::new(Expression::Literal(SqlValue::Integer(1))),
     ///     })),
@@ -105,7 +106,8 @@ impl DeleteExecutor {
             .get_table(&stmt.table_name)
             .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
 
-        // Create evaluator with database reference for subquery support (EXISTS, NOT EXISTS, IN with subquery, etc.)
+        // Create evaluator with database reference for subquery support (EXISTS, NOT EXISTS, IN
+        // with subquery, etc.)
         let evaluator = ExpressionEvaluator::with_database(&schema, database);
 
         // Find rows to delete and their indices
@@ -118,20 +120,36 @@ impl DeleteExecutor {
                 if let Some(pk_index) = table.primary_key_index() {
                     if let Some(&row_index) = pk_index.get(&pk_values) {
                         // Found the row via index - single row to delete
-                        rows_and_indices_to_delete.push((row_index, table.scan()[row_index].clone()));
+                        rows_and_indices_to_delete
+                            .push((row_index, table.scan()[row_index].clone()));
                     }
                     // If not found, rows_and_indices_to_delete stays empty (no rows to delete)
                 } else {
                     // No PK index, fall through to table scan below
-                    Self::collect_rows_with_scan(table, &stmt.where_clause, &evaluator, &mut rows_and_indices_to_delete)?;
+                    Self::collect_rows_with_scan(
+                        table,
+                        &stmt.where_clause,
+                        &evaluator,
+                        &mut rows_and_indices_to_delete,
+                    )?;
                 }
             } else {
                 // Can't extract PK lookup, fall through to table scan
-                Self::collect_rows_with_scan(table, &stmt.where_clause, &evaluator, &mut rows_and_indices_to_delete)?;
+                Self::collect_rows_with_scan(
+                    table,
+                    &stmt.where_clause,
+                    &evaluator,
+                    &mut rows_and_indices_to_delete,
+                )?;
             }
         } else {
             // No WHERE clause - collect all rows
-            Self::collect_rows_with_scan(table, &stmt.where_clause, &evaluator, &mut rows_and_indices_to_delete)?;
+            Self::collect_rows_with_scan(
+                table,
+                &stmt.where_clause,
+                &evaluator,
+                &mut rows_and_indices_to_delete,
+            )?;
         }
 
         // Step 3: Check referential integrity for each row to be deleted

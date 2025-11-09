@@ -7,8 +7,9 @@
 //! - `identifiers`: Regular and delimited identifier handling
 //! - `operators`: Multi-character operator recognition
 
-use crate::token::Token;
 use std::fmt;
+
+use crate::token::Token;
 
 mod identifiers;
 mod keywords;

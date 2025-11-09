@@ -4,10 +4,15 @@
 //! planning for structurally identical queries. This is NOT a result cache -
 //! plans are still executed, we just skip parsing and analysis.
 
+use std::{
+    collections::{HashMap, HashSet},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        RwLock,
+    },
+};
+
 use super::QuerySignature;
-use std::collections::{HashMap, HashSet};
-use std::sync::RwLock;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Statistics about cache performance
 #[derive(Clone, Debug)]
@@ -188,7 +193,11 @@ mod tests {
         let mut tables = std::collections::HashSet::new();
         tables.insert("users".to_string());
 
-        cache.insert_with_tables(sig.clone(), "select * from users where id = 1".to_string(), tables);
+        cache.insert_with_tables(
+            sig.clone(),
+            "select * from users where id = 1".to_string(),
+            tables,
+        );
         assert!(cache.contains(&sig));
 
         cache.invalidate_table("users");

@@ -2,11 +2,12 @@
 //!
 //! Tests for PrivilegeChecker methods that enforce access control.
 
-use super::super::*;
 use ast::*;
 use catalog::*;
 use storage::*;
 use types::*;
+
+use super::super::*;
 
 #[test]
 fn test_check_select_with_privilege() {

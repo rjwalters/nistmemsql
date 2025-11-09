@@ -2,13 +2,12 @@
 //!
 //! Implements ROW_NUMBER, RANK, DENSE_RANK, and NTILE.
 
-use ast::OrderByItem;
 use std::cmp::Ordering;
+
+use ast::OrderByItem;
 use types::SqlValue;
 
-use super::partitioning::Partition;
-use super::sorting::compare_values;
-use super::utils::evaluate_expression;
+use super::{partitioning::Partition, sorting::compare_values, utils::evaluate_expression};
 
 /// Evaluate ROW_NUMBER() window function
 ///

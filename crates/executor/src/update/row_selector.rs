@@ -1,8 +1,8 @@
 //! Row selection logic for UPDATE operations
 
 use ast::{BinaryOperator, Expression};
-use crate::errors::ExecutorError;
-use crate::evaluator::ExpressionEvaluator;
+
+use crate::{errors::ExecutorError, evaluator::ExpressionEvaluator};
 
 /// Row selector for UPDATE statements
 ///

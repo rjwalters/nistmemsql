@@ -2,10 +2,8 @@
 
 use std::cmp::Ordering;
 
-use crate::errors::ExecutorError;
-use crate::evaluator::CombinedExpressionEvaluator;
-
 use super::grouping::compare_sql_values;
+use crate::{errors::ExecutorError, evaluator::CombinedExpressionEvaluator};
 
 /// Row with optional sort keys for ORDER BY
 pub(super) type RowWithSortKeys =
