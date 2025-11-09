@@ -134,6 +134,29 @@ impl SelectExecutor<'_> {
         predicates: Option<&PredicateDecomposition>,
     ) -> Result<FromResult, ExecutorError> {
         use crate::select::scan::execute_from_clause_with_predicates;
+        use crate::select::join_reorder_wrapper::{extract_join_info, find_optimal_join_order, JoinReorderConfig};
+
+        // Analyze join opportunities for reordering
+        // This is instrumentation to understand the optimization potential
+        if let Some((tables, _)) = extract_join_info(from, predicates) {
+            if tables.len() >= 3 {
+                let config = JoinReorderConfig::default();
+                let stats = find_optimal_join_order(&config, &tables, predicates);
+                
+                // Log optimization opportunities (disabled by default, enable for debugging)
+                if std::env::var("VIBESQL_DEBUG_JOIN_REORDER").is_ok() {
+                    eprintln!("[DEBUG] Join optimization opportunity detected:");
+                    eprintln!("  Tables: {}", tables.join(", "));
+                    eprintln!("  Table count: {}", stats.table_count);
+                    if stats.differs_from_leftright {
+                        eprintln!("  Better order found: {:?}", stats.optimal_order);
+                    }
+                }
+            }
+        }
+
+        // Execute with standard left-to-right for now
+        // TODO: Implement actual reordering application in scan.rs
         execute_from_clause_with_predicates(from, cte_results, self.database, |query| self.execute(query), predicates)
     }
 }
