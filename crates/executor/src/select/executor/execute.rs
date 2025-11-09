@@ -73,7 +73,8 @@ impl SelectExecutor<'_> {
         let mut results = if has_aggregates || has_group_by {
             self.execute_with_aggregation(stmt, cte_results)?
         } else if let Some(from_clause) = &stmt.from {
-            let from_result = self.execute_from(from_clause, cte_results)?;
+            // Pass WHERE clause to execute_from for predicate pushdown optimization
+            let from_result = self.execute_from_with_where(from_clause, cte_results, stmt.where_clause.as_ref())?;
             self.execute_without_aggregation(stmt, from_result)?
         } else {
             // SELECT without FROM - evaluate expressions as a single row
@@ -102,6 +103,17 @@ impl SelectExecutor<'_> {
         cte_results: &HashMap<String, CteResult>,
     ) -> Result<FromResult, ExecutorError> {
         use crate::select::scan::execute_from_clause;
-        execute_from_clause(from, cte_results, self.database, |query| self.execute(query))
+        execute_from_clause(from, cte_results, self.database, None, |query| self.execute(query))
+    }
+
+    /// Execute a FROM clause with WHERE clause for predicate pushdown
+    pub(super) fn execute_from_with_where(
+        &self,
+        from: &ast::FromClause,
+        cte_results: &HashMap<String, CteResult>,
+        where_clause: Option<&ast::Expression>,
+    ) -> Result<FromResult, ExecutorError> {
+        use crate::select::scan::execute_from_clause;
+        execute_from_clause(from, cte_results, self.database, where_clause, |query| self.execute(query))
     }
 }

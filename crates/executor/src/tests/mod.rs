@@ -47,6 +47,7 @@ mod limit_offset;
 mod operator_edge_cases;
 mod predicate_tests;
 mod privilege_checker_tests;
+mod phase3_join_optimization;
 mod query_timeout_tests;
 mod scalar_subquery_basic_tests;
 mod scalar_subquery_correlated_tests;

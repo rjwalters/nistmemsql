@@ -40,3 +40,7 @@ path = "tests/date_arithmetic_tests.rs"
 [[test]]
 name = "string_edge_case_tests"
 path = "tests/string_edge_case_tests.rs"
+
+[[test]]
+name = "predicate_pushdown_tests"
+path = "tests/predicate_pushdown_tests.rs"

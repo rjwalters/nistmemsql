@@ -22,7 +22,7 @@ use crate::{
 /// A complete SQL statement
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
-    Select(SelectStmt),
+    Select(Box<SelectStmt>),
     Insert(InsertStmt),
     Update(UpdateStmt),
     Delete(DeleteStmt),
