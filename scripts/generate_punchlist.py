@@ -192,8 +192,9 @@ def write_punchlist_csv(punchlist: List[Dict], output_file: Path):
 
 
 def write_punchlist_json(punchlist: List[Dict], output_file: Path, stats: Dict):
-    """Write punchlist to JSON file."""
-    output = {
+    """Write punchlist to JSON file with separate summary and details."""
+    # Write compact summary file (for badges and quick status)
+    summary_output = {
         "timestamp": datetime.now().isoformat(),
         "total_files": len(punchlist),
         "summary": {
@@ -202,14 +203,23 @@ def write_punchlist_json(punchlist: List[Dict], output_file: Path, stats: Dict):
             "untested": sum(1 for p in punchlist if p["status"] == "UNTESTED"),
         },
         "by_category": stats,
-        "files": [
-            {k: v for k, v in p.items() if k != "full_path"}
-            for p in punchlist
-        ]
     }
-    
+
+    # Write summary file (small, for badges and CI)
+    summary_file = output_file.parent / "sqllogictest_summary.json"
+    with open(summary_file, 'w') as f:
+        json.dump(summary_output, f, indent=2)
+
+    # Write full details file (only file names by status, no redundant data)
+    details_output = {
+        "timestamp": datetime.now().isoformat(),
+        "passed_files": sorted([p["file"] for p in punchlist if p["status"] == "PASS"]),
+        "failed_files": sorted([p["file"] for p in punchlist if p["status"] == "FAIL"]),
+        "untested_files": sorted([p["file"] for p in punchlist if p["status"] == "UNTESTED"]),
+    }
+
     with open(output_file, 'w') as f:
-        json.dump(output, f, indent=2)
+        json.dump(details_output, f, indent=2)
 
 
 def main():
@@ -249,13 +259,15 @@ def main():
     
     csv_file = output_dir / "sqllogictest_punchlist.csv"
     json_file = output_dir / "sqllogictest_punchlist.json"
-    
+    summary_file = output_dir / "sqllogictest_summary.json"
+
     write_punchlist_csv(punchlist, csv_file)
     write_punchlist_json(punchlist, json_file, stats)
-    
+
     print(f"✓ Punchlist written to:")
-    print(f"  - {csv_file}")
-    print(f"  - {json_file}")
+    print(f"  - {csv_file} (detailed list)")
+    print(f"  - {json_file} (file lists by status)")
+    print(f"  - {summary_file} (compact summary for badges)")
     
     # Show which tests to focus on
     print("\n" + "="*80)
