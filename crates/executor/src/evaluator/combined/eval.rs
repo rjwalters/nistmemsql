@@ -12,6 +12,24 @@ impl CombinedExpressionEvaluator<'_> {
         expr: &ast::Expression,
         row: &storage::Row,
     ) -> Result<types::SqlValue, ExecutorError> {
+        // Check depth limit to prevent stack overflow from deeply nested expressions
+        if self.depth >= crate::limits::MAX_EXPRESSION_DEPTH {
+            return Err(ExecutorError::ExpressionDepthExceeded {
+                depth: self.depth,
+                max_depth: crate::limits::MAX_EXPRESSION_DEPTH,
+            });
+        }
+
+        // Increment depth for recursive calls
+        self.with_incremented_depth(|evaluator| evaluator.eval_impl(expr, row))
+    }
+
+    /// Internal implementation of eval with depth already incremented
+    fn eval_impl(
+        &self,
+        expr: &ast::Expression,
+        row: &storage::Row,
+    ) -> Result<types::SqlValue, ExecutorError> {
         match expr {
             // Literals - just return the value
             ast::Expression::Literal(val) => Ok(val.clone()),

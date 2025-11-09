@@ -19,6 +19,16 @@ impl ExpressionEvaluator<'_> {
             });
         }
 
+        // Increment depth for recursive calls
+        self.with_incremented_depth(|evaluator| evaluator.eval_impl(expr, row))
+    }
+
+    /// Internal implementation of eval with depth already incremented
+    fn eval_impl(
+        &self,
+        expr: &ast::Expression,
+        row: &storage::Row,
+    ) -> Result<types::SqlValue, ExecutorError> {
         match expr {
             // Literals - just return the value
             ast::Expression::Literal(val) => Ok(val.clone()),
