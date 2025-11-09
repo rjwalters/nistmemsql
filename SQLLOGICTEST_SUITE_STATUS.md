@@ -617,12 +617,6 @@ rm target/sqllogictest_results.sql
 
 ---
 
-<<<<<<< HEAD
-**Last Updated**: 2025-11-08  
-**Maintainer**: VibeSQL Team  
-**Status**: BLOCKED - Infinite loop issue preventing progress (#1001)
-=======
 **Last Updated**: 2025-11-08
 **Maintainer**: VibeSQL Team
 **Status**: BLOCKED - Timeout regression preventing progress (#1012)
->>>>>>> origin/main
