@@ -212,71 +212,7 @@ impl Cursor {
 
             // Process SQL with parameter substitution if params are provided
             let processed_sql = if let Some(params_tuple) = params {
-                // Count placeholders in SQL
-                let placeholder_count = sql.matches('?').count();
-                let param_count = params_tuple.len();
-
-                // Validate parameter count matches placeholder count
-                if placeholder_count != param_count {
-                    return Err(ProgrammingError::new_err(format!(
-                    "Parameter count mismatch: SQL has {} placeholders but {} parameters provided",
-                    placeholder_count, param_count
-                )));
-                }
-
-                // Convert Python parameters to SQL values
-                let mut sql_values = Vec::new();
-                for i in 0..param_count {
-                    let py_obj = params_tuple.get_item(i)?;
-                    let sql_value = py_to_sqlvalue(py, &py_obj).map_err(|e| {
-                        ProgrammingError::new_err(format!(
-                            "Parameter at position {} has invalid type: {}",
-                            i, e
-                        ))
-                    })?;
-                    sql_values.push(sql_value);
-                }
-
-                // Replace placeholders with SQL literal values
-                let mut result = String::new();
-                let mut param_idx = 0;
-                let mut chars = sql.chars().peekable();
-
-                while let Some(ch) = chars.next() {
-                    if ch == '?' {
-                        // Replace ? with the corresponding parameter value as SQL literal
-                        if param_idx < sql_values.len() {
-                            let value_str = match &sql_values[param_idx] {
-                                types::SqlValue::Integer(i) => i.to_string(),
-                                types::SqlValue::Smallint(i) => i.to_string(),
-                                types::SqlValue::Bigint(i) => i.to_string(),
-                                types::SqlValue::Unsigned(u) => u.to_string(),
-                                types::SqlValue::Float(f) => f.to_string(),
-                                types::SqlValue::Real(f) => f.to_string(),
-                                types::SqlValue::Double(f) => f.to_string(),
-                                types::SqlValue::Numeric(n) => n.to_string(),
-                                types::SqlValue::Varchar(s) | types::SqlValue::Character(s) => {
-                                    // Escape single quotes by doubling them (SQL standard)
-                                    format!("'{}'", s.replace('\'', "''"))
-                                }
-                                types::SqlValue::Boolean(b) => {
-                                    if *b { "TRUE" } else { "FALSE" }.to_string()
-                                }
-                                types::SqlValue::Date(s) => format!("DATE '{}'", s),
-                                types::SqlValue::Time(s) => format!("TIME '{}'", s),
-                                types::SqlValue::Timestamp(s) => format!("TIMESTAMP '{}'", s),
-                                types::SqlValue::Interval(s) => format!("INTERVAL '{}'", s),
-                                types::SqlValue::Null => "NULL".to_string(),
-                            };
-                            result.push_str(&value_str);
-                            param_idx += 1;
-                        }
-                    } else {
-                        result.push(ch);
-                    }
-                }
-
-                result
+                Self::bind_parameters(py, sql, params_tuple)?
             } else {
                 // No parameters provided, use SQL as-is
                 sql.to_string()
@@ -565,6 +501,104 @@ impl Cursor {
 }
 
 impl Cursor {
+    /// Convert Python parameters to SQL values
+    ///
+    /// Converts a Python tuple of parameters into a vector of SqlValue objects
+    /// for SQL substitution. Validates parameter types and returns errors for
+    /// unsupported types.
+    fn convert_params_to_sql_values(
+        py: Python,
+        params: &Bound<'_, PyTuple>,
+    ) -> PyResult<Vec<types::SqlValue>> {
+        let mut sql_values = Vec::new();
+        for i in 0..params.len() {
+            let py_obj = params.get_item(i)?;
+            let sql_value = py_to_sqlvalue(py, &py_obj).map_err(|e| {
+                ProgrammingError::new_err(format!(
+                    "Parameter at position {} has invalid type: {}",
+                    i, e
+                ))
+            })?;
+            sql_values.push(sql_value);
+        }
+        Ok(sql_values)
+    }
+
+    /// Substitute placeholders in SQL with actual values
+    ///
+    /// Replaces ? placeholders in the SQL string with SQL literal values
+    /// from the provided vector. Handles proper escaping for strings and
+    /// correct formatting for all SQL types.
+    fn substitute_placeholders(sql: &str, sql_values: &[types::SqlValue]) -> String {
+        let mut result = String::new();
+        let mut param_idx = 0;
+        let mut chars = sql.chars().peekable();
+
+        while let Some(ch) = chars.next() {
+            if ch == '?' {
+                // Replace ? with the corresponding parameter value as SQL literal
+                if param_idx < sql_values.len() {
+                    let value_str = match &sql_values[param_idx] {
+                        types::SqlValue::Integer(i) => i.to_string(),
+                        types::SqlValue::Smallint(i) => i.to_string(),
+                        types::SqlValue::Bigint(i) => i.to_string(),
+                        types::SqlValue::Unsigned(u) => u.to_string(),
+                        types::SqlValue::Float(f) => f.to_string(),
+                        types::SqlValue::Real(f) => f.to_string(),
+                        types::SqlValue::Double(f) => f.to_string(),
+                        types::SqlValue::Numeric(n) => n.to_string(),
+                        types::SqlValue::Varchar(s) | types::SqlValue::Character(s) => {
+                            // Escape single quotes by doubling them (SQL standard)
+                            format!("'{}'", s.replace('\'', "''"))
+                        }
+                        types::SqlValue::Boolean(b) => {
+                            if *b { "TRUE" } else { "FALSE" }.to_string()
+                        }
+                        types::SqlValue::Date(s) => format!("DATE '{}'", s),
+                        types::SqlValue::Time(s) => format!("TIME '{}'", s),
+                        types::SqlValue::Timestamp(s) => format!("TIMESTAMP '{}'", s),
+                        types::SqlValue::Interval(s) => format!("INTERVAL '{}'", s),
+                        types::SqlValue::Null => "NULL".to_string(),
+                    };
+                    result.push_str(&value_str);
+                    param_idx += 1;
+                }
+            } else {
+                result.push(ch);
+            }
+        }
+
+        result
+    }
+
+    /// Bind parameters to SQL statement
+    ///
+    /// Takes SQL with ? placeholders and a tuple of parameters, validates
+    /// parameter count, and returns SQL with parameters substituted as literals.
+    fn bind_parameters(
+        py: Python,
+        sql: &str,
+        params: &Bound<'_, PyTuple>,
+    ) -> PyResult<String> {
+        // Count placeholders in SQL
+        let placeholder_count = sql.matches('?').count();
+        let param_count = params.len();
+
+        // Validate parameter count matches placeholder count
+        if placeholder_count != param_count {
+            return Err(ProgrammingError::new_err(format!(
+                "Parameter count mismatch: SQL has {} placeholders but {} parameters provided",
+                placeholder_count, param_count
+            )));
+        }
+
+        // Convert Python parameters to SQL values
+        let sql_values = Self::convert_params_to_sql_values(py, params)?;
+
+        // Replace placeholders with SQL literal values
+        Ok(Self::substitute_placeholders(sql, &sql_values))
+    }
+
     /// Get table schema with caching
     ///
     /// First checks the schema cache, and only queries the database catalog on cache miss.
