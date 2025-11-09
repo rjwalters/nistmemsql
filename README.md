@@ -10,6 +10,8 @@
 
 🚀 **[Try the Live Demo](https://rjwalters.github.io/vibesql/)** - Run SQL queries in your browser!
 
+💻 **[Use the CLI](#interactive-sql-shell)** - Full-featured interactive SQL shell with import/export, multiple output formats, and PostgreSQL-compatible meta-commands!
+
 ---
 
 ## 🎯 Project Vision
@@ -75,13 +77,16 @@ We use comprehensive test suites to track SQL:1999 compliance:
 | SQLLogicTest | 623 test files (~5.9M tests) | 🔄 **Progressive coverage** - See badge above (cumulative from all CI + boost runs) |
 
 **Recent Progress** (As of Nov 9, 2025):
-- ✅ **Phase 5: CLI Advanced Features Complete!** (#1076)
-  - Enhanced meta-commands (\ds, \di, \du) - Real schema/index/role information
-  - \copy command - CSV/JSON import and export with security validation
-  - Configuration file support (~/.vibesqlrc) - Persistent user preferences
-  - Database persistence (\save command) - Save/load SQL dumps
-  - Multiple output formats (table, JSON, CSV)
-  - Query timing toggle
+- ✅ **Phase 5: CLI Advanced Features Complete!** (#1076, #1086, #1087, #1088)
+  - **Full-featured CLI** - Interactive REPL with multiple execution modes (command, file, stdin)
+  - **Enhanced meta-commands** - PostgreSQL-compatible \d, \dt, \ds, \di, \du for schema introspection
+  - **Import/Export** - \copy command for CSV/JSON with security validation (#1086, #1088)
+  - **Output formats** - Table, JSON, CSV, Markdown, HTML (#1087)
+  - **Configuration file** - ~/.vibesqlrc with TOML format for persistent preferences
+  - **Database persistence** - \save command for SQL dumps with auto-save support
+  - **Error tracking** - \errors command to review query history (#1087)
+  - **Query timing** - \timing toggle to measure execution performance
+  - **Pipeline integration** - Works seamlessly with jq, csvkit, and Unix tools
 - ✅ **100% SQL:1999 Core Conformance ACHIEVED** - All 739 tests passing!
 - ✅ **Phase 2 Optimizations Complete** - Hash join, expression optimization, memory optimization (#789)
 - ✅ **SQLLogicTest integration** - Added ~5.9M tests via dolthub/sqllogictest submodule
@@ -322,15 +327,17 @@ This isn't just about databases. It's about understanding what's now possible wi
 - **Query Runner Tool**: Batch execution and validation CLI ✅
 
 **CLI & Tools** ✅ **(Phase 5 Complete!)**
-- **Interactive REPL**: Full-featured SQL shell with readline support
-- **Meta-commands**: `\dt`, `\ds`, `\di`, `\du`, `\d [table]` for database exploration
+- **Interactive REPL**: Full-featured SQL shell with readline support and persistent history
+- **Multiple execution modes**: Interactive, command (-c), file (-f), and stdin (pipe) support
+- **Meta-commands**: PostgreSQL-compatible `\d`, `\dt`, `\ds`, `\di`, `\du` for database exploration
 - **Import/Export**: `\copy` command for CSV and JSON with security validation
-- **Output formats**: Table (default), JSON, CSV
+- **Output formats**: Table (default), JSON, CSV, Markdown, HTML
 - **Configuration file**: `~/.vibesqlrc` with TOML format for user preferences
-- **Database persistence**: `\save` command for SQL dumps, auto-save on exit
+- **Database persistence**: `\save` command for SQL dumps with auto-save on exit
 - **Query timing**: `\timing` to measure execution performance
-- **Command history**: Persistent history with configurable size
-- **Script execution**: `--script` flag for batch SQL execution
+- **Error tracking**: `\errors` to review recent query failures
+- **Script execution**: Batch SQL execution from files or command line
+- **Pipeline integration**: Works with jq, csvkit, and other Unix tools
 
 **Infrastructure** ✅
 - 1,000+ tests passing (100%)
@@ -535,13 +542,30 @@ git submodule update --init --recursive
 # Run tests (requires Rust)
 cargo test --workspace
 
-# Run the web demo
+# Run the interactive SQL shell (CLI)
+cargo run -p cli
+
+# Or run the web demo
 cd web-demo
 npm install
 npm run dev
 ```
 
 **Note**: This project includes SQLite source code as a reference submodule for learning and optimization. See [docs/reference/README.md](docs/reference/README.md) for details.
+
+**Quick CLI Example**:
+```bash
+# Start the interactive shell
+cargo run -p cli
+
+# Run a quick query
+vibesql> CREATE TABLE test (id INTEGER, name VARCHAR(50));
+vibesql> INSERT INTO test VALUES (1, 'Hello'), (2, 'World');
+vibesql> SELECT * FROM test;
+vibesql> \q
+```
+
+See the [Interactive SQL Shell](#interactive-sql-shell) section below for complete CLI documentation.
 
 ### Python Usage
 
@@ -599,36 +623,229 @@ python3 benchmarks/python_overhead.py
 
 ### Interactive SQL Shell
 
+VibeSQL includes a full-featured command-line interface with multiple execution modes.
+
+#### Installation & Basic Usage
+
 ```bash
-# Build and run the CLI
-cargo run --bin vibesql
+# Build the CLI
+cargo build --release -p cli
 
-# Or load a database
-cargo run --bin vibesql -- --database mydb.sql
+# Run in interactive mode (REPL)
+cargo run -p cli
 
-# Try some SQL
-vibesql> CREATE TABLE users (id INTEGER, name VARCHAR(50));
-vibesql> INSERT INTO users VALUES (1, 'Alice');
-vibesql> SELECT * FROM users;
+# Load existing database
+cargo run -p cli -- --database mydb.sql
 
-# Use meta-commands
-vibesql> \dt                           # List tables
-vibesql> \d users                      # Describe table
-vibesql> \f json                       # Set output format
-vibesql> \copy users TO '/tmp/users.csv'  # Export to CSV
-vibesql> \copy users FROM '/tmp/backup.csv'  # Import from CSV
-vibesql> \save mydb.sql                # Save database
+# Execute SQL from command line
+cargo run -p cli -- --command "SELECT * FROM users"
+
+# Execute SQL from file
+cargo run -p cli -- --file queries.sql
+
+# Execute SQL from stdin (pipe support)
+echo "SELECT 1 + 1" | cargo run -p cli --
+
+# Set output format
+cargo run -p cli -- --format json --command "SELECT * FROM users"
 ```
 
-**CLI Features** (Phase 5 Complete!):
-- **Meta-commands**: `\dt` (tables), `\ds` (schemas), `\di` (indexes), `\du` (roles), `\d` (describe)
-- **Import/Export**: `\copy` command for CSV and JSON with security validation
-- **Output formats**: Table, JSON, CSV
-- **Configuration**: `~/.vibesqlrc` for user preferences
-- **Persistence**: `\save` command for SQL dumps with auto-save support
-- **Query timing**: `\timing` to measure execution time
+#### Execution Modes
 
-See [CLI User Guide](docs/CLI_GUIDE.md) for complete documentation.
+**1. Interactive REPL Mode (Default)**
+```bash
+vibesql> CREATE TABLE users (id INTEGER, name VARCHAR(50));
+vibesql> INSERT INTO users VALUES (1, 'Alice'), (2, 'Bob');
+vibesql> SELECT * FROM users WHERE id = 1;
+```
+
+**2. Command Execution Mode**
+```bash
+# Execute single SQL command
+vibesql -c "SELECT * FROM information_schema.tables"
+
+# With custom format
+vibesql -c "SELECT * FROM users" --format json
+```
+
+**3. File Execution Mode**
+```bash
+# Run all SQL commands from file
+vibesql -f init.sql
+
+# With verbose output
+vibesql -f migration.sql --verbose
+```
+
+**4. Stdin Mode**
+```bash
+# Pipe SQL from another command
+cat queries.sql | vibesql
+
+# Use in shell scripts
+echo "SELECT COUNT(*) FROM users" | vibesql --format csv
+```
+
+#### Meta-Commands
+
+The CLI supports PostgreSQL-style meta-commands:
+
+```bash
+# Database introspection
+\d                  # List all tables
+\d users            # Describe table structure
+\dt                 # List tables
+\ds                 # List schemas
+\di                 # List indexes
+\du                 # List roles/users
+
+# Output control
+\f table            # Set output format to table (default)
+\f json             # Set output format to JSON
+\f csv              # Set output format to CSV
+\f markdown         # Set output format to Markdown
+\f html             # Set output format to HTML
+
+# Data import/export
+\copy users TO '/tmp/users.csv'         # Export table to CSV
+\copy users TO '/tmp/users.json'        # Export table to JSON
+\copy users FROM '/tmp/backup.csv'      # Import CSV data
+\copy users FROM '/tmp/data.json'       # Import JSON data
+
+# Database persistence
+\save                      # Save to default location
+\save mybackup.sql         # Save to specific file
+
+# Utilities
+\timing                    # Toggle query execution timing
+\errors                    # Show recent error history
+\h or \help               # Show help
+\q or \quit               # Exit
+
+# Examples
+vibesql> \f json
+Output format set to JSON
+
+vibesql> SELECT * FROM users;
+[{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
+
+vibesql> \timing
+Timing is on
+
+vibesql> SELECT COUNT(*) FROM large_table;
+(10000 rows)
+Time: 23.456 ms
+```
+
+#### Output Formats
+
+Five output formats are supported:
+
+**Table (Default)** - Pretty-printed ASCII table
+```
++----+-------+
+| id | name  |
++----+-------+
+| 1  | Alice |
+| 2  | Bob   |
++----+-------+
+```
+
+**JSON** - Newline-delimited JSON objects
+```json
+{"id": 1, "name": "Alice"}
+{"id": 2, "name": "Bob"}
+```
+
+**CSV** - Comma-separated values with header
+```csv
+id,name
+1,Alice
+2,Bob
+```
+
+**Markdown** - Markdown table format
+```markdown
+| id | name  |
+|----|-------|
+| 1  | Alice |
+| 2  | Bob   |
+```
+
+**HTML** - HTML table markup
+```html
+<table>
+  <thead><tr><th>id</th><th>name</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Alice</td></tr>
+    <tr><td>2</td><td>Bob</td></tr>
+  </tbody>
+</table>
+```
+
+#### Configuration File
+
+Create `~/.vibesqlrc` to customize default behavior:
+
+```toml
+# Default output format
+[output]
+format = "table"  # Options: table, json, csv, markdown, html
+
+# Database settings
+[database]
+default_path = "/path/to/default.sql"
+auto_save = true
+auto_save_path = "~/.vibesql_autosave.sql"
+
+# Display settings
+[display]
+max_column_width = 50
+show_row_count = true
+
+# History settings
+[history]
+enabled = true
+file_path = "~/.vibesql_history"
+max_entries = 1000
+
+# Performance
+[performance]
+query_timeout_ms = 30000
+```
+
+See `.vibesqlrc.example` for a complete configuration template.
+
+#### CLI Features (Phase 5 Complete!)
+
+✅ **Interactive REPL** - Full readline support with history
+✅ **Multiple execution modes** - Interactive, command, file, stdin
+✅ **Meta-commands** - PostgreSQL-compatible \d, \dt, \ds, \di, \du commands
+✅ **Import/Export** - \copy command for CSV and JSON with validation
+✅ **Output formats** - Table, JSON, CSV, Markdown, HTML
+✅ **Configuration** - ~/.vibesqlrc for persistent preferences
+✅ **Persistence** - \save command with auto-save support
+✅ **Query timing** - \timing to measure execution performance
+✅ **Error tracking** - \errors to review recent failures
+✅ **Command history** - Persistent history with configurable size
+
+**Advanced Examples**:
+
+```bash
+# Data pipeline with JSON output
+vibesql -c "SELECT * FROM users" --format json | jq '.name'
+
+# Generate HTML report
+vibesql -f report_queries.sql --format html > report.html
+
+# Quick CSV export
+echo "SELECT * FROM sales WHERE year = 2024" | vibesql --format csv > sales_2024.csv
+
+# Database migration workflow
+vibesql -f schema.sql
+vibesql -f seed_data.sql --verbose
+vibesql -c "\save production.sql"
+```
 
 ---
 
