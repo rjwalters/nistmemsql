@@ -4,7 +4,7 @@
 
 pub mod database;
 pub mod error;
-pub mod persistence;
+// pub mod persistence; // TODO: Uncomment when #994 is complete and persistence.rs compiles
 pub mod row;
 pub mod table;
 
