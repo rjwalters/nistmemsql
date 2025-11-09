@@ -132,19 +132,6 @@ impl Database {
     fn version(&self) -> String {
         "vibesql-py 0.1.0".to_string()
     }
-
-    /// Save database state as SQL dump
-    ///
-    /// Args:
-    ///     path (str): Path to the output SQL file
-    ///
-    /// Raises:
-    ///     OperationalError: If the file cannot be written
-    fn save_sql_dump(&self, path: String) -> PyResult<()> {
-        let db = self.db.lock();
-        db.save_sql_dump(&path)
-            .map_err(|e| OperationalError::new_err(format!("Failed to save SQL dump: {}", e)))
-    }
 }
 
 /// Query result storage
