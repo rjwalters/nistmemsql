@@ -4,6 +4,7 @@ mod filter;
 mod grouping;
 mod helpers;
 pub mod join;
+mod join_reorder_wrapper;
 mod order;
 mod projection;
 mod scan;
