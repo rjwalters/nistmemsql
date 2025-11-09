@@ -54,6 +54,72 @@ impl ExpressionEvaluator<'_> {
         }
     }
 
+    /// Evaluate COALESCE function with lazy evaluation
+    /// COALESCE(val1, val2, ...) - returns first non-NULL value
+    /// This uses lazy evaluation to short-circuit on first non-NULL value,
+    /// avoiding evaluation of expensive expressions.
+    pub(super) fn eval_coalesce_lazy(
+        &self,
+        args: &[ast::Expression],
+        row: &storage::Row,
+    ) -> Result<types::SqlValue, ExecutorError> {
+        if args.is_empty() {
+            return Err(ExecutorError::UnsupportedFeature(
+                "COALESCE requires at least one argument".to_string(),
+            ));
+        }
+
+        // Lazy evaluation: return first non-NULL value without evaluating remaining args
+        for arg in args {
+            let val = self.eval(arg, row)?;
+            if !matches!(val, types::SqlValue::Null) {
+                return Ok(val);
+            }
+        }
+
+        // All arguments were NULL
+        Ok(types::SqlValue::Null)
+    }
+
+    /// Evaluate NULLIF function with lazy evaluation
+    /// NULLIF(val1, val2) - returns NULL if val1 = val2, otherwise val1
+    /// This uses lazy evaluation to avoid unnecessary comparisons.
+    pub(super) fn eval_nullif_lazy(
+        &self,
+        args: &[ast::Expression],
+        row: &storage::Row,
+    ) -> Result<types::SqlValue, ExecutorError> {
+        if args.len() != 2 {
+            return Err(ExecutorError::UnsupportedFeature(format!(
+                "NULLIF requires exactly 2 arguments, got {}",
+                args.len()
+            )));
+        }
+
+        // Evaluate first argument (required)
+        let val1 = self.eval(&args[0], row)?;
+
+        // If first is NULL, return NULL immediately without evaluating second
+        if matches!(val1, types::SqlValue::Null) {
+            return Ok(val1);
+        }
+
+        // Evaluate second argument
+        let val2 = self.eval(&args[1], row)?;
+
+        // If either is NULL, comparison is undefined - return val1
+        if matches!(val2, types::SqlValue::Null) {
+            return Ok(val1);
+        }
+
+        // Check equality and return accordingly
+        if super::super::core::ExpressionEvaluator::values_are_equal(&val1, &val2) {
+            Ok(types::SqlValue::Null)
+        } else {
+            Ok(val1)
+        }
+    }
+
     /// Evaluate function call
     pub(super) fn eval_function(
         &self,
@@ -62,6 +128,14 @@ impl ExpressionEvaluator<'_> {
         character_unit: &Option<ast::CharacterUnit>,
         row: &storage::Row,
     ) -> Result<types::SqlValue, ExecutorError> {
+        // Handle special functions with lazy evaluation
+        match name.to_uppercase().as_str() {
+            "COALESCE" => return self.eval_coalesce_lazy(args, row),
+            "NULLIF" => return self.eval_nullif_lazy(args, row),
+            _ => {}
+        }
+
+        // Standard function call: evaluate all arguments eagerly
         let mut arg_values = Vec::new();
         for arg in args {
             arg_values.push(self.eval(arg, row)?);

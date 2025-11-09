@@ -21,11 +21,15 @@ impl std::error::Error for TestError {}
 
 struct NistMemSqlDB {
     db: Database,
+    cache: std::sync::Arc<executor::QueryPlanCache>,
 }
 
 impl NistMemSqlDB {
     fn new() -> Self {
-        Self { db: Database::new() }
+        Self {
+            db: Database::new(),
+            cache: std::sync::Arc::new(executor::QueryPlanCache::new(1000)),
+        }
     }
 
     /// Format and optionally hash result rows
@@ -113,8 +117,19 @@ impl NistMemSqlDB {
                 self.format_query_result(rows)
             }
             ast::Statement::CreateTable(create_stmt) => {
+                // Extract table name for cache invalidation
+                let table_name = if let Some(pos) = create_stmt.table_name.rfind('.') {
+                    &create_stmt.table_name[pos + 1..]
+                } else {
+                    &create_stmt.table_name
+                };
+
                 executor::CreateTableExecutor::execute(&create_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+
+                // Invalidate cache for this table
+                self.cache.invalidate_table(table_name);
+
                 Ok(DBOutput::StatementComplete(0))
             }
             ast::Statement::Insert(insert_stmt) => {
@@ -133,8 +148,19 @@ impl NistMemSqlDB {
                 Ok(DBOutput::StatementComplete(rows_affected as u64))
             }
             ast::Statement::DropTable(drop_stmt) => {
+                // Extract table name for cache invalidation
+                let table_name = if let Some(pos) = drop_stmt.table_name.rfind('.') {
+                    &drop_stmt.table_name[pos + 1..]
+                } else {
+                    &drop_stmt.table_name
+                };
+
                 executor::DropTableExecutor::execute(&drop_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+
+                // Invalidate cache for this table
+                self.cache.invalidate_table(table_name);
+
                 Ok(DBOutput::StatementComplete(0))
             }
             ast::Statement::AlterTable(alter_stmt) => {
@@ -414,7 +440,14 @@ impl AsyncDB for NistMemSqlDB {
     }
 
     async fn shutdown(&mut self) {
-        // No cleanup needed for in-memory database
+        // Log cache statistics on shutdown
+        let stats = self.cache.stats();
+        eprintln!("Cache statistics:");
+        eprintln!("  Hits: {}", stats.hits);
+        eprintln!("  Misses: {}", stats.misses);
+        eprintln!("  Hit rate: {:.2}%", stats.hit_rate * 100.0);
+        eprintln!("  Evictions: {}", stats.evictions);
+        eprintln!("  Final size: {}", stats.size);
     }
 }
 

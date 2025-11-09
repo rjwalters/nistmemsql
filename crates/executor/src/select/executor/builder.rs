@@ -1,6 +1,7 @@
 //! SelectExecutor construction and initialization
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 use std::time::Instant;
 use crate::limits::{MAX_MEMORY_BYTES, MEMORY_WARNING_BYTES};
 use crate::errors::ExecutorError;
@@ -20,6 +21,11 @@ pub struct SelectExecutor<'a> {
     pub(super) start_time: Instant,
     /// Timeout in seconds (defaults to MAX_QUERY_EXECUTION_SECONDS)
     pub timeout_seconds: u64,
+    /// Cache for aggregate results within a single group
+    /// Key: Hash of the aggregate expression (format: "{name}:{distinct}:{arg_debug}")
+    /// Value: Cached aggregate result
+    /// Scope: Per-group evaluation (cleared between groups)
+    pub(super) aggregate_cache: RefCell<HashMap<String, types::SqlValue>>,
 }
 
 impl<'a> SelectExecutor<'a> {
@@ -34,6 +40,7 @@ impl<'a> SelectExecutor<'a> {
             memory_warning_logged: Cell::new(false),
             start_time: Instant::now(),
             timeout_seconds: crate::limits::MAX_QUERY_EXECUTION_SECONDS,
+            aggregate_cache: RefCell::new(HashMap::new()),
         }
     }
 
@@ -52,6 +59,7 @@ impl<'a> SelectExecutor<'a> {
             memory_warning_logged: Cell::new(false),
             start_time: Instant::now(),
             timeout_seconds: crate::limits::MAX_QUERY_EXECUTION_SECONDS,
+            aggregate_cache: RefCell::new(HashMap::new()),
         }
     }
 
@@ -86,6 +94,7 @@ impl<'a> SelectExecutor<'a> {
             memory_warning_logged: Cell::new(false),
             start_time: Instant::now(),
             timeout_seconds: crate::limits::MAX_QUERY_EXECUTION_SECONDS,
+            aggregate_cache: RefCell::new(HashMap::new()),
         }
     }
 
@@ -126,6 +135,11 @@ impl<'a> SelectExecutor<'a> {
     pub fn with_timeout(mut self, seconds: u64) -> Self {
         self.timeout_seconds = seconds;
         self
+    }
+
+    /// Clear aggregate cache (should be called between group evaluations)
+    pub(super) fn clear_aggregate_cache(&self) {
+        self.aggregate_cache.borrow_mut().clear();
     }
 
     /// Check if query has exceeded timeout

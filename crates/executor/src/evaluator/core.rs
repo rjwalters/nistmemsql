@@ -124,6 +124,22 @@ impl<'a> ExpressionEvaluator<'a> {
             _ => false, // Type mismatch = not equal
         }
     }
+
+    /// Helper to execute a closure with incremented depth
+    pub(super) fn with_incremented_depth<F, T>(&self, f: F) -> Result<T, ExecutorError>
+    where
+        F: FnOnce(&Self) -> Result<T, ExecutorError>,
+    {
+        // Create a new evaluator with incremented depth
+        let evaluator = ExpressionEvaluator {
+            schema: self.schema,
+            outer_row: self.outer_row,
+            outer_schema: self.outer_schema,
+            database: self.database,
+            depth: self.depth + 1,
+        };
+        f(&evaluator)
+    }
 }
 
 impl<'a> CombinedExpressionEvaluator<'a> {
@@ -213,5 +229,24 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         } else {
             None
         }
+    }
+
+    /// Helper to execute a closure with incremented depth
+    pub(super) fn with_incremented_depth<F, T>(&self, f: F) -> Result<T, ExecutorError>
+    where
+        F: FnOnce(&Self) -> Result<T, ExecutorError>,
+    {
+        // Create a new evaluator with incremented depth
+        let evaluator = CombinedExpressionEvaluator {
+            schema: self.schema,
+            database: self.database,
+            outer_row: self.outer_row,
+            outer_schema: self.outer_schema,
+            window_mapping: self.window_mapping,
+            // Share the column cache between parent and child evaluators
+            column_cache: RefCell::new(self.column_cache.borrow().clone()),
+            depth: self.depth + 1,
+        };
+        f(&evaluator)
     }
 }

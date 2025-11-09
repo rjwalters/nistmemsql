@@ -63,7 +63,7 @@ impl Parser {
         match self.peek() {
             Token::Keyword(Keyword::Select) | Token::Keyword(Keyword::With) => {
                 let select_stmt = self.parse_select_statement()?;
-                Ok(ast::Statement::Select(select_stmt))
+                Ok(ast::Statement::Select(Box::new(select_stmt)))
             }
             Token::Keyword(Keyword::Insert) => {
                 let insert_stmt = self.parse_insert_statement()?;

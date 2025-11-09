@@ -4,6 +4,7 @@
 
 pub mod advanced_objects;
 mod alter;
+pub mod cache;
 mod constraint_validator;
 mod create_table;
 mod delete;
@@ -21,13 +22,14 @@ mod revoke;
 mod role_ddl;
 mod schema;
 mod schema_ddl;
-mod select;
+pub mod select;
 mod select_into;
 mod transaction;
 mod type_ddl;
 mod update;
 
 pub use alter::AlterTableExecutor;
+pub use cache::{QueryPlanCache, CacheStats, QuerySignature, CacheManager, CachedQueryContext};
 pub use constraint_validator::ConstraintValidator;
 pub use create_table::CreateTableExecutor;
 pub use delete::DeleteExecutor;

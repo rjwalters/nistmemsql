@@ -19,6 +19,16 @@ impl ExpressionEvaluator<'_> {
             });
         }
 
+        // Increment depth for recursive calls
+        self.with_incremented_depth(|evaluator| evaluator.eval_impl(expr, row))
+    }
+
+    /// Internal implementation of eval with depth already incremented
+    fn eval_impl(
+        &self,
+        expr: &ast::Expression,
+        row: &storage::Row,
+    ) -> Result<types::SqlValue, ExecutorError> {
         match expr {
             // Literals - just return the value
             ast::Expression::Literal(val) => Ok(val.clone()),
@@ -33,9 +43,59 @@ impl ExpressionEvaluator<'_> {
 
             // Binary operations
             ast::Expression::BinaryOp { left, op, right } => {
-                let left_val = self.eval(left, row)?;
-                let right_val = self.eval(right, row)?;
-                self.eval_binary_op(&left_val, op, &right_val)
+                // Short-circuit evaluation for AND/OR operators
+                match op {
+                    ast::BinaryOperator::And => {
+                        let left_val = self.eval(left, row)?;
+                        // Short-circuit: if left is false, return false immediately
+                        match left_val {
+                            SqlValue::Boolean(false) => return Ok(SqlValue::Boolean(false)),
+                            // For NULL and TRUE, must evaluate right side
+                            // SQL three-valued logic:
+                            // - NULL AND FALSE = FALSE (not NULL!)
+                            // - NULL AND TRUE = NULL
+                            // - TRUE AND x = x
+                            _ => {
+                                let right_val = self.eval(right, row)?;
+
+                                // Special case: NULL AND FALSE = FALSE
+                                if matches!(left_val, SqlValue::Null) && matches!(right_val, SqlValue::Boolean(false)) {
+                                    return Ok(SqlValue::Boolean(false));
+                                }
+
+                                self.eval_binary_op(&left_val, op, &right_val)
+                            }
+                        }
+                    }
+                    ast::BinaryOperator::Or => {
+                        let left_val = self.eval(left, row)?;
+                        // Short-circuit: if left is true, return true immediately
+                        match left_val {
+                            SqlValue::Boolean(true) => return Ok(SqlValue::Boolean(true)),
+                            // For NULL and FALSE, must evaluate right side
+                            // SQL three-valued logic:
+                            // - NULL OR TRUE = TRUE (not NULL!)
+                            // - NULL OR FALSE = NULL
+                            // - FALSE OR x = x
+                            _ => {
+                                let right_val = self.eval(right, row)?;
+
+                                // Special case: NULL OR TRUE = TRUE
+                                if matches!(left_val, SqlValue::Null) && matches!(right_val, SqlValue::Boolean(true)) {
+                                    return Ok(SqlValue::Boolean(true));
+                                }
+
+                                self.eval_binary_op(&left_val, op, &right_val)
+                            }
+                        }
+                    }
+                    // For all other operators, evaluate both sides as before
+                    _ => {
+                        let left_val = self.eval(left, row)?;
+                        let right_val = self.eval(right, row)?;
+                        self.eval_binary_op(&left_val, op, &right_val)
+                    }
+                }
             }
 
             // CASE expression

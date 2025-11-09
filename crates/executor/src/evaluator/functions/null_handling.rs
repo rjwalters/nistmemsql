@@ -4,6 +4,9 @@ use crate::errors::ExecutorError;
 
 /// COALESCE(val1, val2, ..., valN) - returns first non-NULL value
 /// SQL:1999 Section 6.12: COALESCE expression
+///
+/// Uses lazy evaluation for eager arguments to short-circuit on first non-NULL value.
+/// This is implemented as a special form at the expression evaluator level for efficiency.
 pub(super) fn coalesce(args: &[types::SqlValue]) -> Result<types::SqlValue, ExecutorError> {
     if args.is_empty() {
         return Err(ExecutorError::UnsupportedFeature(
@@ -12,6 +15,9 @@ pub(super) fn coalesce(args: &[types::SqlValue]) -> Result<types::SqlValue, Exec
     }
 
     // Return first non-NULL value
+    // NOTE: Arguments are already evaluated by the expression evaluator.
+    // For true lazy evaluation, COALESCE should be handled as a special form
+    // in the expression evaluator (see eval_coalesce_lazy).
     for val in args {
         if !matches!(val, types::SqlValue::Null) {
             return Ok(val.clone());
