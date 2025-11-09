@@ -252,7 +252,7 @@ fn test_eval_division() {
         right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(4))),
     };
     let result = evaluator.eval(&expr, &row).unwrap();
-    assert_eq!(result, types::SqlValue::Integer(5));
+    assert_eq!(result, types::SqlValue::Float(5.0));
 }
 
 #[test]

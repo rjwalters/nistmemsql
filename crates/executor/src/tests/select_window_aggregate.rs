@@ -158,12 +158,12 @@ fn test_window_function_in_expression() {
         assert_eq!(result[0].values.len(), 2);
 
         // Total sum = 600
-        // Row 1: 100 * 100 / 600 = 16
-        // Row 2: 200 * 100 / 600 = 33
+        // Row 1: 100 * 100 / 600 = 16.666...
+        // Row 2: 200 * 100 / 600 = 33.333...
         // Row 3: 300 * 100 / 600 = 50
-        assert_eq!(result[0].values[1], SqlValue::Integer(16));
-        assert_eq!(result[1].values[1], SqlValue::Integer(33));
-        assert_eq!(result[2].values[1], SqlValue::Integer(50));
+        assert_eq!(result[0].values[1], SqlValue::Float(16.666666666666668));
+        assert_eq!(result[1].values[1], SqlValue::Float(33.33333333333333));
+        assert_eq!(result[2].values[1], SqlValue::Float(50.0));
     } else {
         panic!("Expected SELECT statement");
     }
