@@ -40,7 +40,7 @@ fn test_e2e_char_type() {
             SqlValue::Integer(3),
             SqlValue::Character("TOOLONG".to_string()), // Will be truncated to "TOOLO" (5 chars)
             SqlValue::Character("VeryLongName".to_string()), /* Will be truncated to
-                                                              * "VeryLongNa" (10 chars) */
+                                                         * "VeryLongNa" (10 chars) */
         ]),
     )
     .unwrap();

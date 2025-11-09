@@ -11,7 +11,20 @@ pub enum MetaCommand {
     ListRoles,
     SetFormat(OutputFormat),
     Timing,
+    Copy { table: String, file_path: String, direction: CopyDirection, format: CopyFormat },
     Save(Option<String>),
+}
+
+#[derive(Debug, Clone)]
+pub enum CopyDirection {
+    Import, // FROM file
+    Export, // TO file
+}
+
+#[derive(Debug, Clone)]
+pub enum CopyFormat {
+    Csv,
+    Json,
 }
 
 impl MetaCommand {
@@ -24,7 +37,7 @@ impl MetaCommand {
 
         let parts: Vec<&str> = trimmed.split_whitespace().collect();
 
-        match parts.get(0) {
+        match parts.first() {
             Some(&"\\q") | Some(&"\\quit") => Some(MetaCommand::Quit),
             Some(&"\\h") | Some(&"\\help") => Some(MetaCommand::Help),
             Some(&"\\d") => {
@@ -51,6 +64,33 @@ impl MetaCommand {
                 }
             }
             Some(&"\\timing") => Some(MetaCommand::Timing),
+            Some(&"\\copy") => {
+                // Parse: \copy table_name TO/FROM 'file_path'
+                // Format: \copy users TO '/tmp/users.csv'
+                if parts.len() < 4 {
+                    return None;
+                }
+
+                let table = parts[1].to_string();
+                let direction_str = parts[2];
+                let file_path =
+                    parts[3..].join(" ").trim_matches('\'').trim_matches('"').to_string();
+
+                let direction = match direction_str.to_uppercase().as_str() {
+                    "TO" => CopyDirection::Export,
+                    "FROM" => CopyDirection::Import,
+                    _ => return None,
+                };
+
+                // Infer format from file extension
+                let format = if file_path.ends_with(".json") {
+                    CopyFormat::Json
+                } else {
+                    CopyFormat::Csv // Default to CSV
+                };
+
+                Some(MetaCommand::Copy { table, file_path, direction, format })
+            }
             Some(&"\\save") => {
                 // Optional filename argument
                 let filename = parts.get(1).map(|s| s.to_string());
@@ -131,5 +171,47 @@ mod tests {
     #[test]
     fn test_non_meta_command() {
         assert!(MetaCommand::parse("SELECT * FROM users").is_none());
+    }
+
+    #[test]
+    fn test_parse_copy_export_csv() {
+        if let Some(MetaCommand::Copy { table, file_path, direction, format }) =
+            MetaCommand::parse("\\copy users TO '/tmp/users.csv'")
+        {
+            assert_eq!(table, "users");
+            assert_eq!(file_path, "/tmp/users.csv");
+            assert!(matches!(direction, CopyDirection::Export));
+            assert!(matches!(format, CopyFormat::Csv));
+        } else {
+            panic!("Failed to parse copy export CSV command");
+        }
+    }
+
+    #[test]
+    fn test_parse_copy_import_csv() {
+        if let Some(MetaCommand::Copy { table, file_path, direction, format }) =
+            MetaCommand::parse("\\copy users FROM '/tmp/users.csv'")
+        {
+            assert_eq!(table, "users");
+            assert_eq!(file_path, "/tmp/users.csv");
+            assert!(matches!(direction, CopyDirection::Import));
+            assert!(matches!(format, CopyFormat::Csv));
+        } else {
+            panic!("Failed to parse copy import CSV command");
+        }
+    }
+
+    #[test]
+    fn test_parse_copy_export_json() {
+        if let Some(MetaCommand::Copy { table, file_path, direction, format }) =
+            MetaCommand::parse("\\copy users TO /tmp/users.json")
+        {
+            assert_eq!(table, "users");
+            assert_eq!(file_path, "/tmp/users.json");
+            assert!(matches!(direction, CopyDirection::Export));
+            assert!(matches!(format, CopyFormat::Json));
+        } else {
+            panic!("Failed to parse copy export JSON command");
+        }
     }
 }

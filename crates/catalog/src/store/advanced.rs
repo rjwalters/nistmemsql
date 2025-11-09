@@ -374,7 +374,7 @@ impl super::Catalog {
         event: Option<ast::TriggerEvent>,
     ) -> impl Iterator<Item = &'a TriggerDefinition> + 'a {
         self.triggers.values().filter(move |trigger| {
-            trigger.table_name == table_name && event.as_ref().map_or(true, |e| trigger.event == *e)
+            trigger.table_name == table_name && event.as_ref().is_none_or(|e| trigger.event == *e)
         })
     }
 

@@ -44,8 +44,8 @@ impl LiteralValue {
             SqlValue::Date(s) => LiteralValue::Date(s.clone()),
             SqlValue::Time(s) => LiteralValue::Time(s.clone()),
             SqlValue::Timestamp(s) => LiteralValue::Timestamp(s.clone()),
-            SqlValue::Interval(s) => LiteralValue::Varchar(s.clone()), /* Treat interval as
-                                                                         * string for now */
+            SqlValue::Interval(s) => LiteralValue::Varchar(s.clone()), /* Treat interval as */
+            // string for now
             SqlValue::Null => LiteralValue::Null,
         }
     }

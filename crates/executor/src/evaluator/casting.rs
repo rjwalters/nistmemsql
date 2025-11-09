@@ -29,8 +29,8 @@ pub(crate) fn to_i64(value: &types::SqlValue) -> Result<i64, ExecutorError> {
         types::SqlValue::Smallint(n) => Ok(*n as i64),
         types::SqlValue::Integer(n) => Ok(*n),
         types::SqlValue::Bigint(n) => Ok(*n),
-        types::SqlValue::Unsigned(n) => Ok(*n as i64), /* Note: may overflow for large unsigned
-                                                         * values */
+        types::SqlValue::Unsigned(n) => Ok(*n as i64), /* Note: may overflow for large unsigned */
+        // values
         _ => Err(ExecutorError::TypeMismatch {
             left: value.clone(),
             op: "numeric_conversion".to_string(),

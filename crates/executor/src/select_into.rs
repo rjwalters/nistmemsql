@@ -131,8 +131,8 @@ impl SelectIntoExecutor {
     /// Infer SQL data type from a runtime value
     fn infer_data_type(value: &types::SqlValue) -> DataType {
         match value {
-            types::SqlValue::Null => DataType::Varchar { max_length: Some(255) }, /* Default for
-                                                                                    * NULL */
+            types::SqlValue::Null => DataType::Varchar { max_length: Some(255) }, /* Default for */
+            // NULL
             types::SqlValue::Integer(_) => DataType::Integer,
             types::SqlValue::Bigint(_) => DataType::Bigint,
             types::SqlValue::Unsigned(_) => DataType::Unsigned,

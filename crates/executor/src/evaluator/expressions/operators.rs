@@ -57,14 +57,14 @@ pub(crate) fn eval_unary_op(
         (Not, SqlValue::Real(f)) => Ok(SqlValue::Boolean(!(*f != 0.0))),
         (Not, SqlValue::Double(f)) => Ok(SqlValue::Boolean(!(*f != 0.0))),
         (Not, SqlValue::Numeric(d)) => Ok(SqlValue::Boolean(!(*d != 0.0))),
-        (Not, SqlValue::Character(_)) => Ok(SqlValue::Boolean(false)), /* Non-empty character is
-                                                                         * truthy, so NOT is
-                                                                         * false */
+        (Not, SqlValue::Character(_)) => Ok(SqlValue::Boolean(false)), /* Non-empty character is */
+        // truthy, so NOT is
+        // false
         (Not, SqlValue::Varchar(_)) => Ok(SqlValue::Boolean(false)), /* Non-empty varchar is truthy, so NOT is false */
         (Not, SqlValue::Date(_)) => Ok(SqlValue::Boolean(false)),    // Date values are truthy
         (Not, SqlValue::Time(_)) => Ok(SqlValue::Boolean(false)),    // Time values are truthy
-        (Not, SqlValue::Timestamp(_)) => Ok(SqlValue::Boolean(false)), /* Timestamp values are
-                                                                         * truthy */
+        (Not, SqlValue::Timestamp(_)) => Ok(SqlValue::Boolean(false)), /* Timestamp values are */
+        // truthy
         (Not, SqlValue::Interval(_)) => Ok(SqlValue::Boolean(false)), // Interval values are truthy
 
         // Type errors

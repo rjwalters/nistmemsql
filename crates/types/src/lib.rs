@@ -182,8 +182,8 @@ impl SqlValue {
             SqlValue::Real(_) => DataType::Real,
             SqlValue::Double(_) => DataType::DoublePrecision,
             SqlValue::Character(s) => DataType::Character { length: s.len() },
-            SqlValue::Varchar(_) => DataType::Varchar { max_length: None }, /* Unknown/unlimited
-                                                                              * length */
+            SqlValue::Varchar(_) => DataType::Varchar { max_length: None }, /* Unknown/unlimited */
+            // length
             SqlValue::Boolean(_) => DataType::Boolean,
             SqlValue::Date(_) => DataType::Date,
             SqlValue::Time(_) => DataType::Time { with_timezone: false },

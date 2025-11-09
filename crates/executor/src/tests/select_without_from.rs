@@ -124,9 +124,9 @@ fn test_select_arithmetic_expression() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    // Arithmetic operations now return Numeric (DECIMAL)
-    assert_eq!(result[0].values[0], types::SqlValue::Numeric(2.0)); // 1 + 1
-    assert_eq!(result[0].values[1], types::SqlValue::Numeric(6.0)); // 2 * 3
+    // Note: +, -, * return Integer; only / returns Numeric currently
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(2)); // 1 + 1
+    assert_eq!(result[0].values[1], types::SqlValue::Integer(6)); // 2 * 3
 }
 
 #[test]

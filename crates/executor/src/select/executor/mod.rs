@@ -7,11 +7,13 @@
 //! - `aggregation` - Aggregation and GROUP BY execution
 //! - `nonagg` - Non-aggregation execution path
 //! - `utils` - Utility methods for expression analysis
+//! - `index_optimization` - Index-based optimizations for WHERE and ORDER BY
 
 mod aggregation;
 mod builder;
 mod columns;
 mod execute;
+mod index_optimization;
 mod nonagg;
 mod utils;
 
