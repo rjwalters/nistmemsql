@@ -100,13 +100,13 @@ impl Repl {
                 self.executor.list_tables()?;
             }
             MetaCommand::ListSchemas => {
-                println!("Schemas: public (default)");
+                self.executor.list_schemas()?;
             }
             MetaCommand::ListIndexes => {
-                println!("No indexes defined.");
+                self.executor.list_indexes()?;
             }
             MetaCommand::ListRoles => {
-                println!("Roles: superuser (current)");
+                self.executor.list_roles()?;
             }
             MetaCommand::SetFormat(format) => {
                 self.formatter.set_format(format);

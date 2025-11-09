@@ -140,4 +140,101 @@ impl SqlExecutor {
         let state = if self.timing_enabled { "on" } else { "off" };
         println!("Timing is {}", state);
     }
+
+    pub fn list_schemas(&self) -> anyhow::Result<()> {
+        let schemas = self.db.catalog.list_schemas();
+        let current_schema = self.db.catalog.get_current_schema();
+
+        if schemas.is_empty() {
+            println!("No schemas found");
+        } else {
+            println!("List of schemas");
+            println!("{:<20} {:<10}", "Name", "");
+            println!("{}", "-".repeat(30));
+            for schema_name in schemas {
+                let marker = if schema_name == current_schema { "(current)" } else { "" };
+                println!("{:<20} {:<10}", schema_name, marker);
+            }
+        }
+        Ok(())
+    }
+
+    pub fn list_indexes(&self) -> anyhow::Result<()> {
+        let index_names = self.db.list_indexes();
+
+        if index_names.is_empty() {
+            println!("No indexes found");
+        } else {
+            println!("List of indexes");
+            println!("{:<20} {:<20} {:<15} {:<10}", "Name", "Table", "Columns", "Type");
+            println!("{}", "-".repeat(70));
+
+            for index_name in index_names {
+                if let Some(index_meta) = self.db.get_index(&index_name) {
+                    let columns_str = index_meta.columns.iter()
+                        .map(|col| col.column_name.clone())
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    let index_type = if index_meta.unique { "UNIQUE" } else { "BTREE" };
+
+                    println!("{:<20} {:<20} {:<15} {:<10}",
+                        index_meta.index_name,
+                        index_meta.table_name,
+                        columns_str,
+                        index_type
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn list_roles(&self) -> anyhow::Result<()> {
+        let roles = self.db.catalog.list_roles();
+        let current_role = self.db.get_current_role();
+
+        if roles.is_empty() {
+            // If no roles defined, show default PUBLIC role
+            println!("List of roles");
+            println!("{:<20} {:<15}", "Name", "Attributes");
+            println!("{}", "-".repeat(35));
+            println!("{:<20} {:<15}", "PUBLIC", "(default)");
+        } else {
+            println!("List of roles");
+            println!("{:<20} {:<15}", "Name", "Attributes");
+            println!("{}", "-".repeat(35));
+
+            for role_name in roles {
+                let marker = if role_name == current_role { "(current)" } else { "" };
+                println!("{:<20} {:<15}", role_name, marker);
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_list_schemas() {
+        let executor = SqlExecutor::new(None).unwrap();
+        // Default database should have "public" schema
+        assert!(executor.list_schemas().is_ok());
+    }
+
+    #[test]
+    fn test_list_indexes_empty() {
+        let executor = SqlExecutor::new(None).unwrap();
+        // New database should have no indexes
+        assert!(executor.list_indexes().is_ok());
+    }
+
+    #[test]
+    fn test_list_roles() {
+        let executor = SqlExecutor::new(None).unwrap();
+        // Should show at least the default PUBLIC role
+        assert!(executor.list_roles().is_ok());
+    }
 }
