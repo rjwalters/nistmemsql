@@ -30,9 +30,10 @@
 
 #![allow(dead_code)]
 
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use ast::{BinaryOperator, Expression};
-use std::cmp::Ordering;
+use types::SqlValue;
 
 /// Information about a table and its predicates
 #[derive(Debug, Clone)]
