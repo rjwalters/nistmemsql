@@ -152,7 +152,8 @@ impl DeleteExecutor {
             )?;
         }
 
-        // Step 3: Check referential integrity for each row to be deleted
+        // Step 3: Handle referential integrity for each row to be deleted
+        // This may CASCADE deletes, SET NULL, or SET DEFAULT in child tables
         for (_, row) in &rows_and_indices_to_delete {
             check_no_child_references(database, &stmt.table_name, row)?;
         }
