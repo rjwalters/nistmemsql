@@ -1,0 +1,93 @@
+# VibeSQL Configuration File Example
+#
+# Copy this file to ~/.vibesqlrc to customize your VibeSQL CLI experience
+#
+# Usage:
+#   cp .vibesqlrc.example ~/.vibesqlrc
+#   # Edit ~/.vibesqlrc with your preferences
+#   vibesql
+#
+# All settings are optional. If not specified, sensible defaults are used.
+
+# ============================================================================
+# Display Settings
+# ============================================================================
+[display]
+# Output format for query results
+# Options: "table", "json", "csv"
+# Default: "table"
+# Can be overridden with --format CLI flag or \f meta-command
+format = "table"
+
+# ============================================================================
+# Database Settings
+# ============================================================================
+[database]
+# Default database file to load on startup
+# Leave commented to start with empty database
+# Example: default_path = "/Users/username/databases/mydb.sql"
+# default_path = ""
+
+# Automatically save database when exiting
+# Only works if default_path is set or --database flag was used
+# Default: false
+auto_save = true
+
+# ============================================================================
+# History Settings
+# ============================================================================
+[history]
+# Location of command history file
+# Supports ~ for home directory
+# Default: "~/.vibesql_history"
+file = "~/.vibesql_history"
+
+# Maximum number of history entries to keep
+# Older entries are automatically removed
+# Default: 10000
+max_entries = 10000
+
+# ============================================================================
+# Query Settings
+# ============================================================================
+[query]
+# Query timeout in seconds
+# Set to 0 for no timeout (useful for long-running queries)
+# Default: 30
+timeout_seconds = 30
+
+# ============================================================================
+# Example Configurations
+# ============================================================================
+
+# MINIMAL CONFIGURATION - Just JSON output
+# [display]
+# format = "json"
+
+# DEVELOPER CONFIGURATION - Extended history, no timeout
+# [display]
+# format = "json"
+#
+# [history]
+# max_entries = 50000
+#
+# [query]
+# timeout_seconds = 0
+
+# PRODUCTION CONFIGURATION - Auto-load database, auto-save
+# [display]
+# format = "table"
+#
+# [database]
+# default_path = "/Users/alice/databases/production.sql"
+# auto_save = true
+#
+# [query]
+# timeout_seconds = 60
+
+# DATA ANALYST CONFIGURATION - CSV output by default
+# [display]
+# format = "csv"
+#
+# [database]
+# default_path = "/Users/bob/analytics/data.sql"

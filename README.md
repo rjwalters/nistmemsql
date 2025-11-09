@@ -74,7 +74,14 @@ We use comprehensive test suites to track SQL:1999 compliance:
 | Custom E2E Tests | 2,000+ tests | ✅ **100% passing** |
 | SQLLogicTest | 623 test files (~5.9M tests) | 🔄 **Progressive coverage** - See badge above (cumulative from all CI + boost runs) |
 
-**Recent Progress** (As of Nov 1, 2025):
+**Recent Progress** (As of Nov 9, 2025):
+- ✅ **Phase 5: CLI Advanced Features Complete!** (#1076)
+  - Enhanced meta-commands (\ds, \di, \du) - Real schema/index/role information
+  - \copy command - CSV/JSON import and export with security validation
+  - Configuration file support (~/.vibesqlrc) - Persistent user preferences
+  - Database persistence (\save command) - Save/load SQL dumps
+  - Multiple output formats (table, JSON, CSV)
+  - Query timing toggle
 - ✅ **100% SQL:1999 Core Conformance ACHIEVED** - All 739 tests passing!
 - ✅ **Phase 2 Optimizations Complete** - Hash join, expression optimization, memory optimization (#789)
 - ✅ **SQLLogicTest integration** - Added ~5.9M tests via dolthub/sqllogictest submodule
@@ -314,6 +321,17 @@ This isn't just about databases. It's about understanding what's now possible wi
 - **Expected Results**: 19 examples with full expected results (math + datetime functions) ✅
 - **Query Runner Tool**: Batch execution and validation CLI ✅
 
+**CLI & Tools** ✅ **(Phase 5 Complete!)**
+- **Interactive REPL**: Full-featured SQL shell with readline support
+- **Meta-commands**: `\dt`, `\ds`, `\di`, `\du`, `\d [table]` for database exploration
+- **Import/Export**: `\copy` command for CSV and JSON with security validation
+- **Output formats**: Table (default), JSON, CSV
+- **Configuration file**: `~/.vibesqlrc` with TOML format for user preferences
+- **Database persistence**: `\save` command for SQL dumps, auto-save on exit
+- **Query timing**: `\timing` to measure execution performance
+- **Command history**: Persistent history with configurable size
+- **Script execution**: `--script` flag for batch SQL execution
+
 **Infrastructure** ✅
 - 1,000+ tests passing (100%)
 - ~86,000 lines of Rust code
@@ -323,6 +341,7 @@ This isn't just about databases. It's about understanding what's now possible wi
 - Strict TDD methodology
 - WASM bindings for browser execution
 - Live web demo with Monaco editor and sample databases
+- Python bindings with DB-API 2.0 interface
 - CI/CD pipeline with auto-deploy
 - Loom AI orchestration for parallel development
 
@@ -584,15 +603,40 @@ python3 benchmarks/python_overhead.py
 # Build and run the CLI
 cargo run --bin vibesql
 
+# Or load a database
+cargo run --bin vibesql -- --database mydb.sql
+
 # Try some SQL
 vibesql> CREATE TABLE users (id INTEGER, name VARCHAR(50));
 vibesql> INSERT INTO users VALUES (1, 'Alice');
 vibesql> SELECT * FROM users;
+
+# Use meta-commands
+vibesql> \dt                           # List tables
+vibesql> \d users                      # Describe table
+vibesql> \f json                       # Set output format
+vibesql> \copy users TO '/tmp/users.csv'  # Export to CSV
+vibesql> \copy users FROM '/tmp/backup.csv'  # Import from CSV
+vibesql> \save mydb.sql                # Save database
 ```
+
+**CLI Features** (Phase 5 Complete!):
+- **Meta-commands**: `\dt` (tables), `\ds` (schemas), `\di` (indexes), `\du` (roles), `\d` (describe)
+- **Import/Export**: `\copy` command for CSV and JSON with security validation
+- **Output formats**: Table, JSON, CSV
+- **Configuration**: `~/.vibesqlrc` for user preferences
+- **Persistence**: `\save` command for SQL dumps with auto-save support
+- **Query timing**: `\timing` to measure execution time
+
+See [CLI User Guide](docs/CLI_GUIDE.md) for complete documentation.
 
 ---
 
 ## 📖 Documentation
+
+**User Guides**:
+- **[docs/CLI_GUIDE.md](docs/CLI_GUIDE.md)** - Complete CLI user guide (meta-commands, import/export, configuration)
+- **[.vibesqlrc.example](.vibesqlrc.example)** - Example configuration file
 
 **Quick Links**:
 - **[docs/WORK_PLAN.md](docs/WORK_PLAN.md)** - Detailed roadmap and feature tracking
@@ -600,10 +644,16 @@ vibesql> SELECT * FROM users;
 - **[docs/archive/SQL1999_COMPLIANCE_GAP_ANALYSIS.md](docs/archive/SQL1999_COMPLIANCE_GAP_ANALYSIS.md)** - Honest assessment of current vs target
 - **[docs/planning/ROADMAP_CORE_COMPLIANCE.md](docs/planning/ROADMAP_CORE_COMPLIANCE.md)** - 10-phase plan to Core compliance
 
+**Testing & Conformance**:
+- [docs/testing/TESTING_STRATEGY.md](docs/testing/TESTING_STRATEGY.md) - Test approach and strategy
+- [docs/testing/SQL1999_CONFORMANCE.md](docs/testing/SQL1999_CONFORMANCE.md) - SQL:1999 conformance tracking
+- [docs/sqllogictest/SQLLOGICTEST_QUICKSTART.md](docs/sqllogictest/SQLLOGICTEST_QUICKSTART.md) - SQLLogicTest quick start
+- [docs/roadmaps/PUNCHLIST_100_CONFORMANCE.md](docs/roadmaps/PUNCHLIST_100_CONFORMANCE.md) - Conformance strategy
+
 **Architecture & Design**:
 - [docs/decisions/](docs/decisions/) - Architecture Decision Records
-- [docs/testing/TESTING_STRATEGY.md](docs/testing/TESTING_STRATEGY.md) - Test approach and strategy
 - [docs/lessons/TDD_APPROACH.md](docs/lessons/TDD_APPROACH.md) - TDD lessons learned
+- [docs/lessons/LESSONS_LEARNED.md](docs/lessons/LESSONS_LEARNED.md) - Lessons learned
 
 **Loom AI Orchestration**:
 - [CLAUDE.md](CLAUDE.md) - AI-powered development guide
