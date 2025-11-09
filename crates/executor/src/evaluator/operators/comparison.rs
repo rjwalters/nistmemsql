@@ -242,8 +242,8 @@ mod tests {
     #[test]
     fn test_temporal_comparisons() {
         let result = ComparisonOps::less_than(
-            &SqlValue::Date("2024-01-01".to_string()),
-            &SqlValue::Date("2024-12-31".to_string()),
+            &SqlValue::Date("2024-01-01".parse().unwrap()),
+            &SqlValue::Date("2024-12-31".parse().unwrap()),
         )
         .unwrap();
         assert_eq!(result, SqlValue::Boolean(true));

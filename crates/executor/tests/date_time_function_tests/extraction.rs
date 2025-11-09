@@ -15,7 +15,7 @@ fn test_year_from_date() {
 
     let expr = create_datetime_function(
         "YEAR",
-        vec![create_literal(types::SqlValue::Date(TEST_DATE.to_string()))],
+        vec![create_literal(types::SqlValue::Date(TEST_DATE.parse().unwrap()))],
     );
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(2024));
@@ -27,7 +27,7 @@ fn test_year_from_timestamp() {
 
     let expr = create_datetime_function(
         "YEAR",
-        vec![create_literal(types::SqlValue::Timestamp(TEST_TIMESTAMP.to_string()))],
+        vec![create_literal(types::SqlValue::Timestamp(TEST_TIMESTAMP.parse().unwrap()))],
     );
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(2024));
@@ -48,7 +48,7 @@ fn test_month_from_date() {
 
     let expr = create_datetime_function(
         "MONTH",
-        vec![create_literal(types::SqlValue::Date(TEST_DATE.to_string()))],
+        vec![create_literal(types::SqlValue::Date(TEST_DATE.parse().unwrap()))],
     );
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(3));
@@ -60,7 +60,7 @@ fn test_month_from_timestamp() {
 
     let expr = create_datetime_function(
         "MONTH",
-        vec![create_literal(types::SqlValue::Timestamp(TEST_TIMESTAMP_CHRISTMAS.to_string()))],
+        vec![create_literal(types::SqlValue::Timestamp(TEST_TIMESTAMP_CHRISTMAS.parse().unwrap()))],
     );
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(12));
@@ -72,7 +72,7 @@ fn test_day_from_date() {
 
     let expr = create_datetime_function(
         "DAY",
-        vec![create_literal(types::SqlValue::Date(TEST_DATE.to_string()))],
+        vec![create_literal(types::SqlValue::Date(TEST_DATE.parse().unwrap()))],
     );
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(15));
@@ -100,7 +100,7 @@ fn test_hour_from_time() {
 
     let expr = create_datetime_function(
         "HOUR",
-        vec![create_literal(types::SqlValue::Time(TEST_TIME.to_string()))],
+        vec![create_literal(types::SqlValue::Time(TEST_TIME.parse().unwrap()))],
     );
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(14));
@@ -112,7 +112,7 @@ fn test_hour_from_timestamp() {
 
     let expr = create_datetime_function(
         "HOUR",
-        vec![create_literal(types::SqlValue::Timestamp("2024-03-15 23:59:59".to_string()))],
+        vec![create_literal(types::SqlValue::Timestamp("2024-03-15 23:59:59".parse().unwrap()))],
     );
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(23));
@@ -124,7 +124,7 @@ fn test_minute_from_time() {
 
     let expr = create_datetime_function(
         "MINUTE",
-        vec![create_literal(types::SqlValue::Time(TEST_TIME.to_string()))],
+        vec![create_literal(types::SqlValue::Time(TEST_TIME.parse().unwrap()))],
     );
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(30));
@@ -136,7 +136,7 @@ fn test_minute_from_timestamp() {
 
     let expr = create_datetime_function(
         "MINUTE",
-        vec![create_literal(types::SqlValue::Timestamp("2024-03-15 14:45:30".to_string()))],
+        vec![create_literal(types::SqlValue::Timestamp("2024-03-15 14:45:30".parse().unwrap()))],
     );
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(45));
@@ -148,7 +148,7 @@ fn test_second_from_time() {
 
     let expr = create_datetime_function(
         "SECOND",
-        vec![create_literal(types::SqlValue::Time(TEST_TIME.to_string()))],
+        vec![create_literal(types::SqlValue::Time(TEST_TIME.parse().unwrap()))],
     );
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(45));
@@ -160,7 +160,7 @@ fn test_second_from_timestamp() {
 
     let expr = create_datetime_function(
         "SECOND",
-        vec![create_literal(types::SqlValue::Timestamp("2024-03-15 14:30:59".to_string()))],
+        vec![create_literal(types::SqlValue::Timestamp("2024-03-15 14:30:59".parse().unwrap()))],
     );
     let result = evaluator.eval(&expr, &row).unwrap();
     assert_eq!(result, types::SqlValue::Integer(59));
