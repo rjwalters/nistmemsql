@@ -1,26 +1,26 @@
 {
-  "conformance-summary": {
+  "slt-1": {
     "sql": "-- Current conformance by category\n-- Shows pass rate for each test category\n\nSELECT \n    category,\n    COUNT(*) as total,\n    SUM(CASE WHEN status='PASS' THEN 1 ELSE 0 END) as passed,\n    ROUND(100.0 * SUM(CASE WHEN status='PASS' THEN 1 ELSE 0 END) / COUNT(*), 1) as pass_rate\nFROM test_files\nGROUP BY category\nORDER BY category;"
   },
-  "recent-runs": {
+  "slt-2": {
     "sql": "-- Recent test runs\n-- Shows the last 10 test runs with pass rates\n\nSELECT \n    run_id,\n    started_at,\n    passed,\n    failed,\n    ROUND(100.0 * passed / total_files, 1) as pass_rate\nFROM test_runs\nORDER BY started_at DESC\nLIMIT 10;"
   },
-  "failing-index-tests": {
+  "slt-3": {
     "sql": "-- Find failing index tests\n-- Lists index-related tests that are currently failing\n\nSELECT file_path, subcategory\nFROM test_files\nWHERE category='index' AND status='FAIL'\nORDER BY subcategory, file_path\nLIMIT 20;"
   },
-  "test-progress-join": {
+  "slt-4": {
     "sql": "-- Test file progress (JOIN example)\n-- Shows current status vs last run status for evidence tests\n\nSELECT \n    tf.file_path,\n    tf.status as current_status,\n    tr.status as last_run_status,\n    tr.tested_at as last_tested\nFROM test_files tf\nLEFT JOIN test_results tr ON tf.file_path = tr.file_path\nWHERE tf.category = 'evidence'\nORDER BY tf.file_path;"
   },
-  "total-conformance": {
+  "slt-5": {
     "sql": "-- Total conformance percentage\n-- Overall pass rate across all tests\n\nSELECT \n    COUNT(*) as total_tests,\n    SUM(CASE WHEN status='PASS' THEN 1 ELSE 0 END) as passed_tests,\n    SUM(CASE WHEN status='FAIL' THEN 1 ELSE 0 END) as failed_tests,\n    ROUND(100.0 * SUM(CASE WHEN status='PASS' THEN 1 ELSE 0 END) / COUNT(*), 1) as pass_rate\nFROM test_files;"
   },
-  "slowest-tests": {
+  "slt-6": {
     "sql": "-- Find slowest tests\n-- Tests with longest execution times\n\nSELECT \n    file_path,\n    duration_ms,\n    status\nFROM test_results\nWHERE run_id = (SELECT MAX(run_id) FROM test_runs)\nORDER BY duration_ms DESC\nLIMIT 10;"
   },
-  "error-analysis": {
+  "slt-7": {
     "sql": "-- Error message analysis\n-- Group failures by error type\n\nSELECT \n    error_message,\n    COUNT(*) as occurrence_count\nFROM test_results\nWHERE status='FAIL' AND error_message IS NOT NULL\nGROUP BY error_message\nORDER BY COUNT(*) DESC\nLIMIT 10;"
   },
-  "never-passed": {
+  "slt-8": {
     "sql": "-- Tests that have never passed\n-- Find problem areas that need work\n\nSELECT \n    file_path,\n    category,\n    subcategory\nFROM test_files\nWHERE status='FAIL' AND last_passed IS NULL\nORDER BY category, file_path;"
   }
 }
