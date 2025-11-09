@@ -102,6 +102,10 @@ impl<'a> RowSelector<'a> {
         let mut candidate_rows = Vec::new();
 
         for (row_index, row) in table.scan().iter().enumerate() {
+            // Clear CSE cache before evaluating each row to prevent column values
+            // from being incorrectly cached across different rows
+            evaluator.clear_cse_cache();
+
             // Check WHERE clause
             let should_update = if let Some(ref where_clause) = where_clause {
                 match where_clause {

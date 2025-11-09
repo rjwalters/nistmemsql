@@ -144,6 +144,10 @@ impl UpdateExecutor {
         )> = Vec::new();
 
         for (row_index, row) in candidate_rows {
+            // Clear CSE cache before evaluating assignment expressions for this row
+            // to prevent cached column values from previous rows
+            evaluator.clear_cse_cache();
+
             // If the primary key is being updated, we need to check for child references
             if let Some(pk_indices) = schema.get_primary_key_indices() {
                 let updates_pk = stmt.assignments.iter().any(|a| {
