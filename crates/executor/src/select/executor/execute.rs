@@ -2,6 +2,7 @@
 
 use super::builder::SelectExecutor;
 use crate::errors::ExecutorError;
+use crate::optimizer::PredicateDecomposition;
 use crate::select::cte::{execute_ctes, CteResult};
 use crate::select::helpers::apply_limit_offset;
 use crate::select::join::FromResult;
@@ -101,7 +102,17 @@ impl SelectExecutor<'_> {
         from: &ast::FromClause,
         cte_results: &HashMap<String, CteResult>,
     ) -> Result<FromResult, ExecutorError> {
-        use crate::select::scan::execute_from_clause;
-        execute_from_clause(from, cte_results, self.database, |query| self.execute(query))
+        self.execute_from_with_predicates(from, cte_results, None)
+    }
+
+    /// Execute a FROM clause with optional WHERE predicate pushdown
+    pub(super) fn execute_from_with_predicates(
+        &self,
+        from: &ast::FromClause,
+        cte_results: &HashMap<String, CteResult>,
+        predicates: Option<&PredicateDecomposition>,
+    ) -> Result<FromResult, ExecutorError> {
+        use crate::select::scan::execute_from_clause_with_predicates;
+        execute_from_clause_with_predicates(from, cte_results, self.database, |query| self.execute(query), predicates)
     }
 }
