@@ -2,9 +2,10 @@
 // Persistence Tests
 // ============================================================================
 
-use crate::Database;
 use catalog::{ColumnSchema, TableSchema};
 use types::{DataType, SqlValue};
+
+use crate::Database;
 
 #[test]
 fn test_save_sql_dump() {
@@ -15,7 +16,11 @@ fn test_save_sql_dump() {
         "test".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
         ],
     );
 
@@ -23,8 +28,12 @@ fn test_save_sql_dump() {
 
     // Insert test data
     let table = db.get_table_mut("test").unwrap();
-    table.insert(crate::Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())])).unwrap();
-    table.insert(crate::Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())])).unwrap();
+    table
+        .insert(crate::Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]))
+        .unwrap();
+    table
+        .insert(crate::Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())]))
+        .unwrap();
 
     // Save SQL dump
     let path = "/tmp/test_db.sql";
@@ -62,7 +71,11 @@ fn test_sql_dump_with_nulls() {
         "test_nulls".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("nullable_col".to_string(), DataType::Varchar { max_length: Some(50) }, true),
+            ColumnSchema::new(
+                "nullable_col".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                true,
+            ),
         ],
     );
 
@@ -71,7 +84,9 @@ fn test_sql_dump_with_nulls() {
     // Insert test data with NULL values
     let table = db.get_table_mut("test_nulls").unwrap();
     table.insert(crate::Row::new(vec![SqlValue::Integer(1), SqlValue::Null])).unwrap();
-    table.insert(crate::Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("text".to_string())])).unwrap();
+    table
+        .insert(crate::Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("text".to_string())]))
+        .unwrap();
     table.insert(crate::Row::new(vec![SqlValue::Integer(3), SqlValue::Null])).unwrap();
 
     // Save SQL dump
@@ -98,7 +113,11 @@ fn test_sql_dump_with_quotes() {
         "test_quotes".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("text".to_string(), DataType::Varchar { max_length: Some(100) }, false),
+            ColumnSchema::new(
+                "text".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
         ],
     );
 
@@ -106,10 +125,24 @@ fn test_sql_dump_with_quotes() {
 
     // Insert test data with various quote types
     let table = db.get_table_mut("test_quotes").unwrap();
-    table.insert(crate::Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("it's".to_string())])).unwrap();
-    table.insert(crate::Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("say \"hello\"".to_string())])).unwrap();
-    table.insert(crate::Row::new(vec![SqlValue::Integer(3), SqlValue::Varchar("it's a \"test\"".to_string())])).unwrap();
-    table.insert(crate::Row::new(vec![SqlValue::Integer(4), SqlValue::Varchar("".to_string())])).unwrap();
+    table
+        .insert(crate::Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("it's".to_string())]))
+        .unwrap();
+    table
+        .insert(crate::Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Varchar("say \"hello\"".to_string()),
+        ]))
+        .unwrap();
+    table
+        .insert(crate::Row::new(vec![
+            SqlValue::Integer(3),
+            SqlValue::Varchar("it's a \"test\"".to_string()),
+        ]))
+        .unwrap();
+    table
+        .insert(crate::Row::new(vec![SqlValue::Integer(4), SqlValue::Varchar("".to_string())]))
+        .unwrap();
 
     // Save SQL dump
     let path = "/tmp/test_quotes.sql";
@@ -118,7 +151,10 @@ fn test_sql_dump_with_quotes() {
     // Verify SQL properly escapes quotes
     let content = std::fs::read_to_string(path).unwrap();
     assert!(content.contains("'it''s'"), "Single quotes should be escaped as ''");
-    assert!(content.contains("'say \"hello\"'"), "Double quotes should be preserved in single-quoted strings");
+    assert!(
+        content.contains("'say \"hello\"'"),
+        "Double quotes should be preserved in single-quoted strings"
+    );
     assert!(content.contains("'it''s a \"test\"'"), "Mixed quotes should be handled correctly");
     assert!(content.contains("''"), "Empty string should be represented");
 
@@ -159,7 +195,11 @@ fn test_sql_dump_empty_table() {
         "empty_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
         ],
     );
 
@@ -172,7 +212,10 @@ fn test_sql_dump_empty_table() {
     // Verify SQL contains CREATE TABLE but no INSERT statements
     let content = std::fs::read_to_string(path).unwrap();
     assert!(content.contains("CREATE TABLE empty_table"));
-    assert!(!content.contains("INSERT INTO empty_table"), "Empty table should have no INSERT statements");
+    assert!(
+        !content.contains("INSERT INTO empty_table"),
+        "Empty table should have no INSERT statements"
+    );
 
     // Cleanup
     std::fs::remove_file(path).ok();
@@ -187,25 +230,36 @@ fn test_sql_dump_with_indexes() {
         "test_indexes".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
-            ColumnSchema::new("email".to_string(), DataType::Varchar { max_length: Some(100) }, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
+            ColumnSchema::new(
+                "email".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
         ],
     );
 
     db.create_table(schema).unwrap();
 
     // Create indexes (use fully qualified table name)
-    let idx1 = ast::IndexColumn {
-        column_name: "name".to_string(),
-        direction: ast::OrderDirection::Asc,
-    };
-    db.create_index("idx_name".to_string(), "public.test_indexes".to_string(), false, vec![idx1]).unwrap();
+    let idx1 =
+        ast::IndexColumn { column_name: "name".to_string(), direction: ast::OrderDirection::Asc };
+    db.create_index("idx_name".to_string(), "public.test_indexes".to_string(), false, vec![idx1])
+        .unwrap();
 
-    let idx2 = ast::IndexColumn {
-        column_name: "email".to_string(),
-        direction: ast::OrderDirection::Asc,
-    };
-    db.create_index("idx_email_unique".to_string(), "public.test_indexes".to_string(), true, vec![idx2]).unwrap();
+    let idx2 =
+        ast::IndexColumn { column_name: "email".to_string(), direction: ast::OrderDirection::Asc };
+    db.create_index(
+        "idx_email_unique".to_string(),
+        "public.test_indexes".to_string(),
+        true,
+        vec![idx2],
+    )
+    .unwrap();
 
     // Save SQL dump
     let path = "/tmp/test_indexes.sql";
@@ -215,7 +269,10 @@ fn test_sql_dump_with_indexes() {
     let content = std::fs::read_to_string(path).unwrap();
     // Index names are normalized to uppercase
     assert!(content.contains("CREATE INDEX IDX_NAME"), "Should contain CREATE INDEX IDX_NAME");
-    assert!(content.contains("CREATE UNIQUE INDEX IDX_EMAIL_UNIQUE"), "Should contain CREATE UNIQUE INDEX IDX_EMAIL_UNIQUE");
+    assert!(
+        content.contains("CREATE UNIQUE INDEX IDX_EMAIL_UNIQUE"),
+        "Should contain CREATE UNIQUE INDEX IDX_EMAIL_UNIQUE"
+    );
     assert!(content.contains("ON public.test_indexes"), "Should reference test_indexes table");
     assert!(content.contains("Asc"), "Index direction should be included");
 
@@ -240,13 +297,25 @@ fn test_sql_dump_all_data_types() {
             ColumnSchema::new("col_real".to_string(), DataType::Real, true),
             ColumnSchema::new("col_double".to_string(), DataType::DoublePrecision, true),
             // String types
-            ColumnSchema::new("col_varchar".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "col_varchar".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
             ColumnSchema::new("col_char".to_string(), DataType::Character { length: 10 }, true),
             // Boolean
             ColumnSchema::new("col_bool".to_string(), DataType::Boolean, true),
             // Numeric
-            ColumnSchema::new("col_numeric".to_string(), DataType::Numeric { precision: 10, scale: 2 }, true),
-            ColumnSchema::new("col_decimal".to_string(), DataType::Decimal { precision: 5, scale: 0 }, true),
+            ColumnSchema::new(
+                "col_numeric".to_string(),
+                DataType::Numeric { precision: 10, scale: 2 },
+                true,
+            ),
+            ColumnSchema::new(
+                "col_decimal".to_string(),
+                DataType::Decimal { precision: 5, scale: 0 },
+                true,
+            ),
         ],
     );
 
@@ -254,34 +323,38 @@ fn test_sql_dump_all_data_types() {
 
     // Insert test data with various values
     let table = db.get_table_mut("all_types").unwrap();
-    table.insert(crate::Row::new(vec![
-        SqlValue::Integer(42),
-        SqlValue::Smallint(100),
-        SqlValue::Bigint(999999),
-        SqlValue::Float(3.14),
-        SqlValue::Real(2.718),
-        SqlValue::Double(1.414),
-        SqlValue::Varchar("test".to_string()),
-        SqlValue::Character("fixed".to_string()),
-        SqlValue::Boolean(true),
-        SqlValue::Numeric(123.45),
-        SqlValue::Numeric(999.0),
-    ])).unwrap();
+    table
+        .insert(crate::Row::new(vec![
+            SqlValue::Integer(42),
+            SqlValue::Smallint(100),
+            SqlValue::Bigint(999999),
+            SqlValue::Float(3.14),
+            SqlValue::Real(2.718),
+            SqlValue::Double(1.414),
+            SqlValue::Varchar("test".to_string()),
+            SqlValue::Character("fixed".to_string()),
+            SqlValue::Boolean(true),
+            SqlValue::Numeric(123.45),
+            SqlValue::Numeric(999.0),
+        ]))
+        .unwrap();
 
     // Test special float values (NaN, Infinity)
-    table.insert(crate::Row::new(vec![
-        SqlValue::Null,
-        SqlValue::Null,
-        SqlValue::Null,
-        SqlValue::Float(f32::NAN),
-        SqlValue::Real(f32::INFINITY),
-        SqlValue::Double(f64::NEG_INFINITY),
-        SqlValue::Null,
-        SqlValue::Null,
-        SqlValue::Boolean(false),
-        SqlValue::Null,
-        SqlValue::Null,
-    ])).unwrap();
+    table
+        .insert(crate::Row::new(vec![
+            SqlValue::Null,
+            SqlValue::Null,
+            SqlValue::Null,
+            SqlValue::Float(f32::NAN),
+            SqlValue::Real(f32::INFINITY),
+            SqlValue::Double(f64::NEG_INFINITY),
+            SqlValue::Null,
+            SqlValue::Null,
+            SqlValue::Boolean(false),
+            SqlValue::Null,
+            SqlValue::Null,
+        ]))
+        .unwrap();
 
     // Save SQL dump
     let path = "/tmp/test_all_types.sql";
@@ -321,7 +394,11 @@ fn test_sql_dump_large_dataset() {
         "large_table".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("value".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new(
+                "value".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
         ],
     );
 
@@ -330,10 +407,12 @@ fn test_sql_dump_large_dataset() {
     // Insert 10,000 rows
     let table = db.get_table_mut("large_table").unwrap();
     for i in 0..10000 {
-        table.insert(crate::Row::new(vec![
-            SqlValue::Integer(i as i64),
-            SqlValue::Varchar(format!("value_{}", i)),
-        ])).unwrap();
+        table
+            .insert(crate::Row::new(vec![
+                SqlValue::Integer(i as i64),
+                SqlValue::Varchar(format!("value_{}", i)),
+            ]))
+            .unwrap();
     }
 
     // Save SQL dump and measure
@@ -369,7 +448,11 @@ fn test_read_sql_dump() {
         "test_load".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
         ],
     );
 
@@ -377,7 +460,9 @@ fn test_read_sql_dump() {
 
     // Insert test data
     let table = db.get_table_mut("test_load").unwrap();
-    table.insert(crate::Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Test".to_string())])).unwrap();
+    table
+        .insert(crate::Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Test".to_string())]))
+        .unwrap();
 
     // Save SQL dump
     let path = "/tmp/test_read_dump.sql";

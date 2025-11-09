@@ -10,10 +10,9 @@
 pub mod create_index;
 pub mod drop_index;
 
+use ast::{CreateIndexStmt, DropIndexStmt};
 pub use create_index::CreateIndexExecutor;
 pub use drop_index::DropIndexExecutor;
-
-use ast::{CreateIndexStmt, DropIndexStmt};
 use storage::Database;
 
 use crate::errors::ExecutorError;

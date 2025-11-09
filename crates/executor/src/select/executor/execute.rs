@@ -1,13 +1,18 @@
 //! Main execution methods for SelectExecutor
 
-use super::builder::SelectExecutor;
-use crate::errors::ExecutorError;
-use crate::select::cte::{execute_ctes, CteResult};
-use crate::select::helpers::apply_limit_offset;
-use crate::select::join::FromResult;
-use crate::select::set_operations::apply_set_operation;
-use crate::select::SelectResult;
 use std::collections::HashMap;
+
+use super::builder::SelectExecutor;
+use crate::{
+    errors::ExecutorError,
+    select::{
+        cte::{execute_ctes, CteResult},
+        helpers::apply_limit_offset,
+        join::FromResult,
+        set_operations::apply_set_operation,
+        SelectResult,
+    },
+};
 
 impl SelectExecutor<'_> {
     /// Execute a SELECT statement
@@ -74,7 +79,8 @@ impl SelectExecutor<'_> {
             self.execute_with_aggregation(stmt, cte_results)?
         } else if let Some(from_clause) = &stmt.from {
             // Pass WHERE clause to execute_from for predicate pushdown optimization
-            let from_result = self.execute_from_with_where(from_clause, cte_results, stmt.where_clause.as_ref())?;
+            let from_result =
+                self.execute_from_with_where(from_clause, cte_results, stmt.where_clause.as_ref())?;
             self.execute_without_aggregation(stmt, from_result)?
         } else {
             // SELECT without FROM - evaluate expressions as a single row
@@ -114,6 +120,8 @@ impl SelectExecutor<'_> {
         where_clause: Option<&ast::Expression>,
     ) -> Result<FromResult, ExecutorError> {
         use crate::select::scan::execute_from_clause;
-        execute_from_clause(from, cte_results, self.database, where_clause, |query| self.execute(query))
+        execute_from_clause(from, cte_results, self.database, where_clause, |query| {
+            self.execute(query)
+        })
     }
 }

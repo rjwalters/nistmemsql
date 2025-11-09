@@ -2,8 +2,9 @@
 //!
 //! This module handles SELECT query execution and result serialization.
 
-use crate::{Database, QueryResult};
 use wasm_bindgen::prelude::*;
+
+use crate::{Database, QueryResult};
 
 /// Executes a SELECT query and returns results as JSON
 pub fn execute_query(db: &Database, sql: &str) -> Result<JsValue, JsValue> {

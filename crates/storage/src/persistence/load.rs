@@ -6,9 +6,9 @@
 // Actual execution of statements happens at the CLI layer via the parser
 // and executor, but the parsing logic lives here for reusability.
 
+use std::{fs, path::Path};
+
 use crate::StorageError;
-use std::fs;
-use std::path::Path;
 
 /// Read SQL dump content from file
 ///
@@ -97,8 +97,6 @@ pub fn parse_sql_statements(content: &str) -> Result<Vec<String>, StorageError> 
 
     Ok(statements)
 }
-
-
 
 #[cfg(test)]
 mod tests {

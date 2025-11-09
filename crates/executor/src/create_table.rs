@@ -4,9 +4,10 @@ use ast::CreateTableStmt;
 use catalog::{ColumnSchema, TableSchema};
 use storage::Database;
 
-use crate::constraint_validator::ConstraintValidator;
-use crate::errors::ExecutorError;
-use crate::privilege_checker::PrivilegeChecker;
+use crate::{
+    constraint_validator::ConstraintValidator, errors::ExecutorError,
+    privilege_checker::PrivilegeChecker,
+};
 
 /// Executor for CREATE TABLE statements
 pub struct CreateTableExecutor;
@@ -26,10 +27,10 @@ impl CreateTableExecutor {
     /// # Examples
     ///
     /// ```
-    /// use ast::{CreateTableStmt, ColumnDef};
-    /// use types::DataType;
-    /// use storage::Database;
+    /// use ast::{ColumnDef, CreateTableStmt};
     /// use executor::CreateTableExecutor;
+    /// use storage::Database;
+    /// use types::DataType;
     ///
     /// let mut db = Database::new();
     /// let stmt = CreateTableStmt {
@@ -93,10 +94,8 @@ impl CreateTableExecutor {
             .collect();
 
         // Process constraints using the constraint validator
-        let constraint_result = ConstraintValidator::process_constraints(
-            &stmt.columns,
-            &stmt.table_constraints,
-        )?;
+        let constraint_result =
+            ConstraintValidator::process_constraints(&stmt.columns, &stmt.table_constraints)?;
 
         // Apply constraint results to columns (updates nullability)
         ConstraintValidator::apply_to_columns(&mut columns, &constraint_result);
@@ -141,36 +140,37 @@ impl CreateTableExecutor {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use ast::ColumnDef;
     use types::DataType;
+
+    use super::*;
 
     #[test]
     fn test_create_simple_table() {
         let mut db = Database::new();
 
         let stmt = CreateTableStmt {
-        table_name: "users".to_string(),
-        columns: vec![
-        ColumnDef {
-        name: "id".to_string(),
-        data_type: DataType::Integer,
-        nullable: false,
-        constraints: vec![],
-        default_value: None,
-        comment: None,
-        },
-        ColumnDef {
-        name: "name".to_string(),
-        data_type: DataType::Varchar { max_length: Some(255) },
-        nullable: true,
-        constraints: vec![],
-        default_value: None,
-        comment: None,
-        },
-        ],
-        table_constraints: vec![],
-        table_options: vec![],
+            table_name: "users".to_string(),
+            columns: vec![
+                ColumnDef {
+                    name: "id".to_string(),
+                    data_type: DataType::Integer,
+                    nullable: false,
+                    constraints: vec![],
+                    default_value: None,
+                    comment: None,
+                },
+                ColumnDef {
+                    name: "name".to_string(),
+                    data_type: DataType::Varchar { max_length: Some(255) },
+                    nullable: true,
+                    constraints: vec![],
+                    default_value: None,
+                    comment: None,
+                },
+            ],
+            table_constraints: vec![],
+            table_options: vec![],
         };
 
         let result = CreateTableExecutor::execute(&stmt, &mut db);
@@ -189,51 +189,52 @@ mod tests {
         let mut db = Database::new();
 
         let stmt = CreateTableStmt {
-        table_name: "products".to_string(),
-        columns: vec![
-        ColumnDef {
-        name: "product_id".to_string(),
-        data_type: DataType::Integer,
-        nullable: false,
-        constraints: vec![],
-        default_value: None,
-        comment: None,
-        },
-        ColumnDef {
-        name: "name".to_string(),
-        data_type: DataType::Varchar { max_length: Some(100) },
-        nullable: false,
-        constraints: vec![],
-        default_value: None,
-        comment: None,
-        },
-        ColumnDef {
-        name: "price".to_string(),
-        data_type: DataType::Integer, // Using Integer for price (could be Decimal in future)
-        nullable: false,
-        constraints: vec![],
-        default_value: None,
-        comment: None,
-        },
-        ColumnDef {
-        name: "in_stock".to_string(),
-        data_type: DataType::Boolean,
-        nullable: false,
-        constraints: vec![],
-        default_value: None,
-        comment: None,
-        },
-        ColumnDef {
-        name: "description".to_string(),
-        data_type: DataType::Varchar { max_length: Some(500) },
-        nullable: true, // Optional field
-        constraints: vec![],
-        default_value: None,
-        comment: None,
-        },
-        ],
-        table_constraints: vec![],
-        table_options: vec![],
+            table_name: "products".to_string(),
+            columns: vec![
+                ColumnDef {
+                    name: "product_id".to_string(),
+                    data_type: DataType::Integer,
+                    nullable: false,
+                    constraints: vec![],
+                    default_value: None,
+                    comment: None,
+                },
+                ColumnDef {
+                    name: "name".to_string(),
+                    data_type: DataType::Varchar { max_length: Some(100) },
+                    nullable: false,
+                    constraints: vec![],
+                    default_value: None,
+                    comment: None,
+                },
+                ColumnDef {
+                    name: "price".to_string(),
+                    data_type: DataType::Integer, /* Using Integer for price (could be Decimal in
+                                                   * future) */
+                    nullable: false,
+                    constraints: vec![],
+                    default_value: None,
+                    comment: None,
+                },
+                ColumnDef {
+                    name: "in_stock".to_string(),
+                    data_type: DataType::Boolean,
+                    nullable: false,
+                    constraints: vec![],
+                    default_value: None,
+                    comment: None,
+                },
+                ColumnDef {
+                    name: "description".to_string(),
+                    data_type: DataType::Varchar { max_length: Some(500) },
+                    nullable: true, // Optional field
+                    constraints: vec![],
+                    default_value: None,
+                    comment: None,
+                },
+            ],
+            table_constraints: vec![],
+            table_options: vec![],
         };
 
         let result = CreateTableExecutor::execute(&stmt, &mut db);
@@ -262,7 +263,8 @@ mod tests {
                 default_value: None,
                 comment: None,
             }],
-            table_constraints: vec![], table_options: vec![],
+            table_constraints: vec![],
+            table_options: vec![],
         };
 
         // First creation succeeds
@@ -307,7 +309,8 @@ mod tests {
                     comment: None,
                 },
             ],
-            table_constraints: vec![], table_options: vec![],
+            table_constraints: vec![],
+            table_options: vec![],
         };
 
         let result = CreateTableExecutor::execute(&stmt, &mut db);
@@ -327,7 +330,8 @@ mod tests {
         let stmt = CreateTableStmt {
             table_name: "empty_table".to_string(),
             columns: vec![], // Empty columns
-            table_constraints: vec![], table_options: vec![],
+            table_constraints: vec![],
+            table_options: vec![],
         };
 
         // Should succeed (though not very useful)
@@ -353,7 +357,8 @@ mod tests {
                 default_value: None,
                 comment: None,
             }],
-            table_constraints: vec![], table_options: vec![],
+            table_constraints: vec![],
+            table_options: vec![],
         };
         CreateTableExecutor::execute(&stmt1, &mut db).unwrap();
 
@@ -368,7 +373,8 @@ mod tests {
                 default_value: None,
                 comment: None,
             }],
-            table_constraints: vec![], table_options: vec![],
+            table_constraints: vec![],
+            table_options: vec![],
         };
         CreateTableExecutor::execute(&stmt2, &mut db).unwrap();
 
@@ -393,7 +399,8 @@ mod tests {
                 default_value: None,
                 comment: None,
             }],
-            table_constraints: vec![], table_options: vec![],
+            table_constraints: vec![],
+            table_options: vec![],
         };
 
         let result = CreateTableExecutor::execute(&stmt, &mut db);
@@ -415,7 +422,8 @@ mod tests {
                 default_value: None,
                 comment: None,
             }],
-            table_constraints: vec![], table_options: vec![],
+            table_constraints: vec![],
+            table_options: vec![],
         };
         CreateTableExecutor::execute(&stmt1, &mut db).unwrap();
 
@@ -430,7 +438,8 @@ mod tests {
                 default_value: None,
                 comment: None,
             }],
-            table_constraints: vec![], table_options: vec![],
+            table_constraints: vec![],
+            table_options: vec![],
         };
 
         // Behavior depends on catalog's case sensitivity
@@ -481,7 +490,8 @@ mod tests {
                     comment: None,
                 },
             ],
-            table_constraints: vec![], table_options: vec![],
+            table_constraints: vec![],
+            table_options: vec![],
         };
 
         let result = CreateTableExecutor::execute(&stmt, &mut db);
@@ -524,7 +534,8 @@ mod tests {
                     comment: Some("text155461".to_string()),
                 },
             ],
-            table_constraints: vec![], table_options: vec![],
+            table_constraints: vec![],
+            table_options: vec![],
         };
 
         let result = CreateTableExecutor::execute(&stmt, &mut db);

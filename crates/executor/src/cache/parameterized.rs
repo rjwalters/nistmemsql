@@ -44,7 +44,8 @@ impl LiteralValue {
             SqlValue::Date(s) => LiteralValue::Date(s.clone()),
             SqlValue::Time(s) => LiteralValue::Time(s.clone()),
             SqlValue::Timestamp(s) => LiteralValue::Timestamp(s.clone()),
-            SqlValue::Interval(s) => LiteralValue::Varchar(s.clone()), // Treat interval as string for now
+            SqlValue::Interval(s) => LiteralValue::Varchar(s.clone()), /* Treat interval as
+                                                                         * string for now */
             SqlValue::Null => LiteralValue::Null,
         }
     }
@@ -60,7 +61,9 @@ impl LiteralValue {
             LiteralValue::Float(n) => n.to_string(),
             LiteralValue::Real(n) => n.to_string(),
             LiteralValue::Double(n) => n.to_string(),
-            LiteralValue::Character(s) | LiteralValue::Varchar(s) => format!("'{}'", s.replace("'", "''")),
+            LiteralValue::Character(s) | LiteralValue::Varchar(s) => {
+                format!("'{}'", s.replace("'", "''"))
+            }
             LiteralValue::Boolean(b) => if *b { "true" } else { "false" }.to_string(),
             LiteralValue::Date(s) => format!("DATE '{}'", s),
             LiteralValue::Time(s) => format!("TIME '{}'", s),
@@ -92,11 +95,7 @@ impl ParameterizedPlan {
         param_positions: Vec<ParameterPosition>,
         literal_values: Vec<LiteralValue>,
     ) -> Self {
-        Self {
-            normalized_query,
-            param_positions,
-            literal_values,
-        }
+        Self { normalized_query, param_positions, literal_values }
     }
 
     /// Bind literal values to create executable query
@@ -285,11 +284,7 @@ impl LiteralExtractor {
                 Self::extract_from_expression(expr, literals);
             }
 
-            Expression::Case {
-                operand,
-                when_clauses,
-                else_result,
-            } => {
+            Expression::Case { operand, when_clauses, else_result } => {
                 if let Some(ref op) = operand {
                     Self::extract_from_expression(op, literals);
                 }
@@ -384,11 +379,15 @@ impl LiteralExtractor {
 
                 // Extract from frame bounds
                 if let Some(ref frame) = over.frame {
-                    if let ast::FrameBound::Preceding(expr) | ast::FrameBound::Following(expr) = &frame.start {
+                    if let ast::FrameBound::Preceding(expr) | ast::FrameBound::Following(expr) =
+                        &frame.start
+                    {
                         Self::extract_from_expression(expr, literals);
                     }
                     if let Some(ref end) = frame.end {
-                        if let ast::FrameBound::Preceding(expr) | ast::FrameBound::Following(expr) = end {
+                        if let ast::FrameBound::Preceding(expr) | ast::FrameBound::Following(expr) =
+                            end
+                        {
                             Self::extract_from_expression(expr, literals);
                         }
                     }
@@ -421,32 +420,23 @@ mod tests {
 
     #[test]
     fn test_literal_value_string_escape() {
-        assert_eq!(
-            LiteralValue::Varchar("it's".to_string()).to_sql(),
-            "'it''s'"
-        );
+        assert_eq!(LiteralValue::Varchar("it's".to_string()).to_sql(), "'it''s'");
     }
 
     #[test]
     fn test_literal_extraction_simple() {
-        use ast::{Expression, SelectItem, SelectStmt, Statement, BinaryOperator, FromClause};
+        use ast::{BinaryOperator, Expression, FromClause, SelectItem, SelectStmt, Statement};
 
         // SELECT col0 FROM tab WHERE col1 > 25 AND col2 = 'John'
         let stmt = Statement::Select(Box::new(SelectStmt {
             with_clause: None,
             distinct: false,
             select_list: vec![SelectItem::Expression {
-                expr: Expression::ColumnRef {
-                    table: None,
-                    column: "col0".to_string(),
-                },
+                expr: Expression::ColumnRef { table: None, column: "col0".to_string() },
                 alias: None,
             }],
             into_table: None,
-            from: Some(FromClause::Table {
-                name: "tab".to_string(),
-                alias: None,
-            }),
+            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
             where_clause: Some(Expression::BinaryOp {
                 op: BinaryOperator::And,
                 left: Box::new(Expression::BinaryOp {
@@ -483,7 +473,7 @@ mod tests {
 
     #[test]
     fn test_literal_extraction_in_list() {
-        use ast::{Expression, SelectItem, SelectStmt, Statement, FromClause};
+        use ast::{Expression, FromClause, SelectItem, SelectStmt, Statement};
 
         // SELECT * FROM tab WHERE id IN (1, 2, 3)
         let stmt = Statement::Select(Box::new(SelectStmt {
@@ -491,15 +481,9 @@ mod tests {
             distinct: false,
             select_list: vec![SelectItem::Wildcard { alias: None }],
             into_table: None,
-            from: Some(FromClause::Table {
-                name: "tab".to_string(),
-                alias: None,
-            }),
+            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
             where_clause: Some(Expression::InList {
-                expr: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "id".to_string(),
-                }),
+                expr: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
                 values: vec![
                     Expression::Literal(SqlValue::Integer(1)),
                     Expression::Literal(SqlValue::Integer(2)),
@@ -527,10 +511,7 @@ mod tests {
     fn test_parameterized_plan_bind() {
         let plan = ParameterizedPlan::new(
             "SELECT * FROM users WHERE age > ?".to_string(),
-            vec![ParameterPosition {
-                position: 40,
-                context: "age".to_string(),
-            }],
+            vec![ParameterPosition { position: 40, context: "age".to_string() }],
             vec![LiteralValue::Integer(25)],
         );
 
@@ -542,10 +523,7 @@ mod tests {
     fn test_parameterized_plan_bind_string() {
         let plan = ParameterizedPlan::new(
             "SELECT * FROM users WHERE name = ?".to_string(),
-            vec![ParameterPosition {
-                position: 40,
-                context: "name".to_string(),
-            }],
+            vec![ParameterPosition { position: 40, context: "name".to_string() }],
             vec![LiteralValue::Varchar("John".to_string())],
         );
 
@@ -557,10 +535,7 @@ mod tests {
     fn test_parameterized_plan_bind_error() {
         let plan = ParameterizedPlan::new(
             "SELECT * FROM users WHERE age > ?".to_string(),
-            vec![ParameterPosition {
-                position: 40,
-                context: "age".to_string(),
-            }],
+            vec![ParameterPosition { position: 40, context: "age".to_string() }],
             vec![LiteralValue::Integer(25)],
         );
 
@@ -570,11 +545,7 @@ mod tests {
 
     #[test]
     fn test_comparison_key() {
-        let plan = ParameterizedPlan::new(
-            "SELECT * FROM users".to_string(),
-            vec![],
-            vec![],
-        );
+        let plan = ParameterizedPlan::new("SELECT * FROM users".to_string(), vec![], vec![]);
 
         assert_eq!(plan.comparison_key(), "SELECT * FROM users");
     }

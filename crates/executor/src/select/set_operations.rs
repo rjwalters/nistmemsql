@@ -1,8 +1,9 @@
 //! Set operations (UNION, INTERSECT, EXCEPT) for SELECT queries
 
+use std::collections::{HashMap, HashSet};
+
 use super::helpers::apply_distinct;
 use crate::errors::ExecutorError;
-use std::collections::{HashMap, HashSet};
 
 /// Apply a set operation (UNION, INTERSECT, EXCEPT) to two result sets
 pub(super) fn apply_set_operation(

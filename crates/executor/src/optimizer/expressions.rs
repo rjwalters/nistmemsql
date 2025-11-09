@@ -1,9 +1,12 @@
 //! Expression optimization logic for constant folding and dead code elimination
 
-use crate::errors::ExecutorError;
-use crate::evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator};
 use ast::{CaseWhen, Expression};
 use types::SqlValue;
+
+use crate::{
+    errors::ExecutorError,
+    evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator},
+};
 
 /// Result of WHERE clause optimization
 #[derive(Debug, PartialEq)]

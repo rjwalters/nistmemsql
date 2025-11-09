@@ -1,8 +1,9 @@
 //! Test to reproduce CASE expression bug (issue #240)
 
-use crate::SelectExecutor;
 use storage::Database;
 use types::SqlValue;
+
+use crate::SelectExecutor;
 
 #[test]
 #[ignore] // TODO: Enable after #241 (CASE expression parsing) is fixed

@@ -1,7 +1,7 @@
 //! Tests for subquery web demo SQL examples
 //!
-//! This test suite validates SQL subquery examples (scalar subqueries, correlated subqueries, EXISTS, IN)
-//! from the web demo by parsing the TypeScript example files and executing queries.
+//! This test suite validates SQL subquery examples (scalar subqueries, correlated subqueries,
+//! EXISTS, IN) from the web demo by parsing the TypeScript example files and executing queries.
 
 mod common;
 

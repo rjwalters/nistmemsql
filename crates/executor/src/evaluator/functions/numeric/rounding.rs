@@ -2,8 +2,9 @@
 //!
 //! Implements ROUND, FLOOR, and CEIL/CEILING functions.
 
-use crate::errors::ExecutorError;
 use types::SqlValue;
+
+use crate::errors::ExecutorError;
 
 /// ROUND(x [, precision]) - Round to nearest integer or decimal places
 /// SQL:1999 Section 6.27: Numeric value functions

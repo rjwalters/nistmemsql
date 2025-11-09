@@ -2,9 +2,11 @@
 // Index Manager - Hash-based index management for primary keys and unique constraints
 // ============================================================================
 
-use crate::Row;
 use std::collections::{HashMap, HashSet};
+
 use types::SqlValue;
+
+use crate::Row;
 
 /// Represents different types of indexes that can be affected by column updates
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -302,9 +304,10 @@ impl IndexManager {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use catalog::{ColumnSchema, TableSchema};
     use types::DataType;
+
+    use super::*;
 
     #[test]
     fn test_primary_key_insert() {

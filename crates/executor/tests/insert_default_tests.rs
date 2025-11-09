@@ -139,7 +139,7 @@ fn test_insert_default_no_default_value_defined() {
     let schema = catalog::TableSchema::new(
         "users".to_string(),
         vec![
-            catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, true), // nullable
+            catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, true), /* nullable */
             catalog::ColumnSchema::new(
                 "name".to_string(),
                 types::DataType::Varchar { max_length: Some(50) },

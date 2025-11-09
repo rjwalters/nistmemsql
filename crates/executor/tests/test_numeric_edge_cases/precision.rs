@@ -1,8 +1,11 @@
 //! Precision and accuracy tests
 
-use super::basic::{assert_function_returns_double, create_function_expr};
-use super::common::create_test_evaluator;
 use types::SqlValue;
+
+use super::{
+    basic::{assert_function_returns_double, create_function_expr},
+    common::create_test_evaluator,
+};
 
 #[test]
 fn test_round_precision_edge_cases() {

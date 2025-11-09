@@ -1,11 +1,14 @@
 //! Cursor declaration parsing (SQL:1999 Feature E121)
 
-use crate::keywords::Keyword;
-use crate::parser::{ParseError, Parser};
-use crate::token::Token;
 use ast::{
     CloseCursorStmt, CursorUpdatability, DeclareCursorStmt, FetchOrientation, FetchStmt,
     OpenCursorStmt,
+};
+
+use crate::{
+    keywords::Keyword,
+    parser::{ParseError, Parser},
+    token::Token,
 };
 
 impl Parser {

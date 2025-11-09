@@ -1,11 +1,10 @@
-use types::*;
-
 // ============================================================================
 // Hash Implementation Tests (for DISTINCT operations)
 // ============================================================================
-
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+
+use types::*;
 
 fn calculate_hash<T: Hash>(value: &T) -> u64 {
     let mut hasher = DefaultHasher::new();

@@ -1,7 +1,8 @@
 //! Tests for CREATE TRIGGER and DROP TRIGGER parsing
 
-use crate::Parser;
 use ast::{Statement, TriggerEvent, TriggerGranularity, TriggerTiming};
+
+use crate::Parser;
 
 #[test]
 fn test_create_trigger_before_insert() {

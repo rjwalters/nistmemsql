@@ -5,11 +5,14 @@
 //! - Reordered execution: Flatten the join tree and execute in specified order
 
 use std::collections::HashMap;
-use crate::errors::ExecutorError;
-use crate::optimizer::PredicateDecomposition;
-use super::join::{nested_loop_join, FromResult};
-use super::cte::CteResult;
+
 use ast::FromClause;
+
+use super::{
+    cte::CteResult,
+    join::{nested_loop_join, FromResult},
+};
+use crate::{errors::ExecutorError, optimizer::PredicateDecomposition};
 
 /// Specification for reordered join execution
 #[derive(Debug, Clone)]
@@ -23,10 +26,7 @@ pub struct JoinReorderingSpec {
 impl JoinReorderingSpec {
     /// Create a new reordering specification
     pub fn new(table_order: Vec<String>) -> Self {
-        JoinReorderingSpec {
-            table_order,
-            enabled: true,
-        }
+        JoinReorderingSpec { table_order, enabled: true }
     }
 
     /// Check if reordering should be applied
@@ -45,7 +45,7 @@ struct FlattenedJoinTree {
 }
 
 /// Flatten a join tree into a list of tables and joins
-/// 
+///
 /// Returns None if the tree cannot be flattened (contains non-join operations)
 fn flatten_join_tree(from: &FromClause) -> Option<FlattenedJoinTree> {
     let mut tables = Vec::new();
@@ -83,18 +83,13 @@ fn flatten_join_tree(from: &FromClause) -> Option<FlattenedJoinTree> {
         return None;
     }
 
-    Some(FlattenedJoinTree {
-        tables,
-        table_index,
-    })
+    Some(FlattenedJoinTree { tables, table_index })
 }
 
 /// Extract join conditions from a join tree
-/// 
+///
 /// Returns a list of (left_table_name, right_table_name, join_condition) tuples
-fn extract_join_conditions(
-    from: &FromClause,
-) -> Vec<(String, String, Option<ast::Expression>)> {
+fn extract_join_conditions(from: &FromClause) -> Vec<(String, String, Option<ast::Expression>)> {
     let mut conditions = Vec::new();
 
     fn extract_recursive(
@@ -106,15 +101,8 @@ fn extract_join_conditions(
                 let table_name = alias.clone().unwrap_or_else(|| name.clone());
                 Some(vec![table_name])
             }
-            FromClause::Subquery { alias, .. } => {
-                Some(vec![alias.clone()])
-            }
-            FromClause::Join {
-                left,
-                right,
-                condition,
-                ..
-            } => {
+            FromClause::Subquery { alias, .. } => Some(vec![alias.clone()]),
+            FromClause::Join { left, right, condition, .. } => {
                 let left_tables = extract_recursive(left, conditions)?;
                 let right_tables = extract_recursive(right, conditions)?;
 
@@ -151,8 +139,8 @@ fn extract_join_conditions(
 /// - Flattens the join tree into individual tables
 /// - Executes tables in the specified order via execute_from_fn
 /// - Joins them using extracted join conditions
-/// - For each new table, searches for a join condition with ANY previously-joined table
-///   (not just the immediately preceding one, which is critical for star joins)
+/// - For each new table, searches for a join condition with ANY previously-joined table (not just
+///   the immediately preceding one, which is critical for star joins)
 pub(super) fn execute_reordered_join<F>(
     from: &FromClause,
     _cte_results: &HashMap<String, CteResult>,
@@ -247,10 +235,12 @@ where
         let join_type = ast::JoinType::Inner;
 
         // nested_loop_join now requires additional_equijoins parameter (empty for reordered joins)
-        result = match nested_loop_join(result, next_result, &join_type, &join_condition, database, &[]) {
-            Ok(r) => r,
-            Err(e) => return Some(Err(e)),
-        };
+        result =
+            match nested_loop_join(result, next_result, &join_type, &join_condition, database, &[])
+            {
+                Ok(r) => r,
+                Err(e) => return Some(Err(e)),
+            };
     }
 
     Some(Ok(result))

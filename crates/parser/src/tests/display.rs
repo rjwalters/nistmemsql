@@ -1,8 +1,6 @@
 //! Tests for Display trait implementations.
 
-use crate::keywords::Keyword;
-use crate::lexer::LexerError;
-use crate::token::Token;
+use crate::{keywords::Keyword, lexer::LexerError, token::Token};
 
 #[test]
 fn test_keyword_display_select() {

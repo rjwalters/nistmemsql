@@ -55,15 +55,16 @@
 // Note: Phase 2 (Constraint Validation) was closed as invalid - constraint
 // validation properly belongs in the executor layer, not the storage layer.
 
-mod indexes;
 mod append_mode;
+mod indexes;
 mod normalization;
 
-use crate::{Row, StorageError};
-use indexes::IndexManager;
 use append_mode::AppendModeTracker;
+use indexes::IndexManager;
 use normalization::RowNormalizer;
 use types::SqlValue;
+
+use crate::{Row, StorageError};
 
 /// In-memory table - stores rows with optimized indexing and validation
 ///
@@ -124,17 +125,13 @@ impl Table {
     pub fn new(schema: catalog::TableSchema) -> Self {
         let indexes = IndexManager::new(&schema);
 
-        Table {
-            schema,
-            rows: Vec::new(),
-            indexes,
-            append_tracker: AppendModeTracker::new(),
-        }
+        Table { schema, rows: Vec::new(), indexes, append_tracker: AppendModeTracker::new() }
     }
 
     /// Insert a row into the table
     pub fn insert(&mut self, row: Row) -> Result<(), StorageError> {
-        // Normalize and validate row (column count, type checking, NULL checking, value normalization)
+        // Normalize and validate row (column count, type checking, NULL checking, value
+        // normalization)
         let normalizer = RowNormalizer::new(&self.schema);
         let normalized_row = normalizer.normalize_and_validate(row)?;
 
@@ -274,7 +271,8 @@ impl Table {
             self.indexes.update_for_delete(&self.schema, deleted_row);
         }
 
-        // Since rows shifted, we need to rebuild indexes to maintain correct indices (delegate to IndexManager)
+        // Since rows shifted, we need to rebuild indexes to maintain correct indices (delegate to
+        // IndexManager)
         self.indexes.rebuild(&self.schema, &self.rows);
 
         indices_and_rows_to_delete.len()
@@ -319,9 +317,10 @@ impl Table {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use catalog::{ColumnSchema, TableSchema};
     use types::{DataType, SqlValue};
+
+    use super::*;
 
     fn create_test_table() -> Table {
         let columns = vec![

@@ -25,8 +25,9 @@ fn test_create_assertion_with_not_exists() {
 
     if let Ok(ast::Statement::CreateAssertion(stmt)) = result {
         assert_eq!(stmt.assertion_name, "VALID_BALANCE");
-        // Check that we have a NOT EXISTS expression (could be UnaryOp or Exists depending on implementation)
-        // Just verify it parsed successfully - the exact expression type may vary
+        // Check that we have a NOT EXISTS expression (could be UnaryOp or Exists depending on
+        // implementation) Just verify it parsed successfully - the exact expression type
+        // may vary
     } else {
         panic!("Expected CreateAssertion statement");
     }

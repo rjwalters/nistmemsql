@@ -28,9 +28,11 @@
 //! 4. Scan t3, apply `t3.d IS NOT NULL` → 8 rows
 //! 5. Join result with t3 → 40 rows (not 48)
 
-use ast::Expression;
-use crate::schema::CombinedSchema;
 use std::collections::{HashMap, HashSet};
+
+use ast::Expression;
+
+use crate::schema::CombinedSchema;
 
 // ============================================================================
 // Main branch API (used by scan.rs for predicate pushdown)
@@ -166,7 +168,9 @@ fn try_extract_equijoin_simple(
 /// Extract table and column name from a column reference expression
 fn extract_column_reference(expr: &Expression) -> Option<(String, String)> {
     match expr {
-        Expression::ColumnRef { table: Some(table), column } => Some((table.clone(), column.clone())),
+        Expression::ColumnRef { table: Some(table), column } => {
+            Some((table.clone(), column.clone()))
+        }
         Expression::ColumnRef { table: None, column } => {
             // Unqualified column reference - we'll handle this at execution time
             Some(("".to_string(), column.clone()))
@@ -308,7 +312,8 @@ pub fn get_predicates_for_tables(
                 PredicateType::Complex => {
                     // Check if all referenced tables in this complex predicate are in our set
                     let referenced = extract_table_references(&p.expression);
-                    if !referenced.is_empty() && referenced.iter().all(|t| table_names.contains(t)) {
+                    if !referenced.is_empty() && referenced.iter().all(|t| table_names.contains(t))
+                    {
                         Some(p.expression.clone())
                     } else {
                         None
@@ -520,7 +525,10 @@ fn flatten_conjuncts(expr: &ast::Expression) -> Vec<ast::Expression> {
 }
 
 /// Extract all table names referenced in a predicate (branch version with schema)
-fn extract_referenced_tables_branch(expr: &ast::Expression, schema: &CombinedSchema) -> HashSet<String> {
+fn extract_referenced_tables_branch(
+    expr: &ast::Expression,
+    schema: &CombinedSchema,
+) -> HashSet<String> {
     let mut tables = HashSet::new();
     extract_tables_recursive_branch(expr, schema, &mut tables);
     tables
@@ -564,11 +572,7 @@ fn extract_tables_recursive_branch(
                 extract_tables_recursive_branch(val, schema, tables);
             }
         }
-        ast::Expression::Case {
-            operand,
-            when_clauses,
-            else_result,
-        } => {
+        ast::Expression::Case { operand, when_clauses, else_result } => {
             if let Some(op) = operand {
                 extract_tables_recursive_branch(op, schema, tables);
             }
@@ -601,11 +605,7 @@ fn try_extract_equijoin_branch(
     schema: &CombinedSchema,
 ) -> Option<(String, String, String, String)> {
     match expr {
-        ast::Expression::BinaryOp {
-            left,
-            op: ast::BinaryOperator::Equal,
-            right,
-        } => {
+        ast::Expression::BinaryOp { left, op: ast::BinaryOperator::Equal, right } => {
             // Try to extract column references from both sides
             let (left_table, left_col) = extract_column_reference_branch(left, schema)?;
             let (right_table, right_col) = extract_column_reference_branch(right, schema)?;
@@ -621,7 +621,10 @@ fn try_extract_equijoin_branch(
 }
 
 /// Extract (table_name, column_name) from a column reference expression (branch version)
-fn extract_column_reference_branch(expr: &ast::Expression, schema: &CombinedSchema) -> Option<(String, String)> {
+fn extract_column_reference_branch(
+    expr: &ast::Expression,
+    schema: &CombinedSchema,
+) -> Option<(String, String)> {
     match expr {
         ast::Expression::ColumnRef { table, column } => {
             if let Some(table_name) = table {
@@ -665,13 +668,19 @@ mod tests {
         // WHERE a.x > 5 AND b.y < 10
         let expr = Expression::BinaryOp {
             left: Box::new(Expression::BinaryOp {
-                left: Box::new(Expression::ColumnRef { table: Some("a".to_string()), column: "x".to_string() }),
+                left: Box::new(Expression::ColumnRef {
+                    table: Some("a".to_string()),
+                    column: "x".to_string(),
+                }),
                 op: ast::BinaryOperator::GreaterThan,
                 right: Box::new(Expression::Literal(types::SqlValue::Integer(5))),
             }),
             op: ast::BinaryOperator::And,
             right: Box::new(Expression::BinaryOp {
-                left: Box::new(Expression::ColumnRef { table: Some("b".to_string()), column: "y".to_string() }),
+                left: Box::new(Expression::ColumnRef {
+                    table: Some("b".to_string()),
+                    column: "y".to_string(),
+                }),
                 op: ast::BinaryOperator::LessThan,
                 right: Box::new(Expression::Literal(types::SqlValue::Integer(10))),
             }),
@@ -685,7 +694,10 @@ mod tests {
     fn test_classify_table_local_predicate() {
         // WHERE a.x > 5
         let expr = Expression::BinaryOp {
-            left: Box::new(Expression::ColumnRef { table: Some("a".to_string()), column: "x".to_string() }),
+            left: Box::new(Expression::ColumnRef {
+                table: Some("a".to_string()),
+                column: "x".to_string(),
+            }),
             op: ast::BinaryOperator::GreaterThan,
             right: Box::new(Expression::Literal(types::SqlValue::Integer(5))),
         };
@@ -703,9 +715,15 @@ mod tests {
     fn test_classify_equijoin_predicate() {
         // WHERE a.x = b.y
         let expr = Expression::BinaryOp {
-            left: Box::new(Expression::ColumnRef { table: Some("a".to_string()), column: "x".to_string() }),
+            left: Box::new(Expression::ColumnRef {
+                table: Some("a".to_string()),
+                column: "x".to_string(),
+            }),
             op: ast::BinaryOperator::Equal,
-            right: Box::new(Expression::ColumnRef { table: Some("b".to_string()), column: "y".to_string() }),
+            right: Box::new(Expression::ColumnRef {
+                table: Some("b".to_string()),
+                column: "y".to_string(),
+            }),
         };
 
         let pred_type = classify_predicate(&expr);

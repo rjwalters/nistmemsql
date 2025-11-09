@@ -97,7 +97,8 @@ fn test_nested_short_circuit() {
 
     // Test nested short-circuit: (FALSE AND (TRUE OR (1/0 = 1)))
     // Should short-circuit at first FALSE, never evaluating inner OR or 1/0
-    let result = execute_select(&db, "SELECT ID FROM TEST WHERE (1 = 2) AND ((1 = 1) OR (1/0 = 1))");
+    let result =
+        execute_select(&db, "SELECT ID FROM TEST WHERE (1 = 2) AND ((1 = 1) OR (1/0 = 1))");
 
     assert!(result.is_ok(), "Should short-circuit nested expression: {:?}", result.err());
     let result = result.unwrap();
@@ -233,10 +234,7 @@ fn test_and_with_column_reference_short_circuit() {
     // When id = 1 (VALUE = 10), the first condition (VALUE > 100) is FALSE
     // So the second condition should not be evaluated
     // This ensures short-circuit works with column references, not just literals
-    let result = execute_select(
-        &db,
-        "SELECT ID FROM TEST WHERE (VALUE > 100) AND (1/0 = 1)",
-    );
+    let result = execute_select(&db, "SELECT ID FROM TEST WHERE (VALUE > 100) AND (1/0 = 1)");
 
     assert!(result.is_ok(), "Should short-circuit with column reference: {:?}", result.err());
     let result = result.unwrap();
@@ -249,10 +247,7 @@ fn test_or_with_column_reference_short_circuit() {
 
     // When the first condition (VALUE > 0) is TRUE for all rows,
     // the second condition should not be evaluated
-    let result = execute_select(
-        &db,
-        "SELECT ID FROM TEST WHERE (VALUE > 0) OR (1/0 = 1)",
-    );
+    let result = execute_select(&db, "SELECT ID FROM TEST WHERE (VALUE > 0) OR (1/0 = 1)");
 
     assert!(result.is_ok(), "Should short-circuit with column reference: {:?}", result.err());
     let result = result.unwrap();

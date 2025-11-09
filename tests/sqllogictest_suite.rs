@@ -13,15 +13,22 @@
 
 mod sqllogictest;
 
-use sqllogictest::execution::{run_test_file_with_details, TestError};
-use sqllogictest::stats::{TestFailure, TestStats};
-use sqllogictest::work_queue::WorkQueue;
-use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
-use std::time::{Duration, Instant};
-use std::{env, fs, io::Write};
+use std::{
+    collections::{HashMap, HashSet},
+    env, fs,
+    io::Write,
+    path::PathBuf,
+    time::{Duration, Instant},
+};
 
-/// Run SQLLogicTest files from the submodule (prioritized by failure history, then randomly selected with time budget)
+use sqllogictest::{
+    execution::{run_test_file_with_details, TestError},
+    stats::{TestFailure, TestStats},
+    work_queue::WorkQueue,
+};
+
+/// Run SQLLogicTest files from the submodule (prioritized by failure history, then randomly
+/// selected with time budget)
 fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
     let test_dir = PathBuf::from("third_party/sqllogictest/test");
     let mut results = HashMap::new();
@@ -51,7 +58,10 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
     loop {
         // Check time budget
         if start_time.elapsed() >= time_budget {
-            println!("\n⏱️  Time budget exhausted after {:.1} seconds", start_time.elapsed().as_secs_f64());
+            println!(
+                "\n⏱️  Time budget exhausted after {:.1} seconds",
+                start_time.elapsed().as_secs_f64()
+            );
             println!("Files tested: {}", files_tested);
             println!("Files remaining in queue: {}", work_queue.pending_count());
             println!("Files completed: {}\n", work_queue.completed_count());
@@ -60,7 +70,10 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
 
         // Try to claim next file from work queue (returns relative path)
         let Some(rel_path_buf) = work_queue.claim_next_file() else {
-            println!("\n✅ Work queue empty! All {} files have been tested.", total_available_files);
+            println!(
+                "\n✅ Work queue empty! All {} files have been tested.",
+                total_available_files
+            );
             println!("Total time: {:.1} seconds", start_time.elapsed().as_secs_f64());
             println!("Files tested: {}\n", files_tested);
             return (results, total_available_files);
@@ -106,7 +119,8 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
         let _test_start = Instant::now();
 
         // Create a new database for each test file and run with detailed failure capture
-        let (test_result, detailed_failures) = run_test_file_with_details(&contents, &relative_path);
+        let (test_result, detailed_failures) =
+            run_test_file_with_details(&contents, &relative_path);
 
         match test_result {
             Ok(_) => {
@@ -135,7 +149,8 @@ fn main() {
     if env::var("SELECT1_ONLY").is_ok() {
         let test_file = PathBuf::from("third_party/sqllogictest/test/select1.test");
         let contents = std::fs::read_to_string(&test_file).expect("Failed to read select1.test");
-        let (test_result, detailed_failures) = run_test_file_with_details(&contents, "select1.test");
+        let (test_result, detailed_failures) =
+            run_test_file_with_details(&contents, "select1.test");
 
         match test_result {
             Ok(_) => {

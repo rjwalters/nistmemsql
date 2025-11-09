@@ -299,7 +299,8 @@ fn test_update_where_complex_subquery_condition() {
         set_operation: None,
     });
 
-    // UPDATE employees SET salary = 70000 WHERE dept_id IN (SELECT dept_id FROM departments WHERE budget > 80000)
+    // UPDATE employees SET salary = 70000 WHERE dept_id IN (SELECT dept_id FROM departments WHERE
+    // budget > 80000)
     let stmt = ast::UpdateStmt {
         table_name: "employees".to_string(),
         assignments: vec![Assignment {

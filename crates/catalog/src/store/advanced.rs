@@ -3,12 +3,14 @@
 //! This module handles user-defined types, domains, sequences, collations,
 //! character sets, translations, views, and triggers.
 
-use crate::advanced_objects::{Assertion, CharacterSet, Collation, Sequence, Translation};
-use crate::domain::DomainDefinition;
-use crate::errors::CatalogError;
-use crate::trigger::TriggerDefinition;
-use crate::type_definition::TypeDefinition;
-use crate::view::ViewDefinition;
+use crate::{
+    advanced_objects::{Assertion, CharacterSet, Collation, Sequence, Translation},
+    domain::DomainDefinition,
+    errors::CatalogError,
+    trigger::TriggerDefinition,
+    type_definition::TypeDefinition,
+    view::ViewDefinition,
+};
 
 impl super::Catalog {
     // ============================================================================

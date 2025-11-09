@@ -1,7 +1,8 @@
 //! Helper utilities for GRANT statement tests
 
-use crate::Parser;
 use ast::*;
+
+use crate::Parser;
 
 /// Parses SQL and extracts the Grant statement, panicking with descriptive error if parsing fails
 /// or if the result is not a Grant statement.

@@ -1,10 +1,11 @@
 //! Tests for GROUP BY with JOIN operations and aggregate functions
 
-use crate::SelectExecutor;
 use ast::SelectStmt;
 use catalog::TableSchema;
 use storage::Database;
 use types::{DataType, SqlValue};
+
+use crate::SelectExecutor;
 
 fn setup_join_test_data(db: &mut Database) {
     // Create departments table

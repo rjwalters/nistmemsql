@@ -2,9 +2,10 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::{SelectExecutor, limits::MAX_QUERY_EXECUTION_SECONDS};
     use parser::Parser;
     use storage::Database;
+
+    use crate::{limits::MAX_QUERY_EXECUTION_SECONDS, SelectExecutor};
 
     #[test]
     fn test_executor_initialized_with_timeout() {
@@ -48,7 +49,8 @@ mod tests {
     fn test_executor_with_outer_context_has_timeout() {
         let db = Database::new();
         let empty_schema = catalog::TableSchema::new("".to_string(), vec![]);
-        let combined_schema = crate::schema::CombinedSchema::from_table("".to_string(), empty_schema);
+        let combined_schema =
+            crate::schema::CombinedSchema::from_table("".to_string(), empty_schema);
         let empty_row = storage::Row::new(vec![]);
 
         let executor = SelectExecutor::new_with_outer_context(&db, &empty_row, &combined_schema);

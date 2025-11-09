@@ -1,8 +1,9 @@
 //! Window function collection logic
 
+use ast::{Expression, SelectItem, WindowFunctionSpec};
+
 use super::types::WindowFunctionInfo;
 use crate::errors::ExecutorError;
-use ast::{Expression, SelectItem, WindowFunctionSpec};
 
 /// Collect all window functions from SELECT list
 pub(super) fn collect_window_functions(

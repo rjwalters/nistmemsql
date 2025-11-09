@@ -6,9 +6,11 @@
 //! - Type compatibility and coercion rules
 //! - Type checking utilities
 
-use std::cmp::Ordering;
-use std::fmt;
-use std::hash::{Hash, Hasher};
+use std::{
+    cmp::Ordering,
+    fmt,
+    hash::{Hash, Hasher},
+};
 
 /// SQL:1999 Interval Fields
 ///
@@ -45,7 +47,8 @@ pub enum DataType {
     Character { length: usize },
     Varchar { max_length: Option<usize> }, // None = default length (255)
     CharacterLargeObject,                  // CLOB
-    Name, // NAME type for SQL identifiers (SQL:1999), maps to VARCHAR(128)
+    Name,                                  /* NAME type for SQL identifiers (SQL:1999), maps to
+                                            * VARCHAR(128) */
 
     // Boolean type (SQL:1999)
     Boolean,
@@ -117,7 +120,7 @@ pub enum SqlValue {
     Smallint(i16),
     Bigint(i64),
     Unsigned(u64), // 64-bit unsigned integer (MySQL compatibility)
-    Numeric(f64), // f64 for performance (was: String)
+    Numeric(f64),  // f64 for performance (was: String)
 
     Float(f32),
     Real(f32),
@@ -179,13 +182,15 @@ impl SqlValue {
             SqlValue::Real(_) => DataType::Real,
             SqlValue::Double(_) => DataType::DoublePrecision,
             SqlValue::Character(s) => DataType::Character { length: s.len() },
-            SqlValue::Varchar(_) => DataType::Varchar { max_length: None }, // Unknown/unlimited length
+            SqlValue::Varchar(_) => DataType::Varchar { max_length: None }, /* Unknown/unlimited
+                                                                              * length */
             SqlValue::Boolean(_) => DataType::Boolean,
             SqlValue::Date(_) => DataType::Date,
             SqlValue::Time(_) => DataType::Time { with_timezone: false },
             SqlValue::Timestamp(_) => DataType::Timestamp { with_timezone: false },
             SqlValue::Interval(_) => DataType::Interval {
-                start_field: IntervalField::Day, // Default - actual type lost in string representation
+                start_field: IntervalField::Day, /* Default - actual type lost in string
+                                                  * representation */
                 end_field: None,
             },
             SqlValue::Null => DataType::Null,

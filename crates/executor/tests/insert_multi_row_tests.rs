@@ -128,7 +128,7 @@ fn test_multi_row_insert_type_mismatch() {
                 ast::Expression::Literal(types::SqlValue::Varchar("Alice".to_string())),
             ],
             vec![
-                ast::Expression::Literal(types::SqlValue::Varchar("not_a_number".to_string())), // Wrong type for id
+                ast::Expression::Literal(types::SqlValue::Varchar("not_a_number".to_string())), /* Wrong type for id */
                 ast::Expression::Literal(types::SqlValue::Varchar("Bob".to_string())),
             ],
         ]),

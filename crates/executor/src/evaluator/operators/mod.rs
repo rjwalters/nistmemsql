@@ -10,13 +10,13 @@ mod comparison;
 mod logical;
 mod string;
 
-use crate::errors::ExecutorError;
-use types::SqlValue;
-
 use arithmetic::ArithmeticOps;
 use comparison::ComparisonOps;
 use logical::LogicalOps;
 use string::StringOps;
+use types::SqlValue;
+
+use crate::errors::ExecutorError;
 
 /// Trait for binary operator evaluation
 #[allow(dead_code)]

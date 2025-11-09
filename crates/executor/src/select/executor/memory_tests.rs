@@ -1,9 +1,10 @@
 #[cfg(test)]
 mod memory_tracking_tests {
-    use crate::errors::ExecutorError;
-    use crate::limits::MAX_MEMORY_BYTES;
-    use crate::select::executor::builder::SelectExecutor;
     use storage::Database;
+
+    use crate::{
+        errors::ExecutorError, limits::MAX_MEMORY_BYTES, select::executor::builder::SelectExecutor,
+    };
 
     #[test]
     fn test_memory_limit_exceeded() {
@@ -70,9 +71,9 @@ mod memory_tracking_tests {
 
 #[cfg(test)]
 mod integration_tests {
-    use crate::errors::ExecutorError;
-    use crate::select::executor::builder::SelectExecutor;
     use storage::Database;
+
+    use crate::{errors::ExecutorError, select::executor::builder::SelectExecutor};
 
     #[test]
     fn test_normal_query_within_memory_limit() {
@@ -118,10 +119,7 @@ mod integration_tests {
             set_operation: None,
             distinct: false,
             select_list: vec![ast::SelectItem::Wildcard { alias: None }],
-            from: Some(ast::FromClause::Table {
-                name: "small_table".to_string(),
-                alias: None,
-            }),
+            from: Some(ast::FromClause::Table { name: "small_table".to_string(), alias: None }),
             where_clause: None,
             group_by: None,
             having: None,
@@ -146,31 +144,21 @@ mod integration_tests {
         // Create two tables
         let schema1 = catalog::TableSchema::new(
             "t1".to_string(),
-            vec![catalog::ColumnSchema::new(
-                "id".to_string(),
-                types::DataType::Integer,
-                false,
-            )],
+            vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
         );
         db.create_table(schema1).unwrap();
 
         let schema2 = catalog::TableSchema::new(
             "t2".to_string(),
-            vec![catalog::ColumnSchema::new(
-                "id".to_string(),
-                types::DataType::Integer,
-                false,
-            )],
+            vec![catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false)],
         );
         db.create_table(schema2).unwrap();
 
         // Insert enough rows to exceed MAX_JOIN_RESULT_ROWS (100M)
         // 15,000 x 15,000 = 225M rows (exceeds limit)
         for i in 0..15000 {
-            db.insert_row("t1", storage::Row::new(vec![types::SqlValue::Integer(i)]))
-                .unwrap();
-            db.insert_row("t2", storage::Row::new(vec![types::SqlValue::Integer(i)]))
-                .unwrap();
+            db.insert_row("t1", storage::Row::new(vec![types::SqlValue::Integer(i)])).unwrap();
+            db.insert_row("t2", storage::Row::new(vec![types::SqlValue::Integer(i)])).unwrap();
         }
 
         let executor = SelectExecutor::new(&db);
@@ -183,14 +171,8 @@ mod integration_tests {
             distinct: false,
             select_list: vec![ast::SelectItem::Wildcard { alias: None }],
             from: Some(ast::FromClause::Join {
-                left: Box::new(ast::FromClause::Table {
-                    name: "t1".to_string(),
-                    alias: None,
-                }),
-                right: Box::new(ast::FromClause::Table {
-                    name: "t2".to_string(),
-                    alias: None,
-                }),
+                left: Box::new(ast::FromClause::Table { name: "t1".to_string(), alias: None }),
+                right: Box::new(ast::FromClause::Table { name: "t2".to_string(), alias: None }),
                 join_type: ast::JoinType::Cross,
                 condition: None,
             }),
@@ -218,14 +200,8 @@ mod integration_tests {
             distinct: false,
             select_list: vec![ast::SelectItem::Wildcard { alias: None }],
             from: Some(ast::FromClause::Join {
-                left: Box::new(ast::FromClause::Table {
-                    name: "t1".to_string(),
-                    alias: None,
-                }),
-                right: Box::new(ast::FromClause::Table {
-                    name: "t2".to_string(),
-                    alias: None,
-                }),
+                left: Box::new(ast::FromClause::Table { name: "t1".to_string(), alias: None }),
+                right: Box::new(ast::FromClause::Table { name: "t2".to_string(), alias: None }),
                 join_type: ast::JoinType::Inner,
                 condition: Some(ast::Expression::Literal(types::SqlValue::Boolean(true))),
             }),

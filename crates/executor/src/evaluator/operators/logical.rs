@@ -3,8 +3,9 @@
 //! Handles: AND, OR
 //! Implements: SQL three-valued logic (TRUE, FALSE, NULL)
 
-use crate::errors::ExecutorError;
 use types::SqlValue;
+
+use crate::errors::ExecutorError;
 
 pub(crate) struct LogicalOps;
 

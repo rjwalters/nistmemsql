@@ -1,7 +1,8 @@
 //! Tests for advanced web demo SQL examples
 //!
-//! This test suite validates advanced SQL examples (CTEs, window functions, complex scenarios, string functions, etc.)
-//! from the web demo by parsing the TypeScript example files and executing queries.
+//! This test suite validates advanced SQL examples (CTEs, window functions, complex scenarios,
+//! string functions, etc.) from the web demo by parsing the TypeScript example files and executing
+//! queries.
 
 mod common;
 
@@ -10,7 +11,8 @@ use executor::SelectExecutor;
 use parser::Parser;
 
 /// Test advanced SQL examples from web demo
-/// Includes examples with IDs: cte*, with*, window*, partition*, string*, concat*, advanced*, complex*, uni*, company*
+/// Includes examples with IDs: cte*, with*, window*, partition*, string*, concat*, advanced*,
+/// complex*, uni*, company*
 ///
 /// TODO(#716): Re-enable this test once advanced examples are migrated to JSON format
 /// The JSON example files were created in commit 12a4539 but only basic.json exists.

@@ -199,7 +199,8 @@ fn test_date_add_large_day_interval() {
     // Add 365 days (1 year worth)
     let result =
         eval_function("DATE_ADD", vec![date_lit("2024-01-01"), int_lit(365), varchar_lit("DAY")]);
-    assert_eq!(result, types::SqlValue::Date("2024-12-31".to_string())); // 2024 is leap year with 366 days
+    assert_eq!(result, types::SqlValue::Date("2024-12-31".to_string())); // 2024 is leap year with
+                                                                         // 366 days
 }
 
 #[test]

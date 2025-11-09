@@ -4,9 +4,12 @@
 //! and creating a hash. Queries with identical structure (different literals)
 //! will have the same signature.
 
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+};
+
 use ast::{Expression, Statement};
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 
 /// Unique identifier for a query based on its structure
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -40,10 +43,7 @@ impl QuerySignature {
 
     /// Normalize SQL: trim and collapse whitespace
     fn normalize(sql: &str) -> String {
-        sql.split_whitespace()
-            .collect::<Vec<_>>()
-            .join(" ")
-            .to_lowercase()
+        sql.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase()
     }
 
     /// Hash a statement, replacing literals with a placeholder marker
@@ -181,12 +181,7 @@ impl QuerySignature {
                 name.hash(hasher);
                 alias.hash(hasher);
             }
-            ast::FromClause::Join {
-                left,
-                join_type,
-                right,
-                condition,
-            } => {
+            ast::FromClause::Join { left, join_type, right, condition } => {
                 "JOIN".hash(hasher);
                 Self::hash_from_clause(left, hasher);
                 std::mem::discriminant(join_type).hash(hasher);
@@ -228,11 +223,7 @@ impl QuerySignature {
                 Self::hash_expression(expr, hasher);
             }
 
-            Expression::Function {
-                name,
-                args,
-                character_unit,
-            } => {
+            Expression::Function { name, args, character_unit } => {
                 "FUNCTION".hash(hasher);
                 name.to_lowercase().hash(hasher);
                 for arg in args {
@@ -243,11 +234,7 @@ impl QuerySignature {
                 }
             }
 
-            Expression::AggregateFunction {
-                name,
-                distinct,
-                args,
-            } => {
+            Expression::AggregateFunction { name, distinct, args } => {
                 "AGGREGATE".hash(hasher);
                 name.to_lowercase().hash(hasher);
                 distinct.hash(hasher);
@@ -264,11 +251,7 @@ impl QuerySignature {
 
             Expression::Wildcard => "WILDCARD".hash(hasher),
 
-            Expression::Case {
-                operand,
-                when_clauses,
-                else_result,
-            } => {
+            Expression::Case { operand, when_clauses, else_result } => {
                 "CASE".hash(hasher);
                 if let Some(ref op) = operand {
                     Self::hash_expression(op, hasher);
@@ -289,22 +272,14 @@ impl QuerySignature {
                 Self::hash_select(subquery, hasher);
             }
 
-            Expression::In {
-                expr,
-                subquery,
-                negated,
-            } => {
+            Expression::In { expr, subquery, negated } => {
                 "IN_SUBQUERY".hash(hasher);
                 Self::hash_expression(expr, hasher);
                 Self::hash_select(subquery, hasher);
                 negated.hash(hasher);
             }
 
-            Expression::InList {
-                expr,
-                values,
-                negated,
-            } => {
+            Expression::InList { expr, values, negated } => {
                 "IN_LIST".hash(hasher);
                 Self::hash_expression(expr, hasher);
                 values.len().hash(hasher);
@@ -314,13 +289,7 @@ impl QuerySignature {
                 negated.hash(hasher);
             }
 
-            Expression::Between {
-                expr,
-                low,
-                high,
-                negated,
-                symmetric,
-            } => {
+            Expression::Between { expr, low, high, negated, symmetric } => {
                 "BETWEEN".hash(hasher);
                 Self::hash_expression(expr, hasher);
                 Self::hash_expression(low, hasher);
@@ -335,11 +304,7 @@ impl QuerySignature {
                 std::mem::discriminant(data_type).hash(hasher);
             }
 
-            Expression::Position {
-                substring,
-                string,
-                character_unit,
-            } => {
+            Expression::Position { substring, string, character_unit } => {
                 "POSITION".hash(hasher);
                 Self::hash_expression(substring, hasher);
                 Self::hash_expression(string, hasher);
@@ -348,11 +313,7 @@ impl QuerySignature {
                 }
             }
 
-            Expression::Trim {
-                position,
-                removal_char,
-                string,
-            } => {
+            Expression::Trim { position, removal_char, string } => {
                 "TRIM".hash(hasher);
                 if let Some(ref pos) = position {
                     std::mem::discriminant(pos).hash(hasher);
@@ -363,11 +324,7 @@ impl QuerySignature {
                 Self::hash_expression(string, hasher);
             }
 
-            Expression::Like {
-                expr,
-                pattern,
-                negated,
-            } => {
+            Expression::Like { expr, pattern, negated } => {
                 "LIKE".hash(hasher);
                 Self::hash_expression(expr, hasher);
                 Self::hash_expression(pattern, hasher);
@@ -380,12 +337,7 @@ impl QuerySignature {
                 negated.hash(hasher);
             }
 
-            Expression::QuantifiedComparison {
-                expr,
-                op,
-                quantifier,
-                subquery,
-            } => {
+            Expression::QuantifiedComparison { expr, op, quantifier, subquery } => {
                 "QUANTIFIED".hash(hasher);
                 Self::hash_expression(expr, hasher);
                 std::mem::discriminant(op).hash(hasher);
@@ -506,7 +458,7 @@ mod tests {
 
     #[test]
     fn test_ast_based_same_structure_different_literals() {
-        use ast::{Expression, SelectItem, SelectStmt, Statement, BinaryOperator, FromClause};
+        use ast::{BinaryOperator, Expression, FromClause, SelectItem, SelectStmt, Statement};
         use types::SqlValue;
 
         // SELECT col0 FROM tab WHERE col1 > 5
@@ -514,23 +466,14 @@ mod tests {
             with_clause: None,
             distinct: false,
             select_list: vec![SelectItem::Expression {
-                expr: Expression::ColumnRef {
-                    table: None,
-                    column: "col0".to_string(),
-                },
+                expr: Expression::ColumnRef { table: None, column: "col0".to_string() },
                 alias: None,
             }],
             into_table: None,
-            from: Some(FromClause::Table {
-                name: "tab".to_string(),
-                alias: None,
-            }),
+            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
             where_clause: Some(Expression::BinaryOp {
                 op: BinaryOperator::GreaterThan,
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "col1".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "col1".to_string() }),
                 right: Box::new(Expression::Literal(SqlValue::Integer(5))),
             }),
             group_by: None,
@@ -546,23 +489,14 @@ mod tests {
             with_clause: None,
             distinct: false,
             select_list: vec![SelectItem::Expression {
-                expr: Expression::ColumnRef {
-                    table: None,
-                    column: "col0".to_string(),
-                },
+                expr: Expression::ColumnRef { table: None, column: "col0".to_string() },
                 alias: None,
             }],
             into_table: None,
-            from: Some(FromClause::Table {
-                name: "tab".to_string(),
-                alias: None,
-            }),
+            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
             where_clause: Some(Expression::BinaryOp {
                 op: BinaryOperator::GreaterThan,
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "col1".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "col1".to_string() }),
                 right: Box::new(Expression::Literal(SqlValue::Integer(10))),
             }),
             group_by: None,
@@ -582,7 +516,7 @@ mod tests {
 
     #[test]
     fn test_ast_based_different_structure() {
-        use ast::{Expression, SelectItem, SelectStmt, Statement, BinaryOperator, FromClause};
+        use ast::{BinaryOperator, Expression, FromClause, SelectItem, SelectStmt, Statement};
         use types::SqlValue;
 
         // SELECT col0 FROM tab WHERE col1 > 5
@@ -590,23 +524,14 @@ mod tests {
             with_clause: None,
             distinct: false,
             select_list: vec![SelectItem::Expression {
-                expr: Expression::ColumnRef {
-                    table: None,
-                    column: "col0".to_string(),
-                },
+                expr: Expression::ColumnRef { table: None, column: "col0".to_string() },
                 alias: None,
             }],
             into_table: None,
-            from: Some(FromClause::Table {
-                name: "tab".to_string(),
-                alias: None,
-            }),
+            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
             where_clause: Some(Expression::BinaryOp {
                 op: BinaryOperator::GreaterThan,
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "col1".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "col1".to_string() }),
                 right: Box::new(Expression::Literal(SqlValue::Integer(5))),
             }),
             group_by: None,
@@ -622,23 +547,14 @@ mod tests {
             with_clause: None,
             distinct: false,
             select_list: vec![SelectItem::Expression {
-                expr: Expression::ColumnRef {
-                    table: None,
-                    column: "col0".to_string(),
-                },
+                expr: Expression::ColumnRef { table: None, column: "col0".to_string() },
                 alias: None,
             }],
             into_table: None,
-            from: Some(FromClause::Table {
-                name: "tab".to_string(),
-                alias: None,
-            }),
+            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
             where_clause: Some(Expression::BinaryOp {
                 op: BinaryOperator::LessThan, // Different operator!
-                left: Box::new(Expression::ColumnRef {
-                    table: None,
-                    column: "col1".to_string(),
-                }),
+                left: Box::new(Expression::ColumnRef { table: None, column: "col1".to_string() }),
                 right: Box::new(Expression::Literal(SqlValue::Integer(5))),
             }),
             group_by: None,

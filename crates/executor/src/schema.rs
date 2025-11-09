@@ -67,7 +67,7 @@ impl CombinedSchema {
             if let Some((start_index, schema)) = self.table_schemas.get(table_name) {
                 return schema.get_column_index(column).map(|idx| start_index + idx);
             }
-            
+
             // Fall back to case-insensitive table/alias name lookup
             let table_name_lower = table_name.to_lowercase();
             for (key, (start_index, schema)) in self.table_schemas.iter() {

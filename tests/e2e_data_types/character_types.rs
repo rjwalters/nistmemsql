@@ -1,8 +1,9 @@
 //! End-to-end tests for character SQL data types.
 
-use super::fixtures::*;
 use storage::{Database, Row};
 use types::SqlValue;
+
+use super::fixtures::*;
 
 #[test]
 fn test_e2e_char_type() {
@@ -38,7 +39,8 @@ fn test_e2e_char_type() {
         Row::new(vec![
             SqlValue::Integer(3),
             SqlValue::Character("TOOLONG".to_string()), // Will be truncated to "TOOLO" (5 chars)
-            SqlValue::Character("VeryLongName".to_string()), // Will be truncated to "VeryLongNa" (10 chars)
+            SqlValue::Character("VeryLongName".to_string()), /* Will be truncated to
+                                                              * "VeryLongNa" (10 chars) */
         ]),
     )
     .unwrap();

@@ -2,8 +2,9 @@
 //!
 //! This module implements evaluation of operators including unary operators (+, -)
 
-use crate::errors::ExecutorError;
 use types::SqlValue;
+
+use crate::errors::ExecutorError;
 
 /// Evaluate a unary operation
 ///
@@ -45,7 +46,7 @@ pub(crate) fn eval_unary_op(
         // - NOT non-boolean values are coerced to boolean first
         (Not, SqlValue::Null) => Ok(SqlValue::Null), // NULL propagation for NOT
         (Not, SqlValue::Boolean(b)) => Ok(SqlValue::Boolean(!b)),
-        
+
         // For non-boolean values, coerce to boolean first
         // In SQL, any non-zero number is TRUE, zero is FALSE
         (Not, SqlValue::Integer(n)) => Ok(SqlValue::Boolean(!(*n != 0))),
@@ -56,11 +57,14 @@ pub(crate) fn eval_unary_op(
         (Not, SqlValue::Real(f)) => Ok(SqlValue::Boolean(!(*f != 0.0))),
         (Not, SqlValue::Double(f)) => Ok(SqlValue::Boolean(!(*f != 0.0))),
         (Not, SqlValue::Numeric(d)) => Ok(SqlValue::Boolean(!(*d != 0.0))),
-        (Not, SqlValue::Character(_)) => Ok(SqlValue::Boolean(false)), // Non-empty character is truthy, so NOT is false
-        (Not, SqlValue::Varchar(_)) => Ok(SqlValue::Boolean(false)), // Non-empty varchar is truthy, so NOT is false
-        (Not, SqlValue::Date(_)) => Ok(SqlValue::Boolean(false)), // Date values are truthy
-        (Not, SqlValue::Time(_)) => Ok(SqlValue::Boolean(false)), // Time values are truthy
-        (Not, SqlValue::Timestamp(_)) => Ok(SqlValue::Boolean(false)), // Timestamp values are truthy
+        (Not, SqlValue::Character(_)) => Ok(SqlValue::Boolean(false)), /* Non-empty character is
+                                                                         * truthy, so NOT is
+                                                                         * false */
+        (Not, SqlValue::Varchar(_)) => Ok(SqlValue::Boolean(false)), /* Non-empty varchar is truthy, so NOT is false */
+        (Not, SqlValue::Date(_)) => Ok(SqlValue::Boolean(false)),    // Date values are truthy
+        (Not, SqlValue::Time(_)) => Ok(SqlValue::Boolean(false)),    // Time values are truthy
+        (Not, SqlValue::Timestamp(_)) => Ok(SqlValue::Boolean(false)), /* Timestamp values are
+                                                                         * truthy */
         (Not, SqlValue::Interval(_)) => Ok(SqlValue::Boolean(false)), // Interval values are truthy
 
         // Type errors
@@ -85,8 +89,9 @@ pub(crate) fn eval_unary_op(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use ast::UnaryOperator;
+
+    use super::*;
 
     #[test]
     fn test_not_boolean() {
@@ -102,10 +107,7 @@ mod tests {
 
     #[test]
     fn test_not_null() {
-        assert_eq!(
-            eval_unary_op(&UnaryOperator::Not, &SqlValue::Null).unwrap(),
-            SqlValue::Null
-        );
+        assert_eq!(eval_unary_op(&UnaryOperator::Not, &SqlValue::Null).unwrap(), SqlValue::Null);
     }
 
     #[test]

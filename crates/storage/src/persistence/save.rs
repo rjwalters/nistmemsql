@@ -9,10 +9,13 @@
 // - Data (INSERT statements)
 // - Roles and privileges
 
+use std::{
+    fs::File,
+    io::{BufWriter, Write},
+    path::Path,
+};
+
 use crate::{Database, StorageError};
-use std::fs::File;
-use std::io::{BufWriter, Write};
-use std::path::Path;
 
 impl Database {
     /// Save database state as SQL dump (human-readable, portable)
@@ -84,14 +87,16 @@ impl Database {
 
                 for (i, col) in schema.columns.iter().enumerate() {
                     if i > 0 {
-                        write!(writer, ", ")
-                            .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+                        write!(writer, ", ").map_err(|e| {
+                            StorageError::NotImplemented(format!("Write error: {}", e))
+                        })?;
                     }
                     write!(writer, "{} {}", col.name, format_data_type(&col.data_type))
                         .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
                     if !col.nullable {
-                        write!(writer, " NOT NULL")
-                            .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+                        write!(writer, " NOT NULL").map_err(|e| {
+                            StorageError::NotImplemented(format!("Write error: {}", e))
+                        })?;
                     }
                 }
 
@@ -103,18 +108,22 @@ impl Database {
                     writeln!(writer)
                         .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
                     for row in table.scan() {
-                        write!(writer, "INSERT INTO {} VALUES (", &table_name)
-                            .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+                        write!(writer, "INSERT INTO {} VALUES (", &table_name).map_err(|e| {
+                            StorageError::NotImplemented(format!("Write error: {}", e))
+                        })?;
                         for (i, value) in row.values.iter().enumerate() {
                             if i > 0 {
-                                write!(writer, ", ")
-                                    .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+                                write!(writer, ", ").map_err(|e| {
+                                    StorageError::NotImplemented(format!("Write error: {}", e))
+                                })?;
                             }
-                            write!(writer, "{}", sql_value_to_literal(value))
-                                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+                            write!(writer, "{}", sql_value_to_literal(value)).map_err(|e| {
+                                StorageError::NotImplemented(format!("Write error: {}", e))
+                            })?;
                         }
-                        writeln!(writer, ");")
-                            .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+                        writeln!(writer, ");").map_err(|e| {
+                            StorageError::NotImplemented(format!("Write error: {}", e))
+                        })?;
                     }
                 }
 

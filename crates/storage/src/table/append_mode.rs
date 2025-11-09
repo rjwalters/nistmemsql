@@ -31,11 +31,7 @@ pub struct AppendModeTracker {
 impl AppendModeTracker {
     /// Create a new append mode tracker
     pub fn new() -> Self {
-        Self {
-            last_pk_value: None,
-            append_mode: false,
-            append_streak: 0,
-        }
+        Self { last_pk_value: None, append_mode: false, append_streak: 0 }
     }
 
     /// Update append mode tracking based on current primary key value
