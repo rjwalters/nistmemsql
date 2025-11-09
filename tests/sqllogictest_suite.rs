@@ -45,11 +45,67 @@ impl std::error::Error for TestError {}
 
 struct NistMemSqlDB {
     db: Database,
+    query_count: usize,
+    verbose: bool,
+    worker_id: Option<usize>,
+    current_file: Option<String>,
+    file_start_time: Option<Instant>,
 }
 
 impl NistMemSqlDB {
     fn new() -> Self {
-        Self { db: Database::new() }
+        let verbose = env::var("SQLLOGICTEST_VERBOSE")
+            .map(|v| v == "1" || v.to_lowercase() == "true")
+            .unwrap_or(false);
+
+        let worker_id = env::var("SQLLOGICTEST_WORKER_ID")
+            .ok()
+            .and_then(|s| s.parse().ok());
+
+        Self {
+            db: Database::new(),
+            query_count: 0,
+            verbose,
+            worker_id,
+            current_file: None,
+            file_start_time: None,
+        }
+    }
+
+    fn start_test_file(&mut self, file_path: &str) {
+        self.current_file = Some(file_path.to_string());
+        self.file_start_time = Some(Instant::now());
+        self.query_count = 0;
+
+        if let Some(worker_id) = self.worker_id {
+            eprintln!("[Worker {}] Starting: {}", worker_id, file_path);
+        } else {
+            eprintln!("Starting: {}", file_path);
+        }
+    }
+
+    fn finish_test_file(&self, result: &Result<(), TestError>) {
+        if let (Some(file_path), Some(start_time)) = (&self.current_file, &self.file_start_time) {
+            let elapsed = start_time.elapsed();
+            let elapsed_secs = elapsed.as_secs_f64();
+
+            match result {
+                Ok(_) => {
+                    if let Some(worker_id) = self.worker_id {
+                        eprintln!("[Worker {}] ✓ {} ({:.2}s)", worker_id, file_path, elapsed_secs);
+                    } else {
+                        eprintln!("✓ {} ({:.2}s)", file_path, elapsed_secs);
+                    }
+                }
+                Err(e) => {
+                    if let Some(worker_id) = self.worker_id {
+                        eprintln!("[Worker {}] ✗ {} ({:.2}s): {}", worker_id, file_path, elapsed_secs, e);
+                    } else {
+                        eprintln!("✗ {} ({:.2}s): {}", file_path, elapsed_secs, e);
+                    }
+                }
+            }
+        }
     }
 
     /// Format and optionally hash result rows
@@ -443,6 +499,25 @@ impl AsyncDB for NistMemSqlDB {
     type ColumnType = DefaultColumnType;
 
     async fn run(&mut self, sql: &str) -> Result<DBOutput<Self::ColumnType>, Self::Error> {
+        self.query_count += 1;
+
+        // Log query progress if verbose mode enabled
+        if self.verbose {
+            let log_interval = env::var("SQLLOGICTEST_LOG_QUERY_INTERVAL")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(100);
+
+            if self.query_count % log_interval == 0 {
+                let sql_preview = if sql.len() > 60 {
+                    format!("{}...", &sql[..60])
+                } else {
+                    sql.to_string()
+                };
+                eprintln!("  Query {}: {}", self.query_count, sql_preview);
+            }
+        }
+
         self.execute_sql(sql)
     }
 
@@ -688,7 +763,7 @@ async fn run_test_file_async(
     let mut tester = Runner::new(|| async { Ok(NistMemSqlDB::new()) });
     // Enable hash mode with threshold of 8 (standard SQLLogicTest behavior)
     tester.with_hash_threshold(8);
-    
+
     match tester.run_script(&preprocessed) {
         Ok(_) => (Ok(()), vec![]),
         Err(e) => {
@@ -739,7 +814,7 @@ async fn run_test_file_with_timeout_impl(
 /// Run a test file and capture detailed failure information
 fn run_test_file_with_details(contents: &str, file_name: &str) -> (Result<(), TestError>, Vec<TestFailure>) {
     let timeout_secs = get_test_file_timeout();
-    
+
     let result = std::panic::catch_unwind(|| {
         tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(
             run_test_file_with_timeout_impl(contents, file_name, timeout_secs)
@@ -752,6 +827,7 @@ fn run_test_file_with_details(contents: &str, file_name: &str) -> (Result<(), Te
             let error_msg = e.downcast_ref::<String>()
                 .unwrap_or(&"Unknown panic".to_string())
                 .clone();
+
             let failure = TestFailure {
                 sql_statement: "Unknown - panic occurred".to_string(),
                 expected_result: None,
@@ -851,12 +927,15 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
             }
         };
 
+        // Log test file start
+        eprintln!("[Worker] Starting: {}", relative_path);
+        let test_start = Instant::now();
+
         // Create a new database for each test file and run with detailed failure capture
         let (test_result, detailed_failures) = run_test_file_with_details(&contents, &relative_path);
 
         match test_result {
             Ok(_) => {
-                println!("✓ {}", relative_path);
                 stats.passed += 1;
             }
             Err(TestError::Timeout { file, timeout_seconds }) => {
@@ -879,8 +958,7 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
     (results, total_available_files)
 }
 
-#[test]
-fn run_sqllogictest_suite() {
+fn main() {
     // If SELECT1_ONLY is set, run only select1.test
     if env::var("SELECT1_ONLY").is_ok() {
         let test_file = PathBuf::from("third_party/sqllogictest/test/select1.test");
@@ -888,9 +966,11 @@ fn run_sqllogictest_suite() {
         let (test_result, detailed_failures) = run_test_file_with_details(&contents, "select1.test");
 
         match test_result {
-            Ok(_) => println!("✓ select1.test passed"),
-            Err(e) => {
-                println!("✗ select1.test failed: {}", e);
+            Ok(_) => {
+                // Success message already printed by finish_test_file
+            }
+            Err(_) => {
+                // Error message already printed by finish_test_file
                 for failure in detailed_failures {
                     println!("  SQL: {}", failure.sql_statement);
                     println!("  Expected: {:?}", failure.expected_result);
@@ -1127,11 +1207,11 @@ SELECT 1
 ----
 1
         ";
-        
+
         // Set very short timeout of 1 second
         let file_name = "test_timeout.test";
         let result = run_test_file_with_timeout_impl(slow_test, file_name, 1).await;
-        
+
         // Check if result is ok or timeout
         match result.0 {
             Ok(()) => {

@@ -47,6 +47,11 @@ repository = "https://github.com/rjwalters/vibesql"
 pyo3 = { version = "0.27", features = ["extension-module"] }
 
 [[test]]
+name = "sqllogictest_suite"
+path = "tests/sqllogictest_suite.rs"
+harness = false
+
+[[test]]
 name = "e2e_data_types"
 path = "tests/e2e_data_types/mod.rs"
 

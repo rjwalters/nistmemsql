@@ -100,6 +100,9 @@ impl SelectExecutor<'_> {
         // Compute aggregates for each group and apply HAVING
         let mut result_rows = Vec::new();
         for (group_key, group_rows) in groups {
+            // Check timeout during aggregation
+            self.check_timeout()?;
+
             // Compute aggregates for this group
             let mut aggregate_results = Vec::new();
             for item in &stmt.select_list {
