@@ -1,8 +1,9 @@
 //! REVOKE statement executor
 
-use crate::errors::ExecutorError;
 use ast::*;
 use storage::Database;
+
+use crate::errors::ExecutorError;
 
 /// Executor for REVOKE statements
 pub struct RevokeExecutor;
@@ -85,8 +86,8 @@ impl RevokeExecutor {
                     PrivilegeType::References(None),
                 ],
                 ObjectType::Schema => vec![PrivilegeType::Usage, PrivilegeType::Create],
-                // USAGE-only objects (domains, collations, character sets, translations, types, sequences)
-                // ALL PRIVILEGES on these objects means USAGE privilege
+                // USAGE-only objects (domains, collations, character sets, translations, types,
+                // sequences) ALL PRIVILEGES on these objects means USAGE privilege
                 ObjectType::Domain
                 | ObjectType::Collation
                 | ObjectType::CharacterSet

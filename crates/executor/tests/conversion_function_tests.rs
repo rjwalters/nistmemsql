@@ -300,7 +300,8 @@ fn test_to_char_integer() {
     let result = eval_function("TO_CHAR", vec![int_lit(42), varchar_lit("999")]);
     match result {
         types::SqlValue::Varchar(_) => {
-            // Accept any varchar result - the specific formatting depends on format_number implementation
+            // Accept any varchar result - the specific formatting depends on format_number
+            // implementation
         }
         _ => panic!("Expected Varchar result"),
     }
@@ -311,7 +312,8 @@ fn test_to_char_double() {
     let result = eval_function("TO_CHAR", vec![double_lit(3.14), varchar_lit("999.99")]);
     match result {
         types::SqlValue::Varchar(_) => {
-            // Accept any varchar result - the specific formatting depends on format_number implementation
+            // Accept any varchar result - the specific formatting depends on format_number
+            // implementation
         }
         _ => panic!("Expected Varchar result"),
     }

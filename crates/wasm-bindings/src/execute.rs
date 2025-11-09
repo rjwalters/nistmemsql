@@ -3,8 +3,9 @@
 //! This module handles data manipulation (INSERT, UPDATE, DELETE) and
 //! transaction control (BEGIN, COMMIT, ROLLBACK, SAVEPOINT) operations.
 
-use crate::{Database, ExecuteResult};
 use wasm_bindgen::prelude::*;
+
+use crate::{Database, ExecuteResult};
 
 /// Executes a DDL or DML statement (CREATE TABLE, INSERT, UPDATE, DELETE)
 /// Returns a JSON string with the result

@@ -110,10 +110,8 @@ fn test_complex_expression_without_from() {
     };
 
     // - COUNT(*)
-    let neg_count = ast::Expression::UnaryOp {
-        op: ast::UnaryOperator::Minus,
-        expr: Box::new(count_star),
-    };
+    let neg_count =
+        ast::Expression::UnaryOp { op: ast::UnaryOperator::Minus, expr: Box::new(count_star) };
 
     // CAST(NULL AS DECIMAL)
     let cast_null = ast::Expression::Cast {
@@ -135,10 +133,8 @@ fn test_complex_expression_without_from() {
     };
 
     // Another unary +
-    let plus_twenty = ast::Expression::UnaryOp {
-        op: ast::UnaryOperator::Plus,
-        expr: Box::new(twenty),
-    };
+    let plus_twenty =
+        ast::Expression::UnaryOp { op: ast::UnaryOperator::Plus, expr: Box::new(twenty) };
 
     // (CAST(NULL AS DECIMAL) * - COUNT(*)) / + + 20
     let div = ast::Expression::BinaryOp {

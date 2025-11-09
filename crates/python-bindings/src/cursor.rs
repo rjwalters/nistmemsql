@@ -3,18 +3,19 @@
 //! This module provides the Cursor class for executing SQL statements,
 //! managing cached results, and fetching query results following DB-API 2.0 conventions.
 
+use std::{num::NonZeroUsize, sync::Arc};
+
 use lru::LruCache;
 use parking_lot::Mutex;
-use pyo3::prelude::*;
-use pyo3::types::{PyList, PyTuple};
-use std::num::NonZeroUsize;
-use std::sync::Arc;
-
-use crate::conversions::{
-    convert_params_to_sql_values, sqlvalue_to_py, substitute_placeholders,
+use pyo3::{
+    prelude::*,
+    types::{PyList, PyTuple},
 };
-use crate::profiling;
-use crate::{OperationalError, ProgrammingError};
+
+use crate::{
+    conversions::{convert_params_to_sql_values, sqlvalue_to_py, substitute_placeholders},
+    profiling, OperationalError, ProgrammingError,
+};
 
 /// Query result storage
 ///
@@ -428,11 +429,7 @@ impl Cursor {
     ///
     /// Takes SQL with ? placeholders and a tuple of parameters, validates
     /// parameter count, and returns SQL with parameters substituted as literals.
-    fn bind_parameters(
-        py: Python,
-        sql: &str,
-        params: &Bound<'_, PyTuple>,
-    ) -> PyResult<String> {
+    fn bind_parameters(py: Python, sql: &str, params: &Bound<'_, PyTuple>) -> PyResult<String> {
         // Count placeholders in SQL
         let placeholder_count = sql.matches('?').count();
         let param_count = params.len();

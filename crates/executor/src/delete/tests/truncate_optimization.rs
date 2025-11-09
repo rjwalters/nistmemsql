@@ -1,12 +1,13 @@
 //! Tests for TRUNCATE optimization (DELETE FROM table with no WHERE)
 
-use crate::DeleteExecutor;
 use ast::{DeleteStmt, TriggerAction, TriggerEvent, TriggerGranularity, TriggerTiming};
 use catalog::{
     ColumnSchema, ForeignKeyConstraint, ReferentialAction, TableSchema, TriggerDefinition,
 };
 use storage::{Database, Row};
 use types::{DataType, SqlValue};
+
+use crate::DeleteExecutor;
 
 #[test]
 fn test_truncate_optimization_basic() {
@@ -217,7 +218,8 @@ fn test_truncate_blocked_by_delete_trigger() {
 
     // DELETE FROM test_table (no WHERE)
     // Should NOT use TRUNCATE because DELETE trigger exists
-    // Should use row-by-row deletion (which currently doesn't execute triggers, but that's separate)
+    // Should use row-by-row deletion (which currently doesn't execute triggers, but that's
+    // separate)
     let stmt = DeleteStmt { only: false, table_name: "test_table".to_string(), where_clause: None };
 
     let deleted = DeleteExecutor::execute(&stmt, &mut db).unwrap();

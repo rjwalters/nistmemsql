@@ -9,8 +9,9 @@
 //! - TRANSLATION
 //! - ASSERTION
 
-use crate::Expression;
 use types::DataType;
+
+use crate::Expression;
 
 // ============================================================================
 // DOMAIN
@@ -67,8 +68,10 @@ pub struct AlterSequenceStmt {
     pub sequence_name: String,
     pub restart_with: Option<i64>,
     pub increment_by: Option<i64>,
-    pub min_value: Option<Option<i64>>, // None = no change, Some(None) = NO MINVALUE, Some(Some(n)) = MINVALUE n
-    pub max_value: Option<Option<i64>>, // None = no change, Some(None) = NO MAXVALUE, Some(Some(n)) = MAXVALUE n
+    pub min_value: Option<Option<i64>>, /* None = no change, Some(None) = NO MINVALUE,
+                                         * Some(Some(n)) = MINVALUE n */
+    pub max_value: Option<Option<i64>>, /* None = no change, Some(None) = NO MAXVALUE,
+                                         * Some(Some(n)) = MAXVALUE n */
     pub cycle: Option<bool>,
 }
 

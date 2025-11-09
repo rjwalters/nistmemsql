@@ -1,10 +1,9 @@
 //! ALTER TABLE parser
 
-use crate::keywords::Keyword;
-use crate::parser::ParseError;
-use crate::token::Token;
 use ast::*;
 use types::SqlValue;
+
+use crate::{keywords::Keyword, parser::ParseError, token::Token};
 
 /// Parse ALTER TABLE statement
 pub fn parse_alter_table(parser: &mut crate::Parser) -> Result<AlterTableStmt, ParseError> {

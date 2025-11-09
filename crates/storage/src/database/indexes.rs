@@ -2,10 +2,12 @@
 // Index Manager - User-defined index management (CREATE INDEX statements)
 // ============================================================================
 
-use crate::{Row, StorageError};
-use ast::IndexColumn;
 use std::collections::HashMap;
+
+use ast::IndexColumn;
 use types::SqlValue;
+
+use crate::{Row, StorageError};
 
 /// Normalize an index name to uppercase for case-insensitive comparison
 /// This follows SQL standard identifier rules
@@ -62,16 +64,8 @@ impl IndexData {
             let matches = match (start, end) {
                 (Some(s), Some(e)) => {
                     // Both bounds specified: start <= key <= end (or variations)
-                    let gte_start = if inclusive_start {
-                        key >= s
-                    } else {
-                        key > s
-                    };
-                    let lte_end = if inclusive_end {
-                        key <= e
-                    } else {
-                        key < e
-                    };
+                    let gte_start = if inclusive_start { key >= s } else { key > s };
+                    let lte_end = if inclusive_end { key <= e } else { key < e };
                     gte_start && lte_end
                 }
                 (Some(s), None) => {
@@ -90,7 +84,7 @@ impl IndexData {
                         key < e
                     }
                 }
-                (None, None) => true,  // No bounds - match everything
+                (None, None) => true, // No bounds - match everything
             };
 
             if matches {
@@ -161,11 +155,12 @@ impl IndexManager {
         // Get column indices in the table for all indexed columns
         let mut column_indices = Vec::new();
         for index_col in &columns {
-            let column_idx = table_schema
-                .get_column_index(&index_col.column_name)
-                .ok_or_else(|| StorageError::ColumnNotFound {
-                    column_name: index_col.column_name.clone(),
-                    table_name: table_name.clone(),
+            let column_idx =
+                table_schema.get_column_index(&index_col.column_name).ok_or_else(|| {
+                    StorageError::ColumnNotFound {
+                        column_name: index_col.column_name.clone(),
+                        table_name: table_name.clone(),
+                    }
                 })?;
             column_indices.push(column_idx);
         }
@@ -283,7 +278,11 @@ impl IndexManager {
                         }
 
                         // Add new key
-                        index_data.data.entry(new_key_values).or_insert_with(Vec::new).push(row_index);
+                        index_data
+                            .data
+                            .entry(new_key_values)
+                            .or_insert_with(Vec::new)
+                            .push(row_index);
                     }
                     // If keys are the same, no change needed
                 }

@@ -29,7 +29,7 @@ mod type_ddl;
 mod update;
 
 pub use alter::AlterTableExecutor;
-pub use cache::{QueryPlanCache, CacheStats, QuerySignature, CacheManager, CachedQueryContext};
+pub use cache::{CacheManager, CacheStats, CachedQueryContext, QueryPlanCache, QuerySignature};
 pub use constraint_validator::ConstraintValidator;
 pub use create_table::CreateTableExecutor;
 pub use delete::DeleteExecutor;

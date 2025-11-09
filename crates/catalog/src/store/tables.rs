@@ -3,8 +3,7 @@
 //! This module handles all table-related operations including creation,
 //! modification, deletion, and queries.
 
-use crate::errors::CatalogError;
-use crate::table::TableSchema;
+use crate::{errors::CatalogError, table::TableSchema};
 
 impl super::Catalog {
     /// Create a table schema in the current schema.

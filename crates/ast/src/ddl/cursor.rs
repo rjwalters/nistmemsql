@@ -12,7 +12,8 @@ pub struct DeclareCursorStmt {
     pub cursor_name: String,
     pub insensitive: bool,
     pub scroll: bool,
-    pub hold: Option<bool>, // Some(true) = WITH HOLD, Some(false) = WITHOUT HOLD, None = not specified
+    pub hold: Option<bool>, /* Some(true) = WITH HOLD, Some(false) = WITHOUT HOLD, None = not
+                             * specified */
     pub query: Box<crate::SelectStmt>,
     pub updatability: CursorUpdatability,
 }
@@ -21,7 +22,8 @@ pub struct DeclareCursorStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub enum CursorUpdatability {
     ReadOnly,
-    Update { columns: Option<Vec<String>> }, // Some(cols) = UPDATE OF cols, None = UPDATE (all columns)
+    Update { columns: Option<Vec<String>> }, /* Some(cols) = UPDATE OF cols, None = UPDATE (all
+                                              * columns) */
     Unspecified,
 }
 

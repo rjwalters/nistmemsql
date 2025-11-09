@@ -33,6 +33,7 @@
 //! ```
 
 use std::collections::HashSet;
+
 use super::reorder::{JoinEdge, JoinOrderAnalyzer};
 
 /// Represents the cost of joining a set of tables
@@ -178,25 +179,15 @@ impl JoinOrderSearch {
     fn estimate_join_cost(&self, joined_tables: &HashSet<String>, next_table: &str) -> JoinCost {
         if joined_tables.is_empty() {
             // First table: just a scan with selectivity
-            let cardinality = self
-                .table_cardinalities
-                .get(next_table)
-                .copied()
-                .unwrap_or(10000);
+            let cardinality = self.table_cardinalities.get(next_table).copied().unwrap_or(10000);
             return JoinCost::new(cardinality, 0);
         }
 
         // Estimate cardinality of joined result
-        let left_cardinality: usize = joined_tables
-            .iter()
-            .filter_map(|t| self.table_cardinalities.get(t))
-            .sum();
+        let left_cardinality: usize =
+            joined_tables.iter().filter_map(|t| self.table_cardinalities.get(t)).sum();
 
-        let right_cardinality = self
-            .table_cardinalities
-            .get(next_table)
-            .copied()
-            .unwrap_or(10000);
+        let right_cardinality = self.table_cardinalities.get(next_table).copied().unwrap_or(10000);
 
         // Estimate join selectivity
         // If there's an equijoin condition, assume high selectivity (10%)
@@ -273,11 +264,7 @@ mod tests {
     #[test]
     fn test_three_table_chain() {
         let mut analyzer = JoinOrderAnalyzer::new();
-        analyzer.register_tables(vec![
-            "t1".to_string(),
-            "t2".to_string(),
-            "t3".to_string(),
-        ]);
+        analyzer.register_tables(vec!["t1".to_string(), "t2".to_string(), "t3".to_string()]);
 
         // Create chain: t1 - t2 - t3
         analyzer.add_edge(JoinEdge {
@@ -315,11 +302,7 @@ mod tests {
     fn test_search_prunes_bad_paths() {
         // Create scenario where different orderings have different costs
         let mut analyzer = JoinOrderAnalyzer::new();
-        analyzer.register_tables(vec![
-            "t1".to_string(),
-            "t2".to_string(),
-            "t3".to_string(),
-        ]);
+        analyzer.register_tables(vec!["t1".to_string(), "t2".to_string(), "t3".to_string()]);
 
         // t1 - t2 - t3 chain
         analyzer.add_edge(JoinEdge {
@@ -346,11 +329,7 @@ mod tests {
     fn test_disconnected_tables() {
         // Tables with no join edges
         let mut analyzer = JoinOrderAnalyzer::new();
-        analyzer.register_tables(vec![
-            "t1".to_string(),
-            "t2".to_string(),
-            "t3".to_string(),
-        ]);
+        analyzer.register_tables(vec!["t1".to_string(), "t2".to_string(), "t3".to_string()]);
 
         // No edges - will use cross product
         let search = JoinOrderSearch::from_analyzer(&analyzer);

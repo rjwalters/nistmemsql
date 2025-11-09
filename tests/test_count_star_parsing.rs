@@ -96,16 +96,14 @@ fn test_parse_count_with_distinct() {
 
     if let Ok(ast::Statement::Select(stmt)) = result {
         match &stmt.select_list[0] {
-            ast::SelectItem::Expression { expr, .. } => {
-                match expr {
-                    ast::Expression::AggregateFunction { name, distinct, args, .. } => {
-                        assert_eq!(name, "COUNT");
-                        assert_eq!(*distinct, true);
-                        assert_eq!(args.len(), 1);
-                    }
-                    _ => panic!("Expected AggregateFunction"),
+            ast::SelectItem::Expression { expr, .. } => match expr {
+                ast::Expression::AggregateFunction { name, distinct, args, .. } => {
+                    assert_eq!(name, "COUNT");
+                    assert_eq!(*distinct, true);
+                    assert_eq!(args.len(), 1);
                 }
-            }
+                _ => panic!("Expected AggregateFunction"),
+            },
             _ => panic!("Expected Expression"),
         }
     }

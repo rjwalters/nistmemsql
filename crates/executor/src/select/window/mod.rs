@@ -9,20 +9,18 @@ mod evaluation;
 mod order_by;
 mod types;
 
-use crate::errors::ExecutorError;
-use crate::evaluator::CombinedExpressionEvaluator;
-use ast::SelectItem;
 use std::collections::HashMap;
-use storage::Row;
 
+use ast::SelectItem;
+// Re-export detection helpers for use by select module
+pub(super) use detection::{expression_has_window_function, has_window_functions};
+// Re-export ORDER BY support functions
+pub(super) use order_by::{collect_order_by_window_functions, evaluate_order_by_window_functions};
+use storage::Row;
 // Re-export public types
 pub use types::WindowFunctionKey;
 
-// Re-export detection helpers for use by select module
-pub(super) use detection::{expression_has_window_function, has_window_functions};
-
-// Re-export ORDER BY support functions
-pub(super) use order_by::{collect_order_by_window_functions, evaluate_order_by_window_functions};
+use crate::{errors::ExecutorError, evaluator::CombinedExpressionEvaluator};
 
 /// Evaluate window functions and add results to rows
 ///

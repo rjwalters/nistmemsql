@@ -351,6 +351,7 @@ fn test_e2e_exists_predicate() {
     .unwrap();
     assert_eq!(results.len(), 3, "Should find all customers (either id=3 or orders exist)");
 
-    // Note: Correlated subqueries with table aliases (e.g., WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id))
-    // are not yet fully supported and will be added in a future update.
+    // Note: Correlated subqueries with table aliases (e.g., WHERE EXISTS (SELECT 1 FROM orders o
+    // WHERE o.customer_id = c.id)) are not yet fully supported and will be added in a future
+    // update.
 }

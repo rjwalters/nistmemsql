@@ -64,11 +64,7 @@ fn extract_from_from_clause(from: &ast::FromClause, tables: &mut HashSet<String>
     match from {
         ast::FromClause::Table { name, .. } => {
             // Handle qualified names (schema.table) - we want just the table name
-            let table_name = if let Some(pos) = name.rfind('.') {
-                &name[pos + 1..]
-            } else {
-                name
-            };
+            let table_name = if let Some(pos) = name.rfind('.') { &name[pos + 1..] } else { name };
             tables.insert(table_name.to_string());
         }
         ast::FromClause::Join { left, right, condition, .. } => {
@@ -99,7 +95,8 @@ fn extract_from_expression(expr: &ast::Expression, tables: &mut HashSet<String>)
         ast::Expression::UnaryOp { expr, .. } => {
             extract_from_expression(expr, tables);
         }
-        ast::Expression::Function { args, .. } | ast::Expression::AggregateFunction { args, .. } => {
+        ast::Expression::Function { args, .. }
+        | ast::Expression::AggregateFunction { args, .. } => {
             for arg in args {
                 extract_from_expression(arg, tables);
             }
@@ -257,8 +254,9 @@ pub fn extract_tables_from_statement(stmt: &ast::Statement) -> HashSet<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use parser::Parser;
+
+    use super::*;
 
     #[test]
     fn test_extract_simple_select() {

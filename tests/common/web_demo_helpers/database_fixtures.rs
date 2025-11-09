@@ -377,7 +377,7 @@ pub fn create_employees_db() -> Database {
         "EMPLOYEES".to_string(),
         vec![
             ColumnSchema::new("EMPLOYEE_ID".to_string(), DataType::Integer, false),
-            ColumnSchema::new("EMP_ID".to_string(), DataType::Integer, false), // alias for company examples
+            ColumnSchema::new("EMP_ID".to_string(), DataType::Integer, false), /* alias for company examples */
             ColumnSchema::new(
                 "FIRST_NAME".to_string(),
                 DataType::Varchar { max_length: Some(50) },
@@ -398,7 +398,8 @@ pub fn create_employees_db() -> Database {
                 DataType::Varchar { max_length: Some(50) },
                 false,
             ),
-            ColumnSchema::new("DEPT_ID".to_string(), DataType::Integer, true), // for company examples
+            ColumnSchema::new("DEPT_ID".to_string(), DataType::Integer, true), /* for company
+                                                                                * examples */
             ColumnSchema::new(
                 "TITLE".to_string(),
                 DataType::Varchar { max_length: Some(100) },
@@ -523,7 +524,8 @@ pub fn create_employees_db() -> Database {
     let employees_table = db.get_table_mut("EMPLOYEES").unwrap();
 
     // Insert employees data matching expected results
-    // From string-2 expected: Alice Johnson, Bob Smith, Carol White, David Brown, Eve Martinez, Frank Wilson, Grace Taylor, Henry Anderson
+    // From string-2 expected: Alice Johnson, Bob Smith, Carol White, David Brown, Eve Martinez,
+    // Frank Wilson, Grace Taylor, Henry Anderson
     employees_table
         .insert(Row::new(vec![
             SqlValue::Integer(1),
@@ -770,7 +772,7 @@ pub fn create_university_db() -> Database {
         vec![
             ColumnSchema::new("STUDENT_ID".to_string(), DataType::Integer, false),
             ColumnSchema::new("COURSE_ID".to_string(), DataType::Integer, false),
-            ColumnSchema::new("GRADE".to_string(), DataType::Varchar { max_length: Some(2) }, true), // nullable
+            ColumnSchema::new("GRADE".to_string(), DataType::Varchar { max_length: Some(2) }, true), /* nullable */
             ColumnSchema::new(
                 "SEMESTER".to_string(),
                 DataType::Varchar { max_length: Some(20) },

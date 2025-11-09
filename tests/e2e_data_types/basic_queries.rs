@@ -1,9 +1,10 @@
 //! End-to-end tests for basic SQL query features.
 
-use super::fixtures::*;
 use catalog::{ColumnSchema, TableSchema};
 use storage::{Database, Row};
 use types::{DataType, SqlValue};
+
+use super::fixtures::*;
 
 #[test]
 fn test_e2e_distinct() {

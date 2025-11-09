@@ -3,8 +3,9 @@
 //! This module provides methods to load pre-built example databases
 //! that demonstrate SQL features like JOINs, aggregates, and recursive queries.
 
-use crate::{Database, ExecuteResult};
 use wasm_bindgen::prelude::*;
+
+use crate::{Database, ExecuteResult};
 
 /// Loads the Employees example database (hierarchical org structure)
 /// Demonstrates recursive queries with WITH RECURSIVE

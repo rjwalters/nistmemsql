@@ -2,8 +2,9 @@
 //!
 //! Calculates frame boundaries (ROWS mode) for window function evaluation.
 
-use ast::{Expression, FrameBound, FrameUnit, OrderByItem, WindowFrame};
 use std::ops::Range;
+
+use ast::{Expression, FrameBound, FrameUnit, OrderByItem, WindowFrame};
 use types::SqlValue;
 
 use super::partitioning::Partition;

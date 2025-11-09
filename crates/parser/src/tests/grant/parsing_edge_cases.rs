@@ -7,8 +7,9 @@
 //! - Complex privilege/grantee combinations
 //! - Implicit object type defaults (Issue #566)
 
-use crate::Parser;
 use ast::*;
+
+use crate::Parser;
 
 #[test]
 fn test_parse_grant_case_insensitive() {

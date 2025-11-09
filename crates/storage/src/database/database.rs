@@ -2,11 +2,15 @@
 // Database
 // ============================================================================
 
-use super::indexes::IndexManager;
-use super::transactions::{TransactionChange, TransactionManager};
-use crate::{Row, StorageError, Table};
-use ast::IndexColumn;
 use std::collections::HashMap;
+
+use ast::IndexColumn;
+
+use super::{
+    indexes::IndexManager,
+    transactions::{TransactionChange, TransactionManager},
+};
+use crate::{Row, StorageError, Table};
 
 /// In-memory database - manages catalog and tables
 #[derive(Debug, Clone)]
@@ -315,18 +319,29 @@ impl Database {
         columns: Vec<IndexColumn>,
     ) -> Result<(), StorageError> {
         // Get the table to build the index
-        let table = self.tables.get(&table_name)
+        let table = self
+            .tables
+            .get(&table_name)
             .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
 
         // Get the table schema
-        let table_schema = self.catalog.get_table(&table_name)
+        let table_schema = self
+            .catalog
+            .get_table(&table_name)
             .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
 
         // Collect table rows
         let table_rows: Vec<Row> = table.scan().iter().cloned().collect();
 
         // Delegate to index manager
-        self.index_manager.create_index(index_name, table_name, table_schema, &table_rows, unique, columns)
+        self.index_manager.create_index(
+            index_name,
+            table_name,
+            table_schema,
+            &table_rows,
+            unique,
+            columns,
+        )
     }
 
     /// Check if an index exists
@@ -345,9 +360,21 @@ impl Database {
     }
 
     /// Update user-defined indexes for update operation
-    pub fn update_indexes_for_update(&mut self, table_name: &str, old_row: &Row, new_row: &Row, row_index: usize) {
+    pub fn update_indexes_for_update(
+        &mut self,
+        table_name: &str,
+        old_row: &Row,
+        new_row: &Row,
+        row_index: usize,
+    ) {
         if let Some(table_schema) = self.catalog.get_table(table_name) {
-            self.index_manager.update_indexes_for_update(table_name, table_schema, old_row, new_row, row_index);
+            self.index_manager.update_indexes_for_update(
+                table_name,
+                table_schema,
+                old_row,
+                new_row,
+                row_index,
+            );
         }
     }
 

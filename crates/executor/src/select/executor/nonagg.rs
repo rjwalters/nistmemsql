@@ -46,7 +46,8 @@ impl SelectExecutor<'_> {
             None
         };
 
-        // Create evaluator with outer context if available (outer schema is already a CombinedSchema)
+        // Create evaluator with outer context if available (outer schema is already a
+        // CombinedSchema)
         let evaluator =
             if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
                 CombinedExpressionEvaluator::with_database_and_outer_context(
@@ -60,15 +61,18 @@ impl SelectExecutor<'_> {
             };
 
         // Try index-based WHERE optimization first
-        let mut filtered_rows = if let Some(index_filtered) = try_index_based_where_filtering(self.database, stmt.where_clause.as_ref(), &rows, &schema)? {
+        let mut filtered_rows = if let Some(index_filtered) =
+            try_index_based_where_filtering(self.database, stmt.where_clause.as_ref(), &rows, &schema)?
+        {
             index_filtered
         } else {
             // Fall back to full WHERE clause evaluation
-            // Note: Table-local predicates have already been pushed down and applied during table scan.
-            // However, we still apply the full WHERE clause here for correctness with JOINs
-            // and complex predicates that can't be pushed down.
+            // Note: Table-local predicates have already been pushed down and applied during table
+            // scan. However, we still apply the full WHERE clause here for correctness
+            // with JOINs and complex predicates that can't be pushed down.
             // The table-local predicates being applied twice is safe (same result) but not optimal.
-            // TODO: In Phase 3, extract and remove table-local predicates here to avoid double filtering
+            // TODO: In Phase 3, extract and remove table-local predicates here to avoid double
+            // filtering
             let where_optimization = optimize_where_clause(stmt.where_clause.as_ref(), &evaluator)?;
 
             match where_optimization {
@@ -154,11 +158,14 @@ impl SelectExecutor<'_> {
         // Apply ORDER BY sorting if present
         if let Some(order_by) = &stmt.order_by {
             // Try to use index for ordering first
-            if let Some(ordered_rows) = try_index_based_ordering(self.database, &result_rows, order_by, &schema, &stmt.from)? {
+            if let Some(ordered_rows) =
+                try_index_based_ordering(self.database, &result_rows, order_by, &schema, &stmt.from)?
+            {
                 result_rows = ordered_rows;
             } else {
                 // Fall back to sorting
-                // Create evaluator with window mapping for ORDER BY (if window functions are present)
+                // Create evaluator with window mapping for ORDER BY (if window functions are
+                // present)
                 let order_by_evaluator = if let Some(ref mapping) = window_mapping {
                     CombinedExpressionEvaluator::with_database_and_windows(
                         &schema,

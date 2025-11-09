@@ -3,8 +3,7 @@
 //! This module handles all privilege-related operations including grants,
 //! revocations, and privilege checks.
 
-use crate::errors::CatalogError;
-use crate::privilege::PrivilegeGrant;
+use crate::{errors::CatalogError, privilege::PrivilegeGrant};
 
 impl super::Catalog {
     /// Add a privilege grant to the catalog.

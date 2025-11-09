@@ -1,8 +1,8 @@
 //! Role DDL parsing
 
-use crate::keywords::Keyword;
-use crate::parser::ParseError;
 use ast::*;
+
+use crate::{keywords::Keyword, parser::ParseError};
 
 /// Parse CREATE ROLE statement
 ///

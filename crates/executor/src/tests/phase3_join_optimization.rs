@@ -28,10 +28,7 @@ fn test_hash_join_from_where_equijoin_no_on_clause() {
     for i in 1..=5 {
         db.insert_row(
             "t1",
-            storage::Row::new(vec![
-                types::SqlValue::Integer(i),
-                types::SqlValue::Integer(i * 10),
-            ]),
+            storage::Row::new(vec![types::SqlValue::Integer(i), types::SqlValue::Integer(i * 10)]),
         )
         .unwrap();
     }
@@ -41,7 +38,11 @@ fn test_hash_join_from_where_equijoin_no_on_clause() {
         "t2".to_string(),
         vec![
             catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
-            catalog::ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(50) }, false),
+            catalog::ColumnSchema::new(
+                "name".to_string(),
+                types::DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
         ],
     );
     db.create_table(t2_schema).unwrap();
@@ -92,10 +93,10 @@ fn test_hash_join_from_where_equijoin_no_on_clause() {
     };
 
     let result = executor.execute(&stmt).unwrap();
-    
+
     // Should have 5 rows (one for each matching ID)
     assert_eq!(result.len(), 5, "Expected 5 rows from equijoin");
-    
+
     // Verify data integrity - first row should have t1.id=1, t1.value=10, t2.id=1, t2.name='name_1'
     let first_row = &result[0];
     assert_eq!(first_row.values.len(), 4, "Expected 4 columns");
@@ -123,10 +124,7 @@ fn test_hash_join_multiple_equijoins_in_where() {
     for i in 1..=3 {
         db.insert_row(
             "t1",
-            storage::Row::new(vec![
-                types::SqlValue::Integer(i),
-                types::SqlValue::Integer(i * 10),
-            ]),
+            storage::Row::new(vec![types::SqlValue::Integer(i), types::SqlValue::Integer(i * 10)]),
         )
         .unwrap();
     }
@@ -144,10 +142,7 @@ fn test_hash_join_multiple_equijoins_in_where() {
     for i in 1..=3 {
         db.insert_row(
             "t2",
-            storage::Row::new(vec![
-                types::SqlValue::Integer(i),
-                types::SqlValue::Integer(i * 20),
-            ]),
+            storage::Row::new(vec![types::SqlValue::Integer(i), types::SqlValue::Integer(i * 20)]),
         )
         .unwrap();
     }
@@ -200,17 +195,17 @@ fn test_hash_join_multiple_equijoins_in_where() {
     };
 
     let result = executor.execute(&stmt).unwrap();
-    
+
     // t1.value = [10, 20, 30] (id 1, 2, 3)
     // t2.value = [20, 40, 60] (id 1, 2, 3)
-    // 
+    //
     // Both id AND value must match:
     // t1.id=t2.id AND t1.value=t2.value
-    // 
+    //
     // id=1: t1.value=10 vs t2.value=20 - NO
     // id=2: t1.value=20 vs t2.value=40 - NO
     // id=3: t1.value=30 vs t2.value=60 - NO
-    // 
+    //
     // So no rows match both conditions
     assert_eq!(result.len(), 0, "Expected 0 rows where both conditions match");
 }
@@ -252,7 +247,7 @@ fn test_cascading_joins_with_where_equijoins() {
     //   result (10 rows) JOIN t3 ON t2.id=t3.id → 10 rows
     //   result (10 rows) JOIN t4 ON t3.id=t4.id → 10 rows
     let executor = SelectExecutor::new(&db);
-    
+
     // Build nested join manually
     let stmt = ast::SelectStmt {
         into_table: None,
@@ -323,10 +318,10 @@ fn test_cascading_joins_with_where_equijoins() {
     };
 
     let result = executor.execute(&stmt).unwrap();
-    
+
     // Should have 10 rows (one for each matching ID 1-10)
     assert_eq!(result.len(), 10, "Expected 10 rows from cascading equijoins");
-    
+
     // Verify first row structure
     let first_row = &result[0];
     assert_eq!(first_row.values.len(), 8, "Expected 8 columns (4 tables × 2 cols each)");
@@ -349,10 +344,7 @@ fn test_hash_join_with_on_clause_and_where_equijoins() {
     for i in 1..=3 {
         db.insert_row(
             "t1",
-            storage::Row::new(vec![
-                types::SqlValue::Integer(i),
-                types::SqlValue::Integer(i * 10),
-            ]),
+            storage::Row::new(vec![types::SqlValue::Integer(i), types::SqlValue::Integer(i * 10)]),
         )
         .unwrap();
     }
@@ -369,10 +361,7 @@ fn test_hash_join_with_on_clause_and_where_equijoins() {
     for i in 1..=3 {
         db.insert_row(
             "t2",
-            storage::Row::new(vec![
-                types::SqlValue::Integer(i),
-                types::SqlValue::Integer(i * 10),
-            ]),
+            storage::Row::new(vec![types::SqlValue::Integer(i), types::SqlValue::Integer(i * 10)]),
         )
         .unwrap();
     }
@@ -527,24 +516,15 @@ fn test_star_join_select5_pattern() {
                         join_type: ast::JoinType::Inner,
                         condition: None,
                     }),
-                    right: Box::new(ast::FromClause::Table {
-                        name: "t4".to_string(),
-                        alias: None,
-                    }),
+                    right: Box::new(ast::FromClause::Table { name: "t4".to_string(), alias: None }),
                     join_type: ast::JoinType::Inner,
                     condition: None,
                 }),
-                right: Box::new(ast::FromClause::Table {
-                    name: "t5".to_string(),
-                    alias: None,
-                }),
+                right: Box::new(ast::FromClause::Table { name: "t5".to_string(), alias: None }),
                 join_type: ast::JoinType::Inner,
                 condition: None,
             }),
-            right: Box::new(ast::FromClause::Table {
-                name: "t6".to_string(),
-                alias: None,
-            }),
+            right: Box::new(ast::FromClause::Table { name: "t6".to_string(), alias: None }),
             join_type: ast::JoinType::Inner,
             condition: None,
         }),
@@ -630,11 +610,7 @@ fn test_star_join_select5_pattern() {
 
     // Verify structure: 6 tables × 2 columns = 12 columns
     let first_row = &result[0];
-    assert_eq!(
-        first_row.values.len(),
-        12,
-        "Expected 12 columns (6 tables × 2 cols)"
-    );
+    assert_eq!(first_row.values.len(), 12, "Expected 12 columns (6 tables × 2 cols)");
 
     // Verify correctness: first row should have id=1 from all tables
     assert_eq!(first_row.values[0], types::SqlValue::Integer(1)); // t1.id

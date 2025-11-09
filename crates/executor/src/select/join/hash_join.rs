@@ -1,9 +1,7 @@
-use crate::errors::ExecutorError;
-use crate::schema::CombinedSchema;
-use crate::limits::MAX_MEMORY_BYTES;
 use std::collections::HashMap;
 
 use super::{combine_rows, FromResult};
+use crate::{errors::ExecutorError, limits::MAX_MEMORY_BYTES, schema::CombinedSchema};
 
 /// Maximum number of rows allowed in a join result to prevent memory exhaustion
 const MAX_JOIN_RESULT_ROWS: usize = 100_000_000;
@@ -30,8 +28,8 @@ fn check_join_size_limit(left_count: usize, right_count: usize) -> Result<(), Ex
 ///
 /// Algorithm:
 /// 1. Build phase: Hash the smaller table into a HashMap (O(n))
-/// 2. Probe phase: For each row in larger table, lookup matches (O(m))
-///     Total: O(n + m) instead of O(n * m) for nested loop join
+/// 2. Probe phase: For each row in larger table, lookup matches (O(m)) Total: O(n + m) instead of
+///    O(n * m) for nested loop join
 ///
 /// Performance characteristics:
 /// - Time: O(n + m) vs O(n*m) for nested loop
@@ -118,11 +116,12 @@ pub(super) fn hash_join_inner(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::schema::CombinedSchema;
     use catalog::{ColumnSchema, TableSchema};
     use storage::Row;
     use types::{DataType, SqlValue};
+
+    use super::*;
+    use crate::schema::CombinedSchema;
 
     /// Helper to create a simple FromResult for testing
     fn create_test_from_result(

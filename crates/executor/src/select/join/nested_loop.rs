@@ -1,9 +1,8 @@
-use crate::errors::ExecutorError;
-use crate::evaluator::CombinedExpressionEvaluator;
-use crate::schema::CombinedSchema;
-use crate::limits::MAX_MEMORY_BYTES;
-
 use super::{combine_rows, FromResult};
+use crate::{
+    errors::ExecutorError, evaluator::CombinedExpressionEvaluator, limits::MAX_MEMORY_BYTES,
+    schema::CombinedSchema,
+};
 
 /// Maximum number of rows allowed in a join result to prevent memory exhaustion
 /// With average row size of ~100 bytes, this allows up to ~10GB
@@ -11,7 +10,11 @@ const MAX_JOIN_RESULT_ROWS: usize = 100_000_000;
 
 /// Check if a join would exceed memory limits based on estimated result size
 /// Accounts for join selectivity when equijoin conditions are present
-fn check_join_size_limit(left_count: usize, right_count: usize, condition: &Option<ast::Expression>) -> Result<(), ExecutorError> {
+fn check_join_size_limit(
+    left_count: usize,
+    right_count: usize,
+    condition: &Option<ast::Expression>,
+) -> Result<(), ExecutorError> {
     // Estimate result size based on join condition type
     let estimated_result_rows = if is_equijoin_condition(condition) {
         // For equijoins (a.col = b.col), estimate based on join selectivity
@@ -42,14 +45,12 @@ fn is_equijoin_condition(condition: &Option<ast::Expression>) -> bool {
         Some(ast::Expression::BinaryOp { op: ast::BinaryOperator::Equal, .. }) => true,
         Some(ast::Expression::BinaryOp { op: ast::BinaryOperator::And, left, right }) => {
             // For AND conditions, check if at least one is an equijoin
-            is_equijoin_condition(&Some(left.as_ref().clone())) || 
-            is_equijoin_condition(&Some(right.as_ref().clone()))
+            is_equijoin_condition(&Some(left.as_ref().clone()))
+                || is_equijoin_condition(&Some(right.as_ref().clone()))
         }
         _ => false,
     }
 }
-
-
 
 /// Nested loop INNER JOIN implementation
 pub(super) fn nested_loop_inner_join(
@@ -79,7 +80,8 @@ pub(super) fn nested_loop_inner_join(
         .clone();
 
     // Combine schemas
-    let combined_schema = CombinedSchema::combine(left.schema.clone(), right_table_name, right_schema);
+    let combined_schema =
+        CombinedSchema::combine(left.schema.clone(), right_table_name, right_schema);
     let evaluator = CombinedExpressionEvaluator::with_database(&combined_schema, database);
 
     // Nested loop join algorithm

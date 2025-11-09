@@ -5,8 +5,10 @@
 use ast::Expression;
 use types::SqlValue;
 
-use super::partitioning::Partition;
-use super::utils::{evaluate_default_value, evaluate_expression};
+use super::{
+    partitioning::Partition,
+    utils::{evaluate_default_value, evaluate_expression},
+};
 
 /// Evaluate LAG() value window function
 ///

@@ -1,7 +1,8 @@
 //! Cache management and integration utilities
 
-use super::{QueryPlanCache, QuerySignature};
 use std::sync::Arc;
+
+use super::{QueryPlanCache, QuerySignature};
 
 /// Simplified cache manager for common operations
 pub struct CacheManager {
@@ -11,9 +12,7 @@ pub struct CacheManager {
 impl CacheManager {
     /// Create a new cache manager
     pub fn new(max_size: usize) -> Self {
-        Self {
-            cache: Arc::new(QueryPlanCache::new(max_size)),
-        }
+        Self { cache: Arc::new(QueryPlanCache::new(max_size)) }
     }
 
     /// Get or create cached query plan
@@ -59,9 +58,7 @@ pub struct CachedQueryContext {
 impl CachedQueryContext {
     /// Create a new cached query context
     pub fn new(max_cache_size: usize) -> Self {
-        Self {
-            manager: CacheManager::new(max_cache_size),
-        }
+        Self { manager: CacheManager::new(max_cache_size) }
     }
 
     /// Execute a query using cache
@@ -69,9 +66,7 @@ impl CachedQueryContext {
     where
         F: FnOnce(&str) -> Result<Vec<String>, String>,
     {
-        let plan = self.manager.get_or_create(query, || {
-            Ok(format!("plan_for_{}", query))
-        })?;
+        let plan = self.manager.get_or_create(query, || Ok(format!("plan_for_{}", query)))?;
 
         executor(&plan)
     }
@@ -84,24 +79,22 @@ impl CachedQueryContext {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use super::super::{ParameterizedPlan, LiteralValue};
+    use super::{
+        super::{LiteralValue, ParameterizedPlan},
+        *,
+    };
 
     #[test]
     fn test_cache_manager_get_or_create() {
         let manager = CacheManager::new(10);
 
-        let result1 = manager.get_or_create("SELECT * FROM users", || {
-            Ok("plan1".to_string())
-        });
+        let result1 = manager.get_or_create("SELECT * FROM users", || Ok("plan1".to_string()));
 
         assert!(result1.is_ok());
         assert_eq!(result1.unwrap(), "plan1");
 
         // Second call should hit cache
-        let result2 = manager.get_or_create("SELECT * FROM users", || {
-            Ok("plan2".to_string())
-        });
+        let result2 = manager.get_or_create("SELECT * FROM users", || Ok("plan2".to_string()));
 
         assert!(result2.is_ok());
         assert_eq!(result2.unwrap(), "plan1"); // Same as first
@@ -133,9 +126,9 @@ mod tests {
         // Document that get_or_create doesn't automatically track table dependencies
         let manager = CacheManager::new(10);
 
-        manager.get_or_create("SELECT * FROM users", || {
-            Ok("SELECT * FROM users".to_string())
-        }).unwrap();
+        manager
+            .get_or_create("SELECT * FROM users", || Ok("SELECT * FROM users".to_string()))
+            .unwrap();
 
         // Invalidation won't work because tables aren't tracked
         manager.invalidate_table("users");
@@ -149,9 +142,7 @@ mod tests {
     fn test_cache_manager_clear() {
         let manager = CacheManager::new(10);
 
-        manager.get_or_create("SELECT * FROM users", || {
-            Ok("plan".to_string())
-        }).unwrap();
+        manager.get_or_create("SELECT * FROM users", || Ok("plan".to_string())).unwrap();
 
         assert_eq!(manager.stats().size, 1);
         manager.clear();
@@ -162,9 +153,7 @@ mod tests {
     fn test_cached_query_context() {
         let ctx = CachedQueryContext::new(10);
 
-        let result = ctx.execute("SELECT * FROM users", |plan| {
-            Ok(vec![plan.to_string()])
-        });
+        let result = ctx.execute("SELECT * FROM users", |plan| Ok(vec![plan.to_string()]));
 
         assert!(result.is_ok());
     }
@@ -175,16 +164,20 @@ mod tests {
         let mut call_count = 0;
 
         // First query
-        manager.get_or_create("SELECT col0 FROM tab WHERE col1 > 5", || {
-            call_count += 1;
-            Ok("plan1".to_string())
-        }).unwrap();
+        manager
+            .get_or_create("SELECT col0 FROM tab WHERE col1 > 5", || {
+                call_count += 1;
+                Ok("plan1".to_string())
+            })
+            .unwrap();
 
         // Same query - should hit cache
-        manager.get_or_create("SELECT col0 FROM tab WHERE col1 > 5", || {
-            call_count += 1;
-            Ok("plan1".to_string())
-        }).unwrap();
+        manager
+            .get_or_create("SELECT col0 FROM tab WHERE col1 > 5", || {
+                call_count += 1;
+                Ok("plan1".to_string())
+            })
+            .unwrap();
 
         // Should hit cache (exact match)
         assert_eq!(call_count, 1);
@@ -195,9 +188,8 @@ mod tests {
     fn test_cache_manager_with_error() {
         let manager = CacheManager::new(10);
 
-        let result = manager.get_or_create("SELECT * FROM users", || {
-            Err("creation failed".to_string())
-        });
+        let result =
+            manager.get_or_create("SELECT * FROM users", || Err("creation failed".to_string()));
 
         assert!(result.is_err());
     }
@@ -206,10 +198,7 @@ mod tests {
     fn test_parameterized_plan_example() {
         let plan = ParameterizedPlan::new(
             "SELECT * FROM users WHERE age > ?".to_string(),
-            vec![super::super::ParameterPosition {
-                position: 40,
-                context: "age".to_string(),
-            }],
+            vec![super::super::ParameterPosition { position: 40, context: "age".to_string() }],
             vec![LiteralValue::Integer(25)],
         );
 

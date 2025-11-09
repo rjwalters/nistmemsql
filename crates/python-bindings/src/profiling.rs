@@ -3,8 +3,10 @@
 //! This module provides timing instrumentation to understand performance bottlenecks
 //! when comparing vibesql with other databases like SQLite.
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Instant;
+use std::{
+    sync::atomic::{AtomicBool, Ordering},
+    time::Instant,
+};
 
 /// Global flag to enable/disable profiling (disabled by default)
 static PROFILING_ENABLED: AtomicBool = AtomicBool::new(false);
@@ -35,11 +37,7 @@ impl ProfileTimer {
     /// Create a new profiling timer
     pub fn new(label: &'static str) -> Self {
         let enabled = is_profiling_enabled();
-        Self {
-            label,
-            start: Instant::now(),
-            enabled,
-        }
+        Self { label, start: Instant::now(), enabled }
     }
 
     /// Manually stop the timer and log (useful for conditional logic)
@@ -85,12 +83,7 @@ impl DetailedProfiler {
         if enabled {
             eprintln!("[PROFILE] === Starting: {} ===", operation);
         }
-        Self {
-            operation,
-            start: now,
-            enabled,
-            last_checkpoint: now,
-        }
+        Self { operation, start: now, enabled, last_checkpoint: now }
     }
 
     /// Log a checkpoint with time since last checkpoint and total time

@@ -1,7 +1,8 @@
 //! Tests for ExecutorError Display implementation
 
-use crate::errors::ExecutorError;
 use types::SqlValue;
+
+use crate::errors::ExecutorError;
 
 #[test]
 fn test_table_not_found_display() {

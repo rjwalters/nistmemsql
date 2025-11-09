@@ -35,7 +35,8 @@ pub fn create_parent_table(db: &mut Database, table_name: &str) {
 
 /// Create a child table with a foreign key constraint to a parent table
 ///
-/// Creates a table with columns: ID (INTEGER, PK), PARENT_ID (INTEGER, nullable, FK), DATA (VARCHAR(50), nullable)
+/// Creates a table with columns: ID (INTEGER, PK), PARENT_ID (INTEGER, nullable, FK), DATA
+/// (VARCHAR(50), nullable)
 pub fn create_child_table(
     db: &mut Database,
     table_name: &str,
@@ -69,7 +70,8 @@ pub fn create_child_table(
 
 /// Create a self-referential employee table (employees with manager references)
 ///
-/// Creates a table with columns: ID (INTEGER, PK), MANAGER_ID (INTEGER, nullable, self-FK), NAME (VARCHAR(50))
+/// Creates a table with columns: ID (INTEGER, PK), MANAGER_ID (INTEGER, nullable, self-FK), NAME
+/// (VARCHAR(50))
 pub fn create_self_referential_employee_table(db: &mut Database) {
     let columns = vec![
         ColumnSchema::new("ID".to_string(), DataType::Integer, false),

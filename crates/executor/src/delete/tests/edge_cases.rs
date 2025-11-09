@@ -1,11 +1,11 @@
 //! Edge cases and error handling tests for DELETE operations
 
-use crate::errors::ExecutorError;
-use crate::DeleteExecutor;
 use ast::{BinaryOperator, DeleteStmt, Expression, WhereClause};
 use catalog::{ColumnSchema, TableSchema};
 use storage::{Database, Row};
 use types::{DataType, SqlValue};
+
+use crate::{errors::ExecutorError, DeleteExecutor};
 
 fn setup_test_table(db: &mut Database) {
     // Create table schema

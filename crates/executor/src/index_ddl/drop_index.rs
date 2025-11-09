@@ -19,10 +19,7 @@ impl DropIndexExecutor {
     /// # Returns
     ///
     /// Success message or error
-    pub fn execute(
-        stmt: &DropIndexStmt,
-        database: &mut Database,
-    ) -> Result<String, ExecutorError> {
+    pub fn execute(stmt: &DropIndexStmt, database: &mut Database) -> Result<String, ExecutorError> {
         let index_name = &stmt.index_name;
 
         // Check if index exists
@@ -44,11 +41,11 @@ impl DropIndexExecutor {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::CreateTableExecutor;
-    use crate::index_ddl::create_index::CreateIndexExecutor;
     use ast::{ColumnDef, CreateIndexStmt, CreateTableStmt, IndexColumn, OrderDirection};
     use types::DataType;
+
+    use super::*;
+    use crate::{index_ddl::create_index::CreateIndexExecutor, CreateTableExecutor};
 
     fn create_test_table(db: &mut Database) {
         let stmt = CreateTableStmt {
@@ -105,10 +102,8 @@ mod tests {
         CreateIndexExecutor::execute(&create_stmt, &mut db).unwrap();
 
         // Drop index
-        let drop_stmt = DropIndexStmt {
-            index_name: "idx_users_email".to_string(),
-            if_exists: false,
-        };
+        let drop_stmt =
+            DropIndexStmt { index_name: "idx_users_email".to_string(), if_exists: false };
         let result = DropIndexExecutor::execute(&drop_stmt, &mut db);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Index 'idx_users_email' dropped successfully");
@@ -121,10 +116,8 @@ mod tests {
     fn test_drop_nonexistent_index() {
         let mut db = Database::new();
 
-        let drop_stmt = DropIndexStmt {
-            index_name: "nonexistent_index".to_string(),
-            if_exists: false,
-        };
+        let drop_stmt =
+            DropIndexStmt { index_name: "nonexistent_index".to_string(), if_exists: false };
         let result = DropIndexExecutor::execute(&drop_stmt, &mut db);
         assert!(result.is_err());
         assert!(matches!(result, Err(ExecutorError::IndexNotFound(_))));
@@ -149,10 +142,8 @@ mod tests {
         CreateIndexExecutor::execute(&create_stmt, &mut db).unwrap();
 
         // Drop with IF EXISTS should succeed
-        let drop_stmt = DropIndexStmt {
-            index_name: "idx_users_email".to_string(),
-            if_exists: true,
-        };
+        let drop_stmt =
+            DropIndexStmt { index_name: "idx_users_email".to_string(), if_exists: true };
         let result = DropIndexExecutor::execute(&drop_stmt, &mut db);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Index 'idx_users_email' dropped successfully");
@@ -164,10 +155,8 @@ mod tests {
         let mut db = Database::new();
 
         // Drop non-existent index with IF EXISTS should succeed
-        let drop_stmt = DropIndexStmt {
-            index_name: "nonexistent_index".to_string(),
-            if_exists: true,
-        };
+        let drop_stmt =
+            DropIndexStmt { index_name: "nonexistent_index".to_string(), if_exists: true };
         let result = DropIndexExecutor::execute(&drop_stmt, &mut db);
         assert!(result.is_ok());
         // Silently succeeds when index doesn't exist
@@ -192,10 +181,7 @@ mod tests {
         CreateIndexExecutor::execute(&create_stmt, &mut db).unwrap();
 
         // Drop with uppercase name should work (normalized to uppercase)
-        let drop_stmt = DropIndexStmt {
-            index_name: "IDX_TEST".to_string(),
-            if_exists: false,
-        };
+        let drop_stmt = DropIndexStmt { index_name: "IDX_TEST".to_string(), if_exists: false };
         let result = DropIndexExecutor::execute(&drop_stmt, &mut db);
         assert!(result.is_ok());
         assert!(!db.index_exists("idx_test"));

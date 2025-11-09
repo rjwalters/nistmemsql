@@ -1,4 +1,5 @@
-//! Tests for GRANT statement parsing - Issue #561: GRANT/REVOKE on FUNCTION, PROCEDURE, ROUTINE objects
+//! Tests for GRANT statement parsing - Issue #561: GRANT/REVOKE on FUNCTION, PROCEDURE, ROUTINE
+//! objects
 //!
 //! This module tests parsing of EXECUTE privilege on various routine-like objects:
 //! - FUNCTION
@@ -12,8 +13,9 @@
 //! - Implicit ROUTINE type when no object type is specified with EXECUTE
 //! - WITH GRANT OPTION clause
 
-use crate::Parser;
 use ast::*;
+
+use crate::Parser;
 
 #[test]
 fn test_parse_grant_execute_on_function() {

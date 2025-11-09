@@ -1,7 +1,8 @@
 //! Tests for GRANT statement column-level privileges (SQL:1999 Feature E081-05, E081-07)
 
-use crate::Parser;
 use ast::*;
+
+use crate::Parser;
 
 #[test]
 fn test_parse_grant_update_column_single() {

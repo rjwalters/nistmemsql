@@ -5,6 +5,7 @@
 
 use ast::{ColumnConstraintKind, ColumnDef, Expression, TableConstraint, TableConstraintKind};
 use catalog::{ColumnSchema, TableSchema};
+
 use crate::errors::ExecutorError;
 
 /// Result of processing constraints
@@ -135,10 +136,7 @@ impl ConstraintValidator {
     ///
     /// * `columns` - The column schemas to update
     /// * `constraint_result` - The constraint processing results
-    pub fn apply_to_columns(
-        columns: &mut [ColumnSchema],
-        constraint_result: &ConstraintResult,
-    ) {
+    pub fn apply_to_columns(columns: &mut [ColumnSchema], constraint_result: &ConstraintResult) {
         // Mark NOT NULL columns as non-nullable
         for col_name in &constraint_result.not_null_columns {
             if let Some(col) = columns.iter_mut().find(|c| c.name == *col_name) {
@@ -155,10 +153,7 @@ impl ConstraintValidator {
     ///
     /// * `table_schema` - The table schema to update
     /// * `constraint_result` - The constraint processing results
-    pub fn apply_to_schema(
-        table_schema: &mut TableSchema,
-        constraint_result: &ConstraintResult,
-    ) {
+    pub fn apply_to_schema(table_schema: &mut TableSchema, constraint_result: &ConstraintResult) {
         // Set primary key
         if let Some(pk) = &constraint_result.primary_key {
             table_schema.primary_key = Some(pk.clone());
@@ -174,19 +169,20 @@ impl ConstraintValidator {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use types::DataType;
     use ast::ColumnConstraint;
+    use types::DataType;
+
+    use super::*;
 
     fn make_column_def(name: &str, constraint_kinds: Vec<ColumnConstraintKind>) -> ColumnDef {
         ColumnDef {
             name: name.to_string(),
             data_type: DataType::Integer,
             nullable: true,
-            constraints: constraint_kinds.into_iter().map(|kind| ColumnConstraint {
-                name: None,
-                kind,
-            }).collect(),
+            constraints: constraint_kinds
+                .into_iter()
+                .map(|kind| ColumnConstraint { name: None, kind })
+                .collect(),
             default_value: None,
             comment: None,
         }
@@ -203,10 +199,7 @@ mod tests {
 
     #[test]
     fn test_table_level_primary_key() {
-        let columns = vec![
-            make_column_def("id", vec![]),
-            make_column_def("tenant_id", vec![]),
-        ];
+        let columns = vec![make_column_def("id", vec![]), make_column_def("tenant_id", vec![])];
         let constraints = vec![TableConstraint {
             name: None,
             kind: TableConstraintKind::PrimaryKey {
@@ -216,10 +209,7 @@ mod tests {
 
         let result = ConstraintValidator::process_constraints(&columns, &constraints).unwrap();
 
-        assert_eq!(
-            result.primary_key,
-            Some(vec!["id".to_string(), "tenant_id".to_string()])
-        );
+        assert_eq!(result.primary_key, Some(vec!["id".to_string(), "tenant_id".to_string()]));
         assert!(result.not_null_columns.contains(&"id".to_string()));
         assert!(result.not_null_columns.contains(&"tenant_id".to_string()));
     }
@@ -229,9 +219,7 @@ mod tests {
         let columns = vec![make_column_def("id", vec![ColumnConstraintKind::PrimaryKey])];
         let constraints = vec![TableConstraint {
             name: None,
-            kind: TableConstraintKind::PrimaryKey {
-                columns: vec!["id".to_string()],
-            },
+            kind: TableConstraintKind::PrimaryKey { columns: vec!["id".to_string()] },
         }];
 
         let result = ConstraintValidator::process_constraints(&columns, &constraints);
@@ -246,9 +234,7 @@ mod tests {
         ];
         let constraints = vec![TableConstraint {
             name: None,
-            kind: TableConstraintKind::Unique {
-                columns: vec!["username".to_string()],
-            },
+            kind: TableConstraintKind::Unique { columns: vec!["username".to_string()] },
         }];
 
         let result = ConstraintValidator::process_constraints(&columns, &constraints).unwrap();
@@ -263,10 +249,7 @@ mod tests {
         use types::SqlValue;
 
         let check_expr = Expression::BinaryOp {
-            left: Box::new(Expression::ColumnRef {
-                table: None,
-                column: "age".to_string(),
-            }),
+            left: Box::new(Expression::ColumnRef { table: None, column: "age".to_string() }),
             op: ast::BinaryOperator::GreaterThan,
             right: Box::new(Expression::Literal(SqlValue::Integer(0))),
         };
@@ -286,7 +269,11 @@ mod tests {
     fn test_apply_to_columns() {
         let mut columns = vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, true),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
         ];
 
         let mut result = ConstraintResult::new();
@@ -295,6 +282,6 @@ mod tests {
         ConstraintValidator::apply_to_columns(&mut columns, &result);
 
         assert!(!columns[0].nullable); // id should be NOT NULL
-        assert!(columns[1].nullable);  // name should still be nullable
+        assert!(columns[1].nullable); // name should still be nullable
     }
 }

@@ -1,7 +1,8 @@
 //! Foreign key constraint validation for UPDATE operations
 
-use crate::errors::ExecutorError;
 use storage::Database;
+
+use crate::errors::ExecutorError;
 
 /// Validator for foreign key constraints
 pub struct ForeignKeyValidator;
@@ -108,8 +109,11 @@ impl ForeignKeyValidator {
                 // Check if any row in the child table references the parent row.
                 let child_table = db.get_table(&table_name).unwrap();
                 let has_references = child_table.scan().iter().any(|child_row| {
-                    let child_fk_values: Vec<types::SqlValue> =
-                        fk.column_indices.iter().map(|&idx| child_row.values[idx].clone()).collect();
+                    let child_fk_values: Vec<types::SqlValue> = fk
+                        .column_indices
+                        .iter()
+                        .map(|&idx| child_row.values[idx].clone())
+                        .collect();
                     child_fk_values == parent_key_values
                 });
 

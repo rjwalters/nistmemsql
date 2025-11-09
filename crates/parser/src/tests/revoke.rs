@@ -1,7 +1,8 @@
 //! Tests for REVOKE statement parsing
 
-use crate::Parser;
 use ast::*;
+
+use crate::Parser;
 
 /// Helper function to parse a REVOKE statement
 fn parse_revoke(sql: &str) -> RevokeStmt {

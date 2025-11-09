@@ -3,8 +3,7 @@
 //! This module handles bidirectional conversion of values between Python
 //! and Rust SqlValue types, supporting DB-API 2.0 conventions.
 
-use pyo3::prelude::*;
-use pyo3::types::PyTuple;
+use pyo3::{prelude::*, types::PyTuple};
 
 use crate::ProgrammingError;
 
@@ -156,9 +155,7 @@ pub fn substitute_placeholders(sql: &str, sql_values: &[types::SqlValue]) -> Str
                         // Escape single quotes by doubling them (SQL standard)
                         format!("'{}'", s.replace('\'', "''"))
                     }
-                    types::SqlValue::Boolean(b) => {
-                        if *b { "TRUE" } else { "FALSE" }.to_string()
-                    }
+                    types::SqlValue::Boolean(b) => if *b { "TRUE" } else { "FALSE" }.to_string(),
                     types::SqlValue::Date(s) => format!("DATE '{}'", s),
                     types::SqlValue::Time(s) => format!("TIME '{}'", s),
                     types::SqlValue::Timestamp(s) => format!("TIMESTAMP '{}'", s),
