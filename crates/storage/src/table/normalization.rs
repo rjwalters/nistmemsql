@@ -258,12 +258,10 @@ impl<'a> RowNormalizer<'a> {
                 // Cannot validate user-defined types without more schema information
                 // Accept any value for now
                 // TODO: Implement proper user-defined type validation
-                Ok(())?;
             }
             // NULL type
             DataType::Null => {
                 // NULL type always accepts NULL values (already checked above)
-                Ok(())?;
             }
         }
 
