@@ -21,6 +21,7 @@ import recursivePayloads from './recursive.json'
 import reportTemplatesPayloads from './report-templates.json'
 import setPayloads from './set.json'
 import sql1999StandardsPayloads from './sql1999-standards.json'
+import sqlLogicTestPayloads from './sqllogictest.json'
 import stringPayloads from './string.json'
 import subqueriesPayloads from './subqueries.json'
 import universityPayloads from './university.json'
@@ -69,6 +70,8 @@ function getCategoryPayloads(categoryId: string): CategoryPayloads {
       return setPayloads as CategoryPayloads
     case 'sql1999-standards':
       return sql1999StandardsPayloads as CategoryPayloads
+    case 'sqllogictest':
+      return sqlLogicTestPayloads as CategoryPayloads
     case 'string':
       return stringPayloads as CategoryPayloads
     case 'subqueries':

@@ -9,7 +9,7 @@ import type { ExampleSelectEvent } from './components/Examples'
 import { DatabaseSelectorComponent } from './components/DatabaseSelector'
 import type { DatabaseOption } from './components/DatabaseSelector'
 import { initShowcase } from './showcase'
-import { sampleDatabases, loadSampleDatabase, getSampleDatabase } from './data/sample-databases'
+import { sampleDatabases, loadSampleDatabase, getSampleDatabase, loadSqlDump } from './data/sample-databases'
 import { updateConformanceFooter } from './utils/conformance'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -430,7 +430,7 @@ async function bootstrap(): Promise<void> {
   let currentDatabaseId = 'employees'
 
   // Function to load a database by ID
-  const loadDatabase = (dbId: string): void => {
+  const loadDatabase = async (dbId: string): Promise<void> => {
     if (!database) return
 
     const sampleDb = getSampleDatabase(dbId)
@@ -440,7 +440,14 @@ async function bootstrap(): Promise<void> {
     }
 
     try {
+      // Load tables and create schema
       loadSampleDatabase(database, sampleDb)
+
+      // For SQLLogicTest database, load data from SQL dump file
+      if (dbId === 'sqllogictest') {
+        await loadSqlDump(database, '/data/sqllogictest_results.sql')
+      }
+
       tableNames = database.list_tables()
       currentDatabaseId = dbId
     } catch (error) {
@@ -450,7 +457,7 @@ async function bootstrap(): Promise<void> {
 
   // Pre-load default sample database for immediate exploration
   if (database) {
-    loadDatabase('employees')
+    void loadDatabase('employees')
   }
 
   registerCompletions(monaco, () => tableNames)
@@ -477,7 +484,7 @@ async function bootstrap(): Promise<void> {
     editor.setValue(event.sql)
     // Switch database if needed
     if (event.database !== currentDatabaseId) {
-      loadDatabase(event.database)
+      void loadDatabase(event.database)
       databaseSelector.setSelected(event.database)
     }
   })
@@ -490,8 +497,7 @@ async function bootstrap(): Promise<void> {
   }))
   const databaseSelector = new DatabaseSelectorComponent(databases, currentDatabaseId)
   databaseSelector.onChange((dbId: string) => {
-    loadDatabase(dbId)
-    refreshTables()
+    void loadDatabase(dbId).then(() => refreshTables())
   })
 
   const execute = createExecutionHandler(editor, database, resultsEditor, refreshTables)
