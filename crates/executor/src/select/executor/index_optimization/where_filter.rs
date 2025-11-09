@@ -1,8 +1,8 @@
 //! Index-based WHERE clause filtering optimization
 
-use crate::errors::ExecutorError;
-use crate::schema::CombinedSchema;
 use storage::database::Database;
+
+use crate::{errors::ExecutorError, schema::CombinedSchema};
 
 /// Try to use indexes for WHERE clause filtering
 /// Returns Some(rows) if index optimization was applied, None if not applicable
@@ -104,16 +104,17 @@ pub(in crate::select::executor) fn try_index_for_binary_op(
     };
 
     // Convert row indices to actual rows
-    let result_rows = matching_row_indices
-        .iter()
-        .filter_map(|&row_idx| {
-            if row_idx < all_rows.len() {
-                Some(all_rows[row_idx].clone())
-            } else {
-                None
-            }
-        })
-        .collect();
+    let result_rows =
+        matching_row_indices
+            .iter()
+            .filter_map(|&row_idx| {
+                if row_idx < all_rows.len() {
+                    Some(all_rows[row_idx].clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
 
     Ok(Some(result_rows))
 }
@@ -129,57 +130,48 @@ pub(in crate::select::executor) fn try_index_for_and_expr(
     // Try to detect BETWEEN pattern: (col >= start) AND (col <= end)
     // or variations like (col > start) AND (col < end)
 
-    let (col_name, start_val, start_inclusive, end_val, end_inclusive) =
-        match (left, right) {
-            (
-                ast::Expression::BinaryOp {
-                    left: left_col,
-                    op: left_op,
-                    right: left_val
-                },
-                ast::Expression::BinaryOp {
-                    left: right_col,
-                    op: right_op,
-                    right: right_val
-                }
-            ) => {
-                // Both sides are binary operations
-                // Check if both refer to the same column
-                let (left_col_name, _right_col_name) = match (left_col.as_ref(), right_col.as_ref()) {
-                    (
-                        ast::Expression::ColumnRef { table: None, column: lc },
-                        ast::Expression::ColumnRef { table: None, column: rc }
-                    ) if lc == rc => (lc, rc),
-                    _ => return Ok(None), // Not the same column
-                };
+    let (col_name, start_val, start_inclusive, end_val, end_inclusive) = match (left, right) {
+        (
+            ast::Expression::BinaryOp { left: left_col, op: left_op, right: left_val },
+            ast::Expression::BinaryOp { left: right_col, op: right_op, right: right_val },
+        ) => {
+            // Both sides are binary operations
+            // Check if both refer to the same column
+            let (left_col_name, _right_col_name) = match (left_col.as_ref(), right_col.as_ref()) {
+                (
+                    ast::Expression::ColumnRef { table: None, column: lc },
+                    ast::Expression::ColumnRef { table: None, column: rc },
+                ) if lc == rc => (lc, rc),
+                _ => return Ok(None), // Not the same column
+            };
 
-                // Extract values
-                let (left_lit, right_lit) = match (left_val.as_ref(), right_val.as_ref()) {
-                    (ast::Expression::Literal(lv), ast::Expression::Literal(rv)) => (lv, rv),
-                    _ => return Ok(None), // Not literals
-                };
+            // Extract values
+            let (left_lit, right_lit) = match (left_val.as_ref(), right_val.as_ref()) {
+                (ast::Expression::Literal(lv), ast::Expression::Literal(rv)) => (lv, rv),
+                _ => return Ok(None), // Not literals
+            };
 
-                // Determine the bounds based on operators
-                // left is lower bound operation (>= or >)
-                // right is upper bound operation (<= or <)
-                match (left_op, right_op) {
-                    (ast::BinaryOperator::GreaterThanOrEqual, ast::BinaryOperator::LessThanOrEqual) => {
-                        (left_col_name.clone(), left_lit.clone(), true, right_lit.clone(), true)
-                    }
-                    (ast::BinaryOperator::GreaterThanOrEqual, ast::BinaryOperator::LessThan) => {
-                        (left_col_name.clone(), left_lit.clone(), true, right_lit.clone(), false)
-                    }
-                    (ast::BinaryOperator::GreaterThan, ast::BinaryOperator::LessThanOrEqual) => {
-                        (left_col_name.clone(), left_lit.clone(), false, right_lit.clone(), true)
-                    }
-                    (ast::BinaryOperator::GreaterThan, ast::BinaryOperator::LessThan) => {
-                        (left_col_name.clone(), left_lit.clone(), false, right_lit.clone(), false)
-                    }
-                    _ => return Ok(None), // Not a BETWEEN-like pattern
+            // Determine the bounds based on operators
+            // left is lower bound operation (>= or >)
+            // right is upper bound operation (<= or <)
+            match (left_op, right_op) {
+                (ast::BinaryOperator::GreaterThanOrEqual, ast::BinaryOperator::LessThanOrEqual) => {
+                    (left_col_name.clone(), left_lit.clone(), true, right_lit.clone(), true)
                 }
+                (ast::BinaryOperator::GreaterThanOrEqual, ast::BinaryOperator::LessThan) => {
+                    (left_col_name.clone(), left_lit.clone(), true, right_lit.clone(), false)
+                }
+                (ast::BinaryOperator::GreaterThan, ast::BinaryOperator::LessThanOrEqual) => {
+                    (left_col_name.clone(), left_lit.clone(), false, right_lit.clone(), true)
+                }
+                (ast::BinaryOperator::GreaterThan, ast::BinaryOperator::LessThan) => {
+                    (left_col_name.clone(), left_lit.clone(), false, right_lit.clone(), false)
+                }
+                _ => return Ok(None), // Not a BETWEEN-like pattern
             }
-            _ => return Ok(None), // Not a BETWEEN-like pattern
-        };
+        }
+        _ => return Ok(None), // Not a BETWEEN-like pattern
+    };
 
     // Find which table this column belongs to
     let mut found_table = None;
@@ -208,24 +200,21 @@ pub(in crate::select::executor) fn try_index_for_and_expr(
     };
 
     // Use range_scan with both bounds
-    let matching_row_indices = index_data.range_scan(
-        Some(&start_val),
-        Some(&end_val),
-        start_inclusive,
-        end_inclusive,
-    );
+    let matching_row_indices =
+        index_data.range_scan(Some(&start_val), Some(&end_val), start_inclusive, end_inclusive);
 
     // Convert row indices to actual rows
-    let result_rows = matching_row_indices
-        .iter()
-        .filter_map(|&row_idx| {
-            if row_idx < all_rows.len() {
-                Some(all_rows[row_idx].clone())
-            } else {
-                None
-            }
-        })
-        .collect();
+    let result_rows =
+        matching_row_indices
+            .iter()
+            .filter_map(|&row_idx| {
+                if row_idx < all_rows.len() {
+                    Some(all_rows[row_idx].clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
 
     Ok(Some(result_rows))
 }
@@ -284,16 +273,17 @@ pub(in crate::select::executor) fn try_index_for_in_expr(
     let matching_row_indices = index_data.multi_lookup(&literal_values);
 
     // Convert row indices to actual rows
-    let result_rows = matching_row_indices
-        .iter()
-        .filter_map(|&row_idx| {
-            if row_idx < all_rows.len() {
-                Some(all_rows[row_idx].clone())
-            } else {
-                None
-            }
-        })
-        .collect();
+    let result_rows =
+        matching_row_indices
+            .iter()
+            .filter_map(|&row_idx| {
+                if row_idx < all_rows.len() {
+                    Some(all_rows[row_idx].clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
 
     Ok(Some(result_rows))
 }
@@ -310,7 +300,8 @@ pub(in crate::select::executor) fn find_index_for_where(
         if let Some(metadata) = database.get_index(&index_name) {
             if metadata.table_name == table_name
                 && metadata.columns.len() == 1
-                && metadata.columns[0].column_name == column_name {
+                && metadata.columns[0].column_name == column_name
+            {
                 return Ok(Some(index_name));
             }
         }

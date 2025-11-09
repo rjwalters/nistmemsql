@@ -11,10 +11,11 @@
 //! - Case sensitivity
 //! - Spatial types (POINT, POLYGON, MULTIPOLYGON)
 
-use crate::CreateTableExecutor;
 use ast::{ColumnDef, CreateTableStmt};
 use storage::Database;
 use types::DataType;
+
+use crate::CreateTableExecutor;
 
 #[test]
 fn test_create_simple_table() {
@@ -80,7 +81,8 @@ fn test_create_table_with_multiple_types() {
             },
             ColumnDef {
                 name: "price".to_string(),
-                data_type: DataType::Integer, // Using Integer for price (could be Decimal in future)
+                data_type: DataType::Integer, /* Using Integer for price (could be Decimal in
+                                               * future) */
                 nullable: false,
                 constraints: vec![],
                 default_value: None,

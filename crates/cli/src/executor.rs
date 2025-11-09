@@ -2,8 +2,11 @@ use std::time::Instant;
 
 use parser::Parser;
 use storage::{parse_sql_statements, read_sql_dump, Database};
-use crate::commands::{CopyDirection, CopyFormat};
-use crate::data_io::DataIO;
+
+use crate::{
+    commands::{CopyDirection, CopyFormat},
+    data_io::DataIO,
+};
 
 pub struct SqlExecutor {
     db: Database,
@@ -262,17 +265,17 @@ impl SqlExecutor {
 
             for index_name in index_names {
                 if let Some(index_meta) = self.db.get_index(&index_name) {
-                    let columns_str = index_meta.columns.iter()
+                    let columns_str = index_meta
+                        .columns
+                        .iter()
                         .map(|col| col.column_name.clone())
                         .collect::<Vec<_>>()
                         .join(", ");
                     let index_type = if index_meta.unique { "UNIQUE" } else { "BTREE" };
 
-                    println!("{:<20} {:<20} {:<15} {:<10}",
-                        index_meta.index_name,
-                        index_meta.table_name,
-                        columns_str,
-                        index_type
+                    println!(
+                        "{:<20} {:<20} {:<15} {:<10}",
+                        index_meta.index_name, index_meta.table_name, columns_str, index_type
                     );
                 }
             }
@@ -316,11 +319,15 @@ impl SqlExecutor {
     /// Validate CSV column names against table schema to prevent SQL injection
     /// Returns an error if columns don't match the table schema
     fn validate_csv_columns(&self, file_path: &str, table_name: &str) -> anyhow::Result<()> {
-        use std::fs::File;
-        use std::io::{BufRead, BufReader};
+        use std::{
+            fs::File,
+            io::{BufRead, BufReader},
+        };
 
         // Get table schema
-        let table = self.db.get_table(table_name)
+        let table = self
+            .db
+            .get_table(table_name)
             .ok_or_else(|| anyhow::anyhow!("Table '{}' does not exist", table_name))?;
 
         // Read CSV header
@@ -339,8 +346,12 @@ impl SqlExecutor {
         // Validate each column name
         for col_name in &csv_columns {
             // Check for SQL injection characters
-            if col_name.contains(';') || col_name.contains('\'') || col_name.contains('"')
-                || col_name.contains('(') || col_name.contains(')') {
+            if col_name.contains(';')
+                || col_name.contains('\'')
+                || col_name.contains('"')
+                || col_name.contains('(')
+                || col_name.contains(')')
+            {
                 return Err(anyhow::anyhow!(
                     "Invalid column name '{}': contains forbidden characters",
                     col_name
@@ -348,8 +359,8 @@ impl SqlExecutor {
             }
 
             // Check if column exists in table schema
-            let column_exists = table.schema.columns.iter()
-                .any(|c| c.name.eq_ignore_ascii_case(col_name));
+            let column_exists =
+                table.schema.columns.iter().any(|c| c.name.eq_ignore_ascii_case(col_name));
 
             if !column_exists {
                 return Err(anyhow::anyhow!(

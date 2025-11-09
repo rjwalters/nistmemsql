@@ -54,9 +54,8 @@ fn main() -> anyhow::Result<()> {
     });
 
     // Use command-line format if provided, otherwise use config default
-    let format = args.format.as_deref()
-        .and_then(parse_format)
-        .or_else(|| config.get_output_format());
+    let format =
+        args.format.as_deref().and_then(parse_format).or_else(|| config.get_output_format());
 
     // Use command-line database if provided, otherwise use config default
     let database = args.database.or(config.database.default_path.clone());

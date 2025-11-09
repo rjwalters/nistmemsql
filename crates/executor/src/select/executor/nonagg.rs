@@ -1,18 +1,24 @@
 //! Non-aggregation execution methods for SelectExecutor
 
-use super::builder::SelectExecutor;
-use super::index_optimization::{try_index_based_where_filtering, try_index_based_ordering};
-use crate::errors::ExecutorError;
-use crate::evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator};
-use crate::optimizer::optimize_where_clause;
-use crate::select::filter::apply_where_filter_combined;
-use crate::select::helpers::{apply_distinct, apply_limit_offset};
-use crate::select::join::FromResult;
-use crate::select::order::{apply_order_by, RowWithSortKeys};
-use crate::select::projection::project_row_combined;
-use crate::select::window::{
-    collect_order_by_window_functions, evaluate_order_by_window_functions,
-    evaluate_window_functions, expression_has_window_function, has_window_functions,
+use super::{
+    builder::SelectExecutor,
+    index_optimization::{try_index_based_ordering, try_index_based_where_filtering},
+};
+use crate::{
+    errors::ExecutorError,
+    evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator},
+    optimizer::optimize_where_clause,
+    select::{
+        filter::apply_where_filter_combined,
+        helpers::{apply_distinct, apply_limit_offset},
+        join::FromResult,
+        order::{apply_order_by, RowWithSortKeys},
+        projection::project_row_combined,
+        window::{
+            collect_order_by_window_functions, evaluate_order_by_window_functions,
+            evaluate_window_functions, expression_has_window_function, has_window_functions,
+        },
+    },
 };
 
 impl SelectExecutor<'_> {
@@ -42,9 +48,12 @@ impl SelectExecutor<'_> {
             };
 
         // Try index-based WHERE optimization first
-        let mut filtered_rows = if let Some(index_filtered) =
-            try_index_based_where_filtering(self.database, stmt.where_clause.as_ref(), &rows, &schema)?
-        {
+        let mut filtered_rows = if let Some(index_filtered) = try_index_based_where_filtering(
+            self.database,
+            stmt.where_clause.as_ref(),
+            &rows,
+            &schema,
+        )? {
             index_filtered
         } else {
             // Fall back to full WHERE clause evaluation
@@ -121,9 +130,13 @@ impl SelectExecutor<'_> {
         // Apply ORDER BY sorting if present
         if let Some(order_by) = &stmt.order_by {
             // Try to use index for ordering first
-            if let Some(ordered_rows) =
-                try_index_based_ordering(self.database, &result_rows, order_by, &schema, &stmt.from)?
-            {
+            if let Some(ordered_rows) = try_index_based_ordering(
+                self.database,
+                &result_rows,
+                order_by,
+                &schema,
+                &stmt.from,
+            )? {
                 result_rows = ordered_rows;
             } else {
                 // Fall back to sorting
@@ -218,5 +231,4 @@ impl SelectExecutor<'_> {
         // Return a single row with the evaluated values
         Ok(vec![storage::Row::new(values)])
     }
-
 }
