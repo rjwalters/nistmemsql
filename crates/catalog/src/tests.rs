@@ -212,4 +212,282 @@ mod catalog_tests {
         assert!(catalog2.table_exists("users"));
         assert_eq!(catalog1.list_tables(), catalog2.list_tables());
     }
+
+    #[test]
+    fn test_remove_column_removes_foreign_keys() {
+        use crate::foreign_key::{ForeignKeyConstraint, ReferentialAction};
+
+        let columns = vec![
+            ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+            ColumnSchema::new("user_id".to_string(), types::DataType::Integer, true),
+            ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(100) }, true),
+        ];
+
+        // Create a foreign key on user_id
+        let fk = ForeignKeyConstraint {
+            name: Some("fk_user".to_string()),
+            column_names: vec!["user_id".to_string()],
+            column_indices: vec![1],
+            parent_table: "users".to_string(),
+            parent_column_names: vec!["id".to_string()],
+            parent_column_indices: vec![0],
+            on_delete: ReferentialAction::Cascade,
+            on_update: ReferentialAction::NoAction,
+        };
+
+        let mut schema = TableSchema::with_foreign_keys(
+            "orders".to_string(),
+            columns,
+            vec![fk],
+        );
+
+        // Verify foreign key exists
+        assert_eq!(schema.foreign_keys.len(), 1);
+
+        // Remove the user_id column (index 1)
+        let result = schema.remove_column(1);
+        assert!(result.is_ok());
+
+        // Verify foreign key was removed
+        assert_eq!(schema.foreign_keys.len(), 0);
+    }
+
+    #[test]
+    fn test_remove_column_keeps_unrelated_foreign_keys() {
+        use crate::foreign_key::{ForeignKeyConstraint, ReferentialAction};
+
+        let columns = vec![
+            ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+            ColumnSchema::new("user_id".to_string(), types::DataType::Integer, true),
+            ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(100) }, true),
+        ];
+
+        // Create a foreign key on user_id
+        let fk = ForeignKeyConstraint {
+            name: Some("fk_user".to_string()),
+            column_names: vec!["user_id".to_string()],
+            column_indices: vec![1],
+            parent_table: "users".to_string(),
+            parent_column_names: vec!["id".to_string()],
+            parent_column_indices: vec![0],
+            on_delete: ReferentialAction::Cascade,
+            on_update: ReferentialAction::NoAction,
+        };
+
+        let mut schema = TableSchema::with_foreign_keys(
+            "orders".to_string(),
+            columns,
+            vec![fk],
+        );
+
+        // Verify foreign key exists
+        assert_eq!(schema.foreign_keys.len(), 1);
+
+        // Remove the name column (index 2) - not referenced by FK
+        let result = schema.remove_column(2);
+        assert!(result.is_ok());
+
+        // Verify foreign key still exists
+        assert_eq!(schema.foreign_keys.len(), 1);
+    }
+
+    #[test]
+    fn test_remove_column_removes_check_constraints() {
+        use ast::{BinaryOperator, Expression};
+        use types::SqlValue;
+
+        let columns = vec![
+            ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+            ColumnSchema::new("age".to_string(), types::DataType::Integer, true),
+            ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(100) }, true),
+        ];
+
+        // Create a check constraint: age >= 18
+        let check_expr = Expression::BinaryOp {
+            op: BinaryOperator::GreaterThanOrEqual,
+            left: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "age".to_string(),
+            }),
+            right: Box::new(Expression::Literal(SqlValue::Integer(18))),
+        };
+
+        let check_constraints = vec![("age_check".to_string(), check_expr)];
+
+        let mut schema = TableSchema::with_all_constraint_types(
+            "users".to_string(),
+            columns,
+            None,
+            vec![],
+            check_constraints,
+            vec![],
+        );
+
+        // Verify check constraint exists
+        assert_eq!(schema.check_constraints.len(), 1);
+
+        // Remove the age column (index 1)
+        let result = schema.remove_column(1);
+        assert!(result.is_ok());
+
+        // Verify check constraint was removed
+        assert_eq!(schema.check_constraints.len(), 0);
+    }
+
+    #[test]
+    fn test_remove_column_keeps_unrelated_check_constraints() {
+        use ast::{BinaryOperator, Expression};
+        use types::SqlValue;
+
+        let columns = vec![
+            ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+            ColumnSchema::new("age".to_string(), types::DataType::Integer, true),
+            ColumnSchema::new("name".to_string(), types::DataType::Varchar { max_length: Some(100) }, true),
+        ];
+
+        // Create a check constraint: age >= 18
+        let check_expr = Expression::BinaryOp {
+            op: BinaryOperator::GreaterThanOrEqual,
+            left: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "age".to_string(),
+            }),
+            right: Box::new(Expression::Literal(SqlValue::Integer(18))),
+        };
+
+        let check_constraints = vec![("age_check".to_string(), check_expr)];
+
+        let mut schema = TableSchema::with_all_constraint_types(
+            "users".to_string(),
+            columns,
+            None,
+            vec![],
+            check_constraints,
+            vec![],
+        );
+
+        // Verify check constraint exists
+        assert_eq!(schema.check_constraints.len(), 1);
+
+        // Remove the name column (index 2) - not referenced by check constraint
+        let result = schema.remove_column(2);
+        assert!(result.is_ok());
+
+        // Verify check constraint still exists
+        assert_eq!(schema.check_constraints.len(), 1);
+    }
+
+    #[test]
+    fn test_remove_column_handles_complex_check_constraints() {
+        use ast::{BinaryOperator, Expression};
+
+        let columns = vec![
+            ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+            ColumnSchema::new("min_value".to_string(), types::DataType::Integer, true),
+            ColumnSchema::new("max_value".to_string(), types::DataType::Integer, true),
+        ];
+
+        // Create a check constraint: min_value < max_value
+        let check_expr = Expression::BinaryOp {
+            op: BinaryOperator::LessThan,
+            left: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "min_value".to_string(),
+            }),
+            right: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "max_value".to_string(),
+            }),
+        };
+
+        let check_constraints = vec![("range_check".to_string(), check_expr)];
+
+        let mut schema = TableSchema::with_all_constraint_types(
+            "ranges".to_string(),
+            columns,
+            None,
+            vec![],
+            check_constraints,
+            vec![],
+        );
+
+        // Verify check constraint exists
+        assert_eq!(schema.check_constraints.len(), 1);
+
+        // Remove the min_value column (index 1) - referenced by check constraint
+        let result = schema.remove_column(1);
+        assert!(result.is_ok());
+
+        // Verify check constraint was removed
+        assert_eq!(schema.check_constraints.len(), 0);
+    }
+
+    #[test]
+    fn test_remove_column_handles_all_constraints() {
+        use ast::{BinaryOperator, Expression};
+        use crate::foreign_key::{ForeignKeyConstraint, ReferentialAction};
+        use types::SqlValue;
+
+        let columns = vec![
+            ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+            ColumnSchema::new("user_id".to_string(), types::DataType::Integer, true),
+            ColumnSchema::new("age".to_string(), types::DataType::Integer, true),
+            ColumnSchema::new("email".to_string(), types::DataType::Varchar { max_length: Some(255) }, true),
+        ];
+
+        // Create a foreign key on user_id
+        let fk = ForeignKeyConstraint {
+            name: Some("fk_user".to_string()),
+            column_names: vec!["user_id".to_string()],
+            column_indices: vec![1],
+            parent_table: "users".to_string(),
+            parent_column_names: vec!["id".to_string()],
+            parent_column_indices: vec![0],
+            on_delete: ReferentialAction::Cascade,
+            on_update: ReferentialAction::NoAction,
+        };
+
+        // Create a check constraint: age >= 18
+        let check_expr = Expression::BinaryOp {
+            op: BinaryOperator::GreaterThanOrEqual,
+            left: Box::new(Expression::ColumnRef {
+                table: None,
+                column: "age".to_string(),
+            }),
+            right: Box::new(Expression::Literal(SqlValue::Integer(18))),
+        };
+
+        let mut schema = TableSchema::with_all_constraint_types(
+            "profiles".to_string(),
+            columns,
+            Some(vec!["id".to_string()]),
+            vec![vec!["email".to_string()]],
+            vec![("age_check".to_string(), check_expr)],
+            vec![fk],
+        );
+
+        // Verify initial state
+        assert_eq!(schema.foreign_keys.len(), 1);
+        assert_eq!(schema.check_constraints.len(), 1);
+        assert_eq!(schema.unique_constraints.len(), 1);
+        assert!(schema.primary_key.is_some());
+
+        // Remove user_id column (index 1) - has FK but no check constraint
+        let result = schema.remove_column(1);
+        assert!(result.is_ok());
+
+        // Verify FK was removed but check constraint remains
+        assert_eq!(schema.foreign_keys.len(), 0);
+        assert_eq!(schema.check_constraints.len(), 1);
+
+        // Remove age column (index 1 again, since user_id was removed) - has check constraint
+        let result = schema.remove_column(1);
+        assert!(result.is_ok());
+
+        // Verify check constraint was removed
+        assert_eq!(schema.check_constraints.len(), 0);
+
+        // Verify unique constraint on email still exists
+        assert_eq!(schema.unique_constraints.len(), 1);
+    }
 }
