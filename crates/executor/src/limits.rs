@@ -58,20 +58,6 @@ pub const MAX_QUERY_EXECUTION_SECONDS: u64 = 60;
 /// Should be higher than MAX_ROWS_PROCESSED to avoid false positives
 pub const MAX_LOOP_ITERATIONS: usize = 50_000_000;
 
-/// Maximum memory usage per query execution (10 GB)
-///
-/// This prevents:
-/// - Cartesian product explosions
-/// - Exponential intermediate result growth
-/// - System memory exhaustion
-/// - Swapping/OOM kills
-///
-/// Large enough for legitimate queries, small enough to catch pathological cases
-pub const MAX_MEMORY_BYTES: usize = 10 * 1024 * 1024 * 1024; // 10 GB
-
-/// Warning threshold - log when memory exceeds this (5 GB)
-pub const MEMORY_WARNING_BYTES: usize = 5 * 1024 * 1024 * 1024;
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -98,18 +84,5 @@ mod tests {
             MAX_LOOP_ITERATIONS > MAX_ROWS_PROCESSED,
             "Loop iterations should exceed row processing limit to avoid false positives"
         );
-    }
-
-    #[test]
-    fn test_memory_limits_reasonable() {
-        // Memory warning should be lower than hard limit
-        assert!(
-            MEMORY_WARNING_BYTES < MAX_MEMORY_BYTES,
-            "Warning threshold should be less than hard limit"
-        );
-
-        // Memory limit should be substantial but not unlimited
-        assert!(MAX_MEMORY_BYTES >= 1_000_000_000, "Memory limit too low (< 1 GB)");
-        assert!(MAX_MEMORY_BYTES <= 100_000_000_000, "Memory limit too high (> 100 GB)");
     }
 }

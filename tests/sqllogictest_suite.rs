@@ -1075,24 +1075,46 @@ fn run_sqllogictest_suite() {
 #[cfg(test)]
 mod timeout_tests {
     use super::*;
+    use std::sync::Mutex;
+
+    // Mutex to serialize tests that modify environment variables
+    static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
     #[test]
     fn test_timeout_wraps_execution() {
+        // Lock to prevent parallel execution with other env-modifying tests
+        let _guard = ENV_MUTEX.lock().unwrap();
+
         // Test that timeout wrapper can be set via environment variable
+        let original = env::var("SQLLOGICTEST_FILE_TIMEOUT").ok();
+
         env::set_var("SQLLOGICTEST_FILE_TIMEOUT", "1");
         let timeout_secs = get_test_file_timeout();
         assert_eq!(timeout_secs, 1);
-        
-        // Reset to default
-        env::remove_var("SQLLOGICTEST_FILE_TIMEOUT");
+
+        // Restore original value or remove
+        match original {
+            Some(val) => env::set_var("SQLLOGICTEST_FILE_TIMEOUT", val),
+            None => env::remove_var("SQLLOGICTEST_FILE_TIMEOUT"),
+        }
     }
 
     #[test]
     fn test_timeout_default_is_300() {
-        // Ensure environment variable is not set
+        // Lock to prevent parallel execution with other env-modifying tests
+        let _guard = ENV_MUTEX.lock().unwrap();
+
+        // Save and clear environment variable to test default
+        let original = env::var("SQLLOGICTEST_FILE_TIMEOUT").ok();
         env::remove_var("SQLLOGICTEST_FILE_TIMEOUT");
+
         let timeout_secs = get_test_file_timeout();
         assert_eq!(timeout_secs, 300);
+
+        // Restore original value if it existed
+        if let Some(val) = original {
+            env::set_var("SQLLOGICTEST_FILE_TIMEOUT", val);
+        }
     }
 
     #[tokio::test]
