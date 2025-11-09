@@ -135,9 +135,11 @@ impl SelectExecutor<'_> {
     ) -> Result<FromResult, ExecutorError> {
         use crate::select::scan::execute_from_clause_with_predicates;
         use crate::select::join_reorder_wrapper::{extract_join_info, find_optimal_join_order, JoinReorderConfig};
+        use crate::select::join_executor::JoinReorderingSpec;
 
         // Analyze join opportunities for reordering
-        // This is instrumentation to understand the optimization potential
+        let mut reorder_spec: Option<JoinReorderingSpec> = None;
+        
         if let Some((tables, _)) = extract_join_info(from, predicates) {
             if tables.len() >= 3 {
                 let config = JoinReorderConfig::default();
@@ -152,11 +154,15 @@ impl SelectExecutor<'_> {
                         eprintln!("  Better order found: {:?}", stats.optimal_order);
                     }
                 }
+                
+                // If we found a better order, prepare to apply it
+                if stats.differs_from_leftright && !stats.optimal_order.is_empty() {
+                    reorder_spec = Some(JoinReorderingSpec::new(stats.optimal_order));
+                }
             }
         }
 
-        // Execute with standard left-to-right for now
-        // TODO: Implement actual reordering application in scan.rs
-        execute_from_clause_with_predicates(from, cte_results, self.database, |query| self.execute(query), predicates)
+        // Execute with optional reordering
+        execute_from_clause_with_predicates(from, cte_results, self.database, |query| self.execute(query), predicates, reorder_spec.as_ref())
     }
 }

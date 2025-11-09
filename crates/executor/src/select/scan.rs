@@ -37,6 +37,7 @@ where
         database,
         execute_subquery,
         None,
+        None,
     )
 }
 
@@ -52,6 +53,7 @@ pub(super) fn execute_from_clause_with_predicates<F>(
     database: &storage::Database,
     execute_subquery: F,
     predicates: Option<&PredicateDecomposition>,
+    reorder_spec: Option<&super::join_executor::JoinReorderingSpec>,
 ) -> Result<FromResult, ExecutorError>
 where
     F: Fn(&ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> + Copy,
@@ -70,6 +72,7 @@ where
                 database, 
                 execute_subquery,
                 predicates,
+                reorder_spec,
             )
         }
         ast::FromClause::Subquery { query, alias } => {
@@ -201,6 +204,7 @@ where
         database,
         execute_subquery,
         None,
+        None,
     )
 }
 
@@ -214,13 +218,41 @@ fn execute_join_with_predicates<F>(
     database: &storage::Database,
     execute_subquery: F,
     predicates: Option<&PredicateDecomposition>,
+    reorder_spec: Option<&super::join_executor::JoinReorderingSpec>,
 ) -> Result<FromResult, ExecutorError>
 where
     F: Fn(&ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> + Copy,
 {
-    // Execute left and right sides recursively with predicates
-    let left_result = execute_from_clause_with_predicates(left, cte_results, database, execute_subquery, predicates)?;
-    let right_result = execute_from_clause_with_predicates(right, cte_results, database, execute_subquery, predicates)?;
+    // Try to apply join reordering if a spec was provided
+    if let Some(reorder_spec) = reorder_spec {
+        // Build the complete join tree for reordering analysis
+        let join_tree = ast::FromClause::Join {
+            left: Box::new(left.clone()),
+            right: Box::new(right.clone()),
+            join_type: join_type.clone(),
+            condition: condition.clone(),
+        };
+        
+        // Attempt to execute with reordering using a callback that delegates back
+        // to execute_from_clause_with_predicates for recursive handling
+        if let Some(result) = super::join_executor::execute_reordered_join(
+            &join_tree,
+            cte_results,
+            database,
+            |from_clause, preds| {
+                execute_from_clause_with_predicates(from_clause, cte_results, database, execute_subquery, preds, None)
+            },
+            predicates,
+            reorder_spec,
+        ) {
+            return result;
+        }
+        // Fall through to standard execution if reordering fails
+    }
+    
+    // Execute left and right sides recursively with predicates (standard execution)
+    let left_result = execute_from_clause_with_predicates(left, cte_results, database, execute_subquery, predicates, None)?;
+    let right_result = execute_from_clause_with_predicates(right, cte_results, database, execute_subquery, predicates, None)?;
 
     // Determine the effective join condition
     // Priority: explicit ON condition > equijoin from WHERE > no condition
