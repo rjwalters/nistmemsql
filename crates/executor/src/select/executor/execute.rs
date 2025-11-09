@@ -12,7 +12,7 @@ use std::collections::HashMap;
 impl SelectExecutor<'_> {
     /// Execute a SELECT statement
     pub fn execute(&self, stmt: &ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> {
-        // Check execution timeout
+        // Check timeout before starting execution
         self.check_timeout()?;
 
         // Check subquery depth limit to prevent stack overflow
