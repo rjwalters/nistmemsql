@@ -363,6 +363,59 @@ impl SqlExecutor {
         Ok(())
     }
 
+    /// Validate JSON column names against table schema to prevent SQL injection
+    /// Returns an error if columns don't match the table schema
+    fn validate_json_columns(&self, file_path: &str, table_name: &str) -> anyhow::Result<()> {
+        use std::fs;
+
+        // Get table schema
+        let table = self.db.get_table(table_name)
+            .ok_or_else(|| anyhow::anyhow!("Table '{}' does not exist", table_name))?;
+
+        // Read JSON file
+        let json_content = fs::read_to_string(file_path)
+            .map_err(|e| anyhow::anyhow!("Failed to read file '{}': {}", file_path, e))?;
+
+        // Parse as array of objects
+        let json_array: Vec<serde_json::Map<String, serde_json::Value>> =
+            serde_json::from_str(&json_content)
+                .map_err(|e| anyhow::anyhow!("Invalid JSON format: {}", e))?;
+
+        if json_array.is_empty() {
+            return Err(anyhow::anyhow!("JSON file contains no data"));
+        }
+
+        // Extract column names from first object
+        let first_obj = &json_array[0];
+        let json_columns: Vec<&str> = first_obj.keys().map(|s| s.as_str()).collect();
+
+        // Validate each column name
+        for col_name in &json_columns {
+            // Check for SQL injection characters
+            if col_name.contains(';') || col_name.contains('\'') || col_name.contains('"')
+                || col_name.contains('(') || col_name.contains(')') {
+                return Err(anyhow::anyhow!(
+                    "Invalid column name '{}': contains forbidden characters",
+                    col_name
+                ));
+            }
+
+            // Check if column exists in table schema
+            let column_exists = table.schema.columns.iter()
+                .any(|c| c.name.eq_ignore_ascii_case(col_name));
+
+            if !column_exists {
+                return Err(anyhow::anyhow!(
+                    "Column '{}' does not exist in table '{}'",
+                    col_name,
+                    table_name
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn handle_copy(
         &mut self,
         table: &str,
@@ -409,7 +462,24 @@ impl SqlExecutor {
                         println!("Imported {} rows into '{}'", success_count, table);
                     }
                     CopyFormat::Json => {
-                        return Err(anyhow::anyhow!("JSON import not yet implemented"));
+                        // Validate JSON columns before import
+                        self.validate_json_columns(file_path, table)?;
+
+                        // Import JSON - generates INSERT statements
+                        let insert_statements = DataIO::import_json(file_path, table)?;
+
+                        // Execute each INSERT statement
+                        let mut success_count = 0;
+                        for stmt in &insert_statements {
+                            match self.execute(stmt) {
+                                Ok(_) => success_count += 1,
+                                Err(e) => {
+                                    eprintln!("Warning: Failed to insert row: {}", e);
+                                    // Continue with remaining rows
+                                }
+                            }
+                        }
+                        println!("Imported {} rows into '{}'", success_count, table);
                     }
                 }
             }

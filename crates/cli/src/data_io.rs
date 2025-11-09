@@ -99,6 +99,71 @@ impl DataIO {
         println!("Generated {} INSERT statements from '{}'", statements.len(), file_path);
         Ok(statements)
     }
+
+    /// Import JSON file and generate INSERT statements
+    pub fn import_json(file_path: &str, table_name: &str) -> anyhow::Result<Vec<String>> {
+        use std::fs;
+
+        // Read JSON file
+        let json_content = fs::read_to_string(file_path)
+            .map_err(|e| anyhow::anyhow!("Failed to read file '{}': {}", file_path, e))?;
+
+        // Parse as array of objects
+        let json_array: Vec<serde_json::Map<String, serde_json::Value>> =
+            serde_json::from_str(&json_content)
+                .map_err(|e| anyhow::anyhow!("Invalid JSON format: {}", e))?;
+
+        if json_array.is_empty() {
+            return Err(anyhow::anyhow!("JSON file contains no data"));
+        }
+
+        let mut statements = Vec::new();
+
+        // Process each JSON object
+        for (idx, obj) in json_array.iter().enumerate() {
+            // Extract column names and values from this object
+            let columns: Vec<String> = obj.keys().cloned().collect();
+
+            if columns.is_empty() {
+                return Err(anyhow::anyhow!(
+                    "Row {} has no columns",
+                    idx + 1
+                ));
+            }
+
+            let values: Vec<String> = columns
+                .iter()
+                .map(|col| {
+                    let value = &obj[col];
+                    // Convert JSON value to string and escape for SQL
+                    let value_str = match value {
+                        serde_json::Value::String(s) => s.clone(),
+                        serde_json::Value::Number(n) => n.to_string(),
+                        serde_json::Value::Bool(b) => b.to_string(),
+                        serde_json::Value::Null => "NULL".to_string(),
+                        _ => value.to_string(),
+                    };
+
+                    // Escape single quotes to prevent SQL injection
+                    if value_str == "NULL" {
+                        value_str
+                    } else {
+                        let escaped = value_str.replace("'", "''");
+                        format!("'{}'", escaped)
+                    }
+                })
+                .collect();
+
+            // Build INSERT statement
+            let cols = columns.join(", ");
+            let vals = values.join(", ");
+            let stmt = format!("INSERT INTO {} ({}) VALUES ({});", table_name, cols, vals);
+            statements.push(stmt);
+        }
+
+        println!("Generated {} INSERT statements from '{}'", statements.len(), file_path);
+        Ok(statements)
+    }
 }
 
 fn write_csv_row<W: Write>(writer: &mut W, values: &[String]) -> anyhow::Result<()> {
@@ -150,5 +215,105 @@ mod tests {
         // Verify the escaped value in a SQL statement wouldn't cause injection
         let sql = format!("INSERT INTO users (name) VALUES ('{}');", escaped);
         assert_eq!(sql, "INSERT INTO users (name) VALUES ('O''Brien');");
+    }
+
+    #[test]
+    fn test_import_json_basic() {
+        use std::io::Write;
+        use tempfile::NamedTempFile;
+
+        // Create temporary JSON file
+        let mut temp_file = NamedTempFile::new().unwrap();
+        let json_data = r#"[
+            {"id": "1", "name": "Alice", "email": "alice@example.com"},
+            {"id": "2", "name": "Bob", "email": "bob@example.com"}
+        ]"#;
+        temp_file.write_all(json_data.as_bytes()).unwrap();
+        temp_file.flush().unwrap();
+
+        // Import JSON
+        let statements = DataIO::import_json(
+            temp_file.path().to_str().unwrap(),
+            "users"
+        ).unwrap();
+
+        // Verify we got 2 INSERT statements
+        assert_eq!(statements.len(), 2);
+
+        // Verify statements contain expected data
+        assert!(statements[0].contains("INSERT INTO users"));
+        assert!(statements[0].contains("Alice"));
+        assert!(statements[1].contains("Bob"));
+    }
+
+    #[test]
+    fn test_import_json_sql_injection() {
+        use std::io::Write;
+        use tempfile::NamedTempFile;
+
+        // Create JSON with SQL injection attempt
+        let mut temp_file = NamedTempFile::new().unwrap();
+        let json_data = r#"[
+            {"name": "Bob'); DROP TABLE users; --", "email": "test@example.com"}
+        ]"#;
+        temp_file.write_all(json_data.as_bytes()).unwrap();
+        temp_file.flush().unwrap();
+
+        // Import JSON
+        let statements = DataIO::import_json(
+            temp_file.path().to_str().unwrap(),
+            "test_table"
+        ).unwrap();
+
+        // Verify single quotes are properly escaped
+        assert_eq!(statements.len(), 1);
+        let stmt = &statements[0];
+
+        // Should contain escaped quotes: Bob'') instead of Bob')
+        assert!(stmt.contains("Bob''); DROP TABLE users; --"));
+        // Verify it's inside quotes, making it safe
+        assert!(stmt.contains("'Bob''); DROP TABLE users; --'"));
+    }
+
+    #[test]
+    fn test_import_json_invalid_format() {
+        use std::io::Write;
+        use tempfile::NamedTempFile;
+
+        // Create invalid JSON file
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(b"not valid json").unwrap();
+        temp_file.flush().unwrap();
+
+        // Attempt to import
+        let result = DataIO::import_json(
+            temp_file.path().to_str().unwrap(),
+            "users"
+        );
+
+        // Should fail with error
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid JSON format"));
+    }
+
+    #[test]
+    fn test_import_json_empty_array() {
+        use std::io::Write;
+        use tempfile::NamedTempFile;
+
+        // Create empty JSON array
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(b"[]").unwrap();
+        temp_file.flush().unwrap();
+
+        // Attempt to import
+        let result = DataIO::import_json(
+            temp_file.path().to_str().unwrap(),
+            "users"
+        );
+
+        // Should fail with error
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("no data"));
     }
 }
