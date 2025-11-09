@@ -74,7 +74,28 @@ impl SelectExecutor<'_> {
         let mut results = if has_aggregates || has_group_by {
             self.execute_with_aggregation(stmt, cte_results)?
         } else if let Some(from_clause) = &stmt.from {
-            let from_result = self.execute_from(from_clause, cte_results)?;
+            // For non-aggregated queries, decompose WHERE predicates to enable pushdown optimization
+            let predicates = if let Some(where_expr) = &stmt.where_clause {
+                use crate::optimizer::decompose_where_clause;
+                // Create a dummy schema for initial predicate decomposition
+                // The real schema will be built during FROM execution
+                let dummy_schema = crate::schema::CombinedSchema {
+                    table_schemas: HashMap::new(),
+                    total_columns: 0,
+                };
+                match decompose_where_clause(Some(where_expr), &dummy_schema) {
+                    Ok(decomp) => Some(decomp),
+                    Err(_) => None, // If decomposition fails, continue without optimization
+                }
+            } else {
+                None
+            };
+            
+            let from_result = if let Some(ref pred) = predicates {
+                self.execute_from_with_predicates(from_clause, &cte_results, Some(pred))?
+            } else {
+                self.execute_from(from_clause, &cte_results)?
+            };
             self.execute_without_aggregation(stmt, from_result)?
         } else {
             // SELECT without FROM - evaluate expressions as a single row
