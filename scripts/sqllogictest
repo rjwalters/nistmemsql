@@ -75,6 +75,7 @@ Usage:
 Commands:
   test <file>              Test a single SQLLogicTest file
   run [options]            Run the full test suite (serial or parallel)
+  query [options]          Query test results database (interactive SQL)
   punchlist [options]      Generate markdown checklist of failures
   analyze [options]        Analyze failure patterns
   report [options]         Generate HTML conformance report
@@ -92,9 +93,10 @@ Examples:
   cd repo && ./scripts/sqllogictest run --parallel --workers 320 --time 3600
 
   # Analysis and tracking
+  ./scripts/sqllogictest query --preset failed-files
+  ./scripts/sqllogictest query --preset by-category
   ./scripts/sqllogictest punchlist
   ./scripts/sqllogictest status
-  ./scripts/sqllogictest report --html
 
 For detailed help on any command:
   ./scripts/sqllogictest <command> --help
@@ -278,6 +280,17 @@ EOF
 
         print_success "Parallel run complete"
         echo "Results: target/sqllogictest_cumulative.json"
+
+        # Process results into database
+        local results_file="target/sqllogictest_cumulative.json"
+        if [ -f "$results_file" ]; then
+            print_info "Processing results into database..."
+            if python3 scripts/process_test_results.py --input "$results_file"; then
+                print_success "Database updated: target/sqllogictest_results.sql"
+            else
+                print_warning "Failed to update database (test results still in JSON)"
+            fi
+        fi
     else
         # Serial execution
         print_info "Running serial test suite"
@@ -289,6 +302,21 @@ EOF
 
         print_success "Serial run complete"
         echo "Results: target/sqllogictest_results.json"
+
+        # Process results into database
+        local results_file="target/sqllogictest_results.json"
+        if [ -f "$results_file" ]; then
+            print_info "Processing results into database..."
+            if python3 scripts/process_test_results.py --input "$results_file"; then
+                print_success "Database updated: target/sqllogictest_results.sql"
+                echo ""
+                echo "Query your results:"
+                echo "  ./scripts/query_test_results.py --preset failed-files"
+                echo "  ./scripts/query_test_results.py --preset by-category"
+            else
+                print_warning "Failed to update database (test results still in JSON)"
+            fi
+        fi
     fi
 }
 
@@ -469,6 +497,10 @@ main() {
             ;;
         status)
             cmd_status "$@"
+            ;;
+        query)
+            # Pass through to query script
+            python3 scripts/query_test_results.py "$@"
             ;;
         analyze|report)
             print_warning "Command '$command' not yet implemented"

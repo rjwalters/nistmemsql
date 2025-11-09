@@ -120,6 +120,37 @@ impl Database {
             }
         }
 
+        // Export indexes
+        writeln!(writer, "-- Indexes")
+            .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+        for index_name in self.list_indexes() {
+            let metadata = self.get_index(&index_name).unwrap();
+            write!(writer, "CREATE")
+                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            if metadata.unique {
+                write!(writer, " UNIQUE")
+                    .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            }
+            write!(writer, " INDEX {} ON {} (", index_name, metadata.table_name)
+                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+
+            for (i, col) in metadata.columns.iter().enumerate() {
+                if i > 0 {
+                    write!(writer, ", ")
+                        .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+                }
+                write!(writer, "{}", col.column_name)
+                    .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+                write!(writer, " {:?}", col.direction)
+                    .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+            }
+
+            writeln!(writer, ");")
+                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+        }
+        writeln!(writer)
+            .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+
         writeln!(writer, "-- End of dump")
             .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
 

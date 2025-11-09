@@ -48,6 +48,15 @@ jobs:
           echo "Generating SQLLogicTest punchlist from manual test results..."
           python3 scripts/generate_punchlist.py
 
+      - name: Verify punchlist generation
+        run: |
+          if [ ! -f target/sqllogictest_punchlist.json ]; then
+            echo "Error: Punchlist generation failed"
+            exit 1
+          fi
+          echo "✓ Punchlist generated successfully"
+          python3 -c "import json; data = json.load(open('target/sqllogictest_punchlist.json')); print(f'  Total files: {len(data[\"passed_files\"]) + len(data[\"failed_files\"]) + len(data[\"untested_files\"])}')"
+
       - name: Upload test results
         uses: actions/upload-artifact@v4
         with:
@@ -56,6 +65,7 @@ jobs:
             target/sqltest_results.json
             target/sqllogictest_punchlist.json
             target/sqllogictest_punchlist.csv
+            target/sqllogictest_summary.json
           retention-days: 90
 
   # ============================================================================

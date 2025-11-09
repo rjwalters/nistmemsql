@@ -44,18 +44,87 @@ def get_subcategory(file_path: Path, test_dir: Path) -> str:
     return "root"
 
 
-def load_existing_results(results_file: Path, test_dir: Path) -> Tuple[Set[str], Set[str]]:
-    """Load passed/failed test files from existing results."""
+def load_results_from_database(db_path: Path) -> Tuple[Set[str], Set[str]]:
+    """
+    Load passed/failed test files from database.
+
+    For now, this parses the SQL dump directly to extract test results.
+    Once Python bindings support execution, this will query the database directly.
+    """
     passed = set()
     failed = set()
-    
+
+    if not db_path.exists():
+        return passed, failed
+
+    try:
+        # Parse SQL dump to extract INSERT statements
+        with open(db_path, 'r') as f:
+            content = f.read()
+
+        # Look for INSERT INTO test_files statements
+        import re
+
+        # Pattern: INSERT INTO test_files ... VALUES ('file_path', 'category', 'subcategory', 'STATUS', ...)
+        pattern = r"INSERT INTO test_files[^V]+VALUES\s*\(([^)]+)\)"
+
+        for match in re.finditer(pattern, content, re.IGNORECASE):
+            values_str = match.group(1)
+
+            # Split by comma, respecting quoted strings
+            # Simple approach: split and clean up
+            values = []
+            current = ""
+            in_quote = False
+
+            for char in values_str:
+                if char == "'" and not in_quote:
+                    in_quote = True
+                elif char == "'" and in_quote:
+                    in_quote = False
+                    values.append(current)
+                    current = ""
+                elif char == "," and not in_quote:
+                    if current and current.strip() != "":
+                        values.append(current.strip())
+                        current = ""
+                elif in_quote:
+                    current += char
+
+            # test_files columns: file_path, category, subcategory, status, last_tested, last_passed
+            if len(values) >= 4:
+                file_path = values[0]
+                status = values[3]
+
+                if status == 'PASS':
+                    passed.add(file_path)
+                elif status == 'FAIL':
+                    failed.add(file_path)
+
+    except Exception as e:
+        print(f"Warning: Could not parse database: {e}", file=sys.stderr)
+        # Fall back to empty sets
+
+    return passed, failed
+
+
+def load_existing_results(results_file: Path, test_dir: Path) -> Tuple[Set[str], Set[str]]:
+    """Load passed/failed test files from existing results (JSON or database)."""
+    passed = set()
+    failed = set()
+
     if not results_file.exists():
         return passed, failed
-    
+
+    # Check if this is a SQL database file
+    if results_file.suffix == '.sql':
+        return load_results_from_database(results_file)
+
+    # Otherwise, load from JSON
     try:
         with open(results_file, 'r') as f:
             data = json.load(f)
-            
+
         if "tested_files" in data:
             for f in data["tested_files"].get("passed", []):
                 # Normalize path - handle both absolute and relative paths
@@ -73,7 +142,7 @@ def load_existing_results(results_file: Path, test_dir: Path) -> Tuple[Set[str],
                     failed.add(str(Path(f)))
     except Exception as e:
         print(f"Warning: Could not load results file: {e}", file=sys.stderr)
-    
+
     return passed, failed
 
 
@@ -227,15 +296,24 @@ def main():
     script_dir = Path(__file__).parent
     repo_root = script_dir.parent
     test_dir = repo_root / "third_party/sqllogictest/test"
-    results_file = repo_root / "target/sqllogictest_cumulative.json"
-    
-    # Alternative results file if cumulative doesn't exist
-    if not results_file.exists():
-        alt_results = repo_root / "target/sqllogictest_results.json"
-        if alt_results.exists():
-            results_file = alt_results
-        else:
-            results_file = None
+
+    # Prefer database over JSON
+    db_file = repo_root / "target/sqllogictest_results.sql"
+    json_cumulative = repo_root / "target/sqllogictest_cumulative.json"
+    json_results = repo_root / "target/sqllogictest_results.json"
+
+    if db_file.exists():
+        results_file = db_file
+        print(f"Using database: {db_file}")
+    elif json_cumulative.exists():
+        results_file = json_cumulative
+        print(f"Using JSON results: {json_cumulative}")
+    elif json_results.exists():
+        results_file = json_results
+        print(f"Using JSON results: {json_results}")
+    else:
+        results_file = None
+        print("No previous results found")
     
     if not test_dir.exists():
         print(f"Error: Test directory not found: {test_dir}", file=sys.stderr)
