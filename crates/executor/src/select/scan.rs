@@ -12,7 +12,7 @@ use crate::errors::ExecutorError;
 use crate::privilege_checker::PrivilegeChecker;
 use crate::schema::CombinedSchema;
 use crate::evaluator::CombinedExpressionEvaluator;
-use crate::optimizer::{decompose_where_predicates, get_table_local_predicates, combine_with_and};
+use crate::optimizer::{decompose_where_predicates, get_table_local_predicates, get_equijoin_predicates, combine_with_and, get_predicates_for_tables};
 
 use super::cte::CteResult;
 use super::join::{nested_loop_join, FromResult};
@@ -158,14 +158,129 @@ fn execute_join<F>(
 where
     F: Fn(&ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> + Copy,
 {
-    // Execute left and right sides recursively, passing WHERE clause through for predicate pushdown
-    // Note: WHERE predicates will be decomposed and pushed down at the table scan level
-    let left_result = execute_from_clause(left, cte_results, database, where_clause, execute_subquery)?;
-    let right_result = execute_from_clause(right, cte_results, database, where_clause, execute_subquery)?;
+    // Decompose WHERE clause once for filtering by branch
+    let predicates = where_clause.map(decompose_where_predicates);
+    
+    // Get table names for each branch to filter predicates
+    let (left_tables, right_tables) = get_branch_tables(left, right, cte_results, database)?;
+    
+    // Filter WHERE clause for each branch - only pass relevant predicates
+    let left_where = if let Some(ref preds) = predicates {
+        let filtered_preds = get_predicates_for_tables(preds, &left_tables);
+        combine_with_and(filtered_preds)
+    } else {
+        None
+    };
+    
+    let right_where = if let Some(ref preds) = predicates {
+        let filtered_preds = get_predicates_for_tables(preds, &right_tables);
+        combine_with_and(filtered_preds)
+    } else {
+        None
+    };
+    
+    // Execute left and right sides with filtered WHERE clauses
+    let left_result = execute_from_clause(left, cte_results, database, left_where.as_ref(), execute_subquery)?;
+    let right_result = execute_from_clause(right, cte_results, database, right_where.as_ref(), execute_subquery)?;
 
-    // Perform nested loop join
-    let result = nested_loop_join(left_result, right_result, join_type, condition, database)?;
+    // Extract equijoin predicates from WHERE clause that apply to this join
+    let equijoin_predicates = if let Some(ref preds) = predicates {
+        let all_equijoins = get_equijoin_predicates(preds);
+        
+        // Filter to only equijoins that reference tables in left and right schemas
+        let left_schema_tables: std::collections::HashSet<_> = left_result.schema.table_schemas.keys().cloned().collect();
+        let right_schema_tables: std::collections::HashSet<_> = right_result.schema.table_schemas.keys().cloned().collect();
+        
+        all_equijoins.into_iter().filter(|eq_pred| {
+            // Check if this equijoin references tables in both left and right
+            matches_join_condition(&eq_pred, &left_schema_tables, &right_schema_tables)
+        }).collect()
+    } else {
+        Vec::new()
+    };
+
+    // Perform nested loop join with equijoin predicates from WHERE clause
+    let result = nested_loop_join(left_result, right_result, join_type, condition, database, &equijoin_predicates)?;
     Ok(result)
+}
+
+/// Determine what tables are in the left and right branches of a join
+fn get_branch_tables(
+    left: &ast::FromClause,
+    right: &ast::FromClause,
+    cte_results: &HashMap<String, CteResult>,
+    database: &storage::Database,
+) -> Result<(std::collections::HashSet<String>, std::collections::HashSet<String>), ExecutorError> {
+    let mut left_tables = std::collections::HashSet::new();
+    let mut right_tables = std::collections::HashSet::new();
+    
+    collect_table_names(left, &mut left_tables, cte_results, database);
+    collect_table_names(right, &mut right_tables, cte_results, database);
+    
+    Ok((left_tables, right_tables))
+}
+
+/// Recursively collect all table names referenced in a FROM clause
+fn collect_table_names(
+    from: &ast::FromClause,
+    tables: &mut std::collections::HashSet<String>,
+    cte_results: &HashMap<String, CteResult>,
+    database: &storage::Database,
+) {
+    match from {
+        ast::FromClause::Table { name, alias } => {
+            let effective_name = alias.as_ref().cloned().unwrap_or_else(|| name.clone());
+            tables.insert(effective_name);
+        }
+        ast::FromClause::Join { left, right, .. } => {
+            collect_table_names(left, tables, cte_results, database);
+            collect_table_names(right, tables, cte_results, database);
+        }
+        ast::FromClause::Subquery { alias, .. } => {
+            tables.insert(alias.clone());
+        }
+    }
+}
+
+/// Check if an equijoin expression references tables from both left and right schema groups
+fn matches_join_condition(
+    expr: &ast::Expression,
+    left_tables: &std::collections::HashSet<String>,
+    right_tables: &std::collections::HashSet<String>,
+) -> bool {
+    let mut left_refs = std::collections::HashSet::new();
+    let mut right_refs = std::collections::HashSet::new();
+    
+    extract_referenced_tables(expr, &mut left_refs, &mut right_refs, left_tables, right_tables);
+    
+    !left_refs.is_empty() && !right_refs.is_empty()
+}
+
+/// Extract table references from an expression, categorizing by left/right tables
+fn extract_referenced_tables(
+    expr: &ast::Expression,
+    left_refs: &mut std::collections::HashSet<String>,
+    right_refs: &mut std::collections::HashSet<String>,
+    left_tables: &std::collections::HashSet<String>,
+    right_tables: &std::collections::HashSet<String>,
+) {
+    match expr {
+        ast::Expression::ColumnRef { table: Some(table), .. } => {
+            if left_tables.contains(table) {
+                left_refs.insert(table.clone());
+            } else if right_tables.contains(table) {
+                right_refs.insert(table.clone());
+            }
+        }
+        ast::Expression::BinaryOp { left, right, .. } => {
+            extract_referenced_tables(left, left_refs, right_refs, left_tables, right_tables);
+            extract_referenced_tables(right, left_refs, right_refs, left_tables, right_tables);
+        }
+        ast::Expression::UnaryOp { expr: inner, .. } => {
+            extract_referenced_tables(inner, left_refs, right_refs, left_tables, right_tables);
+        }
+        _ => {}
+    }
 }
 
 /// Execute a derived table (subquery with alias)

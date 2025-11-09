@@ -225,6 +225,7 @@ pub fn get_table_local_predicates(
 }
 
 /// Get predicates that must be applied after all joins (complex predicates)
+#[allow(dead_code)]
 pub fn get_post_join_predicates(predicates: &[PredicateInfo]) -> Vec<Expression> {
     predicates
         .iter()
@@ -246,6 +247,48 @@ pub fn get_equijoin_predicates(predicates: &[PredicateInfo]) -> Vec<Expression> 
                 return Some(p.expression.clone());
             }
             None
+        })
+        .collect()
+}
+
+/// Get predicates relevant only to a specific set of tables
+///
+/// This filters the WHERE clause to only include predicates that reference
+/// tables in the given set. Useful for filtering WHERE clauses for specific
+/// branches of a join tree.
+pub fn get_predicates_for_tables(
+    predicates: &[PredicateInfo],
+    table_names: &std::collections::HashSet<String>,
+) -> Vec<Expression> {
+    predicates
+        .iter()
+        .filter_map(|p| {
+            match &p.predicate_type {
+                PredicateType::TableLocal { table_name } => {
+                    if table_names.contains(table_name) {
+                        Some(p.expression.clone())
+                    } else {
+                        None
+                    }
+                }
+                PredicateType::Equijoin { left_table, right_table, .. } => {
+                    // Include equijoin if both tables are in this branch
+                    if table_names.contains(left_table) && table_names.contains(right_table) {
+                        Some(p.expression.clone())
+                    } else {
+                        None
+                    }
+                }
+                PredicateType::Complex => {
+                    // Check if all referenced tables in this complex predicate are in our set
+                    let referenced = extract_table_references(&p.expression);
+                    if !referenced.is_empty() && referenced.iter().all(|t| table_names.contains(t)) {
+                        Some(p.expression.clone())
+                    } else {
+                        None
+                    }
+                }
+            }
         })
         .collect()
 }

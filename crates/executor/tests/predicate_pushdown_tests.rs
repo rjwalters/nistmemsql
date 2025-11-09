@@ -206,3 +206,73 @@ fn test_predicate_pushdown_with_group_by() {
     // Should work correctly with GROUP BY
     assert!(result.len() > 0);
 }
+
+#[test]
+fn test_large_multi_table_join_with_predicate_pushdown() {
+    // Test with 8 tables, 5 rows each
+    // Without pushdown: 5^8 = 390,625 row cartesian product (before equijoin filtering)
+    // With pushdown: each table is filtered first, dramatically reducing intermediate rows
+    let db = setup_test_db_with_tables(8, 5);
+    let executor = SelectExecutor::new(&db);
+
+    // All table-local predicates: a > 2 for each table
+    // Plus equijoin conditions: each table joins with the next
+    let sql = "SELECT COUNT(*) FROM T1, t2, t3, t4, t5, t6, t7, t8 \
+               WHERE a1 > 2 AND a2 > 2 AND a3 > 2 AND a4 > 2 \
+               AND a5 > 2 AND a6 > 2 AND a7 > 2 AND a8 > 2 \
+               AND a1 = b2 AND a2 = b3 AND a3 = b4 AND a4 = b5 \
+               AND a5 = b6 AND a6 = b7 AND a7 = b8";
+    let stmt = parse_select(sql);
+    
+    // This should not panic with OOM or timeout due to predicate pushdown
+    let result = executor.execute(&stmt).unwrap();
+    
+    // Should successfully execute and return a row with a count
+    assert_eq!(result.len(), 1);
+}
+
+// NOTE: Tests beyond 8 tables are currently disabled because they require Phase 3:
+// a smart join tree optimizer that reorders joins to avoid cascading cartesian products.
+//
+// Current behavior (Phase 2):
+// - Phase 1: Implemented WHERE clause decomposition into predicates
+// - Phase 2: Implemented table-local predicate pushdown to scan stage  
+// - Phase 3 (blocked): Requires join tree reordering or hash joins for equijoin chains
+//
+// The cascading join problem:
+// When executing: FROM T1, T2, T3, ..., T10 WHERE a1=b2 AND a2=b3 AND ... AND a9=b10
+// The join tree is: (((T1 JOIN T2) JOIN T3) ... JOIN T10)
+// At each level, we build the cartesian product BEFORE filtering by equijoin condition.
+// Even with table-local predicates reducing each table to ~9 rows:
+// - Level 1: T1(9) × T2(10) = 90 combinations before equijoin filter
+// - Level 2: result(9) × T3(10) = 90 combinations 
+// - ...repeats, still causing exponential blowup
+//
+// Solution requires Phase 3: Build smart join plans that use hash joins for equijoins
+// or reorder the join tree to apply selectivity early.
+
+#[test]
+fn test_select5_style_multi_table_with_equijoins() {
+    // Simulate select5.test style query: many tables with equijoin conditions
+// This mirrors the pathological queries in select5.test with smaller scale
+    let db = setup_test_db_with_tables(15, 10);
+    let executor = SelectExecutor::new(&db);
+
+    // Build a query similar to select5.test with 15 tables
+    // Each table is filtered locally, then joined with equijoin conditions
+    let sql = "SELECT COUNT(*) FROM T1, t2, t3, t4, t5, t6, t7, t8, t9, t10, \
+                               t11, t12, t13, t14, t15 \
+                WHERE a1 > 1 AND a2 > 1 AND a3 > 1 AND a4 > 1 AND a5 > 1 \
+                AND a6 > 1 AND a7 > 1 AND a8 > 1 AND a9 > 1 AND a10 > 1 \
+                AND a11 > 1 AND a12 > 1 AND a13 > 1 AND a14 > 1 AND a15 > 1 \
+                AND a1 = b2 AND a2 = b3 AND a3 = b4 AND a4 = b5 AND a5 = b6 \
+                AND a6 = b7 AND a7 = b8 AND a8 = b9 AND a9 = b10 AND a10 = b11 \
+                AND a11 = b12 AND a12 = b13 AND a13 = b14 AND a14 = b15";
+    let stmt = parse_select(sql);
+    
+    // This should execute successfully with predicate pushdown
+    let result = executor.execute(&stmt).unwrap();
+    
+    // Should successfully execute
+    assert_eq!(result.len(), 1);
+}
