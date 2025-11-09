@@ -19,7 +19,22 @@ impl CombinedExpressionEvaluator<'_> {
             });
         }
 
-        // Increment depth for recursive calls
+        // CSE: Check cache if enabled and expression is deterministic
+        if self.enable_cse && super::super::expression_hash::ExpressionHasher::is_deterministic(expr) {
+            let hash = super::super::expression_hash::ExpressionHasher::hash(expr);
+
+            // Check cache
+            if let Some(cached) = self.cse_cache.borrow().get(&hash) {
+                return Ok(cached.clone());
+            }
+
+            // Evaluate with depth increment and cache result
+            let result = self.with_incremented_depth(|evaluator| evaluator.eval_impl(expr, row))?;
+            self.cse_cache.borrow_mut().insert(hash, result.clone());
+            return Ok(result);
+        }
+
+        // Non-cached path: increment depth and evaluate
         self.with_incremented_depth(|evaluator| evaluator.eval_impl(expr, row))
     }
 

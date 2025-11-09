@@ -34,6 +34,10 @@ pub(super) fn apply_where_filter_combined<'a>(
             executor.check_timeout()?;
         }
 
+        // Clear CSE cache before evaluating each row to prevent column values
+        // from being incorrectly cached across different rows
+        evaluator.clear_cse_cache();
+
         let include_row = match evaluator.eval(where_expr, &row)? {
             types::SqlValue::Boolean(true) => true,
             types::SqlValue::Boolean(false) | types::SqlValue::Null => false,
@@ -95,6 +99,10 @@ pub(super) fn apply_where_filter_basic<'a>(
         if rows_processed % CHECK_INTERVAL == 0 {
             executor.check_timeout()?;
         }
+
+        // Clear CSE cache before evaluating each row to prevent column values
+        // from being incorrectly cached across different rows
+        evaluator.clear_cse_cache();
 
         let include_row = match evaluator.eval(where_expr, &row)? {
             types::SqlValue::Boolean(true) => true,
