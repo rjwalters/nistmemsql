@@ -6,20 +6,15 @@ mod detection;
 #[path = "evaluation.rs"]
 mod evaluation;
 
-use std::collections::HashMap;
-
 use super::builder::SelectExecutor;
-use crate::{
-    errors::ExecutorError,
-    evaluator::CombinedExpressionEvaluator,
-    optimizer::optimize_where_clause,
-    select::{
-        cte::CteResult,
-        filter::apply_where_filter_combined,
-        grouping::group_rows,
-        helpers::{apply_distinct, apply_limit_offset},
-    },
-};
+use crate::errors::ExecutorError;
+use crate::evaluator::CombinedExpressionEvaluator;
+use crate::optimizer::optimize_where_clause;
+use crate::select::cte::CteResult;
+use crate::select::filter::apply_where_filter_combined;
+use crate::select::grouping::group_rows;
+use crate::select::helpers::{apply_distinct, apply_limit_offset};
+use std::collections::HashMap;
 
 impl SelectExecutor<'_> {
     /// Execute SELECT with aggregation/GROUP BY
@@ -41,27 +36,25 @@ impl SelectExecutor<'_> {
         // Execute FROM clause (handles JOINs, subqueries, CTEs)
         // Pass WHERE clause for predicate pushdown optimization
         let from_result = match &stmt.from {
-            Some(from_clause) => {
-                self.execute_from_with_where(from_clause, cte_results, stmt.where_clause.as_ref())?
-            }
+            Some(from_clause) => self.execute_from_with_where(from_clause, cte_results, stmt.where_clause.as_ref())?,
             None => {
-                // SELECT without FROM - create empty table for aggregates
-                // SQL standard behavior: aggregate functions operate on empty set
-                // - COUNT(*) returns 0 (no rows to count)
-                // - COUNT(expr) returns 0 (no rows to evaluate)
-                // - Other aggregates return NULL (no rows to aggregate)
-                use crate::{schema::CombinedSchema, select::join::FromResult};
+                // SELECT without FROM - create single-row table for aggregates
+                // SQL standard behavior: SELECT without FROM operates over ONE implicit row
+                // - COUNT(*) returns 1 (one implicit row)
+                // - MAX(100) returns 100 (evaluated on one row)
+                // - SUM(5) returns 5 (sum of one value)
+                use crate::schema::CombinedSchema;
+                use crate::select::join::FromResult;
 
                 let empty_schema = catalog::TableSchema::new("".to_string(), vec![]);
                 let combined_schema = CombinedSchema::from_table("".to_string(), empty_schema);
 
-                // Empty result set - no rows to aggregate over
-                FromResult { schema: combined_schema, rows: vec![] }
+                // Single empty row - represents implicit row for SELECT without FROM
+                FromResult { schema: combined_schema, rows: vec![storage::Row::new(vec![])] }
             }
         };
 
-        // Create evaluator with outer context if available (outer schema is already a
-        // CombinedSchema)
+        // Create evaluator with outer context if available (outer schema is already a CombinedSchema)
         let evaluator =
             if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
                 CombinedExpressionEvaluator::with_database_and_outer_context(
@@ -93,12 +86,7 @@ impl SelectExecutor<'_> {
             }
             crate::optimizer::WhereOptimization::Unchanged(where_expr) => {
                 // Apply original WHERE clause
-                apply_where_filter_combined(
-                    from_result.rows,
-                    where_expr.as_ref(),
-                    &evaluator,
-                    self,
-                )?
+                apply_where_filter_combined(from_result.rows, where_expr.as_ref(), &evaluator, self)?
             }
         };
 

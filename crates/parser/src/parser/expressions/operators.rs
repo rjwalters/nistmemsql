@@ -112,6 +112,13 @@ impl Parser {
                     let values = self.parse_expression_list()?;
                     self.expect_token(Token::RParen)?;
 
+                    // SQL standard requires at least one value in IN list
+                    if values.is_empty() {
+                        return Err(ParseError {
+                            message: "IN list cannot be empty - SQL standard requires at least one value".to_string(),
+                        });
+                    }
+
                     return Ok(ast::Expression::InList {
                         expr: Box::new(left),
                         values,
@@ -185,6 +192,13 @@ impl Parser {
                 // It's a value list: IN (val1, val2, ...)
                 let values = self.parse_expression_list()?;
                 self.expect_token(Token::RParen)?;
+
+                // SQL standard requires at least one value in IN list
+                if values.is_empty() {
+                    return Err(ParseError {
+                        message: "IN list cannot be empty - SQL standard requires at least one value".to_string(),
+                    });
+                }
 
                 return Ok(ast::Expression::InList {
                     expr: Box::new(left),
