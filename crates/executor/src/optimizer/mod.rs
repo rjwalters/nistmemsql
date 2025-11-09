@@ -10,4 +10,4 @@ mod tests;
 pub mod where_pushdown;
 
 pub use expressions::*;
-pub use where_pushdown::{combine_with_and, PredicateDecomposition};
+pub use where_pushdown::{combine_with_and, decompose_where_clause, PredicateDecomposition};
