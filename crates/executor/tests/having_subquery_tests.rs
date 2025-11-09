@@ -103,7 +103,8 @@ fn test_having_with_scalar_subquery() {
         "SELECT dept, SUM(amount) as total \
          FROM sales \
          GROUP BY dept \
-         HAVING SUM(amount) > (SELECT AVG(target_amount) FROM targets)",
+         HAVING SUM(amount) > (SELECT AVG(target_amount) FROM targets) \
+         ORDER BY dept",
     )
     .unwrap();
 
@@ -118,11 +119,11 @@ fn test_having_with_scalar_subquery() {
 
     // Check dept 1
     assert_eq!(rows[0].get(0), Some(&types::SqlValue::Integer(1)));
-    assert_eq!(rows[0].get(1), Some(&types::SqlValue::Integer(300)));
+    assert_eq!(rows[0].get(1), Some(&types::SqlValue::Numeric(300.0)));
 
     // Check dept 3
     assert_eq!(rows[1].get(0), Some(&types::SqlValue::Integer(3)));
-    assert_eq!(rows[1].get(1), Some(&types::SqlValue::Integer(500)));
+    assert_eq!(rows[1].get(1), Some(&types::SqlValue::Numeric(500.0)));
 }
 
 #[test]

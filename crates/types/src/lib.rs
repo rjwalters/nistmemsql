@@ -329,7 +329,7 @@ impl fmt::Display for SqlValue {
             SqlValue::Bigint(i) => write!(f, "{}", i),
             SqlValue::Unsigned(u) => write!(f, "{}", u),
             // Format Numeric - show whole numbers without decimals,
-            // fractional numbers with up to 3 decimal places
+            // fractional numbers without trailing zeros
             SqlValue::Numeric(n) => {
                 if n.is_nan() {
                     write!(f, "NaN")
@@ -343,8 +343,8 @@ impl fmt::Display for SqlValue {
                     // Whole number - display without decimals
                     write!(f, "{}", *n as i64)
                 } else {
-                    // Has fractional part - show with 3 decimal places
-                    write!(f, "{:.3}", n)
+                    // Has fractional part - use default formatting (no trailing zeros)
+                    write!(f, "{}", n)
                 }
             }
             SqlValue::Float(n) => write!(f, "{}", n),
