@@ -1,5 +1,6 @@
-use crate::select::window::WindowFunctionKey;
 use std::collections::HashMap;
+
+use crate::select::window::WindowFunctionKey;
 
 /// Project columns from a row based on SELECT list (combined schema version)
 pub(super) fn project_row_combined(
@@ -15,7 +16,8 @@ pub(super) fn project_row_combined(
         match item {
             ast::SelectItem::Wildcard { .. } => {
                 // SELECT * - include all columns
-                // When window functions are present, only include base columns (not appended window values)
+                // When window functions are present, only include base columns (not appended window
+                // values)
                 if let Some(mapping) = window_mapping {
                     if !mapping.is_empty() {
                         // Find the minimum window column index to know where base columns end
@@ -32,15 +34,16 @@ pub(super) fn project_row_combined(
             ast::SelectItem::QualifiedWildcard { qualifier, .. } => {
                 // SELECT table.* or SELECT alias.* - include columns from specific table/alias
                 // Try exact match first for performance
-                let result = schema.table_schemas.get(qualifier).cloned()
-                    .or_else(|| {
-                        // Fall back to case-insensitive lookup
-                        let qualifier_lower = qualifier.to_lowercase();
-                        schema.table_schemas.iter()
-                            .find(|(key, _)| key.to_lowercase() == qualifier_lower)
-                            .map(|(_, value)| value.clone())
-                    });
-                
+                let result = schema.table_schemas.get(qualifier).cloned().or_else(|| {
+                    // Fall back to case-insensitive lookup
+                    let qualifier_lower = qualifier.to_lowercase();
+                    schema
+                        .table_schemas
+                        .iter()
+                        .find(|(key, _)| key.to_lowercase() == qualifier_lower)
+                        .map(|(_, value)| value.clone())
+                });
+
                 if let Some((start_index, table_schema)) = result {
                     let num_columns = table_schema.columns.len();
                     let end_index = start_index + num_columns;
@@ -63,9 +66,11 @@ pub(super) fn project_row_combined(
                     if start_index < effective_end && effective_end <= row.values.len() {
                         values.extend(row.values[start_index..effective_end].iter().cloned());
                     }
-                    // If indices are out of bounds, this might be an error, but we'll be silent for now
+                    // If indices are out of bounds, this might be an error, but we'll be silent for
+                    // now
                 }
-                // If table not found, skip silently (this should be caught during column name derivation)
+                // If table not found, skip silently (this should be caught during column name
+                // derivation)
             }
             ast::SelectItem::Expression { expr, alias: _ } => {
                 // Check if this is a window function expression

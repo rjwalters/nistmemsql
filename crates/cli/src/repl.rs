@@ -1,9 +1,10 @@
-use rustyline::DefaultEditor;
-use rustyline::error::ReadlineError;
+use rustyline::{error::ReadlineError, DefaultEditor};
 
-use crate::executor::SqlExecutor;
-use crate::formatter::{ResultFormatter, OutputFormat};
-use crate::commands::MetaCommand;
+use crate::{
+    commands::MetaCommand,
+    executor::SqlExecutor,
+    formatter::{OutputFormat, ResultFormatter},
+};
 
 pub struct Repl {
     executor: SqlExecutor,
@@ -23,12 +24,7 @@ impl Repl {
             formatter.set_format(fmt);
         }
 
-        Ok(Repl {
-            executor,
-            editor,
-            formatter,
-            database_path,
-        })
+        Ok(Repl { executor, editor, formatter, database_path })
     }
 
     pub fn run(&mut self) -> anyhow::Result<()> {
@@ -63,11 +59,15 @@ impl Repl {
                             Ok(result) => {
                                 self.formatter.print_result(&result);
 
-                                // Auto-save if database path is provided and this was a modification
+                                // Auto-save if database path is provided and this was a
+                                // modification
                                 if let Some(ref path) = self.database_path {
                                     if is_modification_statement(&line) {
                                         if let Err(e) = self.executor.save_database(path) {
-                                            eprintln!("Warning: Failed to auto-save database: {}", e);
+                                            eprintln!(
+                                                "Warning: Failed to auto-save database: {}",
+                                                e
+                                            );
                                         }
                                     }
                                 }
@@ -158,7 +158,8 @@ impl Repl {
     }
 
     fn print_help(&self) {
-        println!("
+        println!(
+            "
 Meta-commands:
   \\d [table]      - Describe table or list all tables
   \\dt             - List tables
@@ -177,17 +178,18 @@ Examples:
   SELECT * FROM users;
   \\f json
   \\f csv
-");
+"
+        );
     }
 }
 
 /// Check if a SQL statement is a modification (DDL/DML) that should trigger auto-save
 fn is_modification_statement(sql: &str) -> bool {
     let upper = sql.trim().to_uppercase();
-    upper.starts_with("CREATE ") ||
-    upper.starts_with("DROP ") ||
-    upper.starts_with("ALTER ") ||
-    upper.starts_with("INSERT ") ||
-    upper.starts_with("UPDATE ") ||
-    upper.starts_with("DELETE ")
+    upper.starts_with("CREATE ")
+        || upper.starts_with("DROP ")
+        || upper.starts_with("ALTER ")
+        || upper.starts_with("INSERT ")
+        || upper.starts_with("UPDATE ")
+        || upper.starts_with("DELETE ")
 }

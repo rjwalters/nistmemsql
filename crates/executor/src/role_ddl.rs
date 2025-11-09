@@ -1,8 +1,9 @@
 //! Role DDL executor
 
-use crate::errors::ExecutorError;
 use ast::*;
 use storage::Database;
+
+use crate::errors::ExecutorError;
 
 /// Executor for role DDL statements
 pub struct RoleExecutor;

@@ -6,10 +6,10 @@
 //! This test verifies that the actual SQLLogicTest suite properly formats integer
 //! results as decimals when the expected column type is FloatingPoint (R).
 
+use async_trait::async_trait;
 use executor::SelectExecutor;
 use parser::Parser;
 use sqllogictest::{AsyncDB, DBOutput, DefaultColumnType};
-use async_trait::async_trait;
 use storage::Database;
 use types::SqlValue;
 
@@ -33,7 +33,11 @@ impl TestDB {
         Self { db: Database::new() }
     }
 
-    fn format_sql_value(&self, value: &SqlValue, expected_type: Option<&DefaultColumnType>) -> String {
+    fn format_sql_value(
+        &self,
+        value: &SqlValue,
+        expected_type: Option<&DefaultColumnType>,
+    ) -> String {
         match value {
             SqlValue::Integer(i) => {
                 if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
@@ -49,8 +53,8 @@ impl TestDB {
     }
 
     fn execute_sql(&mut self, sql: &str) -> Result<DBOutput<DefaultColumnType>, TestError> {
-        let stmt = Parser::parse_sql(sql)
-            .map_err(|e| TestError(format!("Parse error: {:?}", e)))?;
+        let stmt =
+            Parser::parse_sql(sql).map_err(|e| TestError(format!("Parse error: {:?}", e)))?;
 
         match stmt {
             ast::Statement::Select(select_stmt) => {

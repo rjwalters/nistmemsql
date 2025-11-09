@@ -5,14 +5,9 @@
 //! - WHERE clause predicate pushdown for efficient join evaluation
 
 mod expressions;
-pub mod where_pushdown;
 #[cfg(test)]
 mod tests;
+pub mod where_pushdown;
 
 pub use expressions::*;
-pub use where_pushdown::{
-    decompose_where_predicates, get_table_local_predicates,
-    get_equijoin_predicates, combine_with_and, get_predicates_for_tables,
-};
-// Also export branch-specific types for join reordering
-pub use where_pushdown::{decompose_where_clause, PredicateDecomposition};
+pub use where_pushdown::{combine_with_and, decompose_where_clause, PredicateDecomposition};

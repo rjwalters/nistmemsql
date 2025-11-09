@@ -26,7 +26,7 @@ fn test_parse_simple_join() {
 
                     // Right should be orders table
                     match **right {
-                        ast::FromClause::Table { ref name, .. } if name == "ORDERS" => {} // Success
+                        ast::FromClause::Table { ref name, .. } if name == "ORDERS" => {} /* Success */
                         _ => panic!("Expected right table to be 'orders'"),
                     }
 
@@ -55,7 +55,7 @@ fn test_parse_inner_join() {
             _ => panic!("Expected JOIN"),
         },
         _ => panic!("Expected SELECT"),
-        }
+    }
 }
 
 #[test]
@@ -74,13 +74,14 @@ fn test_parse_comma_separated_from() {
 
                     // Left should be tab0 table
                     match **left {
-                        ast::FromClause::Table { ref name, alias: None } if name == "TAB0" => {} // Success
+                        ast::FromClause::Table { ref name, alias: None } if name == "TAB0" => {} /* Success */
                         _ => panic!("Expected left table to be 'tab0'"),
                     }
 
                     // Right should be tab1 table with alias cor0
                     match **right {
-                        ast::FromClause::Table { ref name, alias: Some(ref alias) } if name == "TAB1" && alias == "COR0" => {} // Success
+                        ast::FromClause::Table { ref name, alias: Some(ref alias) }
+                            if name == "TAB1" && alias == "COR0" => {} // Success
                         _ => panic!("Expected right table to be 'tab1' with alias 'cor0'"),
                     }
 

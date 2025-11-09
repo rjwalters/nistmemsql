@@ -1,7 +1,7 @@
 //! Tests for join web demo SQL examples
 //!
-//! This test suite validates SQL join examples (INNER JOIN, LEFT JOIN, RIGHT JOIN, FULL JOIN, CROSS JOIN)
-//! from the web demo by parsing the TypeScript example files and executing queries.
+//! This test suite validates SQL join examples (INNER JOIN, LEFT JOIN, RIGHT JOIN, FULL JOIN, CROSS
+//! JOIN) from the web demo by parsing the TypeScript example files and executing queries.
 
 mod common;
 

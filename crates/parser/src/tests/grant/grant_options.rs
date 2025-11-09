@@ -2,8 +2,9 @@
 //!
 //! SQL:1999 Core Feature E081-03: GRANT statement WITH GRANT OPTION
 
-use crate::Parser;
 use ast::*;
+
+use crate::Parser;
 
 #[test]
 fn test_parse_grant_with_grant_option() {

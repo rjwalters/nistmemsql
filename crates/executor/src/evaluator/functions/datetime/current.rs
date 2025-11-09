@@ -2,9 +2,10 @@
 //!
 //! Implements CURRENT_DATE, CURRENT_TIME, and CURRENT_TIMESTAMP functions.
 
-use crate::errors::ExecutorError;
 use chrono::{Local, Timelike};
 use types::SqlValue;
+
+use crate::errors::ExecutorError;
 
 /// CURRENT_DATE / CURDATE - Returns current date
 /// Alias: CURDATE

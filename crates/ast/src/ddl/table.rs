@@ -5,8 +5,9 @@
 //! - DROP TABLE
 //! - ALTER TABLE (add/drop column, add/drop constraint, etc.)
 
-use crate::Expression;
 use types::DataType;
+
+use crate::Expression;
 
 /// Referential action for foreign key constraints
 #[derive(Debug, Clone, PartialEq)]

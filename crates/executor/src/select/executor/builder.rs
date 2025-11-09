@@ -1,10 +1,15 @@
 //! SelectExecutor construction and initialization
 
-use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
-use std::time::Instant;
-use crate::limits::{MAX_MEMORY_BYTES, MEMORY_WARNING_BYTES};
-use crate::errors::ExecutorError;
+use std::{
+    cell::{Cell, RefCell},
+    collections::HashMap,
+    time::Instant,
+};
+
+use crate::{
+    errors::ExecutorError,
+    limits::{MAX_MEMORY_BYTES, MEMORY_WARNING_BYTES},
+};
 
 /// Executes SELECT queries
 pub struct SelectExecutor<'a> {

@@ -1,5 +1,5 @@
-use storage::{Database, parse_sql_statements, read_sql_dump};
 use catalog::{ColumnSchema, TableSchema};
+use storage::{parse_sql_statements, read_sql_dump, Database};
 use types::DataType;
 
 #[test]
@@ -17,7 +17,11 @@ fn test_database_save_and_load_roundtrip() {
         "test_users".to_string(),
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(100) }, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
             ColumnSchema::new("age".to_string(), DataType::Integer, true),
         ],
     );
@@ -26,17 +30,21 @@ fn test_database_save_and_load_roundtrip() {
 
     // Insert some rows using the table directly
     let table = db.get_table_mut("test_users").unwrap();
-    table.insert(storage::Row::new(vec![
-        types::SqlValue::Integer(1),
-        types::SqlValue::Varchar("Alice".to_string()),
-        types::SqlValue::Integer(30),
-    ])).unwrap();
+    table
+        .insert(storage::Row::new(vec![
+            types::SqlValue::Integer(1),
+            types::SqlValue::Varchar("Alice".to_string()),
+            types::SqlValue::Integer(30),
+        ]))
+        .unwrap();
 
-    table.insert(storage::Row::new(vec![
-        types::SqlValue::Integer(2),
-        types::SqlValue::Varchar("Bob".to_string()),
-        types::SqlValue::Null,
-    ])).unwrap();
+    table
+        .insert(storage::Row::new(vec![
+            types::SqlValue::Integer(2),
+            types::SqlValue::Varchar("Bob".to_string()),
+            types::SqlValue::Null,
+        ]))
+        .unwrap();
 
     // Step 2: Save database to SQL dump
     db.save_sql_dump(temp_file).unwrap();
@@ -65,9 +73,13 @@ fn test_database_save_and_load_roundtrip() {
 
         // Just verify it parses - we don't execute in this test
         let result = parser::Parser::parse_sql(trimmed);
-        assert!(result.is_ok(),
+        assert!(
+            result.is_ok(),
             "Statement {} should parse successfully: {}\nError: {:?}",
-            idx, trimmed, result.err());
+            idx,
+            trimmed,
+            result.err()
+        );
     }
 
     // Clean up

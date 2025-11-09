@@ -2,8 +2,9 @@
 //!
 //! Implements POWER/POW, SQRT, EXP, LN/LOG, and LOG10 functions.
 
-use crate::errors::ExecutorError;
 use types::SqlValue;
+
+use crate::errors::ExecutorError;
 
 /// Helper: Convert numeric types to f64
 pub fn numeric_to_f64(val: &SqlValue) -> Result<f64, ExecutorError> {

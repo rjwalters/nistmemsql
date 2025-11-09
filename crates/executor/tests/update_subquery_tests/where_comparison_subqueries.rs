@@ -368,7 +368,8 @@ fn test_update_where_and_set_both_use_subqueries() {
         set_operation: None,
     });
 
-    // UPDATE employees SET salary = (SELECT target FROM salary_targets) WHERE dept_id IN (SELECT dept_id FROM active_depts)
+    // UPDATE employees SET salary = (SELECT target FROM salary_targets) WHERE dept_id IN (SELECT
+    // dept_id FROM active_depts)
     let stmt = ast::UpdateStmt {
         table_name: "employees".to_string(),
         assignments: vec![Assignment {

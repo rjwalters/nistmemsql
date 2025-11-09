@@ -2,7 +2,7 @@
 
 use async_trait::async_trait;
 use executor::SelectExecutor;
-use md5::{Md5, Digest};
+use md5::{Digest, Md5};
 use parser::Parser;
 use sqllogictest::{AsyncDB, DBOutput, DefaultColumnType};
 use storage::Database;
@@ -37,7 +37,7 @@ impl NistMemSqlDB {
     fn format_result_rows(
         &self,
         rows: &[storage::Row],
-        types: Vec<DefaultColumnType>
+        types: Vec<DefaultColumnType>,
     ) -> Result<DBOutput<DefaultColumnType>, TestError> {
         let formatted_rows: Vec<Vec<String>> = rows
             .iter()
@@ -67,11 +67,8 @@ impl NistMemSqlDB {
                         .collect()
                 })
                 .collect();
-            
-            let mut sort_keys: Vec<_> = canonical_rows
-                .iter()
-                .map(|row| row.join(" "))
-                .collect();
+
+            let mut sort_keys: Vec<_> = canonical_rows.iter().map(|row| row.join(" ")).collect();
             sort_keys.sort();
             for key in &sort_keys {
                 hasher.update(key);
@@ -88,18 +85,18 @@ impl NistMemSqlDB {
             // This is required for SQLLogicTest format where each value is on separate rows
             let mut flattened_rows: Vec<Vec<String>> = Vec::new();
             let mut flattened_types: Vec<DefaultColumnType> = Vec::new();
-            
+
             // Get the type for single values (they're all treated as individual rows now)
             if !types.is_empty() {
                 flattened_types = vec![types[0].clone(); total_values];
             }
-            
+
             for row in formatted_rows {
                 for val in row {
                     flattened_rows.push(vec![val]);
                 }
             }
-            
+
             Ok(DBOutput::Rows { types: flattened_types, rows: flattened_rows })
         }
     }
@@ -303,9 +300,10 @@ impl NistMemSqlDB {
             .values
             .iter()
             .map(|val| match val {
-                SqlValue::Integer(_) | SqlValue::Smallint(_) | SqlValue::Bigint(_) | SqlValue::Unsigned(_) => {
-                    DefaultColumnType::Integer
-                }
+                SqlValue::Integer(_)
+                | SqlValue::Smallint(_)
+                | SqlValue::Bigint(_)
+                | SqlValue::Unsigned(_) => DefaultColumnType::Integer,
                 SqlValue::Float(_)
                 | SqlValue::Real(_)
                 | SqlValue::Double(_)
@@ -324,7 +322,11 @@ impl NistMemSqlDB {
         self.format_result_rows(&rows, types)
     }
 
-    fn format_sql_value(&self, value: &SqlValue, expected_type: Option<&DefaultColumnType>) -> String {
+    fn format_sql_value(
+        &self,
+        value: &SqlValue,
+        expected_type: Option<&DefaultColumnType>,
+    ) -> String {
         match value {
             SqlValue::Integer(i) => {
                 if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
@@ -354,7 +356,8 @@ impl NistMemSqlDB {
                     i.to_string()
                 }
             }
-            SqlValue::Numeric(_) => value.to_string(), // Use Display trait for consistent formatting
+            SqlValue::Numeric(_) => value.to_string(), /* Use Display trait for consistent */
+            // formatting
             SqlValue::Float(f) | SqlValue::Real(f) => {
                 if f.fract() == 0.0 {
                     format!("{:.1}", f)
@@ -380,7 +383,11 @@ impl NistMemSqlDB {
     }
 
     /// Format value in canonical form for hashing (plain format without display decorations)
-    fn format_sql_value_canonical(&self, value: &SqlValue, expected_type: Option<&DefaultColumnType>) -> String {
+    fn format_sql_value_canonical(
+        &self,
+        value: &SqlValue,
+        expected_type: Option<&DefaultColumnType>,
+    ) -> String {
         match value {
             SqlValue::Integer(i) => i.to_string(),
             SqlValue::Smallint(i) => {

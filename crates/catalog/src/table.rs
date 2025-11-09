@@ -1,6 +1,6 @@
-use crate::column::ColumnSchema;
-use crate::foreign_key::ForeignKeyConstraint;
 use std::collections::HashMap;
+
+use crate::{column::ColumnSchema, foreign_key::ForeignKeyConstraint};
 
 /// Table schema definition.
 #[derive(Debug, Clone, PartialEq)]
@@ -11,7 +11,8 @@ pub struct TableSchema {
     column_index_cache: HashMap<String, usize>,
     /// Primary key column names (None if no primary key, Some(vec) for single or composite key)
     pub primary_key: Option<Vec<String>>,
-    /// Unique constraints - each inner vec represents a unique constraint (can be single or composite)
+    /// Unique constraints - each inner vec represents a unique constraint (can be single or
+    /// composite)
     pub unique_constraints: Vec<Vec<String>>,
     /// Check constraints - each tuple is (constraint_name, check_expression)
     pub check_constraints: Vec<(String, ast::Expression)>,
@@ -151,7 +152,7 @@ impl TableSchema {
         if let Some(idx) = self.column_index_cache.get(name) {
             return Some(*idx);
         }
-        
+
         // Fall back to case-insensitive search
         let name_lower = name.to_lowercase();
         for (i, col) in self.columns.iter().enumerate() {

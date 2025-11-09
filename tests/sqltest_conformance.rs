@@ -3,10 +3,11 @@
 //! This test module runs SQL:1999 conformance tests by reading YAML files
 //! directly from the upstream-recommended sqltest suite by Elliot Chance.
 
+use std::fs;
+
 use executor::SelectExecutor;
 use parser::Parser;
 use serde::Deserialize;
-use std::fs;
 use storage::Database;
 
 /// Individual test case from YAML files
@@ -360,7 +361,8 @@ impl SqltestRunner {
             | ast::Statement::OpenCursor(_)
             | ast::Statement::Fetch(_)
             | ast::Statement::CloseCursor(_) => {
-                // Transactions, cursors, triggers, assertions, and advanced SQL objects are no-ops for validation
+                // Transactions, cursors, triggers, assertions, and advanced SQL objects are no-ops
+                // for validation
                 Ok(true)
             }
         }

@@ -1,8 +1,8 @@
 //! Schema DDL parsing
 
-use crate::keywords::Keyword;
-use crate::parser::ParseError;
 use ast::*;
+
+use crate::{keywords::Keyword, parser::ParseError};
 
 /// Parse CREATE SCHEMA statement
 pub fn parse_create_schema(parser: &mut crate::Parser) -> Result<CreateSchemaStmt, ParseError> {

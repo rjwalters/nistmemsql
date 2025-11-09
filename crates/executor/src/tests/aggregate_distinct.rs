@@ -137,7 +137,8 @@ fn test_count_distinct_vs_count_all() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].values[0], types::SqlValue::Integer(6)); // COUNT(amount) - all rows
-    assert_eq!(result[0].values[1], types::SqlValue::Integer(3)); // COUNT(DISTINCT amount) - unique values
+    assert_eq!(result[0].values[1], types::SqlValue::Integer(3)); // COUNT(DISTINCT amount) - unique
+                                                                  // values
 }
 
 #[test]

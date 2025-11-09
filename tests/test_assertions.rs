@@ -263,7 +263,9 @@ fn test_in_operator_empty_list() {
 
                 match &rows[0].values[0] {
                     types::SqlValue::Boolean(actual) if *actual == expected => (),
-                    other => panic!("Query '{}' expected Boolean({}), got {:?}", sql, expected, other),
+                    other => {
+                        panic!("Query '{}' expected Boolean({}), got {:?}", sql, expected, other)
+                    }
                 }
             }
             _ => panic!("Not a SELECT statement"),

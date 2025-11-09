@@ -1,9 +1,9 @@
 //! Schema DDL executor
 
-use crate::create_table::CreateTableExecutor;
-use crate::errors::ExecutorError;
 use ast::*;
 use storage::Database;
+
+use crate::{create_table::CreateTableExecutor, errors::ExecutorError};
 
 /// Executor for schema DDL statements
 pub struct SchemaExecutor;

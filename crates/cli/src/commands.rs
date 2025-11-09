@@ -17,13 +17,13 @@ pub enum MetaCommand {
 impl MetaCommand {
     pub fn parse(line: &str) -> Option<Self> {
         let trimmed = line.trim();
-        
+
         if !trimmed.starts_with('\\') {
             return None;
         }
 
         let parts: Vec<&str> = trimmed.split_whitespace().collect();
-        
+
         match parts.get(0) {
             Some(&"\\q") | Some(&"\\quit") => Some(MetaCommand::Quit),
             Some(&"\\h") | Some(&"\\help") => Some(MetaCommand::Help),
@@ -114,9 +114,18 @@ mod tests {
 
     #[test]
     fn test_parse_set_format() {
-        assert!(matches!(MetaCommand::parse("\\f table"), Some(MetaCommand::SetFormat(OutputFormat::Table))));
-        assert!(matches!(MetaCommand::parse("\\f json"), Some(MetaCommand::SetFormat(OutputFormat::Json))));
-        assert!(matches!(MetaCommand::parse("\\f csv"), Some(MetaCommand::SetFormat(OutputFormat::Csv))));
+        assert!(matches!(
+            MetaCommand::parse("\\f table"),
+            Some(MetaCommand::SetFormat(OutputFormat::Table))
+        ));
+        assert!(matches!(
+            MetaCommand::parse("\\f json"),
+            Some(MetaCommand::SetFormat(OutputFormat::Json))
+        ));
+        assert!(matches!(
+            MetaCommand::parse("\\f csv"),
+            Some(MetaCommand::SetFormat(OutputFormat::Csv))
+        ));
     }
 
     #[test]

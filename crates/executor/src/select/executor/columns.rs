@@ -1,8 +1,7 @@
 //! Column name derivation for SELECT results
 
 use super::builder::SelectExecutor;
-use crate::errors::ExecutorError;
-use crate::select::join::FromResult;
+use crate::{errors::ExecutorError, select::join::FromResult};
 
 impl SelectExecutor<'_> {
     /// Derive column names from SELECT list
@@ -52,21 +51,24 @@ impl SelectExecutor<'_> {
                     }
                 }
                 ast::SelectItem::QualifiedWildcard { qualifier, alias } => {
-                    // SELECT table.* [AS (col1, col2, ...)] or SELECT alias.* [AS (col1, col2, ...)]
+                    // SELECT table.* [AS (col1, col2, ...)] or SELECT alias.* [AS (col1, col2,
+                    // ...)]
                     if let Some(from_res) = from_result {
                         // Find the table/alias in the schema
                         // Try exact match first for performance
-                        let result = from_res.schema.table_schemas.get(qualifier).cloned()
-                            .or_else(|| {
+                        let result =
+                            from_res.schema.table_schemas.get(qualifier).cloned().or_else(|| {
                                 // Fall back to case-insensitive lookup
                                 let qualifier_lower = qualifier.to_lowercase();
-                                from_res.schema.table_schemas.iter()
+                                from_res
+                                    .schema
+                                    .table_schemas
+                                    .iter()
                                     .find(|(key, _)| key.to_lowercase() == qualifier_lower)
                                     .map(|(_, value)| value.clone())
                             });
-                        
-                        if let Some((_start_index, schema)) = result
-                        {
+
+                        if let Some((_start_index, schema)) = result {
                             // Apply derived column list if present
                             if let Some(derived_cols) = alias {
                                 if derived_cols.len() != schema.columns.len() {

@@ -3,9 +3,10 @@
 //! This module provides the Database class for establishing connections
 //! to the in-memory vibesql database following DB-API 2.0 conventions.
 
-use pyo3::prelude::*;
 use std::sync::Arc;
+
 use parking_lot::Mutex;
+use pyo3::prelude::*;
 
 use crate::cursor::Cursor;
 

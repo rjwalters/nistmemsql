@@ -1,11 +1,11 @@
 //! ALTER TABLE executor
 
-use crate::errors::ExecutorError;
-use crate::privilege_checker::PrivilegeChecker;
 use ast::*;
 use catalog::ColumnSchema;
 use storage::Database;
 use types::SqlValue;
+
+use crate::{errors::ExecutorError, privilege_checker::PrivilegeChecker};
 
 /// Executor for ALTER TABLE statements
 pub struct AlterTableExecutor;
@@ -164,7 +164,12 @@ impl AlterTableExecutor {
                         column_name: column_name.clone(),
                         table_name: table_name.clone(),
                         searched_tables: vec![table_name.clone()],
-                        available_columns: table.schema.columns.iter().map(|c| c.name.clone()).collect(),
+                        available_columns: table
+                            .schema
+                            .columns
+                            .iter()
+                            .map(|c| c.name.clone())
+                            .collect(),
                     }
                 })?;
 
@@ -192,7 +197,12 @@ impl AlterTableExecutor {
                         column_name: column_name.clone(),
                         table_name: table_name.clone(),
                         searched_tables: vec![table_name.clone()],
-                        available_columns: table.schema.columns.iter().map(|c| c.name.clone()).collect(),
+                        available_columns: table
+                            .schema
+                            .columns
+                            .iter()
+                            .map(|c| c.name.clone())
+                            .collect(),
                     }
                 })?;
 

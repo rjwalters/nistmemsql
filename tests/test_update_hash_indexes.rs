@@ -1,6 +1,7 @@
 // Test to verify hash indexes work for UPDATE constraint validation
-use catalog::{ColumnSchema, TableSchema};
 use std::time::Instant;
+
+use catalog::{ColumnSchema, TableSchema};
 use storage::{Database, Row};
 use types::{DataType, SqlValue};
 

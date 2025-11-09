@@ -1,7 +1,6 @@
 //! Transaction control statement parsing (BEGIN, COMMIT, ROLLBACK)
 
-use crate::keywords::Keyword;
-use crate::parser::ParseError;
+use crate::{keywords::Keyword, parser::ParseError};
 
 /// Parse BEGIN [TRANSACTION] or START TRANSACTION statement
 pub(super) fn parse_begin_statement(

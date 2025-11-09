@@ -1,6 +1,4 @@
-use crate::keywords::Keyword;
-use crate::lexer::Lexer;
-use crate::token::Token;
+use crate::{keywords::Keyword, lexer::Lexer, token::Token};
 
 #[test]
 fn test_line_comment_simple() {

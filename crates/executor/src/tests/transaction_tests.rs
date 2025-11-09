@@ -1,10 +1,11 @@
 //! Tests for transaction functionality (BEGIN, COMMIT, ROLLBACK)
 
-use crate::{BeginTransactionExecutor, CommitExecutor, InsertExecutor, RollbackExecutor};
 use ast::{BeginStmt, CommitStmt, InsertStmt, RollbackStmt};
 use catalog::TableSchema;
 use storage::Database;
 use types::{DataType, SqlValue};
+
+use crate::{BeginTransactionExecutor, CommitExecutor, InsertExecutor, RollbackExecutor};
 
 fn setup_test_table(db: &mut Database) {
     // CREATE TABLE users (id INTEGER NOT NULL, name VARCHAR(50))

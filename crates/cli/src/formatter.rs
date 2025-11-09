@@ -1,5 +1,6 @@
+use prettytable::{Cell, Row, Table};
+
 use crate::executor::QueryResult;
-use prettytable::{Table, Row, Cell};
 
 #[derive(Debug, Clone, Copy)]
 pub enum OutputFormat {
@@ -14,9 +15,7 @@ pub struct ResultFormatter {
 
 impl ResultFormatter {
     pub fn new() -> Self {
-        ResultFormatter {
-            format: OutputFormat::Table,
-        }
+        ResultFormatter { format: OutputFormat::Table }
     }
 
     pub fn set_format(&mut self, format: OutputFormat) {
@@ -46,11 +45,7 @@ impl ResultFormatter {
         let mut table = Table::new();
 
         // Add header
-        let header_cells: Vec<Cell> = result
-            .columns
-            .iter()
-            .map(|col| Cell::new(col))
-            .collect();
+        let header_cells: Vec<Cell> = result.columns.iter().map(|col| Cell::new(col)).collect();
         table.add_row(Row::new(header_cells));
 
         // Add rows
@@ -68,17 +63,13 @@ impl ResultFormatter {
             let mut json_obj = serde_json::Map::new();
             for (i, col) in result.columns.iter().enumerate() {
                 if i < row.len() {
-                    json_obj.insert(
-                        col.clone(),
-                        serde_json::Value::String(row[i].clone()),
-                    );
+                    json_obj.insert(col.clone(), serde_json::Value::String(row[i].clone()));
                 }
             }
             json_rows.push(serde_json::Value::Object(json_obj));
         }
-        
-        let output = serde_json::to_string_pretty(&json_rows)
-            .unwrap_or_else(|_| "[]".to_string());
+
+        let output = serde_json::to_string_pretty(&json_rows).unwrap_or_else(|_| "[]".to_string());
         println!("{}", output);
     }
 

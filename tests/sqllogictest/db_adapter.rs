@@ -1,17 +1,23 @@
 //! Database adapter for SQLLogicTest runner.
 
-use super::execution::TestError;
-use super::formatting::{format_sql_value, format_sql_value_canonical};
+use std::{
+    env,
+    time::{Duration, Instant},
+};
+
 use async_trait::async_trait;
 use executor::SelectExecutor;
 use md5::{Digest, Md5};
 use parser::Parser;
 use sqllogictest::{AsyncDB, DBOutput, DefaultColumnType};
-use std::env;
-use std::time::{Duration, Instant};
 use storage::Database;
 use tokio::time::timeout;
 use types::SqlValue;
+
+use super::{
+    execution::TestError,
+    formatting::{format_sql_value, format_sql_value_canonical},
+};
 
 pub struct NistMemSqlDB {
     db: Database,
@@ -30,9 +36,7 @@ impl NistMemSqlDB {
             .map(|v| v == "1" || v.to_lowercase() == "true")
             .unwrap_or(false);
 
-        let worker_id = env::var("SQLLOGICTEST_WORKER_ID")
-            .ok()
-            .and_then(|s| s.parse().ok());
+        let worker_id = env::var("SQLLOGICTEST_WORKER_ID").ok().and_then(|s| s.parse().ok());
 
         let query_timeout_ms = env::var("SQLLOGICTEST_QUERY_TIMEOUT_MS")
             .ok()
@@ -80,7 +84,10 @@ impl NistMemSqlDB {
                 }
                 Err(e) => {
                     if let Some(worker_id) = self.worker_id {
-                        eprintln!("[Worker {}] ✗ {} ({:.2}s): {}", worker_id, file_path, elapsed_secs, e);
+                        eprintln!(
+                            "[Worker {}] ✗ {} ({:.2}s): {}",
+                            worker_id, file_path, elapsed_secs, e
+                        );
                     } else {
                         eprintln!("✗ {} ({:.2}s): {}", file_path, elapsed_secs, e);
                     }
@@ -94,7 +101,7 @@ impl NistMemSqlDB {
     fn format_result_rows(
         &self,
         rows: &[storage::Row],
-        types: Vec<DefaultColumnType>
+        types: Vec<DefaultColumnType>,
     ) -> Result<DBOutput<DefaultColumnType>, TestError> {
         let formatted_rows: Vec<Vec<String>> = rows
             .iter()
@@ -125,10 +132,7 @@ impl NistMemSqlDB {
                 })
                 .collect();
 
-            let mut sort_keys: Vec<_> = canonical_rows
-                .iter()
-                .map(|row| row.join(" "))
-                .collect();
+            let mut sort_keys: Vec<_> = canonical_rows.iter().map(|row| row.join(" ")).collect();
             sort_keys.sort();
             for key in &sort_keys {
                 hasher.update(key);
@@ -162,8 +166,8 @@ impl NistMemSqlDB {
     }
 
     fn execute_sql(&mut self, sql: &str) -> Result<DBOutput<DefaultColumnType>, TestError> {
-        let stmt =
-            Parser::parse_sql(sql).map_err(|e| TestError::Execution(format!("Parse error: {:?}", e)))?;
+        let stmt = Parser::parse_sql(sql)
+            .map_err(|e| TestError::Execution(format!("Parse error: {:?}", e)))?;
 
         match stmt {
             ast::Statement::Select(select_stmt) => {
@@ -179,18 +183,21 @@ impl NistMemSqlDB {
                 Ok(DBOutput::StatementComplete(0))
             }
             ast::Statement::Insert(insert_stmt) => {
-                let rows_affected = executor::InsertExecutor::execute(&mut self.db, &insert_stmt)
-                    .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
+                let rows_affected =
+                    executor::InsertExecutor::execute(&mut self.db, &insert_stmt)
+                        .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(rows_affected as u64))
             }
             ast::Statement::Update(update_stmt) => {
-                let rows_affected = executor::UpdateExecutor::execute(&update_stmt, &mut self.db)
-                    .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
+                let rows_affected =
+                    executor::UpdateExecutor::execute(&update_stmt, &mut self.db)
+                        .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(rows_affected as u64))
             }
             ast::Statement::Delete(delete_stmt) => {
-                let rows_affected = executor::DeleteExecutor::execute(&delete_stmt, &mut self.db)
-                    .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
+                let rows_affected =
+                    executor::DeleteExecutor::execute(&delete_stmt, &mut self.db)
+                        .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(rows_affected as u64))
             }
             ast::Statement::DropTable(drop_stmt) => {
@@ -347,9 +354,10 @@ impl NistMemSqlDB {
             .values
             .iter()
             .map(|val| match val {
-                SqlValue::Integer(_) | SqlValue::Smallint(_) | SqlValue::Bigint(_) | SqlValue::Unsigned(_) => {
-                    DefaultColumnType::Integer
-                }
+                SqlValue::Integer(_)
+                | SqlValue::Smallint(_)
+                | SqlValue::Bigint(_)
+                | SqlValue::Unsigned(_) => DefaultColumnType::Integer,
                 SqlValue::Float(_)
                 | SqlValue::Real(_)
                 | SqlValue::Double(_)
@@ -385,11 +393,8 @@ impl AsyncDB for NistMemSqlDB {
                 .unwrap_or(100);
 
             if self.query_count % log_interval == 0 {
-                let sql_preview = if sql.len() > 60 {
-                    format!("{}...", &sql[..60])
-                } else {
-                    sql.to_string()
-                };
+                let sql_preview =
+                    if sql.len() > 60 { format!("{}...", &sql[..60]) } else { sql.to_string() };
                 eprintln!("  Query {}: {}", self.query_count, sql_preview);
             }
         }
@@ -400,18 +405,18 @@ impl AsyncDB for NistMemSqlDB {
             Ok(result) => result,
             Err(_) => {
                 self.timed_out_queries += 1;
-                let sql_preview = if sql.len() > 80 {
-                    format!("{}...", &sql[..80])
-                } else {
-                    sql.to_string()
-                };
-                eprintln!("⏱️  Query timeout ({}ms): Query {}: {}", self.query_timeout_ms, self.query_count, sql_preview);
-                
+                let sql_preview =
+                    if sql.len() > 80 { format!("{}...", &sql[..80]) } else { sql.to_string() };
+                eprintln!(
+                    "⏱️  Query timeout ({}ms): Query {}: {}",
+                    self.query_timeout_ms, self.query_count, sql_preview
+                );
+
                 // Log timeout stats if verbose
                 if self.verbose {
                     eprintln!("  Total timed out queries so far: {}", self.timed_out_queries);
                 }
-                
+
                 // Skip the timed-out query and continue
                 Ok(DBOutput::Rows { types: vec![], rows: vec![] })
             }
@@ -431,7 +436,10 @@ impl AsyncDB for NistMemSqlDB {
 
 impl NistMemSqlDB {
     /// Execute SQL asynchronously (wrapper for query execution)
-    async fn execute_sql_async(&mut self, sql: &str) -> Result<DBOutput<DefaultColumnType>, TestError> {
+    async fn execute_sql_async(
+        &mut self,
+        sql: &str,
+    ) -> Result<DBOutput<DefaultColumnType>, TestError> {
         self.execute_sql(sql)
     }
 }

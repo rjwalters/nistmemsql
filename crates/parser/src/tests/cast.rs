@@ -44,56 +44,56 @@ fn test_parse_cast_integer_to_varchar() {
 
 #[test]
 fn test_parse_cast_varchar_to_integer() {
-let result = Parser::parse_sql("SELECT CAST('123' AS INTEGER);");
-assert!(result.is_ok(), "CAST to INTEGER should parse: {:?}", result);
+    let result = Parser::parse_sql("SELECT CAST('123' AS INTEGER);");
+    assert!(result.is_ok(), "CAST to INTEGER should parse: {:?}", result);
 
-let stmt = result.unwrap();
-match stmt {
-ast::Statement::Select(select) => {
-match &select.select_list[0] {
-ast::SelectItem::Expression { expr, alias: _ } => {
-match expr {
-ast::Expression::Cast { expr: _, data_type } => {
-match data_type {
-types::DataType::Integer => {} // Success
-_ => panic!("Expected INTEGER, got {:?}", data_type),
-}
-}
-_ => panic!("Expected CAST expression"),
-}
-}
-_ => panic!("Expected expression"),
-}
-}
-_ => panic!("Expected SELECT statement"),
-}
+    let stmt = result.unwrap();
+    match stmt {
+        ast::Statement::Select(select) => {
+            match &select.select_list[0] {
+                ast::SelectItem::Expression { expr, alias: _ } => {
+                    match expr {
+                        ast::Expression::Cast { expr: _, data_type } => {
+                            match data_type {
+                                types::DataType::Integer => {} // Success
+                                _ => panic!("Expected INTEGER, got {:?}", data_type),
+                            }
+                        }
+                        _ => panic!("Expected CAST expression"),
+                    }
+                }
+                _ => panic!("Expected expression"),
+            }
+        }
+        _ => panic!("Expected SELECT statement"),
+    }
 }
 
 #[test]
 fn test_parse_cast_to_signed() {
-let result = Parser::parse_sql("SELECT CAST(value AS SIGNED);");
-assert!(result.is_ok(), "CAST to SIGNED should parse: {:?}", result);
+    let result = Parser::parse_sql("SELECT CAST(value AS SIGNED);");
+    assert!(result.is_ok(), "CAST to SIGNED should parse: {:?}", result);
 
-let stmt = result.unwrap();
-match stmt {
-ast::Statement::Select(select) => {
-match &select.select_list[0] {
-ast::SelectItem::Expression { expr, alias: _ } => {
-match expr {
-ast::Expression::Cast { expr: _, data_type } => {
-match data_type {
-types::DataType::Integer => {} // SIGNED maps to INTEGER
-_ => panic!("Expected INTEGER (SIGNED), got {:?}", data_type),
-}
-}
-_ => panic!("Expected CAST expression"),
-}
-}
-_ => panic!("Expected expression"),
-}
-}
-_ => panic!("Expected SELECT statement"),
-}
+    let stmt = result.unwrap();
+    match stmt {
+        ast::Statement::Select(select) => {
+            match &select.select_list[0] {
+                ast::SelectItem::Expression { expr, alias: _ } => {
+                    match expr {
+                        ast::Expression::Cast { expr: _, data_type } => {
+                            match data_type {
+                                types::DataType::Integer => {} // SIGNED maps to INTEGER
+                                _ => panic!("Expected INTEGER (SIGNED), got {:?}", data_type),
+                            }
+                        }
+                        _ => panic!("Expected CAST expression"),
+                    }
+                }
+                _ => panic!("Expected expression"),
+            }
+        }
+        _ => panic!("Expected SELECT statement"),
+    }
 }
 
 #[test]
@@ -181,7 +181,7 @@ fn test_parse_cast_to_numeric() {
                     match expr {
                         ast::Expression::Cast { expr: _, data_type } => {
                             match data_type {
-                                types::DataType::Numeric { precision: 10, scale: 2 } => {} // Success
+                                types::DataType::Numeric { precision: 10, scale: 2 } => {} /* Success */
                                 _ => panic!("Expected NUMERIC(10, 2), got {:?}", data_type),
                             }
                         }
@@ -264,9 +264,7 @@ fn test_parse_multiple_casts() {
 #[test]
 fn test_parse_cast_signed_in_aggregate() {
     // Test case from issue #949: CAST AS SIGNED works fine
-    let result = Parser::parse_sql(
-        "SELECT DISTINCT - MIN( CAST( NULL AS SIGNED ) ) FROM tab0"
-    );
+    let result = Parser::parse_sql("SELECT DISTINCT - MIN( CAST( NULL AS SIGNED ) ) FROM tab0");
     assert!(result.is_ok(), "CAST AS SIGNED in aggregate should parse: {:?}", result);
 }
 

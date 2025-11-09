@@ -37,22 +37,13 @@ fn create_test_db_with_nulls() -> Database {
     db.create_table(schema).unwrap();
 
     // Row 1: ID=1, BOOL_COL=TRUE
-    db.insert_row(
-        "TEST",
-        Row::new(vec![SqlValue::Integer(1), SqlValue::Boolean(true)]),
-    )
-    .unwrap();
+    db.insert_row("TEST", Row::new(vec![SqlValue::Integer(1), SqlValue::Boolean(true)])).unwrap();
 
     // Row 2: ID=2, BOOL_COL=FALSE
-    db.insert_row(
-        "TEST",
-        Row::new(vec![SqlValue::Integer(2), SqlValue::Boolean(false)]),
-    )
-    .unwrap();
+    db.insert_row("TEST", Row::new(vec![SqlValue::Integer(2), SqlValue::Boolean(false)])).unwrap();
 
     // Row 3: ID=3, BOOL_COL=NULL
-    db.insert_row("TEST", Row::new(vec![SqlValue::Integer(3), SqlValue::Null]))
-        .unwrap();
+    db.insert_row("TEST", Row::new(vec![SqlValue::Integer(3), SqlValue::Null])).unwrap();
 
     db
 }
@@ -95,9 +86,8 @@ fn test_null_and_true() {
 
     // For row 3: BOOL_COL (NULL) AND TRUE should return NULL
     // In WHERE clause, NULL is treated as FALSE
-    let result =
-        execute_select(&db, "SELECT ID FROM TEST WHERE BOOL_COL AND (1 = 1)")
-            .expect("Query should succeed");
+    let result = execute_select(&db, "SELECT ID FROM TEST WHERE BOOL_COL AND (1 = 1)")
+        .expect("Query should succeed");
 
     // Should return only row 1 (TRUE AND TRUE = TRUE)
     // Row 2: FALSE AND TRUE = FALSE (filtered out)
@@ -111,9 +101,8 @@ fn test_true_and_null() {
     let db = create_test_db_with_nulls();
 
     // For row 3: TRUE AND BOOL_COL (NULL) should return NULL
-    let result =
-        execute_select(&db, "SELECT ID FROM TEST WHERE (1 = 1) AND BOOL_COL")
-            .expect("Query should succeed");
+    let result = execute_select(&db, "SELECT ID FROM TEST WHERE (1 = 1) AND BOOL_COL")
+        .expect("Query should succeed");
 
     // Should return only row 1 (TRUE AND TRUE = TRUE)
     assert_eq!(result.len(), 1, "TRUE AND NULL should return NULL (filtered in WHERE)");

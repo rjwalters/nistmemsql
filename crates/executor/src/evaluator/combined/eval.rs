@@ -1,8 +1,7 @@
 //! Main evaluation entry point for combined expressions
 
 use super::super::core::{CombinedExpressionEvaluator, ExpressionEvaluator};
-use crate::errors::ExecutorError;
-use crate::select::WindowFunctionKey;
+use crate::{errors::ExecutorError, select::WindowFunctionKey};
 
 impl CombinedExpressionEvaluator<'_> {
     /// Evaluate an expression in the context of a combined row
@@ -63,7 +62,8 @@ impl CombinedExpressionEvaluator<'_> {
                 }
 
                 // Column not found in either schema - collect diagnostic info
-                let searched_tables: Vec<String> = self.schema.table_schemas.keys().cloned().collect();
+                let searched_tables: Vec<String> =
+                    self.schema.table_schemas.keys().cloned().collect();
                 let mut available_columns = Vec::new();
                 for (_start, schema) in self.schema.table_schemas.values() {
                     available_columns.extend(schema.columns.iter().map(|c| c.name.clone()));
@@ -102,11 +102,15 @@ impl CombinedExpressionEvaluator<'_> {
                                 let right_val = self.eval(right, row)?;
 
                                 // Special case: NULL AND FALSE = FALSE
-                                if matches!(left_val, SqlValue::Null) && matches!(right_val, SqlValue::Boolean(false)) {
+                                if matches!(left_val, SqlValue::Null)
+                                    && matches!(right_val, SqlValue::Boolean(false))
+                                {
                                     return Ok(SqlValue::Boolean(false));
                                 }
 
-                                ExpressionEvaluator::eval_binary_op_static(&left_val, op, &right_val)
+                                ExpressionEvaluator::eval_binary_op_static(
+                                    &left_val, op, &right_val,
+                                )
                             }
                         }
                     }
@@ -124,11 +128,15 @@ impl CombinedExpressionEvaluator<'_> {
                                 let right_val = self.eval(right, row)?;
 
                                 // Special case: NULL OR TRUE = TRUE
-                                if matches!(left_val, SqlValue::Null) && matches!(right_val, SqlValue::Boolean(true)) {
+                                if matches!(left_val, SqlValue::Null)
+                                    && matches!(right_val, SqlValue::Boolean(true))
+                                {
                                     return Ok(SqlValue::Boolean(true));
                                 }
 
-                                ExpressionEvaluator::eval_binary_op_static(&left_val, op, &right_val)
+                                ExpressionEvaluator::eval_binary_op_static(
+                                    &left_val, op, &right_val,
+                                )
                             }
                         }
                     }

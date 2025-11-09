@@ -24,9 +24,9 @@ pub enum BinaryOperator {
     Or,
 
     // String
-    Concat, // ||
+    Concat, /* || */
 
-            // TODO: Add more (LIKE, IN, etc.)
+            /* TODO: Add more (LIKE, IN, etc.) */
 }
 
 /// Unary operators for SQL expressions

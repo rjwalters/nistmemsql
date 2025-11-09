@@ -1,16 +1,16 @@
 use clap::Parser;
 
-mod repl;
+mod commands;
+mod data_io;
+mod error;
 mod executor;
 mod formatter;
-mod commands;
-mod error;
+mod repl;
 mod script;
-mod data_io;
 
+use formatter::OutputFormat;
 use repl::Repl;
 use script::ScriptExecutor;
-use formatter::OutputFormat;
 
 #[derive(Parser, Debug)]
 #[command(name = "vibesql")]
@@ -74,19 +74,32 @@ fn parse_format(format_str: &str) -> Option<OutputFormat> {
     }
 }
 
-fn execute_command(cmd: &str, database: Option<String>, format: Option<OutputFormat>) -> anyhow::Result<()> {
+fn execute_command(
+    cmd: &str,
+    database: Option<String>,
+    format: Option<OutputFormat>,
+) -> anyhow::Result<()> {
     let mut executor = ScriptExecutor::new(database, false, format)?;
     executor.execute_script(cmd)?;
     Ok(())
 }
 
-fn execute_file(path: &str, database: Option<String>, verbose: bool, format: Option<OutputFormat>) -> anyhow::Result<()> {
+fn execute_file(
+    path: &str,
+    database: Option<String>,
+    verbose: bool,
+    format: Option<OutputFormat>,
+) -> anyhow::Result<()> {
     let mut executor = ScriptExecutor::new(database, verbose, format)?;
     executor.execute_file(path)?;
     Ok(())
 }
 
-fn execute_stdin(database: Option<String>, verbose: bool, format: Option<OutputFormat>) -> anyhow::Result<()> {
+fn execute_stdin(
+    database: Option<String>,
+    verbose: bool,
+    format: Option<OutputFormat>,
+) -> anyhow::Result<()> {
     let mut executor = ScriptExecutor::new(database, verbose, format)?;
     executor.execute_stdin()?;
     Ok(())

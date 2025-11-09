@@ -2,8 +2,9 @@
 //!
 //! Covers SQL:1999 Core Feature E081-03: Schema privileges (USAGE, CREATE).
 
-use crate::Parser;
 use ast::*;
+
+use crate::Parser;
 
 #[test]
 fn test_parse_grant_usage_on_schema() {

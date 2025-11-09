@@ -1,7 +1,8 @@
 //! Basic numeric function edge cases (ABS, SIGN, MOD)
 
-use super::common::create_test_evaluator;
 use types::SqlValue;
+
+use super::common::create_test_evaluator;
 
 // Helper functions for this module
 pub fn create_function_expr(name: &str, args: Vec<SqlValue>) -> ast::Expression {

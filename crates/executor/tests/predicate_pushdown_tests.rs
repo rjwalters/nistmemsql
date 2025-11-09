@@ -3,10 +3,10 @@
 //! These tests verify that table-local predicates are correctly identified and applied
 //! during table scans, reducing memory consumption in multi-table joins.
 
-use executor::SelectExecutor;
-use parser;
 use ast;
 use catalog;
+use executor::SelectExecutor;
+use parser;
 use types;
 
 /// Helper function to parse SELECT statements
@@ -223,10 +223,10 @@ fn test_large_multi_table_join_with_predicate_pushdown() {
                AND a1 = b2 AND a2 = b3 AND a3 = b4 AND a4 = b5 \
                AND a5 = b6 AND a6 = b7 AND a7 = b8";
     let stmt = parse_select(sql);
-    
+
     // This should not panic with OOM or timeout due to predicate pushdown
     let result = executor.execute(&stmt).unwrap();
-    
+
     // Should successfully execute and return a row with a count
     assert_eq!(result.len(), 1);
 }
@@ -236,7 +236,7 @@ fn test_large_multi_table_join_with_predicate_pushdown() {
 //
 // Current behavior (Phase 2):
 // - Phase 1: Implemented WHERE clause decomposition into predicates
-// - Phase 2: Implemented table-local predicate pushdown to scan stage  
+// - Phase 2: Implemented table-local predicate pushdown to scan stage
 // - Phase 3 (blocked): Requires join tree reordering or hash joins for equijoin chains
 //
 // The cascading join problem:
@@ -245,7 +245,7 @@ fn test_large_multi_table_join_with_predicate_pushdown() {
 // At each level, we build the cartesian product BEFORE filtering by equijoin condition.
 // Even with table-local predicates reducing each table to ~9 rows:
 // - Level 1: T1(9) × T2(10) = 90 combinations before equijoin filter
-// - Level 2: result(9) × T3(10) = 90 combinations 
+// - Level 2: result(9) × T3(10) = 90 combinations
 // - ...repeats, still causing exponential blowup
 //
 // Solution requires Phase 3: Build smart join plans that use hash joins for equijoins
@@ -273,10 +273,10 @@ fn test_large_multi_table_join_with_predicate_pushdown() {
 //                 AND a6 = b7 AND a7 = b8 AND a8 = b9 AND a9 = b10 AND a10 = b11 \
 //                 AND a11 = b12 AND a12 = b13 AND a13 = b14 AND a14 = b15";
 //     let stmt = parse_select(sql);
-//     
+//
 //     // This should execute successfully with predicate pushdown
 //     let result = executor.execute(&stmt).unwrap();
-//     
+//
 //     // Should successfully execute
 //     assert_eq!(result.len(), 1);
 // }
@@ -285,7 +285,7 @@ fn test_large_multi_table_join_with_predicate_pushdown() {
 // Phase 3.1: Hash Join Selection from WHERE Clause Equijoins
 // ============================================================================
 // These tests verify that hash joins are selected for equijoin predicates
-// in WHERE clauses, even when there's no ON clause. This is the core 
+// in WHERE clauses, even when there's no ON clause. This is the core
 // Phase 3.1 optimization for reducing intermediate result cardinality.
 
 #[test]

@@ -25,7 +25,8 @@ fn test_simple_case_basic_match() {
     let schema = create_test_schema();
     let evaluator = ExpressionEvaluator::new(&schema);
 
-    // CASE status WHEN 'active' THEN 'Active User' WHEN 'inactive' THEN 'Inactive User' ELSE 'Unknown' END
+    // CASE status WHEN 'active' THEN 'Active User' WHEN 'inactive' THEN 'Inactive User' ELSE
+    // 'Unknown' END
     let case_expr = Expression::Case {
         operand: Some(Box::new(Expression::ColumnRef {
             table: None,

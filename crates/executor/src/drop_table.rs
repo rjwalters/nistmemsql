@@ -3,8 +3,7 @@
 use ast::DropTableStmt;
 use storage::Database;
 
-use crate::errors::ExecutorError;
-use crate::privilege_checker::PrivilegeChecker;
+use crate::{errors::ExecutorError, privilege_checker::PrivilegeChecker};
 
 /// Executor for DROP TABLE statements
 pub struct DropTableExecutor;
@@ -24,32 +23,28 @@ impl DropTableExecutor {
     /// # Examples
     ///
     /// ```
-    /// use ast::{CreateTableStmt, ColumnDef, DropTableStmt};
-    /// use types::DataType;
-    /// use storage::Database;
+    /// use ast::{ColumnDef, CreateTableStmt, DropTableStmt};
     /// use executor::{CreateTableExecutor, DropTableExecutor};
+    /// use storage::Database;
+    /// use types::DataType;
     ///
     /// let mut db = Database::new();
     /// let create_stmt = CreateTableStmt {
     ///     table_name: "users".to_string(),
-    ///     columns: vec![
-    ///         ColumnDef {
-    ///             name: "id".to_string(),
-    ///             data_type: DataType::Integer,
-    ///             nullable: false,
-    ///             constraints: vec![],
-    ///             default_value: None,
-    ///             comment: None,
-    ///         },
-    ///     ],
-    ///     table_constraints: vec![], table_options: vec![],
+    ///     columns: vec![ColumnDef {
+    ///         name: "id".to_string(),
+    ///         data_type: DataType::Integer,
+    ///         nullable: false,
+    ///         constraints: vec![],
+    ///         default_value: None,
+    ///         comment: None,
+    ///     }],
+    ///     table_constraints: vec![],
+    ///     table_options: vec![],
     /// };
     /// CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
     ///
-    /// let stmt = DropTableStmt {
-    ///     table_name: "users".to_string(),
-    ///     if_exists: false,
-    /// };
+    /// let stmt = DropTableStmt { table_name: "users".to_string(), if_exists: false };
     ///
     /// let result = DropTableExecutor::execute(&stmt, &mut db);
     /// assert!(result.is_ok());
@@ -83,10 +78,11 @@ impl DropTableExecutor {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::CreateTableExecutor;
     use ast::{ColumnDef, CreateTableStmt};
     use types::DataType;
+
+    use super::*;
+    use crate::CreateTableExecutor;
 
     #[test]
     fn test_drop_existing_table() {
@@ -103,7 +99,8 @@ mod tests {
                 default_value: None,
                 comment: None,
             }],
-            table_constraints: vec![], table_options: vec![],
+            table_constraints: vec![],
+            table_options: vec![],
         };
         CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
         assert!(db.catalog.table_exists("users"));
@@ -157,7 +154,8 @@ mod tests {
                 default_value: None,
                 comment: None,
             }],
-            table_constraints: vec![], table_options: vec![],
+            table_constraints: vec![],
+            table_options: vec![],
         };
         CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
 
@@ -197,7 +195,8 @@ mod tests {
                     comment: None,
                 },
             ],
-            table_constraints: vec![], table_options: vec![],
+            table_constraints: vec![],
+            table_options: vec![],
         };
         CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
 
@@ -236,7 +235,8 @@ mod tests {
                 default_value: None,
                 comment: None,
             }],
-            table_constraints: vec![], table_options: vec![],
+            table_constraints: vec![],
+            table_options: vec![],
         };
         CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
 
@@ -266,7 +266,8 @@ mod tests {
                     default_value: None,
                     comment: None,
                 }],
-                table_constraints: vec![], table_options: vec![],
+                table_constraints: vec![],
+                table_options: vec![],
             };
             CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
         }
@@ -298,7 +299,8 @@ mod tests {
                 default_value: None,
                 comment: None,
             }],
-            table_constraints: vec![], table_options: vec![],
+            table_constraints: vec![],
+            table_options: vec![],
         };
         CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
 

@@ -2,8 +2,7 @@
 //!
 //! This module handles creation, deletion, and querying of database schemas.
 
-use crate::errors::CatalogError;
-use crate::schema::Schema;
+use crate::{errors::CatalogError, schema::Schema};
 
 impl super::Catalog {
     /// Create a new schema.

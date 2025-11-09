@@ -1,5 +1,5 @@
-use parser::Parser;
 use executor::SelectExecutor;
+use parser::Parser;
 use storage::Database;
 
 #[test]

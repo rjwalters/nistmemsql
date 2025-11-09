@@ -3,8 +3,8 @@
 //! Tests for catalog-level errors including table, column, schema, and view operations.
 
 use ast::Statement;
-use executor::advanced_objects::{execute_create_view, execute_drop_view};
 use executor::{
+    advanced_objects::{execute_create_view, execute_drop_view},
     AlterTableExecutor, CreateTableExecutor, ExecutorError, SchemaExecutor, SelectExecutor,
 };
 use parser::Parser;
@@ -82,7 +82,12 @@ fn test_column_not_found_error() {
         assert!(result.is_err(), "Should fail with ColumnNotFound");
 
         match result {
-            Err(ExecutorError::ColumnNotFound { column_name, table_name, searched_tables, available_columns }) => {
+            Err(ExecutorError::ColumnNotFound {
+                column_name,
+                table_name,
+                searched_tables,
+                available_columns,
+            }) => {
                 let error_msg = format!(
                     "{}",
                     ExecutorError::ColumnNotFound {

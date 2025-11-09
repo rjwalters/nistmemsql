@@ -1,10 +1,11 @@
 //! Tests for aggregate window functions in SELECT statements
 
-use crate::SelectExecutor;
 use catalog::{ColumnSchema, TableSchema};
 use parser::Parser;
 use storage::Database;
 use types::{DataType, SqlValue};
+
+use crate::SelectExecutor;
 
 fn create_test_db() -> Database {
     let mut db = Database::new();
@@ -173,7 +174,8 @@ fn test_window_function_with_moving_frame() {
     let db = create_test_db();
     let executor = SelectExecutor::new(&db);
 
-    // SELECT id, AVG(amount) OVER (ORDER BY id ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) as moving_avg FROM sales
+    // SELECT id, AVG(amount) OVER (ORDER BY id ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) as
+    // moving_avg FROM sales
     let query = "SELECT id, AVG(amount) OVER (ORDER BY id ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) as moving_avg FROM sales";
     let stmt = Parser::parse_sql(query).unwrap();
 
