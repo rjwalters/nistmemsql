@@ -83,17 +83,17 @@ void sqlite3GenerateConstraintChecks(
 - **Record generation during validation**: Avoids reprocessing data
 - **Deferred constraint state**: Tracks what needs rechecking after triggers
 
-**Our Current Approach** (`execution.rs:86-131`):
+**Our Current Approach** (`row_validator.rs`):
 ```rust
-// Multiple separate validation passes per row
-super::constraints::enforce_not_null_constraints(&schema, ...)?;
-super::constraints::enforce_primary_key_constraint(db, &schema, ...)?;
-super::constraints::enforce_unique_constraints(db, &schema, ...)?;
-super::constraints::enforce_check_constraints(&schema, ...)?;
-super::foreign_keys::validate_foreign_key_constraints(db, ...)?;
+// Single-pass validation using RowValidator
+// Integrates NOT NULL, PK uniqueness, UNIQUE constraints, and CHECK constraints
+// in a single pass through columns (lines 92-140)
+let validator = RowValidator::new(db, schema, table_name);
+let validation_result = validator.validate_and_prepare_row(&row_values, ...)?;
 ```
 
-**Performance Gap**: 5 separate function calls per row with full context switch overhead.
+**Improvement**: Consolidated validation into RowValidator with single-pass approach.
+Still separate from foreign key validation which remains in `foreign_keys.rs`.
 
 ---
 

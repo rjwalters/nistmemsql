@@ -266,4 +266,97 @@ impl TableSchema {
         self.columns[index].set_nullable(nullable);
         Ok(())
     }
+
+    /// Set default value for a column by index
+    pub fn set_column_default(
+        &mut self,
+        index: usize,
+        default: ast::Expression,
+    ) -> Result<(), crate::CatalogError> {
+        if index >= self.columns.len() {
+            return Err(crate::CatalogError::ColumnNotFound("index out of bounds".to_string()));
+        }
+        self.columns[index].set_default(default);
+        Ok(())
+    }
+
+    /// Drop default value for a column by index
+    pub fn drop_column_default(&mut self, index: usize) -> Result<(), crate::CatalogError> {
+        if index >= self.columns.len() {
+            return Err(crate::CatalogError::ColumnNotFound("index out of bounds".to_string()));
+        }
+        self.columns[index].drop_default();
+        Ok(())
+    }
+
+    /// Add a check constraint
+    pub fn add_check_constraint(
+        &mut self,
+        name: String,
+        expr: ast::Expression,
+    ) -> Result<(), crate::CatalogError> {
+        // Check if constraint name already exists
+        if self.check_constraints.iter().any(|(n, _)| n == &name) {
+            return Err(crate::CatalogError::ConstraintAlreadyExists(name));
+        }
+        self.check_constraints.push((name, expr));
+        Ok(())
+    }
+
+    /// Add a unique constraint
+    pub fn add_unique_constraint(&mut self, columns: Vec<String>) -> Result<(), crate::CatalogError> {
+        // Verify all columns exist
+        for col_name in &columns {
+            if !self.has_column(col_name) {
+                return Err(crate::CatalogError::ColumnNotFound(col_name.clone()));
+            }
+        }
+        self.unique_constraints.push(columns);
+        Ok(())
+    }
+
+    /// Add a foreign key constraint
+    pub fn add_foreign_key(
+        &mut self,
+        foreign_key: ForeignKeyConstraint,
+    ) -> Result<(), crate::CatalogError> {
+        // Verify all columns exist
+        for col_name in &foreign_key.column_names {
+            if !self.has_column(col_name) {
+                return Err(crate::CatalogError::ColumnNotFound(col_name.clone()));
+            }
+        }
+        self.foreign_keys.push(foreign_key);
+        Ok(())
+    }
+
+    /// Remove a check constraint by name
+    pub fn drop_check_constraint(&mut self, name: &str) -> Result<(), crate::CatalogError> {
+        let original_len = self.check_constraints.len();
+        self.check_constraints.retain(|(n, _)| n != name);
+        if self.check_constraints.len() == original_len {
+            return Err(crate::CatalogError::ConstraintNotFound(name.to_string()));
+        }
+        Ok(())
+    }
+
+    /// Remove a unique constraint by column names
+    pub fn drop_unique_constraint(&mut self, columns: &[String]) -> Result<(), crate::CatalogError> {
+        let original_len = self.unique_constraints.len();
+        self.unique_constraints.retain(|constraint| constraint != columns);
+        if self.unique_constraints.len() == original_len {
+            return Err(crate::CatalogError::ConstraintNotFound(format!("{:?}", columns)));
+        }
+        Ok(())
+    }
+
+    /// Remove a foreign key constraint by name
+    pub fn drop_foreign_key(&mut self, name: &str) -> Result<(), crate::CatalogError> {
+        let original_len = self.foreign_keys.len();
+        self.foreign_keys.retain(|fk| fk.name.as_deref() != Some(name));
+        if self.foreign_keys.len() == original_len {
+            return Err(crate::CatalogError::ConstraintNotFound(name.to_string()));
+        }
+        Ok(())
+    }
 }

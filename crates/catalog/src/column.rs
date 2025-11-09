@@ -16,4 +16,14 @@ impl ColumnSchema {
     pub fn set_nullable(&mut self, nullable: bool) {
         self.nullable = nullable;
     }
+
+    /// Set the default value
+    pub fn set_default(&mut self, default: ast::Expression) {
+        self.default_value = Some(default);
+    }
+
+    /// Drop the default value
+    pub fn drop_default(&mut self) {
+        self.default_value = None;
+    }
 }

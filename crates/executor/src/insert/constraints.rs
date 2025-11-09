@@ -1,23 +1,5 @@
 use crate::errors::ExecutorError;
 
-/// Enforce NOT NULL constraints on a row
-#[allow(dead_code)] // TODO: Remove once storage layer validation is fully integrated
-pub fn enforce_not_null_constraints(
-    schema: &catalog::TableSchema,
-    table_name: &str,
-    row_values: &[types::SqlValue],
-) -> Result<(), ExecutorError> {
-    for (col_idx, col) in schema.columns.iter().enumerate() {
-        if !col.nullable && row_values[col_idx] == types::SqlValue::Null {
-            return Err(ExecutorError::ConstraintViolation(format!(
-                "NOT NULL constraint violation: column '{}' in table '{}' cannot be NULL",
-                col.name, table_name
-            )));
-        }
-    }
-    Ok(())
-}
-
 /// Enforce PRIMARY KEY constraint (uniqueness)
 /// Returns Ok if constraint is satisfied
 pub fn enforce_primary_key_constraint(

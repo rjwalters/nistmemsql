@@ -5,16 +5,15 @@
 
 mod common;
 
-use common::web_demo_helpers::{extract_query, load_database, parse_example_files, WebDemoExample};
+use common::web_demo_helpers::{
+    extract_query, load_database, parse_example_files, validate_results, WebDemoExample,
+};
 use executor::SelectExecutor;
 use parser::Parser;
 
 /// Test join SQL examples from web demo
 /// Includes examples with IDs: join*, inner*, left*, right*, full*, cross*
-///
-/// TODO(#716): Re-enable once join examples are migrated to JSON format
 #[test]
-#[ignore = "Join JSON examples not yet created - see issue #716"]
 fn test_join_sql_examples() {
     // Parse all examples from web demo
     let examples = parse_example_files().expect("Failed to parse example files");
@@ -81,22 +80,19 @@ fn test_join_sql_examples() {
         // Check execution result
         match result {
             Ok(rows) => {
-                // Validate expected row count if specified
-                if let Some(expected_count) = example.expected_count {
-                    if rows.len() != expected_count {
-                        println!(
-                            "❌ {}: Expected {} rows, got {}",
-                            example.id,
-                            expected_count,
-                            rows.len()
-                        );
-                        failed += 1;
-                        continue;
-                    }
-                }
+                // Validate expected results (count and/or row data)
+                let (is_valid, error_msg) = validate_results(
+                    &example.id,
+                    &rows,
+                    example.expected_count,
+                    example.expected_rows.as_ref(),
+                );
 
-                // TODO: Validate expected row data for more precise validation
-                // For now, just check count (matching original test behavior)
+                if !is_valid {
+                    println!("❌ {}: {}", example.id, error_msg.unwrap());
+                    failed += 1;
+                    continue;
+                }
 
                 println!("✓  {}: Passed ({} rows)", example.id, rows.len());
                 passed += 1;
@@ -116,9 +112,10 @@ fn test_join_sql_examples() {
     println!("Skipped: {}", skipped);
     println!("==================================\n");
 
-    // For now, we require at least some tests to pass
-    assert!(passed >= 1, "Expected at least 1 join example to pass, got {}", passed);
-
-    // TODO: Make this stricter once all join features are complete
-    // assert_eq!(failed, 0, "{} join example(s) failed", failed);
+    // Require at least some tests to pass (will be stricter once all examples have expected data)
+    assert!(
+        passed >= 1,
+        "Expected at least 1 join example to pass, got {}",
+        passed
+    );
 }

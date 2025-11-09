@@ -103,7 +103,8 @@ fn test_having_with_scalar_subquery() {
         "SELECT dept, SUM(amount) as total \
          FROM sales \
          GROUP BY dept \
-         HAVING SUM(amount) > (SELECT AVG(target_amount) FROM targets)",
+         HAVING SUM(amount) > (SELECT AVG(target_amount) FROM targets) \
+         ORDER BY dept",
     )
     .unwrap();
 
@@ -111,33 +112,18 @@ fn test_having_with_scalar_subquery() {
         panic!("Expected SELECT statement");
     };
 
-    let mut rows = executor.execute(&select_stmt).unwrap();
+    let rows = executor.execute(&select_stmt).unwrap();
 
     // Should return dept 1 (300) and dept 3 (500)
     assert_eq!(rows.len(), 2);
 
-    // Sort by dept to ensure consistent ordering (test has no ORDER BY clause)
-    rows.sort_by_key(|row| {
-        if let Some(types::SqlValue::Integer(dept)) = row.get(0) {
-            *dept
-        } else {
-            0
-        }
-    });
-
     // Check dept 1
     assert_eq!(rows[0].get(0), Some(&types::SqlValue::Integer(1)));
-    assert!(matches!(rows[0].get(1), Some(types::SqlValue::Numeric(_))));
-    if let Some(types::SqlValue::Numeric(val)) = rows[0].get(1) {
-        assert_eq!(*val, 300.0);
-    }
+    assert_eq!(rows[0].get(1), Some(&types::SqlValue::Numeric(300.0)));
 
     // Check dept 3
     assert_eq!(rows[1].get(0), Some(&types::SqlValue::Integer(3)));
-    assert!(matches!(rows[1].get(1), Some(types::SqlValue::Numeric(_))));
-    if let Some(types::SqlValue::Numeric(val)) = rows[1].get(1) {
-        assert_eq!(*val, 500.0);
-    }
+    assert_eq!(rows[1].get(1), Some(&types::SqlValue::Numeric(500.0)))
 }
 
 #[test]

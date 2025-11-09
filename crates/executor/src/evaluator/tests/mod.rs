@@ -1,4 +1,7 @@
-#[cfg(test)]
+// CSE tests
+mod cse_tests;
+
+// Evaluator tests
 mod evaluator_tests {
     use catalog::{ColumnSchema, TableSchema};
     use types::{DataType, SqlValue};

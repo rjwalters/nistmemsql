@@ -132,6 +132,10 @@ impl SelectExecutor<'_> {
         let mut rows_with_keys: Vec<(storage::Row, Vec<(types::SqlValue, ast::OrderDirection)>)> =
             Vec::new();
         for row in rows {
+            // Clear CSE cache before evaluating each row to prevent column values
+            // from being incorrectly cached across different rows
+            result_evaluator.clear_cse_cache();
+
             let mut sort_keys = Vec::new();
             for order_item in order_by {
                 let key_value = result_evaluator.eval(&order_item.expr, &row)?;

@@ -207,6 +207,22 @@ impl AggregateAccumulator {
 }
 
 /// Add two SqlValues together, handling all numeric types with type coercion to Numeric
+///
+/// **Design Decision**: Always returns Numeric (f64) for aggregate operations
+///
+/// This behavior was established in commit 0aa09d8a (#871) to align with SQLLogicTest
+/// expectations, which requires NUMERIC return types for aggregate functions.
+///
+/// **SQL Standard Notes**:
+/// - Different databases handle SUM return types differently:
+///   - PostgreSQL: SUM(INTEGER) → BIGINT
+///   - MySQL: SUM(INTEGER) → DECIMAL
+///   - SQL Server: SUM(INTEGER) → INTEGER
+///   - Oracle: Same type as input
+/// - SQLLogicTest (the canonical SQL conformance suite) expects NUMERIC
+/// - This choice prevents integer overflow and aligns with SQLLogicTest requirements
+///
+/// See: https://github.com/rjwalters/vibesql/pull/871
 fn add_sql_values(a: &types::SqlValue, b: &types::SqlValue) -> types::SqlValue {
     // Convert both values to f64 for addition, then return as Numeric
     let a_f64 = sql_value_to_f64(a);
@@ -233,6 +249,11 @@ fn sql_value_to_f64(value: &types::SqlValue) -> Option<f64> {
 }
 
 /// Divide a SqlValue by an integer count, handling all numeric types
+///
+/// **Design Decision**: Always returns Numeric (f64) for AVG aggregate function
+///
+/// This matches the behavior of add_sql_values() and aligns with SQLLogicTest expectations.
+/// See add_sql_values() documentation for rationale.
 fn divide_sql_value(value: &types::SqlValue, count: i64) -> types::SqlValue {
     if let Some(sum_f64) = sql_value_to_f64(value) {
         types::SqlValue::Numeric(sum_f64 / count as f64)
@@ -288,6 +309,10 @@ pub(super) fn group_rows<'a>(
         if rows_processed % CHECK_INTERVAL == 0 {
             executor.check_timeout()?;
         }
+
+        // Clear CSE cache before evaluating each row to prevent column values
+        // from being incorrectly cached across different rows
+        evaluator.clear_cse_cache();
 
         // Evaluate GROUP BY expressions to get the group key
         let mut key = Vec::new();

@@ -3,6 +3,7 @@ mod casting;
 mod combined;
 mod core;
 pub mod date_format;
+mod expression_hash;
 mod expressions;
 mod functions;
 pub(crate) mod operators;

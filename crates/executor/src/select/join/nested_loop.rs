@@ -91,6 +91,10 @@ pub(super) fn nested_loop_inner_join(
             // Combine rows using optimized helper (single allocation)
             let combined_row = combine_rows(left_row, right_row);
 
+            // Clear CSE cache before evaluating join condition for this row combination
+            // to prevent stale cached column values from previous combinations
+            evaluator.clear_cse_cache();
+
             // Evaluate join condition
             let matches = if let Some(cond) = condition {
                 match evaluator.eval(cond, &combined_row)? {
@@ -158,6 +162,10 @@ pub(super) fn nested_loop_left_outer_join(
         for right_row in &right.rows {
             // Combine rows using optimized helper (single allocation)
             let combined_row = combine_rows(left_row, right_row);
+
+            // Clear CSE cache before evaluating join condition for this row combination
+            // to prevent stale cached column values from previous combinations
+            evaluator.clear_cse_cache();
 
             // Evaluate join condition
             let matches = if let Some(cond) = condition {
@@ -296,6 +304,10 @@ pub(super) fn nested_loop_full_outer_join(
         for (right_idx, right_row) in right.rows.iter().enumerate() {
             // Combine rows using optimized helper (single allocation)
             let combined_row = combine_rows(left_row, right_row);
+
+            // Clear CSE cache before evaluating join condition for this row combination
+            // to prevent stale cached column values from previous combinations
+            evaluator.clear_cse_cache();
 
             // Evaluate join condition
             let matches = if let Some(cond) = condition {

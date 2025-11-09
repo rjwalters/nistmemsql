@@ -31,6 +31,9 @@ pub(super) fn evaluate_single_window_function(
 
     // Partition rows using evaluator for column resolution
     let eval_fn = |expr: &Expression, row: &Row| -> Result<SqlValue, String> {
+        // Clear CSE cache before evaluating each row to prevent column values
+        // from being incorrectly cached across different rows
+        evaluator.clear_cse_cache();
         evaluator.eval(expr, row).map_err(|e| format!("{:?}", e))
     };
     let mut partitions = partition_rows(rows.to_vec(), &win_func.window_spec.partition_by, eval_fn);
@@ -115,6 +118,9 @@ fn evaluate_window_function_for_partition(
 
                 // Create closure that evaluates expressions using the evaluator
                 let eval_fn = |expr: &Expression, row: &Row| -> Result<SqlValue, String> {
+                    // Clear CSE cache before evaluating each row to prevent column values
+                    // from being incorrectly cached across different rows
+                    evaluator.clear_cse_cache();
                     evaluator.eval(expr, row).map_err(|e| format!("{:?}", e))
                 };
 

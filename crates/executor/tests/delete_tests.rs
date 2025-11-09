@@ -118,7 +118,6 @@ fn setup_customers_orders_db() -> Database {
 }
 
 #[test]
-#[ignore] // TODO: Correlated subqueries not yet fully implemented (outer context not used by SelectExecutor)
 fn test_delete_with_exists_correlated() {
     let mut db = setup_customers_orders_db();
 
@@ -149,7 +148,6 @@ fn test_delete_with_exists_correlated() {
 }
 
 #[test]
-#[ignore] // TODO: Correlated subqueries not yet fully implemented
 fn test_delete_with_not_exists_correlated() {
     let mut db = setup_customers_orders_db();
 
@@ -222,7 +220,6 @@ fn test_delete_with_not_exists_empty_result() {
 }
 
 #[test]
-#[ignore] // TODO: Correlated subqueries not yet fully implemented
 fn test_delete_with_exists_and_other_conditions() {
     let mut db = setup_customers_orders_db();
 
@@ -273,7 +270,6 @@ fn test_delete_with_exists_uncorrelated() {
 }
 
 #[test]
-#[ignore] // TODO: Correlated subqueries not yet fully implemented
 fn test_delete_with_exists_complex_subquery() {
     let mut db = setup_customers_orders_db();
 
@@ -306,7 +302,6 @@ fn test_delete_with_exists_complex_subquery() {
 }
 
 #[test]
-#[ignore] // TODO: Correlated subqueries not yet fully implemented
 fn test_delete_with_nested_exists() {
     let mut db = Database::new();
 
@@ -381,7 +376,6 @@ fn test_delete_with_nested_exists() {
 }
 
 #[test]
-#[ignore] // TODO: Correlated subqueries not yet fully implemented
 fn test_delete_with_or_exists() {
     let mut db = setup_customers_orders_db();
 
@@ -407,7 +401,6 @@ fn test_delete_with_or_exists() {
 }
 
 #[test]
-#[ignore] // TODO: Correlated subqueries not yet fully implemented
 fn test_delete_exists_with_select_star() {
     let mut db = setup_customers_orders_db();
 
@@ -424,7 +417,6 @@ fn test_delete_exists_with_select_star() {
 }
 
 #[test]
-#[ignore] // TODO: Correlated subqueries not yet fully implemented
 fn test_delete_exists_with_select_multiple_columns() {
     let mut db = setup_customers_orders_db();
 
