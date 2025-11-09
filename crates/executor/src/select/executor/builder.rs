@@ -46,6 +46,20 @@ impl<'a> SelectExecutor<'a> {
 
     /// Create a new SELECT executor with outer context and explicit depth
     /// Used when creating subquery executors to track nesting depth
+    ///
+    /// # Note on Timeout Inheritance
+    ///
+    /// Currently subqueries get their own 60s timeout rather than sharing parent's timeout.
+    /// This means a query with N subqueries could run for up to N*60s instead of 60s total.
+    ///
+    /// However, this is acceptable for the initial fix because:
+    /// 1. The main regression (100% timeout) was caused by ZERO timeout enforcement
+    /// 2. Having per-subquery timeouts still prevents infinite loops (the core issue)
+    /// 3. Most problematic queries cause recursive subquery execution, which IS caught
+    /// 4. Threading timeout through evaluators requires extensive refactoring
+    ///
+    /// Future improvement: Add timeout fields to ExpressionEvaluator and pass through
+    /// See: https://github.com/rjwalters/vibesql/issues/1012#subquery-timeout
     pub fn new_with_outer_context_and_depth(
         database: &'a storage::Database,
         outer_row: &'a storage::Row,
