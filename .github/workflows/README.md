@@ -1,130 +1,42 @@
 # GitHub Workflows
 
-This directory contains CI/CD workflows for the nistmemsql project.
+This directory contains CI/CD workflows for the vibesql project.
 
 ## Workflows
 
 ### `ci-and-deploy.yml` - Main CI/CD Pipeline
 
-**Trigger**: On every push and pull request to `main`
+**Trigger**: On every push to `main`
 
 **Purpose**:
-- Runs all tests (unit, integration, sqltest conformance)
-- Runs SQLLogicTest suite (5-minute random sample)
+- Runs all unit and integration tests
+- Runs sqltest conformance suite (SQL:1999 Core)
+- Generates SQLLogicTest punchlist from manual test results
 - Runs benchmarks
 - Generates badges and documentation
 - Deploys to GitHub Pages
 
 **SQLLogicTest Strategy**:
-- Each run tests a random sample of files for 5 minutes
-- Results are merged with historical cumulative data from gh-pages
-- Cumulative data includes results from both regular CI runs AND boost runs
-- Badge shows: `{passed}✓ {failed}✗ ({coverage}% tested)`
+- Uses systematic punchlist approach (not random sampling)
+- Punchlist generated from `target/sqllogictest_cumulative.json` (manual test results)
+- Badge shows: `{passed}✓ {failed}✗ {untested}? ({pass_rate}%)`
+- Progress reflects actual systematic testing, not random coverage
 
-### `boost-sqllogictest.yml` - Coverage Boost Runs
+### `deploy-pages.yml` - GitHub Pages Deployment
 
-**Trigger**: Manual (workflow_dispatch) or optional scheduled runs
+**Trigger**: Called by `ci-and-deploy.yml` workflow
 
-**Purpose**: Rapidly build SQLLogicTest coverage by running additional test sessions
+**Purpose**:
+- Builds web demo (optional, controlled by input)
+- Downloads historical data from GitHub Pages
+- Merges new test results (sqltest, punchlist, benchmarks)
+- Generates badge JSON files
+- Deploys everything to GitHub Pages
 
-**How to Use**:
-
-1. **Manual Trigger** (via GitHub Actions UI):
-   - Go to Actions → "Boost SQLLogicTest Coverage" → "Run workflow"
-   - Configure:
-     - **Time budget**: Seconds per run (default: 300 = 5 minutes)
-     - **Run count**: Number of sequential runs per runner (default: 1)
-     - **Parallel runners**: Number of parallel runners to spawn (default: 1, max: 10)
-
-   Examples:
-   - Quick boost: 1 runner × 1 run × 5 minutes = ~3-20 files tested
-   - Medium boost: 1 runner × 5 runs × 5 minutes = ~15-100 files tested
-   - Deep boost: 1 runner × 10 runs × 10 minutes = ~100-300 files tested
-   - Parallel boost: 5 runners × 1 run × 5 minutes = ~15-100 files tested (faster!)
-   - Maximum boost: 10 runners × 5 runs × 5 minutes = ~150-500 files tested in ~25 minutes
-
-   **Parallel Execution**:
-   - Use the **parallel_runners** parameter to run multiple test runners simultaneously
-   - Each runner uses a unique seed (timestamp + runner_id + run_number)
-   - All runners safely merge their results with gh-pages using retry logic
-   - No results are lost due to race conditions
-   - Example: Set parallel_runners=5 to test 5× more files in the same wall-clock time
-
-2. **Via GitHub CLI**:
-   ```bash
-   # Quick boost (1 runner, 1 run, 5 minutes)
-   gh workflow run boost-sqllogictest.yml
-
-   # Medium boost (1 runner, 5 runs, 5 minutes each)
-   gh workflow run boost-sqllogictest.yml \
-     -f run_count=5 \
-     -f time_budget=300
-
-   # Deep boost (1 runner, 10 runs, 10 minutes each)
-   gh workflow run boost-sqllogictest.yml \
-     -f run_count=10 \
-     -f time_budget=600
-
-   # Parallel boost (5 runners, 1 run each, 5 minutes)
-   gh workflow run boost-sqllogictest.yml \
-     -f parallel_runners=5 \
-     -f time_budget=300
-
-   # Maximum boost (10 runners, 5 runs each, 5 minutes per run)
-   gh workflow run boost-sqllogictest.yml \
-     -f parallel_runners=10 \
-     -f run_count=5 \
-     -f time_budget=300
-   ```
-
-3. **Via API**:
-   ```bash
-   # Single runner, 5 runs
-   curl -X POST \
-     -H "Accept: application/vnd.github+json" \
-     -H "Authorization: token $GITHUB_TOKEN" \
-     https://api.github.com/repos/rjwalters/nistmemsql/actions/workflows/boost-sqllogictest.yml/dispatches \
-     -d '{"ref":"main","inputs":{"time_budget":"600","run_count":"5"}}'
-
-   # Parallel execution: 5 runners, 1 run each
-   curl -X POST \
-     -H "Accept: application/vnd.github+json" \
-     -H "Authorization: token $GITHUB_TOKEN" \
-     https://api.github.com/repos/rjwalters/nistmemsql/actions/workflows/boost-sqllogictest.yml/dispatches \
-     -d '{"ref":"main","inputs":{"time_budget":"300","run_count":"1","parallel_runners":"5"}}'
-   ```
-
-**How It Works**:
-
-1. Downloads current cumulative results from gh-pages
-2. Runs N sequential test sessions (each with unique random seed)
-3. After each run, merges results with cumulative data
-4. Uploads updated cumulative results to gh-pages
-5. Future CI runs automatically pick up the new coverage
-
-**Benefits**:
-
-- **Progressive Coverage**: Each run tests different files (random sampling)
-- **Flexible**: Run as much or as little as you want
-- **No Blocking**: Runs independently, doesn't block main CI
-- **Automatic Integration**: Results automatically merged into main CI badge
-- **Cost Effective**: Only run when you want faster coverage growth
-
-**When to Use Boost Runs**:
-
-- Before a release to maximize test coverage
-- When adding new SQL features (see if existing tests pass)
-- After fixing bugs (test broader corpus for regressions)
-- To rapidly build coverage in the first few weeks
-- Whenever you have available GitHub Actions minutes to spare
-
-**Artifacts**:
-
-Each boost run uploads:
-- `sqllogictest_cumulative.json` - Updated cumulative results
-- `sqllogictest_analysis.json` - Analysis of the latest run
-- `boost_runs/*.json` - Individual run results
-- `boost_summary.md` - Human-readable summary
+**Inputs**:
+- `artifact-name`: Name of artifact with test results to deploy
+- `benchmark-artifact-name`: Name of artifact with benchmark results
+- `rebuild-web-demo`: Whether to rebuild web demo from scratch (default: true)
 
 ### `label-external-contributors.yml` - PR Labeling
 
@@ -132,71 +44,85 @@ Each boost run uploads:
 
 **Purpose**: Automatically labels PRs from external contributors
 
-## SQLLogicTest Coverage Strategy
+### `redeploy-web-demo.yml` - Manual Web Demo Redeploy
 
-The project uses a **progressive random sampling** strategy to build comprehensive test coverage over time:
+**Trigger**: Manual (workflow_dispatch)
+
+**Purpose**: Redeploys the web demo without running tests (useful for fixing deployment issues)
+
+## SQLLogicTest Punchlist Strategy
+
+The project uses a **systematic punchlist approach** to achieve 100% SQLLogicTest conformance:
 
 ### How It Works
 
-1. **Test Corpus**: 623 files, ~5.9 million individual SQL tests
-2. **Regular CI**: Each commit tests ~3-20 random files (5-minute budget)
-3. **Boost Runs**: Optional manual runs to accelerate coverage
-4. **Cumulative Results**: All results merge into `sqllogictest_cumulative.json`
-5. **Badge**: Shows cumulative passed/failed/coverage stats
+1. **Test Corpus**: 623 test files, ~5.9 million individual SQL tests
+2. **Punchlist Generation**: `scripts/generate_punchlist.py` scans all test files and categorizes them
+3. **Manual Testing**: Use `scripts/test_one_file.sh` to test individual files and identify root causes
+4. **Progress Tracking**: Results tracked in `target/sqllogictest_cumulative.json`
+5. **Badge**: Shows `{passed}✓ {failed}✗ {untested}? ({pass_rate}%)`
 
-### Coverage Progression
+### Current Status (as of last punchlist generation)
 
-**Without boost runs** (organic growth):
-- Week 1: ~5-10% coverage (10-60 files tested)
-- Month 1: ~20-30% coverage (120-190 files tested)
-- Month 3: ~50-70% coverage (310-440 files tested)
+| Category | Total | Passing | Pass Rate |
+|----------|-------|---------|-----------|
+| index    | 214   | 75      | 35.0%     |
+| evidence | 12    | 6       | 50.0%     |
+| random   | 391   | 2       | 0.5%      |
+| ddl      | 1     | 0       | 0.0%      |
+| other    | 5     | 0       | 0.0%      |
+| **TOTAL**| **623**| **83** | **13.3%** |
 
-**With strategic boost runs**:
-- Day 1 (10 boost runs): ~20-40% coverage
-- Week 1 (20 boost runs): ~50-80% coverage
-- Month 1: ~90-100% coverage
+### Development Workflow
 
-### Best Practices
-
-1. **Regular CI**: Let it run naturally on every commit
-2. **Boost Runs**: Use strategically for:
-   - Initial coverage buildup
-   - Pre-release testing
-   - After major feature additions
-3. **Monitoring**: Check badge and cumulative results to track progress
-4. **Analysis**: Review `sqllogictest_analysis.json` to find common failure patterns
+1. **Test a file**: `./scripts/test_one_file.sh index/delete/10/slt_good_0.test`
+2. **Read error**: Identify what's missing or broken
+3. **Fix code**: Implement the missing feature or fix the bug
+4. **Test again**: Verify the fix works
+5. **Update results**: Run the file multiple times to ensure stability
+6. **Regenerate punchlist**: `python3 scripts/generate_punchlist.py`
+7. **Commit changes**: Results automatically reflected in badge on next CI run
 
 ### Files
 
-- **Cumulative Results**: Published to `https://rjwalters.github.io/nistmemsql/badges/sqllogictest_cumulative.json`
-- **Analysis**: `https://rjwalters.github.io/nistmemsql/badges/sqllogictest_analysis.json`
-- **Markdown Report**: `https://rjwalters.github.io/nistmemsql/badges/sqllogictest_analysis.md`
+- **Punchlist JSON**: `target/sqllogictest_punchlist.json` (generated locally, uploaded to gh-pages)
+- **Punchlist CSV**: `target/sqllogictest_punchlist.csv` (human-readable, sortable)
+- **Strategy Guide**: `PUNCHLIST_100_CONFORMANCE.md` (comprehensive strategic guide)
+- **Quick Start**: `QUICK_START.md` (2-minute overview)
+
+### Published Resources
+
+- **Punchlist Results**: `https://rjwalters.github.io/vibesql/badges/sqllogictest_punchlist.json`
+- **Badge Endpoint**: `https://img.shields.io/endpoint?url=https://rjwalters.github.io/vibesql/badges/sqllogictest.json`
+- **Conformance Report**: `https://rjwalters.github.io/vibesql/conformance.html`
 
 ## Maintenance
 
-### Adding New Tests
+### Updating Test Results
 
-When adding new SQL features, the SQLLogicTest suite will automatically test them over time. No changes to workflows needed.
+After fixing issues and testing files:
 
-### Resetting Coverage
+```bash
+# Regenerate punchlist with updated results
+python3 scripts/generate_punchlist.py
 
-To start fresh (rare):
-1. Delete `sqllogictest_cumulative.json` from gh-pages branch
-2. Next CI run will start a new cumulative dataset
+# Commit the updated cumulative results
+git add target/sqllogictest_cumulative.json
+git commit -m "Update SQLLogicTest results"
+
+# Push to trigger CI (updates badge automatically)
+git push
+```
 
 ### Troubleshooting
 
-**Boost run fails to update gh-pages**:
-- Check that the workflow has write permissions
-- Verify gh-pages branch exists
-- Check workflow logs for git push errors
-
-**Coverage not increasing**:
-- Check if tests are timing out (increase time_budget)
-- Verify random seed is changing (should use timestamp)
-- Review logs to see if same files are being tested
-
 **Badge not updating**:
-- Verify `sqllogictest_cumulative.json` exists on gh-pages
-- Check that badge JSON is being generated correctly
+- Check that `target/sqllogictest_punchlist.json` is being generated in CI
+- Verify badge JSON is being created by `generate_badges.sh`
+- Check that deployment to gh-pages succeeded
 - Clear browser cache and check badge endpoint directly
+
+**Punchlist generation fails**:
+- Ensure `third_party/sqllogictest/test/` directory exists
+- Check that `target/sqllogictest_cumulative.json` has valid JSON
+- Run `python3 scripts/generate_punchlist.py` locally to see errors

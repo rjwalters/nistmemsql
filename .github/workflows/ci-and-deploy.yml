@@ -38,13 +38,15 @@ jobs:
         run: cargo test --test sqltest_conformance --release -- --nocapture
         continue-on-error: true
 
-      - name: Run SQLLogicTest suite with analysis
+      - name: Setup Python for punchlist
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Generate SQLLogicTest punchlist
         run: |
-          timeout 300 cargo test --test sqllogictest_suite --release -- --nocapture 2>&1 | tee target/sqllogictest_raw.log | python3 scripts/analyze_sqllogictest.py
-        continue-on-error: true
-        env:
-          SQLLOGICTEST_TIME_BUDGET: "300"
-          GITHUB_SHA: ${{ github.sha }}
+          echo "Generating SQLLogicTest punchlist from manual test results..."
+          python3 scripts/generate_punchlist.py
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -52,10 +54,8 @@ jobs:
           name: ci-test-results
           path: |
             target/sqltest_results.json
-            target/sqllogictest_results.json
-            target/sqllogictest_analysis.json
-            target/sqllogictest_analysis.md
-            target/sqllogictest_raw.log
+            target/sqllogictest_punchlist.json
+            target/sqllogictest_punchlist.csv
           retention-days: 90
 
   # ============================================================================

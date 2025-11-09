@@ -107,21 +107,26 @@ cargo test --test sqllogictest_basic
 SQLLOGICTEST_TIME_BUDGET=300 cargo test --test sqllogictest_suite --release -- --nocapture
 ```
 
-**SQLLogicTest Progressive Coverage Strategy**: The suite contains ~5.9 million test cases across 623 files. Instead of running all tests (which takes hours), we use **random sampling with progressive coverage**:
+**SQLLogicTest Systematic Testing Strategy**: The suite contains ~5.9 million test cases across 623 files. We use a **systematic punchlist approach** to achieve 100% conformance:
 
-- **CI runs**: Each commit tests a random sample for 5 minutes (~3-20 files)
-- **Results merge**: Current results merge with historical data on gh-pages
-- **Boost runs**: Optional manual workflow runs to rapidly increase coverage
-- **Badge updates**: Shows cumulative `{passed}✓ {failed}✗ ({coverage}% tested)`
+- **Punchlist system**: Comprehensive tracking of all 623 test files by category and status
+- **Manual testing**: Test files one at a time to identify and fix root causes
+- **Badge updates**: Shows `{passed}✓ {failed}✗ {untested}? ({pass_rate}%)`
+- **Progress tracking**: All results tracked in `target/sqllogictest_punchlist.json`
 
-To manually boost coverage:
+To test individual files and track progress:
 ```bash
-# Via GitHub Actions UI: Actions → "Boost SQLLogicTest Coverage" → Run workflow
-# Or via CLI:
-gh workflow run boost-sqllogictest.yml -f run_count=5 -f time_budget=300
+# Test a specific file
+./scripts/test_one_file.sh index/delete/10/slt_good_0.test
+
+# Regenerate punchlist after fixes
+python3 scripts/generate_punchlist.py
+
+# View progress
+cat target/sqllogictest_punchlist.csv
 ```
 
-See [`.github/workflows/README.md`](.github/workflows/README.md) for details on the boost workflow.
+See [`PUNCHLIST_100_CONFORMANCE.md`](PUNCHLIST_100_CONFORMANCE.md) for the complete strategic guide.
 
 ### SQLLogicTest Conformance Punchlist
 
