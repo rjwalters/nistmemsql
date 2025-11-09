@@ -1,7 +1,6 @@
 //! ALTER TABLE parser
 
 use ast::*;
-use types::SqlValue;
 
 use crate::{keywords::Keyword, parser::ParseError, token::Token};
 
@@ -162,9 +161,8 @@ fn parse_alter_column(
             match parser.peek() {
                 Token::Keyword(Keyword::Default) => {
                     parser.advance();
-                    // TODO: Parse default expression
-                    // For now, create a placeholder expression
-                    let default = Expression::Literal(SqlValue::Null);
+                    // Parse the default expression
+                    let default = parser.parse_expression()?;
                     Ok(AlterTableStmt::AlterColumn(AlterColumnStmt::SetDefault {
                         table_name,
                         column_name,

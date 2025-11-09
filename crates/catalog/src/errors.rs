@@ -34,6 +34,8 @@ pub enum CatalogError {
     FunctionNotFound(String),
     ProcedureAlreadyExists(String),
     ProcedureNotFound(String),
+    ConstraintAlreadyExists(String),
+    ConstraintNotFound(String),
 }
 
 impl std::fmt::Display for CatalogError {
@@ -120,6 +122,12 @@ impl std::fmt::Display for CatalogError {
             }
             CatalogError::ProcedureNotFound(name) => {
                 write!(f, "Procedure '{}' not found", name)
+            }
+            CatalogError::ConstraintAlreadyExists(name) => {
+                write!(f, "Constraint '{}' already exists", name)
+            }
+            CatalogError::ConstraintNotFound(name) => {
+                write!(f, "Constraint '{}' not found", name)
             }
         }
     }

@@ -356,47 +356,110 @@ fn test_set_not_null_nonexistent_column() {
 }
 
 // ============================================================================
-// Category 4: SET DEFAULT / DROP DEFAULT Tests (targeting lines 137-147)
-// Note: These are currently stubs - tests verify current behavior
+// Category 4: SET DEFAULT / DROP DEFAULT Tests
 // ============================================================================
 
 #[test]
-fn test_set_default_stub() {
+fn test_set_default_basic() {
     let mut db = Database::new();
     create_test_table(&mut db);
 
-    let sql = "ALTER TABLE users ALTER COLUMN status SET DEFAULT 'active'";
+    let sql = "ALTER TABLE users ALTER COLUMN name SET DEFAULT 'Unknown'";
     let stmt = Parser::parse_sql(sql).expect("Failed to parse");
 
     if let Statement::AlterTable(alter_stmt) = stmt {
         let result = AlterTableExecutor::execute(&alter_stmt, &mut db);
-        // Current implementation is a stub that returns success
-        assert!(result.is_ok(), "SET DEFAULT stub should return success");
+        assert!(result.is_ok(), "SET DEFAULT should succeed");
+
+        // Verify default was set in schema
+        let table = db.get_table("USERS").unwrap();
+        let name_idx = table.schema.get_column_index("NAME").unwrap();
+        let name_col = &table.schema.columns[name_idx];
+        assert!(name_col.default_value.is_some(), "Default should be set");
     }
 }
 
 #[test]
-fn test_drop_default_stub() {
+fn test_set_default_numeric() {
     let mut db = Database::new();
     create_test_table(&mut db);
 
+    let sql = "ALTER TABLE users ALTER COLUMN age SET DEFAULT 18";
+    let stmt = Parser::parse_sql(sql).expect("Failed to parse");
+
+    if let Statement::AlterTable(alter_stmt) = stmt {
+        let result = AlterTableExecutor::execute(&alter_stmt, &mut db);
+        assert!(result.is_ok(), "SET DEFAULT with number should succeed");
+
+        // Verify default was set
+        let table = db.get_table("USERS").unwrap();
+        let age_idx = table.schema.get_column_index("AGE").unwrap();
+        assert!(table.schema.columns[age_idx].default_value.is_some());
+    }
+}
+
+#[test]
+fn test_drop_default_basic() {
+    let mut db = Database::new();
+    create_test_table(&mut db);
+
+    // First add a default
+    let sql = "ALTER TABLE users ALTER COLUMN name SET DEFAULT 'Test'";
+    let stmt = Parser::parse_sql(sql).expect("Failed to parse");
+    if let Statement::AlterTable(alter_stmt) = stmt {
+        AlterTableExecutor::execute(&alter_stmt, &mut db).expect("SET DEFAULT should succeed");
+    }
+
+    // Now drop it
     let sql = "ALTER TABLE users ALTER COLUMN name DROP DEFAULT";
     let stmt = Parser::parse_sql(sql).expect("Failed to parse");
 
     if let Statement::AlterTable(alter_stmt) = stmt {
         let result = AlterTableExecutor::execute(&alter_stmt, &mut db);
-        // Current implementation is a stub that returns success
-        assert!(result.is_ok(), "DROP DEFAULT stub should return success");
+        assert!(result.is_ok(), "DROP DEFAULT should succeed");
+
+        // Verify default was removed
+        let table = db.get_table("USERS").unwrap();
+        let name_idx = table.schema.get_column_index("NAME").unwrap();
+        let name_col = &table.schema.columns[name_idx];
+        assert!(name_col.default_value.is_none(), "Default should be removed");
+    }
+}
+
+#[test]
+fn test_set_default_nonexistent_column() {
+    let mut db = Database::new();
+    create_test_table(&mut db);
+
+    let sql = "ALTER TABLE users ALTER COLUMN nonexistent SET DEFAULT 'value'";
+    let stmt = Parser::parse_sql(sql).expect("Failed to parse");
+
+    if let Statement::AlterTable(alter_stmt) = stmt {
+        let result = AlterTableExecutor::execute(&alter_stmt, &mut db);
+        assert!(result.is_err(), "SET DEFAULT should fail for nonexistent column");
+    }
+}
+
+#[test]
+fn test_drop_default_nonexistent_column() {
+    let mut db = Database::new();
+    create_test_table(&mut db);
+
+    let sql = "ALTER TABLE users ALTER COLUMN nonexistent DROP DEFAULT";
+    let stmt = Parser::parse_sql(sql).expect("Failed to parse");
+
+    if let Statement::AlterTable(alter_stmt) = stmt {
+        let result = AlterTableExecutor::execute(&alter_stmt, &mut db);
+        assert!(result.is_err(), "DROP DEFAULT should fail for nonexistent column");
     }
 }
 
 // ============================================================================
-// Category 5: ADD CONSTRAINT / DROP CONSTRAINT Tests (targeting lines 191-209)
-// Note: These are currently stubs - tests verify current behavior
+// Category 5: ADD CONSTRAINT / DROP CONSTRAINT Tests
 // ============================================================================
 
 #[test]
-fn test_add_constraint_stub() {
+fn test_add_check_constraint() {
     let mut db = Database::new();
     create_test_table(&mut db);
 
@@ -405,23 +468,95 @@ fn test_add_constraint_stub() {
 
     if let Statement::AlterTable(alter_stmt) = stmt {
         let result = AlterTableExecutor::execute(&alter_stmt, &mut db);
-        // Current implementation is a stub that returns success
-        assert!(result.is_ok(), "ADD CONSTRAINT stub should return success");
+        assert!(result.is_ok(), "ADD CHECK CONSTRAINT should succeed");
+
+        // Verify constraint was added
+        let table = db.get_table("USERS").unwrap();
+        assert!(!table.schema.check_constraints.is_empty(), "CHECK constraint should be added");
     }
 }
 
 #[test]
-fn test_drop_constraint_stub() {
+fn test_add_unique_constraint() {
     let mut db = Database::new();
     create_test_table(&mut db);
 
+    let sql = "ALTER TABLE users ADD CONSTRAINT uniq_email UNIQUE (email)";
+    let stmt = Parser::parse_sql(sql).expect("Failed to parse");
+
+    if let Statement::AlterTable(alter_stmt) = stmt {
+        let result = AlterTableExecutor::execute(&alter_stmt, &mut db);
+        assert!(result.is_ok(), "ADD UNIQUE CONSTRAINT should succeed");
+
+        // Verify constraint was added
+        let table = db.get_table("USERS").unwrap();
+        assert!(!table.schema.unique_constraints.is_empty(), "UNIQUE constraint should be added");
+    }
+}
+
+#[test]
+fn test_drop_check_constraint() {
+    let mut db = Database::new();
+    create_test_table(&mut db);
+
+    // First add a constraint
+    let sql = "ALTER TABLE users ADD CONSTRAINT chk_age CHECK (age >= 0)";
+    let stmt = Parser::parse_sql(sql).expect("Failed to parse");
+    if let Statement::AlterTable(alter_stmt) = stmt {
+        AlterTableExecutor::execute(&alter_stmt, &mut db).expect("ADD CONSTRAINT should succeed");
+    }
+
+    // Now drop it
     let sql = "ALTER TABLE users DROP CONSTRAINT chk_age";
     let stmt = Parser::parse_sql(sql).expect("Failed to parse");
 
     if let Statement::AlterTable(alter_stmt) = stmt {
         let result = AlterTableExecutor::execute(&alter_stmt, &mut db);
-        // Current implementation is a stub that returns success
-        assert!(result.is_ok(), "DROP CONSTRAINT stub should return success");
+        assert!(result.is_ok(), "DROP CONSTRAINT should succeed");
+
+        // Verify constraint was removed
+        let table = db.get_table("USERS").unwrap();
+        assert!(table.schema.check_constraints.is_empty(), "CHECK constraint should be removed");
+    }
+}
+
+#[test]
+fn test_drop_constraint_not_found() {
+    let mut db = Database::new();
+    create_test_table(&mut db);
+
+    let sql = "ALTER TABLE users DROP CONSTRAINT nonexistent";
+    let stmt = Parser::parse_sql(sql).expect("Failed to parse");
+
+    if let Statement::AlterTable(alter_stmt) = stmt {
+        let result = AlterTableExecutor::execute(&alter_stmt, &mut db);
+        assert!(result.is_err(), "DROP CONSTRAINT should fail for nonexistent constraint");
+    }
+}
+
+#[test]
+fn test_add_column_with_default() {
+    let mut db = Database::new();
+    create_populated_table(&mut db);
+
+    let sql = "ALTER TABLE users ADD COLUMN status VARCHAR(20) DEFAULT 'active'";
+    let stmt = Parser::parse_sql(sql).expect("Failed to parse");
+
+    if let Statement::AlterTable(alter_stmt) = stmt {
+        let result = AlterTableExecutor::execute(&alter_stmt, &mut db);
+        assert!(result.is_ok(), "ADD COLUMN with DEFAULT should succeed");
+
+        // Verify column was added with default
+        let table = db.get_table("USERS").unwrap();
+        let status_idx = table.schema.get_column_index("STATUS").unwrap();
+
+        // Check schema has default
+        assert!(table.schema.columns[status_idx].default_value.is_some());
+
+        // Check existing rows got the default value
+        for row in table.scan() {
+            assert_eq!(row.values[status_idx], SqlValue::Varchar("active".to_string()));
+        }
     }
 }
 
