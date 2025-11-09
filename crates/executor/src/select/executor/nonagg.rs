@@ -51,8 +51,11 @@ impl SelectExecutor<'_> {
             index_filtered
         } else {
             // Fall back to full WHERE clause evaluation
-            // Note: Predicate decomposition is available for future optimization (predicate pushdown)
-            // For now, apply all WHERE clauses as before
+            // Note: Table-local predicates have already been pushed down and applied during table scan.
+            // However, we still apply the full WHERE clause here for correctness with JOINs
+            // and complex predicates that can't be pushed down.
+            // The table-local predicates being applied twice is safe (same result) but not optimal.
+            // TODO: In Phase 3, extract and remove table-local predicates here to avoid double filtering
             let where_optimization = optimize_where_clause(stmt.where_clause.as_ref(), &evaluator)?;
 
             match where_optimization {
