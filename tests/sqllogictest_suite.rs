@@ -63,76 +63,103 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
     println!("Prioritization: Failed → Untested → Passed");
     println!("Starting test run...\n");
 
-    for (files_tested, test_file) in prioritized_files.into_iter().enumerate() {
-        // Check time budget
+    let mut iteration = 0;
+    let mut total_files_tested = 0;
+
+    // Loop through the file list repeatedly until time budget is exhausted
+    loop {
+        iteration += 1;
+        if iteration > 1 {
+            println!("\n🔄 Starting iteration {} (cycling through files again)...", iteration);
+        }
+
+        for test_file in prioritized_files.iter() {
+            // Check time budget before EACH file
+            if start_time.elapsed() >= time_budget {
+                println!("\n⏱️  Time budget exhausted after {:.1} seconds", start_time.elapsed().as_secs_f64());
+                println!("Completed {} iterations", iteration);
+                let unique_files: usize = results.values().map(|s: &TestStats| s.tested_files.len()).sum();
+                println!(
+                    "Tested {} total file runs ({} unique files)\n",
+                    total_files_tested,
+                    unique_files
+                );
+                return (results, total_available_files);
+            }
+
+            total_files_tested += 1;
+            let relative_path =
+                test_file.strip_prefix(&test_dir).unwrap_or(test_file).to_string_lossy().to_string();
+
+            // Determine category from path
+            let category = if relative_path.starts_with("select") {
+                "select"
+            } else if relative_path.starts_with("evidence/") {
+                "evidence"
+            } else if relative_path.starts_with("index/") {
+                "index"
+            } else if relative_path.starts_with("random/") {
+                "random"
+            } else if relative_path.starts_with("ddl/") {
+                "ddl"
+            } else {
+                "other"
+            }
+            .to_string();
+
+            let stats = results.entry(category.clone()).or_insert_with(TestStats::default);
+            stats.total += 1;
+            stats.tested_files.insert(relative_path.clone());
+
+            // Read and run test file
+            let contents = match std::fs::read_to_string(test_file) {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("✗ {} - Failed to read file: {}", relative_path, e);
+                    stats.errors += 1;
+                    continue;
+                }
+            };
+
+            // Log test file start
+            eprintln!("[Worker] Starting: {}", relative_path);
+            let _test_start = Instant::now();
+
+            // Create a new database for each test file and run with detailed failure capture
+            let (test_result, detailed_failures) = run_test_file_with_details(&contents, &relative_path);
+
+            match test_result {
+                Ok(_) => {
+                    stats.passed += 1;
+                }
+                Err(TestError::Timeout { file, timeout_seconds }) => {
+                    eprintln!("⏱️  TIMEOUT: {} exceeded {}s", file, timeout_seconds);
+                    stats.failed += 1;
+                    if !detailed_failures.is_empty() {
+                        stats.detailed_failures.push((relative_path.clone(), detailed_failures));
+                    }
+                }
+                Err(TestError::Execution(e)) => {
+                    eprintln!("✗ {} - {}", relative_path, e);
+                    stats.failed += 1;
+                    if !detailed_failures.is_empty() {
+                        stats.detailed_failures.push((relative_path.clone(), detailed_failures));
+                    }
+                }
+            }
+        }
+
+        // Check time budget after completing an iteration
         if start_time.elapsed() >= time_budget {
-            println!("\n⏱️  Time budget exhausted after {} seconds", time_budget_secs);
+            println!("\n⏱️  Time budget exhausted after {:.1} seconds", start_time.elapsed().as_secs_f64());
+            println!("Completed {} iterations", iteration);
+            let unique_files: usize = results.values().map(|s: &TestStats| s.tested_files.len()).sum();
             println!(
-                "Tested {} of {} files ({:.1}%)\n",
-                files_tested + 1,
-                total_available_files,
-                ((files_tested + 1) as f64 / total_available_files as f64) * 100.0
+                "Tested {} total file runs ({} unique files)\n",
+                total_files_tested,
+                unique_files
             );
             break;
-        }
-        let relative_path =
-            test_file.strip_prefix(&test_dir).unwrap_or(&test_file).to_string_lossy().to_string();
-
-        // Determine category from path
-        let category = if relative_path.starts_with("select") {
-            "select"
-        } else if relative_path.starts_with("evidence/") {
-            "evidence"
-        } else if relative_path.starts_with("index/") {
-            "index"
-        } else if relative_path.starts_with("random/") {
-            "random"
-        } else if relative_path.starts_with("ddl/") {
-            "ddl"
-        } else {
-            "other"
-        }
-        .to_string();
-
-        let stats = results.entry(category.clone()).or_insert_with(TestStats::default);
-        stats.total += 1;
-        stats.tested_files.insert(relative_path.clone());
-
-        // Read and run test file
-        let contents = match std::fs::read_to_string(&test_file) {
-            Ok(c) => c,
-            Err(e) => {
-                eprintln!("✗ {} - Failed to read file: {}", relative_path, e);
-                stats.errors += 1;
-                continue;
-            }
-        };
-
-        // Log test file start
-        eprintln!("[Worker] Starting: {}", relative_path);
-        let _test_start = Instant::now();
-
-        // Create a new database for each test file and run with detailed failure capture
-        let (test_result, detailed_failures) = run_test_file_with_details(&contents, &relative_path);
-
-        match test_result {
-            Ok(_) => {
-                stats.passed += 1;
-            }
-            Err(TestError::Timeout { file, timeout_seconds }) => {
-                eprintln!("⏱️  TIMEOUT: {} exceeded {}s", file, timeout_seconds);
-                stats.failed += 1;
-                if !detailed_failures.is_empty() {
-                    stats.detailed_failures.push((relative_path.clone(), detailed_failures));
-                }
-            }
-            Err(TestError::Execution(e)) => {
-                eprintln!("✗ {} - {}", relative_path, e);
-                stats.failed += 1;
-                if !detailed_failures.is_empty() {
-                    stats.detailed_failures.push((relative_path.clone(), detailed_failures));
-                }
-            }
         }
     }
 
