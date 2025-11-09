@@ -222,8 +222,32 @@ where
     let left_result = execute_from_clause_with_predicates(left, cte_results, database, execute_subquery, predicates)?;
     let right_result = execute_from_clause_with_predicates(right, cte_results, database, execute_subquery, predicates)?;
 
-    // Perform nested loop join
-    let result = nested_loop_join(left_result, right_result, join_type, condition, database)?;
+    // Determine the effective join condition
+    // Priority: explicit ON condition > equijoin from WHERE > no condition
+    let effective_condition = if let Some(on_cond) = condition {
+        // Use the ON condition from the join syntax
+        Some(on_cond.clone())
+    } else if let Some(pred_decomp) = predicates {
+        // Try to find an equijoin condition for these two specific tables
+        // Extract table names from the schemas
+        let left_tables: Vec<String> = left_result.schema.table_schemas.keys().cloned().collect();
+        let right_tables: Vec<String> = right_result.schema.table_schemas.keys().cloned().collect();
+        
+        // Look for any equijoin condition that connects a left table to a right table
+        pred_decomp.equijoin_conditions.iter()
+            .find(|(lt, _, rt, _, _)| {
+                (left_tables.iter().any(|t| t.eq_ignore_ascii_case(lt)) &&
+                 right_tables.iter().any(|t| t.eq_ignore_ascii_case(rt))) ||
+                (left_tables.iter().any(|t| t.eq_ignore_ascii_case(rt)) &&
+                 right_tables.iter().any(|t| t.eq_ignore_ascii_case(lt)))
+            })
+            .map(|(_, _, _, _, expr)| expr.clone())
+    } else {
+        None
+    };
+
+    // Perform nested loop join with the effective condition
+    let result = nested_loop_join(left_result, right_result, join_type, &effective_condition, database)?;
     Ok(result)
 }
 
