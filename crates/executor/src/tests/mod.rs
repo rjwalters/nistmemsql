@@ -15,6 +15,7 @@
 //! - `aggregate_edge_case_tests`: Decimal precision, mixed types, CASE expressions
 //! - `aggregate_distinct`: DISTINCT aggregation tests
 //! - `aggregate_without_from`: Aggregate functions without FROM clause (issue #937)
+//! - `aggregate_caching`: Aggregate result caching tests (Phase 2 of issue #1038)
 //! - `select_joins`: JOIN operation tests
 //! - `scalar_subquery_basic_tests`: Basic scalar subquery execution tests
 //! - `scalar_subquery_error_tests`: Scalar subquery error handling tests
@@ -27,6 +28,7 @@
 //! - `privilege_checker_tests`: Privilege enforcement tests
 //! - `query_timeout_tests`: Query timeout enforcement tests (issue #1014)
 
+mod aggregate_caching;
 mod aggregate_count_sum_avg_tests;
 mod aggregate_distinct;
 mod aggregate_edge_case_tests;

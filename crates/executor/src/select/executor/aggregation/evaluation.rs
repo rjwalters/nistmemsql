@@ -22,27 +22,38 @@ impl SelectExecutor<'_> {
             }
 
             // Regular functions (e.g., NULLIF wrapping an aggregate) - may contain aggregates in arguments
-            ast::Expression::Function { .. } => {
+            ast::Expression::Function { name, args, .. } => {
+                // Check if this is actually an aggregate function (backwards compatibility)
+                if matches!(name.to_uppercase().as_str(), "COUNT" | "SUM" | "AVG" | "MIN" | "MAX") {
+                    // Convert to AggregateFunction variant and evaluate
+                    let agg_expr = ast::Expression::AggregateFunction {
+                        name: name.clone(),
+                        distinct: false,
+                        args: args.clone(),
+                    };
+                    return self.evaluate_aggregate_function(&agg_expr, group_rows, evaluator);
+                }
+
                 // Build a new function expression with evaluated arguments
                 if let ast::Expression::Function { name, args, character_unit } = expr {
                     // Evaluate function arguments (which may contain aggregates)
                     let evaluated_args: Result<Vec<_>, _> =
                         args.iter().map(|arg| self.evaluate_with_aggregates(arg, group_rows, _group_key, evaluator)).collect();
                     let evaluated_args = evaluated_args?;
-                    
+
                     // Create a temporary row with the evaluated arguments as its values
                     let temp_row = storage::Row::new(evaluated_args);
-                    
+
                     // Build a new function call expression with the evaluated values as literal constants
                     let literal_args: Vec<ast::Expression> = temp_row.values.iter()
                         .map(|val| ast::Expression::Literal(val.clone()))
                         .collect();
-                    let new_func_expr = ast::Expression::Function { 
-                        name: name.clone(), 
-                        args: literal_args, 
-                        character_unit: character_unit.clone() 
+                    let new_func_expr = ast::Expression::Function {
+                        name: name.clone(),
+                        args: literal_args,
+                        character_unit: character_unit.clone()
                     };
-                    
+
                     // Evaluate the function with literal arguments
                     if let Some(first_row) = group_rows.first() {
                         evaluator.eval(&new_func_expr, first_row)
@@ -129,6 +140,15 @@ impl SelectExecutor<'_> {
             _ => unreachable!("evaluate_aggregate_function called with non-aggregate expression"),
         };
 
+        // Generate cache key for this aggregate expression
+        // Format: "{name}:{distinct}:{arg_debug}"
+        let cache_key = format!("{}:{}:{:?}", name.to_uppercase(), distinct, args);
+
+        // Check cache first
+        if let Some(cached_result) = self.aggregate_cache.borrow().get(&cache_key) {
+            return Ok(cached_result.clone());
+        }
+
         let mut acc = AggregateAccumulator::new(name, distinct)?;
 
         // Special handling for COUNT(*)
@@ -147,7 +167,10 @@ impl SelectExecutor<'_> {
                     ));
                 }
                 // Fast path: COUNT(*) without DISTINCT is just row count (O(1) vs O(n))
-                return Ok(types::SqlValue::Integer(group_rows.len() as i64));
+                let result = types::SqlValue::Integer(group_rows.len() as i64);
+                // Cache the result
+                self.aggregate_cache.borrow_mut().insert(cache_key, result.clone());
+                return Ok(result);
             }
         }
 
@@ -164,7 +187,10 @@ impl SelectExecutor<'_> {
             acc.accumulate(&value);
         }
 
-        Ok(acc.finalize())
+        let result = acc.finalize();
+        // Cache the result for reuse within this group
+        self.aggregate_cache.borrow_mut().insert(cache_key, result.clone());
+        Ok(result)
     }
 
     /// Evaluate binary operations in aggregate context
