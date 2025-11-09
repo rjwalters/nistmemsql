@@ -30,6 +30,98 @@ pub struct IndexData {
     pub data: HashMap<Vec<SqlValue>, Vec<usize>>,
 }
 
+impl IndexData {
+    /// Scan index for rows matching range predicate
+    ///
+    /// # Arguments
+    /// * `start` - Lower bound (None = unbounded)
+    /// * `end` - Upper bound (None = unbounded)
+    /// * `inclusive_start` - Include rows equal to start value
+    /// * `inclusive_end` - Include rows equal to end value
+    ///
+    /// # Returns
+    /// Vector of row indices that match the range predicate
+    ///
+    /// # Note
+    /// This currently scans all keys in the HashMap (O(n) complexity).
+    /// For better performance with large datasets, consider upgrading to BTreeMap.
+    pub fn range_scan(
+        &self,
+        start: Option<&SqlValue>,
+        end: Option<&SqlValue>,
+        inclusive_start: bool,
+        inclusive_end: bool,
+    ) -> Vec<usize> {
+        let mut matching_row_indices = Vec::new();
+
+        for (key_values, row_indices) in &self.data {
+            // For single-column index, key_values has one element
+            // For multi-column indexes, we only compare the first column
+            let key = &key_values[0];
+
+            let matches = match (start, end) {
+                (Some(s), Some(e)) => {
+                    // Both bounds specified: start <= key <= end (or variations)
+                    let gte_start = if inclusive_start {
+                        key >= s
+                    } else {
+                        key > s
+                    };
+                    let lte_end = if inclusive_end {
+                        key <= e
+                    } else {
+                        key < e
+                    };
+                    gte_start && lte_end
+                }
+                (Some(s), None) => {
+                    // Only lower bound: key >= start (or >)
+                    if inclusive_start {
+                        key >= s
+                    } else {
+                        key > s
+                    }
+                }
+                (None, Some(e)) => {
+                    // Only upper bound: key <= end (or <)
+                    if inclusive_end {
+                        key <= e
+                    } else {
+                        key < e
+                    }
+                }
+                (None, None) => true,  // No bounds - match everything
+            };
+
+            if matches {
+                matching_row_indices.extend(row_indices);
+            }
+        }
+
+        matching_row_indices
+    }
+
+    /// Lookup multiple values in the index (for IN predicates)
+    ///
+    /// # Arguments
+    /// * `values` - List of values to look up
+    ///
+    /// # Returns
+    /// Vector of row indices that match any of the values
+    pub fn multi_lookup(&self, values: &[SqlValue]) -> Vec<usize> {
+        let mut matching_row_indices = Vec::new();
+
+        for value in values {
+            let search_key = vec![value.clone()];
+            if let Some(row_indices) = self.data.get(&search_key) {
+                matching_row_indices.extend(row_indices);
+            }
+        }
+
+        matching_row_indices
+    }
+}
+
 /// Manages user-defined indexes (CREATE INDEX statements)
 ///
 /// This component encapsulates all user-defined index operations, maintaining
