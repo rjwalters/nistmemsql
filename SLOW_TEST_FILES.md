@@ -85,10 +85,38 @@ Priority order:
 
 ### Investigation Results
 
-**`random/expr/slt_good_73.test`** (Nov 2025):
+**`select5.test`** (Issue #1036):
+- **Root cause**: Cartesian product explosion (64-table joins without predicate pushdown)
+- **Memory**: 6.48 GB exhaustion
+- **Solution**: Predicate pushdown optimization
+- **Status**: Issue created, ready for implementation
+
+**`random/expr/slt_good_73.test`** (Issues #1037, #1038):
 - **Root cause**: Volume (15,779 queries) + complexity (681-char nested CASE expressions)
 - **Not an infinite loop**: Just extremely slow expression evaluation
 - **Estimated runtime**: 20-30 minutes without query-level timeouts
 - **Key insight**: Missing query-level timeout allows workers to appear hung
 - **Solution**: See issues #1037 (timeouts) and #1038 (performance optimization)
 - **Details**: `/tmp/slow_query_investigation/ANALYSIS.md`
+
+**`index/commute/10/slt_good_34.test`** (Issue #1039):
+- **Root cause**: 10,000 queries with 2,884-char WHERE clauses
+- **Complexity**: 29,590 AND + 21,460 OR operators, 620 subqueries
+- **Data**: 10 rows per table
+- **Solution**: Boolean expression simplification, short-circuit eval, subquery caching
+- **Status**: Issue created
+
+**`index/between/100/slt_good_2.test`** (Related to #1039):
+- **Root cause**: Similar to commute but with larger dataset
+- **Complexity**: 5,358-char WHERE clauses, 5,000 BETWEEN clauses
+- **Data**: 100 rows per table (10x more than commute)
+- **Test purpose**: BETWEEN vs range expansion equivalence
+- **Solution**: Same as #1039 + potential BETWEEN-specific optimization
+- **Status**: Added to #1039 as related file
+
+**`index/random/100/slt_good_0.test`** (Related to #1039):
+- **Root cause**: Volume (11,905 queries × 100 rows)
+- **Complexity**: Low - simple NULL handling and operator equivalence tests
+- **Est. row scans**: ~6 million total
+- **Solution**: Query-level timeout (#1037), possible NULL handling optimization
+- **Status**: Added to #1039 as related file
