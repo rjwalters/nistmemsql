@@ -3,7 +3,7 @@
 use super::builder::SelectExecutor;
 use crate::errors::ExecutorError;
 use crate::evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator};
-use crate::optimizer::{optimize_where_clause, decompose_where_predicates, combine_with_and, get_post_join_predicates};
+use crate::optimizer::optimize_where_clause;
 use crate::select::filter::apply_where_filter_combined;
 use crate::select::helpers::{apply_distinct, apply_limit_offset};
 use crate::select::join::FromResult;
@@ -51,40 +51,27 @@ impl SelectExecutor<'_> {
             index_filtered
         } else {
             // Fall back to full WHERE clause evaluation
-            // Try to decompose WHERE clause for better filtering efficiency
-            if let Some(where_expr) = &stmt.where_clause {
-                let predicates = decompose_where_predicates(where_expr);
-                let post_join_predicates = get_post_join_predicates(&predicates);
-                
-                // Combine post-join predicates back into a WHERE clause
-                if let Some(combined_where) = combine_with_and(post_join_predicates) {
-                    let where_optimization = optimize_where_clause(Some(&combined_where), &evaluator)?;
-                    
-                    match where_optimization {
-                        crate::optimizer::WhereOptimization::AlwaysTrue => {
-                            // WHERE TRUE - no filtering needed
-                            rows
-                        }
-                        crate::optimizer::WhereOptimization::AlwaysFalse => {
-                            // WHERE FALSE - return empty result
-                            Vec::new()
-                        }
-                        crate::optimizer::WhereOptimization::Optimized(ref expr) => {
-                            // Apply optimized WHERE clause
-                            apply_where_filter_combined(rows, Some(expr), &evaluator, self)?
-                        }
-                        crate::optimizer::WhereOptimization::Unchanged(where_expr) => {
-                            // Apply combined WHERE clause
-                            apply_where_filter_combined(rows, where_expr.as_ref(), &evaluator, self)?
-                        }
-                    }
-                } else {
-                    // No post-join predicates (all are pushdown-able), no filtering needed
+            // Note: Predicate decomposition is available for future optimization (predicate pushdown)
+            // For now, apply all WHERE clauses as before
+            let where_optimization = optimize_where_clause(stmt.where_clause.as_ref(), &evaluator)?;
+
+            match where_optimization {
+                crate::optimizer::WhereOptimization::AlwaysTrue => {
+                    // WHERE TRUE - no filtering needed
                     rows
                 }
-            } else {
-                // No WHERE clause at all
-                rows
+                crate::optimizer::WhereOptimization::AlwaysFalse => {
+                    // WHERE FALSE - return empty result
+                    Vec::new()
+                }
+                crate::optimizer::WhereOptimization::Optimized(ref expr) => {
+                    // Apply optimized WHERE clause
+                    apply_where_filter_combined(rows, Some(expr), &evaluator, self)?
+                }
+                crate::optimizer::WhereOptimization::Unchanged(where_expr) => {
+                    // Apply original WHERE clause
+                    apply_where_filter_combined(rows, where_expr.as_ref(), &evaluator, self)?
+                }
             }
         };
 

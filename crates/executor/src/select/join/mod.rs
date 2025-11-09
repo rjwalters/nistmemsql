@@ -31,6 +31,10 @@ fn combine_rows(left_row: &storage::Row, right_row: &storage::Row) -> storage::R
 }
 
 /// Perform join between two FROM results, optimizing with hash join when possible
+///
+/// Note: This function combines rows from left and right according to the join type
+/// and join condition. For queries with many tables and large intermediate results,
+/// consider applying WHERE filters earlier to reduce memory usage.
 pub(super) fn nested_loop_join(
     left: FromResult,
     right: FromResult,
