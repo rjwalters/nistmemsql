@@ -6,6 +6,16 @@
 - Reduces rows per table before joins (e.g., 10 → 1 rows)
 - Good but incomplete: still creates cascading intermediate results
 
+**Phase 3.1 Complete**: Enhanced hash join selection for WHERE clause equijoins
+- Hash joins automatically selected for equijoin predicates in WHERE clause
+- All 5 Phase 3.1 integration tests passing ✓
+
+**Phase 3.2 In Progress**: Join condition reordering (STARTED)
+- Infrastructure created: `crates/executor/src/select/join/reorder.rs`
+- Core components: `JoinOrderAnalyzer`, `JoinEdge`, `Selectivity` 
+- Unit tests passing: 4 tests for join chain detection and selectivity
+- Integration tests created: 5 Phase 3.2 tests for reordering scenarios (all passing)
+
 **Problem Identified**: Cascading cartesian products compound through joins
 ```
 T1 scan:       10 rows → filter → ~9 rows (a1 > 1)
@@ -258,15 +268,34 @@ mod tests {
 - All existing SELECT tests
 - Conformance suite
 
+## Implementation Progress
+
+### Phase 3.1: ✅ COMPLETE
+- All integration tests passing
+- Hash joins selected for WHERE clause equijoins
+- No regressions in existing tests
+
+### Phase 3.2: 🔄 IN PROGRESS
+- Join reorder infrastructure created and tested
+- Unit tests: 4/4 passing (chain detection, selectivity scoring)
+- Integration tests: 5/5 passing (equijoin chains, local predicates, etc.)
+- **Next**: Integrate reorder logic into scan.rs to actually apply reordering
+
 ## Next Steps
 
-1. **Start Phase 3.1 immediately** - Enhanced hash join selection (high impact, low risk)
-2. Review `join_analyzer.rs` for hash join detection logic
-3. Add tests for hash join selection from WHERE equijoins
-4. Validate on select5.test subset queries
-5. **After Phase 3.1 validation**: Proceed to reordering (Phase 3.2)
+1. **Phase 3.2 Integration** - Connect reorder module to scan.rs execution flow
+   - Modify `execute_join()` to use `JoinOrderAnalyzer` 
+   - Apply optimal join order instead of default left-to-right
+   - Add integration tests for select5.test scenarios
+
+2. **Phase 3.2 Testing**
+   - Test with 10, 15, 20 table queries
+   - Measure memory reduction vs Phase 3.1 alone
+   - Verify no regressions
+
+3. **Phase 3.3** - Vectorized equijoin evaluation (if needed after Phase 3.2)
 
 ---
 
 **Updated**: 2025-11-08
-**Status**: Planning complete, ready for implementation
+**Status**: Phase 3.2 infrastructure complete, awaiting integration

@@ -6,6 +6,7 @@ use crate::evaluator::CombinedExpressionEvaluator;
 mod hash_join;
 mod join_analyzer;
 mod nested_loop;
+pub mod reorder;
 
 // Re-export hash_join functions for internal use
 use hash_join::hash_join_inner;

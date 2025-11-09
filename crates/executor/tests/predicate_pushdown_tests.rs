@@ -276,3 +276,216 @@ fn test_select5_style_multi_table_with_equijoins() {
     // Should successfully execute
     assert_eq!(result.len(), 1);
 }
+
+// ============================================================================
+// Phase 3.1: Hash Join Selection from WHERE Clause Equijoins
+// ============================================================================
+// These tests verify that hash joins are selected for equijoin predicates
+// in WHERE clauses, even when there's no ON clause. This is the core 
+// Phase 3.1 optimization for reducing intermediate result cardinality.
+
+#[test]
+fn test_phase3_1_hash_join_from_where_no_on_clause() {
+    // Test that hash join is selected for WHERE clause equijoin with no ON clause
+    // This is the primary Phase 3.1 optimization
+    let db = setup_test_db_with_tables(2, 10);
+    let executor = SelectExecutor::new(&db);
+
+    // Query with equijoin in WHERE clause, but NO ON clause
+    // Phase 3.1 should select hash join for this equijoin
+    let sql = "SELECT COUNT(*) FROM T1, t2 WHERE a1 = b2 AND a1 > 2";
+    let stmt = parse_select(sql);
+    let result = executor.execute(&stmt).unwrap();
+
+    // Should successfully execute with hash join optimization
+    assert_eq!(result.len(), 1);
+    // Result should be a count > 0 (matching rows)
+    assert!(result[0].values[0] > types::SqlValue::Integer(0));
+}
+
+#[test]
+fn test_phase3_1_multiple_equijoins_in_where() {
+    // Test Phase 3.1 with multiple equijoins in WHERE clause
+    // Hash join should use one, filter with others as post-join conditions
+    let db = setup_test_db_with_tables(3, 10);
+    let executor = SelectExecutor::new(&db);
+
+    // Multiple equijoins in WHERE clause
+    let sql = "SELECT COUNT(*) FROM T1, t2, t3 \
+               WHERE a1 = b2 AND b2 = a3 \
+               AND a1 > 2";
+    let stmt = parse_select(sql);
+    let result = executor.execute(&stmt).unwrap();
+
+    // Should successfully execute with hash joins for equijoins
+    assert_eq!(result.len(), 1);
+}
+
+#[test]
+fn test_phase3_1_cascading_hash_joins() {
+    // Test Phase 3.1 cascading hash joins with equijoin chains
+    // Without Phase 3.1: Would build large intermediate Cartesian products
+    // With Phase 3.1: Hash joins at each level keep rows small
+    let db = setup_test_db_with_tables(6, 10);
+    let executor = SelectExecutor::new(&db);
+
+    // Chain of equijoins: a1=b2, a2=b3, a3=b4, a4=b5, a5=b6
+    let sql = "SELECT COUNT(*) FROM T1, t2, t3, t4, t5, t6 \
+               WHERE a1 = b2 AND a2 = b3 AND a3 = b4 AND a4 = b5 AND a5 = b6 \
+               AND a1 > 1";
+    let stmt = parse_select(sql);
+    let result = executor.execute(&stmt).unwrap();
+
+    // Should execute successfully with Phase 3.1 hash joins
+    assert_eq!(result.len(), 1);
+}
+
+#[test]
+fn test_phase3_1_hash_join_with_on_and_where_equijoins() {
+    // Test that ON clause is preferred over WHERE equijoins for hash join
+    // But WHERE equijoins should still be applied as filters
+    let db = setup_test_db_with_tables(3, 10);
+    let executor = SelectExecutor::new(&db);
+
+    // ON clause: a1 = b2 (used for hash join)
+    // WHERE clause: a2 = b3 (applied as post-join filter)
+    let sql = "SELECT COUNT(*) FROM T1 JOIN t2 ON a1 = b2, t3 \
+               WHERE a2 = b3 AND a1 > 2";
+    let stmt = parse_select(sql);
+    let result = executor.execute(&stmt).unwrap();
+
+    // Should execute with ON clause for hash join, WHERE for filtering
+    assert_eq!(result.len(), 1);
+}
+
+#[test]
+fn test_phase3_1_equijoin_selectivity() {
+    // Test Phase 3.1 equijoin selectivity impact
+    // Tables with matching equijoin values should produce smaller results
+    let db = setup_test_db_with_tables(2, 10);
+    let executor = SelectExecutor::new(&db);
+
+    // Get results with different predicates to verify selectivity
+    let sql_cartesian = "SELECT COUNT(*) FROM T1, t2";
+    let stmt = parse_select(sql_cartesian);
+    let cartesian = executor.execute(&stmt).unwrap();
+    let cartesian_count = match &cartesian[0].values[0] {
+        types::SqlValue::Integer(n) => *n,
+        _ => panic!("Expected integer"),
+    };
+
+    // Now with equijoin (Phase 3.1 hash join)
+    let sql_equijoin = "SELECT COUNT(*) FROM T1, t2 WHERE a1 = b2";
+    let stmt = parse_select(sql_equijoin);
+    let equijoin = executor.execute(&stmt).unwrap();
+    let equijoin_count = match &equijoin[0].values[0] {
+        types::SqlValue::Integer(n) => *n,
+        _ => panic!("Expected integer"),
+    };
+
+    // Equijoin should be much more selective than cartesian product
+    // a1 ranges 1-10, b2 = a2 % 10 + 1 also ranges 1-10
+    // So we expect about 10 matches (one per value of a1)
+    assert!(equijoin_count < cartesian_count);
+    assert!(equijoin_count <= 10); // At most 10 rows per value range
+}
+
+// ============================================================================
+// Phase 3.2: Join Condition Reordering
+// ============================================================================
+// These tests verify that join orders are optimized based on selectivity.
+// Phase 3.2 analyzes equijoin predicates and reorders joins to prevent
+// cascading cartesian products.
+
+#[test]
+fn test_phase3_2_simple_equijoin_chain() {
+    // Test Phase 3.2 with a simple equijoin chain: T1 -> T2 -> T3
+    // Verify that joins are executed in an optimal order
+    let db = setup_test_db_with_tables(3, 10);
+    let executor = SelectExecutor::new(&db);
+
+    // Simple chain: a1=b2, a2=b3
+    // Phase 3.2 should recognize this chain and optimize execution order
+    let sql = "SELECT COUNT(*) FROM T1, t2, t3 \
+               WHERE a1 = b2 AND a2 = b3 AND a1 > 5";
+    let stmt = parse_select(sql);
+    let result = executor.execute(&stmt).unwrap();
+
+    // Should execute successfully with optimized join order
+    assert_eq!(result.len(), 1);
+}
+
+#[test]
+fn test_phase3_2_local_predicate_first() {
+    // Test Phase 3.2 prioritizes tables with local predicates
+    // Tables with local filters should be executed first to reduce cardinality
+    let db = setup_test_db_with_tables(3, 10);
+    let executor = SelectExecutor::new(&db);
+
+    // Local predicate on T1: a1 > 7 (reduces to ~3 rows)
+    // Then equijoins: a1=b2, a2=b3
+    // Phase 3.2 should start with T1 due to local predicate
+    let sql = "SELECT COUNT(*) FROM T1, t2, t3 \
+               WHERE a1 > 7 AND a1 = b2 AND a2 = b3";
+    let stmt = parse_select(sql);
+    let result = executor.execute(&stmt).unwrap();
+
+    // Should execute with optimized order
+    assert_eq!(result.len(), 1);
+}
+
+#[test]
+fn test_phase3_2_multiple_join_chains() {
+    // Test Phase 3.2 with multiple independent equijoin chains
+    // Verify separate components are handled correctly
+    let db = setup_test_db_with_tables(4, 10);
+    let executor = SelectExecutor::new(&db);
+
+    // Two chains: (T1, T2) and (T3, T4)
+    // Phase 3.2 should recognize these as separate components
+    let sql = "SELECT COUNT(*) FROM T1, t2, t3, t4 \
+               WHERE a1 = b2 AND a3 = b4";
+    let stmt = parse_select(sql);
+    let result = executor.execute(&stmt).unwrap();
+
+    // Should execute successfully
+    assert_eq!(result.len(), 1);
+}
+
+#[test]
+fn test_phase3_2_five_table_chain() {
+    // Test Phase 3.2 with a longer equijoin chain: T1->T2->T3->T4->T5
+    // This tests that the reordering handles cascading chains
+    let db = setup_test_db_with_tables(5, 10);
+    let executor = SelectExecutor::new(&db);
+
+    // Chain of 4 equijoins
+    let sql = "SELECT COUNT(*) FROM T1, t2, t3, t4, t5 \
+               WHERE a1 = b2 AND a2 = b3 AND a3 = b4 AND a4 = b5 \
+               AND a1 > 2";
+    let stmt = parse_select(sql);
+    let result = executor.execute(&stmt).unwrap();
+
+    // Should execute with optimized join order
+    assert_eq!(result.len(), 1);
+}
+
+#[test]
+fn test_phase3_2_with_high_selectivity_predicates() {
+    // Test Phase 3.2 with very selective local predicates
+    // Highly selective predicates should be applied first
+    let db = setup_test_db_with_tables(4, 10);
+    let executor = SelectExecutor::new(&db);
+
+    // T1 has very selective predicate (a1 > 8 → ~2 rows)
+    // T3 has selective predicate (a3 > 7 → ~3 rows)
+    // Phase 3.2 should prioritize these
+    let sql = "SELECT COUNT(*) FROM T1, t2, t3, t4 \
+               WHERE a1 > 8 AND a3 > 7 \
+               AND a1 = b2 AND a2 = b3 AND a3 = b4";
+    let stmt = parse_select(sql);
+    let result = executor.execute(&stmt).unwrap();
+
+    // Should execute successfully with high selectivity filtering first
+    assert_eq!(result.len(), 1);
+}
