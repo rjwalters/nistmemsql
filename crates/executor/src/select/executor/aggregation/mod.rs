@@ -115,6 +115,9 @@ impl SelectExecutor<'_> {
             // Clear aggregate cache for new group
             self.clear_aggregate_cache();
 
+            // Clear CSE cache for new group to prevent cross-group contamination
+            evaluator.clear_cse_cache();
+
             // Check timeout during aggregation
             self.check_timeout()?;
 
