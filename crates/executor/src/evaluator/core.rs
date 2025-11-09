@@ -10,6 +10,10 @@ pub struct ExpressionEvaluator<'a> {
     pub(super) database: Option<&'a storage::Database>,
     /// Current depth in expression tree (for preventing stack overflow)
     pub(super) depth: usize,
+    /// CSE cache for common sub-expression elimination
+    pub(super) cse_cache: RefCell<HashMap<u64, types::SqlValue>>,
+    /// Whether CSE is enabled (can be disabled for debugging)
+    pub(super) enable_cse: bool,
 }
 
 /// Evaluates expressions with combined schema (for JOINs)
@@ -23,6 +27,10 @@ pub struct CombinedExpressionEvaluator<'a> {
     column_cache: RefCell<HashMap<(Option<String>, String), usize>>,
     /// Current depth in expression tree (for preventing stack overflow)
     pub(super) depth: usize,
+    /// CSE cache for common sub-expression elimination
+    pub(super) cse_cache: RefCell<HashMap<u64, types::SqlValue>>,
+    /// Whether CSE is enabled (can be disabled for debugging)
+    pub(super) enable_cse: bool,
 }
 
 impl<'a> ExpressionEvaluator<'a> {
@@ -34,7 +42,17 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_schema: None,
             database: None,
             depth: 0,
+            cse_cache: RefCell::new(HashMap::new()),
+            enable_cse: Self::is_cse_enabled(),
         }
+    }
+
+    /// Check if CSE is enabled via environment variable
+    /// Defaults to true, can be disabled by setting CSE_ENABLED=false
+    fn is_cse_enabled() -> bool {
+        std::env::var("CSE_ENABLED")
+            .map(|v| v.to_lowercase() != "false" && v != "0")
+            .unwrap_or(true) // Default: enabled
     }
 
     /// Create a new expression evaluator with outer query context for correlated subqueries
@@ -49,6 +67,8 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_schema: Some(outer_schema),
             database: None,
             depth: 0,
+            cse_cache: RefCell::new(HashMap::new()),
+            enable_cse: Self::is_cse_enabled(),
         }
     }
 
@@ -63,6 +83,8 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_schema: None,
             database: Some(database),
             depth: 0,
+            cse_cache: RefCell::new(HashMap::new()),
+            enable_cse: Self::is_cse_enabled(),
         }
     }
 
@@ -80,6 +102,8 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_schema: Some(outer_schema),
             database: Some(database),
             depth: 0,
+            cse_cache: RefCell::new(HashMap::new()),
+            enable_cse: Self::is_cse_enabled(),
         }
     }
 
@@ -142,6 +166,14 @@ impl<'a> ExpressionEvaluator<'a> {
 }
 
 impl<'a> CombinedExpressionEvaluator<'a> {
+    /// Check if CSE is enabled via environment variable
+    /// Defaults to true, can be disabled by setting CSE_ENABLED=false
+    fn is_cse_enabled() -> bool {
+        std::env::var("CSE_ENABLED")
+            .map(|v| v.to_lowercase() != "false" && v != "0")
+            .unwrap_or(true) // Default: enabled
+    }
+
     /// Create a new combined expression evaluator
     /// Note: Currently unused as all callers use with_database(), but kept for API completeness
     #[allow(dead_code)]
@@ -154,6 +186,8 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: None,
             column_cache: RefCell::new(HashMap::new()),
             depth: 0,
+            cse_cache: RefCell::new(HashMap::new()),
+            enable_cse: Self::is_cse_enabled(),
         }
     }
 
@@ -170,6 +204,8 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: None,
             column_cache: RefCell::new(HashMap::new()),
             depth: 0,
+            cse_cache: RefCell::new(HashMap::new()),
+            enable_cse: Self::is_cse_enabled(),
         }
     }
 
@@ -189,6 +225,8 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: None,
             column_cache: RefCell::new(HashMap::new()),
             depth: 0,
+            cse_cache: RefCell::new(HashMap::new()),
+            enable_cse: Self::is_cse_enabled(),
         }
     }
 
@@ -206,6 +244,8 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             window_mapping: Some(window_mapping),
             column_cache: RefCell::new(HashMap::new()),
             depth: 0,
+            cse_cache: RefCell::new(HashMap::new()),
+            enable_cse: Self::is_cse_enabled(),
         }
     }
 
