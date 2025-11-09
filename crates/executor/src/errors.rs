@@ -40,6 +40,8 @@ pub enum ExecutorError {
     QueryTimeoutExceeded { elapsed_seconds: u64, max_seconds: u64 },
     /// Query exceeded maximum row processing limit
     RowLimitExceeded { rows_processed: usize, max_rows: usize },
+    /// Query exceeded maximum memory limit
+    MemoryLimitExceeded { used_bytes: usize, max_bytes: usize },
     Other(String),
 }
 
@@ -150,6 +152,14 @@ impl std::fmt::Display for ExecutorError {
                     f,
                     "Row processing limit exceeded: {} > {}",
                     rows_processed, max_rows
+                )
+            }
+            ExecutorError::MemoryLimitExceeded { used_bytes, max_bytes } => {
+                write!(
+                    f,
+                    "Memory limit exceeded: {:.2} GB > {:.2} GB",
+                    *used_bytes as f64 / 1024.0 / 1024.0 / 1024.0,
+                    *max_bytes as f64 / 1024.0 / 1024.0 / 1024.0
                 )
             }
             ExecutorError::Other(msg) => write!(f, "{}", msg),
