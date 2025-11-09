@@ -12,6 +12,24 @@ impl CombinedExpressionEvaluator<'_> {
         expr: &ast::Expression,
         row: &storage::Row,
     ) -> Result<types::SqlValue, ExecutorError> {
+        // Check depth limit to prevent stack overflow from deeply nested expressions
+        if self.depth >= crate::limits::MAX_EXPRESSION_DEPTH {
+            return Err(ExecutorError::ExpressionDepthExceeded {
+                depth: self.depth,
+                max_depth: crate::limits::MAX_EXPRESSION_DEPTH,
+            });
+        }
+
+        // Increment depth for recursive calls
+        self.with_incremented_depth(|evaluator| evaluator.eval_impl(expr, row))
+    }
+
+    /// Internal implementation of eval with depth already incremented
+    fn eval_impl(
+        &self,
+        expr: &ast::Expression,
+        row: &storage::Row,
+    ) -> Result<types::SqlValue, ExecutorError> {
         match expr {
             // Literals - just return the value
             ast::Expression::Literal(val) => Ok(val.clone()),
@@ -66,9 +84,61 @@ impl CombinedExpressionEvaluator<'_> {
 
             // Binary operations
             ast::Expression::BinaryOp { left, op, right } => {
-                let left_val = self.eval(left, row)?;
-                let right_val = self.eval(right, row)?;
-                ExpressionEvaluator::eval_binary_op_static(&left_val, op, &right_val)
+                use types::SqlValue;
+
+                // Short-circuit evaluation for AND/OR operators
+                match op {
+                    ast::BinaryOperator::And => {
+                        let left_val = self.eval(left, row)?;
+                        // Short-circuit: if left is false, return false immediately
+                        match left_val {
+                            SqlValue::Boolean(false) => return Ok(SqlValue::Boolean(false)),
+                            // For NULL and TRUE, must evaluate right side
+                            // SQL three-valued logic:
+                            // - NULL AND FALSE = FALSE (not NULL!)
+                            // - NULL AND TRUE = NULL
+                            // - TRUE AND x = x
+                            _ => {
+                                let right_val = self.eval(right, row)?;
+
+                                // Special case: NULL AND FALSE = FALSE
+                                if matches!(left_val, SqlValue::Null) && matches!(right_val, SqlValue::Boolean(false)) {
+                                    return Ok(SqlValue::Boolean(false));
+                                }
+
+                                ExpressionEvaluator::eval_binary_op_static(&left_val, op, &right_val)
+                            }
+                        }
+                    }
+                    ast::BinaryOperator::Or => {
+                        let left_val = self.eval(left, row)?;
+                        // Short-circuit: if left is true, return true immediately
+                        match left_val {
+                            SqlValue::Boolean(true) => return Ok(SqlValue::Boolean(true)),
+                            // For NULL and FALSE, must evaluate right side
+                            // SQL three-valued logic:
+                            // - NULL OR TRUE = TRUE (not NULL!)
+                            // - NULL OR FALSE = NULL
+                            // - FALSE OR x = x
+                            _ => {
+                                let right_val = self.eval(right, row)?;
+
+                                // Special case: NULL OR TRUE = TRUE
+                                if matches!(left_val, SqlValue::Null) && matches!(right_val, SqlValue::Boolean(true)) {
+                                    return Ok(SqlValue::Boolean(true));
+                                }
+
+                                ExpressionEvaluator::eval_binary_op_static(&left_val, op, &right_val)
+                            }
+                        }
+                    }
+                    // For all other operators, evaluate both sides as before
+                    _ => {
+                        let left_val = self.eval(left, row)?;
+                        let right_val = self.eval(right, row)?;
+                        ExpressionEvaluator::eval_binary_op_static(&left_val, op, &right_val)
+                    }
+                }
             }
 
             // CASE expression
