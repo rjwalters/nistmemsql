@@ -403,7 +403,9 @@ impl AlterTableExecutor {
                     on_update: convert_action(on_update),
                 };
 
-                let table = database.get_table_mut(&stmt.table_name).unwrap();
+                let table = database
+                    .get_table_mut(&stmt.table_name)
+                    .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
                 table.schema_mut().add_foreign_key(fk)?;
 
                 Ok(format!(
