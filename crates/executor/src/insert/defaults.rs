@@ -35,14 +35,37 @@ pub fn evaluate_default_expression(
             // Evaluate special SQL functions that can be used in DEFAULT
             match name.to_uppercase().as_str() {
                 "CURRENT_DATE" => {
-                    Ok(types::SqlValue::Date(chrono::Local::now().date_naive().to_string()))
+                    use chrono::Datelike;
+                    let now = chrono::Local::now();
+                    let date = types::Date::new(now.year(), now.month() as u8, now.day() as u8)
+                        .map_err(|e| ExecutorError::UnsupportedFeature(format!("Failed to create date: {}", e)))?;
+                    Ok(types::SqlValue::Date(date))
                 }
                 "CURRENT_TIME" => {
-                    Ok(types::SqlValue::Time(chrono::Local::now().time().to_string()))
+                    use chrono::Timelike;
+                    let now = chrono::Local::now();
+                    let time_naive = now.time();
+                    let time = types::Time::new(
+                        time_naive.hour() as u8,
+                        time_naive.minute() as u8,
+                        time_naive.second() as u8,
+                        time_naive.nanosecond(),
+                    ).map_err(|e| ExecutorError::UnsupportedFeature(format!("Failed to create time: {}", e)))?;
+                    Ok(types::SqlValue::Time(time))
                 }
                 "CURRENT_TIMESTAMP" => {
+                    use chrono::{Datelike, Timelike};
                     let now = chrono::Local::now();
-                    Ok(types::SqlValue::Timestamp(now.naive_local().to_string()))
+                    let time_naive = now.time();
+                    let date = types::Date::new(now.year(), now.month() as u8, now.day() as u8)
+                        .map_err(|e| ExecutorError::UnsupportedFeature(format!("Failed to create date: {}", e)))?;
+                    let time = types::Time::new(
+                        time_naive.hour() as u8,
+                        time_naive.minute() as u8,
+                        time_naive.second() as u8,
+                        time_naive.nanosecond(),
+                    ).map_err(|e| ExecutorError::UnsupportedFeature(format!("Failed to create time: {}", e)))?;
+                    Ok(types::SqlValue::Timestamp(types::Timestamp::new(date, time)))
                 }
                 "CURRENT_USER" | "USER" | "SESSION_USER" => {
                     // Return current user (placeholder - would come from session context)
