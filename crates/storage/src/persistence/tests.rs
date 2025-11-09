@@ -357,3 +357,47 @@ fn test_sql_dump_large_dataset() {
     // Cleanup
     std::fs::remove_file(path).ok();
 }
+
+#[test]
+fn test_read_sql_dump() {
+    use super::load::read_sql_dump;
+
+    let mut db = Database::new();
+
+    // Create test schema
+    let schema = TableSchema::new(
+        "test_load".to_string(),
+        vec![
+            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(50) }, false),
+        ],
+    );
+
+    db.create_table(schema).unwrap();
+
+    // Insert test data
+    let table = db.get_table_mut("test_load").unwrap();
+    table.insert(crate::Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Test".to_string())])).unwrap();
+
+    // Save SQL dump
+    let path = "/tmp/test_read_dump.sql";
+    db.save_sql_dump(path).unwrap();
+
+    // Read the dump back
+    let content = read_sql_dump(path).unwrap();
+    assert!(content.contains("CREATE TABLE"));
+    assert!(content.contains("INSERT INTO"));
+    assert!(content.contains("Test"));
+
+    // Cleanup
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn test_read_sql_dump_file_not_found() {
+    use super::load::read_sql_dump;
+
+    let result = read_sql_dump("/tmp/nonexistent_file_xyz123.sql");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("does not exist"));
+}
