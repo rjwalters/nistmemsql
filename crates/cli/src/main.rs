@@ -4,6 +4,7 @@ mod repl;
 mod executor;
 mod formatter;
 mod commands;
+mod config;
 mod error;
 mod script;
 mod data_io;
@@ -11,6 +12,7 @@ mod data_io;
 use repl::Repl;
 use script::ScriptExecutor;
 use formatter::OutputFormat;
+use config::Config;
 
 #[derive(Parser, Debug)]
 #[command(name = "vibesql")]
@@ -45,20 +47,32 @@ struct Args {
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
-    let format = args.format.as_deref().and_then(parse_format);
+    // Load configuration from ~/.vibesqlrc
+    let config = Config::load().unwrap_or_else(|e| {
+        eprintln!("Warning: Could not load config file: {}", e);
+        Config::default()
+    });
+
+    // Use command-line format if provided, otherwise use config default
+    let format = args.format.as_deref()
+        .and_then(parse_format)
+        .or_else(|| config.get_output_format());
+
+    // Use command-line database if provided, otherwise use config default
+    let database = args.database.or(config.database.default_path.clone());
 
     if let Some(cmd) = args.command {
         // Execute command mode
-        execute_command(&cmd, args.database, format)?;
+        execute_command(&cmd, database, format)?;
     } else if let Some(file_path) = args.file {
         // Execute file mode
-        execute_file(&file_path, args.database, args.verbose, format)?;
+        execute_file(&file_path, database, args.verbose, format)?;
     } else if args.stdin || is_stdin_piped() {
         // Execute from stdin
-        execute_stdin(args.database, args.verbose, format)?;
+        execute_stdin(database, args.verbose, format)?;
     } else {
         // Interactive REPL mode
-        let mut repl = Repl::new(args.database, format)?;
+        let mut repl = Repl::new(database, format)?;
         repl.run()?;
     }
 
