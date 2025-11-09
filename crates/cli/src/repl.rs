@@ -120,6 +120,9 @@ impl Repl {
             MetaCommand::Timing => {
                 self.executor.toggle_timing();
             }
+            MetaCommand::Copy { table, file_path, direction, format } => {
+                self.executor.handle_copy(&table, &file_path, direction, format)?;
+            }
         }
         Ok(false)
     }
@@ -143,6 +146,8 @@ Meta-commands:
   \\du             - List roles/users
   \\f <format>     - Set output format (table, json, csv)
   \\timing         - Toggle query timing
+  \\copy <table> TO <file>   - Export table to CSV/JSON file
+  \\copy <table> FROM <file> - Import CSV file into table
   \\h, \\help      - Show this help
   \\q, \\quit      - Exit
 
@@ -151,7 +156,9 @@ Examples:
   INSERT INTO users VALUES (1, 'Alice'), (2, 'Bob');
   SELECT * FROM users;
   \\f json
-  \\f csv
+  \\copy users TO '/tmp/users.csv'
+  \\copy users FROM '/tmp/users.csv'
+  \\copy users TO '/tmp/users.json'
 ");
     }
 }

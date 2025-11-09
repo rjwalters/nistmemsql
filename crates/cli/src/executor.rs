@@ -1,6 +1,8 @@
 use std::time::Instant;
 use storage::Database;
 use parser::Parser;
+use crate::commands::{CopyDirection, CopyFormat};
+use crate::data_io::DataIO;
 
 pub struct SqlExecutor {
     db: Database,
@@ -207,6 +209,54 @@ impl SqlExecutor {
             for role_name in roles {
                 let marker = if role_name == current_role { "(current)" } else { "" };
                 println!("{:<20} {:<15}", role_name, marker);
+            }
+        }
+        Ok(())
+    }
+
+    pub fn handle_copy(
+        &mut self,
+        table: &str,
+        file_path: &str,
+        direction: CopyDirection,
+        format: CopyFormat,
+    ) -> anyhow::Result<()> {
+        match direction {
+            CopyDirection::Export => {
+                // Execute SELECT * FROM table to get all data
+                let query = format!("SELECT * FROM {}", table);
+                let result = self.execute(&query)?;
+
+                // Export based on format
+                match format {
+                    CopyFormat::Csv => DataIO::export_csv(&result, file_path)?,
+                    CopyFormat::Json => DataIO::export_json(&result, file_path)?,
+                }
+            }
+            CopyDirection::Import => {
+                // Import based on format
+                match format {
+                    CopyFormat::Csv => {
+                        // Import CSV - generates INSERT statements
+                        let insert_statements = DataIO::import_csv(file_path, table)?;
+
+                        // Execute each INSERT statement
+                        let mut success_count = 0;
+                        for stmt in &insert_statements {
+                            match self.execute(stmt) {
+                                Ok(_) => success_count += 1,
+                                Err(e) => {
+                                    eprintln!("Warning: Failed to insert row: {}", e);
+                                    // Continue with remaining rows
+                                }
+                            }
+                        }
+                        println!("Imported {} rows into '{}'", success_count, table);
+                    }
+                    CopyFormat::Json => {
+                        return Err(anyhow::anyhow!("JSON import not yet implemented"));
+                    }
+                }
             }
         }
         Ok(())
