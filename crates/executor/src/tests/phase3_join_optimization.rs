@@ -425,3 +425,204 @@ fn test_hash_join_with_on_clause_and_where_equijoins() {
     // Should have 3 rows (all rows match on both conditions)
     assert_eq!(result.len(), 3, "Expected 3 rows");
 }
+
+/// Test star join pattern with 6 tables (simplified select5.test scenario)
+///
+/// This tests the bug from issue #1053 where hash join crashes with
+/// index out of bounds when executing star join patterns.
+#[test]
+fn test_star_join_select5_pattern() {
+    let mut db = storage::Database::new();
+
+    // Create 6 tables with 10 rows each
+    // All tables have same schema: (id, value)
+    for table_num in 1..=6 {
+        let table_name = format!("t{}", table_num);
+        let schema = catalog::TableSchema::new(
+            table_name.clone(),
+            vec![
+                catalog::ColumnSchema::new("id".to_string(), types::DataType::Integer, false),
+                catalog::ColumnSchema::new(
+                    format!("val{}", table_num),
+                    types::DataType::Integer,
+                    false,
+                ),
+            ],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert 10 rows per table
+        for row_num in 1..=10 {
+            db.insert_row(
+                &table_name,
+                storage::Row::new(vec![
+                    types::SqlValue::Integer(row_num as i64),
+                    types::SqlValue::Integer(row_num as i64 * table_num as i64),
+                ]),
+            )
+            .unwrap();
+        }
+    }
+
+    // Build star join: all tables join to t1 (hub) via WHERE clause
+    // SELECT * FROM t1, t2, t3, t4, t5, t6
+    // WHERE t1.id = t2.id
+    //   AND t1.id = t3.id
+    //   AND t1.id = t4.id
+    //   AND t1.id = t5.id
+    //   AND t1.id = t6.id
+    //
+    // This should return 10 rows (one for each id 1-10)
+    let executor = SelectExecutor::new(&db);
+
+    // Build nested join structure: ((((t1, t2), t3), t4), t5), t6
+    let stmt = ast::SelectStmt {
+        into_table: None,
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![ast::SelectItem::Wildcard { alias: None }],
+        from: Some(ast::FromClause::Join {
+            left: Box::new(ast::FromClause::Join {
+                left: Box::new(ast::FromClause::Join {
+                    left: Box::new(ast::FromClause::Join {
+                        left: Box::new(ast::FromClause::Join {
+                            left: Box::new(ast::FromClause::Table {
+                                name: "t1".to_string(),
+                                alias: None,
+                            }),
+                            right: Box::new(ast::FromClause::Table {
+                                name: "t2".to_string(),
+                                alias: None,
+                            }),
+                            join_type: ast::JoinType::Inner,
+                            condition: None,
+                        }),
+                        right: Box::new(ast::FromClause::Table {
+                            name: "t3".to_string(),
+                            alias: None,
+                        }),
+                        join_type: ast::JoinType::Inner,
+                        condition: None,
+                    }),
+                    right: Box::new(ast::FromClause::Table {
+                        name: "t4".to_string(),
+                        alias: None,
+                    }),
+                    join_type: ast::JoinType::Inner,
+                    condition: None,
+                }),
+                right: Box::new(ast::FromClause::Table {
+                    name: "t5".to_string(),
+                    alias: None,
+                }),
+                join_type: ast::JoinType::Inner,
+                condition: None,
+            }),
+            right: Box::new(ast::FromClause::Table {
+                name: "t6".to_string(),
+                alias: None,
+            }),
+            join_type: ast::JoinType::Inner,
+            condition: None,
+        }),
+        where_clause: Some(ast::Expression::BinaryOp {
+            left: Box::new(ast::Expression::BinaryOp {
+                left: Box::new(ast::Expression::BinaryOp {
+                    left: Box::new(ast::Expression::BinaryOp {
+                        left: Box::new(ast::Expression::BinaryOp {
+                            left: Box::new(ast::Expression::ColumnRef {
+                                table: Some("t1".to_string()),
+                                column: "id".to_string(),
+                            }),
+                            op: ast::BinaryOperator::Equal,
+                            right: Box::new(ast::Expression::ColumnRef {
+                                table: Some("t2".to_string()),
+                                column: "id".to_string(),
+                            }),
+                        }),
+                        op: ast::BinaryOperator::And,
+                        right: Box::new(ast::Expression::BinaryOp {
+                            left: Box::new(ast::Expression::ColumnRef {
+                                table: Some("t1".to_string()),
+                                column: "id".to_string(),
+                            }),
+                            op: ast::BinaryOperator::Equal,
+                            right: Box::new(ast::Expression::ColumnRef {
+                                table: Some("t3".to_string()),
+                                column: "id".to_string(),
+                            }),
+                        }),
+                    }),
+                    op: ast::BinaryOperator::And,
+                    right: Box::new(ast::Expression::BinaryOp {
+                        left: Box::new(ast::Expression::ColumnRef {
+                            table: Some("t1".to_string()),
+                            column: "id".to_string(),
+                        }),
+                        op: ast::BinaryOperator::Equal,
+                        right: Box::new(ast::Expression::ColumnRef {
+                            table: Some("t4".to_string()),
+                            column: "id".to_string(),
+                        }),
+                    }),
+                }),
+                op: ast::BinaryOperator::And,
+                right: Box::new(ast::Expression::BinaryOp {
+                    left: Box::new(ast::Expression::ColumnRef {
+                        table: Some("t1".to_string()),
+                        column: "id".to_string(),
+                    }),
+                    op: ast::BinaryOperator::Equal,
+                    right: Box::new(ast::Expression::ColumnRef {
+                        table: Some("t5".to_string()),
+                        column: "id".to_string(),
+                    }),
+                }),
+            }),
+            op: ast::BinaryOperator::And,
+            right: Box::new(ast::Expression::BinaryOp {
+                left: Box::new(ast::Expression::ColumnRef {
+                    table: Some("t1".to_string()),
+                    column: "id".to_string(),
+                }),
+                op: ast::BinaryOperator::Equal,
+                right: Box::new(ast::Expression::ColumnRef {
+                    table: Some("t6".to_string()),
+                    column: "id".to_string(),
+                }),
+            }),
+        }),
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+
+    // Should have 10 rows (one for each matching ID 1-10)
+    assert_eq!(result.len(), 10, "Expected 10 rows from star join");
+
+    // Verify first row structure: should have 12 columns (6 tables × 2 cols each)
+    let first_row = &result[0];
+    assert_eq!(
+        first_row.values.len(),
+        12,
+        "Expected 12 columns (6 tables × 2 cols each)"
+    );
+
+    // Verify all rows have id=1 through id=10
+    for (idx, row) in result.iter().enumerate() {
+        let expected_id = types::SqlValue::Integer((idx + 1) as i64);
+        // t1.id should be at index 0
+        assert_eq!(row.values[0], expected_id, "Row {} should have id={}", idx, idx + 1);
+        // All tables should have matching id
+        assert_eq!(row.values[2], expected_id, "t2.id mismatch at row {}", idx); // t2.id
+        assert_eq!(row.values[4], expected_id, "t3.id mismatch at row {}", idx); // t3.id
+        assert_eq!(row.values[6], expected_id, "t4.id mismatch at row {}", idx); // t4.id
+        assert_eq!(row.values[8], expected_id, "t5.id mismatch at row {}", idx); // t5.id
+        assert_eq!(row.values[10], expected_id, "t6.id mismatch at row {}", idx); // t6.id
+    }
+}
