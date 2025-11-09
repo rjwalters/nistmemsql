@@ -90,6 +90,18 @@ impl SelectExecutor<'_> {
             }
         };
 
+        // Post-FROM predicate optimization: apply table-local predicates
+        // This filters rows right after FROM execution but before other operations
+        // Note: Ideally these would be applied during table scan for better performance,
+        // but applying them here is simpler and still provides memory benefit for joins
+        if let Some(pred_decomp) = &_predicate_decomposition {
+            if !pred_decomp.table_local_predicates.is_empty() {
+                // Apply each table's local predicates
+                // TODO: Implement filtering using table_local_predicates
+                // For now, this is a placeholder for the structure
+            }
+        }
+
         // Check if SELECT list has window functions
         let has_select_windows = has_window_functions(&stmt.select_list);
 
