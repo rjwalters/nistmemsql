@@ -57,4 +57,5 @@ mod select_order_by;
 mod select_where;
 mod select_window_aggregate;
 mod select_without_from;
+mod timeout_enforcement;
 mod transaction_tests;
