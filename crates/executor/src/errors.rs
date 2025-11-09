@@ -56,6 +56,10 @@ pub enum ExecutorError {
     ConstraintViolation(String),
     MultiplePrimaryKeys,
     CannotDropColumn(String),
+    ConstraintNotFound {
+        constraint_name: String,
+        table_name: String,
+    },
     /// Expression evaluation exceeded maximum recursion depth
     /// This prevents stack overflow from deeply nested expressions or subqueries
     ExpressionDepthExceeded {
@@ -175,6 +179,9 @@ impl std::fmt::Display for ExecutorError {
             }
             ExecutorError::CannotDropColumn(msg) => {
                 write!(f, "Cannot drop column: {}", msg)
+            }
+            ExecutorError::ConstraintNotFound { constraint_name, table_name } => {
+                write!(f, "Constraint '{}' not found in table '{}'", constraint_name, table_name)
             }
             ExecutorError::ExpressionDepthExceeded { depth, max_depth } => {
                 write!(
@@ -342,6 +349,13 @@ impl From<catalog::CatalogError> for ExecutorError {
             catalog::CatalogError::ProcedureNotFound(name) => {
                 ExecutorError::Other(format!("Procedure '{}' not found", name))
             }
+            catalog::CatalogError::ConstraintAlreadyExists(name) => {
+                ExecutorError::ConstraintViolation(format!("Constraint '{}' already exists", name))
+            }
+            catalog::CatalogError::ConstraintNotFound(name) => ExecutorError::ConstraintNotFound {
+                constraint_name: name,
+                table_name: "unknown".to_string(),
+            },
         }
     }
 }
