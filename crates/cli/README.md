@@ -4,18 +4,22 @@ Command-line interface for VibeSQL, providing interactive SQL querying and datab
 
 ## Features
 
-### Phase 1: Basic REPL (Current)
+### Phase 1: Basic REPL
 - Interactive SQL prompt with line editing and history
 - Execute SQL statements and display results
 - Basic table formatting for query results
 - Command history and error handling
 - Meta-commands: `\help`, `\q`, `\d`, `\dt`, `\timing`
 
-### Phase 2: Script Execution & File I/O
+### Phase 2: Script Execution & File I/O (Current)
 - Execute SQL from files: `vibesql -f script.sql`
+- Execute SQL from stdin: `cat queries.sql | vibesql` or `vibesql --stdin`
+- Execute single commands: `vibesql -c "SELECT * FROM users"`
 - Support multiple statements in scripts
-- Transaction control for scripts
-- Read from stdin: `cat queries.sql | vibesql`
+- Auto-detection of piped input
+- Verbose output mode: `vibesql -f script.sql -v`
+- Execution summary with success/failure counts
+- Data import/export utilities (CSV, JSON)
 
 ### Phase 3: Advanced Features
 - More meta-commands (`\ds`, `\di`, `\du`)
@@ -48,6 +52,9 @@ cargo run --bin vibesql -- --database mydb.vsql
 ```bash
 # Execute single SQL command
 cargo run --bin vibesql -- -c "SELECT 1"
+
+# Execute single SQL command with verbose output
+cargo run --bin vibesql -- -c "SELECT 1" -v
 ```
 
 ### File Execution
@@ -56,8 +63,21 @@ cargo run --bin vibesql -- -c "SELECT 1"
 # Execute SQL from file
 cargo run --bin vibesql -- -f script.sql
 
-# Execute from stdin
+# Execute SQL from file with verbose output and summary
+cargo run --bin vibesql -- -f script.sql --verbose
+```
+
+### Stdin Execution
+
+```bash
+# Execute from stdin (auto-detected when piped)
 cat queries.sql | cargo run --bin vibesql
+
+# Or explicitly request stdin
+cargo run --bin vibesql -- --stdin < queries.sql
+
+# Pipe from other commands
+echo "SELECT 1; SELECT 2;" | cargo run --bin vibesql --verbose
 ```
 
 ## Meta-Commands
@@ -106,18 +126,21 @@ Goodbye!
 
 The CLI is organized into modules:
 
-- `main.rs` - Entry point and CLI argument parsing
+- `main.rs` - Entry point, CLI argument parsing, and mode selection
 - `repl.rs` - Interactive REPL implementation
-- `executor.rs` - SQL execution wrapper
+- `executor.rs` - SQL execution wrapper (SELECT, CREATE, INSERT, UPDATE, DELETE)
 - `formatter.rs` - Result formatting (table, CSV, JSON)
 - `commands.rs` - Meta-command parsing and handling
+- `script.rs` - Batch SQL execution from files and stdin
+- `data_io.rs` - Data import/export utilities (CSV, JSON)
 - `error.rs` - CLI-specific error types
 
 ## Dependencies
 
-- `clap` - Command-line argument parsing
-- `rustyline` - Line editing and history
-- `prettytable-rs` - Table formatting
-- `serde_json` - JSON formatting
-- `csv` - CSV formatting
-- `anyhow` - Error handling
+- `clap 4` - Command-line argument parsing
+- `rustyline 13` - Line editing and history
+- `prettytable-rs 0.10` - Table formatting
+- `serde_json 1.0` - JSON formatting
+- `csv 1.3` - CSV parsing and formatting
+- `anyhow 1.0` - Error handling
+- `atty 0.2` - Terminal detection for stdin piping
