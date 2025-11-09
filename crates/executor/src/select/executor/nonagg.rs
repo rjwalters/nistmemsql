@@ -59,11 +59,11 @@ impl SelectExecutor<'_> {
         }
             crate::optimizer::WhereOptimization::Optimized(ref expr) => {
                 // Apply optimized WHERE clause
-            apply_where_filter_combined(rows, Some(expr), &evaluator)?
+            apply_where_filter_combined(rows, Some(expr), &evaluator, self)?
         }
             crate::optimizer::WhereOptimization::Unchanged(where_expr) => {
                     // Apply original WHERE clause
-                    apply_where_filter_combined(rows, where_expr.as_ref(), &evaluator)?
+                    apply_where_filter_combined(rows, where_expr.as_ref(), &evaluator, self)?
                 }
             }
         };

@@ -7,10 +7,13 @@ use crate::evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator};
 ///
 /// Same as apply_where_filter but specifically for CombinedExpressionEvaluator.
 /// Used in non-aggregation queries.
-pub(super) fn apply_where_filter_combined(
+/// 
+/// Accepts SelectExecutor for timeout enforcement. Timeout is checked every 1000 rows.
+pub(super) fn apply_where_filter_combined<'a>(
     rows: Vec<storage::Row>,
     where_expr: Option<&ast::Expression>,
     evaluator: &CombinedExpressionEvaluator,
+    executor: &crate::SelectExecutor<'a>,
 ) -> Result<Vec<storage::Row>, ExecutorError> {
     if where_expr.is_none() {
         // No WHERE clause, return all rows
@@ -19,8 +22,16 @@ pub(super) fn apply_where_filter_combined(
 
     let where_expr = where_expr.unwrap();
     let mut filtered_rows = Vec::new();
+    let mut rows_processed = 0;
+    const CHECK_INTERVAL: usize = 1000;
 
     for row in rows {
+        // Check timeout every 1000 rows
+        rows_processed += 1;
+        if rows_processed % CHECK_INTERVAL == 0 {
+            executor.check_timeout()?;
+        }
+
         let include_row = match evaluator.eval(where_expr, &row)? {
             types::SqlValue::Boolean(true) => true,
             types::SqlValue::Boolean(false) | types::SqlValue::Null => false,
@@ -57,11 +68,14 @@ pub(super) fn apply_where_filter_combined(
 ///
 /// Same as apply_where_filter but specifically for ExpressionEvaluator.
 /// Used in aggregation queries.
+/// 
+/// Accepts SelectExecutor for timeout enforcement. Timeout is checked every 1000 rows.
 #[allow(dead_code)]
-pub(super) fn apply_where_filter_basic(
+pub(super) fn apply_where_filter_basic<'a>(
     rows: Vec<storage::Row>,
     where_expr: Option<&ast::Expression>,
     evaluator: &ExpressionEvaluator,
+    executor: &crate::SelectExecutor<'a>,
 ) -> Result<Vec<storage::Row>, ExecutorError> {
     if where_expr.is_none() {
         // No WHERE clause, return all rows
@@ -70,8 +84,16 @@ pub(super) fn apply_where_filter_basic(
 
     let where_expr = where_expr.unwrap();
     let mut filtered_rows = Vec::new();
+    let mut rows_processed = 0;
+    const CHECK_INTERVAL: usize = 1000;
 
     for row in rows {
+        // Check timeout every 1000 rows
+        rows_processed += 1;
+        if rows_processed % CHECK_INTERVAL == 0 {
+            executor.check_timeout()?;
+        }
+
         let include_row = match evaluator.eval(where_expr, &row)? {
             types::SqlValue::Boolean(true) => true,
             types::SqlValue::Boolean(false) | types::SqlValue::Null => false,
