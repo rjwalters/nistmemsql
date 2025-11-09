@@ -1,8 +1,30 @@
 use crate::errors::ExecutorError;
 use crate::evaluator::CombinedExpressionEvaluator;
 use crate::schema::CombinedSchema;
+use crate::limits::MAX_MEMORY_BYTES;
 
 use super::{combine_rows, FromResult};
+
+/// Maximum number of rows allowed in a join result to prevent memory exhaustion
+/// With average row size of ~100 bytes, this allows up to ~10GB
+const MAX_JOIN_RESULT_ROWS: usize = 100_000_000;
+
+/// Check if a join would exceed memory limits based on estimated result size
+fn check_join_size_limit(left_count: usize, right_count: usize) -> Result<(), ExecutorError> {
+    // Estimate worst-case result size (cartesian product)
+    let estimated_result_rows = left_count.saturating_mul(right_count);
+
+    if estimated_result_rows > MAX_JOIN_RESULT_ROWS {
+        // Estimate memory usage (conservative: 100 bytes per row average)
+        let estimated_bytes = estimated_result_rows.saturating_mul(100);
+        return Err(ExecutorError::MemoryLimitExceeded {
+            used_bytes: estimated_bytes,
+            max_bytes: MAX_MEMORY_BYTES,
+        });
+    }
+
+    Ok(())
+}
 
 /// Nested loop INNER JOIN implementation
 pub(super) fn nested_loop_inner_join(
@@ -11,6 +33,9 @@ pub(super) fn nested_loop_inner_join(
     condition: &Option<ast::Expression>,
     database: &storage::Database,
 ) -> Result<FromResult, ExecutorError> {
+    // Check if join would exceed memory limits before executing
+    check_join_size_limit(left.rows.len(), right.rows.len())?;
+
     // Extract right table name (assume single table for now)
     let right_table_name = right
         .schema
@@ -72,6 +97,9 @@ pub(super) fn nested_loop_left_outer_join(
     condition: &Option<ast::Expression>,
     database: &storage::Database,
 ) -> Result<FromResult, ExecutorError> {
+    // Check if join would exceed memory limits before executing
+    check_join_size_limit(left.rows.len(), right.rows.len())?;
+
     // Extract right table name and schema
     let right_table_name = right
         .schema
@@ -147,6 +175,9 @@ pub(super) fn nested_loop_right_outer_join(
     condition: &Option<ast::Expression>,
     database: &storage::Database,
 ) -> Result<FromResult, ExecutorError> {
+    // Check if join would exceed memory limits before executing
+    check_join_size_limit(left.rows.len(), right.rows.len())?;
+
     // RIGHT OUTER JOIN = LEFT OUTER JOIN with sides swapped
     // Then we need to reorder columns to put left first, right second
 
@@ -192,6 +223,9 @@ pub(super) fn nested_loop_full_outer_join(
     condition: &Option<ast::Expression>,
     database: &storage::Database,
 ) -> Result<FromResult, ExecutorError> {
+    // Check if join would exceed memory limits before executing
+    check_join_size_limit(left.rows.len(), right.rows.len())?;
+
     // Extract right table name and schema
     let right_table_name = right
         .schema
@@ -297,6 +331,9 @@ pub(super) fn nested_loop_cross_join(
             "CROSS JOIN does not support ON clause".to_string(),
         ));
     }
+
+    // Check if cross join would exceed memory limits before executing
+    check_join_size_limit(left.rows.len(), right.rows.len())?;
 
     // Extract right table name and schema
     let right_table_name = right

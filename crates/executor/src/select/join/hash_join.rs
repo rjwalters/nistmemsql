@@ -1,8 +1,27 @@
 use crate::errors::ExecutorError;
 use crate::schema::CombinedSchema;
+use crate::limits::MAX_MEMORY_BYTES;
 use std::collections::HashMap;
 
 use super::{combine_rows, FromResult};
+
+/// Maximum number of rows allowed in a join result to prevent memory exhaustion
+const MAX_JOIN_RESULT_ROWS: usize = 100_000_000;
+
+/// Check if a join would exceed memory limits based on estimated result size
+fn check_join_size_limit(left_count: usize, right_count: usize) -> Result<(), ExecutorError> {
+    let estimated_result_rows = left_count.saturating_mul(right_count);
+
+    if estimated_result_rows > MAX_JOIN_RESULT_ROWS {
+        let estimated_bytes = estimated_result_rows.saturating_mul(100);
+        return Err(ExecutorError::MemoryLimitExceeded {
+            used_bytes: estimated_bytes,
+            max_bytes: MAX_MEMORY_BYTES,
+        });
+    }
+
+    Ok(())
+}
 
 /// Hash join INNER JOIN implementation (optimized for equi-joins)
 ///
@@ -24,6 +43,9 @@ pub(super) fn hash_join_inner(
     left_col_idx: usize,
     right_col_idx: usize,
 ) -> Result<FromResult, ExecutorError> {
+    // Check if join would exceed memory limits before executing
+    check_join_size_limit(left.rows.len(), right.rows.len())?;
+
     // Extract right table name and schema for combining
     let right_table_name = right
         .schema
