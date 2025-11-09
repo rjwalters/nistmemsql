@@ -165,7 +165,7 @@ impl fmt::Display for Time {
         if self.nanosecond == 0 {
             write!(f, "{:02}:{:02}:{:02}", self.hour, self.minute, self.second)
         } else {
-            // Display fractional seconds, trimming trailing zeros
+            // Display fractional seconds, trimming trailing zeros for readability
             let frac = format!("{:09}", self.nanosecond).trim_end_matches('0').to_string();
             write!(f, "{:02}:{:02}:{:02}.{}", self.hour, self.minute, self.second, frac)
         }
