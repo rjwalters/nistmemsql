@@ -73,7 +73,8 @@ impl MetaCommand {
 
                 let table = parts[1].to_string();
                 let direction_str = parts[2];
-                let file_path = parts[3..].join(" ").trim_matches('\'').trim_matches('"').to_string();
+                let file_path =
+                    parts[3..].join(" ").trim_matches('\'').trim_matches('"').to_string();
 
                 let direction = match direction_str.to_uppercase().as_str() {
                     "TO" => CopyDirection::Export,
@@ -175,7 +176,8 @@ mod tests {
     #[test]
     fn test_parse_copy_export_csv() {
         if let Some(MetaCommand::Copy { table, file_path, direction, format }) =
-            MetaCommand::parse("\\copy users TO '/tmp/users.csv'") {
+            MetaCommand::parse("\\copy users TO '/tmp/users.csv'")
+        {
             assert_eq!(table, "users");
             assert_eq!(file_path, "/tmp/users.csv");
             assert!(matches!(direction, CopyDirection::Export));
@@ -188,7 +190,8 @@ mod tests {
     #[test]
     fn test_parse_copy_import_csv() {
         if let Some(MetaCommand::Copy { table, file_path, direction, format }) =
-            MetaCommand::parse("\\copy users FROM '/tmp/users.csv'") {
+            MetaCommand::parse("\\copy users FROM '/tmp/users.csv'")
+        {
             assert_eq!(table, "users");
             assert_eq!(file_path, "/tmp/users.csv");
             assert!(matches!(direction, CopyDirection::Import));
@@ -201,7 +204,8 @@ mod tests {
     #[test]
     fn test_parse_copy_export_json() {
         if let Some(MetaCommand::Copy { table, file_path, direction, format }) =
-            MetaCommand::parse("\\copy users TO /tmp/users.json") {
+            MetaCommand::parse("\\copy users TO /tmp/users.json")
+        {
             assert_eq!(table, "users");
             assert_eq!(file_path, "/tmp/users.json");
             assert!(matches!(direction, CopyDirection::Export));

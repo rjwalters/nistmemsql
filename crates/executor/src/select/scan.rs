@@ -314,7 +314,8 @@ fn apply_table_local_predicates(
         .map_err(|e| ExecutorError::InvalidWhereClause(e))?;
 
     // Extract predicates that can be applied to this table
-    let table_local_preds = decomposition.table_local_predicates.get(table_name);
+    let table_local_preds: Option<&Vec<ast::Expression>> =
+        decomposition.table_local_predicates.get(table_name);
 
     // If there are table-local predicates, apply them
     if let Some(preds) = table_local_preds {

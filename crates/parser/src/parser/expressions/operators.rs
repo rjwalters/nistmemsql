@@ -115,7 +115,9 @@ impl Parser {
                     // SQL standard requires at least one value in IN list
                     if values.is_empty() {
                         return Err(ParseError {
-                            message: "IN list cannot be empty - SQL standard requires at least one value".to_string(),
+                            message:
+                                "IN list cannot be empty - SQL standard requires at least one value"
+                                    .to_string(),
                         });
                     }
 
@@ -196,7 +198,9 @@ impl Parser {
                 // SQL standard requires at least one value in IN list
                 if values.is_empty() {
                     return Err(ParseError {
-                        message: "IN list cannot be empty - SQL standard requires at least one value".to_string(),
+                        message:
+                            "IN list cannot be empty - SQL standard requires at least one value"
+                                .to_string(),
                     });
                 }
 

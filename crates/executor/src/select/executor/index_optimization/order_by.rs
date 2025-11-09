@@ -1,12 +1,15 @@
 //! Index-based ORDER BY optimization
 
-use crate::errors::ExecutorError;
-use crate::schema::CombinedSchema;
-use crate::select::order::RowWithSortKeys;
-use crate::select::grouping::compare_sql_values;
+use std::collections::HashMap;
+
 use storage::database::{Database, IndexData};
 use types::SqlValue;
-use std::collections::HashMap;
+
+use crate::{
+    errors::ExecutorError,
+    schema::CombinedSchema,
+    select::{grouping::compare_sql_values, order::RowWithSortKeys},
+};
 
 /// Try to use an index for ORDER BY optimization
 /// Returns ordered rows if an index can be used, None otherwise
@@ -45,7 +48,8 @@ pub(in crate::select::executor) fn try_index_based_ordering(
     };
 
     // Find an index on this table and column
-    let index_name = find_index_for_ordering(database, &table_name, column_name, order_item.direction.clone())?;
+    let index_name =
+        find_index_for_ordering(database, &table_name, column_name, order_item.direction.clone())?;
     if index_name.is_none() {
         return Ok(None);
     }
@@ -59,10 +63,8 @@ pub(in crate::select::executor) fn try_index_based_ordering(
         if let Some(table) = database.get_table(&qualified_table_name) {
             if let Some(pk_index) = table.primary_key_index() {
                 // Convert to IndexData format (HashMap)
-                let data: HashMap<Vec<SqlValue>, Vec<usize>> = pk_index
-                    .iter()
-                    .map(|(key, &row_idx)| (key.clone(), vec![row_idx]))
-                    .collect();
+                let data: HashMap<Vec<SqlValue>, Vec<usize>> =
+                    pk_index.iter().map(|(key, &row_idx)| (key.clone(), vec![row_idx])).collect();
                 IndexData { data }
             } else {
                 return Ok(None);
@@ -91,9 +93,8 @@ pub(in crate::select::executor) fn try_index_based_ordering(
 
     // All rows are included, we can use the index directly
     // Convert HashMap to Vec and sort for consistent ordering
-    let mut data_vec: Vec<(Vec<SqlValue>, Vec<usize>)> = index_data.data.iter()
-        .map(|(k, v)| (k.clone(), v.clone()))
-        .collect();
+    let mut data_vec: Vec<(Vec<SqlValue>, Vec<usize>)> =
+        index_data.data.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
 
     // Sort by key
     data_vec.sort_by(|(a, _), (b, _)| {
@@ -139,7 +140,8 @@ pub(in crate::select::executor) fn find_index_for_ordering(
             if metadata.table_name == table_name
                 && metadata.columns.len() == 1
                 && metadata.columns[0].column_name == column_name
-                && metadata.columns[0].direction == direction {
+                && metadata.columns[0].direction == direction
+            {
                 return Ok(Some(index_name));
             }
         }
