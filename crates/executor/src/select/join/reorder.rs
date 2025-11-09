@@ -28,6 +28,8 @@
 //! Result: 10-row intermediates maximum (much better memory usage)
 //! ```
 
+#![allow(dead_code)]
+
 use std::collections::{HashMap, HashSet};
 use ast::{BinaryOperator, Expression};
 use std::cmp::Ordering;
@@ -305,6 +307,7 @@ impl JoinOrderAnalyzer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use types::SqlValue;
 
     #[test]
     fn test_join_edge_involvement() {

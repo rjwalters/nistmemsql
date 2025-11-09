@@ -105,13 +105,14 @@ pub(super) fn nested_loop_join(
     // Try to use hash join for INNER JOINs with simple equi-join conditions
     if let ast::JoinType::Inner = join_type {
         // Get column count and right table info once for analysis
-        let left_col_count = left
+        // IMPORTANT: Sum up columns from ALL tables in the left schema,
+        // not just the first table, to handle accumulated multi-table joins
+        let left_col_count: usize = left
             .schema
             .table_schemas
             .values()
-            .next()
             .map(|(_, schema)| schema.columns.len())
-            .unwrap_or(0);
+            .sum();
 
         let right_table_name = right
             .schema
