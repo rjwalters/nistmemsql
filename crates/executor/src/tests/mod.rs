@@ -37,6 +37,7 @@ mod between_predicates;
 mod case_bug;
 mod comparison_ops;
 mod count_star_fast_path;
+mod create_table_constraints;
 mod error_display;
 mod expression_eval;
 mod issue_938_integer_type_preservation;
