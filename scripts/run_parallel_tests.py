@@ -150,11 +150,13 @@ def run_worker(
                 text=True,
             )
 
-        # Copy analysis results if they exist
-        target_analysis = repo_root / "target" / "sqllogictest_analysis.json"
+        # Copy analysis results if they exist (worker writes to worker-specific file)
+        target_analysis = repo_root / "target" / f"sqllogictest_results_worker_{worker_id}.json"
         if target_analysis.exists():
             import shutil
             shutil.copy(target_analysis, analysis_file)
+        else:
+            print(f"Warning: Worker {worker_id} did not produce results file: {target_analysis}", flush=True)
 
         return result.returncode
 

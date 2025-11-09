@@ -332,9 +332,16 @@ fn main() {
     // Ensure target directory exists
     fs::create_dir_all("target").ok();
 
+    // Determine output filename - use worker-specific name if in parallel mode
+    let output_file = if let Ok(worker_id) = env::var("SQLLOGICTEST_WORKER_ID") {
+        format!("target/sqllogictest_results_worker_{}.json", worker_id)
+    } else {
+        "target/sqllogictest_results.json".to_string()
+    };
+
     // Write JSON results
-    if let Ok(mut file) = fs::File::create("target/sqllogictest_results.json") {
+    if let Ok(mut file) = fs::File::create(&output_file) {
         let _ = file.write_all(serde_json::to_string_pretty(&results_json).unwrap().as_bytes());
-        println!("\n✓ Results written to target/sqllogictest_results.json");
+        println!("\n✓ Results written to {}", output_file);
     }
 }
