@@ -175,7 +175,7 @@ if $DO_SYNC; then
 
     # Rebuild on remote
     print_info "Rebuilding on remote..."
-    ssh "$REMOTE_HOST" "cd ~/$REMOTE_REPO_PATH && cargo build --release --test sqllogictest_suite"
+    ssh "$REMOTE_HOST" "source ~/.cargo/env && cd ~/$REMOTE_REPO_PATH && cargo build --release --test sqllogictest_suite"
 
     print_success "Sync complete"
 fi
@@ -245,6 +245,11 @@ echo ""
 # Run the test suite
 ssh "$REMOTE_HOST" bash << EOF
 set -euo pipefail
+
+# Source cargo environment
+if [ -f ~/.cargo/env ]; then
+    source ~/.cargo/env
+fi
 
 cd ~/$REMOTE_REPO_PATH
 
