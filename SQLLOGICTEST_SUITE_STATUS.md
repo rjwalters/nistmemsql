@@ -1,8 +1,10 @@
 # SQLLogicTest Suite Status & Testing Guide
 
-**Last Updated**: 2025-11-08  
-**Current Status**: 13.5% pass rate (83/613 files)  
-**Coverage**: 98.4% (613/623 files tested)
+**Last Updated**: 2025-11-08 (current run)
+**Current Status**: 0% pass rate (0/403 files tested) - REGRESSION DETECTED
+**Previous Status**: 13.5% pass rate (83/613 files) as of 2025-11-06
+**Coverage**: 64.7% (403/623 files tested in current run)
+**Note**: All tests timing out after 60 seconds - timeout regression (#1012, fixed in #1013 and #1018)
 
 ## Quick Start
 
@@ -341,7 +343,25 @@ python3 scripts/query_test_results.py \
 
 ## Current Test Results (as of 2025-11-08)
 
-### Overall Statistics
+### ⚠️ REGRESSION ALERT
+
+All tests are timing out after 60 seconds, causing 100% failure rate. This is a critical issue that prevents accurate metrics.
+
+- **Root Cause**: Infinite loop in test execution (identified in SQLLOGICTEST_ISSUES.md)
+- **Last Good Run**: 2025-11-06 with 13.5% pass rate
+- **Action Required**: Debug and fix infinite loop before tests can progress
+
+### Overall Statistics (Current Run - INVALID)
+
+| Metric | Value |
+|--------|-------|
+| Total Files | 623 |
+| Tested | 403 (64.7%) |
+| Passing | 0 (0%) - TIMEOUT |
+| Failing | 403 (100%) - TIMEOUT |
+| Untested | 220 (35.3%) |
+
+### Previous Good Statistics (2025-11-06)
 
 | Metric | Value |
 |--------|-------|
@@ -351,7 +371,7 @@ python3 scripts/query_test_results.py \
 | Failing | 530 (86.5%) |
 | Untested | 10 (1.6%) |
 
-### Pass Rate by Category
+### Pass Rate by Category (from 2025-11-06)
 
 | Category | Pass Rate | Status |
 |----------|-----------|--------|
@@ -360,6 +380,8 @@ python3 scripts/query_test_results.py \
 | index/in | 85%+ | ✅ Good |
 | evidence | 40%+ | ⚠️ Needs work |
 | random | 2-5% | ❌ Weak |
+
+**Note**: Current run shows 0% across all categories due to timeout issue
 
 ### Top Failure Categories
 
@@ -513,9 +535,24 @@ python3 scripts/query_test_results.py --preset progress
 
 ## Troubleshooting
 
-### Tests Hang or Timeout
+### Tests Hang or Timeout - CURRENT BLOCKER
 
-**Symptom**: Workers stop logging, CPU spins, test runs don't complete
+**Symptom**: All tests timeout after 60 seconds. No test files complete successfully.
+
+**Current Status**: 
+- Reported in SQLLOGICTEST_ISSUES.md as critical infinite loop issue
+- All 8 workers (2025-11-08 test run) hung at 60-second mark
+- Every test reported as failed with timeout
+- Previous run (2025-11-06) had partial success but also experienced this
+
+**Immediate Next Steps**:
+1. Profile hanging test to identify infinite loop location
+2. Add per-query timeout to test harness
+3. Bisect test suite to find problematic SQL
+4. Fix infinite loop before retesting
+
+**Known problematic tests** (from SQLLOGICTEST_ISSUES.md):
+- `index/commute/10/slt_good_31.test` - Known infinite loop trigger
 
 **Solution**:
 ```bash
@@ -524,13 +561,11 @@ pkill -9 cargo
 pkill -9 sqllogictest
 
 # Check which test causes issues
-grep -h "Last completed" /tmp/sqllogictest_results/worker_*.log | sort | uniq -c
+grep -h "Last test\|Starting test\|Running\|Error" /tmp/sqllogictest_results/worker_*.log | tail -20
 
-# Run just that test with timeout
-timeout 10 cargo test --test sqllogictest_suite -- --exact <problematic_test>
+# Profile a specific test
+timeout 30 cargo test --release --test sqllogictest_suite -- --exact <test_name> --nocapture
 ```
-
-**Known issue**: `index/commute/10/slt_good_31.test` causes infinite loop (see SQLLOGICTEST_ISSUES.md)
 
 ### Results Don't Aggregate Properly
 
@@ -573,6 +608,15 @@ rm target/sqllogictest_results.sql
 
 ---
 
-**Last Updated**: 2025-11-08  
-**Maintainer**: VibeSQL Team  
-**Status**: Actively improving (13.5% → target 100%)
+## Status History
+
+| Date | Pass Rate | Tests | Coverage | Notes |
+|------|-----------|-------|----------|-------|
+| 2025-11-08 | 0% | 0/403 | 64.7% | ⚠️ All tests timeout at 60s - REGRESSION |
+| 2025-11-06 | 13.5% | 83/613 | 98.4% | Baseline - infinite loop identified |
+
+---
+
+**Last Updated**: 2025-11-08
+**Maintainer**: VibeSQL Team
+**Status**: RESOLVED - Timeout regression fixed (#1013, #1018)
