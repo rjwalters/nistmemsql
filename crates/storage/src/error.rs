@@ -16,6 +16,7 @@ pub enum StorageError {
     NullConstraintViolation { column: String },
     TypeMismatch { column: String, expected: String, actual: String },
     NotImplemented(String),
+    IoError(String),
 }
 
 impl std::fmt::Display for StorageError {
@@ -47,6 +48,7 @@ impl std::fmt::Display for StorageError {
                 )
             }
             StorageError::NotImplemented(msg) => write!(f, "Not implemented: {}", msg),
+            StorageError::IoError(msg) => write!(f, "I/O error: {}", msg),
         }
     }
 }
