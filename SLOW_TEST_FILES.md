@@ -1,0 +1,94 @@
+# Slow/Stuck Test Files
+
+## Issue
+During parallel testing with 64 workers, several workers get stuck at 100% CPU on specific test files. These files appear to contain queries that either infinite loop or are extremely inefficient.
+
+## Identified Problem Files
+
+Based on remote testing run (2025-11-09):
+
+1. **`select5.test`** - Worker 2
+   - Symptoms: Repeated memory warnings (6.48 GB)
+   - Status: Stuck in infinite loop or extremely inefficient query
+   - Priority: **HIGH** - This is one of the core select tests
+
+2. **`random/expr/slt_good_73.test`** - Worker 3
+   - Status: Still running after other workers completed
+   - Type: Random expression test
+
+3. **`index/commute/10/slt_good_34.test`** - Worker 4
+   - Status: Still running
+   - Type: Index commutative property test
+
+4. **`index/random/100/slt_good_0.test`** - Worker 5
+   - Status: Still running
+   - Type: Random index test (large dataset - 100 rows)
+
+5. **`index/between/100/slt_good_2.test`** - Worker 6
+   - Status: Still running
+   - Type: BETWEEN operator test (large dataset - 100 rows)
+
+## Pattern Analysis
+
+**Common characteristics:**
+- Most are index-related tests (4 out of 5)
+- Several involve larger datasets (100 rows vs. 10 rows)
+- Memory usage warnings on select5.test suggest unbounded growth
+
+**Test categories affected:**
+- Core SELECT tests (select5.test) - Critical
+- Index tests - Multiple files
+- Random expression tests - At least one file
+
+## Recommended Actions
+
+### Short-term (Immediate)
+1. **Add query timeout enforcement** at the query level (not just file level) - **Issue #1037**
+2. **Skip known slow files** - Add to a blocklist temporarily
+3. **Reduce time budget** for remote testing to avoid wasting compute
+
+### Medium-term (Investigation)
+1. **Profile select5.test** - Identify specific query causing infinite loop
+2. **Review index test implementation** - Check for O(n²) or worse algorithms
+3. **Add memory limits** - Kill queries exceeding reasonable memory usage
+4. **Optimize expression evaluator** - Improve performance for nested CASE/NULLIF/COALESCE - **Issue #1038**
+
+### Long-term (Fix Root Cause)
+1. **Fix the underlying query execution issues** causing infinite loops
+2. **Optimize index operations** to handle larger datasets efficiently
+3. **Implement progressive timeout** - Queries should timeout faster on subsequent attempts
+
+## Query Timeout Status
+
+Current implementation has:
+- ✅ File-level timeout (enforced via executor limits)
+- ✅ Time budget check between files
+- ⚠️ **Missing**: Query-level timeout within a file
+
+This explains why workers get stuck on individual queries within a file.
+
+## Testing Impact
+
+With 5 workers stuck out of 64:
+- **Efficiency loss**: ~8% of compute wasted
+- **Time impact**: Tests still complete (queue empties), but workers hang
+- **Resource waste**: 5 cores at 100% indefinitely
+
+## Files for Further Investigation
+
+Priority order:
+1. `select5.test` - Core functionality, memory issues
+2. `random/expr/slt_good_73.test` - **INVESTIGATED** - 15,779 complex expression queries (see #1037, #1038)
+3. `index/random/100/slt_good_0.test` - Large dataset index test
+4. `index/between/100/slt_good_2.test` - Large dataset BETWEEN test
+5. `index/commute/10/slt_good_34.test` - Commutative property test
+
+### Investigation Results
+
+**`random/expr/slt_good_73.test`** (Nov 2025):
+- **Root cause**: Volume (15,779 queries) + complexity (681-char nested CASE expressions)
+- **Not an infinite loop**: Just extremely slow expression evaluation
+- **Estimated runtime**: 20-30 minutes without query-level timeouts
+- **Key insight**: Missing query-level timeout allows workers to appear hung
+- **Solution**: See issues #1037 (timeouts) and #1038 (performance optimization)
+- **Details**: `/tmp/slow_query_investigation/ANALYSIS.md`
