@@ -7,7 +7,7 @@ use types::SqlValue;
 
 #[test]
 fn test_create_select_statement() {
-    let stmt = Statement::Select(SelectStmt {
+    let stmt = Statement::Select(Box::new(SelectStmt {
         with_clause: None,
         distinct: false,
         select_list: vec![SelectItem::Wildcard { alias: None }],
@@ -20,7 +20,7 @@ fn test_create_select_statement() {
         limit: None,
         offset: None,
         set_operation: None,
-    });
+    }));
 
     match stmt {
         Statement::Select(_) => {} // Success

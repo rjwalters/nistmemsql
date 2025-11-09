@@ -10,4 +10,9 @@ pub mod where_pushdown;
 mod tests;
 
 pub use expressions::*;
+pub use where_pushdown::{
+    decompose_where_predicates, get_table_local_predicates,
+    get_equijoin_predicates, combine_with_and, get_predicates_for_tables,
+};
+// Also export branch-specific types for join reordering
 pub use where_pushdown::{decompose_where_clause, PredicateDecomposition, PredicateCategory};

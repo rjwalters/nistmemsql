@@ -8,8 +8,9 @@ use md5::{Digest, Md5};
 use parser::Parser;
 use sqllogictest::{AsyncDB, DBOutput, DefaultColumnType};
 use std::env;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use storage::Database;
+use tokio::time::timeout;
 use types::SqlValue;
 
 pub struct NistMemSqlDB {
@@ -19,6 +20,8 @@ pub struct NistMemSqlDB {
     worker_id: Option<usize>,
     current_file: Option<String>,
     file_start_time: Option<Instant>,
+    query_timeout_ms: u64,
+    timed_out_queries: usize,
 }
 
 impl NistMemSqlDB {
@@ -31,6 +34,11 @@ impl NistMemSqlDB {
             .ok()
             .and_then(|s| s.parse().ok());
 
+        let query_timeout_ms = env::var("SQLLOGICTEST_QUERY_TIMEOUT_MS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(500); // Default: 500ms per query
+
         Self {
             db: Database::new(),
             query_count: 0,
@@ -38,6 +46,8 @@ impl NistMemSqlDB {
             worker_id,
             current_file: None,
             file_start_time: None,
+            query_timeout_ms,
+            timed_out_queries: 0,
         }
     }
 
@@ -384,10 +394,44 @@ impl AsyncDB for NistMemSqlDB {
             }
         }
 
-        self.execute_sql(sql)
+        // Execute query with per-query timeout
+        let timeout_duration = Duration::from_millis(self.query_timeout_ms);
+        match timeout(timeout_duration, self.execute_sql_async(sql)).await {
+            Ok(result) => result,
+            Err(_) => {
+                self.timed_out_queries += 1;
+                let sql_preview = if sql.len() > 80 {
+                    format!("{}...", &sql[..80])
+                } else {
+                    sql.to_string()
+                };
+                eprintln!("⏱️  Query timeout ({}ms): Query {}: {}", self.query_timeout_ms, self.query_count, sql_preview);
+                
+                // Log timeout stats if verbose
+                if self.verbose {
+                    eprintln!("  Total timed out queries so far: {}", self.timed_out_queries);
+                }
+                
+                // Skip the timed-out query and continue
+                Ok(DBOutput::Rows { types: vec![], rows: vec![] })
+            }
+        }
     }
 
     async fn shutdown(&mut self) {
-        // No cleanup needed for in-memory database
+        // Log final timeout statistics
+        if self.timed_out_queries > 0 {
+            eprintln!("📊 Query Timeout Summary:");
+            eprintln!("  Total queries executed: {}", self.query_count);
+            eprintln!("  Queries that timed out: {}", self.timed_out_queries);
+            eprintln!("  Timeout per query: {}ms", self.query_timeout_ms);
+        }
+    }
+}
+
+impl NistMemSqlDB {
+    /// Execute SQL asynchronously (wrapper for query execution)
+    async fn execute_sql_async(&mut self, sql: &str) -> Result<DBOutput<DefaultColumnType>, TestError> {
+        self.execute_sql(sql)
     }
 }

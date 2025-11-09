@@ -10,9 +10,19 @@ use super::{combine_rows, FromResult};
 const MAX_JOIN_RESULT_ROWS: usize = 100_000_000;
 
 /// Check if a join would exceed memory limits based on estimated result size
-fn check_join_size_limit(left_count: usize, right_count: usize) -> Result<(), ExecutorError> {
-    // Estimate worst-case result size (cartesian product)
-    let estimated_result_rows = left_count.saturating_mul(right_count);
+/// Accounts for join selectivity when equijoin conditions are present
+fn check_join_size_limit(left_count: usize, right_count: usize, condition: &Option<ast::Expression>) -> Result<(), ExecutorError> {
+    // Estimate result size based on join condition type
+    let estimated_result_rows = if is_equijoin_condition(condition) {
+        // For equijoins (a.col = b.col), estimate based on join selectivity
+        // With equijoins on indexed columns, expect 1:1 or 1:N selectivity
+        // Conservative estimate: use the size of the larger input
+        // This prevents exponential blowup in cascading joins
+        std::cmp::max(left_count, right_count)
+    } else {
+        // For non-equijoin or missing condition, assume cartesian product
+        left_count.saturating_mul(right_count)
+    };
 
     if estimated_result_rows > MAX_JOIN_RESULT_ROWS {
         // Estimate memory usage (conservative: 100 bytes per row average)
@@ -26,6 +36,21 @@ fn check_join_size_limit(left_count: usize, right_count: usize) -> Result<(), Ex
     Ok(())
 }
 
+/// Check if a condition is a simple equijoin (a.col = b.col)
+fn is_equijoin_condition(condition: &Option<ast::Expression>) -> bool {
+    match condition {
+        Some(ast::Expression::BinaryOp { op: ast::BinaryOperator::Equal, .. }) => true,
+        Some(ast::Expression::BinaryOp { op: ast::BinaryOperator::And, left, right }) => {
+            // For AND conditions, check if at least one is an equijoin
+            is_equijoin_condition(&Some(left.as_ref().clone())) || 
+            is_equijoin_condition(&Some(right.as_ref().clone()))
+        }
+        _ => false,
+    }
+}
+
+
+
 /// Nested loop INNER JOIN implementation
 pub(super) fn nested_loop_inner_join(
     left: FromResult,
@@ -34,7 +59,7 @@ pub(super) fn nested_loop_inner_join(
     database: &storage::Database,
 ) -> Result<FromResult, ExecutorError> {
     // Check if join would exceed memory limits before executing
-    check_join_size_limit(left.rows.len(), right.rows.len())?;
+    check_join_size_limit(left.rows.len(), right.rows.len(), condition)?;
 
     // Extract right table name (assume single table for now)
     let right_table_name = right
@@ -54,7 +79,7 @@ pub(super) fn nested_loop_inner_join(
         .clone();
 
     // Combine schemas
-    let combined_schema = CombinedSchema::combine(left.schema, right_table_name, right_schema);
+    let combined_schema = CombinedSchema::combine(left.schema.clone(), right_table_name, right_schema);
     let evaluator = CombinedExpressionEvaluator::with_database(&combined_schema, database);
 
     // Nested loop join algorithm
@@ -98,7 +123,7 @@ pub(super) fn nested_loop_left_outer_join(
     database: &storage::Database,
 ) -> Result<FromResult, ExecutorError> {
     // Check if join would exceed memory limits before executing
-    check_join_size_limit(left.rows.len(), right.rows.len())?;
+    check_join_size_limit(left.rows.len(), right.rows.len(), condition)?;
 
     // Extract right table name and schema
     let right_table_name = right
@@ -176,7 +201,7 @@ pub(super) fn nested_loop_right_outer_join(
     database: &storage::Database,
 ) -> Result<FromResult, ExecutorError> {
     // Check if join would exceed memory limits before executing
-    check_join_size_limit(left.rows.len(), right.rows.len())?;
+    check_join_size_limit(left.rows.len(), right.rows.len(), condition)?;
 
     // RIGHT OUTER JOIN = LEFT OUTER JOIN with sides swapped
     // Then we need to reorder columns to put left first, right second
@@ -224,7 +249,7 @@ pub(super) fn nested_loop_full_outer_join(
     database: &storage::Database,
 ) -> Result<FromResult, ExecutorError> {
     // Check if join would exceed memory limits before executing
-    check_join_size_limit(left.rows.len(), right.rows.len())?;
+    check_join_size_limit(left.rows.len(), right.rows.len(), condition)?;
 
     // Extract right table name and schema
     let right_table_name = right
@@ -333,7 +358,7 @@ pub(super) fn nested_loop_cross_join(
     }
 
     // Check if cross join would exceed memory limits before executing
-    check_join_size_limit(left.rows.len(), right.rows.len())?;
+    check_join_size_limit(left.rows.len(), right.rows.len(), condition)?;
 
     // Extract right table name and schema
     let right_table_name = right

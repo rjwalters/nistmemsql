@@ -68,22 +68,27 @@ impl SelectExecutor<'_> {
             index_filtered
         } else {
             // Fall back to full WHERE clause evaluation
-        let where_optimization = optimize_where_clause(stmt.where_clause.as_ref(), &evaluator)?;
+            // Note: Table-local predicates have already been pushed down and applied during table scan.
+            // However, we still apply the full WHERE clause here for correctness with JOINs
+            // and complex predicates that can't be pushed down.
+            // The table-local predicates being applied twice is safe (same result) but not optimal.
+            // TODO: In Phase 3, extract and remove table-local predicates here to avoid double filtering
+            let where_optimization = optimize_where_clause(stmt.where_clause.as_ref(), &evaluator)?;
 
-        match where_optimization {
-            crate::optimizer::WhereOptimization::AlwaysTrue => {
-                // WHERE TRUE - no filtering needed
-            rows
-        }
-            crate::optimizer::WhereOptimization::AlwaysFalse => {
-                // WHERE FALSE - return empty result
-            Vec::new()
-        }
-            crate::optimizer::WhereOptimization::Optimized(ref expr) => {
-                // Apply optimized WHERE clause
-            apply_where_filter_combined(rows, Some(expr), &evaluator, self)?
-        }
-            crate::optimizer::WhereOptimization::Unchanged(where_expr) => {
+            match where_optimization {
+                crate::optimizer::WhereOptimization::AlwaysTrue => {
+                    // WHERE TRUE - no filtering needed
+                    rows
+                }
+                crate::optimizer::WhereOptimization::AlwaysFalse => {
+                    // WHERE FALSE - return empty result
+                    Vec::new()
+                }
+                crate::optimizer::WhereOptimization::Optimized(ref expr) => {
+                    // Apply optimized WHERE clause
+                    apply_where_filter_combined(rows, Some(expr), &evaluator, self)?
+                }
+                crate::optimizer::WhereOptimization::Unchanged(where_expr) => {
                     // Apply original WHERE clause
                     apply_where_filter_combined(rows, where_expr.as_ref(), &evaluator, self)?
                 }

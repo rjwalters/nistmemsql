@@ -2,7 +2,6 @@
 
 use super::builder::SelectExecutor;
 use crate::errors::ExecutorError;
-use crate::optimizer::PredicateDecomposition;
 use crate::select::cte::{execute_ctes, CteResult};
 use crate::select::helpers::apply_limit_offset;
 use crate::select::join::FromResult;
@@ -74,28 +73,8 @@ impl SelectExecutor<'_> {
         let mut results = if has_aggregates || has_group_by {
             self.execute_with_aggregation(stmt, cte_results)?
         } else if let Some(from_clause) = &stmt.from {
-            // For non-aggregated queries, decompose WHERE predicates to enable pushdown optimization
-            let predicates = if let Some(where_expr) = &stmt.where_clause {
-                use crate::optimizer::decompose_where_clause;
-                // Create a dummy schema for initial predicate decomposition
-                // The real schema will be built during FROM execution
-                let dummy_schema = crate::schema::CombinedSchema {
-                    table_schemas: HashMap::new(),
-                    total_columns: 0,
-                };
-                match decompose_where_clause(Some(where_expr), &dummy_schema) {
-                    Ok(decomp) => Some(decomp),
-                    Err(_) => None, // If decomposition fails, continue without optimization
-                }
-            } else {
-                None
-            };
-            
-            let from_result = if let Some(ref pred) = predicates {
-                self.execute_from_with_predicates(from_clause, &cte_results, Some(pred))?
-            } else {
-                self.execute_from(from_clause, &cte_results)?
-            };
+            // Pass WHERE clause to execute_from for predicate pushdown optimization
+            let from_result = self.execute_from_with_where(from_clause, cte_results, stmt.where_clause.as_ref())?;
             self.execute_without_aggregation(stmt, from_result)?
         } else {
             // SELECT without FROM - evaluate expressions as a single row
@@ -123,46 +102,18 @@ impl SelectExecutor<'_> {
         from: &ast::FromClause,
         cte_results: &HashMap<String, CteResult>,
     ) -> Result<FromResult, ExecutorError> {
-        self.execute_from_with_predicates(from, cte_results, None)
+        use crate::select::scan::execute_from_clause;
+        execute_from_clause(from, cte_results, self.database, None, |query| self.execute(query))
     }
 
-    /// Execute a FROM clause with optional WHERE predicate pushdown
-    pub(super) fn execute_from_with_predicates(
+    /// Execute a FROM clause with WHERE clause for predicate pushdown
+    pub(super) fn execute_from_with_where(
         &self,
         from: &ast::FromClause,
         cte_results: &HashMap<String, CteResult>,
-        predicates: Option<&PredicateDecomposition>,
+        where_clause: Option<&ast::Expression>,
     ) -> Result<FromResult, ExecutorError> {
-        use crate::select::scan::execute_from_clause_with_predicates;
-        use crate::select::join_reorder_wrapper::{extract_join_info, find_optimal_join_order, JoinReorderConfig};
-        use crate::select::join_executor::JoinReorderingSpec;
-
-        // Analyze join opportunities for reordering
-        let mut reorder_spec: Option<JoinReorderingSpec> = None;
-        
-        if let Some((tables, _)) = extract_join_info(from, predicates) {
-            if tables.len() >= 3 {
-                let config = JoinReorderConfig::default();
-                let stats = find_optimal_join_order(&config, &tables, predicates);
-                
-                // Log optimization opportunities (disabled by default, enable for debugging)
-                if std::env::var("VIBESQL_DEBUG_JOIN_REORDER").is_ok() {
-                    eprintln!("[DEBUG] Join optimization opportunity detected:");
-                    eprintln!("  Tables: {}", tables.join(", "));
-                    eprintln!("  Table count: {}", stats.table_count);
-                    if stats.differs_from_leftright {
-                        eprintln!("  Better order found: {:?}", stats.optimal_order);
-                    }
-                }
-                
-                // If we found a better order, prepare to apply it
-                if stats.differs_from_leftright && !stats.optimal_order.is_empty() {
-                    reorder_spec = Some(JoinReorderingSpec::new(stats.optimal_order));
-                }
-            }
-        }
-
-        // Execute with optional reordering
-        execute_from_clause_with_predicates(from, cte_results, self.database, |query| self.execute(query), predicates, reorder_spec.as_ref())
+        use crate::select::scan::execute_from_clause;
+        execute_from_clause(from, cte_results, self.database, where_clause, |query| self.execute(query))
     }
 }

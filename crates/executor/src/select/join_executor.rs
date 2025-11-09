@@ -240,7 +240,8 @@ where
         // For now, use INNER JOIN (could be configurable)
         let join_type = ast::JoinType::Inner;
 
-        result = match nested_loop_join(result, next_result, &join_type, &join_condition, database) {
+        // nested_loop_join now requires additional_equijoins parameter (empty for reordered joins)
+        result = match nested_loop_join(result, next_result, &join_type, &join_condition, database, &[]) {
             Ok(r) => r,
             Err(e) => return Some(Err(e)),
         };

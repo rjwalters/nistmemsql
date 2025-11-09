@@ -18,7 +18,7 @@
 //! ((((((((((t1 JOIN t2) JOIN t3) JOIN t4) ... JOIN t10)
 //!
 //! Result: 90-row intermediates at each step (9 rows × 10 rows before equijoin filter)
-//! 
+//!
 //! Optimal order (with selectivity awareness):
 //! Start with most selective: t1 (filtered to ~1 row by a1=5)
 //! Then: t1 JOIN t2 (1 × 10 = 10 intermediate, filtered to ~1 by a1=b2)

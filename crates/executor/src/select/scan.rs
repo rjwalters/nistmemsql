@@ -4,13 +4,15 @@
 //! - Table scans (regular tables and CTEs)
 //! - JOIN operations (delegates to join module)
 //! - Derived tables (subqueries)
+//! - Predicate pushdown for WHERE clause optimization
 
 use std::collections::HashMap;
 
 use crate::errors::ExecutorError;
 use crate::privilege_checker::PrivilegeChecker;
 use crate::schema::CombinedSchema;
-use crate::optimizer::PredicateDecomposition;
+use crate::evaluator::CombinedExpressionEvaluator;
+use crate::optimizer::{decompose_where_predicates, get_table_local_predicates, get_equijoin_predicates, combine_with_and, get_predicates_for_tables};
 
 use super::cte::CteResult;
 use super::join::{nested_loop_join, FromResult};
@@ -22,58 +24,27 @@ use super::join::{nested_loop_join, FromResult};
 /// - CTEs (Common Table Expressions)
 /// - JOIN operations (INNER, LEFT, RIGHT, FULL)
 /// - Derived tables (subqueries with alias)
+///
+/// The WHERE clause is passed for predicate pushdown optimization:
+/// - Table-local predicates are applied during table scan
+/// - Equijoin predicates can be pushed into join operations
+/// - Complex predicates remain in post-join WHERE
 pub(super) fn execute_from_clause<F>(
     from: &ast::FromClause,
     cte_results: &HashMap<String, CteResult>,
     database: &storage::Database,
+    where_clause: Option<&ast::Expression>,
     execute_subquery: F,
-) -> Result<FromResult, ExecutorError>
-where
-    F: Fn(&ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> + Copy,
-{
-    execute_from_clause_with_predicates(
-        from,
-        cte_results,
-        database,
-        execute_subquery,
-        None,
-        None,
-    )
-}
-
-/// Execute a FROM clause with WHERE clause predicate pushdown
-///
-/// This version accepts optional WHERE predicates that can be pushed down:
-/// - Table-local predicates are applied during table scans
-/// - Equijoin conditions are used during JOIN operations
-/// - Complex predicates are deferred to post-join filtering
-pub(super) fn execute_from_clause_with_predicates<F>(
-    from: &ast::FromClause,
-    cte_results: &HashMap<String, CteResult>,
-    database: &storage::Database,
-    execute_subquery: F,
-    predicates: Option<&PredicateDecomposition>,
-    reorder_spec: Option<&super::join_executor::JoinReorderingSpec>,
 ) -> Result<FromResult, ExecutorError>
 where
     F: Fn(&ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> + Copy,
 {
     match from {
         ast::FromClause::Table { name, alias } => {
-            execute_table_scan_with_predicates(name, alias.as_ref(), cte_results, database, predicates)
+            execute_table_scan(name, alias.as_ref(), cte_results, database, where_clause)
         }
         ast::FromClause::Join { left, right, join_type, condition } => {
-            execute_join_with_predicates(
-                left, 
-                right, 
-                join_type, 
-                condition, 
-                cte_results, 
-                database, 
-                execute_subquery,
-                predicates,
-                reorder_spec,
-            )
+            execute_join(left, right, join_type, condition, cte_results, database, where_clause, execute_subquery)
         }
         ast::FromClause::Subquery { query, alias } => {
             execute_derived_table(query, alias, execute_subquery)
@@ -81,33 +52,27 @@ where
     }
 }
 
+
 /// Execute a table scan (handles CTEs, views, and regular tables)
 fn execute_table_scan(
     table_name: &str,
     alias: Option<&String>,
     cte_results: &HashMap<String, CteResult>,
     database: &storage::Database,
-) -> Result<FromResult, ExecutorError> {
-    execute_table_scan_with_predicates(table_name, alias, cte_results, database, None)
-}
-
-/// Execute a table scan with optional WHERE predicate pushdown
-/// 
-/// Applies table-local predicates during the table scan to reduce the number of rows
-/// before they're used in JOIN operations.
-fn execute_table_scan_with_predicates(
-    table_name: &str,
-    alias: Option<&String>,
-    cte_results: &HashMap<String, CteResult>,
-    database: &storage::Database,
-    predicates: Option<&PredicateDecomposition>,
+    where_clause: Option<&ast::Expression>,
 ) -> Result<FromResult, ExecutorError> {
     // Check if table is a CTE first
     if let Some((cte_schema, cte_rows)) = cte_results.get(table_name) {
         // Use CTE result
         let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
         let schema = CombinedSchema::from_table(effective_name, cte_schema.clone());
-        let rows = cte_rows.clone();
+        let mut rows = cte_rows.clone();
+
+        // Apply table-local predicates from WHERE clause
+        if let Some(where_expr) = where_clause {
+            rows = apply_table_local_predicates(rows, schema.clone(), where_expr, table_name, database)?;
+        }
+
         return Ok(FromResult { schema, rows });
     }
 
@@ -150,8 +115,14 @@ fn execute_table_scan_with_predicates(
         let view_schema = catalog::TableSchema::new(table_name.to_string(), columns);
         let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
         let schema = CombinedSchema::from_table(effective_name, view_schema);
+        let mut rows = select_result.rows;
 
-        return Ok(FromResult { schema, rows: select_result.rows });
+        // Apply table-local predicates from WHERE clause
+        if let Some(where_expr) = where_clause {
+            rows = apply_table_local_predicates(rows, schema.clone(), where_expr, table_name, database)?;
+        }
+
+        return Ok(FromResult { schema, rows });
     }
 
     // Check SELECT privilege on the table
@@ -166,17 +137,9 @@ fn execute_table_scan_with_predicates(
     let schema = CombinedSchema::from_table(effective_name, table.schema.clone());
     let mut rows = table.scan().to_vec();
 
-    // Apply table-local predicates if available
-    // This filters rows at scan time, before they're used in joins
-    if let Some(pred_decomp) = predicates {
-        if let Some(local_predicates) = pred_decomp.table_local_predicates.get(&table_name.to_lowercase()) {
-            // If there are local predicates for this table, apply them
-            if !local_predicates.is_empty() {
-                // TODO: Apply predicates to filter rows
-                // For now, we skip this as it requires evaluator context
-                // This will be integrated when we modify execute_without_aggregation
-            }
-        }
+    // Apply table-local predicates from WHERE clause
+    if let Some(where_expr) = where_clause {
+        rows = apply_table_local_predicates(rows, schema.clone(), where_expr, table_name, database)?;
     }
 
     Ok(FromResult { schema, rows })
@@ -190,97 +153,135 @@ fn execute_join<F>(
     condition: &Option<ast::Expression>,
     cte_results: &HashMap<String, CteResult>,
     database: &storage::Database,
+    where_clause: Option<&ast::Expression>,
     execute_subquery: F,
 ) -> Result<FromResult, ExecutorError>
 where
     F: Fn(&ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> + Copy,
 {
-    execute_join_with_predicates(
-        left,
-        right,
-        join_type,
-        condition,
-        cte_results,
-        database,
-        execute_subquery,
-        None,
-        None,
-    )
-}
+    // Decompose WHERE clause once for filtering by branch
+    let predicates = where_clause.map(decompose_where_predicates);
 
-/// Execute a JOIN operation with WHERE clause predicate pushdown
-fn execute_join_with_predicates<F>(
-    left: &ast::FromClause,
-    right: &ast::FromClause,
-    join_type: &ast::JoinType,
-    condition: &Option<ast::Expression>,
-    cte_results: &HashMap<String, CteResult>,
-    database: &storage::Database,
-    execute_subquery: F,
-    predicates: Option<&PredicateDecomposition>,
-    reorder_spec: Option<&super::join_executor::JoinReorderingSpec>,
-) -> Result<FromResult, ExecutorError>
-where
-    F: Fn(&ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> + Copy,
-{
-    // Try to apply join reordering if a spec was provided
-    if let Some(reorder_spec) = reorder_spec {
-        // Build the complete join tree for reordering analysis
-        let join_tree = ast::FromClause::Join {
-            left: Box::new(left.clone()),
-            right: Box::new(right.clone()),
-            join_type: join_type.clone(),
-            condition: condition.clone(),
-        };
-        
-        // Attempt to execute with reordering using a callback that delegates back
-        // to execute_from_clause_with_predicates for recursive handling
-        if let Some(result) = super::join_executor::execute_reordered_join(
-            &join_tree,
-            cte_results,
-            database,
-            |from_clause, preds| {
-                execute_from_clause_with_predicates(from_clause, cte_results, database, execute_subquery, preds, None)
-            },
-            predicates,
-            reorder_spec,
-        ) {
-            return result;
-        }
-        // Fall through to standard execution if reordering fails
-    }
-    
-    // Execute left and right sides recursively with predicates (standard execution)
-    let left_result = execute_from_clause_with_predicates(left, cte_results, database, execute_subquery, predicates, None)?;
-    let right_result = execute_from_clause_with_predicates(right, cte_results, database, execute_subquery, predicates, None)?;
+    // Get table names for each branch to filter predicates
+    let (left_tables, right_tables) = get_branch_tables(left, right, cte_results, database)?;
 
-    // Determine the effective join condition
-    // Priority: explicit ON condition > equijoin from WHERE > no condition
-    let effective_condition = if let Some(on_cond) = condition {
-        // Use the ON condition from the join syntax
-        Some(on_cond.clone())
-    } else if let Some(pred_decomp) = predicates {
-        // Try to find an equijoin condition for these two specific tables
-        // Extract table names from the schemas
-        let left_tables: Vec<String> = left_result.schema.table_schemas.keys().cloned().collect();
-        let right_tables: Vec<String> = right_result.schema.table_schemas.keys().cloned().collect();
-        
-        // Look for any equijoin condition that connects a left table to a right table
-        pred_decomp.equijoin_conditions.iter()
-            .find(|(lt, _, rt, _, _)| {
-                (left_tables.iter().any(|t| t.eq_ignore_ascii_case(lt)) &&
-                 right_tables.iter().any(|t| t.eq_ignore_ascii_case(rt))) ||
-                (left_tables.iter().any(|t| t.eq_ignore_ascii_case(rt)) &&
-                 right_tables.iter().any(|t| t.eq_ignore_ascii_case(lt)))
-            })
-            .map(|(_, _, _, _, expr)| expr.clone())
+    // Filter WHERE clause for each branch - only pass relevant predicates
+    let left_where = if let Some(ref preds) = predicates {
+        let filtered_preds = get_predicates_for_tables(preds, &left_tables);
+        combine_with_and(filtered_preds)
     } else {
         None
     };
 
-    // Perform nested loop join with the effective condition
-    let result = nested_loop_join(left_result, right_result, join_type, &effective_condition, database)?;
+    let right_where = if let Some(ref preds) = predicates {
+        let filtered_preds = get_predicates_for_tables(preds, &right_tables);
+        combine_with_and(filtered_preds)
+    } else {
+        None
+    };
+
+    // Execute left and right sides with filtered WHERE clauses
+    let left_result = execute_from_clause(left, cte_results, database, left_where.as_ref(), execute_subquery)?;
+    let right_result = execute_from_clause(right, cte_results, database, right_where.as_ref(), execute_subquery)?;
+
+    // Extract equijoin predicates from WHERE clause that apply to this join
+    let equijoin_predicates = if let Some(ref preds) = predicates {
+        let all_equijoins = get_equijoin_predicates(preds);
+
+        // Filter to only equijoins that reference tables in left and right schemas
+        let left_schema_tables: std::collections::HashSet<_> = left_result.schema.table_schemas.keys().cloned().collect();
+        let right_schema_tables: std::collections::HashSet<_> = right_result.schema.table_schemas.keys().cloned().collect();
+
+        all_equijoins.into_iter().filter(|eq_pred| {
+            // Check if this equijoin references tables in both left and right
+            matches_join_condition(&eq_pred, &left_schema_tables, &right_schema_tables)
+        }).collect()
+    } else {
+        Vec::new()
+    };
+
+    // Perform nested loop join with equijoin predicates from WHERE clause
+    let result = nested_loop_join(left_result, right_result, join_type, condition, database, &equijoin_predicates)?;
     Ok(result)
+}
+
+/// Determine what tables are in the left and right branches of a join
+fn get_branch_tables(
+    left: &ast::FromClause,
+    right: &ast::FromClause,
+    cte_results: &HashMap<String, CteResult>,
+    database: &storage::Database,
+) -> Result<(std::collections::HashSet<String>, std::collections::HashSet<String>), ExecutorError> {
+    let mut left_tables = std::collections::HashSet::new();
+    let mut right_tables = std::collections::HashSet::new();
+    
+    collect_table_names(left, &mut left_tables, cte_results, database);
+    collect_table_names(right, &mut right_tables, cte_results, database);
+    
+    Ok((left_tables, right_tables))
+}
+
+/// Recursively collect all table names referenced in a FROM clause
+fn collect_table_names(
+    from: &ast::FromClause,
+    tables: &mut std::collections::HashSet<String>,
+    cte_results: &HashMap<String, CteResult>,
+    database: &storage::Database,
+) {
+    match from {
+        ast::FromClause::Table { name, alias } => {
+            let effective_name = alias.as_ref().cloned().unwrap_or_else(|| name.clone());
+            tables.insert(effective_name);
+        }
+        ast::FromClause::Join { left, right, .. } => {
+            collect_table_names(left, tables, cte_results, database);
+            collect_table_names(right, tables, cte_results, database);
+        }
+        ast::FromClause::Subquery { alias, .. } => {
+            tables.insert(alias.clone());
+        }
+    }
+}
+
+/// Check if an equijoin expression references tables from both left and right schema groups
+fn matches_join_condition(
+    expr: &ast::Expression,
+    left_tables: &std::collections::HashSet<String>,
+    right_tables: &std::collections::HashSet<String>,
+) -> bool {
+    let mut left_refs = std::collections::HashSet::new();
+    let mut right_refs = std::collections::HashSet::new();
+    
+    extract_referenced_tables(expr, &mut left_refs, &mut right_refs, left_tables, right_tables);
+    
+    !left_refs.is_empty() && !right_refs.is_empty()
+}
+
+/// Extract table references from an expression, categorizing by left/right tables
+fn extract_referenced_tables(
+    expr: &ast::Expression,
+    left_refs: &mut std::collections::HashSet<String>,
+    right_refs: &mut std::collections::HashSet<String>,
+    left_tables: &std::collections::HashSet<String>,
+    right_tables: &std::collections::HashSet<String>,
+) {
+    match expr {
+        ast::Expression::ColumnRef { table: Some(table), .. } => {
+            if left_tables.contains(table) {
+                left_refs.insert(table.clone());
+            } else if right_tables.contains(table) {
+                right_refs.insert(table.clone());
+            }
+        }
+        ast::Expression::BinaryOp { left, right, .. } => {
+            extract_referenced_tables(left, left_refs, right_refs, left_tables, right_tables);
+            extract_referenced_tables(right, left_refs, right_refs, left_tables, right_tables);
+        }
+        ast::Expression::UnaryOp { expr: inner, .. } => {
+            extract_referenced_tables(inner, left_refs, right_refs, left_tables, right_tables);
+        }
+        _ => {}
+    }
 }
 
 /// Execute a derived table (subquery with alias)
@@ -345,4 +346,66 @@ where
     let schema = CombinedSchema::from_derived_table(alias.to_string(), column_names, column_types);
 
     Ok(FromResult { schema, rows })
+}
+
+/// Apply table-local predicates from WHERE clause during table scan
+/// 
+/// This function implements predicate pushdown by filtering rows early,
+/// before they contribute to larger Cartesian products in JOINs.
+fn apply_table_local_predicates(
+    rows: Vec<storage::Row>,
+    schema: CombinedSchema,
+    where_clause: &ast::Expression,
+    table_name: &str,
+    database: &storage::Database,
+) -> Result<Vec<storage::Row>, ExecutorError> {
+    // Decompose WHERE clause into pushdown-friendly predicates
+    let predicates = decompose_where_predicates(where_clause);
+    
+    // Extract predicates that can be applied to this table
+    let table_local_preds = get_table_local_predicates(&predicates, table_name);
+    
+    // If there are table-local predicates, apply them
+    if !table_local_preds.is_empty() {
+        if let Some(combined_where) = combine_with_and(table_local_preds) {
+            // Create evaluator for filtering
+            let evaluator = CombinedExpressionEvaluator::with_database(&schema, database);
+            
+            // Apply filtering to rows directly (without executor for timeout checking)
+            let mut filtered_rows = Vec::new();
+            for row in rows {
+                let include_row = match evaluator.eval(&combined_where, &row)? {
+                    types::SqlValue::Boolean(true) => true,
+                    types::SqlValue::Boolean(false) | types::SqlValue::Null => false,
+                    // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)
+                    types::SqlValue::Integer(0) => false,
+                    types::SqlValue::Integer(_) => true,
+                    types::SqlValue::Smallint(0) => false,
+                    types::SqlValue::Smallint(_) => true,
+                    types::SqlValue::Bigint(0) => false,
+                    types::SqlValue::Bigint(_) => true,
+                    types::SqlValue::Float(f) if f == 0.0 => false,
+                    types::SqlValue::Float(_) => true,
+                    types::SqlValue::Real(f) if f == 0.0 => false,
+                    types::SqlValue::Real(_) => true,
+                    types::SqlValue::Double(f) if f == 0.0 => false,
+                    types::SqlValue::Double(_) => true,
+                    other => {
+                        return Err(ExecutorError::InvalidWhereClause(format!(
+                            "WHERE clause must evaluate to boolean, got: {:?}",
+                            other
+                        )))
+                    }
+                };
+                
+                if include_row {
+                    filtered_rows.push(row);
+                }
+            }
+            return Ok(filtered_rows);
+        }
+    }
+    
+    // No table-local predicates - return rows as-is
+    Ok(rows)
 }

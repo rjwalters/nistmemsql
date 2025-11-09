@@ -34,8 +34,9 @@ impl SelectExecutor<'_> {
         }
 
         // Execute FROM clause (handles JOINs, subqueries, CTEs)
+        // Pass WHERE clause for predicate pushdown optimization
         let from_result = match &stmt.from {
-            Some(from_clause) => self.execute_from(from_clause, cte_results)?,
+            Some(from_clause) => self.execute_from_with_where(from_clause, cte_results, stmt.where_clause.as_ref())?,
             None => {
                 // SELECT without FROM - create empty table for aggregates
                 // SQL standard behavior: aggregate functions operate on empty set
