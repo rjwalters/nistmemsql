@@ -21,6 +21,7 @@ Examples:
 """
 
 import argparse
+import glob
 import json
 import multiprocessing
 import os
@@ -41,6 +42,52 @@ def get_repo_root() -> Path:
     raise RuntimeError("Could not find git repository root")
 
 
+def initialize_work_queue(repo_root: Path, work_queue_dir: Path) -> int:
+    """
+    Initialize work queue by creating work items for all test files.
+
+    Returns:
+        Number of test files added to the queue
+    """
+    # Clean up old work queue
+    import shutil
+    if work_queue_dir.exists():
+        shutil.rmtree(work_queue_dir)
+
+    # Create queue directories
+    pending_dir = work_queue_dir / "pending"
+    claimed_dir = work_queue_dir / "claimed"
+    completed_dir = work_queue_dir / "completed"
+
+    pending_dir.mkdir(parents=True, exist_ok=True)
+    claimed_dir.mkdir(parents=True, exist_ok=True)
+    completed_dir.mkdir(parents=True, exist_ok=True)
+
+    # Find all test files
+    test_dir = repo_root / "third_party" / "sqllogictest" / "test"
+    test_files = sorted(glob.glob(str(test_dir / "**" / "*.test"), recursive=True))
+
+    print(f"Initializing work queue with {len(test_files)} test files...")
+
+    # Create work items
+    for counter, test_file_path in enumerate(test_files, start=1):
+        # Convert absolute path to relative path from test_dir
+        test_file = Path(test_file_path)
+        rel_path = test_file.relative_to(test_dir)
+
+        # Encode work item (same format as Rust: {counter:04}-{sanitized_path})
+        # Use __ (double underscore) as separator - safe on all filesystems
+        sanitized = str(rel_path).replace("/", "__").replace("\\", "__")
+        work_item_name = f"{counter:04}-{sanitized}"
+
+        # Create work item file in pending queue
+        work_item_path = pending_dir / work_item_name
+        work_item_path.touch()
+
+    print(f"✓ Work queue initialized: {len(test_files)} files in pending queue")
+    return len(test_files)
+
+
 def run_worker(
     worker_id: int,
     total_workers: int,
@@ -48,6 +95,7 @@ def run_worker(
     time_budget: int,
     repo_root: Path,
     results_dir: Path,
+    work_queue_dir: Optional[Path] = None,
 ) -> int:
     """
     Run a single test worker.
@@ -59,6 +107,7 @@ def run_worker(
         time_budget: Maximum time in seconds for this worker
         repo_root: Path to repository root
         results_dir: Directory to store worker results
+        work_queue_dir: Optional work queue directory (enables work queue mode)
 
     Returns:
         Exit code (0 = success, non-zero = failure)
@@ -73,6 +122,11 @@ def run_worker(
         "SQLLOGICTEST_TOTAL_WORKERS": str(total_workers),
         "SQLLOGICTEST_TIME_BUDGET": str(time_budget),
     })
+
+    # Enable work queue mode if work_queue_dir is provided
+    if work_queue_dir:
+        env["SQLLOGICTEST_USE_WORK_QUEUE"] = "1"
+        env["SQLLOGICTEST_WORK_QUEUE"] = str(work_queue_dir)
 
     print(f"Starting worker {worker_id}/{total_workers}...", flush=True)
 
@@ -281,6 +335,11 @@ def main():
         return 1
     print()
 
+    # Initialize work queue
+    work_queue_dir = Path("/tmp/sqllogictest_work_queue")
+    total_files = initialize_work_queue(repo_root, work_queue_dir)
+    print()
+
     # Start all workers in parallel
     from multiprocessing import Pool
 
@@ -295,6 +354,7 @@ def main():
                 args.time_budget,
                 repo_root,
                 results_dir,
+                work_queue_dir,  # Pass work queue directory
             )
             for worker_id in range(1, args.workers + 1)
         ]
