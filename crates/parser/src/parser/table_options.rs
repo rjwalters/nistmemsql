@@ -1,8 +1,7 @@
-use crate::keywords::Keyword;
-use crate::token::Token;
 use ast;
 
 use super::{ParseError, Parser};
+use crate::{keywords::Keyword, token::Token};
 
 impl Parser {
     /// Parse MySQL table options for CREATE TABLE
@@ -23,7 +22,9 @@ impl Parser {
                 self.parse_row_format_option()?
             } else if self.try_consume_keyword(Keyword::DelayKeyWrite) {
                 self.parse_delay_key_write_option()?
-            } else if self.try_consume_keyword(Keyword::TableChecksum) || self.try_consume_keyword(Keyword::Checksum) {
+            } else if self.try_consume_keyword(Keyword::TableChecksum)
+                || self.try_consume_keyword(Keyword::Checksum)
+            {
                 self.parse_table_checksum_option()?
             } else if self.try_consume_keyword(Keyword::StatsSamplePages) {
                 self.parse_stats_sample_pages_option()?
@@ -73,9 +74,7 @@ impl Parser {
                 self.advance();
                 Ok(ast::TableOption::Connection(Some(val)))
             }
-            _ => Err(ParseError {
-                message: "Expected string value for CONNECTION".to_string(),
-            }),
+            _ => Err(ParseError { message: "Expected string value for CONNECTION".to_string() }),
         }
     }
 
@@ -108,9 +107,11 @@ impl Parser {
                         tables.push(id.clone());
                         self.advance();
                     }
-                    _ => return Err(ParseError {
-                        message: "Expected table name in UNION".to_string(),
-                    }),
+                    _ => {
+                        return Err(ParseError {
+                            message: "Expected table name in UNION".to_string(),
+                        })
+                    }
                 }
                 if self.try_consume(&Token::Comma) {
                     continue;
@@ -139,9 +140,7 @@ impl Parser {
         } else if self.try_consume_keyword(Keyword::Compact) {
             ast::RowFormat::Compact
         } else {
-            return Err(ParseError {
-                message: "Expected row format value".to_string(),
-            });
+            return Err(ParseError { message: "Expected row format value".to_string() });
         };
         Ok(ast::TableOption::RowFormat(Some(format)))
     }
@@ -180,9 +179,7 @@ impl Parser {
                 self.advance();
                 Ok(ast::TableOption::Password(Some(val)))
             }
-            _ => Err(ParseError {
-                message: "Expected string value for PASSWORD".to_string(),
-            }),
+            _ => Err(ParseError { message: "Expected string value for PASSWORD".to_string() }),
         }
     }
 
@@ -236,9 +233,7 @@ impl Parser {
                 self.advance();
                 Ok(ast::TableOption::Collate(Some(val)))
             }
-            _ => Err(ParseError {
-                message: "Expected collation name".to_string(),
-            }),
+            _ => Err(ParseError { message: "Expected collation name".to_string() }),
         }
     }
 
@@ -252,9 +247,7 @@ impl Parser {
                 self.advance();
                 Ok(ast::TableOption::Comment(Some(val)))
             }
-            _ => Err(ParseError {
-                message: "Expected string value for COMMENT".to_string(),
-            }),
+            _ => Err(ParseError { message: "Expected string value for COMMENT".to_string() }),
         }
     }
 
@@ -267,9 +260,7 @@ impl Parser {
             } else if let Ok(float_val) = n.parse::<f64>() {
                 float_val as i64
             } else {
-                return Err(ParseError {
-                    message: "Invalid numeric value".to_string(),
-                });
+                return Err(ParseError { message: "Invalid numeric value".to_string() });
             };
             self.advance();
             Ok(Some(val))

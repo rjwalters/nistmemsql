@@ -1,7 +1,6 @@
-use crate::keywords::Keyword;
-use crate::lexer::Lexer;
-use crate::token::Token;
 use std::fmt;
+
+use crate::{keywords::Keyword, lexer::Lexer, token::Token};
 
 mod advanced_objects;
 mod alter;
@@ -476,5 +475,4 @@ impl Parser {
     pub fn parse_drop_assertion_statement(&mut self) -> Result<ast::DropAssertionStmt, ParseError> {
         advanced_objects::parse_drop_assertion(self)
     }
-
 }
