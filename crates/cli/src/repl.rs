@@ -112,13 +112,13 @@ impl Repl {
                 self.executor.list_tables()?;
             }
             MetaCommand::ListSchemas => {
-                println!("Schemas: public (default)");
+                self.executor.list_schemas()?;
             }
             MetaCommand::ListIndexes => {
-                println!("No indexes defined.");
+                self.executor.list_indexes()?;
             }
             MetaCommand::ListRoles => {
-                println!("Roles: superuser (current)");
+                self.executor.list_roles()?;
             }
             MetaCommand::SetFormat(format) => {
                 self.formatter.set_format(format);
@@ -131,6 +131,9 @@ impl Repl {
             }
             MetaCommand::Timing => {
                 self.executor.toggle_timing();
+            }
+            MetaCommand::Copy { table, file_path, direction, format } => {
+                self.executor.handle_copy(&table, &file_path, direction, format)?;
             }
             MetaCommand::Save(path) => {
                 let save_path = path.or_else(|| self.database_path.clone());
@@ -168,6 +171,8 @@ Meta-commands:
   \\du             - List roles/users
   \\f <format>     - Set output format (table, json, csv)
   \\timing         - Toggle query timing
+  \\copy <table> TO <file>   - Export table to CSV/JSON file
+  \\copy <table> FROM <file> - Import CSV file into table
   \\save [file]    - Save database to SQL dump file
   \\h, \\help      - Show this help
   \\q, \\quit      - Exit
@@ -177,7 +182,9 @@ Examples:
   INSERT INTO users VALUES (1, 'Alice'), (2, 'Bob');
   SELECT * FROM users;
   \\f json
-  \\f csv
+  \\copy users TO '/tmp/users.csv'
+  \\copy users FROM '/tmp/users.csv'
+  \\copy users TO '/tmp/users.json'
 "
         );
     }

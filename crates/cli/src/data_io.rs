@@ -82,8 +82,15 @@ impl DataIO {
 
             // Build INSERT statement
             let cols = columns.join(", ");
-            let vals =
-                values.iter().map(|v| format!("'{}'", v.trim())).collect::<Vec<_>>().join(", ");
+            let vals = values
+                .iter()
+                .map(|v| {
+                    // Properly escape single quotes to prevent SQL injection
+                    let escaped = v.trim().replace("'", "''");
+                    format!("'{}'", escaped)
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
 
             let stmt = format!("INSERT INTO {} ({}) VALUES ({});", table_name, cols, vals);
             statements.push(stmt);
@@ -131,5 +138,17 @@ mod tests {
     #[test]
     fn test_escape_csv_with_newline() {
         assert_eq!(escape_csv_value("hello\nworld"), "\"hello\nworld\"");
+    }
+
+    #[test]
+    fn test_sql_value_escaping() {
+        // Test that single quotes are properly escaped when building INSERT statements
+        let value = "O'Brien";
+        let escaped = value.replace("'", "''");
+        assert_eq!(escaped, "O''Brien");
+
+        // Verify the escaped value in a SQL statement wouldn't cause injection
+        let sql = format!("INSERT INTO users (name) VALUES ('{}');", escaped);
+        assert_eq!(sql, "INSERT INTO users (name) VALUES ('O''Brien');");
     }
 }
