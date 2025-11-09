@@ -96,6 +96,7 @@ def run_worker(
     repo_root: Path,
     results_dir: Path,
     work_queue_dir: Optional[Path] = None,
+    test_binary: Optional[Path] = None,
 ) -> int:
     """
     Run a single test worker.
@@ -108,6 +109,7 @@ def run_worker(
         repo_root: Path to repository root
         results_dir: Directory to store worker results
         work_queue_dir: Optional work queue directory (enables work queue mode)
+        test_binary: Optional path to pre-compiled test binary (if not provided, uses cargo test)
 
     Returns:
         Exit code (0 = success, non-zero = failure)
@@ -132,8 +134,11 @@ def run_worker(
 
     try:
         with open(log_file, "w") as log:
-            result = subprocess.run(
-                [
+            # Use pre-compiled binary if available, otherwise fall back to cargo test
+            if test_binary and test_binary.exists():
+                cmd = [str(test_binary), "run_sqllogictest_suite", "--nocapture"]
+            else:
+                cmd = [
                     "cargo",
                     "test",
                     "--test",
@@ -142,7 +147,10 @@ def run_worker(
                     "run_sqllogictest_suite",
                     "--",
                     "--nocapture",
-                ],
+                ]
+
+            result = subprocess.run(
+                cmd,
                 cwd=repo_root,
                 env=env,
                 stdout=log,
@@ -323,17 +331,46 @@ def main():
     # Pre-build test binary once to avoid 64x compilation
     print("Pre-compiling test binary...")
     try:
-        subprocess.run(
-            ["cargo", "test", "--test", "sqllogictest_suite", "--release", "--no-run"],
+        result = subprocess.run(
+            ["cargo", "test", "--test", "sqllogictest_suite", "--release", "--no-run", "--message-format=json"],
             cwd=repo_root,
             check=True,
             capture_output=True,
+            text=True,
         )
-        print("✓ Test binary compiled")
+
+        # Parse cargo output to find the test binary path
+        test_binary = None
+        for line in result.stdout.splitlines():
+            if not line.strip():
+                continue
+            try:
+                msg = json.loads(line)
+                if msg.get("reason") == "compiler-artifact" and "sqllogictest_suite" in msg.get("target", {}).get("name", ""):
+                    executable = msg.get("executable")
+                    if executable:
+                        test_binary = Path(executable)
+                        break
+            except json.JSONDecodeError:
+                continue
+
+        if not test_binary:
+            # Fallback: find most recent binary in target/release/deps
+            deps_dir = repo_root / "target" / "release" / "deps"
+            binaries = sorted(deps_dir.glob("sqllogictest_suite-*"), key=lambda p: p.stat().st_mtime, reverse=True)
+            binaries = [b for b in binaries if b.is_file() and not b.name.endswith('.d')]
+            if binaries:
+                test_binary = binaries[0]
+
+        if not test_binary or not test_binary.exists():
+            print("Error: Could not find test binary", file=sys.stderr)
+            return 1
+
+        print(f"✓ Test binary compiled: {test_binary.name}")
     except subprocess.CalledProcessError as e:
         print(f"Error: Failed to compile test binary", file=sys.stderr)
-        print(f"stdout: {e.stdout.decode()}", file=sys.stderr)
-        print(f"stderr: {e.stderr.decode()}", file=sys.stderr)
+        print(f"stdout: {e.stdout}", file=sys.stderr)
+        print(f"stderr: {e.stderr}", file=sys.stderr)
         return 1
     print()
 
@@ -357,6 +394,7 @@ def main():
                 repo_root,
                 results_dir,
                 work_queue_dir,  # Pass work queue directory
+                test_binary,     # Pass pre-compiled binary
             )
             for worker_id in range(1, args.workers + 1)
         ]
