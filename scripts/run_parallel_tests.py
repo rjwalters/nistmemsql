@@ -63,11 +63,27 @@ def initialize_work_queue(repo_root: Path, work_queue_dir: Path) -> int:
     claimed_dir.mkdir(parents=True, exist_ok=True)
     completed_dir.mkdir(parents=True, exist_ok=True)
 
+    # Blocklist of test files that cause memory leaks or OOM
+    # select5.test: Uses 73+ GB memory with complex cross joins
+    blocklist = {
+        "select5.test",
+    }
+
     # Find all test files
     test_dir = repo_root / "third_party" / "sqllogictest" / "test"
-    test_files = sorted(glob.glob(str(test_dir / "**" / "*.test"), recursive=True))
+    all_test_files = sorted(glob.glob(str(test_dir / "**" / "*.test"), recursive=True))
 
-    print(f"Initializing work queue with {len(test_files)} test files...")
+    # Filter out blocklisted files
+    test_files = []
+    skipped_count = 0
+    for test_file_path in all_test_files:
+        test_file = Path(test_file_path)
+        if test_file.name in blocklist:
+            skipped_count += 1
+            continue
+        test_files.append(test_file_path)
+
+    print(f"Initializing work queue with {len(test_files)} test files (skipped {skipped_count})...")
 
     # Create work items
     for counter, test_file_path in enumerate(test_files, start=1):
