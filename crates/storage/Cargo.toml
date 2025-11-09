@@ -10,3 +10,4 @@ ast = { path = "../ast" }
 chrono = "0.4"
 
 [dev-dependencies]
+parser = { path = "../parser" }
