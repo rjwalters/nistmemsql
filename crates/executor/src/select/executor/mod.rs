@@ -15,4 +15,7 @@ mod execute;
 mod nonagg;
 mod utils;
 
+#[cfg(test)]
+mod memory_tests;
+
 pub use builder::SelectExecutor;

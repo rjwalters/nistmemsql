@@ -162,7 +162,14 @@ impl SelectExecutor<'_> {
             };
 
             if include_group {
-                result_rows.push(storage::Row::new(aggregate_results));
+                let row = storage::Row::new(aggregate_results);
+
+                // Track memory for aggregation result row
+                let row_memory = std::mem::size_of::<storage::Row>()
+                    + std::mem::size_of_val(row.values.as_slice());
+                self.track_memory_allocation(row_memory)?;
+
+                result_rows.push(row);
             }
         }
 
