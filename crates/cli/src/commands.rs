@@ -11,6 +11,7 @@ pub enum MetaCommand {
     ListRoles,
     SetFormat(OutputFormat),
     Timing,
+    Save(Option<String>),
 }
 
 impl MetaCommand {
@@ -50,6 +51,11 @@ impl MetaCommand {
                 }
             }
             Some(&"\\timing") => Some(MetaCommand::Timing),
+            Some(&"\\save") => {
+                // Optional filename argument
+                let filename = parts.get(1).map(|s| s.to_string());
+                Some(MetaCommand::Save(filename))
+            }
             _ => None,
         }
     }

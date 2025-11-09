@@ -10,7 +10,7 @@ pub mod table;
 
 pub use database::{Database, IndexData, IndexManager, IndexMetadata, TransactionState};
 pub use error::StorageError;
-pub use persistence::{read_sql_dump, split_sql_statements};
+pub use persistence::load::{parse_sql_statements, read_sql_dump};
 pub use row::Row;
 pub use table::Table;
 

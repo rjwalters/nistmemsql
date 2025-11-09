@@ -1,5 +1,5 @@
 use std::time::Instant;
-use storage::{Database, read_sql_dump, split_sql_statements};
+use storage::{Database, parse_sql_statements, read_sql_dump};
 use parser::Parser;
 
 pub struct SqlExecutor {
@@ -48,7 +48,7 @@ impl SqlExecutor {
             .map_err(|e| anyhow::anyhow!("Failed to read database file {}: {}", path, e))?;
 
         // Split into individual statements
-        let statements = split_sql_statements(&sql_content)
+        let statements = parse_sql_statements(&sql_content)
             .map_err(|e| anyhow::anyhow!("Failed to parse SQL dump: {}", e))?;
 
         // Create a new database to populate
@@ -232,6 +232,12 @@ impl SqlExecutor {
     /// Get a reference to the database (for saving)
     pub fn database(&self) -> &Database {
         &self.db
+    }
+
+    /// Save database to SQL dump file
+    pub fn save_database(&self, path: &str) -> anyhow::Result<()> {
+        self.db.save_sql_dump(path)
+            .map_err(|e| anyhow::anyhow!("Failed to save database to {}: {}", path, e))
     }
 }
 

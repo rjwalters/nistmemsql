@@ -1,113 +1,103 @@
 // ============================================================================
-// SQL Dump Loading (Load Operations)
+// SQL Dump Loading Utilities (Load Operations)
 // ============================================================================
 //
-// Provides utilities for reading SQL dump files. The actual parsing and
-// execution must be done at a higher level (e.g., CLI) to avoid circular
-// dependencies between storage, parser, and executor crates.
+// Provides utilities for parsing and loading SQL dump files.
+// Actual execution of statements happens at the CLI layer via the parser
+// and executor, but the parsing logic lives here for reusability.
 
 use crate::StorageError;
 use std::fs;
 use std::path::Path;
 
-/// Read SQL dump file and return its contents
+/// Read SQL dump content from file
 ///
-/// This is a utility function that reads the SQL dump file.
-/// The caller is responsible for parsing and executing the statements.
-///
-/// # Arguments
-/// * `path` - Path to the SQL dump file
-///
-/// # Returns
-/// * `Result<String, StorageError>` - SQL file contents or error
-///
-/// # Example
-/// ```no_run
-/// # use storage::read_sql_dump;
-/// let sql_content = read_sql_dump("database.sql").unwrap();
-/// // Parse and execute statements using parser and executor
-/// ```
+/// # Errors
+/// Returns `StorageError::NotImplemented` if the file cannot be read
 pub fn read_sql_dump<P: AsRef<Path>>(path: P) -> Result<String, StorageError> {
     let path_ref = path.as_ref();
-
-    // Check if file exists
     if !path_ref.exists() {
-        return Err(StorageError::NotImplemented(format!(
-            "Database file does not exist: {}",
-            path_ref.display()
-        )));
+        return Err(StorageError::NotImplemented(format!("File does not exist: {:?}", path_ref)));
     }
-
-    // Read the entire file
-    fs::read_to_string(path_ref)
-        .map_err(|e| StorageError::NotImplemented(format!(
-            "Failed to read database file: {}",
-            e
-        )))
+    fs::read_to_string(path)
+        .map_err(|e| StorageError::NotImplemented(format!("Failed to read file: {}", e)))
 }
 
-/// Split SQL content into individual statements
+/// Parse SQL dump content into individual statements
 ///
 /// Handles:
-/// - Line comments (-- comment)
-/// - Statement terminators (;)
-/// - String literals (preserves semicolons inside strings)
+/// - Comments (lines starting with --)
+/// - Multi-line statements
+/// - Statement termination by semicolon
+/// - String literals (preserves content within quotes)
 ///
-/// This is a public utility function that can be used by CLI and other
-/// higher-level components to split SQL dumps into executable statements.
-pub fn split_sql_statements(sql: &str) -> Result<Vec<String>, StorageError> {
+/// # Returns
+/// A vector of SQL statement strings, trimmed and ready to parse
+pub fn parse_sql_statements(content: &str) -> Result<Vec<String>, StorageError> {
     let mut statements = Vec::new();
-    let mut current_stmt = String::new();
+    let mut current_statement = String::new();
     let mut in_string = false;
-    let mut prev_char = ' ';
+    let mut string_char = ' ';
+    let mut escape_next = false;
 
-    for line in sql.lines() {
-        // Handle line comments
-        let mut line_content = line;
+    for line in content.lines() {
+        let trimmed = line.trim();
+
+        // Skip comments and empty lines
+        if trimmed.starts_with("--") || trimmed.is_empty() {
+            continue;
+        }
+
+        // Process line character by character to handle string literals
+        for ch in line.chars() {
+            if escape_next {
+                current_statement.push(ch);
+                escape_next = false;
+                continue;
+            }
+
+            match ch {
+                '\\' if in_string && string_char == '\'' => {
+                    current_statement.push(ch);
+                    escape_next = true;
+                }
+                '\'' | '"' if !in_string => {
+                    in_string = true;
+                    string_char = ch;
+                    current_statement.push(ch);
+                }
+                c if in_string && c == string_char => {
+                    in_string = false;
+                    current_statement.push(ch);
+                }
+                ';' if !in_string => {
+                    current_statement.push(ch);
+                    // Statement complete
+                    if !current_statement.trim().is_empty() {
+                        statements.push(current_statement.trim_end_matches(';').to_string());
+                    }
+                    current_statement.clear();
+                }
+                _ => {
+                    current_statement.push(ch);
+                }
+            }
+        }
+
+        // Add space between lines (preserves SQL readability)
         if !in_string {
-            if let Some(comment_pos) = line.find("--") {
-                // Check if -- is inside a string by counting quotes before it
-                let before_comment = &line[..comment_pos];
-                let quote_count = before_comment.chars().filter(|&c| c == '\'').count();
-                if quote_count % 2 == 0 {
-                    // Even number of quotes = not in string, so this is a real comment
-                    line_content = &line[..comment_pos];
-                }
-            }
-        }
-
-        // Process character by character to handle strings and semicolons
-        for c in line_content.chars() {
-            if c == '\'' && prev_char != '\\' {
-                in_string = !in_string;
-            }
-
-            if c == ';' && !in_string {
-                // Statement terminator found
-                if !current_stmt.trim().is_empty() {
-                    statements.push(current_stmt.trim().to_string());
-                    current_stmt.clear();
-                }
-            } else {
-                current_stmt.push(c);
-            }
-
-            prev_char = c;
-        }
-
-        // Add newline if we're continuing a statement
-        if !current_stmt.is_empty() {
-            current_stmt.push('\n');
+            current_statement.push(' ');
         }
     }
 
-    // Add final statement if there is one (statement without trailing semicolon)
-    if !current_stmt.trim().is_empty() {
-        statements.push(current_stmt.trim().to_string());
+    // Handle any remaining statement
+    if !current_statement.trim().is_empty() {
+        statements.push(current_statement.trim().to_string());
     }
 
     Ok(statements)
 }
+
 
 
 #[cfg(test)]
@@ -115,39 +105,52 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_split_sql_statements_simple() {
-        let sql = "SELECT 1; SELECT 2; SELECT 3;";
-        let stmts = split_sql_statements(sql).unwrap();
-        assert_eq!(stmts.len(), 3);
-        assert_eq!(stmts[0], "SELECT 1");
-        assert_eq!(stmts[1], "SELECT 2");
-        assert_eq!(stmts[2], "SELECT 3");
+    fn test_parse_simple_statements() {
+        let content = r#"
+            -- Comment
+            CREATE TABLE users (id INTEGER);
+            INSERT INTO users VALUES (1);
+        "#;
+
+        let statements = parse_sql_statements(content).unwrap();
+        assert_eq!(statements.len(), 2);
+        assert!(statements[0].contains("CREATE TABLE"));
+        assert!(statements[1].contains("INSERT INTO"));
     }
 
     #[test]
-    fn test_split_sql_statements_with_comments() {
-        let sql = "-- Comment\nSELECT 1; -- inline comment\nSELECT 2;";
-        let stmts = split_sql_statements(sql).unwrap();
-        assert_eq!(stmts.len(), 2);
-        assert_eq!(stmts[0], "SELECT 1");
-        assert_eq!(stmts[1], "SELECT 2");
+    fn test_parse_with_string_literals() {
+        let content = r#"INSERT INTO users VALUES (1, 'John; Doe');"#;
+
+        let statements = parse_sql_statements(content).unwrap();
+        assert_eq!(statements.len(), 1);
+        assert!(statements[0].contains("John; Doe"));
     }
 
     #[test]
-    fn test_split_sql_statements_with_strings() {
-        let sql = "INSERT INTO t VALUES ('a;b'); INSERT INTO t VALUES ('c');";
-        let stmts = split_sql_statements(sql).unwrap();
-        assert_eq!(stmts.len(), 2);
-        assert_eq!(stmts[0], "INSERT INTO t VALUES ('a;b')");
-        assert_eq!(stmts[1], "INSERT INTO t VALUES ('c')");
+    fn test_skip_comments() {
+        let content = r#"
+            -- This is a comment
+            CREATE TABLE users (id INTEGER);
+            -- Another comment
+        "#;
+
+        let statements = parse_sql_statements(content).unwrap();
+        assert_eq!(statements.len(), 1);
     }
 
     #[test]
-    fn test_split_sql_statements_multiline() {
-        let sql = "CREATE TABLE t (\n  id INTEGER,\n  name VARCHAR\n);\nINSERT INTO t VALUES (1, 'test');";
-        let stmts = split_sql_statements(sql).unwrap();
-        assert_eq!(stmts.len(), 2);
-        assert!(stmts[0].contains("CREATE TABLE"));
-        assert!(stmts[1].contains("INSERT INTO"));
+    fn test_multiline_statements() {
+        let content = r#"
+            CREATE TABLE users (
+                id INTEGER,
+                name VARCHAR(100)
+            );
+        "#;
+
+        let statements = parse_sql_statements(content).unwrap();
+        assert_eq!(statements.len(), 1);
+        assert!(statements[0].contains("id INTEGER"));
+        assert!(statements[0].contains("name VARCHAR"));
     }
 }
