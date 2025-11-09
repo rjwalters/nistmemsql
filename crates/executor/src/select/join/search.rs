@@ -359,4 +359,63 @@ mod tests {
         // Still should return all tables in some order
         assert_eq!(order.len(), 3);
     }
+
+    #[test]
+    fn test_star_join_pattern() {
+        // Test star join: t1 is central hub, t2/t3/t4 all join to t1
+        // This pattern exposed the bug where we only looked for conditions
+        // between consecutive tables in the reordered sequence
+        let mut analyzer = JoinOrderAnalyzer::new();
+        analyzer.register_tables(vec![
+            "t1".to_string(),
+            "t2".to_string(),
+            "t3".to_string(),
+            "t4".to_string(),
+        ]);
+
+        // Star pattern: all join to t1 (but not to each other)
+        //     t2
+        //      |
+        //  t3--t1--t4
+        analyzer.add_edge(JoinEdge {
+            left_table: "t1".to_string(),
+            left_column: "id".to_string(),
+            right_table: "t2".to_string(),
+            right_column: "id".to_string(),
+        });
+        analyzer.add_edge(JoinEdge {
+            left_table: "t1".to_string(),
+            left_column: "id".to_string(),
+            right_table: "t3".to_string(),
+            right_column: "id".to_string(),
+        });
+        analyzer.add_edge(JoinEdge {
+            left_table: "t1".to_string(),
+            left_column: "id".to_string(),
+            right_table: "t4".to_string(),
+            right_column: "id".to_string(),
+        });
+
+        let search = JoinOrderSearch::from_analyzer(&analyzer);
+        let order = search.find_optimal_order();
+
+        // Should return all 4 tables
+        assert_eq!(order.len(), 4);
+        assert!(order.contains(&"t1".to_string()));
+        assert!(order.contains(&"t2".to_string()));
+        assert!(order.contains(&"t3".to_string()));
+        assert!(order.contains(&"t4".to_string()));
+
+        // t1 should be early in the order since it's the hub that connects everything
+        // (though exact position depends on cost estimates)
+        let t1_pos = order.iter().position(|t| t == "t1").unwrap();
+
+        // t1 should be in the first 2 positions (either first or second)
+        // because it's the only table that can join to all others
+        assert!(
+            t1_pos <= 1,
+            "Hub table t1 should be early in join order, found at position {}",
+            t1_pos
+        );
+    }
 }

@@ -143,16 +143,17 @@ fn extract_join_conditions(
 }
 
 /// Attempt to execute a join tree in reordered sequence
-/// 
+///
 /// This function returns Some(Ok(...)) if reordering was applied,
 /// Some(Err(...)) if an error occurred during reordered execution,
 /// and None if reordering should not be applied (fall back to standard).
-/// 
-/// Implementation: 
+///
+/// Implementation:
 /// - Flattens the join tree into individual tables
 /// - Executes tables in the specified order via execute_from_fn
 /// - Joins them using extracted join conditions
-#[allow(unused)]
+/// - For each new table, searches for a join condition with ANY previously-joined table
+///   (not just the immediately preceding one, which is critical for star joins)
 pub(super) fn execute_reordered_join<F>(
     from: &FromClause,
     cte_results: &HashMap<String, CteResult>,
@@ -215,7 +216,6 @@ where
     // Join with remaining tables in specified order
     for i in 1..reorder_spec.table_order.len() {
         let next_table_name = &reorder_spec.table_order[i];
-        let prev_table_name = &reorder_spec.table_order[i - 1];
 
         let next_idx = *flattened.table_index.get(next_table_name)?;
         let (_, next_from) = &flattened.tables[next_idx];
@@ -225,17 +225,24 @@ where
             Err(e) => return Some(Err(e)),
         };
 
-        // Find the join condition between these two tables
-        let join_condition = condition_map
-            .get(&(prev_table_name.clone(), next_table_name.clone()))
-            .cloned()
-            .flatten()
-            .or_else(|| {
-                condition_map
-                    .get(&(next_table_name.clone(), prev_table_name.clone()))
-                    .cloned()
-                    .flatten()
-            });
+        // Find the join condition between next_table and ANY already-joined table
+        // This is critical for star joins and complex join graphs where tables
+        // don't form a simple chain (e.g., t1 joins to t2, t3, t4 but not t2-t3)
+        let mut join_condition = None;
+        for j in 0..i {
+            let already_joined = &reorder_spec.table_order[j];
+
+            // Try both directions: (already_joined, next) and (next, already_joined)
+            if let Some(cond) = condition_map
+                .get(&(already_joined.clone(), next_table_name.clone()))
+                .or_else(|| condition_map.get(&(next_table_name.clone(), already_joined.clone())))
+                .cloned()
+                .flatten()
+            {
+                join_condition = Some(cond);
+                break; // Found a condition, use it
+            }
+        }
 
         // For now, use INNER JOIN (could be configurable)
         let join_type = ast::JoinType::Inner;
