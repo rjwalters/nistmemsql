@@ -52,6 +52,7 @@ where
     }
 }
 
+
 /// Execute a table scan (handles CTEs, views, and regular tables)
 fn execute_table_scan(
     table_name: &str,
@@ -66,12 +67,12 @@ fn execute_table_scan(
         let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
         let schema = CombinedSchema::from_table(effective_name, cte_schema.clone());
         let mut rows = cte_rows.clone();
-        
+
         // Apply table-local predicates from WHERE clause
         if let Some(where_expr) = where_clause {
             rows = apply_table_local_predicates(rows, schema.clone(), where_expr, table_name, database)?;
         }
-        
+
         return Ok(FromResult { schema, rows });
     }
 
@@ -115,7 +116,7 @@ fn execute_table_scan(
         let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
         let schema = CombinedSchema::from_table(effective_name, view_schema);
         let mut rows = select_result.rows;
-        
+
         // Apply table-local predicates from WHERE clause
         if let Some(where_expr) = where_clause {
             rows = apply_table_local_predicates(rows, schema.clone(), where_expr, table_name, database)?;
@@ -135,7 +136,7 @@ fn execute_table_scan(
     let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
     let schema = CombinedSchema::from_table(effective_name, table.schema.clone());
     let mut rows = table.scan().to_vec();
-    
+
     // Apply table-local predicates from WHERE clause
     if let Some(where_expr) = where_clause {
         rows = apply_table_local_predicates(rows, schema.clone(), where_expr, table_name, database)?;
@@ -160,10 +161,10 @@ where
 {
     // Decompose WHERE clause once for filtering by branch
     let predicates = where_clause.map(decompose_where_predicates);
-    
+
     // Get table names for each branch to filter predicates
     let (left_tables, right_tables) = get_branch_tables(left, right, cte_results, database)?;
-    
+
     // Filter WHERE clause for each branch - only pass relevant predicates
     let left_where = if let Some(ref preds) = predicates {
         let filtered_preds = get_predicates_for_tables(preds, &left_tables);
@@ -171,14 +172,14 @@ where
     } else {
         None
     };
-    
+
     let right_where = if let Some(ref preds) = predicates {
         let filtered_preds = get_predicates_for_tables(preds, &right_tables);
         combine_with_and(filtered_preds)
     } else {
         None
     };
-    
+
     // Execute left and right sides with filtered WHERE clauses
     let left_result = execute_from_clause(left, cte_results, database, left_where.as_ref(), execute_subquery)?;
     let right_result = execute_from_clause(right, cte_results, database, right_where.as_ref(), execute_subquery)?;
@@ -186,11 +187,11 @@ where
     // Extract equijoin predicates from WHERE clause that apply to this join
     let equijoin_predicates = if let Some(ref preds) = predicates {
         let all_equijoins = get_equijoin_predicates(preds);
-        
+
         // Filter to only equijoins that reference tables in left and right schemas
         let left_schema_tables: std::collections::HashSet<_> = left_result.schema.table_schemas.keys().cloned().collect();
         let right_schema_tables: std::collections::HashSet<_> = right_result.schema.table_schemas.keys().cloned().collect();
-        
+
         all_equijoins.into_iter().filter(|eq_pred| {
             // Check if this equijoin references tables in both left and right
             matches_join_condition(&eq_pred, &left_schema_tables, &right_schema_tables)

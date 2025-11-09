@@ -22,7 +22,7 @@ mod revoke;
 mod role_ddl;
 mod schema;
 mod schema_ddl;
-mod select;
+pub mod select;
 mod select_into;
 mod transaction;
 mod type_ddl;
