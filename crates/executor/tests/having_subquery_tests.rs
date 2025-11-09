@@ -123,7 +123,7 @@ fn test_having_with_scalar_subquery() {
 
     // Check dept 3
     assert_eq!(rows[1].get(0), Some(&types::SqlValue::Integer(3)));
-    assert_eq!(rows[1].get(1), Some(&types::SqlValue::Numeric(500.0)));
+    assert_eq!(rows[1].get(1), Some(&types::SqlValue::Numeric(500.0)))
 }
 
 #[test]

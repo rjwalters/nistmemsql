@@ -245,10 +245,71 @@ impl ExpressionEvaluator<'_> {
         let mut searched_tables = Vec::new();
         let mut available_columns = Vec::new();
 
-        // If table qualifier is provided, we should only search that specific schema
-        // For now, we don't have full qualified name support, so we ignore it
-        // TODO: In the future, validate the table qualifier matches the schema name
+        // If table qualifier is provided, validate it matches a known schema
+        if let Some(qualifier) = table_qualifier {
+            let qualifier_lower = qualifier.to_lowercase();
+            let inner_name_lower = self.schema.name.to_lowercase();
 
+            // Check if qualifier matches inner schema
+            if qualifier_lower == inner_name_lower {
+                // Qualifier matches inner schema - search only there
+                searched_tables.push(self.schema.name.clone());
+                if let Some(col_index) = self.schema.get_column_index(column) {
+                    return row
+                        .get(col_index)
+                        .cloned()
+                        .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: col_index });
+                }
+            } else if let Some(outer_schema) = self.outer_schema {
+                let outer_name_lower = outer_schema.name.to_lowercase();
+
+                // Check if qualifier matches outer schema
+                if qualifier_lower == outer_name_lower {
+                    // Qualifier matches outer schema - search only there
+                    if let Some(outer_row) = self.outer_row {
+                        searched_tables.push(outer_schema.name.clone());
+                        if let Some(col_index) = outer_schema.get_column_index(column) {
+                            return outer_row
+                                .get(col_index)
+                                .cloned()
+                                .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: col_index });
+                        }
+                    }
+                } else {
+                    // Qualifier doesn't match any known schema
+                    let mut known_tables = vec![self.schema.name.clone()];
+                    known_tables.push(outer_schema.name.clone());
+
+                    return Err(ExecutorError::InvalidTableQualifier {
+                        qualifier: qualifier.to_string(),
+                        column: column.to_string(),
+                        available_tables: known_tables,
+                    });
+                }
+            } else {
+                // No outer schema and qualifier doesn't match inner schema
+                return Err(ExecutorError::InvalidTableQualifier {
+                    qualifier: qualifier.to_string(),
+                    column: column.to_string(),
+                    available_tables: vec![self.schema.name.clone()],
+                });
+            }
+
+            // If we get here, qualifier was valid but column wasn't found
+            available_columns.extend(self.schema.columns.iter().map(|c| c.name.clone()));
+            if let Some(outer_schema) = self.outer_schema {
+                available_columns.extend(outer_schema.columns.iter().map(|c| c.name.clone()));
+            }
+
+            return Err(ExecutorError::ColumnNotFound {
+                column_name: column.to_string(),
+                table_name: qualifier.to_string(),
+                searched_tables,
+                available_columns,
+            });
+        }
+
+        // No qualifier provided - use original search logic (inner first, then outer)
         // Try to resolve in inner schema first
         searched_tables.push(self.schema.name.clone());
         if let Some(col_index) = self.schema.get_column_index(column) {

@@ -8,6 +8,11 @@ pub enum ExecutorError {
         searched_tables: Vec<String>,
         available_columns: Vec<String>,
     },
+    InvalidTableQualifier {
+        qualifier: String,
+        column: String,
+        available_tables: Vec<String>,
+    },
     ColumnAlreadyExists(String),
     IndexNotFound(String),
     IndexAlreadyExists(String),
@@ -113,6 +118,15 @@ impl std::fmt::Display for ExecutorError {
                         available_columns.join(", ")
                     )
                 }
+            }
+            ExecutorError::InvalidTableQualifier { qualifier, column, available_tables } => {
+                write!(
+                    f,
+                    "Invalid table qualifier '{}' for column '{}'. Available tables: {}",
+                    qualifier,
+                    column,
+                    available_tables.join(", ")
+                )
             }
             ExecutorError::ColumnAlreadyExists(name) => {
                 write!(f, "Column '{}' already exists", name)
