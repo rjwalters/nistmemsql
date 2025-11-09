@@ -289,6 +289,17 @@ impl JoinOrderAnalyzer {
     pub fn edges(&self) -> &[JoinEdge] {
         &self.edges
     }
+
+    /// Get all tables registered in this analyzer
+    pub fn tables(&self) -> std::collections::HashSet<String> {
+        self.tables.keys().cloned().collect()
+    }
+
+    /// Add a join edge (for testing)
+    #[cfg(test)]
+    pub fn add_edge(&mut self, edge: JoinEdge) {
+        self.edges.push(edge);
+    }
 }
 
 #[cfg(test)]
@@ -357,19 +368,18 @@ mod tests {
         let mut analyzer = JoinOrderAnalyzer::new();
         analyzer.register_tables(vec!["t1".to_string(), "t2".to_string(), "t3".to_string()]);
 
+        // Create dummy predicates
+        let dummy_pred = Expression::Literal(types::SqlValue::Integer(5));
+
         // Add local predicates to t1 (most selective)
         if let Some(table_info) = analyzer.tables.get_mut("t1") {
-            table_info.local_predicates.push(Expression::Literal(
-                storage::Value::Integer(5),
-            ));
+            table_info.local_predicates.push(dummy_pred.clone());
             table_info.local_selectivity = 0.1;
         }
 
         // Add local predicate to t2 (less selective)
         if let Some(table_info) = analyzer.tables.get_mut("t2") {
-            table_info.local_predicates.push(Expression::Literal(
-                storage::Value::Integer(5),
-            ));
+            table_info.local_predicates.push(dummy_pred.clone());
             table_info.local_selectivity = 0.5;
         }
 

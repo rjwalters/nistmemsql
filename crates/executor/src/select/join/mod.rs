@@ -6,11 +6,14 @@ mod hash_join;
 mod join_analyzer;
 mod nested_loop;
 pub mod reorder;
+pub mod search;
 
 // Re-export expression mapper for use in join reordering
 pub(super) use expression_mapper::ExpressionMapper;
 // Re-export join reorder analyzer
 pub(super) use reorder::JoinOrderAnalyzer;
+// Re-export join order search
+pub(super) use search::JoinOrderSearch;
 
 // Re-export hash_join functions for internal use
 use hash_join::hash_join_inner;

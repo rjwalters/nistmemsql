@@ -284,13 +284,13 @@ impl ExpressionAnalysis {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use catalog::Column;
+    use catalog::ColumnSchema;
     use types::DataType;
 
     fn create_test_schema(name: &str, columns: Vec<(&str, DataType)>) -> TableSchema {
         let cols = columns
             .into_iter()
-            .map(|(n, t)| Column::new(n, t))
+            .map(|(n, t)| ColumnSchema::new(n.to_string(), t, false))
             .collect();
         TableSchema::new(name.to_string(), cols)
     }
@@ -298,9 +298,10 @@ mod tests {
     #[test]
     fn test_single_table_resolution() {
         let mut mapper = ExpressionMapper::new();
+        let varchar_100 = DataType::Varchar { max_length: Some(100) };
         let schema = create_test_schema(
             "users",
-            vec![("id", DataType::Integer), ("name", DataType::Text)],
+            vec![("id", DataType::Integer), ("name", varchar_100.clone())],
         );
         mapper.add_table("users", &schema);
 
@@ -312,9 +313,10 @@ mod tests {
     #[test]
     fn test_single_table_unqualified_column() {
         let mut mapper = ExpressionMapper::new();
+        let varchar_100 = DataType::Varchar { max_length: Some(100) };
         let schema = create_test_schema(
             "users",
-            vec![("id", DataType::Integer), ("name", DataType::Text)],
+            vec![("id", DataType::Integer), ("name", varchar_100.clone())],
         );
         mapper.add_table("users", &schema);
 
@@ -326,9 +328,10 @@ mod tests {
     #[test]
     fn test_two_table_resolution() {
         let mut mapper = ExpressionMapper::new();
+        let varchar_100 = DataType::Varchar { max_length: Some(100) };
 
         let users_schema =
-            create_test_schema("users", vec![("id", DataType::Integer), ("name", DataType::Text)]);
+            create_test_schema("users", vec![("id", DataType::Integer), ("name", varchar_100.clone())]);
         mapper.add_table("users", &users_schema);
 
         let orders_schema = create_test_schema(
@@ -349,8 +352,9 @@ mod tests {
     #[test]
     fn test_case_insensitive_resolution() {
         let mut mapper = ExpressionMapper::new();
+        let varchar_100 = DataType::Varchar { max_length: Some(100) };
         let schema =
-            create_test_schema("users", vec![("ID", DataType::Integer), ("Name", DataType::Text)]);
+            create_test_schema("users", vec![("ID", DataType::Integer), ("Name", varchar_100.clone())]);
         mapper.add_table("USERS", &schema);
 
         // Case variations should resolve
