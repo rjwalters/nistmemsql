@@ -1,6 +1,7 @@
+use std::{fs, path::PathBuf};
+
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::PathBuf;
+
 use crate::formatter::OutputFormat;
 
 /// VibeSQL configuration loaded from ~/.vibesqlrc
@@ -89,35 +90,25 @@ impl Default for Config {
 
 impl Default for DisplayConfig {
     fn default() -> Self {
-        DisplayConfig {
-            format: default_format(),
-        }
+        DisplayConfig { format: default_format() }
     }
 }
 
 impl Default for DatabaseConfig {
     fn default() -> Self {
-        DatabaseConfig {
-            default_path: None,
-            auto_save: default_true(),
-        }
+        DatabaseConfig { default_path: None, auto_save: default_true() }
     }
 }
 
 impl Default for HistoryConfig {
     fn default() -> Self {
-        HistoryConfig {
-            file: default_history_file(),
-            max_entries: default_max_entries(),
-        }
+        HistoryConfig { file: default_history_file(), max_entries: default_max_entries() }
     }
 }
 
 impl Default for QueryConfig {
     fn default() -> Self {
-        QueryConfig {
-            timeout_seconds: 0,
-        }
+        QueryConfig { timeout_seconds: 0 }
     }
 }
 

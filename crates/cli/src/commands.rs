@@ -13,6 +13,7 @@ pub enum MetaCommand {
     Timing,
     Copy { table: String, file_path: String, direction: CopyDirection, format: CopyFormat },
     Save(Option<String>),
+    Errors,
 }
 
 #[derive(Debug, Clone)]
@@ -57,6 +58,8 @@ impl MetaCommand {
                         "table" => Some(MetaCommand::SetFormat(OutputFormat::Table)),
                         "json" => Some(MetaCommand::SetFormat(OutputFormat::Json)),
                         "csv" => Some(MetaCommand::SetFormat(OutputFormat::Csv)),
+                        "markdown" | "md" => Some(MetaCommand::SetFormat(OutputFormat::Markdown)),
+                        "html" => Some(MetaCommand::SetFormat(OutputFormat::Html)),
                         _ => None,
                     }
                 } else {
@@ -73,7 +76,8 @@ impl MetaCommand {
 
                 let table = parts[1].to_string();
                 let direction_str = parts[2];
-                let file_path = parts[3..].join(" ").trim_matches('\'').trim_matches('"').to_string();
+                let file_path =
+                    parts[3..].join(" ").trim_matches('\'').trim_matches('"').to_string();
 
                 let direction = match direction_str.to_uppercase().as_str() {
                     "TO" => CopyDirection::Export,
@@ -95,6 +99,7 @@ impl MetaCommand {
                 let filename = parts.get(1).map(|s| s.to_string());
                 Some(MetaCommand::Save(filename))
             }
+            Some(&"\\errors") => Some(MetaCommand::Errors),
             _ => None,
         }
     }
@@ -165,6 +170,18 @@ mod tests {
             MetaCommand::parse("\\f csv"),
             Some(MetaCommand::SetFormat(OutputFormat::Csv))
         ));
+        assert!(matches!(
+            MetaCommand::parse("\\f markdown"),
+            Some(MetaCommand::SetFormat(OutputFormat::Markdown))
+        ));
+        assert!(matches!(
+            MetaCommand::parse("\\f md"),
+            Some(MetaCommand::SetFormat(OutputFormat::Markdown))
+        ));
+        assert!(matches!(
+            MetaCommand::parse("\\f html"),
+            Some(MetaCommand::SetFormat(OutputFormat::Html))
+        ));
     }
 
     #[test]
@@ -175,7 +192,8 @@ mod tests {
     #[test]
     fn test_parse_copy_export_csv() {
         if let Some(MetaCommand::Copy { table, file_path, direction, format }) =
-            MetaCommand::parse("\\copy users TO '/tmp/users.csv'") {
+            MetaCommand::parse("\\copy users TO '/tmp/users.csv'")
+        {
             assert_eq!(table, "users");
             assert_eq!(file_path, "/tmp/users.csv");
             assert!(matches!(direction, CopyDirection::Export));
@@ -188,7 +206,8 @@ mod tests {
     #[test]
     fn test_parse_copy_import_csv() {
         if let Some(MetaCommand::Copy { table, file_path, direction, format }) =
-            MetaCommand::parse("\\copy users FROM '/tmp/users.csv'") {
+            MetaCommand::parse("\\copy users FROM '/tmp/users.csv'")
+        {
             assert_eq!(table, "users");
             assert_eq!(file_path, "/tmp/users.csv");
             assert!(matches!(direction, CopyDirection::Import));
@@ -201,7 +220,8 @@ mod tests {
     #[test]
     fn test_parse_copy_export_json() {
         if let Some(MetaCommand::Copy { table, file_path, direction, format }) =
-            MetaCommand::parse("\\copy users TO /tmp/users.json") {
+            MetaCommand::parse("\\copy users TO /tmp/users.json")
+        {
             assert_eq!(table, "users");
             assert_eq!(file_path, "/tmp/users.json");
             assert!(matches!(direction, CopyDirection::Export));
@@ -209,5 +229,10 @@ mod tests {
         } else {
             panic!("Failed to parse copy export JSON command");
         }
+    }
+
+    #[test]
+    fn test_parse_errors() {
+        assert!(matches!(MetaCommand::parse("\\errors"), Some(MetaCommand::Errors)));
     }
 }

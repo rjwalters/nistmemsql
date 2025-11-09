@@ -2,8 +2,11 @@ use std::time::Instant;
 
 use parser::Parser;
 use storage::{parse_sql_statements, read_sql_dump, Database};
-use crate::commands::{CopyDirection, CopyFormat};
-use crate::data_io::DataIO;
+
+use crate::{
+    commands::{CopyDirection, CopyFormat},
+    data_io::DataIO,
+};
 
 pub struct SqlExecutor {
     db: Database,
@@ -207,8 +210,45 @@ impl SqlExecutor {
         Ok(result)
     }
 
-    pub fn describe_table(&self, _table_name: &str) -> anyhow::Result<()> {
-        println!("Table description not yet implemented");
+    pub fn describe_table(&self, table_name: &str) -> anyhow::Result<()> {
+        // 1. Normalize table name to uppercase (SQL standard for unquoted identifiers)
+        let normalized_name = table_name.to_uppercase();
+
+        // 2. Validate table exists
+        let table = self.db.get_table(&normalized_name)
+            .ok_or_else(|| anyhow::anyhow!("Table '{}' does not exist", table_name))?;
+
+        // 2. Get schema name
+        let schema_name = self.db.catalog.get_current_schema();
+
+        // 3. Print table header
+        println!("                Table \"{}.{}\"", schema_name, table_name);
+
+        // 4. Print column information
+        println!(" {:<20} | {:<25} | {:<8} | {:<10}",
+                 "Column", "Type", "Nullable", "Default");
+        println!("{}", "-".repeat(70));
+
+        for column in &table.schema.columns {
+            let nullable = if column.nullable { "" } else { "not null" };
+            let default_val = column.default_value
+                .as_ref()
+                .map(|v| format!("{:?}", v))
+                .unwrap_or_default();
+
+            println!(" {:<20} | {:<25} | {:<8} | {:<10}",
+                     column.name,
+                     format_data_type(&column.data_type),
+                     nullable,
+                     truncate_for_display(&default_val, 10));
+        }
+
+        // 5. Print constraints
+        print_constraints(&table.schema)?;
+
+        // 6. Print indexes
+        print_indexes(&self.db, &normalized_name)?;
+
         Ok(())
     }
 
@@ -262,17 +302,17 @@ impl SqlExecutor {
 
             for index_name in index_names {
                 if let Some(index_meta) = self.db.get_index(&index_name) {
-                    let columns_str = index_meta.columns.iter()
+                    let columns_str = index_meta
+                        .columns
+                        .iter()
                         .map(|col| col.column_name.clone())
                         .collect::<Vec<_>>()
                         .join(", ");
                     let index_type = if index_meta.unique { "UNIQUE" } else { "BTREE" };
 
-                    println!("{:<20} {:<20} {:<15} {:<10}",
-                        index_meta.index_name,
-                        index_meta.table_name,
-                        columns_str,
-                        index_type
+                    println!(
+                        "{:<20} {:<20} {:<15} {:<10}",
+                        index_meta.index_name, index_meta.table_name, columns_str, index_type
                     );
                 }
             }
@@ -316,11 +356,15 @@ impl SqlExecutor {
     /// Validate CSV column names against table schema to prevent SQL injection
     /// Returns an error if columns don't match the table schema
     fn validate_csv_columns(&self, file_path: &str, table_name: &str) -> anyhow::Result<()> {
-        use std::fs::File;
-        use std::io::{BufRead, BufReader};
+        use std::{
+            fs::File,
+            io::{BufRead, BufReader},
+        };
 
         // Get table schema
-        let table = self.db.get_table(table_name)
+        let table = self
+            .db
+            .get_table(table_name)
             .ok_or_else(|| anyhow::anyhow!("Table '{}' does not exist", table_name))?;
 
         // Read CSV header
@@ -338,6 +382,63 @@ impl SqlExecutor {
 
         // Validate each column name
         for col_name in &csv_columns {
+            // Check for SQL injection characters
+            if col_name.contains(';')
+                || col_name.contains('\'')
+                || col_name.contains('"')
+                || col_name.contains('(')
+                || col_name.contains(')')
+            {
+                return Err(anyhow::anyhow!(
+                    "Invalid column name '{}': contains forbidden characters",
+                    col_name
+                ));
+            }
+
+            // Check if column exists in table schema
+            let column_exists =
+                table.schema.columns.iter().any(|c| c.name.eq_ignore_ascii_case(col_name));
+
+            if !column_exists {
+                return Err(anyhow::anyhow!(
+                    "Column '{}' does not exist in table '{}'",
+                    col_name,
+                    table_name
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Validate JSON column names against table schema to prevent SQL injection
+    /// Returns an error if columns don't match the table schema
+    fn validate_json_columns(&self, file_path: &str, table_name: &str) -> anyhow::Result<()> {
+        use std::fs;
+
+        // Get table schema
+        let table = self.db.get_table(table_name)
+            .ok_or_else(|| anyhow::anyhow!("Table '{}' does not exist", table_name))?;
+
+        // Read JSON file
+        let json_content = fs::read_to_string(file_path)
+            .map_err(|e| anyhow::anyhow!("Failed to read file '{}': {}", file_path, e))?;
+
+        // Parse as array of objects
+        let json_array: Vec<serde_json::Map<String, serde_json::Value>> =
+            serde_json::from_str(&json_content)
+                .map_err(|e| anyhow::anyhow!("Invalid JSON format: {}", e))?;
+
+        if json_array.is_empty() {
+            return Err(anyhow::anyhow!("JSON file contains no data"));
+        }
+
+        // Extract column names from first object
+        let first_obj = &json_array[0];
+        let json_columns: Vec<&str> = first_obj.keys().map(|s| s.as_str()).collect();
+
+        // Validate each column name
+        for col_name in &json_columns {
             // Check for SQL injection characters
             if col_name.contains(';') || col_name.contains('\'') || col_name.contains('"')
                 || col_name.contains('(') || col_name.contains(')') {
@@ -409,7 +510,24 @@ impl SqlExecutor {
                         println!("Imported {} rows into '{}'", success_count, table);
                     }
                     CopyFormat::Json => {
-                        return Err(anyhow::anyhow!("JSON import not yet implemented"));
+                        // Validate JSON columns before import
+                        self.validate_json_columns(file_path, table)?;
+
+                        // Import JSON - generates INSERT statements
+                        let insert_statements = DataIO::import_json(file_path, table)?;
+
+                        // Execute each INSERT statement
+                        let mut success_count = 0;
+                        for stmt in &insert_statements {
+                            match self.execute(stmt) {
+                                Ok(_) => success_count += 1,
+                                Err(e) => {
+                                    eprintln!("Warning: Failed to insert row: {}", e);
+                                    // Continue with remaining rows
+                                }
+                            }
+                        }
+                        println!("Imported {} rows into '{}'", success_count, table);
                     }
                 }
             }
@@ -437,6 +555,138 @@ fn truncate_for_display(s: &str, max_len: usize) -> String {
     } else {
         format!("{}...", &s[..max_len])
     }
+}
+
+/// Format DataType for table description output (PostgreSQL-style)
+fn format_data_type(data_type: &types::DataType) -> String {
+    match data_type {
+        types::DataType::Integer => "integer".to_string(),
+        types::DataType::Smallint => "smallint".to_string(),
+        types::DataType::Bigint => "bigint".to_string(),
+        types::DataType::Unsigned => "unsigned bigint".to_string(),
+        types::DataType::Numeric { precision, scale } => format!("numeric({}, {})", precision, scale),
+        types::DataType::Decimal { precision, scale } => format!("numeric({}, {})", precision, scale),
+        types::DataType::Float { precision } => format!("float({})", precision),
+        types::DataType::Real => "real".to_string(),
+        types::DataType::DoublePrecision => "double precision".to_string(),
+        types::DataType::Character { length } => format!("character({})", length),
+        types::DataType::Varchar { max_length } => {
+            match max_length {
+                Some(len) => format!("character varying({})", len),
+                None => "character varying".to_string(),
+            }
+        }
+        types::DataType::CharacterLargeObject => "text".to_string(),
+        types::DataType::Name => "name".to_string(),
+        types::DataType::Boolean => "boolean".to_string(),
+        types::DataType::Date => "date".to_string(),
+        types::DataType::Time { with_timezone } => {
+            if *with_timezone {
+                "time with time zone".to_string()
+            } else {
+                "time".to_string()
+            }
+        }
+        types::DataType::Timestamp { with_timezone } => {
+            if *with_timezone {
+                "timestamp with time zone".to_string()
+            } else {
+                "timestamp".to_string()
+            }
+        }
+        types::DataType::Interval { .. } => "interval".to_string(),
+        types::DataType::BinaryLargeObject => "bytea".to_string(),
+        types::DataType::UserDefined { type_name } => type_name.clone(),
+        types::DataType::Null => "null".to_string(),
+    }
+}
+
+/// Print constraints for a table schema
+fn print_constraints(schema: &catalog::TableSchema) -> anyhow::Result<()> {
+    let mut has_constraints = false;
+
+    // Print primary key
+    if let Some(pk_cols) = &schema.primary_key {
+        if !has_constraints {
+            println!("\nConstraints:");
+            has_constraints = true;
+        }
+        println!("    \"{}_pkey\" PRIMARY KEY, btree ({})",
+                 schema.name,
+                 pk_cols.join(", "));
+    }
+
+    // Print unique constraints
+    for (idx, unique_cols) in schema.unique_constraints.iter().enumerate() {
+        if !has_constraints {
+            println!("\nConstraints:");
+            has_constraints = true;
+        }
+        println!("    \"{}_{}_key\" UNIQUE CONSTRAINT, btree ({})",
+                 schema.name,
+                 idx + 1,
+                 unique_cols.join(", "));
+    }
+
+    // Print foreign key constraints
+    for (idx, fk) in schema.foreign_keys.iter().enumerate() {
+        if !has_constraints {
+            println!("\nConstraints:");
+            has_constraints = true;
+        }
+        println!("    \"{}_{}_fkey\" FOREIGN KEY ({}) REFERENCES {}({})",
+                 schema.name,
+                 idx + 1,
+                 fk.column_names.join(", "),
+                 fk.parent_table,
+                 fk.parent_column_names.join(", "));
+    }
+
+    // Print check constraints
+    for (name, _expr) in &schema.check_constraints {
+        if !has_constraints {
+            println!("\nConstraints:");
+            has_constraints = true;
+        }
+        println!("    \"{}\" CHECK", name);
+    }
+
+    Ok(())
+}
+
+/// Print indexes for a table
+fn print_indexes(db: &Database, table_name: &str) -> anyhow::Result<()> {
+    let index_names = db.list_indexes();
+    let indexes: Vec<_> = index_names
+        .into_iter()
+        .filter_map(|idx_name| {
+            db.get_index(&idx_name).and_then(|idx| {
+                if idx.table_name == table_name {
+                    Some(idx)
+                } else {
+                    None
+                }
+            })
+        })
+        .collect();
+
+    if !indexes.is_empty() {
+        println!("\nIndexes:");
+        for index in indexes {
+            let idx_type = if index.unique { "UNIQUE, btree" } else { "btree" };
+            let columns = index.columns.iter()
+                .map(|c| c.column_name.clone())
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            println!("    \"{}\" {}, ({})",
+                     index.index_name,
+                     idx_type,
+                     columns);
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -479,5 +729,38 @@ mod tests {
         // Should fail for table names with SQL injection attempts
         let result = executor.validate_table_name("users; DROP TABLE users; --");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_describe_table_basic() {
+        let mut executor = SqlExecutor::new(None).unwrap();
+        executor.execute("CREATE TABLE test (id INT PRIMARY KEY, name VARCHAR(50))").unwrap();
+        // Should print table description without error
+        assert!(executor.describe_table("test").is_ok());
+    }
+
+    #[test]
+    fn test_describe_nonexistent_table() {
+        let executor = SqlExecutor::new(None).unwrap();
+        let result = executor.describe_table("nonexistent");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("does not exist"));
+    }
+
+    #[test]
+    fn test_describe_table_with_indexes() {
+        let mut executor = SqlExecutor::new(None).unwrap();
+        executor.execute("CREATE TABLE test (id INT PRIMARY KEY, email VARCHAR(100))").unwrap();
+        // Note: CREATE INDEX is not yet supported in CLI executor, so skip for now
+        // This test will pass once CREATE INDEX support is added
+        assert!(executor.describe_table("test").is_ok());
+    }
+
+    #[test]
+    fn test_describe_table_with_multiple_columns() {
+        let mut executor = SqlExecutor::new(None).unwrap();
+        executor.execute("CREATE TABLE products (id INT PRIMARY KEY, name VARCHAR(100), price DECIMAL(10, 2))").unwrap();
+        // Should print table with multiple columns of different types
+        assert!(executor.describe_table("products").is_ok());
     }
 }

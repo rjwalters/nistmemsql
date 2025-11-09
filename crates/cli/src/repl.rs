@@ -1,4 +1,5 @@
 use rustyline::{error::ReadlineError, DefaultEditor};
+use std::time::SystemTime;
 
 use crate::{
     commands::MetaCommand,
@@ -6,11 +7,18 @@ use crate::{
     formatter::{OutputFormat, ResultFormatter},
 };
 
+#[derive(Debug, Clone)]
+struct ErrorEntry {
+    timestamp: SystemTime,
+    message: String,
+}
+
 pub struct Repl {
     executor: SqlExecutor,
     editor: DefaultEditor,
     formatter: ResultFormatter,
     database_path: Option<String>,
+    error_history: Vec<ErrorEntry>,
 }
 
 impl Repl {
@@ -24,7 +32,13 @@ impl Repl {
             formatter.set_format(fmt);
         }
 
-        Ok(Repl { executor, editor, formatter, database_path })
+        Ok(Repl {
+            executor,
+            editor,
+            formatter,
+            database_path,
+            error_history: Vec::new(),
+        })
     }
 
     pub fn run(&mut self) -> anyhow::Result<()> {
@@ -50,7 +64,9 @@ impl Repl {
                                 }
                             }
                             Err(e) => {
-                                eprintln!("Error: {}", e);
+                                let error_msg = format!("{}", e);
+                                eprintln!("Error: {}", error_msg);
+                                self.track_error(error_msg);
                             }
                         }
                     } else {
@@ -73,7 +89,9 @@ impl Repl {
                                 }
                             }
                             Err(e) => {
-                                eprintln!("Error: {}", e);
+                                let error_msg = format!("{}", e);
+                                eprintln!("Error: {}", error_msg);
+                                self.track_error(error_msg);
                             }
                         }
                     }
@@ -126,6 +144,8 @@ impl Repl {
                     crate::formatter::OutputFormat::Table => "table",
                     crate::formatter::OutputFormat::Json => "json",
                     crate::formatter::OutputFormat::Csv => "csv",
+                    crate::formatter::OutputFormat::Markdown => "markdown",
+                    crate::formatter::OutputFormat::Html => "html",
                 };
                 println!("Output format set to: {}", format_name);
             }
@@ -147,6 +167,9 @@ impl Repl {
                     }
                 }
             }
+            MetaCommand::Errors => {
+                self.print_error_history();
+            }
         }
         Ok(false)
     }
@@ -160,6 +183,42 @@ impl Repl {
         println!("Goodbye!");
     }
 
+    fn track_error(&mut self, error_msg: String) {
+        const MAX_ERROR_HISTORY: usize = 50;
+
+        self.error_history.push(ErrorEntry {
+            timestamp: SystemTime::now(),
+            message: error_msg,
+        });
+
+        // Keep only the last MAX_ERROR_HISTORY errors
+        if self.error_history.len() > MAX_ERROR_HISTORY {
+            self.error_history.remove(0);
+        }
+    }
+
+    fn print_error_history(&self) {
+        if self.error_history.is_empty() {
+            println!("No errors in this session.");
+            return;
+        }
+
+        println!("Recent errors:");
+        for (idx, entry) in self.error_history.iter().enumerate() {
+            let duration = entry.timestamp
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap_or_default();
+            let secs = duration.as_secs();
+            let time_str = format!(
+                "{:02}:{:02}:{:02}",
+                (secs / 3600) % 24,
+                (secs / 60) % 60,
+                secs % 60
+            );
+            println!("{}. [{}] {}", idx + 1, time_str, entry.message);
+        }
+    }
+
     fn print_help(&self) {
         println!(
             "
@@ -169,11 +228,12 @@ Meta-commands:
   \\ds             - List schemas
   \\di             - List indexes
   \\du             - List roles/users
-  \\f <format>     - Set output format (table, json, csv)
+  \\f <format>     - Set output format (table, json, csv, markdown, html)
   \\timing         - Toggle query timing
   \\copy <table> TO <file>   - Export table to CSV/JSON file
   \\copy <table> FROM <file> - Import CSV file into table
   \\save [file]    - Save database to SQL dump file
+  \\errors         - Show recent error history
   \\h, \\help      - Show this help
   \\q, \\quit      - Exit
 
@@ -182,9 +242,11 @@ Examples:
   INSERT INTO users VALUES (1, 'Alice'), (2, 'Bob');
   SELECT * FROM users;
   \\f json
+  \\f markdown
   \\copy users TO '/tmp/users.csv'
   \\copy users FROM '/tmp/users.csv'
   \\copy users TO '/tmp/users.json'
+  \\errors
 "
         );
     }

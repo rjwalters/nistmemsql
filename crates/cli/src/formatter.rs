@@ -7,6 +7,8 @@ pub enum OutputFormat {
     Table,
     Json,
     Csv,
+    Markdown,
+    Html,
 }
 
 pub struct ResultFormatter {
@@ -27,6 +29,8 @@ impl ResultFormatter {
             OutputFormat::Table => self.print_table(result),
             OutputFormat::Json => self.print_json(result),
             OutputFormat::Csv => self.print_csv(result),
+            OutputFormat::Markdown => self.print_markdown(result),
+            OutputFormat::Html => self.print_html(result),
         }
 
         // Print timing if available
@@ -81,5 +85,135 @@ impl ResultFormatter {
         for row in &result.rows {
             println!("{}", row.join(","));
         }
+    }
+
+    fn print_markdown(&self, result: &QueryResult) {
+        if result.columns.is_empty() {
+            return;
+        }
+
+        // Print header row
+        print!("|");
+        for col in &result.columns {
+            print!(" {} |", col);
+        }
+        println!();
+
+        // Print separator row
+        print!("|");
+        for _ in &result.columns {
+            print!("---|");
+        }
+        println!();
+
+        // Print data rows
+        for row in &result.rows {
+            print!("|");
+            for val in row {
+                print!(" {} |", val);
+            }
+            println!();
+        }
+    }
+
+    fn print_html(&self, result: &QueryResult) {
+        if result.columns.is_empty() {
+            println!("<table></table>");
+            return;
+        }
+
+        println!("<table>");
+
+        // Print header
+        println!("  <thead>");
+        println!("    <tr>");
+        for col in &result.columns {
+            println!("      <th>{}</th>", Self::escape_html(col));
+        }
+        println!("    </tr>");
+        println!("  </thead>");
+
+        // Print body
+        println!("  <tbody>");
+        for row in &result.rows {
+            println!("    <tr>");
+            for val in row {
+                println!("      <td>{}</td>", Self::escape_html(val));
+            }
+            println!("    </tr>");
+        }
+        println!("  </tbody>");
+
+        println!("</table>");
+    }
+
+    fn escape_html(s: &str) -> String {
+        s.replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('"', "&quot;")
+            .replace('\'', "&#39;")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_test_result() -> QueryResult {
+        QueryResult {
+            columns: vec!["id".to_string(), "name".to_string()],
+            rows: vec![
+                vec!["1".to_string(), "Alice".to_string()],
+                vec!["2".to_string(), "Bob".to_string()],
+            ],
+            row_count: 2,
+            execution_time_ms: None,
+        }
+    }
+
+    #[test]
+    fn test_html_escaping() {
+        assert_eq!(
+            ResultFormatter::escape_html("<script>alert('xss')</script>"),
+            "&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;"
+        );
+        assert_eq!(
+            ResultFormatter::escape_html("A & B"),
+            "A &amp; B"
+        );
+    }
+
+    #[test]
+    fn test_markdown_format() {
+        let formatter = ResultFormatter::new();
+        let result = create_test_result();
+
+        // Just verify it doesn't panic - output goes to stdout
+        formatter.print_markdown(&result);
+    }
+
+    #[test]
+    fn test_html_format() {
+        let formatter = ResultFormatter::new();
+        let result = create_test_result();
+
+        // Just verify it doesn't panic - output goes to stdout
+        formatter.print_html(&result);
+    }
+
+    #[test]
+    fn test_empty_result() {
+        let formatter = ResultFormatter::new();
+        let result = QueryResult {
+            columns: vec![],
+            rows: vec![],
+            row_count: 0,
+            execution_time_ms: None,
+        };
+
+        // These should handle empty results gracefully
+        formatter.print_markdown(&result);
+        formatter.print_html(&result);
     }
 }

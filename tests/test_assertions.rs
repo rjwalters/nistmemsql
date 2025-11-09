@@ -197,47 +197,37 @@ fn test_in_operator_empty_list() {
 
     let db = Database::new();
 
-    // Test SELECT 1 IN ()
+    // Test that empty IN lists are rejected per SQL standard
     let sql = "SELECT 1 IN ()";
-    let stmt = Parser::parse_sql(sql).expect("Failed to parse SQL");
-
-    match stmt {
-        ast::Statement::Select(select_stmt) => {
-            let executor = SelectExecutor::new(&db);
-            let rows = executor.execute(&select_stmt).expect("Failed to execute query");
-
-            assert_eq!(rows.len(), 1, "Should return one row");
-            assert_eq!(rows[0].values.len(), 1, "Should return one column");
-
-            match &rows[0].values[0] {
-                types::SqlValue::Boolean(false) => (), // Expected: false (0)
-                other => panic!("Expected Boolean(false), got {:?}", other),
-            }
-        }
-        _ => panic!("Not a SELECT statement"),
+    let result = Parser::parse_sql(sql);
+    assert!(
+        result.is_err(),
+        "Empty IN list should be rejected per SQL standard"
+    );
+    if let Err(err) = result {
+        assert!(
+            err.message.contains("IN list cannot be empty"),
+            "Error message should mention empty IN list, got: {}",
+            err.message
+        );
     }
 
-    // Test SELECT 1 NOT IN ()
+    // Test that empty NOT IN lists are also rejected
     let sql = "SELECT 1 NOT IN ()";
-    let stmt = Parser::parse_sql(sql).expect("Failed to parse SQL");
-
-    match stmt {
-        ast::Statement::Select(select_stmt) => {
-            let executor = SelectExecutor::new(&db);
-            let rows = executor.execute(&select_stmt).expect("Failed to execute query");
-
-            assert_eq!(rows.len(), 1, "Should return one row");
-            assert_eq!(rows[0].values.len(), 1, "Should return one column");
-
-            match &rows[0].values[0] {
-                types::SqlValue::Boolean(true) => (), // Expected: true (1)
-                other => panic!("Expected Boolean(true), got {:?}", other),
-            }
-        }
-        _ => panic!("Not a SELECT statement"),
+    let result = Parser::parse_sql(sql);
+    assert!(
+        result.is_err(),
+        "Empty NOT IN list should be rejected per SQL standard"
+    );
+    if let Err(err) = result {
+        assert!(
+            err.message.contains("IN list cannot be empty"),
+            "Error message should mention empty IN list, got: {}",
+            err.message
+        );
     }
 
-    // Test additional cases from evidence tests
+    // Test valid IN operator cases with non-empty lists
     let test_cases = vec![
         ("SELECT 1 IN (2)", "false"),
         ("SELECT 1 NOT IN (2)", "true"),

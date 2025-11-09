@@ -18,35 +18,43 @@ As we work through this unprecedented challenge, we maintain detailed documentat
 ```
 docs/
 ├── README.md                    # This file - documentation guide
-├── architecture/                # System design and architecture
-│   ├── OVERVIEW.md             # High-level system architecture
-│   ├── PARSER.md               # Parser design and grammar
-│   ├── STORAGE.md              # Storage engine architecture
-│   ├── EXECUTION.md            # Query execution engine
-│   ├── TRANSACTIONS.md         # Transaction management
-│   └── PROTOCOLS.md            # ODBC/JDBC implementation
-├── implementation/              # Implementation guides and notes
-│   ├── GETTING_STARTED.md      # Setup and build instructions
-│   ├── FEATURES/               # Per-feature implementation notes
-│   │   ├── E011_numeric.md    # Numeric types implementation
-│   │   ├── F031_schema.md     # Schema operations
-│   │   └── ...
-│   ├── TESTING.md              # How to run and write tests
-│   └── DEBUGGING.md            # Debugging tips and tools
-├── research/                    # Research documents
-│   ├── sql1999/                # SQL:1999 standard research
-│   ├── competitors/            # Study of other databases
-│   ├── algorithms/             # Query optimization, etc.
-│   └── protocols/              # ODBC/JDBC research
+├── CLI_GUIDE.md                 # Complete CLI user guide (Phase 5)
+├── WORK_PLAN.md                 # Detailed roadmap and feature tracking
+├── planning/                    # Strategic planning documents
+│   ├── ROADMAP_CORE_COMPLIANCE.md  # 10-phase plan to Core compliance
+│   ├── PROBLEM_STATEMENT.md     # Original challenge
+│   └── REQUIREMENTS.md          # Project requirements
+├── roadmaps/                    # Strategic roadmaps
+│   ├── PREDICATE_PUSHDOWN_ROADMAP.md  # Optimization roadmap
+│   ├── PUNCHLIST_100_CONFORMANCE.md   # SQLLogicTest conformance strategy
+│   └── ...
+├── testing/                     # Testing strategy and guides
+│   ├── TESTING_STRATEGY.md      # Test approach and strategy
+│   ├── SQL1999_CONFORMANCE.md   # SQL:1999 conformance tracking
+│   └── ...
+├── sqllogictest/                # SQLLogicTest documentation
+│   ├── SQLLOGICTEST_QUICKSTART.md   # 30-second introduction
+│   ├── SQLLOGICTEST_DATABASE.md     # Complete documentation
+│   └── ...
 ├── decisions/                   # Architecture Decision Records (ADRs)
 │   ├── 0001-language-choice.md
 │   ├── 0002-parser-strategy.md
-│   ├── 0003-storage-design.md
+│   ├── 0003-rebranding.md
+│   └── DECISION_LOG.md
+├── lessons/                     # Lessons learned
+│   ├── WEEKLY.md               # Weekly progress and insights
+│   ├── CHALLENGES.md           # Major challenges and solutions
+│   ├── TDD_APPROACH.md         # TDD lessons learned
+│   └── GOTCHAS.md              # SQL:1999 edge cases and surprises
+├── archive/                     # Archived/completed documentation
+│   ├── investigations/         # Completed investigations
 │   └── ...
-└── lessons/                     # Lessons learned
-    ├── WEEKLY.md               # Weekly progress and insights
-    ├── CHALLENGES.md           # Major challenges and solutions
-    └── GOTCHAS.md              # SQL:1999 edge cases and surprises
+├── performance/                 # Performance documentation
+│   ├── OPTIMIZATION.md         # Optimization strategies
+│   └── BENCHMARK_STRATEGY.md   # Benchmarking approach
+└── reference/                   # Reference materials
+    ├── README.md               # Reference guide
+    └── sqlite/                 # SQLite reference source
 ```
 
 ## Document Types
@@ -216,10 +224,11 @@ graph TD
 ## Getting Started
 
 ### For New Contributors
-1. Read `GETTING_STARTED.md` in implementation/
-2. Review architecture docs for system overview
-3. Check DECISIONS.md for context on key choices
-4. Look at LESSONS_LEARNED.md for pitfalls to avoid
+1. Read the main [README.md](../README.md) for project overview
+2. Check [CLI_GUIDE.md](CLI_GUIDE.md) to learn the interactive shell
+3. Review [WORK_PLAN.md](WORK_PLAN.md) for current priorities
+4. See [decisions/DECISION_LOG.md](decisions/DECISION_LOG.md) for context on key choices
+5. Look at [lessons/LESSONS_LEARNED.md](lessons/LESSONS_LEARNED.md) for pitfalls to avoid
 
 ### For AI Assistants (Claude Code)
 When working on this project:

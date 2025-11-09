@@ -1,18 +1,24 @@
 //! Non-aggregation execution methods for SelectExecutor
 
-use super::builder::SelectExecutor;
-use super::index_optimization::{try_index_based_where_filtering, try_index_based_ordering};
-use crate::errors::ExecutorError;
-use crate::evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator};
-use crate::optimizer::{optimize_where_clause, decompose_where_clause};
-use crate::select::filter::apply_where_filter_combined;
-use crate::select::helpers::{apply_distinct, apply_limit_offset};
-use crate::select::join::FromResult;
-use crate::select::order::{apply_order_by, RowWithSortKeys};
-use crate::select::projection::project_row_combined;
-use crate::select::window::{
-    collect_order_by_window_functions, evaluate_order_by_window_functions,
-    evaluate_window_functions, expression_has_window_function, has_window_functions,
+use super::{
+    builder::SelectExecutor,
+    index_optimization::{try_index_based_ordering, try_index_based_where_filtering},
+};
+use crate::{
+    errors::ExecutorError,
+    evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator},
+    optimizer::optimize_where_clause,
+    select::{
+        filter::apply_where_filter_combined,
+        helpers::{apply_distinct, apply_limit_offset},
+        join::FromResult,
+        order::{apply_order_by, RowWithSortKeys},
+        projection::project_row_combined,
+        window::{
+            collect_order_by_window_functions, evaluate_order_by_window_functions,
+            evaluate_window_functions, expression_has_window_function, has_window_functions,
+        },
+    },
 };
 
 impl SelectExecutor<'_> {
@@ -29,25 +35,6 @@ impl SelectExecutor<'_> {
             + rows.iter().map(|r| std::mem::size_of_val(r.values.as_slice())).sum::<usize>();
         self.track_memory_allocation(from_memory_bytes)?;
 
-        // Decompose WHERE clause for predicate pushdown optimization
-        // This analyzes the WHERE clause to identify:
-        // - Table-local predicates (can be pushed to table scans)
-        // - Equijoin conditions (can be optimized in join operators)
-        // - Complex predicates (deferred to post-join filtering)
-        let _predicate_decomposition = if let Some(where_expr) = &stmt.where_clause {
-            match decompose_where_clause(Some(where_expr), &schema) {
-                Ok(decomp) => Some(decomp),
-                Err(_) => {
-                    // If decomposition fails, continue with standard WHERE processing
-                    None
-                }
-            }
-        } else {
-            None
-        };
-
-        // Create evaluator with outer context if available (outer schema is already a
-        // CombinedSchema)
         let evaluator =
             if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
                 CombinedExpressionEvaluator::with_database_and_outer_context(
@@ -61,18 +48,15 @@ impl SelectExecutor<'_> {
             };
 
         // Try index-based WHERE optimization first
-        let mut filtered_rows = if let Some(index_filtered) =
-            try_index_based_where_filtering(self.database, stmt.where_clause.as_ref(), &rows, &schema)?
-        {
+        let mut filtered_rows = if let Some(index_filtered) = try_index_based_where_filtering(
+            self.database,
+            stmt.where_clause.as_ref(),
+            &rows,
+            &schema,
+        )? {
             index_filtered
         } else {
             // Fall back to full WHERE clause evaluation
-            // Note: Table-local predicates have already been pushed down and applied during table
-            // scan. However, we still apply the full WHERE clause here for correctness
-            // with JOINs and complex predicates that can't be pushed down.
-            // The table-local predicates being applied twice is safe (same result) but not optimal.
-            // TODO: In Phase 3, extract and remove table-local predicates here to avoid double
-            // filtering
             let where_optimization = optimize_where_clause(stmt.where_clause.as_ref(), &evaluator)?;
 
             match where_optimization {
@@ -94,18 +78,6 @@ impl SelectExecutor<'_> {
                 }
             }
         };
-
-        // Post-FROM predicate optimization: apply table-local predicates
-        // This filters rows right after FROM execution but before other operations
-        // Note: Ideally these would be applied during table scan for better performance,
-        // but applying them here is simpler and still provides memory benefit for joins
-        if let Some(pred_decomp) = &_predicate_decomposition {
-            if !pred_decomp.table_local_predicates.is_empty() {
-                // Apply each table's local predicates
-                // TODO: Implement filtering using table_local_predicates
-                // For now, this is a placeholder for the structure
-            }
-        }
 
         // Check if SELECT list has window functions
         let has_select_windows = has_window_functions(&stmt.select_list);
@@ -158,9 +130,13 @@ impl SelectExecutor<'_> {
         // Apply ORDER BY sorting if present
         if let Some(order_by) = &stmt.order_by {
             // Try to use index for ordering first
-            if let Some(ordered_rows) =
-                try_index_based_ordering(self.database, &result_rows, order_by, &schema, &stmt.from)?
-            {
+            if let Some(ordered_rows) = try_index_based_ordering(
+                self.database,
+                &result_rows,
+                order_by,
+                &schema,
+                &stmt.from,
+            )? {
                 result_rows = ordered_rows;
             } else {
                 // Fall back to sorting
@@ -259,5 +235,4 @@ impl SelectExecutor<'_> {
         // Return a single row with the evaluated values
         Ok(vec![storage::Row::new(values)])
     }
-
 }

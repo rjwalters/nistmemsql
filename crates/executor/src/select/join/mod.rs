@@ -10,6 +10,9 @@ mod nested_loop;
 pub mod reorder;
 pub mod search;
 
+#[cfg(test)]
+mod tests;
+
 // Re-export join reorder analyzer for public tests
 // Re-export hash_join functions for internal use
 use hash_join::hash_join_inner;
