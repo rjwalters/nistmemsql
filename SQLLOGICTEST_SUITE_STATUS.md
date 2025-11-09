@@ -4,7 +4,7 @@
 **Current Status**: 0% pass rate (0/403 files tested) - REGRESSION DETECTED
 **Previous Status**: 13.5% pass rate (83/613 files) as of 2025-11-06
 **Coverage**: 64.7% (403/623 files tested in current run)
-**Note**: All tests timing out after 60 seconds - timeout regression (#1012, fixed in #1013)
+**Note**: All tests timing out after 60 seconds - timeout regression (#1012, fixed in #1013 and #1018)
 
 ## Quick Start
 
@@ -619,4 +619,4 @@ rm target/sqllogictest_results.sql
 
 **Last Updated**: 2025-11-08
 **Maintainer**: VibeSQL Team
-**Status**: RESOLVED - Timeout regression fixed (#1013)
+**Status**: RESOLVED - Timeout regression fixed (#1013, #1018)
