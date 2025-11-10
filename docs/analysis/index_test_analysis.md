@@ -241,7 +241,7 @@ SQLLOGICTEST_TIME_BUDGET=300 cargo test test_sqllogictest_suite --release -- --n
 "
 
 # Analyze failure patterns
-./scripts/analyze_failure_patterns.py --category index
+./scripts/analyze_test_failures.py
 ```
 
 ### Regression Detection

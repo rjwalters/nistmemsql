@@ -144,10 +144,10 @@ Examples:
 
 ### Analyze Results
 ```bash
-python3 scripts/analyze_failure_patterns.py target/sqllogictest_results_analysis.json
+python3 scripts/analyze_test_failures.py
 ```
 
-Identifies high-impact fix opportunities.
+Identifies high-impact fix opportunities through failure clustering and pattern analysis.
 
 ## Workflow for Fixing One Category
 

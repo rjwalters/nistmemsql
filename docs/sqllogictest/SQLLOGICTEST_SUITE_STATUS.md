@@ -92,23 +92,7 @@ python3 scripts/aggregate_worker_results.py \
 - `target/sqllogictest_results_analysis.json` - Detailed failure analysis
 - `target/failure_pattern_analysis.md` - Human-readable failure patterns
 
-### 3. `analyze_failure_patterns.py` - Pattern Analysis
-
-Analyzes test failures to identify root causes and high-impact fixes.
-
-```bash
-# Analyze failure patterns
-python3 scripts/analyze_failure_patterns.py \
-  target/sqllogictest_results_analysis.json
-
-# Output: target/failure_pattern_analysis.md
-# Groups failures by:
-# - Error type frequency
-# - Tests affected per issue
-# - Estimated impact of fixes
-```
-
-### 4. `process_test_results.py` - Dogfooding Database
+### 3. `process_test_results.py` - Dogfooding Database
 
 Stores test results in VibeSQL, demonstrating real-world database usage.
 
@@ -132,7 +116,7 @@ Stores test results in VibeSQL, demonstrating real-world database usage.
 - `target/sqllogictest_results.sql` - Full database dump
 - Can be loaded into web demo for live querying
 
-### 5. `query_test_results.py` - Results Viewer
+### 4. `query_test_results.py` - Results Viewer
 
 Query the dogfooding database to analyze test results.
 
@@ -296,21 +280,7 @@ python3 scripts/aggregate_worker_results.py /tmp/sqllogictest_results
 - `target/sqllogictest_results_analysis.json` - Detailed analysis with error messages
 - `target/failure_pattern_analysis.md` - Human-readable summary
 
-### Step 3: Analyze Failure Patterns
-
-```bash
-# (automatically done by aggregator, but can re-run)
-python3 scripts/analyze_failure_patterns.py \
-  target/sqllogictest_results_analysis.json
-```
-
-**Identifies**:
-- Top failing categories
-- Error type frequencies
-- Tests affected by each issue
-- Estimated impact of fixes
-
-### Step 4: Store in Dogfooding Database
+### Step 3: Store in Dogfooding Database
 
 ```bash
 # Load results into VibeSQL
@@ -325,7 +295,7 @@ python3 scripts/analyze_failure_patterns.py \
 - test_results entries for each file
 - test_files status update
 
-### Step 5: Query and Analyze
+### Step 4: Query and Analyze
 
 ```bash
 # View progress
@@ -516,7 +486,7 @@ python3 scripts/query_test_results.py --preset progress
 ### Test Scripts
 - `scripts/run_parallel_tests.py` - Run full test suite with workers
 - `scripts/aggregate_worker_results.py` - Combine worker results
-- `scripts/analyze_failure_patterns.py` - Identify failure patterns
+- `scripts/analyze_test_failures.py` - Analyze failures with clustering and pattern detection
 - `scripts/process_test_results.py` - Store results in dogfooding database
 - `scripts/query_test_results.py` - Query dogfooding database
 

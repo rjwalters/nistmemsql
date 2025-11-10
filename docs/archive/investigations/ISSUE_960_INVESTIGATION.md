@@ -139,7 +139,7 @@ cargo test --test sqllogictest_suite -- --exact random/aggregates/slt_good_129.t
 SQLLOGICTEST_TIME_BUDGET=1200 cargo test --test sqllogictest_suite
 
 # Analyze results
-python3 scripts/analyze_failure_patterns.py target/sqllogictest_results_analysis.json
+python3 scripts/analyze_test_failures.py
 ```
 
 ## Related Issues

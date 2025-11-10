@@ -103,14 +103,18 @@ Fixing this ONE issue could improve our pass rate by 8-10%.
 Instead of creating issues for individual test failures, analyze failure categories:
 
 ```bash
-# Use the analysis file to categorize failures
-python3 scripts/analyze_failure_patterns.py target/sqllogictest_results_analysis.json
+# Analyze test failures with clustering and pattern analysis
+python3 scripts/analyze_test_failures.py
+
+# Or run via the test runner
+python3 scripts/run_parallel_tests.py --analyze
 ```
 
-**Output should group by:**
+**Output includes:**
 - Error type frequency
 - Common error patterns
 - Impact analysis (how many tests affected)
+- Clustered failures by similarity
 
 ### 2. Prioritization Matrix
 
@@ -230,18 +234,7 @@ Target: 95-100% (580-613/613)
 
 ## Tools to Build
 
-### 1. Failure Pattern Analyzer
-
-```bash
-# Analyze patterns in failures
-python3 scripts/analyze_failure_patterns.py \
-  target/sqllogictest_results_analysis.json \
-  --group-by error_type \
-  --show-impact \
-  --output target/failure_patterns.md
-```
-
-### 2. Test Run Comparator
+### 1. Test Run Comparator
 
 ```bash
 # Compare two test runs
