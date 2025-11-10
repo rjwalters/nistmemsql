@@ -36,13 +36,13 @@ fn check_join_size_limit(left_count: usize, right_count: usize) -> Result<(), Ex
 /// - Space: O(n) where n is the size of the smaller table
 /// - Expected speedup: 100-10,000x for large equi-joins
 pub(super) fn hash_join_inner(
-    left: FromResult,
-    right: FromResult,
+    mut left: FromResult,
+    mut right: FromResult,
     left_col_idx: usize,
     right_col_idx: usize,
 ) -> Result<FromResult, ExecutorError> {
     // Check if join would exceed memory limits before executing
-    check_join_size_limit(left.rows.len(), right.rows.len())?;
+    check_join_size_limit(left.rows().len(), right.rows().len())?;
 
     // Extract right table name and schema for combining
     let right_table_name = right
@@ -67,10 +67,10 @@ pub(super) fn hash_join_inner(
 
     // Choose build and probe sides (build hash table on smaller table)
     let (build_rows, probe_rows, build_col_idx, probe_col_idx, left_is_build) =
-        if left.rows.len() <= right.rows.len() {
-            (&left.rows, &right.rows, left_col_idx, right_col_idx, true)
+        if left.rows().len() <= right.rows().len() {
+            (left.rows(), right.rows(), left_col_idx, right_col_idx, true)
         } else {
-            (&right.rows, &left.rows, right_col_idx, left_col_idx, false)
+            (right.rows(), left.rows(), right_col_idx, left_col_idx, false)
         };
 
     // Build phase: Create hash table from build side
@@ -111,7 +111,7 @@ pub(super) fn hash_join_inner(
         }
     }
 
-    Ok(FromResult { schema: combined_schema, rows: result_rows })
+    Ok(FromResult::from_rows(combined_schema, result_rows))
 }
 
 #[cfg(test)]
@@ -147,7 +147,7 @@ mod tests {
 
         let rows = rows.into_iter().map(|values| Row::new(values)).collect();
 
-        FromResult { schema: combined_schema, rows }
+        FromResult::from_rows(combined_schema, rows)
     }
 
     #[test]
@@ -175,30 +175,30 @@ mod tests {
         );
 
         // Join on users.id = orders.user_id (column 0 from both sides)
-        let result = hash_join_inner(left, right, 0, 0).unwrap();
+        let mut result = hash_join_inner(left, right, 0, 0).unwrap();
 
         // Should have 3 rows (user 1 has 2 orders, user 2 has 1 order, user 3 has no orders)
-        assert_eq!(result.rows.len(), 3);
+        assert_eq!(result.rows().len(), 3);
 
         // Verify combined rows have correct structure (4 columns: id, name, user_id, amount)
-        for row in &result.rows {
+        for row in result.rows() {
             assert_eq!(row.values.len(), 4);
         }
 
         // Check specific matches
         // Alice (id=1) should appear twice (2 orders)
         let alice_orders: Vec<_> =
-            result.rows.iter().filter(|r| r.values[0] == SqlValue::Integer(1)).collect();
+            result.rows().iter().filter(|r| r.values[0] == SqlValue::Integer(1)).collect();
         assert_eq!(alice_orders.len(), 2);
 
         // Bob (id=2) should appear once (1 order)
         let bob_orders: Vec<_> =
-            result.rows.iter().filter(|r| r.values[0] == SqlValue::Integer(2)).collect();
+            result.rows().iter().filter(|r| r.values[0] == SqlValue::Integer(2)).collect();
         assert_eq!(bob_orders.len(), 1);
 
         // Charlie (id=3) should not appear (no orders)
         let charlie_orders: Vec<_> =
-            result.rows.iter().filter(|r| r.values[0] == SqlValue::Integer(3)).collect();
+            result.rows().iter().filter(|r| r.values[0] == SqlValue::Integer(3)).collect();
         assert_eq!(charlie_orders.len(), 0);
     }
 
@@ -224,15 +224,15 @@ mod tests {
             ],
         );
 
-        let result = hash_join_inner(left, right, 0, 0).unwrap();
+        let mut result = hash_join_inner(left, right, 0, 0).unwrap();
 
         // Only one match: Alice (id=1) with order (user_id=1)
         // NULLs should not match each other in equi-joins
-        assert_eq!(result.rows.len(), 1);
-        assert_eq!(result.rows[0].values[0], SqlValue::Integer(1)); // user id
-        assert_eq!(result.rows[0].values[1], SqlValue::Varchar("Alice".to_string())); // user name
-        assert_eq!(result.rows[0].values[2], SqlValue::Integer(1)); // order user_id
-        assert_eq!(result.rows[0].values[3], SqlValue::Integer(100)); // order amount
+        assert_eq!(result.rows().len(), 1);
+        assert_eq!(result.rows()[0].values[0], SqlValue::Integer(1)); // user id
+        assert_eq!(result.rows()[0].values[1], SqlValue::Varchar("Alice".to_string())); // user name
+        assert_eq!(result.rows()[0].values[2], SqlValue::Integer(1)); // order user_id
+        assert_eq!(result.rows()[0].values[3], SqlValue::Integer(100)); // order amount
     }
 
     #[test]
@@ -251,10 +251,10 @@ mod tests {
             vec![vec![SqlValue::Integer(3)], vec![SqlValue::Integer(4)]],
         );
 
-        let result = hash_join_inner(left, right, 0, 0).unwrap();
+        let mut result = hash_join_inner(left, right, 0, 0).unwrap();
 
         // No matches
-        assert_eq!(result.rows.len(), 0);
+        assert_eq!(result.rows().len(), 0);
     }
 
     #[test]
@@ -265,10 +265,10 @@ mod tests {
         // Right table (empty)
         let right = create_test_from_result("orders", vec![("user_id", DataType::Integer)], vec![]);
 
-        let result = hash_join_inner(left, right, 0, 0).unwrap();
+        let mut result = hash_join_inner(left, right, 0, 0).unwrap();
 
         // No rows
-        assert_eq!(result.rows.len(), 0);
+        assert_eq!(result.rows().len(), 0);
     }
 
     #[test]
@@ -293,13 +293,13 @@ mod tests {
             ],
         );
 
-        let result = hash_join_inner(left, right, 0, 0).unwrap();
+        let mut result = hash_join_inner(left, right, 0, 0).unwrap();
 
         // Cartesian product of matching keys: 2 left rows * 2 right rows = 4 results
-        assert_eq!(result.rows.len(), 4);
+        assert_eq!(result.rows().len(), 4);
 
         // All should have id=1
-        for row in &result.rows {
+        for row in result.rows() {
             assert_eq!(row.values[0], SqlValue::Integer(1));
         }
     }

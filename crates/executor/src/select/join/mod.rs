@@ -2,6 +2,7 @@ use crate::{
     errors::ExecutorError, evaluator::CombinedExpressionEvaluator, optimizer::combine_with_and,
     schema::CombinedSchema,
 };
+use super::from_iterator::FromIterator;
 
 mod expression_mapper;
 mod hash_join;
@@ -25,11 +26,84 @@ pub use reorder::JoinOrderAnalyzer;
 // Re-export join order search for public tests
 pub use search::JoinOrderSearch;
 
+/// Data source for FROM clause results
+///
+/// This enum allows FROM results to be either materialized (Vec<Row>) or lazy (iterator).
+/// Materialized results are used for JOINs, CTEs, and operations that need multiple passes.
+/// Lazy results are used for simple table scans to enable streaming execution.
+pub(super) enum FromData {
+    /// Materialized rows (for JOINs, CTEs, operations needing multiple passes)
+    Materialized(Vec<storage::Row>),
+
+    /// Lazy iterator (for streaming table scans)
+    Iterator(FromIterator),
+}
+
+impl FromData {
+    /// Get rows, materializing if needed
+    pub fn into_rows(self) -> Vec<storage::Row> {
+        match self {
+            Self::Materialized(rows) => rows,
+            Self::Iterator(iter) => iter.collect_vec(),
+        }
+    }
+
+    /// Get a reference to materialized rows, or materialize if iterator
+    pub fn as_rows(&mut self) -> &Vec<storage::Row> {
+        // If we have an iterator, materialize it
+        if let Self::Iterator(iter) = self {
+            let rows = std::mem::replace(iter, FromIterator::from_vec(vec![])).collect_vec();
+            *self = Self::Materialized(rows);
+        }
+
+        // Now we're guaranteed to have materialized rows
+        match self {
+            Self::Materialized(rows) => rows,
+            Self::Iterator(_) => unreachable!(),
+        }
+    }
+}
+
 /// Result of executing a FROM clause
-#[derive(Clone)]
+///
+/// Contains the combined schema and data (either materialized or lazy).
 pub(super) struct FromResult {
     pub(super) schema: CombinedSchema,
-    pub(super) rows: Vec<storage::Row>,
+    pub(super) data: FromData,
+}
+
+impl FromResult {
+    /// Create a FromResult from materialized rows
+    pub(super) fn from_rows(schema: CombinedSchema, rows: Vec<storage::Row>) -> Self {
+        Self { schema, data: FromData::Materialized(rows) }
+    }
+
+    /// Create a FromResult from an iterator
+    pub(super) fn from_iterator(schema: CombinedSchema, iterator: FromIterator) -> Self {
+        Self { schema, data: FromData::Iterator(iterator) }
+    }
+
+    /// Get the rows, materializing if needed
+    pub(super) fn into_rows(self) -> Vec<storage::Row> {
+        self.data.into_rows()
+    }
+
+    /// Get a mutable reference to the rows, materializing if needed
+    pub(super) fn rows_mut(&mut self) -> &mut Vec<storage::Row> {
+        // First materialize if needed
+        self.data.as_rows();
+
+        // Now we're guaranteed to have materialized rows
+        match &mut self.data {
+            FromData::Materialized(rows) => rows,
+            FromData::Iterator(_) => unreachable!(),
+        }
+    }
+
+    /// Get a reference to rows, materializing if needed
+    pub(super) fn rows(&mut self) -> &Vec<storage::Row> {
+        self.data.as_rows()
+    }
 }
 
 /// Helper function to combine two rows without unnecessary cloning
@@ -51,11 +125,13 @@ fn apply_post_join_filter(
     filter_expr: &ast::Expression,
     database: &storage::Database,
 ) -> Result<FromResult, ExecutorError> {
-    let evaluator = CombinedExpressionEvaluator::with_database(&result.schema, database);
+    // Extract schema before moving result
+    let schema = result.schema.clone();
+    let evaluator = CombinedExpressionEvaluator::with_database(&schema, database);
 
     // Filter rows based on the expression
     let mut filtered_rows = Vec::new();
-    for row in result.rows {
+    for row in result.into_rows() {
         match evaluator.eval(filter_expr, &row)? {
             types::SqlValue::Boolean(true) => filtered_rows.push(row),
             types::SqlValue::Boolean(false) => {} // Skip this row
@@ -82,8 +158,7 @@ fn apply_post_join_filter(
         }
     }
 
-    result.rows = filtered_rows;
-    Ok(result)
+    Ok(FromResult::from_rows(schema, filtered_rows))
 }
 
 /// Perform join between two FROM results, optimizing with hash join when possible

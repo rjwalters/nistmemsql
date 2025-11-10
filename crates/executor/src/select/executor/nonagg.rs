@@ -28,7 +28,8 @@ impl SelectExecutor<'_> {
         stmt: &ast::SelectStmt,
         from_result: FromResult,
     ) -> Result<Vec<storage::Row>, ExecutorError> {
-        let FromResult { schema, rows } = from_result;
+        let schema = from_result.schema.clone();
+        let rows = from_result.into_rows();
 
         // Track memory used by FROM clause results (JOINs, table scans, etc.)
         let from_memory_bytes = std::mem::size_of::<storage::Row>() * rows.len()
