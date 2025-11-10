@@ -592,7 +592,7 @@ fn test_count_star_in_arithmetic_expression() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], types::SqlValue::Float(50.0)); // 5 * 10
+    assert_eq!(result[0].values[0], types::SqlValue::Numeric(50.0)); // 5 * 10
 }
 
 #[test]

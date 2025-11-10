@@ -105,7 +105,7 @@ fn test_aggregate_in_expression_without_from() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].get(0), Some(&types::SqlValue::Float(15.0)));
+    assert_eq!(result[0].get(0), Some(&types::SqlValue::Numeric(15.0)));
 }
 
 #[test]
