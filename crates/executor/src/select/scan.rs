@@ -42,6 +42,22 @@ fn count_tables_in_from(from: &ast::FromClause) -> usize {
     }
 }
 
+/// Check if all joins in the tree are CROSS or INNER joins
+///
+/// Join reordering is only safe for CROSS and INNER joins. LEFT/RIGHT/FULL OUTER
+/// joins have specific semantics that must be preserved.
+fn all_joins_are_inner_or_cross(from: &ast::FromClause) -> bool {
+    match from {
+        ast::FromClause::Table { .. } | ast::FromClause::Subquery { .. } => true,
+        ast::FromClause::Join { left, right, join_type, .. } => {
+            let is_inner_or_cross = matches!(join_type, ast::JoinType::Inner | ast::JoinType::Cross);
+            is_inner_or_cross
+                && all_joins_are_inner_or_cross(left)
+                && all_joins_are_inner_or_cross(right)
+        }
+    }
+}
+
 /// Information about a table extracted from a FROM clause
 #[derive(Debug, Clone)]
 struct TableRef {
@@ -234,7 +250,11 @@ where
     // Check if this is a multi-table join that could benefit from reordering
     if matches!(from, ast::FromClause::Join { .. }) {
         let table_count = count_tables_in_from(from);
-        if should_apply_join_reordering(table_count) {
+        // Only apply reordering if:
+        // 1. Environment variable is set (opt-in)
+        // 2. We have 3+ tables
+        // 3. All joins are INNER or CROSS (safe to reorder)
+        if should_apply_join_reordering(table_count) && all_joins_are_inner_or_cross(from) {
             // Apply join reordering optimization
             return execute_with_join_reordering(from, cte_results, database, where_clause, execute_subquery);
         }
