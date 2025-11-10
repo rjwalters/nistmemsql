@@ -2,6 +2,14 @@
 //!
 //! This module provides infrastructure to run the same sqllogictest files against
 //! both vibesql and SQLite3, collecting comparable metrics from both engines.
+//!
+//! ## Current Limitations
+//!
+//! - **Metrics**: Only total execution time is currently collected. Per-query metrics
+//!   would require custom instrumentation of the sqllogictest Runner.
+//! - **Glob Patterns**: Multiple test file support via glob patterns is deferred to a
+//!   future enhancement. Currently only single test files are supported.
+//! - **Parallel Execution**: Concurrent testing of multiple files is not yet implemented.
 
 use async_trait::async_trait;
 use md5::{Digest, Md5};
@@ -13,37 +21,20 @@ use storage::Database;
 use types::SqlValue;
 
 /// Benchmark metrics collected during test execution
+///
+/// Note: Currently only `total_duration` is collected due to limitations in the
+/// sqllogictest Runner API. Fine-grained per-query metrics would require custom
+/// instrumentation or modifications to the Runner itself.
 #[derive(Debug, Clone)]
 pub struct BenchmarkMetrics {
-    /// Total execution time for all queries
+    /// Total execution time for the entire test file
     pub total_duration: Duration,
-    /// Number of queries executed
-    pub query_count: usize,
-    /// Number of statements executed (CREATE, INSERT, etc.)
-    pub statement_count: usize,
-    /// Number of rows returned across all queries
-    pub total_rows_returned: usize,
-    /// Number of test failures
-    pub failure_count: usize,
-    /// Average query execution time
-    pub avg_query_time: Duration,
 }
 
 impl BenchmarkMetrics {
     fn new() -> Self {
         Self {
             total_duration: Duration::ZERO,
-            query_count: 0,
-            statement_count: 0,
-            total_rows_returned: 0,
-            failure_count: 0,
-            avg_query_time: Duration::ZERO,
-        }
-    }
-
-    fn finalize(&mut self) {
-        if self.query_count > 0 {
-            self.avg_query_time = self.total_duration / self.query_count as u32;
         }
     }
 }
@@ -75,44 +66,62 @@ impl From<std::io::Error> for BenchmarkError {
 }
 
 /// Result of comparing two engines
+///
+/// Each engine's metrics are optional to allow graceful handling of failures.
+/// If one engine fails, the comparison can still report results from the other.
 #[derive(Debug)]
 pub struct ComparisonResult {
-    pub vibesql: BenchmarkMetrics,
-    pub sqlite: BenchmarkMetrics,
+    pub vibesql: Option<BenchmarkMetrics>,
+    pub sqlite: Option<BenchmarkMetrics>,
 }
 
 impl ComparisonResult {
     pub fn print_summary(&self) {
         println!("\n=== Benchmark Comparison ===\n");
 
-        println!("VibeSQL:");
-        println!("  Total Duration: {:?}", self.vibesql.total_duration);
-        println!("  Queries: {}", self.vibesql.query_count);
-        println!("  Statements: {}", self.vibesql.statement_count);
-        println!("  Rows Returned: {}", self.vibesql.total_rows_returned);
-        println!("  Failures: {}", self.vibesql.failure_count);
-        println!("  Avg Query Time: {:?}", self.vibesql.avg_query_time);
+        match &self.vibesql {
+            Some(metrics) => {
+                println!("VibeSQL:");
+                println!("  Total Duration: {:?}", metrics.total_duration);
+            }
+            None => {
+                println!("VibeSQL: FAILED");
+            }
+        }
 
-        println!("\nSQLite:");
-        println!("  Total Duration: {:?}", self.sqlite.total_duration);
-        println!("  Queries: {}", self.sqlite.query_count);
-        println!("  Statements: {}", self.sqlite.statement_count);
-        println!("  Rows Returned: {}", self.sqlite.total_rows_returned);
-        println!("  Failures: {}", self.sqlite.failure_count);
-        println!("  Avg Query Time: {:?}", self.sqlite.avg_query_time);
+        match &self.sqlite {
+            Some(metrics) => {
+                println!("\nSQLite:");
+                println!("  Total Duration: {:?}", metrics.total_duration);
+            }
+            None => {
+                println!("\nSQLite: FAILED");
+            }
+        }
 
-        if self.vibesql.query_count > 0 && self.sqlite.query_count > 0 {
-            let speedup = self.sqlite.total_duration.as_secs_f64()
-                / self.vibesql.total_duration.as_secs_f64();
-            println!("\nSpeedup: {:.2}x", speedup);
+        // Calculate and display speedup ratio if both succeeded
+        if let (Some(vibesql), Some(sqlite)) = (&self.vibesql, &self.sqlite) {
+            if vibesql.total_duration.as_nanos() > 0 && sqlite.total_duration.as_nanos() > 0 {
+                let speedup = sqlite.total_duration.as_secs_f64()
+                    / vibesql.total_duration.as_secs_f64();
+
+                if speedup > 1.0 {
+                    println!("\nVibeSQL is {:.2}x faster than SQLite", speedup);
+                } else if speedup < 1.0 {
+                    println!("\nSQLite is {:.2}x faster than VibeSQL", 1.0 / speedup);
+                } else {
+                    println!("\nBoth engines have equivalent performance");
+                }
+            }
         }
     }
 }
 
 // ===== SQLite Wrapper =====
 
+/// Error type for database operations in the benchmark harness
 #[derive(Debug)]
-struct TestError(String);
+pub struct TestError(String);
 
 impl std::fmt::Display for TestError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -592,66 +601,6 @@ impl AsyncDB for NistMemSqlDB {
 
 // ===== Benchmark Functions =====
 
-/// Instrumented database wrapper that collects metrics
-struct InstrumentedDB<DB: AsyncDB> {
-    db: DB,
-    metrics: BenchmarkMetrics,
-}
-
-impl<DB: AsyncDB> InstrumentedDB<DB> {
-    fn new(db: DB) -> Self {
-        Self {
-            db,
-            metrics: BenchmarkMetrics::new(),
-        }
-    }
-
-    fn into_metrics(mut self) -> BenchmarkMetrics {
-        self.metrics.finalize();
-        self.metrics
-    }
-}
-
-#[async_trait]
-impl<DB: AsyncDB + Send> AsyncDB for InstrumentedDB<DB> {
-    type Error = DB::Error;
-    type ColumnType = DB::ColumnType;
-
-    async fn run(&mut self, _sql: &str) -> Result<DBOutput<Self::ColumnType>, Self::Error> {
-        let start = Instant::now();
-        let result = self.db.run(_sql).await;
-        let duration = start.elapsed();
-
-        self.metrics.total_duration += duration;
-
-        match &result {
-            Ok(output) => {
-                match output {
-                    DBOutput::Rows { rows, .. } => {
-                        self.metrics.query_count += 1;
-                        self.metrics.total_rows_returned += rows.len();
-                    }
-                    DBOutput::StatementComplete(_) => {
-                        self.metrics.statement_count += 1;
-                    }
-                    _ => {
-                        // Handle other variants
-                    }
-                }
-            }
-            Err(_) => {
-                self.metrics.failure_count += 1;
-            }
-        }
-
-        result
-    }
-
-    async fn shutdown(&mut self) {
-        self.db.shutdown().await
-    }
-}
-
 /// Run a benchmark on a single database engine
 ///
 /// This function measures the total execution time of running a test file
@@ -688,22 +637,43 @@ where
 }
 
 /// Compare both engines on the same test file
+///
+/// This function runs the test file on both engines independently. If one engine
+/// fails, the other continues and the comparison can still provide partial results.
 pub async fn compare_engines(
     test_file: &Path,
 ) -> Result<ComparisonResult, BenchmarkError> {
     println!("Benchmarking VibeSQL...");
-    let vibesql = benchmark_engine::<NistMemSqlDB>(
-        test_file,
-        "VibeSQL",
-    ).await?;
+    let vibesql = match benchmark_engine::<NistMemSqlDB>(test_file, "VibeSQL").await {
+        Ok(metrics) => {
+            eprintln!("✓ VibeSQL benchmark succeeded");
+            Some(metrics)
+        }
+        Err(e) => {
+            eprintln!("✗ VibeSQL benchmark failed: {}", e);
+            None
+        }
+    };
 
-    println!("Benchmarking SQLite...");
-    let sqlite = benchmark_engine::<SqliteDB>(
-        test_file,
-        "SQLite",
-    ).await?;
+    println!("\nBenchmarking SQLite...");
+    let sqlite = match benchmark_engine::<SqliteDB>(test_file, "SQLite").await {
+        Ok(metrics) => {
+            eprintln!("✓ SQLite benchmark succeeded");
+            Some(metrics)
+        }
+        Err(e) => {
+            eprintln!("✗ SQLite benchmark failed: {}", e);
+            None
+        }
+    };
 
-    Ok(ComparisonResult { vibesql, sqlite })
+    // Return error only if both failed
+    match (&vibesql, &sqlite) {
+        (None, None) => Err(BenchmarkError::TestError(
+            "Both engines failed to run the test file".to_string()
+        )),
+        _ => Ok(ComparisonResult { vibesql, sqlite })
+    }
 }
 
 // ===== Tests =====
