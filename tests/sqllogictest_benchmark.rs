@@ -151,7 +151,7 @@ impl SqliteDB {
 
     fn format_result_rows(
         &self,
-        rows: Vec<Vec<rusqlite::vibesql_types::Value>>,
+        rows: Vec<Vec<rusqlite::types::Value>>,
     ) -> Result<DBOutput<DefaultColumnType>, TestError> {
         if rows.is_empty() {
             return Ok(DBOutput::Rows { types: vec![], rows: vec![] });
@@ -202,8 +202,8 @@ impl SqliteDB {
         }
     }
 
-    fn format_sqlite_value(&self, value: &rusqlite::vibesql_types::Value) -> String {
-        use rusqlite::vibesql_types::Value;
+    fn format_sqlite_value(&self, value: &rusqlite::types::Value) -> String {
+        use rusqlite::types::Value;
         match value {
             Value::Null => "NULL".to_string(),
             Value::Integer(i) => i.to_string(),
@@ -219,8 +219,8 @@ impl SqliteDB {
         }
     }
 
-    fn infer_type(&self, value: &rusqlite::vibesql_types::Value) -> DefaultColumnType {
-        use rusqlite::vibesql_types::Value;
+    fn infer_type(&self, value: &rusqlite::types::Value) -> DefaultColumnType {
+        use rusqlite::types::Value;
         match value {
             Value::Integer(_) => DefaultColumnType::Integer,
             Value::Real(_) => DefaultColumnType::FloatingPoint,
@@ -243,7 +243,7 @@ impl SqliteDB {
             let result = stmt.query_map([], |row| {
                 let mut values = Vec::new();
                 for i in 0..column_count {
-                    values.push(row.get::<_, rusqlite::vibesql_types::Value>(i)?);
+                    values.push(row.get::<_, rusqlite::types::Value>(i)?);
                 }
                 Ok(values)
             });
