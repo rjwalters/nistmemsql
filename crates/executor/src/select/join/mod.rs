@@ -5,6 +5,7 @@ use crate::{
 
 mod expression_mapper;
 mod hash_join;
+mod hash_join_iterator;
 mod join_analyzer;
 mod nested_loop;
 pub mod reorder;
@@ -16,6 +17,8 @@ mod tests;
 // Re-export join reorder analyzer for public tests
 // Re-export hash_join functions for internal use
 use hash_join::hash_join_inner;
+// Re-export hash join iterator for public use
+pub use hash_join_iterator::HashJoinIterator;
 // Re-export nested loop join variants for internal use
 use nested_loop::{
     nested_loop_cross_join, nested_loop_full_outer_join, nested_loop_inner_join,
