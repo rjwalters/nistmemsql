@@ -65,7 +65,7 @@ jobs:
       - name: Build and install Python bindings
         run: |
           uv pip install --system maturin
-          cd crates/python-bindings
+          cd crates/vibesql-python-bindings
           maturin build --release
           uv pip install --system ../../target/wheels/vibesql_py-*.whl
 
