@@ -75,16 +75,15 @@ def is_mysql_specific(test_file_path: Path) -> bool:
         return False
 
 
-def initialize_work_queue(repo_root: Path, work_queue_dir: Path) -> tuple[int, int]:
+def initialize_work_queue(repo_root: Path, work_queue_dir: Path) -> int:
     """
     Initialize work queue by creating work items for all test files.
 
-    Filters out:
-    - Blocklisted files (memory leaks, OOM issues)
-    - MySQL-specific tests (not part of SQL:1999 standard)
+    Filters out only blocklisted files (memory leaks, OOM issues).
+    MySQL-specific tests are included and tagged for separate reporting.
 
     Returns:
-        Tuple of (number of test files added to queue, number of MySQL tests skipped)
+        Number of test files added to the queue
     """
     # Clean up old work queue
     import shutil
@@ -108,26 +107,17 @@ def initialize_work_queue(repo_root: Path, work_queue_dir: Path) -> tuple[int, i
     test_dir = repo_root / "third_party" / "sqllogictest" / "test"
     all_test_files = sorted(glob.glob(str(test_dir / "**" / "*.test"), recursive=True))
 
-    # Filter out blocklisted and MySQL-specific files
+    # Filter out only blocklisted files (MySQL tests are included)
     test_files = []
-    blocklist_skipped = 0
-    mysql_skipped = 0
+    skipped_count = 0
     for test_file_path in all_test_files:
         test_file = Path(test_file_path)
-
-        # Skip blocklisted files
         if test_file.name in blocklist:
-            blocklist_skipped += 1
+            skipped_count += 1
             continue
-
-        # Skip MySQL-specific tests
-        if is_mysql_specific(test_file):
-            mysql_skipped += 1
-            continue
-
         test_files.append(test_file_path)
 
-    print(f"Initializing work queue with {len(test_files)} test files (blocklisted: {blocklist_skipped}, MySQL-specific: {mysql_skipped})...")
+    print(f"Initializing work queue with {len(test_files)} test files (skipped {skipped_count})...")
 
     # Create work items
     for counter, test_file_path in enumerate(test_files, start=1):
@@ -145,7 +135,7 @@ def initialize_work_queue(repo_root: Path, work_queue_dir: Path) -> tuple[int, i
         work_item_path.touch()
 
     print(f"✓ Work queue initialized: {len(test_files)} files in pending queue")
-    return len(test_files), mysql_skipped
+    return len(test_files)
 
 
 def run_worker(
@@ -436,9 +426,7 @@ def main():
 
     # Initialize work queue
     work_queue_dir = Path("/tmp/sqllogictest_work_queue")
-    total_files, mysql_skipped = initialize_work_queue(repo_root, work_queue_dir)
-    if mysql_skipped > 0:
-        print(f"ℹ Filtered out {mysql_skipped} MySQL-specific tests (not part of SQL:1999 standard)")
+    total_files = initialize_work_queue(repo_root, work_queue_dir)
     print()
 
     # Start all workers in parallel

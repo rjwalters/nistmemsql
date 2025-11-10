@@ -37,22 +37,25 @@ Coverage includes:
 - **F031**: Basic schema manipulation
 - Plus additional features from the F-series
 
-## Test Filtering Policy
+## Test Reporting Policy
 
 ### MySQL-Specific Tests
 
-The SQLLogicTest suite contains tests with MySQL-specific syntax extensions that are not part of the SQL:1999 standard. These tests are automatically filtered out by the test runner to provide accurate SQL:1999 conformance metrics.
+The SQLLogicTest suite contains tests with MySQL-specific syntax extensions that are not part of the SQL:1999 standard. These tests are **included in test runs** but tracked separately for dual reporting metrics.
 
-**Filtered patterns**:
+**MySQL patterns tracked**:
 - **System variables**: `@@sql_mode`, `@@session.variable_name`
 - **Session management**: `SET SESSION` commands
 - **MySQL sql_mode flags**: `ONLY_FULL_GROUP_BY`
 
-**Implementation**: The `is_mysql_specific()` function in `scripts/run_parallel_tests.py` detects these patterns and excludes the tests from the work queue during initialization.
+**Implementation**: The `cluster_mysql_specific_errors()` function in `scripts/analyze_test_failures.py` identifies MySQL-specific failures for separate metrics reporting.
 
-**Impact**: Approximately 14 test files in `random/groupby/slt_good_*.test` contain MySQL-specific syntax. These are now excluded from test runs and pass rate calculations.
+**Impact**: Approximately 14 test files in `random/groupby/slt_good_*.test` contain MySQL-specific syntax. These are reported separately to provide:
+- **SQL:1999 pass rate** - Standard compliance (excludes MySQL-specific tests)
+- **MySQL compatibility rate** - MySQL dialect support (just these tests)
+- **Overall pass rate** - All tests combined
 
-**Rationale**: Our focus is on SQL:1999 standard compliance, not MySQL dialect compatibility. MySQL extensions may be added later as an optional compatibility mode, but they should not count against SQL:1999 conformance metrics.
+**Rationale**: We want to track progress on both SQL:1999 standard compliance AND MySQL compatibility. Separate metrics help prioritize work and understand which failures are standard-related vs dialect-specific.
 
 ## Sample Failing Tests
 

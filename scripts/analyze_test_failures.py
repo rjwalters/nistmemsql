@@ -241,29 +241,29 @@ class FailureAnalyzer:
             report.append("**Recommendation**: Fork `sqllogictest` crate and add MySQL directive support")
             report.append("")
 
-        # MySQL-specific errors (filtered out)
+        # MySQL-specific errors (tracked separately for metrics)
         if "mysql_specific_errors" in self.clusters:
-            report.append("## 🔍 MySQL-Specific Syntax (Filtered Out)")
+            report.append("## 🔍 MySQL-Specific Syntax")
             report.append("")
             report.append("These failures are from MySQL extensions not part of SQL:1999 standard.")
-            report.append("**These tests are now filtered out** by the test runner.")
+            report.append("**Goal**: Pass these tests by implementing MySQL compatibility.")
             report.append("")
 
             by_pattern = defaultdict(set)
             for item in self.clusters["mysql_specific_errors"]:
                 by_pattern[item["pattern"]].add(item["file"])
 
-            report.append(f"**Total filtered**: {len(self.clusters['mysql_specific_errors']):,} failures")
+            report.append(f"**Total failures**: {len(self.clusters['mysql_specific_errors']):,}")
             report.append(f"**Unique files**: {len(set(item['file'] for item in self.clusters['mysql_specific_errors'])):,}")
             report.append("")
 
-            report.append("### Patterns Detected")
+            report.append("### MySQL Patterns Needing Implementation")
             report.append("")
             for pattern, files in sorted(by_pattern.items(), key=lambda x: len(x[1]), reverse=True):
                 report.append(f"- **{pattern}**: {len(files):,} files")
             report.append("")
 
-            report.append("**Action**: No fix needed - tests filtered by `is_mysql_specific()` in test runner")
+            report.append("**Metrics**: These are reported separately to distinguish SQL:1999 compliance from MySQL dialect support.")
             report.append("")
 
         # SQL parse errors
