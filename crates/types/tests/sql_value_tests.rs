@@ -139,13 +139,15 @@ fn test_character_value_has_character_type() {
 
 #[test]
 fn test_date_value_has_date_type() {
-    let value = SqlValue::Date("2024-01-01".to_string());
+    let date = "2024-01-01".parse::<Date>().unwrap();
+    let value = SqlValue::Date(date);
     assert_eq!(value.get_type(), DataType::Date);
 }
 
 #[test]
 fn test_time_value_has_time_type() {
-    let value = SqlValue::Time("12:30:00".to_string());
+    let time = "12:30:00".parse::<Time>().unwrap();
+    let value = SqlValue::Time(time);
     match value.get_type() {
         DataType::Time { .. } => {} // Success
         _ => panic!("Expected Time type"),
@@ -154,7 +156,8 @@ fn test_time_value_has_time_type() {
 
 #[test]
 fn test_timestamp_value_has_timestamp_type() {
-    let value = SqlValue::Timestamp("2024-01-01 12:30:00".to_string());
+    let timestamp = "2024-01-01 12:30:00".parse::<Timestamp>().unwrap();
+    let value = SqlValue::Timestamp(timestamp);
     match value.get_type() {
         DataType::Timestamp { .. } => {} // Success
         _ => panic!("Expected Timestamp type"),

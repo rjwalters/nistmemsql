@@ -94,22 +94,25 @@ fn test_numeric_invalid_is_incomparable() {
 
 #[test]
 fn test_date_ordering() {
-    assert!(SqlValue::Date("2024-01-01".to_string()) < SqlValue::Date("2024-12-31".to_string()));
-    assert!(SqlValue::Date("2024-12-31".to_string()) > SqlValue::Date("2024-01-01".to_string()));
+    let date1 = "2024-01-01".parse::<Date>().unwrap();
+    let date2 = "2024-12-31".parse::<Date>().unwrap();
+    assert!(SqlValue::Date(date1) < SqlValue::Date(date2));
+    assert!(SqlValue::Date(date2) > SqlValue::Date(date1));
 }
 
 #[test]
 fn test_time_ordering() {
-    assert!(SqlValue::Time("09:00:00".to_string()) < SqlValue::Time("17:00:00".to_string()));
-    assert!(SqlValue::Time("17:00:00".to_string()) > SqlValue::Time("09:00:00".to_string()));
+    let time1 = "09:00:00".parse::<Time>().unwrap();
+    let time2 = "17:00:00".parse::<Time>().unwrap();
+    assert!(SqlValue::Time(time1) < SqlValue::Time(time2));
+    assert!(SqlValue::Time(time2) > SqlValue::Time(time1));
 }
 
 #[test]
 fn test_timestamp_ordering() {
-    assert!(
-        SqlValue::Timestamp("2024-01-01 09:00:00".to_string())
-            < SqlValue::Timestamp("2024-01-01 17:00:00".to_string())
-    );
+    let ts1 = "2024-01-01 09:00:00".parse::<Timestamp>().unwrap();
+    let ts2 = "2024-01-01 17:00:00".parse::<Timestamp>().unwrap();
+    assert!(SqlValue::Timestamp(ts1) < SqlValue::Timestamp(ts2));
 }
 
 #[test]

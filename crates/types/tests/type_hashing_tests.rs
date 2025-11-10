@@ -112,22 +112,28 @@ fn test_boolean_hash() {
 
 #[test]
 fn test_date_hash() {
-    let v1 = SqlValue::Date("2024-01-01".to_string());
-    let v2 = SqlValue::Date("2024-01-01".to_string());
+    let date1 = "2024-01-01".parse::<Date>().unwrap();
+    let date2 = "2024-01-01".parse::<Date>().unwrap();
+    let v1 = SqlValue::Date(date1);
+    let v2 = SqlValue::Date(date2);
     assert_eq!(calculate_hash(&v1), calculate_hash(&v2));
 }
 
 #[test]
 fn test_time_hash() {
-    let v1 = SqlValue::Time("12:30:00".to_string());
-    let v2 = SqlValue::Time("12:30:00".to_string());
+    let time1 = "12:30:00".parse::<Time>().unwrap();
+    let time2 = "12:30:00".parse::<Time>().unwrap();
+    let v1 = SqlValue::Time(time1);
+    let v2 = SqlValue::Time(time2);
     assert_eq!(calculate_hash(&v1), calculate_hash(&v2));
 }
 
 #[test]
 fn test_timestamp_hash() {
-    let v1 = SqlValue::Timestamp("2024-01-01 12:30:00".to_string());
-    let v2 = SqlValue::Timestamp("2024-01-01 12:30:00".to_string());
+    let ts1 = "2024-01-01 12:30:00".parse::<Timestamp>().unwrap();
+    let ts2 = "2024-01-01 12:30:00".parse::<Timestamp>().unwrap();
+    let v1 = SqlValue::Timestamp(ts1);
+    let v2 = SqlValue::Timestamp(ts2);
     assert_eq!(calculate_hash(&v1), calculate_hash(&v2));
 }
 

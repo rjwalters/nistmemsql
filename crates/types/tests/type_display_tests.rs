@@ -78,18 +78,21 @@ fn test_character_display() {
 
 #[test]
 fn test_date_display() {
-    let value = SqlValue::Date("2024-01-01".to_string());
+    let date = "2024-01-01".parse::<Date>().unwrap();
+    let value = SqlValue::Date(date);
     assert_eq!(format!("{}", value), "2024-01-01");
 }
 
 #[test]
 fn test_time_display() {
-    let value = SqlValue::Time("12:30:00".to_string());
+    let time = "12:30:00".parse::<Time>().unwrap();
+    let value = SqlValue::Time(time);
     assert_eq!(format!("{}", value), "12:30:00");
 }
 
 #[test]
 fn test_timestamp_display() {
-    let value = SqlValue::Timestamp("2024-01-01 12:30:00".to_string());
+    let timestamp = "2024-01-01 12:30:00".parse::<Timestamp>().unwrap();
+    let value = SqlValue::Timestamp(timestamp);
     assert_eq!(format!("{}", value), "2024-01-01 12:30:00");
 }
