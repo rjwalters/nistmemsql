@@ -133,6 +133,24 @@ impl SelectExecutor<'_> {
             filtered_rows.push(row_result?);
         }
 
+        // Stage 5.5: Apply implicit ordering for deterministic results
+        // Queries without explicit ORDER BY get sorted by all columns in schema order
+        // This ensures SQLLogicTest compatibility and deterministic behavior
+        if stmt.order_by.is_none() && !filtered_rows.is_empty() {
+            use crate::select::grouping::compare_sql_values;
+
+            filtered_rows.sort_by(|row_a, row_b| {
+                // Compare column by column until we find a difference
+                for i in 0..row_a.values.len().min(row_b.values.len()) {
+                    let cmp = compare_sql_values(&row_a.values[i], &row_b.values[i]);
+                    if cmp != std::cmp::Ordering::Equal {
+                        return cmp;
+                    }
+                }
+                std::cmp::Ordering::Equal
+            });
+        }
+
         // Stage 6: Project columns (handles wildcards, expressions, etc.)
         let mut final_rows = Vec::new();
         for row in filtered_rows {
@@ -293,6 +311,21 @@ impl SelectExecutor<'_> {
                 result_rows =
                     apply_order_by(result_rows, order_by, &order_by_evaluator, &stmt.select_list)?;
             }
+        } else if !result_rows.is_empty() {
+            // No explicit ORDER BY - apply implicit ordering for deterministic results
+            // This ensures SQLLogicTest compatibility and deterministic behavior
+            use crate::select::grouping::compare_sql_values;
+
+            result_rows.sort_by(|(row_a, _), (row_b, _)| {
+                // Compare column by column until we find a difference
+                for i in 0..row_a.values.len().min(row_b.values.len()) {
+                    let cmp = compare_sql_values(&row_a.values[i], &row_b.values[i]);
+                    if cmp != std::cmp::Ordering::Equal {
+                        return cmp;
+                    }
+                }
+                std::cmp::Ordering::Equal
+            });
         }
 
         // Choose projection strategy based on DISTINCT and set operations
