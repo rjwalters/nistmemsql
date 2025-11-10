@@ -3,11 +3,11 @@
 //! Tests for GRANT operations including ALL PRIVILEGES, WITH GRANT OPTION,
 //! schema vs table privileges, and error cases.
 
-use ast::*;
-use catalog::*;
-use executor::*;
-use storage::*;
-use types::*;
+use vibesql_ast::*;
+use vibesql_catalog::*;
+use vibesql_executor::*;
+use vibesql_storage::*;
+use vibesql_types::*;
 
 #[test]
 fn test_grant_specific_privilege() {

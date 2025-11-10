@@ -1,10 +1,10 @@
 //! Test that Northwind database JOIN examples work correctly
 
-use catalog::{ColumnSchema, TableSchema};
-use executor::SelectExecutor;
-use parser::Parser;
-use storage::Database;
-use types::{DataType, SqlValue};
+use vibesql_catalog::{ColumnSchema, TableSchema};
+use vibesql_executor::SelectExecutor;
+use vibesql_parser::Parser;
+use vibesql_storage::Database;
+use vibesql_types::{DataType, SqlValue};
 
 fn create_northwind_db() -> Database {
     let mut db = Database::new();
@@ -46,7 +46,7 @@ fn create_northwind_db() -> Database {
     db.create_table(products_schema).unwrap();
 
     // Insert categories
-    use storage::Row;
+    use vibesql_storage::Row;
     let categories_table = db.get_table_mut("CATEGORIES").unwrap();
     categories_table
         .insert(Row::new(vec![
@@ -129,7 +129,7 @@ fn test_inner_join_products_categories() {
     "#;
 
     let stmt = Parser::parse_sql(query).unwrap();
-    if let ast::Statement::Select(select_stmt) = stmt {
+    if let vibesql_ast::Statement::Select(select_stmt) = stmt {
         let result = executor.execute(&select_stmt).unwrap();
 
         // Should have 4 products
@@ -169,7 +169,7 @@ fn test_left_join_categories_products() {
     "#;
 
     let stmt = Parser::parse_sql(query).unwrap();
-    if let ast::Statement::Select(select_stmt) = stmt {
+    if let vibesql_ast::Statement::Select(select_stmt) = stmt {
         let result = executor.execute(&select_stmt).unwrap();
 
         // Should have 3 categories
@@ -202,7 +202,7 @@ fn test_products_by_category_aggregate() {
     "#;
 
     let stmt = Parser::parse_sql(query).unwrap();
-    if let ast::Statement::Select(select_stmt) = stmt {
+    if let vibesql_ast::Statement::Select(select_stmt) = stmt {
         let result = executor.execute(&select_stmt).unwrap();
 
         // Should have 3 categories (all have products in our test data)

@@ -2,25 +2,25 @@
 //!
 //! Tests COUNT(*) in expressions when no FROM clause is present
 
-use executor::SelectExecutor;
+use vibesql_executor::SelectExecutor;
 
 #[test]
 fn test_count_star_without_from() {
     // Test: SELECT COUNT(*) - no FROM clause
     // This should return 1 (one row with count = 0)
-    let db = storage::Database::new();
+    let db = vibesql_storage::Database::new();
     let executor = SelectExecutor::new(&db);
 
-    let stmt = ast::SelectStmt {
+    let stmt = vibesql_ast::SelectStmt {
         into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Expression {
-            expr: ast::Expression::AggregateFunction {
+        select_list: vec![vibesql_ast::SelectItem::Expression {
+            expr: vibesql_ast::Expression::AggregateFunction {
                 name: "COUNT".to_string(),
                 distinct: false,
-                args: vec![ast::Expression::Wildcard],
+                args: vec![vibesql_ast::Expression::Wildcard],
             },
             alias: None,
         }],
@@ -52,22 +52,22 @@ fn test_count_star_without_from() {
 #[test]
 fn test_count_star_in_expression_without_from() {
     // Test: SELECT -18 * COUNT(*) - no FROM clause
-    let db = storage::Database::new();
+    let db = vibesql_storage::Database::new();
     let executor = SelectExecutor::new(&db);
 
-    let stmt = ast::SelectStmt {
+    let stmt = vibesql_ast::SelectStmt {
         into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Expression {
-            expr: ast::Expression::BinaryOp {
-                left: Box::new(ast::Expression::Literal(types::SqlValue::Integer(-18))),
-                op: ast::BinaryOperator::Multiply,
-                right: Box::new(ast::Expression::AggregateFunction {
+        select_list: vec![vibesql_ast::SelectItem::Expression {
+            expr: vibesql_ast::Expression::BinaryOp {
+                left: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(-18))),
+                op: vibesql_ast::BinaryOperator::Multiply,
+                right: Box::new(vibesql_ast::Expression::AggregateFunction {
                     name: "COUNT".to_string(),
                     distinct: false,
-                    args: vec![ast::Expression::Wildcard],
+                    args: vec![vibesql_ast::Expression::Wildcard],
                 }),
             },
             alias: None,
@@ -98,57 +98,57 @@ fn test_count_star_in_expression_without_from() {
 fn test_complex_expression_without_from() {
     // Test the exact example from SQLLOGICTEST_ISSUES.md:
     // SELECT CAST( NULL AS DECIMAL ) * - COUNT( * ) / + + 20 AS col2
-    let db = storage::Database::new();
+    let db = vibesql_storage::Database::new();
     let executor = SelectExecutor::new(&db);
 
     // Build the complex expression step by step
     // COUNT(*)
-    let count_star = ast::Expression::AggregateFunction {
+    let count_star = vibesql_ast::Expression::AggregateFunction {
         name: "COUNT".to_string(),
         distinct: false,
-        args: vec![ast::Expression::Wildcard],
+        args: vec![vibesql_ast::Expression::Wildcard],
     };
 
     // - COUNT(*)
     let neg_count =
-        ast::Expression::UnaryOp { op: ast::UnaryOperator::Minus, expr: Box::new(count_star) };
+        vibesql_ast::Expression::UnaryOp { op: vibesql_ast::UnaryOperator::Minus, expr: Box::new(count_star) };
 
     // CAST(NULL AS DECIMAL)
-    let cast_null = ast::Expression::Cast {
-        expr: Box::new(ast::Expression::Literal(types::SqlValue::Null)),
-        data_type: types::DataType::Decimal { precision: 10, scale: 0 },
+    let cast_null = vibesql_ast::Expression::Cast {
+        expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Null)),
+        data_type: vibesql_types::DataType::Decimal { precision: 10, scale: 0 },
     };
 
     // CAST(NULL AS DECIMAL) * - COUNT(*)
-    let mult = ast::Expression::BinaryOp {
+    let mult = vibesql_ast::Expression::BinaryOp {
         left: Box::new(cast_null),
-        op: ast::BinaryOperator::Multiply,
+        op: vibesql_ast::BinaryOperator::Multiply,
         right: Box::new(neg_count),
     };
 
     // 20 (with unary +)
-    let twenty = ast::Expression::UnaryOp {
-        op: ast::UnaryOperator::Plus,
-        expr: Box::new(ast::Expression::Literal(types::SqlValue::Integer(20))),
+    let twenty = vibesql_ast::Expression::UnaryOp {
+        op: vibesql_ast::UnaryOperator::Plus,
+        expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(20))),
     };
 
     // Another unary +
     let plus_twenty =
-        ast::Expression::UnaryOp { op: ast::UnaryOperator::Plus, expr: Box::new(twenty) };
+        vibesql_ast::Expression::UnaryOp { op: vibesql_ast::UnaryOperator::Plus, expr: Box::new(twenty) };
 
     // (CAST(NULL AS DECIMAL) * - COUNT(*)) / + + 20
-    let div = ast::Expression::BinaryOp {
+    let div = vibesql_ast::Expression::BinaryOp {
         left: Box::new(mult),
-        op: ast::BinaryOperator::Divide,
+        op: vibesql_ast::BinaryOperator::Divide,
         right: Box::new(plus_twenty),
     };
 
-    let stmt = ast::SelectStmt {
+    let stmt = vibesql_ast::SelectStmt {
         into_table: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
-        select_list: vec![ast::SelectItem::Expression {
+        select_list: vec![vibesql_ast::SelectItem::Expression {
             expr: div,
             alias: Some("col2".to_string()),
         }],

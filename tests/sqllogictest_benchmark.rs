@@ -13,12 +13,12 @@
 
 use async_trait::async_trait;
 use md5::{Digest, Md5};
-use parser::Parser;
+use vibesql_parser::Parser;
 use sqllogictest::{AsyncDB, DBOutput, DefaultColumnType};
 use std::path::Path;
 use std::time::{Duration, Instant};
-use storage::Database;
-use types::SqlValue;
+use vibesql_storage::Database;
+use vibesql_types::SqlValue;
 
 /// Benchmark metrics collected during test execution
 ///
@@ -151,7 +151,7 @@ impl SqliteDB {
 
     fn format_result_rows(
         &self,
-        rows: Vec<Vec<rusqlite::types::Value>>,
+        rows: Vec<Vec<rusqlite::vibesql_types::Value>>,
     ) -> Result<DBOutput<DefaultColumnType>, TestError> {
         if rows.is_empty() {
             return Ok(DBOutput::Rows { types: vec![], rows: vec![] });
@@ -202,8 +202,8 @@ impl SqliteDB {
         }
     }
 
-    fn format_sqlite_value(&self, value: &rusqlite::types::Value) -> String {
-        use rusqlite::types::Value;
+    fn format_sqlite_value(&self, value: &rusqlite::vibesql_types::Value) -> String {
+        use rusqlite::vibesql_types::Value;
         match value {
             Value::Null => "NULL".to_string(),
             Value::Integer(i) => i.to_string(),
@@ -219,8 +219,8 @@ impl SqliteDB {
         }
     }
 
-    fn infer_type(&self, value: &rusqlite::types::Value) -> DefaultColumnType {
-        use rusqlite::types::Value;
+    fn infer_type(&self, value: &rusqlite::vibesql_types::Value) -> DefaultColumnType {
+        use rusqlite::vibesql_types::Value;
         match value {
             Value::Integer(_) => DefaultColumnType::Integer,
             Value::Real(_) => DefaultColumnType::FloatingPoint,
@@ -243,7 +243,7 @@ impl SqliteDB {
             let result = stmt.query_map([], |row| {
                 let mut values = Vec::new();
                 for i in 0..column_count {
-                    values.push(row.get::<_, rusqlite::types::Value>(i)?);
+                    values.push(row.get::<_, rusqlite::vibesql_types::Value>(i)?);
                 }
                 Ok(values)
             });
@@ -287,7 +287,7 @@ impl AsyncDB for SqliteDB {
 
 struct NistMemSqlDB {
     db: Database,
-    cache: std::sync::Arc<executor::QueryPlanCache>,
+    cache: std::sync::Arc<vibesql_executor::QueryPlanCache>,
 }
 
 impl Default for NistMemSqlDB {
@@ -300,13 +300,13 @@ impl NistMemSqlDB {
     fn new() -> Self {
         Self {
             db: Database::new(),
-            cache: std::sync::Arc::new(executor::QueryPlanCache::new(1000)),
+            cache: std::sync::Arc::new(vibesql_executor::QueryPlanCache::new(1000)),
         }
     }
 
     fn format_result_rows(
         &self,
-        rows: &[storage::Row],
+        rows: &[vibesql_storage::Row],
         types: Vec<DefaultColumnType>,
     ) -> Result<DBOutput<DefaultColumnType>, TestError> {
         let formatted_rows: Vec<Vec<String>> = rows
@@ -370,61 +370,61 @@ impl NistMemSqlDB {
             Parser::parse_sql(sql).map_err(|e| TestError(format!("Parse error: {:?}", e)))?;
 
         match stmt {
-            ast::Statement::Select(select_stmt) => {
-                let executor = executor::SelectExecutor::new(&self.db);
+            vibesql_ast::Statement::Select(select_stmt) => {
+                let executor = vibesql_executor::SelectExecutor::new(&self.db);
                 let rows = executor
                     .execute(&select_stmt)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 self.format_query_result(rows)
             }
-            ast::Statement::CreateTable(create_stmt) => {
+            vibesql_ast::Statement::CreateTable(create_stmt) => {
                 let table_name = if let Some(pos) = create_stmt.table_name.rfind('.') {
                     &create_stmt.table_name[pos + 1..]
                 } else {
                     &create_stmt.table_name
                 };
 
-                executor::CreateTableExecutor::execute(&create_stmt, &mut self.db)
+                vibesql_executor::CreateTableExecutor::execute(&create_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
 
                 self.cache.invalidate_table(table_name);
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::Insert(insert_stmt) => {
-                let rows_affected = executor::InsertExecutor::execute(&mut self.db, &insert_stmt)
+            vibesql_ast::Statement::Insert(insert_stmt) => {
+                let rows_affected = vibesql_executor::InsertExecutor::execute(&mut self.db, &insert_stmt)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(rows_affected as u64))
             }
-            ast::Statement::Update(update_stmt) => {
-                let rows_affected = executor::UpdateExecutor::execute(&update_stmt, &mut self.db)
+            vibesql_ast::Statement::Update(update_stmt) => {
+                let rows_affected = vibesql_executor::UpdateExecutor::execute(&update_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(rows_affected as u64))
             }
-            ast::Statement::Delete(delete_stmt) => {
-                let rows_affected = executor::DeleteExecutor::execute(&delete_stmt, &mut self.db)
+            vibesql_ast::Statement::Delete(delete_stmt) => {
+                let rows_affected = vibesql_executor::DeleteExecutor::execute(&delete_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(rows_affected as u64))
             }
-            ast::Statement::DropTable(drop_stmt) => {
+            vibesql_ast::Statement::DropTable(drop_stmt) => {
                 let table_name = if let Some(pos) = drop_stmt.table_name.rfind('.') {
                     &drop_stmt.table_name[pos + 1..]
                 } else {
                     &drop_stmt.table_name
                 };
 
-                executor::DropTableExecutor::execute(&drop_stmt, &mut self.db)
+                vibesql_executor::DropTableExecutor::execute(&drop_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
 
                 self.cache.invalidate_table(table_name);
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::CreateIndex(create_index_stmt) => {
-                executor::IndexExecutor::execute(&create_index_stmt, &mut self.db)
+            vibesql_ast::Statement::CreateIndex(create_index_stmt) => {
+                vibesql_executor::IndexExecutor::execute(&create_index_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::DropIndex(drop_index_stmt) => {
-                executor::IndexExecutor::execute_drop(&drop_index_stmt, &mut self.db)
+            vibesql_ast::Statement::DropIndex(drop_index_stmt) => {
+                vibesql_executor::IndexExecutor::execute_drop(&drop_index_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
@@ -434,7 +434,7 @@ impl NistMemSqlDB {
 
     fn format_query_result(
         &self,
-        rows: Vec<storage::Row>,
+        rows: Vec<vibesql_storage::Row>,
     ) -> Result<DBOutput<DefaultColumnType>, TestError> {
         if rows.is_empty() {
             return Ok(DBOutput::Rows { types: vec![], rows: vec![] });

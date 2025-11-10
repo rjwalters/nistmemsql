@@ -2,7 +2,7 @@
 //!
 //! Verifies that the parser correctly handles COUNT(*) syntax
 
-use parser::Parser;
+use vibesql_parser::Parser;
 
 #[test]
 fn test_parse_count_star_simple() {
@@ -11,18 +11,18 @@ fn test_parse_count_star_simple() {
     let result = Parser::parse_sql(sql);
     assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
 
-    if let Ok(ast::Statement::Select(stmt)) = result {
+    if let Ok(vibesql_ast::Statement::Select(stmt)) = result {
         assert_eq!(stmt.select_list.len(), 1);
         match &stmt.select_list[0] {
-            ast::SelectItem::Expression { expr, .. } => {
+            vibesql_ast::SelectItem::Expression { expr, .. } => {
                 match expr {
-                    ast::Expression::AggregateFunction { name, args, .. } => {
+                    vibesql_ast::Expression::AggregateFunction { name, args, .. } => {
                         assert_eq!(name, "COUNT");
                         assert_eq!(args.len(), 1);
                         // Should be either Wildcard or ColumnRef with "*"
                         assert!(
-                            matches!(args[0], ast::Expression::Wildcard)
-                                || matches!(&args[0], ast::Expression::ColumnRef { column, .. } if column == "*")
+                            matches!(args[0], vibesql_ast::Expression::Wildcard)
+                                || matches!(&args[0], vibesql_ast::Expression::ColumnRef { column, .. } if column == "*")
                         );
                     }
                     _ => panic!("Expected AggregateFunction, got: {:?}", expr),
@@ -40,19 +40,19 @@ fn test_parse_count_star_in_arithmetic() {
     let result = Parser::parse_sql(sql);
     assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
 
-    if let Ok(ast::Statement::Select(stmt)) = result {
+    if let Ok(vibesql_ast::Statement::Select(stmt)) = result {
         assert_eq!(stmt.select_list.len(), 1);
         match &stmt.select_list[0] {
-            ast::SelectItem::Expression { expr, .. } => {
+            vibesql_ast::SelectItem::Expression { expr, .. } => {
                 // Should be a BinaryOp with COUNT(*) on one side
                 match expr {
-                    ast::Expression::BinaryOp { left, right, .. } => {
+                    vibesql_ast::Expression::BinaryOp { left, right, .. } => {
                         // Either left or right should contain the aggregate
-                        let contains_count_star = |e: &ast::Expression| {
-                            matches!(e, ast::Expression::AggregateFunction { name, args, .. }
+                        let contains_count_star = |e: &vibesql_ast::Expression| {
+                            matches!(e, vibesql_ast::Expression::AggregateFunction { name, args, .. }
                                 if name == "COUNT" &&
-                                   (matches!(args.get(0), Some(ast::Expression::Wildcard)) ||
-                                    matches!(args.get(0), Some(ast::Expression::ColumnRef { column, .. }) if column == "*")))
+                                   (matches!(args.get(0), Some(vibesql_ast::Expression::Wildcard)) ||
+                                    matches!(args.get(0), Some(vibesql_ast::Expression::ColumnRef { column, .. }) if column == "*")))
                         };
 
                         assert!(
@@ -75,7 +75,7 @@ fn test_parse_sqllogictest_example() {
     let result = Parser::parse_sql(sql);
 
     match result {
-        Ok(ast::Statement::Select(stmt)) => {
+        Ok(vibesql_ast::Statement::Select(stmt)) => {
             assert_eq!(stmt.select_list.len(), 1);
             // If it parsed successfully, that's the main goal
             println!("Successfully parsed SQLLogicTest query");
@@ -94,10 +94,10 @@ fn test_parse_count_with_distinct() {
     let result = Parser::parse_sql(sql);
     assert!(result.is_ok());
 
-    if let Ok(ast::Statement::Select(stmt)) = result {
+    if let Ok(vibesql_ast::Statement::Select(stmt)) = result {
         match &stmt.select_list[0] {
-            ast::SelectItem::Expression { expr, .. } => match expr {
-                ast::Expression::AggregateFunction { name, distinct, args, .. } => {
+            vibesql_ast::SelectItem::Expression { expr, .. } => match expr {
+                vibesql_ast::Expression::AggregateFunction { name, distinct, args, .. } => {
                     assert_eq!(name, "COUNT");
                     assert_eq!(*distinct, true);
                     assert_eq!(args.len(), 1);
@@ -117,11 +117,11 @@ fn test_parse_count_distinct_star_should_fail() {
 
     // This should either fail to parse OR parse but fail during execution
     // For now, let's just check it parses (execution check happens elsewhere)
-    if let Ok(ast::Statement::Select(stmt)) = result {
+    if let Ok(vibesql_ast::Statement::Select(stmt)) = result {
         match &stmt.select_list[0] {
-            ast::SelectItem::Expression { expr, .. } => {
+            vibesql_ast::SelectItem::Expression { expr, .. } => {
                 match expr {
-                    ast::Expression::AggregateFunction { name, distinct, .. } => {
+                    vibesql_ast::Expression::AggregateFunction { name, distinct, .. } => {
                         assert_eq!(name, "COUNT");
                         assert_eq!(*distinct, true);
                         // Parser allows it, but executor should reject it

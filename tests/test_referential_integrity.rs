@@ -9,10 +9,10 @@
 
 mod common;
 
-use catalog::{ColumnSchema, ReferentialAction, TableSchema};
+use vibesql_catalog::{ColumnSchema, ReferentialAction, TableSchema};
 use common::referential_integrity_fixtures::*;
-use storage::{Database, Row};
-use types::{DataType, SqlValue};
+use vibesql_storage::{Database, Row};
+use vibesql_types::{DataType, SqlValue};
 
 // ========================================================================
 // Phase 1: ON DELETE Actions - Basic Tests

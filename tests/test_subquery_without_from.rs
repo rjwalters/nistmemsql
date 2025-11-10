@@ -3,17 +3,17 @@
 //! These tests verify that subqueries (IN, scalar, EXISTS, ALL/ANY) work correctly
 //! when used in the SELECT list without a FROM clause.
 
-use catalog::{ColumnSchema, TableSchema};
-use executor::SelectExecutor;
-use parser::Parser;
-use storage::{Database, Row};
-use types::{DataType, SqlValue};
+use vibesql_catalog::{ColumnSchema, TableSchema};
+use vibesql_executor::SelectExecutor;
+use vibesql_parser::Parser;
+use vibesql_storage::{Database, Row};
+use vibesql_types::{DataType, SqlValue};
 
 /// Execute a SELECT query end-to-end: parse SQL → execute → return results.
 fn execute_select(db: &Database, sql: &str) -> Result<Vec<Row>, String> {
     let stmt = Parser::parse_sql(sql).map_err(|e| format!("Parse error: {:?}", e))?;
     let select_stmt = match stmt {
-        ast::Statement::Select(s) => s,
+        vibesql_ast::Statement::Select(s) => s,
         other => return Err(format!("Expected SELECT statement, got {:?}", other)),
     };
 

@@ -1,0 +1,59 @@
+[package]
+name = "vibesql-executor"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Query execution engine for vibesql SQL database"
+keywords = ["sql", "database", "executor", "query"]
+categories = ["database"]
+
+[dependencies]
+vibesql-types = { version = "0.1.0", path = "../vibesql-types" }
+vibesql-ast = { version = "0.1.0", path = "../vibesql-ast" }
+vibesql-catalog = { version = "0.1.0", path = "../vibesql-catalog" }
+vibesql-storage = { version = "0.1.0", path = "../vibesql-storage" }
+chrono = "0.4"
+rayon = "1.10"
+indexmap = "2.0"
+
+[dev-dependencies]
+vibesql-parser = { version = "0.1.0", path = "../vibesql-parser" }
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[test]]
+name = "foreign_key_tests"
+path = "tests/foreign_key_tests.rs"
+
+[[test]]
+name = "having_subquery_tests"
+path = "tests/having_subquery_tests.rs"
+
+[[test]]
+name = "delete_tests"
+path = "tests/delete_tests.rs"
+
+[[test]]
+name = "conversion_function_tests"
+path = "tests/conversion_function_tests.rs"
+
+[[test]]
+name = "test_numeric_edge_cases"
+path = "tests/test_numeric_edge_cases.rs"
+
+[[test]]
+name = "date_arithmetic_tests"
+path = "tests/date_arithmetic_tests.rs"
+
+[[test]]
+name = "string_edge_case_tests"
+path = "tests/string_edge_case_tests.rs"
+
+[[test]]
+name = "predicate_pushdown_tests"
+path = "tests/predicate_pushdown_tests.rs"
+
+[[bench]]
+name = "iterator_execution"
+harness = false

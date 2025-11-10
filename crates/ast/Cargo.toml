@@ -1,9 +1,0 @@
-[package]
-name = "ast"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-types = { path = "../types" }
-
-[dev-dependencies]

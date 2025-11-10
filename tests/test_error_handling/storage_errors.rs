@@ -3,7 +3,7 @@
 //! Tests for storage-level errors including column count mismatches,
 //! index out of bounds, and other storage-related errors.
 
-use storage::StorageError;
+use vibesql_storage::StorageError;
 
 #[test]
 fn test_storage_column_count_mismatch_error() {

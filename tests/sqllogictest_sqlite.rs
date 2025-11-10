@@ -2,7 +2,7 @@
 
 use async_trait::async_trait;
 use md5::{Digest, Md5};
-use rusqlite::{Connection, types::ValueRef};
+use rusqlite::{Connection, vibesql_types::ValueRef};
 use sqllogictest::{AsyncDB, DBOutput, DefaultColumnType};
 
 #[derive(Debug)]

@@ -8,11 +8,11 @@
 
 #![allow(dead_code)]
 
-use catalog::{ColumnSchema, ForeignKeyConstraint, ReferentialAction, TableSchema};
-use executor::DeleteExecutor;
-use parser::Parser;
-use storage::{Database, Row};
-use types::{DataType, SqlValue};
+use vibesql_catalog::{ColumnSchema, ForeignKeyConstraint, ReferentialAction, TableSchema};
+use vibesql_executor::DeleteExecutor;
+use vibesql_parser::Parser;
+use vibesql_storage::{Database, Row};
+use vibesql_types::{DataType, SqlValue};
 
 // ========================================================================
 // Table Creation Helpers
@@ -229,7 +229,7 @@ pub fn execute_delete(db: &mut Database, sql: &str) -> Result<usize, String> {
     let stmt = Parser::parse_sql(sql).map_err(|e| format!("Parse error: {:?}", e))?;
 
     match stmt {
-        ast::Statement::Delete(delete_stmt) => DeleteExecutor::execute(&delete_stmt, db)
+        vibesql_ast::Statement::Delete(delete_stmt) => DeleteExecutor::execute(&delete_stmt, db)
             .map_err(|e| format!("Execution error: {:?}", e)),
         other => Err(format!("Expected DELETE statement, got {:?}", other)),
     }

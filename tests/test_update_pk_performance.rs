@@ -1,10 +1,10 @@
 //! Test UPDATE performance with primary key index optimization
 
-use ast::{Assignment, BinaryOperator, Expression, UpdateStmt, WhereClause};
-use catalog::{ColumnSchema, TableSchema};
-use executor::UpdateExecutor;
-use storage::{Database, Row};
-use types::{DataType, SqlValue};
+use vibesql_ast::{Assignment, BinaryOperator, Expression, UpdateStmt, WhereClause};
+use vibesql_catalog::{ColumnSchema, TableSchema};
+use vibesql_executor::UpdateExecutor;
+use vibesql_storage::{Database, Row};
+use vibesql_types::{DataType, SqlValue};
 
 #[test]
 fn test_update_with_pk_index_performance() {

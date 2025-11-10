@@ -1,10 +1,10 @@
 //! Test that window function examples from web demo work
 
-use catalog::{ColumnSchema, TableSchema};
-use executor::SelectExecutor;
-use parser::Parser;
-use storage::Database;
-use types::{DataType, SqlValue};
+use vibesql_catalog::{ColumnSchema, TableSchema};
+use vibesql_executor::SelectExecutor;
+use vibesql_parser::Parser;
+use vibesql_storage::Database;
+use vibesql_types::{DataType, SqlValue};
 
 #[test]
 fn test_window_demo_count_over() {
@@ -36,7 +36,7 @@ fn test_window_demo_count_over() {
     db.create_table(schema).unwrap();
 
     // Insert test data
-    use storage::Row;
+    use vibesql_storage::Row;
     let table = db.get_table_mut("EMPLOYEES").unwrap();
     table
         .insert(Row::new(vec![
@@ -76,7 +76,7 @@ FROM employees
 LIMIT 10"#;
 
     let stmt = Parser::parse_sql(query).unwrap();
-    if let ast::Statement::Select(select_stmt) = stmt {
+    if let vibesql_ast::Statement::Select(select_stmt) = stmt {
         let executor = SelectExecutor::new(&db);
         let result = executor.execute(&select_stmt).unwrap();
 
@@ -119,7 +119,7 @@ fn test_window_demo_running_total() {
     db.create_table(schema).unwrap();
 
     // Insert test data
-    use storage::Row;
+    use vibesql_storage::Row;
     let table = db.get_table_mut("EMPLOYEES").unwrap();
     table
         .insert(Row::new(vec![
@@ -156,7 +156,7 @@ ORDER BY employee_id
 LIMIT 10"#;
 
     let stmt = Parser::parse_sql(query).unwrap();
-    if let ast::Statement::Select(select_stmt) = stmt {
+    if let vibesql_ast::Statement::Select(select_stmt) = stmt {
         let executor = SelectExecutor::new(&db);
         let result = executor.execute(&select_stmt).unwrap();
 
@@ -204,7 +204,7 @@ fn test_window_demo_partitioned_avg() {
     db.create_table(schema).unwrap();
 
     // Insert test data with 2 departments
-    use storage::Row;
+    use vibesql_storage::Row;
     let table = db.get_table_mut("EMPLOYEES").unwrap();
     table
         .insert(Row::new(vec![
@@ -245,7 +245,7 @@ ORDER BY department, salary DESC
 LIMIT 15"#;
 
     let stmt = Parser::parse_sql(query).unwrap();
-    if let ast::Statement::Select(select_stmt) = stmt {
+    if let vibesql_ast::Statement::Select(select_stmt) = stmt {
         let executor = SelectExecutor::new(&db);
         let result = executor.execute(&select_stmt).unwrap();
 

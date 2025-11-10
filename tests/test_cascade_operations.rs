@@ -1,38 +1,38 @@
 //! Integration tests for CASCADE operations on advanced SQL objects
 
-use executor::advanced_objects::*;
-use parser::Parser;
-use storage::Database;
+use vibesql_executor::advanced_objects::*;
+use vibesql_parser::Parser;
+use vibesql_storage::Database;
 
 /// Helper function to execute DDL statement
 fn execute_ddl(db: &mut Database, sql: &str) -> Result<(), String> {
     let stmt = Parser::parse_sql(sql).map_err(|e| format!("Parse error: {}", e))?;
 
     match stmt {
-        ast::Statement::CreateSequence(ref s) => {
+        vibesql_ast::Statement::CreateSequence(ref s) => {
             execute_create_sequence(s, db).map_err(|e| format!("{}", e))
         }
-        ast::Statement::DropSequence(ref s) => {
+        vibesql_ast::Statement::DropSequence(ref s) => {
             execute_drop_sequence(s, db).map_err(|e| format!("{}", e))
         }
-        ast::Statement::CreateView(ref s) => {
+        vibesql_ast::Statement::CreateView(ref s) => {
             execute_create_view(s, db).map_err(|e| format!("{}", e))
         }
-        ast::Statement::DropView(ref s) => {
+        vibesql_ast::Statement::DropView(ref s) => {
             execute_drop_view(s, db).map_err(|e| format!("{}", e))
         }
-        ast::Statement::CreateDomain(ref s) => {
-            executor::DomainExecutor::execute_create_domain(s, db)
+        vibesql_ast::Statement::CreateDomain(ref s) => {
+            vibesql_executor::DomainExecutor::execute_create_domain(s, db)
                 .map(|_| ())
                 .map_err(|e| format!("{}", e))
         }
-        ast::Statement::DropDomain(ref s) => {
-            executor::DomainExecutor::execute_drop_domain(s, db)
+        vibesql_ast::Statement::DropDomain(ref s) => {
+            vibesql_executor::DomainExecutor::execute_drop_domain(s, db)
                 .map(|_| ())
                 .map_err(|e| format!("{}", e))
         }
-        ast::Statement::CreateTable(ref s) => {
-            executor::CreateTableExecutor::execute(s, db)
+        vibesql_ast::Statement::CreateTable(ref s) => {
+            vibesql_executor::CreateTableExecutor::execute(s, db)
                 .map(|_| ())
                 .map_err(|e| format!("{}", e))
         }

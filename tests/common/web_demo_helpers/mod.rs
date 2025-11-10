@@ -3,7 +3,7 @@
 //! This module provides shared functionality for testing web demo SQL examples,
 //! broken down into focused submodules for better organization and maintainability.
 
-use storage::Row;
+use vibesql_storage::Row;
 
 // Public submodules
 pub mod database_fixtures;

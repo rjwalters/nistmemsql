@@ -1,20 +1,20 @@
 //! Tests for CREATE/DROP ASSERTION (SQL:1999 Feature F671/F672)
 
-use executor::advanced_objects;
-use storage::Database;
+use vibesql_executor::advanced_objects;
+use vibesql_storage::Database;
 
 #[test]
 fn test_create_assertion_success() {
     let mut db = Database::new();
-    let stmt = ast::CreateAssertionStmt {
+    let stmt = vibesql_ast::CreateAssertionStmt {
         assertion_name: "valid_balance".to_string(),
-        check_condition: Box::new(ast::Expression::BinaryOp {
-            op: ast::BinaryOperator::GreaterThanOrEqual,
-            left: Box::new(ast::Expression::ColumnRef {
+        check_condition: Box::new(vibesql_ast::Expression::BinaryOp {
+            op: vibesql_ast::BinaryOperator::GreaterThanOrEqual,
+            left: Box::new(vibesql_ast::Expression::ColumnRef {
                 table: Some("accounts".to_string()),
                 column: "balance".to_string(),
             }),
-            right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(0))),
+            right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(0))),
         }),
     };
 
@@ -26,9 +26,9 @@ fn test_create_assertion_success() {
 #[test]
 fn test_create_assertion_duplicate() {
     let mut db = Database::new();
-    let stmt = ast::CreateAssertionStmt {
+    let stmt = vibesql_ast::CreateAssertionStmt {
         assertion_name: "valid_balance".to_string(),
-        check_condition: Box::new(ast::Expression::Literal(types::SqlValue::Boolean(true))),
+        check_condition: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Boolean(true))),
     };
 
     // Create first time - should succeed
@@ -44,15 +44,15 @@ fn test_drop_assertion_success() {
     let mut db = Database::new();
 
     // Create an assertion first
-    let create_stmt = ast::CreateAssertionStmt {
+    let create_stmt = vibesql_ast::CreateAssertionStmt {
         assertion_name: "valid_balance".to_string(),
-        check_condition: Box::new(ast::Expression::Literal(types::SqlValue::Boolean(true))),
+        check_condition: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Boolean(true))),
     };
     advanced_objects::execute_create_assertion(&create_stmt, &mut db).unwrap();
 
     // Drop it
     let drop_stmt =
-        ast::DropAssertionStmt { assertion_name: "valid_balance".to_string(), cascade: false };
+        vibesql_ast::DropAssertionStmt { assertion_name: "valid_balance".to_string(), cascade: false };
     let result = advanced_objects::execute_drop_assertion(&drop_stmt, &mut db);
 
     assert!(result.is_ok());
@@ -64,15 +64,15 @@ fn test_drop_assertion_with_cascade() {
     let mut db = Database::new();
 
     // Create an assertion first
-    let create_stmt = ast::CreateAssertionStmt {
+    let create_stmt = vibesql_ast::CreateAssertionStmt {
         assertion_name: "valid_data".to_string(),
-        check_condition: Box::new(ast::Expression::Literal(types::SqlValue::Boolean(true))),
+        check_condition: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Boolean(true))),
     };
     advanced_objects::execute_create_assertion(&create_stmt, &mut db).unwrap();
 
     // Drop with CASCADE
     let drop_stmt =
-        ast::DropAssertionStmt { assertion_name: "valid_data".to_string(), cascade: true };
+        vibesql_ast::DropAssertionStmt { assertion_name: "valid_data".to_string(), cascade: true };
     let result = advanced_objects::execute_drop_assertion(&drop_stmt, &mut db);
 
     assert!(result.is_ok());
@@ -83,7 +83,7 @@ fn test_drop_assertion_with_cascade() {
 fn test_drop_assertion_not_found() {
     let mut db = Database::new();
     let drop_stmt =
-        ast::DropAssertionStmt { assertion_name: "nonexistent".to_string(), cascade: false };
+        vibesql_ast::DropAssertionStmt { assertion_name: "nonexistent".to_string(), cascade: false };
 
     let result = advanced_objects::execute_drop_assertion(&drop_stmt, &mut db);
     assert!(result.is_err());
@@ -94,15 +94,15 @@ fn test_create_drop_round_trip() {
     let mut db = Database::new();
 
     // Create assertion
-    let create_stmt = ast::CreateAssertionStmt {
+    let create_stmt = vibesql_ast::CreateAssertionStmt {
         assertion_name: "positive_values".to_string(),
-        check_condition: Box::new(ast::Expression::BinaryOp {
-            op: ast::BinaryOperator::GreaterThan,
-            left: Box::new(ast::Expression::ColumnRef {
+        check_condition: Box::new(vibesql_ast::Expression::BinaryOp {
+            op: vibesql_ast::BinaryOperator::GreaterThan,
+            left: Box::new(vibesql_ast::Expression::ColumnRef {
                 table: Some("data".to_string()),
                 column: "value".to_string(),
             }),
-            right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(0))),
+            right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(0))),
         }),
     };
     advanced_objects::execute_create_assertion(&create_stmt, &mut db).unwrap();
@@ -115,7 +115,7 @@ fn test_create_drop_round_trip() {
 
     // Drop it
     let drop_stmt =
-        ast::DropAssertionStmt { assertion_name: "positive_values".to_string(), cascade: false };
+        vibesql_ast::DropAssertionStmt { assertion_name: "positive_values".to_string(), cascade: false };
     advanced_objects::execute_drop_assertion(&drop_stmt, &mut db).unwrap();
 
     // Verify it's gone
@@ -130,9 +130,9 @@ fn test_multiple_assertions() {
     // Create multiple assertions
     let assertions = vec!["check_balance", "check_age", "check_status"];
     for name in &assertions {
-        let stmt = ast::CreateAssertionStmt {
+        let stmt = vibesql_ast::CreateAssertionStmt {
             assertion_name: name.to_string(),
-            check_condition: Box::new(ast::Expression::Literal(types::SqlValue::Boolean(true))),
+            check_condition: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Boolean(true))),
         };
         advanced_objects::execute_create_assertion(&stmt, &mut db).unwrap();
     }
@@ -144,7 +144,7 @@ fn test_multiple_assertions() {
 
     // Drop one
     let drop_stmt =
-        ast::DropAssertionStmt { assertion_name: "check_age".to_string(), cascade: false };
+        vibesql_ast::DropAssertionStmt { assertion_name: "check_age".to_string(), cascade: false };
     advanced_objects::execute_drop_assertion(&drop_stmt, &mut db).unwrap();
 
     // Verify check_age is gone, others still exist
@@ -158,25 +158,25 @@ fn test_assertion_with_complex_condition() {
     let mut db = Database::new();
 
     // Create assertion with complex condition
-    let stmt = ast::CreateAssertionStmt {
+    let stmt = vibesql_ast::CreateAssertionStmt {
         assertion_name: "complex_check".to_string(),
-        check_condition: Box::new(ast::Expression::BinaryOp {
-            op: ast::BinaryOperator::And,
-            left: Box::new(ast::Expression::BinaryOp {
-                op: ast::BinaryOperator::GreaterThan,
-                left: Box::new(ast::Expression::ColumnRef {
+        check_condition: Box::new(vibesql_ast::Expression::BinaryOp {
+            op: vibesql_ast::BinaryOperator::And,
+            left: Box::new(vibesql_ast::Expression::BinaryOp {
+                op: vibesql_ast::BinaryOperator::GreaterThan,
+                left: Box::new(vibesql_ast::Expression::ColumnRef {
                     table: Some("users".to_string()),
                     column: "age".to_string(),
                 }),
-                right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(18))),
+                right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(18))),
             }),
-            right: Box::new(ast::Expression::BinaryOp {
-                op: ast::BinaryOperator::LessThan,
-                left: Box::new(ast::Expression::ColumnRef {
+            right: Box::new(vibesql_ast::Expression::BinaryOp {
+                op: vibesql_ast::BinaryOperator::LessThan,
+                left: Box::new(vibesql_ast::Expression::ColumnRef {
                     table: Some("users".to_string()),
                     column: "age".to_string(),
                 }),
-                right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(100))),
+                right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(100))),
             }),
         }),
     };
@@ -192,8 +192,8 @@ fn test_assertion_with_complex_condition() {
 
 #[test]
 fn test_in_operator_empty_list() {
-    use executor::SelectExecutor;
-    use parser::Parser;
+    use vibesql_executor::SelectExecutor;
+    use vibesql_parser::Parser;
 
     let db = Database::new();
 
@@ -244,7 +244,7 @@ fn test_in_operator_empty_list() {
 
         let stmt = Parser::parse_sql(sql).expect("Failed to parse SQL");
         match stmt {
-            ast::Statement::Select(select_stmt) => {
+            vibesql_ast::Statement::Select(select_stmt) => {
                 let executor = SelectExecutor::new(&db);
                 let rows = executor.execute(&select_stmt).expect("Failed to execute query");
 
@@ -252,7 +252,7 @@ fn test_in_operator_empty_list() {
                 assert_eq!(rows[0].values.len(), 1, "Should return one column");
 
                 match &rows[0].values[0] {
-                    types::SqlValue::Boolean(actual) if *actual == expected => (),
+                    vibesql_types::SqlValue::Boolean(actual) if *actual == expected => (),
                     other => {
                         panic!("Query '{}' expected Boolean({}), got {:?}", sql, expected, other)
                     }

@@ -1,13 +1,13 @@
-use catalog::{ColumnSchema, TableSchema};
-use executor::SelectExecutor;
-use parser::Parser;
-use storage::{Database, Row};
-use types::{DataType, SqlValue};
+use vibesql_catalog::{ColumnSchema, TableSchema};
+use vibesql_executor::SelectExecutor;
+use vibesql_parser::Parser;
+use vibesql_storage::{Database, Row};
+use vibesql_types::{DataType, SqlValue};
 
 fn execute_query(db: &Database, query: &str) -> Result<Vec<Row>, String> {
     let stmt = Parser::parse_sql(query).map_err(|e| format!("Parse error: {:?}", e))?;
     let select_stmt = match stmt {
-        ast::Statement::Select(s) => s,
+        vibesql_ast::Statement::Select(s) => s,
         other => return Err(format!("Expected SELECT statement, got {:?}", other)),
     };
 
