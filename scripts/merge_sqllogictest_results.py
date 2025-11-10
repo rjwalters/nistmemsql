@@ -151,19 +151,6 @@ def main():
     print("Merging results...")
     merged = merge_results(current, historical)
 
-    # Archive historical results
-    history_dir = Path("badges/history")
-    history_dir.mkdir(parents=True, exist_ok=True)
-
-    timestamp = merged["timestamp"]
-    # Create a filename-safe timestamp (replace colons and dots)
-    safe_timestamp = timestamp.replace(":", "-").replace(".", "-")
-    history_file = history_dir / f"sqllogictest_results_{safe_timestamp}.json"
-
-    print(f"Archiving results to {history_file}...")
-    with open(history_file, 'w') as f:
-        json.dump(merged, f, indent=2)
-
     # Write current cumulative results
     print(f"Writing merged results to {output_file}...")
     Path(output_file).parent.mkdir(parents=True, exist_ok=True)
@@ -182,7 +169,6 @@ def main():
     print(f"New files tested this run: {merged['merge_info']['new_files_tested']}")
     print(f"Status changes: {merged['merge_info']['status_changes']}")
     print()
-    print(f"✓ Results archived to {history_file}")
     print(f"✓ Merged results written to {output_file}")
 
 
