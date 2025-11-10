@@ -219,15 +219,28 @@ impl ExpressionEvaluator<'_> {
 
             // NEXT VALUE FOR sequence expression
             // TODO: Implement proper sequence evaluation
-            // This requires mutable access to the catalog to advance sequences.
+            //
+            // Requirements for implementation:
+            // 1. Sequence catalog objects (CREATE SEQUENCE, DROP SEQUENCE, etc.)
+            // 2. Sequence state storage (current value, increment, min/max, cycle, etc.)
+            // 3. Mutable access to catalog to advance sequences (architectural change)
+            // 4. Thread-safe sequence value generation
+            //
             // Current architecture has immutable database references in evaluator.
-            // Solutions:
-            // 1. Use RefCell<Sequence> for interior mutability in catalog
+            // Possible solutions:
+            // 1. Use RefCell<Sequence> or Arc<Mutex<Sequence>> for interior mutability
             // 2. Handle NEXT VALUE FOR at statement execution level (INSERT/SELECT)
             // 3. Change evaluator to accept mutable database reference
+            // 4. Use a separate sequence manager with thread-safe state
+            //
+            // Note: Parser and AST support already exists (Expression::NextValue).
+            // See SQL:1999 Section 6.13 for sequence expression specification.
             ast::Expression::NextValue { sequence_name } => {
                 Err(ExecutorError::UnsupportedExpression(format!(
-                    "NEXT VALUE FOR {} not yet implemented - requires mutable catalog access",
+                    "NEXT VALUE FOR {} - Sequence expressions not yet implemented. \
+                    Requires sequence catalog infrastructure (CREATE SEQUENCE support), \
+                    sequence state management, and mutable catalog access. \
+                    Use auto-incrementing primary keys or generate values in application code instead.",
                     sequence_name
                 )))
             }
