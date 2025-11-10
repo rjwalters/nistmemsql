@@ -185,14 +185,22 @@ VALUES ({sql_escape(file_path)}, {sql_escape(category)}, {sql_escape(subcategory
 """)
 
     # Process failed files
+    # Build lookup table of detailed error messages (may be truncated list)
     detailed_failures = results_json.get('detailed_failures', [])
+    error_lookup = {}
     for failure_info in detailed_failures:
-        file_path = failure_info.get('file_path', '')
+        fp = failure_info.get('file_path', '')
+        failures = failure_info.get('failures', [])
+        if failures:
+            error_lookup[fp] = failures[0].get('error_message', 'Unknown error')[:2000]
+
+    # Process ALL failed files (not just those with detailed errors)
+    failed_files = tested_files.get('failed', [])
+    for file_path in failed_files:
         category, subcategory = categorize_test_file(file_path)
 
-        # Get first error message (truncate if too long)
-        failures = failure_info.get('failures', [])
-        error_message = failures[0].get('error_message', 'Unknown error')[:2000] if failures else 'Unknown error'
+        # Get error message from lookup, or NULL if not available
+        error_message = error_lookup.get(file_path, None)
 
         # Insert into test_results
         statements.append(f"""
