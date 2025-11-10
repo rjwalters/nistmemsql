@@ -245,9 +245,9 @@ pub(crate) fn cast_value(
                 SqlValue::Double(n) => n.to_string(),
                 SqlValue::Numeric(n) => n.to_string(),
                 SqlValue::Boolean(b) => if *b { "TRUE" } else { "FALSE" }.to_string(),
-                SqlValue::Date(s) => s.clone(),
-                SqlValue::Time(s) => s.clone(),
-                SqlValue::Timestamp(s) => s.clone(),
+                SqlValue::Date(s) => s.to_string(),
+                SqlValue::Time(s) => s.to_string(),
+                SqlValue::Timestamp(s) => s.to_string(),
                 _ => {
                     return Err(ExecutorError::CastError {
                         from_type: format!("{:?}", value),
@@ -270,16 +270,21 @@ pub(crate) fn cast_value(
 
         // Cast to DATE
         Date => match value {
-            SqlValue::Date(s) => Ok(SqlValue::Date(s.clone())),
+            SqlValue::Date(s) => Ok(SqlValue::Date(*s)),
             SqlValue::Timestamp(s) => {
-                // Extract date part from timestamp (YYYY-MM-DD)
-                if let Some(date_part) = s.split_whitespace().next() {
-                    Ok(SqlValue::Date(date_part.to_string()))
-                } else {
-                    Ok(SqlValue::Date(s.clone()))
+                // Extract date part from timestamp
+                Ok(SqlValue::Date(s.date))
+            }
+            SqlValue::Varchar(s) => {
+                // Parse VARCHAR as DATE
+                match s.parse::<types::Date>() {
+                    Ok(date) => Ok(SqlValue::Date(date)),
+                    Err(_) => Err(ExecutorError::CastError {
+                        from_type: format!("VARCHAR '{}'", s),
+                        to_type: "DATE".to_string(),
+                    }),
                 }
             }
-            SqlValue::Varchar(s) => Ok(SqlValue::Date(s.clone())),
             _ => Err(ExecutorError::CastError {
                 from_type: format!("{:?}", value),
                 to_type: "DATE".to_string(),
@@ -288,16 +293,21 @@ pub(crate) fn cast_value(
 
         // Cast to TIME
         Time { .. } => match value {
-            SqlValue::Time(s) => Ok(SqlValue::Time(s.clone())),
+            SqlValue::Time(s) => Ok(SqlValue::Time(*s)),
             SqlValue::Timestamp(s) => {
-                // Extract time part from timestamp (HH:MM:SS)
-                if let Some(time_part) = s.split_whitespace().nth(1) {
-                    Ok(SqlValue::Time(time_part.to_string()))
-                } else {
-                    Ok(SqlValue::Time(s.clone()))
+                // Extract time part from timestamp
+                Ok(SqlValue::Time(s.time))
+            }
+            SqlValue::Varchar(s) => {
+                // Parse VARCHAR as TIME
+                match s.parse::<types::Time>() {
+                    Ok(time) => Ok(SqlValue::Time(time)),
+                    Err(_) => Err(ExecutorError::CastError {
+                        from_type: format!("VARCHAR '{}'", s),
+                        to_type: "TIME".to_string(),
+                    }),
                 }
             }
-            SqlValue::Varchar(s) => Ok(SqlValue::Time(s.clone())),
             _ => Err(ExecutorError::CastError {
                 from_type: format!("{:?}", value),
                 to_type: "TIME".to_string(),
@@ -306,16 +316,36 @@ pub(crate) fn cast_value(
 
         // Cast to TIMESTAMP
         Timestamp { .. } => match value {
-            SqlValue::Timestamp(s) => Ok(SqlValue::Timestamp(s.clone())),
-            SqlValue::Date(s) => Ok(SqlValue::Timestamp(format!("{} 00:00:00", s))),
-            SqlValue::Time(time_str) => {
-                // SQL:1999: CAST(TIME AS TIMESTAMP) uses current date + time value
-                use chrono::Local;
-                let now = Local::now();
-                let date_str = now.format("%Y-%m-%d").to_string();
-                Ok(SqlValue::Timestamp(format!("{} {}", date_str, time_str)))
+            SqlValue::Timestamp(s) => Ok(SqlValue::Timestamp(*s)),
+            SqlValue::Date(date) => {
+                // Create timestamp with date and midnight time
+                let midnight = types::Time::new(0, 0, 0, 0).unwrap();
+                Ok(SqlValue::Timestamp(types::Timestamp::new(*date, midnight)))
             }
-            SqlValue::Varchar(s) => Ok(SqlValue::Timestamp(s.clone())),
+            SqlValue::Time(time) => {
+                // SQL:1999: CAST(TIME AS TIMESTAMP) uses current date + time value
+                use chrono::Datelike;
+                let now = chrono::Local::now();
+                let current_date = types::Date::new(
+                    now.year(),
+                    now.month() as u8,
+                    now.day() as u8,
+                ).map_err(|e| ExecutorError::CastError {
+                    from_type: format!("TIME '{}'", time),
+                    to_type: format!("TIMESTAMP (date construction failed: {})", e),
+                })?;
+                Ok(SqlValue::Timestamp(types::Timestamp::new(current_date, *time)))
+            }
+            SqlValue::Varchar(s) => {
+                // Parse VARCHAR as TIMESTAMP
+                match s.parse::<types::Timestamp>() {
+                    Ok(timestamp) => Ok(SqlValue::Timestamp(timestamp)),
+                    Err(_) => Err(ExecutorError::CastError {
+                        from_type: format!("VARCHAR '{}'", s),
+                        to_type: "TIMESTAMP".to_string(),
+                    }),
+                }
+            }
             _ => Err(ExecutorError::CastError {
                 from_type: format!("{:?}", value),
                 to_type: "TIMESTAMP".to_string(),

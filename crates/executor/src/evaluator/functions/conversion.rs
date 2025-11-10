@@ -56,8 +56,15 @@ pub(super) fn to_date(args: &[types::SqlValue]) -> Result<types::SqlValue, Execu
             types::SqlValue::Varchar(input) | types::SqlValue::Character(input),
             types::SqlValue::Varchar(format) | types::SqlValue::Character(format),
         ) => {
-            let date = super::super::date_format::parse_date(input, format)?;
-            Ok(types::SqlValue::Date(date.format("%Y-%m-%d").to_string()))
+            let naive_date = super::super::date_format::parse_date(input, format)?;
+            // Convert NaiveDate to our Date type
+            use chrono::Datelike;
+            let date = types::Date::new(
+                naive_date.year(),
+                naive_date.month() as u8,
+                naive_date.day() as u8,
+            ).map_err(|e| ExecutorError::UnsupportedFeature(format!("Invalid date: {}", e)))?;
+            Ok(types::SqlValue::Date(date))
         }
         (input, format) => Err(ExecutorError::UnsupportedFeature(format!(
             "TO_DATE requires string arguments, got {:?} and {:?}",
@@ -82,8 +89,21 @@ pub(super) fn to_timestamp(args: &[types::SqlValue]) -> Result<types::SqlValue, 
             types::SqlValue::Varchar(input) | types::SqlValue::Character(input),
             types::SqlValue::Varchar(format) | types::SqlValue::Character(format),
         ) => {
-            let timestamp = super::super::date_format::parse_timestamp(input, format)?;
-            Ok(types::SqlValue::Timestamp(timestamp.format("%Y-%m-%d %H:%M:%S").to_string()))
+            let naive_timestamp = super::super::date_format::parse_timestamp(input, format)?;
+            // Convert NaiveDateTime to our Timestamp type
+            use chrono::{Datelike, Timelike};
+            let date = types::Date::new(
+                naive_timestamp.year(),
+                naive_timestamp.month() as u8,
+                naive_timestamp.day() as u8,
+            ).map_err(|e| ExecutorError::UnsupportedFeature(format!("Invalid date: {}", e)))?;
+            let time = types::Time::new(
+                naive_timestamp.hour() as u8,
+                naive_timestamp.minute() as u8,
+                naive_timestamp.second() as u8,
+                naive_timestamp.nanosecond(),
+            ).map_err(|e| ExecutorError::UnsupportedFeature(format!("Invalid time: {}", e)))?;
+            Ok(types::SqlValue::Timestamp(types::Timestamp::new(date, time)))
         }
         (input, format) => Err(ExecutorError::UnsupportedFeature(format!(
             "TO_TIMESTAMP requires string arguments, got {:?} and {:?}",
@@ -117,29 +137,41 @@ pub(super) fn to_char(args: &[types::SqlValue]) -> Result<types::SqlValue, Execu
         types::SqlValue::Null => Ok(types::SqlValue::Null),
 
         // Date/Time formatting
-        types::SqlValue::Date(date_str) => {
+        types::SqlValue::Date(date) => {
             use chrono::NaiveDate;
-            let date = NaiveDate::parse_from_str(date_str, "%Y-%m-%d").map_err(|e| {
-                ExecutorError::UnsupportedFeature(format!("Invalid date format: {}", e))
-            })?;
-            let formatted = super::super::date_format::format_date(&date, format_str)?;
+            // Convert our Date type to NaiveDate for formatting
+            let naive_date = NaiveDate::from_ymd_opt(date.year, date.month as u32, date.day as u32)
+                .ok_or_else(|| ExecutorError::UnsupportedFeature("Invalid date".to_string()))?;
+            let formatted = super::super::date_format::format_date(&naive_date, format_str)?;
             Ok(types::SqlValue::Varchar(formatted))
         }
-        types::SqlValue::Timestamp(ts_str) => {
+        types::SqlValue::Timestamp(ts) => {
             use chrono::NaiveDateTime;
-            let timestamp =
-                NaiveDateTime::parse_from_str(ts_str, "%Y-%m-%d %H:%M:%S").map_err(|e| {
-                    ExecutorError::UnsupportedFeature(format!("Invalid timestamp format: {}", e))
-                })?;
-            let formatted = super::super::date_format::format_timestamp(&timestamp, format_str)?;
+            use chrono::NaiveDate;
+            use chrono::NaiveTime;
+            // Convert our Timestamp type to NaiveDateTime for formatting
+            let naive_date = NaiveDate::from_ymd_opt(ts.date.year, ts.date.month as u32, ts.date.day as u32)
+                .ok_or_else(|| ExecutorError::UnsupportedFeature("Invalid date".to_string()))?;
+            let naive_time = NaiveTime::from_hms_nano_opt(
+                ts.time.hour as u32,
+                ts.time.minute as u32,
+                ts.time.second as u32,
+                ts.time.nanosecond,
+            ).ok_or_else(|| ExecutorError::UnsupportedFeature("Invalid time".to_string()))?;
+            let naive_timestamp = NaiveDateTime::new(naive_date, naive_time);
+            let formatted = super::super::date_format::format_timestamp(&naive_timestamp, format_str)?;
             Ok(types::SqlValue::Varchar(formatted))
         }
-        types::SqlValue::Time(time_str) => {
+        types::SqlValue::Time(time) => {
             use chrono::NaiveTime;
-            let time = NaiveTime::parse_from_str(time_str, "%H:%M:%S").map_err(|e| {
-                ExecutorError::UnsupportedFeature(format!("Invalid time format: {}", e))
-            })?;
-            let formatted = super::super::date_format::format_time(&time, format_str)?;
+            // Convert our Time type to NaiveTime for formatting
+            let naive_time = NaiveTime::from_hms_nano_opt(
+                time.hour as u32,
+                time.minute as u32,
+                time.second as u32,
+                time.nanosecond,
+            ).ok_or_else(|| ExecutorError::UnsupportedFeature("Invalid time".to_string()))?;
+            let formatted = super::super::date_format::format_time(&naive_time, format_str)?;
             Ok(types::SqlValue::Varchar(formatted))
         }
 

@@ -45,7 +45,14 @@ impl Parser {
                     Token::String(s) => {
                         let date_str = s.clone();
                         self.advance();
-                        Ok(Some(ast::Expression::Literal(types::SqlValue::Date(date_str))))
+
+                        // Parse the date string into a Date type
+                        match date_str.parse::<types::Date>() {
+                            Ok(date) => Ok(Some(ast::Expression::Literal(types::SqlValue::Date(date)))),
+                            Err(e) => Err(ParseError {
+                                message: format!("Invalid DATE literal: {}", e),
+                            }),
+                        }
                     }
                     _ => Err(ParseError {
                         message: "Expected string literal after DATE keyword".to_string(),
@@ -58,7 +65,14 @@ impl Parser {
                     Token::String(s) => {
                         let time_str = s.clone();
                         self.advance();
-                        Ok(Some(ast::Expression::Literal(types::SqlValue::Time(time_str))))
+
+                        // Parse the time string into a Time type
+                        match time_str.parse::<types::Time>() {
+                            Ok(time) => Ok(Some(ast::Expression::Literal(types::SqlValue::Time(time)))),
+                            Err(e) => Err(ParseError {
+                                message: format!("Invalid TIME literal: {}", e),
+                            }),
+                        }
                     }
                     _ => Err(ParseError {
                         message: "Expected string literal after TIME keyword".to_string(),
@@ -71,9 +85,14 @@ impl Parser {
                     Token::String(s) => {
                         let timestamp_str = s.clone();
                         self.advance();
-                        Ok(Some(ast::Expression::Literal(types::SqlValue::Timestamp(
-                            timestamp_str,
-                        ))))
+
+                        // Parse the timestamp string into a Timestamp type
+                        match timestamp_str.parse::<types::Timestamp>() {
+                            Ok(timestamp) => Ok(Some(ast::Expression::Literal(types::SqlValue::Timestamp(timestamp)))),
+                            Err(e) => Err(ParseError {
+                                message: format!("Invalid TIMESTAMP literal: {}", e),
+                            }),
+                        }
                     }
                     _ => Err(ParseError {
                         message: "Expected string literal after TIMESTAMP keyword".to_string(),
@@ -137,7 +156,13 @@ impl Parser {
                             _ => format!("{} {}", value_str, start_field),
                         };
 
-                        Ok(Some(ast::Expression::Literal(types::SqlValue::Interval(interval_spec))))
+                        // Parse the interval string into an Interval type
+                        match interval_spec.parse::<types::Interval>() {
+                            Ok(interval) => Ok(Some(ast::Expression::Literal(types::SqlValue::Interval(interval)))),
+                            Err(e) => Err(ParseError {
+                                message: format!("Invalid INTERVAL literal: {}", e),
+                            }),
+                        }
                     }
                     _ => Err(ParseError {
                         message: "Expected string literal after INTERVAL keyword".to_string(),

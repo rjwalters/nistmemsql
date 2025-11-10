@@ -30,10 +30,10 @@ pub fn sqlvalue_to_py(py: Python, value: &types::SqlValue) -> PyResult<Py<PyAny>
         }
         types::SqlValue::Boolean(b) => b.into_pyobject(py)?.to_owned().into_any().unbind(),
         types::SqlValue::Numeric(n) => n.into_pyobject(py)?.into_any().unbind(),
-        types::SqlValue::Date(s)
-        | types::SqlValue::Time(s)
-        | types::SqlValue::Timestamp(s)
-        | types::SqlValue::Interval(s) => s.into_pyobject(py)?.into_any().unbind(),
+        types::SqlValue::Date(d) => d.to_string().into_pyobject(py)?.into_any().unbind(),
+        types::SqlValue::Time(t) => t.to_string().into_pyobject(py)?.into_any().unbind(),
+        types::SqlValue::Timestamp(ts) => ts.to_string().into_pyobject(py)?.into_any().unbind(),
+        types::SqlValue::Interval(i) => i.to_string().into_pyobject(py)?.into_any().unbind(),
         types::SqlValue::Null => py.None(),
     })
 }

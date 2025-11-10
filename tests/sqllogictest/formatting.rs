@@ -52,9 +52,10 @@ pub fn format_sql_value(value: &SqlValue, expected_type: Option<&DefaultColumnTy
         SqlValue::Varchar(s) | SqlValue::Character(s) => s.clone(),
         SqlValue::Boolean(b) => if *b { "1" } else { "0" }.to_string(),
         SqlValue::Null => "NULL".to_string(),
-        SqlValue::Date(d) | SqlValue::Time(d) | SqlValue::Timestamp(d) | SqlValue::Interval(d) => {
-            d.clone()
-        }
+        SqlValue::Date(d) => d.to_string(),
+        SqlValue::Time(d) => d.to_string(),
+        SqlValue::Timestamp(d) => d.to_string(),
+        SqlValue::Interval(d) => d.to_string(),
     }
 }
 
@@ -104,8 +105,9 @@ pub fn format_sql_value_canonical(
         SqlValue::Varchar(s) | SqlValue::Character(s) => s.clone(),
         SqlValue::Boolean(b) => if *b { "1" } else { "0" }.to_string(),
         SqlValue::Null => "NULL".to_string(),
-        SqlValue::Date(d) | SqlValue::Time(d) | SqlValue::Timestamp(d) | SqlValue::Interval(d) => {
-            d.clone()
-        }
+        SqlValue::Date(d) => d.to_string(),
+        SqlValue::Time(d) => d.to_string(),
+        SqlValue::Timestamp(d) => d.to_string(),
+        SqlValue::Interval(d) => d.to_string(),
     }
 }

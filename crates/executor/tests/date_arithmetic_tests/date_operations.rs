@@ -11,8 +11,8 @@ fn test_datediff_basic() {
     let expr = ast::Expression::Function {
         name: "DATEDIFF".to_string(),
         args: vec![
-            ast::Expression::Literal(types::SqlValue::Date("2024-01-10".to_string())),
-            ast::Expression::Literal(types::SqlValue::Date("2024-01-05".to_string())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-01-10".parse().unwrap())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-01-05".parse().unwrap())),
         ],
         character_unit: None,
     };
@@ -27,8 +27,8 @@ fn test_datediff_negative() {
     let expr = ast::Expression::Function {
         name: "DATEDIFF".to_string(),
         args: vec![
-            ast::Expression::Literal(types::SqlValue::Date("2024-01-05".to_string())),
-            ast::Expression::Literal(types::SqlValue::Date("2024-01-10".to_string())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-01-05".parse().unwrap())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-01-10".parse().unwrap())),
         ],
         character_unit: None,
     };
@@ -43,8 +43,8 @@ fn test_datediff_same_date() {
     let expr = ast::Expression::Function {
         name: "DATEDIFF".to_string(),
         args: vec![
-            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".to_string())),
-            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".to_string())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".parse().unwrap())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".parse().unwrap())),
         ],
         character_unit: None,
     };
@@ -61,14 +61,14 @@ fn test_date_add_days() {
     let expr = ast::Expression::Function {
         name: "DATE_ADD".to_string(),
         args: vec![
-            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".to_string())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".parse().unwrap())),
             ast::Expression::Literal(types::SqlValue::Integer(7)),
             ast::Expression::Literal(types::SqlValue::Varchar("DAY".to_string())),
         ],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
-    assert_eq!(result, types::SqlValue::Date("2024-01-22".to_string()));
+    assert_eq!(result, types::SqlValue::Date("2024-01-22".parse().unwrap()));
 }
 
 #[test]
@@ -78,14 +78,14 @@ fn test_date_add_months() {
     let expr = ast::Expression::Function {
         name: "DATE_ADD".to_string(),
         args: vec![
-            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".to_string())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".parse().unwrap())),
             ast::Expression::Literal(types::SqlValue::Integer(3)),
             ast::Expression::Literal(types::SqlValue::Varchar("MONTH".to_string())),
         ],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
-    assert_eq!(result, types::SqlValue::Date("2024-04-15".to_string()));
+    assert_eq!(result, types::SqlValue::Date("2024-04-15".parse().unwrap()));
 }
 
 #[test]
@@ -95,14 +95,14 @@ fn test_date_add_years() {
     let expr = ast::Expression::Function {
         name: "DATE_ADD".to_string(),
         args: vec![
-            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".to_string())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".parse().unwrap())),
             ast::Expression::Literal(types::SqlValue::Integer(2)),
             ast::Expression::Literal(types::SqlValue::Varchar("YEAR".to_string())),
         ],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
-    assert_eq!(result, types::SqlValue::Date("2026-01-15".to_string()));
+    assert_eq!(result, types::SqlValue::Date("2026-01-15".parse().unwrap()));
 }
 
 #[test]
@@ -112,14 +112,14 @@ fn test_date_add_negative() {
     let expr = ast::Expression::Function {
         name: "DATE_ADD".to_string(),
         args: vec![
-            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".to_string())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".parse().unwrap())),
             ast::Expression::Literal(types::SqlValue::Integer(-5)),
             ast::Expression::Literal(types::SqlValue::Varchar("DAY".to_string())),
         ],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
-    assert_eq!(result, types::SqlValue::Date("2024-01-10".to_string()));
+    assert_eq!(result, types::SqlValue::Date("2024-01-10".parse().unwrap()));
 }
 
 #[test]
@@ -129,14 +129,14 @@ fn test_adddate_alias() {
     let expr = ast::Expression::Function {
         name: "ADDDATE".to_string(),
         args: vec![
-            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".to_string())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".parse().unwrap())),
             ast::Expression::Literal(types::SqlValue::Integer(10)),
             ast::Expression::Literal(types::SqlValue::Varchar("DAY".to_string())),
         ],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
-    assert_eq!(result, types::SqlValue::Date("2024-01-25".to_string()));
+    assert_eq!(result, types::SqlValue::Date("2024-01-25".parse().unwrap()));
 }
 
 // ==================== DATE_SUB TESTS ====================
@@ -148,14 +148,14 @@ fn test_date_sub_days() {
     let expr = ast::Expression::Function {
         name: "DATE_SUB".to_string(),
         args: vec![
-            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".to_string())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".parse().unwrap())),
             ast::Expression::Literal(types::SqlValue::Integer(7)),
             ast::Expression::Literal(types::SqlValue::Varchar("DAY".to_string())),
         ],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
-    assert_eq!(result, types::SqlValue::Date("2024-01-08".to_string()));
+    assert_eq!(result, types::SqlValue::Date("2024-01-08".parse().unwrap()));
 }
 
 #[test]
@@ -165,14 +165,14 @@ fn test_date_sub_months() {
     let expr = ast::Expression::Function {
         name: "DATE_SUB".to_string(),
         args: vec![
-            ast::Expression::Literal(types::SqlValue::Date("2024-04-15".to_string())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-04-15".parse().unwrap())),
             ast::Expression::Literal(types::SqlValue::Integer(2)),
             ast::Expression::Literal(types::SqlValue::Varchar("MONTH".to_string())),
         ],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
-    assert_eq!(result, types::SqlValue::Date("2024-02-15".to_string()));
+    assert_eq!(result, types::SqlValue::Date("2024-02-15".parse().unwrap()));
 }
 
 #[test]
@@ -182,12 +182,12 @@ fn test_subdate_alias() {
     let expr = ast::Expression::Function {
         name: "SUBDATE".to_string(),
         args: vec![
-            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".to_string())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".parse().unwrap())),
             ast::Expression::Literal(types::SqlValue::Integer(5)),
             ast::Expression::Literal(types::SqlValue::Varchar("DAY".to_string())),
         ],
         character_unit: None,
     };
     let result = evaluator.eval(&expr, &row).unwrap();
-    assert_eq!(result, types::SqlValue::Date("2024-01-10".to_string()));
+    assert_eq!(result, types::SqlValue::Date("2024-01-10".parse().unwrap()));
 }

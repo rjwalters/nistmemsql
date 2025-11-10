@@ -26,6 +26,7 @@ serde_yaml = "0.9"
 glob = "0.3"
 md-5 = "0.10"
 rusqlite = { version = "0.32", features = ["bundled"] }
+chrono = "0.4"
 
 [workspace]
 members = [

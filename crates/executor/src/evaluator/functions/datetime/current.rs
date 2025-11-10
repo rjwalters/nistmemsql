@@ -18,8 +18,10 @@ pub fn current_date(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     }
 
     let now = Local::now();
-    let date_str = now.format("%Y-%m-%d").to_string();
-    Ok(SqlValue::Date(date_str))
+    use chrono::Datelike;
+    let date = types::Date::new(now.year(), now.month() as u8, now.day() as u8)
+        .map_err(|e| ExecutorError::UnsupportedFeature(format!("Failed to create current date: {}", e)))?;
+    Ok(SqlValue::Date(date))
 }
 
 /// CURRENT_TIME / CURTIME - Returns current time
@@ -53,15 +55,24 @@ pub fn current_time(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 
     let now = Local::now();
 
-    let time_str = match precision {
-        None => now.format("%H:%M:%S").to_string(),
+    let time_naive = now.time();
+    let nanosecond = match precision {
+        None => 0,
         Some(prec) => {
-            // Format with fractional seconds
-            format_time_with_precision(now.time(), prec)
+            let nanos = time_naive.nanosecond();
+            let divisor = 10_u32.pow(9 - prec);
+            (nanos / divisor) * divisor
         }
     };
 
-    Ok(SqlValue::Time(time_str))
+    let time = types::Time::new(
+        time_naive.hour() as u8,
+        time_naive.minute() as u8,
+        time_naive.second() as u8,
+        nanosecond,
+    ).map_err(|e| ExecutorError::UnsupportedFeature(format!("Failed to create current time: {}", e)))?;
+
+    Ok(SqlValue::Time(time))
 }
 
 /// CURRENT_TIMESTAMP / NOW - Returns current timestamp
@@ -95,15 +106,27 @@ pub fn current_timestamp(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 
     let now = Local::now();
 
-    let timestamp_str = match precision {
-        None => now.format("%Y-%m-%d %H:%M:%S").to_string(),
+    use chrono::Datelike;
+    let time_naive = now.time();
+    let nanosecond = match precision {
+        None => 0,
         Some(prec) => {
-            // Format with fractional seconds
-            format_timestamp_with_precision(now, prec)
+            let nanos = time_naive.nanosecond();
+            let divisor = 10_u32.pow(9 - prec);
+            (nanos / divisor) * divisor
         }
     };
 
-    Ok(SqlValue::Timestamp(timestamp_str))
+    let date = types::Date::new(now.year(), now.month() as u8, now.day() as u8)
+        .map_err(|e| ExecutorError::UnsupportedFeature(format!("Failed to create date: {}", e)))?;
+    let time = types::Time::new(
+        time_naive.hour() as u8,
+        time_naive.minute() as u8,
+        time_naive.second() as u8,
+        nanosecond,
+    ).map_err(|e| ExecutorError::UnsupportedFeature(format!("Failed to create time: {}", e)))?;
+
+    Ok(SqlValue::Timestamp(types::Timestamp::new(date, time)))
 }
 
 /// Helper function to format time with fractional seconds precision

@@ -1,0 +1,109 @@
+# Join benchmark test - Realistic workload
+# Tests various join operations to compare performance
+
+# Create tables
+statement ok
+CREATE TABLE departments (
+    dept_id INTEGER,
+    dept_name TEXT
+)
+
+statement ok
+CREATE TABLE employees (
+    emp_id INTEGER,
+    emp_name TEXT,
+    dept_id INTEGER,
+    salary INTEGER
+)
+
+# Insert departments
+statement ok
+INSERT INTO departments VALUES (1, 'Engineering')
+
+statement ok
+INSERT INTO departments VALUES (2, 'Sales')
+
+statement ok
+INSERT INTO departments VALUES (3, 'Marketing')
+
+# Insert employees
+statement ok
+INSERT INTO employees VALUES (101, 'Alice', 1, 85000)
+
+statement ok
+INSERT INTO employees VALUES (102, 'Bob', 1, 90000)
+
+statement ok
+INSERT INTO employees VALUES (103, 'Charlie', 2, 75000)
+
+statement ok
+INSERT INTO employees VALUES (104, 'Diana', 2, 80000)
+
+statement ok
+INSERT INTO employees VALUES (105, 'Eve', 3, 70000)
+
+# Simple INNER JOIN
+query ITIT rowsort
+SELECT e.emp_name, d.dept_name, e.salary
+FROM employees e
+INNER JOIN departments d ON e.dept_id = d.dept_id
+----
+Alice
+Engineering
+85000
+Bob
+Engineering
+90000
+Charlie
+Sales
+75000
+Diana
+Sales
+80000
+Eve
+Marketing
+70000
+
+# JOIN with WHERE clause
+query TT
+SELECT e.emp_name, d.dept_name
+FROM employees e
+INNER JOIN departments d ON e.dept_id = d.dept_id
+WHERE e.salary > 75000
+----
+Alice
+Engineering
+Bob
+Engineering
+Diana
+Sales
+
+# JOIN with aggregation
+query TI rowsort
+SELECT d.dept_name, COUNT(e.emp_id) AS employee_count
+FROM departments d
+LEFT JOIN employees e ON d.dept_id = e.dept_id
+GROUP BY d.dept_name
+----
+Engineering
+2
+Marketing
+1
+Sales
+2
+
+# Multi-condition JOIN
+query T
+SELECT e.emp_name
+FROM employees e
+INNER JOIN departments d ON e.dept_id = d.dept_id
+WHERE d.dept_name = 'Engineering' AND e.salary >= 90000
+----
+Bob
+
+# Cleanup
+statement ok
+DROP TABLE employees
+
+statement ok
+DROP TABLE departments

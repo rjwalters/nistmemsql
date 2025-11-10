@@ -19,39 +19,30 @@ pub fn datediff(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         )));
     }
 
-    match (&args[0], &args[1]) {
-        (SqlValue::Null, _) | (_, SqlValue::Null) => Ok(SqlValue::Null),
-        (SqlValue::Date(date1_str), SqlValue::Date(date2_str))
-        | (SqlValue::Timestamp(date1_str), SqlValue::Date(date2_str))
-        | (SqlValue::Date(date1_str), SqlValue::Timestamp(date2_str))
-        | (SqlValue::Timestamp(date1_str), SqlValue::Timestamp(date2_str)) => {
-            // Extract date part from timestamps if needed
-            let date1_part = date1_str.split(' ').next().unwrap_or(date1_str);
-            let date2_part = date2_str.split(' ').next().unwrap_or(date2_str);
-
-            // Parse dates
-            let date1 = NaiveDate::parse_from_str(date1_part, "%Y-%m-%d").map_err(|_| {
-                ExecutorError::UnsupportedFeature(format!(
-                    "Invalid date format for DATEDIFF: {}",
-                    date1_part
-                ))
-            })?;
-            let date2 = NaiveDate::parse_from_str(date2_part, "%Y-%m-%d").map_err(|_| {
-                ExecutorError::UnsupportedFeature(format!(
-                    "Invalid date format for DATEDIFF: {}",
-                    date2_part
-                ))
-            })?;
-
-            // Calculate difference in days
-            let diff = date1.signed_duration_since(date2).num_days();
-            Ok(SqlValue::Integer(diff))
+    // Extract date components
+    let (d1, d2) = match (&args[0], &args[1]) {
+        (SqlValue::Null, _) | (_, SqlValue::Null) => return Ok(SqlValue::Null),
+        (SqlValue::Date(date1), SqlValue::Date(date2)) => (date1, date2),
+        (SqlValue::Timestamp(ts1), SqlValue::Date(date2)) => (&ts1.date, date2),
+        (SqlValue::Date(date1), SqlValue::Timestamp(ts2)) => (date1, &ts2.date),
+        (SqlValue::Timestamp(ts1), SqlValue::Timestamp(ts2)) => (&ts1.date, &ts2.date),
+        (a, b) => {
+            return Err(ExecutorError::UnsupportedFeature(format!(
+                "DATEDIFF requires date or timestamp arguments, got {:?} and {:?}",
+                a, b
+            )))
         }
-        (a, b) => Err(ExecutorError::UnsupportedFeature(format!(
-            "DATEDIFF requires date or timestamp arguments, got {:?} and {:?}",
-            a, b
-        ))),
-    }
+    };
+
+    // Convert to NaiveDate for arithmetic
+    let naive_date1 = NaiveDate::from_ymd_opt(d1.year, d1.month as u32, d1.day as u32)
+        .ok_or_else(|| ExecutorError::UnsupportedFeature("Invalid date".to_string()))?;
+    let naive_date2 = NaiveDate::from_ymd_opt(d2.year, d2.month as u32, d2.day as u32)
+        .ok_or_else(|| ExecutorError::UnsupportedFeature("Invalid date".to_string()))?;
+
+    // Calculate difference in days
+    let diff = naive_date1.signed_duration_since(naive_date2).num_days();
+    Ok(SqlValue::Integer(diff))
 }
 
 /// DATE_ADD(date, amount, unit) - Add interval to date
@@ -76,7 +67,8 @@ pub fn date_add(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 
     // Extract date string
     let date_str = match &args[0] {
-        SqlValue::Date(s) | SqlValue::Timestamp(s) => s,
+        SqlValue::Date(d) => d.to_string(),
+        SqlValue::Timestamp(ts) => ts.to_string(),
         val => {
             return Err(ExecutorError::UnsupportedFeature(format!(
                 "DATE_ADD requires date/timestamp as first argument, got {:?}",
@@ -108,7 +100,7 @@ pub fn date_add(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     };
 
     // Perform date arithmetic based on unit
-    date_add_subtract(date_str, amount, &unit, true)
+    date_add_subtract(&date_str, amount, &unit, true)
 }
 
 /// DATE_SUB(date, amount, unit) - Subtract interval from date
@@ -132,7 +124,8 @@ pub fn date_sub(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 
     // Extract date string
     let date_str = match &args[0] {
-        SqlValue::Date(s) | SqlValue::Timestamp(s) => s,
+        SqlValue::Date(d) => d.to_string(),
+        SqlValue::Timestamp(ts) => ts.to_string(),
         val => {
             return Err(ExecutorError::UnsupportedFeature(format!(
                 "DATE_SUB requires date/timestamp as first argument, got {:?}",
@@ -164,7 +157,7 @@ pub fn date_sub(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     };
 
     // Perform date arithmetic (negate amount for subtraction)
-    date_add_subtract(date_str, -amount, &unit, true)
+    date_add_subtract(&date_str, -amount, &unit, true)
 }
 
 /// AGE(date1, date2) - Calculate age as interval between two dates
@@ -183,10 +176,15 @@ pub fn age(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         // AGE(date) - compare with current date
         match &args[0] {
             SqlValue::Null => return Ok(SqlValue::Null),
-            SqlValue::Date(s) | SqlValue::Timestamp(s) => {
+            SqlValue::Date(d) => {
                 let now = Local::now();
                 let current_date = now.format("%Y-%m-%d").to_string();
-                (current_date, s.clone())
+                (current_date, d.to_string())
+            }
+            SqlValue::Timestamp(ts) => {
+                let now = Local::now();
+                let current_date = now.format("%Y-%m-%d").to_string();
+                (current_date, ts.date.to_string())
             }
             val => {
                 return Err(ExecutorError::UnsupportedFeature(format!(
@@ -201,10 +199,10 @@ pub fn age(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             (SqlValue::Null, _) | (_, SqlValue::Null) => {
                 return Ok(SqlValue::Null);
             }
-            (
-                SqlValue::Date(d1) | SqlValue::Timestamp(d1),
-                SqlValue::Date(d2) | SqlValue::Timestamp(d2),
-            ) => (d1.clone(), d2.clone()),
+            (SqlValue::Date(d1), SqlValue::Date(d2)) => (d1.to_string(), d2.to_string()),
+            (SqlValue::Timestamp(ts1), SqlValue::Timestamp(ts2)) => (ts1.date.to_string(), ts2.date.to_string()),
+            (SqlValue::Date(d1), SqlValue::Timestamp(ts2)) => (d1.to_string(), ts2.date.to_string()),
+            (SqlValue::Timestamp(ts1), SqlValue::Date(d2)) => (ts1.date.to_string(), d2.to_string()),
             (a, b) => {
                 return Err(ExecutorError::UnsupportedFeature(format!(
                     "AGE requires date/timestamp arguments, got {:?} and {:?}",
@@ -214,9 +212,9 @@ pub fn age(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         }
     };
 
-    // Extract date parts
-    let date1_part = date1_str.split(' ').next().unwrap_or(&date1_str);
-    let date2_part = date2_str.split(' ').next().unwrap_or(&date2_str);
+    // Dates are already in YYYY-MM-DD format
+    let date1_part = &date1_str;
+    let date2_part = &date2_str;
 
     // Parse dates
     let date1 = NaiveDate::parse_from_str(date1_part, "%Y-%m-%d").map_err(|_| {
@@ -375,7 +373,17 @@ fn date_add_subtract(
             }
         };
 
-        Ok(SqlValue::Timestamp(new_timestamp.format("%Y-%m-%d %H:%M:%S").to_string()))
+        // Convert NaiveDateTime to our Timestamp type
+        use chrono::{Datelike, Timelike};
+        let date = types::Date::new(new_timestamp.year(), new_timestamp.month() as u8, new_timestamp.day() as u8)
+            .map_err(|e| ExecutorError::UnsupportedFeature(format!("Invalid date: {}", e)))?;
+        let time = types::Time::new(
+            new_timestamp.hour() as u8,
+            new_timestamp.minute() as u8,
+            new_timestamp.second() as u8,
+            new_timestamp.nanosecond(),
+        ).map_err(|e| ExecutorError::UnsupportedFeature(format!("Invalid time: {}", e)))?;
+        Ok(SqlValue::Timestamp(types::Timestamp::new(date, time)))
     } else {
         // Parse as date (extract date part if timestamp)
         let date_part = date_str.split(' ').next().unwrap_or(date_str);
@@ -405,7 +413,11 @@ fn date_add_subtract(
             "DAY" | "DAYS" => date + Duration::days(amount),
             "HOUR" | "HOURS" | "MINUTE" | "MINUTES" | "SECOND" | "SECONDS" => {
                 // Time units on dates don't change the date
-                return Ok(SqlValue::Date(date.format("%Y-%m-%d").to_string()));
+                // Convert NaiveDate to our Date type
+                use chrono::Datelike;
+                let result_date = types::Date::new(date.year(), date.month() as u8, date.day() as u8)
+                    .map_err(|e| ExecutorError::UnsupportedFeature(format!("Invalid date: {}", e)))?;
+                return Ok(SqlValue::Date(result_date));
             }
             _ => {
                 return Err(ExecutorError::UnsupportedFeature(format!(
@@ -415,7 +427,11 @@ fn date_add_subtract(
             }
         };
 
-        Ok(SqlValue::Date(new_date.format("%Y-%m-%d").to_string()))
+        // Convert NaiveDate to our Date type
+        use chrono::Datelike;
+        let result_date = types::Date::new(new_date.year(), new_date.month() as u8, new_date.day() as u8)
+            .map_err(|e| ExecutorError::UnsupportedFeature(format!("Invalid date: {}", e)))?;
+        Ok(SqlValue::Date(result_date))
     }
 }
 

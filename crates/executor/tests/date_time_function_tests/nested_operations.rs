@@ -50,7 +50,7 @@ fn test_extract_from_current_timestamp() {
 fn test_multiple_extractions() {
     let (evaluator, row) = setup_test();
 
-    let timestamp = types::SqlValue::Timestamp(TEST_TIMESTAMP_CHRISTMAS.to_string());
+    let timestamp = types::SqlValue::Timestamp(TEST_TIMESTAMP_CHRISTMAS.parse().unwrap());
 
     // Test YEAR
     let year_expr = create_datetime_function("YEAR", vec![create_literal(timestamp.clone())]);

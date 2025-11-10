@@ -1,0 +1,146 @@
+# Aggregate benchmark test - Realistic workload with grouping
+# Tests aggregate functions and GROUP BY performance
+
+# Create sales table
+statement ok
+CREATE TABLE sales (
+    sale_id INTEGER,
+    product TEXT,
+    category TEXT,
+    quantity INTEGER,
+    price INTEGER,
+    region TEXT
+)
+
+# Insert sales data
+statement ok
+INSERT INTO sales VALUES (1, 'Laptop', 'Electronics', 5, 1200, 'West')
+
+statement ok
+INSERT INTO sales VALUES (2, 'Mouse', 'Electronics', 25, 20, 'West')
+
+statement ok
+INSERT INTO sales VALUES (3, 'Keyboard', 'Electronics', 15, 75, 'East')
+
+statement ok
+INSERT INTO sales VALUES (4, 'Desk', 'Furniture', 8, 350, 'West')
+
+statement ok
+INSERT INTO sales VALUES (5, 'Chair', 'Furniture', 12, 200, 'East')
+
+statement ok
+INSERT INTO sales VALUES (6, 'Monitor', 'Electronics', 10, 400, 'North')
+
+statement ok
+INSERT INTO sales VALUES (7, 'Table', 'Furniture', 6, 500, 'North')
+
+statement ok
+INSERT INTO sales VALUES (8, 'Headphones', 'Electronics', 30, 50, 'South')
+
+# Simple aggregation
+query I
+SELECT COUNT(*) FROM sales
+----
+8
+
+# Single GROUP BY with COUNT
+query TI rowsort
+SELECT category, COUNT(*) AS item_count
+FROM sales
+GROUP BY category
+----
+Electronics
+5
+Furniture
+3
+
+# Multiple aggregates
+query TIII rowsort
+SELECT category, COUNT(*), SUM(quantity), AVG(price)
+FROM sales
+GROUP BY category
+----
+Electronics
+5
+85
+349
+Furniture
+3
+26
+350
+
+# GROUP BY with WHERE
+query TI rowsort
+SELECT region, COUNT(*)
+FROM sales
+WHERE price > 100
+GROUP BY region
+----
+East
+1
+North
+2
+West
+2
+
+# Multiple column GROUP BY
+query TTI rowsort
+SELECT category, region, SUM(quantity) AS total_quantity
+FROM sales
+GROUP BY category, region
+----
+Electronics
+East
+15
+Electronics
+North
+10
+Electronics
+South
+30
+Electronics
+West
+30
+Furniture
+East
+12
+Furniture
+North
+6
+Furniture
+West
+8
+
+# Aggregates with MIN/MAX
+query TIII rowsort
+SELECT category, MIN(price), MAX(price), COUNT(*)
+FROM sales
+GROUP BY category
+----
+Electronics
+20
+1200
+5
+Furniture
+200
+500
+3
+
+# Complex aggregation with calculated field
+query TI rowsort
+SELECT region, SUM(quantity * price) AS total_revenue
+FROM sales
+GROUP BY region
+----
+East
+3525
+North
+7000
+South
+1500
+West
+9700
+
+# Cleanup
+statement ok
+DROP TABLE sales

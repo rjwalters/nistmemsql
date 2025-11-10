@@ -19,7 +19,7 @@ fn test_current_date_format() {
     // Verify it returns a Date type with YYYY-MM-DD format
     match result {
         types::SqlValue::Date(s) => {
-            validate_date_format(&s);
+            validate_date_format(&s.to_string());
         }
         _ => panic!("CURRENT_DATE should return Date type"),
     }
@@ -48,7 +48,7 @@ fn test_current_time_format() {
     // Verify it returns a Time type with HH:MM:SS format
     match result {
         types::SqlValue::Time(s) => {
-            validate_time_format(&s);
+            validate_time_format(&s.to_string());
         }
         _ => panic!("CURRENT_TIME should return Time type"),
     }
@@ -77,7 +77,7 @@ fn test_current_timestamp_format() {
     // Verify it returns a Timestamp type with YYYY-MM-DD HH:MM:SS format
     match result {
         types::SqlValue::Timestamp(s) => {
-            validate_timestamp_format(&s);
+            validate_timestamp_format(&s.to_string());
         }
         _ => panic!("CURRENT_TIMESTAMP should return Timestamp type"),
     }

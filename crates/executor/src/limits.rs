@@ -50,8 +50,16 @@ pub const MAX_ROWS_PROCESSED: usize = 10_000_000;
 /// Maximum execution time for a single query (in seconds)
 ///
 /// This is a soft timeout - checked periodically, not enforced precisely
-/// Set to 60 seconds for now, can be made configurable per-query later
-pub const MAX_QUERY_EXECUTION_SECONDS: u64 = 60;
+///
+/// Set to 300 seconds (5 minutes) to allow complex multi-table joins to complete.
+/// With predicate pushdown optimization (#1122), memory usage is under control (6.48 GB
+/// vs 73+ GB before), but some 7+ table joins with multiple equijoin conditions still
+/// require more than 60 seconds due to suboptimal join ordering.
+///
+/// TODO: Integrate join reordering optimization (infrastructure exists in
+/// join/search.rs and join_reorder_wrapper.rs but is not yet wired into execution)
+/// to reduce execution time instead of relying on higher timeout.
+pub const MAX_QUERY_EXECUTION_SECONDS: u64 = 300;
 
 /// Maximum number of iterations in a single loop (e.g., WHERE filtering)
 ///
