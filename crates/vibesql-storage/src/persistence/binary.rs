@@ -410,10 +410,11 @@ fn write_data<W: Write>(writer: &mut W, db: &Database) -> Result<(), StorageErro
 }
 
 fn read_data<R: Read>(reader: &mut R, db: &mut Database) -> Result<(), StorageError> {
-    let table_names = db.catalog.list_tables();
+    let table_count = db.catalog.list_tables().len();
 
-    for table_name in table_names {
-        let _table_name_read = read_string(reader)?;
+    for _ in 0..table_count {
+        // Read table name from file (don't rely on list_tables() ordering)
+        let table_name = read_string(reader)?;
         let row_count = read_u64(reader)?;
 
         // Get column count first
@@ -596,12 +597,6 @@ fn read_sql_value<R: Read>(reader: &mut R) -> Result<SqlValue, StorageError> {
 // Low-Level I/O Primitives
 // ============================================================================
 
-fn write_u8<W: Write>(writer: &mut W, value: u8) -> Result<(), StorageError> {
-    writer
-        .write_all(&[value])
-        .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))
-}
-
 fn read_u8<R: Read>(reader: &mut R) -> Result<u8, StorageError> {
     let mut buf = [0u8; 1];
     reader
@@ -769,14 +764,14 @@ fn parse_data_type(type_str: &str) -> Result<vibesql_types::DataType, StorageErr
         s if s.starts_with("NUMERIC(") => {
             let params = s.trim_start_matches("NUMERIC(").trim_end_matches(')');
             let parts: Vec<&str> = params.split(',').map(|p| p.trim()).collect();
-            let precision = parts.get(0).and_then(|p| p.parse().ok()).unwrap_or(38);
+            let precision = parts.first().and_then(|p| p.parse().ok()).unwrap_or(38);
             let scale = parts.get(1).and_then(|p| p.parse().ok()).unwrap_or(0);
             Ok(DataType::Numeric { precision, scale })
         }
         s if s.starts_with("DECIMAL(") => {
             let params = s.trim_start_matches("DECIMAL(").trim_end_matches(')');
             let parts: Vec<&str> = params.split(',').map(|p| p.trim()).collect();
-            let precision = parts.get(0).and_then(|p| p.parse().ok()).unwrap_or(38);
+            let precision = parts.first().and_then(|p| p.parse().ok()).unwrap_or(38);
             let scale = parts.get(1).and_then(|p| p.parse().ok()).unwrap_or(0);
             Ok(DataType::Decimal { precision, scale })
         }
