@@ -11,12 +11,15 @@
 // 2. Binary format (fast, efficient):
 //    - `binary`: Binary serialization/deserialization
 //
-// 3. JSON format (structured, tool-friendly):
+// 3. Compressed binary format (zstd-compressed, smallest size):
+//    - `binary`: Compressed binary serialization/deserialization
+//
+// 4. JSON format (structured, tool-friendly):
 //    - `json`: JSON serialization/deserialization
 //
-// The `save_sql_dump`, `save_binary`, `save_json`, and `load_json` methods
-// are implemented directly on the `Database` type via impl blocks in their
-// respective modules.
+// The `save_sql_dump`, `save_binary`, `save_compressed`, `save_json`, and
+// `load_json` methods are implemented directly on the `Database` type via
+// impl blocks in their respective modules.
 //
 // Load utilities are exported for use by the CLI layer to parse and execute
 // dump files.
@@ -36,7 +39,7 @@ impl crate::Database {
     /// Load database from file with automatic format detection
     ///
     /// Detects format based on:
-    /// 1. File extension (.vbsql for binary, .sql for SQL dump, .json for JSON)
+    /// 1. File extension (.vbsql for binary, .vbsqlz for compressed, .json for JSON, .sql for SQL dump)
     /// 2. Magic number in file header (if extension is ambiguous)
     ///
     /// # Example
@@ -44,8 +47,9 @@ impl crate::Database {
     /// # use vibesql_storage::Database;
     /// // Auto-detects format from extension and content
     /// let db = Database::load("database.vbsql").unwrap();
-    /// let db2 = Database::load("database.sql").unwrap();
+    /// let db2 = Database::load("database.vbsqlz").unwrap();
     /// let db3 = Database::load("database.json").unwrap();
+    /// let db4 = Database::load("database.sql").unwrap();
     /// ```
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, crate::StorageError> {
         let path_ref = path.as_ref();
@@ -53,13 +57,14 @@ impl crate::Database {
 
         match format {
             PersistenceFormat::Binary => Self::load_binary(path),
+            PersistenceFormat::BinaryCompressed => Self::load_compressed(path),
             PersistenceFormat::Json => Self::load_json(path),
             PersistenceFormat::Sql => {
                 // SQL dump requires executor for parsing, so we return an error
                 // directing users to use the executor layer's load_sql_dump function
                 Err(crate::StorageError::NotImplemented(
                     "SQL dump loading requires the executor layer. \
-                     Use vibesql_executor::load_sql_dump() instead, or use binary format (.vbsql) or JSON format (.json)"
+                     Use vibesql_executor::load_sql_dump() instead, or use binary format (.vbsql/.vbsqlz) or JSON format (.json)"
                         .to_string(),
                 ))
             }
@@ -74,6 +79,8 @@ pub enum PersistenceFormat {
     Sql,
     /// Binary format (.vbsql) - efficient binary
     Binary,
+    /// Compressed binary format (.vbsqlz) - zstd-compressed binary
+    BinaryCompressed,
     /// JSON format (.json) - structured, tool-friendly
     Json,
 }
@@ -85,6 +92,7 @@ fn detect_format<P: AsRef<Path>>(path: P) -> Result<PersistenceFormat, crate::St
     // First try extension-based detection
     if let Some(ext) = path_ref.extension() {
         match ext.to_str() {
+            Some("vbsqlz") => return Ok(PersistenceFormat::BinaryCompressed),
             Some("vbsql") => return Ok(PersistenceFormat::Binary),
             Some("json") => return Ok(PersistenceFormat::Json),
             Some("sql") => return Ok(PersistenceFormat::Sql),
@@ -102,7 +110,19 @@ fn detect_format<P: AsRef<Path>>(path: P) -> Result<PersistenceFormat, crate::St
         return Ok(PersistenceFormat::Binary);
     }
 
+    // Try reading as zstd-compressed (check for zstd magic number 0x28, 0xB5, 0x2F, 0xFD)
+    file = fs::File::open(path_ref).map_err(|e| {
+        crate::StorageError::NotImplemented(format!("Failed to open file {:?}: {}", path_ref, e))
+    })?;
+    let mut zstd_magic = [0u8; 4];
+    if file.read_exact(&mut zstd_magic).is_ok() && &zstd_magic == b"\x28\xB5\x2F\xFD" {
+        return Ok(PersistenceFormat::BinaryCompressed);
+    }
+
     // Check for JSON by looking for opening brace
+    file = fs::File::open(path_ref).map_err(|e| {
+        crate::StorageError::NotImplemented(format!("Failed to open file {:?}: {}", path_ref, e))
+    })?;
     let mut first_byte = [0u8; 1];
     if file.read_exact(&mut first_byte).is_ok() && first_byte[0] == b'{' {
         return Ok(PersistenceFormat::Json);
