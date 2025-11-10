@@ -37,6 +37,23 @@ Coverage includes:
 - **F031**: Basic schema manipulation
 - Plus additional features from the F-series
 
+## Test Filtering Policy
+
+### MySQL-Specific Tests
+
+The SQLLogicTest suite contains tests with MySQL-specific syntax extensions that are not part of the SQL:1999 standard. These tests are automatically filtered out by the test runner to provide accurate SQL:1999 conformance metrics.
+
+**Filtered patterns**:
+- **System variables**: `@@sql_mode`, `@@session.variable_name`
+- **Session management**: `SET SESSION` commands
+- **MySQL sql_mode flags**: `ONLY_FULL_GROUP_BY`
+
+**Implementation**: The `is_mysql_specific()` function in `scripts/run_parallel_tests.py` detects these patterns and excludes the tests from the work queue during initialization.
+
+**Impact**: Approximately 14 test files in `random/groupby/slt_good_*.test` contain MySQL-specific syntax. These are now excluded from test runs and pass rate calculations.
+
+**Rationale**: Our focus is on SQL:1999 standard compliance, not MySQL dialect compatibility. MySQL extensions may be added later as an optional compatibility mode, but they should not count against SQL:1999 conformance metrics.
+
 ## Sample Failing Tests
 
 The following tests are currently failing (showing first 10):
