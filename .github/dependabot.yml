@@ -41,25 +41,3 @@ updates:
     commit-message:
       prefix: "fix(security)"
       include: "scope"
-
-  # npm/pnpm dependency updates for web-demo
-  - package-ecosystem: "npm"
-    directory: "/web-demo"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-    open-pull-requests-limit: 5
-    groups:
-      dependencies:
-        patterns:
-          - "*"
-    labels:
-      - "dependencies"
-      - "javascript"
-      - "loom:review-requested"
-    reviewers:
-      - "rwalters"
-    commit-message:
-      prefix: "chore(deps)"
-      include: "scope"
