@@ -9,7 +9,7 @@ use crate::{
     evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator},
     optimizer::optimize_where_clause,
     select::{
-        filter::apply_where_filter_combined,
+        filter::apply_where_filter_combined_auto,
         helpers::{apply_distinct, apply_limit_offset},
         join::FromResult,
         order::{apply_order_by, RowWithSortKeys},
@@ -69,12 +69,12 @@ impl SelectExecutor<'_> {
                     Vec::new()
                 }
                 crate::optimizer::WhereOptimization::Optimized(ref expr) => {
-                    // Apply optimized WHERE clause
-                    apply_where_filter_combined(rows, Some(expr), &evaluator, self)?
+                    // Apply optimized WHERE clause (uses parallel if enabled)
+                    apply_where_filter_combined_auto(rows, Some(expr), &evaluator, self)?
                 }
                 crate::optimizer::WhereOptimization::Unchanged(where_expr) => {
-                    // Apply original WHERE clause
-                    apply_where_filter_combined(rows, where_expr.as_ref(), &evaluator, self)?
+                    // Apply original WHERE clause (uses parallel if enabled)
+                    apply_where_filter_combined_auto(rows, where_expr.as_ref(), &evaluator, self)?
                 }
             }
         };

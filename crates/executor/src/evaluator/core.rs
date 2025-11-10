@@ -308,24 +308,6 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         f(&evaluator)
     }
 
-    /// Create a thread-safe copy of this evaluator for parallel execution
-    /// Creates a new evaluator with independent CSE cache and column cache
-    pub(crate) fn clone_for_parallel(&self) -> Self {
-        CombinedExpressionEvaluator {
-            schema: self.schema,
-            database: self.database,
-            outer_row: self.outer_row,
-            outer_schema: self.outer_schema,
-            window_mapping: self.window_mapping,
-            // Each parallel thread gets its own independent column cache
-            column_cache: RefCell::new(HashMap::new()),
-            depth: 0,
-            // Each parallel thread gets its own independent CSE cache
-            cse_cache: Rc::new(RefCell::new(HashMap::new())),
-            enable_cse: self.enable_cse,
-        }
-    }
-
     /// Get evaluator components for parallel execution
     /// Returns (schema, database, outer_row, outer_schema, window_mapping, enable_cse)
     pub(crate) fn get_parallel_components(
