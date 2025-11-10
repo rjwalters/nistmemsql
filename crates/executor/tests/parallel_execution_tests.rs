@@ -172,5 +172,5 @@ fn test_parallel_execution_integration_with_executor() {
 
     // Should get one row with count
     assert_eq!(result_agg.len(), 1);
-    assert_eq!(result_agg[0].values[0], types::SqlValue::Numeric(1500.0));
+    assert_eq!(result_agg[0].values[0], types::SqlValue::Integer(1500)); // COUNT(*) returns Integer
 }

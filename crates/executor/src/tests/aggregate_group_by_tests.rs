@@ -86,6 +86,6 @@ fn test_group_by_with_count() {
         (types::SqlValue::Integer(a), types::SqlValue::Integer(b)) => a.cmp(b),
         _ => std::cmp::Ordering::Equal,
     });
-    assert_eq!(results[0], (types::SqlValue::Integer(1), types::SqlValue::Numeric(2.0)));
-    assert_eq!(results[1], (types::SqlValue::Integer(2), types::SqlValue::Numeric(1.0)));
+    assert_eq!(results[0], (types::SqlValue::Integer(1), types::SqlValue::Integer(2)));
+    assert_eq!(results[1], (types::SqlValue::Integer(2), types::SqlValue::Integer(1)));
 }

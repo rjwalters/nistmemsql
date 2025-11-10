@@ -68,7 +68,7 @@ fn test_count_star_without_from() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].get(0), Some(&types::SqlValue::Numeric(1.0)));
+    assert_eq!(result[0].get(0), Some(&types::SqlValue::Integer(1)));
 }
 
 #[test]
@@ -138,7 +138,7 @@ fn test_count_distinct_without_from() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].get(0), Some(&types::SqlValue::Numeric(1.0)));
+    assert_eq!(result[0].get(0), Some(&types::SqlValue::Integer(1)));
 }
 
 #[test]
@@ -191,7 +191,7 @@ fn test_multiple_aggregates_without_from() {
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].get(0), Some(&types::SqlValue::Numeric(5.0)));
     assert_eq!(result[0].get(1), Some(&types::SqlValue::Integer(10)));
-    assert_eq!(result[0].get(2), Some(&types::SqlValue::Numeric(1.0)));
+    assert_eq!(result[0].get(2), Some(&types::SqlValue::Integer(1)));
 }
 
 #[test]

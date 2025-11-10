@@ -210,9 +210,9 @@ fn test_inner_join_with_group_by_count() {
         .find(|r| r.get(0).unwrap() == &SqlValue::Varchar("HR".to_string()))
         .unwrap();
 
-    assert_eq!(eng_row.get(1).unwrap(), &SqlValue::Numeric(2.0));
-    assert_eq!(sales_row.get(1).unwrap(), &SqlValue::Numeric(2.0));
-    assert_eq!(hr_row.get(1).unwrap(), &SqlValue::Numeric(1.0));
+    assert_eq!(eng_row.get(1).unwrap(), &SqlValue::Integer(2)); // COUNT(*) = Integer
+    assert_eq!(sales_row.get(1).unwrap(), &SqlValue::Integer(2)); // COUNT(*) = Integer
+    assert_eq!(hr_row.get(1).unwrap(), &SqlValue::Integer(1)); // COUNT(*) = Integer
 }
 
 #[test]
@@ -407,8 +407,8 @@ fn test_join_group_by_with_having() {
     for row in &result.rows {
         let count = row.get(1).unwrap();
         match count {
-            SqlValue::Numeric(c) => assert!(*c >= 2.0),
-            _ => panic!("Expected numeric count"),
+            SqlValue::Integer(c) => assert!(*c >= 2),
+            _ => panic!("Expected integer count"),
         }
     }
 }
@@ -512,7 +512,7 @@ fn test_join_group_by_multiple_aggregates() {
         .iter()
         .find(|row| row.get(0).unwrap() == &SqlValue::Varchar("Engineering".to_string()))
         .unwrap();
-    assert_eq!(engineering_row.get(1).unwrap(), &SqlValue::Numeric(2.0)); // COUNT(*)
+    assert_eq!(engineering_row.get(1).unwrap(), &SqlValue::Integer(2)); // COUNT(*)
     assert_eq!(engineering_row.get(2).unwrap(), &SqlValue::Integer(87000)); // MIN(salary)
     assert_eq!(engineering_row.get(3).unwrap(), &SqlValue::Integer(95000)); // MAX(salary)
 }

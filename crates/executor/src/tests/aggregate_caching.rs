@@ -92,7 +92,8 @@ fn test_repeated_count_star_cached() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], types::SqlValue::Numeric(257.0));
+    // COUNT(*) returns Integer, Integer arithmetic stays Integer
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(257));
 }
 
 #[test]
@@ -268,11 +269,11 @@ fn test_cache_cleared_between_groups() {
 
     // Category A: COUNT(*) = 2, so 2 + 2 = 4
     assert_eq!(result[0].values[0], types::SqlValue::Varchar("A".to_string()));
-    assert_eq!(result[0].values[1], types::SqlValue::Numeric(4.0));
+    assert_eq!(result[0].values[1], types::SqlValue::Integer(4));
 
     // Category B: COUNT(*) = 3, so 3 + 3 = 6
     assert_eq!(result[1].values[0], types::SqlValue::Varchar("B".to_string()));
-    assert_eq!(result[1].values[1], types::SqlValue::Numeric(6.0));
+    assert_eq!(result[1].values[1], types::SqlValue::Integer(6));
 }
 
 #[test]
@@ -330,6 +331,6 @@ fn test_distinct_aggregates_not_confused() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], types::SqlValue::Numeric(5.0)); // COUNT(val) = 5
-    assert_eq!(result[0].values[1], types::SqlValue::Numeric(3.0)); // COUNT(DISTINCT val) = 3
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(5)); // COUNT(val) = 5
+    assert_eq!(result[0].values[1], types::SqlValue::Integer(3)); // COUNT(DISTINCT val) = 3
 }

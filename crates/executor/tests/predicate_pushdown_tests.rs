@@ -92,7 +92,7 @@ fn test_table_local_predicate_with_two_tables() {
 
     // Should have results (exact count depends on join selectivity)
     assert!(result.len() > 0);
-    assert!(result[0].values[0] > types::SqlValue::Numeric(0.0));
+    assert!(result[0].values[0] > types::SqlValue::Integer(0));
 }
 
 #[test]
@@ -304,7 +304,7 @@ fn test_phase3_1_hash_join_from_where_no_on_clause() {
     // Should successfully execute with hash join optimization
     assert_eq!(result.len(), 1);
     // Result should be a count > 0 (matching rows)
-    assert!(result[0].values[0] > types::SqlValue::Numeric(0.0));
+    assert!(result[0].values[0] > types::SqlValue::Integer(0));
 }
 
 #[test]
@@ -374,8 +374,9 @@ fn test_phase3_1_equijoin_selectivity() {
     let stmt = parse_select(sql_cartesian);
     let cartesian = executor.execute(&stmt).unwrap();
     let cartesian_count = match &cartesian[0].values[0] {
+        types::SqlValue::Integer(n) => *n,
         types::SqlValue::Numeric(n) => *n as i64,
-        _ => panic!("Expected numeric"),
+        _ => panic!("Expected integer or numeric"),
     };
 
     // Now with equijoin (Phase 3.1 hash join)

@@ -87,7 +87,7 @@ fn test_count_distinct_basic() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // Should count 3 distinct values: 100, 200, 300
-    assert_eq!(result[0].values[0], types::SqlValue::Numeric(3.0));
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(3));
 }
 
 #[test]
@@ -136,8 +136,8 @@ fn test_count_distinct_vs_count_all() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], types::SqlValue::Numeric(6.0)); // COUNT(amount) - all rows
-    assert_eq!(result[0].values[1], types::SqlValue::Numeric(3.0)); // COUNT(DISTINCT amount) - unique
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(6)); // COUNT(amount) - all rows
+    assert_eq!(result[0].values[1], types::SqlValue::Integer(3)); // COUNT(DISTINCT amount) - unique
                                                                   // values
 }
 
@@ -389,7 +389,7 @@ fn test_count_distinct_with_nulls() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // Should count only unique non-NULL values: 1, 2 = 2 distinct values
-    assert_eq!(result[0].values[0], types::SqlValue::Numeric(2.0));
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(2));
 }
 
 #[test]
@@ -450,7 +450,7 @@ fn test_distinct_all_same_value() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // COUNT(DISTINCT): 1 unique value
-    assert_eq!(result[0].values[0], types::SqlValue::Numeric(1.0));
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(1));
     // SUM(DISTINCT): 42 (only counted once)
     assert_eq!(result[0].values[1], types::SqlValue::Numeric(42.0));
 }
@@ -508,7 +508,7 @@ fn test_distinct_empty_table() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // COUNT on empty table should be 0
-    assert_eq!(result[0].values[0], types::SqlValue::Numeric(0.0));
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(0));
     // SUM on empty table should be 0
     assert_eq!(result[0].values[1], types::SqlValue::Integer(0));
 }

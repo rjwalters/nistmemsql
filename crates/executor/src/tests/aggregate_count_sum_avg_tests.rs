@@ -56,7 +56,7 @@ fn test_count_star_no_group_by() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], types::SqlValue::Numeric(3.0));
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(3));
 }
 
 #[test]
@@ -170,7 +170,7 @@ fn test_count_with_nulls() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], types::SqlValue::Numeric(3.0)); // Counts all 3 rows
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(3)); // Counts all 3 rows
 }
 
 #[test]
@@ -341,7 +341,7 @@ fn test_avg_with_nulls() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // AVG ignores NULL, so (5 + 3) / 2 = 4
-    assert_eq!(result[0].values[0], types::SqlValue::Numeric(4.0));
+    assert_eq!(result[0].values[0], types::SqlValue::Numeric(4.0)); // AVG returns Numeric
 }
 
 #[test]
@@ -399,7 +399,7 @@ fn test_count_column_all_nulls() {
 
     let result = executor.execute(&stmt_count_col).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], types::SqlValue::Numeric(0.0)); // COUNT(col) with all NULLs = 0
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(0)); // COUNT(col) with all NULLs = 0
 
     // COUNT(*) should still return row count
     let stmt_count_star = ast::SelectStmt {
@@ -426,7 +426,7 @@ fn test_count_column_all_nulls() {
 
     let result = executor.execute(&stmt_count_star).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], types::SqlValue::Numeric(3.0)); // COUNT(*) counts rows
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(3)); // COUNT(*) counts rows
 }
 
 // ============================================================================
@@ -592,7 +592,8 @@ fn test_count_star_in_arithmetic_expression() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], types::SqlValue::Numeric(50.0)); // 5 * 10
+    // COUNT(*) returns Integer, Integer arithmetic stays Integer
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(50)); // COUNT(*) * 10 = Integer
 }
 
 #[test]
@@ -645,7 +646,7 @@ fn test_count_star_in_case_then_clause() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], types::SqlValue::Numeric(2.0));
+    assert_eq!(result[0].values[0], types::SqlValue::Integer(2));
 }
 
 #[test]

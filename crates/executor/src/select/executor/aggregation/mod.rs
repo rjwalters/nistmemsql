@@ -33,7 +33,7 @@ impl SelectExecutor<'_> {
             // If table doesn't exist, fall through to normal path which will produce proper error
             if let Some(table) = self.database.get_table(&table_name) {
                 let count = table.row_count();
-                return Ok(vec![storage::Row::new(vec![types::SqlValue::Numeric(count as f64)])]);
+                return Ok(vec![storage::Row::new(vec![types::SqlValue::Integer(count as i64)])]);
             }
         }
 
