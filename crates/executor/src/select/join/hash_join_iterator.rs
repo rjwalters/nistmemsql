@@ -35,6 +35,7 @@ pub struct HashJoinIterator<L: RowIterator> {
     /// Column index in left table for join key
     left_col_idx: usize,
     /// Column index in right table for join key
+    #[allow(dead_code)]
     right_col_idx: usize,
     /// Current left row being processed
     current_left_row: Option<storage::Row>,
@@ -43,6 +44,7 @@ pub struct HashJoinIterator<L: RowIterator> {
     /// Index into current_matches
     match_index: usize,
     /// Number of right columns (for NULL padding)
+    #[allow(dead_code)]
     right_col_count: usize,
 }
 
@@ -58,6 +60,7 @@ impl<L: RowIterator> HashJoinIterator<L> {
     /// # Returns
     /// * `Ok(HashJoinIterator)` - Successfully created iterator
     /// * `Err(ExecutorError)` - Failed due to memory limits or schema issues
+    #[allow(private_interfaces)]
     pub fn new(
         left: L,
         right: FromResult,

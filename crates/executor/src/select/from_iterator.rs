@@ -3,6 +3,8 @@
 //! This module provides an iterator-based abstraction for FROM clause results,
 //! enabling lazy evaluation and streaming of table scan results without materializing
 //! all rows in memory.
+
+#![allow(dead_code)]
 //!
 //! ## Design
 //!

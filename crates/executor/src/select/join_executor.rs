@@ -4,6 +4,8 @@
 //! - Normal execution: Process join tree recursively as-is
 //! - Reordered execution: Flatten the join tree and execute in specified order
 
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 
 use ast::FromClause;

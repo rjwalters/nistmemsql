@@ -36,7 +36,6 @@ use std::{
 };
 
 use ast::{BinaryOperator, Expression};
-use types::SqlValue;
 
 /// Information about a table and its predicates
 #[derive(Debug, Clone)]
@@ -295,8 +294,6 @@ impl JoinOrderAnalyzer {
 
 #[cfg(test)]
 mod tests {
-    use types::SqlValue;
-
     use super::*;
 
     #[test]

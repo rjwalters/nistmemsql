@@ -255,6 +255,7 @@ impl<'a> RowNormalizer<'a> {
                 }
             }
             // User-defined types
+            #[cfg_attr(not(debug_assertions), allow(unused_variables))]
             DataType::UserDefined { type_name } => {
                 // Cannot validate user-defined types without more schema information
                 // Accept any value for now

@@ -92,6 +92,7 @@ impl FromResult {
     }
 
     /// Get a mutable reference to the rows, materializing if needed
+    #[allow(dead_code)]
     pub(super) fn rows_mut(&mut self) -> &mut Vec<storage::Row> {
         // First materialize if needed
         self.data.as_rows();
@@ -124,7 +125,7 @@ fn combine_rows(left_row: &storage::Row, right_row: &storage::Row) -> storage::R
 /// This is used to filter rows produced by hash join with additional conditions
 /// from the WHERE clause that weren't used in the hash join itself.
 fn apply_post_join_filter(
-    mut result: FromResult,
+    result: FromResult,
     filter_expr: &ast::Expression,
     database: &storage::Database,
 ) -> Result<FromResult, ExecutorError> {

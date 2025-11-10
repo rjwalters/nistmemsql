@@ -52,8 +52,6 @@ mod join;
 // Re-export public types
 pub use scan::TableScanIterator;
 pub use filter::FilterIterator;
-pub use projection::ProjectionIterator;
-pub use join::LazyNestedLoopJoin;
 
 /// Core trait for row-producing iterators in the query execution pipeline
 ///

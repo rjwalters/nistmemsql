@@ -3,6 +3,8 @@
 //! As joins are executed, the combined schema grows. This module provides utilities
 //! to track column positions and validate that expressions can be evaluated in the
 //! current schema state.
+
+#![allow(dead_code)]
 //!
 //! Example:
 //! ```

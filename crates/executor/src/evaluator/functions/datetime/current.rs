@@ -130,6 +130,7 @@ pub fn current_timestamp(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 }
 
 /// Helper function to format time with fractional seconds precision
+#[allow(dead_code)]
 fn format_time_with_precision(time: chrono::NaiveTime, precision: u32) -> String {
     let base = time.format("%H:%M:%S").to_string();
     if precision == 0 {
@@ -145,6 +146,7 @@ fn format_time_with_precision(time: chrono::NaiveTime, precision: u32) -> String
 }
 
 /// Helper function to format timestamp with fractional seconds precision
+#[allow(dead_code)]
 fn format_timestamp_with_precision(dt: chrono::DateTime<Local>, precision: u32) -> String {
     let base = dt.format("%Y-%m-%d %H:%M:%S").to_string();
     if precision == 0 {

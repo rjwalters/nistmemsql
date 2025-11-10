@@ -4,6 +4,8 @@
 //! into the standard join execution path. It detects multi-table joins
 //! and applies optimal ordering when beneficial.
 
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 
 use super::join::{JoinOrderAnalyzer, JoinOrderSearch};

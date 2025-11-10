@@ -22,6 +22,7 @@ use super::RowIterator;
 pub struct TableScanIterator {
     schema: CombinedSchema,
     rows: std::vec::IntoIter<storage::Row>,
+    #[allow(dead_code)]
     total_count: usize,
 }
 

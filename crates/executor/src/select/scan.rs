@@ -63,6 +63,7 @@ fn all_joins_are_inner_or_cross(from: &ast::FromClause) -> bool {
 struct TableRef {
     name: String,
     alias: Option<String>,
+    #[allow(dead_code)]
     is_cte: bool,
     is_subquery: bool,
     subquery: Option<Box<ast::SelectStmt>>,
