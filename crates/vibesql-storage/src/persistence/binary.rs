@@ -134,6 +134,110 @@ impl Database {
 
         Ok(db)
     }
+
+    /// Save database in default compressed binary format
+    ///
+    /// This is the preferred save method - creates zstd-compressed binary files
+    /// with `.vbsqlz` extension for optimal space efficiency.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use vibesql_storage::Database;
+    /// let db = Database::new();
+    /// db.save("database.vbsqlz").unwrap();  // Compressed by default
+    /// ```
+    pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), StorageError> {
+        self.save_compressed(path)
+    }
+
+    /// Save database in uncompressed binary format
+    ///
+    /// Use this if you need uncompressed `.vbsql` files (e.g., for debugging
+    /// or when compression overhead is not desired).
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use vibesql_storage::Database;
+    /// let db = Database::new();
+    /// db.save_uncompressed("database.vbsql").unwrap();
+    /// ```
+    pub fn save_uncompressed<P: AsRef<Path>>(&self, path: P) -> Result<(), StorageError> {
+        self.save_binary(path)
+    }
+
+    /// Save database in compressed binary format (zstd compression)
+    ///
+    /// Creates a `.vbsqlz` file containing zstd-compressed binary data.
+    /// Typically 50-70% smaller than uncompressed `.vbsql` files.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use vibesql_storage::Database;
+    /// let db = Database::new();
+    /// db.save_compressed("database.vbsqlz").unwrap();
+    /// ```
+    pub fn save_compressed<P: AsRef<Path>>(&self, path: P) -> Result<(), StorageError> {
+        // First, save to temporary in-memory buffer
+        let mut uncompressed_data = Vec::new();
+        {
+            let mut writer = BufWriter::new(&mut uncompressed_data);
+
+            // Write header
+            write_header(&mut writer)?;
+
+            // Write catalog section
+            write_catalog(&mut writer, self)?;
+
+            // Write data section
+            write_data(&mut writer, self)?;
+
+            writer.flush()
+                .map_err(|e| StorageError::NotImplemented(format!("Failed to flush: {}", e)))?;
+        }
+
+        // Compress the data using zstd (level 3 - good balance of speed and compression)
+        let compressed_data = zstd::encode_all(&uncompressed_data[..], 3)
+            .map_err(|e| StorageError::NotImplemented(format!("Compression failed: {}", e)))?;
+
+        // Write compressed data to file
+        std::fs::write(path.as_ref(), compressed_data)
+            .map_err(|e| StorageError::NotImplemented(format!("Failed to write file: {}", e)))?;
+
+        Ok(())
+    }
+
+    /// Load database from compressed binary format
+    ///
+    /// Reads a zstd-compressed `.vbsqlz` file and reconstructs the database.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use vibesql_storage::Database;
+    /// let db = Database::load_compressed("database.vbsqlz").unwrap();
+    /// ```
+    pub fn load_compressed<P: AsRef<Path>>(path: P) -> Result<Self, StorageError> {
+        // Read compressed file
+        let compressed_data = std::fs::read(path.as_ref())
+            .map_err(|e| StorageError::NotImplemented(format!("Failed to read file {:?}: {}", path.as_ref(), e)))?;
+
+        // Decompress using zstd
+        let uncompressed_data = zstd::decode_all(&compressed_data[..])
+            .map_err(|e| StorageError::NotImplemented(format!("Decompression failed: {}", e)))?;
+
+        // Parse the uncompressed binary data
+        let mut reader = BufReader::new(&uncompressed_data[..]);
+
+        // Read and validate header
+        read_header(&mut reader)?;
+
+        // Read catalog section
+        let mut db = read_catalog(&mut reader)?;
+
+        // Read data section
+        read_data(&mut reader, &mut db)?;
+
+        Ok(db)
+    }
 }
 
 // ============================================================================
