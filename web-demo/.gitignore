@@ -1,6 +1,10 @@
 # Dependencies
 node_modules/
 
+# Lock files - only pnpm-lock.yaml should be committed
+package-lock.json
+yarn.lock
+
 # Build output
 dist/
 

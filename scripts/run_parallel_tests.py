@@ -99,9 +99,17 @@ def initialize_work_queue(repo_root: Path, work_queue_dir: Path) -> int:
     claimed_dir.mkdir(parents=True, exist_ok=True)
     completed_dir.mkdir(parents=True, exist_ok=True)
 
-    # Blocklist of test files that cause memory leaks or OOM
-    # select5.test: Still has memory leak issue - grows to excessive memory usage
-    blocklist = {"select5.test"}
+    # Blocklist of test files that cause memory leaks, OOM, or infinite loops
+    # Format: Can be either:
+    #   - Just filename (e.g., "select5.test") - blocks all files with that name
+    #   - Relative path (e.g., "index/orderby/1000/slt_good_0.test") - blocks specific file
+    #
+    # select5.test: Memory leak issue - grows to excessive memory usage
+    # index/orderby/1000/slt_good_0.test: Infinite loop in ORDER BY with large indexed dataset (issue #1197)
+    blocklist = {
+        "select5.test",
+        "index/orderby/1000/slt_good_0.test",
+    }
 
     # Find all test files
     test_dir = repo_root / "third_party" / "sqllogictest" / "test"
@@ -112,7 +120,9 @@ def initialize_work_queue(repo_root: Path, work_queue_dir: Path) -> int:
     skipped_count = 0
     for test_file_path in all_test_files:
         test_file = Path(test_file_path)
-        if test_file.name in blocklist:
+        # Check both filename and relative path from test_dir
+        rel_path = test_file.relative_to(test_dir)
+        if test_file.name in blocklist or str(rel_path) in blocklist:
             skipped_count += 1
             continue
         test_files.append(test_file_path)

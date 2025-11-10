@@ -2,6 +2,12 @@
 name = "vibesql"
 version.workspace = true
 edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "SQL database engine with SQL:1999 compliance"
+keywords = ["sql", "database", "query", "engine"]
+categories = ["database"]
 
 [features]
 memory-tracking = ["memory-stats"]

@@ -3,11 +3,11 @@
 //! These tests verify that table-local predicates are correctly identified and applied
 //! during table scans, reducing memory consumption in multi-table joins.
 
-use vibesql_ast as ast;
-use vibesql_catalog as catalog;
+use vibesql_ast;
+use vibesql_catalog;
 use vibesql_executor::SelectExecutor;
-use vibesql_parser as parser;
-use vibesql_types as types;
+use vibesql_parser;
+use vibesql_types;
 
 /// Helper function to parse SELECT statements
 fn parse_select(sql: &str) -> vibesql_ast::SelectStmt {
@@ -93,7 +93,6 @@ fn test_table_local_predicate_with_two_tables() {
     // Should have results (exact count depends on join selectivity)
     assert!(result.len() > 0);
     assert!(result[0].values[0] > vibesql_types::SqlValue::Numeric(0.0));
->>>>>>> origin/main:crates/vibesql-executor/tests/predicate_pushdown_tests.rs
 }
 
 #[test]
@@ -306,7 +305,6 @@ fn test_phase3_1_hash_join_from_where_no_on_clause() {
     assert_eq!(result.len(), 1);
     // Result should be a count > 0 (matching rows)
     assert!(result[0].values[0] > vibesql_types::SqlValue::Numeric(0.0));
->>>>>>> origin/main:crates/vibesql-executor/tests/predicate_pushdown_tests.rs
 }
 
 #[test]
@@ -378,7 +376,6 @@ fn test_phase3_1_equijoin_selectivity() {
     let cartesian_count = match &cartesian[0].values[0] {
         vibesql_types::SqlValue::Numeric(n) => *n as i64,
         _ => panic!("Expected numeric"),
->>>>>>> origin/main:crates/vibesql-executor/tests/predicate_pushdown_tests.rs
     };
 
     // Now with equijoin (Phase 3.1 hash join)
@@ -388,7 +385,6 @@ fn test_phase3_1_equijoin_selectivity() {
     let equijoin_count = match &equijoin[0].values[0] {
         vibesql_types::SqlValue::Numeric(n) => *n as i64,
         _ => panic!("Expected numeric"),
->>>>>>> origin/main:crates/vibesql-executor/tests/predicate_pushdown_tests.rs
     };
 
     // Equijoin should be much more selective than cartesian product
