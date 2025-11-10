@@ -1,0 +1,163 @@
+# Minimal select5 test - 4-table join with correct data
+
+statement ok
+CREATE TABLE t29(
+  a29 INTEGER PRIMARY KEY,
+  b29 INTEGER,
+  x29 VARCHAR(40)
+)
+
+statement ok
+INSERT INTO t29 VALUES(1,4,'table t29 row 1')
+
+statement ok
+INSERT INTO t29 VALUES(2,2,'table t29 row 2')
+
+statement ok
+INSERT INTO t29 VALUES(3,9,'table t29 row 3')
+
+statement ok
+INSERT INTO t29 VALUES(4,8,'table t29 row 4')
+
+statement ok
+INSERT INTO t29 VALUES(5,10,'table t29 row 5')
+
+statement ok
+INSERT INTO t29 VALUES(6,3,'table t29 row 6')
+
+statement ok
+INSERT INTO t29 VALUES(7,7,'table t29 row 7')
+
+statement ok
+INSERT INTO t29 VALUES(8,6,'table t29 row 8')
+
+statement ok
+INSERT INTO t29 VALUES(9,5,'table t29 row 9')
+
+statement ok
+INSERT INTO t29 VALUES(10,1,'table t29 row 10')
+
+statement ok
+CREATE TABLE t31(
+  a31 INTEGER PRIMARY KEY,
+  b31 INTEGER,
+  x31 VARCHAR(40)
+)
+
+statement ok
+INSERT INTO t31 VALUES(1,1,'table t31 row 1')
+
+statement ok
+INSERT INTO t31 VALUES(2,6,'table t31 row 2')
+
+statement ok
+INSERT INTO t31 VALUES(3,4,'table t31 row 3')
+
+statement ok
+INSERT INTO t31 VALUES(4,8,'table t31 row 4')
+
+statement ok
+INSERT INTO t31 VALUES(5,2,'table t31 row 5')
+
+statement ok
+INSERT INTO t31 VALUES(6,9,'table t31 row 6')
+
+statement ok
+INSERT INTO t31 VALUES(7,7,'table t31 row 7')
+
+statement ok
+INSERT INTO t31 VALUES(8,3,'table t31 row 8')
+
+statement ok
+INSERT INTO t31 VALUES(9,5,'table t31 row 9')
+
+statement ok
+INSERT INTO t31 VALUES(10,10,'table t31 row 10')
+
+statement ok
+CREATE TABLE t51(
+  a51 INTEGER PRIMARY KEY,
+  b51 INTEGER,
+  x51 VARCHAR(40)
+)
+
+statement ok
+INSERT INTO t51 VALUES(1,5,'table t51 row 1')
+
+statement ok
+INSERT INTO t51 VALUES(2,3,'table t51 row 2')
+
+statement ok
+INSERT INTO t51 VALUES(3,10,'table t51 row 3')
+
+statement ok
+INSERT INTO t51 VALUES(4,7,'table t51 row 4')
+
+statement ok
+INSERT INTO t51 VALUES(5,6,'table t51 row 5')
+
+statement ok
+INSERT INTO t51 VALUES(6,2,'table t51 row 6')
+
+statement ok
+INSERT INTO t51 VALUES(7,9,'table t51 row 7')
+
+statement ok
+INSERT INTO t51 VALUES(8,4,'table t51 row 8')
+
+statement ok
+INSERT INTO t51 VALUES(9,8,'table t51 row 9')
+
+statement ok
+INSERT INTO t51 VALUES(10,1,'table t51 row 10')
+
+statement ok
+CREATE TABLE t55(
+  a55 INTEGER PRIMARY KEY,
+  b55 INTEGER,
+  x55 VARCHAR(40)
+)
+
+statement ok
+INSERT INTO t55 VALUES(1,1,'table t55 row 1')
+
+statement ok
+INSERT INTO t55 VALUES(2,3,'table t55 row 2')
+
+statement ok
+INSERT INTO t55 VALUES(3,7,'table t55 row 3')
+
+statement ok
+INSERT INTO t55 VALUES(4,9,'table t55 row 4')
+
+statement ok
+INSERT INTO t55 VALUES(5,5,'table t55 row 5')
+
+statement ok
+INSERT INTO t55 VALUES(6,4,'table t55 row 6')
+
+statement ok
+INSERT INTO t55 VALUES(7,10,'table t55 row 7')
+
+statement ok
+INSERT INTO t55 VALUES(8,8,'table t55 row 8')
+
+statement ok
+INSERT INTO t55 VALUES(9,6,'table t55 row 9')
+
+statement ok
+INSERT INTO t55 VALUES(10,2,'table t55 row 10')
+
+# 4-table join query
+query TTTT valuesort join-4-1
+SELECT x29,x31,x51,x55
+  FROM t51,t29,t31,t55
+ WHERE a51=b31
+   AND a29=6
+   AND a29=b51
+   AND b55=a31
+----
+table t29 row 6
+table t31 row 9
+table t51 row 5
+table t55 row 4
