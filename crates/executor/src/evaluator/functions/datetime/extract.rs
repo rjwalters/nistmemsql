@@ -17,19 +17,8 @@ pub fn year(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 
     match &args[0] {
         SqlValue::Null => Ok(SqlValue::Null),
-        SqlValue::Date(s) | SqlValue::Timestamp(s) => {
-            // Parse date string (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)
-            let parts: Vec<&str> = s.split(&['-', ' '][..]).collect();
-            if parts.is_empty() {
-                return Err(ExecutorError::UnsupportedFeature(
-                    "Invalid date format for YEAR".to_string(),
-                ));
-            }
-            match parts[0].parse::<i64>() {
-                Ok(year) => Ok(SqlValue::Integer(year)),
-                Err(_) => Err(ExecutorError::UnsupportedFeature("Invalid year value".to_string())),
-            }
-        }
+        SqlValue::Date(d) => Ok(SqlValue::Integer(d.year as i64)),
+        SqlValue::Timestamp(ts) => Ok(SqlValue::Integer(ts.date.year as i64)),
         _ => Err(ExecutorError::UnsupportedFeature(
             "YEAR requires date or timestamp argument".to_string(),
         )),
@@ -47,20 +36,8 @@ pub fn month(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 
     match &args[0] {
         SqlValue::Null => Ok(SqlValue::Null),
-        SqlValue::Date(s) | SqlValue::Timestamp(s) => {
-            // Parse date string (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)
-            let date_part = s.split(' ').next().unwrap_or(s);
-            let parts: Vec<&str> = date_part.split('-').collect();
-            if parts.len() < 2 {
-                return Err(ExecutorError::UnsupportedFeature(
-                    "Invalid date format for MONTH".to_string(),
-                ));
-            }
-            match parts[1].parse::<i64>() {
-                Ok(month) => Ok(SqlValue::Integer(month)),
-                Err(_) => Err(ExecutorError::UnsupportedFeature("Invalid month value".to_string())),
-            }
-        }
+        SqlValue::Date(d) => Ok(SqlValue::Integer(d.month as i64)),
+        SqlValue::Timestamp(ts) => Ok(SqlValue::Integer(ts.date.month as i64)),
         _ => Err(ExecutorError::UnsupportedFeature(
             "MONTH requires date or timestamp argument".to_string(),
         )),
@@ -78,20 +55,8 @@ pub fn day(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 
     match &args[0] {
         SqlValue::Null => Ok(SqlValue::Null),
-        SqlValue::Date(s) | SqlValue::Timestamp(s) => {
-            // Parse date string (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)
-            let date_part = s.split(' ').next().unwrap_or(s);
-            let parts: Vec<&str> = date_part.split('-').collect();
-            if parts.len() < 3 {
-                return Err(ExecutorError::UnsupportedFeature(
-                    "Invalid date format for DAY".to_string(),
-                ));
-            }
-            match parts[2].parse::<i64>() {
-                Ok(day) => Ok(SqlValue::Integer(day)),
-                Err(_) => Err(ExecutorError::UnsupportedFeature("Invalid day value".to_string())),
-            }
-        }
+        SqlValue::Date(d) => Ok(SqlValue::Integer(d.day as i64)),
+        SqlValue::Timestamp(ts) => Ok(SqlValue::Integer(ts.date.day as i64)),
         _ => Err(ExecutorError::UnsupportedFeature(
             "DAY requires date or timestamp argument".to_string(),
         )),
@@ -109,33 +74,8 @@ pub fn hour(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 
     match &args[0] {
         SqlValue::Null => Ok(SqlValue::Null),
-        SqlValue::Time(s) => {
-            // Parse time string (HH:MM:SS)
-            let parts: Vec<&str> = s.split(':').collect();
-            if parts.is_empty() {
-                return Err(ExecutorError::UnsupportedFeature(
-                    "Invalid time format for HOUR".to_string(),
-                ));
-            }
-            match parts[0].parse::<i64>() {
-                Ok(hour) => Ok(SqlValue::Integer(hour)),
-                Err(_) => Err(ExecutorError::UnsupportedFeature("Invalid hour value".to_string())),
-            }
-        }
-        SqlValue::Timestamp(s) => {
-            // Parse timestamp string (YYYY-MM-DD HH:MM:SS)
-            let time_part = s.split(' ').nth(1).unwrap_or("");
-            let parts: Vec<&str> = time_part.split(':').collect();
-            if parts.is_empty() {
-                return Err(ExecutorError::UnsupportedFeature(
-                    "Invalid timestamp format for HOUR".to_string(),
-                ));
-            }
-            match parts[0].parse::<i64>() {
-                Ok(hour) => Ok(SqlValue::Integer(hour)),
-                Err(_) => Err(ExecutorError::UnsupportedFeature("Invalid hour value".to_string())),
-            }
-        }
+        SqlValue::Time(t) => Ok(SqlValue::Integer(t.hour as i64)),
+        SqlValue::Timestamp(ts) => Ok(SqlValue::Integer(ts.time.hour as i64)),
         _ => Err(ExecutorError::UnsupportedFeature(
             "HOUR requires time or timestamp argument".to_string(),
         )),
@@ -153,37 +93,8 @@ pub fn minute(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 
     match &args[0] {
         SqlValue::Null => Ok(SqlValue::Null),
-        SqlValue::Time(s) => {
-            // Parse time string (HH:MM:SS)
-            let parts: Vec<&str> = s.split(':').collect();
-            if parts.len() < 2 {
-                return Err(ExecutorError::UnsupportedFeature(
-                    "Invalid time format for MINUTE".to_string(),
-                ));
-            }
-            match parts[1].parse::<i64>() {
-                Ok(minute) => Ok(SqlValue::Integer(minute)),
-                Err(_) => {
-                    Err(ExecutorError::UnsupportedFeature("Invalid minute value".to_string()))
-                }
-            }
-        }
-        SqlValue::Timestamp(s) => {
-            // Parse timestamp string (YYYY-MM-DD HH:MM:SS)
-            let time_part = s.split(' ').nth(1).unwrap_or("");
-            let parts: Vec<&str> = time_part.split(':').collect();
-            if parts.len() < 2 {
-                return Err(ExecutorError::UnsupportedFeature(
-                    "Invalid timestamp format for MINUTE".to_string(),
-                ));
-            }
-            match parts[1].parse::<i64>() {
-                Ok(minute) => Ok(SqlValue::Integer(minute)),
-                Err(_) => {
-                    Err(ExecutorError::UnsupportedFeature("Invalid minute value".to_string()))
-                }
-            }
-        }
+        SqlValue::Time(t) => Ok(SqlValue::Integer(t.minute as i64)),
+        SqlValue::Timestamp(ts) => Ok(SqlValue::Integer(ts.time.minute as i64)),
         _ => Err(ExecutorError::UnsupportedFeature(
             "MINUTE requires time or timestamp argument".to_string(),
         )),
@@ -201,37 +112,8 @@ pub fn second(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 
     match &args[0] {
         SqlValue::Null => Ok(SqlValue::Null),
-        SqlValue::Time(s) => {
-            // Parse time string (HH:MM:SS)
-            let parts: Vec<&str> = s.split(':').collect();
-            if parts.len() < 3 {
-                return Err(ExecutorError::UnsupportedFeature(
-                    "Invalid time format for SECOND".to_string(),
-                ));
-            }
-            match parts[2].parse::<i64>() {
-                Ok(second) => Ok(SqlValue::Integer(second)),
-                Err(_) => {
-                    Err(ExecutorError::UnsupportedFeature("Invalid second value".to_string()))
-                }
-            }
-        }
-        SqlValue::Timestamp(s) => {
-            // Parse timestamp string (YYYY-MM-DD HH:MM:SS)
-            let time_part = s.split(' ').nth(1).unwrap_or("");
-            let parts: Vec<&str> = time_part.split(':').collect();
-            if parts.len() < 3 {
-                return Err(ExecutorError::UnsupportedFeature(
-                    "Invalid timestamp format for SECOND".to_string(),
-                ));
-            }
-            match parts[2].parse::<i64>() {
-                Ok(second) => Ok(SqlValue::Integer(second)),
-                Err(_) => {
-                    Err(ExecutorError::UnsupportedFeature("Invalid second value".to_string()))
-                }
-            }
-        }
+        SqlValue::Time(t) => Ok(SqlValue::Integer(t.second as i64)),
+        SqlValue::Timestamp(ts) => Ok(SqlValue::Integer(ts.time.second as i64)),
         _ => Err(ExecutorError::UnsupportedFeature(
             "SECOND requires time or timestamp argument".to_string(),
         )),

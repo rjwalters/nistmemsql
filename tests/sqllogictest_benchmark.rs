@@ -518,10 +518,10 @@ impl NistMemSqlDB {
             SqlValue::Varchar(s) | SqlValue::Character(s) => s.clone(),
             SqlValue::Boolean(b) => if *b { "1" } else { "0" }.to_string(),
             SqlValue::Null => "NULL".to_string(),
-            SqlValue::Date(d)
-            | SqlValue::Time(d)
-            | SqlValue::Timestamp(d)
-            | SqlValue::Interval(d) => d.clone(),
+            SqlValue::Date(d) => d.to_string(),
+            SqlValue::Time(t) => t.to_string(),
+            SqlValue::Timestamp(ts) => ts.to_string(),
+            SqlValue::Interval(i) => i.to_string(),
         }
     }
 
@@ -571,10 +571,10 @@ impl NistMemSqlDB {
             SqlValue::Varchar(s) | SqlValue::Character(s) => s.clone(),
             SqlValue::Boolean(b) => if *b { "1" } else { "0" }.to_string(),
             SqlValue::Null => "NULL".to_string(),
-            SqlValue::Date(d)
-            | SqlValue::Time(d)
-            | SqlValue::Timestamp(d)
-            | SqlValue::Interval(d) => d.clone(),
+            SqlValue::Date(d) => d.to_string(),
+            SqlValue::Time(t) => t.to_string(),
+            SqlValue::Timestamp(ts) => ts.to_string(),
+            SqlValue::Interval(i) => i.to_string(),
         }
     }
 }

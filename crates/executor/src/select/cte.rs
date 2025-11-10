@@ -141,9 +141,15 @@ pub(super) fn infer_type_from_value(value: &types::SqlValue) -> types::DataType 
         types::SqlValue::Smallint(_) => types::DataType::Smallint,
         types::SqlValue::Bigint(_) => types::DataType::Bigint,
         types::SqlValue::Unsigned(_) => types::DataType::Unsigned,
-        types::SqlValue::Date(_) => types::DataType::Varchar { max_length: Some(255) }, /* TODO: proper date type */
-        types::SqlValue::Time(_) => types::DataType::Varchar { max_length: Some(255) }, /* TODO: proper time type */
-        types::SqlValue::Timestamp(_) => types::DataType::Varchar { max_length: Some(255) }, /* TODO: proper timestamp type */
-        types::SqlValue::Interval(_) => types::DataType::Varchar { max_length: Some(255) }, /* TODO: proper interval type */
+        types::SqlValue::Date(_) => types::DataType::Date,
+        types::SqlValue::Time(_) => types::DataType::Time { with_timezone: false },
+        types::SqlValue::Timestamp(_) => types::DataType::Timestamp { with_timezone: false },
+        types::SqlValue::Interval(_) => {
+            // For now, return a simple INTERVAL type (can be enhanced to detect field types)
+            types::DataType::Interval {
+                start_field: types::IntervalField::Day,
+                end_field: None,
+            }
+        }
     }
 }

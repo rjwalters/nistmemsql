@@ -41,10 +41,10 @@ impl LiteralValue {
             SqlValue::Character(s) => LiteralValue::Character(s.clone()),
             SqlValue::Varchar(s) => LiteralValue::Varchar(s.clone()),
             SqlValue::Boolean(b) => LiteralValue::Boolean(*b),
-            SqlValue::Date(s) => LiteralValue::Date(s.clone()),
-            SqlValue::Time(s) => LiteralValue::Time(s.clone()),
-            SqlValue::Timestamp(s) => LiteralValue::Timestamp(s.clone()),
-            SqlValue::Interval(s) => LiteralValue::Varchar(s.clone()), /* Treat interval as */
+            SqlValue::Date(s) => LiteralValue::Date(s.to_string()),
+            SqlValue::Time(s) => LiteralValue::Time(s.to_string()),
+            SqlValue::Timestamp(s) => LiteralValue::Timestamp(s.to_string()),
+            SqlValue::Interval(s) => LiteralValue::Varchar(s.to_string()), /* Treat interval as */
             // string for now
             SqlValue::Null => LiteralValue::Null,
         }

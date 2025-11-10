@@ -10,6 +10,7 @@ use std::{
     cmp::Ordering,
     fmt,
     hash::{Hash, Hasher},
+    str::FromStr,
 };
 
 /// SQL:1999 Interval Fields
@@ -23,6 +24,262 @@ pub enum IntervalField {
     Hour,
     Minute,
     Second,
+}
+
+/// SQL DATE type - represents a date without time
+///
+/// Format: YYYY-MM-DD (e.g., '2024-01-01')
+/// Stored as year, month, day components for correct comparison
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Date {
+    pub year: i32,
+    pub month: u8,  // 1-12
+    pub day: u8,    // 1-31
+}
+
+impl Date {
+    /// Create a new Date (validation is basic)
+    pub fn new(year: i32, month: u8, day: u8) -> Result<Self, String> {
+        if month < 1 || month > 12 {
+            return Err(format!("Invalid month: {}", month));
+        }
+        if day < 1 || day > 31 {
+            return Err(format!("Invalid day: {}", day));
+        }
+        Ok(Date { year, month, day })
+    }
+}
+
+impl FromStr for Date {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // Parse format: YYYY-MM-DD
+        let parts: Vec<&str> = s.split('-').collect();
+        if parts.len() != 3 {
+            return Err(format!("Invalid date format: '{}' (expected YYYY-MM-DD)", s));
+        }
+
+        let year = parts[0].parse::<i32>()
+            .map_err(|_| format!("Invalid year: '{}'", parts[0]))?;
+        let month = parts[1].parse::<u8>()
+            .map_err(|_| format!("Invalid month: '{}'", parts[1]))?;
+        let day = parts[2].parse::<u8>()
+            .map_err(|_| format!("Invalid day: '{}'", parts[2]))?;
+
+        Date::new(year, month, day)
+    }
+}
+
+impl fmt::Display for Date {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:04}-{:02}-{:02}", self.year, self.month, self.day)
+    }
+}
+
+impl PartialOrd for Date {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Date {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.year.cmp(&other.year)
+            .then_with(|| self.month.cmp(&other.month))
+            .then_with(|| self.day.cmp(&other.day))
+    }
+}
+
+/// SQL TIME type - represents a time without date
+///
+/// Format: HH:MM:SS or HH:MM:SS.fff (e.g., '14:30:00' or '14:30:00.123')
+/// Stored as hour, minute, second, nanosecond components for correct comparison
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Time {
+    pub hour: u8,       // 0-23
+    pub minute: u8,     // 0-59
+    pub second: u8,     // 0-59
+    pub nanosecond: u32, // 0-999999999
+}
+
+impl Time {
+    /// Create a new Time (validation is basic)
+    pub fn new(hour: u8, minute: u8, second: u8, nanosecond: u32) -> Result<Self, String> {
+        if hour > 23 {
+            return Err(format!("Invalid hour: {}", hour));
+        }
+        if minute > 59 {
+            return Err(format!("Invalid minute: {}", minute));
+        }
+        if second > 59 {
+            return Err(format!("Invalid second: {}", second));
+        }
+        if nanosecond > 999_999_999 {
+            return Err(format!("Invalid nanosecond: {}", nanosecond));
+        }
+        Ok(Time { hour, minute, second, nanosecond })
+    }
+}
+
+impl FromStr for Time {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // Parse format: HH:MM:SS or HH:MM:SS.fff
+        let (time_part, frac_part) = if let Some(dot_pos) = s.find('.') {
+            (&s[..dot_pos], Some(&s[dot_pos + 1..]))
+        } else {
+            (s, None)
+        };
+
+        let parts: Vec<&str> = time_part.split(':').collect();
+        if parts.len() != 3 {
+            return Err(format!("Invalid time format: '{}' (expected HH:MM:SS)", s));
+        }
+
+        let hour = parts[0].parse::<u8>()
+            .map_err(|_| format!("Invalid hour: '{}'", parts[0]))?;
+        let minute = parts[1].parse::<u8>()
+            .map_err(|_| format!("Invalid minute: '{}'", parts[1]))?;
+        let second = parts[2].parse::<u8>()
+            .map_err(|_| format!("Invalid second: '{}'", parts[2]))?;
+
+        // Parse fractional seconds if present
+        let nanosecond = if let Some(frac) = frac_part {
+            // Pad or truncate to 9 digits (nanoseconds)
+            let padded = format!("{:0<9}", frac);
+            let truncated = &padded[..9.min(padded.len())];
+            truncated.parse::<u32>()
+                .map_err(|_| format!("Invalid fractional seconds: '{}'", frac))?
+        } else {
+            0
+        };
+
+        Time::new(hour, minute, second, nanosecond)
+    }
+}
+
+impl fmt::Display for Time {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.nanosecond == 0 {
+            write!(f, "{:02}:{:02}:{:02}", self.hour, self.minute, self.second)
+        } else {
+            // Display fractional seconds, trimming trailing zeros for readability
+            let frac = format!("{:09}", self.nanosecond).trim_end_matches('0').to_string();
+            write!(f, "{:02}:{:02}:{:02}.{}", self.hour, self.minute, self.second, frac)
+        }
+    }
+}
+
+impl PartialOrd for Time {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Time {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.hour.cmp(&other.hour)
+            .then_with(|| self.minute.cmp(&other.minute))
+            .then_with(|| self.second.cmp(&other.second))
+            .then_with(|| self.nanosecond.cmp(&other.nanosecond))
+    }
+}
+
+/// SQL TIMESTAMP type - represents a date and time
+///
+/// Format: YYYY-MM-DD HH:MM:SS or YYYY-MM-DD HH:MM:SS.ffffff
+/// (e.g., '2024-01-01 14:30:00' or '2024-01-01 14:30:00.123456')
+/// Stored as Date and Time components for correct comparison
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Timestamp {
+    pub date: Date,
+    pub time: Time,
+}
+
+impl Timestamp {
+    /// Create a new Timestamp
+    pub fn new(date: Date, time: Time) -> Self {
+        Timestamp { date, time }
+    }
+}
+
+impl FromStr for Timestamp {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // Parse format: YYYY-MM-DD HH:MM:SS or YYYY-MM-DD HH:MM:SS.ffffff
+        let parts: Vec<&str> = s.split_whitespace().collect();
+        if parts.len() != 2 {
+            return Err(format!("Invalid timestamp format: '{}' (expected YYYY-MM-DD HH:MM:SS)", s));
+        }
+
+        let date = Date::from_str(parts[0])?;
+        let time = Time::from_str(parts[1])?;
+
+        Ok(Timestamp::new(date, time))
+    }
+}
+
+impl fmt::Display for Timestamp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} {}", self.date, self.time)
+    }
+}
+
+impl PartialOrd for Timestamp {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Timestamp {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.date.cmp(&other.date)
+            .then_with(|| self.time.cmp(&other.time))
+    }
+}
+
+/// SQL INTERVAL type - represents a duration
+///
+/// Formats vary: '5 YEAR', '1-6 YEAR TO MONTH', '5 12:30:45 DAY TO SECOND', etc.
+/// Stored as a formatted string for now (can be enhanced later for arithmetic)
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Interval {
+    /// The original interval string (e.g., "5 YEAR", "1-6 YEAR TO MONTH")
+    pub value: String,
+}
+
+impl Interval {
+    /// Create a new Interval
+    pub fn new(value: String) -> Self {
+        Interval { value }
+    }
+}
+
+impl FromStr for Interval {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // For now, just store the string representation
+        // Can be enhanced later to parse and validate interval format
+        Ok(Interval::new(s.to_string()))
+    }
+}
+
+impl fmt::Display for Interval {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+impl PartialOrd for Interval {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        // Lexicographic comparison for now (not semantically correct for all intervals)
+        // TODO: Implement proper interval comparison based on SQL:1999 rules
+        self.value.partial_cmp(&other.value)
+    }
 }
 
 /// SQL:1999 Data Types
@@ -131,13 +388,13 @@ pub enum SqlValue {
 
     Boolean(bool),
 
-    // Date/Time (using strings for now)
-    Date(String), // TODO: Use proper date types
-    Time(String),
-    Timestamp(String),
+    // Date/Time types with proper structured representation
+    Date(Date),
+    Time(Time),
+    Timestamp(Timestamp),
 
-    // Interval (using string for now)
-    Interval(String), // TODO: Use proper interval representation
+    // Interval type
+    Interval(Interval),
 
     Null,
 }
@@ -233,14 +490,12 @@ impl PartialOrd for SqlValue {
             // Boolean (false < true in SQL)
             (Boolean(a), Boolean(b)) => a.partial_cmp(b),
 
-            // Date/Time (lexicographic for now)
-            // TODO: Replace with proper date/time types for correct comparison
+            // Date/Time types with proper temporal comparison
             (Date(a), Date(b)) => a.partial_cmp(b),
             (Time(a), Time(b)) => a.partial_cmp(b),
             (Timestamp(a), Timestamp(b)) => a.partial_cmp(b),
 
-            // Interval (lexicographic for now)
-            // TODO: Replace with proper interval type for correct comparison
+            // Interval type comparison
             (Interval(a), Interval(b)) => a.partial_cmp(b),
 
             // Type mismatch - incomparable (SQL:1999 behavior)

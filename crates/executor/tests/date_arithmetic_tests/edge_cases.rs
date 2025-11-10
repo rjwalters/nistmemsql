@@ -25,7 +25,7 @@ fn eval_function_expect_error(name: &str, args: Vec<ast::Expression>) {
 
 /// Helper to create a date literal expression
 fn date_lit(date_str: &str) -> ast::Expression {
-    ast::Expression::Literal(types::SqlValue::Date(date_str.to_string()))
+    ast::Expression::Literal(types::SqlValue::Date(date_str.parse().unwrap()))
 }
 
 /// Helper to create an integer literal expression
@@ -76,7 +76,7 @@ fn test_date_add_leap_year_to_non_leap() {
     // Feb 29, 2024 (leap year) + 1 year → Feb 28, 2025 (non-leap year)
     let result =
         eval_function("DATE_ADD", vec![date_lit("2024-02-29"), int_lit(1), varchar_lit("YEAR")]);
-    assert_eq!(result, types::SqlValue::Date("2025-02-28".to_string()));
+    assert_eq!(result, types::SqlValue::Date("2025-02-28".parse().unwrap()));
 }
 
 #[test]
@@ -84,7 +84,7 @@ fn test_date_add_leap_year_to_leap() {
     // Feb 29, 2024 (leap year) + 4 years → Feb 29, 2028 (leap year)
     let result =
         eval_function("DATE_ADD", vec![date_lit("2024-02-29"), int_lit(4), varchar_lit("YEAR")]);
-    assert_eq!(result, types::SqlValue::Date("2028-02-29".to_string()));
+    assert_eq!(result, types::SqlValue::Date("2028-02-29".parse().unwrap()));
 }
 
 #[test]
@@ -92,7 +92,7 @@ fn test_date_sub_leap_year() {
     // Feb 29, 2024 - 1 year → Feb 28, 2023 (non-leap year)
     let result =
         eval_function("DATE_SUB", vec![date_lit("2024-02-29"), int_lit(1), varchar_lit("YEAR")]);
-    assert_eq!(result, types::SqlValue::Date("2023-02-28".to_string()));
+    assert_eq!(result, types::SqlValue::Date("2023-02-28".parse().unwrap()));
 }
 
 #[test]
@@ -116,7 +116,7 @@ fn test_date_add_month_end_to_shorter_month() {
     // Jan 31 + 1 month → Feb 28/29 (depending on year)
     let result =
         eval_function("DATE_ADD", vec![date_lit("2024-01-31"), int_lit(1), varchar_lit("MONTH")]);
-    assert_eq!(result, types::SqlValue::Date("2024-02-29".to_string())); // 2024 is leap year
+    assert_eq!(result, types::SqlValue::Date("2024-02-29".parse().unwrap())); // 2024 is leap year
 }
 
 #[test]
@@ -124,7 +124,7 @@ fn test_date_add_month_end_to_shorter_month_non_leap() {
     // Jan 31, 2023 + 1 month → Feb 28, 2023
     let result =
         eval_function("DATE_ADD", vec![date_lit("2023-01-31"), int_lit(1), varchar_lit("MONTH")]);
-    assert_eq!(result, types::SqlValue::Date("2023-02-28".to_string()));
+    assert_eq!(result, types::SqlValue::Date("2023-02-28".parse().unwrap()));
 }
 
 #[test]
@@ -132,7 +132,7 @@ fn test_date_sub_month_from_march_31() {
     // Mar 31 - 1 month → Feb 29 (in leap year)
     let result =
         eval_function("DATE_SUB", vec![date_lit("2024-03-31"), int_lit(1), varchar_lit("MONTH")]);
-    assert_eq!(result, types::SqlValue::Date("2024-02-29".to_string()));
+    assert_eq!(result, types::SqlValue::Date("2024-02-29".parse().unwrap()));
 }
 
 #[test]
@@ -140,7 +140,7 @@ fn test_date_add_month_may_31_to_june() {
     // May 31 + 1 month → Jun 30 (June has 30 days)
     let result =
         eval_function("DATE_ADD", vec![date_lit("2024-05-31"), int_lit(1), varchar_lit("MONTH")]);
-    assert_eq!(result, types::SqlValue::Date("2024-06-30".to_string()));
+    assert_eq!(result, types::SqlValue::Date("2024-06-30".parse().unwrap()));
 }
 
 #[test]
@@ -148,7 +148,7 @@ fn test_date_add_multiple_months_across_year_boundary() {
     // Oct 15 + 5 months → Mar 15 (crosses year boundary)
     let result =
         eval_function("DATE_ADD", vec![date_lit("2023-10-15"), int_lit(5), varchar_lit("MONTH")]);
-    assert_eq!(result, types::SqlValue::Date("2024-03-15".to_string()));
+    assert_eq!(result, types::SqlValue::Date("2024-03-15".parse().unwrap()));
 }
 
 #[test]
@@ -156,7 +156,7 @@ fn test_date_sub_months_across_year_boundary() {
     // Feb 15, 2024 - 5 months → Sep 15, 2023
     let result =
         eval_function("DATE_SUB", vec![date_lit("2024-02-15"), int_lit(5), varchar_lit("MONTH")]);
-    assert_eq!(result, types::SqlValue::Date("2023-09-15".to_string()));
+    assert_eq!(result, types::SqlValue::Date("2023-09-15".parse().unwrap()));
 }
 
 // ==================== YEAR BOUNDARY TESTS ====================
@@ -166,7 +166,7 @@ fn test_date_add_days_across_year_boundary() {
     // Dec 31, 2023 + 1 day → Jan 1, 2024
     let result =
         eval_function("DATE_ADD", vec![date_lit("2023-12-31"), int_lit(1), varchar_lit("DAY")]);
-    assert_eq!(result, types::SqlValue::Date("2024-01-01".to_string()));
+    assert_eq!(result, types::SqlValue::Date("2024-01-01".parse().unwrap()));
 }
 
 #[test]
@@ -174,7 +174,7 @@ fn test_date_sub_days_across_year_boundary() {
     // Jan 1, 2024 - 1 day → Dec 31, 2023
     let result =
         eval_function("DATE_SUB", vec![date_lit("2024-01-01"), int_lit(1), varchar_lit("DAY")]);
-    assert_eq!(result, types::SqlValue::Date("2023-12-31".to_string()));
+    assert_eq!(result, types::SqlValue::Date("2023-12-31".parse().unwrap()));
 }
 
 #[test]
@@ -191,7 +191,7 @@ fn test_date_add_large_year_interval() {
     // Add 1000 years (should not panic or overflow)
     let result =
         eval_function("DATE_ADD", vec![date_lit("2024-01-15"), int_lit(1000), varchar_lit("YEAR")]);
-    assert_eq!(result, types::SqlValue::Date("3024-01-15".to_string()));
+    assert_eq!(result, types::SqlValue::Date("3024-01-15".parse().unwrap()));
 }
 
 #[test]
@@ -199,7 +199,7 @@ fn test_date_add_large_day_interval() {
     // Add 365 days (1 year worth)
     let result =
         eval_function("DATE_ADD", vec![date_lit("2024-01-01"), int_lit(365), varchar_lit("DAY")]);
-    assert_eq!(result, types::SqlValue::Date("2024-12-31".to_string())); // 2024 is leap year with
+    assert_eq!(result, types::SqlValue::Date("2024-12-31".parse().unwrap())); // 2024 is leap year with
                                                                          // 366 days
 }
 
@@ -208,7 +208,7 @@ fn test_date_sub_large_interval() {
     // Subtract 50 years
     let result =
         eval_function("DATE_SUB", vec![date_lit("2024-06-15"), int_lit(50), varchar_lit("YEAR")]);
-    assert_eq!(result, types::SqlValue::Date("1974-06-15".to_string()));
+    assert_eq!(result, types::SqlValue::Date("1974-06-15".parse().unwrap()));
 }
 
 #[test]
@@ -273,7 +273,7 @@ fn test_age_null_second_date() {
 
 #[test]
 fn test_datediff_invalid_date_format() {
-    eval_function_expect_error("DATEDIFF", vec![date_lit("invalid-date"), date_lit("2024-01-05")]);
+    eval_function_expect_error("DATEDIFF", vec![varchar_lit("invalid-date"), date_lit("2024-01-05")]);
 }
 
 #[test]

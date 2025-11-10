@@ -12,7 +12,7 @@ fn test_extract_year() {
         name: "EXTRACT".to_string(),
         args: vec![
             ast::Expression::Literal(types::SqlValue::Varchar("YEAR".to_string())),
-            ast::Expression::Literal(types::SqlValue::Date("2024-03-15".to_string())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-03-15".parse().unwrap())),
         ],
         character_unit: None,
     };
@@ -28,7 +28,7 @@ fn test_extract_month() {
         name: "EXTRACT".to_string(),
         args: vec![
             ast::Expression::Literal(types::SqlValue::Varchar("MONTH".to_string())),
-            ast::Expression::Literal(types::SqlValue::Date("2024-03-15".to_string())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-03-15".parse().unwrap())),
         ],
         character_unit: None,
     };
@@ -44,7 +44,7 @@ fn test_extract_day() {
         name: "EXTRACT".to_string(),
         args: vec![
             ast::Expression::Literal(types::SqlValue::Varchar("DAY".to_string())),
-            ast::Expression::Literal(types::SqlValue::Date("2024-03-15".to_string())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-03-15".parse().unwrap())),
         ],
         character_unit: None,
     };
@@ -61,8 +61,8 @@ fn test_age_two_dates_years_only() {
     let expr = ast::Expression::Function {
         name: "AGE".to_string(),
         args: vec![
-            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".to_string())),
-            ast::Expression::Literal(types::SqlValue::Date("2020-01-15".to_string())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".parse().unwrap())),
+            ast::Expression::Literal(types::SqlValue::Date("2020-01-15".parse().unwrap())),
         ],
         character_unit: None,
     };
@@ -81,8 +81,8 @@ fn test_age_two_dates_complex() {
     let expr = ast::Expression::Function {
         name: "AGE".to_string(),
         args: vec![
-            ast::Expression::Literal(types::SqlValue::Date("2024-05-20".to_string())),
-            ast::Expression::Literal(types::SqlValue::Date("2022-02-15".to_string())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-05-20".parse().unwrap())),
+            ast::Expression::Literal(types::SqlValue::Date("2022-02-15".parse().unwrap())),
         ],
         character_unit: None,
     };
@@ -103,8 +103,8 @@ fn test_age_negative() {
     let expr = ast::Expression::Function {
         name: "AGE".to_string(),
         args: vec![
-            ast::Expression::Literal(types::SqlValue::Date("2020-01-15".to_string())),
-            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".to_string())),
+            ast::Expression::Literal(types::SqlValue::Date("2020-01-15".parse().unwrap())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".parse().unwrap())),
         ],
         character_unit: None,
     };
@@ -124,8 +124,8 @@ fn test_age_same_date() {
     let expr = ast::Expression::Function {
         name: "AGE".to_string(),
         args: vec![
-            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".to_string())),
-            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".to_string())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".parse().unwrap())),
+            ast::Expression::Literal(types::SqlValue::Date("2024-01-15".parse().unwrap())),
         ],
         character_unit: None,
     };
