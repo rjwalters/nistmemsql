@@ -883,12 +883,7 @@ mod tests {
         assert_eq!(filter.next(), None);
     }
 
-    // TODO(#1123): CombinedExpressionEvaluator bug blocks iterator-based predicates
-    // The evaluator incorrectly returns Boolean(true) for "17 > 18" (should be false)
-    // This affects all column reference predicates. Needs fix in evaluator before
-    // iterator-based SELECT execution can be completed.
     #[test]
-    #[ignore = "Blocked by CombinedExpressionEvaluator bug - returns true for '17 > 18'"]
     fn test_evaluator_direct() {
         // Direct test of evaluator with column reference
         let table_schema = catalog::TableSchema::new(
@@ -933,7 +928,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Blocked by CombinedExpressionEvaluator bug - see test_evaluator_direct"]
     fn test_filter_with_column_ref() {
         // Test filtering with column reference comparison
         let table_schema = catalog::TableSchema::new(
@@ -1309,7 +1303,6 @@ mod tests {
     /// 3. LIMIT works via .take()
     /// 4. Everything composes naturally
     #[test]
-    #[ignore = "Blocked by CombinedExpressionEvaluator bug - see test_evaluator_direct"]
     fn test_phase_c_proof_of_concept_full_pipeline() {
         // Simulated table: users(id, name, age)
         let schema = catalog::TableSchema::new(
@@ -1398,7 +1391,6 @@ mod tests {
     /// 2. JOIN condition is evaluated correctly
     /// 3. Early termination works (only processes enough to get 5 results)
     #[test]
-    #[ignore = "Blocked by CombinedExpressionEvaluator bug - see test_evaluator_direct"]
     fn test_phase_c_proof_of_concept_join_pipeline() {
         // Setup schemas
         let orders_schema = catalog::TableSchema::new(
