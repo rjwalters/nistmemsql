@@ -84,8 +84,8 @@ We use comprehensive test suites to track SQL:1999 compliance:
 
 **Quick Start**:
 ```bash
-# Run tests (database auto-updates)
-./scripts/sqllogictest run --time 60
+# Run tests (all 622 files in ~2 minutes, database auto-updates)
+./scripts/sqllogictest run --parallel --workers 8
 
 # Query results with SQL!
 ./scripts/sqllogictest query --preset failed-files
@@ -120,12 +120,15 @@ cargo test --test sqltest_conformance -- --nocapture
 # Run SQLLogicTest baseline verification
 cargo test --test sqllogictest_basic
 
-# Run comprehensive SQLLogicTest suite with parallel workers (recommended)
-# Uses all available CPUs, 5-minute budget per worker, includes analysis
-python3 scripts/run_parallel_tests.py --workers 8 --time-budget 300 --analyze
+# Run comprehensive SQLLogicTest suite (recommended)
+# Tests all 622 files in ~2 minutes on 8 CPUs
+./scripts/sqllogictest run --parallel --workers 8
 
-# Or run single-threaded (slower, less coverage)
-SQLLOGICTEST_TIME_BUDGET=300 cargo test --test sqllogictest_suite --release -- --nocapture
+# Or specify custom time budget (though all files usually complete in <2 min)
+./scripts/sqllogictest run --parallel --workers 8 --time 600
+
+# Single file testing for debugging
+./scripts/sqllogictest test random/select/slt_good_19.test
 ```
 
 **SQLLogicTest Systematic Testing Strategy**: The suite contains ~5.9 million test cases across 623 files. We use a **systematic punchlist approach** to achieve 100% conformance:
@@ -135,28 +138,22 @@ SQLLOGICTEST_TIME_BUDGET=300 cargo test --test sqllogictest_suite --release -- -
 - **Badge updates**: Shows `{passed}✓ {failed}✗ {untested}? ({pass_rate}%)`
 - **Progress tracking**: All results tracked in `target/sqllogictest_punchlist.json`
 
-To test individual files and track progress:
+### Fast Local Testing Workflow
+
+With work queue parallelization, the full test suite now runs in **~2 minutes on 8 CPUs**:
+
 ```bash
-# Test a specific file
-./scripts/test_one_file.sh index/delete/10/slt_good_0.test
+# Run full suite (all 622 files in ~2 minutes)
+./scripts/sqllogictest run --parallel --workers 8
 
-# Regenerate punchlist after fixes
-python3 scripts/generate_punchlist.py
+# View results
+./scripts/sqllogictest status
 
-# View progress
-cat target/sqllogictest_punchlist.csv
-```
+# Query failures by category
+./scripts/sqllogictest query --preset by-category
 
-See [`docs/roadmaps/PUNCHLIST_100_CONFORMANCE.md`](docs/roadmaps/PUNCHLIST_100_CONFORMANCE.md) for the complete strategic guide.
-
-### SQLLogicTest Conformance Punchlist
-
-To systematically track progress toward 100% SQLLogicTest conformance, we've created a comprehensive punchlist system:
-
-**Quick Start**:
-```bash
-# Read the strategic guide
-cat docs/sqllogictest/QUICK_START.md
+# Test individual files for debugging
+./scripts/sqllogictest test index/delete/10/slt_good_0.test
 
 # View the full punchlist
 cat target/sqllogictest_punchlist.csv

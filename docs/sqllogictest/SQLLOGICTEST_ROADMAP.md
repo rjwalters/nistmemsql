@@ -113,30 +113,31 @@ Top failure categories:
 
 ### Running Tests
 
+With work queue parallelization, the full test suite runs in **~2 minutes on localhost (8 CPUs)**:
+
 ```bash
-# Full suite on remote server (64 workers, ~2 hours)
-./scripts/run_remote_sqllogictest.sh
+# Full suite (all 622 files, ~2 minutes)
+./scripts/sqllogictest run --parallel --workers 8
 
-# Aggregate results from workers
-python3 scripts/aggregate_worker_results.py /tmp/sqllogictest_results
+# View results
+./scripts/sqllogictest status
 
-# Analyze failure patterns
-python3 scripts/analyze_failure_patterns.py target/sqllogictest_results_analysis.json
-
-# Quick local test (10 minutes, random sampling)
-SQLLOGICTEST_TIME_BUDGET=600 cargo test --test sqllogictest_suite
+# Query failures
+./scripts/sqllogictest query --preset failed-files
+./scripts/sqllogictest query --preset by-category
 
 # Test specific file
-cargo test --test sqllogictest_suite -- --exact random/select/slt_good_84.test
+./scripts/sqllogictest test random/select/slt_good_84.test
 ```
 
 ### Analysis Tools
 
-We've built automated tools to identify high-impact fixes:
+The unified `./scripts/sqllogictest` tool handles everything:
 
-- **`scripts/analyze_failure_patterns.py`** - Analyzes test results and identifies patterns
-- **`scripts/aggregate_worker_results.py`** - Combines results from parallel workers
-- **`scripts/run_remote_sqllogictest.sh`** - Runs full suite on remote server
+- **`./scripts/sqllogictest run`** - Run tests with parallel workers
+- **`./scripts/sqllogictest status`** - Quick summary of results
+- **`./scripts/sqllogictest query`** - Query results with preset or custom SQL
+- **`./scripts/sqllogictest test`** - Test individual files for debugging
 
 ## Success Metrics
 

@@ -4,24 +4,29 @@
 
 VibeSQL now stores its own test results in a VibeSQL database! This is **dogfooding** - using our own product to solve a real problem.
 
-## ⚡ Quick Start (30 seconds)
+## ⚡ Quick Start (2 minutes)
 
-### 1. Run tests (database auto-updates)
+### 1. Run tests (all 622 files, ~2 minutes on 8 CPUs)
 
 ```bash
-./scripts/sqllogictest run --time 60
+./scripts/sqllogictest run --parallel --workers 8
 ```
 
 Output:
 ```
-✓ Serial run complete
-Results: target/sqllogictest_results.json
-ℹ Processing results into database...
+✓ Test binary compiled
+✓ Work queue initialized: 622 files
+All 8 workers started! Waiting for completion...
+
+=== All Workers Complete ===
+Total time: 105.8s
+Passed: 24, Failed: 598
+
 ✓ Database updated: target/sqllogictest_results.sql
 
 Query your results:
-  ./scripts/query_test_results.py --preset failed-files
-  ./scripts/query_test_results.py --preset by-category
+  ./scripts/sqllogictest query --preset failed-files
+  ./scripts/sqllogictest query --preset by-category
 ```
 
 ### 2. Query your results
