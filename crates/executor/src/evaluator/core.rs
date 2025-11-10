@@ -145,11 +145,27 @@ impl<'a> ExpressionEvaluator<'a> {
         match (left, right) {
             (Null, Null) => true,
             (Null, _) | (_, Null) => false,
+
+            // Exact type matches
             (Integer(a), Integer(b)) => a == b,
             (Varchar(a), Varchar(b)) => a == b,
             (Character(a), Character(b)) => a == b,
             (Character(a), Varchar(b)) | (Varchar(a), Character(b)) => a == b,
             (Boolean(a), Boolean(b)) => a == b,
+
+            // Numeric type comparisons - convert to f64 for comparison
+            // This handles: Numeric, Integer, Smallint, Bigint, Unsigned, Float, Real, Double
+            (
+                Integer(_) | Smallint(_) | Bigint(_) | Unsigned(_) | Numeric(_) | Float(_) | Real(_) | Double(_),
+                Integer(_) | Smallint(_) | Bigint(_) | Unsigned(_) | Numeric(_) | Float(_) | Real(_) | Double(_)
+            ) => {
+                // Convert both to f64 and compare
+                match (crate::evaluator::casting::to_f64(left), crate::evaluator::casting::to_f64(right)) {
+                    (Ok(a), Ok(b)) => (a - b).abs() < f64::EPSILON,
+                    _ => false,
+                }
+            }
+
             _ => false, // Type mismatch = not equal
         }
     }
