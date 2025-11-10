@@ -104,7 +104,7 @@ fn test_count_with_not() {
             // COUNT counts non-NULL values
             // NOT true = false, NOT false = true, NOT true = false
             // All non-NULL, so COUNT = 3
-            assert_eq!(rows[0].values[0], SqlValue::Integer(3));
+            assert_eq!(rows[0].values[0], SqlValue::Numeric(3.0));
         }
         Err(e) => {
             panic!("Expected success, got error: {}", e);
