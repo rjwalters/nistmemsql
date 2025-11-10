@@ -186,7 +186,7 @@ fn test_cte_multiple() {
     .unwrap();
 
     assert_eq!(results.len(), 1);
-    assert_eq!(results[0].values[0], SqlValue::Integer(1));
+    assert_eq!(results[0].values[0], SqlValue::Numeric(1.0));
 }
 
 #[test]
