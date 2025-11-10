@@ -384,8 +384,9 @@ fn test_phase3_1_equijoin_selectivity() {
     let stmt = parse_select(sql_equijoin);
     let equijoin = executor.execute(&stmt).unwrap();
     let equijoin_count = match &equijoin[0].values[0] {
+        types::SqlValue::Integer(n) => *n,
         types::SqlValue::Numeric(n) => *n as i64,
-        _ => panic!("Expected numeric"),
+        _ => panic!("Expected integer or numeric"),
     };
 
     // Equijoin should be much more selective than cartesian product
