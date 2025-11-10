@@ -14,7 +14,7 @@ use crate::{
     optimizer::optimize_where_clause,
     select::{
         cte::CteResult,
-        filter::apply_where_filter_combined,
+        filter::apply_where_filter_combined_auto,
         grouping::group_rows,
         helpers::{apply_distinct, apply_limit_offset},
     },
@@ -89,12 +89,12 @@ impl SelectExecutor<'_> {
                 Vec::new()
             }
             crate::optimizer::WhereOptimization::Optimized(ref expr) => {
-                // Apply optimized WHERE clause
-                apply_where_filter_combined(from_result.into_rows(), Some(expr), &evaluator, self)?
+                // Apply optimized WHERE clause (uses parallel if enabled)
+                apply_where_filter_combined_auto(from_result.into_rows(), Some(expr), &evaluator, self)?
             }
             crate::optimizer::WhereOptimization::Unchanged(where_expr) => {
-                // Apply original WHERE clause
-                apply_where_filter_combined(
+                // Apply original WHERE clause (uses parallel if enabled)
+                apply_where_filter_combined_auto(
                     from_result.into_rows(),
                     where_expr.as_ref(),
                     &evaluator,

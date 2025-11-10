@@ -307,4 +307,49 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         };
         f(&evaluator)
     }
+
+    /// Get evaluator components for parallel execution
+    /// Returns (schema, database, outer_row, outer_schema, window_mapping, enable_cse)
+    pub(crate) fn get_parallel_components(
+        &self,
+    ) -> (
+        &'a CombinedSchema,
+        Option<&'a storage::Database>,
+        Option<&'a storage::Row>,
+        Option<&'a CombinedSchema>,
+        Option<&'a std::collections::HashMap<WindowFunctionKey, usize>>,
+        bool,
+    ) {
+        (
+            self.schema,
+            self.database,
+            self.outer_row,
+            self.outer_schema,
+            self.window_mapping,
+            self.enable_cse,
+        )
+    }
+
+    /// Create evaluator from parallel components
+    /// Creates a fresh evaluator with independent caches for thread-safe parallel execution
+    pub(crate) fn from_parallel_components(
+        schema: &'a CombinedSchema,
+        database: Option<&'a storage::Database>,
+        outer_row: Option<&'a storage::Row>,
+        outer_schema: Option<&'a CombinedSchema>,
+        window_mapping: Option<&'a std::collections::HashMap<WindowFunctionKey, usize>>,
+        enable_cse: bool,
+    ) -> Self {
+        CombinedExpressionEvaluator {
+            schema,
+            database,
+            outer_row,
+            outer_schema,
+            window_mapping,
+            column_cache: RefCell::new(HashMap::new()),
+            depth: 0,
+            cse_cache: Rc::new(RefCell::new(HashMap::new())),
+            enable_cse,
+        }
+    }
 }
