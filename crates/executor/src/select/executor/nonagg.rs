@@ -22,6 +22,37 @@ use crate::{
 };
 
 impl SelectExecutor<'_> {
+    /// Determine if we can use iterator-based execution for this query
+    ///
+    /// Iterator execution is beneficial for queries that don't require full materialization.
+    /// We must materialize for: ORDER BY, DISTINCT, and window functions.
+    fn can_use_iterator_execution(stmt: &ast::SelectStmt) -> bool {
+        // Can't use iterators if we have ORDER BY (requires sorting all rows)
+        if stmt.order_by.is_some() {
+            return false;
+        }
+
+        // Can't use iterators if we have DISTINCT (requires deduplication of all rows)
+        if stmt.distinct {
+            return false;
+        }
+
+        // Can't use iterators if we have window functions (requires full window frames)
+        if has_window_functions(&stmt.select_list) {
+            return false;
+        }
+
+        // Can't use iterators if ORDER BY has window functions
+        if let Some(order_by) = &stmt.order_by {
+            if order_by.iter().any(|item| expression_has_window_function(&item.expr)) {
+                return false;
+            }
+        }
+
+        // All checks passed - we can use iterator execution!
+        true
+    }
+
     /// Execute SELECT without aggregation
     pub(super) fn execute_without_aggregation(
         &self,
