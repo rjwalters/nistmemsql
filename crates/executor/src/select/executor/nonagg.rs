@@ -14,7 +14,7 @@ use crate::{
         iterator::{FilterIterator, RowIterator, TableScanIterator},
         join::FromResult,
         order::{apply_order_by, RowWithSortKeys},
-        projection::project_row_combined,
+        projection::{project_row_combined, SelectProjectionIterator},
         window::{
             collect_order_by_window_functions, evaluate_order_by_window_functions,
             evaluate_window_functions, expression_has_window_function, has_window_functions,
@@ -295,41 +295,88 @@ impl SelectExecutor<'_> {
             }
         }
 
-        // Project columns from the sorted rows
-        let mut final_rows = Vec::new();
-        for (row, _) in result_rows {
-            // Check timeout during projection
-            self.check_timeout()?;
+        // Choose projection strategy based on DISTINCT and set operations
+        // - If DISTINCT is present, we must project all rows first, then deduplicate
+        // - If no DISTINCT, we can apply LIMIT/OFFSET before projection for better performance
+        let final_rows = if stmt.distinct || stmt.set_operation.is_some() {
+            // Eager projection: project all rows, then apply DISTINCT and/or LIMIT/OFFSET
+            let mut projected_rows = Vec::new();
+            for (row, _) in result_rows {
+                // Check timeout during projection
+                self.check_timeout()?;
 
-            // Clear CSE cache before projecting each row to prevent column values
-            // from being incorrectly cached across different rows
-            evaluator.clear_cse_cache();
+                // Clear CSE cache before projecting each row to prevent column values
+                // from being incorrectly cached across different rows
+                evaluator.clear_cse_cache();
 
-            let projected_row = project_row_combined(
-                &row,
-                &stmt.select_list,
-                &evaluator,
-                &schema,
-                &window_mapping,
-            )?;
+                let projected_row = project_row_combined(
+                    &row,
+                    &stmt.select_list,
+                    &evaluator,
+                    &schema,
+                    &window_mapping,
+                )?;
 
-            // Track memory for each projected row
-            let row_memory = std::mem::size_of::<storage::Row>()
-                + std::mem::size_of_val(projected_row.values.as_slice());
-            self.track_memory_allocation(row_memory)?;
+                // Track memory for each projected row
+                let row_memory = std::mem::size_of::<storage::Row>()
+                    + std::mem::size_of_val(projected_row.values.as_slice());
+                self.track_memory_allocation(row_memory)?;
 
-            final_rows.push(projected_row);
-        }
+                projected_rows.push(projected_row);
+            }
 
-        // Apply DISTINCT if specified
-        let final_rows = if stmt.distinct { apply_distinct(final_rows) } else { final_rows };
+            // Apply DISTINCT if specified
+            let projected_rows = if stmt.distinct {
+                apply_distinct(projected_rows)
+            } else {
+                projected_rows
+            };
 
-        // Don't apply LIMIT/OFFSET if we have a set operation - it will be applied later
-        if stmt.set_operation.is_some() {
-            Ok(final_rows)
+            // Don't apply LIMIT/OFFSET if we have a set operation - it will be applied later
+            if stmt.set_operation.is_some() {
+                projected_rows
+            } else {
+                apply_limit_offset(projected_rows, stmt.limit, stmt.offset)
+            }
         } else {
-            Ok(apply_limit_offset(final_rows, stmt.limit, stmt.offset))
-        }
+            // Lazy projection: apply LIMIT/OFFSET first, then project only needed rows
+            // This is more efficient when LIMIT is small and projection is expensive
+
+            // Extract rows from RowWithSortKeys (discard sort keys)
+            let rows: Vec<storage::Row> = result_rows.into_iter().map(|(row, _)| row).collect();
+
+            // Apply LIMIT/OFFSET to reduce rows before projection
+            let limited_rows = apply_limit_offset(rows, stmt.limit, stmt.offset);
+
+            // Create iterator for lazy projection
+            let projection_iter = SelectProjectionIterator::new(
+                limited_rows.into_iter().map(Ok),
+                stmt.select_list.clone(),
+                evaluator,
+                schema.clone(),
+                window_mapping.clone(),
+            );
+
+            // Collect projected rows with memory tracking
+            let mut final_rows = Vec::new();
+            for projected_result in projection_iter {
+                // Check timeout during projection
+                self.check_timeout()?;
+
+                let projected_row = projected_result?;
+
+                // Track memory for each projected row
+                let row_memory = std::mem::size_of::<storage::Row>()
+                    + std::mem::size_of_val(projected_row.values.as_slice());
+                self.track_memory_allocation(row_memory)?;
+
+                final_rows.push(projected_row);
+            }
+
+            final_rows
+        };
+
+        Ok(final_rows)
     }
 
     /// Execute SELECT without FROM clause
