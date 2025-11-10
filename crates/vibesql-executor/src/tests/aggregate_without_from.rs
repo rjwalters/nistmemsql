@@ -68,7 +68,7 @@ fn test_count_star_without_from() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].get(0), Some(&vibesql_types::SqlValue::Numeric(1.0)));
+    assert_eq!(result[0].get(0), Some(&vibesql_types::SqlValue::Integer(1)));
 }
 
 #[test]
@@ -87,7 +87,7 @@ fn test_aggregate_in_expression_without_from() {
                 left: Box::new(vibesql_ast::Expression::AggregateFunction {
                     name: "MAX".to_string(),
                     distinct: false,
-                    args: vec![vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Numeric(5.0))],
+                    args: vec![vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(5))],
                 }),
                 op: vibesql_ast::BinaryOperator::Plus,
                 right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(10))),
@@ -105,7 +105,7 @@ fn test_aggregate_in_expression_without_from() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].get(0), Some(&vibesql_types::SqlValue::Numeric(15.0)));
+    assert_eq!(result[0].get(0), Some(&vibesql_types::SqlValue::Integer(15)));
 }
 
 #[test]
@@ -138,7 +138,7 @@ fn test_count_distinct_without_from() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].get(0), Some(&vibesql_types::SqlValue::Numeric(1.0)));
+    assert_eq!(result[0].get(0), Some(&vibesql_types::SqlValue::Integer(1)));
 }
 
 #[test]
@@ -157,7 +157,7 @@ fn test_multiple_aggregates_without_from() {
                 expr: vibesql_ast::Expression::AggregateFunction {
                     name: "MAX".to_string(),
                     distinct: false,
-                    args: vec![vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Numeric(5.0))],
+                    args: vec![vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(5))],
                 },
                 alias: None,
             },
@@ -189,9 +189,9 @@ fn test_multiple_aggregates_without_from() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].get(0), Some(&vibesql_types::SqlValue::Numeric(5.0)));
+    assert_eq!(result[0].get(0), Some(&vibesql_types::SqlValue::Integer(5)));
     assert_eq!(result[0].get(1), Some(&vibesql_types::SqlValue::Integer(10)));
-    assert_eq!(result[0].get(2), Some(&vibesql_types::SqlValue::Numeric(1.0)));
+    assert_eq!(result[0].get(2), Some(&vibesql_types::SqlValue::Integer(1)));
 }
 
 #[test]

@@ -394,5 +394,5 @@ fn test_count_with_not() {
     // COUNT counts non-NULL values
     // NOT true = false, NOT false = true, NOT true = false
     // All non-NULL, so COUNT = 3
-    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Numeric(3.0));
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(3));
 }

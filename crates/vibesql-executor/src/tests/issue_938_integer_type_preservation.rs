@@ -28,7 +28,7 @@ fn test_integer_unary_operations_from_table() {
 
     // Test the problematic query from issue #938
     // SELECT ALL + ( + - ( - 92 ) ) FROM tab1
-    // Should return Integer(92), not Numeric(92.0) or Float(92.0)
+    // Should return Integer(92), not Integer(92) or Float(92.0)
     let select_sql = "SELECT + ( + - ( - 92 ) ) FROM tab1";
     let select_stmt = Parser::parse_sql(select_sql).unwrap();
     if let vibesql_ast::Statement::Select(stmt) = select_stmt {
