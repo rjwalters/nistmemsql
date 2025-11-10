@@ -107,6 +107,150 @@ fn evaluate_window_function_for_partition(
             crate::evaluator::window::evaluate_ntile(partition, n)
                 .map_err(ExecutorError::UnsupportedExpression)?
         }
+        "LAG" => {
+            // LAG(expr [, offset [, default]])
+            if args.is_empty() {
+                return Err(ExecutorError::UnsupportedExpression(
+                    "LAG requires at least one argument (value expression)".to_string(),
+                ));
+            }
+
+            let value_expr = &args[0];
+            let offset = if args.len() > 1 {
+                // Evaluate offset argument (should be constant)
+                let offset_value = evaluator.eval(&args[1], &partition.rows[0])?;
+                match offset_value {
+                    SqlValue::Integer(n) => Some(n),
+                    _ => {
+                        return Err(ExecutorError::UnsupportedExpression(
+                            "LAG offset must be an integer".to_string(),
+                        ))
+                    }
+                }
+            } else {
+                None // Default offset is 1
+            };
+
+            let default_expr = if args.len() > 2 { Some(&args[2]) } else { None };
+
+            // Create closure that evaluates expressions using the evaluator
+            let eval_fn = |expr: &Expression, row: &Row| -> Result<SqlValue, String> {
+                evaluator.clear_cse_cache();
+                evaluator.eval(expr, row).map_err(|e| format!("{:?}", e))
+            };
+
+            // Evaluate LAG for each row in partition
+            let mut results = Vec::with_capacity(partition.len());
+            for row_idx in 0..partition.len() {
+                let value = crate::evaluator::window::evaluate_lag(
+                    partition,
+                    row_idx,
+                    value_expr,
+                    offset,
+                    default_expr,
+                    &eval_fn,
+                )
+                .map_err(ExecutorError::UnsupportedExpression)?;
+                results.push(value);
+            }
+            results
+        }
+        "LEAD" => {
+            // LEAD(expr [, offset [, default]])
+            if args.is_empty() {
+                return Err(ExecutorError::UnsupportedExpression(
+                    "LEAD requires at least one argument (value expression)".to_string(),
+                ));
+            }
+
+            let value_expr = &args[0];
+            let offset = if args.len() > 1 {
+                // Evaluate offset argument (should be constant)
+                let offset_value = evaluator.eval(&args[1], &partition.rows[0])?;
+                match offset_value {
+                    SqlValue::Integer(n) => Some(n),
+                    _ => {
+                        return Err(ExecutorError::UnsupportedExpression(
+                            "LEAD offset must be an integer".to_string(),
+                        ))
+                    }
+                }
+            } else {
+                None // Default offset is 1
+            };
+
+            let default_expr = if args.len() > 2 { Some(&args[2]) } else { None };
+
+            // Create closure that evaluates expressions using the evaluator
+            let eval_fn = |expr: &Expression, row: &Row| -> Result<SqlValue, String> {
+                evaluator.clear_cse_cache();
+                evaluator.eval(expr, row).map_err(|e| format!("{:?}", e))
+            };
+
+            // Evaluate LEAD for each row in partition
+            let mut results = Vec::with_capacity(partition.len());
+            for row_idx in 0..partition.len() {
+                let value = crate::evaluator::window::evaluate_lead(
+                    partition,
+                    row_idx,
+                    value_expr,
+                    offset,
+                    default_expr,
+                    &eval_fn,
+                )
+                .map_err(ExecutorError::UnsupportedExpression)?;
+                results.push(value);
+            }
+            results
+        }
+        "FIRST_VALUE" => {
+            // FIRST_VALUE(expr)
+            if args.is_empty() {
+                return Err(ExecutorError::UnsupportedExpression(
+                    "FIRST_VALUE requires an argument (value expression)".to_string(),
+                ));
+            }
+
+            let value_expr = &args[0];
+
+            // Create closure that evaluates expressions using the evaluator
+            let eval_fn = |expr: &Expression, row: &Row| -> Result<SqlValue, String> {
+                evaluator.clear_cse_cache();
+                evaluator.eval(expr, row).map_err(|e| format!("{:?}", e))
+            };
+
+            // FIRST_VALUE returns the same value for all rows in the partition
+            // (the value from the first row)
+            let value = crate::evaluator::window::evaluate_first_value(partition, value_expr, &eval_fn)
+                .map_err(ExecutorError::UnsupportedExpression)?;
+
+            // Return the same value for all rows
+            vec![value; partition.len()]
+        }
+        "LAST_VALUE" => {
+            // LAST_VALUE(expr)
+            if args.is_empty() {
+                return Err(ExecutorError::UnsupportedExpression(
+                    "LAST_VALUE requires an argument (value expression)".to_string(),
+                ));
+            }
+
+            let value_expr = &args[0];
+
+            // Create closure that evaluates expressions using the evaluator
+            let eval_fn = |expr: &Expression, row: &Row| -> Result<SqlValue, String> {
+                evaluator.clear_cse_cache();
+                evaluator.eval(expr, row).map_err(|e| format!("{:?}", e))
+            };
+
+            // LAST_VALUE returns the same value for all rows in the partition
+            // (the value from the last row)
+            let value = crate::evaluator::window::evaluate_last_value(partition, value_expr, &eval_fn)
+                .map_err(ExecutorError::UnsupportedExpression)?;
+
+            // Return the same value for all rows
+            vec![value; partition.len()]
+        }
         _ => {
             // Handle aggregate functions that use frames
             let mut results: Vec<SqlValue> = Vec::with_capacity(partition.len());

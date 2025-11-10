@@ -28,13 +28,17 @@ fn collect_from_expression(
 ) -> Result<(), ExecutorError> {
     match expr {
         Expression::WindowFunction { function, over } => {
-            // Only handle aggregate window functions for now
-            if let WindowFunctionSpec::Aggregate { .. } = function {
-                window_functions.push(WindowFunctionInfo {
-                    _select_index: select_index,
-                    function_spec: function.clone(),
-                    window_spec: over.clone(),
-                });
+            // Handle all window function types: Aggregate, Ranking, and Value
+            match function {
+                WindowFunctionSpec::Aggregate { .. }
+                | WindowFunctionSpec::Ranking { .. }
+                | WindowFunctionSpec::Value { .. } => {
+                    window_functions.push(WindowFunctionInfo {
+                        _select_index: select_index,
+                        function_spec: function.clone(),
+                        window_spec: over.clone(),
+                    });
+                }
             }
         }
         Expression::BinaryOp { left, right, .. } => {

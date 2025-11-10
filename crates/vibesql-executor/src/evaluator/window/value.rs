@@ -1,6 +1,6 @@
 //! Value window functions
 //!
-//! Implements LAG and LEAD for accessing values from other rows in the partition.
+//! Implements LAG, LEAD, FIRST_VALUE, and LAST_VALUE for accessing values from other rows in the partition.
 
 use vibesql_ast::Expression;
 use vibesql_types::SqlValue;
@@ -25,13 +25,17 @@ use super::{
 /// Example: LAG(revenue, 1, 0) OVER (PARTITION BY region ORDER BY month)
 ///
 /// Requires: ORDER BY in window spec (partition must be sorted)
-pub fn evaluate_lag(
+pub fn evaluate_lag<F>(
     partition: &Partition,
     current_row_idx: usize,
     value_expr: &Expression,
     offset: Option<i64>,
     default: Option<&Expression>,
-) -> Result<SqlValue, String> {
+    eval_fn: F,
+) -> Result<SqlValue, String>
+where
+    F: Fn(&Expression, &vibesql_storage::Row) -> Result<SqlValue, String>,
+{
     let offset_val = offset.unwrap_or(1);
 
     // Validate offset is non-negative
@@ -49,7 +53,7 @@ pub fn evaluate_lag(
 
     // Get value from target row
     if let Some(target_row) = partition.rows.get(target_idx) {
-        evaluate_expression(value_expr, target_row).map_err(|e| e.to_string())
+        eval_fn(value_expr, target_row)
     } else {
         // Should not happen if bounds check is correct
         Ok(evaluate_default_value(default)?)
@@ -71,13 +75,17 @@ pub fn evaluate_lag(
 /// Example: LEAD(sales, 3, 0) OVER (PARTITION BY product ORDER BY quarter)
 ///
 /// Requires: ORDER BY in window spec (partition must be sorted)
-pub fn evaluate_lead(
+pub fn evaluate_lead<F>(
     partition: &Partition,
     current_row_idx: usize,
     value_expr: &Expression,
     offset: Option<i64>,
     default: Option<&Expression>,
-) -> Result<SqlValue, String> {
+    eval_fn: F,
+) -> Result<SqlValue, String>
+where
+    F: Fn(&Expression, &vibesql_storage::Row) -> Result<SqlValue, String>,
+{
     let offset_val = offset.unwrap_or(1);
 
     // Validate offset is non-negative
@@ -95,9 +103,70 @@ pub fn evaluate_lead(
 
     // Get value from target row
     if let Some(target_row) = partition.rows.get(target_idx) {
-        evaluate_expression(value_expr, target_row).map_err(|e| e.to_string())
+        eval_fn(value_expr, target_row)
     } else {
         // Should not happen if bounds check is correct
         Ok(evaluate_default_value(default)?)
+    }
+}
+
+/// Evaluate FIRST_VALUE() value window function
+///
+/// Returns the value of the expression evaluated on the first row of the partition.
+/// Useful for getting the initial value in an ordered partition.
+///
+/// Signature: FIRST_VALUE(expr)
+/// - expr: Expression to evaluate on the first row
+///
+/// Example: FIRST_VALUE(price) OVER (PARTITION BY product ORDER BY date)
+/// Example: FIRST_VALUE(salary) OVER (PARTITION BY department ORDER BY hire_date)
+///
+/// Note: Typically used with ORDER BY to get the "earliest" value according to ordering.
+pub fn evaluate_first_value<F>(
+    partition: &Partition,
+    value_expr: &Expression,
+    eval_fn: F,
+) -> Result<SqlValue, String>
+where
+    F: Fn(&Expression, &vibesql_storage::Row) -> Result<SqlValue, String>,
+{
+    // Get the first row in the partition
+    if let Some(first_row) = partition.rows.first() {
+        eval_fn(value_expr, first_row)
+    } else {
+        // Empty partition - return NULL
+        Ok(SqlValue::Null)
+    }
+}
+
+/// Evaluate LAST_VALUE() value window function
+///
+/// Returns the value of the expression evaluated on the last row of the partition.
+/// Useful for getting the final value in an ordered partition.
+///
+/// Signature: LAST_VALUE(expr)
+/// - expr: Expression to evaluate on the last row
+///
+/// Example: LAST_VALUE(price) OVER (PARTITION BY product ORDER BY date)
+/// Example: LAST_VALUE(status) OVER (PARTITION BY order_id ORDER BY timestamp)
+///
+/// Note: With default frame (RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW),
+/// LAST_VALUE returns the current row's value. To get the actual last value in the
+/// partition, use frame: RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING.
+/// This implementation always returns the last row in the partition.
+pub fn evaluate_last_value<F>(
+    partition: &Partition,
+    value_expr: &Expression,
+    eval_fn: F,
+) -> Result<SqlValue, String>
+where
+    F: Fn(&Expression, &vibesql_storage::Row) -> Result<SqlValue, String>,
+{
+    // Get the last row in the partition
+    if let Some(last_row) = partition.rows.last() {
+        eval_fn(value_expr, last_row)
+    } else {
+        // Empty partition - return NULL
+        Ok(SqlValue::Null)
     }
 }
