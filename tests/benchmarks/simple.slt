@@ -1,0 +1,58 @@
+# Simple benchmark test - Quick sanity check
+# Designed for fast execution to validate benchmark infrastructure
+
+# Basic table creation
+statement ok
+CREATE TABLE users (
+    id INTEGER,
+    name TEXT,
+    age INTEGER
+)
+
+# Simple inserts
+statement ok
+INSERT INTO users VALUES (1, 'Alice', 30)
+
+statement ok
+INSERT INTO users VALUES (2, 'Bob', 25)
+
+statement ok
+INSERT INTO users VALUES (3, 'Charlie', 35)
+
+# Basic SELECT
+query ITI rowsort
+SELECT * FROM users
+----
+1
+Alice
+30
+2
+Bob
+25
+3
+Charlie
+35
+
+# Simple WHERE clause
+query I
+SELECT age FROM users WHERE name = 'Bob'
+----
+25
+
+# Simple aggregation
+query I
+SELECT COUNT(*) FROM users
+----
+3
+
+# Simple ORDER BY
+query T
+SELECT name FROM users ORDER BY age
+----
+Bob
+Alice
+Charlie
+
+# Cleanup
+statement ok
+DROP TABLE users

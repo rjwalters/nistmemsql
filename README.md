@@ -207,6 +207,64 @@ python3 scripts/generate_punchlist.py
 
 ---
 
+## 📊 Performance Benchmarking
+
+VibeSQL includes a comprehensive benchmark framework for comparing performance against SQLite3. Track performance metrics, identify regressions, and validate optimizations.
+
+### Quick Start
+
+```bash
+# Run simple benchmark test
+cargo test --test sqllogictest_suite -- benchmarks/simple --nocapture
+
+# Run benchmark suite
+cargo test --test sqllogictest_suite -- benchmarks/ --nocapture
+```
+
+### Features
+
+- **Dual-engine comparison**: Run the same tests on VibeSQL and SQLite
+- **Comprehensive metrics**: Time, memory, query counts, pass rates
+- **Multiple output formats**: Console, JSON, Markdown
+- **Statistical analysis**: Percentiles (p50, p95, p99), ratios, aggregates
+
+### Example Output
+
+```
+┌──────────────────────────────────────────────────────┐
+│         VibeSQL vs SQLite Performance Report         │
+│                   select1.test                       │
+└──────────────────────────────────────────────────────┘
+
+Summary:
+┌────────────────┬───────────┬──────────┬─────────┐
+│ Metric         │ SQLite    │ VibeSQL  │ Ratio   │
+├────────────────┼───────────┼──────────┼─────────┤
+│ Total Time     │ 1.23s     │ 2.45s    │ 1.99x   │
+│ Peak Memory    │ 10.2 MB   │ 25.5 MB  │ 2.50x   │
+│ Queries/Sec    │ 812       │ 408      │ 0.50x   │
+│ Pass Rate      │ 100.0%    │ 100.0%   │ +0.0pp  │
+└────────────────┴───────────┴──────────┴─────────┘
+```
+
+### Performance Goals
+
+- **SELECT queries**: Within 2-3x of SQLite
+- **INSERT/UPDATE/DELETE**: Within 2x of SQLite
+- **Joins**: Within 3x of SQLite
+- **100% conformance**: Identical results on supported features
+
+### Documentation
+
+See [docs/BENCHMARKING.md](docs/BENCHMARKING.md) for:
+- Complete API reference
+- Writing benchmark tests
+- Interpreting results
+- CI integration guide
+- Performance optimization tips
+
+---
+
 ## 💭 Backstory: The Inflection Point Challenge
 
 ### The Philosophical Debate
