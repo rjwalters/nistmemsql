@@ -91,7 +91,7 @@ impl<L: RowIterator> HashJoinIterator<L> {
         // This is the one-time materialization cost
         let mut hash_table: HashMap<types::SqlValue, Vec<storage::Row>> = HashMap::new();
 
-        for row in right.rows {
+        for row in right.into_rows() {
             let key = row.values[right_col_idx].clone();
 
             // Skip NULL values - they never match in equi-joins
@@ -210,7 +210,7 @@ mod tests {
         let combined_schema = CombinedSchema::from_table(table_name.to_string(), schema);
         let rows = rows.into_iter().map(|values| Row::new(values)).collect();
 
-        FromResult { schema: combined_schema, rows }
+        FromResult::from_rows(combined_schema, rows)
     }
 
     #[test]
@@ -226,7 +226,7 @@ mod tests {
             ],
         );
 
-        let left_iter = TableScanIterator::new(left_result.schema.clone(), left_result.rows);
+        let left_iter = TableScanIterator::new(left_result.schema.clone(), left_result.into_rows());
 
         // Right table: orders(user_id, amount)
         let right = create_test_from_result(
@@ -283,7 +283,7 @@ mod tests {
             ],
         );
 
-        let left_iter = TableScanIterator::new(left_result.schema.clone(), left_result.rows);
+        let left_iter = TableScanIterator::new(left_result.schema.clone(), left_result.into_rows());
 
         // Right table with NULL user_id
         let right = create_test_from_result(
@@ -318,7 +318,7 @@ mod tests {
             vec![vec![SqlValue::Integer(1)], vec![SqlValue::Integer(2)]],
         );
 
-        let left_iter = TableScanIterator::new(left_result.schema.clone(), left_result.rows);
+        let left_iter = TableScanIterator::new(left_result.schema.clone(), left_result.into_rows());
 
         // Right table with non-matching ids
         let right = create_test_from_result(
@@ -341,7 +341,7 @@ mod tests {
         // Left table (empty)
         let left_result = create_test_from_result("users", vec![("id", DataType::Integer)], vec![]);
 
-        let left_iter = TableScanIterator::new(left_result.schema.clone(), left_result.rows);
+        let left_iter = TableScanIterator::new(left_result.schema.clone(), left_result.into_rows());
 
         // Right table (empty)
         let right = create_test_from_result("orders", vec![("user_id", DataType::Integer)], vec![]);
@@ -367,7 +367,7 @@ mod tests {
             ],
         );
 
-        let left_iter = TableScanIterator::new(left_result.schema.clone(), left_result.rows);
+        let left_iter = TableScanIterator::new(left_result.schema.clone(), left_result.into_rows());
 
         // Right table with duplicate user_ids
         let right = create_test_from_result(
@@ -442,7 +442,7 @@ mod tests {
 
         let counting_iter = CountingIterator {
             schema: left_result.schema.clone(),
-            rows: left_result.rows,
+            rows: left_result.into_rows(),
             index: 0,
             consumed_count: consumed.clone(),
         };

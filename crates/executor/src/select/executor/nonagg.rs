@@ -66,7 +66,8 @@ impl SelectExecutor<'_> {
         stmt: &ast::SelectStmt,
         from_result: FromResult,
     ) -> Result<Vec<storage::Row>, ExecutorError> {
-        let FromResult { schema, rows } = from_result;
+        let schema = from_result.schema.clone();
+        let rows = from_result.into_rows();
 
         // Create evaluator for WHERE clause
         let evaluator = if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
@@ -167,7 +168,8 @@ impl SelectExecutor<'_> {
 
         // Fall back to materialized execution for complex queries
         // (ORDER BY, DISTINCT, window functions require full materialization)
-        let FromResult { schema, rows } = from_result;
+        let schema = from_result.schema.clone();
+        let rows = from_result.into_rows();
 
         // Track memory used by FROM clause results (JOINs, table scans, etc.)
         let from_memory_bytes = std::mem::size_of::<storage::Row>() * rows.len()

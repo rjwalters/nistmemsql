@@ -1,6 +1,7 @@
 mod cte;
 mod executor;
 mod filter;
+mod from_iterator;
 mod grouping;
 mod helpers;
 mod iterator;

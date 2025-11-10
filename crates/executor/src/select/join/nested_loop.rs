@@ -219,13 +219,13 @@ fn execute_nested_loop_classic(
 
 /// Nested loop INNER JOIN implementation
 pub(super) fn nested_loop_inner_join(
-    left: FromResult,
-    right: FromResult,
+    mut left: FromResult,
+    mut right: FromResult,
     condition: &Option<ast::Expression>,
     database: &storage::Database,
 ) -> Result<FromResult, ExecutorError> {
     // Check if join would exceed memory limits before executing
-    check_join_size_limit(left.rows.len(), right.rows.len(), condition)?;
+    check_join_size_limit(left.rows().len(), right.rows().len(), condition)?;
 
     // Extract right table name (assume single table for now)
     let right_table_name = right
@@ -264,8 +264,8 @@ pub(super) fn nested_loop_inner_join(
         EquijoinEvalStrategy::Simple { left_col_idx, right_col_idx, remaining_condition } => {
             // FAST PATH: Evaluate equijoin by direct value comparison before allocation
             execute_optimized_equijoin(
-                &left.rows,
-                &right.rows,
+                left.rows(),
+                right.rows(),
                 left_col_idx,
                 right_col_idx,
                 remaining_condition.as_ref(),
@@ -275,22 +275,22 @@ pub(super) fn nested_loop_inner_join(
         }
         EquijoinEvalStrategy::Complex => {
             // SLOW PATH: Use existing algorithm (allocate then evaluate)
-            execute_nested_loop_classic(&left.rows, &right.rows, condition, &combined_schema, database)?
+            execute_nested_loop_classic(left.rows(), right.rows(), condition, &combined_schema, database)?
         }
     };
 
-    Ok(FromResult { schema: combined_schema, rows: result_rows })
+    Ok(FromResult::from_rows(combined_schema, result_rows))
 }
 
 /// Nested loop LEFT OUTER JOIN implementation
 pub(super) fn nested_loop_left_outer_join(
-    left: FromResult,
-    right: FromResult,
+    mut left: FromResult,
+    mut right: FromResult,
     condition: &Option<ast::Expression>,
     database: &storage::Database,
 ) -> Result<FromResult, ExecutorError> {
     // Check if join would exceed memory limits before executing
-    check_join_size_limit(left.rows.len(), right.rows.len(), condition)?;
+    check_join_size_limit(left.rows().len(), right.rows().len(), condition)?;
 
     // Extract right table name and schema
     let right_table_name = right
@@ -312,15 +312,15 @@ pub(super) fn nested_loop_left_outer_join(
     let right_column_count = right_schema.columns.len();
 
     // Combine schemas
-    let combined_schema = CombinedSchema::combine(left.schema, right_table_name, right_schema);
+    let combined_schema = CombinedSchema::combine(left.schema.clone(), right_table_name, right_schema);
     let evaluator = CombinedExpressionEvaluator::with_database(&combined_schema, database);
 
     // Nested loop LEFT OUTER JOIN algorithm
     let mut result_rows = Vec::new();
-    for left_row in &left.rows {
+    for left_row in left.rows() {
         let mut matched = false;
 
-        for right_row in &right.rows {
+        for right_row in right.rows() {
             // Combine rows using optimized helper (single allocation)
             let combined_row = combine_rows(left_row, right_row);
 
@@ -361,18 +361,18 @@ pub(super) fn nested_loop_left_outer_join(
         }
     }
 
-    Ok(FromResult { schema: combined_schema, rows: result_rows })
+    Ok(FromResult::from_rows(combined_schema, result_rows))
 }
 
 /// Nested loop RIGHT OUTER JOIN implementation
 pub(super) fn nested_loop_right_outer_join(
-    left: FromResult,
-    right: FromResult,
+    mut left: FromResult,
+    mut right: FromResult,
     condition: &Option<ast::Expression>,
     database: &storage::Database,
 ) -> Result<FromResult, ExecutorError> {
     // Check if join would exceed memory limits before executing
-    check_join_size_limit(left.rows.len(), right.rows.len(), condition)?;
+    check_join_size_limit(left.rows().len(), right.rows().len(), condition)?;
 
     // RIGHT OUTER JOIN = LEFT OUTER JOIN with sides swapped
     // Then we need to reorder columns to put left first, right second
@@ -389,7 +389,7 @@ pub(super) fn nested_loop_right_outer_join(
         .len();
 
     // Do LEFT OUTER JOIN with swapped sides
-    let swapped_result = nested_loop_left_outer_join(right, left, condition, database)?;
+    let mut swapped_result = nested_loop_left_outer_join(right, left, condition, database)?;
 
     // Now we need to reorder the columns in the result
     // The swapped result has right columns first, then left columns
@@ -397,7 +397,7 @@ pub(super) fn nested_loop_right_outer_join(
 
     // Reorder rows: move left columns (currently at positions right_col_count..) to front
     let reordered_rows: Vec<storage::Row> = swapped_result
-        .rows
+        .rows()
         .iter()
         .map(|row| {
             let mut new_values = Vec::new();
@@ -409,18 +409,18 @@ pub(super) fn nested_loop_right_outer_join(
         })
         .collect();
 
-    Ok(FromResult { schema: swapped_result.schema, rows: reordered_rows })
+    Ok(FromResult::from_rows(swapped_result.schema, reordered_rows))
 }
 
 /// Nested loop FULL OUTER JOIN implementation
 pub(super) fn nested_loop_full_outer_join(
-    left: FromResult,
-    right: FromResult,
+    mut left: FromResult,
+    mut right: FromResult,
     condition: &Option<ast::Expression>,
     database: &storage::Database,
 ) -> Result<FromResult, ExecutorError> {
     // Check if join would exceed memory limits before executing
-    check_join_size_limit(left.rows.len(), right.rows.len(), condition)?;
+    check_join_size_limit(left.rows().len(), right.rows().len(), condition)?;
 
     // Extract right table name and schema
     let right_table_name = right
@@ -451,18 +451,18 @@ pub(super) fn nested_loop_full_outer_join(
     let right_column_count = right_schema.columns.len();
 
     // Combine schemas
-    let combined_schema = CombinedSchema::combine(left.schema, right_table_name, right_schema);
+    let combined_schema = CombinedSchema::combine(left.schema.clone(), right_table_name, right_schema);
     let evaluator = CombinedExpressionEvaluator::with_database(&combined_schema, database);
 
     // FULL OUTER JOIN = LEFT OUTER JOIN + unmatched rows from right
     let mut result_rows = Vec::new();
-    let mut right_matched = vec![false; right.rows.len()];
+    let mut right_matched = vec![false; right.rows().len()];
 
     // First pass: LEFT OUTER JOIN logic
-    for left_row in &left.rows {
+    for left_row in left.rows() {
         let mut matched = false;
 
-        for (right_idx, right_row) in right.rows.iter().enumerate() {
+        for (right_idx, right_row) in right.rows().iter().enumerate() {
             // Combine rows using optimized helper (single allocation)
             let combined_row = combine_rows(left_row, right_row);
 
@@ -505,7 +505,7 @@ pub(super) fn nested_loop_full_outer_join(
     }
 
     // Second pass: Add unmatched right rows with NULLs for left columns
-    for (right_idx, right_row) in right.rows.iter().enumerate() {
+    for (right_idx, right_row) in right.rows().iter().enumerate() {
         if !right_matched[right_idx] {
             let mut combined_values =
                 Vec::with_capacity(left_column_count + right_row.values.len());
@@ -515,13 +515,13 @@ pub(super) fn nested_loop_full_outer_join(
         }
     }
 
-    Ok(FromResult { schema: combined_schema, rows: result_rows })
+    Ok(FromResult::from_rows(combined_schema, result_rows))
 }
 
 /// Nested loop CROSS JOIN implementation (Cartesian product)
 pub(super) fn nested_loop_cross_join(
-    left: FromResult,
-    right: FromResult,
+    mut left: FromResult,
+    mut right: FromResult,
     condition: &Option<ast::Expression>,
     _database: &storage::Database,
 ) -> Result<FromResult, ExecutorError> {
@@ -533,7 +533,7 @@ pub(super) fn nested_loop_cross_join(
     }
 
     // Check if cross join would exceed memory limits before executing
-    check_join_size_limit(left.rows.len(), right.rows.len(), condition)?;
+    check_join_size_limit(left.rows().len(), right.rows().len(), condition)?;
 
     // Extract right table name and schema
     let right_table_name = right
@@ -553,15 +553,15 @@ pub(super) fn nested_loop_cross_join(
         .clone();
 
     // Combine schemas
-    let combined_schema = CombinedSchema::combine(left.schema, right_table_name, right_schema);
+    let combined_schema = CombinedSchema::combine(left.schema.clone(), right_table_name, right_schema);
 
     // CROSS JOIN = Cartesian product (every row from left × every row from right)
     let mut result_rows = Vec::new();
-    for left_row in &left.rows {
-        for right_row in &right.rows {
+    for left_row in left.rows() {
+        for right_row in right.rows() {
             result_rows.push(combine_rows(left_row, right_row));
         }
     }
 
-    Ok(FromResult { schema: combined_schema, rows: result_rows })
+    Ok(FromResult::from_rows(combined_schema, result_rows))
 }
