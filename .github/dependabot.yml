@@ -51,8 +51,6 @@ updates:
       time: "09:00"
     open-pull-requests-limit: 5
     versioning-strategy: increase
-    # Keep PRs up to date with base branch
-    rebase-strategy: auto
     groups:
       dependencies:
         patterns:
