@@ -3,6 +3,7 @@ mod executor;
 mod filter;
 mod grouping;
 mod helpers;
+pub(crate) mod iterator;
 pub mod join;
 mod join_executor;
 mod join_reorder_wrapper;
