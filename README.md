@@ -687,29 +687,24 @@ vibesql -c "\save production.sql"
 
 ## 🎯 Design Principles
 
-### What Makes This Project Unique
-
-**1. Standards-First Approach**
+**Standards-First Approach**
 - SQL:1999 specification is the source of truth
 - NIST test suite validation
 - No shortcuts or "close enough" implementations
+- 100% Core SQL:1999 conformance achieved
 
-**2. Educational Value**
+**Educational & Research Value**
 - Comprehensive documentation of decisions
-- TDD approach with 2,000+ tests
+- Test-driven development with 2,000+ tests
 - Clear, readable Rust code
 - Interactive web demo for learning
+- Target: First database with FULL SQL:1999 compliance
 
-**3. Pragmatic Simplifications**
-- In-memory only (no persistence)
-- No performance requirements
-- Single-threaded execution
-- Focus: correctness over speed
-
-**4. Research Goal**
-- Target unprecedented FULL SQL:1999 compliance
-- Document the journey and challenges
-- Contribute to SQL implementation knowledge
+**Practical Focus**
+- Correctness over raw speed
+- In-memory storage with SQL dump persistence
+- Single-threaded execution model
+- Performance optimizations where beneficial (hash joins, CSE, etc.)
 
 ---
 
