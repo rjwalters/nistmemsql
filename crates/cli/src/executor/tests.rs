@@ -128,3 +128,19 @@ fn test_create_table_row_count() {
     let result = executor.execute("CREATE TABLE test (id INT PRIMARY KEY)").unwrap();
     assert_eq!(result.row_count, 0, "CREATE TABLE should return row count of 0 (DDL)");
 }
+
+#[test]
+fn test_multi_column_select_order() {
+    // Regression test for issue #1170
+    // Multi-column SELECT should preserve left-to-right column order
+    let mut executor = SqlExecutor::new(None).unwrap();
+    let result = executor.execute("SELECT 74 AS col0, 50 AS col1").unwrap();
+
+    assert_eq!(result.rows.len(), 1, "Should return 1 row");
+    assert_eq!(result.rows[0].len(), 2, "Should return 2 columns");
+
+    // Values should be in the same order as specified in SELECT: 74 first, then 50
+    // Note: Values are formatted as debug strings like "Integer(74)"
+    assert_eq!(result.rows[0][0], "Integer(74)", "First column should be 74");
+    assert_eq!(result.rows[0][1], "Integer(50)", "Second column should be 50");
+}

@@ -562,3 +562,20 @@ SELECT pk FROM tab0 WHERE col3 >= 94 OR (col1 IN (63.39,21.7,52.63,42.27,35.11,7
 
     tester.run_script(script).expect("IN subquery test should pass");
 }
+
+// Issue #1170: Reproduction test for multi-column SELECT column ordering
+#[tokio::test]
+async fn test_issue_1170_multi_column_select_order() {
+    let mut tester = sqllogictest::Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+
+    // Test with the exact syntax from the issue
+    let script = r#"
+query II
+SELECT + + 74 AS col0, 50 col1
+----
+74
+50
+"#;
+
+    tester.run_script(script).expect("Multi-column SELECT order test should pass");
+}
