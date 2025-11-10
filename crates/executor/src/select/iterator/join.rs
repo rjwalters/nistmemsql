@@ -76,8 +76,6 @@ pub struct LazyNestedLoopJoin<'schema, I: RowIterator> {
     left_exhausted: bool,
     /// For RIGHT/FULL OUTER: current position in emitting unmatched right rows
     unmatched_right_index: usize,
-    /// Schema reference for evaluator (separate from combined_schema to satisfy borrow checker)
-    evaluator_schema: CombinedSchema,
 }
 
 impl<'schema, I: RowIterator> LazyNestedLoopJoin<'schema, I> {
@@ -118,17 +116,11 @@ impl<'schema, I: RowIterator> LazyNestedLoopJoin<'schema, I> {
 
         let right_count = right_rows.len();
 
-        // Clone schema for evaluator to work around borrow checker limitations
-        // This one-time clone is much cheaper than per-row allocations
-        let evaluator_schema = combined_schema.clone();
-
-        // SAFETY: We're using a pointer cast to create a 'static reference to evaluator_schema
-        // This is safe because:
-        // 1. evaluator_schema is owned by Self and lives as long as Self
-        // 2. The evaluator only accesses the schema, never modifies it
-        // 3. The schema reference in the evaluator is only used during Self's lifetime
-        let evaluator_schema_ptr = &evaluator_schema as *const CombinedSchema;
-        let evaluator_schema_ref: &'static CombinedSchema = unsafe { &*evaluator_schema_ptr };
+        // Use Box::leak to create a stable 'static reference for the evaluator
+        // This leaks one schema per join iterator, but that's negligible compared to
+        // the massive memory savings from avoiding millions of per-row allocations
+        let evaluator_schema_ref: &'static CombinedSchema =
+            Box::leak(Box::new(combined_schema.clone()));
 
         // Create evaluator once for reuse across all row evaluations
         // This avoids per-row HashMap allocations that caused memory leaks
@@ -142,7 +134,6 @@ impl<'schema, I: RowIterator> LazyNestedLoopJoin<'schema, I> {
             condition,
             combined_schema,
             evaluator: RefCell::new(evaluator),
-            evaluator_schema,
             current_left: None,
             right_index: 0,
             current_left_matched: false,
