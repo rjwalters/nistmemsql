@@ -307,7 +307,7 @@ fn execute_table_scan(
             )?;
         }
 
-        return Ok(FromResult { schema, rows });
+        return Ok(FromResult::from_rows(schema, rows));
     }
 
     // Check if it's a view
@@ -363,7 +363,7 @@ fn execute_table_scan(
             )?;
         }
 
-        return Ok(FromResult { schema, rows });
+        return Ok(FromResult::from_rows(schema, rows));
     }
 
     // Check SELECT privilege on the table
@@ -376,15 +376,33 @@ fn execute_table_scan(
 
     let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
     let schema = CombinedSchema::from_table(effective_name, table.schema.clone());
-    let mut rows = table.scan().to_vec();
+    let rows = table.scan().to_vec();
 
-    // Apply table-local predicates from WHERE clause
+    // Check if we need to apply table-local predicates
     if let Some(where_expr) = where_clause {
-        rows =
-            apply_table_local_predicates(rows, schema.clone(), where_expr, table_name, database)?;
+        // Check if there are actually table-local predicates for this table
+        use crate::optimizer::decompose_where_clause;
+        let decomposition = decompose_where_clause(Some(where_expr), &schema)
+            .map_err(|e| ExecutorError::InvalidWhereClause(e))?;
+
+        if let Some(preds) = decomposition.table_local_predicates.get(table_name) {
+            if !preds.is_empty() {
+                // Have table-local predicates: materialize and filter
+                let filtered_rows = apply_table_local_predicates(
+                    rows,
+                    schema.clone(),
+                    where_expr,
+                    table_name,
+                    database,
+                )?;
+                return Ok(FromResult::from_rows(schema, filtered_rows));
+            }
+        }
     }
 
-    Ok(FromResult { schema, rows })
+    // No table-local predicates or no WHERE clause: return iterator for lazy evaluation
+    use super::from_iterator::FromIterator;
+    Ok(FromResult::from_iterator(schema, FromIterator::from_table_scan(rows)))
 }
 
 /// Execute a JOIN operation
@@ -517,7 +535,7 @@ where
     // Create schema with table alias
     let schema = CombinedSchema::from_derived_table(alias.to_string(), column_names, column_types);
 
-    Ok(FromResult { schema, rows })
+    Ok(FromResult::from_rows(schema, rows))
 }
 
 /// Apply table-local predicates from WHERE clause during table scan
