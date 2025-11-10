@@ -4,11 +4,11 @@
 //! - Phase 2: Table-local predicates are pushed to table scans
 //! - Phase 3: Equijoin predicates are used during hash joins
 
-use ast;
-use catalog;
+use vibesql_ast as ast;
+use vibesql_catalog as catalog;
 use vibesql_executor::SelectExecutor;
-use parser;
-use types;
+use vibesql_parser as parser;
+use vibesql_types as types;
 
 fn parse_select(sql: &str) -> vibesql_ast::SelectStmt {
     match vibesql_parser::Parser::parse_sql(sql) {
@@ -44,8 +44,8 @@ fn test_phase_2_table_local_pushdown() {
 
     for i in 1..=1000 {
         db.insert_row("T1", vibesql_storage::Row::new(vec![
-            vibesql_vibesql_types::SqlValue::Integer(i),
-            vibesql_vibesql_types::SqlValue::Integer(i * 10),
+            vibesql_types::SqlValue::Integer(i),
+            vibesql_types::SqlValue::Integer(i * 10),
         ])).unwrap();
     }
 
@@ -59,9 +59,8 @@ fn test_phase_2_table_local_pushdown() {
 
     assert_eq!(result.len(), 1);
     let count = match &result[0].values[0] {
-        vibesql_vibesql_types::SqlValue::Numeric(n) => *n as i64,
+        vibesql_types::SqlValue::Numeric(n) => *n as i64,
         _ => panic!("Expected numeric count"),
->>>>>>> origin/main:crates/vibesql-executor/tests/test_predicate_pushdown_integration.rs
     };
     assert_eq!(count, 10); // Rows 991-1000
 }
@@ -87,7 +86,7 @@ fn test_phase_3_equijoin_hash_join() {
 
         for i in 1..=100 {
             db.insert_row(&table_name, vibesql_storage::Row::new(vec![
-                vibesql_vibesql_types::SqlValue::Integer(i),
+                vibesql_types::SqlValue::Integer(i),
             ])).unwrap();
         }
     }
@@ -102,9 +101,8 @@ fn test_phase_3_equijoin_hash_join() {
 
     assert_eq!(result.len(), 1);
     let count = match &result[0].values[0] {
-        vibesql_vibesql_types::SqlValue::Numeric(n) => *n as i64,
+        vibesql_types::SqlValue::Numeric(n) => *n as i64,
         _ => panic!("Expected numeric count"),
->>>>>>> origin/main:crates/vibesql-executor/tests/test_predicate_pushdown_integration.rs
     };
     assert_eq!(count, 100); // 100 matching rows
 }
@@ -137,8 +135,8 @@ fn test_phases_2_and_3_combined() {
 
         for i in 1..=50 {
             db.insert_row(&table_name, vibesql_storage::Row::new(vec![
-                vibesql_vibesql_types::SqlValue::Integer(i),
-                vibesql_vibesql_types::SqlValue::Integer(i * 10),
+                vibesql_types::SqlValue::Integer(i),
+                vibesql_types::SqlValue::Integer(i * 10),
             ])).unwrap();
         }
     }
@@ -153,9 +151,8 @@ fn test_phases_2_and_3_combined() {
 
     assert_eq!(result.len(), 1);
     let count = match &result[0].values[0] {
-        vibesql_vibesql_types::SqlValue::Numeric(n) => *n as i64,
+        vibesql_types::SqlValue::Numeric(n) => *n as i64,
         _ => panic!("Expected numeric count"),
->>>>>>> origin/main:crates/vibesql-executor/tests/test_predicate_pushdown_integration.rs
     };
     assert_eq!(count, 10); // Rows 41-50 matching across all tables
 }

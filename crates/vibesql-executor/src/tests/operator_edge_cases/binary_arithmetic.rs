@@ -48,7 +48,7 @@ fn test_nested_arithmetic() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // Arithmetic operations now return Numeric (DECIMAL), but division returns Float
-    // (8 * 2) = Numeric(16.0), 16.0 - 5 involves Float conversion
+    // (8 * 2) = Integer(16), 16.0 - 5 involves Float conversion
     assert!(matches!(result[0].values[0], vibesql_types::SqlValue::Float(_))); // Result is Float
     if let vibesql_types::SqlValue::Float(f) = result[0].values[0] {
         assert!((f - 11.0).abs() < 0.01); // (8 * 2) - 5 = 11

@@ -58,9 +58,9 @@ fn test_count_star_window_function() {
         assert_eq!(result[0].values.len(), 2);
 
         // All rows should have count = 3 (total rows)
-        assert_eq!(result[0].values[1], SqlValue::Numeric(3.0));
-        assert_eq!(result[1].values[1], SqlValue::Numeric(3.0));
-        assert_eq!(result[2].values[1], SqlValue::Numeric(3.0));
+        assert_eq!(result[0].values[1], SqlValue::Integer(3));
+        assert_eq!(result[1].values[1], SqlValue::Integer(3));
+        assert_eq!(result[2].values[1], SqlValue::Integer(3));
     } else {
         panic!("Expected SELECT statement");
     }
@@ -85,9 +85,9 @@ fn test_sum_window_running_total() {
         assert_eq!(result[0].values.len(), 2);
 
         // Verify running totals: 100, 300, 600
-        assert_eq!(result[0].values[1], SqlValue::Numeric(100.0));
-        assert_eq!(result[1].values[1], SqlValue::Numeric(300.0));
-        assert_eq!(result[2].values[1], SqlValue::Numeric(600.0));
+        assert_eq!(result[0].values[1], SqlValue::Integer(100));
+        assert_eq!(result[1].values[1], SqlValue::Integer(300));
+        assert_eq!(result[2].values[1], SqlValue::Integer(600));
     } else {
         panic!("Expected SELECT statement");
     }
@@ -109,9 +109,9 @@ fn test_avg_window_function() {
         assert_eq!(result[0].values.len(), 2);
 
         // Average of 100, 200, 300 = 200
-        assert_eq!(result[0].values[1], SqlValue::Numeric(200.0));
-        assert_eq!(result[1].values[1], SqlValue::Numeric(200.0));
-        assert_eq!(result[2].values[1], SqlValue::Numeric(200.0));
+        assert_eq!(result[0].values[1], SqlValue::Integer(200));
+        assert_eq!(result[1].values[1], SqlValue::Integer(200));
+        assert_eq!(result[2].values[1], SqlValue::Integer(200));
     } else {
         panic!("Expected SELECT statement");
     }
@@ -163,7 +163,7 @@ fn test_window_function_in_expression() {
         // Row 3: 300 * 100 / 600 = 50
         assert_eq!(result[0].values[1], SqlValue::Numeric(16.666666666666668));
         assert_eq!(result[1].values[1], SqlValue::Numeric(33.333333333333336));
-        assert_eq!(result[2].values[1], SqlValue::Numeric(50.0));
+        assert_eq!(result[2].values[1], SqlValue::Integer(50));
     } else {
         panic!("Expected SELECT statement");
     }
@@ -187,9 +187,9 @@ fn test_window_function_with_moving_frame() {
         // Row 1: AVG(100) = 100
         // Row 2: AVG(100, 200) = 150
         // Row 3: AVG(200, 300) = 250
-        assert_eq!(result[0].values[1], SqlValue::Numeric(100.0));
-        assert_eq!(result[1].values[1], SqlValue::Numeric(150.0));
-        assert_eq!(result[2].values[1], SqlValue::Numeric(250.0));
+        assert_eq!(result[0].values[1], SqlValue::Integer(100));
+        assert_eq!(result[1].values[1], SqlValue::Integer(150));
+        assert_eq!(result[2].values[1], SqlValue::Integer(250));
     } else {
         panic!("Expected SELECT statement");
     }
@@ -212,8 +212,8 @@ fn test_multiple_window_functions_same_query() {
 
         // All rows should have cnt=3 and total=600
         for row in &result {
-            assert_eq!(row.values[1], SqlValue::Numeric(3.0));
-            assert_eq!(row.values[2], SqlValue::Numeric(600.0));
+            assert_eq!(row.values[1], SqlValue::Integer(3));
+            assert_eq!(row.values[2], SqlValue::Integer(600));
         }
     } else {
         panic!("Expected SELECT statement");
@@ -284,9 +284,9 @@ fn test_window_function_with_partition_by() {
         // Check that rows with dept=1 have avg=55000 and dept=2 have avg=75000
         for row in &result {
             if row.values[0] == SqlValue::Integer(1) {
-                assert_eq!(row.values[1], SqlValue::Numeric(55000.0));
+                assert_eq!(row.values[1], SqlValue::Integer(55000));
             } else if row.values[0] == SqlValue::Integer(2) {
-                assert_eq!(row.values[1], SqlValue::Numeric(75000.0));
+                assert_eq!(row.values[1], SqlValue::Integer(75000));
             }
         }
     } else {

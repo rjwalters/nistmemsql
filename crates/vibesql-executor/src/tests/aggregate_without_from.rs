@@ -20,7 +20,7 @@ fn test_max_constant_without_from() {
             expr: vibesql_ast::Expression::AggregateFunction {
                 name: "MAX".to_string(),
                 distinct: false,
-                args: vec![vibesql_ast::Expression::Literal(vibesql_vibesql_types::SqlValue::Integer(100))],
+                args: vec![vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(100))],
             },
             alias: None,
         }],
@@ -35,7 +35,7 @@ fn test_max_constant_without_from() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].get(0), Some(&vibesql_vibesql_types::SqlValue::Integer(100)));
+    assert_eq!(result[0].get(0), Some(&vibesql_types::SqlValue::Integer(100)));
 }
 
 #[test]
@@ -68,8 +68,7 @@ fn test_count_star_without_from() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].get(0), Some(&vibesql_vibesql_types::SqlValue::Numeric(1.0)));
->>>>>>> origin/main:crates/vibesql-executor/src/tests/aggregate_without_from.rs
+    assert_eq!(result[0].get(0), Some(&vibesql_types::SqlValue::Integer(1)));
 }
 
 #[test]
@@ -88,10 +87,10 @@ fn test_aggregate_in_expression_without_from() {
                 left: Box::new(vibesql_ast::Expression::AggregateFunction {
                     name: "MAX".to_string(),
                     distinct: false,
-                    args: vec![vibesql_ast::Expression::Literal(vibesql_vibesql_types::SqlValue::Numeric(5.0))],
+                    args: vec![vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(5))],
                 }),
                 op: vibesql_ast::BinaryOperator::Plus,
-                right: Box::new(vibesql_ast::Expression::Literal(vibesql_vibesql_types::SqlValue::Integer(10))),
+                right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(10))),
             },
             alias: None,
         }],
@@ -106,7 +105,7 @@ fn test_aggregate_in_expression_without_from() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].get(0), Some(&vibesql_vibesql_types::SqlValue::Numeric(15.0)));
+    assert_eq!(result[0].get(0), Some(&vibesql_types::SqlValue::Integer(15)));
 }
 
 #[test]
@@ -124,7 +123,7 @@ fn test_count_distinct_without_from() {
             expr: vibesql_ast::Expression::AggregateFunction {
                 name: "COUNT".to_string(),
                 distinct: true,
-                args: vec![vibesql_ast::Expression::Literal(vibesql_vibesql_types::SqlValue::Integer(65))],
+                args: vec![vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(65))],
             },
             alias: None,
         }],
@@ -139,8 +138,7 @@ fn test_count_distinct_without_from() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].get(0), Some(&vibesql_vibesql_types::SqlValue::Numeric(1.0)));
->>>>>>> origin/main:crates/vibesql-executor/src/tests/aggregate_without_from.rs
+    assert_eq!(result[0].get(0), Some(&vibesql_types::SqlValue::Integer(1)));
 }
 
 #[test]
@@ -159,7 +157,7 @@ fn test_multiple_aggregates_without_from() {
                 expr: vibesql_ast::Expression::AggregateFunction {
                     name: "MAX".to_string(),
                     distinct: false,
-                    args: vec![vibesql_ast::Expression::Literal(vibesql_vibesql_types::SqlValue::Numeric(5.0))],
+                    args: vec![vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(5))],
                 },
                 alias: None,
             },
@@ -167,7 +165,7 @@ fn test_multiple_aggregates_without_from() {
                 expr: vibesql_ast::Expression::AggregateFunction {
                     name: "MIN".to_string(),
                     distinct: false,
-                    args: vec![vibesql_ast::Expression::Literal(vibesql_vibesql_types::SqlValue::Integer(10))],
+                    args: vec![vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(10))],
                 },
                 alias: None,
             },
@@ -191,10 +189,9 @@ fn test_multiple_aggregates_without_from() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].get(0), Some(&vibesql_vibesql_types::SqlValue::Numeric(5.0)));
-    assert_eq!(result[0].get(1), Some(&vibesql_vibesql_types::SqlValue::Integer(10)));
-    assert_eq!(result[0].get(2), Some(&vibesql_vibesql_types::SqlValue::Numeric(1.0)));
->>>>>>> origin/main:crates/vibesql-executor/src/tests/aggregate_without_from.rs
+    assert_eq!(result[0].get(0), Some(&vibesql_types::SqlValue::Integer(5)));
+    assert_eq!(result[0].get(1), Some(&vibesql_types::SqlValue::Integer(10)));
+    assert_eq!(result[0].get(2), Some(&vibesql_types::SqlValue::Integer(1)));
 }
 
 #[test]
@@ -213,7 +210,7 @@ fn test_sum_avg_without_from() {
                 expr: vibesql_ast::Expression::AggregateFunction {
                     name: "SUM".to_string(),
                     distinct: false,
-                    args: vec![vibesql_ast::Expression::Literal(vibesql_vibesql_types::SqlValue::Integer(100))],
+                    args: vec![vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(100))],
                 },
                 alias: None,
             },
@@ -221,7 +218,7 @@ fn test_sum_avg_without_from() {
                 expr: vibesql_ast::Expression::AggregateFunction {
                     name: "AVG".to_string(),
                     distinct: false,
-                    args: vec![vibesql_ast::Expression::Literal(vibesql_vibesql_types::SqlValue::Integer(50))],
+                    args: vec![vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(50))],
                 },
                 alias: None,
             },
@@ -237,6 +234,6 @@ fn test_sum_avg_without_from() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].get(0), Some(&vibesql_vibesql_types::SqlValue::Numeric(100.0)));
-    assert_eq!(result[0].get(1), Some(&vibesql_vibesql_types::SqlValue::Numeric(50.0)));
+    assert_eq!(result[0].get(0), Some(&vibesql_types::SqlValue::Integer(100)));
+    assert_eq!(result[0].get(1), Some(&vibesql_types::SqlValue::Integer(50)));
 }

@@ -27,8 +27,8 @@ fn setup_large_test_db(num_rows: usize) -> Database {
     // Insert rows
     for i in 0..num_rows {
         let row = vibesql_storage::Row::new(vec![
-            vibesql_vibesql_types::SqlValue::Integer(i as i64),
-            vibesql_vibesql_types::SqlValue::Integer((i % 100) as i64),
+            vibesql_types::SqlValue::Integer(i as i64),
+            vibesql_types::SqlValue::Integer((i % 100) as i64),
         ]);
         db.insert_row("TEST_PARALLEL", row).unwrap();
     }
@@ -107,11 +107,11 @@ fn test_parallel_filter_with_null_values() {
     // Insert rows with some NULL values
     for i in 0..12_000 {
         let value = if i % 10 == 0 {
-            vibesql_vibesql_types::SqlValue::Null
+            vibesql_types::SqlValue::Null
         } else {
-            vibesql_vibesql_types::SqlValue::Integer((i % 100) as i64)
+            vibesql_types::SqlValue::Integer((i % 100) as i64)
         };
-        let row = vibesql_storage::Row::new(vec![vibesql_vibesql_types::SqlValue::Integer(i as i64), value]);
+        let row = vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(i as i64), value]);
         db.insert_row("TEST_NULLS", row).unwrap();
     }
 
@@ -172,6 +172,6 @@ fn test_parallel_execution_integration_with_executor() {
 
     // Should get one row with count
     assert_eq!(result_agg.len(), 1);
-    assert_eq!(result_agg[0].values[0], vibesql_vibesql_types::SqlValue::Numeric(1500.0));
+    assert_eq!(result_agg[0].values[0], vibesql_types::SqlValue::Numeric(1500.0));
 >>>>>>> origin/main:crates/vibesql-executor/tests/parallel_execution_tests.rs
 }

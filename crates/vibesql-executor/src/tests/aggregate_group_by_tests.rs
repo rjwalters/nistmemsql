@@ -86,6 +86,6 @@ fn test_group_by_with_count() {
         (vibesql_types::SqlValue::Integer(a), vibesql_types::SqlValue::Integer(b)) => a.cmp(b),
         _ => std::cmp::Ordering::Equal,
     });
-    assert_eq!(results[0], (vibesql_types::SqlValue::Integer(1), vibesql_types::SqlValue::Numeric(2.0)));
-    assert_eq!(results[1], (vibesql_types::SqlValue::Integer(2), vibesql_types::SqlValue::Numeric(1.0)));
+    assert_eq!(results[0], (vibesql_types::SqlValue::Integer(1), vibesql_types::SqlValue::Integer(2)));
+    assert_eq!(results[1], (vibesql_types::SqlValue::Integer(2), vibesql_types::SqlValue::Integer(1)));
 }
