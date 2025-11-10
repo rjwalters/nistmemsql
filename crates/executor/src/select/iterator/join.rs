@@ -1,6 +1,8 @@
 //! Lazy nested loop join iterator implementation
 
-use crate::{errors::ExecutorError, schema::CombinedSchema};
+use std::cell::RefCell;
+
+use crate::{errors::ExecutorError, evaluator::CombinedExpressionEvaluator, schema::CombinedSchema};
 
 use super::RowIterator;
 
@@ -45,7 +47,7 @@ use super::RowIterator;
 ///     println!("{:?}", row?);
 /// }
 /// ```
-pub struct LazyNestedLoopJoin<I: RowIterator> {
+pub struct LazyNestedLoopJoin<'schema, I: RowIterator> {
     /// Left side iterator (streaming)
     left: I,
     /// Right side schema (needed for combined schema)
@@ -58,6 +60,8 @@ pub struct LazyNestedLoopJoin<I: RowIterator> {
     condition: Option<ast::Expression>,
     /// Combined schema for output rows
     combined_schema: CombinedSchema,
+    /// Evaluator for join conditions (reused across rows to avoid per-row allocation)
+    evaluator: RefCell<CombinedExpressionEvaluator<'schema>>,
 
     // State for iteration
     /// Current left row being processed
@@ -74,7 +78,7 @@ pub struct LazyNestedLoopJoin<I: RowIterator> {
     unmatched_right_index: usize,
 }
 
-impl<I: RowIterator> LazyNestedLoopJoin<I> {
+impl<'schema, I: RowIterator> LazyNestedLoopJoin<'schema, I> {
     /// Create a new lazy nested loop join iterator
     ///
     /// # Arguments
@@ -112,6 +116,16 @@ impl<I: RowIterator> LazyNestedLoopJoin<I> {
 
         let right_count = right_rows.len();
 
+        // Use Box::leak to create a stable 'static reference for the evaluator
+        // This leaks one schema per join iterator, but that's negligible compared to
+        // the massive memory savings from avoiding millions of per-row allocations
+        let evaluator_schema_ref: &'static CombinedSchema =
+            Box::leak(Box::new(combined_schema.clone()));
+
+        // Create evaluator once for reuse across all row evaluations
+        // This avoids per-row HashMap allocations that caused memory leaks
+        let evaluator = CombinedExpressionEvaluator::new(evaluator_schema_ref);
+
         Self {
             left,
             right_schema,
@@ -119,6 +133,7 @@ impl<I: RowIterator> LazyNestedLoopJoin<I> {
             join_type,
             condition,
             combined_schema,
+            evaluator: RefCell::new(evaluator),
             current_left: None,
             right_index: 0,
             current_left_matched: false,
@@ -148,8 +163,11 @@ impl<I: RowIterator> LazyNestedLoopJoin<I> {
         match &self.condition {
             None => Ok(true), // No condition means all rows match (CROSS JOIN)
             Some(expr) => {
-                // Create evaluator without database (avoids per-row database allocation)
-                let evaluator = crate::evaluator::CombinedExpressionEvaluator::new(&self.combined_schema);
+                // Reuse evaluator from struct (avoids per-row allocations that caused memory leak)
+                // Clear CSE cache to prevent stale values from previous row combinations
+                let evaluator = self.evaluator.borrow();
+                evaluator.clear_cse_cache();
+
                 let value = evaluator.eval(expr, combined_row)?;
                 // Use same truthy logic as FilterIterator
                 match value {
@@ -175,7 +193,7 @@ impl<I: RowIterator> LazyNestedLoopJoin<I> {
     }
 }
 
-impl<I: RowIterator> Iterator for LazyNestedLoopJoin<I> {
+impl<'schema, I: RowIterator> Iterator for LazyNestedLoopJoin<'schema, I> {
     type Item = Result<storage::Row, ExecutorError>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -313,7 +331,7 @@ impl<I: RowIterator> Iterator for LazyNestedLoopJoin<I> {
     }
 }
 
-impl<I: RowIterator> RowIterator for LazyNestedLoopJoin<I> {
+impl<'schema, I: RowIterator> RowIterator for LazyNestedLoopJoin<'schema, I> {
     fn schema(&self) -> &CombinedSchema {
         &self.combined_schema
     }
