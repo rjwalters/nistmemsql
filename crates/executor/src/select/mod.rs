@@ -3,7 +3,7 @@ mod executor;
 mod filter;
 mod grouping;
 mod helpers;
-pub(crate) mod iterator;
+mod iterator;
 pub mod join;
 mod join_executor;
 mod join_reorder_wrapper;
@@ -13,6 +13,7 @@ mod scan;
 mod set_operations;
 mod window;
 
+pub use iterator::{RowIterator, TableScanIterator};
 pub use window::WindowFunctionKey;
 
 /// Result of a SELECT query including column metadata
