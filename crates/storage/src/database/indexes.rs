@@ -409,16 +409,7 @@ impl IndexManager {
             self.index_data.remove(index_name);
         }
 
-        // Return original (non-normalized) names for logging
         indexes_to_drop
-            .iter()
-            .filter_map(|normalized_name| {
-                // Since we just removed it, we can't look it up, but we stored
-                // the original name in the metadata before removal
-                // For now, just return the normalized names
-                Some(normalized_name.clone())
-            })
-            .collect()
     }
 
     /// List all indexes
