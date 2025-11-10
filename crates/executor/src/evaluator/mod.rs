@@ -1,5 +1,5 @@
 // Module declarations
-mod casting;
+pub(crate) mod casting;
 mod combined;
 mod core;
 pub mod date_format;

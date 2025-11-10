@@ -5,7 +5,7 @@ use types::SqlValue;
 
 use crate::{
     errors::ExecutorError,
-    evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator},
+    evaluator::{casting::cast_value, CombinedExpressionEvaluator, ExpressionEvaluator},
 };
 
 /// Result of WHERE clause optimization
@@ -170,13 +170,19 @@ pub fn optimize_expression(
             })
         }
 
-        // CAST - try to optimize operand
+        // CAST - try to optimize operand and evaluate if it's a literal
         Expression::Cast { expr: inner_expr, data_type } => {
             let expr_opt = optimize_expression(inner_expr, evaluator)?;
 
-            if let Expression::Literal(_val) = &expr_opt {
-                // TODO: Implement cast evaluation at plan time
-                Ok(Expression::Cast { expr: Box::new(expr_opt), data_type: data_type.clone() })
+            // If the operand is a literal, we can evaluate the cast at plan time
+            if let Expression::Literal(val) = &expr_opt {
+                match cast_value(val, data_type) {
+                    Ok(result) => Ok(Expression::Literal(result)),
+                    Err(_) => {
+                        // If cast fails, keep the CAST expression to fail at runtime with proper error
+                        Ok(Expression::Cast { expr: Box::new(expr_opt), data_type: data_type.clone() })
+                    }
+                }
             } else {
                 Ok(Expression::Cast { expr: Box::new(expr_opt), data_type: data_type.clone() })
             }
@@ -210,5 +216,123 @@ pub fn optimize_expression(
 
         // Scalar subquery - cannot optimize
         Expression::ScalarSubquery(_) => Ok(expr.clone()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ast::Expression;
+    use catalog::TableSchema;
+    use types::{DataType, SqlValue};
+
+    #[test]
+    fn test_cast_folding_integer_to_varchar() {
+        // CAST(42 AS VARCHAR) should fold to '42'
+        let expr = Expression::Cast {
+            expr: Box::new(Expression::Literal(SqlValue::Integer(42))),
+            data_type: DataType::Varchar { max_length: None },
+        };
+
+        // Create a minimal evaluator (we don't need a real one for literal optimization)
+        let db = storage::Database::new();
+        let schema = TableSchema::new("test".to_string(), vec![]);
+        let combined = crate::schema::CombinedSchema::from_table("test".to_string(), schema);
+        let evaluator = CombinedExpressionEvaluator::with_database(&combined, &db);
+
+        let optimized = optimize_expression(&expr, &evaluator).unwrap();
+
+        // Should be folded to a literal VARCHAR
+        match optimized {
+            Expression::Literal(SqlValue::Varchar(s)) => assert_eq!(s, "42"),
+            _ => panic!("Expected folded VARCHAR literal, got {:?}", optimized),
+        }
+    }
+
+    #[test]
+    fn test_cast_folding_varchar_to_integer() {
+        // CAST('123' AS INTEGER) should fold to 123
+        let expr = Expression::Cast {
+            expr: Box::new(Expression::Literal(SqlValue::Varchar("123".to_string()))),
+            data_type: DataType::Integer,
+        };
+
+        let db = storage::Database::new();
+        let schema = TableSchema::new("test".to_string(), vec![]);
+        let combined = crate::schema::CombinedSchema::from_table("test".to_string(), schema);
+        let evaluator = CombinedExpressionEvaluator::with_database(&combined, &db);
+
+        let optimized = optimize_expression(&expr, &evaluator).unwrap();
+
+        match optimized {
+            Expression::Literal(SqlValue::Integer(n)) => assert_eq!(n, 123),
+            _ => panic!("Expected folded INTEGER literal, got {:?}", optimized),
+        }
+    }
+
+    #[test]
+    fn test_cast_folding_preserves_failed_casts() {
+        // CAST('abc' AS INTEGER) should fail at runtime, not plan time
+        // Keep as CAST expression to get proper error message at runtime
+        let expr = Expression::Cast {
+            expr: Box::new(Expression::Literal(SqlValue::Varchar("abc".to_string()))),
+            data_type: DataType::Integer,
+        };
+
+        let db = storage::Database::new();
+        let schema = TableSchema::new("test".to_string(), vec![]);
+        let combined = crate::schema::CombinedSchema::from_table("test".to_string(), schema);
+        let evaluator = CombinedExpressionEvaluator::with_database(&combined, &db);
+
+        let optimized = optimize_expression(&expr, &evaluator).unwrap();
+
+        // Should keep as CAST expression (not folded due to error)
+        match optimized {
+            Expression::Cast { .. } => {} // Good, preserved for runtime error
+            _ => panic!("Expected CAST to be preserved for failed cast, got {:?}", optimized),
+        }
+    }
+
+    #[test]
+    fn test_cast_non_literal_not_folded() {
+        // CAST(column AS INTEGER) should not be folded
+        let expr = Expression::Cast {
+            expr: Box::new(Expression::ColumnRef { table: None, column: "x".to_string() }),
+            data_type: DataType::Integer,
+        };
+
+        let db = storage::Database::new();
+        let schema = TableSchema::new("test".to_string(), vec![]);
+        let combined = crate::schema::CombinedSchema::from_table("test".to_string(), schema);
+        let evaluator = CombinedExpressionEvaluator::with_database(&combined, &db);
+
+        let optimized = optimize_expression(&expr, &evaluator).unwrap();
+
+        // Should remain as CAST expression
+        match optimized {
+            Expression::Cast { .. } => {} // Good, not folded
+            _ => panic!("Expected CAST to be preserved for non-literal, got {:?}", optimized),
+        }
+    }
+
+    #[test]
+    fn test_cast_null_folding() {
+        // CAST(NULL AS INTEGER) should fold to NULL
+        let expr = Expression::Cast {
+            expr: Box::new(Expression::Literal(SqlValue::Null)),
+            data_type: DataType::Integer,
+        };
+
+        let db = storage::Database::new();
+        let schema = TableSchema::new("test".to_string(), vec![]);
+        let combined = crate::schema::CombinedSchema::from_table("test".to_string(), schema);
+        let evaluator = CombinedExpressionEvaluator::with_database(&combined, &db);
+
+        let optimized = optimize_expression(&expr, &evaluator).unwrap();
+
+        match optimized {
+            Expression::Literal(SqlValue::Null) => {} // Good, folded to NULL
+            _ => panic!("Expected folded NULL literal, got {:?}", optimized),
+        }
     }
 }
