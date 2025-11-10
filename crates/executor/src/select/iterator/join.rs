@@ -1,6 +1,8 @@
 //! Lazy nested loop join iterator implementation
 
-use crate::{errors::ExecutorError, schema::CombinedSchema};
+use std::cell::RefCell;
+
+use crate::{errors::ExecutorError, evaluator::CombinedExpressionEvaluator, schema::CombinedSchema};
 
 use super::RowIterator;
 
@@ -45,7 +47,7 @@ use super::RowIterator;
 ///     println!("{:?}", row?);
 /// }
 /// ```
-pub struct LazyNestedLoopJoin<I: RowIterator> {
+pub struct LazyNestedLoopJoin<'schema, I: RowIterator> {
     /// Left side iterator (streaming)
     left: I,
     /// Right side schema (needed for combined schema)
@@ -58,6 +60,8 @@ pub struct LazyNestedLoopJoin<I: RowIterator> {
     condition: Option<ast::Expression>,
     /// Combined schema for output rows
     combined_schema: CombinedSchema,
+    /// Evaluator for join conditions (reused across rows to avoid per-row allocation)
+    evaluator: RefCell<CombinedExpressionEvaluator<'schema>>,
 
     // State for iteration
     /// Current left row being processed
@@ -72,9 +76,11 @@ pub struct LazyNestedLoopJoin<I: RowIterator> {
     left_exhausted: bool,
     /// For RIGHT/FULL OUTER: current position in emitting unmatched right rows
     unmatched_right_index: usize,
+    /// Schema reference for evaluator (separate from combined_schema to satisfy borrow checker)
+    evaluator_schema: CombinedSchema,
 }
 
-impl<I: RowIterator> LazyNestedLoopJoin<I> {
+impl<'schema, I: RowIterator> LazyNestedLoopJoin<'schema, I> {
     /// Create a new lazy nested loop join iterator
     ///
     /// # Arguments
@@ -112,6 +118,22 @@ impl<I: RowIterator> LazyNestedLoopJoin<I> {
 
         let right_count = right_rows.len();
 
+        // Clone schema for evaluator to work around borrow checker limitations
+        // This one-time clone is much cheaper than per-row allocations
+        let evaluator_schema = combined_schema.clone();
+
+        // SAFETY: We're using a pointer cast to create a 'static reference to evaluator_schema
+        // This is safe because:
+        // 1. evaluator_schema is owned by Self and lives as long as Self
+        // 2. The evaluator only accesses the schema, never modifies it
+        // 3. The schema reference in the evaluator is only used during Self's lifetime
+        let evaluator_schema_ptr = &evaluator_schema as *const CombinedSchema;
+        let evaluator_schema_ref: &'static CombinedSchema = unsafe { &*evaluator_schema_ptr };
+
+        // Create evaluator once for reuse across all row evaluations
+        // This avoids per-row HashMap allocations that caused memory leaks
+        let evaluator = CombinedExpressionEvaluator::new(evaluator_schema_ref);
+
         Self {
             left,
             right_schema,
@@ -119,6 +141,8 @@ impl<I: RowIterator> LazyNestedLoopJoin<I> {
             join_type,
             condition,
             combined_schema,
+            evaluator: RefCell::new(evaluator),
+            evaluator_schema,
             current_left: None,
             right_index: 0,
             current_left_matched: false,
@@ -148,8 +172,11 @@ impl<I: RowIterator> LazyNestedLoopJoin<I> {
         match &self.condition {
             None => Ok(true), // No condition means all rows match (CROSS JOIN)
             Some(expr) => {
-                // Create evaluator without database (avoids per-row database allocation)
-                let evaluator = crate::evaluator::CombinedExpressionEvaluator::new(&self.combined_schema);
+                // Reuse evaluator from struct (avoids per-row allocations that caused memory leak)
+                // Clear CSE cache to prevent stale values from previous row combinations
+                let evaluator = self.evaluator.borrow();
+                evaluator.clear_cse_cache();
+
                 let value = evaluator.eval(expr, combined_row)?;
                 // Use same truthy logic as FilterIterator
                 match value {
@@ -175,7 +202,7 @@ impl<I: RowIterator> LazyNestedLoopJoin<I> {
     }
 }
 
-impl<I: RowIterator> Iterator for LazyNestedLoopJoin<I> {
+impl<'schema, I: RowIterator> Iterator for LazyNestedLoopJoin<'schema, I> {
     type Item = Result<storage::Row, ExecutorError>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -313,7 +340,7 @@ impl<I: RowIterator> Iterator for LazyNestedLoopJoin<I> {
     }
 }
 
-impl<I: RowIterator> RowIterator for LazyNestedLoopJoin<I> {
+impl<'schema, I: RowIterator> RowIterator for LazyNestedLoopJoin<'schema, I> {
     fn schema(&self) -> &CombinedSchema {
         &self.combined_schema
     }
