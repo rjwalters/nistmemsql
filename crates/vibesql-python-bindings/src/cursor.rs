@@ -265,6 +265,42 @@ impl Cursor {
 
                 Ok(())
             }
+            vibesql_ast::Statement::CreateView(view_stmt) => {
+                let mut db = self.db.lock();
+                vibesql_executor::advanced_objects::execute_create_view(&view_stmt, &mut db)
+                    .map_err(|e| OperationalError::new_err(format!("Execution error: {:?}", e)))?;
+
+                // Clear both statement and schema caches on schema change
+                let mut cache = self.stmt_cache.lock();
+                cache.clear();
+                drop(cache);
+                self.clear_schema_cache();
+
+                self.last_result = Some(QueryResultData::Execute {
+                    rows_affected: 0,
+                    message: format!("View '{}' created successfully", view_stmt.view_name),
+                });
+
+                Ok(())
+            }
+            vibesql_ast::Statement::DropView(drop_stmt) => {
+                let mut db = self.db.lock();
+                vibesql_executor::advanced_objects::execute_drop_view(&drop_stmt, &mut db)
+                    .map_err(|e| OperationalError::new_err(format!("Execution error: {:?}", e)))?;
+
+                // Clear both statement and schema caches on schema change
+                let mut cache = self.stmt_cache.lock();
+                cache.clear();
+                drop(cache);
+                self.clear_schema_cache();
+
+                self.last_result = Some(QueryResultData::Execute {
+                    rows_affected: 0,
+                    message: format!("View '{}' dropped successfully", drop_stmt.view_name),
+                });
+
+                Ok(())
+            }
             _ => Err(ProgrammingError::new_err(format!(
                 "Statement type not yet supported: {:?}",
                 stmt
