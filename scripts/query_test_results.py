@@ -187,10 +187,7 @@ LIMIT 20
 
 def execute_query_with_cli(query: str, db_path: Path) -> Tuple[bool, str]:
     """
-    Execute SQL query using VibeSQL CLI (if available).
-
-    For now, this displays the query and instructions for manual execution.
-    Once Python bindings support execution, this will run queries directly.
+    Execute SQL query using VibeSQL CLI.
 
     Args:
         query: SQL query to execute
@@ -202,25 +199,53 @@ def execute_query_with_cli(query: str, db_path: Path) -> Tuple[bool, str]:
     if not db_path.exists():
         return False, f"Database not found: {db_path}"
 
-    # For now, output the query for manual execution
-    output = f"""
-Database: {db_path}
+    # Find CLI binary
+    repo_root = get_repo_root()
+    cli_binary = repo_root / "target" / "release" / "vibesql"
 
-Query to execute:
-{query}
+    if not cli_binary.exists():
+        return False, f"CLI binary not found: {cli_binary}\n\nBuild with: cargo build --release --package cli"
 
-To run this query:
-1. Load the database SQL dump into a SQL client or web demo
-2. Execute the query above
-3. Or use Python bindings once they support execution
+    try:
+        # Execute query: cat db.sql - <<'EOF' | vibesql --stdin --format table
+        # We need to pipe both the SQL dump and the query
+        input_sql = db_path.read_text() + "\n" + query.strip()
 
-Example (future):
-    import vibesql
-    db = vibesql.load_sql_dump('{db_path}')
-    results = db.execute(query)
-"""
+        result = subprocess.run(
+            [str(cli_binary), "--stdin", "--format", "table"],
+            input=input_sql,
+            capture_output=True,
+            text=True,
+            check=False,  # Don't raise on non-zero exit
+        )
 
-    return True, output
+        # Check for errors (excluding successful query output)
+        if result.returncode != 0:
+            # If there's stderr, it's likely an error
+            if result.stderr and "Error" in result.stderr:
+                return False, f"Query execution failed:\n{result.stderr}"
+
+        # Filter output to remove noise from INSERT/DELETE statements
+        # Keep only lines that are part of the actual query result table
+        lines = result.stdout.split('\n')
+        filtered_lines = []
+        in_table = False
+
+        for line in lines:
+            # Skip "N rows" messages from INSERT/DELETE
+            if line.strip().endswith(' rows') and not line.startswith('|'):
+                continue
+            # Start capturing when we see table borders
+            if line.startswith('+') or line.startswith('|'):
+                in_table = True
+            # Capture the final "N rows" count
+            if in_table:
+                filtered_lines.append(line)
+
+        return True, '\n'.join(filtered_lines)
+
+    except Exception as e:
+        return False, f"Failed to execute query: {e}"
 
 
 def list_presets():

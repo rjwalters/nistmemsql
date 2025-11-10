@@ -144,7 +144,9 @@ def generate_insert_statements(results_json: Dict) -> List[str]:
 
     # Get metadata
     git_commit = get_git_commit()
-    timestamp = datetime.now().isoformat()
+    # Format timestamp for VibeSQL: 'YYYY-MM-DD HH:MM:SS.ffffff'
+    # Not ISO format (which uses 'T' separator)
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
 
     # Extract summary data
     summary = results_json.get('summary', {})
@@ -159,7 +161,7 @@ def generate_insert_statements(results_json: Dict) -> List[str]:
 
     statements.append(f"""
 INSERT INTO test_runs (run_id, started_at, completed_at, total_files, passed, failed, untested, git_commit)
-VALUES ({run_id}, '{timestamp}', '{timestamp}', {total}, {passed}, {failed}, {untested}, {sql_escape(git_commit)});
+VALUES ({run_id}, TIMESTAMP '{timestamp}', TIMESTAMP '{timestamp}', {total}, {passed}, {failed}, {untested}, {sql_escape(git_commit)});
 """)
 
     # 2. Process tested files and insert results
@@ -172,7 +174,7 @@ VALUES ({run_id}, '{timestamp}', '{timestamp}', {total}, {passed}, {failed}, {un
         # Insert into test_results
         statements.append(f"""
 INSERT INTO test_results (result_id, run_id, file_path, status, tested_at, duration_ms, error_message)
-VALUES ({abs(hash(f'{run_id}_{file_path}'))}, {run_id}, {sql_escape(file_path)}, 'PASS', '{timestamp}', NULL, NULL);
+VALUES ({abs(hash(f'{run_id}_{file_path}'))}, {run_id}, {sql_escape(file_path)}, 'PASS', TIMESTAMP '{timestamp}', NULL, NULL);
 """)
 
         # Update test_files (upsert)
@@ -181,7 +183,7 @@ DELETE FROM test_files WHERE file_path = {sql_escape(file_path)};
 """)
         statements.append(f"""
 INSERT INTO test_files (file_path, category, subcategory, status, last_tested, last_passed)
-VALUES ({sql_escape(file_path)}, {sql_escape(category)}, {sql_escape(subcategory)}, 'PASS', '{timestamp}', '{timestamp}');
+VALUES ({sql_escape(file_path)}, {sql_escape(category)}, {sql_escape(subcategory)}, 'PASS', TIMESTAMP '{timestamp}', TIMESTAMP '{timestamp}');
 """)
 
     # Process failed files
@@ -205,7 +207,7 @@ VALUES ({sql_escape(file_path)}, {sql_escape(category)}, {sql_escape(subcategory
         # Insert into test_results
         statements.append(f"""
 INSERT INTO test_results (result_id, run_id, file_path, status, tested_at, duration_ms, error_message)
-VALUES ({abs(hash(f'{run_id}_{file_path}'))}, {run_id}, {sql_escape(file_path)}, 'FAIL', '{timestamp}', NULL, {sql_escape(error_message)});
+VALUES ({abs(hash(f'{run_id}_{file_path}'))}, {run_id}, {sql_escape(file_path)}, 'FAIL', TIMESTAMP '{timestamp}', NULL, {sql_escape(error_message)});
 """)
 
         # Update test_files (upsert)
@@ -214,7 +216,7 @@ DELETE FROM test_files WHERE file_path = {sql_escape(file_path)};
 """)
         statements.append(f"""
 INSERT INTO test_files (file_path, category, subcategory, status, last_tested, last_passed)
-VALUES ({sql_escape(file_path)}, {sql_escape(category)}, {sql_escape(subcategory)}, 'FAIL', '{timestamp}', NULL);
+VALUES ({sql_escape(file_path)}, {sql_escape(category)}, {sql_escape(subcategory)}, 'FAIL', TIMESTAMP '{timestamp}', NULL);
 """)
 
     return statements
@@ -242,7 +244,7 @@ def append_statements_to_dump(db_path: Path, statements: List[str]) -> bool:
     """
     try:
         with open(db_path, 'a') as f:
-            f.write("\n-- Test results inserted at " + datetime.now().isoformat() + "\n")
+            f.write("\n-- Test results inserted at " + datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f') + "\n")
             for stmt in statements:
                 f.write(stmt)
                 f.write("\n")
