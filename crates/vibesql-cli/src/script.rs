@@ -13,6 +13,7 @@ pub struct ScriptExecutor {
     executor: SqlExecutor,
     formatter: ResultFormatter,
     verbose: bool,
+    database_path: Option<String>,
 }
 
 impl ScriptExecutor {
@@ -21,6 +22,7 @@ impl ScriptExecutor {
         verbose: bool,
         format: Option<OutputFormat>,
     ) -> anyhow::Result<Self> {
+        let database_path = database.clone();
         let executor = SqlExecutor::new(database)?;
         let mut formatter = ResultFormatter::new();
 
@@ -28,7 +30,7 @@ impl ScriptExecutor {
             formatter.set_format(fmt);
         }
 
-        Ok(ScriptExecutor { executor, formatter, verbose })
+        Ok(ScriptExecutor { executor, formatter, verbose, database_path })
     }
 
     /// Execute SQL from a file
@@ -74,6 +76,15 @@ impl ScriptExecutor {
                 Ok(result) => {
                     self.formatter.print_result(&result);
                     success_count += 1;
+
+                    // Auto-save after modification statements if database path is provided
+                    if let Some(ref path) = self.database_path {
+                        if is_modification_statement(stmt) {
+                            if let Err(e) = self.executor.save_database(path) {
+                                eprintln!("Warning: Failed to auto-save database: {}", e);
+                            }
+                        }
+                    }
                 }
                 Err(e) => {
                     eprintln!("Error executing statement {}: {}", idx + 1, e);
@@ -97,6 +108,17 @@ impl ScriptExecutor {
             Ok(())
         }
     }
+}
+
+/// Check if a SQL statement is a modification (DDL/DML) that should trigger auto-save
+fn is_modification_statement(sql: &str) -> bool {
+    let upper = sql.trim().to_uppercase();
+    upper.starts_with("CREATE ")
+        || upper.starts_with("DROP ")
+        || upper.starts_with("ALTER ")
+        || upper.starts_with("INSERT ")
+        || upper.starts_with("UPDATE ")
+        || upper.starts_with("DELETE ")
 }
 
 /// Parse SQL script into individual statements
