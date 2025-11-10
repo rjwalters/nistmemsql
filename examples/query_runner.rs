@@ -1,6 +1,6 @@
 use std::env;
 
-use catalog::{ColumnSchema, TableSchema};
+use vibesql::catalog::{ColumnSchema, TableSchema};
 /**
  * Query Runner for Web Demo Examples
  *
@@ -10,10 +10,10 @@ use catalog::{ColumnSchema, TableSchema};
  *
  * Usage: cargo run --example query_runner
  */
-use executor::SelectExecutor;
-use parser::Parser;
-use storage::{Database, Row};
-use types::{DataType, SqlValue};
+use vibesql::executor::SelectExecutor;
+use vibesql::parser::Parser;
+use vibesql::storage::{Database, Row};
+use vibesql::types::{DataType, SqlValue};
 
 fn create_northwind_db() -> Database {
     let mut db = Database::new();
@@ -231,7 +231,7 @@ fn run_query(db: &Database, query: &str) {
         }
     };
 
-    if let ast::Statement::Select(select_stmt) = stmt {
+    if let vibesql::ast::Statement::Select(select_stmt) = stmt {
         let executor = SelectExecutor::new(db);
         match executor.execute(&select_stmt) {
             Ok(result) => {
@@ -241,14 +241,14 @@ fn run_query(db: &Database, query: &str) {
                     .iter()
                     .enumerate()
                     .map(|(i, item)| match item {
-                        ast::SelectItem::Expression { alias: Some(alias), .. } => alias.clone(),
-                        ast::SelectItem::Expression { alias: None, .. } => {
+                        vibesql::ast::SelectItem::Expression { alias: Some(alias), .. } => alias.clone(),
+                        vibesql::ast::SelectItem::Expression { alias: None, .. } => {
                             format!("column{}", i + 1)
                         }
-                        ast::SelectItem::QualifiedWildcard { qualifier, .. } => {
+                        vibesql::ast::SelectItem::QualifiedWildcard { qualifier, .. } => {
                             format!("{}.*", qualifier)
                         }
-                        ast::SelectItem::Wildcard { .. } => "*".to_string(),
+                        vibesql::ast::SelectItem::Wildcard { .. } => "*".to_string(),
                     })
                     .collect();
 
