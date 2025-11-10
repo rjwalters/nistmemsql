@@ -3,8 +3,8 @@
 //! Tests for BEGIN, COMMIT, ROLLBACK, SAVEPOINT, ROLLBACK TO SAVEPOINT,
 //! and RELEASE SAVEPOINT statements.
 
-use ast::Statement;
-use parser::Parser;
+use vibesql_ast::Statement;
+use vibesql_parser::Parser;
 
 #[test]
 fn test_begin_transaction() {

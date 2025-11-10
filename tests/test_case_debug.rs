@@ -1,6 +1,6 @@
-use executor::SelectExecutor;
-use parser::Parser;
-use storage::Database;
+use vibesql_executor::SelectExecutor;
+use vibesql_parser::Parser;
+use vibesql_storage::Database;
 
 #[test]
 fn debug_case_subquery() {
@@ -10,8 +10,8 @@ fn debug_case_subquery() {
     let create_sql = "CREATE TABLE t1(a INTEGER, b INTEGER, c INTEGER, d INTEGER, e INTEGER)";
     let create_stmt = Parser::parse_sql(create_sql).unwrap();
     match create_stmt {
-        ast::Statement::CreateTable(create_stmt) => {
-            executor::CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
+        vibesql_ast::Statement::CreateTable(create_stmt) => {
+            vibesql_executor::CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
         }
         _ => panic!("Expected CREATE TABLE"),
     }
@@ -20,8 +20,8 @@ fn debug_case_subquery() {
     let insert_sql = "INSERT INTO t1 VALUES(100, 200, 300, 400, 500), (150, 250, 350, 450, 550)";
     let insert_stmt = Parser::parse_sql(insert_sql).unwrap();
     match insert_stmt {
-        ast::Statement::Insert(insert_stmt) => {
-            executor::InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
+        vibesql_ast::Statement::Insert(insert_stmt) => {
+            vibesql_executor::InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
         }
         _ => panic!("Expected INSERT"),
     }
@@ -30,7 +30,7 @@ fn debug_case_subquery() {
     let query_sql = "SELECT CASE WHEN c>(SELECT avg(c) FROM t1) THEN a*2 ELSE b*10 END FROM t1";
     let query_stmt = Parser::parse_sql(query_sql).unwrap();
     match query_stmt {
-        ast::Statement::Select(select_stmt) => {
+        vibesql_ast::Statement::Select(select_stmt) => {
             let executor = SelectExecutor::new(&db);
             let rows = executor.execute(&select_stmt).unwrap();
 
@@ -46,7 +46,7 @@ fn debug_case_subquery() {
     let subquery_sql = "SELECT avg(c) FROM t1";
     let subquery_stmt = Parser::parse_sql(subquery_sql).unwrap();
     match subquery_stmt {
-        ast::Statement::Select(select_stmt) => {
+        vibesql_ast::Statement::Select(select_stmt) => {
             let executor = SelectExecutor::new(&db);
             let rows = executor.execute(&select_stmt).unwrap();
 

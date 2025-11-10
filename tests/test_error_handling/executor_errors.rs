@@ -3,12 +3,12 @@
 //! Tests for executor-level errors including division by zero, type mismatches,
 //! constraints, and other execution-related errors.
 
-use ast::Statement;
-use executor::{
+use vibesql_ast::Statement;
+use vibesql_executor::{
     AlterTableExecutor, CreateTableExecutor, ExecutorError, InsertExecutor, SelectExecutor,
 };
-use parser::Parser;
-use storage::Database;
+use vibesql_parser::Parser;
+use vibesql_storage::Database;
 
 #[test]
 fn test_division_by_zero_error() {

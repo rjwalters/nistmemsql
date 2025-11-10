@@ -5,8 +5,8 @@
 
 use std::error::Error;
 
-use catalog::CatalogError;
-use executor::ExecutorError;
+use vibesql_catalog::CatalogError;
+use vibesql_executor::ExecutorError;
 
 #[test]
 fn test_catalog_error_display_formats() {
@@ -143,6 +143,6 @@ fn test_error_implements_std_error_trait() {
     let executor_err: Box<dyn Error> = Box::new(ExecutorError::DivisionByZero);
     assert!(executor_err.to_string().contains("Division by zero"));
 
-    let storage_err: Box<dyn Error> = Box::new(storage::StorageError::RowNotFound);
+    let storage_err: Box<dyn Error> = Box::new(vibesql_storage::StorageError::RowNotFound);
     assert!(storage_err.to_string().contains("Row not found"));
 }

@@ -1,7 +1,7 @@
 //! SQL value formatting utilities for test output.
 
 use sqllogictest::DefaultColumnType;
-use types::SqlValue;
+use vibesql_types::SqlValue;
 
 /// Format SQL value for test output, applying type-specific formatting rules
 pub fn format_sql_value(value: &SqlValue, expected_type: Option<&DefaultColumnType>) -> String {

@@ -8,8 +8,8 @@ mod common;
 use common::web_demo_helpers::{
     extract_query, load_database, parse_example_files, validate_results, WebDemoExample,
 };
-use executor::SelectExecutor;
-use parser::Parser;
+use vibesql_executor::SelectExecutor;
+use vibesql_parser::Parser;
 
 /// Test join SQL examples from web demo
 /// Includes examples with IDs: join*, inner*, left*, right*, full*, cross*
@@ -66,7 +66,7 @@ fn test_join_sql_examples() {
 
         // Execute the query (join queries are SELECT statements)
         let result = match stmt {
-            ast::Statement::Select(select_stmt) => {
+            vibesql_ast::Statement::Select(select_stmt) => {
                 let executor = SelectExecutor::new(&db);
                 executor.execute(&select_stmt)
             }

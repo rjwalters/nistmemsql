@@ -1,9 +1,9 @@
 //! Tests for CREATE TYPE and DROP TYPE (SQL:1999 user-defined types)
 
-use ast::Statement;
-use executor::TypeExecutor;
-use parser::Parser;
-use storage::Database;
+use vibesql_ast::Statement;
+use vibesql_executor::TypeExecutor;
+use vibesql_parser::Parser;
+use vibesql_storage::Database;
 
 fn execute_and_expect_success(db: &mut Database, sql: &str) -> String {
     let stmt = Parser::parse_sql(sql).expect("Failed to parse");

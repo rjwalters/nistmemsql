@@ -1,9 +1,9 @@
 //! Tests for CREATE VIEW and DROP VIEW (SQL:1999 views)
 
-use ast::Statement;
-use executor::advanced_objects::{execute_create_view, execute_drop_view};
-use parser::Parser;
-use storage::Database;
+use vibesql_ast::Statement;
+use vibesql_executor::advanced_objects::{execute_create_view, execute_drop_view};
+use vibesql_parser::Parser;
+use vibesql_storage::Database;
 
 #[test]
 fn test_create_view_simple() {

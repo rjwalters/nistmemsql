@@ -1,9 +1,9 @@
 //! Test CREATE SCHEMA with embedded schema elements
 
-use ast::Statement;
-use executor::SchemaExecutor;
-use parser::Parser;
-use storage::Database;
+use vibesql_ast::Statement;
+use vibesql_executor::SchemaExecutor;
+use vibesql_parser::Parser;
+use vibesql_storage::Database;
 
 #[test]
 fn test_create_schema_with_embedded_table() {
@@ -14,7 +14,7 @@ fn test_create_schema_with_embedded_table() {
     let stmt = Parser::parse_sql(sql).expect("Failed to parse");
 
     // Execute the statement
-    if let ast::Statement::CreateSchema(create_schema_stmt) = stmt {
+    if let vibesql_ast::Statement::CreateSchema(create_schema_stmt) = stmt {
         let result = SchemaExecutor::execute_create_schema(&create_schema_stmt, &mut db);
         assert!(result.is_ok(), "Failed to execute: {:?}", result.err());
 
@@ -37,7 +37,7 @@ fn test_create_schema_with_multiple_tables() {
     let stmt = Parser::parse_sql(sql).expect("Failed to parse");
 
     // Execute the statement
-    if let ast::Statement::CreateSchema(create_schema_stmt) = stmt {
+    if let vibesql_ast::Statement::CreateSchema(create_schema_stmt) = stmt {
         let result = SchemaExecutor::execute_create_schema(&create_schema_stmt, &mut db);
         assert!(result.is_ok(), "Failed to execute: {:?}", result.err());
 
@@ -61,7 +61,7 @@ fn test_create_schema_no_elements_still_works() {
     let stmt = Parser::parse_sql(sql).expect("Failed to parse");
 
     // Execute the statement
-    if let ast::Statement::CreateSchema(create_schema_stmt) = stmt {
+    if let vibesql_ast::Statement::CreateSchema(create_schema_stmt) = stmt {
         let result = SchemaExecutor::execute_create_schema(&create_schema_stmt, &mut db);
         assert!(result.is_ok(), "Failed to execute: {:?}", result.err());
 

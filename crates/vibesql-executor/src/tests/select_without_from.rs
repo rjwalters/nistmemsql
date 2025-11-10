@@ -1,0 +1,431 @@
+//! Tests for SELECT without FROM clause
+//!
+//! Tests queries that evaluate expressions without any table context
+
+use super::super::*;
+
+#[test]
+fn test_select_literal_integers() {
+    let db = vibesql_storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    let stmt = vibesql_ast::SelectStmt {
+        into_table: None,
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![
+            vibesql_ast::SelectItem::Expression {
+                expr: vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1)),
+                alias: Some("one".to_string()),
+            },
+            vibesql_ast::SelectItem::Expression {
+                expr: vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(2)),
+                alias: Some("two".to_string()),
+            },
+            vibesql_ast::SelectItem::Expression {
+                expr: vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(3)),
+                alias: Some("three".to_string()),
+            },
+        ],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1); // Single row
+    assert_eq!(result[0].values.len(), 3);
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(1));
+    assert_eq!(result[0].values[1], vibesql_types::SqlValue::Integer(2));
+    assert_eq!(result[0].values[2], vibesql_types::SqlValue::Integer(3));
+}
+
+#[test]
+fn test_select_literal_mixed_types() {
+    let db = vibesql_storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    let stmt = vibesql_ast::SelectStmt {
+        into_table: None,
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![
+            vibesql_ast::SelectItem::Expression {
+                expr: vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(42)),
+                alias: Some("num".to_string()),
+            },
+            vibesql_ast::SelectItem::Expression {
+                expr: vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("hello".to_string())),
+                alias: Some("text".to_string()),
+            },
+            vibesql_ast::SelectItem::Expression {
+                expr: vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Boolean(true)),
+                alias: Some("flag".to_string()),
+            },
+        ],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(42));
+    assert_eq!(result[0].values[1], vibesql_types::SqlValue::Varchar("hello".to_string()));
+    assert_eq!(result[0].values[2], vibesql_types::SqlValue::Boolean(true));
+}
+
+#[test]
+fn test_select_arithmetic_expression() {
+    let db = vibesql_storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    let stmt = vibesql_ast::SelectStmt {
+        into_table: None,
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![
+            vibesql_ast::SelectItem::Expression {
+                expr: vibesql_ast::Expression::BinaryOp {
+                    left: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1))),
+                    op: vibesql_ast::BinaryOperator::Plus,
+                    right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1))),
+                },
+                alias: Some("sum".to_string()),
+            },
+            vibesql_ast::SelectItem::Expression {
+                expr: vibesql_ast::Expression::BinaryOp {
+                    left: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(2))),
+                    op: vibesql_ast::BinaryOperator::Multiply,
+                    right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(3))),
+                },
+                alias: Some("product".to_string()),
+            },
+        ],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1);
+    // Note: +, -, * return Integer; only / returns Numeric currently
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(2)); // 1 + 1
+    assert_eq!(result[0].values[1], vibesql_types::SqlValue::Integer(6)); // 2 * 3
+}
+
+#[test]
+fn test_select_function_call() {
+    let db = vibesql_storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    let stmt = vibesql_ast::SelectStmt {
+        into_table: None,
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![vibesql_ast::SelectItem::Expression {
+            expr: vibesql_ast::Expression::Function {
+                name: "UPPER".to_string(),
+                args: vec![vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("hello".to_string()))],
+                character_unit: None,
+            },
+            alias: Some("upper".to_string()),
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Varchar("HELLO".to_string()));
+}
+
+#[test]
+fn test_select_star_without_from_fails() {
+    let db = vibesql_storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    let stmt = vibesql_ast::SelectStmt {
+        into_table: None,
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt);
+    assert!(result.is_err());
+    match result {
+        Err(ExecutorError::UnsupportedFeature(msg)) => {
+            assert!(msg.contains("require FROM clause") || msg.contains("requires FROM clause"));
+        }
+        _ => panic!("Expected UnsupportedFeature error"),
+    }
+}
+
+#[test]
+fn test_column_reference_without_from_fails() {
+    let db = vibesql_storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    let stmt = vibesql_ast::SelectStmt {
+        into_table: None,
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![vibesql_ast::SelectItem::Expression {
+            expr: vibesql_ast::Expression::ColumnRef { table: None, column: "some_column".to_string() },
+            alias: None,
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt);
+    assert!(result.is_err());
+    match result {
+        Err(ExecutorError::UnsupportedFeature(msg)) => {
+            assert!(msg.contains("Column reference requires FROM clause"));
+        }
+        _ => panic!("Expected UnsupportedFeature error"),
+    }
+}
+
+#[test]
+fn test_is_null_with_column_reference_fails() {
+    let db = vibesql_storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    let stmt = vibesql_ast::SelectStmt {
+        into_table: None,
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![vibesql_ast::SelectItem::Expression {
+            expr: vibesql_ast::Expression::IsNull {
+                expr: Box::new(vibesql_ast::Expression::ColumnRef {
+                    table: None,
+                    column: "id".to_string(),
+                }),
+                negated: false,
+            },
+            alias: None,
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt);
+    assert!(result.is_err());
+    match result {
+        Err(ExecutorError::UnsupportedFeature(msg)) => {
+            assert!(msg.contains("Column reference requires FROM clause"));
+        }
+        _ => panic!("Expected UnsupportedFeature error"),
+    }
+}
+
+#[test]
+fn test_between_with_column_reference_fails() {
+    let db = vibesql_storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    let stmt = vibesql_ast::SelectStmt {
+        into_table: None,
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![vibesql_ast::SelectItem::Expression {
+            expr: vibesql_ast::Expression::Between {
+                expr: Box::new(vibesql_ast::Expression::ColumnRef {
+                    table: None,
+                    column: "price".to_string(),
+                }),
+                low: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(10))),
+                high: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(20))),
+                negated: false,
+                symmetric: false,
+            },
+            alias: None,
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt);
+    assert!(result.is_err());
+    match result {
+        Err(ExecutorError::UnsupportedFeature(msg)) => {
+            assert!(msg.contains("Column reference requires FROM clause"));
+        }
+        _ => panic!("Expected UnsupportedFeature error"),
+    }
+}
+
+#[test]
+fn test_cast_with_column_reference_fails() {
+    let db = vibesql_storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    let stmt = vibesql_ast::SelectStmt {
+        into_table: None,
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![vibesql_ast::SelectItem::Expression {
+            expr: vibesql_ast::Expression::Cast {
+                expr: Box::new(vibesql_ast::Expression::ColumnRef {
+                    table: None,
+                    column: "id".to_string(),
+                }),
+                data_type: vibesql_types::DataType::Varchar { max_length: Some(255) },
+            },
+            alias: None,
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt);
+    assert!(result.is_err());
+    match result {
+        Err(ExecutorError::UnsupportedFeature(msg)) => {
+            assert!(msg.contains("Column reference requires FROM clause"));
+        }
+        _ => panic!("Expected UnsupportedFeature error"),
+    }
+}
+
+#[test]
+fn test_like_with_column_reference_fails() {
+    let db = vibesql_storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    let stmt = vibesql_ast::SelectStmt {
+        into_table: None,
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![vibesql_ast::SelectItem::Expression {
+            expr: vibesql_ast::Expression::Like {
+                expr: Box::new(vibesql_ast::Expression::ColumnRef {
+                    table: None,
+                    column: "name".to_string(),
+                }),
+                pattern: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar(
+                    "A%".to_string(),
+                ))),
+                negated: false,
+            },
+            alias: None,
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt);
+    assert!(result.is_err());
+    match result {
+        Err(ExecutorError::UnsupportedFeature(msg)) => {
+            assert!(msg.contains("Column reference requires FROM clause"));
+        }
+        _ => panic!("Expected UnsupportedFeature error"),
+    }
+}
+
+#[test]
+fn test_in_list_with_column_reference_fails() {
+    let db = vibesql_storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    let stmt = vibesql_ast::SelectStmt {
+        into_table: None,
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![vibesql_ast::SelectItem::Expression {
+            expr: vibesql_ast::Expression::InList {
+                expr: Box::new(vibesql_ast::Expression::ColumnRef {
+                    table: None,
+                    column: "id".to_string(),
+                }),
+                values: vec![
+                    vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1)),
+                    vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(2)),
+                    vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(3)),
+                ],
+                negated: false,
+            },
+            alias: None,
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt);
+    assert!(result.is_err());
+    match result {
+        Err(ExecutorError::UnsupportedFeature(msg)) => {
+            assert!(msg.contains("Column reference requires FROM clause"));
+        }
+        _ => panic!("Expected UnsupportedFeature error"),
+    }
+}

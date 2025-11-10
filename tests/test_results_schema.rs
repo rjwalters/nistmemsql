@@ -9,10 +9,10 @@
 //! - Foreign key constraints
 //! - Example analytical queries
 
-use ast::Statement;
-use executor::{CreateTableExecutor, InsertExecutor, SelectExecutor};
-use parser::Parser;
-use storage::Database;
+use vibesql_ast::Statement;
+use vibesql_executor::{CreateTableExecutor, InsertExecutor, SelectExecutor};
+use vibesql_parser::Parser;
+use vibesql_storage::Database;
 
 /// Helper function to execute CREATE TABLE statements
 fn execute_create_table(db: &mut Database, sql: &str) -> Result<String, String> {

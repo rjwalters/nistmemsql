@@ -1,10 +1,10 @@
 //! Test INSERT performance with merged constraint validation
 
-use ast::{Expression, InsertSource, InsertStmt};
-use catalog::{ColumnSchema, TableSchema};
-use executor::InsertExecutor;
-use storage::Database;
-use types::{DataType, SqlValue};
+use vibesql_ast::{Expression, InsertSource, InsertStmt};
+use vibesql_catalog::{ColumnSchema, TableSchema};
+use vibesql_executor::InsertExecutor;
+use vibesql_storage::Database;
+use vibesql_types::{DataType, SqlValue};
 
 #[test]
 fn test_insert_with_merged_constraint_validation() {

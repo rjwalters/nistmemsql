@@ -1,16 +1,16 @@
 //! Test NULLIF function implementation
 
-use executor::SelectExecutor;
-use parser::Parser;
-use storage::{Database, Row};
-use types::SqlValue;
+use vibesql_executor::SelectExecutor;
+use vibesql_parser::Parser;
+use vibesql_storage::{Database, Row};
+use vibesql_types::SqlValue;
 
 /// Execute a SELECT query end-to-end: parse SQL → execute → return results.
 fn execute_select(sql: &str) -> Result<Vec<Row>, String> {
     let db = Database::new();
     let stmt = Parser::parse_sql(sql).map_err(|e| format!("Parse error: {:?}", e))?;
     let select_stmt = match stmt {
-        ast::Statement::Select(s) => s,
+        vibesql_ast::Statement::Select(s) => s,
         other => return Err(format!("Expected SELECT statement, got {:?}", other)),
     };
 

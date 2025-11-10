@@ -8,9 +8,9 @@
 
 #![allow(dead_code)]
 
-use catalog::{ColumnSchema, TableSchema};
-use storage::{Database, Row};
-use types::{DataType, SqlValue};
+use vibesql_catalog::{ColumnSchema, TableSchema};
+use vibesql_storage::{Database, Row};
+use vibesql_types::{DataType, SqlValue};
 
 /// Create a Northwind database for testing
 pub fn create_northwind_db() -> Database {

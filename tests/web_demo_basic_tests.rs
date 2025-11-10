@@ -8,8 +8,8 @@ mod common;
 use common::web_demo_helpers::{
     extract_query, load_database, parse_example_files, validate_results, WebDemoExample,
 };
-use executor::SelectExecutor;
-use parser::Parser;
+use vibesql_executor::SelectExecutor;
+use vibesql_parser::Parser;
 
 /// Test basic SQL examples from web demo
 /// Includes examples with IDs: basic*, dml*, ddl*, data*
@@ -64,14 +64,14 @@ fn test_basic_sql_examples() {
 
         // Execute the query based on statement type
         let result = match stmt {
-            ast::Statement::Select(select_stmt) => {
+            vibesql_ast::Statement::Select(select_stmt) => {
                 let executor = SelectExecutor::new(&db);
                 executor.execute(&select_stmt)
             }
-            ast::Statement::CreateTable { .. }
-            | ast::Statement::Insert { .. }
-            | ast::Statement::Update { .. }
-            | ast::Statement::Delete { .. } => {
+            vibesql_ast::Statement::CreateTable { .. }
+            | vibesql_ast::Statement::Insert { .. }
+            | vibesql_ast::Statement::Update { .. }
+            | vibesql_ast::Statement::Delete { .. } => {
                 // For DDL/DML statements, just check they parse successfully
                 println!("✓  {}: DDL/DML statement parsed successfully", example.id);
                 passed += 1;

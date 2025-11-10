@@ -7,12 +7,12 @@ edition.workspace = true
 memory-tracking = ["memory-stats"]
 
 [dependencies]
-types = { path = "crates/types" }
-ast = { path = "crates/ast" }
-catalog = { path = "crates/catalog" }
-storage = { path = "crates/storage" }
-executor = { path = "crates/executor" }
-parser = { path = "crates/parser" }
+vibesql-types = { path = "crates/vibesql-types" }
+vibesql-ast = { path = "crates/vibesql-ast" }
+vibesql-catalog = { path = "crates/vibesql-catalog" }
+vibesql-storage = { path = "crates/vibesql-storage" }
+vibesql-executor = { path = "crates/vibesql-executor" }
+vibesql-parser = { path = "crates/vibesql-parser" }
 memory-stats = { version = "1.0", optional = true }
 
 [dev-dependencies]
@@ -30,15 +30,15 @@ chrono = "0.4"
 
 [workspace]
 members = [
-    "crates/parser",
-    "crates/types",
-    "crates/ast",
-    "crates/catalog",
-    "crates/storage",
-    "crates/executor",
-    "crates/cli",
-    "crates/wasm-bindings",
-    "crates/python-bindings",
+    "crates/vibesql-parser",
+    "crates/vibesql-types",
+    "crates/vibesql-ast",
+    "crates/vibesql-catalog",
+    "crates/vibesql-storage",
+    "crates/vibesql-executor",
+    "crates/vibesql-cli",
+    "crates/vibesql-wasm-bindings",
+    "crates/vibesql-python-bindings",
 ]
 resolver = "2"
 

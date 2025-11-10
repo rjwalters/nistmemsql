@@ -2,9 +2,9 @@
 //!
 //! This is the root crate that re-exports all components.
 
-pub use ast;
-pub use catalog;
-pub use executor;
-pub use parser;
-pub use storage;
-pub use types;
+pub use vibesql_ast as ast;
+pub use vibesql_catalog as catalog;
+pub use vibesql_executor as executor;
+pub use vibesql_parser as parser;
+pub use vibesql_storage as storage;
+pub use vibesql_types as types;

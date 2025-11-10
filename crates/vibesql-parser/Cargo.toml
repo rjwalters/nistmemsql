@@ -1,0 +1,16 @@
+[package]
+name = "vibesql-parser"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "SQL parser for vibesql database engine"
+keywords = ["sql", "parser", "database"]
+categories = ["database", "parser-implementations"]
+
+[dependencies]
+vibesql-ast = { path = "../vibesql-ast" }
+vibesql-types = { path = "../vibesql-types" }
+
+[dev-dependencies]

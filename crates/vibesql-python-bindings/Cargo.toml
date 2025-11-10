@@ -1,0 +1,27 @@
+[package]
+name = "vibesql-python-bindings"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Python bindings for vibesql SQL database"
+keywords = ["sql", "database", "python", "pyo3"]
+categories = ["database", "api-bindings"]
+
+[lib]
+name = "vibesql"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { workspace = true }
+lru = "0.12"
+parking_lot = "0.12"
+
+# Internal crates
+vibesql-types = { path = "../vibesql-types" }
+vibesql-ast = { path = "../vibesql-ast" }
+vibesql-parser = { path = "../vibesql-parser" }
+vibesql-executor = { path = "../vibesql-executor" }
+vibesql-storage = { path = "../vibesql-storage" }
+vibesql-catalog = { path = "../vibesql-catalog" }

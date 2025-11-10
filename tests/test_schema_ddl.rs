@@ -2,8 +2,8 @@
 //!
 //! Tests for CREATE SCHEMA, DROP SCHEMA, and SET SCHEMA statements.
 
-use ast::Statement;
-use parser::Parser;
+use vibesql_ast::Statement;
+use vibesql_parser::Parser;
 
 #[test]
 fn test_create_schema_basic() {
@@ -64,7 +64,7 @@ fn test_create_schema_with_table() {
 
             // Check that the table element is parsed
             match &create_stmt.schema_elements[0] {
-                ast::SchemaElement::CreateTable(table_stmt) => {
+                vibesql_ast::SchemaElement::CreateTable(table_stmt) => {
                     assert_eq!(table_stmt.table_name, "USERS");
                     assert_eq!(table_stmt.columns.len(), 2);
                 }
@@ -267,7 +267,7 @@ fn test_create_schema_complex_example() {
 
             // Check first table (books)
             match &create_stmt.schema_elements[0] {
-                ast::SchemaElement::CreateTable(table_stmt) => {
+                vibesql_ast::SchemaElement::CreateTable(table_stmt) => {
                     assert_eq!(table_stmt.table_name, "BOOKS");
                     assert_eq!(table_stmt.columns.len(), 3);
                 }
@@ -275,7 +275,7 @@ fn test_create_schema_complex_example() {
 
             // Check second table (authors)
             match &create_stmt.schema_elements[1] {
-                ast::SchemaElement::CreateTable(table_stmt) => {
+                vibesql_ast::SchemaElement::CreateTable(table_stmt) => {
                     assert_eq!(table_stmt.table_name, "AUTHORS");
                     assert_eq!(table_stmt.columns.len(), 2);
                 }
