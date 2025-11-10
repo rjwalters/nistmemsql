@@ -294,7 +294,7 @@ fn test_having_without_group_by_with_subquery() {
 
     // sales has 5 rows, targets has 1 row, so 5 > 1 is true
     assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].get(0), Some(&types::SqlValue::Integer(5)));
+    assert_eq!(rows[0].get(0), Some(&types::SqlValue::Numeric(5.0)));
 }
 
 #[test]
