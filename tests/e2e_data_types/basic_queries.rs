@@ -87,13 +87,13 @@ fn test_e2e_group_by_count() {
     // Find Apple row
     let apple_row = results.iter().find(|r| r.values[0] == SqlValue::Varchar("Apple".to_string()));
     assert!(apple_row.is_some());
-    assert_eq!(apple_row.unwrap().values[1], SqlValue::Numeric(2.0));
+    assert_eq!(apple_row.unwrap().values[1], SqlValue::Integer(2)); // COUNT(*) returns Integer
 
     // Find Banana row
     let banana_row =
         results.iter().find(|r| r.values[0] == SqlValue::Varchar("Banana".to_string()));
     assert!(banana_row.is_some());
-    assert_eq!(banana_row.unwrap().values[1], SqlValue::Numeric(1.0));
+    assert_eq!(banana_row.unwrap().values[1], SqlValue::Integer(1)); // COUNT(*) returns Integer
 }
 
 #[test]

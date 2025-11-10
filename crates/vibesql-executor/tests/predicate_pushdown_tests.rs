@@ -3,11 +3,11 @@
 //! These tests verify that table-local predicates are correctly identified and applied
 //! during table scans, reducing memory consumption in multi-table joins.
 
-use ast;
-use catalog;
+use vibesql_ast;
+use vibesql_catalog;
 use vibesql_executor::SelectExecutor;
-use parser;
-use types;
+use vibesql_parser;
+use vibesql_types;
 
 /// Helper function to parse SELECT statements
 fn parse_select(sql: &str) -> vibesql_ast::SelectStmt {

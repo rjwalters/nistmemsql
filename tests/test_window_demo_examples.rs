@@ -84,9 +84,9 @@ LIMIT 10"#;
         assert_eq!(result.len(), 3);
 
         // Each row should have total_employees = 3
-        assert_eq!(result[0].values[3], SqlValue::Integer(3));
-        assert_eq!(result[1].values[3], SqlValue::Integer(3));
-        assert_eq!(result[2].values[3], SqlValue::Integer(3));
+        assert_eq!(result[0].values[3], SqlValue::Numeric(3.0));
+        assert_eq!(result[1].values[3], SqlValue::Numeric(3.0));
+        assert_eq!(result[2].values[3], SqlValue::Numeric(3.0));
 
         println!("✅ Window demo example 'COUNT(*) OVER' works!");
     } else {
@@ -164,9 +164,9 @@ LIMIT 10"#;
         assert_eq!(result.len(), 3);
 
         // Verify running totals: 100, 300, 600
-        assert_eq!(result[0].values[2], SqlValue::Integer(100));
-        assert_eq!(result[1].values[2], SqlValue::Integer(300));
-        assert_eq!(result[2].values[2], SqlValue::Integer(600));
+        assert_eq!(result[0].values[2], SqlValue::Numeric(100.0));
+        assert_eq!(result[1].values[2], SqlValue::Numeric(300.0));
+        assert_eq!(result[2].values[2], SqlValue::Numeric(600.0));
 
         println!("✅ Window demo example 'Running Total' works!");
     } else {

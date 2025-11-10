@@ -9,7 +9,7 @@ fn test_join_search_module_compiles() {
     // and compiles.
 
     // Create a simple analyzer to verify the module works
-    use executor::select::join::{search::JoinOrderSearch, JoinOrderAnalyzer};
+    use vibesql_executor::select::join::{search::JoinOrderSearch, JoinOrderAnalyzer};
 
     let mut analyzer = JoinOrderAnalyzer::new();
     analyzer.register_tables(vec!["t1".to_string(), "t2".to_string()]);
