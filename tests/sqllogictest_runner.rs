@@ -53,7 +53,7 @@ impl NistMemSqlDB {
         // Count total values before flattening
         let total_values: usize = formatted_rows.iter().map(|r| r.len()).sum();
 
-        // For hashing, we need to sort and join the original rows using canonical format
+        // For hashing, join rows using canonical format (preserving original order)
         if total_values > 8 {
             let mut hasher = Md5::new();
             // Use canonical format for hashing (no .000 suffix for integers)
@@ -68,10 +68,9 @@ impl NistMemSqlDB {
                 })
                 .collect();
 
-            let mut sort_keys: Vec<_> = canonical_rows.iter().map(|row| row.join(" ")).collect();
-            sort_keys.sort();
-            for key in &sort_keys {
-                hasher.update(key);
+            let row_strings: Vec<_> = canonical_rows.iter().map(|row| row.join(" ")).collect();
+            for row_str in &row_strings {
+                hasher.update(row_str);
                 hasher.update("\n");
             }
             let hash = format!("{:x}", hasher.finalize());
