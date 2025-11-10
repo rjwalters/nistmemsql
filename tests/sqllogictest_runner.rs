@@ -32,7 +32,7 @@ impl NistMemSqlDB {
     }
 
     /// Format result rows for SQLLogicTest
-    /// Returns flattened results where each value becomes its own row
+    /// Returns rows with their multi-column structure intact
     /// Note: The sqllogictest library handles hashing based on its threshold configuration,
     /// so we always return actual values here.
     fn format_result_rows(
@@ -51,26 +51,7 @@ impl NistMemSqlDB {
             })
             .collect();
 
-        // Count total values before flattening
-        let total_values: usize = formatted_rows.iter().map(|r| r.len()).sum();
-
-        // Flatten multi-column results: each value becomes its own row
-        // This is required for SQLLogicTest format where each value is on separate rows
-        let mut flattened_rows: Vec<Vec<String>> = Vec::new();
-        let mut flattened_types: Vec<DefaultColumnType> = Vec::new();
-
-        // Get the type for single values (they're all treated as individual rows now)
-        if !types.is_empty() {
-            flattened_types = vec![types[0].clone(); total_values];
-        }
-
-        for row in formatted_rows {
-            for val in row {
-                flattened_rows.push(vec![val]);
-            }
-        }
-
-        Ok(DBOutput::Rows { types: flattened_types, rows: flattened_rows })
+        Ok(DBOutput::Rows { types, rows: formatted_rows })
     }
 
     fn execute_sql(&mut self, sql: &str) -> Result<DBOutput<DefaultColumnType>, TestError> {
@@ -393,10 +374,8 @@ INSERT INTO test VALUES (3, 4)
 query II rowsort
 SELECT * FROM test
 ----
-1
-2
-3
-4
+1 2
+3 4
 
 query I
 SELECT x FROM test WHERE y = 4
@@ -488,12 +467,12 @@ async fn test_issue_1170_multi_column_select_order() {
     let mut tester = sqllogictest::Runner::new(|| async { Ok(NistMemSqlDB::new()) });
 
     // Test with the exact syntax from the issue
+    // Multi-column results display columns space-separated on same line
     let script = r#"
 query II
 SELECT + + 74 AS col0, 50 col1
 ----
-74
-50
+74 50
 "#;
 
     tester.run_script(script).expect("Multi-column SELECT order test should pass");
