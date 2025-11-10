@@ -1,15 +1,17 @@
 //! Helper functions for SELECT query execution
 
-use std::collections::HashSet;
+use indexmap::IndexSet;
 
 /// Apply DISTINCT to remove duplicate rows
 ///
-/// Uses a HashSet to track unique rows. This requires SqlValue to implement
-/// Hash and Eq, which we've implemented with SQL semantics:
+/// Uses an IndexSet to track unique rows while preserving insertion order.
+/// This ensures deterministic results that match SQLite's behavior.
+/// This requires SqlValue to implement Hash and Eq, which we've implemented
+/// with SQL semantics:
 /// - NULL == NULL for grouping
 /// - NaN == NaN for grouping
 pub(super) fn apply_distinct(rows: Vec<storage::Row>) -> Vec<storage::Row> {
-    let mut seen = HashSet::new();
+    let mut seen = IndexSet::new();
     let mut result = Vec::new();
 
     for row in rows {

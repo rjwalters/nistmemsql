@@ -10,6 +10,7 @@ catalog = { path = "../catalog" }
 storage = { path = "../storage" }
 chrono = "0.4"
 rayon = "1.10"
+indexmap = "2.0"
 
 [dev-dependencies]
 parser = { path = "../parser" }
