@@ -5,6 +5,7 @@
 
 mod aggregate_function;
 mod binary_op;
+mod case;
 mod function;
 mod simple;
 mod subquery;
@@ -62,15 +63,19 @@ impl SelectExecutor<'_> {
                 subquery::evaluate_quantified(self, expr, group_rows, group_key, evaluator)
             }
 
-            // Simple expressions: Literal, ColumnRef, InList, Between, Cast, Like, IsNull, Case
+            // CASE expression - may contain aggregates in operand, conditions, or results
+            ast::Expression::Case { operand, when_clauses, else_result } => {
+                case::evaluate(self, operand, when_clauses, else_result, group_rows, group_key, evaluator)
+            }
+
+            // Simple expressions: Literal, ColumnRef, InList, Between, Cast, Like, IsNull
             ast::Expression::Literal(_)
             | ast::Expression::ColumnRef { .. }
             | ast::Expression::InList { .. }
             | ast::Expression::Between { .. }
             | ast::Expression::Cast { .. }
             | ast::Expression::Like { .. }
-            | ast::Expression::IsNull { .. }
-            | ast::Expression::Case { .. } => simple::evaluate(self, expr, group_rows, evaluator),
+            | ast::Expression::IsNull { .. } => simple::evaluate(self, expr, group_rows, evaluator),
 
             _ => Err(ExecutorError::UnsupportedExpression(format!(
                 "Unsupported expression in aggregate context: {:?}",
