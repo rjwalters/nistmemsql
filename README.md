@@ -120,7 +120,11 @@ cargo test --test sqltest_conformance -- --nocapture
 # Run SQLLogicTest baseline verification
 cargo test --test sqllogictest_basic
 
-# Run comprehensive SQLLogicTest suite with 5-minute time budget
+# Run comprehensive SQLLogicTest suite with parallel workers (recommended)
+# Uses all available CPUs, 5-minute budget per worker, includes analysis
+python3 scripts/run_parallel_tests.py --workers 8 --time-budget 300 --analyze
+
+# Or run single-threaded (slower, less coverage)
 SQLLOGICTEST_TIME_BUDGET=300 cargo test --test sqllogictest_suite --release -- --nocapture
 ```
 
