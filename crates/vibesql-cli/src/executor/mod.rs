@@ -6,7 +6,6 @@ use vibesql_storage::Database;
 // Submodules
 mod copy_handler;
 pub mod display;
-mod loader;
 pub mod validation;
 
 #[cfg(test)]
@@ -31,8 +30,9 @@ impl SqlExecutor {
         let db = if let Some(db_path) = database {
             // Check if file exists
             if std::path::Path::new(&db_path).exists() {
-                // Load existing database from SQL dump
-                loader::load_database(&db_path)?
+                // Load existing database from SQL dump using shared executor function
+                vibesql_executor::load_sql_dump(&db_path)
+                    .map_err(|e| anyhow::anyhow!("Failed to load database: {}", e))?
             } else {
                 // File doesn't exist, create new database
                 // (Will be saved when user uses \save or when modifications occur)
