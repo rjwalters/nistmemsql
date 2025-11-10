@@ -63,7 +63,10 @@ impl Database {
     }
 
     /// Create a table
-    pub fn create_table(&mut self, schema: vibesql_catalog::TableSchema) -> Result<(), StorageError> {
+    pub fn create_table(
+        &mut self,
+        schema: vibesql_catalog::TableSchema,
+    ) -> Result<(), StorageError> {
         let table_name = schema.name.clone();
 
         // Add to catalog
