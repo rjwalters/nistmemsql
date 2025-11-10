@@ -18,6 +18,9 @@ from typing import Dict, List, Set, Tuple
 import csv
 from datetime import datetime
 
+# Import shared configuration for test results storage
+from test_results_config import get_default_database_path, get_default_json_path
+
 
 def categorize_test_file(file_path: Path, test_dir: Path) -> str:
     """Categorize test file by its directory structure."""
@@ -297,20 +300,28 @@ def main():
     repo_root = script_dir.parent
     test_dir = repo_root / "third_party/sqllogictest/test"
 
-    # Prefer database over JSON
-    db_file = repo_root / "target/sqllogictest_results.sql"
+    # Check shared directory first, then fall back to target/ directory
+    shared_db = get_default_database_path()
+    shared_json = get_default_json_path()
+    legacy_db = repo_root / "target/sqllogictest_results.sql"
     json_cumulative = repo_root / "target/sqllogictest_cumulative.json"
-    json_results = repo_root / "target/sqllogictest_results.json"
+    legacy_json = repo_root / "target/sqllogictest_results.json"
 
-    if db_file.exists():
-        results_file = db_file
-        print(f"Using database: {db_file}")
+    if shared_db.exists():
+        results_file = shared_db
+        print(f"Using shared database: {shared_db}")
+    elif legacy_db.exists():
+        results_file = legacy_db
+        print(f"Using legacy database: {legacy_db}")
+    elif shared_json.exists():
+        results_file = shared_json
+        print(f"Using shared JSON results: {shared_json}")
     elif json_cumulative.exists():
         results_file = json_cumulative
         print(f"Using JSON results: {json_cumulative}")
-    elif json_results.exists():
-        results_file = json_results
-        print(f"Using JSON results: {json_results}")
+    elif legacy_json.exists():
+        results_file = legacy_json
+        print(f"Using legacy JSON results: {legacy_json}")
     else:
         results_file = None
         print("No previous results found")

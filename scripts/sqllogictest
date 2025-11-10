@@ -221,7 +221,7 @@ Examples:
 Serial Mode:
   - Runs tests sequentially in a single process
   - Good for local development and debugging
-  - Results in target/sqllogictest_results.json
+  - Results database in ~/.vibesql/test_results/
 
 Parallel Mode:
   - Spawns multiple workers to test different files concurrently
@@ -286,7 +286,7 @@ EOF
         if [ -f "$results_file" ]; then
             print_info "Processing results into database..."
             if python3 scripts/process_test_results.py --input "$results_file"; then
-                print_success "Database updated: target/sqllogictest_results.sql"
+                print_success "Database updated: ~/.vibesql/test_results/sqllogictest_results.sql"
             else
                 print_warning "Failed to update database (test results still in JSON)"
             fi
@@ -301,14 +301,14 @@ EOF
             cargo test --test sqllogictest_suite run_sqllogictest_suite -- --nocapture
 
         print_success "Serial run complete"
-        echo "Results: target/sqllogictest_results.json"
+        echo "Results database: ~/.vibesql/test_results/sqllogictest_results.sql"
 
         # Process results into database
         local results_file="target/sqllogictest_results.json"
         if [ -f "$results_file" ]; then
             print_info "Processing results into database..."
             if python3 scripts/process_test_results.py --input "$results_file"; then
-                print_success "Database updated: target/sqllogictest_results.sql"
+                print_success "Database updated: ~/.vibesql/test_results/sqllogictest_results.sql"
                 echo ""
                 echo "Query your results:"
                 echo "  ./scripts/query_test_results.py --preset failed-files"

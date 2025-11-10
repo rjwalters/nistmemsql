@@ -19,8 +19,9 @@ Features:
 Example:
     # After a test run
     ./scripts/process_test_results.py \
-        --input target/sqllogictest_results.json \
-        --database target/sqllogictest_results.sql
+        --input target/sqllogictest_results.json
+
+    # Results stored in: ~/.vibesql/test_results/sqllogictest_results.sql
 """
 
 import argparse
@@ -30,6 +31,13 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+# Import shared configuration for test results storage
+from test_results_config import (
+    get_default_database_path,
+    get_default_json_path,
+    migrate_legacy_results,
+)
 
 
 def get_repo_root() -> Path:
@@ -290,7 +298,7 @@ def main():
         "--database",
         type=Path,
         default=None,
-        help="Database SQL dump file (default: target/sqllogictest_results.sql)",
+        help="Database SQL dump file (default: ~/.vibesql/test_results/sqllogictest_results.sql)",
     )
     parser.add_argument(
         "--schema",
@@ -303,8 +311,11 @@ def main():
 
     # Set defaults
     repo_root = get_repo_root()
-    db_path = args.database or (repo_root / "target" / "sqllogictest_results.sql")
+    db_path = args.database or get_default_database_path()
     schema_path = args.schema or (repo_root / "scripts" / "schema" / "test_results.sql")
+
+    # Attempt to migrate legacy results from target/ directory
+    migrate_legacy_results(repo_root, verbose=True)
 
     # Ensure target directory exists
     db_path.parent.mkdir(parents=True, exist_ok=True)

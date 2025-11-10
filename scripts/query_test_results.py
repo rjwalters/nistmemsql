@@ -33,6 +33,9 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
+# Import shared configuration for test results storage
+from test_results_config import get_default_database_path
+
 
 def get_repo_root() -> Path:
     """Find the repository root directory."""
@@ -285,7 +288,7 @@ def main():
         "--database",
         type=Path,
         default=None,
-        help="Database SQL dump file (default: target/sqllogictest_results.sql)",
+        help="Database SQL dump file (default: ~/.vibesql/test_results/sqllogictest_results.sql)",
     )
     parser.add_argument(
         "--list-presets",
@@ -308,8 +311,7 @@ def main():
         return 1
 
     # Determine database path
-    repo_root = get_repo_root()
-    db_path = args.database or (repo_root / "target" / "sqllogictest_results.sql")
+    db_path = args.database or get_default_database_path()
 
     # Check database exists
     if not db_path.exists():
