@@ -29,20 +29,19 @@ thread_local! {
 
 /// Get a reset Database from the thread-local pool.
 /// First call creates a new Database, subsequent calls reuse and reset the existing one.
+/// Uses take/replace pattern to avoid cloning overhead.
 fn get_pooled_database() -> Database {
     DB_POOL.with(|pool| {
         let mut pool_ref = pool.borrow_mut();
-        match pool_ref.as_mut() {
-            Some(db) => {
-                // Reuse existing database after resetting it
+        match pool_ref.take() {
+            Some(mut db) => {
+                // Reuse existing database after resetting it (no clone)
                 db.reset();
-                db.clone()
+                db
             }
             None => {
-                // First use - create new database and cache it
-                let db = Database::new();
-                *pool_ref = Some(db.clone());
-                db
+                // First use - create new database
+                Database::new()
             }
         }
     })
@@ -470,5 +469,18 @@ impl NistMemSqlDB {
         sql: &str,
     ) -> Result<DBOutput<DefaultColumnType>, TestError> {
         self.execute_sql(sql)
+    }
+}
+
+impl Drop for NistMemSqlDB {
+    fn drop(&mut self) {
+        // Return database to thread-local pool for reuse
+        // Only return if pool is empty to avoid conflicts with multiple instances
+        DB_POOL.with(|pool| {
+            let mut pool_ref = pool.borrow_mut();
+            if pool_ref.is_none() {
+                *pool_ref = Some(std::mem::take(&mut self.db));
+            }
+        });
     }
 }
