@@ -53,6 +53,17 @@ fn test_numeric_display() {
 }
 
 #[test]
+fn test_numeric_whole_number_display() {
+    // Whole numbers should display with .000 to match SQLite formatting
+    let value = SqlValue::Numeric(223.0);
+    assert_eq!(format!("{}", value), "223.000");
+
+    // Negative whole numbers
+    let value = SqlValue::Numeric(-42.0);
+    assert_eq!(format!("{}", value), "-42.000");
+}
+
+#[test]
 fn test_float_display() {
     let value = SqlValue::Float(2.5);
     assert_eq!(format!("{}", value), "2.5");

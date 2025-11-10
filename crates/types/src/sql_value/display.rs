@@ -11,8 +11,8 @@ impl fmt::Display for SqlValue {
             SqlValue::Smallint(i) => write!(f, "{}", i),
             SqlValue::Bigint(i) => write!(f, "{}", i),
             SqlValue::Unsigned(u) => write!(f, "{}", u),
-            // Format Numeric - show whole numbers without decimals,
-            // fractional numbers without trailing zeros
+            // Format Numeric - match SQLite formatting with .000 for whole numbers
+            // This ensures aggregate functions (SUM, AVG) match SQLite output exactly
             SqlValue::Numeric(n) => {
                 if n.is_nan() {
                     write!(f, "NaN")
@@ -23,8 +23,8 @@ impl fmt::Display for SqlValue {
                         write!(f, "-Infinity")
                     }
                 } else if n.fract() == 0.0 {
-                    // Whole number - display without decimals
-                    write!(f, "{}", *n as i64)
+                    // Whole number - display with .000 to match SQLite format
+                    write!(f, "{:.3}", n)
                 } else {
                     // Has fractional part - use default formatting (no trailing zeros)
                     write!(f, "{}", n)
