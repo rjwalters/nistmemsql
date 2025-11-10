@@ -309,4 +309,172 @@ mod tests {
         let result = DropTableExecutor::execute(&drop_stmt, &mut db);
         assert!(result.is_ok());
     }
+
+    #[test]
+    fn test_drop_table_cascades_to_indexes() {
+        use ast::{CreateIndexStmt, IndexColumn, OrderDirection};
+        use crate::CreateIndexExecutor;
+
+        let mut db = Database::new();
+
+        // Create table
+        let create_stmt = CreateTableStmt {
+            table_name: "users".to_string(),
+            columns: vec![
+                ColumnDef {
+                    name: "id".to_string(),
+                    data_type: DataType::Integer,
+                    nullable: false,
+                    constraints: vec![],
+                    default_value: None,
+                    comment: None,
+                },
+                ColumnDef {
+                    name: "email".to_string(),
+                    data_type: DataType::Varchar { max_length: Some(255) },
+                    nullable: false,
+                    constraints: vec![],
+                    default_value: None,
+                    comment: None,
+                },
+            ],
+            table_constraints: vec![],
+            table_options: vec![],
+        };
+        CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
+
+        // Create indexes on the table
+        let index1_stmt = CreateIndexStmt {
+            index_name: "idx_users_email".to_string(),
+            if_not_exists: false,
+            table_name: "users".to_string(),
+            unique: false,
+            columns: vec![IndexColumn {
+                column_name: "email".to_string(),
+                direction: OrderDirection::Asc,
+            }],
+        };
+        CreateIndexExecutor::execute(&index1_stmt, &mut db).unwrap();
+
+        let index2_stmt = CreateIndexStmt {
+            index_name: "idx_users_id".to_string(),
+            if_not_exists: false,
+            table_name: "users".to_string(),
+            unique: false,
+            columns: vec![IndexColumn {
+                column_name: "id".to_string(),
+                direction: OrderDirection::Asc,
+            }],
+        };
+        CreateIndexExecutor::execute(&index2_stmt, &mut db).unwrap();
+
+        // Verify indexes exist
+        assert!(db.index_exists("idx_users_email"));
+        assert!(db.index_exists("idx_users_id"));
+
+        // Drop the table
+        let drop_stmt = DropTableStmt { table_name: "users".to_string(), if_exists: false };
+        let result = DropTableExecutor::execute(&drop_stmt, &mut db);
+        assert!(result.is_ok());
+
+        // Verify table is dropped
+        assert!(!db.catalog.table_exists("users"));
+
+        // Verify indexes are also dropped (CASCADE behavior)
+        assert!(!db.index_exists("idx_users_email"));
+        assert!(!db.index_exists("idx_users_id"));
+    }
+
+    #[test]
+    fn test_drop_and_recreate_table_with_same_index_names() {
+        use ast::{CreateIndexStmt, IndexColumn, OrderDirection};
+        use crate::CreateIndexExecutor;
+
+        let mut db = Database::new();
+
+        // Create table
+        let create_stmt = CreateTableStmt {
+            table_name: "products".to_string(),
+            columns: vec![
+                ColumnDef {
+                    name: "id".to_string(),
+                    data_type: DataType::Integer,
+                    nullable: false,
+                    constraints: vec![],
+                    default_value: None,
+                    comment: None,
+                },
+                ColumnDef {
+                    name: "name".to_string(),
+                    data_type: DataType::Varchar { max_length: Some(100) },
+                    nullable: false,
+                    constraints: vec![],
+                    default_value: None,
+                    comment: None,
+                },
+            ],
+            table_constraints: vec![],
+            table_options: vec![],
+        };
+        CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
+
+        // Create index
+        let index_stmt = CreateIndexStmt {
+            index_name: "idx_products_name".to_string(),
+            if_not_exists: false,
+            table_name: "products".to_string(),
+            unique: false,
+            columns: vec![IndexColumn {
+                column_name: "name".to_string(),
+                direction: OrderDirection::Asc,
+            }],
+        };
+        CreateIndexExecutor::execute(&index_stmt, &mut db).unwrap();
+
+        // Verify index exists
+        assert!(db.index_exists("idx_products_name"));
+
+        // Drop the table (should cascade to drop index)
+        let drop_stmt = DropTableStmt { table_name: "products".to_string(), if_exists: false };
+        DropTableExecutor::execute(&drop_stmt, &mut db).unwrap();
+
+        // Verify both table and index are dropped
+        assert!(!db.catalog.table_exists("products"));
+        assert!(!db.index_exists("idx_products_name"));
+
+        // Recreate table with same name
+        CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
+
+        // Create index with same name - should succeed (no IndexAlreadyExists error)
+        let result = CreateIndexExecutor::execute(&index_stmt, &mut db);
+        assert!(result.is_ok(), "Should be able to recreate index with same name after table drop");
+        assert!(db.index_exists("idx_products_name"));
+    }
+
+    #[test]
+    fn test_drop_table_without_indexes() {
+        let mut db = Database::new();
+
+        // Create table without indexes
+        let create_stmt = CreateTableStmt {
+            table_name: "simple_table".to_string(),
+            columns: vec![ColumnDef {
+                name: "id".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                constraints: vec![],
+                default_value: None,
+                comment: None,
+            }],
+            table_constraints: vec![],
+            table_options: vec![],
+        };
+        CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
+
+        // Drop table without indexes - should still work
+        let drop_stmt = DropTableStmt { table_name: "simple_table".to_string(), if_exists: false };
+        let result = DropTableExecutor::execute(&drop_stmt, &mut db);
+        assert!(result.is_ok(), "Dropping table without indexes should still work");
+        assert!(!db.catalog.table_exists("simple_table"));
+    }
 }
