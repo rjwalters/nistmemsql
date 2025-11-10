@@ -58,3 +58,4 @@ node_modules/
 
 # Benchmark results
 benchmark_results.json
+conformance-report.html

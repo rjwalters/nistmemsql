@@ -56,10 +56,10 @@ pub fn execute_query(db: &Database, sql: &str) -> Result<JsValue, JsValue> {
                     types::SqlValue::Numeric(n) => serde_json::Number::from_f64(*n)
                         .map(serde_json::Value::Number)
                         .unwrap_or(serde_json::Value::Null),
-                    types::SqlValue::Date(s)
-                    | types::SqlValue::Time(s)
-                    | types::SqlValue::Timestamp(s)
-                    | types::SqlValue::Interval(s) => serde_json::Value::String(s.clone()),
+                    types::SqlValue::Date(d) => serde_json::Value::String(d.to_string()),
+                    types::SqlValue::Time(t) => serde_json::Value::String(t.to_string()),
+                    types::SqlValue::Timestamp(ts) => serde_json::Value::String(ts.to_string()),
+                    types::SqlValue::Interval(i) => serde_json::Value::String(i.to_string()),
                     types::SqlValue::Null => serde_json::Value::Null,
                 })
                 .collect();
