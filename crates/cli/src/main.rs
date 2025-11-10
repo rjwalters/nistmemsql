@@ -17,30 +17,81 @@ use script::ScriptExecutor;
 #[derive(Parser, Debug)]
 #[command(name = "vibesql")]
 #[command(version = "0.1.0")]
-#[command(about = "VibeSQL command-line interface", long_about = None)]
+#[command(about = "VibeSQL - SQL:1999 FULL Compliance Database")]
+#[command(long_about = "VibeSQL command-line interface
+
+USAGE MODES:
+  Interactive REPL:    vibesql [--database <FILE>]
+  Execute Command:     vibesql -c \"SELECT * FROM users\"
+  Execute File:        vibesql -f script.sql
+  Execute from stdin:  cat data.sql | vibesql
+
+INTERACTIVE REPL:
+  When started without -c, -f, or piped input, VibeSQL enters an interactive
+  REPL with readline support, command history, and meta-commands like:
+    \\d [table]  - Describe table or list all tables
+    \\dt         - List tables
+    \\f <format> - Set output format
+    \\copy       - Import/export CSV/JSON
+    \\help       - Show all REPL commands
+
+CONFIGURATION:
+  Settings can be configured in ~/.vibesqlrc (TOML format):
+    [display]
+    format = \"table\"              # Default output format
+
+    [database]
+    default_path = \"~/data.db\"    # Default database file
+    auto_save = true               # Auto-save on exit
+
+    [history]
+    file = \"~/.vibesql_history\"   # Command history file
+    max_entries = 10000            # Max history entries
+
+    [query]
+    timeout_seconds = 0            # Query timeout (0 = no limit)
+
+EXAMPLES:
+  # Start interactive REPL with in-memory database
+  vibesql
+
+  # Use persistent database file
+  vibesql --database mydata.db
+
+  # Execute single command
+  vibesql -c \"CREATE TABLE users (id INT, name VARCHAR(100))\"
+
+  # Run SQL script file
+  vibesql -f schema.sql -v
+
+  # Import data from CSV
+  echo \"\\\\copy users FROM 'data.csv'\" | vibesql --database mydata.db
+
+  # Export query results as JSON
+  vibesql -d mydata.db -c \"SELECT * FROM users\" --format json")]
 struct Args {
-    /// Interactive database file path (optional for in-memory database)
-    #[arg(short, long)]
+    /// Database file path (if not specified, uses in-memory database)
+    #[arg(short, long, value_name = "FILE")]
     database: Option<String>,
 
-    /// Execute SQL from file
-    #[arg(short, long)]
+    /// Execute SQL commands from file
+    #[arg(short, long, value_name = "FILE")]
     file: Option<String>,
 
-    /// Execute SQL command directly
-    #[arg(short, long)]
+    /// Execute SQL command directly and exit
+    #[arg(short, long, value_name = "SQL")]
     command: Option<String>,
 
-    /// Read SQL from stdin
+    /// Read SQL commands from stdin (auto-detected when piped)
     #[arg(long)]
     stdin: bool,
 
-    /// Verbose output for batch execution
+    /// Show detailed output during file/stdin execution
     #[arg(short, long)]
     verbose: bool,
 
-    /// Output format (table, json, csv)
-    #[arg(long, value_parser = ["table", "json", "csv"])]
+    /// Output format for query results
+    #[arg(long, value_parser = ["table", "json", "csv", "markdown", "html"], value_name = "FORMAT")]
     format: Option<String>,
 }
 
@@ -83,6 +134,8 @@ fn parse_format(format_str: &str) -> Option<OutputFormat> {
         "table" => Some(OutputFormat::Table),
         "json" => Some(OutputFormat::Json),
         "csv" => Some(OutputFormat::Csv),
+        "markdown" => Some(OutputFormat::Markdown),
+        "html" => Some(OutputFormat::Html),
         _ => None,
     }
 }
