@@ -76,7 +76,6 @@ fn test_on_delete_no_action_without_references() {
 }
 
 #[test]
-#[ignore] // TODO: CASCADE not yet implemented in executor
 fn test_on_delete_cascade_single_level() {
     let mut db = Database::new();
 
@@ -109,7 +108,6 @@ fn test_on_delete_cascade_single_level() {
 }
 
 #[test]
-#[ignore] // TODO: CASCADE not yet implemented in executor
 fn test_on_delete_cascade_multi_level() {
     let mut db = Database::new();
 
@@ -162,7 +160,6 @@ fn test_on_delete_cascade_multi_level() {
 }
 
 #[test]
-#[ignore] // TODO: SET NULL not yet implemented in executor
 fn test_on_delete_set_null() {
     let mut db = Database::new();
 
@@ -196,7 +193,6 @@ fn test_on_delete_set_null() {
 }
 
 #[test]
-#[ignore] // TODO: SET DEFAULT not yet implemented in executor
 fn test_on_delete_set_default() {
     let mut db = Database::new();
 

@@ -52,6 +52,171 @@ fn is_equijoin_condition(condition: &Option<ast::Expression>) -> bool {
     }
 }
 
+/// Optimized evaluation result for equijoin conditions
+#[derive(Debug)]
+enum EquijoinEvalStrategy {
+    /// Simple equijoin - can evaluate by direct value comparison
+    /// (left_col_idx, right_col_idx, evaluator for remaining conditions)
+    Simple {
+        left_col_idx: usize,
+        right_col_idx: usize,
+        remaining_condition: Option<ast::Expression>,
+    },
+    /// Complex condition - need full evaluation with combined_row
+    Complex,
+}
+
+/// Analyze join condition to determine optimization strategy
+fn analyze_join_condition(
+    condition: &ast::Expression,
+    schema: &CombinedSchema,
+    left_col_count: usize,
+) -> EquijoinEvalStrategy {
+    use super::join_analyzer;
+
+    // Try to detect a simple equijoin pattern
+    if let Some(equi_info) = join_analyzer::analyze_equi_join(condition, schema, left_col_count) {
+        // Simple equijoin detected - use optimized path
+        return EquijoinEvalStrategy::Simple {
+            left_col_idx: equi_info.left_col_idx,
+            right_col_idx: equi_info.right_col_idx,
+            remaining_condition: None,
+        };
+    }
+
+    // Check if condition is an AND with at least one simple equijoin
+    if let ast::Expression::BinaryOp { op: ast::BinaryOperator::And, left, right } = condition {
+        // Try left side
+        if let Some(equi_info) = join_analyzer::analyze_equi_join(left, schema, left_col_count) {
+            return EquijoinEvalStrategy::Simple {
+                left_col_idx: equi_info.left_col_idx,
+                right_col_idx: equi_info.right_col_idx,
+                remaining_condition: Some(right.as_ref().clone()),
+            };
+        }
+        // Try right side
+        if let Some(equi_info) = join_analyzer::analyze_equi_join(right, schema, left_col_count) {
+            return EquijoinEvalStrategy::Simple {
+                left_col_idx: equi_info.left_col_idx,
+                right_col_idx: equi_info.right_col_idx,
+                remaining_condition: Some(left.as_ref().clone()),
+            };
+        }
+    }
+
+    // Complex condition - fall back to classic algorithm
+    EquijoinEvalStrategy::Complex
+}
+
+/// Execute optimized equijoin by comparing values before allocating combined_row
+fn execute_optimized_equijoin(
+    left_rows: &[storage::Row],
+    right_rows: &[storage::Row],
+    left_col_idx: usize,
+    right_col_idx: usize,
+    remaining_condition: Option<&ast::Expression>,
+    schema: &CombinedSchema,
+    database: &storage::Database,
+) -> Result<Vec<storage::Row>, ExecutorError> {
+    let mut result_rows = Vec::new();
+
+    // Create evaluator for remaining conditions if needed
+    let evaluator = if remaining_condition.is_some() {
+        Some(CombinedExpressionEvaluator::with_database(schema, database))
+    } else {
+        None
+    };
+
+    for left_row in left_rows {
+        let left_value = &left_row.values[left_col_idx];
+
+        for right_row in right_rows {
+            let right_value = &right_row.values[right_col_idx];
+
+            // OPTIMIZATION: Compare values BEFORE allocating combined_row
+            // This prevents allocation for pairs that won't match
+            if left_value != right_value {
+                continue; // Skip this pair - equijoin doesn't match
+            }
+
+            // Values match! Now check remaining conditions if any
+            if let Some(remaining_cond) = remaining_condition {
+                // Need to create combined_row to evaluate remaining condition
+                let combined_row = combine_rows(left_row, right_row);
+
+                // Clear CSE cache before evaluation
+                evaluator.as_ref().unwrap().clear_cse_cache();
+
+                let matches = match evaluator.as_ref().unwrap().eval(remaining_cond, &combined_row)? {
+                    types::SqlValue::Boolean(true) => true,
+                    types::SqlValue::Boolean(false) | types::SqlValue::Null => false,
+                    other => {
+                        return Err(ExecutorError::InvalidWhereClause(format!(
+                            "JOIN condition must evaluate to boolean, got: {:?}",
+                            other
+                        )))
+                    }
+                };
+
+                if matches {
+                    result_rows.push(combined_row);
+                }
+            } else {
+                // No remaining conditions - equijoin matched, add the row
+                result_rows.push(combine_rows(left_row, right_row));
+            }
+        }
+    }
+
+    Ok(result_rows)
+}
+
+/// Classic nested loop join algorithm (allocate then evaluate)
+fn execute_nested_loop_classic(
+    left_rows: &[storage::Row],
+    right_rows: &[storage::Row],
+    condition: &Option<ast::Expression>,
+    schema: &CombinedSchema,
+    database: &storage::Database,
+) -> Result<Vec<storage::Row>, ExecutorError> {
+    let evaluator = CombinedExpressionEvaluator::with_database(schema, database);
+    let mut result_rows = Vec::new();
+
+    for left_row in left_rows {
+        for right_row in right_rows {
+            // Combine rows using optimized helper (single allocation)
+            let combined_row = combine_rows(left_row, right_row);
+
+            // Clear CSE cache before evaluating join condition for this row combination
+            // to prevent stale cached column values from previous combinations
+            evaluator.clear_cse_cache();
+
+            // Evaluate join condition
+            let matches = if let Some(cond) = condition {
+                match evaluator.eval(cond, &combined_row)? {
+                    types::SqlValue::Boolean(true) => true,
+                    types::SqlValue::Boolean(false) => false,
+                    types::SqlValue::Null => false,
+                    other => {
+                        return Err(ExecutorError::InvalidWhereClause(format!(
+                            "JOIN condition must evaluate to boolean, got: {:?}",
+                            other
+                        )))
+                    }
+                }
+            } else {
+                true // No condition = CROSS JOIN
+            };
+
+            if matches {
+                result_rows.push(combined_row);
+            }
+        }
+    }
+
+    Ok(result_rows)
+}
+
 /// Nested loop INNER JOIN implementation
 pub(super) fn nested_loop_inner_join(
     left: FromResult,
@@ -82,37 +247,37 @@ pub(super) fn nested_loop_inner_join(
     // Combine schemas
     let combined_schema =
         CombinedSchema::combine(left.schema.clone(), right_table_name, right_schema);
-    let evaluator = CombinedExpressionEvaluator::with_database(&combined_schema, database);
 
-    // Nested loop join algorithm
-    let mut result_rows = Vec::new();
-    for left_row in &left.rows {
-        for right_row in &right.rows {
-            // Combine rows using optimized helper (single allocation)
-            let combined_row = combine_rows(left_row, right_row);
+    // OPTIMIZATION: Analyze condition to see if we can evaluate equijoin before allocation
+    // This prevents creating combined_row for pairs that won't match the join condition
+    let left_col_count: usize =
+        left.schema.table_schemas.values().map(|(_, schema)| schema.columns.len()).sum();
 
-            // Evaluate join condition
-            let matches = if let Some(cond) = condition {
-                match evaluator.eval(cond, &combined_row)? {
-                    types::SqlValue::Boolean(true) => true,
-                    types::SqlValue::Boolean(false) => false,
-                    types::SqlValue::Null => false,
-                    other => {
-                        return Err(ExecutorError::InvalidWhereClause(format!(
-                            "JOIN condition must evaluate to boolean, got: {:?}",
-                            other
-                        )))
-                    }
-                }
-            } else {
-                true // No condition = CROSS JOIN
-            };
+    let eval_strategy = if let Some(cond) = condition {
+        analyze_join_condition(cond, &combined_schema, left_col_count)
+    } else {
+        EquijoinEvalStrategy::Complex
+    };
 
-            if matches {
-                result_rows.push(combined_row);
-            }
+    // Execute join with optimized strategy
+    let result_rows = match eval_strategy {
+        EquijoinEvalStrategy::Simple { left_col_idx, right_col_idx, remaining_condition } => {
+            // FAST PATH: Evaluate equijoin by direct value comparison before allocation
+            execute_optimized_equijoin(
+                &left.rows,
+                &right.rows,
+                left_col_idx,
+                right_col_idx,
+                remaining_condition.as_ref(),
+                &combined_schema,
+                database,
+            )?
         }
-    }
+        EquijoinEvalStrategy::Complex => {
+            // SLOW PATH: Use existing algorithm (allocate then evaluate)
+            execute_nested_loop_classic(&left.rows, &right.rows, condition, &combined_schema, database)?
+        }
+    };
 
     Ok(FromResult { schema: combined_schema, rows: result_rows })
 }
@@ -158,6 +323,10 @@ pub(super) fn nested_loop_left_outer_join(
         for right_row in &right.rows {
             // Combine rows using optimized helper (single allocation)
             let combined_row = combine_rows(left_row, right_row);
+
+            // Clear CSE cache before evaluating join condition for this row combination
+            // to prevent stale cached column values from previous combinations
+            evaluator.clear_cse_cache();
 
             // Evaluate join condition
             let matches = if let Some(cond) = condition {
@@ -296,6 +465,10 @@ pub(super) fn nested_loop_full_outer_join(
         for (right_idx, right_row) in right.rows.iter().enumerate() {
             // Combine rows using optimized helper (single allocation)
             let combined_row = combine_rows(left_row, right_row);
+
+            // Clear CSE cache before evaluating join condition for this row combination
+            // to prevent stale cached column values from previous combinations
+            evaluator.clear_cse_cache();
 
             // Evaluate join condition
             let matches = if let Some(cond) = condition {

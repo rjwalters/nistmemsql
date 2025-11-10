@@ -44,17 +44,16 @@ impl SelectExecutor<'_> {
                 self.execute_from_with_where(from_clause, cte_results, stmt.where_clause.as_ref())?
             }
             None => {
-                // SELECT without FROM - create single-row table for aggregates
-                // SQL standard behavior: SELECT without FROM operates over ONE implicit row
-                // - COUNT(*) returns 1 (one implicit row)
-                // - MAX(100) returns 100 (evaluated on one row)
-                // - SUM(5) returns 5 (sum of one value)
+                // SELECT without FROM with aggregates - operate over ONE implicit row
+                // SQL standard behavior: SELECT without FROM operates over single implicit row
+                // - COUNT(*) returns 1 (counting one implicit row)
+                // - COUNT(expr), SUM(expr), MAX/MIN/AVG(expr) evaluate expr on that one row
                 use crate::{schema::CombinedSchema, select::join::FromResult};
 
                 let empty_schema = catalog::TableSchema::new("".to_string(), vec![]);
                 let combined_schema = CombinedSchema::from_table("".to_string(), empty_schema);
 
-                // Single empty row - represents implicit row for SELECT without FROM
+                // One implicit row with no columns (SQL standard for SELECT without FROM)
                 FromResult { schema: combined_schema, rows: vec![storage::Row::new(vec![])] }
             }
         };
@@ -114,6 +113,9 @@ impl SelectExecutor<'_> {
         for (group_key, group_rows) in groups {
             // Clear aggregate cache for new group
             self.clear_aggregate_cache();
+
+            // Clear CSE cache for new group to prevent cross-group contamination
+            evaluator.clear_cse_cache();
 
             // Check timeout during aggregation
             self.check_timeout()?;

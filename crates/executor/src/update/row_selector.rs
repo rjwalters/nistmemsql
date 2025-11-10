@@ -102,6 +102,10 @@ impl<'a> RowSelector<'a> {
         let mut candidate_rows = Vec::new();
 
         for (row_index, row) in table.scan().iter().enumerate() {
+            // Clear CSE cache before evaluating each row to prevent column values
+            // from being incorrectly cached across different rows
+            evaluator.clear_cse_cache();
+
             // Check WHERE clause
             let should_update = if let Some(ref where_clause) = where_clause {
                 match where_clause {
@@ -110,11 +114,27 @@ impl<'a> RowSelector<'a> {
                         // SQL semantics: only TRUE (not NULL) causes update
                         matches!(result, types::SqlValue::Boolean(true))
                     }
-                    ast::WhereClause::CurrentOf(_cursor_name) => {
-                        // TODO: Implement cursor support - for now return error
-                        return Err(ExecutorError::UnsupportedFeature(
-                            "WHERE CURRENT OF cursor is not yet implemented".to_string(),
-                        ));
+                    ast::WhereClause::CurrentOf(cursor_name) => {
+                        // TODO: Implement cursor support for positioned UPDATE/DELETE
+                        //
+                        // Requirements for implementation:
+                        // 1. Cursor registry/manager in Database to track declared cursors
+                        // 2. Cursor state tracking (current position, result set, etc.)
+                        // 3. Executor support for DECLARE/OPEN/FETCH/CLOSE statements
+                        // 4. Integration with UPDATE/DELETE to access cursor position
+                        //
+                        // Note: Parser and AST support for cursors already exists in:
+                        // - crates/ast/src/ddl/cursor.rs (DeclareCursorStmt, etc.)
+                        // - crates/parser/src/parser/cursor.rs (parsing logic)
+                        //
+                        // See SQL:1999 Feature E121 for cursor specification.
+                        return Err(ExecutorError::UnsupportedFeature(format!(
+                            "WHERE CURRENT OF {} - Positioned UPDATE/DELETE not yet implemented. \
+                            Requires cursor infrastructure (DECLARE/OPEN/FETCH/CLOSE execution, \
+                            cursor state management, and position tracking). \
+                            Use a standard WHERE clause instead.",
+                            cursor_name
+                        )));
                     }
                 }
             } else {

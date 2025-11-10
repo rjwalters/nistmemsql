@@ -20,7 +20,22 @@ impl ExpressionEvaluator<'_> {
             });
         }
 
-        // Increment depth for recursive calls
+        // CSE: Check cache if enabled and expression is deterministic
+        if self.enable_cse && super::super::expression_hash::ExpressionHasher::is_deterministic(expr) {
+            let hash = super::super::expression_hash::ExpressionHasher::hash(expr);
+
+            // Check cache
+            if let Some(cached) = self.cse_cache.borrow().get(&hash) {
+                return Ok(cached.clone());
+            }
+
+            // Evaluate with depth increment and cache result
+            let result = self.with_incremented_depth(|evaluator| evaluator.eval_impl(expr, row))?;
+            self.cse_cache.borrow_mut().insert(hash, result.clone());
+            return Ok(result);
+        }
+
+        // Non-cached path: increment depth and evaluate
         self.with_incremented_depth(|evaluator| evaluator.eval_impl(expr, row))
     }
 
@@ -204,15 +219,28 @@ impl ExpressionEvaluator<'_> {
 
             // NEXT VALUE FOR sequence expression
             // TODO: Implement proper sequence evaluation
-            // This requires mutable access to the catalog to advance sequences.
+            //
+            // Requirements for implementation:
+            // 1. Sequence catalog objects (CREATE SEQUENCE, DROP SEQUENCE, etc.)
+            // 2. Sequence state storage (current value, increment, min/max, cycle, etc.)
+            // 3. Mutable access to catalog to advance sequences (architectural change)
+            // 4. Thread-safe sequence value generation
+            //
             // Current architecture has immutable database references in evaluator.
-            // Solutions:
-            // 1. Use RefCell<Sequence> for interior mutability in catalog
+            // Possible solutions:
+            // 1. Use RefCell<Sequence> or Arc<Mutex<Sequence>> for interior mutability
             // 2. Handle NEXT VALUE FOR at statement execution level (INSERT/SELECT)
             // 3. Change evaluator to accept mutable database reference
+            // 4. Use a separate sequence manager with thread-safe state
+            //
+            // Note: Parser and AST support already exists (Expression::NextValue).
+            // See SQL:1999 Section 6.13 for sequence expression specification.
             ast::Expression::NextValue { sequence_name } => {
                 Err(ExecutorError::UnsupportedExpression(format!(
-                    "NEXT VALUE FOR {} not yet implemented - requires mutable catalog access",
+                    "NEXT VALUE FOR {} - Sequence expressions not yet implemented. \
+                    Requires sequence catalog infrastructure (CREATE SEQUENCE support), \
+                    sequence state management, and mutable catalog access. \
+                    Use auto-incrementing primary keys or generate values in application code instead.",
                     sequence_name
                 )))
             }
@@ -230,10 +258,71 @@ impl ExpressionEvaluator<'_> {
         let mut searched_tables = Vec::new();
         let mut available_columns = Vec::new();
 
-        // If table qualifier is provided, we should only search that specific schema
-        // For now, we don't have full qualified name support, so we ignore it
-        // TODO: In the future, validate the table qualifier matches the schema name
+        // If table qualifier is provided, validate it matches a known schema
+        if let Some(qualifier) = table_qualifier {
+            let qualifier_lower = qualifier.to_lowercase();
+            let inner_name_lower = self.schema.name.to_lowercase();
 
+            // Check if qualifier matches inner schema
+            if qualifier_lower == inner_name_lower {
+                // Qualifier matches inner schema - search only there
+                searched_tables.push(self.schema.name.clone());
+                if let Some(col_index) = self.schema.get_column_index(column) {
+                    return row
+                        .get(col_index)
+                        .cloned()
+                        .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: col_index });
+                }
+            } else if let Some(outer_schema) = self.outer_schema {
+                let outer_name_lower = outer_schema.name.to_lowercase();
+
+                // Check if qualifier matches outer schema
+                if qualifier_lower == outer_name_lower {
+                    // Qualifier matches outer schema - search only there
+                    if let Some(outer_row) = self.outer_row {
+                        searched_tables.push(outer_schema.name.clone());
+                        if let Some(col_index) = outer_schema.get_column_index(column) {
+                            return outer_row
+                                .get(col_index)
+                                .cloned()
+                                .ok_or(ExecutorError::ColumnIndexOutOfBounds { index: col_index });
+                        }
+                    }
+                } else {
+                    // Qualifier doesn't match any known schema
+                    let mut known_tables = vec![self.schema.name.clone()];
+                    known_tables.push(outer_schema.name.clone());
+
+                    return Err(ExecutorError::InvalidTableQualifier {
+                        qualifier: qualifier.to_string(),
+                        column: column.to_string(),
+                        available_tables: known_tables,
+                    });
+                }
+            } else {
+                // No outer schema and qualifier doesn't match inner schema
+                return Err(ExecutorError::InvalidTableQualifier {
+                    qualifier: qualifier.to_string(),
+                    column: column.to_string(),
+                    available_tables: vec![self.schema.name.clone()],
+                });
+            }
+
+            // If we get here, qualifier was valid but column wasn't found
+            available_columns.extend(self.schema.columns.iter().map(|c| c.name.clone()));
+            if let Some(outer_schema) = self.outer_schema {
+                available_columns.extend(outer_schema.columns.iter().map(|c| c.name.clone()));
+            }
+
+            return Err(ExecutorError::ColumnNotFound {
+                column_name: column.to_string(),
+                table_name: qualifier.to_string(),
+                searched_tables,
+                available_columns,
+            });
+        }
+
+        // No qualifier provided - use original search logic (inner first, then outer)
         // Try to resolve in inner schema first
         searched_tables.push(self.schema.name.clone());
         if let Some(col_index) = self.schema.get_column_index(column) {

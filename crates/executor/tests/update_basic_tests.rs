@@ -102,7 +102,7 @@ fn test_update_with_expression() {
     let mut db = Database::new();
     setup_test_table(&mut db);
 
-    // Give everyone a 10% raise: salary = salary * 110 / 100
+    // Give everyone a 10% raise: salary = salary * 110 DIV 100
     let stmt = UpdateStmt {
         table_name: "employees".to_string(),
         assignments: vec![Assignment {
@@ -116,7 +116,7 @@ fn test_update_with_expression() {
                     op: BinaryOperator::Multiply,
                     right: Box::new(Expression::Literal(SqlValue::Integer(110))),
                 }),
-                op: BinaryOperator::Divide,
+                op: BinaryOperator::IntegerDivide,
                 right: Box::new(Expression::Literal(SqlValue::Integer(100))),
             },
         }],

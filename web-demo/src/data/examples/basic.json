@@ -9,10 +9,10 @@
       "LIMIT"
     ],
     "expectedRows": [
-      ["1", "Chai", "1", "18.0", "39", "0"],
-      ["2", "Chang", "1", "19.0", "17", "40"],
-      ["3", "Aniseed Syrup", "2", "10.0", "13", "70"],
-      ["4", "Chef Anton's Cajun Seasoning", "2", "22.0", "53", "0"],
+      ["1", "Chai", "1", "18", "39", "0"],
+      ["2", "Chang", "1", "19", "17", "40"],
+      ["3", "Aniseed Syrup", "2", "10", "13", "70"],
+      ["4", "Chef Anton's Cajun Seasoning", "2", "22", "53", "0"],
       ["5", "Chef Anton's Gumbo Mix", "2", "21.35", "0", "0"]
     ],
     "expectedCount": 5
@@ -28,18 +28,18 @@
       "ORDER BY"
     ],
     "expectedRows": [
-      ["Mishi Kobe Niku", "97.0"],
-      ["Sir Rodney's Marmalade", "81.0"],
+      ["Mishi Kobe Niku", "97"],
+      ["Sir Rodney's Marmalade", "81"],
       ["Carnarvon Tigers", "62.5"],
-      ["Northwoods Cranberry Sauce", "40.0"],
-      ["Alice Mutton", "39.0"],
-      ["Queso Manchego La Pastora", "38.0"],
-      ["Ikura", "31.0"],
-      ["Grandma's Boysenberry Spread", "25.0"],
+      ["Northwoods Cranberry Sauce", "40"],
+      ["Alice Mutton", "39"],
+      ["Queso Manchego La Pastora", "38"],
+      ["Ikura", "31"],
+      ["Grandma's Boysenberry Spread", "25"],
       ["Tofu", "23.25"],
-      ["Chef Anton's Cajun Seasoning", "22.0"],
-      ["Queso Cabrales", "21.0"],
-      ["Chef Anton's Gumbo Mix", "21.35"]
+      ["Chef Anton's Cajun Seasoning", "22"],
+      ["Chef Anton's Gumbo Mix", "21.35"],
+      ["Queso Cabrales", "21"]
     ],
     "expectedCount": 12
   },
@@ -54,16 +54,16 @@
       "Expressions"
     ],
     "expectedRows": [
-      ["Chai", "18.0", "21.6"],
-      ["Chang", "19.0", "22.8"],
-      ["Aniseed Syrup", "10.0", "12.0"],
-      ["Chef Anton's Cajun Seasoning", "22.0", "26.4"],
+      ["Chai", "18", "21.6"],
+      ["Chang", "19", "22.8"],
+      ["Aniseed Syrup", "10", "12"],
+      ["Chef Anton's Cajun Seasoning", "22", "26.4"],
       ["Chef Anton's Gumbo Mix", "21.35", "25.62"],
-      ["Grandma's Boysenberry Spread", "25.0", "30.0"],
-      ["Uncle Bob's Organic Dried Pears", "30.0", "36.0"],
-      ["Northwoods Cranberry Sauce", "40.0", "48.0"],
-      ["Mishi Kobe Niku", "97.0", "116.4"],
-      ["Ikura", "31.0", "37.2"]
+      ["Mishi Kobe Niku", "97", "116.4"],
+      ["Sir Rodney's Marmalade", "81", "97.2"],
+      ["Carnarvon Tigers", "62.5", "75"],
+      ["Northwoods Cranberry Sauce", "40", "48"],
+      ["Alice Mutton", "39", "46.8"]
     ],
     "expectedCount": 10
   },

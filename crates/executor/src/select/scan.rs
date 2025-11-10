@@ -179,9 +179,9 @@ fn execute_join<F>(
 where
     F: Fn(&ast::SelectStmt) -> Result<Vec<storage::Row>, ExecutorError> + Copy,
 {
-    // Execute left and right sides first to get their schemas
-    let left_result = execute_from_clause(left, cte_results, database, None, execute_subquery)?;
-    let right_result = execute_from_clause(right, cte_results, database, None, execute_subquery)?;
+    // Execute left and right sides with WHERE clause for predicate pushdown
+    let left_result = execute_from_clause(left, cte_results, database, where_clause, execute_subquery)?;
+    let right_result = execute_from_clause(right, cte_results, database, where_clause, execute_subquery)?;
 
     // If we have a WHERE clause, decompose it using the combined schema
     let equijoin_predicates = if let Some(where_expr) = where_clause {

@@ -121,6 +121,8 @@ pub fn run_test_file_with_details(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use std::env;
 
     #[test]
     fn test_timeout_wraps_execution() {

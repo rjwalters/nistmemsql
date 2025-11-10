@@ -255,10 +255,35 @@ impl<'a> RowNormalizer<'a> {
                 }
             }
             // User-defined types
-            DataType::UserDefined { type_name: _ } => {
+            DataType::UserDefined { type_name } => {
                 // Cannot validate user-defined types without more schema information
                 // Accept any value for now
+                //
                 // TODO: Implement proper user-defined type validation
+                //
+                // Requirements for implementation:
+                // 1. Type catalog to store user-defined type definitions (CREATE TYPE)
+                // 2. Type definition metadata (base type, constraints, domain values, etc.)
+                // 3. Validation logic for different UDT categories:
+                //    - DISTINCT types (validate against base type)
+                //    - ENUM types (validate value is in allowed set)
+                //    - COMPOSITE types (validate structure and field types)
+                //    - DOMAIN types (validate base type and CHECK constraints)
+                // 4. Integration with schema catalog to resolve type names
+                //
+                // For now, we accept any value for user-defined types.
+                // Validation will occur at runtime if the type is used in expressions.
+                //
+                // See SQL:1999 Part 2 (Foundation) Section 4.8 for UDT specification.
+
+                // Log a debug message for development
+                #[cfg(debug_assertions)]
+                {
+                    eprintln!(
+                        "Warning: Skipping validation for user-defined type '{}' in column '{}'",
+                        type_name, column_name
+                    );
+                }
             }
             // NULL type
             DataType::Null => {

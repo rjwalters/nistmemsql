@@ -1,4 +1,7 @@
-#[cfg(test)]
+// CSE tests
+mod cse_tests;
+
+// Evaluator tests
 mod evaluator_tests {
     use catalog::{ColumnSchema, TableSchema};
     use types::{DataType, SqlValue};
@@ -237,6 +240,232 @@ mod evaluator_tests {
             }
             other => panic!("Expected ColumnNotFound with table qualifier, got: {:?}", other),
         }
+    }
+
+    #[test]
+    fn test_valid_table_qualifier_matches_inner_schema() {
+        // Test that a valid table qualifier matching inner schema works correctly
+        let schema = TableSchema::new(
+            "users".to_string(),
+            vec![
+                ColumnSchema::new("id".to_string(), DataType::Integer, false),
+                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(255) }, false),
+            ],
+        );
+
+        let evaluator = ExpressionEvaluator::new(&schema);
+        let row = storage::Row::new(vec![SqlValue::Integer(42), SqlValue::Varchar("Alice".to_string())]);
+
+        // Column reference with correct table qualifier
+        let expr = ast::Expression::ColumnRef {
+            table: Some("users".to_string()),
+            column: "name".to_string(),
+        };
+
+        let result = evaluator.eval(&expr, &row);
+        assert_eq!(result, Ok(SqlValue::Varchar("Alice".to_string())));
+    }
+
+    #[test]
+    fn test_valid_table_qualifier_case_insensitive() {
+        // Test that table qualifier matching is case-insensitive
+        let schema = TableSchema::new(
+            "Products".to_string(),
+            vec![ColumnSchema::new("id".to_string(), DataType::Integer, false)],
+        );
+
+        let evaluator = ExpressionEvaluator::new(&schema);
+        let row = storage::Row::new(vec![SqlValue::Integer(99)]);
+
+        // Use different case for table qualifier
+        let expr = ast::Expression::ColumnRef {
+            table: Some("PRODUCTS".to_string()),
+            column: "id".to_string(),
+        };
+
+        let result = evaluator.eval(&expr, &row);
+        assert_eq!(result, Ok(SqlValue::Integer(99)));
+    }
+
+    #[test]
+    fn test_invalid_table_qualifier_single_schema() {
+        // Test that invalid table qualifier returns proper error
+        let schema = TableSchema::new(
+            "users".to_string(),
+            vec![ColumnSchema::new("id".to_string(), DataType::Integer, false)],
+        );
+
+        let evaluator = ExpressionEvaluator::new(&schema);
+        let row = storage::Row::new(vec![SqlValue::Integer(42)]);
+
+        // Column reference with wrong table qualifier
+        let expr = ast::Expression::ColumnRef {
+            table: Some("products".to_string()),
+            column: "id".to_string(),
+        };
+
+        let result = evaluator.eval(&expr, &row);
+
+        match result {
+            Err(ExecutorError::InvalidTableQualifier { qualifier, column, available_tables }) => {
+                assert_eq!(qualifier, "products");
+                assert_eq!(column, "id");
+                assert!(available_tables.contains(&"users".to_string()));
+                assert_eq!(available_tables.len(), 1);
+            }
+            other => panic!("Expected InvalidTableQualifier error, got: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_invalid_table_qualifier_with_outer_context() {
+        // Test that invalid qualifier with outer context shows both available tables
+        let inner_schema = TableSchema::new(
+            "orders".to_string(),
+            vec![ColumnSchema::new("order_id".to_string(), DataType::Integer, false)],
+        );
+
+        let outer_schema = TableSchema::new(
+            "users".to_string(),
+            vec![ColumnSchema::new("user_id".to_string(), DataType::Integer, false)],
+        );
+
+        let outer_row = storage::Row::new(vec![SqlValue::Integer(100)]);
+        let inner_row = storage::Row::new(vec![SqlValue::Integer(42)]);
+
+        let evaluator =
+            ExpressionEvaluator::with_outer_context(&inner_schema, &outer_row, &outer_schema);
+
+        // Column reference with invalid table qualifier
+        let expr = ast::Expression::ColumnRef {
+            table: Some("products".to_string()),
+            column: "product_id".to_string(),
+        };
+
+        let result = evaluator.eval(&expr, &inner_row);
+
+        match result {
+            Err(ExecutorError::InvalidTableQualifier { qualifier, column, available_tables }) => {
+                assert_eq!(qualifier, "products");
+                assert_eq!(column, "product_id");
+                assert!(available_tables.contains(&"orders".to_string()));
+                assert!(available_tables.contains(&"users".to_string()));
+                assert_eq!(available_tables.len(), 2);
+            }
+            other => panic!("Expected InvalidTableQualifier error, got: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_valid_qualifier_for_outer_schema() {
+        // Test that qualifier can correctly reference outer schema
+        let inner_schema = TableSchema::new(
+            "subquery".to_string(),
+            vec![ColumnSchema::new("inner_col".to_string(), DataType::Integer, false)],
+        );
+
+        let outer_schema = TableSchema::new(
+            "outer_table".to_string(),
+            vec![ColumnSchema::new("outer_col".to_string(), DataType::Integer, false)],
+        );
+
+        let outer_row = storage::Row::new(vec![SqlValue::Integer(999)]);
+        let inner_row = storage::Row::new(vec![SqlValue::Integer(42)]);
+
+        let evaluator =
+            ExpressionEvaluator::with_outer_context(&inner_schema, &outer_row, &outer_schema);
+
+        // Column reference with outer table qualifier
+        let expr = ast::Expression::ColumnRef {
+            table: Some("outer_table".to_string()),
+            column: "outer_col".to_string(),
+        };
+
+        let result = evaluator.eval(&expr, &inner_row);
+        assert_eq!(result, Ok(SqlValue::Integer(999)));
+    }
+
+    #[test]
+    fn test_qualified_column_not_found_in_correct_table() {
+        // Test that when qualifier is valid but column doesn't exist, we get proper error
+        let schema = TableSchema::new(
+            "users".to_string(),
+            vec![
+                ColumnSchema::new("id".to_string(), DataType::Integer, false),
+                ColumnSchema::new("name".to_string(), DataType::Varchar { max_length: Some(255) }, false),
+            ],
+        );
+
+        let evaluator = ExpressionEvaluator::new(&schema);
+        let row = storage::Row::new(vec![SqlValue::Integer(42), SqlValue::Varchar("Alice".to_string())]);
+
+        // Column reference with correct table but non-existent column
+        let expr = ast::Expression::ColumnRef {
+            table: Some("users".to_string()),
+            column: "email".to_string(),
+        };
+
+        let result = evaluator.eval(&expr, &row);
+
+        match result {
+            Err(ExecutorError::ColumnNotFound {
+                column_name,
+                table_name,
+                searched_tables,
+                available_columns,
+            }) => {
+                assert_eq!(column_name, "email");
+                assert_eq!(table_name, "users");
+                assert!(searched_tables.contains(&"users".to_string()));
+                assert!(available_columns.contains(&"id".to_string()));
+                assert!(available_columns.contains(&"name".to_string()));
+            }
+            other => panic!("Expected ColumnNotFound error, got: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_qualifier_disambiguates_shadowed_column() {
+        // Test that qualifier can disambiguate when inner and outer have same column name
+        let inner_schema = TableSchema::new(
+            "inner_table".to_string(),
+            vec![ColumnSchema::new("id".to_string(), DataType::Integer, false)],
+        );
+
+        let outer_schema = TableSchema::new(
+            "outer_table".to_string(),
+            vec![ColumnSchema::new("id".to_string(), DataType::Integer, false)],
+        );
+
+        let outer_row = storage::Row::new(vec![SqlValue::Integer(999)]);
+        let inner_row = storage::Row::new(vec![SqlValue::Integer(42)]);
+
+        let evaluator =
+            ExpressionEvaluator::with_outer_context(&inner_schema, &outer_row, &outer_schema);
+
+        // Without qualifier - should get inner value (shadowing)
+        let expr_unqualified = ast::Expression::ColumnRef {
+            table: None,
+            column: "id".to_string(),
+        };
+        let result = evaluator.eval(&expr_unqualified, &inner_row);
+        assert_eq!(result, Ok(SqlValue::Integer(42)));
+
+        // With inner qualifier - should get inner value
+        let expr_inner = ast::Expression::ColumnRef {
+            table: Some("inner_table".to_string()),
+            column: "id".to_string(),
+        };
+        let result = evaluator.eval(&expr_inner, &inner_row);
+        assert_eq!(result, Ok(SqlValue::Integer(42)));
+
+        // With outer qualifier - should get outer value
+        let expr_outer = ast::Expression::ColumnRef {
+            table: Some("outer_table".to_string()),
+            column: "id".to_string(),
+        };
+        let result = evaluator.eval(&expr_outer, &inner_row);
+        assert_eq!(result, Ok(SqlValue::Integer(999)));
     }
 }
 

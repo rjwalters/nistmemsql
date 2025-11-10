@@ -120,18 +120,62 @@ impl super::Catalog {
             return Err(CatalogError::DomainNotFound(name.to_string()));
         }
 
-        // Check if any tables use this domain
-        if !cascade {
-            // For RESTRICT, we need to check if any columns use this domain
-            // We'll check all tables in all schemas
-            for schema in self.schemas.values() {
-                for table in schema.list_tables() {
-                    if let Some(table_schema) = schema.get_table(&table) {
-                        // For now, we'll skip this check since we haven't implemented
-                        // domain usage in column definitions yet.
-                        // TODO: Check if any columns use this domain when we implement
-                        // domain support in CREATE TABLE
-                        let _ = table_schema;
+        // Check if any columns use this domain
+        // Note: Domain support in column definitions is not fully implemented yet
+        // This code provides the framework for when it is implemented
+        let mut columns_using_domain = Vec::new();
+
+        for schema in self.schemas.values() {
+            for table_name in schema.list_tables() {
+                if let Some(table) = schema.get_table(&table_name) {
+                    for column in &table.columns {
+                        // Check if column type is a UserDefined type that matches this domain
+                        // In the future, when domains are properly integrated, we might have
+                        // a DataType::Domain variant or track domain usage separately
+                        if let types::DataType::UserDefined { type_name } = &column.data_type {
+                            // Check if this user-defined type is actually a domain
+                            if self.domains.contains_key(type_name) && type_name == name {
+                                columns_using_domain.push((table_name.clone(), column.name.clone()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // If RESTRICT and domain is in use, return error
+        if !cascade && !columns_using_domain.is_empty() {
+            return Err(CatalogError::DomainInUse {
+                domain_name: name.to_string(),
+                dependent_columns: columns_using_domain,
+            });
+        }
+
+        // If CASCADE, we would need to either:
+        // 1. Convert columns to the domain's base type
+        // 2. Or drop the columns/tables using the domain
+        // For now, since domain support isn't fully implemented, we'll just proceed
+        if cascade && !columns_using_domain.is_empty() {
+            // Get the domain to find its base type
+            let domain = self.domains.get(name).cloned();
+
+            if let Some(domain_def) = domain {
+                // Convert all columns using this domain to the domain's base type
+                for (table_name, column_name) in columns_using_domain {
+                    for schema in self.schemas.values_mut() {
+                        if let Some(table) = schema.get_table(&table_name) {
+                            let mut modified_table = table.clone();
+                            for col in &mut modified_table.columns {
+                                if col.name == column_name {
+                                    // Replace domain type with base type
+                                    col.data_type = domain_def.data_type.clone();
+                                }
+                            }
+                            // Drop and recreate table with modified columns
+                            schema.drop_table(&table_name)?;
+                            schema.create_table(modified_table)?;
+                            break;
+                        }
                     }
                 }
             }
@@ -176,11 +220,112 @@ impl super::Catalog {
     }
 
     /// Drop a SEQUENCE
-    pub fn drop_sequence(&mut self, name: &str) -> Result<(), CatalogError> {
-        self.sequences
-            .remove(name)
-            .map(|_| ())
-            .ok_or_else(|| CatalogError::SequenceNotFound(name.to_string()))
+    pub fn drop_sequence(&mut self, name: &str, cascade: bool) -> Result<(), CatalogError> {
+        // Check if sequence exists
+        if !self.sequences.contains_key(name) {
+            return Err(CatalogError::SequenceNotFound(name.to_string()));
+        }
+
+        // Check if any columns use this sequence in their default values
+        let mut columns_using_sequence = Vec::new();
+        for schema in self.schemas.values() {
+            for table_name in schema.list_tables() {
+                if let Some(table) = schema.get_table(&table_name) {
+                    for column in &table.columns {
+                        if let Some(default_expr) = &column.default_value {
+                            if self.expression_uses_sequence(default_expr, name) {
+                                columns_using_sequence.push((
+                                    table_name.clone(),
+                                    column.name.clone(),
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // If RESTRICT and sequence is in use, return error
+        if !cascade && !columns_using_sequence.is_empty() {
+            return Err(CatalogError::SequenceInUse {
+                sequence_name: name.to_string(),
+                dependent_columns: columns_using_sequence,
+            });
+        }
+
+        // If CASCADE, remove sequence dependencies from columns
+        if cascade && !columns_using_sequence.is_empty() {
+            for (table_name, column_name) in columns_using_sequence {
+                // Get mutable reference to the schema containing the table
+                for schema in self.schemas.values_mut() {
+                    if let Some(table) = schema.get_table(&table_name) {
+                        // Find the column and remove its default value
+                        if table.columns.iter().any(|c| c.name == column_name) {
+                            // We need to reconstruct the table to modify it
+                            // This is a limitation of the current architecture
+                            // For now, we'll handle this by removing and reinserting the table
+                            let mut modified_table = table.clone();
+                            for col in &mut modified_table.columns {
+                                if col.name == column_name {
+                                    col.default_value = None;
+                                }
+                            }
+                            // Drop and recreate table with modified columns
+                            schema.drop_table(&table_name)?;
+                            schema.create_table(modified_table)?;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Finally, drop the sequence
+        self.sequences.remove(name);
+        Ok(())
+    }
+
+    /// Check if an expression uses a specific sequence
+    fn expression_uses_sequence(&self, expr: &ast::Expression, sequence_name: &str) -> bool {
+        use ast::Expression;
+        match expr {
+            Expression::NextValue { sequence_name: seq_name } => seq_name == sequence_name,
+            Expression::BinaryOp { left, right, .. } => {
+                self.expression_uses_sequence(left, sequence_name)
+                    || self.expression_uses_sequence(right, sequence_name)
+            }
+            Expression::UnaryOp { expr, .. } => self.expression_uses_sequence(expr, sequence_name),
+            Expression::Function { args, .. } | Expression::AggregateFunction { args, .. } => {
+                args.iter().any(|arg| self.expression_uses_sequence(arg, sequence_name))
+            }
+            Expression::IsNull { expr, .. } => self.expression_uses_sequence(expr, sequence_name),
+            Expression::Case { operand, when_clauses, else_result } => {
+                operand.as_ref().map_or(false, |e| self.expression_uses_sequence(e, sequence_name))
+                    || when_clauses.iter().any(|when| {
+                        when.conditions.iter().any(|c| self.expression_uses_sequence(c, sequence_name))
+                            || self.expression_uses_sequence(&when.result, sequence_name)
+                    })
+                    || else_result
+                        .as_ref()
+                        .map_or(false, |e| self.expression_uses_sequence(e, sequence_name))
+            }
+            Expression::ScalarSubquery(_)
+            | Expression::In { .. }
+            | Expression::InList { .. }
+            | Expression::Between { .. }
+            | Expression::Cast { .. }
+            | Expression::Position { .. }
+            | Expression::Trim { .. }
+            | Expression::Like { .. }
+            | Expression::Exists { .. }
+            | Expression::QuantifiedComparison { .. }
+            | Expression::WindowFunction { .. } => {
+                // These could theoretically contain sequence references in subexpressions
+                // For now, we'll do a simple check
+                false
+            }
+            _ => false,
+        }
     }
 
     /// Alter a SEQUENCE
@@ -326,11 +471,95 @@ impl super::Catalog {
     }
 
     /// Drop a VIEW
-    pub fn drop_view(&mut self, name: &str) -> Result<(), CatalogError> {
-        self.views
-            .remove(name)
-            .map(|_| ())
-            .ok_or_else(|| CatalogError::ViewNotFound(name.to_string()))
+    pub fn drop_view(&mut self, name: &str, cascade: bool) -> Result<(), CatalogError> {
+        // Check if view exists
+        if !self.views.contains_key(name) {
+            return Err(CatalogError::ViewNotFound(name.to_string()));
+        }
+
+        // Find all views that depend on this view or table
+        let dependent_views = self.find_dependent_views(name);
+
+        // If RESTRICT and there are dependent views, return error
+        if !cascade && !dependent_views.is_empty() {
+            return Err(CatalogError::ViewInUse {
+                view_name: name.to_string(),
+                dependent_views,
+            });
+        }
+
+        // If CASCADE, drop all dependent views recursively
+        if cascade {
+            let views_to_drop = dependent_views.clone();
+            for dependent_view in views_to_drop {
+                // Recursively drop dependent views (they might have their own dependents)
+                self.drop_view(&dependent_view, true)?;
+            }
+        }
+
+        // Finally, drop the view itself
+        self.views.remove(name);
+        Ok(())
+    }
+
+    /// Find all views that depend on a given view or table
+    fn find_dependent_views(&self, target_name: &str) -> Vec<String> {
+        let mut dependent_views = Vec::new();
+
+        for (view_name, view_def) in &self.views {
+            if view_name == target_name {
+                // Skip the view itself
+                continue;
+            }
+
+            // Check if this view's query references the target
+            if self.select_references_table(&view_def.query, target_name) {
+                dependent_views.push(view_name.clone());
+            }
+        }
+
+        dependent_views
+    }
+
+    /// Check if a SELECT statement references a specific table or view
+    fn select_references_table(&self, select: &ast::SelectStmt, table_name: &str) -> bool {
+        // Check the FROM clause
+        if let Some(ref from) = select.from {
+            if self.from_clause_references_table(from, table_name) {
+                return true;
+            }
+        }
+
+        // Check CTEs (WITH clause)
+        if let Some(ref ctes) = select.with_clause {
+            for cte in ctes {
+                if self.select_references_table(&cte.query, table_name) {
+                    return true;
+                }
+            }
+        }
+
+        // Check set operations (UNION, INTERSECT, EXCEPT)
+        if let Some(ref set_op) = select.set_operation {
+            if self.select_references_table(&set_op.right, table_name) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Check if a FROM clause references a specific table or view
+    fn from_clause_references_table(&self, from: &ast::FromClause, table_name: &str) -> bool {
+        use ast::FromClause;
+        match from {
+            FromClause::Table { name, .. } => name == table_name,
+            FromClause::Join { left, right, .. } => {
+                self.from_clause_references_table(left, table_name)
+                    || self.from_clause_references_table(right, table_name)
+            }
+            FromClause::Subquery { query, .. } => self.select_references_table(query, table_name),
+        }
     }
 
     // ============================================================================

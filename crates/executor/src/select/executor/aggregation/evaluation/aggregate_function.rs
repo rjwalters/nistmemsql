@@ -63,6 +63,10 @@ pub(super) fn evaluate(
     }
 
     for row in group_rows {
+        // Clear CSE cache before evaluating each row to prevent column values
+        // from being incorrectly cached across different rows
+        evaluator.clear_cse_cache();
+
         let value = evaluator.eval(&args[0], row)?;
         acc.accumulate(&value);
     }

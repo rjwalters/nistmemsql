@@ -239,7 +239,21 @@ impl TableSchema {
             })
             .collect();
 
-        // TODO: Handle foreign keys and check constraints
+        // Remove foreign keys that reference the removed column
+        self.foreign_keys = self
+            .foreign_keys
+            .iter()
+            .filter(|fk| !fk.column_names.contains(&removed_column.name))
+            .cloned()
+            .collect();
+
+        // Remove check constraints that reference the removed column
+        self.check_constraints = self
+            .check_constraints
+            .iter()
+            .filter(|(_name, expr)| !Self::expression_references_column(expr, &removed_column.name))
+            .cloned()
+            .collect();
 
         Ok(())
     }
@@ -265,5 +279,222 @@ impl TableSchema {
         }
         self.columns[index].set_nullable(nullable);
         Ok(())
+    }
+
+    /// Set default value for a column by index
+    pub fn set_column_default(
+        &mut self,
+        index: usize,
+        default: ast::Expression,
+    ) -> Result<(), crate::CatalogError> {
+        if index >= self.columns.len() {
+            return Err(crate::CatalogError::ColumnNotFound("index out of bounds".to_string()));
+        }
+        self.columns[index].set_default(default);
+        Ok(())
+    }
+
+    /// Drop default value for a column by index
+    pub fn drop_column_default(&mut self, index: usize) -> Result<(), crate::CatalogError> {
+        if index >= self.columns.len() {
+            return Err(crate::CatalogError::ColumnNotFound("index out of bounds".to_string()));
+        }
+        self.columns[index].drop_default();
+        Ok(())
+    }
+
+    /// Add a check constraint
+    pub fn add_check_constraint(
+        &mut self,
+        name: String,
+        expr: ast::Expression,
+    ) -> Result<(), crate::CatalogError> {
+        // Check if constraint name already exists
+        if self.check_constraints.iter().any(|(n, _)| n == &name) {
+            return Err(crate::CatalogError::ConstraintAlreadyExists(name));
+        }
+        self.check_constraints.push((name, expr));
+        Ok(())
+    }
+
+    /// Add a unique constraint
+    pub fn add_unique_constraint(&mut self, columns: Vec<String>) -> Result<(), crate::CatalogError> {
+        // Verify all columns exist
+        for col_name in &columns {
+            if !self.has_column(col_name) {
+                return Err(crate::CatalogError::ColumnNotFound(col_name.clone()));
+            }
+        }
+        self.unique_constraints.push(columns);
+        Ok(())
+    }
+
+    /// Add a foreign key constraint
+    pub fn add_foreign_key(
+        &mut self,
+        foreign_key: ForeignKeyConstraint,
+    ) -> Result<(), crate::CatalogError> {
+        // Verify all columns exist
+        for col_name in &foreign_key.column_names {
+            if !self.has_column(col_name) {
+                return Err(crate::CatalogError::ColumnNotFound(col_name.clone()));
+            }
+        }
+        self.foreign_keys.push(foreign_key);
+        Ok(())
+    }
+
+    /// Remove a check constraint by name
+    pub fn drop_check_constraint(&mut self, name: &str) -> Result<(), crate::CatalogError> {
+        let original_len = self.check_constraints.len();
+        self.check_constraints.retain(|(n, _)| n != name);
+        if self.check_constraints.len() == original_len {
+            return Err(crate::CatalogError::ConstraintNotFound(name.to_string()));
+        }
+        Ok(())
+    }
+
+    /// Remove a unique constraint by column names
+    pub fn drop_unique_constraint(&mut self, columns: &[String]) -> Result<(), crate::CatalogError> {
+        let original_len = self.unique_constraints.len();
+        self.unique_constraints.retain(|constraint| constraint != columns);
+        if self.unique_constraints.len() == original_len {
+            return Err(crate::CatalogError::ConstraintNotFound(format!("{:?}", columns)));
+        }
+        Ok(())
+    }
+
+    /// Remove a foreign key constraint by name
+    pub fn drop_foreign_key(&mut self, name: &str) -> Result<(), crate::CatalogError> {
+        let original_len = self.foreign_keys.len();
+        self.foreign_keys.retain(|fk| fk.name.as_deref() != Some(name));
+        if self.foreign_keys.len() == original_len {
+            return Err(crate::CatalogError::ConstraintNotFound(name.to_string()));
+        }
+        Ok(())
+    }
+
+    /// Check if an expression references a specific column
+    fn expression_references_column(expr: &ast::Expression, column_name: &str) -> bool {
+        match expr {
+            ast::Expression::ColumnRef { column, .. } => column == column_name,
+            ast::Expression::BinaryOp { left, right, .. } => {
+                Self::expression_references_column(left, column_name)
+                    || Self::expression_references_column(right, column_name)
+            }
+            ast::Expression::UnaryOp { expr, .. } => {
+                Self::expression_references_column(expr, column_name)
+            }
+            ast::Expression::Function { args, .. } | ast::Expression::AggregateFunction { args, .. } => {
+                args.iter().any(|arg| Self::expression_references_column(arg, column_name))
+            }
+            ast::Expression::IsNull { expr, .. } => {
+                Self::expression_references_column(expr, column_name)
+            }
+            ast::Expression::Case { operand, when_clauses, else_result } => {
+                // Check operand
+                if let Some(op) = operand {
+                    if Self::expression_references_column(op, column_name) {
+                        return true;
+                    }
+                }
+                // Check when clauses
+                for clause in when_clauses {
+                    // Check all conditions in this clause
+                    if clause
+                        .conditions
+                        .iter()
+                        .any(|cond| Self::expression_references_column(cond, column_name))
+                    {
+                        return true;
+                    }
+                    // Check result
+                    if Self::expression_references_column(&clause.result, column_name) {
+                        return true;
+                    }
+                }
+                // Check else result
+                if let Some(else_expr) = else_result {
+                    if Self::expression_references_column(else_expr, column_name) {
+                        return true;
+                    }
+                }
+                false
+            }
+            ast::Expression::ScalarSubquery(_) | ast::Expression::Exists { .. } => {
+                // Subqueries can reference columns, but for now we'll be conservative
+                // and not remove check constraints with subqueries
+                false
+            }
+            ast::Expression::In { expr, .. } | ast::Expression::InList { expr, .. } => {
+                Self::expression_references_column(expr, column_name)
+            }
+            ast::Expression::Between { expr, low, high, .. } => {
+                Self::expression_references_column(expr, column_name)
+                    || Self::expression_references_column(low, column_name)
+                    || Self::expression_references_column(high, column_name)
+            }
+            ast::Expression::WindowFunction { function, over } => {
+                // Check function arguments
+                let func_refs_column = match function {
+                    ast::WindowFunctionSpec::Aggregate { args, .. }
+                    | ast::WindowFunctionSpec::Ranking { args, .. }
+                    | ast::WindowFunctionSpec::Value { args, .. } => {
+                        args.iter().any(|arg| Self::expression_references_column(arg, column_name))
+                    }
+                };
+                if func_refs_column {
+                    return true;
+                }
+
+                // Check partition by
+                if let Some(partition_exprs) = &over.partition_by {
+                    if partition_exprs
+                        .iter()
+                        .any(|expr| Self::expression_references_column(expr, column_name))
+                    {
+                        return true;
+                    }
+                }
+
+                // Check order by
+                if let Some(order_items) = &over.order_by {
+                    if order_items
+                        .iter()
+                        .any(|item| Self::expression_references_column(&item.expr, column_name))
+                    {
+                        return true;
+                    }
+                }
+
+                false
+            }
+            ast::Expression::Cast { expr, .. } => Self::expression_references_column(expr, column_name),
+            ast::Expression::Position { substring, string, .. } => {
+                Self::expression_references_column(substring, column_name)
+                    || Self::expression_references_column(string, column_name)
+            }
+            ast::Expression::Trim { removal_char, string, .. } => {
+                removal_char
+                    .as_ref()
+                    .is_some_and(|e| Self::expression_references_column(e, column_name))
+                    || Self::expression_references_column(string, column_name)
+            }
+            ast::Expression::Like { expr, pattern, .. } => {
+                Self::expression_references_column(expr, column_name)
+                    || Self::expression_references_column(pattern, column_name)
+            }
+            ast::Expression::QuantifiedComparison { expr, .. } => {
+                Self::expression_references_column(expr, column_name)
+            }
+            // These don't reference columns
+            ast::Expression::Literal(_)
+            | ast::Expression::Wildcard
+            | ast::Expression::CurrentDate
+            | ast::Expression::CurrentTime { .. }
+            | ast::Expression::CurrentTimestamp { .. }
+            | ast::Expression::Default
+            | ast::Expression::NextValue { .. } => false,
+        }
     }
 }
