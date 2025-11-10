@@ -121,6 +121,26 @@ impl SqlExecutor {
                     Err(e) => return Err(anyhow::anyhow!("{}", e)),
                 }
             }
+            vibesql_ast::Statement::CreateView(view_stmt) => {
+                let mut db_mut = self.db.clone();
+                match vibesql_executor::advanced_objects::execute_create_view(&view_stmt, &mut db_mut) {
+                    Ok(_) => {
+                        self.db = db_mut;
+                        result.row_count = 0; // DDL doesn't return rows
+                    }
+                    Err(e) => return Err(anyhow::anyhow!("{}", e)),
+                }
+            }
+            vibesql_ast::Statement::DropView(drop_stmt) => {
+                let mut db_mut = self.db.clone();
+                match vibesql_executor::advanced_objects::execute_drop_view(&drop_stmt, &mut db_mut) {
+                    Ok(_) => {
+                        self.db = db_mut;
+                        result.row_count = 0; // DDL doesn't return rows
+                    }
+                    Err(e) => return Err(anyhow::anyhow!("{}", e)),
+                }
+            }
             _ => {
                 return Err(anyhow::anyhow!("Statement type not yet supported in CLI"));
             }
