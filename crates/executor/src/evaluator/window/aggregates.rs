@@ -51,12 +51,12 @@ where
         }
     }
 
-    SqlValue::Integer(count)
+    SqlValue::Numeric(count as f64)
 }
 
 /// Evaluate SUM aggregate window function over a frame
 ///
-/// Sums integer values in the frame, ignoring NULLs.
+/// Sums numeric values in the frame, ignoring NULLs.
 /// Returns NULL if all values are NULL or frame is empty.
 ///
 /// Example: SUM(amount) OVER (ORDER BY date) for running totals
@@ -69,7 +69,7 @@ pub fn evaluate_sum_window<F>(
 where
     F: Fn(&Expression, &Row) -> Result<SqlValue, String>,
 {
-    let mut sum = 0i64;
+    let mut sum = 0.0f64;
     let mut has_value = false;
 
     for idx in frame.clone() {
@@ -82,17 +82,41 @@ where
         if let Ok(val) = eval_fn(arg_expr, row) {
             match val {
                 SqlValue::Integer(n) => {
+                    sum += n as f64;
+                    has_value = true;
+                }
+                SqlValue::Smallint(n) => {
+                    sum += n as f64;
+                    has_value = true;
+                }
+                SqlValue::Bigint(n) => {
+                    sum += n as f64;
+                    has_value = true;
+                }
+                SqlValue::Numeric(n) => {
+                    sum += n;
+                    has_value = true;
+                }
+                SqlValue::Float(n) => {
+                    sum += n as f64;
+                    has_value = true;
+                }
+                SqlValue::Real(n) => {
+                    sum += n as f64;
+                    has_value = true;
+                }
+                SqlValue::Double(n) => {
                     sum += n;
                     has_value = true;
                 }
                 SqlValue::Null => {} // Ignore NULL
-                _ => {}              // Ignore non-integer values
+                _ => {}              // Ignore non-numeric values
             }
         }
     }
 
     if has_value {
-        SqlValue::Integer(sum)
+        SqlValue::Numeric(sum)
     } else {
         SqlValue::Null
     }
@@ -100,7 +124,7 @@ where
 
 /// Evaluate AVG aggregate window function over a frame
 ///
-/// Computes average of integer values in the frame, ignoring NULLs.
+/// Computes average of numeric values in the frame, ignoring NULLs.
 /// Returns NULL if all values are NULL or frame is empty.
 ///
 /// Example: AVG(temperature) OVER (ORDER BY date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)
@@ -114,7 +138,7 @@ pub fn evaluate_avg_window<F>(
 where
     F: Fn(&Expression, &Row) -> Result<SqlValue, String>,
 {
-    let mut sum = 0i64;
+    let mut sum = 0.0f64;
     let mut count = 0i64;
 
     for idx in frame.clone() {
@@ -127,17 +151,41 @@ where
         if let Ok(val) = eval_fn(arg_expr, row) {
             match val {
                 SqlValue::Integer(n) => {
+                    sum += n as f64;
+                    count += 1;
+                }
+                SqlValue::Smallint(n) => {
+                    sum += n as f64;
+                    count += 1;
+                }
+                SqlValue::Bigint(n) => {
+                    sum += n as f64;
+                    count += 1;
+                }
+                SqlValue::Numeric(n) => {
+                    sum += n;
+                    count += 1;
+                }
+                SqlValue::Float(n) => {
+                    sum += n as f64;
+                    count += 1;
+                }
+                SqlValue::Real(n) => {
+                    sum += n as f64;
+                    count += 1;
+                }
+                SqlValue::Double(n) => {
                     sum += n;
                     count += 1;
                 }
                 SqlValue::Null => {} // Ignore NULL
-                _ => {}              // Ignore non-integer values
+                _ => {}              // Ignore non-numeric values
             }
         }
     }
 
     if count > 0 {
-        SqlValue::Integer(sum / count)
+        SqlValue::Numeric(sum / count as f64)
     } else {
         SqlValue::Null
     }

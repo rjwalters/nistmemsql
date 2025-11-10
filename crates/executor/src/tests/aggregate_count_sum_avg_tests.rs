@@ -56,7 +56,7 @@ fn test_count_star_no_group_by() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], types::SqlValue::Integer(3));
+    assert_eq!(result[0].values[0], types::SqlValue::Numeric(3.0));
 }
 
 #[test]
@@ -645,7 +645,7 @@ fn test_count_star_in_case_then_clause() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], types::SqlValue::Integer(2));
+    assert_eq!(result[0].values[0], types::SqlValue::Numeric(2.0));
 }
 
 #[test]

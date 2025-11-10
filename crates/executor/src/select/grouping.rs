@@ -187,7 +187,7 @@ impl AggregateAccumulator {
 
     pub(super) fn finalize(&self) -> types::SqlValue {
         match self {
-            AggregateAccumulator::Count { count, .. } => types::SqlValue::Integer(*count),
+            AggregateAccumulator::Count { count, .. } => types::SqlValue::Numeric(*count as f64),
             AggregateAccumulator::Sum { sum, .. } => sum.clone(),
             AggregateAccumulator::Avg { sum, count, .. } => {
                 if *count == 0 {
