@@ -14,7 +14,7 @@
 //! - `frames` - Frame boundary calculation (ROWS mode)
 //! - `ranking` - Ranking functions (ROW_NUMBER, RANK, DENSE_RANK, NTILE)
 //! - `aggregates` - Aggregate window functions (COUNT, SUM, AVG, MIN, MAX)
-//! - `value` - Value access functions (LAG, LEAD)
+//! - `value` - Value access functions (LAG, LEAD, FIRST_VALUE, LAST_VALUE)
 //! - `utils` - Shared utility functions
 
 mod aggregates;
@@ -34,7 +34,7 @@ pub use frames::calculate_frame;
 pub use partitioning::{partition_rows, Partition};
 pub use ranking::{evaluate_dense_rank, evaluate_ntile, evaluate_rank, evaluate_row_number};
 pub use sorting::{compare_values, sort_partition};
-pub use value::{evaluate_lag, evaluate_lead};
+pub use value::{evaluate_first_value, evaluate_lag, evaluate_last_value, evaluate_lead};
 
 #[cfg(test)]
 mod tests;
