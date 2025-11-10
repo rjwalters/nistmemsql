@@ -16,7 +16,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use vibesql_ast::OrderDirection;
-use vibesql_catalog::{ColumnSchema, TableSchema, ViewDefinition};
+use vibesql_catalog::{ColumnSchema, TableSchema};
 use vibesql_types::{DataType, SqlValue};
 
 use crate::{Database, Row, StorageError, Table};
