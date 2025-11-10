@@ -778,34 +778,6 @@ vibesql -c "\save production.sql"
 
 ---
 
-## 🧪 Test-Driven Development
-
-We build using **strict TDD** (Red-Green-Refactor):
-
-```rust
-// 1. RED: Write failing test first
-#[test]
-fn test_between_predicate() {
-    let sql = "SELECT * FROM users WHERE age BETWEEN 18 AND 65";
-    let result = parser::parse(sql);
-    assert!(result.is_ok());
-}
-
-// 2. GREEN: Implement just enough to pass
-// 3. REFACTOR: Clean up while tests stay green
-```
-
-**Benefits Observed**:
-- ✅ 2,000+ tests passing (100% success rate)
-- ✅ 86% code coverage
-- ✅ Zero warnings (compiler + clippy)
-- ✅ Faster development (less debugging)
-- ✅ Safe refactoring
-- ✅ Tests as living documentation
-- ✅ Loom orchestration enables parallel development
-
----
-
 ## 🤝 Contributing
 
 This project uses [Loom](https://github.com/loomhq/loom) for AI-powered development orchestration. See [CLAUDE.md](CLAUDE.md) for the development guide.
@@ -832,37 +804,6 @@ See [docs/WORK_PLAN.md](docs/WORK_PLAN.md) for current priorities.
 - **Methodology**: Test-Driven Development (TDD)
 - **Orchestration**: [Loom](https://github.com/loomhq/loom) AI framework
 - **Status**: ✅ Core Complete | 🚧 Extended Compliance In Progress
-
----
-
-## 🏆 Milestones
-
-**✅ Core SQL:1999 Compliance** (November 1, 2025)
-- Complete SQL parser and execution engine
-- All query types (SELECT, INSERT, UPDATE, DELETE)
-- All JOIN types and subqueries
-- Window functions, CTEs, set operations
-- Full constraint enforcement
-- Transaction support with SAVEPOINT
-- Security model with GRANT/REVOKE
-- 75+ built-in functions
-- WASM compilation with live demo
-
-**✅ Phase 2: Performance Optimization** (November 2025)
-- Hash join implementation (260x speedup)
-- Expression optimization (CSE)
-- Memory optimization (50% reduction)
-
-**✅ Phase 5: CLI Features** (November 2025)
-- Interactive REPL with readline
-- Import/export (CSV, JSON)
-- Multiple output formats
-- PostgreSQL-compatible meta-commands
-
-**🚧 In Progress: Extended Compliance**
-- SQLLogicTest coverage (13.3% → 100%)
-- Optional SQL:1999 features
-- Information schema views
 
 ---
 
