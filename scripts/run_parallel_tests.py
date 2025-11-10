@@ -64,10 +64,8 @@ def initialize_work_queue(repo_root: Path, work_queue_dir: Path) -> int:
     completed_dir.mkdir(parents=True, exist_ok=True)
 
     # Blocklist of test files that cause memory leaks or OOM
-    # select5.test: Uses 73+ GB memory with complex cross joins
-    blocklist = {
-        "select5.test",
-    }
+    # select5.test was removed after implementing predicate pushdown optimization (#1122)
+    blocklist = set()
 
     # Find all test files
     test_dir = repo_root / "third_party" / "sqllogictest" / "test"
