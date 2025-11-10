@@ -1,10 +1,6 @@
-//! SQL:1999 Type System
-//!
-//! This crate provides the type system for SQL:1999, including:
-//! - Data type definitions (INTEGER, VARCHAR, BOOLEAN, etc.)
-//! - SQL values representation
-//! - Type compatibility and coercion rules
-//! - Type checking utilities
+//! SQL Data Type definitions
+
+use crate::temporal::IntervalField;
 
 /// SQL:1999 Data Types
 ///
@@ -15,19 +11,21 @@ pub enum DataType {
     Integer,
     Smallint,
     Bigint,
+    Unsigned, // 64-bit unsigned integer (MySQL compatibility)
     Numeric { precision: u8, scale: u8 },
     Decimal { precision: u8, scale: u8 },
 
     // Approximate numeric types
-    Float,
+    Float { precision: u8 }, // SQL:1999 FLOAT(p), default 53 (double precision)
     Real,
     DoublePrecision,
 
     // Character string types
     Character { length: usize },
-    Varchar { max_length: Option<usize> },  // None = default length (255)
-    CharacterLargeObject, // CLOB
-    Name,                 // NAME type for SQL identifiers (SQL:1999), maps to VARCHAR(128)
+    Varchar { max_length: Option<usize> }, // None = default length (255)
+    CharacterLargeObject,                  // CLOB
+    Name,                                  /* NAME type for SQL identifiers (SQL:1999), maps to
+                                            * VARCHAR(128) */
 
     // Boolean type (SQL:1999)
     Boolean,
@@ -36,6 +34,11 @@ pub enum DataType {
     Date,
     Time { with_timezone: bool },
     Timestamp { with_timezone: bool },
+
+    // Interval types
+    // Single field: INTERVAL YEAR, INTERVAL MONTH, etc. (end_field is None)
+    // Multi-field: INTERVAL YEAR TO MONTH, INTERVAL DAY TO SECOND, etc.
+    Interval { start_field: IntervalField, end_field: Option<IntervalField> },
 
     // Binary types
     BinaryLargeObject, // BLOB
@@ -61,6 +64,7 @@ impl DataType {
         match (self, other) {
             // Same types are compatible
             (DataType::Integer, DataType::Integer) => true,
+            (DataType::Unsigned, DataType::Unsigned) => true,
             (DataType::Boolean, DataType::Boolean) => true,
             (DataType::Date, DataType::Date) => true,
 
