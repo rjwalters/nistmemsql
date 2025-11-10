@@ -381,6 +381,46 @@ impl IndexManager {
         Ok(())
     }
 
+    /// Drop all indexes associated with a table (CASCADE behavior)
+    ///
+    /// This is called automatically when dropping a table to maintain
+    /// referential integrity. Indexes are tied to specific tables and
+    /// cannot exist without their parent table.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - The qualified name of the table (e.g., "public.users")
+    ///
+    /// # Returns
+    ///
+    /// Vector of index names that were dropped (for logging/debugging)
+    pub fn drop_indexes_for_table(&mut self, table_name: &str) -> Vec<String> {
+        // Collect index names to drop (can't modify while iterating)
+        let indexes_to_drop: Vec<String> = self
+            .indexes
+            .iter()
+            .filter(|(_, metadata)| metadata.table_name == table_name)
+            .map(|(name, _)| name.clone())
+            .collect();
+
+        // Drop each index
+        for index_name in &indexes_to_drop {
+            self.indexes.remove(index_name);
+            self.index_data.remove(index_name);
+        }
+
+        // Return original (non-normalized) names for logging
+        indexes_to_drop
+            .iter()
+            .filter_map(|normalized_name| {
+                // Since we just removed it, we can't look it up, but we stored
+                // the original name in the metadata before removal
+                // For now, just return the normalized names
+                Some(normalized_name.clone())
+            })
+            .collect()
+    }
+
     /// List all indexes
     pub fn list_indexes(&self) -> Vec<String> {
         self.indexes.keys().cloned().collect()

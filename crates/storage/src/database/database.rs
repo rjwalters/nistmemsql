@@ -105,6 +105,19 @@ impl Database {
 
     /// Drop a table
     pub fn drop_table(&mut self, name: &str) -> Result<(), StorageError> {
+        // Get qualified table name for index cleanup
+        // We need to do this BEFORE dropping from catalog
+        let qualified_name = if name.contains('.') {
+            name.to_string()
+        } else {
+            let current_schema = self.catalog.get_current_schema();
+            format!("{}.{}", current_schema, name)
+        };
+
+        // Drop associated indexes BEFORE dropping table (CASCADE behavior)
+        // This maintains referential integrity - indexes cannot exist without their table
+        self.index_manager.drop_indexes_for_table(&qualified_name);
+
         // Remove from catalog
         self.catalog.drop_table(name).map_err(|e| StorageError::CatalogError(e.to_string()))?;
 
@@ -112,8 +125,6 @@ impl Database {
         if self.tables.remove(name).is_none() {
             // If not found and name is unqualified, try with current schema prefix
             if !name.contains('.') {
-                let current_schema = self.catalog.get_current_schema();
-                let qualified_name = format!("{}.{}", current_schema, name);
                 self.tables.remove(&qualified_name);
             }
         }
