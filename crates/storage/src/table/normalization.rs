@@ -207,30 +207,93 @@ impl<'a> RowNormalizer<'a> {
             }
             // Date/Time types
             DataType::Date => {
-                if !matches!(value, SqlValue::Date(_)) {
-                    return Err(StorageError::TypeMismatch {
-                        column: column_name.to_string(),
-                        expected: "DATE".to_string(),
-                        actual: value.type_name().to_string(),
-                    });
+                // Allow implicit conversion from VARCHAR to DATE
+                match value {
+                    SqlValue::Date(_) => {
+                        // Already correct type
+                    }
+                    SqlValue::Varchar(s) | SqlValue::Character(s) => {
+                        // Try to parse VARCHAR as DATE
+                        match s.parse::<types::Date>() {
+                            Ok(date) => {
+                                *value = SqlValue::Date(date);
+                            }
+                            Err(_) => {
+                                return Err(StorageError::TypeMismatch {
+                                    column: column_name.to_string(),
+                                    expected: format!("DATE (cannot parse '{}')", s),
+                                    actual: value.type_name().to_string(),
+                                });
+                            }
+                        }
+                    }
+                    _ => {
+                        return Err(StorageError::TypeMismatch {
+                            column: column_name.to_string(),
+                            expected: "DATE".to_string(),
+                            actual: value.type_name().to_string(),
+                        });
+                    }
                 }
             }
             DataType::Time { .. } => {
-                if !matches!(value, SqlValue::Time(_)) {
-                    return Err(StorageError::TypeMismatch {
-                        column: column_name.to_string(),
-                        expected: "TIME".to_string(),
-                        actual: value.type_name().to_string(),
-                    });
+                // Allow implicit conversion from VARCHAR to TIME
+                match value {
+                    SqlValue::Time(_) => {
+                        // Already correct type
+                    }
+                    SqlValue::Varchar(s) | SqlValue::Character(s) => {
+                        // Try to parse VARCHAR as TIME
+                        match s.parse::<types::Time>() {
+                            Ok(time) => {
+                                *value = SqlValue::Time(time);
+                            }
+                            Err(_) => {
+                                return Err(StorageError::TypeMismatch {
+                                    column: column_name.to_string(),
+                                    expected: format!("TIME (cannot parse '{}')", s),
+                                    actual: value.type_name().to_string(),
+                                });
+                            }
+                        }
+                    }
+                    _ => {
+                        return Err(StorageError::TypeMismatch {
+                            column: column_name.to_string(),
+                            expected: "TIME".to_string(),
+                            actual: value.type_name().to_string(),
+                        });
+                    }
                 }
             }
             DataType::Timestamp { .. } => {
-                if !matches!(value, SqlValue::Timestamp(_)) {
-                    return Err(StorageError::TypeMismatch {
-                        column: column_name.to_string(),
-                        expected: "TIMESTAMP".to_string(),
-                        actual: value.type_name().to_string(),
-                    });
+                // Allow implicit conversion from VARCHAR to TIMESTAMP
+                match value {
+                    SqlValue::Timestamp(_) => {
+                        // Already correct type
+                    }
+                    SqlValue::Varchar(s) | SqlValue::Character(s) => {
+                        // Try to parse VARCHAR as TIMESTAMP
+                        match s.parse::<types::Timestamp>() {
+                            Ok(ts) => {
+                                *value = SqlValue::Timestamp(ts);
+                            }
+                            Err(_) => {
+                                return Err(StorageError::TypeMismatch {
+                                    column: column_name.to_string(),
+                                    expected: format!("TIMESTAMP (cannot parse '{}')", s),
+                                    actual: value.type_name().to_string(),
+                                });
+                            }
+                        }
+                    }
+                    _ => {
+                        return Err(StorageError::TypeMismatch {
+                            column: column_name.to_string(),
+                            expected: "TIMESTAMP".to_string(),
+                            actual: value.type_name().to_string(),
+                        });
+                    }
                 }
             }
             // Interval type
