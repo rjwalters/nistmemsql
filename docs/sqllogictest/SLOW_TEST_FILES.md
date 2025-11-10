@@ -5,7 +5,7 @@ During parallel testing with 64 workers, several workers get stuck at 100% CPU o
 
 ## Identified Problem Files
 
-Based on remote testing run (2025-11-09):
+Based on parallel testing run (2025-11-09):
 
 1. **`select5.test`** - Worker 2
    - Symptoms: Repeated memory warnings (6.48 GB)
@@ -45,7 +45,7 @@ Based on remote testing run (2025-11-09):
 ### Short-term (Immediate)
 1. **Add query timeout enforcement** at the query level (not just file level) - **Issue #1037**
 2. **Skip known slow files** - Add to a blocklist temporarily
-3. **Reduce time budget** for remote testing to avoid wasting compute
+3. **Optimize test execution** to handle large test files efficiently
 
 ### Medium-term (Investigation)
 1. **Profile select5.test** - Identify specific query causing infinite loop
