@@ -9,7 +9,7 @@ use lru::LruCache;
 use parking_lot::Mutex;
 use pyo3::{
     prelude::*,
-    vibesql_types::{PyList, PyTuple},
+    types::{PyList, PyTuple},
 };
 
 use crate::{

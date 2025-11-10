@@ -3,7 +3,7 @@ use std::time::SystemTime;
 
 use crate::{
     commands::MetaCommand,
-    vibesql_executor::SqlExecutor,
+    executor::SqlExecutor,
     formatter::{OutputFormat, ResultFormatter},
 };
 

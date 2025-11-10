@@ -3,7 +3,7 @@
 //! This module handles bidirectional conversion of values between Python
 //! and Rust SqlValue types, supporting DB-API 2.0 conventions.
 
-use pyo3::{prelude::*, vibesql_types::PyTuple};
+use pyo3::{prelude::*, types::PyTuple};
 
 use crate::ProgrammingError;
 

@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    vibesql_executor::SqlExecutor,
+    executor::SqlExecutor,
     formatter::{OutputFormat, ResultFormatter},
 };
 
