@@ -53,7 +53,7 @@ fn test_count_star_fast_path_simple() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], types::SqlValue::Integer(1000));
+    assert_eq!(result[0].values[0], types::SqlValue::Numeric(1000.0));
 }
 
 #[test]
@@ -91,7 +91,7 @@ fn test_count_star_fast_path_empty_table() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], types::SqlValue::Integer(0));
+    assert_eq!(result[0].values[0], types::SqlValue::Numeric(0.0));
 }
 
 #[test]
@@ -133,7 +133,7 @@ fn test_count_star_with_where_no_fast_path() {
         where_clause: Some(ast::Expression::BinaryOp {
             left: Box::new(ast::Expression::ColumnRef { table: None, column: "value".to_string() }),
             op: ast::BinaryOperator::GreaterThan,
-            right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(5))),
+            right: Box::new(ast::Expression::Literal(types::SqlValue::Numeric(5.0))),
         }),
         group_by: None,
         having: None,
@@ -145,7 +145,7 @@ fn test_count_star_with_where_no_fast_path() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // Should count only rows where value > 5 (which is id > 2, so 7 rows)
-    assert_eq!(result[0].values[0], types::SqlValue::Integer(7));
+    assert_eq!(result[0].values[0], types::SqlValue::Numeric(7.0));
 }
 
 #[test]
@@ -264,7 +264,7 @@ fn test_count_star_distinct_no_fast_path() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], types::SqlValue::Integer(5));
+    assert_eq!(result[0].values[0], types::SqlValue::Numeric(5.0));
 }
 
 #[test]
@@ -306,7 +306,7 @@ fn test_count_column_no_fast_path() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], types::SqlValue::Integer(5));
+    assert_eq!(result[0].values[0], types::SqlValue::Numeric(5.0));
 }
 
 #[test]
@@ -348,7 +348,7 @@ fn test_count_star_with_alias() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], types::SqlValue::Integer(100));
+    assert_eq!(result[0].values[0], types::SqlValue::Numeric(100.0));
 }
 
 #[test]
@@ -410,6 +410,6 @@ fn test_count_star_multiple_select_items_no_fast_path() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], types::SqlValue::Integer(5));
+    assert_eq!(result[0].values[0], types::SqlValue::Numeric(5.0));
     assert_eq!(result[0].values[1], types::SqlValue::Numeric(100.0)); // 0+10+20+30+40
 }

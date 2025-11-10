@@ -59,9 +59,8 @@ fn test_phase_2_table_local_pushdown() {
 
     assert_eq!(result.len(), 1);
     let count = match &result[0].values[0] {
-        types::SqlValue::Integer(n) => *n,
-        types::SqlValue::Bigint(n) => *n,
-        _ => panic!("Expected integer count"),
+        types::SqlValue::Numeric(n) => *n as i64,
+        _ => panic!("Expected numeric count"),
     };
     assert_eq!(count, 10); // Rows 991-1000
 }
@@ -102,9 +101,8 @@ fn test_phase_3_equijoin_hash_join() {
 
     assert_eq!(result.len(), 1);
     let count = match &result[0].values[0] {
-        types::SqlValue::Integer(n) => *n,
-        types::SqlValue::Bigint(n) => *n,
-        _ => panic!("Expected integer count"),
+        types::SqlValue::Numeric(n) => *n as i64,
+        _ => panic!("Expected numeric count"),
     };
     assert_eq!(count, 100); // 100 matching rows
 }
@@ -153,9 +151,8 @@ fn test_phases_2_and_3_combined() {
 
     assert_eq!(result.len(), 1);
     let count = match &result[0].values[0] {
-        types::SqlValue::Integer(n) => *n,
-        types::SqlValue::Bigint(n) => *n,
-        _ => panic!("Expected integer count"),
+        types::SqlValue::Numeric(n) => *n as i64,
+        _ => panic!("Expected numeric count"),
     };
     assert_eq!(count, 10); // Rows 41-50 matching across all tables
 }

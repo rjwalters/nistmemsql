@@ -47,7 +47,7 @@ pub(super) fn evaluate(
                 ));
             }
             // Fast path: COUNT(*) without DISTINCT is just row count (O(1) vs O(n))
-            let result = types::SqlValue::Integer(group_rows.len() as i64);
+            let result = types::SqlValue::Numeric(group_rows.len() as f64);
             // Cache the result
             executor.aggregate_cache.borrow_mut().insert(cache_key, result.clone());
             return Ok(result);

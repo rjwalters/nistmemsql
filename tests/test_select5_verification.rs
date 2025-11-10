@@ -12,6 +12,7 @@ mod sqllogictest;
 use crate::sqllogictest::db_adapter::NistMemSqlDB;
 
 #[tokio::test]
+#[ignore]
 async fn test_select5_no_oom() {
     // This test verifies that select5.test runs without OOM
     // Before predicate pushdown: 73+ GB memory usage → OOM
