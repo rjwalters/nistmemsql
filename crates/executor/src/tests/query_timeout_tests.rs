@@ -3,12 +3,12 @@
 use crate::{errors::ExecutorError, limits::MAX_QUERY_EXECUTION_SECONDS, SelectExecutor};
 
 #[test]
-fn test_default_timeout_is_60_seconds() {
+fn test_default_timeout_is_300_seconds() {
     let db = storage::Database::new();
     let executor = SelectExecutor::new(&db);
 
     // Verify timeout_seconds field was set correctly
-    assert_eq!(executor.timeout_seconds, 60);
+    assert_eq!(executor.timeout_seconds, 300);
     assert_eq!(executor.timeout_seconds, MAX_QUERY_EXECUTION_SECONDS);
 }
 
