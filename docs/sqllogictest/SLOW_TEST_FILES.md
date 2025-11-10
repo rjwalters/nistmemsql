@@ -120,3 +120,11 @@ Priority order:
 - **Est. row scans**: ~6 million total
 - **Solution**: Query-level timeout (#1037), possible NULL handling optimization
 - **Status**: Added to #1039 as related file
+
+**`index/orderby/1000/slt_good_0.test`** (Issue #1197):
+- **Root cause**: Infinite loop in ORDER BY operations with large indexed dataset
+- **Symptoms**: 100% CPU usage, no progress, stable memory (~49 MB)
+- **Data**: 1000 rows (10x larger than most index tests)
+- **Test purpose**: ORDER BY operations on indexed columns
+- **Solution**: Added to blocklist temporarily while investigating root cause
+- **Status**: **BLOCKED** - Currently skipped in parallel test runs
