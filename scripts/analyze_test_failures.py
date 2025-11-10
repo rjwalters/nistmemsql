@@ -130,6 +130,27 @@ class FailureAnalyzer:
                 "error": error_msg
             })
 
+    def cluster_mysql_specific_errors(self):
+        """Cluster MySQL-specific parse errors (not part of SQL:1999 standard)."""
+        sql_errors = [f for f in self.failures if f[1] == "sql_parse_error"]
+
+        mysql_indicators = [
+            (r"Unexpected character: '@'", "MySQL system variables (@@)"),
+            (r"SET\s+SESSION", "MySQL session management"),
+            (r"ONLY_FULL_GROUP_BY", "MySQL sql_mode flags"),
+        ]
+
+        for test_file, _, error_msg in sql_errors:
+            # Check if this is a MySQL-specific error
+            for pattern, description in mysql_indicators:
+                if re.search(pattern, error_msg, re.IGNORECASE):
+                    self.clusters["mysql_specific_errors"].append({
+                        "file": test_file,
+                        "error": error_msg,
+                        "pattern": description
+                    })
+                    break  # Don't count the same error twice
+
     def generate_summary(self) -> Dict:
         """Generate summary statistics."""
         summary = {
@@ -218,6 +239,31 @@ class FailureAnalyzer:
             report.append("")
 
             report.append("**Recommendation**: Fork `sqllogictest` crate and add MySQL directive support")
+            report.append("")
+
+        # MySQL-specific errors (tracked separately for metrics)
+        if "mysql_specific_errors" in self.clusters:
+            report.append("## 🔍 MySQL-Specific Syntax")
+            report.append("")
+            report.append("These failures are from MySQL extensions not part of SQL:1999 standard.")
+            report.append("**Goal**: Pass these tests by implementing MySQL compatibility.")
+            report.append("")
+
+            by_pattern = defaultdict(set)
+            for item in self.clusters["mysql_specific_errors"]:
+                by_pattern[item["pattern"]].add(item["file"])
+
+            report.append(f"**Total failures**: {len(self.clusters['mysql_specific_errors']):,}")
+            report.append(f"**Unique files**: {len(set(item['file'] for item in self.clusters['mysql_specific_errors'])):,}")
+            report.append("")
+
+            report.append("### MySQL Patterns Needing Implementation")
+            report.append("")
+            for pattern, files in sorted(by_pattern.items(), key=lambda x: len(x[1]), reverse=True):
+                report.append(f"- **{pattern}**: {len(files):,} files")
+            report.append("")
+
+            report.append("**Metrics**: These are reported separately to distinguish SQL:1999 compliance from MySQL dialect support.")
             report.append("")
 
         # SQL parse errors
@@ -344,6 +390,7 @@ def main():
     analyzer.cluster_parse_errors()
     analyzer.cluster_execution_errors()
     analyzer.cluster_parse_errors_sql()
+    analyzer.cluster_mysql_specific_errors()
     analyzer.cluster_result_mismatches()
     print("✓ Clustering complete")
     print("")

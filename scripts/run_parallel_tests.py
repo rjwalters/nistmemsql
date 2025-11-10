@@ -25,6 +25,7 @@ import glob
 import json
 import multiprocessing
 import os
+import re
 import subprocess
 import sys
 import time
@@ -42,9 +43,44 @@ def get_repo_root() -> Path:
     raise RuntimeError("Could not find git repository root")
 
 
+def is_mysql_specific(test_file_path: Path) -> bool:
+    """
+    Check if test file contains MySQL-specific syntax.
+
+    MySQL-specific features we filter out:
+    - System variables: @@sql_mode, @@session.variable_name
+    - Session management: SET SESSION
+    - MySQL sql_mode flags: ONLY_FULL_GROUP_BY
+
+    These are MySQL extensions not part of SQL:1999 standard.
+
+    Args:
+        test_file_path: Path to the test file
+
+    Returns:
+        True if the test contains MySQL-specific syntax, False otherwise
+    """
+    mysql_patterns = [
+        r'@@\w+',                    # System variables like @@sql_mode
+        r'SET\s+SESSION',            # Session settings
+        r'ONLY_FULL_GROUP_BY',       # MySQL sql_mode flag
+    ]
+
+    try:
+        content = test_file_path.read_text()
+        return any(re.search(pattern, content, re.IGNORECASE)
+                   for pattern in mysql_patterns)
+    except Exception:
+        # If we can't read the file, assume it's not MySQL-specific
+        return False
+
+
 def initialize_work_queue(repo_root: Path, work_queue_dir: Path) -> int:
     """
     Initialize work queue by creating work items for all test files.
+
+    Filters out only blocklisted files (memory leaks, OOM issues).
+    MySQL-specific tests are included and tagged for separate reporting.
 
     Returns:
         Number of test files added to the queue
@@ -71,7 +107,7 @@ def initialize_work_queue(repo_root: Path, work_queue_dir: Path) -> int:
     test_dir = repo_root / "third_party" / "sqllogictest" / "test"
     all_test_files = sorted(glob.glob(str(test_dir / "**" / "*.test"), recursive=True))
 
-    # Filter out blocklisted files
+    # Filter out only blocklisted files (MySQL tests are included)
     test_files = []
     skipped_count = 0
     for test_file_path in all_test_files:
