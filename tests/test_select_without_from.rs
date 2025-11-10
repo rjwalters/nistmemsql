@@ -94,7 +94,7 @@ fn test_select_count_star_without_from() {
             assert_eq!(rows.len(), 1, "Should return exactly 1 row");
             assert_eq!(rows[0].values.len(), 1, "Should have exactly 1 column");
             // COUNT(*) without FROM operates over one implicit row, so returns 1
-            assert_eq!(rows[0].values[0], types::SqlValue::Integer(1));
+            assert_eq!(rows[0].values[0], types::SqlValue::Numeric(1.0));
         }
         _ => panic!("Expected SELECT statement"),
     }
@@ -117,7 +117,7 @@ fn test_select_aggregate_expression_without_from() {
             assert_eq!(rows.len(), 1, "Should return exactly 1 row");
             assert_eq!(rows[0].values.len(), 1, "Should have exactly 1 column");
             // COUNT(*) + 1 = 1 + 1 = 2 (COUNT(*) without FROM returns 1)
-            assert_eq!(rows[0].values[0], types::SqlValue::Integer(2));
+            assert_eq!(rows[0].values[0], types::SqlValue::Numeric(2.0));
         }
         _ => panic!("Expected SELECT statement"),
     }
