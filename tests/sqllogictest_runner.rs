@@ -2,7 +2,6 @@
 
 use async_trait::async_trait;
 use executor::SelectExecutor;
-use md5::{Digest, Md5};
 use parser::Parser;
 use sqllogictest::{AsyncDB, DBOutput, DefaultColumnType};
 use storage::Database;
@@ -32,8 +31,10 @@ impl NistMemSqlDB {
         }
     }
 
-    /// Format and optionally hash result rows
-    /// Returns either the full result set or an MD5 hash for large results (>8 values)
+    /// Format result rows for SQLLogicTest
+    /// Returns flattened results where each value becomes its own row
+    /// Note: The sqllogictest library handles hashing based on its threshold configuration,
+    /// so we always return actual values here.
     fn format_result_rows(
         &self,
         rows: &[storage::Row],
@@ -53,51 +54,23 @@ impl NistMemSqlDB {
         // Count total values before flattening
         let total_values: usize = formatted_rows.iter().map(|r| r.len()).sum();
 
-        // For hashing, join rows using canonical format (preserving original order)
-        if total_values > 8 {
-            let mut hasher = Md5::new();
-            // Use canonical format for hashing (no .000 suffix for integers)
-            let canonical_rows: Vec<Vec<String>> = rows
-                .iter()
-                .map(|row| {
-                    row.values
-                        .iter()
-                        .enumerate()
-                        .map(|(idx, val)| self.format_sql_value_canonical(val, types.get(idx)))
-                        .collect()
-                })
-                .collect();
+        // Flatten multi-column results: each value becomes its own row
+        // This is required for SQLLogicTest format where each value is on separate rows
+        let mut flattened_rows: Vec<Vec<String>> = Vec::new();
+        let mut flattened_types: Vec<DefaultColumnType> = Vec::new();
 
-            let row_strings: Vec<_> = canonical_rows.iter().map(|row| row.join(" ")).collect();
-            for row_str in &row_strings {
-                hasher.update(row_str);
-                hasher.update("\n");
-            }
-            let hash = format!("{:x}", hasher.finalize());
-            let hash_string = format!("{} values hashing to {}", total_values, hash);
-            Ok(DBOutput::Rows {
-                types: vec![DefaultColumnType::Text],
-                rows: vec![vec![hash_string]],
-            })
-        } else {
-            // Flatten multi-column results: each value becomes its own row
-            // This is required for SQLLogicTest format where each value is on separate rows
-            let mut flattened_rows: Vec<Vec<String>> = Vec::new();
-            let mut flattened_types: Vec<DefaultColumnType> = Vec::new();
-
-            // Get the type for single values (they're all treated as individual rows now)
-            if !types.is_empty() {
-                flattened_types = vec![types[0].clone(); total_values];
-            }
-
-            for row in formatted_rows {
-                for val in row {
-                    flattened_rows.push(vec![val]);
-                }
-            }
-
-            Ok(DBOutput::Rows { types: flattened_types, rows: flattened_rows })
+        // Get the type for single values (they're all treated as individual rows now)
+        if !types.is_empty() {
+            flattened_types = vec![types[0].clone(); total_values];
         }
+
+        for row in formatted_rows {
+            for val in row {
+                flattened_rows.push(vec![val]);
+            }
+        }
+
+        Ok(DBOutput::Rows { types: flattened_types, rows: flattened_rows })
     }
 
     fn execute_sql(&mut self, sql: &str) -> Result<DBOutput<DefaultColumnType>, TestError> {
@@ -380,60 +353,6 @@ impl NistMemSqlDB {
             SqlValue::Interval(d) => d.to_string(),
         }
     }
-
-    /// Format value in canonical form for hashing (plain format without display decorations)
-    fn format_sql_value_canonical(
-        &self,
-        value: &SqlValue,
-        expected_type: Option<&DefaultColumnType>,
-    ) -> String {
-        match value {
-            SqlValue::Integer(i) => i.to_string(),
-            SqlValue::Smallint(i) => {
-                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
-                    format!("{:.3}", *i as f64)
-                } else {
-                    i.to_string()
-                }
-            }
-            SqlValue::Bigint(i) => {
-                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
-                    format!("{:.3}", *i as f64)
-                } else {
-                    i.to_string()
-                }
-            }
-            SqlValue::Unsigned(i) => {
-                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
-                    format!("{:.3}", *i as f64)
-                } else {
-                    i.to_string()
-                }
-            }
-            SqlValue::Numeric(_) => value.to_string(),
-            SqlValue::Float(f) | SqlValue::Real(f) => {
-                if f.fract() == 0.0 {
-                    format!("{:.1}", f)
-                } else {
-                    f.to_string()
-                }
-            }
-            SqlValue::Double(f) => {
-                if f.fract() == 0.0 {
-                    format!("{:.1}", f)
-                } else {
-                    f.to_string()
-                }
-            }
-            SqlValue::Varchar(s) | SqlValue::Character(s) => s.clone(),
-            SqlValue::Boolean(b) => if *b { "1" } else { "0" }.to_string(),
-            SqlValue::Null => "NULL".to_string(),
-            SqlValue::Date(d) => d.to_string(),
-            SqlValue::Time(d) => d.to_string(),
-            SqlValue::Timestamp(d) => d.to_string(),
-            SqlValue::Interval(d) => d.to_string(),
-        }
-    }
 }
 
 #[async_trait]
@@ -578,4 +497,33 @@ SELECT + + 74 AS col0, 50 col1
 "#;
 
     tester.run_script(script).expect("Multi-column SELECT order test should pass");
+}
+
+// Issue #1190: Reproduction test for 3-value queries returning hashes
+#[tokio::test]
+async fn test_issue_1190_three_values_no_hash() {
+    let mut tester = sqllogictest::Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+
+    let script = r#"
+statement ok
+CREATE TABLE tab0(col0 INTEGER, col1 INTEGER, col2 INTEGER)
+
+statement ok
+INSERT INTO tab0 VALUES (35, 97, 1)
+
+statement ok
+INSERT INTO tab0 VALUES (36, 98, 2)
+
+statement ok
+INSERT INTO tab0 VALUES (37, 99, 3)
+
+query I
+SELECT - 57 col2 FROM tab0
+----
+-57
+-57
+-57
+"#;
+
+    tester.run_script(script).expect("3-value query should not be hashed");
 }

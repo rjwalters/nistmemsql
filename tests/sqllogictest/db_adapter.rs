@@ -8,17 +8,13 @@ use std::{
 
 use async_trait::async_trait;
 use executor::SelectExecutor;
-use md5::{Digest, Md5};
 use parser::Parser;
 use sqllogictest::{AsyncDB, DBOutput, DefaultColumnType};
 use storage::Database;
 use tokio::time::timeout;
 use types::SqlValue;
 
-use super::{
-    execution::TestError,
-    formatting::{format_sql_value, format_sql_value_canonical},
-};
+use super::{execution::TestError, formatting::format_sql_value};
 
 // Thread-local Database pool for reuse across test files within the same worker thread.
 // This avoids the overhead of creating a new Database for each test file (622 files in full suite).
@@ -124,8 +120,10 @@ impl NistMemSqlDB {
         }
     }
 
-    /// Format and optionally hash result rows
-    /// Returns either the full result set or an MD5 hash for large results (>8 values)
+    /// Format result rows for SQLLogicTest
+    /// Returns flattened results where each value becomes its own row
+    /// Note: The sqllogictest library handles hashing based on its threshold configuration,
+    /// so we always return actual values here.
     fn format_result_rows(
         &self,
         rows: &[storage::Row],
@@ -145,52 +143,23 @@ impl NistMemSqlDB {
         // Count total values before flattening
         let total_values: usize = formatted_rows.iter().map(|r| r.len()).sum();
 
-        // For hashing, we need to sort and join the original rows using canonical format
-        if total_values > 8 {
-            let mut hasher = Md5::new();
-            // Use canonical format for hashing (no .000 suffix for integers)
-            let canonical_rows: Vec<Vec<String>> = rows
-                .iter()
-                .map(|row| {
-                    row.values
-                        .iter()
-                        .enumerate()
-                        .map(|(idx, val)| format_sql_value_canonical(val, types.get(idx)))
-                        .collect()
-                })
-                .collect();
+        // Flatten multi-column results: each value becomes its own row
+        // This is required for SQLLogicTest format where each value is on separate rows
+        let mut flattened_rows: Vec<Vec<String>> = Vec::new();
+        let mut flattened_types: Vec<DefaultColumnType> = Vec::new();
 
-            let mut sort_keys: Vec<_> = canonical_rows.iter().map(|row| row.join(" ")).collect();
-            sort_keys.sort();
-            for key in &sort_keys {
-                hasher.update(key);
-                hasher.update("\n");
-            }
-            let hash = format!("{:x}", hasher.finalize());
-            let hash_string = format!("{} values hashing to {}", total_values, hash);
-            Ok(DBOutput::Rows {
-                types: vec![DefaultColumnType::Text],
-                rows: vec![vec![hash_string]],
-            })
-        } else {
-            // Flatten multi-column results: each value becomes its own row
-            // This is required for SQLLogicTest format where each value is on separate rows
-            let mut flattened_rows: Vec<Vec<String>> = Vec::new();
-            let mut flattened_types: Vec<DefaultColumnType> = Vec::new();
-
-            // Get the type for single values (they're all treated as individual rows now)
-            if !types.is_empty() {
-                flattened_types = vec![types[0].clone(); total_values];
-            }
-
-            for row in formatted_rows {
-                for val in row {
-                    flattened_rows.push(vec![val]);
-                }
-            }
-
-            Ok(DBOutput::Rows { types: flattened_types, rows: flattened_rows })
+        // Get the type for single values (they're all treated as individual rows now)
+        if !types.is_empty() {
+            flattened_types = vec![types[0].clone(); total_values];
         }
+
+        for row in formatted_rows {
+            for val in row {
+                flattened_rows.push(vec![val]);
+            }
+        }
+
+        Ok(DBOutput::Rows { types: flattened_types, rows: flattened_rows })
     }
 
     fn execute_sql(&mut self, sql: &str) -> Result<DBOutput<DefaultColumnType>, TestError> {
