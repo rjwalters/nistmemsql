@@ -13,14 +13,46 @@ use crate::StorageError;
 /// Read SQL dump content from file
 ///
 /// # Errors
-/// Returns `StorageError::NotImplemented` if the file cannot be read
+/// Returns `StorageError::NotImplemented` if the file cannot be read or is not a text file
 pub fn read_sql_dump<P: AsRef<Path>>(path: P) -> Result<String, StorageError> {
     let path_ref = path.as_ref();
     if !path_ref.exists() {
-        return Err(StorageError::NotImplemented(format!("File does not exist: {:?}", path_ref)));
+        return Err(StorageError::NotImplemented(format!(
+            "File does not exist: {:?}",
+            path_ref
+        )));
     }
-    fs::read_to_string(path)
-        .map_err(|e| StorageError::NotImplemented(format!("Failed to read file: {}", e)))
+
+    // Try to read the file as text
+    match fs::read_to_string(path_ref) {
+        Ok(content) => Ok(content),
+        Err(e) => {
+            // Check if this might be a binary database file (like SQLite)
+            if let Ok(bytes) = fs::read(path_ref).and_then(|b| Ok(b.get(0..16).unwrap_or(&[]).to_vec())) {
+                // Check for SQLite file signature
+                if bytes.starts_with(b"SQLite format") {
+                    return Err(StorageError::NotImplemented(format!(
+                        "File appears to be a binary SQLite database. vibesql uses SQL dump format (text). \
+                         To import, export from SQLite as SQL: sqlite3 {} .dump > {}.sql",
+                        path_ref.display(),
+                        path_ref.file_stem().and_then(|s| s.to_str()).unwrap_or("database")
+                    )));
+                }
+                // Check for other binary file indicators (null bytes in first 512 bytes)
+                if let Ok(sample) = fs::read(path_ref).and_then(|b| Ok(b.get(0..512).unwrap_or(&[]).to_vec())) {
+                    if sample.contains(&0) {
+                        return Err(StorageError::NotImplemented(
+                            "File appears to be a binary database format. vibesql uses SQL dump format (text files). \
+                             Please export your database as SQL text format.".to_string()
+                        ));
+                    }
+                }
+            }
+
+            // Generic error for other read failures
+            Err(StorageError::NotImplemented(format!("Failed to read file: {}", e)))
+        }
+    }
 }
 
 /// Parse SQL dump content into individual statements

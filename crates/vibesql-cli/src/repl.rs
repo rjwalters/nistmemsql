@@ -19,6 +19,7 @@ pub struct Repl {
     formatter: ResultFormatter,
     database_path: Option<String>,
     error_history: Vec<ErrorEntry>,
+    has_modifications: bool,
 }
 
 impl Repl {
@@ -38,6 +39,7 @@ impl Repl {
             formatter,
             database_path,
             error_history: Vec::new(),
+            has_modifications: false,
         })
     }
 
@@ -79,6 +81,7 @@ impl Repl {
                                 // modification
                                 if let Some(ref path) = self.database_path {
                                     if is_modification_statement(&line) {
+                                        self.has_modifications = true;
                                         if let Err(e) = self.executor.save_database(path) {
                                             eprintln!(
                                                 "Warning: Failed to auto-save database: {}",
@@ -107,6 +110,15 @@ impl Repl {
                 Err(err) => {
                     eprintln!("Error: {:?}", err);
                     break;
+                }
+            }
+        }
+
+        // Save database on exit if modifications occurred
+        if self.has_modifications {
+            if let Some(ref path) = self.database_path {
+                if let Err(e) = self.executor.save_database(path) {
+                    eprintln!("Warning: Failed to save database on exit: {}", e);
                 }
             }
         }
