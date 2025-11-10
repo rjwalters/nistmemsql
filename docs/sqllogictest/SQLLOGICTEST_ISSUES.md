@@ -6,7 +6,9 @@
 
 ## Executive Summary
 
-Remote testing on rwalters-sandbox-1 (64 cores, 123GB RAM) revealed critical infinite loop bugs in the SQL executor that prevent completion of the full test suite. All 64 parallel workers hung on the same test file after completing ~36 tests each.
+**Note**: This document contains historical findings from earlier parallel testing runs.
+
+Parallel testing with 64 workers revealed critical infinite loop bugs in the SQL executor that prevented completion of the full test suite. All 64 parallel workers hung on the same test file after completing ~36 tests each.
 
 ## Critical Issue: Infinite Loop Hang
 
@@ -128,8 +130,7 @@ SELECT pk FROM tab0 WHERE (col3 <= 91 AND col3 = 34) OR (col0 < 17 OR col4 IN (6
 ## Investigation Methodology
 
 ### Test Environment
-- **Machine**: rwalters-sandbox-1 (AWS EC2)
-- **CPUs**: 64 cores (x86_64)
+- **CPUs**: 64 cores (parallel testing)
 - **RAM**: 123GB
 - **OS**: Ubuntu 24.04.1 LTS
 - **Rust**: 1.91.0 (stable)
@@ -225,8 +226,7 @@ All files in `random/aggregates/` and `random/expr/` with COUNT/MAX/MIN failures
 
 ### Result Files
 - **Cumulative results**: `target/sqllogictest_cumulative.json`
-- **Remote location**: `rwalters-sandbox-1:~/vibesql/target/sqllogictest_cumulative.json`
-- **Worker logs**: `/tmp/sqllogictest_results/worker_*.log` (on sandbox)
+- **Worker logs**: `/tmp/sqllogictest_results/worker_*.log`
 
 ### Test Suite
 - **Location**: `third_party/sqllogictest/test/`
