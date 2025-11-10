@@ -33,9 +33,6 @@ Testing strategies, conformance tracking, and quality assurance.
 - SQL1999_CONFORMANCE.md - Conformance progress tracking
 - SQLLOGICTEST_IMPROVEMENTS.md - SQLLogicTest integration (~5.9M tests)
 - sqllogictest-analysis.md - Test results analysis
-- REMOTE_TESTING.md - Remote testing infrastructure
-- REMOTE_EXECUTION.md - Remote execution setup and usage
-- ISSUE_REMOTE_TEST_PARALLELISM.md - Remote test parallelism investigation
 
 ### [sqllogictest/](sqllogictest/) - SQLLogicTest Suite
 Comprehensive documentation for SQLLogicTest conformance testing.

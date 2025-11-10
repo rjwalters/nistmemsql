@@ -14,17 +14,17 @@ As of 2025-11-08:
 
 ### Running the Full Test Suite
 
-We use parallel testing on a 64-core remote server for comprehensive coverage:
+We use parallel testing for comprehensive coverage:
 
 ```bash
-# Run full suite on remote server (rwalters-sandbox-1)
-./scripts/run_remote_sqllogictest.sh
+# Run full suite with parallel workers
+./scripts/sqllogictest run --parallel --workers 8 --time 300
 
-# Or run locally with parallel workers
-python3 scripts/run_parallel_tests.py --workers 64 --time-budget 3600
+# Check status of most recent test run
+./scripts/sqllogictest status
 
-# Aggregate results from multiple workers
-python3 scripts/aggregate_worker_results.py /tmp/sqllogictest_results
+# View detailed results
+./scripts/sqllogictest query --preset failed-files
 ```
 
 ### Test Result Files
@@ -273,10 +273,9 @@ Update this document after each major milestone:
 
 - SQLLogicTest Suite: `tests/sqllogictest/`
 - Test Runner: `tests/sqllogictest_suite.rs`
-- Parallel Runner: `scripts/run_parallel_tests.py`
-- Aggregator: `scripts/aggregate_worker_results.py`
-- Remote Runner: `scripts/run_remote_sqllogictest.sh`
-- Analysis Output: `target/sqllogictest_results_analysis.json`
+- CLI Tool: `scripts/sqllogictest`
+- Database: `scripts/schema/test_results.sql`
+- Test Files: `tests/sqllogictest/test_files/`
 
 ## Questions to Answer
 
