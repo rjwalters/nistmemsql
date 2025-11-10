@@ -100,8 +100,8 @@ def initialize_work_queue(repo_root: Path, work_queue_dir: Path) -> int:
     completed_dir.mkdir(parents=True, exist_ok=True)
 
     # Blocklist of test files that cause memory leaks or OOM
-    # select5.test: Still has memory leak - grows from 6.5GB to 94GB+ over time
-    blocklist = {"select5.test"}
+    # select5.test was removed after fixing iterator memory leak (issue #1142)
+    blocklist = set()
 
     # Find all test files
     test_dir = repo_root / "third_party" / "sqllogictest" / "test"

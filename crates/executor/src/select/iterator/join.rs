@@ -148,9 +148,8 @@ impl<I: RowIterator> LazyNestedLoopJoin<I> {
         match &self.condition {
             None => Ok(true), // No condition means all rows match (CROSS JOIN)
             Some(expr) => {
-                // Create evaluator on-the-fly for the combined schema
-                let database = storage::Database::new(); // Empty database for column comparisons
-                let evaluator = crate::evaluator::CombinedExpressionEvaluator::with_database(&self.combined_schema, &database);
+                // Create evaluator without database (avoids per-row database allocation)
+                let evaluator = crate::evaluator::CombinedExpressionEvaluator::new(&self.combined_schema);
                 let value = evaluator.eval(expr, combined_row)?;
                 // Use same truthy logic as FilterIterator
                 match value {
