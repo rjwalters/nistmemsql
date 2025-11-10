@@ -12,6 +12,7 @@ chrono = "0.4"
 
 [dev-dependencies]
 parser = { path = "../parser" }
+criterion = { version = "0.5", features = ["html_reports"] }
 
 [[test]]
 name = "foreign_key_tests"
@@ -44,3 +45,7 @@ path = "tests/string_edge_case_tests.rs"
 [[test]]
 name = "predicate_pushdown_tests"
 path = "tests/predicate_pushdown_tests.rs"
+
+[[bench]]
+name = "iterator_execution"
+harness = false

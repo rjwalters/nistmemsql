@@ -131,11 +131,10 @@ impl ExpressionHasher {
                     && removal_char.as_ref().map_or(true, |c| Self::is_deterministic(c))
             }
 
-            // Literals are deterministic
+            // Literals are deterministic, but column references are NOT
+            // Column references depend on the current row data, so they should not be cached
+            // across multiple rows in row-iteration contexts
             ast::Expression::Literal(_) => true,
-
-            // Column references should NOT be cached - they vary by row
-            // Caching them causes bugs when the same evaluator is reused for multiple rows
             ast::Expression::ColumnRef { .. } => false,
 
             // Window and aggregate functions should not be cached at this level
@@ -442,11 +441,13 @@ mod tests {
 
     #[test]
     fn test_column_refs_are_not_deterministic() {
+        // Column references are NOT deterministic because they depend on row data
+        // Caching expressions with column references would cause incorrect results
+        // when evaluating across multiple rows with different column values
         let expr = ast::Expression::ColumnRef {
             table: None,
             column: "col1".to_string(),
         };
-        // Column refs should not be cached - they vary by row
         assert!(!ExpressionHasher::is_deterministic(&expr));
     }
 

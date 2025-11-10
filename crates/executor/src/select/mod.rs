@@ -4,6 +4,7 @@ mod filter;
 mod from_iterator;
 mod grouping;
 mod helpers;
+mod iterator;
 pub mod join;
 mod join_executor;
 mod join_reorder_wrapper;
@@ -13,6 +14,7 @@ mod scan;
 mod set_operations;
 mod window;
 
+pub use iterator::{RowIterator, TableScanIterator};
 pub use window::WindowFunctionKey;
 
 /// Result of a SELECT query including column metadata
