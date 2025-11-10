@@ -44,6 +44,19 @@ impl Database {
         }
     }
 
+    /// Reset the database to empty state (more efficient than creating a new instance).
+    ///
+    /// Clears all tables, resets catalog to default state, and clears all indexes and transactions.
+    /// Useful for test scenarios where you need to reuse a Database instance.
+    pub fn reset(&mut self) {
+        self.catalog = catalog::Catalog::new();
+        self.tables.clear();
+        self.index_manager = IndexManager::new();
+        self.transaction_manager = TransactionManager::new();
+        self.current_role = None;
+        self.security_enabled = false;
+    }
+
     /// Record a change in the current transaction (if any)
     pub fn record_change(&mut self, change: TransactionChange) {
         self.transaction_manager.record_change(change);

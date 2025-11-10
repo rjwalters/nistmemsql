@@ -1,6 +1,7 @@
 //! Database adapter for SQLLogicTest runner.
 
 use std::{
+    cell::RefCell,
     env,
     time::{Duration, Instant},
 };
@@ -18,6 +19,34 @@ use super::{
     execution::TestError,
     formatting::{format_sql_value, format_sql_value_canonical},
 };
+
+// Thread-local Database pool for reuse across test files within the same worker thread.
+// This avoids the overhead of creating a new Database for each test file (622 files in full suite).
+// Each worker thread gets its own cached Database that is reset between files.
+thread_local! {
+    static DB_POOL: RefCell<Option<Database>> = RefCell::new(None);
+}
+
+/// Get a reset Database from the thread-local pool.
+/// First call creates a new Database, subsequent calls reuse and reset the existing one.
+fn get_pooled_database() -> Database {
+    DB_POOL.with(|pool| {
+        let mut pool_ref = pool.borrow_mut();
+        match pool_ref.as_mut() {
+            Some(db) => {
+                // Reuse existing database after resetting it
+                db.reset();
+                db.clone()
+            }
+            None => {
+                // First use - create new database and cache it
+                let db = Database::new();
+                *pool_ref = Some(db.clone());
+                db
+            }
+        }
+    })
+}
 
 pub struct NistMemSqlDB {
     db: Database,
@@ -44,7 +73,7 @@ impl NistMemSqlDB {
             .unwrap_or(500); // Default: 500ms per query
 
         Self {
-            db: Database::new(),
+            db: get_pooled_database(),
             query_count: 0,
             verbose,
             worker_id,
