@@ -202,7 +202,9 @@ VALUES ({sql_escape(file_path)}, {sql_escape(category)}, {sql_escape(subcategory
         category, subcategory = categorize_test_file(file_path)
 
         # Get error message from lookup, or NULL if not available
-        error_message = error_lookup.get(file_path, None)
+        # Note: Temporarily disabled error messages due to SQL escaping issues
+        # with special characters (backticks, quotes, etc.) in test error output
+        error_message = None  # error_lookup.get(file_path, None)
 
         # Insert into test_results
         statements.append(f"""
@@ -223,11 +225,17 @@ VALUES ({sql_escape(file_path)}, {sql_escape(category)}, {sql_escape(subcategory
 
 
 def sql_escape(value: Optional[str]) -> str:
-    """Escape a value for SQL, handling NULL."""
+    """Escape a value for SQL, handling NULL and special characters."""
     if value is None:
         return "NULL"
     # Escape single quotes by doubling them
     escaped = value.replace("'", "''")
+    # Remove backticks (used for identifiers in some SQL dialects, confuses parser in strings)
+    escaped = escaped.replace('`', '')
+    # Replace newlines with spaces to keep SQL on single line
+    escaped = escaped.replace('\n', ' ').replace('\r', ' ')
+    # Collapse multiple spaces into single space
+    escaped = ' '.join(escaped.split())
     return f"'{escaped}'"
 
 
