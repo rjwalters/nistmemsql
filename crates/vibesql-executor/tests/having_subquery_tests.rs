@@ -24,45 +24,45 @@ fn setup_test_database() -> vibesql_storage::Database {
     db.insert_row(
         "SALES",
         vibesql_storage::Row::new(vec![
-            vibesql_types::SqlValue::Integer(1),
-            vibesql_types::SqlValue::Integer(1), // dept 1
-            vibesql_types::SqlValue::Integer(100),
+            vibesql_vibesql_types::SqlValue::Integer(1),
+            vibesql_vibesql_types::SqlValue::Integer(1), // dept 1
+            vibesql_vibesql_types::SqlValue::Integer(100),
         ]),
     )
     .unwrap();
     db.insert_row(
         "SALES",
         vibesql_storage::Row::new(vec![
-            vibesql_types::SqlValue::Integer(2),
-            vibesql_types::SqlValue::Integer(1), // dept 1
-            vibesql_types::SqlValue::Integer(200),
+            vibesql_vibesql_types::SqlValue::Integer(2),
+            vibesql_vibesql_types::SqlValue::Integer(1), // dept 1
+            vibesql_vibesql_types::SqlValue::Integer(200),
         ]),
     )
     .unwrap();
     db.insert_row(
         "SALES",
         vibesql_storage::Row::new(vec![
-            vibesql_types::SqlValue::Integer(3),
-            vibesql_types::SqlValue::Integer(2), // dept 2
-            vibesql_types::SqlValue::Integer(50),
+            vibesql_vibesql_types::SqlValue::Integer(3),
+            vibesql_vibesql_types::SqlValue::Integer(2), // dept 2
+            vibesql_vibesql_types::SqlValue::Integer(50),
         ]),
     )
     .unwrap();
     db.insert_row(
         "SALES",
         vibesql_storage::Row::new(vec![
-            vibesql_types::SqlValue::Integer(4),
-            vibesql_types::SqlValue::Integer(2), // dept 2
-            vibesql_types::SqlValue::Integer(75),
+            vibesql_vibesql_types::SqlValue::Integer(4),
+            vibesql_vibesql_types::SqlValue::Integer(2), // dept 2
+            vibesql_vibesql_types::SqlValue::Integer(75),
         ]),
     )
     .unwrap();
     db.insert_row(
         "SALES",
         vibesql_storage::Row::new(vec![
-            vibesql_types::SqlValue::Integer(5),
-            vibesql_types::SqlValue::Integer(3), // dept 3
-            vibesql_types::SqlValue::Integer(500),
+            vibesql_vibesql_types::SqlValue::Integer(5),
+            vibesql_vibesql_types::SqlValue::Integer(3), // dept 3
+            vibesql_vibesql_types::SqlValue::Integer(500),
         ]),
     )
     .unwrap();
@@ -84,7 +84,7 @@ fn setup_test_database() -> vibesql_storage::Database {
     // Insert target data
     db.insert_row(
         "TARGETS",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(1), vibesql_types::SqlValue::Integer(200)]),
+        vibesql_storage::Row::new(vec![vibesql_vibesql_types::SqlValue::Integer(1), vibesql_vibesql_types::SqlValue::Integer(200)]),
     )
     .unwrap();
 
@@ -118,12 +118,12 @@ fn test_having_with_scalar_subquery() {
     assert_eq!(rows.len(), 2);
 
     // Check dept 1
-    assert_eq!(rows[0].get(0), Some(&vibesql_types::SqlValue::Integer(1)));
-    assert_eq!(rows[0].get(1), Some(&vibesql_types::SqlValue::Numeric(300.0)));
+    assert_eq!(rows[0].get(0), Some(&vibesql_vibesql_types::SqlValue::Integer(1)));
+    assert_eq!(rows[0].get(1), Some(&vibesql_vibesql_types::SqlValue::Numeric(300.0)));
 
     // Check dept 3
-    assert_eq!(rows[1].get(0), Some(&vibesql_types::SqlValue::Integer(3)));
-    assert_eq!(rows[1].get(1), Some(&vibesql_types::SqlValue::Numeric(500.0)))
+    assert_eq!(rows[1].get(0), Some(&vibesql_vibesql_types::SqlValue::Integer(3)));
+    assert_eq!(rows[1].get(1), Some(&vibesql_vibesql_types::SqlValue::Numeric(500.0)))
 }
 
 #[test]
@@ -294,7 +294,8 @@ fn test_having_without_group_by_with_subquery() {
 
     // sales has 5 rows, targets has 1 row, so 5 > 1 is true
     assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].get(0), Some(&vibesql_types::SqlValue::Numeric(5.0)));
+    assert_eq!(rows[0].get(0), Some(&vibesql_vibesql_types::SqlValue::Numeric(5.0)));
+>>>>>>> origin/main:crates/vibesql-executor/tests/having_subquery_tests.rs
 }
 
 #[test]
@@ -344,7 +345,7 @@ fn test_having_with_quantified_any() {
 
     // Only dept 2 (125) is < 200
     assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].get(0), Some(&vibesql_types::SqlValue::Integer(2)));
+    assert_eq!(rows[0].get(0), Some(&vibesql_vibesql_types::SqlValue::Integer(2)));
 }
 
 #[test]

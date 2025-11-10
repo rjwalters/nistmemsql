@@ -21,32 +21,32 @@ fn create_test_db_with_duplicates() -> vibesql_storage::Database {
     // Unique values: 100, 200, 300 (3 distinct values)
     db.insert_row(
         "sales",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(1), vibesql_types::SqlValue::Integer(100)]),
+        vibesql_storage::Row::new(vec![vibesql_vibesql_types::SqlValue::Integer(1), vibesql_vibesql_types::SqlValue::Integer(100)]),
     )
     .unwrap();
     db.insert_row(
         "sales",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(2), vibesql_types::SqlValue::Integer(100)]),
+        vibesql_storage::Row::new(vec![vibesql_vibesql_types::SqlValue::Integer(2), vibesql_vibesql_types::SqlValue::Integer(100)]),
     )
     .unwrap();
     db.insert_row(
         "sales",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(3), vibesql_types::SqlValue::Integer(200)]),
+        vibesql_storage::Row::new(vec![vibesql_vibesql_types::SqlValue::Integer(3), vibesql_vibesql_types::SqlValue::Integer(200)]),
     )
     .unwrap();
     db.insert_row(
         "sales",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(4), vibesql_types::SqlValue::Integer(100)]),
+        vibesql_storage::Row::new(vec![vibesql_vibesql_types::SqlValue::Integer(4), vibesql_vibesql_types::SqlValue::Integer(100)]),
     )
     .unwrap();
     db.insert_row(
         "sales",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(5), vibesql_types::SqlValue::Integer(300)]),
+        vibesql_storage::Row::new(vec![vibesql_vibesql_types::SqlValue::Integer(5), vibesql_vibesql_types::SqlValue::Integer(300)]),
     )
     .unwrap();
     db.insert_row(
         "sales",
-        vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(6), vibesql_types::SqlValue::Integer(200)]),
+        vibesql_storage::Row::new(vec![vibesql_vibesql_types::SqlValue::Integer(6), vibesql_vibesql_types::SqlValue::Integer(200)]),
     )
     .unwrap();
 
@@ -87,7 +87,8 @@ fn test_count_distinct_basic() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // Should count 3 distinct values: 100, 200, 300
-    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Numeric(3.0));
+    assert_eq!(result[0].values[0], vibesql_vibesql_types::SqlValue::Numeric(3.0));
+>>>>>>> origin/main:crates/vibesql-executor/src/tests/aggregate_distinct.rs
 }
 
 #[test]
@@ -136,8 +137,9 @@ fn test_count_distinct_vs_count_all() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Numeric(6.0)); // COUNT(amount) - all rows
-    assert_eq!(result[0].values[1], vibesql_types::SqlValue::Numeric(3.0)); // COUNT(DISTINCT amount) - unique
+    assert_eq!(result[0].values[0], vibesql_vibesql_types::SqlValue::Numeric(6.0)); // COUNT(amount) - all rows
+    assert_eq!(result[0].values[1], vibesql_vibesql_types::SqlValue::Numeric(3.0)); // COUNT(DISTINCT amount) - unique
+>>>>>>> origin/main:crates/vibesql-executor/src/tests/aggregate_distinct.rs
                                                                   // values
 }
 
@@ -175,7 +177,7 @@ fn test_sum_distinct() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // Should sum unique values: 100 + 200 + 300 = 600
-    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Numeric(600.0));
+    assert_eq!(result[0].values[0], vibesql_vibesql_types::SqlValue::Numeric(600.0));
 }
 
 #[test]
@@ -225,9 +227,9 @@ fn test_sum_distinct_vs_sum_all() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // SUM: 100+100+200+100+300+200 = 1000
-    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Numeric(1000.0));
+    assert_eq!(result[0].values[0], vibesql_vibesql_types::SqlValue::Numeric(1000.0));
     // SUM(DISTINCT): 100+200+300 = 600
-    assert_eq!(result[0].values[1], vibesql_types::SqlValue::Numeric(600.0));
+    assert_eq!(result[0].values[1], vibesql_vibesql_types::SqlValue::Numeric(600.0));
 }
 
 #[test]
@@ -264,7 +266,7 @@ fn test_avg_distinct() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // Average of unique values: (100 + 200 + 300) / 3 = 200
-    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Numeric(200.0));
+    assert_eq!(result[0].values[0], vibesql_vibesql_types::SqlValue::Numeric(200.0));
 }
 
 #[test]
@@ -301,7 +303,7 @@ fn test_min_distinct() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // MIN should be 100 (same with or without DISTINCT)
-    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(100));
+    assert_eq!(result[0].values[0], vibesql_vibesql_types::SqlValue::Integer(100));
 }
 
 #[test]
@@ -338,7 +340,7 @@ fn test_max_distinct() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // MAX should be 300 (same with or without DISTINCT)
-    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(300));
+    assert_eq!(result[0].values[0], vibesql_vibesql_types::SqlValue::Integer(300));
 }
 
 #[test]
@@ -355,11 +357,11 @@ fn test_count_distinct_with_nulls() {
     db.create_table(schema).unwrap();
 
     // Insert values including NULLs: 1, 1, 2, NULL, NULL
-    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(1)])).unwrap();
-    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(1)])).unwrap();
-    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(2)])).unwrap();
-    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Null])).unwrap();
-    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Null])).unwrap();
+    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_vibesql_types::SqlValue::Integer(1)])).unwrap();
+    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_vibesql_types::SqlValue::Integer(1)])).unwrap();
+    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_vibesql_types::SqlValue::Integer(2)])).unwrap();
+    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_vibesql_types::SqlValue::Null])).unwrap();
+    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_vibesql_types::SqlValue::Null])).unwrap();
 
     let executor = SelectExecutor::new(&db);
 
@@ -389,7 +391,8 @@ fn test_count_distinct_with_nulls() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // Should count only unique non-NULL values: 1, 2 = 2 distinct values
-    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Numeric(2.0));
+    assert_eq!(result[0].values[0], vibesql_vibesql_types::SqlValue::Numeric(2.0));
+>>>>>>> origin/main:crates/vibesql-executor/src/tests/aggregate_distinct.rs
 }
 
 #[test]
@@ -402,9 +405,9 @@ fn test_distinct_all_same_value() {
     db.create_table(schema).unwrap();
 
     // Insert same value 3 times
-    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(42)])).unwrap();
-    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(42)])).unwrap();
-    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(42)])).unwrap();
+    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_vibesql_types::SqlValue::Integer(42)])).unwrap();
+    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_vibesql_types::SqlValue::Integer(42)])).unwrap();
+    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_vibesql_types::SqlValue::Integer(42)])).unwrap();
 
     let executor = SelectExecutor::new(&db);
 
@@ -450,9 +453,10 @@ fn test_distinct_all_same_value() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // COUNT(DISTINCT): 1 unique value
-    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Numeric(1.0));
+    assert_eq!(result[0].values[0], vibesql_vibesql_types::SqlValue::Numeric(1.0));
+>>>>>>> origin/main:crates/vibesql-executor/src/tests/aggregate_distinct.rs
     // SUM(DISTINCT): 42 (only counted once)
-    assert_eq!(result[0].values[1], vibesql_types::SqlValue::Numeric(42.0));
+    assert_eq!(result[0].values[1], vibesql_vibesql_types::SqlValue::Numeric(42.0));
 }
 
 #[test]
@@ -508,7 +512,8 @@ fn test_distinct_empty_table() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // COUNT on empty table should be 0
-    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Numeric(0.0));
+    assert_eq!(result[0].values[0], vibesql_vibesql_types::SqlValue::Numeric(0.0));
+>>>>>>> origin/main:crates/vibesql-executor/src/tests/aggregate_distinct.rs
     // SUM on empty table should be 0
-    assert_eq!(result[0].values[1], vibesql_types::SqlValue::Integer(0));
+    assert_eq!(result[0].values[1], vibesql_vibesql_types::SqlValue::Integer(0));
 }
