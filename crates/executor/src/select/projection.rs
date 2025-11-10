@@ -232,3 +232,70 @@ fn substitute_window_functions(
         _ => Ok(expr.clone()),
     }
 }
+
+/// Iterator that lazily projects rows based on SELECT list
+///
+/// This iterator wraps a source iterator and applies projection on-demand,
+/// only computing projected values for rows that are actually consumed.
+/// This is more efficient than eagerly projecting all rows when LIMIT/OFFSET
+/// is present, as it avoids projecting rows that will be discarded.
+pub struct SelectProjectionIterator<'a, I: Iterator<Item = Result<storage::Row, crate::errors::ExecutorError>>> {
+    source: I,
+    select_list: Vec<ast::SelectItem>,
+    evaluator: crate::evaluator::CombinedExpressionEvaluator<'a>,
+    input_schema: crate::schema::CombinedSchema,
+    window_mapping: Option<HashMap<WindowFunctionKey, usize>>,
+}
+
+impl<'a, I: Iterator<Item = Result<storage::Row, crate::errors::ExecutorError>>> SelectProjectionIterator<'a, I> {
+    /// Creates a new SelectProjectionIterator
+    ///
+    /// # Arguments
+    /// * `source` - The source iterator providing rows to project
+    /// * `select_list` - The SELECT items to project
+    /// * `evaluator` - Expression evaluator for computing projected values
+    /// * `input_schema` - Schema of the input rows
+    /// * `window_mapping` - Optional mapping of window functions to column indices
+    pub fn new(
+        source: I,
+        select_list: Vec<ast::SelectItem>,
+        evaluator: crate::evaluator::CombinedExpressionEvaluator<'a>,
+        input_schema: crate::schema::CombinedSchema,
+        window_mapping: Option<HashMap<WindowFunctionKey, usize>>,
+    ) -> Self {
+        Self {
+            source,
+            select_list,
+            evaluator,
+            input_schema,
+            window_mapping,
+        }
+    }
+}
+
+impl<'a, I: Iterator<Item = Result<storage::Row, crate::errors::ExecutorError>>> Iterator for SelectProjectionIterator<'a, I> {
+    type Item = Result<storage::Row, crate::errors::ExecutorError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // Get next row from source
+        let row = match self.source.next()? {
+            Ok(r) => r,
+            Err(e) => return Some(Err(e)),
+        };
+
+        // Clear CSE cache before projecting this row to prevent values
+        // from being incorrectly cached across different rows
+        self.evaluator.clear_cse_cache();
+
+        // Project the row using the existing projection function
+        let projected = project_row_combined(
+            &row,
+            &self.select_list,
+            &self.evaluator,
+            &self.input_schema,
+            &self.window_mapping,
+        );
+
+        Some(projected)
+    }
+}
