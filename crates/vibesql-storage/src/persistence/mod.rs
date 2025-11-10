@@ -46,12 +46,13 @@ impl crate::Database {
 
         match format {
             PersistenceFormat::Binary => Self::load_binary(path),
+            PersistenceFormat::BinaryCompressed => Self::load_compressed(path),
             PersistenceFormat::Sql => {
                 // SQL dump requires executor for parsing, so we return an error
                 // directing users to use the executor layer's load_sql_dump function
                 Err(crate::StorageError::NotImplemented(
                     "SQL dump loading requires the executor layer. \
-                     Use vibesql_executor::load_sql_dump() instead, or use binary format (.vbsql)"
+                     Use vibesql_executor::load_sql_dump() instead, or use binary format (.vbsql/.vbsqlz)"
                         .to_string(),
                 ))
             }
@@ -66,6 +67,8 @@ pub enum PersistenceFormat {
     Sql,
     /// Binary format (.vbsql) - efficient binary
     Binary,
+    /// Compressed binary format (.vbsqlz) - zstd-compressed binary
+    BinaryCompressed,
 }
 
 /// Detect persistence format from file
@@ -75,6 +78,7 @@ fn detect_format<P: AsRef<Path>>(path: P) -> Result<PersistenceFormat, crate::St
     // First try extension-based detection
     if let Some(ext) = path_ref.extension() {
         match ext.to_str() {
+            Some("vbsqlz") => return Ok(PersistenceFormat::BinaryCompressed),
             Some("vbsql") => return Ok(PersistenceFormat::Binary),
             Some("sql") => return Ok(PersistenceFormat::Sql),
             _ => {}
@@ -89,6 +93,15 @@ fn detect_format<P: AsRef<Path>>(path: P) -> Result<PersistenceFormat, crate::St
     let mut magic = [0u8; 5];
     if file.read_exact(&mut magic).is_ok() && &magic == b"VBSQL" {
         return Ok(PersistenceFormat::Binary);
+    }
+
+    // Try reading as zstd-compressed (check for zstd magic number 0x28, 0xB5, 0x2F, 0xFD)
+    file = fs::File::open(path_ref).map_err(|e| {
+        crate::StorageError::NotImplemented(format!("Failed to open file {:?}: {}", path_ref, e))
+    })?;
+    let mut zstd_magic = [0u8; 4];
+    if file.read_exact(&mut zstd_magic).is_ok() && &zstd_magic == b"\x28\xB5\x2F\xFD" {
+        return Ok(PersistenceFormat::BinaryCompressed);
     }
 
     // Default to SQL if we can't determine

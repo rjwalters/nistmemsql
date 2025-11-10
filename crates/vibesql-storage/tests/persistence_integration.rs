@@ -283,3 +283,186 @@ CREATE TABLE users (
     assert!(stmt.contains("name VARCHAR"), "Should preserve all columns");
     assert!(stmt.contains("email VARCHAR"), "Should preserve all columns");
 }
+
+#[test]
+fn test_compressed_binary_format_roundtrip() {
+    let temp_file = "/tmp/test_db_compressed_roundtrip.vbsqlz";
+
+    // Clean up any existing test file
+    let _ = std::fs::remove_file(temp_file);
+
+    // Create database with test data
+    let mut db = Database::new();
+
+    let users_schema = TableSchema::new(
+        "users".to_string(),
+        vec![
+            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
+            ColumnSchema::new("age".to_string(), DataType::Integer, true),
+        ],
+    );
+    db.create_table(users_schema).unwrap();
+
+    // Insert data
+    let users_table = db.get_table_mut("users").unwrap();
+    users_table
+        .insert(vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(1),
+            vibesql_types::SqlValue::Varchar("Alice".to_string()),
+            vibesql_types::SqlValue::Integer(30),
+        ]))
+        .unwrap();
+    users_table
+        .insert(vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(2),
+            vibesql_types::SqlValue::Varchar("Bob".to_string()),
+            vibesql_types::SqlValue::Null,
+        ]))
+        .unwrap();
+
+    // Save in compressed format
+    db.save_compressed(temp_file).unwrap();
+
+    // Verify file was created
+    assert!(std::path::Path::new(temp_file).exists(), "Compressed file should exist");
+
+    // Load from compressed format
+    let loaded_db = Database::load_compressed(temp_file).unwrap();
+
+    // Verify table exists
+    assert!(loaded_db.get_table("users").is_some(), "Users table should exist");
+
+    // Verify data was loaded correctly
+    let loaded_table = loaded_db.get_table("users").unwrap();
+    assert_eq!(loaded_table.row_count(), 2, "Should have 2 rows");
+
+    // Verify first row
+    let rows = loaded_table.scan();
+    assert_eq!(rows[0].values[0], vibesql_types::SqlValue::Integer(1));
+    assert_eq!(rows[0].values[1], vibesql_types::SqlValue::Varchar("Alice".to_string()));
+    assert_eq!(rows[0].values[2], vibesql_types::SqlValue::Integer(30));
+
+    // Clean up
+    std::fs::remove_file(temp_file).unwrap();
+}
+
+#[test]
+fn test_default_save_method_creates_compressed() {
+    let temp_file = "/tmp/test_db_default_save.vbsqlz";
+
+    // Clean up
+    let _ = std::fs::remove_file(temp_file);
+
+    // Create simple database
+    let mut db = Database::new();
+    let schema = TableSchema::new(
+        "test".to_string(),
+        vec![ColumnSchema::new("id".to_string(), DataType::Integer, false)],
+    );
+    db.create_table(schema).unwrap();
+
+    // Save using default method (should create compressed)
+    db.save(temp_file).unwrap();
+
+    // Verify file exists
+    assert!(std::path::Path::new(temp_file).exists());
+
+    // Load it back using auto-detection
+    let loaded_db = Database::load(temp_file).unwrap();
+    assert!(loaded_db.get_table("test").is_some());
+
+    // Clean up
+    std::fs::remove_file(temp_file).unwrap();
+}
+
+#[test]
+fn test_compression_reduces_file_size() {
+    let compressed_file = "/tmp/test_db_compressed.vbsqlz";
+    let uncompressed_file = "/tmp/test_db_uncompressed.vbsql";
+
+    // Clean up
+    let _ = std::fs::remove_file(compressed_file);
+    let _ = std::fs::remove_file(uncompressed_file);
+
+    // Create database with some data
+    let mut db = Database::new();
+    let schema = TableSchema::new(
+        "test".to_string(),
+        vec![
+            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new(
+                "data".to_string(),
+                DataType::Varchar { max_length: Some(1000) },
+                false,
+            ),
+        ],
+    );
+    db.create_table(schema).unwrap();
+
+    // Insert repetitive data (compresses well)
+    let table = db.get_table_mut("test").unwrap();
+    for i in 0..100 {
+        table
+            .insert(vibesql_storage::Row::new(vec![
+                vibesql_types::SqlValue::Integer(i),
+                vibesql_types::SqlValue::Varchar("A".repeat(100)),
+            ]))
+            .unwrap();
+    }
+
+    // Save both formats
+    db.save_compressed(compressed_file).unwrap();
+    db.save_uncompressed(uncompressed_file).unwrap();
+
+    // Get file sizes
+    let compressed_size = std::fs::metadata(compressed_file).unwrap().len();
+    let uncompressed_size = std::fs::metadata(uncompressed_file).unwrap().len();
+
+    // Verify compression reduces size
+    println!("Uncompressed: {} bytes, Compressed: {} bytes", uncompressed_size, compressed_size);
+    assert!(compressed_size < uncompressed_size, "Compressed file should be smaller");
+    assert!(compressed_size < uncompressed_size / 2, "Should compress by at least 50% with repetitive data");
+
+    // Clean up
+    std::fs::remove_file(compressed_file).unwrap();
+    std::fs::remove_file(uncompressed_file).unwrap();
+}
+
+#[test]
+fn test_load_auto_detects_compressed_format() {
+    let compressed_file = "/tmp/test_db_auto_detect.vbsqlz";
+    let uncompressed_file = "/tmp/test_db_auto_detect.vbsql";
+
+    // Clean up
+    let _ = std::fs::remove_file(compressed_file);
+    let _ = std::fs::remove_file(uncompressed_file);
+
+    // Create database
+    let mut db = Database::new();
+    let schema = TableSchema::new(
+        "test".to_string(),
+        vec![ColumnSchema::new("id".to_string(), DataType::Integer, false)],
+    );
+    db.create_table(schema).unwrap();
+
+    // Save in both formats
+    db.save_compressed(compressed_file).unwrap();
+    db.save_uncompressed(uncompressed_file).unwrap();
+
+    // Load both using generic load() method (should auto-detect)
+    let loaded_compressed = Database::load(compressed_file).unwrap();
+    let loaded_uncompressed = Database::load(uncompressed_file).unwrap();
+
+    // Verify both loaded correctly
+    assert!(loaded_compressed.get_table("test").is_some());
+    assert!(loaded_uncompressed.get_table("test").is_some());
+
+    // Clean up
+    std::fs::remove_file(compressed_file).unwrap();
+    std::fs::remove_file(uncompressed_file).unwrap();
+}
