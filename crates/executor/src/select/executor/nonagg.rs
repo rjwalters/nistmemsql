@@ -11,6 +11,7 @@ use crate::{
     select::{
         filter::apply_where_filter_combined,
         helpers::{apply_distinct, apply_limit_offset},
+        iterator::{FilterIterator, RowIterator, TableScanIterator},
         join::FromResult,
         order::{apply_order_by, RowWithSortKeys},
         projection::project_row_combined,
@@ -53,12 +54,134 @@ impl SelectExecutor<'_> {
         true
     }
 
+    /// Execute SELECT using iterator-based execution (for simple queries)
+    ///
+    /// This method uses lazy iteration to avoid materializing intermediate results.
+    /// Only the final result set is materialized, providing memory efficiency and
+    /// early termination for LIMIT queries.
+    fn execute_with_iterators(
+        &self,
+        stmt: &ast::SelectStmt,
+        from_result: FromResult,
+    ) -> Result<Vec<storage::Row>, ExecutorError> {
+        let FromResult { schema, rows } = from_result;
+
+        // Create evaluator for WHERE and projection
+        let evaluator = if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
+            CombinedExpressionEvaluator::with_database_and_outer_context(
+                &schema,
+                self.database,
+                outer_row,
+                outer_schema,
+            )
+        } else {
+            CombinedExpressionEvaluator::with_database(&schema, self.database)
+        };
+
+        // Build iterator pipeline
+        let mut iterator: Box<dyn RowIterator> = Box::new(TableScanIterator::new(schema.clone(), rows));
+
+        // Apply WHERE filter if present
+        if let Some(where_expr) = &stmt.where_clause {
+            // Optimize WHERE clause
+            let where_optimization = optimize_where_clause(Some(where_expr), &evaluator)?;
+
+            match where_optimization {
+                crate::optimizer::WhereOptimization::AlwaysFalse => {
+                    // WHERE FALSE - return empty result immediately
+                    return Ok(Vec::new());
+                }
+                crate::optimizer::WhereOptimization::AlwaysTrue => {
+                    // WHERE TRUE - no filtering needed, keep current iterator
+                }
+                crate::optimizer::WhereOptimization::Optimized(expr) => {
+                    // Apply optimized WHERE clause
+                    // Create new evaluator for the filter iterator
+                    let filter_evaluator = CombinedExpressionEvaluator::with_database(&schema, self.database);
+                    iterator = Box::new(FilterIterator::new(iterator, expr, filter_evaluator));
+                }
+                crate::optimizer::WhereOptimization::Unchanged(Some(expr)) => {
+                    // Apply original WHERE clause
+                    // Create new evaluator for the filter iterator
+                    let filter_evaluator = CombinedExpressionEvaluator::with_database(&schema, self.database);
+                    iterator = Box::new(FilterIterator::new(iterator, expr.clone(), filter_evaluator));
+                }
+                crate::optimizer::WhereOptimization::Unchanged(None) => {
+                    // No WHERE clause - keep current iterator
+                }
+            }
+        }
+
+        // Calculate how many rows we need (LIMIT + OFFSET)
+        let rows_needed = match (stmt.limit, stmt.offset) {
+            (Some(limit), Some(offset)) => Some(limit + offset),
+            (Some(limit), None) => Some(limit),
+            (None, Some(offset)) => {
+                // We need all rows if there's an OFFSET but no LIMIT
+                None
+            }
+            (None, None) => None,
+        };
+
+        // Apply early termination via .take() if we have a limit
+        let final_iter: Box<dyn Iterator<Item = _>> = if let Some(needed) = rows_needed {
+            Box::new(iterator.take(needed as usize))
+        } else {
+            iterator
+        };
+
+        // Materialize and project results
+        let mut projected_rows = Vec::new();
+        for row_result in final_iter {
+            // Check timeout during iteration
+            self.check_timeout()?;
+
+            let row = row_result?;
+
+            // Clear CSE cache before projecting each row
+            evaluator.clear_cse_cache();
+
+            // Project the row
+            let projected_row = project_row_combined(
+                &row,
+                &stmt.select_list,
+                &evaluator,
+                &schema,
+                &None, // No window mapping for simple queries
+            )?;
+
+            projected_rows.push(projected_row);
+        }
+
+        // Apply OFFSET if present
+        let final_rows = if let Some(offset) = stmt.offset {
+            let offset_usize = offset.max(0) as usize;
+            if offset_usize >= projected_rows.len() {
+                Vec::new()
+            } else {
+                projected_rows.drain(offset_usize..).collect()
+            }
+        } else {
+            projected_rows
+        };
+
+        Ok(final_rows)
+    }
+
     /// Execute SELECT without aggregation
     pub(super) fn execute_without_aggregation(
         &self,
         stmt: &ast::SelectStmt,
         from_result: FromResult,
     ) -> Result<Vec<storage::Row>, ExecutorError> {
+        // Phase D: Use iterator-based execution for simple queries
+        // This provides memory efficiency and early termination for LIMIT queries
+        if Self::can_use_iterator_execution(stmt) {
+            return self.execute_with_iterators(stmt, from_result);
+        }
+
+        // Fall back to materialized execution for complex queries
+        // (ORDER BY, DISTINCT, window functions require full materialization)
         let FromResult { schema, rows } = from_result;
 
         // Track memory used by FROM clause results (JOINs, table scans, etc.)

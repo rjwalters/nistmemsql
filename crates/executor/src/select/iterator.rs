@@ -212,6 +212,19 @@ impl<'a, I: RowIterator> FilterIterator<'a, I> {
     }
 }
 
+// Implement RowIterator for Box<dyn RowIterator> to allow boxing
+// Note: Box<T> already implements Iterator if T implements Iterator,
+// so we only need to implement the RowIterator trait methods
+impl<'a> RowIterator for Box<dyn RowIterator + 'a> {
+    fn schema(&self) -> &CombinedSchema {
+        (**self).schema()
+    }
+
+    fn row_size_hint(&self) -> (usize, Option<usize>) {
+        (**self).row_size_hint()
+    }
+}
+
 impl<'a, I: RowIterator> Iterator for FilterIterator<'a, I> {
     type Item = Result<storage::Row, ExecutorError>;
 
