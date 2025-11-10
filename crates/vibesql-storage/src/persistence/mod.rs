@@ -16,12 +16,11 @@
 //
 // Load utilities are exported for use by the executor layer.
 
-use std::path::Path;
-use std::{fs, io::Read};
+use std::{fs, io::Read, path::Path};
 
+mod binary;
 pub mod load;
 mod save;
-mod binary;
 
 #[cfg(test)]
 mod tests;
@@ -84,11 +83,7 @@ fn detect_format<P: AsRef<Path>>(path: P) -> Result<PersistenceFormat, crate::St
 
     // If extension doesn't match, check magic number
     let mut file = fs::File::open(path_ref).map_err(|e| {
-        crate::StorageError::NotImplemented(format!(
-            "Failed to open file {:?}: {}",
-            path_ref,
-            e
-        ))
+        crate::StorageError::NotImplemented(format!("Failed to open file {:?}: {}", path_ref, e))
     })?;
 
     let mut magic = [0u8; 5];

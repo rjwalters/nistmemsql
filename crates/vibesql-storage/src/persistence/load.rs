@@ -17,10 +17,7 @@ use crate::StorageError;
 pub fn read_sql_dump<P: AsRef<Path>>(path: P) -> Result<String, StorageError> {
     let path_ref = path.as_ref();
     if !path_ref.exists() {
-        return Err(StorageError::NotImplemented(format!(
-            "File does not exist: {:?}",
-            path_ref
-        )));
+        return Err(StorageError::NotImplemented(format!("File does not exist: {:?}", path_ref)));
     }
 
     // Try to read the file as text
@@ -28,7 +25,9 @@ pub fn read_sql_dump<P: AsRef<Path>>(path: P) -> Result<String, StorageError> {
         Ok(content) => Ok(content),
         Err(e) => {
             // Check if this might be a binary database file (like SQLite)
-            if let Ok(bytes) = fs::read(path_ref).and_then(|b| Ok(b.get(0..16).unwrap_or(&[]).to_vec())) {
+            if let Ok(bytes) =
+                fs::read(path_ref).and_then(|b| Ok(b.get(0..16).unwrap_or(&[]).to_vec()))
+            {
                 // Check for SQLite file signature
                 if bytes.starts_with(b"SQLite format") {
                     return Err(StorageError::NotImplemented(format!(
@@ -39,7 +38,9 @@ pub fn read_sql_dump<P: AsRef<Path>>(path: P) -> Result<String, StorageError> {
                     )));
                 }
                 // Check for other binary file indicators (null bytes in first 512 bytes)
-                if let Ok(sample) = fs::read(path_ref).and_then(|b| Ok(b.get(0..512).unwrap_or(&[]).to_vec())) {
+                if let Ok(sample) =
+                    fs::read(path_ref).and_then(|b| Ok(b.get(0..512).unwrap_or(&[]).to_vec()))
+                {
                     if sample.contains(&0) {
                         return Err(StorageError::NotImplemented(
                             "File appears to be a binary database format. vibesql uses SQL dump format (text files). \

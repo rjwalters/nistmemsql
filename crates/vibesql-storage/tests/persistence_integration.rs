@@ -178,10 +178,7 @@ fn test_binary_format_roundtrip() {
     db.save_binary(temp_file).unwrap();
 
     // Step 3: Verify file was created and has content
-    assert!(
-        std::path::Path::new(temp_file).exists(),
-        "Binary file should exist"
-    );
+    assert!(std::path::Path::new(temp_file).exists(), "Binary file should exist");
 
     let metadata = std::fs::metadata(temp_file).unwrap();
     assert!(metadata.len() > 100, "Binary file should have substantial content");
@@ -211,10 +208,7 @@ fn test_binary_format_roundtrip() {
     // Verify specific data values
     let users_rows = users_table2.scan();
     assert_eq!(users_rows[0].values[0], vibesql_types::SqlValue::Integer(1));
-    assert_eq!(
-        users_rows[0].values[1],
-        vibesql_types::SqlValue::Varchar("Alice".to_string())
-    );
+    assert_eq!(users_rows[0].values[1], vibesql_types::SqlValue::Varchar("Alice".to_string()));
     assert_eq!(users_rows[0].values[2], vibesql_types::SqlValue::Integer(30));
     assert_eq!(users_rows[0].values[3], vibesql_types::SqlValue::Boolean(true));
 
@@ -227,10 +221,7 @@ fn test_binary_format_roundtrip() {
     assert_eq!(products_table2.row_count(), 2);
 
     let products_rows = products_table2.scan();
-    assert_eq!(
-        products_rows[0].values[1],
-        vibesql_types::SqlValue::Varchar("Widget".to_string())
-    );
+    assert_eq!(products_rows[0].values[1], vibesql_types::SqlValue::Varchar("Widget".to_string()));
     assert_eq!(products_rows[0].values[2], vibesql_types::SqlValue::Double(19.99));
 
     // Step 6: Test auto-detection via Database::load()

@@ -17,8 +17,9 @@ use std::{
     path::Path,
 };
 
+use vibesql_types::{Date, Interval, SqlValue, Time, Timestamp};
+
 use crate::{Database, StorageError};
-use vibesql_types::{SqlValue, Date, Time, Timestamp, Interval};
 
 /// Magic number for vibesql binary format: "VBSQL" in ASCII
 const MAGIC: &[u8; 5] = b"VBSQL";
@@ -67,10 +68,7 @@ impl TypeTag {
             0x31 => Ok(TypeTag::Time),
             0x32 => Ok(TypeTag::Timestamp),
             0x33 => Ok(TypeTag::Interval),
-            _ => Err(StorageError::NotImplemented(format!(
-                "Unknown type tag: 0x{:02X}",
-                tag
-            ))),
+            _ => Err(StorageError::NotImplemented(format!("Unknown type tag: 0x{:02X}", tag))),
         }
     }
 }
@@ -120,11 +118,7 @@ impl Database {
     /// ```
     pub fn load_binary<P: AsRef<Path>>(path: P) -> Result<Self, StorageError> {
         let file = File::open(path.as_ref()).map_err(|e| {
-            StorageError::NotImplemented(format!(
-                "Failed to open file {:?}: {}",
-                path.as_ref(),
-                e
-            ))
+            StorageError::NotImplemented(format!("Failed to open file {:?}: {}", path.as_ref(), e))
         })?;
 
         let mut reader = BufReader::new(file);
@@ -205,9 +199,9 @@ fn read_header<R: Read>(reader: &mut R) -> Result<(), StorageError> {
 
     // Skip reserved bytes
     let mut reserved = [0u8; 9];
-    reader
-        .read_exact(&mut reserved)
-        .map_err(|e| StorageError::NotImplemented(format!("Failed to read reserved bytes: {}", e)))?;
+    reader.read_exact(&mut reserved).map_err(|e| {
+        StorageError::NotImplemented(format!("Failed to read reserved bytes: {}", e))
+    })?;
 
     Ok(())
 }
@@ -292,7 +286,8 @@ fn read_catalog<R: Read>(reader: &mut R) -> Result<Database, StorageError> {
     for _ in 0..schema_count {
         let schema_name = read_string(reader)?;
         // Create schema directly on catalog
-        db.catalog.create_schema(schema_name)
+        db.catalog
+            .create_schema(schema_name)
             .map_err(|e| StorageError::NotImplemented(format!("Failed to create schema: {}", e)))?;
     }
 
@@ -300,7 +295,8 @@ fn read_catalog<R: Read>(reader: &mut R) -> Result<Database, StorageError> {
     let role_count = read_u32(reader)?;
     for _ in 0..role_count {
         let role_name = read_string(reader)?;
-        db.catalog.create_role(role_name)
+        db.catalog
+            .create_role(role_name)
             .map_err(|e| StorageError::NotImplemented(format!("Failed to create role: {}", e)))?;
     }
 
@@ -358,16 +354,15 @@ fn read_catalog<R: Read>(reader: &mut R) -> Result<Database, StorageError> {
             let direction = match direction_byte {
                 0 => vibesql_ast::OrderDirection::Asc,
                 1 => vibesql_ast::OrderDirection::Desc,
-                _ => return Err(StorageError::NotImplemented(format!(
-                    "Invalid sort direction: {}",
-                    direction_byte
-                ))),
+                _ => {
+                    return Err(StorageError::NotImplemented(format!(
+                        "Invalid sort direction: {}",
+                        direction_byte
+                    )))
+                }
             };
 
-            columns.push(vibesql_ast::IndexColumn {
-                column_name,
-                direction,
-            });
+            columns.push(vibesql_ast::IndexColumn { column_name, direction });
         }
 
         index_specs.push((index_name, table_name, unique, columns));
@@ -432,8 +427,9 @@ fn read_data<R: Read>(reader: &mut R, db: &mut Database) -> Result<(), StorageEr
                 }
 
                 let row = crate::Row { values };
-                table.insert(row)
-                    .map_err(|e| StorageError::NotImplemented(format!("Failed to insert row: {}", e)))?;
+                table.insert(row).map_err(|e| {
+                    StorageError::NotImplemented(format!("Failed to insert row: {}", e))
+                })?;
             }
         }
     }
@@ -706,9 +702,7 @@ fn read_bool<R: Read>(reader: &mut R) -> Result<bool, StorageError> {
 fn write_string<W: Write>(writer: &mut W, s: &str) -> Result<(), StorageError> {
     let bytes = s.as_bytes();
     write_u32(writer, bytes.len() as u32)?;
-    writer
-        .write_all(bytes)
-        .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))
+    writer.write_all(bytes).map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))
 }
 
 fn read_string<R: Read>(reader: &mut R) -> Result<String, StorageError> {
@@ -748,9 +742,7 @@ fn parse_data_type(type_str: &str) -> Result<vibesql_types::DataType, StorageErr
             let max_length = len_str.parse().ok();
             Ok(DataType::Varchar { max_length })
         }
-        s if s.starts_with("VARCHAR") => {
-            Ok(DataType::Varchar { max_length: None })
-        }
+        s if s.starts_with("VARCHAR") => Ok(DataType::Varchar { max_length: None }),
         s if s.starts_with("CHAR(") => {
             let len_str = s.trim_start_matches("CHAR(").trim_end_matches(')');
             let length = len_str.parse().unwrap_or(1);
@@ -775,10 +767,7 @@ fn parse_data_type(type_str: &str) -> Result<vibesql_types::DataType, StorageErr
             let scale = parts.get(1).and_then(|p| p.parse().ok()).unwrap_or(0);
             Ok(DataType::Decimal { precision, scale })
         }
-        _ => Err(StorageError::NotImplemented(format!(
-            "Unsupported data type: {}",
-            type_str
-        ))),
+        _ => Err(StorageError::NotImplemented(format!("Unsupported data type: {}", type_str))),
     }
 }
 
