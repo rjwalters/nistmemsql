@@ -156,48 +156,57 @@ fn classify_predicate_branch(
     decomposition: &mut PredicateDecomposition,
 ) -> Result<(), String> {
     // Extract tables referenced by this predicate
-    let referenced_tables = extract_referenced_tables_branch(expr, from_schema);
+    let referenced_tables_opt = extract_referenced_tables_branch(expr, from_schema);
 
-    match referenced_tables.len() {
-        0 => {
-            // Predicate references no tables (e.g., constant expression)
-            // This is complex but we can still defer it
+    match referenced_tables_opt {
+        None => {
+            // Predicate references tables not in schema - treat as complex
             decomposition.complex_predicates.push(expr.clone());
             Ok(())
         }
-        1 => {
-            // Single table - can be pushed to table scan
-            let table_name = referenced_tables.iter().next().unwrap().clone();
-            decomposition
-                .table_local_predicates
-                .entry(table_name)
-                .or_insert_with(Vec::new)
-                .push(expr.clone());
-            Ok(())
-        }
-        2 => {
-            // Two tables - check if it's a simple equijoin
-            if let Some((left_table, left_col, right_table, right_col)) =
-                try_extract_equijoin_branch(expr, from_schema)
-            {
-                decomposition.equijoin_conditions.push((
-                    left_table,
-                    left_col,
-                    right_table,
-                    right_col,
-                    expr.clone(),
-                ));
-                Ok(())
-            } else {
-                // Complex predicate involving two tables
-                decomposition.complex_predicates.push(expr.clone());
-                Ok(())
+        Some(referenced_tables) => {
+            match referenced_tables.len() {
+                0 => {
+                    // Predicate references no tables (e.g., constant expression)
+                    // This is complex but we can still defer it
+                    decomposition.complex_predicates.push(expr.clone());
+                    Ok(())
+                }
+                1 => {
+                    // Single table - can be pushed to table scan
+                    let table_name = referenced_tables.iter().next().unwrap().clone();
+                    decomposition
+                        .table_local_predicates
+                        .entry(table_name)
+                        .or_insert_with(Vec::new)
+                        .push(expr.clone());
+                    Ok(())
+                }
+                2 => {
+                    // Two tables - check if it's a simple equijoin
+                    if let Some((left_table, left_col, right_table, right_col)) =
+                        try_extract_equijoin_branch(expr, from_schema)
+                    {
+                        decomposition.equijoin_conditions.push((
+                            left_table,
+                            left_col,
+                            right_table,
+                            right_col,
+                            expr.clone(),
+                        ));
+                        Ok(())
+                    } else {
+                        // Complex predicate involving two tables
+                        decomposition.complex_predicates.push(expr.clone());
+                        Ok(())
+                    }
+                }
+                _ => {
+                    // Multiple tables - always complex
+                    decomposition.complex_predicates.push(expr.clone());
+                    Ok(())
+                }
             }
-        }
-        _ => {
-            // Multiple tables - always complex
-            decomposition.complex_predicates.push(expr.clone());
-            Ok(())
         }
     }
 }
@@ -216,75 +225,81 @@ fn flatten_conjuncts(expr: &ast::Expression) -> Vec<ast::Expression> {
 }
 
 /// Extract all table names referenced in a predicate (branch version with schema)
+/// Returns None if the expression references tables not in the schema (should be treated as complex)
 fn extract_referenced_tables_branch(
     expr: &ast::Expression,
     schema: &CombinedSchema,
-) -> HashSet<String> {
+) -> Option<HashSet<String>> {
     let mut tables = HashSet::new();
-    extract_tables_recursive_branch(expr, schema, &mut tables);
-    tables
+    let success = extract_tables_recursive_branch(expr, schema, &mut tables);
+    if success {
+        Some(tables)
+    } else {
+        None
+    }
 }
 
 /// Recursive helper to extract table references (branch version)
+/// Returns false if the expression references tables not in the schema
 fn extract_tables_recursive_branch(
     expr: &ast::Expression,
     schema: &CombinedSchema,
     tables: &mut HashSet<String>,
-) {
+) -> bool {
     match expr {
         ast::Expression::ColumnRef { table, .. } => {
             if let Some(table_name) = table {
                 let normalized = table_name.to_lowercase();
                 if schema.table_schemas.contains_key(&normalized) {
                     tables.insert(normalized);
+                    true
+                } else {
+                    // Table qualification not in schema - treat as complex predicate
+                    false
                 }
+            } else {
+                // Unqualified column reference - assume it's valid
+                true
             }
         }
         ast::Expression::BinaryOp { left, op: _, right } => {
-            extract_tables_recursive_branch(left, schema, tables);
-            extract_tables_recursive_branch(right, schema, tables);
+            extract_tables_recursive_branch(left, schema, tables)
+                && extract_tables_recursive_branch(right, schema, tables)
         }
         ast::Expression::UnaryOp { expr: inner, .. } => {
-            extract_tables_recursive_branch(inner, schema, tables);
+            extract_tables_recursive_branch(inner, schema, tables)
         }
         ast::Expression::Function { args, .. } => {
-            for arg in args {
-                extract_tables_recursive_branch(arg, schema, tables);
-            }
+            args.iter().all(|arg| extract_tables_recursive_branch(arg, schema, tables))
         }
         ast::Expression::Between { expr, low, high, .. } => {
-            extract_tables_recursive_branch(expr, schema, tables);
-            extract_tables_recursive_branch(low, schema, tables);
-            extract_tables_recursive_branch(high, schema, tables);
+            extract_tables_recursive_branch(expr, schema, tables)
+                && extract_tables_recursive_branch(low, schema, tables)
+                && extract_tables_recursive_branch(high, schema, tables)
         }
         ast::Expression::InList { expr, values, .. } => {
-            extract_tables_recursive_branch(expr, schema, tables);
-            for val in values {
-                extract_tables_recursive_branch(val, schema, tables);
-            }
+            extract_tables_recursive_branch(expr, schema, tables)
+                && values.iter().all(|val| extract_tables_recursive_branch(val, schema, tables))
         }
         ast::Expression::Case { operand, when_clauses, else_result } => {
-            if let Some(op) = operand {
-                extract_tables_recursive_branch(op, schema, tables);
-            }
-            for when_clause in when_clauses {
-                for condition in &when_clause.conditions {
-                    extract_tables_recursive_branch(condition, schema, tables);
-                }
-                extract_tables_recursive_branch(&when_clause.result, schema, tables);
-            }
-            if let Some(else_res) = else_result {
-                extract_tables_recursive_branch(else_res, schema, tables);
-            }
+            let op_ok = operand.as_ref().map_or(true, |op| extract_tables_recursive_branch(op, schema, tables));
+            let when_ok = when_clauses.iter().all(|when_clause| {
+                when_clause.conditions.iter().all(|condition| extract_tables_recursive_branch(condition, schema, tables))
+                    && extract_tables_recursive_branch(&when_clause.result, schema, tables)
+            });
+            let else_ok = else_result.as_ref().map_or(true, |else_res| extract_tables_recursive_branch(else_res, schema, tables));
+            op_ok && when_ok && else_ok
         }
         ast::Expression::In { expr, .. } => {
-            extract_tables_recursive_branch(expr, schema, tables);
+            extract_tables_recursive_branch(expr, schema, tables)
         }
         ast::Expression::ScalarSubquery(_) => {
             // Scalar subqueries are complex and handled after joins
+            true
         }
         _ => {
             // Other expression types: Literal, Wildcard, IsNull, Like, etc.
+            true
         }
     }
 }
