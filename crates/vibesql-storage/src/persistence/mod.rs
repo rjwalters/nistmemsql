@@ -2,18 +2,22 @@
 // Database Persistence Module
 // ============================================================================
 //
-// Provides SQL dump format (human-readable, portable) for database persistence.
-// Organized into separate modules for better maintainability:
+// Provides multiple formats for database persistence:
 //
-// - `save`: SQL dump generation and serialization
-// - `load`: SQL dump parsing and deserialization utilities
+// - **SQL dump format** (human-readable, portable SQL statements)
+//   - `save`: SQL dump generation and serialization
+//   - `load`: SQL dump parsing and deserialization utilities
 //
-// The `save_sql_dump` method is implemented directly on the `Database` type
-// via an impl block in the `save` module.
+// - **JSON format** (structured, tool-friendly JSON)
+//   - `json`: JSON serialization/deserialization
+//
+// The `save_sql_dump`, `save_json`, and `load_json` methods are implemented
+// directly on the `Database` type via impl blocks in their respective modules.
 //
 // Load utilities are exported for use by the CLI layer to parse and execute
-// SQL dump files.
+// dump files.
 
+pub mod json;
 pub mod load;
 mod save;
 
