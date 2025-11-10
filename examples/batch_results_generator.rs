@@ -8,11 +8,11 @@ use std::{env, fs};
  *
  * Usage: cargo run --example batch_results_generator [--filter category]
  */
-use catalog::{ColumnSchema, TableSchema};
-use parser::Parser;
+use vibesql::catalog::{ColumnSchema, TableSchema};
+use vibesql::parser::Parser;
 use regex::Regex;
-use storage::{Database, Row};
-use types::{DataType, SqlValue};
+use vibesql::storage::{Database, Row};
+use vibesql::types::{DataType, SqlValue};
 
 // Import database creation functions from test file
 // (We'll inline them for now since we can't easily import from tests)
@@ -502,8 +502,8 @@ fn main() {
 
         // Execute based on statement type
         let result = match stmt {
-            ast::Statement::Select(ref select_stmt) => {
-                let executor = executor::SelectExecutor::new(&db);
+            vibesql::ast::Statement::Select(ref select_stmt) => {
+                let executor = vibesql::executor::SelectExecutor::new(&db);
                 match executor.execute(select_stmt) {
                     Ok(rows) => {
                         // Extract column names
@@ -512,20 +512,20 @@ fn main() {
                             .iter()
                             .enumerate()
                             .map(|(i, item)| match item {
-                                ast::SelectItem::Expression { alias: Some(alias), .. } => {
+                                vibesql::ast::SelectItem::Expression { alias: Some(alias), .. } => {
                                     alias.clone()
                                 }
-                                ast::SelectItem::Expression { alias: None, expr } => {
+                                vibesql::ast::SelectItem::Expression { alias: None, expr } => {
                                     // Try to extract column name from expression
                                     match expr {
-                                        ast::Expression::ColumnRef { column, .. } => column.clone(),
+                                        vibesql::ast::Expression::ColumnRef { column, .. } => column.clone(),
                                         _ => format!("col{}", i + 1),
                                     }
                                 }
-                                ast::SelectItem::QualifiedWildcard { qualifier, alias: _ } => {
+                                vibesql::ast::SelectItem::QualifiedWildcard { qualifier, alias: _ } => {
                                     format!("{}.*", qualifier)
                                 }
-                                ast::SelectItem::Wildcard { alias: _ } => "*".to_string(),
+                                vibesql::ast::SelectItem::Wildcard { alias: _ } => "*".to_string(),
                             })
                             .collect();
 

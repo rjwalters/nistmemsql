@@ -1,8 +1,8 @@
 //! End-to-end tests for numeric SQL data types.
 
-use catalog::ColumnSchema;
-use storage::{Database, Row};
-use types::{DataType, SqlValue};
+use vibesql_catalog::ColumnSchema;
+use vibesql_storage::{Database, Row};
+use vibesql_types::{DataType, SqlValue};
 
 use super::fixtures::*;
 

@@ -11,11 +11,11 @@
 //! 4. Reserved words can be used as identifiers when quoted
 //! 5. Special characters (spaces, etc.) work in delimited identifiers
 
-use ast::Statement;
-use executor::{CreateTableExecutor, SelectExecutor};
-use parser::Parser;
-use storage::{Database, Row};
-use types::SqlValue;
+use vibesql_ast::Statement;
+use vibesql_executor::{CreateTableExecutor, SelectExecutor};
+use vibesql_parser::Parser;
+use vibesql_storage::{Database, Row};
+use vibesql_types::SqlValue;
 
 /// Helper to execute CREATE TABLE statements
 fn execute_create_table(db: &mut Database, sql: &str) -> Result<String, String> {
@@ -349,12 +349,12 @@ fn test_quoted_schema_and_table_names() {
     // Create schemas with different cases
     let stmt1 = Parser::parse_sql(r#"CREATE SCHEMA "mySchema""#).unwrap();
     if let Statement::CreateSchema(create_schema) = stmt1 {
-        executor::SchemaExecutor::execute_create_schema(&create_schema, &mut db).unwrap();
+        vibesql_executor::SchemaExecutor::execute_create_schema(&create_schema, &mut db).unwrap();
     }
 
     let stmt2 = Parser::parse_sql(r#"CREATE SCHEMA "MYSCHEMA""#).unwrap();
     if let Statement::CreateSchema(create_schema) = stmt2 {
-        executor::SchemaExecutor::execute_create_schema(&create_schema, &mut db).unwrap();
+        vibesql_executor::SchemaExecutor::execute_create_schema(&create_schema, &mut db).unwrap();
     }
 
     // Create tables in each schema
@@ -380,7 +380,7 @@ fn test_mixed_quoted_unquoted_schema_table() {
     // Create schema with quoted name
     let stmt = Parser::parse_sql(r#"CREATE SCHEMA "myApp""#).unwrap();
     if let Statement::CreateSchema(create_schema) = stmt {
-        executor::SchemaExecutor::execute_create_schema(&create_schema, &mut db).unwrap();
+        vibesql_executor::SchemaExecutor::execute_create_schema(&create_schema, &mut db).unwrap();
     }
 
     // Create table: quoted schema, unquoted table (normalized to USERS)

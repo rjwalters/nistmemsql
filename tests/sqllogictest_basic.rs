@@ -1,11 +1,11 @@
 //! Basic SQLLogicTest verification - runs a small subset to verify integration works.
 
 use async_trait::async_trait;
-use executor::SelectExecutor;
-use parser::Parser;
+use vibesql_executor::SelectExecutor;
+use vibesql_parser::Parser;
 use sqllogictest::{AsyncDB, DBOutput, DefaultColumnType, Runner};
-use storage::Database;
-use types::SqlValue;
+use vibesql_storage::Database;
+use vibesql_types::SqlValue;
 
 #[derive(Debug)]
 struct TestError(String);
@@ -32,35 +32,35 @@ impl NistMemSqlDB {
             Parser::parse_sql(sql).map_err(|e| TestError(format!("Parse error: {:?}", e)))?;
 
         match stmt {
-            ast::Statement::Select(select_stmt) => {
+            vibesql_ast::Statement::Select(select_stmt) => {
                 let executor = SelectExecutor::new(&self.db);
                 let rows = executor
                     .execute(&select_stmt)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 self.format_query_result(rows)
             }
-            ast::Statement::CreateTable(create_stmt) => {
-                executor::CreateTableExecutor::execute(&create_stmt, &mut self.db)
+            vibesql_ast::Statement::CreateTable(create_stmt) => {
+                vibesql_executor::CreateTableExecutor::execute(&create_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::Insert(insert_stmt) => {
-                let rows_affected = executor::InsertExecutor::execute(&mut self.db, &insert_stmt)
+            vibesql_ast::Statement::Insert(insert_stmt) => {
+                let rows_affected = vibesql_executor::InsertExecutor::execute(&mut self.db, &insert_stmt)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(rows_affected as u64))
             }
-            ast::Statement::Update(update_stmt) => {
-                let rows_affected = executor::UpdateExecutor::execute(&update_stmt, &mut self.db)
+            vibesql_ast::Statement::Update(update_stmt) => {
+                let rows_affected = vibesql_executor::UpdateExecutor::execute(&update_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(rows_affected as u64))
             }
-            ast::Statement::Delete(delete_stmt) => {
-                let rows_affected = executor::DeleteExecutor::execute(&delete_stmt, &mut self.db)
+            vibesql_ast::Statement::Delete(delete_stmt) => {
+                let rows_affected = vibesql_executor::DeleteExecutor::execute(&delete_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(rows_affected as u64))
             }
-            ast::Statement::DropTable(drop_stmt) => {
-                executor::DropTableExecutor::execute(&drop_stmt, &mut self.db)
+            vibesql_ast::Statement::DropTable(drop_stmt) => {
+                vibesql_executor::DropTableExecutor::execute(&drop_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
@@ -71,7 +71,7 @@ impl NistMemSqlDB {
 
     fn format_query_result(
         &self,
-        rows: Vec<storage::Row>,
+        rows: Vec<vibesql_storage::Row>,
     ) -> Result<DBOutput<DefaultColumnType>, TestError> {
         if rows.is_empty() {
             return Ok(DBOutput::Rows { types: vec![], rows: vec![] });

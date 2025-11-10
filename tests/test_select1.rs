@@ -1,6 +1,6 @@
-use executor::SelectExecutor;
-use parser::Parser;
-use storage::Database;
+use vibesql_executor::SelectExecutor;
+use vibesql_parser::Parser;
+use vibesql_storage::Database;
 
 #[test]
 fn test_failing_case_query() {
@@ -44,11 +44,11 @@ INSERT INTO t1(e,d,c,b,a) VALUES(246,248,247,249,245);
     for sql in setup_sql.trim().split(';').filter(|s| !s.trim().is_empty()) {
         let stmt = Parser::parse_sql(sql.trim()).unwrap();
         match stmt {
-            ast::Statement::CreateTable(create_stmt) => {
-                executor::CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
+            vibesql_ast::Statement::CreateTable(create_stmt) => {
+                vibesql_executor::CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
             }
-            ast::Statement::Insert(insert_stmt) => {
-                executor::InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
+            vibesql_ast::Statement::Insert(insert_stmt) => {
+                vibesql_executor::InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
             }
             _ => panic!("Unexpected statement"),
         }
@@ -58,16 +58,16 @@ INSERT INTO t1(e,d,c,b,a) VALUES(246,248,247,249,245);
     let avg_sql = "SELECT avg(c) FROM t1";
     let avg_stmt = Parser::parse_sql(avg_sql).unwrap();
     match avg_stmt {
-        ast::Statement::Select(select_stmt) => {
+        vibesql_ast::Statement::Select(select_stmt) => {
             let executor = SelectExecutor::new(&db);
             let rows = executor.execute(&select_stmt).unwrap();
             println!(
                 "avg(c) result: {:?} (type: {})",
                 rows[0].values[0],
                 match rows[0].values[0] {
-                    types::SqlValue::Integer(_) => "Integer",
-                    types::SqlValue::Numeric(_) => "Numeric",
-                    types::SqlValue::Float(_) => "Float",
+                    vibesql_types::SqlValue::Integer(_) => "Integer",
+                    vibesql_types::SqlValue::Numeric(_) => "Numeric",
+                    vibesql_types::SqlValue::Float(_) => "Float",
                     _ => "Other",
                 }
             );
@@ -79,7 +79,7 @@ INSERT INTO t1(e,d,c,b,a) VALUES(246,248,247,249,245);
     let cmp_sql = "SELECT c > 174.36666666666667 FROM t1 LIMIT 5";
     let cmp_stmt = Parser::parse_sql(cmp_sql).unwrap();
     match cmp_stmt {
-        ast::Statement::Select(select_stmt) => {
+        vibesql_ast::Statement::Select(select_stmt) => {
             let executor = SelectExecutor::new(&db);
             let rows = executor.execute(&select_stmt).unwrap();
             println!("Direct comparison results:");
@@ -95,7 +95,7 @@ INSERT INTO t1(e,d,c,b,a) VALUES(246,248,247,249,245);
         "SELECT CASE WHEN c>(SELECT avg(c) FROM t1) THEN a*2 ELSE b*10 END FROM t1 ORDER BY 1";
     let stmt = Parser::parse_sql(query_sql).unwrap();
     match stmt {
-        ast::Statement::Select(select_stmt) => {
+        vibesql_ast::Statement::Select(select_stmt) => {
             let executor = SelectExecutor::new(&db);
             let rows = executor.execute(&select_stmt).unwrap();
 
@@ -113,7 +113,7 @@ INSERT INTO t1(e,d,c,b,a) VALUES(246,248,247,249,245);
             // Check if all results are multiples of 10 (indicating ELSE branch always taken)
             let all_multiples_of_10 = rows
                 .iter()
-                .all(|row| matches!(row.values[0], types::SqlValue::Integer(n) if n % 10 == 0));
+                .all(|row| matches!(row.values[0], vibesql_types::SqlValue::Integer(n) if n % 10 == 0));
             println!("All results are multiples of 10: {}", all_multiples_of_10);
         }
         _ => panic!("Expected SELECT"),

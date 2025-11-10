@@ -1,11 +1,11 @@
 //! SQLLogicTest integration for comprehensive SQL correctness testing.
 
 use async_trait::async_trait;
-use executor::SelectExecutor;
-use parser::Parser;
+use vibesql_executor::SelectExecutor;
+use vibesql_parser::Parser;
 use sqllogictest::{AsyncDB, DBOutput, DefaultColumnType};
-use storage::Database;
-use types::SqlValue;
+use vibesql_storage::Database;
+use vibesql_types::SqlValue;
 
 #[derive(Debug)]
 struct TestError(String);
@@ -20,14 +20,14 @@ impl std::error::Error for TestError {}
 
 struct NistMemSqlDB {
     db: Database,
-    cache: std::sync::Arc<executor::QueryPlanCache>,
+    cache: std::sync::Arc<vibesql_executor::QueryPlanCache>,
 }
 
 impl NistMemSqlDB {
     fn new() -> Self {
         Self {
             db: Database::new(),
-            cache: std::sync::Arc::new(executor::QueryPlanCache::new(1000)),
+            cache: std::sync::Arc::new(vibesql_executor::QueryPlanCache::new(1000)),
         }
     }
 
@@ -37,7 +37,7 @@ impl NistMemSqlDB {
     /// so we always return actual values here.
     fn format_result_rows(
         &self,
-        rows: &[storage::Row],
+        rows: &[vibesql_storage::Row],
         types: Vec<DefaultColumnType>,
     ) -> Result<DBOutput<DefaultColumnType>, TestError> {
         let formatted_rows: Vec<Vec<String>> = rows
@@ -78,14 +78,14 @@ impl NistMemSqlDB {
             Parser::parse_sql(sql).map_err(|e| TestError(format!("Parse error: {:?}", e)))?;
 
         match stmt {
-            ast::Statement::Select(select_stmt) => {
+            vibesql_ast::Statement::Select(select_stmt) => {
                 let executor = SelectExecutor::new(&self.db);
                 let rows = executor
                     .execute(&select_stmt)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 self.format_query_result(rows)
             }
-            ast::Statement::CreateTable(create_stmt) => {
+            vibesql_ast::Statement::CreateTable(create_stmt) => {
                 // Extract table name for cache invalidation
                 let table_name = if let Some(pos) = create_stmt.table_name.rfind('.') {
                     &create_stmt.table_name[pos + 1..]
@@ -93,7 +93,7 @@ impl NistMemSqlDB {
                     &create_stmt.table_name
                 };
 
-                executor::CreateTableExecutor::execute(&create_stmt, &mut self.db)
+                vibesql_executor::CreateTableExecutor::execute(&create_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
 
                 // Invalidate cache for this table
@@ -101,22 +101,22 @@ impl NistMemSqlDB {
 
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::Insert(insert_stmt) => {
-                let rows_affected = executor::InsertExecutor::execute(&mut self.db, &insert_stmt)
+            vibesql_ast::Statement::Insert(insert_stmt) => {
+                let rows_affected = vibesql_executor::InsertExecutor::execute(&mut self.db, &insert_stmt)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(rows_affected as u64))
             }
-            ast::Statement::Update(update_stmt) => {
-                let rows_affected = executor::UpdateExecutor::execute(&update_stmt, &mut self.db)
+            vibesql_ast::Statement::Update(update_stmt) => {
+                let rows_affected = vibesql_executor::UpdateExecutor::execute(&update_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(rows_affected as u64))
             }
-            ast::Statement::Delete(delete_stmt) => {
-                let rows_affected = executor::DeleteExecutor::execute(&delete_stmt, &mut self.db)
+            vibesql_ast::Statement::Delete(delete_stmt) => {
+                let rows_affected = vibesql_executor::DeleteExecutor::execute(&delete_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(rows_affected as u64))
             }
-            ast::Statement::DropTable(drop_stmt) => {
+            vibesql_ast::Statement::DropTable(drop_stmt) => {
                 // Extract table name for cache invalidation
                 let table_name = if let Some(pos) = drop_stmt.table_name.rfind('.') {
                     &drop_stmt.table_name[pos + 1..]
@@ -124,7 +124,7 @@ impl NistMemSqlDB {
                     &drop_stmt.table_name
                 };
 
-                executor::DropTableExecutor::execute(&drop_stmt, &mut self.db)
+                vibesql_executor::DropTableExecutor::execute(&drop_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
 
                 // Invalidate cache for this table
@@ -132,137 +132,137 @@ impl NistMemSqlDB {
 
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::AlterTable(alter_stmt) => {
-                executor::AlterTableExecutor::execute(&alter_stmt, &mut self.db)
+            vibesql_ast::Statement::AlterTable(alter_stmt) => {
+                vibesql_executor::AlterTableExecutor::execute(&alter_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::CreateSchema(create_schema_stmt) => {
-                executor::SchemaExecutor::execute_create_schema(&create_schema_stmt, &mut self.db)
+            vibesql_ast::Statement::CreateSchema(create_schema_stmt) => {
+                vibesql_executor::SchemaExecutor::execute_create_schema(&create_schema_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::DropSchema(drop_schema_stmt) => {
-                executor::SchemaExecutor::execute_drop_schema(&drop_schema_stmt, &mut self.db)
+            vibesql_ast::Statement::DropSchema(drop_schema_stmt) => {
+                vibesql_executor::SchemaExecutor::execute_drop_schema(&drop_schema_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::SetSchema(set_schema_stmt) => {
-                executor::SchemaExecutor::execute_set_schema(&set_schema_stmt, &mut self.db)
+            vibesql_ast::Statement::SetSchema(set_schema_stmt) => {
+                vibesql_executor::SchemaExecutor::execute_set_schema(&set_schema_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::SetCatalog(set_stmt) => {
-                executor::SchemaExecutor::execute_set_catalog(&set_stmt, &mut self.db)
+            vibesql_ast::Statement::SetCatalog(set_stmt) => {
+                vibesql_executor::SchemaExecutor::execute_set_catalog(&set_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::CreateIndex(create_index_stmt) => {
-                executor::IndexExecutor::execute(&create_index_stmt, &mut self.db)
+            vibesql_ast::Statement::CreateIndex(create_index_stmt) => {
+                vibesql_executor::IndexExecutor::execute(&create_index_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::DropIndex(drop_index_stmt) => {
-                executor::IndexExecutor::execute_drop(&drop_index_stmt, &mut self.db)
+            vibesql_ast::Statement::DropIndex(drop_index_stmt) => {
+                vibesql_executor::IndexExecutor::execute_drop(&drop_index_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::SetNames(set_stmt) => {
-                executor::SchemaExecutor::execute_set_names(&set_stmt, &mut self.db)
+            vibesql_ast::Statement::SetNames(set_stmt) => {
+                vibesql_executor::SchemaExecutor::execute_set_names(&set_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::SetTimeZone(set_stmt) => {
-                executor::SchemaExecutor::execute_set_time_zone(&set_stmt, &mut self.db)
+            vibesql_ast::Statement::SetTimeZone(set_stmt) => {
+                vibesql_executor::SchemaExecutor::execute_set_time_zone(&set_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::Grant(grant_stmt) => {
-                executor::GrantExecutor::execute_grant(&grant_stmt, &mut self.db)
+            vibesql_ast::Statement::Grant(grant_stmt) => {
+                vibesql_executor::GrantExecutor::execute_grant(&grant_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::Revoke(revoke_stmt) => {
-                executor::RevokeExecutor::execute_revoke(&revoke_stmt, &mut self.db)
+            vibesql_ast::Statement::Revoke(revoke_stmt) => {
+                vibesql_executor::RevokeExecutor::execute_revoke(&revoke_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::CreateRole(create_role_stmt) => {
-                executor::RoleExecutor::execute_create_role(&create_role_stmt, &mut self.db)
+            vibesql_ast::Statement::CreateRole(create_role_stmt) => {
+                vibesql_executor::RoleExecutor::execute_create_role(&create_role_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::DropRole(drop_role_stmt) => {
-                executor::RoleExecutor::execute_drop_role(&drop_role_stmt, &mut self.db)
+            vibesql_ast::Statement::DropRole(drop_role_stmt) => {
+                vibesql_executor::RoleExecutor::execute_drop_role(&drop_role_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::CreateDomain(create_domain_stmt) => {
-                executor::DomainExecutor::execute_create_domain(&create_domain_stmt, &mut self.db)
+            vibesql_ast::Statement::CreateDomain(create_domain_stmt) => {
+                vibesql_executor::DomainExecutor::execute_create_domain(&create_domain_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::DropDomain(drop_domain_stmt) => {
-                executor::DomainExecutor::execute_drop_domain(&drop_domain_stmt, &mut self.db)
+            vibesql_ast::Statement::DropDomain(drop_domain_stmt) => {
+                vibesql_executor::DomainExecutor::execute_drop_domain(&drop_domain_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::CreateType(create_type_stmt) => {
-                executor::TypeExecutor::execute_create_type(&create_type_stmt, &mut self.db)
+            vibesql_ast::Statement::CreateType(create_type_stmt) => {
+                vibesql_executor::TypeExecutor::execute_create_type(&create_type_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::DropType(drop_type_stmt) => {
-                executor::TypeExecutor::execute_drop_type(&drop_type_stmt, &mut self.db)
+            vibesql_ast::Statement::DropType(drop_type_stmt) => {
+                vibesql_executor::TypeExecutor::execute_drop_type(&drop_type_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::CreateAssertion(create_assertion_stmt) => {
-                executor::advanced_objects::execute_create_assertion(
+            vibesql_ast::Statement::CreateAssertion(create_assertion_stmt) => {
+                vibesql_executor::advanced_objects::execute_create_assertion(
                     &create_assertion_stmt,
                     &mut self.db,
                 )
                 .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::DropAssertion(drop_assertion_stmt) => {
-                executor::advanced_objects::execute_drop_assertion(
+            vibesql_ast::Statement::DropAssertion(drop_assertion_stmt) => {
+                vibesql_executor::advanced_objects::execute_drop_assertion(
                     &drop_assertion_stmt,
                     &mut self.db,
                 )
                 .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::BeginTransaction(_)
-            | ast::Statement::Commit(_)
-            | ast::Statement::Rollback(_)
-            | ast::Statement::Savepoint(_)
-            | ast::Statement::RollbackToSavepoint(_)
-            | ast::Statement::ReleaseSavepoint(_)
-            | ast::Statement::SetTransaction(_)
-            | ast::Statement::CreateSequence(_)
-            | ast::Statement::DropSequence(_)
-            | ast::Statement::AlterSequence(_)
-            | ast::Statement::CreateCollation(_)
-            | ast::Statement::DropCollation(_)
-            | ast::Statement::CreateCharacterSet(_)
-            | ast::Statement::DropCharacterSet(_)
-            | ast::Statement::CreateTranslation(_)
-            | ast::Statement::DropTranslation(_)
-            | ast::Statement::CreateView(_)
-            | ast::Statement::DropView(_)
-            | ast::Statement::CreateTrigger(_)
-            | ast::Statement::DropTrigger(_)
-            | ast::Statement::DeclareCursor(_)
-            | ast::Statement::OpenCursor(_)
-            | ast::Statement::Fetch(_)
-            | ast::Statement::CloseCursor(_) => Ok(DBOutput::StatementComplete(0)),
+            vibesql_ast::Statement::BeginTransaction(_)
+            | vibesql_ast::Statement::Commit(_)
+            | vibesql_ast::Statement::Rollback(_)
+            | vibesql_ast::Statement::Savepoint(_)
+            | vibesql_ast::Statement::RollbackToSavepoint(_)
+            | vibesql_ast::Statement::ReleaseSavepoint(_)
+            | vibesql_ast::Statement::SetTransaction(_)
+            | vibesql_ast::Statement::CreateSequence(_)
+            | vibesql_ast::Statement::DropSequence(_)
+            | vibesql_ast::Statement::AlterSequence(_)
+            | vibesql_ast::Statement::CreateCollation(_)
+            | vibesql_ast::Statement::DropCollation(_)
+            | vibesql_ast::Statement::CreateCharacterSet(_)
+            | vibesql_ast::Statement::DropCharacterSet(_)
+            | vibesql_ast::Statement::CreateTranslation(_)
+            | vibesql_ast::Statement::DropTranslation(_)
+            | vibesql_ast::Statement::CreateView(_)
+            | vibesql_ast::Statement::DropView(_)
+            | vibesql_ast::Statement::CreateTrigger(_)
+            | vibesql_ast::Statement::DropTrigger(_)
+            | vibesql_ast::Statement::DeclareCursor(_)
+            | vibesql_ast::Statement::OpenCursor(_)
+            | vibesql_ast::Statement::Fetch(_)
+            | vibesql_ast::Statement::CloseCursor(_) => Ok(DBOutput::StatementComplete(0)),
         }
     }
 
     fn format_query_result(
         &self,
-        rows: Vec<storage::Row>,
+        rows: Vec<vibesql_storage::Row>,
     ) -> Result<DBOutput<DefaultColumnType>, TestError> {
         if rows.is_empty() {
             return Ok(DBOutput::Rows { types: vec![], rows: vec![] });

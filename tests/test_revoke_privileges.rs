@@ -3,11 +3,11 @@
 //! Tests for REVOKE operations including CASCADE/RESTRICT behavior,
 //! GRANT OPTION FOR, multiple grantees, and error cases.
 
-use ast::*;
-use catalog::*;
-use executor::*;
-use storage::*;
-use types::*;
+use vibesql_ast::*;
+use vibesql_catalog::*;
+use vibesql_executor::*;
+use vibesql_storage::*;
+use vibesql_types::*;
 
 #[test]
 fn test_revoke_specific_privilege() {

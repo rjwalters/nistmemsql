@@ -1,7 +1,7 @@
 //! End-to-end tests for character SQL data types.
 
-use storage::{Database, Row};
-use types::SqlValue;
+use vibesql_storage::{Database, Row};
+use vibesql_types::SqlValue;
 
 use super::fixtures::*;
 

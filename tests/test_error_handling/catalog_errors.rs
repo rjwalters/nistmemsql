@@ -2,13 +2,13 @@
 //!
 //! Tests for catalog-level errors including table, column, schema, and view operations.
 
-use ast::Statement;
-use executor::{
+use vibesql_ast::Statement;
+use vibesql_executor::{
     advanced_objects::{execute_create_view, execute_drop_view},
     AlterTableExecutor, CreateTableExecutor, ExecutorError, SchemaExecutor, SelectExecutor,
 };
-use parser::Parser;
-use storage::Database;
+use vibesql_parser::Parser;
+use vibesql_storage::Database;
 
 #[test]
 fn test_table_already_exists_error() {

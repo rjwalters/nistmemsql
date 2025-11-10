@@ -1,13 +1,13 @@
-use catalog::{ColumnSchema, TableSchema};
+use vibesql::catalog::{ColumnSchema, TableSchema};
 /**
  * Batch Query Runner for Web Demo Examples
  *
  * Runs all 27 advanced example queries and generates expected results or SKIP comments.
  */
-use executor::SelectExecutor;
-use parser::Parser;
-use storage::{Database, Row};
-use types::{DataType, SqlValue};
+use vibesql::executor::SelectExecutor;
+use vibesql::parser::Parser;
+use vibesql::storage::{Database, Row};
+use vibesql::types::{DataType, SqlValue};
 
 fn create_northwind_db() -> Database {
     let mut db = Database::new();
@@ -127,7 +127,7 @@ fn test_query(db: &Database, id: &str, title: &str, query: &str) {
         }
     };
 
-    if let ast::Statement::Select(select_stmt) = stmt {
+    if let vibesql::ast::Statement::Select(select_stmt) = stmt {
         let executor = SelectExecutor::new(db);
         match executor.execute(&select_stmt) {
             Ok(result) => {

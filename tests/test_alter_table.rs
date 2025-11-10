@@ -2,11 +2,11 @@
 //!
 //! Coverage target: 24% → 70%+ for crates/executor/src/alter.rs
 
-use ast::Statement;
-use executor::{AlterTableExecutor, CreateTableExecutor};
-use parser::Parser;
-use storage::{Database, Row};
-use types::SqlValue;
+use vibesql_ast::Statement;
+use vibesql_executor::{AlterTableExecutor, CreateTableExecutor};
+use vibesql_parser::Parser;
+use vibesql_storage::{Database, Row};
+use vibesql_types::SqlValue;
 
 /// Helper to create a basic test table
 fn create_test_table(db: &mut Database) {

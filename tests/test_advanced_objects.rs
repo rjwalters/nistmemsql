@@ -2,8 +2,8 @@
 //!
 //! Tests for SEQUENCE, TYPE, COLLATION, CHARACTER SET, and TRANSLATION statements.
 
-use ast::{Statement, TypeDefinition};
-use parser::Parser;
+use vibesql_ast::{Statement, TypeDefinition};
+use vibesql_parser::Parser;
 
 #[test]
 fn test_create_sequence_basic() {
@@ -123,7 +123,7 @@ fn test_create_type_distinct() {
             assert_eq!(create_stmt.type_name, "TEST_TYPE");
             match create_stmt.definition {
                 TypeDefinition::Distinct { base_type } => {
-                    assert!(matches!(base_type, types::DataType::Integer));
+                    assert!(matches!(base_type, vibesql_types::DataType::Integer));
                 }
                 _ => panic!("Expected Distinct type definition"),
             }
@@ -146,8 +146,8 @@ fn test_create_type_structured() {
                     assert_eq!(attributes[0].name, "NAME");
                     assert_eq!(attributes[1].name, "AGE");
                     // Check data types
-                    assert!(matches!(attributes[0].data_type, types::DataType::Varchar { .. }));
-                    assert!(matches!(attributes[1].data_type, types::DataType::Integer));
+                    assert!(matches!(attributes[0].data_type, vibesql_types::DataType::Varchar { .. }));
+                    assert!(matches!(attributes[1].data_type, vibesql_types::DataType::Integer));
                 }
                 _ => panic!("Expected Structured type definition"),
             }
@@ -164,7 +164,7 @@ fn test_drop_type_basic() {
     match stmt {
         Statement::DropType(drop_stmt) => {
             assert_eq!(drop_stmt.type_name, "TEST_TYPE");
-            assert!(matches!(drop_stmt.behavior, ast::DropBehavior::Restrict));
+            assert!(matches!(drop_stmt.behavior, vibesql_ast::DropBehavior::Restrict));
         }
         _ => panic!("Expected DropType statement, got {:?}", stmt),
     }
@@ -178,7 +178,7 @@ fn test_drop_type_cascade() {
     match stmt {
         Statement::DropType(drop_stmt) => {
             assert_eq!(drop_stmt.type_name, "TEST_TYPE");
-            assert!(matches!(drop_stmt.behavior, ast::DropBehavior::Cascade));
+            assert!(matches!(drop_stmt.behavior, vibesql_ast::DropBehavior::Cascade));
         }
         _ => panic!("Expected DropType statement, got {:?}", stmt),
     }
@@ -192,7 +192,7 @@ fn test_drop_type_restrict() {
     match stmt {
         Statement::DropType(drop_stmt) => {
             assert_eq!(drop_stmt.type_name, "TEST_TYPE");
-            assert!(matches!(drop_stmt.behavior, ast::DropBehavior::Restrict));
+            assert!(matches!(drop_stmt.behavior, vibesql_ast::DropBehavior::Restrict));
         }
         _ => panic!("Expected DropType statement, got {:?}", stmt),
     }

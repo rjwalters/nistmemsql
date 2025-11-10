@@ -1,0 +1,154 @@
+use std::time::Instant;
+
+use vibesql_parser::Parser;
+use vibesql_storage::Database;
+
+// Submodules
+mod copy_handler;
+pub mod display;
+mod loader;
+pub mod validation;
+
+#[cfg(test)]
+mod tests;
+
+pub struct SqlExecutor {
+    db: Database,
+    timing_enabled: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct QueryResult {
+    pub rows: Vec<Vec<String>>,
+    pub columns: Vec<String>,
+    pub row_count: usize,
+    pub execution_time_ms: Option<f64>,
+}
+
+impl SqlExecutor {
+    pub fn new(database: Option<String>) -> anyhow::Result<Self> {
+        // Load database from file if provided, otherwise create new in-memory database
+        let db = if let Some(db_path) = database {
+            // Check if file exists
+            if std::path::Path::new(&db_path).exists() {
+                // Load existing database from SQL dump
+                loader::load_database(&db_path)?
+            } else {
+                // File doesn't exist, create new database
+                // (Will be saved when user uses \save or when modifications occur)
+                Database::new()
+            }
+        } else {
+            // No database file specified, use in-memory database
+            Database::new()
+        };
+
+        Ok(SqlExecutor { db, timing_enabled: false })
+    }
+
+    pub fn execute(&mut self, sql: &str) -> anyhow::Result<QueryResult> {
+        let start = Instant::now();
+
+        // Parse SQL
+        let statement = Parser::parse_sql(sql).map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        // Execute statement through appropriate executor
+        let mut result = QueryResult {
+            rows: Vec::new(),
+            columns: Vec::new(),
+            row_count: 0,
+            execution_time_ms: None,
+        };
+
+        match statement {
+            vibesql_ast::Statement::Select(select_stmt) => {
+                // Execute SELECT and format results
+                let executor = vibesql_executor::SelectExecutor::new(&self.db);
+                match executor.execute(&select_stmt) {
+                    Ok(rows) => {
+                        result.row_count = rows.len();
+                        // Convert rows to string representation
+                        if !rows.is_empty() {
+                            // Get column names from the select statement
+                            result.columns = vec!["Column".to_string(); rows[0].values.len()];
+                            for row in rows {
+                                let row_strs: Vec<String> =
+                                    row.values.iter().map(|v| format!("{:?}", v)).collect();
+                                result.rows.push(row_strs);
+                            }
+                        }
+                    }
+                    Err(e) => return Err(anyhow::anyhow!("{}", e)),
+                }
+            }
+            vibesql_ast::Statement::CreateTable(create_stmt) => {
+                let mut db_mut = self.db.clone();
+                match vibesql_executor::CreateTableExecutor::execute(&create_stmt, &mut db_mut) {
+                    Ok(_) => {
+                        self.db = db_mut;
+                        result.row_count = 0; // DDL doesn't return rows
+                    }
+                    Err(e) => return Err(anyhow::anyhow!("{}", e)),
+                }
+            }
+            vibesql_ast::Statement::Insert(insert_stmt) => {
+                let mut db_mut = self.db.clone();
+                match vibesql_executor::InsertExecutor::execute(&mut db_mut, &insert_stmt) {
+                    Ok(affected_rows) => {
+                        self.db = db_mut;
+                        result.row_count = affected_rows;
+                    }
+                    Err(e) => return Err(anyhow::anyhow!("{}", e)),
+                }
+            }
+            vibesql_ast::Statement::Update(update_stmt) => {
+                let mut db_mut = self.db.clone();
+                match vibesql_executor::UpdateExecutor::execute(&update_stmt, &mut db_mut) {
+                    Ok(affected_rows) => {
+                        self.db = db_mut;
+                        result.row_count = affected_rows;
+                    }
+                    Err(e) => return Err(anyhow::anyhow!("{}", e)),
+                }
+            }
+            vibesql_ast::Statement::Delete(delete_stmt) => {
+                let mut db_mut = self.db.clone();
+                match vibesql_executor::DeleteExecutor::execute(&delete_stmt, &mut db_mut) {
+                    Ok(affected_rows) => {
+                        self.db = db_mut;
+                        result.row_count = affected_rows;
+                    }
+                    Err(e) => return Err(anyhow::anyhow!("{}", e)),
+                }
+            }
+            _ => {
+                return Err(anyhow::anyhow!("Statement type not yet supported in CLI"));
+            }
+        }
+
+        let elapsed = start.elapsed().as_secs_f64() * 1000.0;
+        if self.timing_enabled {
+            result.execution_time_ms = Some(elapsed);
+        }
+
+        Ok(result)
+    }
+
+    pub fn toggle_timing(&mut self) {
+        self.timing_enabled = !self.timing_enabled;
+        let state = if self.timing_enabled { "on" } else { "off" };
+        println!("Timing is {}", state);
+    }
+
+    /// Get a reference to the database (for saving)
+    pub fn database(&self) -> &Database {
+        &self.db
+    }
+
+    /// Save database to SQL dump file
+    pub fn save_database(&self, path: &str) -> anyhow::Result<()> {
+        self.db
+            .save_sql_dump(path)
+            .map_err(|e| anyhow::anyhow!("Failed to save database to {}: {}", path, e))
+    }
+}

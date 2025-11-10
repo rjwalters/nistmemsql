@@ -1,0 +1,567 @@
+use super::{combine_rows, FromResult};
+use crate::{
+    errors::ExecutorError, evaluator::CombinedExpressionEvaluator, limits::MAX_MEMORY_BYTES,
+    schema::CombinedSchema,
+};
+
+/// Maximum number of rows allowed in a join result to prevent memory exhaustion
+/// With average row size of ~100 bytes, this allows up to ~10GB
+const MAX_JOIN_RESULT_ROWS: usize = 100_000_000;
+
+/// Check if a join would exceed memory limits based on estimated result size
+/// Accounts for join selectivity when equijoin conditions are present
+fn check_join_size_limit(
+    left_count: usize,
+    right_count: usize,
+    condition: &Option<vibesql_ast::Expression>,
+) -> Result<(), ExecutorError> {
+    // Estimate result size based on join condition type
+    let estimated_result_rows = if is_equijoin_condition(condition) {
+        // For equijoins (a.col = b.col), estimate based on join selectivity
+        // With equijoins on indexed columns, expect 1:1 or 1:N selectivity
+        // Conservative estimate: use the size of the larger input
+        // This prevents exponential blowup in cascading joins
+        std::cmp::max(left_count, right_count)
+    } else {
+        // For non-equijoin or missing condition, assume cartesian product
+        left_count.saturating_mul(right_count)
+    };
+
+    if estimated_result_rows > MAX_JOIN_RESULT_ROWS {
+        // Estimate memory usage (conservative: 100 bytes per row average)
+        let estimated_bytes = estimated_result_rows.saturating_mul(100);
+        return Err(ExecutorError::MemoryLimitExceeded {
+            used_bytes: estimated_bytes,
+            max_bytes: MAX_MEMORY_BYTES,
+        });
+    }
+
+    Ok(())
+}
+
+/// Check if a condition is a simple equijoin (a.col = b.col)
+fn is_equijoin_condition(condition: &Option<vibesql_ast::Expression>) -> bool {
+    match condition {
+        Some(vibesql_ast::Expression::BinaryOp { op: vibesql_ast::BinaryOperator::Equal, .. }) => true,
+        Some(vibesql_ast::Expression::BinaryOp { op: vibesql_ast::BinaryOperator::And, left, right }) => {
+            // For AND conditions, check if at least one is an equijoin
+            is_equijoin_condition(&Some(left.as_ref().clone()))
+                || is_equijoin_condition(&Some(right.as_ref().clone()))
+        }
+        _ => false,
+    }
+}
+
+/// Optimized evaluation result for equijoin conditions
+#[derive(Debug)]
+enum EquijoinEvalStrategy {
+    /// Simple equijoin - can evaluate by direct value comparison
+    /// (left_col_idx, right_col_idx, evaluator for remaining conditions)
+    Simple {
+        left_col_idx: usize,
+        right_col_idx: usize,
+        remaining_condition: Option<vibesql_ast::Expression>,
+    },
+    /// Complex condition - need full evaluation with combined_row
+    Complex,
+}
+
+/// Analyze join condition to determine optimization strategy
+fn analyze_join_condition(
+    condition: &vibesql_ast::Expression,
+    schema: &CombinedSchema,
+    left_col_count: usize,
+) -> EquijoinEvalStrategy {
+    use super::join_analyzer;
+
+    // Try to detect a simple equijoin pattern
+    if let Some(equi_info) = join_analyzer::analyze_equi_join(condition, schema, left_col_count) {
+        // Simple equijoin detected - use optimized path
+        return EquijoinEvalStrategy::Simple {
+            left_col_idx: equi_info.left_col_idx,
+            right_col_idx: equi_info.right_col_idx,
+            remaining_condition: None,
+        };
+    }
+
+    // Check if condition is an AND with at least one simple equijoin
+    if let vibesql_ast::Expression::BinaryOp { op: vibesql_ast::BinaryOperator::And, left, right } = condition {
+        // Try left side
+        if let Some(equi_info) = join_analyzer::analyze_equi_join(left, schema, left_col_count) {
+            return EquijoinEvalStrategy::Simple {
+                left_col_idx: equi_info.left_col_idx,
+                right_col_idx: equi_info.right_col_idx,
+                remaining_condition: Some(right.as_ref().clone()),
+            };
+        }
+        // Try right side
+        if let Some(equi_info) = join_analyzer::analyze_equi_join(right, schema, left_col_count) {
+            return EquijoinEvalStrategy::Simple {
+                left_col_idx: equi_info.left_col_idx,
+                right_col_idx: equi_info.right_col_idx,
+                remaining_condition: Some(left.as_ref().clone()),
+            };
+        }
+    }
+
+    // Complex condition - fall back to classic algorithm
+    EquijoinEvalStrategy::Complex
+}
+
+/// Execute optimized equijoin by comparing values before allocating combined_row
+fn execute_optimized_equijoin(
+    left_rows: &[vibesql_storage::Row],
+    right_rows: &[vibesql_storage::Row],
+    left_col_idx: usize,
+    right_col_idx: usize,
+    remaining_condition: Option<&vibesql_ast::Expression>,
+    schema: &CombinedSchema,
+    database: &vibesql_storage::Database,
+) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
+    let mut result_rows = Vec::new();
+
+    // Create evaluator for remaining conditions if needed
+    let evaluator = if remaining_condition.is_some() {
+        Some(CombinedExpressionEvaluator::with_database(schema, database))
+    } else {
+        None
+    };
+
+    for left_row in left_rows {
+        let left_value = &left_row.values[left_col_idx];
+
+        for right_row in right_rows {
+            let right_value = &right_row.values[right_col_idx];
+
+            // OPTIMIZATION: Compare values BEFORE allocating combined_row
+            // This prevents allocation for pairs that won't match
+            if left_value != right_value {
+                continue; // Skip this pair - equijoin doesn't match
+            }
+
+            // Values match! Now check remaining conditions if any
+            if let Some(remaining_cond) = remaining_condition {
+                // Need to create combined_row to evaluate remaining condition
+                let combined_row = combine_rows(left_row, right_row);
+
+                // Clear CSE cache before evaluation
+                evaluator.as_ref().unwrap().clear_cse_cache();
+
+                let matches = match evaluator.as_ref().unwrap().eval(remaining_cond, &combined_row)? {
+                    vibesql_types::SqlValue::Boolean(true) => true,
+                    vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
+                    other => {
+                        return Err(ExecutorError::InvalidWhereClause(format!(
+                            "JOIN condition must evaluate to boolean, got: {:?}",
+                            other
+                        )))
+                    }
+                };
+
+                if matches {
+                    result_rows.push(combined_row);
+                }
+            } else {
+                // No remaining conditions - equijoin matched, add the row
+                result_rows.push(combine_rows(left_row, right_row));
+            }
+        }
+    }
+
+    Ok(result_rows)
+}
+
+/// Classic nested loop join algorithm (allocate then evaluate)
+fn execute_nested_loop_classic(
+    left_rows: &[vibesql_storage::Row],
+    right_rows: &[vibesql_storage::Row],
+    condition: &Option<vibesql_ast::Expression>,
+    schema: &CombinedSchema,
+    database: &vibesql_storage::Database,
+) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
+    let evaluator = CombinedExpressionEvaluator::with_database(schema, database);
+    let mut result_rows = Vec::new();
+
+    for left_row in left_rows {
+        for right_row in right_rows {
+            // Combine rows using optimized helper (single allocation)
+            let combined_row = combine_rows(left_row, right_row);
+
+            // Clear CSE cache before evaluating join condition for this row combination
+            // to prevent stale cached column values from previous combinations
+            evaluator.clear_cse_cache();
+
+            // Evaluate join condition
+            let matches = if let Some(cond) = condition {
+                match evaluator.eval(cond, &combined_row)? {
+                    vibesql_types::SqlValue::Boolean(true) => true,
+                    vibesql_types::SqlValue::Boolean(false) => false,
+                    vibesql_types::SqlValue::Null => false,
+                    other => {
+                        return Err(ExecutorError::InvalidWhereClause(format!(
+                            "JOIN condition must evaluate to boolean, got: {:?}",
+                            other
+                        )))
+                    }
+                }
+            } else {
+                true // No condition = CROSS JOIN
+            };
+
+            if matches {
+                result_rows.push(combined_row);
+            }
+        }
+    }
+
+    Ok(result_rows)
+}
+
+/// Nested loop INNER JOIN implementation
+pub(super) fn nested_loop_inner_join(
+    mut left: FromResult,
+    mut right: FromResult,
+    condition: &Option<vibesql_ast::Expression>,
+    database: &vibesql_storage::Database,
+) -> Result<FromResult, ExecutorError> {
+    // Check if join would exceed memory limits before executing
+    check_join_size_limit(left.rows().len(), right.rows().len(), condition)?;
+
+    // Extract right table name (assume single table for now)
+    let right_table_name = right
+        .schema
+        .table_schemas
+        .keys()
+        .next()
+        .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+        .clone();
+
+    let right_schema = right
+        .schema
+        .table_schemas
+        .get(&right_table_name)
+        .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+        .1
+        .clone();
+
+    // Combine schemas
+    let combined_schema =
+        CombinedSchema::combine(left.schema.clone(), right_table_name, right_schema);
+
+    // OPTIMIZATION: Analyze condition to see if we can evaluate equijoin before allocation
+    // This prevents creating combined_row for pairs that won't match the join condition
+    let left_col_count: usize =
+        left.schema.table_schemas.values().map(|(_, schema)| schema.columns.len()).sum();
+
+    let eval_strategy = if let Some(cond) = condition {
+        analyze_join_condition(cond, &combined_schema, left_col_count)
+    } else {
+        EquijoinEvalStrategy::Complex
+    };
+
+    // Execute join with optimized strategy
+    let result_rows = match eval_strategy {
+        EquijoinEvalStrategy::Simple { left_col_idx, right_col_idx, remaining_condition } => {
+            // FAST PATH: Evaluate equijoin by direct value comparison before allocation
+            execute_optimized_equijoin(
+                left.rows(),
+                right.rows(),
+                left_col_idx,
+                right_col_idx,
+                remaining_condition.as_ref(),
+                &combined_schema,
+                database,
+            )?
+        }
+        EquijoinEvalStrategy::Complex => {
+            // SLOW PATH: Use existing algorithm (allocate then evaluate)
+            execute_nested_loop_classic(left.rows(), right.rows(), condition, &combined_schema, database)?
+        }
+    };
+
+    Ok(FromResult::from_rows(combined_schema, result_rows))
+}
+
+/// Nested loop LEFT OUTER JOIN implementation
+pub(super) fn nested_loop_left_outer_join(
+    mut left: FromResult,
+    mut right: FromResult,
+    condition: &Option<vibesql_ast::Expression>,
+    database: &vibesql_storage::Database,
+) -> Result<FromResult, ExecutorError> {
+    // Check if join would exceed memory limits before executing
+    check_join_size_limit(left.rows().len(), right.rows().len(), condition)?;
+
+    // Extract right table name and schema
+    let right_table_name = right
+        .schema
+        .table_schemas
+        .keys()
+        .next()
+        .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+        .clone();
+
+    let right_schema = right
+        .schema
+        .table_schemas
+        .get(&right_table_name)
+        .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+        .1
+        .clone();
+
+    let right_column_count = right_schema.columns.len();
+
+    // Combine schemas
+    let combined_schema = CombinedSchema::combine(left.schema.clone(), right_table_name, right_schema);
+    let evaluator = CombinedExpressionEvaluator::with_database(&combined_schema, database);
+
+    // Nested loop LEFT OUTER JOIN algorithm
+    let mut result_rows = Vec::new();
+    for left_row in left.rows() {
+        let mut matched = false;
+
+        for right_row in right.rows() {
+            // Combine rows using optimized helper (single allocation)
+            let combined_row = combine_rows(left_row, right_row);
+
+            // Clear CSE cache before evaluating join condition for this row combination
+            // to prevent stale cached column values from previous combinations
+            evaluator.clear_cse_cache();
+
+            // Evaluate join condition
+            let matches = if let Some(cond) = condition {
+                match evaluator.eval(cond, &combined_row)? {
+                    vibesql_types::SqlValue::Boolean(true) => true,
+                    vibesql_types::SqlValue::Boolean(false) => false,
+                    vibesql_types::SqlValue::Null => false,
+                    other => {
+                        return Err(ExecutorError::InvalidWhereClause(format!(
+                            "JOIN condition must evaluate to boolean, got: {:?}",
+                            other
+                        )))
+                    }
+                }
+            } else {
+                true // No condition = CROSS JOIN
+            };
+
+            if matches {
+                result_rows.push(combined_row);
+                matched = true;
+            }
+        }
+
+        // If no match found, add left row with NULLs for right columns
+        if !matched {
+            let mut combined_values =
+                Vec::with_capacity(left_row.values.len() + right_column_count);
+            combined_values.extend_from_slice(&left_row.values);
+            combined_values.extend(vec![vibesql_types::SqlValue::Null; right_column_count]);
+            result_rows.push(vibesql_storage::Row::new(combined_values));
+        }
+    }
+
+    Ok(FromResult::from_rows(combined_schema, result_rows))
+}
+
+/// Nested loop RIGHT OUTER JOIN implementation
+pub(super) fn nested_loop_right_outer_join(
+    mut left: FromResult,
+    mut right: FromResult,
+    condition: &Option<vibesql_ast::Expression>,
+    database: &vibesql_storage::Database,
+) -> Result<FromResult, ExecutorError> {
+    // Check if join would exceed memory limits before executing
+    check_join_size_limit(left.rows().len(), right.rows().len(), condition)?;
+
+    // RIGHT OUTER JOIN = LEFT OUTER JOIN with sides swapped
+    // Then we need to reorder columns to put left first, right second
+
+    // Get the right column count before moving
+    let right_col_count = right
+        .schema
+        .table_schemas
+        .values()
+        .next()
+        .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+        .1
+        .columns
+        .len();
+
+    // Do LEFT OUTER JOIN with swapped sides
+    let mut swapped_result = nested_loop_left_outer_join(right, left, condition, database)?;
+
+    // Now we need to reorder the columns in the result
+    // The swapped result has right columns first, then left columns
+    // We need to reverse this to left first, then right
+
+    // Reorder rows: move left columns (currently at positions right_col_count..) to front
+    let reordered_rows: Vec<vibesql_storage::Row> = swapped_result
+        .rows()
+        .iter()
+        .map(|row| {
+            let mut new_values = Vec::new();
+            // Add left columns (currently at end)
+            new_values.extend_from_slice(&row.values[right_col_count..]);
+            // Add right columns (currently at start)
+            new_values.extend_from_slice(&row.values[0..right_col_count]);
+            vibesql_storage::Row::new(new_values)
+        })
+        .collect();
+
+    Ok(FromResult::from_rows(swapped_result.schema, reordered_rows))
+}
+
+/// Nested loop FULL OUTER JOIN implementation
+pub(super) fn nested_loop_full_outer_join(
+    mut left: FromResult,
+    mut right: FromResult,
+    condition: &Option<vibesql_ast::Expression>,
+    database: &vibesql_storage::Database,
+) -> Result<FromResult, ExecutorError> {
+    // Check if join would exceed memory limits before executing
+    check_join_size_limit(left.rows().len(), right.rows().len(), condition)?;
+
+    // Extract right table name and schema
+    let right_table_name = right
+        .schema
+        .table_schemas
+        .keys()
+        .next()
+        .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+        .clone();
+
+    let right_schema = right
+        .schema
+        .table_schemas
+        .get(&right_table_name)
+        .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+        .1
+        .clone();
+
+    let left_column_count = left
+        .schema
+        .table_schemas
+        .values()
+        .next()
+        .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+        .1
+        .columns
+        .len();
+    let right_column_count = right_schema.columns.len();
+
+    // Combine schemas
+    let combined_schema = CombinedSchema::combine(left.schema.clone(), right_table_name, right_schema);
+    let evaluator = CombinedExpressionEvaluator::with_database(&combined_schema, database);
+
+    // FULL OUTER JOIN = LEFT OUTER JOIN + unmatched rows from right
+    let mut result_rows = Vec::new();
+    let mut right_matched = vec![false; right.rows().len()];
+
+    // First pass: LEFT OUTER JOIN logic
+    for left_row in left.rows() {
+        let mut matched = false;
+
+        for (right_idx, right_row) in right.rows().iter().enumerate() {
+            // Combine rows using optimized helper (single allocation)
+            let combined_row = combine_rows(left_row, right_row);
+
+            // Clear CSE cache before evaluating join condition for this row combination
+            // to prevent stale cached column values from previous combinations
+            evaluator.clear_cse_cache();
+
+            // Evaluate join condition
+            let matches = if let Some(cond) = condition {
+                match evaluator.eval(cond, &combined_row)? {
+                    vibesql_types::SqlValue::Boolean(true) => true,
+                    vibesql_types::SqlValue::Boolean(false) => false,
+                    vibesql_types::SqlValue::Null => false,
+                    other => {
+                        return Err(ExecutorError::InvalidWhereClause(format!(
+                            "JOIN condition must evaluate to boolean, got: {:?}",
+                            other
+                        )))
+                    }
+                }
+            } else {
+                true
+            };
+
+            if matches {
+                result_rows.push(combined_row);
+                matched = true;
+                right_matched[right_idx] = true;
+            }
+        }
+
+        // If no match found, add left row with NULLs for right columns
+        if !matched {
+            let mut combined_values =
+                Vec::with_capacity(left_row.values.len() + right_column_count);
+            combined_values.extend_from_slice(&left_row.values);
+            combined_values.extend(vec![vibesql_types::SqlValue::Null; right_column_count]);
+            result_rows.push(vibesql_storage::Row::new(combined_values));
+        }
+    }
+
+    // Second pass: Add unmatched right rows with NULLs for left columns
+    for (right_idx, right_row) in right.rows().iter().enumerate() {
+        if !right_matched[right_idx] {
+            let mut combined_values =
+                Vec::with_capacity(left_column_count + right_row.values.len());
+            combined_values.extend(vec![vibesql_types::SqlValue::Null; left_column_count]);
+            combined_values.extend_from_slice(&right_row.values);
+            result_rows.push(vibesql_storage::Row::new(combined_values));
+        }
+    }
+
+    Ok(FromResult::from_rows(combined_schema, result_rows))
+}
+
+/// Nested loop CROSS JOIN implementation (Cartesian product)
+pub(super) fn nested_loop_cross_join(
+    mut left: FromResult,
+    mut right: FromResult,
+    condition: &Option<vibesql_ast::Expression>,
+    _database: &vibesql_storage::Database,
+) -> Result<FromResult, ExecutorError> {
+    // CROSS JOIN should not have a condition
+    if condition.is_some() {
+        return Err(ExecutorError::UnsupportedFeature(
+            "CROSS JOIN does not support ON clause".to_string(),
+        ));
+    }
+
+    // Check if cross join would exceed memory limits before executing
+    check_join_size_limit(left.rows().len(), right.rows().len(), condition)?;
+
+    // Extract right table name and schema
+    let right_table_name = right
+        .schema
+        .table_schemas
+        .keys()
+        .next()
+        .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+        .clone();
+
+    let right_schema = right
+        .schema
+        .table_schemas
+        .get(&right_table_name)
+        .ok_or_else(|| ExecutorError::UnsupportedFeature("Complex JOIN".to_string()))?
+        .1
+        .clone();
+
+    // Combine schemas
+    let combined_schema = CombinedSchema::combine(left.schema.clone(), right_table_name, right_schema);
+
+    // CROSS JOIN = Cartesian product (every row from left × every row from right)
+    let mut result_rows = Vec::new();
+    for left_row in left.rows() {
+        for right_row in right.rows() {
+            result_rows.push(combine_rows(left_row, right_row));
+        }
+    }
+
+    Ok(FromResult::from_rows(combined_schema, result_rows))
+}

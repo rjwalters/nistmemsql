@@ -1,8 +1,8 @@
 //! Test that REVOKE succeeds on non-existent objects (SQL:1999 compliance)
 
-use ast::*;
-use executor::RevokeExecutor;
-use storage::Database;
+use vibesql_ast::*;
+use vibesql_executor::RevokeExecutor;
+use vibesql_storage::Database;
 
 #[test]
 fn test_revoke_on_nonexistent_function() {

@@ -9,8 +9,8 @@ mod common;
 use common::web_demo_helpers::{
     extract_query, load_database, parse_example_files, validate_results, WebDemoExample,
 };
-use executor::SelectExecutor;
-use parser::Parser;
+use vibesql_executor::SelectExecutor;
+use vibesql_parser::Parser;
 
 /// Test advanced SQL examples from web demo
 /// Includes examples with IDs: cte*, with*, window*, partition*, string*, concat*, advanced*,
@@ -72,7 +72,7 @@ fn test_advanced_sql_examples() {
 
         // Execute the query (advanced queries are typically SELECT statements)
         let result = match stmt {
-            ast::Statement::Select(select_stmt) => {
+            vibesql_ast::Statement::Select(select_stmt) => {
                 let executor = SelectExecutor::new(&db);
                 executor.execute(&select_stmt)
             }

@@ -7,11 +7,11 @@
 //! results as decimals when the expected column type is FloatingPoint (R).
 
 use async_trait::async_trait;
-use executor::SelectExecutor;
-use parser::Parser;
+use vibesql_executor::SelectExecutor;
+use vibesql_parser::Parser;
 use sqllogictest::{AsyncDB, DBOutput, DefaultColumnType};
-use storage::Database;
-use types::SqlValue;
+use vibesql_storage::Database;
+use vibesql_types::SqlValue;
 
 #[derive(Debug)]
 struct TestError(String);
@@ -57,7 +57,7 @@ impl TestDB {
             Parser::parse_sql(sql).map_err(|e| TestError(format!("Parse error: {:?}", e)))?;
 
         match stmt {
-            ast::Statement::Select(select_stmt) => {
+            vibesql_ast::Statement::Select(select_stmt) => {
                 let executor = SelectExecutor::new(&self.db);
                 let rows = executor
                     .execute(&select_stmt)
@@ -82,13 +82,13 @@ impl TestDB {
 
                 Ok(DBOutput::Rows { types, rows: formatted_rows })
             }
-            ast::Statement::CreateTable(create_stmt) => {
-                executor::CreateTableExecutor::execute(&create_stmt, &mut self.db)
+            vibesql_ast::Statement::CreateTable(create_stmt) => {
+                vibesql_executor::CreateTableExecutor::execute(&create_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
-            ast::Statement::Insert(insert_stmt) => {
-                let rows_affected = executor::InsertExecutor::execute(&mut self.db, &insert_stmt)
+            vibesql_ast::Statement::Insert(insert_stmt) => {
+                let rows_affected = vibesql_executor::InsertExecutor::execute(&mut self.db, &insert_stmt)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(rows_affected as u64))
             }

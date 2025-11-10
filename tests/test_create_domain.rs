@@ -1,9 +1,9 @@
 //! Tests for CREATE DOMAIN and DROP DOMAIN statements
 
-use ast::Statement;
-use executor::DomainExecutor;
-use parser::Parser;
-use storage::Database;
+use vibesql_ast::Statement;
+use vibesql_executor::DomainExecutor;
+use vibesql_parser::Parser;
+use vibesql_storage::Database;
 
 #[test]
 fn test_create_domain_basic() {

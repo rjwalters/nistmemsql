@@ -1,8 +1,8 @@
 //! Test SELECT without FROM clause
 
-use executor::SelectExecutor;
-use parser::Parser;
-use storage::Database;
+use vibesql_executor::SelectExecutor;
+use vibesql_parser::Parser;
+use vibesql_storage::Database;
 
 #[test]
 fn test_select_1() {
@@ -12,7 +12,7 @@ fn test_select_1() {
     let stmt = Parser::parse_sql("SELECT 1;").expect("Failed to parse");
 
     match stmt {
-        ast::Statement::Select(select_stmt) => {
+        vibesql_ast::Statement::Select(select_stmt) => {
             eprintln!("FROM clause: {:?}", select_stmt.from);
             assert!(select_stmt.from.is_none(), "FROM clause should be None");
 
@@ -24,7 +24,7 @@ fn test_select_1() {
 
             eprintln!("First row: {:?}", rows[0]);
             assert_eq!(rows[0].values.len(), 1, "Should have exactly 1 column");
-            assert_eq!(rows[0].values[0], types::SqlValue::Integer(1));
+            assert_eq!(rows[0].values[0], vibesql_types::SqlValue::Integer(1));
         }
         _ => panic!("Expected SELECT statement"),
     }
@@ -38,7 +38,7 @@ fn test_select_expression() {
     let stmt = Parser::parse_sql("SELECT 1 + 1;").expect("Failed to parse");
 
     match stmt {
-        ast::Statement::Select(select_stmt) => {
+        vibesql_ast::Statement::Select(select_stmt) => {
             assert!(select_stmt.from.is_none(), "FROM clause should be None");
 
             let executor = SelectExecutor::new(&db);
@@ -46,7 +46,7 @@ fn test_select_expression() {
 
             assert_eq!(rows.len(), 1, "Should return exactly 1 row");
             assert_eq!(rows[0].values.len(), 1, "Should have exactly 1 column");
-            assert_eq!(rows[0].values[0], types::SqlValue::Integer(2));
+            assert_eq!(rows[0].values[0], vibesql_types::SqlValue::Integer(2));
         }
         _ => panic!("Expected SELECT statement"),
     }
@@ -60,7 +60,7 @@ fn test_select_multiple_expressions() {
     let stmt = Parser::parse_sql("SELECT 1, 2, 3;").expect("Failed to parse");
 
     match stmt {
-        ast::Statement::Select(select_stmt) => {
+        vibesql_ast::Statement::Select(select_stmt) => {
             assert!(select_stmt.from.is_none(), "FROM clause should be None");
 
             let executor = SelectExecutor::new(&db);
@@ -68,9 +68,9 @@ fn test_select_multiple_expressions() {
 
             assert_eq!(rows.len(), 1, "Should return exactly 1 row");
             assert_eq!(rows[0].values.len(), 3, "Should have exactly 3 columns");
-            assert_eq!(rows[0].values[0], types::SqlValue::Integer(1));
-            assert_eq!(rows[0].values[1], types::SqlValue::Integer(2));
-            assert_eq!(rows[0].values[2], types::SqlValue::Integer(3));
+            assert_eq!(rows[0].values[0], vibesql_types::SqlValue::Integer(1));
+            assert_eq!(rows[0].values[1], vibesql_types::SqlValue::Integer(2));
+            assert_eq!(rows[0].values[2], vibesql_types::SqlValue::Integer(3));
         }
         _ => panic!("Expected SELECT statement"),
     }
@@ -84,7 +84,7 @@ fn test_select_count_star_without_from() {
     let stmt = Parser::parse_sql("SELECT COUNT(*);").expect("Failed to parse");
 
     match stmt {
-        ast::Statement::Select(select_stmt) => {
+        vibesql_ast::Statement::Select(select_stmt) => {
             assert!(select_stmt.from.is_none(), "FROM clause should be None");
 
             let executor = SelectExecutor::new(&db);
@@ -94,7 +94,7 @@ fn test_select_count_star_without_from() {
             assert_eq!(rows.len(), 1, "Should return exactly 1 row");
             assert_eq!(rows[0].values.len(), 1, "Should have exactly 1 column");
             // COUNT(*) without FROM operates over one implicit row, so returns 1
-            assert_eq!(rows[0].values[0], types::SqlValue::Numeric(1.0));
+            assert_eq!(rows[0].values[0], vibesql_types::SqlValue::Numeric(1.0));
         }
         _ => panic!("Expected SELECT statement"),
     }
@@ -108,7 +108,7 @@ fn test_select_aggregate_expression_without_from() {
     let stmt = Parser::parse_sql("SELECT COUNT(*) + 1;").expect("Failed to parse");
 
     match stmt {
-        ast::Statement::Select(select_stmt) => {
+        vibesql_ast::Statement::Select(select_stmt) => {
             assert!(select_stmt.from.is_none(), "FROM clause should be None");
 
             let executor = SelectExecutor::new(&db);
@@ -117,7 +117,7 @@ fn test_select_aggregate_expression_without_from() {
             assert_eq!(rows.len(), 1, "Should return exactly 1 row");
             assert_eq!(rows[0].values.len(), 1, "Should have exactly 1 column");
             // COUNT(*) + 1 = 1 + 1 = 2 (COUNT(*) without FROM returns 1)
-            assert_eq!(rows[0].values[0], types::SqlValue::Numeric(2.0));
+            assert_eq!(rows[0].values[0], vibesql_types::SqlValue::Numeric(2.0));
         }
         _ => panic!("Expected SELECT statement"),
     }
@@ -131,7 +131,7 @@ fn test_select_5_plus_10() {
     let stmt = Parser::parse_sql("SELECT 5 + 10;").expect("Failed to parse");
 
     match stmt {
-        ast::Statement::Select(select_stmt) => {
+        vibesql_ast::Statement::Select(select_stmt) => {
             assert!(select_stmt.from.is_none(), "FROM clause should be None");
 
             let executor = SelectExecutor::new(&db);
@@ -139,7 +139,7 @@ fn test_select_5_plus_10() {
 
             assert_eq!(rows.len(), 1, "Should return exactly 1 row");
             assert_eq!(rows[0].values.len(), 1, "Should have exactly 1 column");
-            assert_eq!(rows[0].values[0], types::SqlValue::Integer(15));
+            assert_eq!(rows[0].values[0], vibesql_types::SqlValue::Integer(15));
         }
         _ => panic!("Expected SELECT statement"),
     }
@@ -153,7 +153,7 @@ fn test_select_null_without_from() {
     let stmt = Parser::parse_sql("SELECT NULL;").expect("Failed to parse");
 
     match stmt {
-        ast::Statement::Select(select_stmt) => {
+        vibesql_ast::Statement::Select(select_stmt) => {
             assert!(select_stmt.from.is_none(), "FROM clause should be None");
 
             let executor = SelectExecutor::new(&db);
@@ -161,7 +161,7 @@ fn test_select_null_without_from() {
 
             assert_eq!(rows.len(), 1, "Should return exactly 1 row");
             assert_eq!(rows[0].values.len(), 1, "Should have exactly 1 column");
-            assert_eq!(rows[0].values[0], types::SqlValue::Null);
+            assert_eq!(rows[0].values[0], vibesql_types::SqlValue::Null);
         }
         _ => panic!("Expected SELECT statement"),
     }
@@ -175,7 +175,7 @@ fn test_select_complex_expression_without_from() {
     let stmt = Parser::parse_sql("SELECT (1 + 2) * 3;").expect("Failed to parse");
 
     match stmt {
-        ast::Statement::Select(select_stmt) => {
+        vibesql_ast::Statement::Select(select_stmt) => {
             assert!(select_stmt.from.is_none(), "FROM clause should be None");
 
             let executor = SelectExecutor::new(&db);
@@ -183,7 +183,7 @@ fn test_select_complex_expression_without_from() {
 
             assert_eq!(rows.len(), 1, "Should return exactly 1 row");
             assert_eq!(rows[0].values.len(), 1, "Should have exactly 1 column");
-            assert_eq!(rows[0].values[0], types::SqlValue::Integer(9));
+            assert_eq!(rows[0].values[0], vibesql_types::SqlValue::Integer(9));
         }
         _ => panic!("Expected SELECT statement"),
     }
@@ -197,7 +197,7 @@ fn test_select_current_date_without_from() {
     let stmt = Parser::parse_sql("SELECT CURRENT_DATE;").expect("Failed to parse");
 
     match stmt {
-        ast::Statement::Select(select_stmt) => {
+        vibesql_ast::Statement::Select(select_stmt) => {
             assert!(select_stmt.from.is_none(), "FROM clause should be None");
 
             let executor = SelectExecutor::new(&db);
@@ -207,7 +207,7 @@ fn test_select_current_date_without_from() {
             assert_eq!(rows[0].values.len(), 1, "Should have exactly 1 column");
             // CURRENT_DATE should return a date value (we don't check the exact value)
             match &rows[0].values[0] {
-                types::SqlValue::Date(_) => {} // Success
+                vibesql_types::SqlValue::Date(_) => {} // Success
                 other => panic!("Expected Date, got {:?}", other),
             }
         }
