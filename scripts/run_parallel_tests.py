@@ -326,6 +326,148 @@ def merge_results(
     return False
 
 
+def run_analysis(repo_root: Path, results_dir: Path) -> None:
+    """
+    Run failure analysis on test results.
+
+    Args:
+        repo_root: Path to repository root
+        results_dir: Directory containing worker results
+    """
+    print("\n" + "=" * 60)
+    print("Running Failure Analysis")
+    print("=" * 60)
+    print()
+
+    target_dir = repo_root / "target"
+    cumulative_file = target_dir / "sqllogictest_cumulative.json"
+
+    if not cumulative_file.exists():
+        print("Warning: No cumulative results found, skipping analysis", file=sys.stderr)
+        return
+
+    # Step 1: Run failure clustering (analyze_test_failures.py)
+    print("Step 1: Clustering failures by error type...")
+    analyze_failures_script = repo_root / "scripts" / "analyze_test_failures.py"
+
+    if analyze_failures_script.exists():
+        try:
+            result = subprocess.run(
+                [sys.executable, str(analyze_failures_script), str(results_dir)],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                timeout=300,  # 5 minute timeout
+            )
+
+            if result.returncode == 0:
+                print("✓ Failure clustering complete")
+                # Show summary output
+                for line in result.stdout.splitlines():
+                    if line.startswith("✓") or line.startswith("==="):
+                        print(f"  {line}")
+            else:
+                print(f"Warning: Failure clustering failed: {result.stderr}", file=sys.stderr)
+
+        except subprocess.TimeoutExpired:
+            print("Warning: Failure clustering timed out after 5 minutes", file=sys.stderr)
+        except Exception as e:
+            print(f"Warning: Could not run failure clustering: {e}", file=sys.stderr)
+    else:
+        print(f"Warning: analyze_test_failures.py not found at {analyze_failures_script}", file=sys.stderr)
+
+    print()
+
+    # Step 2: Run pattern analysis (analyze_failure_patterns.py)
+    print("Step 2: Analyzing failure patterns and impact...")
+    analyze_patterns_script = repo_root / "scripts" / "analyze_failure_patterns.py"
+    analysis_file = target_dir / "sqllogictest_cumulative.json"
+
+    if analyze_patterns_script.exists() and analysis_file.exists():
+        try:
+            # Run and capture markdown output
+            result = subprocess.run(
+                [sys.executable, str(analyze_patterns_script), str(analysis_file)],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                timeout=60,  # 1 minute timeout
+            )
+
+            if result.returncode == 0:
+                print("✓ Pattern analysis complete")
+
+                # Save full markdown report
+                report_file = target_dir / "sqllogictest_failure_analysis.md"
+                report_file.write_text(result.stdout)
+                print(f"  Full report: {report_file}")
+
+                # Show key sections from output
+                lines = result.stdout.splitlines()
+                in_summary = False
+                in_top_opportunities = False
+                summary_count = 0
+                opportunity_count = 0
+
+                for line in lines:
+                    # Show summary section
+                    if "## Summary" in line:
+                        in_summary = True
+                        continue
+                    elif in_summary and line.startswith("##"):
+                        in_summary = False
+
+                    if in_summary and line.strip() and summary_count < 10:
+                        print(f"  {line}")
+                        summary_count += 1
+
+                    # Show top 5 opportunities
+                    if "## Top 10 High-Impact Fix Opportunities" in line:
+                        in_top_opportunities = True
+                        print(f"\n  {line}")
+                        continue
+                    elif in_top_opportunities and line.startswith("##"):
+                        in_top_opportunities = False
+
+                    if in_top_opportunities and line.strip() and opportunity_count < 7:  # Header + 5 rows
+                        print(f"  {line}")
+                        opportunity_count += 1
+
+            else:
+                print(f"Warning: Pattern analysis failed: {result.stderr}", file=sys.stderr)
+
+        except subprocess.TimeoutExpired:
+            print("Warning: Pattern analysis timed out after 1 minute", file=sys.stderr)
+        except Exception as e:
+            print(f"Warning: Could not run pattern analysis: {e}", file=sys.stderr)
+    else:
+        if not analyze_patterns_script.exists():
+            print(f"Warning: analyze_failure_patterns.py not found at {analyze_patterns_script}", file=sys.stderr)
+        if not analysis_file.exists():
+            print(f"Warning: Analysis input file not found at {analysis_file}", file=sys.stderr)
+
+    print()
+
+    # Summary
+    print("=" * 60)
+    print("Analysis Complete")
+    print("=" * 60)
+
+    report_file = target_dir / "sqllogictest_failure_analysis.md"
+    recommended_issues = target_dir / "sqllogictest_recommended_issues.json"
+
+    print("\nGenerated files:")
+    if report_file.exists():
+        print(f"  - Failure analysis report: {report_file}")
+    if recommended_issues.exists():
+        print(f"  - Recommended issues: {recommended_issues}")
+
+    print("\nNext steps:")
+    print("  - Review the analysis report for high-impact fixes")
+    print("  - Consider creating issues from recommended_issues.json")
+    print()
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Run SQLLogicTest suite with parallel workers",
@@ -349,6 +491,11 @@ def main():
         type=Path,
         default=None,
         help="Directory to store worker results (default: /tmp/sqllogictest_results)",
+    )
+    parser.add_argument(
+        "--analyze",
+        action="store_true",
+        help="Run failure analysis after test completion",
     )
 
     args = parser.parse_args()
@@ -472,6 +619,10 @@ def main():
 
     # Merge results
     merge_success = merge_results(args.workers, repo_root, results_dir)
+
+    # Run analysis if requested
+    if args.analyze and merge_success:
+        run_analysis(repo_root, results_dir)
 
     # Exit with error if any workers failed or merge failed
     if failed_workers or not merge_success:

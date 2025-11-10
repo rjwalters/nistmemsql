@@ -355,12 +355,31 @@ class FailureAnalyzer:
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: analyze_test_failures.py <results_directory>")
-        print("Example: analyze_test_failures.py /tmp/sqllogictest_results_20251106_070141")
-        sys.exit(1)
+    import argparse
 
-    results_dir = Path(sys.argv[1])
+    parser = argparse.ArgumentParser(
+        description="Analyze SQLLogicTest failures and cluster them by root cause",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "results_dir",
+        type=Path,
+        help="Directory containing worker logs from test run",
+    )
+    parser.add_argument(
+        "--create-issues",
+        action="store_true",
+        help="Automatically create GitHub issues for top failure patterns",
+    )
+    parser.add_argument(
+        "--max-issues",
+        type=int,
+        default=5,
+        help="Maximum number of issues to create (default: 5)",
+    )
+
+    args = parser.parse_args()
+    results_dir = args.results_dir
 
     if not results_dir.exists():
         print(f"Error: Directory not found: {results_dir}", file=sys.stderr)
@@ -418,6 +437,101 @@ def main():
     print("=== Summary ===")
     summary = analyzer.generate_summary()
     print(json.dumps(summary["clusters"], indent=2))
+    print("")
+
+    # Create GitHub issues if requested
+    if args.create_issues:
+        create_github_issues(issues[:args.max_issues])
+
+
+def create_github_issues(issue_recommendations: list) -> None:
+    """
+    Create GitHub issues from recommendations.
+
+    Args:
+        issue_recommendations: List of issue recommendation dicts
+    """
+    import subprocess
+
+    print("\n=== Creating GitHub Issues ===")
+    print(f"Creating up to {len(issue_recommendations)} issues...\n")
+
+    created_count = 0
+    skipped_count = 0
+
+    for issue_rec in issue_recommendations:
+        title = issue_rec["title"]
+
+        # Check if issue already exists (search by title)
+        try:
+            result = subprocess.run(
+                ["gh", "issue", "list", "--search", title, "--json", "number,title", "--limit", "5"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+
+            existing_issues = json.loads(result.stdout)
+
+            # Check for exact or very similar title match
+            similar_found = False
+            for existing in existing_issues:
+                existing_title = existing.get("title", "").lower()
+                search_title = title.lower()
+
+                # Check if titles are very similar (contains most of the key words)
+                if existing_title in search_title or search_title in existing_title:
+                    print(f"⏭️  Skipping: '{title[:60]}...'")
+                    print(f"   Similar issue already exists: #{existing['number']}")
+                    skipped_count += 1
+                    similar_found = True
+                    break
+
+            if similar_found:
+                continue
+
+        except subprocess.CalledProcessError as e:
+            print(f"Warning: Could not search for existing issues: {e}", file=sys.stderr)
+            continue
+        except json.JSONDecodeError:
+            print(f"Warning: Could not parse issue search results", file=sys.stderr)
+            continue
+
+        # Create new issue
+        try:
+            labels = ",".join(issue_rec["labels"])
+            body = issue_rec["description"]
+
+            result = subprocess.run(
+                [
+                    "gh", "issue", "create",
+                    "--title", title,
+                    "--body", body,
+                    "--label", labels,
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+
+            # Extract issue number from output (format: "https://github.com/owner/repo/issues/123")
+            issue_url = result.stdout.strip()
+            issue_number = issue_url.split("/")[-1] if issue_url else "?"
+
+            print(f"✅ Created issue #{issue_number}: '{title[:60]}...'")
+            print(f"   Labels: {labels}")
+            print(f"   Impact: {issue_rec['impact']} test files")
+            created_count += 1
+
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Failed to create issue: '{title[:60]}...'", file=sys.stderr)
+            print(f"   Error: {e.stderr}", file=sys.stderr)
+            continue
+
+    print(f"\n=== Issue Creation Summary ===")
+    print(f"Created: {created_count} issues")
+    print(f"Skipped: {skipped_count} issues (duplicates)")
+    print("")
 
 
 if __name__ == "__main__":
