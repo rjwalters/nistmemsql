@@ -7,7 +7,7 @@ use vibesql_types::SqlValue;
 
 use super::{
     partitioning::Partition,
-    utils::{evaluate_default_value, evaluate_expression},
+    utils::evaluate_default_value,
 };
 
 /// Evaluate LAG() value window function

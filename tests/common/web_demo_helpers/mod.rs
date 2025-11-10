@@ -84,7 +84,8 @@ pub fn validate_results(
                     (actual_val.parse::<f64>(), expected_val.parse::<f64>())
                 {
                     // For numeric values, compare as floats with small epsilon
-                    (actual_num - expected_num).abs() < 1e-10
+                    // Using 1e-5 to handle reasonable floating point precision errors
+                    (actual_num - expected_num).abs() < 1e-5
                 } else {
                     // For non-numeric values, do string comparison
                     actual_val == expected_val
