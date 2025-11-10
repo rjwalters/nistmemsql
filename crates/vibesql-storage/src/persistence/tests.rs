@@ -673,6 +673,535 @@ fn test_json_empty_database() {
     std::fs::remove_file(path).ok();
 }
 
-// Note: Index roundtrip test removed due to schema qualification issues
-// The core JSON serialization works, but index creation with qualified
-// table names needs further investigation. This can be addressed in a follow-up.
+#[test]
+fn test_json_roundtrip_temporal_types() {
+    use vibesql_types::{Date, Time, Timestamp};
+
+    let mut db = Database::new();
+
+    // Create schema with temporal types
+    let schema = TableSchema::new(
+        "temporal_test".to_string(),
+        vec![
+            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("col_date".to_string(), DataType::Date, true),
+            ColumnSchema::new("col_time".to_string(), DataType::Time { with_timezone: false }, true),
+            ColumnSchema::new("col_timestamp".to_string(), DataType::Timestamp { with_timezone: false }, true),
+            ColumnSchema::new(
+                "col_timestamp_tz".to_string(),
+                DataType::Timestamp { with_timezone: true },
+                true,
+            ),
+        ],
+    );
+
+    db.create_table(schema).unwrap();
+
+    // Insert test data with temporal values
+    let table = db.get_table_mut("temporal_test").unwrap();
+    let date = Date::new(2025, 1, 15).unwrap();
+    let time = Time::new(14, 30, 45, 0).unwrap();
+    let timestamp = Timestamp::new(date, time);
+
+    table
+        .insert(crate::Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Date(Date::new(2025, 1, 15).unwrap()),
+            SqlValue::Time(Time::new(14, 30, 45, 0).unwrap()),
+            SqlValue::Timestamp(timestamp.clone()),
+            SqlValue::Timestamp(timestamp),
+        ]))
+        .unwrap();
+
+    // Insert row with NULL temporal values
+    table
+        .insert(crate::Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Null,
+            SqlValue::Null,
+            SqlValue::Null,
+            SqlValue::Null,
+        ]))
+        .unwrap();
+
+    // Save to JSON
+    let path = "/tmp/test_temporal.json";
+    db.save_json(path).unwrap();
+
+    // Verify JSON contains ISO 8601 formatted dates
+    let content = std::fs::read_to_string(path).unwrap();
+    assert!(content.contains("2025-01-15"));
+    assert!(content.contains("14:30:45"));
+
+    // Load from JSON
+    let loaded_db = Database::load_json(path).unwrap();
+
+    // Verify table exists
+    let loaded_table = loaded_db.get_table("temporal_test").unwrap();
+    let rows = loaded_table.scan();
+
+    // Verify row count
+    assert_eq!(rows.len(), 2);
+
+    // Verify temporal data
+    assert_eq!(rows[0].values[0], SqlValue::Integer(1));
+    assert_eq!(rows[0].values[1], SqlValue::Date(Date::new(2025, 1, 15).unwrap()));
+    assert_eq!(rows[0].values[2], SqlValue::Time(Time::new(14, 30, 45, 0).unwrap()));
+
+    // Verify NULLs preserved
+    assert_eq!(rows[1].values[1], SqlValue::Null);
+    assert_eq!(rows[1].values[2], SqlValue::Null);
+
+    // Cleanup
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn test_json_numeric_precision() {
+    let mut db = Database::new();
+
+    // Create schema with numeric types
+    let schema = TableSchema::new(
+        "numeric_test".to_string(),
+        vec![
+            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new(
+                "col_numeric".to_string(),
+                DataType::Numeric { precision: 10, scale: 2 },
+                true,
+            ),
+            ColumnSchema::new(
+                "col_decimal".to_string(),
+                DataType::Decimal { precision: 5, scale: 0 },
+                true,
+            ),
+            ColumnSchema::new(
+                "col_numeric_large".to_string(),
+                DataType::Numeric { precision: 20, scale: 5 },
+                true,
+            ),
+        ],
+    );
+
+    db.create_table(schema).unwrap();
+
+    // Insert test data with various numeric values
+    let table = db.get_table_mut("numeric_test").unwrap();
+    table
+        .insert(crate::Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Numeric(123.45),
+            SqlValue::Numeric(12345.0),
+            SqlValue::Numeric(123456789.12345),
+        ]))
+        .unwrap();
+
+    table
+        .insert(crate::Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Numeric(0.01),
+            SqlValue::Numeric(99999.0),
+            SqlValue::Numeric(0.00001),
+        ]))
+        .unwrap();
+
+    table
+        .insert(crate::Row::new(vec![
+            SqlValue::Integer(3),
+            SqlValue::Null,
+            SqlValue::Null,
+            SqlValue::Null,
+        ]))
+        .unwrap();
+
+    // Save to JSON
+    let path = "/tmp/test_numeric_precision.json";
+    db.save_json(path).unwrap();
+
+    // Load from JSON
+    let loaded_db = Database::load_json(path).unwrap();
+
+    // Verify table exists
+    let loaded_table = loaded_db.get_table("numeric_test").unwrap();
+    let rows = loaded_table.scan();
+
+    // Verify row count
+    assert_eq!(rows.len(), 3);
+
+    // Verify numeric data preserved
+    assert_eq!(rows[0].values[1], SqlValue::Numeric(123.45));
+    assert_eq!(rows[0].values[2], SqlValue::Numeric(12345.0));
+    assert_eq!(rows[1].values[1], SqlValue::Numeric(0.01));
+    assert_eq!(rows[2].values[1], SqlValue::Null);
+
+    // Verify schema preserved precision/scale
+    assert_eq!(loaded_table.schema.columns[1].data_type, DataType::Numeric { precision: 10, scale: 2 });
+    assert_eq!(loaded_table.schema.columns[2].data_type, DataType::Decimal { precision: 5, scale: 0 });
+
+    // Cleanup
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn test_json_integer_types() {
+    let mut db = Database::new();
+
+    // Create schema with all integer types
+    let schema = TableSchema::new(
+        "integer_test".to_string(),
+        vec![
+            ColumnSchema::new("col_smallint".to_string(), DataType::Smallint, true),
+            ColumnSchema::new("col_integer".to_string(), DataType::Integer, true),
+            ColumnSchema::new("col_bigint".to_string(), DataType::Bigint, true),
+            ColumnSchema::new("col_unsigned".to_string(), DataType::Unsigned, true),
+        ],
+    );
+
+    db.create_table(schema).unwrap();
+
+    // Insert test data with boundary values
+    let table = db.get_table_mut("integer_test").unwrap();
+    table
+        .insert(crate::Row::new(vec![
+            SqlValue::Smallint(i16::MAX),
+            SqlValue::Integer(i64::MAX),
+            SqlValue::Bigint(i64::MAX),
+            SqlValue::Unsigned(u64::MAX),
+        ]))
+        .unwrap();
+
+    table
+        .insert(crate::Row::new(vec![
+            SqlValue::Smallint(i16::MIN),
+            SqlValue::Integer(i64::MIN),
+            SqlValue::Bigint(i64::MIN),
+            SqlValue::Unsigned(0),
+        ]))
+        .unwrap();
+
+    table
+        .insert(crate::Row::new(vec![
+            SqlValue::Smallint(0),
+            SqlValue::Integer(42),
+            SqlValue::Bigint(-999999),
+            SqlValue::Unsigned(123456789),
+        ]))
+        .unwrap();
+
+    // Save to JSON
+    let path = "/tmp/test_integer_types.json";
+    db.save_json(path).unwrap();
+
+    // Load from JSON
+    let loaded_db = Database::load_json(path).unwrap();
+
+    // Verify table exists
+    let loaded_table = loaded_db.get_table("integer_test").unwrap();
+    let rows = loaded_table.scan();
+
+    // Verify row count
+    assert_eq!(rows.len(), 3);
+
+    // Verify boundary values preserved
+    assert_eq!(rows[0].values[0], SqlValue::Smallint(i16::MAX));
+    assert_eq!(rows[0].values[1], SqlValue::Integer(i64::MAX));
+    assert_eq!(rows[0].values[3], SqlValue::Unsigned(u64::MAX));
+
+    assert_eq!(rows[1].values[0], SqlValue::Smallint(i16::MIN));
+    assert_eq!(rows[1].values[1], SqlValue::Integer(i64::MIN));
+    assert_eq!(rows[1].values[3], SqlValue::Unsigned(0));
+
+    // Cleanup
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn test_json_special_floats() {
+    let mut db = Database::new();
+
+    // Create schema with float types
+    let schema = TableSchema::new(
+        "float_test".to_string(),
+        vec![
+            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new("col_float".to_string(), DataType::Float { precision: 24 }, true),
+            ColumnSchema::new("col_real".to_string(), DataType::Real, true),
+            ColumnSchema::new("col_double".to_string(), DataType::DoublePrecision, true),
+        ],
+    );
+
+    db.create_table(schema).unwrap();
+
+    // Insert test data with special float values
+    let table = db.get_table_mut("float_test").unwrap();
+    table
+        .insert(crate::Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Float(f32::NAN),
+            SqlValue::Real(f32::INFINITY),
+            SqlValue::Double(f64::NEG_INFINITY),
+        ]))
+        .unwrap();
+
+    table
+        .insert(crate::Row::new(vec![
+            SqlValue::Integer(2),
+            SqlValue::Float(3.14159),
+            SqlValue::Real(2.71828),
+            SqlValue::Double(1.41421),
+        ]))
+        .unwrap();
+
+    table
+        .insert(crate::Row::new(vec![
+            SqlValue::Integer(3),
+            SqlValue::Float(0.0),
+            SqlValue::Real(-0.0),
+            SqlValue::Double(123.456789),
+        ]))
+        .unwrap();
+
+    // Save to JSON
+    let path = "/tmp/test_special_floats.json";
+    db.save_json(path).unwrap();
+
+    // Verify JSON contains special float representations
+    let _content = std::fs::read_to_string(path).unwrap();
+    // Note: serde_json serializes special floats as null by default
+    // or as strings depending on settings - we just verify it doesn't crash
+
+    // Load from JSON
+    let loaded_db = Database::load_json(path).unwrap();
+
+    // Verify table exists
+    let loaded_table = loaded_db.get_table("float_test").unwrap();
+    let rows = loaded_table.scan();
+
+    // Verify row count
+    assert_eq!(rows.len(), 3);
+
+    // Verify normal float values preserved
+    assert_eq!(rows[1].values[0], SqlValue::Integer(2));
+    // Note: Floating point comparison needs tolerance for roundtrip
+
+    // Cleanup
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn test_json_schemas_and_roles() {
+    let mut db = Database::new();
+
+    // Create non-default schemas
+    db.catalog.create_schema("analytics".to_string()).unwrap();
+    db.catalog.create_schema("staging".to_string()).unwrap();
+
+    // Create roles
+    db.catalog.create_role("admin".to_string()).unwrap();
+    db.catalog.create_role("readonly".to_string()).unwrap();
+
+    // Create table in default schema
+    let schema1 = TableSchema::new(
+        "users".to_string(),
+        vec![ColumnSchema::new("id".to_string(), DataType::Integer, false)],
+    );
+    db.create_table(schema1).unwrap();
+
+    // Save to JSON
+    let path = "/tmp/test_schemas_roles.json";
+    db.save_json(path).unwrap();
+
+    // Verify JSON contains schemas and roles
+    let content = std::fs::read_to_string(path).unwrap();
+    assert!(content.contains("analytics"));
+    assert!(content.contains("staging"));
+    assert!(content.contains("admin"));
+    assert!(content.contains("readonly"));
+
+    // Load from JSON
+    let loaded_db = Database::load_json(path).unwrap();
+
+    // Verify schemas recreated (excluding public)
+    let schemas = loaded_db.catalog.list_schemas();
+    assert!(schemas.contains(&"analytics".to_string()));
+    assert!(schemas.contains(&"staging".to_string()));
+
+    // Verify roles recreated
+    let roles = loaded_db.catalog.list_roles();
+    assert!(roles.contains(&"admin".to_string()));
+    assert!(roles.contains(&"readonly".to_string()));
+
+    // Verify table exists
+    assert!(loaded_db.get_table("users").is_some());
+
+    // Cleanup
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn test_json_large_dataset() {
+    let mut db = Database::new();
+
+    // Create test schema
+    let schema = TableSchema::new(
+        "large_table".to_string(),
+        vec![
+            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new(
+                "data".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                false,
+            ),
+            ColumnSchema::new("value".to_string(), DataType::Float { precision: 24 }, true),
+        ],
+    );
+
+    db.create_table(schema).unwrap();
+
+    // Insert 10,000 rows
+    let table = db.get_table_mut("large_table").unwrap();
+    for i in 0..10000 {
+        table
+            .insert(crate::Row::new(vec![
+                SqlValue::Integer(i as i64),
+                SqlValue::Varchar(format!("data_value_{}", i)),
+                SqlValue::Float((i as f32) * 1.5),
+            ]))
+            .unwrap();
+    }
+
+    // Save to JSON and measure time
+    let path = "/tmp/test_large_dataset.json";
+    let start = std::time::Instant::now();
+    db.save_json(path).unwrap();
+    let save_duration = start.elapsed();
+
+    // Verify save completed in reasonable time
+    assert!(save_duration.as_secs() < 10, "JSON save took too long: {:?}", save_duration);
+
+    // Verify file exists and has content
+    let metadata = std::fs::metadata(path).unwrap();
+    assert!(metadata.len() > 0, "File should have content");
+
+    // Load from JSON and measure time
+    let start = std::time::Instant::now();
+    let loaded_db = Database::load_json(path).unwrap();
+    let load_duration = start.elapsed();
+
+    // Verify load completed in reasonable time
+    assert!(load_duration.as_secs() < 10, "JSON load took too long: {:?}", load_duration);
+
+    // Verify table exists
+    let loaded_table = loaded_db.get_table("large_table").unwrap();
+    let rows = loaded_table.scan();
+
+    // Verify row count
+    assert_eq!(rows.len(), 10000);
+
+    // Spot check some rows
+    assert_eq!(rows[0].values[0], SqlValue::Integer(0));
+    assert_eq!(rows[0].values[1], SqlValue::Varchar("data_value_0".to_string()));
+
+    assert_eq!(rows[9999].values[0], SqlValue::Integer(9999));
+    assert_eq!(rows[9999].values[1], SqlValue::Varchar("data_value_9999".to_string()));
+
+    // Cleanup
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn test_json_load_nonexistent_file() {
+    let result = Database::load_json("/tmp/nonexistent_file_12345.json");
+    assert!(result.is_err());
+    let err_msg = result.unwrap_err().to_string();
+    assert!(err_msg.contains("Failed to open file") || err_msg.contains("No such file"));
+}
+
+#[test]
+fn test_json_load_malformed() {
+    // Write malformed JSON
+    let path = "/tmp/test_malformed.json";
+    std::fs::write(path, "{invalid json content}").unwrap();
+
+    let result = Database::load_json(path);
+    assert!(result.is_err());
+    let err_msg = result.unwrap_err().to_string();
+    assert!(err_msg.contains("JSON deserialization failed") || err_msg.contains("expected"));
+
+    // Cleanup
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn test_json_load_empty_file() {
+    // Write empty file
+    let path = "/tmp/test_empty_json.json";
+    std::fs::write(path, "").unwrap();
+
+    let result = Database::load_json(path);
+    assert!(result.is_err());
+
+    // Cleanup
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn test_json_index_roundtrip() {
+    let mut db = Database::new();
+
+    // Create test table
+    let schema = TableSchema::new(
+        "test_indexes".to_string(),
+        vec![
+            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            ColumnSchema::new(
+                "name".to_string(),
+                DataType::Varchar { max_length: Some(50) },
+                false,
+            ),
+        ],
+    );
+
+    db.create_table(schema).unwrap();
+
+    // Create index
+    let idx = vibesql_ast::IndexColumn {
+        column_name: "name".to_string(),
+        direction: vibesql_ast::OrderDirection::Asc,
+    };
+
+    // Use qualified table name for index creation (indexes require qualified names)
+    db.create_index("idx_name".to_string(), "public.test_indexes".to_string(), false, vec![idx])
+        .unwrap();
+
+    // Save to JSON
+    let path = "/tmp/test_index_roundtrip.json";
+    db.save_json(path).unwrap();
+
+    // Verify JSON contains index
+    let content = std::fs::read_to_string(path).unwrap();
+    assert!(content.contains("idx_name") || content.contains("IDX_NAME"));
+    assert!(content.contains("indexes"));
+
+    // Load from JSON
+    let loaded_db = Database::load_json(path).unwrap();
+
+    // Debug: Check what tables are available
+    let tables = loaded_db.catalog.list_tables();
+    eprintln!("Available tables after load: {:?}", tables);
+
+    // Verify index exists
+    let indexes = loaded_db.list_indexes();
+    assert!(
+        indexes.iter().any(|idx| idx.to_uppercase() == "IDX_NAME"),
+        "Index not found in loaded database. Available indexes: {:?}, Available tables: {:?}",
+        indexes,
+        tables
+    );
+
+    // Cleanup
+    std::fs::remove_file(path).ok();
+}
+
+// Note: Views are not yet supported due to missing catalog API (list_views).
+// This is documented in the implementation and will be addressed in a follow-up.

@@ -433,10 +433,10 @@ fn json_database_to_db(json_db: JsonDatabase) -> Result<Database, StorageError> 
 
         let table_schema = TableSchema::new(json_table.name.clone(), columns);
 
-        // Create table (always in public schema for now - schema support can be added later)
+        // Create table - Database::create_table() automatically qualifies with default schema
         db.create_table(table_schema.clone())?;
 
-        // Insert rows
+        // Insert rows using qualified table name
         if !json_table.rows.is_empty() {
             let qualified_name = format!("{}.{}", json_table.schema, json_table.name);
             if let Some(table) = db.get_table_mut(&qualified_name) {
