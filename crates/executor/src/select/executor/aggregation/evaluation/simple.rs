@@ -5,7 +5,9 @@ use crate::{errors::ExecutorError, evaluator::CombinedExpressionEvaluator};
 
 /// Evaluate simple expressions that delegate to the evaluator
 ///
-/// Handles: Literal, ColumnRef, InList, Between, Cast, Like, IsNull, Case
+/// Handles: Literal, ColumnRef, InList, Between, Cast, Like, IsNull
+///
+/// Note: CASE is now handled separately in case.rs to support aggregates
 pub(super) fn evaluate(
     _executor: &SelectExecutor,
     expr: &ast::Expression,
@@ -22,8 +24,7 @@ pub(super) fn evaluate(
         | ast::Expression::Between { .. }
         | ast::Expression::Cast { .. }
         | ast::Expression::Like { .. }
-        | ast::Expression::IsNull { .. }
-        | ast::Expression::Case { .. } => {
+        | ast::Expression::IsNull { .. } => {
             // Use first row from group as context
             if let Some(first_row) = group_rows.first() {
                 evaluator.eval(expr, first_row)
