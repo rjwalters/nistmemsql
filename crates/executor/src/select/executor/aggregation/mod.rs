@@ -14,7 +14,7 @@ use crate::{
     optimizer::optimize_where_clause,
     select::{
         cte::CteResult,
-        filter::apply_where_filter_combined,
+        filter::apply_where_filter_combined_auto,
         grouping::group_rows,
         helpers::{apply_distinct, apply_limit_offset},
     },
@@ -54,22 +54,25 @@ impl SelectExecutor<'_> {
                 let combined_schema = CombinedSchema::from_table("".to_string(), empty_schema);
 
                 // One implicit row with no columns (SQL standard for SELECT without FROM)
-                FromResult { schema: combined_schema, rows: vec![storage::Row::new(vec![])] }
+                FromResult::from_rows(combined_schema, vec![storage::Row::new(vec![])])
             }
         };
+
+        // Extract schema for evaluator before moving from_result
+        let schema = from_result.schema.clone();
 
         // Create evaluator with outer context if available (outer schema is already a
         // CombinedSchema)
         let evaluator =
             if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
                 CombinedExpressionEvaluator::with_database_and_outer_context(
-                    &from_result.schema,
+                    &schema,
                     self.database,
                     outer_row,
                     outer_schema,
                 )
             } else {
-                CombinedExpressionEvaluator::with_database(&from_result.schema, self.database)
+                CombinedExpressionEvaluator::with_database(&schema, self.database)
             };
 
         // Optimize WHERE clause with constant folding and dead code elimination
@@ -79,20 +82,20 @@ impl SelectExecutor<'_> {
         let filtered_rows = match where_optimization {
             crate::optimizer::WhereOptimization::AlwaysTrue => {
                 // WHERE TRUE - no filtering needed
-                from_result.rows
+                from_result.into_rows()
             }
             crate::optimizer::WhereOptimization::AlwaysFalse => {
                 // WHERE FALSE - return empty result
                 Vec::new()
             }
             crate::optimizer::WhereOptimization::Optimized(ref expr) => {
-                // Apply optimized WHERE clause
-                apply_where_filter_combined(from_result.rows, Some(expr), &evaluator, self)?
+                // Apply optimized WHERE clause (uses parallel if enabled)
+                apply_where_filter_combined_auto(from_result.into_rows(), Some(expr), &evaluator, self)?
             }
             crate::optimizer::WhereOptimization::Unchanged(where_expr) => {
-                // Apply original WHERE clause
-                apply_where_filter_combined(
-                    from_result.rows,
+                // Apply original WHERE clause (uses parallel if enabled)
+                apply_where_filter_combined_auto(
+                    from_result.into_rows(),
                     where_expr.as_ref(),
                     &evaluator,
                     self,

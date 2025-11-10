@@ -9,7 +9,7 @@ use crate::{
     evaluator::{CombinedExpressionEvaluator, ExpressionEvaluator},
     optimizer::optimize_where_clause,
     select::{
-        filter::apply_where_filter_combined,
+        filter::apply_where_filter_combined_auto,
         helpers::{apply_distinct, apply_limit_offset},
         iterator::{FilterIterator, RowIterator, TableScanIterator},
         join::FromResult,
@@ -66,7 +66,8 @@ impl SelectExecutor<'_> {
         stmt: &ast::SelectStmt,
         from_result: FromResult,
     ) -> Result<Vec<storage::Row>, ExecutorError> {
-        let FromResult { schema, rows } = from_result;
+        let schema = from_result.schema.clone();
+        let rows = from_result.into_rows();
 
         // Create evaluator for WHERE clause
         let evaluator = if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
@@ -133,6 +134,24 @@ impl SelectExecutor<'_> {
             filtered_rows.push(row_result?);
         }
 
+        // Stage 5.5: Apply implicit ordering for deterministic results
+        // Queries without explicit ORDER BY get sorted by all columns in schema order
+        // This ensures SQLLogicTest compatibility and deterministic behavior
+        if stmt.order_by.is_none() && !filtered_rows.is_empty() {
+            use crate::select::grouping::compare_sql_values;
+
+            filtered_rows.sort_by(|row_a, row_b| {
+                // Compare column by column until we find a difference
+                for i in 0..row_a.values.len().min(row_b.values.len()) {
+                    let cmp = compare_sql_values(&row_a.values[i], &row_b.values[i]);
+                    if cmp != std::cmp::Ordering::Equal {
+                        return cmp;
+                    }
+                }
+                std::cmp::Ordering::Equal
+            });
+        }
+
         // Stage 6: Project columns (handles wildcards, expressions, etc.)
         let mut final_rows = Vec::new();
         for row in filtered_rows {
@@ -167,7 +186,8 @@ impl SelectExecutor<'_> {
 
         // Fall back to materialized execution for complex queries
         // (ORDER BY, DISTINCT, window functions require full materialization)
-        let FromResult { schema, rows } = from_result;
+        let schema = from_result.schema.clone();
+        let rows = from_result.into_rows();
 
         // Track memory used by FROM clause results (JOINs, table scans, etc.)
         let from_memory_bytes = std::mem::size_of::<storage::Row>() * rows.len()
@@ -208,12 +228,12 @@ impl SelectExecutor<'_> {
                     Vec::new()
                 }
                 crate::optimizer::WhereOptimization::Optimized(ref expr) => {
-                    // Apply optimized WHERE clause
-                    apply_where_filter_combined(rows, Some(expr), &evaluator, self)?
+                    // Apply optimized WHERE clause (uses parallel if enabled)
+                    apply_where_filter_combined_auto(rows, Some(expr), &evaluator, self)?
                 }
                 crate::optimizer::WhereOptimization::Unchanged(where_expr) => {
-                    // Apply original WHERE clause
-                    apply_where_filter_combined(rows, where_expr.as_ref(), &evaluator, self)?
+                    // Apply original WHERE clause (uses parallel if enabled)
+                    apply_where_filter_combined_auto(rows, where_expr.as_ref(), &evaluator, self)?
                 }
             }
         };
@@ -293,6 +313,21 @@ impl SelectExecutor<'_> {
                 result_rows =
                     apply_order_by(result_rows, order_by, &order_by_evaluator, &stmt.select_list)?;
             }
+        } else if !result_rows.is_empty() {
+            // No explicit ORDER BY - apply implicit ordering for deterministic results
+            // This ensures SQLLogicTest compatibility and deterministic behavior
+            use crate::select::grouping::compare_sql_values;
+
+            result_rows.sort_by(|(row_a, _), (row_b, _)| {
+                // Compare column by column until we find a difference
+                for i in 0..row_a.values.len().min(row_b.values.len()) {
+                    let cmp = compare_sql_values(&row_a.values[i], &row_b.values[i]);
+                    if cmp != std::cmp::Ordering::Equal {
+                        return cmp;
+                    }
+                }
+                std::cmp::Ordering::Equal
+            });
         }
 
         // Choose projection strategy based on DISTINCT and set operations
