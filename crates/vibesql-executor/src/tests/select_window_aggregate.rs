@@ -134,8 +134,8 @@ fn test_min_max_window_functions() {
         assert_eq!(result[0].values.len(), 3); // id, min_amt, max_amt
 
         // MIN = 100, MAX = 300 for all rows
-        assert_eq!(result[0].values[1], SqlValue::Numeric(100.0));
-        assert_eq!(result[0].values[2], SqlValue::Numeric(300.0));
+        assert_eq!(result[0].values[1], SqlValue::Integer(100));
+        assert_eq!(result[0].values[2], SqlValue::Integer(300));
     } else {
         panic!("Expected SELECT statement");
     }
