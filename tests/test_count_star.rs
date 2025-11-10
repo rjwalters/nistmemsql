@@ -49,7 +49,7 @@ fn test_count_star_in_multiplication() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // -18 * COUNT(*) = -18 * 2 = -36
-    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Numeric(-36.0));
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(-36));
 }
 
 #[test]
@@ -101,7 +101,7 @@ fn test_count_star_in_addition() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // COUNT(*) + COUNT(*) = 3 + 3 = 6
-    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Numeric(6.0));
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(6));
 }
 
 #[test]
@@ -164,7 +164,7 @@ fn test_count_star_complex_expression() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // 10 + (COUNT(*) * 2) - 5 = 10 + (4 * 2) - 5 = 10 + 8 - 5 = 13
-    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Numeric(13.0));
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(13));
 }
 
 #[test]
@@ -234,7 +234,7 @@ fn test_count_star_with_unary_operators() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // + 60 * ( + + COUNT(*) ) = + 60 * ( + + 5 ) = + 60 * 5 = + 300 = 300
-    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Numeric(300.0));
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(300));
 }
 
 #[test]
@@ -289,5 +289,5 @@ fn test_count_star_with_negative_unary() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // - COUNT(*) * 9 = -3 * 9 = -27
-    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Numeric(-27.0));
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(-27));
 }

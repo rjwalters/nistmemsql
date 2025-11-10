@@ -220,7 +220,7 @@ fn test_products_by_category_aggregate() {
             })
             .expect("Should find Beverages category");
 
-        assert_eq!(beverages_row.values[1], SqlValue::Numeric(2.0));
+        assert_eq!(beverages_row.values[1], SqlValue::Integer(2));
 
         println!("✅ Aggregate JOIN query (COUNT, AVG) works!");
     } else {
