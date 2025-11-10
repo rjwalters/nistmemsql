@@ -38,6 +38,7 @@ pub fn preprocess_for_mysql(content: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
 
     #[test]
     fn test_preprocess_onlyif_mysql() {
