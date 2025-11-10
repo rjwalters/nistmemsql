@@ -8,7 +8,7 @@ use types::SqlValue;
 
 use crate::{
     errors::ExecutorError,
-    evaluator::casting::{is_approximate_numeric, is_exact_numeric, to_f64, to_i64},
+    evaluator::casting::{boolean_to_i64, is_approximate_numeric, is_exact_numeric, to_f64, to_i64},
 };
 
 pub(crate) struct ComparisonOps;
@@ -68,6 +68,60 @@ impl ComparisonOps {
         F: FnOnce(std::cmp::Ordering) -> bool,
     {
         use SqlValue::*;
+
+        // Boolean coercion for comparisons
+        // If either operand is Boolean and the other is numeric, coerce boolean to i64
+        match (left, right) {
+            // Boolean compared to any numeric type
+            (Boolean(_), right_val)
+                if is_exact_numeric(right_val)
+                    || is_approximate_numeric(right_val)
+                    || matches!(right_val, Numeric(_)) =>
+            {
+                let left_i64 = boolean_to_i64(left).unwrap(); // Safe: we know left is Boolean
+
+                // For exact numeric, compare as i64
+                if is_exact_numeric(right_val) {
+                    let right_i64 = to_i64(right_val)?;
+                    return Ok(Boolean(predicate(left_i64.cmp(&right_i64))));
+                }
+
+                // For approximate numeric or Numeric, compare as f64
+                let left_f64 = left_i64 as f64;
+                let right_f64 = to_f64(right_val)?;
+                return Ok(Boolean(predicate(
+                    left_f64
+                        .partial_cmp(&right_f64)
+                        .unwrap_or(std::cmp::Ordering::Equal),
+                )));
+            }
+
+            // Numeric compared to Boolean (symmetric case)
+            (left_val, Boolean(_))
+                if is_exact_numeric(left_val)
+                    || is_approximate_numeric(left_val)
+                    || matches!(left_val, Numeric(_)) =>
+            {
+                let right_i64 = boolean_to_i64(right).unwrap(); // Safe: we know right is Boolean
+
+                // For exact numeric, compare as i64
+                if is_exact_numeric(left_val) {
+                    let left_i64 = to_i64(left_val)?;
+                    return Ok(Boolean(predicate(left_i64.cmp(&right_i64))));
+                }
+
+                // For approximate numeric or Numeric, compare as f64
+                let left_f64 = to_f64(left_val)?;
+                let right_f64 = right_i64 as f64;
+                return Ok(Boolean(predicate(
+                    left_f64
+                        .partial_cmp(&right_f64)
+                        .unwrap_or(std::cmp::Ordering::Equal),
+                )));
+            }
+
+            _ => {} // Fall through to existing comparison logic
+        }
 
         match (left, right) {
             // Integer comparisons
@@ -264,5 +318,218 @@ mod tests {
         )
         .unwrap();
         assert_eq!(result, SqlValue::Boolean(false));
+    }
+
+    // Boolean-to-Integer Comparison Tests
+    #[test]
+    fn test_boolean_equals_integer() {
+        // TRUE (1) = 1 → true
+        assert_eq!(
+            ComparisonOps::equal(&SqlValue::Boolean(true), &SqlValue::Integer(1)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+        // FALSE (0) = 0 → true
+        assert_eq!(
+            ComparisonOps::equal(&SqlValue::Boolean(false), &SqlValue::Integer(0)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+        // TRUE (1) = 0 → false
+        assert_eq!(
+            ComparisonOps::equal(&SqlValue::Boolean(true), &SqlValue::Integer(0)).unwrap(),
+            SqlValue::Boolean(false)
+        );
+        // FALSE (0) = 1 → false
+        assert_eq!(
+            ComparisonOps::equal(&SqlValue::Boolean(false), &SqlValue::Integer(1)).unwrap(),
+            SqlValue::Boolean(false)
+        );
+    }
+
+    #[test]
+    fn test_boolean_less_than_integer() {
+        // FALSE (0) < 5 = true
+        assert_eq!(
+            ComparisonOps::less_than(&SqlValue::Boolean(false), &SqlValue::Integer(5)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+        // TRUE (1) < 5 = true
+        assert_eq!(
+            ComparisonOps::less_than(&SqlValue::Boolean(true), &SqlValue::Integer(5)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+        // TRUE (1) < 1 = false
+        assert_eq!(
+            ComparisonOps::less_than(&SqlValue::Boolean(true), &SqlValue::Integer(1)).unwrap(),
+            SqlValue::Boolean(false)
+        );
+        // TRUE (1) < 0 = false
+        assert_eq!(
+            ComparisonOps::less_than(&SqlValue::Boolean(true), &SqlValue::Integer(0)).unwrap(),
+            SqlValue::Boolean(false)
+        );
+    }
+
+    #[test]
+    fn test_integer_greater_than_boolean() {
+        // 5 > TRUE (1) = true
+        assert_eq!(
+            ComparisonOps::greater_than(&SqlValue::Integer(5), &SqlValue::Boolean(true)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+        // 0 > FALSE (0) = false
+        assert_eq!(
+            ComparisonOps::greater_than(&SqlValue::Integer(0), &SqlValue::Boolean(false))
+                .unwrap(),
+            SqlValue::Boolean(false)
+        );
+        // 1 > TRUE (1) = false
+        assert_eq!(
+            ComparisonOps::greater_than(&SqlValue::Integer(1), &SqlValue::Boolean(true)).unwrap(),
+            SqlValue::Boolean(false)
+        );
+    }
+
+    #[test]
+    fn test_boolean_comparison_with_float() {
+        // TRUE (1.0) = 1.0 (as float)
+        assert_eq!(
+            ComparisonOps::equal(&SqlValue::Boolean(true), &SqlValue::Float(1.0)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+        // FALSE (0.0) < 3.14
+        assert_eq!(
+            ComparisonOps::less_than(&SqlValue::Boolean(false), &SqlValue::Float(3.14)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+        // TRUE (1.0) > 0.5
+        assert_eq!(
+            ComparisonOps::greater_than(&SqlValue::Boolean(true), &SqlValue::Float(0.5)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+    }
+
+    #[test]
+    fn test_boolean_comparison_with_numeric() {
+        // TRUE (1) compared to NUMERIC
+        assert_eq!(
+            ComparisonOps::equal(&SqlValue::Boolean(true), &SqlValue::Numeric(1.0)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+        assert_eq!(
+            ComparisonOps::less_than(&SqlValue::Boolean(false), &SqlValue::Numeric(0.5)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+        // FALSE (0) >= NUMERIC(0)
+        assert_eq!(
+            ComparisonOps::greater_than_or_equal(
+                &SqlValue::Boolean(false),
+                &SqlValue::Numeric(0.0)
+            )
+            .unwrap(),
+            SqlValue::Boolean(true)
+        );
+    }
+
+    #[test]
+    fn test_boolean_equality_symmetric() {
+        // Test symmetry: a = b should equal b = a
+        assert_eq!(
+            ComparisonOps::equal(&SqlValue::Boolean(true), &SqlValue::Integer(1)).unwrap(),
+            ComparisonOps::equal(&SqlValue::Integer(1), &SqlValue::Boolean(true)).unwrap()
+        );
+        assert_eq!(
+            ComparisonOps::equal(&SqlValue::Boolean(false), &SqlValue::Integer(0)).unwrap(),
+            ComparisonOps::equal(&SqlValue::Integer(0), &SqlValue::Boolean(false)).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_boolean_comparison_all_numeric_types() {
+        // Test with Smallint, Bigint, Float, Real, Double, Numeric
+        let true_val = SqlValue::Boolean(true);
+
+        assert_eq!(
+            ComparisonOps::equal(&true_val, &SqlValue::Smallint(1)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+        assert_eq!(
+            ComparisonOps::equal(&true_val, &SqlValue::Bigint(1)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+        assert_eq!(
+            ComparisonOps::equal(&true_val, &SqlValue::Real(1.0)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+        assert_eq!(
+            ComparisonOps::equal(&true_val, &SqlValue::Double(1.0)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+        assert_eq!(
+            ComparisonOps::equal(&true_val, &SqlValue::Numeric(1.0)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+    }
+
+    #[test]
+    fn test_boolean_not_equal() {
+        // TRUE <> 0
+        assert_eq!(
+            ComparisonOps::not_equal(&SqlValue::Boolean(true), &SqlValue::Integer(0)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+        // FALSE <> 1
+        assert_eq!(
+            ComparisonOps::not_equal(&SqlValue::Boolean(false), &SqlValue::Integer(1)).unwrap(),
+            SqlValue::Boolean(true)
+        );
+        // TRUE <> 1 = false
+        assert_eq!(
+            ComparisonOps::not_equal(&SqlValue::Boolean(true), &SqlValue::Integer(1)).unwrap(),
+            SqlValue::Boolean(false)
+        );
+    }
+
+    #[test]
+    fn test_boolean_less_than_or_equal() {
+        // TRUE (1) <= 1
+        assert_eq!(
+            ComparisonOps::less_than_or_equal(&SqlValue::Boolean(true), &SqlValue::Integer(1))
+                .unwrap(),
+            SqlValue::Boolean(true)
+        );
+        // FALSE (0) <= 0
+        assert_eq!(
+            ComparisonOps::less_than_or_equal(&SqlValue::Boolean(false), &SqlValue::Integer(0))
+                .unwrap(),
+            SqlValue::Boolean(true)
+        );
+        // TRUE (1) <= 0 = false
+        assert_eq!(
+            ComparisonOps::less_than_or_equal(&SqlValue::Boolean(true), &SqlValue::Integer(0))
+                .unwrap(),
+            SqlValue::Boolean(false)
+        );
+    }
+
+    #[test]
+    fn test_boolean_greater_than_or_equal() {
+        // TRUE (1) >= 1
+        assert_eq!(
+            ComparisonOps::greater_than_or_equal(&SqlValue::Boolean(true), &SqlValue::Integer(1))
+                .unwrap(),
+            SqlValue::Boolean(true)
+        );
+        // TRUE (1) >= 0
+        assert_eq!(
+            ComparisonOps::greater_than_or_equal(&SqlValue::Boolean(true), &SqlValue::Integer(0))
+                .unwrap(),
+            SqlValue::Boolean(true)
+        );
+        // FALSE (0) >= 1 = false
+        assert_eq!(
+            ComparisonOps::greater_than_or_equal(&SqlValue::Boolean(false), &SqlValue::Integer(1))
+                .unwrap(),
+            SqlValue::Boolean(false)
+        );
     }
 }
