@@ -424,7 +424,7 @@ impl SelectExecutor<'_> {
     ) -> Result<Vec<storage::Row>, ExecutorError> {
         // Create an empty schema (no table context)
         let empty_schema = catalog::TableSchema::new("".to_string(), vec![]);
-        let evaluator = ExpressionEvaluator::new(&empty_schema);
+        let evaluator = ExpressionEvaluator::with_database(&empty_schema, self.database);
 
         // Create an empty row (no data to reference)
         let empty_row = storage::Row::new(vec![]);
