@@ -17,6 +17,7 @@ use crate::{
 enum CoercedValues {
     ExactNumeric(i64, i64),
     ApproximateNumeric(f64, f64),
+    Numeric(f64, f64),
 }
 
 /// Helper function to coerce two values to a common numeric type
@@ -73,7 +74,7 @@ fn coerce_numeric_values(
         return Ok(CoercedValues::ApproximateNumeric(left_f64, right_f64));
     }
 
-    // NUMERIC with any numeric type - promote to f64
+    // NUMERIC with any numeric type - preserve Numeric type
     if (matches!(left, Numeric(_))
         && matches!(
             right,
@@ -84,7 +85,7 @@ fn coerce_numeric_values(
     {
         let left_f64 = to_f64(left)?;
         let right_f64 = to_f64(right)?;
-        return Ok(CoercedValues::ApproximateNumeric(left_f64, right_f64));
+        return Ok(CoercedValues::Numeric(left_f64, right_f64));
     }
 
     // Type mismatch
@@ -102,6 +103,7 @@ fn check_division_by_zero(value: &CoercedValues) -> Result<(), ExecutorError> {
         CoercedValues::ApproximateNumeric(_, right) if *right == 0.0 => {
             Err(ExecutorError::DivisionByZero)
         }
+        CoercedValues::Numeric(_, right) if *right == 0.0 => Err(ExecutorError::DivisionByZero),
         _ => Ok(()),
     }
 }
@@ -123,6 +125,7 @@ impl ArithmeticOps {
         match coerce_numeric_values(left, right, "+")? {
             CoercedValues::ExactNumeric(a, b) => Ok(Integer(a + b)),
             CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a + b) as f32)),
+            CoercedValues::Numeric(a, b) => Ok(Numeric(a + b)),
         }
     }
 
@@ -140,6 +143,7 @@ impl ArithmeticOps {
         match coerce_numeric_values(left, right, "-")? {
             CoercedValues::ExactNumeric(a, b) => Ok(Integer(a - b)),
             CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a - b) as f32)),
+            CoercedValues::Numeric(a, b) => Ok(Numeric(a - b)),
         }
     }
 
@@ -157,6 +161,7 @@ impl ArithmeticOps {
         match coerce_numeric_values(left, right, "*")? {
             CoercedValues::ExactNumeric(a, b) => Ok(Integer(a * b)),
             CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a * b) as f32)),
+            CoercedValues::Numeric(a, b) => Ok(Numeric(a * b)),
         }
     }
 
@@ -177,10 +182,11 @@ impl ArithmeticOps {
         let coerced = coerce_numeric_values(left, right, "/")?;
         check_division_by_zero(&coerced)?;
 
-        // Division always returns Float for precision
+        // Division returns Float for exact numerics, but preserves Numeric type
         match coerced {
             CoercedValues::ExactNumeric(a, b) => Ok(Float((a as f64 / b as f64) as f32)),
             CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a / b) as f32)),
+            CoercedValues::Numeric(a, b) => Ok(Numeric(a / b)),
         }
     }
 
@@ -206,6 +212,7 @@ impl ArithmeticOps {
         match coerced {
             CoercedValues::ExactNumeric(a, b) => Ok(Integer(a / b)),
             CoercedValues::ApproximateNumeric(a, b) => Ok(Integer((a / b) as i64)),
+            CoercedValues::Numeric(a, b) => Ok(Integer((a / b) as i64)),
         }
     }
 
@@ -230,6 +237,7 @@ impl ArithmeticOps {
         match coerced {
             CoercedValues::ExactNumeric(a, b) => Ok(Integer(a % b)),
             CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a % b) as f32)),
+            CoercedValues::Numeric(a, b) => Ok(Numeric(a % b)),
         }
     }
 }
@@ -386,5 +394,93 @@ mod tests {
             ArithmeticOps::integer_divide(&SqlValue::Boolean(true), &SqlValue::Boolean(true))
                 .unwrap();
         assert_eq!(result, SqlValue::Integer(1));
+    }
+
+    // Tests for Numeric type preservation
+    #[test]
+    fn test_numeric_multiply_integer() {
+        // Numeric * Integer should preserve Numeric type
+        let result = ArithmeticOps::multiply(&SqlValue::Numeric(1.0), &SqlValue::Integer(85)).unwrap();
+        assert!(matches!(result, SqlValue::Numeric(_)));
+        if let SqlValue::Numeric(n) = result {
+            assert_eq!(n, 85.0);
+        }
+    }
+
+    #[test]
+    fn test_numeric_add_integer() {
+        // Numeric + Integer should preserve Numeric type
+        let result = ArithmeticOps::add(&SqlValue::Numeric(10.0), &SqlValue::Integer(5)).unwrap();
+        assert!(matches!(result, SqlValue::Numeric(_)));
+        if let SqlValue::Numeric(n) = result {
+            assert_eq!(n, 15.0);
+        }
+    }
+
+    #[test]
+    fn test_numeric_subtract_integer() {
+        // Numeric - Integer should preserve Numeric type
+        let result = ArithmeticOps::subtract(&SqlValue::Numeric(10.0), &SqlValue::Integer(3)).unwrap();
+        assert!(matches!(result, SqlValue::Numeric(_)));
+        if let SqlValue::Numeric(n) = result {
+            assert_eq!(n, 7.0);
+        }
+    }
+
+    #[test]
+    fn test_numeric_divide_integer() {
+        // Numeric / Integer should preserve Numeric type
+        let result = ArithmeticOps::divide(&SqlValue::Numeric(10.0), &SqlValue::Integer(2)).unwrap();
+        assert!(matches!(result, SqlValue::Numeric(_)));
+        if let SqlValue::Numeric(n) = result {
+            assert_eq!(n, 5.0);
+        }
+    }
+
+    #[test]
+    fn test_numeric_chain_operations() {
+        // Test complex expression: 1.0 * 85 * -28 * 83
+        let step1 = ArithmeticOps::multiply(&SqlValue::Numeric(1.0), &SqlValue::Integer(85)).unwrap();
+        assert!(matches!(step1, SqlValue::Numeric(_)));
+
+        let step2 = ArithmeticOps::multiply(&step1, &SqlValue::Integer(-28)).unwrap();
+        assert!(matches!(step2, SqlValue::Numeric(_)));
+
+        let step3 = ArithmeticOps::multiply(&step2, &SqlValue::Integer(83)).unwrap();
+        assert!(matches!(step3, SqlValue::Numeric(_)));
+
+        if let SqlValue::Numeric(n) = step3 {
+            assert_eq!(n, -197540.0);
+        }
+    }
+
+    #[test]
+    fn test_integer_add_numeric() {
+        // Integer + Numeric should preserve Numeric type (commutative)
+        let result = ArithmeticOps::add(&SqlValue::Integer(5), &SqlValue::Numeric(10.0)).unwrap();
+        assert!(matches!(result, SqlValue::Numeric(_)));
+        if let SqlValue::Numeric(n) = result {
+            assert_eq!(n, 15.0);
+        }
+    }
+
+    #[test]
+    fn test_numeric_add_numeric() {
+        // Numeric + Numeric should preserve Numeric type
+        let result = ArithmeticOps::add(&SqlValue::Numeric(10.0), &SqlValue::Numeric(5.0)).unwrap();
+        assert!(matches!(result, SqlValue::Numeric(_)));
+        if let SqlValue::Numeric(n) = result {
+            assert_eq!(n, 15.0);
+        }
+    }
+
+    #[test]
+    fn test_numeric_modulo_integer() {
+        // Numeric % Integer should preserve Numeric type
+        let result = ArithmeticOps::modulo(&SqlValue::Numeric(10.0), &SqlValue::Integer(3)).unwrap();
+        assert!(matches!(result, SqlValue::Numeric(_)));
+        if let SqlValue::Numeric(n) = result {
+            assert_eq!(n, 1.0);
+        }
     }
 }
