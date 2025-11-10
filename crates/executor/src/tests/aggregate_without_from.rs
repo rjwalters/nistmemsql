@@ -68,7 +68,7 @@ fn test_count_star_without_from() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].get(0), Some(&types::SqlValue::Integer(1)));
+    assert_eq!(result[0].get(0), Some(&types::SqlValue::Numeric(1.0)));
 }
 
 #[test]
@@ -87,7 +87,7 @@ fn test_aggregate_in_expression_without_from() {
                 left: Box::new(ast::Expression::AggregateFunction {
                     name: "MAX".to_string(),
                     distinct: false,
-                    args: vec![ast::Expression::Literal(types::SqlValue::Integer(5))],
+                    args: vec![ast::Expression::Literal(types::SqlValue::Numeric(5.0))],
                 }),
                 op: ast::BinaryOperator::Plus,
                 right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(10))),
@@ -105,7 +105,7 @@ fn test_aggregate_in_expression_without_from() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].get(0), Some(&types::SqlValue::Integer(15)));
+    assert_eq!(result[0].get(0), Some(&types::SqlValue::Float(15.0)));
 }
 
 #[test]
@@ -138,7 +138,7 @@ fn test_count_distinct_without_from() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].get(0), Some(&types::SqlValue::Integer(1)));
+    assert_eq!(result[0].get(0), Some(&types::SqlValue::Numeric(1.0)));
 }
 
 #[test]
@@ -157,7 +157,7 @@ fn test_multiple_aggregates_without_from() {
                 expr: ast::Expression::AggregateFunction {
                     name: "MAX".to_string(),
                     distinct: false,
-                    args: vec![ast::Expression::Literal(types::SqlValue::Integer(5))],
+                    args: vec![ast::Expression::Literal(types::SqlValue::Numeric(5.0))],
                 },
                 alias: None,
             },
@@ -189,9 +189,9 @@ fn test_multiple_aggregates_without_from() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].get(0), Some(&types::SqlValue::Integer(5)));
+    assert_eq!(result[0].get(0), Some(&types::SqlValue::Numeric(5.0)));
     assert_eq!(result[0].get(1), Some(&types::SqlValue::Integer(10)));
-    assert_eq!(result[0].get(2), Some(&types::SqlValue::Integer(1)));
+    assert_eq!(result[0].get(2), Some(&types::SqlValue::Numeric(1.0)));
 }
 
 #[test]

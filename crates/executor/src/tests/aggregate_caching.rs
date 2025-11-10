@@ -92,7 +92,7 @@ fn test_repeated_count_star_cached() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], types::SqlValue::Integer(257));
+    assert_eq!(result[0].values[0], types::SqlValue::Float(257.0));
 }
 
 #[test]
@@ -123,7 +123,7 @@ fn test_repeated_sum_cached() {
     let sum_times_2 = ast::Expression::BinaryOp {
         left: Box::new(sum_amount.clone()),
         op: ast::BinaryOperator::Multiply,
-        right: Box::new(ast::Expression::Literal(types::SqlValue::Integer(2))),
+        right: Box::new(ast::Expression::Literal(types::SqlValue::Numeric(2.0))),
     };
 
     // SUM(amount) + SUM(amount) * 2
@@ -268,11 +268,11 @@ fn test_cache_cleared_between_groups() {
 
     // Category A: COUNT(*) = 2, so 2 + 2 = 4
     assert_eq!(result[0].values[0], types::SqlValue::Varchar("A".to_string()));
-    assert_eq!(result[0].values[1], types::SqlValue::Integer(4));
+    assert_eq!(result[0].values[1], types::SqlValue::Float(4.0));
 
     // Category B: COUNT(*) = 3, so 3 + 3 = 6
     assert_eq!(result[1].values[0], types::SqlValue::Varchar("B".to_string()));
-    assert_eq!(result[1].values[1], types::SqlValue::Integer(6));
+    assert_eq!(result[1].values[1], types::SqlValue::Float(6.0));
 }
 
 #[test]
@@ -330,6 +330,6 @@ fn test_distinct_aggregates_not_confused() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], types::SqlValue::Integer(5)); // COUNT(val) = 5
-    assert_eq!(result[0].values[1], types::SqlValue::Integer(3)); // COUNT(DISTINCT val) = 3
+    assert_eq!(result[0].values[0], types::SqlValue::Numeric(5.0)); // COUNT(val) = 5
+    assert_eq!(result[0].values[1], types::SqlValue::Numeric(3.0)); // COUNT(DISTINCT val) = 3
 }
