@@ -308,6 +308,22 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         f(&evaluator)
     }
 
+    /// Clone the evaluator for evaluating a different expression
+    /// Creates a new evaluator with the same schema and context but fresh CSE cache
+    pub fn clone_for_new_expression(&self) -> Self {
+        CombinedExpressionEvaluator {
+            schema: self.schema,
+            database: self.database,
+            outer_row: self.outer_row,
+            outer_schema: self.outer_schema,
+            window_mapping: self.window_mapping,
+            column_cache: RefCell::new(HashMap::new()),
+            depth: self.depth,
+            cse_cache: Rc::new(RefCell::new(HashMap::new())),
+            enable_cse: self.enable_cse,
+        }
+    }
+
     /// Get evaluator components for parallel execution
     /// Returns (schema, database, outer_row, outer_schema, window_mapping, enable_cse)
     pub(crate) fn get_parallel_components(

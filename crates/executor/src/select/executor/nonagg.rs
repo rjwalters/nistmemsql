@@ -98,14 +98,12 @@ impl SelectExecutor<'_> {
                     // WHERE TRUE - no filtering needed, keep current iterator
                 }
                 crate::optimizer::WhereOptimization::Optimized(expr) => {
-                    // Apply optimized WHERE clause
-                    let filter_evaluator = CombinedExpressionEvaluator::with_database(&schema, self.database);
-                    iterator = Box::new(FilterIterator::new(iterator, expr, filter_evaluator));
+                    // Apply optimized WHERE clause - use the evaluator that has outer context if present
+                    iterator = Box::new(FilterIterator::new(iterator, expr, evaluator.clone_for_new_expression()));
                 }
                 crate::optimizer::WhereOptimization::Unchanged(Some(expr)) => {
-                    // Apply original WHERE clause
-                    let filter_evaluator = CombinedExpressionEvaluator::with_database(&schema, self.database);
-                    iterator = Box::new(FilterIterator::new(iterator, expr.clone(), filter_evaluator));
+                    // Apply original WHERE clause - use the evaluator that has outer context if present
+                    iterator = Box::new(FilterIterator::new(iterator, expr.clone(), evaluator.clone_for_new_expression()));
                 }
                 crate::optimizer::WhereOptimization::Unchanged(None) => {
                     // No WHERE clause - keep current iterator

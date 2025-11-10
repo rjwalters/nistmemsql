@@ -132,6 +132,7 @@ impl ExpressionEvaluator<'_> {
             self.schema.name.clone(),
             self.schema.clone(),
         );
+
         let select_executor = crate::select::SelectExecutor::new_with_outer_context_and_depth(
             database,
             row,
