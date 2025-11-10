@@ -214,3 +214,102 @@ fn test_parse_create_table_interval_day_to_second() {
         _ => panic!("Expected CREATE TABLE statement"),
     }
 }
+
+// ========================================================================
+// Temporal Keywords as Column Names (Unreserved Keywords)
+// ========================================================================
+
+#[test]
+fn test_temporal_keywords_as_column_names() {
+    // Test that TIMESTAMP, DATE, TIME, and INTERVAL can be used as unquoted column names
+    let result = Parser::parse_sql(
+        "CREATE TABLE test (
+            timestamp TEXT,
+            date TEXT,
+            time TEXT,
+            interval INTEGER
+        );"
+    );
+    assert!(result.is_ok(), "Should parse temporal keywords as column names: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.columns.len(), 4);
+            assert_eq!(create.columns[0].name, "TIMESTAMP");
+            assert_eq!(create.columns[1].name, "DATE");
+            assert_eq!(create.columns[2].name, "TIME");
+            assert_eq!(create.columns[3].name, "INTERVAL");
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_timestamp_column_with_constraints() {
+    // Test from issue #1214 - TIMESTAMP with constraints
+    let result = Parser::parse_sql(
+        "CREATE TABLE test_runs (
+            run_id INTEGER PRIMARY KEY,
+            timestamp TEXT NOT NULL,
+            workers INTEGER CHECK (workers > 0)
+        );"
+    );
+    assert!(result.is_ok(), "Should parse TIMESTAMP as column name with constraints: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.columns.len(), 3);
+            assert_eq!(create.columns[0].name, "RUN_ID");
+            assert_eq!(create.columns[1].name, "TIMESTAMP");
+            assert_eq!(create.columns[2].name, "WORKERS");
+
+            // Verify timestamp column has NOT NULL
+            assert!(!create.columns[1].nullable, "timestamp column should be NOT NULL");
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_date_as_column_name() {
+    let result = Parser::parse_sql("CREATE TABLE events (date TEXT);");
+    assert!(result.is_ok(), "Should parse DATE as column name");
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.columns[0].name, "DATE");
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_time_as_column_name() {
+    let result = Parser::parse_sql("CREATE TABLE logs (time TEXT);");
+    assert!(result.is_ok(), "Should parse TIME as column name");
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.columns[0].name, "TIME");
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_interval_as_column_name() {
+    let result = Parser::parse_sql("CREATE TABLE metrics (interval INTEGER);");
+    assert!(result.is_ok(), "Should parse INTERVAL as column name");
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.columns[0].name, "INTERVAL");
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}

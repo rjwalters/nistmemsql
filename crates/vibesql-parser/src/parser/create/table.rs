@@ -42,6 +42,12 @@ impl Parser {
                     self.advance();
                     c
                 }
+                // Allow unreserved keywords (like TIMESTAMP, DATE, TIME, INTERVAL) as column names
+                Token::Keyword(kw) if kw.can_be_identifier() => {
+                    let col_name = format!("{}", kw); // Already uppercase from Display impl
+                    self.advance();
+                    col_name
+                }
                 _ => return Err(ParseError { message: "Expected column name".to_string() }),
             };
 
