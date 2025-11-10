@@ -173,5 +173,4 @@ fn test_parallel_execution_integration_with_executor() {
     // Should get one row with count
     assert_eq!(result_agg.len(), 1);
     assert_eq!(result_agg[0].values[0], vibesql_types::SqlValue::Numeric(1500.0));
->>>>>>> origin/main:crates/vibesql-executor/tests/parallel_execution_tests.rs
 }

@@ -60,4 +60,63 @@ impl Database {
     fn version(&self) -> String {
         "vibesql-py 0.1.0".to_string()
     }
+
+    /// Save database to SQL dump file
+    ///
+    /// Generates a SQL dump file containing all schemas, tables, indexes,
+    /// roles, and data needed to recreate the current database state.
+    ///
+    /// # Arguments
+    /// * `path` - Path where the SQL dump file will be created
+    ///
+    /// # Example
+    /// ```python
+    /// db = vibesql.connect()
+    /// cursor = db.cursor()
+    /// cursor.execute("CREATE TABLE users (id INTEGER, name TEXT)")
+    /// cursor.execute("INSERT INTO users VALUES (1, 'Alice')")
+    /// db.save("mydata.sql")
+    /// ```
+    fn save(&self, path: &str) -> PyResult<()> {
+        self.db
+            .lock()
+            .save_sql_dump(path)
+            .map_err(|e| {
+                pyo3::exceptions::PyIOError::new_err(format!("Failed to save database: {}", e))
+            })
+    }
+
+    /// Load database from SQL dump file
+    ///
+    /// Creates a new Database instance by loading and executing SQL statements
+    /// from a dump file. This is a static method that returns a new Database.
+    ///
+    /// # Arguments
+    /// * `path` - Path to the SQL dump file to load
+    ///
+    /// # Returns
+    /// A new Database instance with the loaded state
+    ///
+    /// # Example
+    /// ```python
+    /// # Save a database
+    /// db1 = vibesql.connect()
+    /// cursor = db1.cursor()
+    /// cursor.execute("CREATE TABLE users (id INTEGER, name TEXT)")
+    /// db1.save("mydata.sql")
+    ///
+    /// # Load it later
+    /// db2 = vibesql.Database.load("mydata.sql")
+    /// cursor2 = db2.cursor()
+    /// cursor2.execute("SELECT * FROM users")
+    /// ```
+    #[staticmethod]
+    fn load(path: &str) -> PyResult<Database> {
+        let db = vibesql_executor::load_sql_dump(path).map_err(|e| {
+            pyo3::exceptions::PyIOError::new_err(format!("Failed to load database: {}", e))
+        })?;
+        Ok(Database {
+            db: Arc::new(Mutex::new(db)),
+        })
+    }
 }
