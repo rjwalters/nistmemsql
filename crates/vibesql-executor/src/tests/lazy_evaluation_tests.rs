@@ -4,7 +4,7 @@
 //! to avoid evaluating unnecessary expressions, which is critical for
 //! performance when dealing with complex nested expressions.
 
-use ast;
+use vibesql_ast;
 use vibesql_catalog::TableSchema;
 use vibesql_storage::Row;
 use vibesql_types::SqlValue;

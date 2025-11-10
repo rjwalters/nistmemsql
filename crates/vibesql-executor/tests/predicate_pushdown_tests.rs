@@ -3,11 +3,11 @@
 //! These tests verify that table-local predicates are correctly identified and applied
 //! during table scans, reducing memory consumption in multi-table joins.
 
-use ast;
-use catalog;
+use vibesql_ast;
+use vibesql_catalog;
 use vibesql_executor::SelectExecutor;
-use parser;
-use types;
+use vibesql_parser;
+use vibesql_types;
 
 /// Helper function to parse SELECT statements
 fn parse_select(sql: &str) -> vibesql_ast::SelectStmt {
@@ -52,9 +52,9 @@ fn setup_test_db_with_tables(num_tables: usize, rows_per_table: i64) -> vibesql_
         // Insert rows
         for row_num in 1..=rows_per_table {
             let row = vibesql_storage::Row::new(vec![
-                vibesql_vibesql_types::SqlValue::Integer(row_num),
-                vibesql_vibesql_types::SqlValue::Integer(row_num % 10 + 1),
-                vibesql_vibesql_types::SqlValue::Varchar(format!("t{} row {}", table_num, row_num)),
+                vibesql_types::SqlValue::Integer(row_num),
+                vibesql_types::SqlValue::Integer(row_num % 10 + 1),
+                vibesql_types::SqlValue::Varchar(format!("t{} row {}", table_num, row_num)),
             ]);
             db.insert_row(&table_name, row).unwrap();
         }
@@ -92,8 +92,7 @@ fn test_table_local_predicate_with_two_tables() {
 
     // Should have results (exact count depends on join selectivity)
     assert!(result.len() > 0);
-    assert!(result[0].values[0] > vibesql_vibesql_types::SqlValue::Numeric(0.0));
->>>>>>> origin/main:crates/vibesql-executor/tests/predicate_pushdown_tests.rs
+    assert!(result[0].values[0] > vibesql_types::SqlValue::Numeric(0.0));
 }
 
 #[test]
@@ -305,8 +304,7 @@ fn test_phase3_1_hash_join_from_where_no_on_clause() {
     // Should successfully execute with hash join optimization
     assert_eq!(result.len(), 1);
     // Result should be a count > 0 (matching rows)
-    assert!(result[0].values[0] > vibesql_vibesql_types::SqlValue::Numeric(0.0));
->>>>>>> origin/main:crates/vibesql-executor/tests/predicate_pushdown_tests.rs
+    assert!(result[0].values[0] > vibesql_types::SqlValue::Numeric(0.0));
 }
 
 #[test]
@@ -376,9 +374,8 @@ fn test_phase3_1_equijoin_selectivity() {
     let stmt = parse_select(sql_cartesian);
     let cartesian = executor.execute(&stmt).unwrap();
     let cartesian_count = match &cartesian[0].values[0] {
-        vibesql_vibesql_types::SqlValue::Numeric(n) => *n as i64,
+        vibesql_types::SqlValue::Numeric(n) => *n as i64,
         _ => panic!("Expected numeric"),
->>>>>>> origin/main:crates/vibesql-executor/tests/predicate_pushdown_tests.rs
     };
 
     // Now with equijoin (Phase 3.1 hash join)
@@ -386,9 +383,8 @@ fn test_phase3_1_equijoin_selectivity() {
     let stmt = parse_select(sql_equijoin);
     let equijoin = executor.execute(&stmt).unwrap();
     let equijoin_count = match &equijoin[0].values[0] {
-        vibesql_vibesql_types::SqlValue::Numeric(n) => *n as i64,
+        vibesql_types::SqlValue::Numeric(n) => *n as i64,
         _ => panic!("Expected numeric"),
->>>>>>> origin/main:crates/vibesql-executor/tests/predicate_pushdown_tests.rs
     };
 
     // Equijoin should be much more selective than cartesian product
