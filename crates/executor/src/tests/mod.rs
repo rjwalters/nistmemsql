@@ -26,6 +26,7 @@
 //! - `operator_edge_cases`: Unary operators, NULL propagation, complex nested expressions
 //! - `predicate_tests`: IN/NOT IN, LIKE/NOT LIKE, BETWEEN, POSITION, TRIM, CAST tests (organized by
 //!   type)
+//! - `predicate_pushdown`: Table-local predicate pushdown optimization tests (Phase 2)
 //! - `privilege_checker_tests`: Privilege enforcement tests
 //! - `query_timeout_tests`: Query timeout enforcement tests (issue #1014)
 //! - `create_table_tests`: CREATE TABLE executor tests (basic table creation, data types, spatial
@@ -53,6 +54,7 @@ mod lazy_evaluation_tests;
 mod limit_offset;
 mod operator_edge_cases;
 mod phase3_join_optimization;
+mod predicate_pushdown;
 mod predicate_tests;
 mod privilege_checker_tests;
 mod query_timeout_tests;

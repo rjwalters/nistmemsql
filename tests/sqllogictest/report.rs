@@ -345,10 +345,11 @@ impl ComparisonReport {
         ));
 
         output.push_str(&format!(
-            "| Pass Rate | {:.1}% | {:.1}% | {} pp |\n",
+            "| Pass Rate | {:.1}% | {:.1}% | {}{:.1} pp |\n",
             self.baseline.pass_rate(),
             self.comparison.pass_rate(),
             if self.statistics.pass_rate_diff >= 0.0 { "+" } else { "" },
+            self.statistics.pass_rate_diff.abs(),
         ));
 
         output.push_str(&format!(
@@ -494,12 +495,12 @@ mod tests {
         };
 
         for i in 0..pass_count {
-            let duration = Duration::from_millis(avg_query_time + (i as u64 % 10));
+            let duration = Duration::from_millis(avg_query_time);
             metrics.record_success(duration);
         }
 
         for i in 0..fail_count {
-            let duration = Duration::from_millis(avg_query_time + (i as u64 % 10));
+            let duration = Duration::from_millis(avg_query_time);
             metrics.record_failure(duration, format!("Error {}", i));
         }
 
