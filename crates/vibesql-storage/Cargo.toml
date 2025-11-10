@@ -10,10 +10,10 @@ keywords = ["sql", "database", "storage"]
 categories = ["database"]
 
 [dependencies]
-vibesql-types = { path = "../vibesql-types" }
-vibesql-catalog = { path = "../vibesql-catalog" }
-vibesql-ast = { path = "../vibesql-ast" }
+vibesql-types = { version = "0.1.0", path = "../vibesql-types" }
+vibesql-catalog = { version = "0.1.0", path = "../vibesql-catalog" }
+vibesql-ast = { version = "0.1.0", path = "../vibesql-ast" }
 chrono = "0.4"
 
 [dev-dependencies]
-vibesql-parser = { path = "../vibesql-parser" }
+vibesql-parser = { version = "0.1.0", path = "../vibesql-parser" }

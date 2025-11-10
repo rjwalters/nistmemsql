@@ -10,6 +10,6 @@ keywords = ["sql", "parser", "ast"]
 categories = ["database", "parser-implementations"]
 
 [dependencies]
-vibesql-types = { path = "../vibesql-types" }
+vibesql-types = { version = "0.1.0", path = "../vibesql-types" }
 
 [dev-dependencies]

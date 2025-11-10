@@ -10,16 +10,16 @@ keywords = ["sql", "database", "executor", "query"]
 categories = ["database"]
 
 [dependencies]
-vibesql-types = { path = "../vibesql-types" }
-vibesql-ast = { path = "../vibesql-ast" }
-vibesql-catalog = { path = "../vibesql-catalog" }
-vibesql-storage = { path = "../vibesql-storage" }
+vibesql-types = { version = "0.1.0", path = "../vibesql-types" }
+vibesql-ast = { version = "0.1.0", path = "../vibesql-ast" }
+vibesql-catalog = { version = "0.1.0", path = "../vibesql-catalog" }
+vibesql-storage = { version = "0.1.0", path = "../vibesql-storage" }
 chrono = "0.4"
 rayon = "1.10"
 indexmap = "2.0"
 
 [dev-dependencies]
-vibesql-parser = { path = "../vibesql-parser" }
+vibesql-parser = { version = "0.1.0", path = "../vibesql-parser" }
 criterion = { version = "0.5", features = ["html_reports"] }
 
 [[test]]

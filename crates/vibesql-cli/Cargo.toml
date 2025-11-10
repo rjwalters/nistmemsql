@@ -15,12 +15,12 @@ path = "src/main.rs"
 
 [dependencies]
 # Core VibeSQL crates
-vibesql-types = { path = "../vibesql-types" }
-vibesql-ast = { path = "../vibesql-ast" }
-vibesql-catalog = { path = "../vibesql-catalog" }
-vibesql-storage = { path = "../vibesql-storage" }
-vibesql-executor = { path = "../vibesql-executor" }
-vibesql-parser = { path = "../vibesql-parser" }
+vibesql-types = { version = "0.1.0", path = "../vibesql-types" }
+vibesql-ast = { version = "0.1.0", path = "../vibesql-ast" }
+vibesql-catalog = { version = "0.1.0", path = "../vibesql-catalog" }
+vibesql-storage = { version = "0.1.0", path = "../vibesql-storage" }
+vibesql-executor = { version = "0.1.0", path = "../vibesql-executor" }
+vibesql-parser = { version = "0.1.0", path = "../vibesql-parser" }
 
 # CLI dependencies
 clap = { version = "4", features = ["derive"] }
