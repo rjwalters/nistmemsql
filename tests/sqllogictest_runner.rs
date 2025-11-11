@@ -214,6 +214,12 @@ impl NistMemSqlDB {
                 .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
+            vibesql_ast::Statement::CreateTrigger(_) => {
+                Err(TestError("CREATE TRIGGER not supported - triggers are not implemented".to_string()))
+            }
+            vibesql_ast::Statement::DropTrigger(_) => {
+                Err(TestError("DROP TRIGGER not supported - triggers are not implemented".to_string()))
+            }
             vibesql_ast::Statement::BeginTransaction(_)
             | vibesql_ast::Statement::Commit(_)
             | vibesql_ast::Statement::Rollback(_)
@@ -232,8 +238,6 @@ impl NistMemSqlDB {
             | vibesql_ast::Statement::DropTranslation(_)
             | vibesql_ast::Statement::CreateView(_)
             | vibesql_ast::Statement::DropView(_)
-            | vibesql_ast::Statement::CreateTrigger(_)
-            | vibesql_ast::Statement::DropTrigger(_)
             | vibesql_ast::Statement::DeclareCursor(_)
             | vibesql_ast::Statement::OpenCursor(_)
             | vibesql_ast::Statement::Fetch(_)
