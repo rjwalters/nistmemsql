@@ -193,7 +193,8 @@ impl ArithmeticOps {
                 if *b == 0 {
                     return Err(ExecutorError::DivisionByZero);
                 }
-                return Ok(Float((*a as f64 / *b as f64) as f32));
+                // Integer division returns integer (truncated towards zero)
+                return Ok(Integer(a / b));
             }
         }
 
