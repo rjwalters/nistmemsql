@@ -107,10 +107,10 @@ fn test_parse_multiple_in_lists() {
 }
 
 #[test]
-fn test_parse_in_empty_list_should_error() {
-    // SQL standard requires at least one value in IN list
+fn test_parse_in_empty_list_allowed() {
+    // Empty IN lists are allowed per SQL:1999
     let result = Parser::parse_sql("SELECT * FROM users WHERE id IN ();");
-    assert!(result.is_err(), "Empty IN list should fail to parse");
+    assert!(result.is_ok(), "Empty IN list should parse successfully: {:?}", result);
 }
 
 #[test]
