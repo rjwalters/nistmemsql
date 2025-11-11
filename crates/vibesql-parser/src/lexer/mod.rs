@@ -83,6 +83,14 @@ impl Lexer {
                 Ok(Token::RParen)
             }
             '=' | '<' | '>' | '!' | '|' => self.tokenize_operator(ch),
+            '@' => {
+                // Check for @@ (session variable) or @ (user variable)
+                if self.peek(1) == Some('@') {
+                    self.tokenize_session_variable()
+                } else {
+                    self.tokenize_user_variable()
+                }
+            }
             '.' => {
                 // Check if this is the start of a decimal number (e.g., .2, .5E+10)
                 if !self.is_eof() && self.peek(1).map(|c| c.is_ascii_digit()).unwrap_or(false) {
@@ -175,5 +183,60 @@ impl Lexer {
     /// Check if we've reached end of input.
     pub(super) fn is_eof(&self) -> bool {
         self.position >= self.input.len()
+    }
+
+    /// Tokenize a session variable (@@variable, @@session.variable, @@global.variable).
+    fn tokenize_session_variable(&mut self) -> Result<Token, LexerError> {
+        self.advance(); // Skip first @
+        self.advance(); // Skip second @
+
+        let mut var_name = String::new();
+
+        // Read the variable name (which may include scope prefix like 'global' or 'session')
+        while !self.is_eof() {
+            let ch = self.current_char();
+            if ch.is_ascii_alphanumeric() || ch == '_' || ch == '.' {
+                var_name.push(ch);
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        if var_name.is_empty() {
+            return Err(LexerError {
+                message: "Expected variable name after @@".to_string(),
+                position: self.position,
+            });
+        }
+
+        Ok(Token::SessionVariable(var_name))
+    }
+
+    /// Tokenize a user variable (@variable).
+    fn tokenize_user_variable(&mut self) -> Result<Token, LexerError> {
+        self.advance(); // Skip @
+
+        let mut var_name = String::new();
+
+        // Read the variable name
+        while !self.is_eof() {
+            let ch = self.current_char();
+            if ch.is_ascii_alphanumeric() || ch == '_' {
+                var_name.push(ch);
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        if var_name.is_empty() {
+            return Err(LexerError {
+                message: "Expected variable name after @".to_string(),
+                position: self.position,
+            });
+        }
+
+        Ok(Token::UserVariable(var_name))
     }
 }

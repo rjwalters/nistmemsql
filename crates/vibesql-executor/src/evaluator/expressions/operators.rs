@@ -13,62 +13,24 @@ use crate::errors::ExecutorError;
 pub(crate) fn eval_unary_op(
     op: &vibesql_ast::UnaryOperator,
     val: &SqlValue,
-    sql_mode: vibesql_types::SqlMode,
+    _sql_mode: vibesql_types::SqlMode,
 ) -> Result<SqlValue, ExecutorError> {
     use vibesql_ast::UnaryOperator::*;
 
     match (op, val) {
-        // Unary plus - identity operation
-        // MySQL mode: convert exact numeric types to Numeric for consistency
-        (Plus, SqlValue::Integer(n)) => {
-            if sql_mode == vibesql_types::SqlMode::MySQL {
-                Ok(SqlValue::Numeric(*n as f64))
-            } else {
-                Ok(SqlValue::Integer(*n))
-            }
-        }
-        (Plus, SqlValue::Smallint(n)) => {
-            if sql_mode == vibesql_types::SqlMode::MySQL {
-                Ok(SqlValue::Numeric(*n as f64))
-            } else {
-                Ok(SqlValue::Smallint(*n))
-            }
-        }
-        (Plus, SqlValue::Bigint(n)) => {
-            if sql_mode == vibesql_types::SqlMode::MySQL {
-                Ok(SqlValue::Numeric(*n as f64))
-            } else {
-                Ok(SqlValue::Bigint(*n))
-            }
-        }
+        // Unary plus - identity operation (preserves type in both modes)
+        (Plus, SqlValue::Integer(n)) => Ok(SqlValue::Integer(*n)),
+        (Plus, SqlValue::Smallint(n)) => Ok(SqlValue::Smallint(*n)),
+        (Plus, SqlValue::Bigint(n)) => Ok(SqlValue::Bigint(*n)),
         (Plus, SqlValue::Float(n)) => Ok(SqlValue::Float(*n)),
         (Plus, SqlValue::Real(n)) => Ok(SqlValue::Real(*n)),
         (Plus, SqlValue::Double(n)) => Ok(SqlValue::Double(*n)),
         (Plus, SqlValue::Numeric(s)) => Ok(SqlValue::Numeric(*s)),
 
-        // Unary minus - negation
-        // MySQL mode: convert exact numeric types to Numeric for consistency
-        (Minus, SqlValue::Integer(n)) => {
-            if sql_mode == vibesql_types::SqlMode::MySQL {
-                Ok(SqlValue::Numeric(-(*n as f64)))
-            } else {
-                Ok(SqlValue::Integer(-n))
-            }
-        }
-        (Minus, SqlValue::Smallint(n)) => {
-            if sql_mode == vibesql_types::SqlMode::MySQL {
-                Ok(SqlValue::Numeric(-(*n as f64)))
-            } else {
-                Ok(SqlValue::Smallint(-n))
-            }
-        }
-        (Minus, SqlValue::Bigint(n)) => {
-            if sql_mode == vibesql_types::SqlMode::MySQL {
-                Ok(SqlValue::Numeric(-(*n as f64)))
-            } else {
-                Ok(SqlValue::Bigint(-n))
-            }
-        }
+        // Unary minus - negation (preserves type in both modes)
+        (Minus, SqlValue::Integer(n)) => Ok(SqlValue::Integer(-n)),
+        (Minus, SqlValue::Smallint(n)) => Ok(SqlValue::Smallint(-n)),
+        (Minus, SqlValue::Bigint(n)) => Ok(SqlValue::Bigint(-n)),
         (Minus, SqlValue::Float(n)) => Ok(SqlValue::Float(-n)),
         (Minus, SqlValue::Real(n)) => Ok(SqlValue::Real(-n)),
         (Minus, SqlValue::Double(n)) => Ok(SqlValue::Double(-n)),
@@ -220,10 +182,10 @@ mod tests {
 
     #[test]
     fn test_unary_plus_mysql_mode() {
-        // MySQL mode: Integer becomes Numeric
+        // MySQL mode: Integer stays Integer (matches actual MySQL behavior)
         assert_eq!(
             eval_unary_op(&UnaryOperator::Plus, &SqlValue::Integer(42), vibesql_types::SqlMode::MySQL).unwrap(),
-            SqlValue::Numeric(42.0)
+            SqlValue::Integer(42)
         );
     }
 
@@ -238,10 +200,10 @@ mod tests {
 
     #[test]
     fn test_unary_minus_mysql_mode() {
-        // MySQL mode: Integer becomes Numeric
+        // MySQL mode: Integer stays Integer (matches actual MySQL behavior)
         assert_eq!(
             eval_unary_op(&UnaryOperator::Minus, &SqlValue::Integer(42), vibesql_types::SqlMode::MySQL).unwrap(),
-            SqlValue::Numeric(-42.0)
+            SqlValue::Integer(-42)
         );
     }
 }

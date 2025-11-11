@@ -30,6 +30,11 @@ pub(crate) fn to_i64(value: &vibesql_types::SqlValue) -> Result<i64, ExecutorErr
         vibesql_types::SqlValue::Integer(n) => Ok(*n),
         vibesql_types::SqlValue::Bigint(n) => Ok(*n),
         vibesql_types::SqlValue::Unsigned(n) => Ok(*n as i64), /* Note: may overflow for large unsigned */
+        vibesql_types::SqlValue::Numeric(f) => Ok(*f as i64),
+        vibesql_types::SqlValue::Float(f) => Ok(*f as i64),
+        vibesql_types::SqlValue::Real(f) => Ok(*f as i64),
+        vibesql_types::SqlValue::Double(f) => Ok(*f as i64),
+        vibesql_types::SqlValue::Boolean(b) => Ok(if *b { 1 } else { 0 }),
         // values
         _ => Err(ExecutorError::TypeMismatch {
             left: value.clone(),
@@ -48,7 +53,9 @@ pub(crate) fn to_f64(value: &vibesql_types::SqlValue) -> Result<f64, ExecutorErr
         vibesql_types::SqlValue::Integer(n) => Ok(*n as f64),
         vibesql_types::SqlValue::Smallint(n) => Ok(*n as f64),
         vibesql_types::SqlValue::Bigint(n) => Ok(*n as f64),
+        vibesql_types::SqlValue::Unsigned(n) => Ok(*n as f64),
         vibesql_types::SqlValue::Numeric(f) => Ok(*f),
+        vibesql_types::SqlValue::Boolean(b) => Ok(if *b { 1.0 } else { 0.0 }),
         _ => Err(ExecutorError::TypeMismatch {
             left: value.clone(),
             op: "numeric_conversion".to_string(),
@@ -86,6 +93,12 @@ pub(crate) fn cast_value(
             SqlValue::Integer(n) => Ok(SqlValue::Integer(*n)),
             SqlValue::Smallint(n) => Ok(SqlValue::Integer(*n as i64)),
             SqlValue::Bigint(n) => Ok(SqlValue::Integer(*n)),
+            SqlValue::Unsigned(n) => Ok(SqlValue::Integer(*n as i64)),
+            SqlValue::Numeric(f) => Ok(SqlValue::Integer(*f as i64)),
+            SqlValue::Float(f) => Ok(SqlValue::Integer(*f as i64)),
+            SqlValue::Real(f) => Ok(SqlValue::Integer(*f as i64)),
+            SqlValue::Double(f) => Ok(SqlValue::Integer(*f as i64)),
+            SqlValue::Boolean(b) => Ok(SqlValue::Integer(if *b { 1 } else { 0 })),
             SqlValue::Varchar(s) => {
                 s.parse::<i64>().map(SqlValue::Integer).map_err(|_| ExecutorError::CastError {
                     from_type: format!("{:?}", value),
@@ -103,6 +116,12 @@ pub(crate) fn cast_value(
             SqlValue::Smallint(n) => Ok(SqlValue::Smallint(*n)),
             SqlValue::Integer(n) => Ok(SqlValue::Smallint(*n as i16)),
             SqlValue::Bigint(n) => Ok(SqlValue::Smallint(*n as i16)),
+            SqlValue::Unsigned(n) => Ok(SqlValue::Smallint(*n as i16)),
+            SqlValue::Numeric(f) => Ok(SqlValue::Smallint(*f as i16)),
+            SqlValue::Float(f) => Ok(SqlValue::Smallint(*f as i16)),
+            SqlValue::Real(f) => Ok(SqlValue::Smallint(*f as i16)),
+            SqlValue::Double(f) => Ok(SqlValue::Smallint(*f as i16)),
+            SqlValue::Boolean(b) => Ok(SqlValue::Smallint(if *b { 1 } else { 0 })),
             SqlValue::Varchar(s) => {
                 s.parse::<i16>().map(SqlValue::Smallint).map_err(|_| ExecutorError::CastError {
                     from_type: format!("{:?}", value),
@@ -120,6 +139,12 @@ pub(crate) fn cast_value(
             SqlValue::Bigint(n) => Ok(SqlValue::Bigint(*n)),
             SqlValue::Integer(n) => Ok(SqlValue::Bigint(*n)),
             SqlValue::Smallint(n) => Ok(SqlValue::Bigint(*n as i64)),
+            SqlValue::Unsigned(n) => Ok(SqlValue::Bigint(*n as i64)),
+            SqlValue::Numeric(f) => Ok(SqlValue::Bigint(*f as i64)),
+            SqlValue::Float(f) => Ok(SqlValue::Bigint(*f as i64)),
+            SqlValue::Real(f) => Ok(SqlValue::Bigint(*f as i64)),
+            SqlValue::Double(f) => Ok(SqlValue::Bigint(*f as i64)),
+            SqlValue::Boolean(b) => Ok(SqlValue::Bigint(if *b { 1 } else { 0 })),
             SqlValue::Varchar(s) => {
                 s.parse::<i64>().map(SqlValue::Bigint).map_err(|_| ExecutorError::CastError {
                     from_type: format!("{:?}", value),
@@ -147,6 +172,10 @@ pub(crate) fn cast_value(
                 // Convert with wrap-around for negative values (MySQL behavior)
                 Ok(SqlValue::Unsigned(*n as u64))
             }
+            SqlValue::Numeric(f) => {
+                // Truncate numeric to unsigned (MySQL behavior)
+                Ok(SqlValue::Unsigned(*f as u64))
+            }
             SqlValue::Float(f) => {
                 // Truncate float to unsigned (MySQL behavior)
                 Ok(SqlValue::Unsigned(*f as u64))
@@ -158,6 +187,10 @@ pub(crate) fn cast_value(
             SqlValue::Double(f) => {
                 // Truncate double to unsigned (MySQL behavior)
                 Ok(SqlValue::Unsigned(*f as u64))
+            }
+            SqlValue::Boolean(b) => {
+                // Boolean to unsigned: true=1, false=0 (SQL standard)
+                Ok(SqlValue::Unsigned(if *b { 1 } else { 0 }))
             }
             SqlValue::Varchar(s) => {
                 s.parse::<u64>().map(SqlValue::Unsigned).map_err(|_| ExecutorError::CastError {
@@ -177,9 +210,11 @@ pub(crate) fn cast_value(
             SqlValue::Integer(n) => Ok(SqlValue::Numeric(*n as f64)),
             SqlValue::Smallint(n) => Ok(SqlValue::Numeric(*n as f64)),
             SqlValue::Bigint(n) => Ok(SqlValue::Numeric(*n as f64)),
+            SqlValue::Unsigned(n) => Ok(SqlValue::Numeric(*n as f64)),
             SqlValue::Float(n) => Ok(SqlValue::Numeric(*n as f64)),
             SqlValue::Real(n) => Ok(SqlValue::Numeric(*n as f64)),
             SqlValue::Double(n) => Ok(SqlValue::Numeric(*n)),
+            SqlValue::Boolean(b) => Ok(SqlValue::Numeric(if *b { 1.0 } else { 0.0 })),
             SqlValue::Varchar(s) => {
                 s.parse::<f64>().map(SqlValue::Numeric).map_err(|_| ExecutorError::CastError {
                     from_type: format!("{:?}", value),
@@ -200,6 +235,9 @@ pub(crate) fn cast_value(
             SqlValue::Integer(n) => Ok(SqlValue::Float(*n as f32)),
             SqlValue::Smallint(n) => Ok(SqlValue::Float(*n as f32)),
             SqlValue::Bigint(n) => Ok(SqlValue::Float(*n as f32)),
+            SqlValue::Unsigned(n) => Ok(SqlValue::Float(*n as f32)),
+            SqlValue::Numeric(f) => Ok(SqlValue::Float(*f as f32)),
+            SqlValue::Boolean(b) => Ok(SqlValue::Float(if *b { 1.0 } else { 0.0 })),
             SqlValue::Varchar(s) => {
                 s.parse::<f32>().map(SqlValue::Float).map_err(|_| ExecutorError::CastError {
                     from_type: format!("{:?}", value),
@@ -220,6 +258,9 @@ pub(crate) fn cast_value(
             SqlValue::Integer(n) => Ok(SqlValue::Double(*n as f64)),
             SqlValue::Smallint(n) => Ok(SqlValue::Double(*n as f64)),
             SqlValue::Bigint(n) => Ok(SqlValue::Double(*n as f64)),
+            SqlValue::Unsigned(n) => Ok(SqlValue::Double(*n as f64)),
+            SqlValue::Numeric(f) => Ok(SqlValue::Double(*f)),
+            SqlValue::Boolean(b) => Ok(SqlValue::Double(if *b { 1.0 } else { 0.0 })),
             SqlValue::Varchar(s) => {
                 s.parse::<f64>().map(SqlValue::Double).map_err(|_| ExecutorError::CastError {
                     from_type: format!("{:?}", value),

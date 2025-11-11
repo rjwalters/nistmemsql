@@ -24,6 +24,7 @@ pub(in crate::select::executor) fn try_index_based_ordering(
     order_by: &[vibesql_ast::OrderByItem],
     schema: &CombinedSchema,
     _from_clause: &Option<vibesql_ast::FromClause>,
+    select_list: &[vibesql_ast::SelectItem],
 ) -> Result<Option<Vec<RowWithSortKeys>>, ExecutorError> {
     // Empty ORDER BY - nothing to optimize
     if order_by.is_empty() {
@@ -35,8 +36,11 @@ pub(in crate::select::executor) fn try_index_based_ordering(
     let mut order_directions = Vec::new();
 
     for order_item in order_by {
-        // Check if ORDER BY is on a simple column reference
-        let column_name = match &order_item.expr {
+        // Resolve ORDER BY expression (handle positional references and aliases)
+        let resolved_expr = resolve_order_by_expression(&order_item.expr, select_list)?;
+
+        // Check if resolved expression is a simple column reference
+        let column_name = match resolved_expr {
             vibesql_ast::Expression::ColumnRef { table: None, column } => column,
             _ => return Ok(None), // Complex expressions can't use index
         };
@@ -274,4 +278,58 @@ pub(in crate::select::executor) fn find_index_for_ordering(
     )?;
 
     Ok(result.map(|(name, _)| name))
+}
+
+/// Resolve ORDER BY expression to handle positional references and aliases
+///
+/// Converts:
+/// - ORDER BY 1 -> ORDER BY <first column in SELECT list>
+/// - ORDER BY alias -> ORDER BY <expression aliased in SELECT list>
+/// - Otherwise returns the original expression
+fn resolve_order_by_expression<'a>(
+    order_expr: &'a vibesql_ast::Expression,
+    select_list: &'a [vibesql_ast::SelectItem],
+) -> Result<&'a vibesql_ast::Expression, ExecutorError> {
+    // Handle positional reference (ORDER BY 1, ORDER BY 2, etc.)
+    if let vibesql_ast::Expression::Literal(SqlValue::Integer(pos)) = order_expr {
+        // Convert to 0-indexed
+        let index = (*pos as usize).checked_sub(1).ok_or_else(|| ExecutorError::Other(
+            format!("Invalid ORDER BY position: {} (must be >= 1)", pos)
+        ))?;
+
+        // Check if position is within SELECT list bounds
+        if index >= select_list.len() {
+            return Err(ExecutorError::Other(format!(
+                "ORDER BY position {} is out of range (SELECT list has {} columns)",
+                pos,
+                select_list.len()
+            )));
+        }
+
+        // Get the expression at this position in the SELECT list
+        return match &select_list[index] {
+            vibesql_ast::SelectItem::Expression { expr, .. } => Ok(expr),
+            vibesql_ast::SelectItem::Wildcard { .. } | vibesql_ast::SelectItem::QualifiedWildcard { .. } => {
+                Err(ExecutorError::Other(
+                    format!("Cannot use ORDER BY position {} with wildcard in SELECT list", pos)
+                ))
+            }
+        };
+    }
+
+    // Handle alias reference (ORDER BY alias_name)
+    if let vibesql_ast::Expression::ColumnRef { table: None, column } = order_expr {
+        // Search for matching alias in SELECT list
+        for item in select_list {
+            if let vibesql_ast::SelectItem::Expression { expr, alias: Some(alias_name) } = item {
+                if alias_name == column {
+                    // Found matching alias, use the SELECT list expression
+                    return Ok(expr);
+                }
+            }
+        }
+    }
+
+    // Not a positional reference or alias - return original expression
+    Ok(order_expr)
 }
