@@ -117,6 +117,44 @@ Roles:
     readonly
 ```
 
+### View Operations
+
+Views allow you to save complex queries as virtual tables.
+
+**CREATE VIEW** - Create a new view
+```sql
+vibesql> CREATE VIEW active_users AS
+         SELECT id, name, email
+         FROM users
+         WHERE active = true;
+View created: ACTIVE_USERS
+
+vibesql> CREATE VIEW emp_summary (employee_id, employee_name) AS
+         SELECT id, name
+         FROM employees;
+View created: EMP_SUMMARY
+```
+
+**DROP VIEW** - Remove a view
+```sql
+vibesql> DROP VIEW active_users;
+View dropped: ACTIVE_USERS
+
+vibesql> DROP VIEW IF EXISTS nonexistent_view;
+View dropped (if existed)
+```
+
+**WITH CHECK OPTION** - Ensure view constraints
+```sql
+vibesql> CREATE VIEW recent_orders AS
+         SELECT * FROM orders
+         WHERE order_date >= '2024-01-01'
+         WITH CHECK OPTION;
+View created: RECENT_ORDERS
+```
+
+**Note**: View query expansion (SELECT from views) is not yet supported but is planned for a future release.
+
 ### Output Control
 
 **`\f <format>`** - Set output format

@@ -325,10 +325,10 @@
 - [x] FOREIGN KEY enforcement ✅ (#308, referential integrity)
 - [x] Complete referential integrity ✅ (INSERT/UPDATE/DELETE validation)
 
-**4.5 Views** (0% complete)
-- [ ] CREATE VIEW
-- [ ] DROP VIEW
-- [ ] View query expansion
+**4.5 Views** (67% complete)
+- [x] CREATE VIEW ✅ (7 tests in test_create_view.rs)
+- [x] DROP VIEW ✅ (included in test_create_view.rs)
+- [ ] View query expansion (SELECT from views)
 
 **Current**: CREATE/DROP TABLE, CREATE/DROP/SET SCHEMA, ALTER TABLE operations, ALL constraint enforcement (35+ tests passing)
 **Target**: Full Core DDL → **75% achieved**

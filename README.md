@@ -73,6 +73,7 @@ We use comprehensive test suites to track SQL:1999 compliance:
 - ✅ **Import/Export** - CSV and JSON support with \copy command
 - ✅ **Multiple output formats** - Table, JSON, CSV, Markdown, HTML
 - ✅ **Complete security model** - GRANT/REVOKE with full privilege enforcement
+- ✅ **Views** - CREATE VIEW and DROP VIEW support in CLI and Python
 - ✅ **Performance optimizations** - Hash join, expression optimization, memory improvements
 - ✅ **SQLLogicTest integration** - ~5.9M tests for comprehensive validation
 
@@ -414,6 +415,26 @@ for row in rows:
 # Close connections
 cursor.close()
 db.close()
+
+# Database persistence - save to file
+db2 = vibesql.connect()
+cursor2 = db2.cursor()
+cursor2.execute("CREATE TABLE products (id INTEGER, name VARCHAR(100))")
+cursor2.execute("INSERT INTO products VALUES (1, 'Widget')")
+
+# Save database to file
+db2.save("/tmp/mydb.sql")
+
+# Load database from file
+db3 = vibesql.Database.load("/tmp/mydb.sql")
+cursor3 = db3.cursor()
+cursor3.execute("SELECT * FROM products")
+print(cursor3.fetchall())  # [(1, 'Widget')]
+
+cursor2.close()
+db2.close()
+cursor3.close()
+db3.close()
 ```
 
 **Python API Features**:
@@ -423,10 +444,11 @@ db.close()
 - `fetchone()`, `fetchall()`, `fetchmany()`
 - Custom exception types
 - Full transaction support
+- Database persistence with `save()` and `load()` methods
 
 **Run Tests**:
 ```bash
-python3 crates/python-bindings/tests/test_basic.py
+python3 crates/vibesql-python-bindings/tests/test_basic.py
 ```
 
 **Benchmark Performance**:

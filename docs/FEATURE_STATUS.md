@@ -9,11 +9,11 @@ This document provides a detailed breakdown of implemented features in VibeSQL a
 - **Advanced features**: Subqueries (scalar, table, correlated), CTEs, window functions
 - **Set operations**: UNION, INTERSECT, EXCEPT (with ALL variants)
 - **Aggregates**: COUNT, SUM, AVG, MIN, MAX with GROUP BY/HAVING
-- **Window functions**: ROW_NUMBER, RANK, DENSE_RANK, NTILE, LAG, LEAD, aggregate OVER()
+- **Window functions**: ROW_NUMBER, RANK, DENSE_RANK, NTILE, LAG, LEAD, FIRST_VALUE, LAST_VALUE, aggregate OVER()
 
 ## DDL & Transactions
 
-- **Schema operations**: CREATE/DROP TABLE, CREATE/DROP SCHEMA, ALTER TABLE
+- **Schema operations**: CREATE/DROP TABLE, CREATE/DROP SCHEMA, CREATE/DROP VIEW, ALTER TABLE
 - **Transactions**: BEGIN, COMMIT, ROLLBACK, SAVEPOINT (nested transactions)
 - **Constraints**: NOT NULL, PRIMARY KEY, UNIQUE, CHECK, FOREIGN KEY (all fully enforced)
 
