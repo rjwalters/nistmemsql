@@ -1,0 +1,18 @@
+statement ok
+CREATE TABLE tab1(col1 INTEGER, col2 INTEGER)
+
+statement ok
+INSERT INTO tab1 VALUES (14, 96)
+
+statement ok
+INSERT INTO tab1 VALUES (47, 68)
+
+statement ok
+INSERT INTO tab1 VALUES (5, 59)
+
+query II
+SELECT col1, col2 FROM tab1
+----
+14 96
+47 68
+5 59

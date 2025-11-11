@@ -193,6 +193,7 @@ impl ArithmeticOps {
                 if *b == 0 {
                     return Err(ExecutorError::DivisionByZero);
                 }
+                // Integer division returns float (exact division like standard SQL)
                 return Ok(Float((*a as f64 / *b as f64) as f32));
             }
         }

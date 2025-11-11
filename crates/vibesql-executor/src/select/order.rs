@@ -62,15 +62,27 @@ pub(super) fn apply_order_by(
     Ok(rows)
 }
 
-/// Resolve ORDER BY expression that might be a SELECT list alias
+/// Resolve ORDER BY expression that might be a SELECT list alias or column position
 ///
-/// If the ORDER BY expression is a simple column reference (without table qualifier)
-/// and it matches a SELECT list alias, return the SELECT list expression.
-/// Otherwise, return the original ORDER BY expression.
+/// Handles three cases:
+/// 1. Numeric literal (e.g., ORDER BY 1, 2, 3) - returns the expression from that position in SELECT list
+/// 2. Simple column reference that matches a SELECT list alias - returns the SELECT list expression
+/// 3. Otherwise - returns the original ORDER BY expression
 fn resolve_order_by_alias<'a>(
     order_expr: &'a vibesql_ast::Expression,
     select_list: &'a [vibesql_ast::SelectItem],
 ) -> &'a vibesql_ast::Expression {
+    // Check for numeric column position (ORDER BY 1, 2, 3, etc.)
+    if let vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(pos)) = order_expr {
+        if *pos > 0 && (*pos as usize) <= select_list.len() {
+            // Valid column position, return the expression at that position
+            let idx = (*pos as usize) - 1;
+            if let vibesql_ast::SelectItem::Expression { expr, .. } = &select_list[idx] {
+                return expr;
+            }
+        }
+    }
+
     // Check if ORDER BY expression is a simple column reference (no table qualifier)
     if let vibesql_ast::Expression::ColumnRef { table: None, column } = order_expr {
         // Search for matching alias in SELECT list
@@ -84,6 +96,6 @@ fn resolve_order_by_alias<'a>(
         }
     }
 
-    // Not an alias or no match found, use the original expression
+    // Not an alias or column position, use the original expression
     order_expr
 }
