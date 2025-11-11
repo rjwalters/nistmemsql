@@ -195,11 +195,33 @@ Three options for obtaining actual test data:
 
 ## Follow-up Issues
 
-_Links to created issues for specific patterns_
+**Phase 3 Implementation Issues** (Created from #1236):
+
+1. **#1241**: Fix commutative property issues in index tests
+   - Pattern: `index/commute/` (52 files)
+   - Impact: ~25-30 tests (~8-10% improvement)
+   - Priority: CRITICAL
+
+2. **#1242**: Fix ORDER BY optimization issues in index tests
+   - Pattern: `index/orderby_nosort/` (49 files)
+   - Impact: ~23-25 tests (~7-8% improvement)
+   - Priority: HIGH
+
+3. **#1243**: Fix complex ORDER BY with indexes
+   - Pattern: `index/orderby/` (31 files)
+   - Impact: ~15-18 tests (~5-6% improvement)
+   - Priority: MEDIUM
+
+**Combined Impact**: If all three issues resolved → 60-73% pass rate ✓ EXCEEDS TARGET
 
 ## References
 
-- Issue #1233: This analysis
+- Issue #1233: Parent analysis issue
+- Issue #1235: Phase 2 pattern analysis
+- Issue #1236: Phase 3 implementation coordination
+- Issue #1241: Commutative property fixes
+- Issue #1242: ORDER BY optimization fixes
+- Issue #1243: Complex ORDER BY fixes
 - Issue #1232: Retest with latest code
 - Issue #1230: SQL dialect modes
 - PR #1210: Multi-column index flattening fix
