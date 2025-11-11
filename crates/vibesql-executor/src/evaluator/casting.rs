@@ -172,6 +172,10 @@ pub(crate) fn cast_value(
                 // Convert with wrap-around for negative values (MySQL behavior)
                 Ok(SqlValue::Unsigned(*n as u64))
             }
+            SqlValue::Numeric(f) => {
+                // Truncate numeric to unsigned (MySQL behavior)
+                Ok(SqlValue::Unsigned(*f as u64))
+            }
             SqlValue::Float(f) => {
                 // Truncate float to unsigned (MySQL behavior)
                 Ok(SqlValue::Unsigned(*f as u64))
@@ -183,6 +187,10 @@ pub(crate) fn cast_value(
             SqlValue::Double(f) => {
                 // Truncate double to unsigned (MySQL behavior)
                 Ok(SqlValue::Unsigned(*f as u64))
+            }
+            SqlValue::Boolean(b) => {
+                // Boolean to unsigned: true=1, false=0 (SQL standard)
+                Ok(SqlValue::Unsigned(if *b { 1 } else { 0 }))
             }
             SqlValue::Varchar(s) => {
                 s.parse::<u64>().map(SqlValue::Unsigned).map_err(|_| ExecutorError::CastError {
