@@ -68,14 +68,19 @@ impl SelectExecutor<'_> {
                 case::evaluate(self, operand, when_clauses, else_result, group_rows, group_key, evaluator)
             }
 
-            // Simple expressions: Literal, ColumnRef, InList, Between, Cast, Like, IsNull
-            vibesql_ast::Expression::Literal(_)
-            | vibesql_ast::Expression::ColumnRef { .. }
-            | vibesql_ast::Expression::InList { .. }
+            // Simple expressions that can potentially contain aggregates
+            vibesql_ast::Expression::Cast { .. }
             | vibesql_ast::Expression::Between { .. }
-            | vibesql_ast::Expression::Cast { .. }
+            | vibesql_ast::Expression::InList { .. }
             | vibesql_ast::Expression::Like { .. }
-            | vibesql_ast::Expression::IsNull { .. } => simple::evaluate(self, expr, group_rows, evaluator),
+            | vibesql_ast::Expression::IsNull { .. } => {
+                simple::evaluate(self, expr, group_rows, group_key, evaluator)
+            }
+
+            // Truly simple expressions: Literal, ColumnRef (cannot contain aggregates)
+            vibesql_ast::Expression::Literal(_) | vibesql_ast::Expression::ColumnRef { .. } => {
+                simple::evaluate_no_aggregates(expr, group_rows, evaluator)
+            }
 
             _ => Err(ExecutorError::UnsupportedExpression(format!(
                 "Unsupported expression in aggregate context: {:?}",
