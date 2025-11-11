@@ -182,10 +182,10 @@ mod tests {
 
     #[test]
     fn test_unary_plus_mysql_mode() {
-        // MySQL mode: Integer becomes Numeric
+        // MySQL mode: Integer stays Integer (matches actual MySQL behavior)
         assert_eq!(
             eval_unary_op(&UnaryOperator::Plus, &SqlValue::Integer(42), vibesql_types::SqlMode::MySQL).unwrap(),
-            SqlValue::Numeric(42.0)
+            SqlValue::Integer(42)
         );
     }
 
@@ -200,10 +200,10 @@ mod tests {
 
     #[test]
     fn test_unary_minus_mysql_mode() {
-        // MySQL mode: Integer becomes Numeric
+        // MySQL mode: Integer stays Integer (matches actual MySQL behavior)
         assert_eq!(
             eval_unary_op(&UnaryOperator::Minus, &SqlValue::Integer(42), vibesql_types::SqlMode::MySQL).unwrap(),
-            SqlValue::Numeric(-42.0)
+            SqlValue::Integer(-42)
         );
     }
 }

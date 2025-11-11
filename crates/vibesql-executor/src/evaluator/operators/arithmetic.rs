@@ -504,31 +504,22 @@ mod tests {
 
     #[test]
     fn test_sql_mode_mysql_integer_arithmetic() {
-        // MySQL mode: Integer + Integer → Numeric
+        // MySQL mode: Integer + Integer → Integer (matches actual MySQL behavior)
         let result = ArithmeticOps::add(&SqlValue::Integer(1), &SqlValue::Integer(2), vibesql_types::SqlMode::MySQL).unwrap();
-        assert!(matches!(result, SqlValue::Numeric(_)));
-        if let SqlValue::Numeric(n) = result {
-            assert_eq!(n, 3.0);
-        }
+        assert_eq!(result, SqlValue::Integer(3));
 
-        // MySQL mode: Integer - Integer → Numeric (unary negation case)
+        // MySQL mode: Integer - Integer → Integer (unary negation case)
         let result = ArithmeticOps::subtract(&SqlValue::Integer(0), &SqlValue::Integer(-91), vibesql_types::SqlMode::MySQL).unwrap();
-        assert!(matches!(result, SqlValue::Numeric(_)));
-        if let SqlValue::Numeric(n) = result {
-            assert_eq!(n, 91.0);
-        }
+        assert_eq!(result, SqlValue::Integer(91));
 
-        // MySQL mode: Integer * Integer → Numeric
+        // MySQL mode: Integer * Integer → Integer
         let result = ArithmeticOps::multiply(&SqlValue::Integer(5), &SqlValue::Integer(7), vibesql_types::SqlMode::MySQL).unwrap();
-        assert!(matches!(result, SqlValue::Numeric(_)));
-        if let SqlValue::Numeric(n) = result {
-            assert_eq!(n, 35.0);
-        }
+        assert_eq!(result, SqlValue::Integer(35));
     }
 
     #[test]
     fn test_sql_mode_comparison() {
-        // Demonstrate the key difference between modes
+        // Both modes now return Integer for integer arithmetic
         let int1 = SqlValue::Integer(100);
         let int2 = SqlValue::Integer(50);
 
@@ -536,11 +527,8 @@ mod tests {
         let standard_result = ArithmeticOps::add(&int1, &int2, vibesql_types::SqlMode::Standard).unwrap();
         assert_eq!(standard_result, SqlValue::Integer(150));
 
-        // MySQL mode returns Numeric
+        // MySQL mode also returns Integer (matches actual MySQL behavior)
         let mysql_result = ArithmeticOps::add(&int1, &int2, vibesql_types::SqlMode::MySQL).unwrap();
-        assert!(matches!(mysql_result, SqlValue::Numeric(_)));
-        if let SqlValue::Numeric(n) = mysql_result {
-            assert_eq!(n, 150.0);
-        }
+        assert_eq!(mysql_result, SqlValue::Integer(150));
     }
 }
