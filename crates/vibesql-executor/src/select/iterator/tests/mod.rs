@@ -2,6 +2,8 @@
 
 use super::*;
 use crate::evaluator::CombinedExpressionEvaluator;
+use crate::select::iterator::join::LazyNestedLoopJoin;
+use crate::select::iterator::projection::ProjectionIterator;
 use vibesql_storage::Row;
 use vibesql_types::SqlValue;
 
