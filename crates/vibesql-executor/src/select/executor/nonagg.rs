@@ -293,6 +293,7 @@ impl SelectExecutor<'_> {
                 order_by,
                 &schema,
                 &stmt.from,
+                &stmt.select_list,
             )? {
                 result_rows = ordered_rows;
             } else {
