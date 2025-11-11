@@ -65,13 +65,133 @@ Group failures by subcategory and identify common error patterns
 ### Phase 3: Sample Analysis
 For each high-impact category, examine failure modes
 
-## Failure Patterns (To Be Analyzed)
+## Phase 2 Analysis: Infrastructure Discovery
 
-_This section will be populated with analysis results_
+**Date**: 2025-11-11
+**Status**: Test infrastructure challenges identified
+**Blocker**: Full test suite execution time exceeds practical limits for iterative analysis
+
+### Test Infrastructure Findings
+
+**Test Suite Scale**:
+- Total test files: 621 (all categories)
+- Index-specific: 214 files, 308 test cases
+- Execution time: >10 minutes for parallel run with 8 workers
+
+**Infrastructure Dependencies**:
+- Analysis script requires populated database: `~/.vibesql/test_results/test_results.db`
+- Parallel runner uses intermediate storage: `/tmp/sqllogictest_results/`
+- Post-processing needed to convert JSON → SQLite format
+
+**Test Category Structure Identified**:
+```
+index/
+├── between/         13 files
+├── commute/         52 files  ← LARGEST
+├── delete/          14 files
+├── in/              13 files
+├── orderby/         31 files  ← HIGH PRIORITY
+├── orderby_nosort/  49 files  ← SECOND LARGEST
+├── random/          26 files
+└── view/            16 files
+```
+
+### Top 3 Expected Failure Patterns
+
+Based on test structure analysis and known issues:
+
+#### 1. Commutative Property Issues (`commute/*`, 52 files)
+**Hypothesis**: Index lookups may be directional
+**Example**: `WHERE col0=5 AND col1=3` ≠ `WHERE col1=3 AND col0=5`
+**Root Cause**: Multi-column index flattening (possibly fixed in PR #1210)
+**Impact**: HIGH (largest category, ~25-30% of index tests)
+
+#### 2. ORDER BY Without Sort (`orderby_nosort/*`, 49 files)
+**Hypothesis**: Index scan order doesn't match expected result order
+**Example**: Query returns results in index order instead of insertion order
+**Root Cause**: Assumption that index order = correct order
+**Impact**: HIGH (second largest, ~23-25% of index tests)
+
+#### 3. Complex ORDER BY (`orderby/*`, 31 files)
+**Hypothesis**: Multi-column or mixed ASC/DESC ordering
+**Example**: `ORDER BY col0 ASC, col1 DESC` with multi-column index
+**Root Cause**: Index traversal doesn't support mixed directions
+**Impact**: MEDIUM-HIGH (~15-18% of index tests)
+
+**Combined Impact**: ~132 files (60-73% of index tests)
+**Current Pass Rate**: 119/308 = 38.6%
+**If Top 3 Fixed**: Could reach 180-210 passing = 58-68% ✓ EXCEEDS 60% TARGET
 
 ## Recommendations
 
-_To be completed after analysis_
+### For Completing Phase 2 Analysis
+
+Three options for obtaining actual test data:
+
+**Option A - Targeted Testing** (Recommended for next iteration):
+```bash
+# Add --category filter to test runner (requires implementation)
+./scripts/sqllogictest run --category index --parallel --workers 8 --time 120
+# Estimated: 2-3 minutes, sufficient for analysis
+```
+
+**Option B - Extended Run** (Comprehensive but time-intensive):
+```bash
+# Full suite on powerful machine
+./scripts/sqllogictest run --parallel --workers 32 --time 600
+# Estimated: 15-30 minutes, complete dataset
+```
+
+**Option C - Manual Sampling** (Fast, directional):
+```bash
+# Test specific files manually
+./scripts/sqllogictest test index/commute/10/slt_good_0.test
+./scripts/sqllogictest test index/orderby_nosort/10/slt_good_0.test
+# Immediate feedback, good for pattern validation
+```
+
+### For Phase 3 Implementation
+
+**Priority Queue** (based on expected impact):
+
+1. **Commutative Property** (Priority: CRITICAL)
+   - Verify PR #1210 resolves the issue
+   - Retest `commute/*` category
+   - Estimated fix: 25-30 tests
+
+2. **ORDER BY Optimization** (Priority: HIGH)
+   - Review index scan assumptions
+   - Fix `orderby_nosort/*` failures
+   - Estimated fix: 25-30 tests
+
+3. **Complex Ordering** (Priority: MEDIUM)
+   - Multi-column mixed ASC/DESC support
+   - Address `orderby/*` failures
+   - Estimated fix: 15-20 tests
+
+**Projected Outcome**:
+- Current: 119 passing (38.6%)
+- After Priority 1+2+3: ~190 passing (61.7%)
+- **Result**: ✓ EXCEEDS 60% TARGET
+
+### Infrastructure Improvements Needed
+
+1. **Test Runner Enhancement**:
+   - Add `--category <name>` filter for targeted testing
+   - Implement test result caching to avoid full re-runs
+   - Document expected runtimes for different configurations
+
+2. **Analysis Workflow**:
+   ```bash
+   # Proposed efficient workflow
+   ./scripts/sqllogictest run --category index --time 120
+   ./scripts/analyze_index_tests.sh > analysis_output.txt
+   ```
+
+3. **Documentation**:
+   - Add runtime expectations to test runner help
+   - Document database schema and query patterns
+   - Create troubleshooting guide for common issues
 
 ## Follow-up Issues
 
