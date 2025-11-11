@@ -25,7 +25,7 @@ fn coerce_numeric_values(
     left: &SqlValue,
     right: &SqlValue,
     op: &str,
-    sql_mode: SqlMode,
+    _sql_mode: SqlMode,
 ) -> Result<CoercedValues, ExecutorError> {
     use SqlValue::*;
 
@@ -50,21 +50,12 @@ fn coerce_numeric_values(
         return Ok(CoercedValues::ExactNumeric(left_i64, right_i64));
     }
 
-    // Mixed exact numeric types - behavior depends on SQL mode
+    // Mixed exact numeric types - integer arithmetic returns Integer type in both modes
+    // This matches MySQL behavior where integer arithmetic produces integers
     if is_exact_numeric(left) && is_exact_numeric(right) {
         let left_i64 = to_i64(left)?;
         let right_i64 = to_i64(right)?;
-
-        // MySQL mode: integer arithmetic returns Numeric
-        // Standard mode: integer arithmetic returns Integer
-        match sql_mode {
-            SqlMode::MySQL => {
-                return Ok(CoercedValues::Numeric(left_i64 as f64, right_i64 as f64));
-            }
-            SqlMode::Standard => {
-                return Ok(CoercedValues::ExactNumeric(left_i64, right_i64));
-            }
-        }
+        return Ok(CoercedValues::ExactNumeric(left_i64, right_i64));
     }
 
     // Approximate numeric types - promote to f64
@@ -127,11 +118,9 @@ impl ArithmeticOps {
     pub fn add(left: &SqlValue, right: &SqlValue, sql_mode: SqlMode) -> Result<SqlValue, ExecutorError> {
         use SqlValue::*;
 
-        // Fast path for Standard mode with integers
-        if sql_mode == SqlMode::Standard {
-            if let (Integer(a), Integer(b)) = (left, right) {
-                return Ok(Integer(a + b));
-            }
+        // Fast path for integers (both modes)
+        if let (Integer(a), Integer(b)) = (left, right) {
+            return Ok(Integer(a + b));
         }
 
         // Use helper for type coercion
@@ -147,11 +136,9 @@ impl ArithmeticOps {
     pub fn subtract(left: &SqlValue, right: &SqlValue, sql_mode: SqlMode) -> Result<SqlValue, ExecutorError> {
         use SqlValue::*;
 
-        // Fast path for Standard mode with integers
-        if sql_mode == SqlMode::Standard {
-            if let (Integer(a), Integer(b)) = (left, right) {
-                return Ok(Integer(a - b));
-            }
+        // Fast path for integers (both modes)
+        if let (Integer(a), Integer(b)) = (left, right) {
+            return Ok(Integer(a - b));
         }
 
         // Use helper for type coercion
@@ -167,11 +154,9 @@ impl ArithmeticOps {
     pub fn multiply(left: &SqlValue, right: &SqlValue, sql_mode: SqlMode) -> Result<SqlValue, ExecutorError> {
         use SqlValue::*;
 
-        // Fast path for Standard mode with integers
-        if sql_mode == SqlMode::Standard {
-            if let (Integer(a), Integer(b)) = (left, right) {
-                return Ok(Integer(a * b));
-            }
+        // Fast path for integers (both modes)
+        if let (Integer(a), Integer(b)) = (left, right) {
+            return Ok(Integer(a * b));
         }
 
         // Use helper for type coercion
@@ -187,15 +172,12 @@ impl ArithmeticOps {
     pub fn divide(left: &SqlValue, right: &SqlValue, sql_mode: SqlMode) -> Result<SqlValue, ExecutorError> {
         use SqlValue::*;
 
-        // Fast path for Standard mode with integers
-        if sql_mode == SqlMode::Standard {
-            if let (Integer(a), Integer(b)) = (left, right) {
-                if *b == 0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                // Integer division returns float (exact division like standard SQL)
-                return Ok(Float((*a as f64 / *b as f64) as f32));
+        // Fast path for integers (both modes) - division always returns float
+        if let (Integer(a), Integer(b)) = (left, right) {
+            if *b == 0 {
+                return Err(ExecutorError::DivisionByZero);
             }
+            return Ok(Float((*a as f64 / *b as f64) as f32));
         }
 
         // Use helper for type coercion
@@ -216,14 +198,12 @@ impl ArithmeticOps {
     pub fn integer_divide(left: &SqlValue, right: &SqlValue, sql_mode: SqlMode) -> Result<SqlValue, ExecutorError> {
         use SqlValue::*;
 
-        // Fast path for Standard mode with integers
-        if sql_mode == SqlMode::Standard {
-            if let (Integer(a), Integer(b)) = (left, right) {
-                if *b == 0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                return Ok(Integer(a / b));
+        // Fast path for integers (both modes)
+        if let (Integer(a), Integer(b)) = (left, right) {
+            if *b == 0 {
+                return Err(ExecutorError::DivisionByZero);
             }
+            return Ok(Integer(a / b));
         }
 
         // Use helper for type coercion
@@ -244,14 +224,12 @@ impl ArithmeticOps {
     pub fn modulo(left: &SqlValue, right: &SqlValue, sql_mode: SqlMode) -> Result<SqlValue, ExecutorError> {
         use SqlValue::*;
 
-        // Fast path for Standard mode with integers
-        if sql_mode == SqlMode::Standard {
-            if let (Integer(a), Integer(b)) = (left, right) {
-                if *b == 0 {
-                    return Err(ExecutorError::DivisionByZero);
-                }
-                return Ok(Integer(a % b));
+        // Fast path for integers (both modes)
+        if let (Integer(a), Integer(b)) = (left, right) {
+            if *b == 0 {
+                return Err(ExecutorError::DivisionByZero);
             }
+            return Ok(Integer(a % b));
         }
 
         // Use helper for type coercion
