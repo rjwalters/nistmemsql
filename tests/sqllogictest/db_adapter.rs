@@ -33,11 +33,14 @@ fn get_pooled_database() -> Database {
             Some(mut db) => {
                 // Reuse existing database after resetting it (no clone)
                 db.reset();
+                // Ensure MySQL mode for SQLLogicTest compatibility
+                db.set_sql_mode(vibesql_types::SqlMode::MySQL);
                 db
             }
             None => {
-                // First use - create new database
-                Database::new()
+                // First use - create new database with MySQL mode for SQLLogicTest compatibility
+                // MySQL 8.x test suite expects integer arithmetic to return DECIMAL/Numeric type
+                Database::new().with_sql_mode(vibesql_types::SqlMode::MySQL)
             }
         }
     })
