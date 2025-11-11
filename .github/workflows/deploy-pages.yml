@@ -76,20 +76,26 @@ jobs:
         run: wasm-pack build --target web --out-dir ${{ github.workspace }}/web-demo/public/pkg crates/vibesql-wasm-bindings --release
         shell: bash
 
+      - name: Setup pnpm
+        if: inputs.rebuild-web-demo || github.event_name == 'workflow_dispatch'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
       - name: Setup Node.js
         if: inputs.rebuild-web-demo || github.event_name == 'workflow_dispatch'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: web-demo/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: web-demo/pnpm-lock.yaml
 
       - name: Build web demo
         if: inputs.rebuild-web-demo || github.event_name == 'workflow_dispatch'
         working-directory: web-demo
         run: |
-          npm ci
-          npm run build
+          pnpm install --frozen-lockfile
+          pnpm run build
 
       # ============================================================================
       # Download Existing Pages Site (to preserve all files)
