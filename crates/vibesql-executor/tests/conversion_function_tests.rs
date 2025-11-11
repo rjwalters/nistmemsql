@@ -396,9 +396,9 @@ fn test_cast_integer_to_double() {
 }
 
 #[test]
-fn test_cast_double_to_integer_unsupported() {
-    // Note: Double to Integer cast is not currently supported in the implementation
-    eval_function_expect_error("CAST", vec![double_lit(42.9), varchar_lit("INTEGER")]);
+fn test_cast_double_to_integer() {
+    let result = eval_function("CAST", vec![double_lit(42.9), varchar_lit("INTEGER")]);
+    assert_eq!(result, vibesql_types::SqlValue::Integer(42));
 }
 
 #[test]
