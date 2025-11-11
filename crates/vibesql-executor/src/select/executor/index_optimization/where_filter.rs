@@ -45,8 +45,10 @@ pub(in crate::select::executor) fn try_index_for_binary_op(
     all_rows: &[vibesql_storage::Row],
     schema: &CombinedSchema,
 ) -> Result<Option<Vec<vibesql_storage::Row>>, ExecutorError> {
-    // Extract column and value
-    let (table_name, column_name, value) = match (left, right) {
+    // Extract column, value, and normalized operator
+    // Handle both "column OP literal" and "literal OP column" (commutative property)
+    let (table_name, column_name, value, normalized_op) = match (left, right) {
+        // Case 1: column OP literal (e.g., col0 = 5)
         (vibesql_ast::Expression::ColumnRef { table: None, column }, vibesql_ast::Expression::Literal(val)) => {
             // Find which table this column belongs to
             let mut found_table = None;
@@ -57,11 +59,36 @@ pub(in crate::select::executor) fn try_index_for_binary_op(
                 }
             }
             match found_table {
-                Some(table) => (table, column.clone(), val.clone()),
+                Some(table) => (table, column.clone(), val.clone(), op.clone()),
                 None => return Ok(None), // Column not found
             }
         }
-        _ => return Ok(None), // Not a simple column OP literal
+        // Case 2: literal OP column (e.g., 5 = col0)
+        // Flip the operator to normalize: literal < column → column > literal
+        (vibesql_ast::Expression::Literal(val), vibesql_ast::Expression::ColumnRef { table: None, column }) => {
+            // Find which table this column belongs to
+            let mut found_table = None;
+            for (table, (_start_idx, _table_schema)) in &schema.table_schemas {
+                if _table_schema.get_column_index(column).is_some() {
+                    found_table = Some(table.clone());
+                    break;
+                }
+            }
+            // Flip the operator for commutative handling
+            let flipped_op = match op {
+                vibesql_ast::BinaryOperator::Equal => vibesql_ast::BinaryOperator::Equal,
+                vibesql_ast::BinaryOperator::LessThan => vibesql_ast::BinaryOperator::GreaterThan,
+                vibesql_ast::BinaryOperator::GreaterThan => vibesql_ast::BinaryOperator::LessThan,
+                vibesql_ast::BinaryOperator::LessThanOrEqual => vibesql_ast::BinaryOperator::GreaterThanOrEqual,
+                vibesql_ast::BinaryOperator::GreaterThanOrEqual => vibesql_ast::BinaryOperator::LessThanOrEqual,
+                _ => return Ok(None), // Operator not supported for flipping
+            };
+            match found_table {
+                Some(table) => (table, column.clone(), val.clone(), flipped_op),
+                None => return Ok(None), // Column not found
+            }
+        }
+        _ => return Ok(None), // Not a simple column OP literal or literal OP column
     };
 
     // Find an index on this table and column
@@ -77,8 +104,8 @@ pub(in crate::select::executor) fn try_index_for_binary_op(
         None => return Ok(None),
     };
 
-    // Get matching row indices based on operator
-    let matching_row_indices = match op {
+    // Get matching row indices based on normalized operator
+    let matching_row_indices = match normalized_op {
         vibesql_ast::BinaryOperator::Equal => {
             // Equality: exact lookup
             let search_key = vec![value];
