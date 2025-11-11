@@ -25,6 +25,8 @@ pub struct Database {
     current_role: Option<String>,
     /// Whether security checks are enabled (can be disabled for testing)
     security_enabled: bool,
+    /// SQL dialect mode for type coercion and compatibility
+    sql_mode: vibesql_types::SqlMode,
 }
 
 impl Database {
@@ -32,6 +34,8 @@ impl Database {
     ///
     /// Note: Security is disabled by default for backward compatibility with existing code.
     /// Call `enable_security()` to turn on access control enforcement.
+    ///
+    /// SQL mode defaults to Standard (SQL:1999) for backward compatibility.
     pub fn new() -> Self {
         Database {
             catalog: vibesql_catalog::Catalog::new(),
@@ -41,6 +45,8 @@ impl Database {
             current_role: None,
             // Disabled by default for backward compatibility
             security_enabled: false,
+            // Default to SQL:1999 standard for backward compatibility
+            sql_mode: vibesql_types::SqlMode::default(),
         }
     }
 
@@ -55,6 +61,7 @@ impl Database {
         self.transaction_manager = TransactionManager::new();
         self.current_role = None;
         self.security_enabled = false;
+        self.sql_mode = vibesql_types::SqlMode::default();
     }
 
     /// Record a change in the current transaction (if any)
@@ -331,6 +338,43 @@ impl Database {
     /// Enable security checks
     pub fn enable_security(&mut self) {
         self.security_enabled = true;
+    }
+
+    /// Set the SQL dialect mode
+    ///
+    /// Controls type coercion behavior for arithmetic operations.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vibesql_storage::Database;
+    /// use vibesql_types::SqlMode;
+    ///
+    /// let mut db = Database::new();
+    /// db.set_sql_mode(SqlMode::MySQL);
+    /// ```
+    pub fn set_sql_mode(&mut self, mode: vibesql_types::SqlMode) {
+        self.sql_mode = mode;
+    }
+
+    /// Get the current SQL dialect mode
+    pub fn sql_mode(&self) -> vibesql_types::SqlMode {
+        self.sql_mode
+    }
+
+    /// Create a database with a specific SQL mode (builder pattern)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vibesql_storage::Database;
+    /// use vibesql_types::SqlMode;
+    ///
+    /// let db = Database::new().with_sql_mode(SqlMode::MySQL);
+    /// ```
+    pub fn with_sql_mode(mut self, mode: vibesql_types::SqlMode) -> Self {
+        self.sql_mode = mode;
+        self
     }
 
     // ============================================================================

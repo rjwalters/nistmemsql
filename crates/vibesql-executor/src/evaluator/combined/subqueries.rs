@@ -183,7 +183,7 @@ impl CombinedExpressionEvaluator<'_> {
 
                     // Evaluate comparison
                     let cmp_result =
-                        ExpressionEvaluator::eval_binary_op_static(&left_val, op, right_val)?;
+                        ExpressionEvaluator::eval_binary_op_static(&left_val, op, right_val, vibesql_types::SqlMode::Standard)?;
 
                     match cmp_result {
                         vibesql_types::SqlValue::Boolean(false) => {
@@ -228,7 +228,7 @@ impl CombinedExpressionEvaluator<'_> {
 
                     // Evaluate comparison
                     let cmp_result =
-                        ExpressionEvaluator::eval_binary_op_static(&left_val, op, right_val)?;
+                        ExpressionEvaluator::eval_binary_op_static(&left_val, op, right_val, vibesql_types::SqlMode::Standard)?;
 
                     match cmp_result {
                         vibesql_types::SqlValue::Boolean(true) => {
@@ -318,6 +318,7 @@ impl CombinedExpressionEvaluator<'_> {
                 &expr_val,
                 &vibesql_ast::BinaryOperator::Equal,
                 subquery_val,
+                vibesql_types::SqlMode::Standard,
             )?;
 
             // If we found a match, return TRUE (or FALSE if negated)

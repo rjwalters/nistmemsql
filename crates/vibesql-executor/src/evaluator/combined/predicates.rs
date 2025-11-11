@@ -30,6 +30,7 @@ impl CombinedExpressionEvaluator<'_> {
                 &low_val,
                 &vibesql_ast::BinaryOperator::GreaterThan,
                 &high_val,
+                vibesql_types::SqlMode::Standard,
             )?;
 
             if let vibesql_types::SqlValue::Boolean(true) = gt_result {
@@ -42,6 +43,7 @@ impl CombinedExpressionEvaluator<'_> {
             &expr_val,
             &vibesql_ast::BinaryOperator::GreaterThanOrEqual,
             &low_val,
+            vibesql_types::SqlMode::Standard,
         )?;
 
         // Check if expr <= high
@@ -49,6 +51,7 @@ impl CombinedExpressionEvaluator<'_> {
             &expr_val,
             &vibesql_ast::BinaryOperator::LessThanOrEqual,
             &high_val,
+            vibesql_types::SqlMode::Standard,
         )?;
 
         // Combine with AND/OR depending on negated
@@ -58,16 +61,18 @@ impl CombinedExpressionEvaluator<'_> {
                 &expr_val,
                 &vibesql_ast::BinaryOperator::LessThan,
                 &low_val,
+                vibesql_types::SqlMode::Standard,
             )?;
             let gt_high = ExpressionEvaluator::eval_binary_op_static(
                 &expr_val,
                 &vibesql_ast::BinaryOperator::GreaterThan,
                 &high_val,
+                vibesql_types::SqlMode::Standard,
             )?;
-            ExpressionEvaluator::eval_binary_op_static(&lt_low, &vibesql_ast::BinaryOperator::Or, &gt_high)
+            ExpressionEvaluator::eval_binary_op_static(&lt_low, &vibesql_ast::BinaryOperator::Or, &gt_high, vibesql_types::SqlMode::Standard)
         } else {
             // BETWEEN: expr >= low AND expr <= high
-            ExpressionEvaluator::eval_binary_op_static(&ge_low, &vibesql_ast::BinaryOperator::And, &le_high)
+            ExpressionEvaluator::eval_binary_op_static(&ge_low, &vibesql_ast::BinaryOperator::And, &le_high, vibesql_types::SqlMode::Standard)
         }
     }
 
@@ -239,6 +244,7 @@ impl CombinedExpressionEvaluator<'_> {
                 &expr_val,
                 &vibesql_ast::BinaryOperator::Equal,
                 &value,
+                vibesql_types::SqlMode::Standard,
             )?;
 
             // If we found a match, return TRUE (or FALSE if negated)
