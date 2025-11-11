@@ -92,6 +92,11 @@ impl IndexData {
             }
         }
 
+        // Sort row indices to ensure deterministic order
+        // HashMap iteration order is non-deterministic, but test results
+        // must be consistent. Sorting ensures stable output.
+        matching_row_indices.sort_unstable();
+
         matching_row_indices
     }
 
@@ -111,6 +116,11 @@ impl IndexData {
                 matching_row_indices.extend(row_indices);
             }
         }
+
+        // Sort row indices to ensure deterministic order
+        // HashMap iteration order is non-deterministic, but test results
+        // must be consistent. Sorting ensures stable output.
+        matching_row_indices.sort_unstable();
 
         matching_row_indices
     }
