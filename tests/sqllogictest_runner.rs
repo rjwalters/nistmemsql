@@ -32,26 +32,33 @@ impl NistMemSqlDB {
     }
 
     /// Format result rows for SQLLogicTest
-    /// Returns rows with their multi-column structure intact
-    /// Note: The sqllogictest library handles hashing based on its threshold configuration,
-    /// so we always return actual values here.
+    /// Flattens multi-column results: each value becomes its own row (one value per row)
+    /// This matches SQLLogicTest's row-oriented format where each value is on a separate line
     fn format_result_rows(
         &self,
         rows: &[vibesql_storage::Row],
         types: Vec<DefaultColumnType>,
     ) -> Result<DBOutput<DefaultColumnType>, TestError> {
-        let formatted_rows: Vec<Vec<String>> = rows
-            .iter()
-            .map(|row| {
-                row.values
-                    .iter()
-                    .enumerate()
-                    .map(|(idx, val)| self.format_sql_value(val, types.get(idx)))
-                    .collect()
-            })
-            .collect();
+        let mut flattened_rows: Vec<Vec<String>> = Vec::new();
+        let mut flattened_types: Vec<DefaultColumnType> = Vec::new();
 
-        Ok(DBOutput::Rows { types, rows: formatted_rows })
+        // Count total values for potential hashing
+        let total_values: usize = rows.iter().map(|r| r.values.len()).sum();
+
+        // Build flattened output: each value becomes its own row
+        for row in rows {
+            for (col_idx, val) in row.values.iter().enumerate() {
+                let formatted_val = self.format_sql_value(val, types.get(col_idx));
+                flattened_rows.push(vec![formatted_val]);
+            }
+        }
+
+        // Replicate the first column type for all flattened values
+        if !types.is_empty() {
+            flattened_types = vec![types[0].clone(); total_values];
+        }
+
+        Ok(DBOutput::Rows { types: flattened_types, rows: flattened_rows })
     }
 
     fn execute_sql(&mut self, sql: &str) -> Result<DBOutput<DefaultColumnType>, TestError> {
@@ -378,8 +385,10 @@ INSERT INTO test VALUES (3, 4)
 query II rowsort
 SELECT * FROM test
 ----
-1 2
-3 4
+1
+2
+3
+4
 
 query I
 SELECT x FROM test WHERE y = 4
@@ -471,12 +480,13 @@ async fn test_issue_1170_multi_column_select_order() {
     let mut tester = sqllogictest::Runner::new(|| async { Ok(NistMemSqlDB::new()) });
 
     // Test with the exact syntax from the issue
-    // Multi-column results display columns space-separated on same line
+    // Multi-column results should display each value on a separate line
     let script = r#"
 query II
 SELECT + + 74 AS col0, 50 col1
 ----
-74 50
+74
+50
 "#;
 
     tester.run_script(script).expect("Multi-column SELECT order test should pass");
