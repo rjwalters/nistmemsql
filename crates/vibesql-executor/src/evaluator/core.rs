@@ -114,7 +114,10 @@ impl<'a> ExpressionEvaluator<'a> {
         op: &vibesql_ast::BinaryOperator,
         right: &vibesql_types::SqlValue,
     ) -> Result<vibesql_types::SqlValue, ExecutorError> {
-        Self::eval_binary_op_static(left, op, right)
+        let sql_mode = self.database
+            .map(|db| db.sql_mode())
+            .unwrap_or(vibesql_types::SqlMode::Standard);
+        Self::eval_binary_op_static(left, op, right, sql_mode)
     }
 
     /// Static version of eval_binary_op for shared logic
@@ -124,8 +127,9 @@ impl<'a> ExpressionEvaluator<'a> {
         left: &vibesql_types::SqlValue,
         op: &vibesql_ast::BinaryOperator,
         right: &vibesql_types::SqlValue,
+        sql_mode: vibesql_types::SqlMode,
     ) -> Result<vibesql_types::SqlValue, ExecutorError> {
-        super::operators::OperatorRegistry::eval_binary_op(left, op, right)
+        super::operators::OperatorRegistry::eval_binary_op(left, op, right, sql_mode)
     }
 
     /// Clear the CSE cache
