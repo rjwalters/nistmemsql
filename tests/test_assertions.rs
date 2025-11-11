@@ -197,38 +197,12 @@ fn test_in_operator_empty_list() {
 
     let db = Database::new();
 
-    // Test that empty IN lists are rejected per SQL standard
-    let sql = "SELECT 1 IN ()";
-    let result = Parser::parse_sql(sql);
-    assert!(
-        result.is_err(),
-        "Empty IN list should be rejected per SQL standard"
-    );
-    if let Err(err) = result {
-        assert!(
-            err.message.contains("IN list cannot be empty"),
-            "Error message should mention empty IN list, got: {}",
-            err.message
-        );
-    }
-
-    // Test that empty NOT IN lists are also rejected
-    let sql = "SELECT 1 NOT IN ()";
-    let result = Parser::parse_sql(sql);
-    assert!(
-        result.is_err(),
-        "Empty NOT IN list should be rejected per SQL standard"
-    );
-    if let Err(err) = result {
-        assert!(
-            err.message.contains("IN list cannot be empty"),
-            "Error message should mention empty IN list, got: {}",
-            err.message
-        );
-    }
-
-    // Test valid IN operator cases with non-empty lists
+    // Test empty IN lists (allowed per SQL:1999)
+    // Empty IN list should evaluate to FALSE
+    // Empty NOT IN list should evaluate to TRUE
     let test_cases = vec![
+        ("SELECT 1 IN ()", "false"),
+        ("SELECT 1 NOT IN ()", "true"),
         ("SELECT 1 IN (2)", "false"),
         ("SELECT 1 NOT IN (2)", "true"),
         ("SELECT 1 IN (1)", "true"),
