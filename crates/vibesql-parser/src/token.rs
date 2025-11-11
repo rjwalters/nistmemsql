@@ -19,6 +19,10 @@ pub enum Token {
     Symbol(char),
     /// Multi-character operators (<=, >=, !=, <>, ||)
     Operator(String),
+    /// Session variable (@@variable, @@session.variable, @@global.variable)
+    SessionVariable(String),
+    /// User variable (@variable)
+    UserVariable(String),
     /// Semicolon (statement terminator)
     Semicolon,
     /// Comma (separator)
@@ -41,6 +45,8 @@ impl fmt::Display for Token {
             Token::String(s) => write!(f, "String('{}')", s),
             Token::Symbol(c) => write!(f, "Symbol({})", c),
             Token::Operator(op) => write!(f, "Operator({})", op),
+            Token::SessionVariable(v) => write!(f, "SessionVariable({})", v),
+            Token::UserVariable(v) => write!(f, "UserVariable({})", v),
             Token::Semicolon => write!(f, "Semicolon"),
             Token::Comma => write!(f, "Comma"),
             Token::LParen => write!(f, "LParen"),
