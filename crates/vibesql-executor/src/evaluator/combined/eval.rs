@@ -264,6 +264,13 @@ impl CombinedExpressionEvaluator<'_> {
                 }
             }
 
+            // Aggregate functions - should be evaluated in aggregation context
+            vibesql_ast::Expression::AggregateFunction { .. } => {
+                Err(ExecutorError::UnsupportedExpression(
+                    "Aggregate functions should be evaluated in aggregation context".to_string(),
+                ))
+            }
+
             // Unsupported expressions
             _ => Err(ExecutorError::UnsupportedExpression(format!("{:?}", expr))),
         }

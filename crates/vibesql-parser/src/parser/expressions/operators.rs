@@ -112,15 +112,7 @@ impl Parser {
                     let values = self.parse_expression_list()?;
                     self.expect_token(Token::RParen)?;
 
-                    // SQL standard requires at least one value in IN list
-                    if values.is_empty() {
-                        return Err(ParseError {
-                            message:
-                                "IN list cannot be empty - SQL standard requires at least one value"
-                                    .to_string(),
-                        });
-                    }
-
+                    // Empty IN lists are allowed per SQL:1999 (evaluates to TRUE for NOT IN)
                     return Ok(vibesql_ast::Expression::InList {
                         expr: Box::new(left),
                         values,
@@ -195,15 +187,7 @@ impl Parser {
                 let values = self.parse_expression_list()?;
                 self.expect_token(Token::RParen)?;
 
-                // SQL standard requires at least one value in IN list
-                if values.is_empty() {
-                    return Err(ParseError {
-                        message:
-                            "IN list cannot be empty - SQL standard requires at least one value"
-                                .to_string(),
-                    });
-                }
-
+                // Empty IN lists are allowed per SQL:1999 (evaluates to FALSE)
                 return Ok(vibesql_ast::Expression::InList {
                     expr: Box::new(left),
                     values,

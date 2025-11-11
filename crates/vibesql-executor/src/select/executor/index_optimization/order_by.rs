@@ -91,20 +91,39 @@ pub(in crate::select::executor) fn try_index_based_ordering(
         }
     };
 
-    // For this proof of concept, only use index when we have all rows from the table
-    // Check by getting the table and comparing row counts
-    let table_row_count = match database.get_table(&table_name) {
-        Some(table) => table.row_count(),
-        None => return Ok(None),
-    };
+    // Extract ORDER BY column values from filtered rows
+    // Build a map: ORDER BY value(s) -> Vec<row position in filtered set>
+    let mut value_to_row_positions: HashMap<Vec<SqlValue>, Vec<usize>> = HashMap::new();
 
-    if rows.len() != table_row_count {
-        // WHERE filtering was applied, can't use index easily
-        return Ok(None);
+    for (row_idx, (row, _)) in rows.iter().enumerate() {
+        // Extract the ORDER BY column values from this row
+        let mut order_values = Vec::new();
+        for col_name in &order_columns {
+            // Get column value from the row
+            // Find which table this row belongs to
+            let mut found_value = None;
+            for (_tbl_name, (start_idx, tbl_schema)) in &schema.table_schemas {
+                if let Some(col_idx) = tbl_schema.get_column_index(col_name) {
+                    let global_col_idx = start_idx + col_idx;
+                    if global_col_idx < row.len() {
+                        found_value = Some(row.values[global_col_idx].clone());
+                        break;
+                    }
+                }
+            }
+
+            if let Some(value) = found_value {
+                order_values.push(value);
+            } else {
+                // Column not found in row, can't use index
+                return Ok(None);
+            }
+        }
+
+        value_to_row_positions.entry(order_values).or_insert_with(Vec::new).push(row_idx);
     }
 
-    // All rows are included, we can use the index directly
-    // Convert HashMap to Vec and sort for consistent ordering
+    // Convert index HashMap to Vec and sort for consistent ordering
     let mut data_vec: Vec<(Vec<SqlValue>, Vec<usize>)> =
         index_data.data.iter().map(|(k, v): (&Vec<SqlValue>, &Vec<usize>)| (k.clone(), v.clone())).collect();
 
@@ -124,12 +143,14 @@ pub(in crate::select::executor) fn try_index_based_ordering(
         data_vec.reverse();
     }
 
-    // Build ordered rows
+    // Build ordered rows by traversing index and looking up filtered rows
     let mut ordered_rows: Vec<RowWithSortKeys> = Vec::new();
-    for (_, indices) in data_vec {
-        for &row_idx in &indices {
-            if row_idx < rows.len() {
-                ordered_rows.push(rows[row_idx].clone());
+    for (index_key, _) in data_vec {
+        // Check if we have any filtered rows with this index key value
+        if let Some(row_positions) = value_to_row_positions.get(&index_key) {
+            // Add all rows with this key value (handles duplicates)
+            for &row_pos in row_positions {
+                ordered_rows.push(rows[row_pos].clone());
             }
         }
     }
