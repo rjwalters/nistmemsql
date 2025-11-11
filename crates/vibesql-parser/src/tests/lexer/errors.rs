@@ -8,5 +8,5 @@ fn test_tokenize_invalid_character() {
     let result = lexer.tokenize();
     assert!(result.is_err());
     let err = result.unwrap_err();
-    assert!(err.message.contains("Unexpected character"));
+    assert!(err.message.contains("Expected variable name after @"));
 }
