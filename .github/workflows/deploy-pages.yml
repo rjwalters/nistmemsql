@@ -73,7 +73,7 @@ jobs:
 
       - name: Build WASM bindings
         if: inputs.rebuild-web-demo || github.event_name == 'workflow_dispatch'
-        run: wasm-pack build --target web --out-dir ${{ github.workspace }}/web-demo/public/pkg crates/wasm-bindings --release
+        run: wasm-pack build --target web --out-dir ${{ github.workspace }}/web-demo/public/pkg crates/vibesql-wasm-bindings --release
         shell: bash
 
       - name: Setup Node.js
