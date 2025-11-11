@@ -284,6 +284,11 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         self.cse_cache.borrow_mut().clear();
     }
 
+    /// Get the database reference
+    pub(crate) fn database(&self) -> Option<&vibesql_storage::Database> {
+        self.database
+    }
+
     /// Get column index with caching to avoid repeated schema lookups
     pub(crate) fn get_column_index_cached(
         &self,

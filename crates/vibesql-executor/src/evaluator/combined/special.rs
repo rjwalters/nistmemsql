@@ -171,6 +171,9 @@ impl CombinedExpressionEvaluator<'_> {
         row: &vibesql_storage::Row,
     ) -> Result<vibesql_types::SqlValue, ExecutorError> {
         let val = self.eval(expr, row)?;
-        super::super::expressions::operators::eval_unary_op(op, &val)
+        let sql_mode = self.database
+            .map(|db| db.sql_mode())
+            .unwrap_or(vibesql_types::SqlMode::Standard);
+        super::super::expressions::operators::eval_unary_op(op, &val, sql_mode)
     }
 }
