@@ -7,7 +7,7 @@ mod expression_hash;
 mod expressions;
 mod functions;
 pub(crate) mod operators;
-mod pattern;
+pub(crate) mod pattern;
 pub mod window;
 
 #[cfg(test)]
