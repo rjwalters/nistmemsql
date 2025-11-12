@@ -164,7 +164,14 @@ pub fn execute_create_view(stmt: &CreateViewStmt, db: &mut Database) -> Result<(
         stmt.with_check_option,
     );
 
-    db.catalog.create_view(view)?;
+    if stmt.or_replace {
+        // DROP the view if it exists, then CREATE
+        let _ = db.catalog.drop_view(&stmt.view_name, false);
+        db.catalog.create_view(view)?;
+    } else {
+        // Regular CREATE VIEW (will fail if view already exists)
+        db.catalog.create_view(view)?;
+    }
     Ok(())
 }
 
