@@ -40,7 +40,8 @@ fn test_multi_row_insert_atomic_success() {
                 vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("Charlie".to_string())),
             ],
         ]),
-            conflict_clause: None,
+        conflict_clause: None,
+        conflict_clause: None,
     };
 
     let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -74,7 +75,8 @@ fn test_multi_row_insert_atomic_failure() {
                 vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("Charlie".to_string())),
             ],
         ]),
-            conflict_clause: None,
+        conflict_clause: None,
+        conflict_clause: None,
     };
 
     let result = InsertExecutor::execute(&mut db, &stmt);
@@ -105,7 +107,8 @@ fn test_multi_row_insert_with_column_list() {
                 vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(2)),
             ],
         ]),
-            conflict_clause: None,
+        conflict_clause: None,
+        conflict_clause: None,
     };
 
     let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -135,7 +138,8 @@ fn test_multi_row_insert_type_mismatch() {
                 vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("Bob".to_string())),
             ],
         ]),
-            conflict_clause: None,
+        conflict_clause: None,
+        conflict_clause: None,
     };
 
     let result = InsertExecutor::execute(&mut db, &stmt);
@@ -197,7 +201,8 @@ fn test_multi_row_insert_various_data_types() {
                 vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Null),
             ],
         ]),
-            conflict_clause: None,
+        conflict_clause: None,
+        conflict_clause: None,
     };
 
     let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -241,7 +246,8 @@ fn test_multi_row_insert_primary_key_violation() {
                 vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("Bob".to_string())),
             ],
         ]),
-            conflict_clause: None,
+        conflict_clause: None,
+        conflict_clause: None,
     };
 
     let result = InsertExecutor::execute(&mut db, &stmt);
@@ -266,7 +272,8 @@ fn test_single_row_insert_no_transaction() {
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1)),
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("Alice".to_string())),
         ]]),
-            conflict_clause: None,
+        conflict_clause: None,
+        conflict_clause: None,
     };
 
     let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
