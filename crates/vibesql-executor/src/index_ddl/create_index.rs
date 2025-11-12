@@ -105,6 +105,25 @@ impl CreateIndexExecutor {
         // Create the index based on type
         match &stmt.index_type {
             vibesql_ast::IndexType::BTree { unique } => {
+                // Add to catalog first
+                let index_metadata = vibesql_catalog::IndexMetadata::new(
+                    index_name.clone(),
+                    qualified_table_name.clone(),
+                    vibesql_catalog::IndexType::BTree,
+                    stmt.columns
+                        .iter()
+                        .map(|col| vibesql_catalog::IndexedColumn {
+                            column_name: col.column_name.clone(),
+                            order: match col.direction {
+                                vibesql_ast::OrderDirection::Asc => vibesql_catalog::SortOrder::Ascending,
+                                vibesql_ast::OrderDirection::Desc => vibesql_catalog::SortOrder::Descending,
+                            },
+                        })
+                        .collect(),
+                    *unique,
+                );
+                database.catalog.add_index(index_metadata)?;
+
                 // B-tree index
                 database.create_index(
                     index_name.clone(),
@@ -164,6 +183,19 @@ impl CreateIndexExecutor {
 
                 // Build spatial index via bulk_load (more efficient than incremental inserts)
                 let spatial_index = SpatialIndex::bulk_load(column_name.clone(), entries);
+
+                // Add to catalog first
+                let index_metadata = vibesql_catalog::IndexMetadata::new(
+                    index_name.clone(),
+                    qualified_table_name.clone(),
+                    vibesql_catalog::IndexType::RTree,
+                    vec![vibesql_catalog::IndexedColumn {
+                        column_name: column_name.clone(),
+                        order: vibesql_catalog::SortOrder::Ascending,
+                    }],
+                    false,
+                );
+                database.catalog.add_index(index_metadata)?;
 
                 // Store in database
                 let metadata = SpatialIndexMetadata {
