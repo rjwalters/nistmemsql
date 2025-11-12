@@ -7,6 +7,7 @@
 //! - `numeric`: Mathematical operations (ABS, ROUND, POWER, SIN, etc.)
 //! - `datetime`: Date/time operations (CURRENT_DATE, YEAR, DATE_ADD, etc.)
 //! - `control`: Control flow (IF)
+//! - `spatial`: Spatial/geometric functions (ST_GeomFromText, ST_Contains, ST_Intersects, etc.)
 //!
 //! ## Usage
 //!

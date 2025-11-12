@@ -58,6 +58,10 @@ path = "tests/string_edge_case_tests.rs"
 name = "predicate_pushdown_tests"
 path = "tests/predicate_pushdown_tests.rs"
 
+[[test]]
+name = "spatial_function_tests"
+path = "tests/spatial_function_tests.rs"
+
 [[bench]]
 name = "iterator_execution"
 harness = false
