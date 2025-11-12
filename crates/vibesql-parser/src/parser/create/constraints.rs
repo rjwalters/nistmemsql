@@ -101,6 +101,12 @@ impl Parser {
             };
 
             match self.peek() {
+                Token::Keyword(Keyword::Null) => {
+                    // MySQL allows standalone NULL keyword to explicitly indicate nullable column
+                    // (which is the default anyway), so we just consume it and skip it
+                    self.advance(); // consume NULL
+                    // This is a no-op - nullable is the default
+                }
                 Token::Keyword(Keyword::Not) => {
                     self.advance(); // consume NOT
                     self.expect_keyword(Keyword::Null)?;
