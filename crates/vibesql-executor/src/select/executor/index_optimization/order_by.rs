@@ -131,12 +131,20 @@ pub(in crate::select::executor) fn try_index_based_ordering(
     let mut data_vec: Vec<(Vec<SqlValue>, Vec<usize>)> =
         index_data.data.iter().map(|(k, v): (&Vec<SqlValue>, &Vec<usize>)| (k.clone(), v.clone())).collect();
 
-    // Sort by key
+    // Sort by key, respecting per-column ASC/DESC directions
     data_vec.sort_by(|(a, _): &(Vec<SqlValue>, Vec<usize>), (b, _): &(Vec<SqlValue>, Vec<usize>)| {
-        for (val_a, val_b) in a.iter().zip(b.iter()) {
-            match compare_sql_values(val_a, val_b) {
-                std::cmp::Ordering::Equal => continue,
-                other => return other,
+        for (i, (val_a, val_b)) in a.iter().zip(b.iter()).enumerate() {
+            let mut ord = compare_sql_values(val_a, val_b); // ASC comparator with NULLS LAST
+
+            // Reverse if this column should be DESC
+            if let Some(direction) = order_directions.get(i) {
+                if matches!(direction, vibesql_ast::OrderDirection::Desc) {
+                    ord = ord.reverse();
+                }
+            }
+
+            if ord != std::cmp::Ordering::Equal {
+                return ord;
             }
         }
         std::cmp::Ordering::Equal
