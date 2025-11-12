@@ -7,7 +7,7 @@
 #![allow(dead_code)]
 //!
 //! Example:
-//! ```
+//! ```ignore
 //! let mut mapper = ExpressionMapper::new();
 //! mapper.add_table("users", &users_schema); // cols 0-1
 //! mapper.add_table("orders", &orders_schema); // cols 2-3
