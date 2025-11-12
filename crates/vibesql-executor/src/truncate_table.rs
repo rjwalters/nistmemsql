@@ -14,11 +14,18 @@ impl TruncateTableExecutor {
     /// # Arguments
     ///
     /// * `stmt` - The TRUNCATE TABLE statement AST node
-    /// * `database` - The database to truncate the table in
+    /// * `database` - The database to truncate the table(s) in
     ///
     /// # Returns
     ///
-    /// Number of rows deleted or error
+    /// Total number of rows deleted from all tables or error
+    ///
+    /// # Behavior
+    ///
+    /// Supports truncating multiple tables in a single statement with all-or-nothing semantics:
+    /// - Validates all tables first (existence, privileges, constraints)
+    /// - Only truncates if all validations pass
+    /// - IF EXISTS: skips non-existent tables, continues with existing ones
     ///
     /// # Examples
     ///
@@ -48,7 +55,7 @@ impl TruncateTableExecutor {
     /// db.insert_row("users", Row::new(vec![SqlValue::Integer(1)])).unwrap();
     /// db.insert_row("users", Row::new(vec![SqlValue::Integer(2)])).unwrap();
     ///
-    /// let stmt = TruncateTableStmt { table_name: "users".to_string(), if_exists: false };
+    /// let stmt = TruncateTableStmt { table_names: vec!["users".to_string()], if_exists: false };
     ///
     /// let result = TruncateTableExecutor::execute(&stmt, &mut db);
     /// assert_eq!(result.unwrap(), 2); // 2 rows deleted
@@ -58,29 +65,51 @@ impl TruncateTableExecutor {
         stmt: &TruncateTableStmt,
         database: &mut Database,
     ) -> Result<usize, ExecutorError> {
-        // Check if table exists
-        if !database.catalog.table_exists(&stmt.table_name) {
-            if stmt.if_exists {
-                // IF EXISTS specified and table doesn't exist - silently succeed
-                return Ok(0);
-            } else {
-                return Err(ExecutorError::TableNotFound(stmt.table_name.clone()));
+        // Phase 1: Validation - Check all tables before truncating any
+        // Collect tables that exist and need to be truncated
+        let mut tables_to_truncate = Vec::new();
+
+        for table_name in &stmt.table_names {
+            // Check if table exists
+            if !database.catalog.table_exists(table_name) {
+                if stmt.if_exists {
+                    // IF EXISTS specified and table doesn't exist - skip this table
+                    continue;
+                } else {
+                    return Err(ExecutorError::TableNotFound(table_name.clone()));
+                }
+            }
+
+            tables_to_truncate.push(table_name.as_str());
+        }
+
+        // If no tables to truncate (all were non-existent with IF EXISTS), return 0
+        if tables_to_truncate.is_empty() {
+            return Ok(0);
+        }
+
+        // Check DELETE privilege on all tables
+        for table_name in &tables_to_truncate {
+            PrivilegeChecker::check_delete(database, table_name)?;
+        }
+
+        // Check if TRUNCATE is allowed on all tables (no DELETE triggers, no FK references)
+        for table_name in &tables_to_truncate {
+            if !can_use_truncate(database, table_name)? {
+                return Err(ExecutorError::Other(format!(
+                    "Cannot TRUNCATE table '{}': table has DELETE triggers or is referenced by foreign keys",
+                    table_name
+                )));
             }
         }
 
-        // Check DELETE privilege on the table (TRUNCATE requires DELETE privilege)
-        PrivilegeChecker::check_delete(database, &stmt.table_name)?;
-
-        // Check if TRUNCATE is allowed (no DELETE triggers, no FK references)
-        if !can_use_truncate(database, &stmt.table_name)? {
-            return Err(ExecutorError::Other(format!(
-                "Cannot TRUNCATE table '{}': table has DELETE triggers or is referenced by foreign keys",
-                stmt.table_name
-            )));
+        // Phase 2: Execution - All validations passed, now truncate all tables
+        let mut total_rows = 0;
+        for table_name in &tables_to_truncate {
+            total_rows += execute_truncate(database, table_name)?;
         }
 
-        // Execute the truncate
-        execute_truncate(database, &stmt.table_name)
+        Ok(total_rows)
     }
 }
 
