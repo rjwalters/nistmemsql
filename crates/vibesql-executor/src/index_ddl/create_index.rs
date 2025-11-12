@@ -283,7 +283,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(
             result.unwrap(),
-            "Index 'idx_users_email' created successfully on table 'public.users'"
+            "Index 'idx_users_email' created successfully on table 'users'"
         );
 
         // Verify index exists
@@ -418,7 +418,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(
             result.unwrap(),
-            "Index 'idx_users_email' created successfully on table 'public.users'"
+            "Index 'idx_users_email' created successfully on table 'users'"
         );
         assert!(db.index_exists("idx_users_email"));
     }

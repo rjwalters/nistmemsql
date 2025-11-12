@@ -70,6 +70,14 @@ impl DropTableExecutor {
         let dropped_indexes = database.catalog.drop_table_indexes(&stmt.table_name);
         let index_count = dropped_indexes.len();
 
+        // Drop physical indexes from storage
+        for index in &dropped_indexes {
+            // Try to drop from B-tree storage (ignore errors if not found)
+            let _ = database.drop_index(&index.name);
+            // Try to drop from spatial storage (ignore errors if not found)
+            let _ = database.drop_spatial_index(&index.name);
+        }
+
         // Drop the table from storage (this also removes from catalog)
         database
             .drop_table(&stmt.table_name)
