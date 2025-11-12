@@ -38,7 +38,7 @@ impl OperatorRegistry {
         left: &SqlValue,
         op: &vibesql_ast::BinaryOperator,
         right: &SqlValue,
-        sql_mode: SqlMode,
+        _sql_mode: SqlMode,
     ) -> Result<SqlValue, ExecutorError> {
         use vibesql_ast::BinaryOperator::*;
 
@@ -50,12 +50,12 @@ impl OperatorRegistry {
 
         match op {
             // Arithmetic operators
-            Plus => ArithmeticOps::add(left, right, sql_mode),
-            Minus => ArithmeticOps::subtract(left, right, sql_mode),
-            Multiply => ArithmeticOps::multiply(left, right, sql_mode),
-            Divide => ArithmeticOps::divide(left, right, sql_mode),
-            IntegerDivide => ArithmeticOps::integer_divide(left, right, sql_mode),
-            Modulo => ArithmeticOps::modulo(left, right, sql_mode),
+            Plus => ArithmeticOps::add(left, right),
+            Minus => ArithmeticOps::subtract(left, right),
+            Multiply => ArithmeticOps::multiply(left, right),
+            Divide => ArithmeticOps::divide(left, right),
+            IntegerDivide => ArithmeticOps::integer_divide(left, right),
+            Modulo => ArithmeticOps::modulo(left, right),
 
             // Comparison operators
             Equal => ComparisonOps::equal(left, right),
