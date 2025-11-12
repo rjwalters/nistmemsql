@@ -105,6 +105,11 @@ impl CreateIndexExecutor {
                     "FULLTEXT indexes are not yet implemented".to_string(),
                 ))
             }
+            vibesql_ast::IndexType::Spatial => {
+                return Err(ExecutorError::UnsupportedFeature(
+                    "SPATIAL indexes are not yet implemented".to_string(),
+                ))
+            }
         };
         
         database.create_index(
