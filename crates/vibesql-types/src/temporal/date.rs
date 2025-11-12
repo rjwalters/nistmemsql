@@ -20,10 +20,10 @@ pub struct Date {
 impl Date {
     /// Create a new Date (validation is basic)
     pub fn new(year: i32, month: u8, day: u8) -> Result<Self, String> {
-        if month < 1 || month > 12 {
+        if !(1..=12).contains(&month) {
             return Err(format!("Invalid month: {}", month));
         }
-        if day < 1 || day > 31 {
+        if !(1..=31).contains(&day) {
             return Err(format!("Invalid day: {}", day));
         }
         Ok(Date { year, month, day })

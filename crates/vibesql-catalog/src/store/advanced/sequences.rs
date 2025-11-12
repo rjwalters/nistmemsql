@@ -108,14 +108,14 @@ impl super::super::Catalog {
             }
             Expression::IsNull { expr, .. } => self.expression_uses_sequence(expr, sequence_name),
             Expression::Case { operand, when_clauses, else_result } => {
-                operand.as_ref().map_or(false, |e| self.expression_uses_sequence(e, sequence_name))
+                operand.as_ref().is_some_and(|e| self.expression_uses_sequence(e, sequence_name))
                     || when_clauses.iter().any(|when| {
                         when.conditions.iter().any(|c| self.expression_uses_sequence(c, sequence_name))
                             || self.expression_uses_sequence(&when.result, sequence_name)
                     })
                     || else_result
                         .as_ref()
-                        .map_or(false, |e| self.expression_uses_sequence(e, sequence_name))
+                        .is_some_and(|e| self.expression_uses_sequence(e, sequence_name))
             }
             Expression::ScalarSubquery(_)
             | Expression::In { .. }

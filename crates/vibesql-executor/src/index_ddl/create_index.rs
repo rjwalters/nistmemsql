@@ -53,7 +53,7 @@ impl CreateIndexExecutor {
         database: &mut Database,
     ) -> Result<String, ExecutorError> {
         // Parse qualified table name (schema.table or just table)
-        let (schema_name, table_name) =
+        let (schema_name, _table_name) =
             if let Some((schema_part, table_part)) = stmt.table_name.split_once('.') {
                 (schema_part.to_string(), table_part.to_string())
             } else {

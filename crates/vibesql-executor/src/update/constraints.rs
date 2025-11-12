@@ -136,7 +136,7 @@ impl<'a> ConstraintValidator<'a> {
 
             // Skip if any value in the unique constraint is NULL
             // (NULL != NULL in SQL, so multiple NULLs are allowed)
-            if new_unique_values.iter().any(|v| *v == vibesql_types::SqlValue::Null) {
+            if new_unique_values.contains(&vibesql_types::SqlValue::Null) {
                 continue;
             }
 

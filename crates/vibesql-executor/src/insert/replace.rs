@@ -27,7 +27,7 @@ pub fn handle_replace_conflicts(
             unique_indices.iter().map(|&idx| row_values[idx].clone()).collect();
 
         // Skip if contains NULL (NULLs don't cause conflicts in UNIQUE constraints)
-        if unique_values.iter().any(|v| *v == vibesql_types::SqlValue::Null) {
+        if unique_values.contains(&vibesql_types::SqlValue::Null) {
             unique_matches.push(None);
         } else {
             unique_matches.push(Some(unique_values));

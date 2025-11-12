@@ -74,7 +74,7 @@ impl IndexManager {
                 unique_indices.iter().map(|&idx| row.values[idx].clone()).collect();
 
             // Skip if any value in the unique constraint is NULL
-            if unique_values.iter().any(|v| *v == SqlValue::Null) {
+            if unique_values.contains(&SqlValue::Null) {
                 continue;
             }
 
@@ -120,13 +120,13 @@ impl IndexManager {
             if let Some(unique_index) = self.unique_indexes.get_mut(constraint_idx) {
                 // Remove old key if it's different and not NULL
                 if old_unique_values != new_unique_values
-                    && !old_unique_values.iter().any(|v| *v == SqlValue::Null)
+                    && !old_unique_values.contains(&SqlValue::Null)
                 {
                     unique_index.remove(&old_unique_values);
                 }
 
                 // Insert new key if not NULL
-                if !new_unique_values.iter().any(|v| *v == SqlValue::Null) {
+                if !new_unique_values.contains(&SqlValue::Null) {
                     unique_index.insert(new_unique_values, row_index);
                 }
             }
@@ -220,13 +220,13 @@ impl IndexManager {
                         if let Some(unique_index) = self.unique_indexes.get_mut(*constraint_idx) {
                             // Remove old key if it's different and not NULL
                             if old_unique_values != new_unique_values
-                                && !old_unique_values.iter().any(|v| *v == SqlValue::Null)
+                                && !old_unique_values.contains(&SqlValue::Null)
                             {
                                 unique_index.remove(&old_unique_values);
                             }
 
                             // Insert new key if not NULL
-                            if !new_unique_values.iter().any(|v| *v == SqlValue::Null) {
+                            if !new_unique_values.contains(&SqlValue::Null) {
                                 unique_index.insert(new_unique_values, row_index);
                             }
                         }
@@ -262,7 +262,7 @@ impl IndexManager {
                 unique_indices.iter().map(|&idx| row.values[idx].clone()).collect();
 
             // Skip if any value in the unique constraint is NULL
-            if unique_values.iter().any(|v| *v == SqlValue::Null) {
+            if unique_values.contains(&SqlValue::Null) {
                 continue;
             }
 

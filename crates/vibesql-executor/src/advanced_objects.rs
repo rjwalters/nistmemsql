@@ -332,7 +332,7 @@ pub fn execute_call(
     stmt: &CallStmt,
     db: &mut Database,
 ) -> Result<(), ExecutorError> {
-    use crate::procedural::{ExecutionContext, execute_procedural_statement};
+    use crate::procedural::ExecutionContext;
 
     // 1. Look up the procedure definition
     let procedure = db.catalog
@@ -358,23 +358,21 @@ pub fn execute_call(
             // 1. Parse the RawSql back to ProceduralStatement AST
             // 2. Execute each statement
             // This will be implemented in a follow-up phase
-            return Err(ExecutorError::UnsupportedFeature(
+            Err(ExecutorError::UnsupportedFeature(
                 "Procedure execution from catalog not yet fully implemented. Procedures are stored but not yet executable.".to_string()
-            ));
+            ))
         }
         vibesql_catalog::ProcedureBody::BeginEnd(_) => {
             // BeginEnd variant exists in catalog but is not currently used
             // (procedures are stored as RawSql debug format)
-            return Err(ExecutorError::UnsupportedFeature(
+            Err(ExecutorError::UnsupportedFeature(
                 "BeginEnd procedure bodies in catalog not yet supported".to_string()
-            ));
+            ))
         }
     }
 
     // 5. Return output parameter values
     // TODO: Handle OUT and INOUT parameters in later phase
-
-    Ok(())
 }
 
 /// Execute CREATE TRIGGER statement

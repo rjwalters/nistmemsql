@@ -378,7 +378,7 @@ impl Database {
             .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
 
         // Collect table rows
-        let table_rows: Vec<Row> = table.scan().iter().cloned().collect();
+        let table_rows: Vec<Row> = table.scan().to_vec();
 
         // Delegate to index manager
         self.index_manager.create_index(
@@ -442,7 +442,7 @@ impl Database {
     pub fn rebuild_indexes(&mut self, table_name: &str) {
         // Get table and schema first to avoid borrow checker issues
         let table_rows: Vec<Row> = if let Some(table) = self.get_table(table_name) {
-            table.scan().iter().cloned().collect()
+            table.scan().to_vec()
         } else {
             return;
         };

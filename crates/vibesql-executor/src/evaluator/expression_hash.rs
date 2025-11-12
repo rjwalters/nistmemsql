@@ -128,7 +128,7 @@ impl ExpressionHasher {
 
             vibesql_ast::Expression::Trim { string, removal_char, .. } => {
                 Self::is_deterministic(string)
-                    && removal_char.as_ref().map_or(true, |c| Self::is_deterministic(c))
+                    && removal_char.as_ref().is_none_or(|c| Self::is_deterministic(c))
             }
 
             // Literals are deterministic, but column references are NOT

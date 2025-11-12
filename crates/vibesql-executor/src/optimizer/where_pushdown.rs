@@ -180,7 +180,7 @@ fn classify_predicate_branch(
                     decomposition
                         .table_local_predicates
                         .entry(table_name)
-                        .or_insert_with(Vec::new)
+                        .or_default()
                         .push(expr.clone());
                     Ok(())
                 }
@@ -284,12 +284,12 @@ fn extract_tables_recursive_branch(
                 && values.iter().all(|val| extract_tables_recursive_branch(val, schema, tables))
         }
         vibesql_ast::Expression::Case { operand, when_clauses, else_result } => {
-            let op_ok = operand.as_ref().map_or(true, |op| extract_tables_recursive_branch(op, schema, tables));
+            let op_ok = operand.as_ref().is_none_or(|op| extract_tables_recursive_branch(op, schema, tables));
             let when_ok = when_clauses.iter().all(|when_clause| {
                 when_clause.conditions.iter().all(|condition| extract_tables_recursive_branch(condition, schema, tables))
                     && extract_tables_recursive_branch(&when_clause.result, schema, tables)
             });
-            let else_ok = else_result.as_ref().map_or(true, |else_res| extract_tables_recursive_branch(else_res, schema, tables));
+            let else_ok = else_result.as_ref().is_none_or(|else_res| extract_tables_recursive_branch(else_res, schema, tables));
             op_ok && when_ok && else_ok
         }
         vibesql_ast::Expression::In { expr, .. } => {
@@ -312,18 +312,15 @@ fn try_extract_equijoin_branch(
     expr: &vibesql_ast::Expression,
     schema: &CombinedSchema,
 ) -> Option<(String, String, String, String)> {
-    match expr {
-        vibesql_ast::Expression::BinaryOp { left, op: vibesql_ast::BinaryOperator::Equal, right } => {
-            // Try to extract column references from both sides
-            let (left_table, left_col) = extract_column_reference_branch(left, schema)?;
-            let (right_table, right_col) = extract_column_reference_branch(right, schema)?;
+    if let vibesql_ast::Expression::BinaryOp { left, op: vibesql_ast::BinaryOperator::Equal, right } = expr {
+        // Try to extract column references from both sides
+        let (left_table, left_col) = extract_column_reference_branch(left, schema)?;
+        let (right_table, right_col) = extract_column_reference_branch(right, schema)?;
 
-            // Ensure they reference different tables
-            if left_table != right_table {
-                return Some((left_table, left_col, right_table, right_col));
-            }
+        // Ensure they reference different tables
+        if left_table != right_table {
+            return Some((left_table, left_col, right_table, right_col));
         }
-        _ => {}
     }
     None
 }

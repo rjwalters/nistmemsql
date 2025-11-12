@@ -327,7 +327,7 @@ pub(super) fn group_rows<'a>(
         }
 
         // Insert or update group using HashMap (O(1) lookup)
-        groups_map.entry(key).or_insert_with(Vec::new).push(row.clone());
+        groups_map.entry(key).or_default().push(row.clone());
     }
 
     // Convert HashMap back to Vec for compatibility with existing code

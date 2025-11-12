@@ -64,9 +64,9 @@ impl DropIndexExecutor {
         // Index not found
         if stmt.if_exists {
             // IF EXISTS: silently succeed if index doesn't exist
-            return Ok(format!("Index '{}' does not exist (skipped)", index_name));
+            Ok(format!("Index '{}' does not exist (skipped)", index_name))
         } else {
-            return Err(ExecutorError::IndexNotFound(index_name.clone()));
+            Err(ExecutorError::IndexNotFound(index_name.clone()))
         }
     }
 }
