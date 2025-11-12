@@ -44,7 +44,6 @@ fn test_character_varying_column_with_length() {
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("Test description".to_string())),
         ]]),
         conflict_clause: None,
-        conflict_clause: None,
     };
 
     let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -81,7 +80,6 @@ fn test_character_varying_column_without_length() {
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1)),
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("Unlimited length text".to_string())),
         ]]),
-        conflict_clause: None,
         conflict_clause: None,
     };
 
@@ -124,7 +122,6 @@ fn test_insert_with_default_value() {
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("Alice".to_string())),
         ]]),
         conflict_clause: None,
-        conflict_clause: None,
     };
 
     let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -163,7 +160,6 @@ fn test_insert_default_no_default_value_defined() {
             vibesql_ast::Expression::Default,
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("Alice".to_string())),
         ]]),
-        conflict_clause: None,
         conflict_clause: None,
     };
 
