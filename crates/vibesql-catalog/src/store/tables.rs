@@ -74,7 +74,7 @@ impl super::Catalog {
             self.schemas
                 .keys()
                 .find(|key| key.to_uppercase() == normalized_name)
-                .map(|k| k.clone())
+                .cloned()
                 .ok_or_else(|| CatalogError::SchemaNotFound(schema_name_for_lookup.to_string()))?
         };
 

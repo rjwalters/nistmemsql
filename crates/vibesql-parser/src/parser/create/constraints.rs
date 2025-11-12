@@ -63,14 +63,14 @@ impl Parser {
                 self.advance(); // consume DEFAULT
                 Ok(vibesql_ast::ReferentialAction::SetDefault)
             } else {
-                return Err(ParseError {
+                Err(ParseError {
                     message: "Expected NULL or DEFAULT after SET".to_string(),
-                });
+                })
             }
         } else {
-            return Err(ParseError {
+            Err(ParseError {
                 message: "Expected NO ACTION, CASCADE, SET NULL, or SET DEFAULT".to_string(),
-            });
+            })
         }
     }
 

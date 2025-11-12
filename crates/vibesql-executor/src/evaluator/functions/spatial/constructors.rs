@@ -316,12 +316,11 @@ fn extract_coordinates(
     }
     
     // Handle remaining data
-    if !current_group.is_empty() {
-        if paren_depth == 1 {
+    if !current_group.is_empty()
+        && paren_depth == 1 {
             let coords = parse_coordinate_pair(current_group.trim())?;
             current_coords.push(coords);
         }
-    }
     
     if !current_coords.is_empty() {
         result.push(current_coords);

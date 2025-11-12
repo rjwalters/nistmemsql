@@ -7,13 +7,14 @@ use crate::{
     CreateAssertionStmt, CreateCharacterSetStmt, CreateCollationStmt, CreateDomainStmt,
     CreateFunctionStmt, CreateIndexStmt, CreateProcedureStmt, CreateRoleStmt, CreateSchemaStmt,
     CreateSequenceStmt, CreateTableStmt, CreateTranslationStmt, CreateTriggerStmt, CreateTypeStmt,
-    CreateViewStmt, DeclareCursorStmt, DeleteStmt, DropAssertionStmt, DropCharacterSetStmt,
-    DropCollationStmt, DropDomainStmt, DropFunctionStmt, DropIndexStmt, DropProcedureStmt,
-    DropRoleStmt, DropSchemaStmt, DropSequenceStmt, DropTableStmt, DropTranslationStmt,
-    DropTriggerStmt, DropTypeStmt, DropViewStmt, FetchStmt, GrantStmt, InsertStmt, OpenCursorStmt,
-    ReindexStmt, ReleaseSavepointStmt, RevokeStmt, RollbackStmt, RollbackToSavepointStmt,
-    SavepointStmt, SelectStmt, SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt,
-    SetTransactionStmt, TruncateTableStmt, UpdateStmt,
+    CreateViewStmt, DeclareCursorStmt, DeleteStmt, DescribeStmt, DropAssertionStmt,
+    DropCharacterSetStmt, DropCollationStmt, DropDomainStmt, DropFunctionStmt, DropIndexStmt,
+    DropProcedureStmt, DropRoleStmt, DropSchemaStmt, DropSequenceStmt, DropTableStmt,
+    DropTranslationStmt, DropTriggerStmt, DropTypeStmt, DropViewStmt, FetchStmt, GrantStmt,
+    InsertStmt, OpenCursorStmt, ReindexStmt, ReleaseSavepointStmt, RevokeStmt, RollbackStmt,
+    RollbackToSavepointStmt, SavepointStmt, SelectStmt, SetCatalogStmt, SetNamesStmt,
+    SetSchemaStmt, SetTimeZoneStmt, SetTransactionStmt, ShowColumnsStmt, ShowCreateTableStmt,
+    ShowDatabasesStmt, ShowIndexStmt, ShowTablesStmt, TruncateTableStmt, UpdateStmt,
 };
 
 // ============================================================================
@@ -82,4 +83,11 @@ pub enum Statement {
     CreateFunction(CreateFunctionStmt),
     DropFunction(DropFunctionStmt),
     Call(CallStmt),
+    // Database introspection (MySQL extensions)
+    ShowTables(ShowTablesStmt),
+    ShowDatabases(ShowDatabasesStmt),
+    ShowColumns(ShowColumnsStmt),
+    ShowIndex(ShowIndexStmt),
+    ShowCreateTable(ShowCreateTableStmt),
+    Describe(DescribeStmt),
 }

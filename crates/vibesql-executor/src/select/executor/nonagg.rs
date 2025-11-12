@@ -113,7 +113,7 @@ impl SelectExecutor<'_> {
 
         // Stage 3: OFFSET (skip rows lazily)
         let mut iterator: Box<dyn Iterator<Item = _>> = if let Some(offset) = stmt.offset {
-            let offset_usize = offset.max(0) as usize;
+            let offset_usize = offset.max(0);
             Box::new(iterator.skip(offset_usize))
         } else {
             iterator
@@ -121,7 +121,7 @@ impl SelectExecutor<'_> {
 
         // Stage 4: LIMIT (take only needed rows)
         if let Some(limit) = stmt.limit {
-            iterator = Box::new(iterator.take(limit as usize));
+            iterator = Box::new(iterator.take(limit));
         }
 
         // Stage 5: Materialize filtered results

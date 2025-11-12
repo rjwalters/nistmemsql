@@ -257,6 +257,15 @@ pub enum Keyword {
     Query,
     // Spatial index keywords
     Spatial,
+    // Database introspection keywords
+    Show,
+    Describe,
+    Databases,
+    Tables,
+    Columns,
+    Fields,
+    Indexes,
+    Keys,
     // Auto-increment keywords (MySQL and SQLite)
     AutoIncrement,
 }
@@ -504,6 +513,15 @@ impl fmt::Display for Keyword {
             Keyword::Query => "QUERY",
             // Spatial index keywords
             Keyword::Spatial => "SPATIAL",
+            // Database introspection keywords
+            Keyword::Show => "SHOW",
+            Keyword::Describe => "DESCRIBE",
+            Keyword::Databases => "DATABASES",
+            Keyword::Tables => "TABLES",
+            Keyword::Columns => "COLUMNS",
+            Keyword::Fields => "FIELDS",
+            Keyword::Indexes => "INDEXES",
+            Keyword::Keys => "KEYS",
             // Auto-increment keywords
             Keyword::AutoIncrement => "AUTO_INCREMENT",
         };

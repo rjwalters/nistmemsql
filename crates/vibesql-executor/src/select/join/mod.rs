@@ -147,11 +147,11 @@ fn apply_post_join_filter(
             vibesql_types::SqlValue::Smallint(_) => filtered_rows.push(row),
             vibesql_types::SqlValue::Bigint(0) => {} // Skip 0
             vibesql_types::SqlValue::Bigint(_) => filtered_rows.push(row),
-            vibesql_types::SqlValue::Float(f) if f == 0.0 => {} // Skip 0.0
+            vibesql_types::SqlValue::Float(0.0) => {} // Skip 0.0
             vibesql_types::SqlValue::Float(_) => filtered_rows.push(row),
-            vibesql_types::SqlValue::Real(f) if f == 0.0 => {} // Skip 0.0
+            vibesql_types::SqlValue::Real(0.0) => {} // Skip 0.0
             vibesql_types::SqlValue::Real(_) => filtered_rows.push(row),
-            vibesql_types::SqlValue::Double(f) if f == 0.0 => {} // Skip 0.0
+            vibesql_types::SqlValue::Double(0.0) => {} // Skip 0.0
             vibesql_types::SqlValue::Double(_) => filtered_rows.push(row),
             other => {
                 return Err(ExecutorError::InvalidWhereClause(format!(
@@ -380,7 +380,7 @@ fn remove_duplicate_columns_for_natural_join(
             let lowercase = col.name.to_lowercase();
             left_column_map
                 .entry(lowercase)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push((table_name.clone(), col.name.clone(), col_idx));
             col_idx += 1;
         }
@@ -390,7 +390,7 @@ fn remove_duplicate_columns_for_natural_join(
     let mut right_duplicate_indices: HashSet<usize> = HashSet::new();
     let left_col_count = col_idx;
     col_idx = 0;
-    for (_table_name, (_table_idx, table_schema)) in &right_schema.table_schemas {
+    for (_table_idx, table_schema) in right_schema.table_schemas.values() {
         for col in &table_schema.columns {
             let lowercase = col.name.to_lowercase();
             if left_column_map.contains_key(&lowercase) {

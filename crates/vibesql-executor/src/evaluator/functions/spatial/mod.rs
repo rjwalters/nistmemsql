@@ -258,9 +258,9 @@ pub fn sql_value_to_geometry(value: &SqlValue) -> Result<GeometryWithSRID, Execu
                     let geometry = constructors::parse_wkt(wkt)?;
                     Ok(GeometryWithSRID::new(geometry, srid))
                 } else {
-                    return Err(ExecutorError::UnsupportedFeature(
+                    Err(ExecutorError::UnsupportedFeature(
                         "Invalid EWKT format".to_string(),
-                    ));
+                    ))
                 }
             } else {
                 // Try to parse as WKT directly if not marked

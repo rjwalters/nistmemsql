@@ -96,7 +96,7 @@ impl super::super::Catalog {
     fn select_references_table(&self, select: &vibesql_ast::SelectStmt, table_name: &str) -> bool {
         // Check the FROM clause
         if let Some(ref from) = select.from {
-            if self.from_clause_references_table(from, table_name) {
+            if self.does_from_clause_reference_table(from, table_name) {
                 return true;
             }
         }
@@ -121,13 +121,13 @@ impl super::super::Catalog {
     }
 
     /// Check if a FROM clause references a specific table or view
-    fn from_clause_references_table(&self, from: &vibesql_ast::FromClause, table_name: &str) -> bool {
+    fn does_from_clause_reference_table(&self, from: &vibesql_ast::FromClause, table_name: &str) -> bool {
         use vibesql_ast::FromClause;
         match from {
             FromClause::Table { name, .. } => name == table_name,
             FromClause::Join { left, right, .. } => {
-                self.from_clause_references_table(left, table_name)
-                    || self.from_clause_references_table(right, table_name)
+                self.does_from_clause_reference_table(left, table_name)
+                    || self.does_from_clause_reference_table(right, table_name)
             }
             FromClause::Subquery { query, .. } => self.select_references_table(query, table_name),
         }

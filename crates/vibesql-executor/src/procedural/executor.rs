@@ -112,46 +112,118 @@ pub fn execute_procedural_statement(
 
 /// Evaluate an expression in the procedural context
 ///
-/// This function evaluates expressions with access to local variables and parameters
-pub(crate) fn evaluate_expression(
+/// This function evaluates expressions with access to local variables and parameters.
+/// Phase 2 supports simple expressions with variable references and basic operations.
+pub fn evaluate_expression(
     expr: &vibesql_ast::Expression,
     _db: &mut Database,
     ctx: &ExecutionContext,
 ) -> Result<SqlValue, ExecutorError> {
-    // Handle ColumnRef which can refer to variables/parameters in procedural context
-    if let vibesql_ast::Expression::ColumnRef { table: None, column } = expr {
-        // Check if this is a variable or parameter
-        if let Some(value) = ctx.get_value(column) {
-            return Ok(value.clone());
+    use vibesql_ast::{BinaryOperator, Expression};
+
+    match expr {
+        // Variable or parameter reference
+        Expression::ColumnRef { table: None, column } => {
+            ctx.get_value(column)
+                .cloned()
+                .ok_or_else(|| ExecutorError::VariableNotFound(column.clone()))
         }
-    }
 
-    // Handle literals directly
-    if let vibesql_ast::Expression::Literal(value) = expr {
-        return Ok(value.clone());
-    }
+        // Literal values
+        Expression::Literal(value) => Ok(value.clone()),
 
-    // For now, return error for complex expressions
-    // TODO: Integrate with full expression evaluator in later phases
-    Err(ExecutorError::UnsupportedFeature(format!(
-        "Complex expression evaluation in procedures not yet fully implemented: {:?}",
-        expr
-    )))
+        // Binary operations (basic arithmetic and comparison)
+        Expression::BinaryOp { left, op, right } => {
+            let left_val = evaluate_expression(left, _db, ctx)?;
+            let right_val = evaluate_expression(right, _db, ctx)?;
+
+            match op {
+                BinaryOperator::Plus => {
+                    // Simple addition for integers
+                    match (left_val, right_val) {
+                        (SqlValue::Integer(l), SqlValue::Integer(r)) => {
+                            Ok(SqlValue::Integer(l + r))
+                        }
+                        _ => Err(ExecutorError::TypeError(
+                            "Binary operation only supports integers in Phase 2".to_string()
+                        ))
+                    }
+                }
+                BinaryOperator::Minus => {
+                    match (left_val, right_val) {
+                        (SqlValue::Integer(l), SqlValue::Integer(r)) => {
+                            Ok(SqlValue::Integer(l - r))
+                        }
+                        _ => Err(ExecutorError::TypeError(
+                            "Binary operation only supports integers in Phase 2".to_string()
+                        ))
+                    }
+                }
+                BinaryOperator::Multiply => {
+                    match (left_val, right_val) {
+                        (SqlValue::Integer(l), SqlValue::Integer(r)) => {
+                            Ok(SqlValue::Integer(l * r))
+                        }
+                        _ => Err(ExecutorError::TypeError(
+                            "Binary operation only supports integers in Phase 2".to_string()
+                        ))
+                    }
+                }
+                BinaryOperator::GreaterThan => {
+                    match (left_val, right_val) {
+                        (SqlValue::Integer(l), SqlValue::Integer(r)) => {
+                            Ok(SqlValue::Boolean(l > r))
+                        }
+                        _ => Err(ExecutorError::TypeError(
+                            "Comparison only supports integers in Phase 2".to_string()
+                        ))
+                    }
+                }
+                _ => Err(ExecutorError::UnsupportedFeature(format!(
+                    "Binary operator {:?} not yet supported in procedural expressions", op
+                )))
+            }
+        }
+
+        // Function calls - basic support for CONCAT
+        Expression::Function { name, args, .. } if name.eq_ignore_ascii_case("CONCAT") => {
+            let mut result = String::new();
+            for arg in args {
+                let val = evaluate_expression(arg, _db, ctx)?;
+                result.push_str(&val.to_string());
+            }
+            Ok(SqlValue::Varchar(result))
+        }
+
+        // Other expressions not yet supported
+        _ => Err(ExecutorError::UnsupportedFeature(format!(
+            "Expression type not yet supported in procedures: {:?}", expr
+        )))
+    }
 }
 
 /// Execute a SQL statement within a procedural context
+///
+/// Phase 2 Limitation: SQL statements in procedures are not yet fully supported.
+/// Variables work in DECLARE/SET statements and can be passed as procedure parameters,
+/// but SQL statement execution (INSERT/UPDATE/DELETE/SELECT) with variable substitution
+/// requires threading the procedural context through the entire SQL execution pipeline.
+///
+/// This will be implemented in Phase 3 when we add control flow support.
 fn execute_sql_statement(
     _stmt: &Statement,
     _db: &mut Database,
     _ctx: &ExecutionContext,
 ) -> Result<(), ExecutorError> {
-    // TODO: Implement full SQL statement execution in procedures
-    // This will be implemented in later phases when we integrate with
-    // the full SQL execution engine
+    // TODO Phase 3: Implement SQL statement execution with procedural context threading
+    // This requires:
+    // 1. Modifying all SQL executors to accept optional ExecutionContext
+    // 2. Updating expression evaluator to check procedural variables
+    // 3. Ensuring variable substitution works in WHERE, VALUES, SET clauses
 
-    // For now, return an error indicating this is not yet supported
     Err(ExecutorError::UnsupportedFeature(
-        "SQL statement execution in procedures not yet fully implemented".to_string()
+        "SQL statements in procedure bodies not yet supported in Phase 2. \
+         Use DECLARE, SET, and RETURN statements.".to_string()
     ))
 }
 

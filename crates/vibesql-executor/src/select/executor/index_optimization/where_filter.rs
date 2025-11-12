@@ -59,7 +59,7 @@ pub(in crate::select::executor) fn try_index_for_binary_op(
                 }
             }
             match found_table {
-                Some(table) => (table, column.clone(), val.clone(), op.clone()),
+                Some(table) => (table, column.clone(), val.clone(), *op),
                 None => return Ok(None), // Column not found
             }
         }

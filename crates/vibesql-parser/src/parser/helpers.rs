@@ -47,7 +47,7 @@ impl Parser {
 
     /// Expect and consume a specific keyword.
     pub(super) fn expect_keyword(&mut self, keyword: Keyword) -> Result<(), ParseError> {
-        if self.peek_keyword(keyword.clone()) {
+        if self.peek_keyword(keyword) {
             self.advance();
             Ok(())
         } else {

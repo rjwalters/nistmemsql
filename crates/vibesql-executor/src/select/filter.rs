@@ -225,7 +225,7 @@ pub(super) fn apply_where_filter_combined_parallel<'a>(
         .collect();
 
     // Filter out None values and extract Ok rows
-    result.map(|v| v.into_iter().filter_map(|x| x).collect())
+    result.map(|v| v.into_iter().flatten().collect())
 }
 
 /// Auto-selecting WHERE filter that chooses between sequential and parallel execution

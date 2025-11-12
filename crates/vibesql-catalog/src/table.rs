@@ -251,12 +251,7 @@ impl TableSchema {
             .collect();
 
         // Remove check constraints that reference the removed column
-        self.check_constraints = self
-            .check_constraints
-            .iter()
-            .filter(|(_name, expr)| !Self::expression_references_column(expr, &removed_column.name))
-            .cloned()
-            .collect();
+        self.check_constraints.retain(|(_name, expr)| !Self::expression_references_column(expr, &removed_column.name));
 
         Ok(())
     }

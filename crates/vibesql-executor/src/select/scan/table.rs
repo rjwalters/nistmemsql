@@ -130,7 +130,7 @@ pub(crate) fn execute_table_scan(
     if let Some(where_expr) = where_clause {
         // Check if there are actually table-local predicates for this table
         let decomposition = decompose_where_clause(Some(where_expr), &schema)
-            .map_err(|e| ExecutorError::InvalidWhereClause(e))?;
+            .map_err(ExecutorError::InvalidWhereClause)?;
 
         if let Some(preds) = decomposition.table_local_predicates.get(table_name) {
             if !preds.is_empty() {

@@ -145,7 +145,7 @@ impl<'a> RowValidator<'a> {
 
         // Only store UNIQUE keys if no NULL values (multiple NULLs allowed)
         for (constraint_idx, values) in unique_values.into_iter().enumerate() {
-            if !values.iter().any(|v| *v == vibesql_types::SqlValue::Null) {
+            if !values.contains(&vibesql_types::SqlValue::Null) {
                 result.unique_keys[constraint_idx] = Some(values);
             }
         }
@@ -246,7 +246,7 @@ impl<'a> RowValidator<'a> {
                         .collect();
 
                     // Skip if any existing value is NULL
-                    if existing_unique_values.iter().any(|v| *v == vibesql_types::SqlValue::Null) {
+                    if existing_unique_values.contains(&vibesql_types::SqlValue::Null) {
                         continue;
                     }
 
