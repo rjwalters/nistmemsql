@@ -1,8 +1,7 @@
 /**
  * SQL:1999 Feature Showcase - Example Metadata
  *
- * Metadata for SQL examples organized by feature category.
- * SQL payloads and expected results are loaded separately from JSON files.
+ * Metadata generated from JSON source files. No duplication with payloads.
  */
 
 export interface QueryExample {
@@ -52,123 +51,244 @@ export interface CategoryMetadata {
   queries: ExampleMetadata[]
 }
 
+// Import JSON payloads directly (these will be bundled by Vite)
+import advancedMultiFeaturePayloads from './examples/advanced-multi-feature.json'
+import aggregatesPayloads from './examples/aggregates.json'
+import basicPayloads from './examples/basic.json'
+import businessIntelligencePayloads from './examples/business-intelligence.json'
+import casePayloads from './examples/case.json'
+import companyPayloads from './examples/company.json'
+import dataQualityPayloads from './examples/data-quality.json'
+import datetimePayloads from './examples/datetime.json'
+import ddlPayloads from './examples/ddl.json'
+import dmlPayloads from './examples/dml.json'
+import joinsPayloads from './examples/joins.json'
+import mathPayloads from './examples/math.json'
+import nullHandlingPayloads from './examples/null-handling.json'
+import patternsPayloads from './examples/patterns.json'
+import performancePatternsPayloads from './examples/performance-patterns.json'
+import recursivePayloads from './examples/recursive.json'
+import reportTemplatesPayloads from './examples/report-templates.json'
+import setPayloads from './examples/set.json'
+import sql1999StandardsPayloads from './examples/sql1999-standards.json'
+import sqlLogicTestPayloads from './examples/sqllogictest.json'
+import stringPayloads from './examples/string.json'
+import subqueriesPayloads from './examples/subqueries.json'
+import universityPayloads from './examples/university.json'
+import windowPayloads from './examples/window.json'
+
 /**
- * Load JSON metadata file by category ID
+ * Extract metadata from JSON payloads
+ * Omits SQL-related fields to avoid duplication
  */
-async function loadCategoryJSON(categoryId: string): Promise<CategoryMetadata> {
-  // Dynamically import JSON files to keep them separate and maintainable
-  const jsonModule = await import(`./examples/${categoryId}.json`, {
-    assert: { type: 'json' }
-  })
-  return jsonModule.default as CategoryMetadata
+function extractMetadata(payload: Record<string, any>): ExampleMetadata[] {
+  return Object.entries(payload)
+    .map(([id, data]: [string, any]) => ({
+      id,
+      title: data.title,
+      database: data.database,
+      description: data.description,
+      sqlFeatures: data.sqlFeatures,
+      difficulty: data.difficulty,
+      useCase: data.useCase,
+      performanceNotes: data.performanceNotes,
+      executionTimeMs: data.executionTimeMs,
+      relatedExamples: data.relatedExamples,
+      tags: data.tags
+    }))
 }
 
 /**
- * Map of category IDs to their JSON files
+ * Category configuration with metadata extracted from JSON
  */
-const CATEGORY_IDS = [
-  'basic',
-  'string',
-  'joins',
-  'aggregates',
-  'recursive',
-  'subqueries',
-  'case',
-  'set',
-  'company',
-  'university',
-  'ddl',
-  'dml',
-  'datetime',
-  'patterns',
-  'math',
-  'null-handling',
-  'window',
-  'business-intelligence',
-  'data-quality',
-  'advanced-multi-feature',
-  'sql1999-standards',
-  'performance-patterns',
-  'report-templates',
-  'sqllogictest'
+interface CategoryConfig {
+  id: string
+  title: string
+  description: string
+  payloads: Record<string, any>
+}
+
+const categoryConfigs: CategoryConfig[] = [
+  {
+    id: 'advanced-multi-feature',
+    title: 'Advanced Multi-Feature Queries',
+    description: 'Complex queries combining multiple SQL features',
+    payloads: advancedMultiFeaturePayloads
+  },
+  {
+    id: 'aggregates',
+    title: 'Aggregates',
+    description: 'COUNT, SUM, AVG, MIN, MAX, GROUP BY, HAVING',
+    payloads: aggregatesPayloads
+  },
+  {
+    id: 'basic',
+    title: 'Basic Queries',
+    description: 'SELECT, WHERE, ORDER BY, LIMIT fundamentals',
+    payloads: basicPayloads
+  },
+  {
+    id: 'business-intelligence',
+    title: 'Business Intelligence',
+    description: 'Reports, metrics, and business analytics queries',
+    payloads: businessIntelligencePayloads
+  },
+  {
+    id: 'case',
+    title: 'CASE Expressions',
+    description: 'Conditional logic with CASE and COALESCE',
+    payloads: casePayloads
+  },
+  {
+    id: 'company',
+    title: 'Company Database',
+    description: 'Queries using the company database',
+    payloads: companyPayloads
+  },
+  {
+    id: 'data-quality',
+    title: 'Data Quality',
+    description: 'Validation, profiling, and data quality checks',
+    payloads: dataQualityPayloads
+  },
+  {
+    id: 'datetime',
+    title: 'Date & Time Functions',
+    description: 'Date arithmetic, extraction, and formatting',
+    payloads: datetimePayloads
+  },
+  {
+    id: 'ddl',
+    title: 'DDL (Data Definition)',
+    description: 'CREATE, ALTER, DROP statements',
+    payloads: ddlPayloads
+  },
+  {
+    id: 'dml',
+    title: 'DML (Data Manipulation)',
+    description: 'INSERT, UPDATE, DELETE statements',
+    payloads: dmlPayloads
+  },
+  {
+    id: 'joins',
+    title: 'Joins',
+    description: 'INNER, LEFT, RIGHT, FULL, CROSS joins',
+    payloads: joinsPayloads
+  },
+  {
+    id: 'math',
+    title: 'Math Functions',
+    description: 'ABS, CEIL, FLOOR, ROUND, POWER, SQRT',
+    payloads: mathPayloads
+  },
+  {
+    id: 'null-handling',
+    title: 'NULL Handling',
+    description: 'IS NULL, COALESCE, NULLIF functions',
+    payloads: nullHandlingPayloads
+  },
+  {
+    id: 'patterns',
+    title: 'SQL Patterns',
+    description: 'Common patterns and techniques',
+    payloads: patternsPayloads
+  },
+  {
+    id: 'performance-patterns',
+    title: 'Performance Patterns',
+    description: 'Optimization techniques and best practices',
+    payloads: performancePatternsPayloads
+  },
+  {
+    id: 'recursive',
+    title: 'Recursive Queries',
+    description: 'WITH RECURSIVE and hierarchical data',
+    payloads: recursivePayloads
+  },
+  {
+    id: 'report-templates',
+    title: 'Report Templates',
+    description: 'Pre-built report queries',
+    payloads: reportTemplatesPayloads
+  },
+  {
+    id: 'set',
+    title: 'Set Operations',
+    description: 'UNION, INTERSECT, EXCEPT operators',
+    payloads: setPayloads
+  },
+  {
+    id: 'sql1999-standards',
+    title: 'SQL:1999 Standards',
+    description: 'SQL standard compliance and features',
+    payloads: sql1999StandardsPayloads
+  },
+  {
+    id: 'sqllogictest',
+    title: 'SQL Logic Test',
+    description: 'Logic test examples',
+    payloads: sqlLogicTestPayloads
+  },
+  {
+    id: 'string',
+    title: 'String Functions',
+    description: 'UPPER, LOWER, SUBSTRING, TRIM, CONCAT, LENGTH, and more',
+    payloads: stringPayloads
+  },
+  {
+    id: 'subqueries',
+    title: 'Subqueries',
+    description: 'Scalar, inline views, and correlated subqueries',
+    payloads: subqueriesPayloads
+  },
+  {
+    id: 'university',
+    title: 'University Database',
+    description: 'Queries using the university database',
+    payloads: universityPayloads
+  },
+  {
+    id: 'window',
+    title: 'Window Functions',
+    description: 'ROW_NUMBER, RANK, DENSE_RANK, LAG, LEAD, aggregates with OVER',
+    payloads: windowPayloads
+  }
 ]
 
 /**
- * Lazy-loaded cache of example categories
+ * Metadata for all example categories (without SQL payloads)
+ * Generated from JSON source files
  */
-let exampleCategoriesCache: CategoryMetadata[] | null = null
+export const exampleCategoriesMetadata: CategoryMetadata[] = categoryConfigs.map(config => ({
+  id: config.id,
+  title: config.title,
+  description: config.description,
+  queries: extractMetadata(config.payloads)
+}))
 
 /**
- * Initialize metadata from JSON files (lazy load)
+ * Helper functions for accessing metadata
  */
-async function initializeMetadata(): Promise<CategoryMetadata[]> {
-  if (exampleCategoriesCache !== null) {
-    return exampleCategoriesCache
-  }
 
-  try {
-    // Load all category JSON files in parallel
-    const categoryPromises = CATEGORY_IDS.map(id => loadCategoryJSON(id))
-    exampleCategoriesCache = await Promise.all(categoryPromises)
-    return exampleCategoriesCache
-  } catch (error) {
-    console.error('Failed to load example metadata:', error)
-    // Return empty array on error to allow app to continue
-    return []
-  }
+/**
+ * Get all example metadata across all categories
+ */
+export function getAllExampleMetadata(): ExampleMetadata[] {
+  return exampleCategoriesMetadata.flatMap(cat => cat.queries)
 }
 
 /**
- * Validate that loaded JSON matches expected types
+ * Find metadata for a specific example by ID
  */
-function validateCategoryMetadata(data: unknown): data is CategoryMetadata {
-  if (typeof data !== 'object' || data === null) return false
-  const obj = data as Record<string, unknown>
-  return (
-    typeof obj.id === 'string' &&
-    typeof obj.title === 'string' &&
-    typeof obj.description === 'string' &&
-    Array.isArray(obj.queries)
-  )
+export function findExampleMetadata(id: string): ExampleMetadata | undefined {
+  return getAllExampleMetadata().find(ex => ex.id === id)
 }
 
 /**
- * Get all example metadata flattened
+ * Get example metadata for a specific database
  */
-export async function getAllExampleMetadata(): Promise<ExampleMetadata[]> {
-  const categories = await initializeMetadata()
-  return categories.flatMap(cat => cat.queries)
-}
-
-/**
- * Find metadata by ID
- */
-export async function findExampleMetadata(id: string): Promise<ExampleMetadata | undefined> {
-  const all = await getAllExampleMetadata()
-  return all.find(ex => ex.id === id)
-}
-
-/**
- * Get metadata for examples of a specific database
- */
-export async function getExampleMetadataForDatabase(
+export function getExampleMetadataForDatabase(
   database: 'northwind' | 'employees' | 'company' | 'university' | 'empty' | 'sqllogictest'
-): Promise<ExampleMetadata[]> {
-  const all = await getAllExampleMetadata()
-  return all.filter(ex => ex.database === database)
-}
-
-/**
- * Get all categories (useful for navigation)
- */
-export async function getExampleCategories(): Promise<CategoryMetadata[]> {
-  return initializeMetadata()
-}
-
-/**
- * Get a specific category by ID
- */
-export async function getExampleCategory(id: string): Promise<CategoryMetadata | undefined> {
-  const categories = await initializeMetadata()
-  return categories.find(cat => cat.id === id)
+): ExampleMetadata[] {
+  return getAllExampleMetadata().filter(ex => ex.database === database)
 }
