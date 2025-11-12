@@ -41,17 +41,20 @@ pub fn execute_procedural_statement(
         }
 
         ProceduralStatement::Set { name, value } => {
-            // Set variable or parameter value
+            // Set variable, parameter, or session variable value
             let new_value = evaluate_expression(value, db, ctx)?;
 
-            // Try to update parameter first (for OUT/INOUT)
-            if ctx.has_parameter(name) {
-                // Get the parameter and update it
+            // Check if it's a session variable (starts with @)
+            if name.starts_with('@') {
+                let var_name = &name[1..]; // Strip @ prefix
+                db.set_session_variable(var_name, new_value);
+            } else if ctx.has_parameter(name) {
+                // Try to update parameter first (for OUT/INOUT)
                 if let Some(param) = ctx.get_parameter_mut(name) {
                     *param = new_value;
                 }
             } else if ctx.has_variable(name) {
-                // Update variable
+                // Update local variable
                 ctx.set_variable(name, new_value);
             } else {
                 return Err(ExecutorError::VariableNotFound(name.clone()));
@@ -122,11 +125,20 @@ pub fn evaluate_expression(
     use vibesql_ast::{BinaryOperator, Expression};
 
     match expr {
-        // Variable or parameter reference
+        // Variable, parameter, or session variable reference
         Expression::ColumnRef { table: None, column } => {
-            ctx.get_value(column)
-                .cloned()
-                .ok_or_else(|| ExecutorError::VariableNotFound(column.clone()))
+            // Check if it's a session variable (starts with @)
+            if column.starts_with('@') {
+                let var_name = &column[1..]; // Strip @ prefix
+                _db.get_session_variable(var_name)
+                    .cloned()
+                    .ok_or_else(|| ExecutorError::VariableNotFound(format!("@{}", var_name)))
+            } else {
+                // Regular variable or parameter reference
+                ctx.get_value(column)
+                    .cloned()
+                    .ok_or_else(|| ExecutorError::VariableNotFound(column.clone()))
+            }
         }
 
         // Literal values
