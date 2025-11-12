@@ -58,42 +58,48 @@ impl IndexData {
     ) -> Vec<usize> {
         let mut matching_row_indices = Vec::new();
 
-        // Build range bounds for BTreeMap::range()
-        // We need to construct Vec<SqlValue> keys for range bounds
-        use std::ops::Bound;
+        // Iterate through BTreeMap (which gives us sorted iteration)
+        // For multi-column indexes, we only compare the first column
+        // This maintains compatibility with the original HashMap implementation
+        for (key_values, row_indices) in &self.data {
+            // For single-column index, key_values has one element
+            // For multi-column indexes, we only compare the first column
+            let key = &key_values[0];
 
-        let start_bound = match start {
-            Some(s) => {
-                let key = vec![s.clone()];
-                if inclusive_start {
-                    Bound::Included(key)
-                } else {
-                    Bound::Excluded(key)
+            let matches = match (start, end) {
+                (Some(s), Some(e)) => {
+                    // Both bounds specified: start <= key <= end (or variations)
+                    let gte_start = if inclusive_start { key >= s } else { key > s };
+                    let lte_end = if inclusive_end { key <= e } else { key < e };
+                    gte_start && lte_end
                 }
-            }
-            None => Bound::Unbounded,
-        };
-
-        let end_bound = match end {
-            Some(e) => {
-                let key = vec![e.clone()];
-                if inclusive_end {
-                    Bound::Included(key)
-                } else {
-                    Bound::Excluded(key)
+                (Some(s), None) => {
+                    // Only lower bound: key >= start (or >)
+                    if inclusive_start {
+                        key >= s
+                    } else {
+                        key > s
+                    }
                 }
-            }
-            None => Bound::Unbounded,
-        };
+                (None, Some(e)) => {
+                    // Only upper bound: key <= end (or <)
+                    if inclusive_end {
+                        key <= e
+                    } else {
+                        key < e
+                    }
+                }
+                (None, None) => true, // No bounds - match everything
+            };
 
-        // Use BTreeMap's efficient range query - O(log n + k) instead of O(n)
-        for (_key_values, row_indices) in self.data.range((start_bound, end_bound)) {
-            matching_row_indices.extend(row_indices);
+            if matches {
+                matching_row_indices.extend(row_indices);
+            }
         }
 
-        // BTreeMap iteration is already sorted, so row indices will be in
-        // a consistent order (though we still sort for deterministic results
-        // since multiple rows can have the same key value)
+        // Sort row indices to ensure deterministic order
+        // BTreeMap iteration is sorted by key, but multiple rows can have
+        // the same key value, so we still sort row indices for consistency
         matching_row_indices.sort_unstable();
 
         matching_row_indices
