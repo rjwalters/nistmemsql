@@ -158,11 +158,22 @@ pub struct DropTableStmt {
     pub if_exists: bool,
 }
 
+/// CASCADE option for TRUNCATE TABLE
+#[derive(Debug, Clone, PartialEq)]
+pub enum TruncateCascadeOption {
+    /// CASCADE - recursively truncate dependent tables
+    Cascade,
+    /// RESTRICT - fail if foreign key references exist (default)
+    Restrict,
+}
+
 /// TRUNCATE TABLE statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct TruncateTableStmt {
     pub table_names: Vec<String>,
     pub if_exists: bool,
+    /// CASCADE/RESTRICT option (None = default to RESTRICT)
+    pub cascade: Option<TruncateCascadeOption>,
 }
 
 /// ALTER TABLE statement

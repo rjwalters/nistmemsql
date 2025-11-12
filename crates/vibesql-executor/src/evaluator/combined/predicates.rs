@@ -8,9 +8,9 @@ use crate::errors::ExecutorError;
 
 impl CombinedExpressionEvaluator<'_> {
     /// Evaluate BETWEEN predicate: expr BETWEEN low AND high
-    /// Equivalent to: expr >= low AND expr <= high
+    /// Standard BETWEEN: returns false if low > high (per SQLite behavior)
+    /// BETWEEN SYMMETRIC: swaps low and high if low > high before evaluation
     /// If negated: expr < low OR expr > high
-    /// If symmetric: swaps low and high if low > high before evaluation
     pub(super) fn eval_between(
         &self,
         expr: &vibesql_ast::Expression,
@@ -24,16 +24,23 @@ impl CombinedExpressionEvaluator<'_> {
         let mut low_val = self.eval(low, row)?;
         let mut high_val = self.eval(high, row)?;
 
-        // For SYMMETRIC: swap bounds if low > high
-        if symmetric {
-            let gt_result = ExpressionEvaluator::eval_binary_op_static(
-                &low_val,
-                &vibesql_ast::BinaryOperator::GreaterThan,
-                &high_val,
-            )?;
+        // Check if bounds are reversed (low > high)
+        let gt_result = ExpressionEvaluator::eval_binary_op_static(
+            &low_val,
+            &vibesql_ast::BinaryOperator::GreaterThan,
+            &high_val,
+        )?;
 
-            if let vibesql_types::SqlValue::Boolean(true) = gt_result {
+        if let vibesql_types::SqlValue::Boolean(true) = gt_result {
+            if symmetric {
+                // For SYMMETRIC: swap bounds to normalize range
                 std::mem::swap(&mut low_val, &mut high_val);
+            } else {
+                // For standard BETWEEN with reversed bounds: return empty set
+                // Per SQLite behavior: BETWEEN 57.93 AND 43.23 returns no rows
+                // - BETWEEN with reversed bounds returns false
+                // - NOT BETWEEN with reversed bounds returns true
+                return Ok(vibesql_types::SqlValue::Boolean(negated));
             }
         }
 

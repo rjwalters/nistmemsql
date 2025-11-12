@@ -24,3 +24,6 @@ mod extract;
 pub(super) use arithmetic::{age, date_add, date_sub, datediff, extract};
 pub(super) use current::{current_date, current_time, current_timestamp};
 pub(super) use extract::{day, hour, minute, month, second, year};
+
+// Re-export helper for use by arithmetic operators
+pub(crate) use arithmetic::date_add_subtract;
