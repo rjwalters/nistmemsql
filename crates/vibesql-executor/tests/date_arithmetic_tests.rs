@@ -6,6 +6,7 @@
 //! - timestamp_operations: Timestamp with time component operations
 //! - interval_operations: EXTRACT and AGE functions
 //! - edge_cases: Leap years, month/year boundaries, null handling, errors
+//! - type_coercion: VARCHAR to DATE coercion, INTERVAL syntax tests
 
 // Re-export common test utilities
 #[path = "common/mod.rs"]
@@ -26,3 +27,6 @@ mod interval_operations;
 
 #[path = "date_arithmetic_tests/edge_cases.rs"]
 mod edge_cases;
+
+#[path = "date_arithmetic_tests/type_coercion.rs"]
+mod type_coercion;
