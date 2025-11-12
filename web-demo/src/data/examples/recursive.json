@@ -1,24 +1,21 @@
 {
-  "rec-1": {
-    "title": "Employee hierarchy",
-    "database": "employees",
-    "sql": "WITH RECURSIVE employee_hierarchy AS (\n  -- Base case: CEO (no manager)\n  SELECT\n    employee_id,\n    first_name,\n    last_name,\n    title,\n    manager_id,\n    1 as level,\n    first_name || ' ' || last_name as path\n  FROM employees\n  WHERE manager_id IS NULL\n\n  UNION ALL\n\n  -- Recursive case: employees with managers\n  SELECT\n    e.employee_id,\n    e.first_name,\n    e.last_name,\n    e.title,\n    e.manager_id,\n    eh.level + 1,\n    eh.path || ' > ' || e.first_name || ' ' || e.last_name\n  FROM employees e\n  INNER JOIN employee_hierarchy eh ON e.manager_id = eh.employee_id\n)\nSELECT\n  level,\n  first_name || ' ' || last_name as employee,\n  title,\n  path as reporting_chain\nFROM employee_hierarchy\nORDER BY level, last_name\nLIMIT 15;\n-- ⏭️ SKIP: WITH RECURSIVE not yet implemented - parser expects CTE name (identifier)",
-    "description": "Build complete org chart using recursive CTE",
-    "sqlFeatures": [
-      "WITH RECURSIVE",
-      "UNION ALL",
-      "INNER JOIN"
-    ]
-  },
-  "rec-2": {
-    "title": "Count hierarchy levels",
-    "database": "employees",
-    "sql": "WITH RECURSIVE hierarchy AS (\n  SELECT\n    employee_id,\n    1 as level\n  FROM employees\n  WHERE manager_id IS NULL\n\n  UNION ALL\n\n  SELECT\n    e.employee_id,\n    h.level + 1\n  FROM employees e\n  INNER JOIN hierarchy h ON e.manager_id = h.employee_id\n)\nSELECT\n  level,\n  COUNT(*) as employee_count\nFROM hierarchy\nGROUP BY level\nORDER BY level;\n-- ⏭️ SKIP: WITH RECURSIVE not yet implemented - parser expects CTE name (identifier)",
-    "description": "Count employees at each level of the org chart",
-    "sqlFeatures": [
-      "WITH RECURSIVE",
-      "UNION ALL",
-      "GROUP BY"
-    ]
-  }
+  "id": "recursive",
+  "title": "Recursive Queries",
+  "description": "WITH RECURSIVE - SQL:1999 common table expressions",
+  "queries": [
+    {
+      "id": "rec-1",
+      "title": "Employee hierarchy",
+      "database": "employees",
+      "description": "Build complete org chart using recursive CTE",
+      "sqlFeatures": ["WITH RECURSIVE", "UNION ALL", "INNER JOIN"]
+    },
+    {
+      "id": "rec-2",
+      "title": "Count hierarchy levels",
+      "database": "employees",
+      "description": "Count employees at each level of the org chart",
+      "sqlFeatures": ["WITH RECURSIVE", "UNION ALL", "GROUP BY"]
+    }
+  ]
 }

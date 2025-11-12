@@ -1,37 +1,28 @@
 {
-  "sub-1": {
-    "title": "Scalar subquery",
-    "database": "northwind",
-    "sql": "SELECT\n  product_name,\n  unit_price,\n  (SELECT AVG(unit_price) FROM products) as avg_price\nFROM products\nWHERE unit_price > (SELECT AVG(unit_price) FROM products)\nORDER BY unit_price DESC;\n-- ⏭️ SKIP: Scalar subqueries not fully implemented - type coercion issues with numeric comparisons",
-    "description": "Find products above average price",
-    "sqlFeatures": [
-      "Subquery",
-      "AVG",
-      "WHERE",
-      "SELECT"
-    ]
-  },
-  "sub-2": {
-    "title": "IN subquery",
-    "database": "northwind",
-    "sql": "SELECT\n  product_name,\n  unit_price\nFROM products\nWHERE category_id IN (\n  SELECT category_id\n  FROM categories\n  WHERE category_name IN ('Beverages', 'Condiments')\n)\nORDER BY unit_price DESC;\n-- ⏭️ SKIP: IN with subquery not yet implemented - requires subquery evaluation in WHERE clause;",
-    "description": "Find products in specific categories using IN",
-    "sqlFeatures": [
-      "IN",
-      "Subquery",
-      "WHERE"
-    ]
-  },
-  "sub-3": {
-    "title": "Subquery in FROM clause",
-    "database": "employees",
-    "sql": "SELECT\n  department,\n  avg_salary,\n  CASE\n    WHEN avg_salary > 100000 THEN 'High'\n    WHEN avg_salary > 50000 THEN 'Medium'\n    ELSE 'Low'\n  END as salary_bracket\nFROM (\n  SELECT\n    department,\n    AVG(salary) as avg_salary\n  FROM employees\n  GROUP BY department\n) dept_salaries\nORDER BY avg_salary DESC;\n-- ⏭️ SKIP: Derived tables (subqueries in FROM clause) require AS alias - parser expects SQL:1999 syntax",
-    "description": "Use subquery as derived table for further processing",
-    "sqlFeatures": [
-      "Subquery in FROM",
-      "CASE",
-      "AVG",
-      "GROUP BY"
-    ]
-  }
+  "id": "subqueries",
+  "title": "Subqueries",
+  "description": "Scalar, table, and IN/EXISTS subqueries",
+  "queries": [
+    {
+      "id": "sub-1",
+      "title": "Scalar subquery",
+      "database": "northwind",
+      "description": "Find products above average price",
+      "sqlFeatures": ["Subquery", "AVG", "WHERE", "SELECT"]
+    },
+    {
+      "id": "sub-2",
+      "title": "IN subquery",
+      "database": "northwind",
+      "description": "Find products in specific categories using IN",
+      "sqlFeatures": ["IN", "Subquery", "WHERE"]
+    },
+    {
+      "id": "sub-3",
+      "title": "Subquery in FROM clause",
+      "database": "employees",
+      "description": "Use subquery as derived table for further processing",
+      "sqlFeatures": ["Subquery in FROM", "CASE", "AVG", "GROUP BY"]
+    }
+  ]
 }
