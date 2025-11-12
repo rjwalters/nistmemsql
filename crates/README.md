@@ -1,6 +1,6 @@
-# nistmemsql Crates
+# VibeSQL Crates
 
-This directory contains all the individual crates that make up the nistmemsql database.
+This directory contains all the individual crates that make up the VibeSQL database.
 
 ## Crate Organization
 

@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- Fixed test failures after COUNT(*) return type changed from Numeric to Integer (PR #1206)
+  - Updated `parallel_execution_tests.rs`, `predicate_pushdown_tests.rs`, and `test_predicate_pushdown_integration.rs`
+  - Fixed `type_display_tests.rs` to expect MySQL-compatible numeric formatting
+  - Fixed `expression_mapper.rs` doctest compilation
+- Fixed deployment workflow failure due to pnpm version mismatch
+  - Updated GitHub Actions to use pnpm 9 to match local lockfile version
+
+### Changed
+- COUNT(*) now returns INTEGER type instead of NUMERIC for SQL standard compliance
+- Numeric whole numbers now display without decimal places (MySQL compatibility)
+
 ## [0.1.0] - 2024-11-10
 
 ### Added - Initial Release
@@ -127,9 +141,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Known Limitations
 
-- **In-memory only** - No persistence to disk
+- **In-memory storage** - Primary storage is in-memory with SQL dump persistence (save/load to `.sql` files)
 - **Single-threaded** - No concurrent transactions
-- **Limited optimization** - No cost-based query optimizer
+- **Limited optimization** - No cost-based query optimizer yet
 - **No network protocol** - Library/CLI only (no server mode)
 
 ### Links
