@@ -1,7 +1,7 @@
 use std::fmt;
 
 /// SQL Keywords supported by the parser.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Keyword {
     Select,
     Distinct,
@@ -177,11 +177,25 @@ pub enum Keyword {
     // Callable object keywords (functions, procedures, methods)
     Function,
     Procedure,
+    Call,
     Routine,
     Method,
     Constructor,
     Static,
     Instance,
+    // Procedure/Function parameter modes
+    Out,
+    InOut,
+    // Procedure/Function keywords
+    Returns,
+    While,
+    Do,
+    Loop,
+    Repeat,
+    Until,
+    Return,
+    Leave,
+    Iterate,
     // Internationalization keywords (SQL:1999)
     Get,
     Pad,
@@ -407,11 +421,23 @@ impl fmt::Display for Keyword {
             Keyword::Minute => "MINUTE",
             Keyword::Function => "FUNCTION",
             Keyword::Procedure => "PROCEDURE",
+            Keyword::Call => "CALL",
             Keyword::Routine => "ROUTINE",
             Keyword::Method => "METHOD",
             Keyword::Constructor => "CONSTRUCTOR",
             Keyword::Static => "STATIC",
             Keyword::Instance => "INSTANCE",
+            Keyword::Out => "OUT",
+            Keyword::InOut => "INOUT",
+            Keyword::Returns => "RETURNS",
+            Keyword::While => "WHILE",
+            Keyword::Do => "DO",
+            Keyword::Loop => "LOOP",
+            Keyword::Repeat => "REPEAT",
+            Keyword::Until => "UNTIL",
+            Keyword::Return => "RETURN",
+            Keyword::Leave => "LEAVE",
+            Keyword::Iterate => "ITERATE",
             Keyword::Get => "GET",
             Keyword::Pad => "PAD",
             Keyword::Space => "SPACE",
