@@ -25,6 +25,7 @@ impl Parser {
                 || self.peek_keyword(Keyword::Foreign)
                 || self.peek_keyword(Keyword::Unique)
                 || self.peek_keyword(Keyword::Check)
+                || self.peek_keyword(Keyword::Fulltext)
             {
                 table_constraints.push(self.parse_table_constraint()?);
                 if matches!(self.peek(), Token::Comma) {

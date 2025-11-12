@@ -19,6 +19,15 @@ impl Parser {
         }
     }
 
+    /// Peek at token at offset (position + offset) without consuming.
+    pub(super) fn peek_at_offset(&self, offset: usize) -> &Token {
+        if self.position + offset < self.tokens.len() {
+            &self.tokens[self.position + offset]
+        } else {
+            &Token::Eof
+        }
+    }
+
     /// Advance to next token.
     pub(super) fn advance(&mut self) {
         if self.position < self.tokens.len() {

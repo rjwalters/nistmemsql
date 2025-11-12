@@ -338,6 +338,11 @@ impl SqltestRunner {
                     .map_err(|e| format!("Execution error: {:?}", e))?;
                 Ok(true)
             }
+            vibesql_ast::Statement::Reindex(reindex_stmt) => {
+                vibesql_executor::IndexExecutor::execute_reindex(&reindex_stmt, db)
+                    .map_err(|e| format!("Execution error: {:?}", e))?;
+                Ok(true)
+            }
             vibesql_ast::Statement::BeginTransaction(_)
             | vibesql_ast::Statement::Commit(_)
             | vibesql_ast::Statement::Rollback(_)

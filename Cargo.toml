@@ -72,3 +72,6 @@ path = "tests/e2e_data_types/mod.rs"
 [[test]]
 name = "test_revoke_nonexistent"
 path = "tests/test_revoke_nonexistent.rs"
+
+[patch.crates-io]
+sqllogictest = { path = "crates/sqllogictest" }

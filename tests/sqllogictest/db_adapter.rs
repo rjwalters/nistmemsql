@@ -301,6 +301,11 @@ impl NistMemSqlDB {
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
+            vibesql_ast::Statement::Reindex(reindex_stmt) => {
+                vibesql_executor::IndexExecutor::execute_reindex(&reindex_stmt, &self.db)
+                    .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
             // Unimplemented statements return success for now
             vibesql_ast::Statement::BeginTransaction(_)
             | vibesql_ast::Statement::Commit(_)
@@ -323,7 +328,12 @@ impl NistMemSqlDB {
             | vibesql_ast::Statement::DeclareCursor(_)
             | vibesql_ast::Statement::OpenCursor(_)
             | vibesql_ast::Statement::Fetch(_)
-            | vibesql_ast::Statement::CloseCursor(_) => Ok(DBOutput::StatementComplete(0)),
+            | vibesql_ast::Statement::CloseCursor(_)
+            | vibesql_ast::Statement::CreateProcedure(_)
+            | vibesql_ast::Statement::DropProcedure(_)
+            | vibesql_ast::Statement::CreateFunction(_)
+            | vibesql_ast::Statement::DropFunction(_)
+            | vibesql_ast::Statement::Call(_) => Ok(DBOutput::StatementComplete(0)),
         }
     }
 

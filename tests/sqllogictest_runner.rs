@@ -155,6 +155,11 @@ impl NistMemSqlDB {
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
+            vibesql_ast::Statement::Reindex(reindex_stmt) => {
+                vibesql_executor::IndexExecutor::execute_reindex(&reindex_stmt, &self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
             vibesql_ast::Statement::SetNames(set_stmt) => {
                 vibesql_executor::SchemaExecutor::execute_set_names(&set_stmt, &mut self.db)
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
@@ -219,6 +224,43 @@ impl NistMemSqlDB {
                     &mut self.db,
                 )
                 .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            vibesql_ast::Statement::CreateProcedure(create_proc_stmt) => {
+                vibesql_executor::advanced_objects::execute_create_procedure(
+                    &create_proc_stmt,
+                    &mut self.db,
+                )
+                .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            vibesql_ast::Statement::DropProcedure(drop_proc_stmt) => {
+                vibesql_executor::advanced_objects::execute_drop_procedure(
+                    &drop_proc_stmt,
+                    &mut self.db,
+                )
+                .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            vibesql_ast::Statement::CreateFunction(create_func_stmt) => {
+                vibesql_executor::advanced_objects::execute_create_function(
+                    &create_func_stmt,
+                    &mut self.db,
+                )
+                .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            vibesql_ast::Statement::DropFunction(drop_func_stmt) => {
+                vibesql_executor::advanced_objects::execute_drop_function(
+                    &drop_func_stmt,
+                    &mut self.db,
+                )
+                .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            vibesql_ast::Statement::Call(call_stmt) => {
+                vibesql_executor::advanced_objects::execute_call(&call_stmt, &mut self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
             vibesql_ast::Statement::CreateTrigger(_) => {

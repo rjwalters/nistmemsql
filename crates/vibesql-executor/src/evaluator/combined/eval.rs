@@ -271,8 +271,65 @@ impl CombinedExpressionEvaluator<'_> {
                 ))
             }
 
+            // Full-text search
+            vibesql_ast::Expression::MatchAgainst { columns, search_modifier, mode } => {
+                self.eval_match_against(columns, search_modifier, mode, row)
+            }
+
             // Unsupported expressions
             _ => Err(ExecutorError::UnsupportedExpression(format!("{:?}", expr))),
         }
+    }
+
+    /// Evaluate a MATCH...AGAINST full-text search expression
+    fn eval_match_against(
+        &self,
+        columns: &[String],
+        search_modifier: &vibesql_ast::Expression,
+        mode: &vibesql_ast::FulltextMode,
+        row: &vibesql_storage::Row,
+    ) -> Result<vibesql_types::SqlValue, ExecutorError> {
+        // Evaluate the search string
+        let search_value = self.eval(search_modifier, row)?;
+        let search_string = match search_value {
+            vibesql_types::SqlValue::Varchar(s) | vibesql_types::SqlValue::Character(s) => s,
+            vibesql_types::SqlValue::Null => return Ok(vibesql_types::SqlValue::Boolean(false)),
+            other => other.to_string(),
+        };
+
+        // Collect text values from the specified columns
+        let mut text_values = Vec::new();
+        for column_name in columns {
+            // Try to resolve column in inner schema
+            let col_value = if let Some(col_index) = self.get_column_index_cached(None, column_name) {
+                row.get(col_index).cloned()
+            } else if let (Some(outer_row), Some(outer_schema)) = (self.outer_row, self.outer_schema) {
+                // Try outer schema if available
+                if let Some(col_index) = outer_schema.get_column_index(None, column_name) {
+                    outer_row.get(col_index).cloned()
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            match col_value {
+                Some(vibesql_types::SqlValue::Varchar(s)) | Some(vibesql_types::SqlValue::Character(s)) => text_values.push(s),
+                Some(vibesql_types::SqlValue::Null) => {
+                    // NULL values are treated as empty strings in MATCH
+                    text_values.push(String::new());
+                }
+                Some(other) => text_values.push(other.to_string()),
+                None => {
+                    // Column not found - return false for this match
+                    return Ok(vibesql_types::SqlValue::Boolean(false));
+                }
+            }
+        }
+
+        // Perform full-text search
+        let result = super::super::expressions::fulltext::eval_match_against(&search_string, &text_values, mode)?;
+        Ok(vibesql_types::SqlValue::Boolean(result))
     }
 }
