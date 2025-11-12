@@ -42,82 +42,34 @@ fn test_parse_create_table_with_connection() {
 }
 
 #[test]
-fn test_parse_create_table_with_insert_method() {
-    let result = Parser::parse_sql("CREATE TABLE t1 (c1 INT) INSERT_METHOD = LAST;");
-    assert!(result.is_ok(), "Should parse INSERT_METHOD option with =");
+fn test_parse_create_table_with_insert_method_variants() {
+    // Test all INSERT_METHOD values without equals sign
+    let test_cases = vec![
+        ("INSERT_METHOD FIRST", vibesql_ast::InsertMethod::First),
+        ("INSERT_METHOD LAST", vibesql_ast::InsertMethod::Last),
+        ("INSERT_METHOD NO", vibesql_ast::InsertMethod::No),
+        ("INSERT_METHOD = FIRST", vibesql_ast::InsertMethod::First),
+        ("INSERT_METHOD = LAST", vibesql_ast::InsertMethod::Last),
+        ("INSERT_METHOD = NO", vibesql_ast::InsertMethod::No),
+    ];
 
-    let stmt = result.unwrap();
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_options.len(), 1);
-            match &create.table_options[0] {
-                vibesql_ast::TableOption::InsertMethod(method) => {
-                    assert_eq!(method, &vibesql_ast::InsertMethod::Last);
+    for (option, expected_method) in test_cases {
+        let sql = format!("CREATE TABLE t1 (c1 INT) {};", option);
+        let result = Parser::parse_sql(&sql);
+        assert!(result.is_ok(), "Should parse {}", option);
+
+        let stmt = result.unwrap();
+        match stmt {
+            vibesql_ast::Statement::CreateTable(create) => {
+                match &create.table_options[0] {
+                    vibesql_ast::TableOption::InsertMethod(method) => {
+                        assert_eq!(method, &expected_method, "INSERT_METHOD value mismatch for {}", option);
+                    }
+                    _ => panic!("Expected InsertMethod option for {}", option),
                 }
-                _ => panic!("Expected InsertMethod option"),
             }
+            _ => panic!("Expected CREATE TABLE statement for {}", option),
         }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
-#[test]
-fn test_parse_create_table_with_insert_method_without_equals() {
-    let result = Parser::parse_sql("CREATE TABLE t1 (c1 INT) INSERT_METHOD LAST;");
-    assert!(result.is_ok(), "Should parse INSERT_METHOD option without =");
-
-    let stmt = result.unwrap();
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_options.len(), 1);
-            match &create.table_options[0] {
-                vibesql_ast::TableOption::InsertMethod(method) => {
-                    assert_eq!(method, &vibesql_ast::InsertMethod::Last);
-                }
-                _ => panic!("Expected InsertMethod option"),
-            }
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
-#[test]
-fn test_parse_create_table_with_insert_method_first() {
-    let result = Parser::parse_sql("CREATE TABLE t1 (c1 INT) INSERT_METHOD FIRST;");
-    assert!(result.is_ok(), "Should parse INSERT_METHOD FIRST without =");
-
-    let stmt = result.unwrap();
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_options.len(), 1);
-            match &create.table_options[0] {
-                vibesql_ast::TableOption::InsertMethod(method) => {
-                    assert_eq!(method, &vibesql_ast::InsertMethod::First);
-                }
-                _ => panic!("Expected InsertMethod option"),
-            }
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
-    }
-}
-
-#[test]
-fn test_parse_create_table_with_insert_method_no() {
-    let result = Parser::parse_sql("CREATE TABLE t1 (c1 INT) INSERT_METHOD NO;");
-    assert!(result.is_ok(), "Should parse INSERT_METHOD NO without =");
-
-    let stmt = result.unwrap();
-    match stmt {
-        vibesql_ast::Statement::CreateTable(create) => {
-            assert_eq!(create.table_options.len(), 1);
-            match &create.table_options[0] {
-                vibesql_ast::TableOption::InsertMethod(method) => {
-                    assert_eq!(method, &vibesql_ast::InsertMethod::No);
-                }
-                _ => panic!("Expected InsertMethod option"),
-            }
-        }
-        _ => panic!("Expected CREATE TABLE statement"),
     }
 }
 
