@@ -297,6 +297,16 @@ impl NistMemSqlDB {
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
+            vibesql_ast::Statement::CreateTrigger(create_trigger_stmt) => {
+                vibesql_executor::TriggerExecutor::create_trigger(&mut self.db, &create_trigger_stmt)
+                    .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
+            vibesql_ast::Statement::DropTrigger(drop_trigger_stmt) => {
+                vibesql_executor::TriggerExecutor::drop_trigger(&mut self.db, &drop_trigger_stmt)
+                    .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
             // Unimplemented statements return success for now
             vibesql_ast::Statement::BeginTransaction(_)
             | vibesql_ast::Statement::Commit(_)
@@ -314,8 +324,6 @@ impl NistMemSqlDB {
             | vibesql_ast::Statement::DropCharacterSet(_)
             | vibesql_ast::Statement::CreateTranslation(_)
             | vibesql_ast::Statement::DropTranslation(_)
-            | vibesql_ast::Statement::CreateTrigger(_)
-            | vibesql_ast::Statement::DropTrigger(_)
             | vibesql_ast::Statement::DeclareCursor(_)
             | vibesql_ast::Statement::OpenCursor(_)
             | vibesql_ast::Statement::Fetch(_)

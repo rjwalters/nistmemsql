@@ -225,15 +225,18 @@ impl CombinedExpressionEvaluator<'_> {
         negated: bool,
         row: &vibesql_storage::Row,
     ) -> Result<vibesql_types::SqlValue, ExecutorError> {
-        // Handle empty IN list: returns false for IN, true for NOT IN
-        // This is per SQLite behavior (SQL:1999 extension, not standard SQL)
+        // Empty set optimization (SQLite behavior):
+        // If the list is empty, return FALSE for IN, TRUE for NOT IN
+        // This is true regardless of whether the left expression is NULL
+        // Rationale: No value can match an empty set
+        // (SQLite behavior, SQL:1999 extension, not standard SQL)
         if values.is_empty() {
             return Ok(vibesql_types::SqlValue::Boolean(negated));
         }
 
         let expr_val = self.eval(expr, row)?;
 
-        // If left expression is NULL, result is NULL
+        // If left expression is NULL, result is NULL (per SQL three-valued logic)
         if matches!(expr_val, vibesql_types::SqlValue::Null) {
             return Ok(vibesql_types::SqlValue::Null);
         }

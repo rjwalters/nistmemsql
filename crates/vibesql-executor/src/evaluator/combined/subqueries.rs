@@ -271,14 +271,6 @@ impl CombinedExpressionEvaluator<'_> {
             "IN with subquery requires database reference".to_string(),
         ))?;
 
-        // Evaluate the left-hand expression
-        let expr_val = self.eval(expr, row)?;
-
-        // If left expression is NULL, result is NULL
-        if matches!(expr_val, vibesql_types::SqlValue::Null) {
-            return Ok(vibesql_types::SqlValue::Null);
-        }
-
         // Subquery must return exactly one column
         if subquery.select_list.len() != 1 {
             return Err(ExecutorError::SubqueryColumnCountMismatch {
@@ -299,6 +291,22 @@ impl CombinedExpressionEvaluator<'_> {
             crate::select::SelectExecutor::new(database)
         };
         let rows = select_executor.execute(subquery)?;
+
+        // Empty set optimization (SQLite behavior):
+        // If the subquery returns no rows, return FALSE for IN, TRUE for NOT IN
+        // This is true regardless of whether the left expression is NULL
+        // Rationale: No value can match an empty set
+        if rows.is_empty() {
+            return Ok(vibesql_types::SqlValue::Boolean(negated));
+        }
+
+        // Evaluate the left-hand expression
+        let expr_val = self.eval(expr, row)?;
+
+        // If left expression is NULL, result is NULL (per SQL three-valued logic)
+        if matches!(expr_val, vibesql_types::SqlValue::Null) {
+            return Ok(vibesql_types::SqlValue::Null);
+        }
 
         let mut found_null = false;
 
