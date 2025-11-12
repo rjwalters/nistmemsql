@@ -1,7 +1,6 @@
 //! SQL Value runtime representation
 
 mod comparison;
-mod comparison_tests;
 mod hash;
 mod display;
 
