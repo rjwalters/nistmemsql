@@ -105,7 +105,7 @@ fn to_geo_geometry(geom: &Geometry) -> Result<geo::Geometry<f64>, ExecutorError>
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(geo::Geometry::MultiPolygon(geo::MultiPolygon(polys)))
         }
-        Geometry::GeometryCollection { geometries } => {
+        Geometry::Collection { geometries } => {
             let geoms: Vec<geo::Geometry<f64>> = geometries
                 .iter()
                 .map(to_geo_geometry)
@@ -168,7 +168,7 @@ fn from_geo_geometry(geom: &geo::Geometry<f64>) -> Result<Geometry, ExecutorErro
                 .iter()
                 .map(from_geo_geometry)
                 .collect::<Result<Vec<_>, _>>()?;
-            Ok(Geometry::GeometryCollection { geometries })
+            Ok(Geometry::Collection { geometries })
         }
         _ => Err(ExecutorError::UnsupportedFeature(
             "Geometry type not yet supported for operations".to_string(),

@@ -264,7 +264,7 @@ fn parse_geometrycollection(wkt: &str) -> Result<Geometry, ExecutorError> {
         ));
     }
     
-    Ok(Geometry::GeometryCollection { geometries })
+    Ok(Geometry::Collection { geometries })
 }
 
 /// Extract coordinates from WKT format

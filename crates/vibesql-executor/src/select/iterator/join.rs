@@ -181,9 +181,9 @@ impl<'schema, I: RowIterator> LazyNestedLoopJoin<'schema, I> {
                     vibesql_types::SqlValue::Integer(_)
                     | vibesql_types::SqlValue::Smallint(_)
                     | vibesql_types::SqlValue::Bigint(_) => Ok(true),
-                    vibesql_types::SqlValue::Float(f) | vibesql_types::SqlValue::Real(f) if f == 0.0 => Ok(false),
+                    vibesql_types::SqlValue::Float(0.0) | vibesql_types::SqlValue::Real(0.0) => Ok(false),
                     vibesql_types::SqlValue::Float(_) | vibesql_types::SqlValue::Real(_) => Ok(true),
-                    vibesql_types::SqlValue::Double(f) if f == 0.0 => Ok(false),
+                    vibesql_types::SqlValue::Double(0.0) => Ok(false),
                     vibesql_types::SqlValue::Double(_) => Ok(true),
                     other => Err(ExecutorError::InvalidWhereClause(format!(
                         "Join condition must evaluate to boolean, got: {:?}",

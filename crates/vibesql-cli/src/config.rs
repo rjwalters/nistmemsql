@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::formatter::OutputFormat;
 
 /// VibeSQL configuration loaded from ~/.vibesqlrc
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     #[serde(default)]
     pub display: DisplayConfig,
@@ -49,7 +49,7 @@ pub struct HistoryConfig {
     pub max_entries: usize,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct QueryConfig {
     /// Query timeout in seconds (0 = no timeout)
     #[serde(default)]
@@ -77,16 +77,6 @@ fn default_max_entries() -> usize {
     10000
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Config {
-            display: DisplayConfig::default(),
-            database: DatabaseConfig::default(),
-            history: HistoryConfig::default(),
-            query: QueryConfig::default(),
-        }
-    }
-}
 
 impl Default for DisplayConfig {
     fn default() -> Self {
@@ -106,11 +96,6 @@ impl Default for HistoryConfig {
     }
 }
 
-impl Default for QueryConfig {
-    fn default() -> Self {
-        QueryConfig { timeout_seconds: 0 }
-    }
-}
 
 impl Config {
     /// Load configuration from ~/.vibesqlrc

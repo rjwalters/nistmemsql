@@ -2,6 +2,16 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{errors::ExecutorError, schema::CombinedSchema, select::WindowFunctionKey};
 
+/// Components returned by get_parallel_components for parallel execution
+type ParallelComponents<'a> = (
+    &'a CombinedSchema,
+    Option<&'a vibesql_storage::Database>,
+    Option<&'a vibesql_storage::Row>,
+    Option<&'a CombinedSchema>,
+    Option<&'a std::collections::HashMap<WindowFunctionKey, usize>>,
+    bool,
+);
+
 /// Evaluates expressions in the context of a row
 pub struct ExpressionEvaluator<'a> {
     pub(super) schema: &'a vibesql_catalog::TableSchema,
@@ -342,16 +352,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
 
     /// Get evaluator components for parallel execution
     /// Returns (schema, database, outer_row, outer_schema, window_mapping, enable_cse)
-    pub(crate) fn get_parallel_components(
-        &self,
-    ) -> (
-        &'a CombinedSchema,
-        Option<&'a vibesql_storage::Database>,
-        Option<&'a vibesql_storage::Row>,
-        Option<&'a CombinedSchema>,
-        Option<&'a std::collections::HashMap<WindowFunctionKey, usize>>,
-        bool,
-    ) {
+    pub(crate) fn get_parallel_components(&self) -> ParallelComponents<'a> {
         (
             self.schema,
             self.database,

@@ -225,7 +225,7 @@ fn geometry_to_geojson(geom: &Geometry) -> String {
                 .join(",");
             format!(r#"{{"type":"MultiPolygon","coordinates":[{}]}}"#, polys_str)
         }
-        Geometry::GeometryCollection { geometries } => {
+        Geometry::Collection { geometries } => {
             let geoms = geometries
                 .iter()
                 .map(|g| {
