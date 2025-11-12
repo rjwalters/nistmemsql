@@ -74,6 +74,83 @@ pub fn write_catalog<W: Write>(writer: &mut W, db: &Database) -> Result<(), Stor
         }
     }
 
+    // Write triggers
+    let trigger_names = db.catalog.list_triggers();
+    write_u32(writer, trigger_names.len() as u32)?;
+
+    for trigger_name in trigger_names {
+        if let Some(trigger) = db.catalog.get_trigger(&trigger_name) {
+            write_string(writer, &trigger.name)?;
+            write_string(writer, &trigger.table_name)?;
+
+            // Write timing as u8 (0 = Before, 1 = After, 2 = InsteadOf)
+            let timing = match trigger.timing {
+                vibesql_ast::TriggerTiming::Before => 0u8,
+                vibesql_ast::TriggerTiming::After => 1u8,
+                vibesql_ast::TriggerTiming::InsteadOf => 2u8,
+            };
+            writer
+                .write_all(&[timing])
+                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+
+            // Write event as u8 (0 = Insert, 1 = Update, 2 = Delete)
+            // For Update with columns, write 3 followed by column list
+            match &trigger.event {
+                vibesql_ast::TriggerEvent::Insert => {
+                    writer.write_all(&[0u8])
+                        .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+                }
+                vibesql_ast::TriggerEvent::Update(None) => {
+                    writer.write_all(&[1u8])
+                        .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+                }
+                vibesql_ast::TriggerEvent::Update(Some(cols)) => {
+                    writer.write_all(&[3u8])
+                        .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+                    write_u32(writer, cols.len() as u32)?;
+                    for col in cols {
+                        write_string(writer, col)?;
+                    }
+                }
+                vibesql_ast::TriggerEvent::Delete => {
+                    writer.write_all(&[2u8])
+                        .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+                }
+            }
+
+            // Write granularity as u8 (0 = Row, 1 = Statement)
+            let granularity = match trigger.granularity {
+                vibesql_ast::TriggerGranularity::Row => 0u8,
+                vibesql_ast::TriggerGranularity::Statement => 1u8,
+            };
+            writer
+                .write_all(&[granularity])
+                .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+
+            // Write when_condition (optional)
+            match &trigger.when_condition {
+                Some(_expr) => {
+                    write_bool(writer, true)?;
+                    // For now, we'll skip serializing the expression tree
+                    // This can be implemented later with proper expression serialization
+                    write_string(writer, "TODO: expression serialization")?;
+                }
+                None => {
+                    write_bool(writer, false)?;
+                }
+            }
+
+            // Write triggered_action
+            match &trigger.triggered_action {
+                vibesql_ast::TriggerAction::RawSql(sql) => {
+                    writer.write_all(&[0u8])
+                        .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
+                    write_string(writer, sql)?;
+                }
+            }
+        }
+    }
+
     Ok(())
 }
 
@@ -171,6 +248,106 @@ pub fn read_catalog<R: Read>(reader: &mut R) -> Result<Database, StorageError> {
     for (index_name, table_name, unique, columns) in index_specs {
         db.create_index(index_name, table_name, unique, columns)
             .map_err(|e| StorageError::NotImplemented(format!("Failed to create index: {}", e)))?;
+    }
+
+    // Read triggers
+    let trigger_count = read_u32(reader)?;
+
+    for _ in 0..trigger_count {
+        let name = read_string(reader)?;
+        let table_name = read_string(reader)?;
+
+        // Read timing
+        let timing_byte = read_u8(reader)?;
+        let timing = match timing_byte {
+            0 => vibesql_ast::TriggerTiming::Before,
+            1 => vibesql_ast::TriggerTiming::After,
+            2 => vibesql_ast::TriggerTiming::InsteadOf,
+            _ => {
+                return Err(StorageError::NotImplemented(format!(
+                    "Invalid trigger timing: {}",
+                    timing_byte
+                )))
+            }
+        };
+
+        // Read event
+        let event_byte = read_u8(reader)?;
+        let event = match event_byte {
+            0 => vibesql_ast::TriggerEvent::Insert,
+            1 => vibesql_ast::TriggerEvent::Update(None),
+            2 => vibesql_ast::TriggerEvent::Delete,
+            3 => {
+                // Update with column list
+                let col_count = read_u32(reader)?;
+                let mut cols = Vec::new();
+                for _ in 0..col_count {
+                    cols.push(read_string(reader)?);
+                }
+                vibesql_ast::TriggerEvent::Update(Some(cols))
+            }
+            _ => {
+                return Err(StorageError::NotImplemented(format!(
+                    "Invalid trigger event: {}",
+                    event_byte
+                )))
+            }
+        };
+
+        // Read granularity
+        let granularity_byte = read_u8(reader)?;
+        let granularity = match granularity_byte {
+            0 => vibesql_ast::TriggerGranularity::Row,
+            1 => vibesql_ast::TriggerGranularity::Statement,
+            _ => {
+                return Err(StorageError::NotImplemented(format!(
+                    "Invalid trigger granularity: {}",
+                    granularity_byte
+                )))
+            }
+        };
+
+        // Read when_condition
+        let has_when = read_bool(reader)?;
+        let when_condition = if has_when {
+            let _expr_str = read_string(reader)?;
+            // For now, we can't deserialize the expression
+            // This will be implemented when proper expression serialization is added
+            None
+        } else {
+            None
+        };
+
+        // Read triggered_action
+        let action_type = read_u8(reader)?;
+        let triggered_action = match action_type {
+            0 => {
+                let sql = read_string(reader)?;
+                vibesql_ast::TriggerAction::RawSql(sql)
+            }
+            _ => {
+                return Err(StorageError::NotImplemented(format!(
+                    "Invalid trigger action type: {}",
+                    action_type
+                )))
+            }
+        };
+
+        // Create trigger definition
+        let trigger = vibesql_catalog::TriggerDefinition::new(
+            name,
+            timing,
+            event,
+            table_name,
+            granularity,
+            when_condition,
+            triggered_action,
+        );
+
+        // Add to catalog
+        db.catalog
+            .create_trigger(trigger)
+            .map_err(|e| StorageError::NotImplemented(format!("Failed to create trigger: {}", e)))?;
     }
 
     Ok(db)
