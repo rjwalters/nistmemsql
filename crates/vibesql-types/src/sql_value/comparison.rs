@@ -3,6 +3,72 @@
 use crate::sql_value::SqlValue;
 use std::cmp::Ordering;
 
+/// PartialEq implementation for SqlValue
+///
+/// For DISTINCT operations and BTreeMap keys, we need Eq semantics where:
+/// - NULL == NULL (for grouping purposes, unlike SQL comparison)
+/// - NaN == NaN (for grouping purposes, unlike IEEE 754)
+/// - All other values use standard equality
+///
+/// This is consistent with the Ord implementation and satisfies BTreeMap requirements.
+impl PartialEq for SqlValue {
+    fn eq(&self, other: &Self) -> bool {
+        use SqlValue::*;
+        match (self, other) {
+            // NULL equality (for grouping/DISTINCT)
+            (Null, Null) => true,
+            (Null, _) | (_, Null) => false,
+
+            // Integer types
+            (Integer(a), Integer(b)) => a == b,
+            (Smallint(a), Smallint(b)) => a == b,
+            (Bigint(a), Bigint(b)) => a == b,
+            (Unsigned(a), Unsigned(b)) => a == b,
+
+            // Floating point (NaN-aware: NaN == NaN for grouping)
+            (Float(a), Float(b)) => {
+                if a.is_nan() && b.is_nan() {
+                    true
+                } else {
+                    a == b
+                }
+            }
+            (Real(a), Real(b)) => {
+                if a.is_nan() && b.is_nan() {
+                    true
+                } else {
+                    a == b
+                }
+            }
+            (Double(a), Double(b)) | (Numeric(a), Numeric(b)) => {
+                if a.is_nan() && b.is_nan() {
+                    true
+                } else {
+                    a == b
+                }
+            }
+
+            // String types
+            (Character(a), Character(b)) => a == b,
+            (Varchar(a), Varchar(b)) => a == b,
+
+            // Boolean
+            (Boolean(a), Boolean(b)) => a == b,
+
+            // Date/Time types
+            (Date(a), Date(b)) => a == b,
+            (Time(a), Time(b)) => a == b,
+            (Timestamp(a), Timestamp(b)) => a == b,
+
+            // Interval
+            (Interval(a), Interval(b)) => a == b,
+
+            // Type mismatch - not equal
+            _ => false,
+        }
+    }
+}
+
 /// PartialOrd implementation for SQL value comparison
 ///
 /// Implements SQL:1999 comparison semantics:
