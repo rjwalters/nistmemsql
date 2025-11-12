@@ -95,9 +95,10 @@ pub fn execute_insert(
         super::defaults::apply_default_values(&schema, &mut full_row_values)?;
 
         // Validate all constraints in a single pass and extract index keys
-        // Skip PK/UNIQUE duplicate checks if using REPLACE conflict clause
+        // Skip PK/UNIQUE duplicate checks if using REPLACE conflict clause or ON DUPLICATE KEY UPDATE
         let skip_duplicate_checks =
-            matches!(stmt.conflict_clause, Some(vibesql_ast::ConflictClause::Replace));
+            matches!(stmt.conflict_clause, Some(vibesql_ast::ConflictClause::Replace))
+                || stmt.on_duplicate_key_update.is_some();
         let validator = super::row_validator::RowValidator::new(
             db,
             &schema,
@@ -128,11 +129,28 @@ pub fn execute_insert(
     // All rows validated successfully, now insert them
     let mut rows_inserted = 0;
     for full_row_values in validated_rows {
-        // If REPLACE conflict clause, delete conflicting rows first
-        if matches!(
+        // Check if ON DUPLICATE KEY UPDATE is specified
+        if let Some(ref assignments) = stmt.on_duplicate_key_update {
+            // Try to update an existing row if there's a conflict
+            let update_result = super::duplicate_key_update::handle_duplicate_key_update(
+                db,
+                &stmt.table_name,
+                &schema,
+                &full_row_values,
+                assignments,
+            )?;
+
+            if update_result.is_some() {
+                // Row was updated, count it
+                rows_inserted += 1;
+                continue;
+            }
+            // No conflict, fall through to insert
+        } else if matches!(
             stmt.conflict_clause,
             Some(vibesql_ast::ConflictClause::Replace)
         ) {
+            // If REPLACE conflict clause, delete conflicting rows first
             super::replace::handle_replace_conflicts(
                 db,
                 &stmt.table_name,
@@ -141,6 +159,7 @@ pub fn execute_insert(
             )?;
         }
 
+        // Insert the row
         let row = vibesql_storage::Row::new(full_row_values);
         db.insert_row(&stmt.table_name, row)
             .map_err(|e| ExecutorError::UnsupportedExpression(format!("Storage error: {}", e)))?;

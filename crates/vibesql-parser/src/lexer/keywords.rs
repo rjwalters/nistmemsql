@@ -14,6 +14,7 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "IGNORE" => Token::Keyword(Keyword::Ignore),
         "UPDATE" => Token::Keyword(Keyword::Update),
         "DELETE" => Token::Keyword(Keyword::Delete),
+        "DUPLICATE" => Token::Keyword(Keyword::Duplicate),
         "CREATE" => Token::Keyword(Keyword::Create),
         "TABLE" => Token::Keyword(Keyword::Table),
         "DROP" => Token::Keyword(Keyword::Drop),

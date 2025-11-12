@@ -61,6 +61,26 @@ impl Parser {
         self.advance(); // consume '('
         let first = function_name;
 
+        // Special case for VALUES(column) - MySQL ON DUPLICATE KEY UPDATE
+        // Returns the value that would have been inserted
+        if first.to_uppercase() == "VALUES" {
+            // Expect a single column name as argument
+            let column = match self.peek() {
+                Token::Identifier(col) | Token::DelimitedIdentifier(col) => {
+                    let column_name = col.clone();
+                    self.advance();
+                    column_name
+                }
+                _ => {
+                    return Err(ParseError {
+                        message: "Expected column name in VALUES() function".to_string(),
+                    })
+                }
+            };
+            self.expect_token(Token::RParen)?;
+            return Ok(Some(vibesql_ast::Expression::DuplicateKeyValue { column }));
+        }
+
         // Special case for POSITION(substring IN string [USING unit])
         // SQL:1999 standard syntax
         if first.to_uppercase() == "POSITION" {
