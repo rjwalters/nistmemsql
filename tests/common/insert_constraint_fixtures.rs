@@ -224,6 +224,7 @@ pub fn build_insert_values(table_name: &str, values: Vec<vibesql_types::SqlValue
             .into_iter()
             .map(vibesql_ast::Expression::Literal)
             .collect()]),
+        conflict_clause: None,
     }
 }
 
@@ -240,6 +241,7 @@ pub fn build_insert_columns(
             .into_iter()
             .map(vibesql_ast::Expression::Literal)
             .collect()]),
+        conflict_clause: None,
     }
 }
 

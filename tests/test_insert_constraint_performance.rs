@@ -48,6 +48,7 @@ fn test_insert_with_merged_constraint_validation() {
                 Expression::Literal(SqlValue::Varchar(format!("User{}", i))),
                 Expression::Literal(SqlValue::Varchar(format!("user{}@example.com", i))),
             ]]),
+            conflict_clause: None,
         };
 
         InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -108,6 +109,7 @@ fn test_insert_multi_row_with_constraints() {
         table_name: "test_table".to_string(),
         columns: vec![],
         source: InsertSource::Values(rows),
+        conflict_clause: None,
     };
 
     InsertExecutor::execute(&mut db, &stmt).unwrap();
