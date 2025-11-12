@@ -34,7 +34,31 @@ pub fn format_sql_value(value: &SqlValue, expected_type: Option<&DefaultColumnTy
                 i.to_string()
             }
         }
-        SqlValue::Numeric(_) => value.to_string(), // Use Display trait for consistent formatting
+        SqlValue::Numeric(n) => {
+            // Format based on expected type from test
+            if matches!(expected_type, Some(DefaultColumnType::Integer)) {
+                // Test expects integer format - strip decimals
+                if n.fract() == 0.0 && n.abs() < 1e15 {
+                    format!("{:.0}", n)
+                } else {
+                    n.to_string()
+                }
+            } else if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
+                // Test expects floating point format - add decimals for whole numbers
+                if n.fract() == 0.0 {
+                    format!("{:.3}", n)
+                } else {
+                    n.to_string()
+                }
+            } else {
+                // No type hint - use simple integer format for whole numbers (MySQL default)
+                if n.fract() == 0.0 && n.abs() < 1e15 {
+                    format!("{:.0}", n)
+                } else {
+                    n.to_string()
+                }
+            }
+        }
         SqlValue::Float(f) | SqlValue::Real(f) => {
             if f.fract() == 0.0 {
                 format!("{:.1}", f)
@@ -87,7 +111,31 @@ pub fn format_sql_value_canonical(
                 i.to_string()
             }
         }
-        SqlValue::Numeric(_) => value.to_string(),
+        SqlValue::Numeric(n) => {
+            // Format based on expected type from test
+            if matches!(expected_type, Some(DefaultColumnType::Integer)) {
+                // Test expects integer format - strip decimals
+                if n.fract() == 0.0 && n.abs() < 1e15 {
+                    format!("{:.0}", n)
+                } else {
+                    n.to_string()
+                }
+            } else if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
+                // Test expects floating point format - add decimals for whole numbers
+                if n.fract() == 0.0 {
+                    format!("{:.3}", n)
+                } else {
+                    n.to_string()
+                }
+            } else {
+                // No type hint - use simple integer format for whole numbers (MySQL default)
+                if n.fract() == 0.0 && n.abs() < 1e15 {
+                    format!("{:.0}", n)
+                } else {
+                    n.to_string()
+                }
+            }
+        }
         SqlValue::Float(f) | SqlValue::Real(f) => {
             if f.fract() == 0.0 {
                 format!("{:.1}", f)
