@@ -3,6 +3,7 @@
 use vibesql_types::SqlValue;
 
 use crate::errors::ExecutorError;
+use crate::evaluator::coercion::coerce_to_date;
 use crate::evaluator::functions::datetime::date_add_subtract;
 
 use super::coerce_numeric_values;
@@ -26,6 +27,12 @@ impl Addition {
             (Null, Interval(_)) | (Interval(_), Null) => return Ok(Null),
             (Null, Date(_)) | (Date(_), Null) => return Ok(Null),
             (Null, Timestamp(_)) | (Timestamp(_), Null) => return Ok(Null),
+            (Null, Varchar(_)) | (Varchar(_), Null) | (Null, Character(_)) | (Character(_), Null) => {
+                // Check if this is date arithmetic with NULL
+                if matches!(left, Interval(_)) || matches!(right, Interval(_)) {
+                    return Ok(Null);
+                }
+            }
 
             // DATE + INTERVAL
             (Date(date), Interval(interval)) => {
@@ -45,6 +52,20 @@ impl Addition {
             // INTERVAL + TIMESTAMP (commutative)
             (Interval(interval), Timestamp(ts)) => {
                 return apply_interval_to_date(&ts.to_string(), interval, true);
+            }
+
+            // VARCHAR + INTERVAL (with coercion to DATE)
+            (Varchar(_) | Character(_), Interval(interval)) => {
+                let date_val = coerce_to_date(left)?;
+                let date_str = date_val_to_string(&date_val)?;
+                return apply_interval_to_date(&date_str, interval, true);
+            }
+
+            // INTERVAL + VARCHAR (commutative, with coercion to DATE)
+            (Interval(interval), Varchar(_) | Character(_)) => {
+                let date_val = coerce_to_date(right)?;
+                let date_str = date_val_to_string(&date_val)?;
+                return apply_interval_to_date(&date_str, interval, true);
             }
 
             _ => {}
@@ -107,4 +128,17 @@ fn apply_interval_to_date(
     // Delegate to existing date arithmetic helper
     // Note: date_add_subtract expects unit like "DAY", "MONTH", etc.
     date_add_subtract(date_str, signed_amount, unit_str, true)
+}
+
+/// Convert a SqlValue (Date or Timestamp) to string representation
+fn date_val_to_string(value: &SqlValue) -> Result<String, ExecutorError> {
+    match value {
+        SqlValue::Date(d) => Ok(d.to_string()),
+        SqlValue::Timestamp(ts) => Ok(ts.to_string()),
+        SqlValue::Null => Ok("NULL".to_string()), // Should not reach here due to NULL checks
+        val => Err(ExecutorError::UnsupportedFeature(format!(
+            "Expected DATE or TIMESTAMP, got {:?}",
+            val
+        ))),
+    }
 }
