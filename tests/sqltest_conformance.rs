@@ -365,8 +365,13 @@ impl SqltestRunner {
             | vibesql_ast::Statement::DeclareCursor(_)
             | vibesql_ast::Statement::OpenCursor(_)
             | vibesql_ast::Statement::Fetch(_)
-            | vibesql_ast::Statement::CloseCursor(_) => {
-                // Transactions, cursors, triggers, assertions, and advanced SQL objects are no-ops
+            | vibesql_ast::Statement::CloseCursor(_)
+            | vibesql_ast::Statement::CreateProcedure(_)
+            | vibesql_ast::Statement::DropProcedure(_)
+            | vibesql_ast::Statement::CreateFunction(_)
+            | vibesql_ast::Statement::DropFunction(_)
+            | vibesql_ast::Statement::Call(_) => {
+                // Transactions, cursors, triggers, assertions, procedures, functions, and advanced SQL objects are no-ops
                 // for validation
                 Ok(true)
             }

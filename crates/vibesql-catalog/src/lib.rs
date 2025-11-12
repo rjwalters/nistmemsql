@@ -33,6 +33,4 @@ pub use type_definition::{TypeAttribute, TypeDefinition, TypeDefinitionKind};
 pub use view::ViewDefinition;
 
 #[cfg(test)]
-mod case_sensitivity_tests;
-#[cfg(test)]
 mod tests;

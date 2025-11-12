@@ -1,8 +1,6 @@
 //! Comprehensive SQLLogicTest suite runner using the dolthub/sqllogictest submodule.
 //!
-//! This test suite runs ~5.9 million SQL tests from the official SQLLogicTest corpus.
-//! Tests are randomly selected each run to progressively build coverage over time.
-//! Results are merged with historical data to track: tested/passed, tested/failed, not-yet-tested.
+//! This test suite runs ALL ~5.9 million SQL tests from the official SQLLogicTest corpus.
 //!
 //! Tests are organized by category:
 //! - select1-5.test: Basic SELECT queries
@@ -24,19 +22,13 @@ use std::{
 use sqllogictest::{
     execution::{run_test_file_with_details, TestError},
     stats::{TestFailure, TestStats},
-    work_queue::WorkQueue,
 };
 
-/// Run SQLLogicTest files from the submodule (prioritized by failure history, then randomly
-/// selected with time budget)
+/// Run SQLLogicTest files from the submodule - all files, no sampling
 fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
     let test_dir = PathBuf::from("third_party/sqllogictest/test");
     let mut results = HashMap::new();
 
-    // Get time budget from environment (default: 5 minutes = 300 seconds)
-    let time_budget_secs: u64 =
-        env::var("SQLLOGICTEST_TIME_BUDGET").ok().and_then(|s| s.parse().ok()).unwrap_or(300);
-    let time_budget = Duration::from_secs(time_budget_secs);
     let start_time = Instant::now();
 
     // Find all .test files
@@ -46,43 +38,21 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
 
     let total_available_files = all_test_files.len();
 
-    // Work queue mode: Claim files dynamically until queue is empty
-    println!("\n=== SQLLogicTest Suite (Work Queue Mode) ===");
-    println!("Total available test files: {}", total_available_files);
-    println!("Time budget: {} seconds", time_budget_secs);
+    println!("\n=== SQLLogicTest Suite (Full Run) ===");
+    println!("Total test files: {}", total_available_files);
     println!("Starting test run...\n");
 
-    let work_queue = WorkQueue::from_env().expect("Failed to initialize work queue");
     let mut files_tested = 0;
 
-    loop {
-        // Check time budget
-        if start_time.elapsed() >= time_budget {
-            println!(
-                "\n⏱️  Time budget exhausted after {:.1} seconds",
-                start_time.elapsed().as_secs_f64()
-            );
-            println!("Files tested: {}", files_tested);
-            println!("Files remaining in queue: {}", work_queue.pending_count());
-            println!("Files completed: {}\n", work_queue.completed_count());
-            return (results, total_available_files);
-        }
-
-        // Try to claim next file from work queue (returns relative path)
-        let Some(rel_path_buf) = work_queue.claim_next_file() else {
-            println!(
-                "\n✅ Work queue empty! All {} files have been tested.",
-                total_available_files
-            );
-            println!("Total time: {:.1} seconds", start_time.elapsed().as_secs_f64());
-            println!("Files tested: {}\n", files_tested);
-            return (results, total_available_files);
-        };
-
+    for test_file in all_test_files {
         files_tested += 1;
-        let relative_path = rel_path_buf.to_string_lossy().to_string();
-        // Prepend test_dir to get absolute path
-        let test_file = test_dir.join(&rel_path_buf);
+
+        // Get relative path from test_dir
+        let relative_path = test_file
+            .strip_prefix(&test_dir)
+            .unwrap_or(&test_file)
+            .to_string_lossy()
+            .to_string();
 
         // Determine category from path
         let category = if relative_path.starts_with("select") {
@@ -142,6 +112,15 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
             }
         }
     }
+
+    println!(
+        "\n✅ All {} test files completed!",
+        total_available_files
+    );
+    println!("Total time: {:.1} seconds", start_time.elapsed().as_secs_f64());
+    println!("Files tested: {}\n", files_tested);
+
+    (results, total_available_files)
 }
 
 fn main() {
@@ -227,10 +206,9 @@ fn main() {
     );
 
     println!(
-        "\nNote: This test suite randomly samples from ~5.9 million test cases across {} files.",
+        "\nNote: This test suite runs ~5.9 million test cases across {} files.",
         total_available_files
     );
-    println!("Results from multiple CI runs are merged to progressively build complete coverage.");
     println!("Some failures are expected as we continue implementing SQL:1999 features.");
 
     // Write results to JSON file for CI/badge generation

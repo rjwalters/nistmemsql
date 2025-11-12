@@ -36,6 +36,7 @@ fn test_create_insert_statement() {
         source: InsertSource::Values(vec![vec![Expression::Literal(SqlValue::Varchar(
             "Alice".to_string(),
         ))]]),
+        conflict_clause: None,
     });
 
     match stmt {
