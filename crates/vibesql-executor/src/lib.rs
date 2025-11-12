@@ -26,6 +26,7 @@ mod schema_ddl;
 pub mod select;
 mod select_into;
 mod transaction;
+mod trigger_ddl;
 mod type_ddl;
 mod update;
 
@@ -52,6 +53,7 @@ pub use transaction::{
     BeginTransactionExecutor, CommitExecutor, ReleaseSavepointExecutor, RollbackExecutor,
     RollbackToSavepointExecutor, SavepointExecutor,
 };
+pub use trigger_ddl::TriggerExecutor;
 pub use type_ddl::TypeExecutor;
 pub use update::UpdateExecutor;
 
