@@ -107,7 +107,7 @@ impl CombinedExpressionEvaluator<'_> {
                         let left_val = self.eval(left, row)?;
                         // Short-circuit: if left is false, return false immediately
                         match left_val {
-                            SqlValue::Boolean(false) => return Ok(SqlValue::Boolean(false)),
+                            SqlValue::Boolean(false) => Ok(SqlValue::Boolean(false)),
                             // For NULL and TRUE, must evaluate right side
                             // SQL three-valued logic:
                             // - NULL AND FALSE = FALSE (not NULL!)
@@ -133,7 +133,7 @@ impl CombinedExpressionEvaluator<'_> {
                         let left_val = self.eval(left, row)?;
                         // Short-circuit: if left is true, return true immediately
                         match left_val {
-                            SqlValue::Boolean(true) => return Ok(SqlValue::Boolean(true)),
+                            SqlValue::Boolean(true) => Ok(SqlValue::Boolean(true)),
                             // For NULL and FALSE, must evaluate right side
                             // SQL three-valued logic:
                             // - NULL OR TRUE = TRUE (not NULL!)

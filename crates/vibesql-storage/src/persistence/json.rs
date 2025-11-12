@@ -429,7 +429,7 @@ fn json_database_to_db(json_db: JsonDatabase) -> Result<Database, StorageError> 
     for json_table in json_db.tables {
         // Build table schema
         let columns: Vec<ColumnSchema> =
-            json_table.columns.iter().map(|c| json_column_to_schema(c)).collect::<Result<Vec<_>, _>>()?;
+            json_table.columns.iter().map(json_column_to_schema).collect::<Result<Vec<_>, _>>()?;
 
         let table_schema = TableSchema::new(json_table.name.clone(), columns);
 

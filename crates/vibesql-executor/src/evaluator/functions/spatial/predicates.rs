@@ -438,9 +438,9 @@ pub fn st_relate(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             } else {
                 // ST_Relate(geom1, geom2, pattern) - test against pattern
                 // This requires full DE-9IM computation which is deferred to Phase 4
-                return Err(ExecutorError::UnsupportedFeature(
+                Err(ExecutorError::UnsupportedFeature(
                     "ST_Relate with pattern matching requires full DE-9IM implementation (Phase 4)".to_string(),
-                ));
+                ))
             }
         }
         _ => Err(ExecutorError::Other(

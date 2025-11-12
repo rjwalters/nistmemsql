@@ -12,6 +12,7 @@ use crate::{
 };
 
 /// Execute a JOIN operation
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn execute_join<F>(
     left: &vibesql_ast::FromClause,
     right: &vibesql_ast::FromClause,
@@ -50,7 +51,7 @@ where
 
         // Decompose WHERE clause with full schema
         let decomposition = decompose_where_clause(Some(where_expr), &combined_schema)
-            .map_err(|e| ExecutorError::InvalidWhereClause(e))?;
+            .map_err(ExecutorError::InvalidWhereClause)?;
 
         // Extract equijoin conditions that apply to this join
         let left_schema_tables: std::collections::HashSet<_> =
@@ -112,7 +113,7 @@ fn generate_natural_join_condition(
             let lowercase_name = col.name.to_lowercase();
             left_columns
                 .entry(lowercase_name)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push((table_name.clone(), col.name.clone()));
         }
     }

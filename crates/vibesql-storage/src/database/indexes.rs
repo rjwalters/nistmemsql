@@ -185,7 +185,7 @@ impl IndexManager {
         for (row_idx, row) in table_rows.iter().enumerate() {
             let key_values: Vec<SqlValue> =
                 column_indices.iter().map(|&idx| row.values[idx].clone()).collect();
-            index_data_map.entry(key_values).or_insert_with(Vec::new).push(row_idx);
+            index_data_map.entry(key_values).or_default().push(row_idx);
         }
 
         // Store index metadata (use normalized name as key)

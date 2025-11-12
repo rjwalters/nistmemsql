@@ -50,10 +50,10 @@ pub(crate) fn eval_unary_op(
 
         // For non-boolean values, coerce to boolean first
         // In SQL, any non-zero number is TRUE, zero is FALSE
-        (Not, SqlValue::Integer(n)) => Ok(SqlValue::Boolean(!(*n != 0))),
-        (Not, SqlValue::Smallint(n)) => Ok(SqlValue::Boolean(!(*n != 0))),
-        (Not, SqlValue::Bigint(n)) => Ok(SqlValue::Boolean(!(*n != 0))),
-        (Not, SqlValue::Unsigned(n)) => Ok(SqlValue::Boolean(!(*n != 0))),
+        (Not, SqlValue::Integer(n)) => Ok(SqlValue::Boolean(*n == 0)),
+        (Not, SqlValue::Smallint(n)) => Ok(SqlValue::Boolean(*n == 0)),
+        (Not, SqlValue::Bigint(n)) => Ok(SqlValue::Boolean(*n == 0)),
+        (Not, SqlValue::Unsigned(n)) => Ok(SqlValue::Boolean(*n == 0)),
         (Not, SqlValue::Float(f)) => Ok(SqlValue::Boolean(!(*f != 0.0))),
         (Not, SqlValue::Real(f)) => Ok(SqlValue::Boolean(!(*f != 0.0))),
         (Not, SqlValue::Double(f)) => Ok(SqlValue::Boolean(!(*f != 0.0))),

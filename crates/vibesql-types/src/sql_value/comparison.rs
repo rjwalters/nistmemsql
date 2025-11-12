@@ -76,6 +76,11 @@ impl PartialEq for SqlValue {
 /// - Type mismatches return None (incomparable)
 /// - NaN in floating point returns None (IEEE 754 semantics)
 /// - All other comparisons follow Rust's natural ordering
+///
+/// Note: This intentionally differs from Ord::cmp which provides total ordering
+/// for sorting operations. PartialOrd represents SQL comparison semantics where
+/// NULL and type mismatches are incomparable.
+#[allow(clippy::non_canonical_partial_ord_impl)]
 impl PartialOrd for SqlValue {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         use SqlValue::*;

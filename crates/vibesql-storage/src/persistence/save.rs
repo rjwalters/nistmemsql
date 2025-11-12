@@ -79,7 +79,7 @@ impl Database {
         let table_names = self.catalog.list_tables();
 
         for table_name in &table_names {
-            if let Some(table) = self.get_table(&table_name) {
+            if let Some(table) = self.get_table(table_name) {
                 // CREATE TABLE statement
                 let schema = &table.schema;
                 write!(writer, "CREATE TABLE {} (", &table_name)

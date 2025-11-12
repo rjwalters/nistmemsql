@@ -381,7 +381,7 @@ fn find_column_index(
     column_name: &str,
     schema: &CombinedSchema,
 ) -> Result<Option<usize>, ExecutorError> {
-    for (_table, (start_idx, table_schema)) in &schema.table_schemas {
+    for (start_idx, table_schema) in schema.table_schemas.values() {
         if let Some(col_idx) = table_schema.get_column_index(column_name) {
             return Ok(Some(start_idx + col_idx));
         }

@@ -173,7 +173,7 @@ fn parse_point_mbr(wkt: &str) -> Option<AABB<[f64; 2]>> {
     // POINT(x y)
     let coords_str = wkt.strip_prefix("POINT")?.trim();
     let coords_str = coords_str.strip_prefix('(')?.strip_suffix(')')?;
-    let parts: Vec<&str> = coords_str.trim().split_whitespace().collect();
+    let parts: Vec<&str> = coords_str.split_whitespace().collect();
 
     if parts.len() >= 2 {
         let x: f64 = parts[0].parse().ok()?;
@@ -281,7 +281,7 @@ fn parse_coordinate_list(coords_str: &str) -> Option<Vec<[f64; 2]>> {
     let mut points = Vec::new();
 
     for coord_pair in coords_str.split(',') {
-        let parts: Vec<&str> = coord_pair.trim().split_whitespace().collect();
+        let parts: Vec<&str> = coord_pair.split_whitespace().collect();
         if parts.len() >= 2 {
             let x: f64 = parts[0].parse().ok()?;
             let y: f64 = parts[1].parse().ok()?;
