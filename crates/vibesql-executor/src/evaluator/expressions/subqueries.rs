@@ -5,6 +5,9 @@ use crate::errors::ExecutorError;
 
 impl ExpressionEvaluator<'_> {
     /// Evaluate IN subquery predicate
+    ///
+    /// Delegates to shared logic after setting up the execution context.
+    /// See `subqueries_shared::eval_in_subquery_core` for the core evaluation logic.
     pub(super) fn eval_in_subquery(
         &self,
         expr: &vibesql_ast::Expression,
@@ -24,12 +27,7 @@ impl ExpressionEvaluator<'_> {
             "IN with subquery requires database reference".to_string(),
         ))?;
 
-        let expr_val = self.eval(expr, row)?;
-
-        if matches!(expr_val, vibesql_types::SqlValue::Null) {
-            return Ok(vibesql_types::SqlValue::Null);
-        }
-
+        // Subquery must return exactly one column
         if subquery.select_list.len() != 1 {
             return Err(ExecutorError::SubqueryColumnCountMismatch {
                 expected: 1,
@@ -50,26 +48,11 @@ impl ExpressionEvaluator<'_> {
         );
         let rows = select_executor.execute(subquery)?;
 
-        let mut found_null = false;
-        for subquery_row in &rows {
-            let subquery_val =
-                subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
+        // Evaluate the left-hand expression
+        let expr_val = self.eval(expr, row)?;
 
-            if matches!(subquery_val, vibesql_types::SqlValue::Null) {
-                found_null = true;
-                continue;
-            }
-
-            if expr_val == *subquery_val {
-                return Ok(vibesql_types::SqlValue::Boolean(!negated));
-            }
-        }
-
-        if found_null {
-            Ok(vibesql_types::SqlValue::Null)
-        } else {
-            Ok(vibesql_types::SqlValue::Boolean(negated))
-        }
+        // Use shared core logic for IN predicate evaluation
+        super::super::subqueries_shared::eval_in_subquery_core(expr_val, &rows, negated)
     }
 
     /// Evaluate scalar subquery
