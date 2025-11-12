@@ -112,6 +112,21 @@ impl Catalog {
             identifier.to_uppercase()
         }
     }
+
+    /// Get a schema by name with case-insensitive lookup (if configured)
+    pub(crate) fn get_schema_case_insensitive(&self, schema_name: &str) -> Option<&crate::Schema> {
+        if self.case_sensitive_identifiers {
+            // Case-sensitive: direct lookup
+            self.schemas.get(schema_name)
+        } else {
+            // Case-insensitive: find schema by comparing normalized names
+            let normalized_name = schema_name.to_uppercase();
+            self.schemas
+                .iter()
+                .find(|(key, _)| key.to_uppercase() == normalized_name)
+                .map(|(_, schema)| schema)
+        }
+    }
 }
 
 impl Default for Catalog {
