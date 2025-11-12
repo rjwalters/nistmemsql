@@ -84,6 +84,7 @@ async fn run_test_file_with_timeout_impl(
 }
 
 /// Run a test file and capture detailed failure information
+#[allow(dead_code)]
 pub fn run_test_file_with_details(
     contents: &str,
     file_name: &str,

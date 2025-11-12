@@ -148,11 +148,6 @@ impl SqlExecutor {
         println!("Timing is {}", state);
     }
 
-    /// Get a reference to the database (for saving)
-    pub fn database(&self) -> &Database {
-        &self.db
-    }
-
     /// Save database to SQL dump file
     pub fn save_database(&self, path: &str) -> anyhow::Result<()> {
         self.db

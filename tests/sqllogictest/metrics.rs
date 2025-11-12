@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 
 /// Detailed metrics for a single SQL query execution
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueryMetrics {
     /// The SQL statement that was executed
@@ -21,6 +22,7 @@ pub struct QueryMetrics {
 }
 
 /// Aggregate benchmark metrics for a test file or suite
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BenchmarkMetrics {
     /// Name of the database engine (e.g., "vibesql", "sqlite")
@@ -161,6 +163,7 @@ impl BenchmarkMetrics {
 }
 
 /// Stopwatch for measuring query execution time with minimal overhead
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct QueryStopwatch {
     start: Instant,
@@ -179,6 +182,7 @@ impl QueryStopwatch {
 }
 
 /// Memory tracker for cross-platform memory usage monitoring
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct MemoryTracker {
     #[cfg(feature = "memory-tracking")]
@@ -230,10 +234,12 @@ impl Default for MemoryTracker {
 }
 
 // Custom serde serialization for Duration (since Duration doesn't implement Serialize by default)
+#[allow(dead_code)]
 mod duration_serde {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::time::Duration;
 
+    #[allow(dead_code)]
     pub fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -241,6 +247,7 @@ mod duration_serde {
         duration.as_secs_f64().serialize(serializer)
     }
 
+    #[allow(dead_code)]
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
     where
         D: Deserializer<'de>,
@@ -250,10 +257,12 @@ mod duration_serde {
     }
 }
 
+#[allow(dead_code)]
 mod vec_duration_serde {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::time::Duration;
 
+    #[allow(dead_code)]
     pub fn serialize<S>(durations: &[Duration], serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -262,6 +271,7 @@ mod vec_duration_serde {
         secs.serialize(serializer)
     }
 
+    #[allow(dead_code)]
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<Duration>, D::Error>
     where
         D: Deserializer<'de>,

@@ -11,6 +11,7 @@ use std::{
 };
 
 /// Work queue directory structure
+#[allow(dead_code)]
 pub struct WorkQueue {
     pub pending_dir: PathBuf,
     pub claimed_dir: PathBuf,

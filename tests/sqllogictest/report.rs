@@ -63,6 +63,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Comparison report containing metrics from multiple engines
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComparisonReport {
     /// Name of the test file or suite
@@ -78,6 +79,7 @@ pub struct ComparisonReport {
 }
 
 /// Calculated statistics comparing two engines
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComparisonStatistics {
     /// Ratio of total execution time (comparison / baseline)
@@ -478,6 +480,7 @@ mod tests {
     use super::*;
     use std::time::Duration;
 
+    #[allow(dead_code)]
     fn create_sample_metrics(
         name: &str,
         total_ms: u64,
@@ -494,7 +497,7 @@ mod tests {
             0
         };
 
-        for i in 0..pass_count {
+        for _ in 0..pass_count {
             let duration = Duration::from_millis(avg_query_time);
             metrics.record_success(duration);
         }

@@ -3,7 +3,7 @@ use crate::{
     data_io::DataIO,
 };
 
-use super::{validation, QueryResult, SqlExecutor};
+use super::{validation, SqlExecutor};
 
 impl SqlExecutor {
     pub fn handle_copy(

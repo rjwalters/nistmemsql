@@ -84,6 +84,7 @@ pub fn format_sql_value(value: &SqlValue, expected_type: Option<&DefaultColumnTy
 }
 
 /// Format value in canonical form for hashing (plain format without display decorations)
+#[allow(dead_code)]
 pub fn format_sql_value_canonical(
     value: &SqlValue,
     expected_type: Option<&DefaultColumnType>,

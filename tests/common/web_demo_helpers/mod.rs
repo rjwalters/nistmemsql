@@ -22,8 +22,9 @@ pub use example_parsing::{
 /// Validate query results against expected data
 ///
 /// Returns (passed, error_message) tuple
+#[allow(dead_code)]
 pub fn validate_results(
-    example_id: &str,
+    _example_id: &str,
     actual_rows: &[Row],
     expected_count: Option<usize>,
     expected_rows: Option<&Vec<Vec<String>>>,

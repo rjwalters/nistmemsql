@@ -262,24 +262,6 @@ pub(in crate::select::executor) fn find_index_for_multi_column_ordering(
     Ok(None)
 }
 
-/// Legacy function kept for backward compatibility
-/// Calls the new multi-column function with a single column
-pub(in crate::select::executor) fn find_index_for_ordering(
-    database: &Database,
-    table_name: &str,
-    column_name: &str,
-    direction: vibesql_ast::OrderDirection,
-) -> Result<Option<String>, ExecutorError> {
-    let result = find_index_for_multi_column_ordering(
-        database,
-        table_name,
-        &[column_name.to_string()],
-        &[direction],
-    )?;
-
-    Ok(result.map(|(name, _)| name))
-}
-
 /// Resolve ORDER BY expression to handle positional references and aliases
 ///
 /// Converts:

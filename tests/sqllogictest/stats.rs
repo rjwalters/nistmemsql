@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 
 /// Detailed failure information for a single test file
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct TestFailure {
     pub sql_statement: String,
@@ -13,6 +14,7 @@ pub struct TestFailure {
 }
 
 /// Test result statistics
+#[allow(dead_code)]
 #[derive(Debug, Default)]
 pub struct TestStats {
     pub total: usize,
