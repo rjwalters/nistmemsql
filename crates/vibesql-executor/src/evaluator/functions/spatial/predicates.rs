@@ -6,8 +6,18 @@
 use vibesql_types::SqlValue;
 use crate::errors::ExecutorError;
 use super::{sql_value_to_geometry, Geometry};
-use geo::{Contains, Intersects, Relate};
-use geo::algorithm::{HaversineDistance, Within, Relate as RelateAlgo};
+use geo::Contains;
+use geo::algorithm::{Intersects, HaversineDistance};
+
+/// Helper function to convert WKT string to geo::Geometry
+fn wkt_to_geo(wkt_str: &str) -> Result<geo::Geometry<f64>, ExecutorError> {
+    // Parse WKT string into internal Geometry enum
+    let sql_value = SqlValue::Varchar(wkt_str.to_string());
+    let geom = sql_value_to_geometry(&sql_value)?;
+
+    // Convert internal Geometry to geo::Geometry
+    to_geo_geometry(&geom)
+}
 
 /// Convert internal Geometry to geo::Geometry for spatial operations
 fn to_geo_geometry(geom: &Geometry) -> Result<geo::Geometry<f64>, ExecutorError> {
