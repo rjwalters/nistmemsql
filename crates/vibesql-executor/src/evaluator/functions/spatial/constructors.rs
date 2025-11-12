@@ -365,7 +365,7 @@ pub fn st_point_from_text(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> 
             "ST_PointFromText requires a POINT geometry".to_string(),
         ));
     }
-    
+
     Ok(super::geometry_to_sql_value(geom, 0))
 }
 
@@ -394,215 +394,216 @@ pub fn st_line_from_text(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             "ST_LineFromText requires a LINESTRING geometry".to_string(),
         ));
     }
-    
+
     Ok(super::geometry_to_sql_value(geom, 0))
+}
+
+/// ST_PolygonFromText(wkt_string) - Create POLYGON from WKT
+pub fn st_polygon_from_text(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
+    if args.is_empty() || args.len() > 2 {
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "ST_PolygonFromText requires 1 or 2 arguments, got {}",
+            args.len()
+        )));
     }
 
-    /// ST_PolygonFromText(wkt_string) - Create POLYGON from WKT
-    pub fn st_polygon_from_text(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
-    if args.is_empty() || args.len() > 2 {
-       return Err(ExecutorError::UnsupportedFeature(format!(
-           "ST_PolygonFromText requires 1 or 2 arguments, got {}",
-           args.len()
-       )));
-    }
-    
     let wkt = match &args[0] {
-       SqlValue::Varchar(s) | SqlValue::Character(s) => s.as_str(),
-       SqlValue::Null => return Ok(SqlValue::Null),
-       _ => {
-           return Err(ExecutorError::UnsupportedFeature(
-               "ST_PolygonFromText requires a string argument".to_string(),
-           ))
-       }
+        SqlValue::Varchar(s) | SqlValue::Character(s) => s.as_str(),
+        SqlValue::Null => return Ok(SqlValue::Null),
+        _ => {
+            return Err(ExecutorError::UnsupportedFeature(
+                "ST_PolygonFromText requires a string argument".to_string(),
+            ))
+        }
+
     };
     
     let geom = parse_wkt(wkt)?;
     if !matches!(geom, Geometry::Polygon { .. }) {
-       return Err(ExecutorError::UnsupportedFeature(
-           "ST_PolygonFromText requires a POLYGON geometry".to_string(),
-       ));
-    }
-    
-    Ok(super::geometry_to_sql_value(geom, 0))
+        return Err(ExecutorError::UnsupportedFeature(
+            "ST_PolygonFromText requires a POLYGON geometry".to_string(),
+        ));
     }
 
-    /// ST_GeomFromWKB(wkb_binary) - Create geometry from WKB (Phase 2)
-    pub fn st_geom_from_wkb(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
+    Ok(super::geometry_to_sql_value(geom, 0))
+}
+
+/// ST_GeomFromWKB(wkb_binary) - Create geometry from WKB (Phase 2)
+pub fn st_geom_from_wkb(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.is_empty() || args.len() > 2 {
-       return Err(ExecutorError::UnsupportedFeature(format!(
-           "ST_GeomFromWKB requires 1 or 2 arguments, got {}",
-           args.len()
-       )));
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "ST_GeomFromWKB requires 1 or 2 arguments, got {}",
+            args.len()
+        )));
     }
 
     // Handle NULL
     if matches!(args[0], SqlValue::Null) {
-       return Ok(SqlValue::Null);
+        return Ok(SqlValue::Null);
     }
 
     let wkb_data = match &args[0] {
-       SqlValue::Varchar(s) | SqlValue::Character(s) => super::parse_binary_data(s)?,
-       _ => {
-           return Err(ExecutorError::UnsupportedFeature(
-               "ST_GeomFromWKB requires binary data".to_string(),
-           ))
-       }
+        SqlValue::Varchar(s) | SqlValue::Character(s) => super::parse_binary_data(s)?,
+        _ => {
+            return Err(ExecutorError::UnsupportedFeature(
+                "ST_GeomFromWKB requires binary data".to_string(),
+            ))
+        }
     };
 
     let geom = super::wkb::wkb_to_geometry(&wkb_data)?;
 
     // Optional SRID parameter
     let srid = if args.len() > 1 {
-       match &args[1] {
-           SqlValue::Integer(i) => *i as i32,
-           SqlValue::Bigint(i) => *i as i32,
-           SqlValue::Smallint(i) => *i as i32,
-           SqlValue::Null => 0,
-           _ => {
-               return Err(ExecutorError::UnsupportedFeature(
-                   "SRID must be an integer".to_string(),
-               ))
-           }
-       }
+        match &args[1] {
+            SqlValue::Integer(i) => *i as i32,
+            SqlValue::Bigint(i) => *i as i32,
+            SqlValue::Smallint(i) => *i as i32,
+            SqlValue::Null => 0,
+            _ => {
+                return Err(ExecutorError::UnsupportedFeature(
+                    "SRID must be an integer".to_string(),
+                ))
+            }
+        }
     } else {
-       0
+        0
     };
 
     Ok(super::geometry_to_sql_value(geom, srid))
+}
+
+/// ST_PointFromWKB(wkb_binary) - Create POINT from WKB
+pub fn st_point_from_wkb(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
+    if args.is_empty() || args.len() > 2 {
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "ST_PointFromWKB requires 1 or 2 arguments, got {}",
+            args.len()
+        )));
     }
 
-    /// ST_PointFromWKB(wkb_binary) - Create POINT from WKB
-    pub fn st_point_from_wkb(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
-        if args.is_empty() || args.len() > 2 {
-            return Err(ExecutorError::UnsupportedFeature(format!(
-                "ST_PointFromWKB requires 1 or 2 arguments, got {}",
-                args.len()
-            )));
-        }
+    // Handle NULL
+    if matches!(args[0], SqlValue::Null) {
+        return Ok(SqlValue::Null);
+    }
 
-        // Handle NULL
-        if matches!(args[0], SqlValue::Null) {
-            return Ok(SqlValue::Null);
-        }
-
-        let wkb_data = match &args[0] {
-            SqlValue::Varchar(s) | SqlValue::Character(s) => super::parse_binary_data(s)?,
-            _ => {
-                return Err(ExecutorError::UnsupportedFeature(
-                    "ST_PointFromWKB requires binary data".to_string(),
-                ))
-            }
-        };
-
-        let geom = super::wkb::wkb_to_geometry(&wkb_data)?;
-        if !matches!(geom, Geometry::Point { .. }) {
+    let wkb_data = match &args[0] {
+        SqlValue::Varchar(s) | SqlValue::Character(s) => super::parse_binary_data(s)?,
+        _ => {
             return Err(ExecutorError::UnsupportedFeature(
-                "ST_PointFromWKB requires a POINT geometry".to_string(),
-            ));
+                "ST_PointFromWKB requires binary data".to_string(),
+            ))
         }
+    };
 
-        let srid = if args.len() > 1 {
-            match &args[1] {
-                SqlValue::Integer(i) => *i as i32,
-                SqlValue::Bigint(i) => *i as i32,
-                SqlValue::Smallint(i) => *i as i32,
-                SqlValue::Null => 0,
-                _ => 0,
-            }
-        } else {
-            0
-        };
-
-        Ok(super::geometry_to_sql_value(geom, srid))
+    let geom = super::wkb::wkb_to_geometry(&wkb_data)?;
+    if !matches!(geom, Geometry::Point { .. }) {
+        return Err(ExecutorError::UnsupportedFeature(
+            "ST_PointFromWKB requires a POINT geometry".to_string(),
+        ));
     }
 
-    /// ST_LineFromWKB(wkb_binary) - Create LINESTRING from WKB
-    pub fn st_line_from_wkb(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
-        if args.is_empty() || args.len() > 2 {
-            return Err(ExecutorError::UnsupportedFeature(format!(
-                "ST_LineFromWKB requires 1 or 2 arguments, got {}",
-                args.len()
-            )));
+    let srid = if args.len() > 1 {
+        match &args[1] {
+            SqlValue::Integer(i) => *i as i32,
+            SqlValue::Bigint(i) => *i as i32,
+            SqlValue::Smallint(i) => *i as i32,
+            SqlValue::Null => 0,
+            _ => 0,
         }
+    } else {
+        0
+    };
 
-        // Handle NULL
-        if matches!(args[0], SqlValue::Null) {
-            return Ok(SqlValue::Null);
-        }
+    Ok(super::geometry_to_sql_value(geom, srid))
+}
 
-        let wkb_data = match &args[0] {
-            SqlValue::Varchar(s) | SqlValue::Character(s) => super::parse_binary_data(s)?,
-            _ => {
-                return Err(ExecutorError::UnsupportedFeature(
-                    "ST_LineFromWKB requires binary data".to_string(),
-                ))
-            }
-        };
+/// ST_LineFromWKB(wkb_binary) - Create LINESTRING from WKB
+pub fn st_line_from_wkb(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
+    if args.is_empty() || args.len() > 2 {
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "ST_LineFromWKB requires 1 or 2 arguments, got {}",
+            args.len()
+        )));
+    }
 
-        let geom = super::wkb::wkb_to_geometry(&wkb_data)?;
-        if !matches!(geom, Geometry::LineString { .. }) {
+    // Handle NULL
+    if matches!(args[0], SqlValue::Null) {
+        return Ok(SqlValue::Null);
+    }
+
+    let wkb_data = match &args[0] {
+        SqlValue::Varchar(s) | SqlValue::Character(s) => super::parse_binary_data(s)?,
+        _ => {
             return Err(ExecutorError::UnsupportedFeature(
-                "ST_LineFromWKB requires a LINESTRING geometry".to_string(),
-            ));
+                "ST_LineFromWKB requires binary data".to_string(),
+            ))
         }
+    };
 
-        let srid = if args.len() > 1 {
-            match &args[1] {
-                SqlValue::Integer(i) => *i as i32,
-                SqlValue::Bigint(i) => *i as i32,
-                SqlValue::Smallint(i) => *i as i32,
-                SqlValue::Null => 0,
-                _ => 0,
-            }
-        } else {
-            0
-        };
-
-        Ok(super::geometry_to_sql_value(geom, srid))
+    let geom = super::wkb::wkb_to_geometry(&wkb_data)?;
+    if !matches!(geom, Geometry::LineString { .. }) {
+        return Err(ExecutorError::UnsupportedFeature(
+            "ST_LineFromWKB requires a LINESTRING geometry".to_string(),
+        ));
     }
 
-    /// ST_PolygonFromWKB(wkb_binary) - Create POLYGON from WKB
-    pub fn st_polygon_from_wkb(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
-        if args.is_empty() || args.len() > 2 {
-            return Err(ExecutorError::UnsupportedFeature(format!(
-                "ST_PolygonFromWKB requires 1 or 2 arguments, got {}",
-                args.len()
-            )));
+    let srid = if args.len() > 1 {
+        match &args[1] {
+            SqlValue::Integer(i) => *i as i32,
+            SqlValue::Bigint(i) => *i as i32,
+            SqlValue::Smallint(i) => *i as i32,
+            SqlValue::Null => 0,
+            _ => 0,
         }
+    } else {
+        0
+    };
 
-        // Handle NULL
-        if matches!(args[0], SqlValue::Null) {
-            return Ok(SqlValue::Null);
-        }
+    Ok(super::geometry_to_sql_value(geom, srid))
+}
 
-        let wkb_data = match &args[0] {
-            SqlValue::Varchar(s) | SqlValue::Character(s) => super::parse_binary_data(s)?,
-            _ => {
-                return Err(ExecutorError::UnsupportedFeature(
-                    "ST_PolygonFromWKB requires binary data".to_string(),
-                ))
-            }
-        };
+/// ST_PolygonFromWKB(wkb_binary) - Create POLYGON from WKB
+pub fn st_polygon_from_wkb(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
+    if args.is_empty() || args.len() > 2 {
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "ST_PolygonFromWKB requires 1 or 2 arguments, got {}",
+            args.len()
+        )));
+    }
 
-        let geom = super::wkb::wkb_to_geometry(&wkb_data)?;
-        if !matches!(geom, Geometry::Polygon { .. }) {
+    // Handle NULL
+    if matches!(args[0], SqlValue::Null) {
+        return Ok(SqlValue::Null);
+    }
+
+    let wkb_data = match &args[0] {
+        SqlValue::Varchar(s) | SqlValue::Character(s) => super::parse_binary_data(s)?,
+        _ => {
             return Err(ExecutorError::UnsupportedFeature(
-                "ST_PolygonFromWKB requires a POLYGON geometry".to_string(),
-            ));
+                "ST_PolygonFromWKB requires binary data".to_string(),
+            ))
         }
+    };
 
-        let srid = if args.len() > 1 {
-            match &args[1] {
-                SqlValue::Integer(i) => *i as i32,
-                SqlValue::Bigint(i) => *i as i32,
-                SqlValue::Smallint(i) => *i as i32,
-                SqlValue::Null => 0,
-                _ => 0,
-            }
-        } else {
-            0
-        };
-
-        Ok(super::geometry_to_sql_value(geom, srid))
+    let geom = super::wkb::wkb_to_geometry(&wkb_data)?;
+    if !matches!(geom, Geometry::Polygon { .. }) {
+        return Err(ExecutorError::UnsupportedFeature(
+            "ST_PolygonFromWKB requires a POLYGON geometry".to_string(),
+        ));
     }
+
+    let srid = if args.len() > 1 {
+        match &args[1] {
+            SqlValue::Integer(i) => *i as i32,
+            SqlValue::Bigint(i) => *i as i32,
+            SqlValue::Smallint(i) => *i as i32,
+            SqlValue::Null => 0,
+            _ => 0,
+        }
+    } else {
+        0
+    };
+
+    Ok(super::geometry_to_sql_value(geom, srid))
+}

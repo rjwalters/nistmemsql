@@ -401,7 +401,8 @@ impl LiteralExtractor {
             | Expression::CurrentTime { .. }
             | Expression::CurrentTimestamp { .. }
             | Expression::Default
-            | Expression::NextValue { .. } => {}
+            | Expression::NextValue { .. }
+            | Expression::MatchAgainst { .. } => {}
         }
     }
 }

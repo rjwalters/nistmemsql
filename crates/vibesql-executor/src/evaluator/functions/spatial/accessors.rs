@@ -88,8 +88,6 @@ pub fn st_dimension(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     }
 }
 
-
-
 /// ST_AsText(geom) - Convert geometry to WKT (Well-Known Text)
 /// Returns EWKT format (SRID=xxx;POINT(...)) if SRID is set
 pub fn st_as_text(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {

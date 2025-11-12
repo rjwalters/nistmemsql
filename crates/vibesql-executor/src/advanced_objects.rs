@@ -164,7 +164,14 @@ pub fn execute_create_view(stmt: &CreateViewStmt, db: &mut Database) -> Result<(
         stmt.with_check_option,
     );
 
-    db.catalog.create_view(view)?;
+    if stmt.or_replace {
+        // DROP the view if it exists, then CREATE
+        let _ = db.catalog.drop_view(&stmt.view_name, false);
+        db.catalog.create_view(view)?;
+    } else {
+        // Regular CREATE VIEW (will fail if view already exists)
+        db.catalog.create_view(view)?;
+    }
     Ok(())
 }
 
@@ -202,5 +209,35 @@ pub fn execute_drop_assertion(
     db: &mut Database,
 ) -> Result<(), ExecutorError> {
     db.catalog.drop_assertion(&stmt.assertion_name, stmt.cascade)?;
+    Ok(())
+}
+
+/// Execute CREATE TRIGGER statement
+pub fn execute_create_trigger(
+    stmt: &CreateTriggerStmt,
+    db: &mut Database,
+) -> Result<(), ExecutorError> {
+    use vibesql_catalog::TriggerDefinition;
+
+    let trigger = TriggerDefinition::new(
+        stmt.trigger_name.clone(),
+        stmt.timing.clone(),
+        stmt.event.clone(),
+        stmt.table_name.clone(),
+        stmt.granularity.clone(),
+        stmt.when_condition.clone(),
+        stmt.triggered_action.clone(),
+    );
+
+    db.catalog.create_trigger(trigger)?;
+    Ok(())
+}
+
+/// Execute DROP TRIGGER statement
+pub fn execute_drop_trigger(
+    stmt: &DropTriggerStmt,
+    db: &mut Database,
+) -> Result<(), ExecutorError> {
+    db.catalog.drop_trigger(&stmt.trigger_name)?;
     Ok(())
 }
