@@ -169,7 +169,8 @@ fn extract_from_expression(expr: &vibesql_ast::Expression, tables: &mut HashSet<
         | vibesql_ast::Expression::CurrentTimestamp { .. }
         | vibesql_ast::Expression::Default
         | vibesql_ast::Expression::WindowFunction { .. }
-        | vibesql_ast::Expression::NextValue { .. } => {}
+        | vibesql_ast::Expression::NextValue { .. }
+        | vibesql_ast::Expression::MatchAgainst { .. } => {}
     }
 }
 

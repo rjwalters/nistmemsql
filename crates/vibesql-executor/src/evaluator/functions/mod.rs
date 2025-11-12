@@ -116,33 +116,36 @@ pub(super) fn eval_scalar_function(
         "DATABASE" | "SCHEMA" => system::database(args, name),
         "USER" | "CURRENT_USER" => system::user(args, name),
 
-        // Spatial/Geometric functions - Phase 1 (WKT)
-        "ST_GEOMFROMTEXT" => spatial::st_geomfromtext(args),
-        "ST_POINTFROMTEXT" => spatial::st_pointfromtext(args),
-        "ST_LINEFROMTEXT" => spatial::st_linefromtext(args),
-        "ST_POLYGONFROMTEXT" => spatial::st_polygonfromtext(args),
-        "ST_X" => spatial::st_x(args),
-        "ST_Y" => spatial::st_y(args),
-        "ST_GEOMETRYTYPE" => spatial::st_geometrytype(args),
-        "ST_DIMENSION" => spatial::st_dimension(args),
-        "ST_SRID" => spatial::st_srid(args),
-        "ST_ASTEXT" => spatial::st_astext(args),
-        "ST_ASGEOJSON" => spatial::st_asgeojson(args),
-        "ST_ASBINARY" => spatial::st_asbinary(args),
+        // Spatial/Geometric functions
+        // Constructor functions
+        "ST_GEOMFROMTEXT" | "ST_GEOM_FROM_TEXT" => spatial::constructors::st_geom_from_text(args),
+        "ST_POINTFROMTEXT" | "ST_POINT_FROM_TEXT" => spatial::constructors::st_point_from_text(args),
+        "ST_LINEFROMTEXT" | "ST_LINE_FROM_TEXT" => spatial::constructors::st_line_from_text(args),
+        "ST_POLYGONFROMTEXT" | "ST_POLYGON_FROM_TEXT" => spatial::constructors::st_polygon_from_text(args),
 
-        // Spatial/Geometric functions - Phase 3 (Predicates)
-        "ST_CONTAINS" => spatial::st_contains(args),
-        "ST_WITHIN" => spatial::st_within(args),
-        "ST_INTERSECTS" => spatial::st_intersects(args),
-        "ST_DISJOINT" => spatial::st_disjoint(args),
-        "ST_EQUALS" => spatial::st_equals(args),
-        "ST_TOUCHES" => spatial::st_touches(args),
-        "ST_CROSSES" => spatial::st_crosses(args),
-        "ST_OVERLAPS" => spatial::st_overlaps(args),
-        "ST_COVERS" => spatial::st_covers(args),
-        "ST_COVEREDBY" => spatial::st_coveredby(args),
-        "ST_DWITHIN" => spatial::st_dwithin(args),
-        "ST_RELATE" => spatial::st_relate(args),
+        // Accessor functions
+        "ST_X" => spatial::accessors::st_x(args),
+        "ST_Y" => spatial::accessors::st_y(args),
+        "ST_GEOMETRYTYPE" | "ST_GEOMETRY_TYPE" => spatial::accessors::st_geometry_type(args),
+        "ST_DIMENSION" => spatial::accessors::st_dimension(args),
+        "ST_SRID" => spatial::accessors::st_srid(args),
+        "ST_ASTEXT" | "ST_AS_TEXT" => spatial::accessors::st_as_text(args),
+        "ST_ASBINARY" | "ST_AS_BINARY" => spatial::accessors::st_as_binary(args),
+        "ST_ASGEOJSON" | "ST_AS_GEOJSON" => spatial::accessors::st_as_geojson(args),
+
+        // Predicate functions (Phase 3)
+        "ST_CONTAINS" => spatial::predicates::st_contains(args),
+        "ST_WITHIN" => spatial::predicates::st_within(args),
+        "ST_INTERSECTS" => spatial::predicates::st_intersects(args),
+        "ST_DISJOINT" => spatial::predicates::st_disjoint(args),
+        "ST_EQUALS" => spatial::predicates::st_equals(args),
+        "ST_TOUCHES" => spatial::predicates::st_touches(args),
+        "ST_CROSSES" => spatial::predicates::st_crosses(args),
+        "ST_OVERLAPS" => spatial::predicates::st_overlaps(args),
+        "ST_COVERS" => spatial::predicates::st_covers(args),
+        "ST_COVEREDBY" => spatial::predicates::st_coveredby(args),
+        "ST_DWITHIN" => spatial::predicates::st_dwithin(args),
+        "ST_RELATE" => spatial::predicates::st_relate(args),
 
         // Unknown function
         _ => Err(ExecutorError::UnsupportedFeature(format!("Unknown function: {}", name))),

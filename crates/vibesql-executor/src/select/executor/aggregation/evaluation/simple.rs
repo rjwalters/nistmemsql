@@ -97,6 +97,12 @@ pub(super) fn evaluate(
 
         // IN list: expr IN (val1, val2, ...)
         vibesql_ast::Expression::InList { expr: test_expr, values, negated } => {
+            // Handle empty IN list: returns false for IN, true for NOT IN
+            // This is per SQLite behavior (SQL:1999 extension, not standard SQL)
+            if values.is_empty() {
+                return Ok(vibesql_types::SqlValue::Boolean(*negated));
+            }
+
             let test_val = executor.evaluate_with_aggregates(test_expr, group_rows, group_key, evaluator)?;
 
             // Evaluate all values in the list

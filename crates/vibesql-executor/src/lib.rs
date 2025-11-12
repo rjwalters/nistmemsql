@@ -39,7 +39,7 @@ pub use drop_table::DropTableExecutor;
 pub use errors::ExecutorError;
 pub use evaluator::ExpressionEvaluator;
 pub use grant::GrantExecutor;
-pub use index_ddl::{CreateIndexExecutor, DropIndexExecutor, IndexExecutor};
+pub use index_ddl::{CreateIndexExecutor, DropIndexExecutor, IndexExecutor, ReindexExecutor};
 pub use insert::InsertExecutor;
 pub use persistence::load_sql_dump;
 pub use privilege_checker::PrivilegeChecker;
