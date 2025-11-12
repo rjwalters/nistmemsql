@@ -32,12 +32,13 @@ use crate::token::Token;
 use vibesql_ast::{
     CallStmt, CreateFunctionStmt, CreateProcedureStmt, DropFunctionStmt, DropProcedureStmt,
     FunctionParameter, ParameterMode, ProcedureBody, ProcedureParameter, ProceduralStatement,
+    SqlSecurity,
 };
 
 impl Parser {
     /// Parse CREATE PROCEDURE statement
     ///
-    /// Syntax: CREATE PROCEDURE proc_name ([param_list]) BEGIN ... END;
+    /// Syntax: CREATE PROCEDURE proc_name ([param_list]) [characteristics] BEGIN ... END;
     pub fn parse_create_procedure(&mut self) -> Result<CreateProcedureStmt, ParseError> {
         // Already consumed CREATE PROCEDURE
         let procedure_name = self.parse_identifier()?;
@@ -46,18 +47,24 @@ impl Parser {
         let parameters = self.parse_procedure_parameters()?;
         self.expect_token(Token::RParen)?;
 
+        // Parse optional characteristics before body
+        let (sql_security, comment, language) = self.parse_procedure_characteristics()?;
+
         let body = self.parse_procedure_body()?;
 
         Ok(CreateProcedureStmt {
             procedure_name,
             parameters,
             body,
+            sql_security,
+            comment,
+            language,
         })
     }
 
     /// Parse CREATE FUNCTION statement
     ///
-    /// Syntax: CREATE FUNCTION func_name ([param_list]) RETURNS data_type BEGIN ... END;
+    /// Syntax: CREATE FUNCTION func_name ([param_list]) RETURNS data_type [characteristics] BEGIN ... END;
     pub fn parse_create_function(&mut self) -> Result<CreateFunctionStmt, ParseError> {
         // Already consumed CREATE FUNCTION
         let function_name = self.parse_identifier()?;
@@ -69,6 +76,9 @@ impl Parser {
         self.expect_keyword(Keyword::Returns)?;
         let return_type = self.parse_data_type()?;
 
+        // Parse optional characteristics before body
+        let (deterministic, sql_security, comment, language) = self.parse_function_characteristics()?;
+
         let body = self.parse_procedure_body()?;
 
         Ok(CreateFunctionStmt {
@@ -76,6 +86,10 @@ impl Parser {
             parameters,
             return_type,
             body,
+            deterministic,
+            sql_security,
+            comment,
+            language,
         })
     }
 
@@ -432,5 +446,95 @@ impl Parser {
         }
 
         Ok(statements)
+    }
+
+    /// Parse procedure characteristics (optional)
+    ///
+    /// Returns: (sql_security, comment, language)
+    fn parse_procedure_characteristics(&mut self) -> Result<(Option<SqlSecurity>, Option<String>, Option<String>), ParseError> {
+        let mut sql_security = None;
+        let mut comment = None;
+        let mut language = None;
+
+        // Parse characteristics in any order
+        loop {
+            if self.try_consume_keyword(Keyword::Sql) {
+                self.expect_keyword(Keyword::Security)?;
+                if self.try_consume_keyword(Keyword::Definer) {
+                    sql_security = Some(SqlSecurity::Definer);
+                } else if self.try_consume_keyword(Keyword::Invoker) {
+                    sql_security = Some(SqlSecurity::Invoker);
+                } else {
+                    return Err(ParseError {
+                        message: "Expected DEFINER or INVOKER after SQL SECURITY".to_string(),
+                    });
+                }
+            } else if self.try_consume_keyword(Keyword::Comment) {
+                if let Token::String(s) = self.peek().clone() {
+                    self.advance();
+                    comment = Some(s);
+                } else {
+                    return Err(ParseError {
+                        message: "Expected string literal after COMMENT".to_string(),
+                    });
+                }
+            } else if self.try_consume_keyword(Keyword::Language) {
+                self.expect_keyword(Keyword::Sql)?;
+                language = Some("SQL".to_string());
+            } else {
+                // No more characteristics
+                break;
+            }
+        }
+
+        Ok((sql_security, comment, language))
+    }
+
+    /// Parse function characteristics (optional)
+    ///
+    /// Returns: (deterministic, sql_security, comment, language)
+    fn parse_function_characteristics(&mut self) -> Result<(Option<bool>, Option<SqlSecurity>, Option<String>, Option<String>), ParseError> {
+        let mut deterministic = None;
+        let mut sql_security = None;
+        let mut comment = None;
+        let mut language = None;
+
+        // Parse characteristics in any order
+        loop {
+            if self.try_consume_keyword(Keyword::Deterministic) {
+                deterministic = Some(true);
+            } else if self.try_consume_keyword(Keyword::Not) {
+                self.expect_keyword(Keyword::Deterministic)?;
+                deterministic = Some(false);
+            } else if self.try_consume_keyword(Keyword::Sql) {
+                self.expect_keyword(Keyword::Security)?;
+                if self.try_consume_keyword(Keyword::Definer) {
+                    sql_security = Some(SqlSecurity::Definer);
+                } else if self.try_consume_keyword(Keyword::Invoker) {
+                    sql_security = Some(SqlSecurity::Invoker);
+                } else {
+                    return Err(ParseError {
+                        message: "Expected DEFINER or INVOKER after SQL SECURITY".to_string(),
+                    });
+                }
+            } else if self.try_consume_keyword(Keyword::Comment) {
+                if let Token::String(s) = self.peek().clone() {
+                    self.advance();
+                    comment = Some(s);
+                } else {
+                    return Err(ParseError {
+                        message: "Expected string literal after COMMENT".to_string(),
+                    });
+                }
+            } else if self.try_consume_keyword(Keyword::Language) {
+                self.expect_keyword(Keyword::Sql)?;
+                language = Some("SQL".to_string());
+            } else {
+                // No more characteristics
+                break;
+            }
+        }
+
+        Ok((deterministic, sql_security, comment, language))
     }
 }
