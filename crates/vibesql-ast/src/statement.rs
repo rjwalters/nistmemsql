@@ -11,9 +11,9 @@ use crate::{
     DropCollationStmt, DropDomainStmt, DropFunctionStmt, DropIndexStmt, DropProcedureStmt,
     DropRoleStmt, DropSchemaStmt, DropSequenceStmt, DropTableStmt, DropTranslationStmt,
     DropTriggerStmt, DropTypeStmt, DropViewStmt, FetchStmt, GrantStmt, InsertStmt, OpenCursorStmt,
-    ReleaseSavepointStmt, RevokeStmt, RollbackStmt, RollbackToSavepointStmt, SavepointStmt,
-    SelectStmt, SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt, SetTransactionStmt,
-    UpdateStmt,
+    ReindexStmt, ReleaseSavepointStmt, RevokeStmt, RollbackStmt, RollbackToSavepointStmt,
+    SavepointStmt, SelectStmt, SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt,
+    SetTransactionStmt, UpdateStmt,
 };
 
 // ============================================================================
@@ -67,6 +67,7 @@ pub enum Statement {
     DropTrigger(DropTriggerStmt),
     CreateIndex(CreateIndexStmt),
     DropIndex(DropIndexStmt),
+    Reindex(ReindexStmt),
     CreateAssertion(CreateAssertionStmt),
     DropAssertion(DropAssertionStmt),
     // Cursor operations (SQL:1999 Feature E121)

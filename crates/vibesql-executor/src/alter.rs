@@ -413,6 +413,13 @@ impl AlterTableExecutor {
                     stmt.table_name
                 ))
             }
+            TableConstraintKind::Fulltext { index_name: _, columns: _ } => {
+                // TODO: Implement FULLTEXT index creation
+                // For now, just return a message indicating it's not yet implemented
+                Err(ExecutorError::UnsupportedFeature(
+                    "FULLTEXT index support is not yet implemented".to_string(),
+                ))
+            }
         }
     }
 

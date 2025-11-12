@@ -31,6 +31,9 @@
 //! - `query_timeout_tests`: Query timeout enforcement tests (issue #1014)
 //! - `create_table_tests`: CREATE TABLE executor tests (basic table creation, data types, spatial
 //!   types)
+//! - `fulltext_search`: Full-text search integration tests (MATCH...AGAINST natural language, boolean mode)
+//! - `trigger_tests`: Trigger creation and execution tests
+//! - `view_tests`: VIEW support tests (CREATE/DROP/SELECT, OR REPLACE, CASCADE)
 
 mod aggregate_caching;
 mod aggregate_count_sum_avg_tests;
@@ -48,6 +51,7 @@ mod create_table_constraints;
 mod create_table_tests;
 mod error_display;
 mod expression_eval;
+mod fulltext_search;
 mod issue_938_integer_type_preservation;
 mod join_aggregation;
 mod lazy_evaluation_tests;
@@ -73,3 +77,5 @@ mod select_window_aggregate;
 mod select_without_from;
 mod timeout_enforcement;
 mod transaction_tests;
+mod trigger_tests;
+mod view_tests;

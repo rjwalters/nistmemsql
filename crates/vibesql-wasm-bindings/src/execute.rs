@@ -212,6 +212,33 @@ pub fn execute_statement(db: &mut Database, sql: &str) -> Result<JsValue, JsValu
             serde_wasm_bindgen::to_value(&result)
                 .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
         }
+        vibesql_ast::Statement::CreateTrigger(create_trigger_stmt) => {
+            vibesql_executor::advanced_objects::execute_create_trigger(&create_trigger_stmt, &mut db.db)
+                .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+
+            let result = ExecuteResult {
+                rows_affected: 0,
+                message: format!(
+                    "Trigger '{}' created successfully",
+                    create_trigger_stmt.trigger_name
+                ),
+            };
+
+            serde_wasm_bindgen::to_value(&result)
+                .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+        }
+        vibesql_ast::Statement::DropTrigger(drop_trigger_stmt) => {
+            vibesql_executor::advanced_objects::execute_drop_trigger(&drop_trigger_stmt, &mut db.db)
+                .map_err(|e| JsValue::from_str(&format!("Execution error: {:?}", e)))?;
+
+            let result = ExecuteResult {
+                rows_affected: 0,
+                message: format!("Trigger '{}' dropped successfully", drop_trigger_stmt.trigger_name),
+            };
+
+            serde_wasm_bindgen::to_value(&result)
+                .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
+        }
         _ => {
             Err(JsValue::from_str(&format!("Statement type not yet supported in WASM: {:?}", stmt)))
         }

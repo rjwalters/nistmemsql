@@ -216,6 +216,9 @@ pub fn optimize_expression(
 
         // Scalar subquery - cannot optimize
         Expression::ScalarSubquery(_) => Ok(expr.clone()),
+
+        // MATCH AGAINST - cannot optimize
+        Expression::MatchAgainst { .. } => Ok(expr.clone()),
     }
 }
 

@@ -146,6 +146,7 @@ pub enum Keyword {
     Translation,
     View,
     Index,
+    Reindex,
     Assertion,
     Specific,
     // Trigger-specific keywords
@@ -243,6 +244,14 @@ pub enum Keyword {
     Compressed,
     Redundant,
     Compact,
+    // Full-text search keywords
+    Fulltext,
+    Match,
+    Against,
+    Boolean,
+    Expansion,
+    Mode,
+    Query,
 }
 
 impl Keyword {
@@ -386,6 +395,7 @@ impl fmt::Display for Keyword {
             Keyword::Translation => "TRANSLATION",
             Keyword::View => "VIEW",
             Keyword::Index => "INDEX",
+            Keyword::Reindex => "REINDEX",
             Keyword::Assertion => "ASSERTION",
             Keyword::Specific => "SPECIFIC",
             Keyword::Before => "BEFORE",
@@ -474,6 +484,14 @@ impl fmt::Display for Keyword {
             Keyword::Compressed => "COMPRESSED",
             Keyword::Redundant => "REDUNDANT",
             Keyword::Compact => "COMPACT",
+            // Full-text search keywords
+            Keyword::Fulltext => "FULLTEXT",
+            Keyword::Match => "MATCH",
+            Keyword::Against => "AGAINST",
+            Keyword::Boolean => "BOOLEAN",
+            Keyword::Expansion => "EXPANSION",
+            Keyword::Mode => "MODE",
+            Keyword::Query => "QUERY",
         };
         write!(f, "{}", keyword_str)
     }

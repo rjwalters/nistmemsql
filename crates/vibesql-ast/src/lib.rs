@@ -24,18 +24,19 @@ pub use ddl::{
     DropDomainStmt, DropFunctionStmt, DropIndexStmt, DropProcedureStmt, DropRoleStmt,
     DropSchemaStmt, DropSequenceStmt, DropTableStmt, DropTranslationStmt, DropTriggerStmt,
     DropTypeStmt, DropViewStmt, FetchOrientation, FetchStmt, FunctionParameter, IndexColumn,
-    InsertMethod, IsolationLevel, OpenCursorStmt, ParameterMode, ProcedureBody, ProcedureParameter,
-    ProceduralStatement, ReferentialAction, ReleaseSavepointStmt, RollbackStmt,
-    RollbackToSavepointStmt, RowFormat, SavepointStmt, SchemaElement, SetCatalogStmt, SetNamesStmt,
-    SetSchemaStmt, SetTimeZoneStmt, SetTransactionStmt, TableConstraint, TableConstraintKind,
-    TableOption, TimeZoneSpec, TransactionAccessMode, TriggerAction, TriggerEvent,
-    TriggerGranularity, TriggerTiming, TypeAttribute, TypeDefinition,
+    IndexType, InsertMethod, IsolationLevel, OpenCursorStmt, ParameterMode, ProcedureBody,
+    ProcedureParameter, ProceduralStatement, ReferentialAction, ReindexStmt,
+    ReleaseSavepointStmt, RollbackStmt, RollbackToSavepointStmt, RowFormat, SavepointStmt,
+    SchemaElement, SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt,
+    SetTransactionStmt, TableConstraint, TableConstraintKind, TableOption, TimeZoneSpec,
+    TransactionAccessMode, TriggerAction, TriggerEvent, TriggerGranularity, TriggerTiming,
+    TypeAttribute, TypeDefinition,
 };
 pub use dml::{
     Assignment, ConflictClause, DeleteStmt, InsertSource, InsertStmt, UpdateStmt, WhereClause,
 };
 pub use expression::{
-    CaseWhen, CharacterUnit, Expression, FrameBound, FrameUnit, Quantifier, TrimPosition,
+    CaseWhen, CharacterUnit, Expression, FrameBound, FrameUnit, FulltextMode, Quantifier, TrimPosition,
     WindowFrame, WindowFunctionSpec, WindowSpec,
 };
 pub use grant::{GrantStmt, ObjectType, PrivilegeType};

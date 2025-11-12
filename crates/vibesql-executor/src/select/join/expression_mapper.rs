@@ -247,6 +247,17 @@ impl ExpressionMapper {
             | Expression::NextValue { .. } => {
                 // No column references
             }
+            Expression::MatchAgainst { columns: match_columns, search_modifier, .. } => {
+                // Extract column references from columns list
+                for column in match_columns {
+                    columns.push(("*".to_string(), column.to_lowercase()));
+                    if self.resolve_column(None, column).is_none() {
+                        *resolvable = false;
+                    }
+                }
+                // Recursively handle the search term
+                self.walk_expression(search_modifier, tables, columns, resolvable);
+            }
         }
     }
 }

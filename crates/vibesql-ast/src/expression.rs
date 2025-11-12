@@ -202,6 +202,30 @@ pub enum Expression {
     NextValue {
         sequence_name: String,
     },
+
+    /// MATCH...AGAINST full-text search expression
+    /// Example: MATCH(title, body) AGAINST ('search term')
+    /// Example: MATCH(title) AGAINST ('+mysql -oracle' IN BOOLEAN MODE)
+    /// Example: MATCH(title) AGAINST ('term' WITH QUERY EXPANSION)
+    MatchAgainst {
+        /// Columns to search
+        columns: Vec<String>,
+        /// Search string or phrase
+        search_modifier: Box<Expression>,
+        /// Search mode specification
+        mode: FulltextMode,
+    },
+}
+
+/// Full-text search mode specification
+#[derive(Debug, Clone, PartialEq)]
+pub enum FulltextMode {
+    /// Natural language mode (default)
+    NaturalLanguage,
+    /// Boolean mode with operators (+, -, *, etc.)
+    Boolean,
+    /// Natural language with query expansion
+    QueryExpansion,
 }
 
 /// CASE WHEN clause structure

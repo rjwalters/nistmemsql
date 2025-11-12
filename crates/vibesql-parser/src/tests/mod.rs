@@ -14,6 +14,7 @@ mod delete;
 mod display;
 mod errors;
 mod exists;
+mod fulltext;
 mod grant;
 mod group_by;
 mod in_list;

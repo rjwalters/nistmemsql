@@ -53,6 +53,7 @@ fn test_index_ordering() {
             ],
         ]),
         conflict_clause: None,
+        conflict_clause: None,
     };
 
     vibesql_executor::InsertExecutor::execute(&mut db, &insert_stmt).unwrap();

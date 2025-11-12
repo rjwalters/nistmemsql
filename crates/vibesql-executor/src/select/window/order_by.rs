@@ -110,6 +110,10 @@ fn collect_window_functions_from_expression(
         Expression::NextValue { .. } => {
             // Sequence expressions don't contain window functions
         }
+        Expression::MatchAgainst { search_modifier, .. } => {
+            // Recursively collect window functions from the search term
+            collect_window_functions_from_expression(search_modifier, window_functions);
+        }
     }
 }
 
