@@ -208,6 +208,9 @@ impl CombinedExpressionEvaluator<'_> {
     /// Returns TRUE if expr equals any value in the list
     /// Returns FALSE if no match and no NULLs
     /// Returns NULL if no match and list contains NULL
+    ///
+    /// Special case: empty list returns FALSE for IN, TRUE for NOT IN
+    /// (SQLite behavior, SQL:1999 extension)
     pub(super) fn eval_in_list(
         &self,
         expr: &vibesql_ast::Expression,
@@ -215,6 +218,12 @@ impl CombinedExpressionEvaluator<'_> {
         negated: bool,
         row: &vibesql_storage::Row,
     ) -> Result<vibesql_types::SqlValue, ExecutorError> {
+        // Handle empty IN list: returns false for IN, true for NOT IN
+        // This is per SQLite behavior (SQL:1999 extension, not standard SQL)
+        if values.is_empty() {
+            return Ok(vibesql_types::SqlValue::Boolean(negated));
+        }
+
         let expr_val = self.eval(expr, row)?;
 
         // If left expression is NULL, result is NULL

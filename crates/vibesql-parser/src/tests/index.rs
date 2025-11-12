@@ -14,7 +14,10 @@ fn test_create_index_simple() {
         Statement::CreateIndex(stmt) => {
             assert_eq!(stmt.index_name, "IDX");
             assert_eq!(stmt.table_name, "USERS");
-            assert!(!stmt.unique);
+            match &stmt.index_type {
+                vibesql_ast::IndexType::BTree { unique } => assert!(!unique),
+                other => panic!("Expected BTree index, got: {:?}", other),
+            }
             assert_eq!(stmt.columns.len(), 1);
             assert_eq!(stmt.columns[0].column_name, "EMAIL");
             assert_eq!(stmt.columns[0].direction, vibesql_ast::OrderDirection::Asc);
@@ -31,7 +34,10 @@ fn test_create_unique_index() {
 
     match result.unwrap() {
         Statement::CreateIndex(stmt) => {
-            assert!(stmt.unique, "Expected unique=true");
+            match &stmt.index_type {
+                vibesql_ast::IndexType::BTree { unique } => assert!(*unique, "Expected unique=true"),
+                other => panic!("Expected BTree index, got: {:?}", other),
+            }
             assert_eq!(stmt.index_name, "IDX");
             assert_eq!(stmt.table_name, "USERS");
             assert_eq!(stmt.columns.len(), 1);
@@ -52,7 +58,10 @@ fn test_create_index_multi_column() {
         Statement::CreateIndex(stmt) => {
             assert_eq!(stmt.index_name, "IDX");
             assert_eq!(stmt.table_name, "USERS");
-            assert!(!stmt.unique);
+            match &stmt.index_type {
+                vibesql_ast::IndexType::BTree { unique } => assert!(!unique),
+                other => panic!("Expected BTree index, got: {:?}", other),
+            }
             assert_eq!(stmt.columns.len(), 3);
             assert_eq!(stmt.columns[0].column_name, "FIRST_NAME");
             assert_eq!(stmt.columns[0].direction, vibesql_ast::OrderDirection::Asc);
@@ -73,7 +82,10 @@ fn test_create_unique_index_multi_column() {
 
     match result.unwrap() {
         Statement::CreateIndex(stmt) => {
-            assert!(stmt.unique);
+            match &stmt.index_type {
+                vibesql_ast::IndexType::BTree { unique } => assert!(*unique),
+                other => panic!("Expected BTree index, got: {:?}", other),
+            }
             assert_eq!(stmt.index_name, "IDX");
             assert_eq!(stmt.table_name, "ORDERS");
             assert_eq!(stmt.columns.len(), 2);
@@ -132,7 +144,10 @@ fn test_create_index_with_desc() {
         Statement::CreateIndex(stmt) => {
             assert_eq!(stmt.index_name, "IDX");
             assert_eq!(stmt.table_name, "USERS");
-            assert!(!stmt.unique);
+            match &stmt.index_type {
+                vibesql_ast::IndexType::BTree { unique } => assert!(!unique),
+                other => panic!("Expected BTree index, got: {:?}", other),
+            }
             assert_eq!(stmt.columns.len(), 2);
             assert_eq!(stmt.columns[0].column_name, "EMAIL");
             assert_eq!(stmt.columns[0].direction, vibesql_ast::OrderDirection::Desc);
