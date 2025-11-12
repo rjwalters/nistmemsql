@@ -63,17 +63,20 @@ impl CreateIndexExecutor {
         // Check CREATE privilege on the schema
         PrivilegeChecker::check_create(database, &schema_name)?;
 
-        // Check if table exists in the target schema
-        let qualified_table_name = format!("{}.{}", schema_name, table_name);
-        if !database.catalog.table_exists(&qualified_table_name) {
-            return Err(ExecutorError::TableNotFound(qualified_table_name));
+        // For catalog lookups, use just the table name (not qualified)
+        // TODO: Once we support schemas fully, this needs to be qualified
+        let table_lookup_name = &stmt.table_name;
+
+        // Check if table exists
+        if !database.catalog.table_exists(table_lookup_name) {
+            return Err(ExecutorError::TableNotFound(table_lookup_name.clone()));
         }
 
         // Get table schema to validate columns
         let table_schema = database
             .catalog
-            .get_table(&qualified_table_name)
-            .ok_or_else(|| ExecutorError::TableNotFound(qualified_table_name.clone()))?;
+            .get_table(table_lookup_name)
+            .ok_or_else(|| ExecutorError::TableNotFound(table_lookup_name.clone()))?;
 
         // Validate that all indexed columns exist in the table
         for index_col in &stmt.columns {
@@ -83,7 +86,7 @@ impl CreateIndexExecutor {
                 return Err(ExecutorError::ColumnNotFound {
                     column_name: index_col.column_name.clone(),
                     table_name: stmt.table_name.clone(),
-                    searched_tables: vec![qualified_table_name.clone()],
+                    searched_tables: vec![table_lookup_name.clone()],
                     available_columns,
                 });
             }
@@ -108,7 +111,7 @@ impl CreateIndexExecutor {
                 // Add to catalog first
                 let index_metadata = vibesql_catalog::IndexMetadata::new(
                     index_name.clone(),
-                    qualified_table_name.clone(),
+                    table_lookup_name.clone(),
                     vibesql_catalog::IndexType::BTree,
                     stmt.columns
                         .iter()
@@ -127,14 +130,14 @@ impl CreateIndexExecutor {
                 // B-tree index
                 database.create_index(
                     index_name.clone(),
-                    qualified_table_name.clone(),
+                    table_lookup_name.clone(),
                     *unique,
                     stmt.columns.clone(),
                 )?;
 
                 Ok(format!(
                     "Index '{}' created successfully on table '{}'",
-                    index_name, qualified_table_name
+                    index_name, table_lookup_name
                 ))
             }
             vibesql_ast::IndexType::Fulltext => {
@@ -158,7 +161,7 @@ impl CreateIndexExecutor {
                     .ok_or_else(|| ExecutorError::ColumnNotFound {
                         column_name: column_name.clone(),
                         table_name: stmt.table_name.clone(),
-                        searched_tables: vec![qualified_table_name.clone()],
+                        searched_tables: vec![table_lookup_name.clone()],
                         available_columns: table_schema
                             .columns
                             .iter()
@@ -168,8 +171,8 @@ impl CreateIndexExecutor {
 
                 // Extract MBRs from all existing rows
                 let table = database
-                    .get_table(&qualified_table_name)
-                    .ok_or_else(|| ExecutorError::TableNotFound(qualified_table_name.clone()))?;
+                    .get_table(table_lookup_name)
+                    .ok_or_else(|| ExecutorError::TableNotFound(table_lookup_name.clone()))?;
 
                 let mut entries = Vec::new();
                 for (row_idx, row) in table.scan().iter().enumerate() {
@@ -187,7 +190,7 @@ impl CreateIndexExecutor {
                 // Add to catalog first
                 let index_metadata = vibesql_catalog::IndexMetadata::new(
                     index_name.clone(),
-                    qualified_table_name.clone(),
+                    table_lookup_name.clone(),
                     vibesql_catalog::IndexType::RTree,
                     vec![vibesql_catalog::IndexedColumn {
                         column_name: column_name.clone(),
@@ -200,7 +203,7 @@ impl CreateIndexExecutor {
                 // Store in database
                 let metadata = SpatialIndexMetadata {
                     index_name: index_name.clone(),
-                    table_name: qualified_table_name.clone(),
+                    table_name: table_lookup_name.clone(),
                     column_name: column_name.clone(),
                     created_at: Some(chrono::Utc::now()),
                 };
@@ -209,7 +212,7 @@ impl CreateIndexExecutor {
 
                 Ok(format!(
                     "Spatial index '{}' created successfully on table '{}'",
-                    index_name, qualified_table_name
+                    index_name, table_lookup_name
                 ))
             }
         }
