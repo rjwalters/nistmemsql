@@ -59,7 +59,9 @@ impl Schema {
             if self.tables.remove(name).is_some() {
                 Ok(())
             } else {
-                Err(CatalogError::TableNotFound(name.to_string()))
+                Err(CatalogError::TableNotFound {
+                    table_name: name.to_string(),
+                })
             }
         } else {
             // Case-insensitive: find the actual name first
@@ -73,7 +75,9 @@ impl Schema {
                 self.tables.remove(&actual_name);
                 Ok(())
             } else {
-                Err(CatalogError::TableNotFound(name.to_string()))
+                Err(CatalogError::TableNotFound {
+                    table_name: name.to_string(),
+                })
             }
         }
     }
