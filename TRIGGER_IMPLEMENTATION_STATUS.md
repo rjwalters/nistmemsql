@@ -6,7 +6,7 @@ This document tracks the implementation status of SQL trigger support in VibeSQL
 
 ## Current Status (2025-01-12)
 
-### ✅ COMPLETED - Phases 1 & 2
+### ✅ COMPLETED - Phases 1 & 2 (CREATE/DROP TRIGGER DDL)
 
 The following infrastructure is **already fully implemented**:
 
@@ -30,7 +30,34 @@ The following infrastructure is **already fully implemented**:
   - `test_drop_trigger_not_found` ✅
   - `test_create_trigger_all_variations` ✅
 
-### ❌ NOT IMPLEMENTED - Phases 3+
+#### What Works Now
+
+```sql
+-- Creating triggers
+CREATE TABLE users (id INT, name VARCHAR(50));
+CREATE TRIGGER my_trigger AFTER INSERT ON users
+  FOR EACH ROW
+  BEGIN SELECT 1; END;
+-- ✅ SUCCESS: Trigger created and stored in catalog
+
+-- Querying trigger existence
+SELECT * FROM information_schema.triggers WHERE trigger_name = 'my_trigger';
+-- ✅ (Would work if information_schema was implemented)
+
+-- Dropping triggers
+DROP TRIGGER my_trigger;
+-- ✅ SUCCESS: Trigger removed from catalog
+
+-- Error handling
+CREATE TRIGGER my_trigger AFTER INSERT ON users FOR EACH ROW BEGIN SELECT 1; END;
+CREATE TRIGGER my_trigger AFTER INSERT ON users FOR EACH ROW BEGIN SELECT 1; END;
+-- ✅ ERROR: Trigger 'my_trigger' already exists
+
+DROP TRIGGER nonexistent;
+-- ✅ ERROR: Trigger 'nonexistent' not found
+```
+
+### ❌ NOT IMPLEMENTED - Phases 3+ (Core Functionality)
 
 The following functionality still needs to be implemented:
 
@@ -43,6 +70,46 @@ The following functionality still needs to be implemented:
 - ❌ AFTER trigger support
 - ❌ FOR EACH ROW execution
 - ❌ WHEN condition evaluation
+
+#### What Doesn't Work Yet
+
+```sql
+-- Triggers don't fire on DML operations
+CREATE TABLE audit (msg VARCHAR(100));
+CREATE TRIGGER log_insert AFTER INSERT ON audit
+  FOR EACH ROW
+  BEGIN
+    INSERT INTO audit VALUES ('triggered');
+  END;
+-- ✅ Trigger created successfully
+
+INSERT INTO audit VALUES ('test');
+-- ❌ Trigger does NOT fire - no action executes
+
+SELECT * FROM audit;
+-- ❌ Result: Only ('test')
+-- ✅ Expected: ('test') AND ('triggered')
+
+-- BEFORE triggers don't modify data
+CREATE TRIGGER normalize_name BEFORE INSERT ON users
+  FOR EACH ROW
+  BEGIN
+    SET NEW.name = UPPER(NEW.name);
+  END;
+-- ✅ Trigger created successfully
+
+INSERT INTO users VALUES (1, 'alice');
+-- ❌ Name is NOT uppercased, stored as 'alice' not 'ALICE'
+
+-- OLD/NEW references don't work
+CREATE TRIGGER log_changes AFTER UPDATE ON users
+  FOR EACH ROW
+  BEGIN
+    INSERT INTO audit VALUES ('Changed from ' || OLD.name || ' to ' || NEW.name);
+  END;
+-- ✅ Trigger created, but...
+-- ❌ OLD and NEW are not available during execution
+```
 
 #### Phase 4: OLD/NEW Context
 - ❌ OLD pseudo-record support (for UPDATE/DELETE)
@@ -62,6 +129,33 @@ The following functionality still needs to be implemented:
 - ❌ Recursion handling
 
 ## Implementation Plan
+
+### Effort Estimates
+
+Based on the investigation and codebase analysis:
+
+| Phase | Description | Estimated Time | Dependencies |
+|-------|-------------|----------------|--------------|
+| Phase 3 | Trigger Firing | 8-12 hours | Phases 1-2 (✅ complete) |
+| Phase 4 | OLD/NEW Context | 6-8 hours | Phase 3 |
+| Phase 5 | Persistence | 2-3 hours | Phases 1-2 |
+| Phase 6 | Advanced Features | 8-16 hours | Phases 3-5 |
+| **Total** | **Full trigger support** | **24-39 hours** | |
+
+**Phase 3 breakdown:**
+- Core firing mechanism: 4-6 hours
+- DML hook points: 2-3 hours
+- Tests: 2-3 hours
+
+**Phase 4 breakdown:**
+- Parser changes: 2-3 hours
+- Evaluator modifications: 3-4 hours
+- Tests: 1-2 hours
+
+**Phase 5 breakdown:**
+- Serialization logic: 1-2 hours
+- Deserialization logic: 0.5-1 hour
+- Tests: 0.5-1 hour
 
 ###  Priority 1: Trigger Firing (Phase 3)
 
