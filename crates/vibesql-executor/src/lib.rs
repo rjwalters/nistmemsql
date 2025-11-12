@@ -19,6 +19,7 @@ pub mod limits;
 mod optimizer;
 pub mod persistence;
 mod privilege_checker;
+pub mod procedural;
 mod revoke;
 mod role_ddl;
 mod schema;
