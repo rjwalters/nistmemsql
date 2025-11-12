@@ -29,6 +29,7 @@ fn test_insert_from_select_basic() {
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1)),
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("Alice".to_string())),
         ]]),
+        conflict_clause: None,
     };
     InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
 
@@ -66,6 +67,7 @@ fn test_insert_from_select_basic() {
         table_name: "users_backup".to_string(),
         columns: vec![], // No explicit columns, use all
         source: vibesql_ast::InsertSource::Select(Box::new(select_stmt)),
+        conflict_clause: None,
     };
 
     let rows = InsertExecutor::execute(&mut db, &insert_select_stmt).unwrap();
@@ -94,6 +96,7 @@ fn test_insert_from_select_with_where() {
                 vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("Bob".to_string())),
             ],
         ]),
+        conflict_clause: None,
     };
     InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
 
@@ -135,6 +138,7 @@ fn test_insert_from_select_with_where() {
         table_name: "active_users".to_string(),
         columns: vec![],
         source: vibesql_ast::InsertSource::Select(Box::new(select_stmt)),
+        conflict_clause: None,
     };
 
     let rows = InsertExecutor::execute(&mut db, &insert_select_stmt).unwrap();
@@ -157,6 +161,7 @@ fn test_insert_from_select_column_mismatch() {
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1)),
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("Alice".to_string())),
         ]]),
+        conflict_clause: None,
     };
     InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
 
@@ -195,6 +200,7 @@ fn test_insert_from_select_column_mismatch() {
         table_name: "wrong_table".to_string(),
         columns: vec![], // Should match all columns
         source: vibesql_ast::InsertSource::Select(Box::new(select_stmt)),
+        conflict_clause: None,
     };
 
     let result = InsertExecutor::execute(&mut db, &insert_select_stmt);
@@ -230,6 +236,7 @@ fn test_insert_from_select_with_aggregates() {
                 vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(200)),
             ],
         ]),
+        conflict_clause: None,
     };
     InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
 
@@ -283,6 +290,7 @@ fn test_insert_from_select_with_aggregates() {
         table_name: "summary".to_string(),
         columns: vec![],
         source: vibesql_ast::InsertSource::Select(Box::new(select_stmt)),
+        conflict_clause: None,
     };
     let rows = InsertExecutor::execute(&mut db, &insert_select_stmt).unwrap();
     assert_eq!(rows, 1);
