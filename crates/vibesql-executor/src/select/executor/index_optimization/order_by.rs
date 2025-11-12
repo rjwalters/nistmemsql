@@ -5,7 +5,7 @@
 //! - Reverse index traversal (ASC index used for DESC ordering)
 //! - Mixed ASC/DESC directions when index supports them
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use vibesql_storage::database::{Database, IndexData};
 use vibesql_types::SqlValue;
@@ -78,8 +78,8 @@ pub(in crate::select::executor) fn try_index_based_ordering(
         let qualified_table_name = format!("public.{}", table_name);
         if let Some(table) = database.get_table(&qualified_table_name) {
             if let Some(pk_index) = table.primary_key_index() {
-                // Convert to IndexData format (HashMap)
-                let data: HashMap<Vec<SqlValue>, Vec<usize>> =
+                // Convert to IndexData format (BTreeMap)
+                let data: BTreeMap<Vec<SqlValue>, Vec<usize>> =
                     pk_index.iter().map(|(key, &row_idx)| (key.clone(), vec![row_idx])).collect();
                 IndexData { data }
             } else {
