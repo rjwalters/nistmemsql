@@ -78,7 +78,7 @@ pub fn optimize_expression(
             if let (Expression::Literal(left_val), Expression::Literal(right_val)) =
                 (&left_opt, &right_opt)
             {
-                match ExpressionEvaluator::eval_binary_op_static(left_val, op, right_val, vibesql_types::SqlMode::Standard) {
+                match ExpressionEvaluator::eval_binary_op_static(left_val, op, right_val) {
                     Ok(result) => Ok(Expression::Literal(result)),
                     Err(_) => Ok(Expression::BinaryOp {
                         left: Box::new(left_opt),

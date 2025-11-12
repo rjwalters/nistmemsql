@@ -14,7 +14,7 @@ use arithmetic::ArithmeticOps;
 use comparison::ComparisonOps;
 use logical::LogicalOps;
 use string::StringOps;
-use vibesql_types::{SqlMode, SqlValue};
+use vibesql_types::SqlValue;
 
 use crate::errors::ExecutorError;
 
@@ -38,7 +38,6 @@ impl OperatorRegistry {
         left: &SqlValue,
         op: &vibesql_ast::BinaryOperator,
         right: &SqlValue,
-        _sql_mode: SqlMode,
     ) -> Result<SqlValue, ExecutorError> {
         use vibesql_ast::BinaryOperator::*;
 
@@ -85,21 +84,21 @@ mod tests {
 
         // NULL + anything = NULL
         assert!(matches!(
-            OperatorRegistry::eval_binary_op(&SqlValue::Null, &Plus, &SqlValue::Integer(1), SqlMode::Standard)
+            OperatorRegistry::eval_binary_op(&SqlValue::Null, &Plus, &SqlValue::Integer(1))
                 .unwrap(),
             SqlValue::Null
         ));
 
         // anything + NULL = NULL
         assert!(matches!(
-            OperatorRegistry::eval_binary_op(&SqlValue::Integer(1), &Plus, &SqlValue::Null, SqlMode::Standard)
+            OperatorRegistry::eval_binary_op(&SqlValue::Integer(1), &Plus, &SqlValue::Null)
                 .unwrap(),
             SqlValue::Null
         ));
 
         // NULL comparison NULL = NULL
         assert!(matches!(
-            OperatorRegistry::eval_binary_op(&SqlValue::Null, &Equal, &SqlValue::Null, SqlMode::Standard).unwrap(),
+            OperatorRegistry::eval_binary_op(&SqlValue::Null, &Equal, &SqlValue::Null).unwrap(),
             SqlValue::Null
         ));
     }
