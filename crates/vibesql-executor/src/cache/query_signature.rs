@@ -357,6 +357,19 @@ impl QuerySignature {
                 precision.hash(hasher);
             }
 
+            Expression::Interval {
+                value,
+                unit,
+                leading_precision,
+                fractional_precision,
+            } => {
+                "INTERVAL".hash(hasher);
+                Self::hash_expr(value, hasher, param_counter);
+                format!("{:?}", unit).hash(hasher);
+                leading_precision.hash(hasher);
+                fractional_precision.hash(hasher);
+            }
+
             Expression::Default => "DEFAULT".hash(hasher),
 
             Expression::DuplicateKeyValue { column } => {

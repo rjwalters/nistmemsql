@@ -196,6 +196,27 @@ impl ExpressionEvaluator<'_> {
                 super::super::functions::eval_scalar_function("CURRENT_TIMESTAMP", &[], &None)
             }
 
+            // INTERVAL expression
+            vibesql_ast::Expression::Interval {
+                value,
+                unit,
+                leading_precision: _,
+                fractional_precision: _,
+            } => {
+                // Evaluate the value expression (typically a string literal like '5')
+                let interval_value = self.eval(value, row)?;
+
+                // Convert unit to string for the Interval type
+                let unit_str = Self::interval_unit_to_string(unit);
+
+                // Create an Interval SqlValue
+                // The format is "value unit" (e.g., "5 DAY", "1-6 YEAR TO MONTH")
+                let interval_str = format!("{} {}", interval_value, unit_str);
+                Ok(SqlValue::Interval(vibesql_types::Interval {
+                    value: interval_str,
+                }))
+            }
+
             // Unsupported expressions
             vibesql_ast::Expression::Wildcard => Err(ExecutorError::UnsupportedExpression(
                 "Wildcard (*) not supported in expressions".to_string(),
@@ -403,5 +424,33 @@ impl ExpressionEvaluator<'_> {
             searched_tables,
             available_columns,
         })
+    }
+
+    /// Convert IntervalUnit to string representation for Interval SqlValue
+    fn interval_unit_to_string(unit: &vibesql_ast::IntervalUnit) -> String {
+        use vibesql_ast::IntervalUnit;
+        match unit {
+            IntervalUnit::Microsecond => "MICROSECOND",
+            IntervalUnit::Second => "SECOND",
+            IntervalUnit::Minute => "MINUTE",
+            IntervalUnit::Hour => "HOUR",
+            IntervalUnit::Day => "DAY",
+            IntervalUnit::Week => "WEEK",
+            IntervalUnit::Month => "MONTH",
+            IntervalUnit::Quarter => "QUARTER",
+            IntervalUnit::Year => "YEAR",
+            IntervalUnit::SecondMicrosecond => "SECOND_MICROSECOND",
+            IntervalUnit::MinuteMicrosecond => "MINUTE_MICROSECOND",
+            IntervalUnit::MinuteSecond => "MINUTE_SECOND",
+            IntervalUnit::HourMicrosecond => "HOUR_MICROSECOND",
+            IntervalUnit::HourSecond => "HOUR_SECOND",
+            IntervalUnit::HourMinute => "HOUR_MINUTE",
+            IntervalUnit::DayMicrosecond => "DAY_MICROSECOND",
+            IntervalUnit::DaySecond => "DAY_SECOND",
+            IntervalUnit::DayMinute => "DAY_MINUTE",
+            IntervalUnit::DayHour => "DAY_HOUR",
+            IntervalUnit::YearMonth => "YEAR_MONTH",
+        }
+        .to_string()
     }
 }
