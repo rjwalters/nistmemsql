@@ -61,6 +61,10 @@ pub enum ExecutorError {
         from_type: String,
         to_type: String,
     },
+    TypeConversionError {
+        from: String,
+        to: String,
+    },
     ConstraintViolation(String),
     MultiplePrimaryKeys,
     CannotDropColumn(String),
@@ -196,6 +200,9 @@ impl std::fmt::Display for ExecutorError {
             }
             ExecutorError::CastError { from_type, to_type } => {
                 write!(f, "Cannot cast {} to {}", from_type, to_type)
+            }
+            ExecutorError::TypeConversionError { from, to } => {
+                write!(f, "Cannot convert {} to {}", from, to)
             }
             ExecutorError::ConstraintViolation(msg) => {
                 write!(f, "Constraint violation: {}", msg)
