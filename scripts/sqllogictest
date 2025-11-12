@@ -189,6 +189,7 @@ cmd_run() {
     local parallel=false
     local workers=""
     local time_budget="${SQLLOGICTEST_TIME_BUDGET:-300}"
+    local force=false
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -204,6 +205,7 @@ Options:
   --parallel              Run tests in parallel across multiple workers
   --workers N             Number of parallel workers (default: CPU count)
   --time N                Time budget in seconds per worker (default: 300)
+  --force                 Repopulate work queue with all test files (bypasses smart filtering)
 
 Examples:
   # Serial run (local development, 5 minutes)
@@ -247,6 +249,10 @@ EOF
             --time)
                 time_budget="$2"
                 shift 2
+                ;;
+            --force)
+                force=true
+                shift
                 ;;
             *)
                 print_error "Unknown option: $1"
@@ -296,6 +302,23 @@ EOF
         print_info "Running serial test suite"
         echo "Time budget: ${time_budget}s"
         echo ""
+
+        # Initialize work queue if --force is specified
+        if $force; then
+            print_info "Initializing work queue (--force)..."
+            python3 -c "
+import sys
+sys.path.insert(0, 'scripts')
+from run_parallel_tests import initialize_work_queue, get_repo_root
+from pathlib import Path
+
+repo_root = get_repo_root()
+work_queue_dir = Path('/tmp/sqllogictest_work_queue')
+count = initialize_work_queue(repo_root, work_queue_dir)
+print(f'Work queue initialized with {count} test files')
+"
+            echo ""
+        fi
 
         SQLLOGICTEST_TIME_BUDGET="$time_budget" \
             cargo test --package vibesql --test sqllogictest_suite run_sqllogictest_suite -- --nocapture
