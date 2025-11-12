@@ -98,7 +98,6 @@ fn test_integer_division_with_floats() {
         &vibesql_types::SqlValue::Float(10.7),
         &vibesql_ast::BinaryOperator::IntegerDivide,
         &vibesql_types::SqlValue::Float(3.2),
-        vibesql_types::SqlMode::Standard,
     )
     .unwrap();
     assert_eq!(result, vibesql_types::SqlValue::Integer(3));
@@ -113,7 +112,6 @@ fn test_integer_division_negative_operands() {
         &vibesql_types::SqlValue::Integer(96),
         &vibesql_ast::BinaryOperator::IntegerDivide,
         &vibesql_types::SqlValue::Integer(-2),
-        vibesql_types::SqlMode::Standard,
     )
     .unwrap();
     assert_eq!(result, vibesql_types::SqlValue::Integer(-48));
@@ -123,7 +121,6 @@ fn test_integer_division_negative_operands() {
         &vibesql_types::SqlValue::Integer(-96),
         &vibesql_ast::BinaryOperator::IntegerDivide,
         &vibesql_types::SqlValue::Integer(2),
-        vibesql_types::SqlMode::Standard,
     )
     .unwrap();
     assert_eq!(result, vibesql_types::SqlValue::Integer(-48));
@@ -133,7 +130,6 @@ fn test_integer_division_negative_operands() {
         &vibesql_types::SqlValue::Integer(-96),
         &vibesql_ast::BinaryOperator::IntegerDivide,
         &vibesql_types::SqlValue::Integer(-2),
-        vibesql_types::SqlMode::Standard,
     )
     .unwrap();
     assert_eq!(result, vibesql_types::SqlValue::Integer(48));
@@ -148,7 +144,6 @@ fn test_integer_division_by_zero() {
         &vibesql_types::SqlValue::Integer(5),
         &vibesql_ast::BinaryOperator::IntegerDivide,
         &vibesql_types::SqlValue::Integer(0),
-        vibesql_types::SqlMode::Standard,
     );
     assert!(matches!(result, Err(ExecutorError::DivisionByZero)));
 }
@@ -162,7 +157,6 @@ fn test_integer_division_equal_operands() {
         &vibesql_types::SqlValue::Integer(5),
         &vibesql_ast::BinaryOperator::IntegerDivide,
         &vibesql_types::SqlValue::Integer(5),
-        vibesql_types::SqlMode::Standard,
     )
     .unwrap();
     assert_eq!(result, vibesql_types::SqlValue::Integer(1));
@@ -177,7 +171,6 @@ fn test_modulo_operator() {
         &vibesql_types::SqlValue::Integer(10),
         &vibesql_ast::BinaryOperator::Modulo,
         &vibesql_types::SqlValue::Integer(3),
-        vibesql_types::SqlMode::Standard,
     )
     .unwrap();
     assert_eq!(result, vibesql_types::SqlValue::Integer(1));
@@ -187,7 +180,6 @@ fn test_modulo_operator() {
         &vibesql_types::SqlValue::Integer(15),
         &vibesql_ast::BinaryOperator::Modulo,
         &vibesql_types::SqlValue::Integer(4),
-        vibesql_types::SqlMode::Standard,
     )
     .unwrap();
     assert_eq!(result, vibesql_types::SqlValue::Integer(3));
