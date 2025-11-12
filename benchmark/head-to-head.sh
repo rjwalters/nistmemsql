@@ -130,12 +130,13 @@ TOTAL_SQLITE_TIME=0
 # Helper function to run a single test with timing
 run_test() {
     local ENGINE="$1"
-    local TEST_FILE="$2"
+    local REL_PATH="$2"  # Relative path from TEST_DIR (e.g., "evidence/in1.test")
     local TIMEOUT=30
 
     START_TIME=$(date +%s.%N)
     if [ "$ENGINE" = "vibesql" ]; then
-        if timeout $TIMEOUT env SQLLOGICTEST_FILE="$TEST_FILE" cargo test -p vibesql --test sqllogictest_runner run_single_test_file >/dev/null 2>&1; then
+        # Pass only the relative path - the test runner will prepend "third_party/sqllogictest/test/"
+        if timeout $TIMEOUT env SQLLOGICTEST_FILE="$REL_PATH" cargo test -p vibesql --test sqllogictest_runner run_single_test_file >/dev/null 2>&1; then
             END_TIME=$(date +%s.%N)
             DURATION=$(echo "$END_TIME - $START_TIME" | bc)
             echo "$DURATION:success"
