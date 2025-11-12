@@ -170,6 +170,10 @@ impl Parser {
                     })
                 }
             }
+            Token::Keyword(Keyword::Reindex) => {
+                let reindex_stmt = self.parse_reindex_statement()?;
+                Ok(vibesql_ast::Statement::Reindex(reindex_stmt))
+            }
             Token::Keyword(Keyword::Begin) | Token::Keyword(Keyword::Start) => {
                 let begin_stmt = self.parse_begin_statement()?;
                 Ok(vibesql_ast::Statement::BeginTransaction(begin_stmt))

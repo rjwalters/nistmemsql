@@ -168,3 +168,13 @@ pub struct DropIndexStmt {
     pub if_exists: bool,
     pub index_name: String,
 }
+
+/// REINDEX statement
+///
+/// Rebuilds indexes to reclaim space or improve query performance.
+/// Syntax: REINDEX [database_name | table_name | index_name]
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReindexStmt {
+    /// Optional target: database name, table name, or index name
+    pub target: Option<String>,
+}

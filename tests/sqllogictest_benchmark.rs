@@ -428,6 +428,11 @@ impl NistMemSqlDB {
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
+            vibesql_ast::Statement::Reindex(reindex_stmt) => {
+                vibesql_executor::IndexExecutor::execute_reindex(&reindex_stmt, &self.db)
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
             _ => Ok(DBOutput::StatementComplete(0)),
         }
     }
