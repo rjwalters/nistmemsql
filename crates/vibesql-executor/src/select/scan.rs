@@ -325,12 +325,19 @@ fn execute_table_scan(
         let select_result = executor.execute_with_columns(&view.query)?;
 
         // Build a schema from the column names
-        // Since views can have arbitrary SELECT expressions, we derive column types from the first
-        // row
+        // Apply view's explicit column aliases if provided
+        let column_names = if let Some(ref view_columns) = view.columns {
+            // Use view's explicit column names
+            view_columns.clone()
+        } else {
+            // Use column names from the SELECT statement
+            select_result.columns.clone()
+        };
+
+        // Since views can have arbitrary SELECT expressions, we derive column types from the first row
         let columns = if !select_result.rows.is_empty() {
             let first_row = &select_result.rows[0];
-            select_result
-                .columns
+            column_names
                 .iter()
                 .zip(&first_row.values)
                 .map(|(name, value)| {
@@ -345,7 +352,15 @@ fn execute_table_scan(
         } else {
             // For empty views, create columns without specific types
             // This is a limitation but views with no rows are edge cases
-            vec![]
+            column_names
+                .into_iter()
+                .map(|name| vibesql_catalog::ColumnSchema {
+                    name,
+                    data_type: vibesql_types::DataType::Varchar { max_length: None },
+                    nullable: true,
+                    default_value: None,
+                })
+                .collect()
         };
 
         let view_schema = vibesql_catalog::TableSchema::new(table_name.to_string(), columns);

@@ -12,6 +12,8 @@ impl Parser {
             Token::Keyword(Keyword::Timestamp) => "TIMESTAMP".to_string(),
             Token::Keyword(Keyword::Interval) => "INTERVAL".to_string(),
             Token::Keyword(Keyword::Character) => "CHARACTER".to_string(),
+            // MySQL-specific types that are keywords
+            Token::Keyword(Keyword::Set) => "SET".to_string(),
             _ => return Err(ParseError { message: "Expected data type".to_string() }),
         };
         self.advance();
@@ -274,11 +276,44 @@ impl Parser {
                 // Maps to VARCHAR without length constraint (unlimited)
                 Ok(vibesql_types::DataType::Varchar { max_length: None })
             }
+            "ENUM" | "SET" => {
+                // MySQL ENUM and SET types take a list of values in parentheses
+                // For now, we parse and ignore the values - just recognize the type
+                // The syntax is: ENUM('value1','value2',...) or SET('value1','value2',...)
+                if matches!(self.peek(), Token::LParen) {
+                    self.expect_token(Token::LParen)?; // consume and validate (
+                    
+                    // Skip values until we find the closing paren
+                    // Values are typically string literals, separated by commas
+                    let mut paren_depth = 1;
+                    while paren_depth > 0 && !matches!(self.peek(), Token::Eof) {
+                        match self.peek() {
+                            Token::LParen => {
+                                paren_depth += 1;
+                                self.advance();
+                            },
+                            Token::RParen => {
+                                paren_depth -= 1;
+                                if paren_depth > 0 {
+                                    self.advance();
+                                } else {
+                                    // Found the closing paren - consume it and break
+                                    self.expect_token(Token::RParen)?;
+                                    break;
+                                }
+                            },
+                            _ => {
+                                self.advance();
+                            }
+                        }
+                    }
+                }
+                
+                Ok(vibesql_types::DataType::UserDefined { type_name: type_upper })
+            }
             _ => {
-                // Check if this is a spatial/geometric type (SQL/MM standard)
-                // These are outside SQL:1999 scope but should parse gracefully as user-defined
-                // types
-                if Self::is_spatial_type(&type_upper) {
+                // Check if this is a known non-standard type that we should support
+                if Self::is_supported_extension_type(&type_upper) {
                     Ok(vibesql_types::DataType::UserDefined { type_name: type_upper })
                 } else {
                     Err(ParseError { message: format!("Unknown data type: {}", type_upper) })
@@ -287,17 +322,33 @@ impl Parser {
         }
     }
 
-    /// Check if a type name is a spatial/geometric type from SQL/MM standard
-    /// These types are not part of SQL:1999 but appear in SQLLogicTest suite
-    fn is_spatial_type(type_name: &str) -> bool {
+    /// Check if a type name is a supported extension type (non-SQL:1999)
+    /// These types are outside the SQL:1999 standard but should parse gracefully
+    /// as user-defined types, including:
+    /// - Spatial/geometric types from SQL/MM standard
+    /// - MySQL-specific types
+    /// - Other database extensions
+    fn is_supported_extension_type(type_name: &str) -> bool {
         matches!(
             type_name,
-            // 2D basic types
+            // 2D basic types (SQL/MM standard)
             "POINT" | "LINESTRING" | "POLYGON" |
-            // Multi types
+            // Multi types (SQL/MM standard)
             "MULTIPOINT" | "MULTILINESTRING" | "MULTIPOLYGON" |
-            // Collection types
-            "GEOMETRY" | "GEOMETRYCOLLECTION"
+            // Collection types (SQL/MM standard)
+            "GEOMETRY" | "GEOMETRYCOLLECTION" |
+            // MySQL numeric types
+            "TINYINT" | "MEDIUMINT" | "SERIAL" |
+            // MySQL string types
+            "TINYTEXT" | "MEDIUMTEXT" | "LONGTEXT" |
+            "TINYBLOB" | "MEDIUMBLOB" | "LONGBLOB" |
+            "BINARY" | "VARBINARY" |
+            // MySQL JSON type
+            "JSON" |
+            // MySQL enumeration types
+            "ENUM" | "SET" |
+            // Other common extension types
+            "UUID"
         )
     }
 
