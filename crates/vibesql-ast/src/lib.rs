@@ -30,7 +30,7 @@ pub use ddl::{
     SchemaElement, SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt,
     SetTransactionStmt, TableConstraint, TableConstraintKind, TableOption, TimeZoneSpec,
     TransactionAccessMode, TriggerAction, TriggerEvent, TriggerGranularity, TriggerTiming,
-    TypeAttribute, TypeDefinition,
+    TruncateTableStmt, TypeAttribute, TypeDefinition,
 };
 pub use dml::{
     Assignment, ConflictClause, DeleteStmt, InsertSource, InsertStmt, UpdateStmt, WhereClause,

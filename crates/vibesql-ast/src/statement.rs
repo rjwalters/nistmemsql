@@ -13,7 +13,7 @@ use crate::{
     DropTriggerStmt, DropTypeStmt, DropViewStmt, FetchStmt, GrantStmt, InsertStmt, OpenCursorStmt,
     ReindexStmt, ReleaseSavepointStmt, RevokeStmt, RollbackStmt, RollbackToSavepointStmt,
     SavepointStmt, SelectStmt, SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt,
-    SetTransactionStmt, UpdateStmt,
+    SetTransactionStmt, TruncateTableStmt, UpdateStmt,
 };
 
 // ============================================================================
@@ -29,6 +29,7 @@ pub enum Statement {
     Delete(DeleteStmt),
     CreateTable(CreateTableStmt),
     DropTable(DropTableStmt),
+    TruncateTable(TruncateTableStmt),
     AlterTable(AlterTableStmt),
     CreateSchema(CreateSchemaStmt),
     DropSchema(DropSchemaStmt),

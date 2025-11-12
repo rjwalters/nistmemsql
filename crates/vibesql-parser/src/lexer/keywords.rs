@@ -17,6 +17,7 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "DUPLICATE" => Token::Keyword(Keyword::Duplicate),
         "CREATE" => Token::Keyword(Keyword::Create),
         "TABLE" => Token::Keyword(Keyword::Table),
+        "TRUNCATE" => Token::Keyword(Keyword::Truncate),
         "DROP" => Token::Keyword(Keyword::Drop),
         "ADD" => Token::Keyword(Keyword::Add),
         "ALTER" => Token::Keyword(Keyword::Alter),
