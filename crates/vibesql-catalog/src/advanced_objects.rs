@@ -272,7 +272,8 @@ pub enum ParameterMode {
 #[derive(Debug, Clone)]
 pub enum ProcedureBody {
     /// SQL procedural block: BEGIN ... END
-    BeginEnd(String), // Stored as raw SQL for now
-    /// Raw SQL for simpler cases
+    /// Stores the parsed AST of procedural statements for execution
+    BeginEnd(Vec<vibesql_ast::ProceduralStatement>),
+    /// Raw SQL for simpler cases (legacy/fallback)
     RawSql(String),
 }
