@@ -9,6 +9,7 @@ impl Parser {
     /// Syntax:
     ///   CREATE [UNIQUE] INDEX [IF NOT EXISTS] index_name ON table_name (column_list)
     ///   CREATE FULLTEXT INDEX [IF NOT EXISTS] index_name ON table_name (column_list)
+    ///   CREATE SPATIAL INDEX [IF NOT EXISTS] index_name ON table_name (column_list)
     pub(super) fn parse_create_index_statement(
         &mut self,
     ) -> Result<vibesql_ast::CreateIndexStmt, ParseError> {
@@ -18,11 +19,21 @@ impl Parser {
         // Check for FULLTEXT keyword
         if self.peek_keyword(Keyword::Fulltext) {
             self.advance(); // consume FULLTEXT
-            
+
             // Expect INDEX keyword
             self.expect_keyword(Keyword::Index)?;
-            
+
             return self.parse_create_index_columns(vibesql_ast::IndexType::Fulltext);
+        }
+
+        // Check for SPATIAL keyword
+        if self.peek_keyword(Keyword::Spatial) {
+            self.advance(); // consume SPATIAL
+
+            // Expect INDEX keyword
+            self.expect_keyword(Keyword::Index)?;
+
+            return self.parse_create_index_columns(vibesql_ast::IndexType::Spatial);
         }
 
         // Check for optional UNIQUE keyword
@@ -35,7 +46,7 @@ impl Parser {
 
         // Expect INDEX keyword
         self.expect_keyword(Keyword::Index)?;
-        
+
         let index_type = vibesql_ast::IndexType::BTree { unique };
 
         self.parse_create_index_columns(index_type)

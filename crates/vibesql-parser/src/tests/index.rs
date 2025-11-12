@@ -211,3 +211,44 @@ fn test_drop_index_missing_index_name() {
     let sql = "DROP INDEX";
     assert!(Parser::parse_sql(sql).is_err());
 }
+
+#[test]
+fn test_create_spatial_index() {
+    let sql = "CREATE SPATIAL INDEX idx_location ON places(geom)";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+
+    match result.unwrap() {
+        Statement::CreateIndex(stmt) => {
+            assert_eq!(stmt.index_name, "IDX_LOCATION");
+            assert_eq!(stmt.table_name, "PLACES");
+            assert!(
+                matches!(stmt.index_type, vibesql_ast::IndexType::Spatial),
+                "Expected Spatial index, got: {:?}",
+                stmt.index_type
+            );
+            assert_eq!(stmt.columns.len(), 1);
+            assert_eq!(stmt.columns[0].column_name, "GEOM");
+        }
+        other => panic!("Expected CreateIndex, got: {:?}", other),
+    }
+}
+
+#[test]
+fn test_create_spatial_index_if_not_exists() {
+    let sql = "CREATE SPATIAL INDEX IF NOT EXISTS idx_boundary ON parcels(boundary)";
+    let result = Parser::parse_sql(sql);
+    assert!(result.is_ok());
+
+    match result.unwrap() {
+        Statement::CreateIndex(stmt) => {
+            assert!(stmt.if_not_exists);
+            assert_eq!(stmt.index_name, "IDX_BOUNDARY");
+            assert_eq!(stmt.table_name, "PARCELS");
+            assert!(matches!(stmt.index_type, vibesql_ast::IndexType::Spatial));
+            assert_eq!(stmt.columns.len(), 1);
+            assert_eq!(stmt.columns[0].column_name, "BOUNDARY");
+        }
+        other => panic!("Expected CreateIndex, got: {:?}", other),
+    }
+}

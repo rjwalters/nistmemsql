@@ -252,6 +252,8 @@ pub enum Keyword {
     Expansion,
     Mode,
     Query,
+    // Spatial index keywords
+    Spatial,
 }
 
 impl Keyword {
@@ -492,6 +494,8 @@ impl fmt::Display for Keyword {
             Keyword::Expansion => "EXPANSION",
             Keyword::Mode => "MODE",
             Keyword::Query => "QUERY",
+            // Spatial index keywords
+            Keyword::Spatial => "SPATIAL",
         };
         write!(f, "{}", keyword_str)
     }

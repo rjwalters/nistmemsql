@@ -4,12 +4,14 @@
 
 pub mod database;
 pub mod error;
+pub mod index;
 pub mod persistence;
 pub mod row;
 pub mod table;
 
 pub use database::{Database, IndexData, IndexManager, IndexMetadata, TransactionState};
 pub use error::StorageError;
+pub use index::{SpatialIndex, SpatialIndexEntry, extract_mbr_from_sql_value};
 pub use persistence::load::{parse_sql_statements, read_sql_dump};
 pub use row::Row;
 pub use table::Table;
