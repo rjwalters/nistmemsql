@@ -252,6 +252,15 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "QUERY" => Token::Keyword(Keyword::Query),
         // Spatial index keywords
         "SPATIAL" => Token::Keyword(Keyword::Spatial),
+        // Database introspection keywords
+        "SHOW" => Token::Keyword(Keyword::Show),
+        "DESCRIBE" => Token::Keyword(Keyword::Describe),
+        "DATABASES" => Token::Keyword(Keyword::Databases),
+        "TABLES" => Token::Keyword(Keyword::Tables),
+        "COLUMNS" => Token::Keyword(Keyword::Columns),
+        "FIELDS" => Token::Keyword(Keyword::Fields),
+        "INDEXES" => Token::Keyword(Keyword::Indexes),
+        "KEYS" => Token::Keyword(Keyword::Keys),
         _ => Token::Identifier(upper_text), // Regular identifiers are normalized to uppercase
     }
 }

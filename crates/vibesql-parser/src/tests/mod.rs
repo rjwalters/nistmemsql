@@ -20,6 +20,7 @@ mod group_by;
 mod in_list;
 mod index;
 mod insert;
+mod introspection;
 mod joins;
 mod lexer;
 mod like;

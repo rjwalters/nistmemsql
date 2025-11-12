@@ -14,6 +14,7 @@ mod grant;
 mod helpers;
 mod index;
 mod insert;
+mod introspection;
 mod revoke;
 mod role;
 mod schema;
@@ -275,6 +276,11 @@ impl Parser {
             Token::Keyword(Keyword::Call) => {
                 let call_stmt = self.parse_call_statement()?;
                 Ok(vibesql_ast::Statement::Call(call_stmt))
+            }
+            Token::Keyword(Keyword::Show) => self.parse_show_statement(),
+            Token::Keyword(Keyword::Describe) => {
+                let describe_stmt = self.parse_describe_statement()?;
+                Ok(vibesql_ast::Statement::Describe(describe_stmt))
             }
             _ => {
                 Err(ParseError { message: format!("Expected statement, found {:?}", self.peek()) })
