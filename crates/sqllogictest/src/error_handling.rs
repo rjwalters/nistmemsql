@@ -1,8 +1,9 @@
 //! Error types and formatting for sqllogictest execution.
 
-use std::fmt::{Display, Write};
+use std::fmt::Display;
 use std::sync::Arc;
 
+use itertools::Itertools;
 use owo_colors::OwoColorize;
 use similar::{Change, ChangeTag, TextDiff};
 

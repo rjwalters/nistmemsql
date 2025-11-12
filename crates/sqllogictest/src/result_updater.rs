@@ -4,6 +4,7 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 use itertools::Itertools;
+use rand::Rng;
 
 use crate::output::{RecordOutput, ColumnTypeValidator, Normalizer, Validator};
 use crate::parser::*;
