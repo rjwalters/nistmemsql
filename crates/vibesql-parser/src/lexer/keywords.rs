@@ -173,8 +173,16 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "NAMES" => Token::Keyword(Keyword::Names),
         "ZONE" => Token::Keyword(Keyword::Zone),
         "LOCAL" => Token::Keyword(Keyword::Local),
+        // Interval unit keywords
+        "YEAR" => Token::Keyword(Keyword::Year),
+        "QUARTER" => Token::Keyword(Keyword::Quarter),
+        "MONTH" => Token::Keyword(Keyword::Month),
+        "WEEK" => Token::Keyword(Keyword::Week),
+        "DAY" => Token::Keyword(Keyword::Day),
         "HOUR" => Token::Keyword(Keyword::Hour),
         "MINUTE" => Token::Keyword(Keyword::Minute),
+        "SECOND" => Token::Keyword(Keyword::Second),
+        "MICROSECOND" => Token::Keyword(Keyword::Microsecond),
         // Callable object keywords (functions, procedures, methods)
         "FUNCTION" => Token::Keyword(Keyword::Function),
         "PROCEDURE" => Token::Keyword(Keyword::Procedure),

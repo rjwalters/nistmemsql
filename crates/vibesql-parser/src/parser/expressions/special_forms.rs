@@ -200,6 +200,23 @@ impl Parser {
                     }))
                 }
             }
+            // INTERVAL expression: INTERVAL '5' DAY, INTERVAL '1-6' YEAR TO MONTH
+            Token::Keyword(Keyword::Interval) => {
+                self.advance(); // consume INTERVAL
+
+                // Parse the value expression (typically a string literal)
+                let value = self.parse_primary_expression()?;
+
+                // Parse the interval unit
+                let unit = self.parse_interval_unit()?;
+
+                Ok(Some(vibesql_ast::Expression::Interval {
+                    value: Box::new(value),
+                    unit,
+                    leading_precision: None,
+                    fractional_precision: None,
+                }))
+            }
             _ => Ok(None),
         }
     }
@@ -360,6 +377,124 @@ impl Parser {
             }))
         } else {
             Ok(None)
+        }
+    }
+
+    /// Parse interval unit (DAY, MONTH, YEAR, etc.) or compound units (YEAR TO MONTH, DAY TO SECOND, etc.)
+    pub(super) fn parse_interval_unit(&mut self) -> Result<vibesql_ast::IntervalUnit, ParseError> {
+        use vibesql_ast::IntervalUnit;
+
+        let first_unit = match self.peek() {
+            Token::Keyword(Keyword::Microsecond) => {
+                self.advance();
+                IntervalUnit::Microsecond
+            }
+            Token::Keyword(Keyword::Second) => {
+                self.advance();
+                IntervalUnit::Second
+            }
+            Token::Keyword(Keyword::Minute) => {
+                self.advance();
+                IntervalUnit::Minute
+            }
+            Token::Keyword(Keyword::Hour) => {
+                self.advance();
+                IntervalUnit::Hour
+            }
+            Token::Keyword(Keyword::Day) => {
+                self.advance();
+                IntervalUnit::Day
+            }
+            Token::Keyword(Keyword::Week) => {
+                self.advance();
+                IntervalUnit::Week
+            }
+            Token::Keyword(Keyword::Month) => {
+                self.advance();
+                IntervalUnit::Month
+            }
+            Token::Keyword(Keyword::Quarter) => {
+                self.advance();
+                IntervalUnit::Quarter
+            }
+            Token::Keyword(Keyword::Year) => {
+                self.advance();
+                IntervalUnit::Year
+            }
+            _ => {
+                return Err(ParseError {
+                    message: format!(
+                        "Expected interval unit (YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, etc.), found {:?}",
+                        self.peek()
+                    ),
+                })
+            }
+        };
+
+        // Check for compound units (e.g., YEAR TO MONTH, DAY TO SECOND)
+        // This supports MySQL's INTERVAL '1-6' YEAR TO MONTH syntax
+        if self.peek_keyword(Keyword::To) {
+            self.advance(); // consume TO
+
+            let compound_unit = match (&first_unit, self.peek()) {
+                (IntervalUnit::Year, Token::Keyword(Keyword::Month)) => {
+                    self.advance();
+                    IntervalUnit::YearMonth
+                }
+                (IntervalUnit::Day, Token::Keyword(Keyword::Hour)) => {
+                    self.advance();
+                    IntervalUnit::DayHour
+                }
+                (IntervalUnit::Day, Token::Keyword(Keyword::Minute)) => {
+                    self.advance();
+                    IntervalUnit::DayMinute
+                }
+                (IntervalUnit::Day, Token::Keyword(Keyword::Second)) => {
+                    self.advance();
+                    IntervalUnit::DaySecond
+                }
+                (IntervalUnit::Day, Token::Keyword(Keyword::Microsecond)) => {
+                    self.advance();
+                    IntervalUnit::DayMicrosecond
+                }
+                (IntervalUnit::Hour, Token::Keyword(Keyword::Minute)) => {
+                    self.advance();
+                    IntervalUnit::HourMinute
+                }
+                (IntervalUnit::Hour, Token::Keyword(Keyword::Second)) => {
+                    self.advance();
+                    IntervalUnit::HourSecond
+                }
+                (IntervalUnit::Hour, Token::Keyword(Keyword::Microsecond)) => {
+                    self.advance();
+                    IntervalUnit::HourMicrosecond
+                }
+                (IntervalUnit::Minute, Token::Keyword(Keyword::Second)) => {
+                    self.advance();
+                    IntervalUnit::MinuteSecond
+                }
+                (IntervalUnit::Minute, Token::Keyword(Keyword::Microsecond)) => {
+                    self.advance();
+                    IntervalUnit::MinuteMicrosecond
+                }
+                (IntervalUnit::Second, Token::Keyword(Keyword::Microsecond)) => {
+                    self.advance();
+                    IntervalUnit::SecondMicrosecond
+                }
+                _ => {
+                    return Err(ParseError {
+                        message: format!(
+                            "Invalid compound interval unit: {:?} TO {:?}",
+                            first_unit,
+                            self.peek()
+                        ),
+                    })
+                }
+            };
+
+            Ok(compound_unit)
+        } else {
+            Ok(first_unit)
         }
     }
 }

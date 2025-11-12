@@ -396,6 +396,7 @@ impl LiteralExtractor {
             | Expression::CurrentDate
             | Expression::CurrentTime { .. }
             | Expression::CurrentTimestamp { .. }
+            | Expression::Interval { .. }
             | Expression::Default
             | Expression::DuplicateKeyValue { .. }
             | Expression::NextValue { .. }
