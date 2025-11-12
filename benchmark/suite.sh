@@ -128,7 +128,7 @@ for TEST_FILE in "${TEST_FILES[@]}"; do
 
     for RUN in 1 2 3; do
         START_TIME=$(date +%s.%N)
-        if timeout 30 "./scripts/sqllogictest" test "$REL_PATH" >/dev/null 2>&1; then
+        if timeout 30 env SQLLOGICTEST_FILE="$REL_PATH" cargo test -p vibesql --test sqllogictest_runner run_single_test_file >/dev/null 2>&1; then
             END_TIME=$(date +%s.%N)
             DURATION=$(echo "$END_TIME - $START_TIME" | bc)
             RUNS+=("$DURATION")

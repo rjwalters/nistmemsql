@@ -86,7 +86,13 @@ We use comprehensive test suites to track SQL:1999 compliance:
 
 **Quick Start**:
 ```bash
-# Run tests (all 622 files in ~2 minutes, database auto-updates)
+# Run full test suite (serial mode, 5 minutes)
+./scripts/sqllogictest run --force --time 300
+
+# Quick test run (10 seconds)
+./scripts/sqllogictest run --force --time 10
+
+# Parallel mode (all 623 files in ~2 minutes, uses all CPUs)
 ./scripts/sqllogictest run --parallel --workers 8
 
 # Query results with SQL!

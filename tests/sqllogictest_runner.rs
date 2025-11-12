@@ -520,3 +520,27 @@ SELECT - 57 col2 FROM tab0
 
     tester.run_script(script).expect("3-value query should not be hashed");
 }
+
+// Test for benchmarking: Run a test file from environment variable
+// Usage: SQLLOGICTEST_FILE=path/to/file.test cargo test -p vibesql --test sqllogictest_runner run_single_test_file
+#[tokio::test]
+async fn run_single_test_file() {
+    use std::path::Path;
+
+    let test_file = std::env::var("SQLLOGICTEST_FILE")
+        .expect("SQLLOGICTEST_FILE environment variable must be set");
+
+    let full_path = if Path::new(&test_file).is_absolute() {
+        test_file.clone()
+    } else {
+        format!("third_party/sqllogictest/test/{}", test_file)
+    };
+
+    let contents = std::fs::read_to_string(&full_path)
+        .unwrap_or_else(|e| panic!("Failed to read test file {}: {}", full_path, e));
+
+    let mut tester = sqllogictest::Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+
+    tester.run_script(&contents)
+        .unwrap_or_else(|e| panic!("Test failed for {}: {}", test_file, e));
+}
