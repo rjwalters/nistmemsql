@@ -34,6 +34,8 @@ pub struct InsertStmt {
     pub source: InsertSource,
     /// Conflict resolution strategy (None = fail on conflict)
     pub conflict_clause: Option<ConflictClause>,
+    /// ON DUPLICATE KEY UPDATE clause (MySQL-style upsert)
+    pub on_duplicate_key_update: Option<Vec<Assignment>>,
 }
 
 // ============================================================================

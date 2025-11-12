@@ -1,5 +1,3 @@
-use vibesql_ast;
-
 use super::{ParseError, Parser};
 use crate::{keywords::Keyword, token::Token};
 

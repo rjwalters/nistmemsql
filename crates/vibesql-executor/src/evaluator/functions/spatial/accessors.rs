@@ -225,13 +225,13 @@ fn geometry_to_geojson(geom: &Geometry) -> String {
                 .join(",");
             format!(r#"{{"type":"MultiPolygon","coordinates":[{}]}}"#, polys_str)
         }
-        Geometry::GeometryCollection { geometries } => {
+        Geometry::Collection { geometries } => {
             let geoms = geometries
                 .iter()
                 .map(|g| {
                     // Extract just the geometry object without the full GeoJSON wrapper
-                    let json = geometry_to_geojson(g);
-                    json
+                    
+                    geometry_to_geojson(g)
                 })
                 .collect::<Vec<_>>()
                 .join(",");

@@ -89,7 +89,7 @@ fn strip_timezone_suffix(s: &str) -> &str {
 
     // Check for +/- timezone offset
     // Look for last occurrence of + or - (could be in date part, so we look from the right)
-    if let Some(pos) = s.rfind(|c| c == '+' || c == '-') {
+    if let Some(pos) = s.rfind(['+', '-']) {
         // Make sure this is actually a timezone indicator, not part of the date
         // Timezone offsets appear after the time, so position should be > 10 (YYYY-MM-DD)
         if pos > 10 {

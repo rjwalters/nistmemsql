@@ -72,9 +72,9 @@ pub(in crate::select::executor) fn try_index_based_ordering(
     };
 
     // Get the index data
-    let index_data = if index_name.starts_with("__pk_") {
+    let index_data = if let Some(table_name) = index_name.strip_prefix("__pk_") {
         // Primary key index
-        let table_name = &index_name[5..]; // Remove "__pk_" prefix
+        // Remove "__pk_" prefix
         let qualified_table_name = format!("public.{}", table_name);
         if let Some(table) = database.get_table(&qualified_table_name) {
             if let Some(pk_index) = table.primary_key_index() {
@@ -106,7 +106,7 @@ pub(in crate::select::executor) fn try_index_based_ordering(
             // Get column value from the row
             // Find which table this row belongs to
             let mut found_value = None;
-            for (_tbl_name, (start_idx, tbl_schema)) in &schema.table_schemas {
+            for (start_idx, tbl_schema) in schema.table_schemas.values() {
                 if let Some(col_idx) = tbl_schema.get_column_index(col_name) {
                     let global_col_idx = start_idx + col_idx;
                     if global_col_idx < row.len() {
@@ -124,7 +124,7 @@ pub(in crate::select::executor) fn try_index_based_ordering(
             }
         }
 
-        value_to_row_positions.entry(order_values).or_insert_with(Vec::new).push(row_idx);
+        value_to_row_positions.entry(order_values).or_default().push(row_idx);
     }
 
     // Convert index HashMap to Vec and sort for consistent ordering

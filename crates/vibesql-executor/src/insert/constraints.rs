@@ -81,7 +81,7 @@ pub fn enforce_unique_constraints(
 
         // Skip if any value in the unique constraint is NULL
         // (NULL != NULL in SQL, so multiple NULLs are allowed)
-        if new_unique_values.iter().any(|v| *v == vibesql_types::SqlValue::Null) {
+        if new_unique_values.contains(&vibesql_types::SqlValue::Null) {
             continue;
         }
 
@@ -119,7 +119,7 @@ pub fn enforce_unique_constraints(
                     .collect();
 
                 // Skip if any existing value is NULL
-                if existing_unique_values.iter().any(|v| *v == vibesql_types::SqlValue::Null) {
+                if existing_unique_values.contains(&vibesql_types::SqlValue::Null) {
                     continue;
                 }
 

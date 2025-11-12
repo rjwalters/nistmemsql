@@ -24,7 +24,7 @@ mod null_handling;
 mod numeric;
 pub(crate) mod string;
 mod system;
-mod spatial;
+pub(crate) mod spatial;
 
 /// Evaluate a scalar function on given argument values
 ///

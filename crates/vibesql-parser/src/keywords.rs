@@ -13,8 +13,10 @@ pub enum Keyword {
     Ignore,
     Update,
     Delete,
+    Duplicate,
     Create,
     Table,
+    Truncate,
     Drop,
     Alter,
     And,
@@ -31,6 +33,7 @@ pub enum Keyword {
     Outer,
     Cross,
     Full,
+    Natural,
     On,
     Group,
     By,
@@ -254,6 +257,17 @@ pub enum Keyword {
     Query,
     // Spatial index keywords
     Spatial,
+    // Database introspection keywords
+    Show,
+    Describe,
+    Databases,
+    Tables,
+    Columns,
+    Fields,
+    Indexes,
+    Keys,
+    // Auto-increment keywords (MySQL and SQLite)
+    AutoIncrement,
 }
 
 impl Keyword {
@@ -283,8 +297,10 @@ impl fmt::Display for Keyword {
             Keyword::Ignore => "IGNORE",
             Keyword::Update => "UPDATE",
             Keyword::Delete => "DELETE",
+            Keyword::Duplicate => "DUPLICATE",
             Keyword::Create => "CREATE",
             Keyword::Table => "TABLE",
+            Keyword::Truncate => "TRUNCATE",
             Keyword::Drop => "DROP",
             Keyword::Alter => "ALTER",
             Keyword::And => "AND",
@@ -301,6 +317,7 @@ impl fmt::Display for Keyword {
             Keyword::Outer => "OUTER",
             Keyword::Cross => "CROSS",
             Keyword::Full => "FULL",
+            Keyword::Natural => "NATURAL",
             Keyword::On => "ON",
             Keyword::Group => "GROUP",
             Keyword::By => "BY",
@@ -496,6 +513,17 @@ impl fmt::Display for Keyword {
             Keyword::Query => "QUERY",
             // Spatial index keywords
             Keyword::Spatial => "SPATIAL",
+            // Database introspection keywords
+            Keyword::Show => "SHOW",
+            Keyword::Describe => "DESCRIBE",
+            Keyword::Databases => "DATABASES",
+            Keyword::Tables => "TABLES",
+            Keyword::Columns => "COLUMNS",
+            Keyword::Fields => "FIELDS",
+            Keyword::Indexes => "INDEXES",
+            Keyword::Keys => "KEYS",
+            // Auto-increment keywords
+            Keyword::AutoIncrement => "AUTO_INCREMENT",
         };
         write!(f, "{}", keyword_str)
     }

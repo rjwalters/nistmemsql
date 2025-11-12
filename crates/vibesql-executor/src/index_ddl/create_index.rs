@@ -53,7 +53,7 @@ impl CreateIndexExecutor {
         database: &mut Database,
     ) -> Result<String, ExecutorError> {
         // Parse qualified table name (schema.table or just table)
-        let (schema_name, table_name) =
+        let (schema_name, _table_name) =
             if let Some((schema_part, table_part)) = stmt.table_name.split_once('.') {
                 (schema_part.to_string(), table_part.to_string())
             } else {
@@ -63,17 +63,20 @@ impl CreateIndexExecutor {
         // Check CREATE privilege on the schema
         PrivilegeChecker::check_create(database, &schema_name)?;
 
-        // Check if table exists in the target schema
-        let qualified_table_name = format!("{}.{}", schema_name, table_name);
-        if !database.catalog.table_exists(&qualified_table_name) {
-            return Err(ExecutorError::TableNotFound(qualified_table_name));
+        // For catalog lookups, use just the table name (not qualified)
+        // TODO: Once we support schemas fully, this needs to be qualified
+        let table_lookup_name = &stmt.table_name;
+
+        // Check if table exists
+        if !database.catalog.table_exists(table_lookup_name) {
+            return Err(ExecutorError::TableNotFound(table_lookup_name.clone()));
         }
 
         // Get table schema to validate columns
         let table_schema = database
             .catalog
-            .get_table(&qualified_table_name)
-            .ok_or_else(|| ExecutorError::TableNotFound(qualified_table_name.clone()))?;
+            .get_table(table_lookup_name)
+            .ok_or_else(|| ExecutorError::TableNotFound(table_lookup_name.clone()))?;
 
         // Validate that all indexed columns exist in the table
         for index_col in &stmt.columns {
@@ -83,7 +86,7 @@ impl CreateIndexExecutor {
                 return Err(ExecutorError::ColumnNotFound {
                     column_name: index_col.column_name.clone(),
                     table_name: stmt.table_name.clone(),
-                    searched_tables: vec![qualified_table_name.clone()],
+                    searched_tables: vec![table_lookup_name.clone()],
                     available_columns,
                 });
             }
@@ -105,17 +108,36 @@ impl CreateIndexExecutor {
         // Create the index based on type
         match &stmt.index_type {
             vibesql_ast::IndexType::BTree { unique } => {
+                // Add to catalog first
+                let index_metadata = vibesql_catalog::IndexMetadata::new(
+                    index_name.clone(),
+                    table_lookup_name.clone(),
+                    vibesql_catalog::IndexType::BTree,
+                    stmt.columns
+                        .iter()
+                        .map(|col| vibesql_catalog::IndexedColumn {
+                            column_name: col.column_name.clone(),
+                            order: match col.direction {
+                                vibesql_ast::OrderDirection::Asc => vibesql_catalog::SortOrder::Ascending,
+                                vibesql_ast::OrderDirection::Desc => vibesql_catalog::SortOrder::Descending,
+                            },
+                        })
+                        .collect(),
+                    *unique,
+                );
+                database.catalog.add_index(index_metadata)?;
+
                 // B-tree index
                 database.create_index(
                     index_name.clone(),
-                    qualified_table_name.clone(),
+                    table_lookup_name.clone(),
                     *unique,
                     stmt.columns.clone(),
                 )?;
 
                 Ok(format!(
                     "Index '{}' created successfully on table '{}'",
-                    index_name, qualified_table_name
+                    index_name, table_lookup_name
                 ))
             }
             vibesql_ast::IndexType::Fulltext => {
@@ -139,7 +161,7 @@ impl CreateIndexExecutor {
                     .ok_or_else(|| ExecutorError::ColumnNotFound {
                         column_name: column_name.clone(),
                         table_name: stmt.table_name.clone(),
-                        searched_tables: vec![qualified_table_name.clone()],
+                        searched_tables: vec![table_lookup_name.clone()],
                         available_columns: table_schema
                             .columns
                             .iter()
@@ -149,8 +171,8 @@ impl CreateIndexExecutor {
 
                 // Extract MBRs from all existing rows
                 let table = database
-                    .get_table(&qualified_table_name)
-                    .ok_or_else(|| ExecutorError::TableNotFound(qualified_table_name.clone()))?;
+                    .get_table(table_lookup_name)
+                    .ok_or_else(|| ExecutorError::TableNotFound(table_lookup_name.clone()))?;
 
                 let mut entries = Vec::new();
                 for (row_idx, row) in table.scan().iter().enumerate() {
@@ -165,10 +187,23 @@ impl CreateIndexExecutor {
                 // Build spatial index via bulk_load (more efficient than incremental inserts)
                 let spatial_index = SpatialIndex::bulk_load(column_name.clone(), entries);
 
+                // Add to catalog first
+                let index_metadata = vibesql_catalog::IndexMetadata::new(
+                    index_name.clone(),
+                    table_lookup_name.clone(),
+                    vibesql_catalog::IndexType::RTree,
+                    vec![vibesql_catalog::IndexedColumn {
+                        column_name: column_name.clone(),
+                        order: vibesql_catalog::SortOrder::Ascending,
+                    }],
+                    false,
+                );
+                database.catalog.add_index(index_metadata)?;
+
                 // Store in database
                 let metadata = SpatialIndexMetadata {
                     index_name: index_name.clone(),
-                    table_name: qualified_table_name.clone(),
+                    table_name: table_lookup_name.clone(),
                     column_name: column_name.clone(),
                     created_at: Some(chrono::Utc::now()),
                 };
@@ -177,7 +212,7 @@ impl CreateIndexExecutor {
 
                 Ok(format!(
                     "Spatial index '{}' created successfully on table '{}'",
-                    index_name, qualified_table_name
+                    index_name, table_lookup_name
                 ))
             }
         }
@@ -248,7 +283,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(
             result.unwrap(),
-            "Index 'idx_users_email' created successfully on table 'public.users'"
+            "Index 'idx_users_email' created successfully on table 'users'"
         );
 
         // Verify index exists
@@ -383,7 +418,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(
             result.unwrap(),
-            "Index 'idx_users_email' created successfully on table 'public.users'"
+            "Index 'idx_users_email' created successfully on table 'users'"
         );
         assert!(db.index_exists("idx_users_email"));
     }

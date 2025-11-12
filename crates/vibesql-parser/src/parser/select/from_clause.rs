@@ -8,25 +8,31 @@ impl Parser {
 
         // Check for JOINs or commas (left-associative)
         while self.is_join_keyword() || self.peek() == &Token::Comma {
-            let (join_type, right, condition) = if self.peek() == &Token::Comma {
+            let (join_type, right, condition, natural) = if self.peek() == &Token::Comma {
                 // Comma represents CROSS JOIN
                 self.advance(); // Consume comma
                 let right = self.parse_table_reference()?;
-                (vibesql_ast::JoinType::Cross, right, None)
+                (vibesql_ast::JoinType::Cross, right, None, false)
             } else {
-                let join_type = self.parse_join_type()?;
+                let (join_type, natural) = self.parse_join_type()?;
 
                 // Parse right table reference
                 let right = self.parse_table_reference()?;
 
                 // Parse ON condition (comes after table reference)
+                // NATURAL JOIN should not have an ON clause
                 let condition = if self.peek_keyword(Keyword::On) {
+                    if natural {
+                        return Err(ParseError {
+                            message: "NATURAL JOIN cannot have an ON clause".to_string(),
+                        });
+                    }
                     self.consume_keyword(Keyword::On)?;
                     Some(self.parse_expression()?)
                 } else {
                     None
                 };
-                (join_type, right, condition)
+                (join_type, right, condition, natural)
             };
 
             // Build JOIN node
@@ -35,6 +41,7 @@ impl Parser {
                 right: Box::new(right),
                 join_type,
                 condition,
+                natural,
             };
         }
 
@@ -162,20 +169,30 @@ impl Parser {
                 | Token::Keyword(Keyword::Right)
                 | Token::Keyword(Keyword::Cross)
                 | Token::Keyword(Keyword::Full)
+                | Token::Keyword(Keyword::Natural)
         )
     }
 
-    /// Parse JOIN type (INNER JOIN, LEFT JOIN, etc.)
-    pub(crate) fn parse_join_type(&mut self) -> Result<vibesql_ast::JoinType, ParseError> {
-        match self.peek() {
+    /// Parse JOIN type (INNER JOIN, LEFT JOIN, NATURAL JOIN, etc.)
+    /// Returns (JoinType, is_natural)
+    pub(crate) fn parse_join_type(&mut self) -> Result<(vibesql_ast::JoinType, bool), ParseError> {
+        // Check for optional NATURAL keyword first
+        let is_natural = if self.peek_keyword(Keyword::Natural) {
+            self.consume_keyword(Keyword::Natural)?;
+            true
+        } else {
+            false
+        };
+
+        let join_type = match self.peek() {
             Token::Keyword(Keyword::Join) => {
                 self.advance();
-                Ok(vibesql_ast::JoinType::Inner) // Default JOIN is INNER JOIN
+                vibesql_ast::JoinType::Inner // Default JOIN is INNER JOIN
             }
             Token::Keyword(Keyword::Inner) => {
                 self.advance();
                 self.expect_keyword(Keyword::Join)?;
-                Ok(vibesql_ast::JoinType::Inner)
+                vibesql_ast::JoinType::Inner
             }
             Token::Keyword(Keyword::Left) => {
                 self.advance();
@@ -184,7 +201,7 @@ impl Parser {
                     self.consume_keyword(Keyword::Outer)?;
                 }
                 self.expect_keyword(Keyword::Join)?;
-                Ok(vibesql_ast::JoinType::LeftOuter)
+                vibesql_ast::JoinType::LeftOuter
             }
             Token::Keyword(Keyword::Right) => {
                 self.advance();
@@ -193,12 +210,12 @@ impl Parser {
                     self.consume_keyword(Keyword::Outer)?;
                 }
                 self.expect_keyword(Keyword::Join)?;
-                Ok(vibesql_ast::JoinType::RightOuter)
+                vibesql_ast::JoinType::RightOuter
             }
             Token::Keyword(Keyword::Cross) => {
                 self.advance();
                 self.expect_keyword(Keyword::Join)?;
-                Ok(vibesql_ast::JoinType::Cross)
+                vibesql_ast::JoinType::Cross
             }
             Token::Keyword(Keyword::Full) => {
                 self.advance();
@@ -207,9 +224,22 @@ impl Parser {
                     self.consume_keyword(Keyword::Outer)?;
                 }
                 self.expect_keyword(Keyword::Join)?;
-                Ok(vibesql_ast::JoinType::FullOuter)
+                vibesql_ast::JoinType::FullOuter
             }
-            _ => Err(ParseError { message: "Expected JOIN keyword".to_string() }),
+            _ => {
+                return Err(ParseError {
+                    message: "Expected JOIN keyword".to_string(),
+                })
+            }
+        };
+
+        // NATURAL CROSS JOIN is not valid in SQL
+        if is_natural && join_type == vibesql_ast::JoinType::Cross {
+            return Err(ParseError {
+                message: "NATURAL CROSS JOIN is not valid SQL".to_string(),
+            });
         }
+
+        Ok((join_type, is_natural))
     }
 }

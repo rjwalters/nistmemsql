@@ -8,6 +8,7 @@ mod ddl;
 mod dml;
 mod expression;
 mod grant;
+mod introspection;
 mod operators;
 mod revoke;
 mod select;
@@ -30,7 +31,7 @@ pub use ddl::{
     SchemaElement, SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt,
     SetTransactionStmt, TableConstraint, TableConstraintKind, TableOption, TimeZoneSpec,
     TransactionAccessMode, TriggerAction, TriggerEvent, TriggerGranularity, TriggerTiming,
-    TypeAttribute, TypeDefinition,
+    TruncateTableStmt, TypeAttribute, TypeDefinition,
 };
 pub use dml::{
     Assignment, ConflictClause, DeleteStmt, InsertSource, InsertStmt, UpdateStmt, WhereClause,
@@ -40,6 +41,10 @@ pub use expression::{
     WindowFrame, WindowFunctionSpec, WindowSpec,
 };
 pub use grant::{GrantStmt, ObjectType, PrivilegeType};
+pub use introspection::{
+    DescribeStmt, ShowColumnsStmt, ShowCreateTableStmt, ShowDatabasesStmt, ShowIndexStmt,
+    ShowTablesStmt,
+};
 pub use operators::{BinaryOperator, UnaryOperator};
 pub use revoke::{CascadeOption, RevokeStmt};
 pub use select::{

@@ -105,10 +105,10 @@ fn to_geo_geometry(geom: &Geometry) -> Result<geo::Geometry<f64>, ExecutorError>
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(geo::Geometry::MultiPolygon(geo::MultiPolygon(polys)))
         }
-        Geometry::GeometryCollection { geometries } => {
+        Geometry::Collection { geometries } => {
             let geoms: Vec<geo::Geometry<f64>> = geometries
                 .iter()
-                .map(|g| to_geo_geometry(g))
+                .map(to_geo_geometry)
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(geo::Geometry::GeometryCollection(geo::GeometryCollection(geoms)))
         }
@@ -116,6 +116,7 @@ fn to_geo_geometry(geom: &Geometry) -> Result<geo::Geometry<f64>, ExecutorError>
 }
 
 /// Convert geo::Geometry back to internal Geometry representation
+#[allow(dead_code)]
 fn from_geo_geometry(geom: &geo::Geometry<f64>) -> Result<Geometry, ExecutorError> {
     match geom {
         geo::Geometry::Point(p) => {
@@ -165,9 +166,9 @@ fn from_geo_geometry(geom: &geo::Geometry<f64>) -> Result<Geometry, ExecutorErro
         geo::Geometry::GeometryCollection(gc) => {
             let geometries = gc.0
                 .iter()
-                .map(|g| from_geo_geometry(g))
+                .map(from_geo_geometry)
                 .collect::<Result<Vec<_>, _>>()?;
-            Ok(Geometry::GeometryCollection { geometries })
+            Ok(Geometry::Collection { geometries })
         }
         _ => Err(ExecutorError::UnsupportedFeature(
             "Geometry type not yet supported for measurements".to_string(),
@@ -219,7 +220,7 @@ pub fn st_distance(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
                         }
                         _ => {
                             return Err(ExecutorError::Other(
-                                format!("ST_Distance not fully supported between these geometry types")
+                                "ST_Distance not fully supported between these geometry types".to_string()
                             ));
                         }
                     }
@@ -602,7 +603,7 @@ pub fn st_boundary(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
                     // For simplicity, we'll return empty geometry collection for now
                     return Ok(SqlValue::Varchar("__GEOMETRY__GEOMETRYCOLLECTION()".to_string()));
                 }
-                Geometry::GeometryCollection { .. } => {
+                Geometry::Collection { .. } => {
                     // Boundary of a collection: aggregate boundaries
                     return Ok(SqlValue::Varchar("__GEOMETRY__GEOMETRYCOLLECTION()".to_string()));
                 }

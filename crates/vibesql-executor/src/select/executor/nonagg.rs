@@ -2,7 +2,7 @@
 
 use super::{
     builder::SelectExecutor,
-    index_optimization::{try_index_based_ordering, try_index_based_where_filtering},
+    index_optimization::{try_index_based_ordering, try_index_based_where_filtering, try_spatial_index_optimization},
 };
 use crate::{
     errors::ExecutorError,
@@ -113,7 +113,7 @@ impl SelectExecutor<'_> {
 
         // Stage 3: OFFSET (skip rows lazily)
         let mut iterator: Box<dyn Iterator<Item = _>> = if let Some(offset) = stmt.offset {
-            let offset_usize = offset.max(0) as usize;
+            let offset_usize = offset.max(0);
             Box::new(iterator.skip(offset_usize))
         } else {
             iterator
@@ -121,7 +121,7 @@ impl SelectExecutor<'_> {
 
         // Stage 4: LIMIT (take only needed rows)
         if let Some(limit) = stmt.limit {
-            iterator = Box::new(iterator.take(limit as usize));
+            iterator = Box::new(iterator.take(limit));
         }
 
         // Stage 5: Materialize filtered results
@@ -205,15 +205,24 @@ impl SelectExecutor<'_> {
             };
 
         // Try index-based WHERE optimization first
-        let mut filtered_rows = if let Some(index_filtered) = try_index_based_where_filtering(
+        // 1. Try spatial index optimization (for ST_Contains, ST_Intersects, etc.)
+        let mut filtered_rows = if let Some(spatial_filtered) = try_spatial_index_optimization(
             self.database,
             stmt.where_clause.as_ref(),
             &rows,
             &schema,
         )? {
+            spatial_filtered
+        } else if let Some(index_filtered) = try_index_based_where_filtering(
+            self.database,
+            stmt.where_clause.as_ref(),
+            &rows,
+            &schema,
+        )? {
+            // 2. Try B-tree index optimization (for =, <, >, BETWEEN, IN, etc.)
             index_filtered
         } else {
-            // Fall back to full WHERE clause evaluation
+            // 3. Fall back to full WHERE clause evaluation
             let where_optimization = optimize_where_clause(stmt.where_clause.as_ref(), &evaluator)?;
 
             match where_optimization {

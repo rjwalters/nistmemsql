@@ -74,7 +74,7 @@ impl super::Catalog {
             self.schemas
                 .keys()
                 .find(|key| key.to_uppercase() == normalized_name)
-                .map(|k| k.clone())
+                .cloned()
                 .ok_or_else(|| CatalogError::SchemaNotFound(schema_name_for_lookup.to_string()))?
         };
 
@@ -86,7 +86,9 @@ impl super::Catalog {
         // For error messages, we want to use the original input name, not the normalized one
         schema.drop_table(&normalized_table, self.case_sensitive_identifiers)
             .map_err(|e| match e {
-                CatalogError::TableNotFound(_) => CatalogError::TableNotFound(original_table_name.to_string()),
+                CatalogError::TableNotFound { .. } => CatalogError::TableNotFound {
+                    table_name: original_table_name.to_string(),
+                },
                 other => other,
             })
     }

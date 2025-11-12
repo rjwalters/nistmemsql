@@ -66,6 +66,7 @@ impl TypeTag {
 /// - Version (1 byte)
 /// - Flags (1 byte) - reserved for future use
 /// - Reserved (9 bytes)
+///
 /// Total: 16 bytes
 pub fn write_header<W: Write>(writer: &mut W) -> Result<(), StorageError> {
     // Magic number (5 bytes)

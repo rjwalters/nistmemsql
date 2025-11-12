@@ -244,6 +244,7 @@ impl ExpressionMapper {
             | Expression::CurrentTime { .. }
             | Expression::CurrentTimestamp { .. }
             | Expression::Default
+            | Expression::DuplicateKeyValue { .. }
             | Expression::NextValue { .. } => {
                 // No column references
             }

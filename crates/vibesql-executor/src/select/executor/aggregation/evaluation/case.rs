@@ -84,11 +84,11 @@ pub(super) fn evaluate(
                         vibesql_types::SqlValue::Smallint(_) => true,
                         vibesql_types::SqlValue::Bigint(0) => false,
                         vibesql_types::SqlValue::Bigint(_) => true,
-                        vibesql_types::SqlValue::Float(f) if f == 0.0 => false,
+                        vibesql_types::SqlValue::Float(0.0) => false,
                         vibesql_types::SqlValue::Float(_) => true,
-                        vibesql_types::SqlValue::Real(f) if f == 0.0 => false,
+                        vibesql_types::SqlValue::Real(0.0) => false,
                         vibesql_types::SqlValue::Real(_) => true,
-                        vibesql_types::SqlValue::Double(f) if f == 0.0 => false,
+                        vibesql_types::SqlValue::Double(0.0) => false,
                         vibesql_types::SqlValue::Double(_) => true,
                         other => {
                             return Err(ExecutorError::UnsupportedExpression(format!(

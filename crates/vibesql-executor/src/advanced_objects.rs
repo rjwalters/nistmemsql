@@ -239,9 +239,9 @@ pub fn execute_create_procedure(
 
     // Convert AST body to catalog body
     let catalog_body = match &stmt.body {
-        vibesql_ast::ProcedureBody::BeginEnd(_) => {
-            // For now, store as RawSql. Full execution support comes later.
-            ProcedureBody::RawSql(format!("{:?}", stmt.body))
+        vibesql_ast::ProcedureBody::BeginEnd(statements) => {
+            // Store the parsed AST for execution
+            ProcedureBody::BeginEnd(statements.clone())
         }
         vibesql_ast::ProcedureBody::RawSql(sql) => ProcedureBody::RawSql(sql.clone()),
     };
@@ -327,21 +327,84 @@ pub fn execute_drop_function(
 
 /// Execute CALL statement (SQL:1999 Feature P001)
 ///
-/// Currently returns success after registering the call.
-/// Full execution of procedure logic will be implemented in a later phase.
+/// Executes a stored procedure with parameter binding and procedural statement execution.
+/// Phase 2 implementation: Supports IN parameters and sequential statement execution (no control flow).
 pub fn execute_call(
-    _stmt: &CallStmt,
-    _db: &mut Database,
+    stmt: &CallStmt,
+    db: &mut Database,
 ) -> Result<(), ExecutorError> {
-    // TODO: Phase 4 - Execute procedure body
-    // For now, just succeed. The procedure should exist (checked during parsing/planning).
-    // In the future, this will:
-    // 1. Look up the procedure definition
-    // 2. Bind arguments to parameters
-    // 3. Create execution context (variable scope)
-    // 4. Execute procedural statements
+    use crate::procedural::{ExecutionContext, execute_procedural_statement, ControlFlow};
+
+    // 1. Look up the procedure definition and clone what we need
+    let (parameters, body) = {
+        let procedure = db.catalog
+            .get_procedure(&stmt.procedure_name)
+            .ok_or_else(|| ExecutorError::Other(format!("Procedure '{}' not found", stmt.procedure_name)))?;
+
+        (procedure.parameters.clone(), procedure.body.clone())
+    };
+
+    // 2. Validate parameter count
+    if stmt.arguments.len() != parameters.len() {
+        return Err(ExecutorError::Other(format!(
+            "Procedure '{}' expects {} arguments but got {}",
+            stmt.procedure_name,
+            parameters.len(),
+            stmt.arguments.len()
+        )));
+    }
+
+    // 3. Create execution context and bind parameters
+    let mut ctx = ExecutionContext::new();
+
+    for (param, arg_expr) in parameters.iter().zip(&stmt.arguments) {
+        // Evaluate the argument expression
+        let value = crate::procedural::executor::evaluate_expression(arg_expr, db, &ctx)?;
+
+        // Bind to parameter (Phase 2: IN parameters only)
+        if param.mode != vibesql_catalog::ParameterMode::In {
+            return Err(ExecutorError::UnsupportedFeature(format!(
+                "OUT and INOUT parameters not yet supported (parameter '{}')",
+                param.name
+            )));
+        }
+
+        ctx.set_parameter(&param.name, value);
+    }
+
+    // 4. Execute procedure body
+    match &body {
+        vibesql_catalog::ProcedureBody::BeginEnd(statements) => {
+            // Execute each procedural statement sequentially
+            for stmt in statements {
+                match execute_procedural_statement(stmt, &mut ctx, db)? {
+                    ControlFlow::Continue => {
+                        // Continue to next statement
+                    }
+                    ControlFlow::Return(_) => {
+                        // RETURN in procedures exits early (functions will handle return value later)
+                        break;
+                    }
+                    ControlFlow::Leave(_) | ControlFlow::Iterate(_) => {
+                        // Control flow statements not yet supported in Phase 2
+                        return Err(ExecutorError::UnsupportedFeature(
+                            "Control flow (LEAVE/ITERATE) not yet supported in Phase 2".to_string()
+                        ));
+                    }
+                }
+            }
+            Ok(())
+        }
+        vibesql_catalog::ProcedureBody::RawSql(_) => {
+            // RawSql fallback - would require parsing
+            Err(ExecutorError::UnsupportedFeature(
+                "RawSql procedure bodies require parsing (use BEGIN/END block instead)".to_string()
+            ))
+        }
+    }
+
     // 5. Return output parameter values
-    Ok(())
+    // TODO: Handle OUT and INOUT parameters in Phase 4
 }
 
 /// Execute CREATE TRIGGER statement

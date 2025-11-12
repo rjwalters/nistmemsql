@@ -203,7 +203,10 @@ impl TableSchema {
     /// Remove a column from the table schema by index
     pub fn remove_column(&mut self, index: usize) -> Result<(), crate::CatalogError> {
         if index >= self.columns.len() {
-            return Err(crate::CatalogError::ColumnNotFound("index out of bounds".to_string()));
+            return Err(crate::CatalogError::ColumnNotFound {
+                column_name: "index out of bounds".to_string(),
+                table_name: self.name.clone(),
+            });
         }
         let removed_column = self.columns.remove(index);
 
@@ -248,12 +251,7 @@ impl TableSchema {
             .collect();
 
         // Remove check constraints that reference the removed column
-        self.check_constraints = self
-            .check_constraints
-            .iter()
-            .filter(|(_name, expr)| !Self::expression_references_column(expr, &removed_column.name))
-            .cloned()
-            .collect();
+        self.check_constraints.retain(|(_name, expr)| !Self::expression_references_column(expr, &removed_column.name));
 
         Ok(())
     }
@@ -275,7 +273,10 @@ impl TableSchema {
         nullable: bool,
     ) -> Result<(), crate::CatalogError> {
         if index >= self.columns.len() {
-            return Err(crate::CatalogError::ColumnNotFound("index out of bounds".to_string()));
+            return Err(crate::CatalogError::ColumnNotFound {
+                column_name: "index out of bounds".to_string(),
+                table_name: self.name.clone(),
+            });
         }
         self.columns[index].set_nullable(nullable);
         Ok(())
@@ -288,7 +289,10 @@ impl TableSchema {
         default: vibesql_ast::Expression,
     ) -> Result<(), crate::CatalogError> {
         if index >= self.columns.len() {
-            return Err(crate::CatalogError::ColumnNotFound("index out of bounds".to_string()));
+            return Err(crate::CatalogError::ColumnNotFound {
+                column_name: "index out of bounds".to_string(),
+                table_name: self.name.clone(),
+            });
         }
         self.columns[index].set_default(default);
         Ok(())
@@ -297,7 +301,10 @@ impl TableSchema {
     /// Drop default value for a column by index
     pub fn drop_column_default(&mut self, index: usize) -> Result<(), crate::CatalogError> {
         if index >= self.columns.len() {
-            return Err(crate::CatalogError::ColumnNotFound("index out of bounds".to_string()));
+            return Err(crate::CatalogError::ColumnNotFound {
+                column_name: "index out of bounds".to_string(),
+                table_name: self.name.clone(),
+            });
         }
         self.columns[index].drop_default();
         Ok(())
@@ -322,7 +329,10 @@ impl TableSchema {
         // Verify all columns exist
         for col_name in &columns {
             if !self.has_column(col_name) {
-                return Err(crate::CatalogError::ColumnNotFound(col_name.clone()));
+                return Err(crate::CatalogError::ColumnNotFound {
+                    column_name: col_name.clone(),
+                    table_name: self.name.clone(),
+                });
             }
         }
         self.unique_constraints.push(columns);
@@ -337,7 +347,10 @@ impl TableSchema {
         // Verify all columns exist
         for col_name in &foreign_key.column_names {
             if !self.has_column(col_name) {
-                return Err(crate::CatalogError::ColumnNotFound(col_name.clone()));
+                return Err(crate::CatalogError::ColumnNotFound {
+                    column_name: col_name.clone(),
+                    table_name: self.name.clone(),
+                });
             }
         }
         self.foreign_keys.push(foreign_key);
@@ -487,6 +500,7 @@ impl TableSchema {
             vibesql_ast::Expression::QuantifiedComparison { expr, .. } => {
                 Self::expression_references_column(expr, column_name)
             }
+            vibesql_ast::Expression::DuplicateKeyValue { column } => column == column_name,
             // These don't reference columns
             vibesql_ast::Expression::Literal(_)
             | vibesql_ast::Expression::Wildcard

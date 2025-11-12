@@ -181,7 +181,7 @@ impl QuerySignature {
                 name.hash(hasher);
                 alias.hash(hasher);
             }
-            vibesql_ast::FromClause::Join { left, join_type, right, condition } => {
+            vibesql_ast::FromClause::Join { left, join_type, right, condition, .. } => {
                 "JOIN".hash(hasher);
                 Self::hash_from_clause(left, hasher);
                 std::mem::discriminant(join_type).hash(hasher);
@@ -358,6 +358,11 @@ impl QuerySignature {
             }
 
             Expression::Default => "DEFAULT".hash(hasher),
+
+            Expression::DuplicateKeyValue { column } => {
+                "DUPLICATE_KEY_VALUE".hash(hasher);
+                column.hash(hasher);
+            }
 
             Expression::WindowFunction { function, over } => {
                 "WINDOW_FUNCTION".hash(hasher);

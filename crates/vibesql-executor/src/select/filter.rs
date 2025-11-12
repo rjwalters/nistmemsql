@@ -50,11 +50,11 @@ pub(super) fn apply_where_filter_combined<'a>(
             vibesql_types::SqlValue::Smallint(_) => true,
             vibesql_types::SqlValue::Bigint(0) => false,
             vibesql_types::SqlValue::Bigint(_) => true,
-            vibesql_types::SqlValue::Float(f) if f == 0.0 => false,
+            vibesql_types::SqlValue::Float(0.0) => false,
             vibesql_types::SqlValue::Float(_) => true,
-            vibesql_types::SqlValue::Real(f) if f == 0.0 => false,
+            vibesql_types::SqlValue::Real(0.0) => false,
             vibesql_types::SqlValue::Real(_) => true,
-            vibesql_types::SqlValue::Double(f) if f == 0.0 => false,
+            vibesql_types::SqlValue::Double(0.0) => false,
             vibesql_types::SqlValue::Double(_) => true,
             other => {
                 return Err(ExecutorError::InvalidWhereClause(format!(
@@ -116,11 +116,11 @@ pub(super) fn apply_where_filter_basic<'a>(
             vibesql_types::SqlValue::Smallint(_) => true,
             vibesql_types::SqlValue::Bigint(0) => false,
             vibesql_types::SqlValue::Bigint(_) => true,
-            vibesql_types::SqlValue::Float(f) if f == 0.0 => false,
+            vibesql_types::SqlValue::Float(0.0) => false,
             vibesql_types::SqlValue::Float(_) => true,
-            vibesql_types::SqlValue::Real(f) if f == 0.0 => false,
+            vibesql_types::SqlValue::Real(0.0) => false,
             vibesql_types::SqlValue::Real(_) => true,
-            vibesql_types::SqlValue::Double(f) if f == 0.0 => false,
+            vibesql_types::SqlValue::Double(0.0) => false,
             vibesql_types::SqlValue::Double(_) => true,
             other => {
                 return Err(ExecutorError::InvalidWhereClause(format!(
@@ -202,11 +202,11 @@ pub(super) fn apply_where_filter_combined_parallel<'a>(
                 vibesql_types::SqlValue::Smallint(_) => true,
                 vibesql_types::SqlValue::Bigint(0) => false,
                 vibesql_types::SqlValue::Bigint(_) => true,
-                vibesql_types::SqlValue::Float(f) if f == 0.0 => false,
+                vibesql_types::SqlValue::Float(0.0) => false,
                 vibesql_types::SqlValue::Float(_) => true,
-                vibesql_types::SqlValue::Real(f) if f == 0.0 => false,
+                vibesql_types::SqlValue::Real(0.0) => false,
                 vibesql_types::SqlValue::Real(_) => true,
-                vibesql_types::SqlValue::Double(f) if f == 0.0 => false,
+                vibesql_types::SqlValue::Double(0.0) => false,
                 vibesql_types::SqlValue::Double(_) => true,
                 other => {
                     return Err(ExecutorError::InvalidWhereClause(format!(
@@ -225,7 +225,7 @@ pub(super) fn apply_where_filter_combined_parallel<'a>(
         .collect();
 
     // Filter out None values and extract Ok rows
-    result.map(|v| v.into_iter().filter_map(|x| x).collect())
+    result.map(|v| v.into_iter().flatten().collect())
 }
 
 /// Auto-selecting WHERE filter that chooses between sequential and parallel execution

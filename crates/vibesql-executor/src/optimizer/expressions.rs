@@ -208,6 +208,9 @@ pub fn optimize_expression(
         // DEFAULT - cannot optimize
         Expression::Default => Ok(expr.clone()),
 
+        // DuplicateKeyValue - cannot optimize
+        Expression::DuplicateKeyValue { .. } => Ok(expr.clone()),
+
         // Window functions - cannot optimize
         Expression::WindowFunction { .. } => Ok(expr.clone()),
 

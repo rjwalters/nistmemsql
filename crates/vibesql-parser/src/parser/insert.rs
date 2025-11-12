@@ -104,6 +104,45 @@ impl Parser {
             });
         };
 
+        // Parse optional ON DUPLICATE KEY UPDATE clause
+        let on_duplicate_key_update = if self.peek_keyword(Keyword::On) {
+            self.advance(); // consume ON
+            self.expect_keyword(Keyword::Duplicate)?;
+            self.expect_keyword(Keyword::Key)?;
+            self.expect_keyword(Keyword::Update)?;
+
+            // Parse assignment list: column = expr, column = expr, ...
+            let mut assignments = Vec::new();
+            loop {
+                let column = match self.peek() {
+                    Token::Identifier(col) => {
+                        let column_name = col.clone();
+                        self.advance();
+                        column_name
+                    }
+                    _ => {
+                        return Err(ParseError {
+                            message: "Expected column name in ON DUPLICATE KEY UPDATE".to_string(),
+                        })
+                    }
+                };
+
+                self.expect_token(Token::Symbol('='))?;
+                let value = self.parse_expression()?;
+
+                assignments.push(vibesql_ast::Assignment { column, value });
+
+                if matches!(self.peek(), Token::Comma) {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+            Some(assignments)
+        } else {
+            None
+        };
+
         // Expect semicolon or EOF
         if matches!(self.peek(), Token::Semicolon) {
             self.advance();
@@ -114,6 +153,7 @@ impl Parser {
             columns,
             source,
             conflict_clause,
+            on_duplicate_key_update,
         })
     }
 
@@ -199,6 +239,45 @@ impl Parser {
             });
         };
 
+        // Parse optional ON DUPLICATE KEY UPDATE clause
+        let on_duplicate_key_update = if self.peek_keyword(Keyword::On) {
+            self.advance(); // consume ON
+            self.expect_keyword(Keyword::Duplicate)?;
+            self.expect_keyword(Keyword::Key)?;
+            self.expect_keyword(Keyword::Update)?;
+
+            // Parse assignment list: column = expr, column = expr, ...
+            let mut assignments = Vec::new();
+            loop {
+                let column = match self.peek() {
+                    Token::Identifier(col) => {
+                        let column_name = col.clone();
+                        self.advance();
+                        column_name
+                    }
+                    _ => {
+                        return Err(ParseError {
+                            message: "Expected column name in ON DUPLICATE KEY UPDATE".to_string(),
+                        })
+                    }
+                };
+
+                self.expect_token(Token::Symbol('='))?;
+                let value = self.parse_expression()?;
+
+                assignments.push(vibesql_ast::Assignment { column, value });
+
+                if matches!(self.peek(), Token::Comma) {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+            Some(assignments)
+        } else {
+            None
+        };
+
         // Expect semicolon or EOF
         if matches!(self.peek(), Token::Semicolon) {
             self.advance();
@@ -209,6 +288,7 @@ impl Parser {
             columns,
             source,
             conflict_clause: Some(vibesql_ast::ConflictClause::Replace),
+            on_duplicate_key_update,
         })
     }
 }

@@ -5,7 +5,7 @@ mod core;
 pub mod date_format;
 mod expression_hash;
 mod expressions;
-mod functions;
+pub(crate) mod functions;
 pub(crate) mod operators;
 pub(crate) mod pattern;
 pub mod window;

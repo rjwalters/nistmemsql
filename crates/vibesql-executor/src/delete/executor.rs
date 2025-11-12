@@ -191,37 +191,34 @@ impl DeleteExecutor {
         use vibesql_ast::{BinaryOperator, Expression};
 
         // Only handle simple binary equality operations
-        match where_expr {
-            Expression::BinaryOp { left, op: BinaryOperator::Equal, right } => {
-                // Check if left side is a column reference and right side is a literal
-                if let (Expression::ColumnRef { column, .. }, Expression::Literal(value)) =
-                    (left.as_ref(), right.as_ref())
-                {
-                    // Check if this column is the primary key
-                    if let Some(pk_indices) = schema.get_primary_key_indices() {
-                        if let Some(col_index) = schema.get_column_index(column) {
-                            // Only handle single-column primary keys for now
-                            if pk_indices.len() == 1 && pk_indices[0] == col_index {
-                                return Some(vec![value.clone()]);
-                            }
-                        }
-                    }
-                }
-
-                // Also check the reverse: literal = column
-                if let (Expression::Literal(value), Expression::ColumnRef { column, .. }) =
-                    (left.as_ref(), right.as_ref())
-                {
-                    if let Some(pk_indices) = schema.get_primary_key_indices() {
-                        if let Some(col_index) = schema.get_column_index(column) {
-                            if pk_indices.len() == 1 && pk_indices[0] == col_index {
-                                return Some(vec![value.clone()]);
-                            }
+        if let Expression::BinaryOp { left, op: BinaryOperator::Equal, right } = where_expr {
+            // Check if left side is a column reference and right side is a literal
+            if let (Expression::ColumnRef { column, .. }, Expression::Literal(value)) =
+                (left.as_ref(), right.as_ref())
+            {
+                // Check if this column is the primary key
+                if let Some(pk_indices) = schema.get_primary_key_indices() {
+                    if let Some(col_index) = schema.get_column_index(column) {
+                        // Only handle single-column primary keys for now
+                        if pk_indices.len() == 1 && pk_indices[0] == col_index {
+                            return Some(vec![value.clone()]);
                         }
                     }
                 }
             }
-            _ => {}
+
+            // Also check the reverse: literal = column
+            if let (Expression::Literal(value), Expression::ColumnRef { column, .. }) =
+                (left.as_ref(), right.as_ref())
+            {
+                if let Some(pk_indices) = schema.get_primary_key_indices() {
+                    if let Some(col_index) = schema.get_column_index(column) {
+                        if pk_indices.len() == 1 && pk_indices[0] == col_index {
+                            return Some(vec![value.clone()]);
+                        }
+                    }
+                }
+            }
         }
 
         None

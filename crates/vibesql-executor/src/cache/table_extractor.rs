@@ -168,6 +168,7 @@ fn extract_from_expression(expr: &vibesql_ast::Expression, tables: &mut HashSet<
         | vibesql_ast::Expression::CurrentTime { .. }
         | vibesql_ast::Expression::CurrentTimestamp { .. }
         | vibesql_ast::Expression::Default
+        | vibesql_ast::Expression::DuplicateKeyValue { .. }
         | vibesql_ast::Expression::WindowFunction { .. }
         | vibesql_ast::Expression::NextValue { .. }
         | vibesql_ast::Expression::MatchAgainst { .. } => {}
@@ -221,10 +222,8 @@ pub fn extract_tables_from_statement(stmt: &vibesql_ast::Statement) -> HashSet<S
             }
 
             // Extract from WHERE clause
-            if let Some(where_clause) = &update.where_clause {
-                if let vibesql_ast::WhereClause::Condition(expr) = where_clause {
-                    extract_from_expression(expr, &mut tables);
-                }
+            if let Some(vibesql_ast::WhereClause::Condition(expr)) = &update.where_clause {
+                extract_from_expression(expr, &mut tables);
             }
 
             tables
@@ -240,10 +239,8 @@ pub fn extract_tables_from_statement(stmt: &vibesql_ast::Statement) -> HashSet<S
             tables.insert(table_name.to_string());
 
             // Extract from WHERE clause
-            if let Some(where_clause) = &delete.where_clause {
-                if let vibesql_ast::WhereClause::Condition(expr) = where_clause {
-                    extract_from_expression(expr, &mut tables);
-                }
+            if let Some(vibesql_ast::WhereClause::Condition(expr)) = &delete.where_clause {
+                extract_from_expression(expr, &mut tables);
             }
 
             tables

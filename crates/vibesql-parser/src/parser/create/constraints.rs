@@ -63,14 +63,14 @@ impl Parser {
                 self.advance(); // consume DEFAULT
                 Ok(vibesql_ast::ReferentialAction::SetDefault)
             } else {
-                return Err(ParseError {
+                Err(ParseError {
                     message: "Expected NULL or DEFAULT after SET".to_string(),
-                });
+                })
             }
         } else {
-            return Err(ParseError {
+            Err(ParseError {
                 message: "Expected NO ACTION, CASCADE, SET NULL, or SET DEFAULT".to_string(),
-            });
+            })
         }
     }
 
@@ -184,6 +184,13 @@ impl Parser {
                             on_delete,
                             on_update,
                         },
+                    });
+                }
+                Token::Keyword(Keyword::AutoIncrement) => {
+                    self.advance(); // consume AUTO_INCREMENT or AUTOINCREMENT
+                    constraints.push(vibesql_ast::ColumnConstraint {
+                        name,
+                        kind: vibesql_ast::ColumnConstraintKind::AutoIncrement,
                     });
                 }
                 _ => {

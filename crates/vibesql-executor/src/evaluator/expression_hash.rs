@@ -128,7 +128,7 @@ impl ExpressionHasher {
 
             vibesql_ast::Expression::Trim { string, removal_char, .. } => {
                 Self::is_deterministic(string)
-                    && removal_char.as_ref().map_or(true, |c| Self::is_deterministic(c))
+                    && removal_char.as_ref().is_none_or(|c| Self::is_deterministic(c))
             }
 
             // Literals are deterministic, but column references are NOT
@@ -141,8 +141,10 @@ impl ExpressionHasher {
             vibesql_ast::Expression::WindowFunction { .. }
             | vibesql_ast::Expression::AggregateFunction { .. } => false,
 
-            // Wildcards and DEFAULT are special cases
-            vibesql_ast::Expression::Wildcard | vibesql_ast::Expression::Default => true,
+            // Wildcards, DEFAULT, and DuplicateKeyValue are special cases
+            vibesql_ast::Expression::Wildcard
+            | vibesql_ast::Expression::Default
+            | vibesql_ast::Expression::DuplicateKeyValue { .. } => true,
 
             // MATCH AGAINST is deterministic if the search term is constant
             vibesql_ast::Expression::MatchAgainst { .. } => {
@@ -336,6 +338,11 @@ impl ExpressionHasher {
 
             vibesql_ast::Expression::Default => {
                 "DEFAULT".hash(hasher);
+            }
+
+            vibesql_ast::Expression::DuplicateKeyValue { column } => {
+                "DUPLICATE_KEY_VALUE".hash(hasher);
+                column.hash(hasher);
             }
 
             vibesql_ast::Expression::NextValue { sequence_name } => {

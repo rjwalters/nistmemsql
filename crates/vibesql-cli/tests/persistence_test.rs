@@ -12,7 +12,7 @@ fn test_command_mode_persistence() {
 
     // Create a table
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--bin",
             "vibesql",
@@ -29,7 +29,7 @@ fn test_command_mode_persistence() {
 
     // Insert data
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--bin",
             "vibesql",
@@ -63,7 +63,7 @@ fn test_command_mode_persistence() {
 
     // Query the data in a new session
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--bin",
             "vibesql",
@@ -96,7 +96,7 @@ fn test_multiple_sessions_persistence() {
 
     // Session 1: Create table
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--bin",
             "vibesql",
@@ -113,7 +113,7 @@ fn test_multiple_sessions_persistence() {
 
     // Session 2: Insert first row
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--bin",
             "vibesql",
@@ -130,7 +130,7 @@ fn test_multiple_sessions_persistence() {
 
     // Session 3: Insert second row
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--bin",
             "vibesql",
@@ -147,7 +147,7 @@ fn test_multiple_sessions_persistence() {
 
     // Session 4: Query all data
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--bin",
             "vibesql",
@@ -181,7 +181,7 @@ fn test_binary_file_error_message() {
 
     // Try to open it with vibesql
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--bin",
             "vibesql",
@@ -216,7 +216,7 @@ fn test_new_database_file_creation() {
 
     // Create database with a non-existent file path
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--bin",
             "vibesql",
