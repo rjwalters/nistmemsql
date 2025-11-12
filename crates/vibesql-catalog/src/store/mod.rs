@@ -54,6 +54,10 @@ pub struct Catalog {
     pub(crate) current_charset: String,
     pub(crate) current_collation: Option<String>,
     pub(crate) current_timezone: String,
+    // Configuration for case-sensitive identifier lookups
+    /// When true, identifier lookups are case-sensitive (SQL standard).
+    /// When false (default), identifier lookups are case-insensitive (MySQL compatible).
+    pub(crate) case_sensitive_identifiers: bool,
 }
 
 impl Catalog {
@@ -80,12 +84,33 @@ impl Catalog {
             current_charset: "UTF8".to_string(),
             current_collation: None,
             current_timezone: "UTC".to_string(),
+            // Default to case-insensitive identifiers (MySQL compatible)
+            case_sensitive_identifiers: false,
         };
 
         // Create the default "public" schema
         catalog.schemas.insert("public".to_string(), Schema::new("public".to_string()));
 
         catalog
+    }
+
+    /// Set whether identifier lookups should be case-sensitive
+    pub fn set_case_sensitive_identifiers(&mut self, case_sensitive: bool) {
+        self.case_sensitive_identifiers = case_sensitive;
+    }
+
+    /// Check if identifier lookups are case-sensitive
+    pub fn is_case_sensitive_identifiers(&self) -> bool {
+        self.case_sensitive_identifiers
+    }
+
+    /// Normalize an identifier for lookup (applies case folding if case-insensitive mode)
+    fn normalize_identifier(&self, identifier: &str) -> String {
+        if self.case_sensitive_identifiers {
+            identifier.to_string()
+        } else {
+            identifier.to_uppercase()
+        }
     }
 }
 

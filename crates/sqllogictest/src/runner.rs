@@ -10,7 +10,7 @@
 //! - [`result_updater`] - Query result updating
 
 // Re-export the main Runner struct
-pub use crate::executor::{Runner, AsyncDB, DB, RunnerLocals, Partitioner, default_partitioner};
+pub use crate::executor::{Runner, AsyncDB, DB, Partitioner, default_partitioner};
 
 // Re-export error types
 pub use crate::error_handling::{

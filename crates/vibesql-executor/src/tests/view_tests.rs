@@ -44,8 +44,8 @@ mod tests {
             advanced_objects::execute_create_view(&view_stmt, &mut db)
                 .expect("Failed to create view");
 
-            // Verify view was created
-            assert!(db.catalog.get_view("active_users").is_some());
+            // Verify view was created (use uppercase since parser normalizes identifiers)
+            assert!(db.catalog.get_view("ACTIVE_USERS").is_some());
         } else {
             panic!("Expected CreateView statement");
         }
@@ -70,8 +70,8 @@ mod tests {
             advanced_objects::execute_create_view(&view_stmt, &mut db)
                 .expect("Failed to create or replace view");
 
-            // Verify view still exists
-            assert!(db.catalog.get_view("test_view").is_some());
+            // Verify view still exists (use uppercase)
+            assert!(db.catalog.get_view("TEST_VIEW").is_some());
         }
     }
 
@@ -136,7 +136,7 @@ mod tests {
                 .expect("Failed to create view");
         }
 
-        assert!(db.catalog.get_view("test_view").is_some());
+        assert!(db.catalog.get_view("TEST_VIEW").is_some());
 
         // Drop view
         let drop_view_sql = "DROP VIEW test_view";
@@ -147,7 +147,7 @@ mod tests {
         }
 
         // Verify view was dropped
-        assert!(db.catalog.get_view("test_view").is_none());
+        assert!(db.catalog.get_view("TEST_VIEW").is_none());
     }
 
     #[test]
@@ -174,12 +174,12 @@ mod tests {
             advanced_objects::execute_create_view(&view_stmt, &mut db)
                 .expect("Failed to create view");
 
-            let view = db.catalog.get_view("user_summary").expect("View not found");
+            let view = db.catalog.get_view("USER_SUMMARY").expect("View not found");
             assert!(view.columns.is_some());
             let cols = view.columns.as_ref().unwrap();
             assert_eq!(cols.len(), 2);
-            assert_eq!(cols[0], "user_id");
-            assert_eq!(cols[1], "full_name");
+            assert_eq!(cols[0], "USER_ID");
+            assert_eq!(cols[1], "FULL_NAME");
         }
     }
 
@@ -268,7 +268,7 @@ mod tests {
         }
 
         // Both views should be dropped
-        assert!(db.catalog.get_view("all_users").is_none());
-        assert!(db.catalog.get_view("active_users").is_none());
+        assert!(db.catalog.get_view("ALL_USERS").is_none());
+        assert!(db.catalog.get_view("ACTIVE_USERS").is_none());
     }
 }

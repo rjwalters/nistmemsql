@@ -3,6 +3,7 @@
 /// Tests for Phase 1 (WKT) and Phase 3 (Predicates) spatial functions
 
 use vibesql_storage::Database;
+use vibesql_types::SqlValue;
 
 /// Helper to execute SQL and return the result
 fn execute_sql(db: &mut Database, sql: &str) -> Result<Vec<vibesql_storage::Row>, String> {
@@ -16,6 +17,23 @@ fn execute_sql(db: &mut Database, sql: &str) -> Result<Vec<vibesql_storage::Row>
                 .map_err(|e| format!("Select error: {:?}", e))
         }
         _ => Err("Expected SELECT statement".to_string()),
+    }
+}
+
+/// Helper to extract boolean value from result
+fn get_boolean_value(result: &[vibesql_storage::Row]) -> Result<bool, String> {
+    if result.is_empty() {
+        return Err("Empty result".to_string());
+    }
+    
+    if result[0].values.is_empty() {
+        return Err("No column values".to_string());
+    }
+    
+    match &result[0].values[0] {
+        SqlValue::Boolean(b) => Ok(*b),
+        SqlValue::Null => Err("NULL result".to_string()),
+        other => Err(format!("Expected Boolean, got {:?}", other)),
     }
 }
 
@@ -118,100 +136,191 @@ fn test_st_polygonfromtext() {
 fn test_st_contains() {
     let mut db = Database::new();
     
+    // Point inside polygon - should be TRUE
     let result = execute_sql(&mut db, 
         "SELECT ST_Contains(ST_GeomFromText('POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))'), ST_GeomFromText('POINT(5 5)'))"
     ).unwrap();
-    assert!(!result.is_empty());
+    assert_eq!(get_boolean_value(&result).unwrap(), true);
+    
+    // Point outside polygon - should be FALSE
+    let result = execute_sql(&mut db,
+        "SELECT ST_Contains(ST_GeomFromText('POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))'), ST_GeomFromText('POINT(20 20)'))"
+    ).unwrap();
+    assert_eq!(get_boolean_value(&result).unwrap(), false);
 }
 
 #[test]
 fn test_st_within() {
     let mut db = Database::new();
     
+    // Point inside polygon - should be TRUE
     let result = execute_sql(&mut db, 
         "SELECT ST_Within(ST_GeomFromText('POINT(5 5)'), ST_GeomFromText('POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))'))"
     ).unwrap();
-    assert!(!result.is_empty());
+    assert_eq!(get_boolean_value(&result).unwrap(), true);
+    
+    // Point outside polygon - should be FALSE
+    let result = execute_sql(&mut db,
+        "SELECT ST_Within(ST_GeomFromText('POINT(20 20)'), ST_GeomFromText('POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))'))"
+    ).unwrap();
+    assert_eq!(get_boolean_value(&result).unwrap(), false);
 }
 
 #[test]
 fn test_st_intersects() {
     let mut db = Database::new();
     
+    // Lines crossing - should be TRUE
     let result = execute_sql(&mut db, 
         "SELECT ST_Intersects(ST_GeomFromText('LINESTRING(0 0, 10 10)'), ST_GeomFromText('LINESTRING(0 10, 10 0)'))"
     ).unwrap();
-    assert!(!result.is_empty());
+    assert_eq!(get_boolean_value(&result).unwrap(), true);
+    
+    // Disjoint lines - should be FALSE
+    let result = execute_sql(&mut db,
+        "SELECT ST_Intersects(ST_GeomFromText('LINESTRING(0 0, 1 1)'), ST_GeomFromText('LINESTRING(5 5, 10 10)'))"
+    ).unwrap();
+    assert_eq!(get_boolean_value(&result).unwrap(), false);
 }
 
 #[test]
 fn test_st_disjoint() {
     let mut db = Database::new();
     
+    // Disjoint points - should be TRUE
     let result = execute_sql(&mut db, 
         "SELECT ST_Disjoint(ST_GeomFromText('POINT(0 0)'), ST_GeomFromText('POINT(10 10)'))"
     ).unwrap();
-    assert!(!result.is_empty());
+    assert_eq!(get_boolean_value(&result).unwrap(), true);
+    
+    // Same point - should be FALSE
+    let result = execute_sql(&mut db,
+        "SELECT ST_Disjoint(ST_GeomFromText('POINT(5 5)'), ST_GeomFromText('POINT(5 5)'))"
+    ).unwrap();
+    assert_eq!(get_boolean_value(&result).unwrap(), false);
 }
 
 #[test]
 fn test_st_equals() {
     let mut db = Database::new();
     
+    // Same points - should be TRUE
     let result = execute_sql(&mut db, 
         "SELECT ST_Equals(ST_GeomFromText('POINT(1 1)'), ST_GeomFromText('POINT(1 1)'))"
     ).unwrap();
-    assert!(!result.is_empty());
+    assert_eq!(get_boolean_value(&result).unwrap(), true);
+    
+    // Different points - should be FALSE
+    let result = execute_sql(&mut db,
+        "SELECT ST_Equals(ST_GeomFromText('POINT(1 1)'), ST_GeomFromText('POINT(2 2)'))"
+    ).unwrap();
+    assert_eq!(get_boolean_value(&result).unwrap(), false);
 }
 
 #[test]
 fn test_st_crosses() {
     let mut db = Database::new();
     
+    // Lines crossing - should be TRUE
     let result = execute_sql(&mut db, 
         "SELECT ST_Crosses(ST_GeomFromText('LINESTRING(0 0, 10 10)'), ST_GeomFromText('LINESTRING(0 10, 10 0)'))"
     ).unwrap();
-    assert!(!result.is_empty());
+    assert_eq!(get_boolean_value(&result).unwrap(), true);
+    
+    // Parallel lines - should be FALSE
+    let result = execute_sql(&mut db,
+        "SELECT ST_Crosses(ST_GeomFromText('LINESTRING(0 0, 10 0)'), ST_GeomFromText('LINESTRING(0 5, 10 5)'))"
+    ).unwrap();
+    assert_eq!(get_boolean_value(&result).unwrap(), false);
 }
 
 #[test]
 fn test_st_overlaps() {
     let mut db = Database::new();
     
+    // Partially overlapping polygons - should be TRUE
     let result = execute_sql(&mut db, 
         "SELECT ST_Overlaps(ST_GeomFromText('POLYGON((0 0, 5 0, 5 5, 0 5, 0 0))'), ST_GeomFromText('POLYGON((3 3, 8 3, 8 8, 3 8, 3 3))'))"
     ).unwrap();
-    assert!(!result.is_empty());
+    assert_eq!(get_boolean_value(&result).unwrap(), true);
+    
+    // Disjoint polygons - should be FALSE
+    let result = execute_sql(&mut db,
+        "SELECT ST_Overlaps(ST_GeomFromText('POLYGON((0 0, 2 0, 2 2, 0 2, 0 0))'), ST_GeomFromText('POLYGON((5 5, 7 5, 7 7, 5 7, 5 5))'))"
+    ).unwrap();
+    assert_eq!(get_boolean_value(&result).unwrap(), false);
+}
+
+#[test]
+fn test_st_touches() {
+    let mut db = Database::new();
+    
+    // Adjacent polygons sharing an edge - should be TRUE
+    let result = execute_sql(&mut db, 
+        "SELECT ST_Touches(ST_GeomFromText('POLYGON((0 0, 5 0, 5 5, 0 5, 0 0))'), ST_GeomFromText('POLYGON((5 0, 10 0, 10 5, 5 5, 5 0))'))"
+    ).unwrap();
+    assert_eq!(get_boolean_value(&result).unwrap(), true);
+    
+    // Overlapping polygons - should be FALSE (overlaps, not just touches)
+    let result = execute_sql(&mut db,
+        "SELECT ST_Touches(ST_GeomFromText('POLYGON((0 0, 5 0, 5 5, 0 5, 0 0))'), ST_GeomFromText('POLYGON((3 3, 8 3, 8 8, 3 8, 3 3))'))"
+    ).unwrap();
+    assert_eq!(get_boolean_value(&result).unwrap(), false);
 }
 
 #[test]
 fn test_st_covers() {
     let mut db = Database::new();
     
+    // Point inside polygon - should be TRUE
     let result = execute_sql(&mut db, 
         "SELECT ST_Covers(ST_GeomFromText('POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))'), ST_GeomFromText('POINT(5 5)'))"
     ).unwrap();
-    assert!(!result.is_empty());
+    assert_eq!(get_boolean_value(&result).unwrap(), true);
+    
+    // Point outside polygon - should be FALSE
+    let result = execute_sql(&mut db,
+        "SELECT ST_Covers(ST_GeomFromText('POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))'), ST_GeomFromText('POINT(15 15)'))"
+    ).unwrap();
+    assert_eq!(get_boolean_value(&result).unwrap(), false);
 }
 
 #[test]
 fn test_st_coveredby() {
     let mut db = Database::new();
     
+    // Point inside polygon - should be TRUE
     let result = execute_sql(&mut db, 
         "SELECT ST_CoveredBy(ST_GeomFromText('POINT(5 5)'), ST_GeomFromText('POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))'))"
     ).unwrap();
-    assert!(!result.is_empty());
+    assert_eq!(get_boolean_value(&result).unwrap(), true);
+    
+    // Point outside polygon - should be FALSE
+    let result = execute_sql(&mut db,
+        "SELECT ST_CoveredBy(ST_GeomFromText('POINT(15 15)'), ST_GeomFromText('POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))'))"
+    ).unwrap();
+    assert_eq!(get_boolean_value(&result).unwrap(), false);
 }
 
 #[test]
 fn test_st_dwithin() {
     let mut db = Database::new();
     
+    // Points within distance - should be TRUE
+    // Using haversine distance (great-circle distance)
+    // Small difference in coordinates results in large haversine distance, 
+    // so use a larger threshold. Distance from (0,0) to (0,0.01) ~1.1km
     let result = execute_sql(&mut db, 
-        "SELECT ST_DWithin(ST_GeomFromText('POINT(0 0)'), ST_GeomFromText('POINT(1 1)'), 2.0)"
+        "SELECT ST_DWithin(ST_GeomFromText('POINT(0 0)'), ST_GeomFromText('POINT(0 0.01)'), 200000.0)"
     ).unwrap();
-    assert!(!result.is_empty());
+    assert_eq!(get_boolean_value(&result).unwrap(), true);
+    
+    // Points outside distance threshold - should be FALSE
+    // Distance from (0,0) to (0,10) is ~1111km, so 100km threshold is insufficient
+    let result = execute_sql(&mut db,
+        "SELECT ST_DWithin(ST_GeomFromText('POINT(0 0)'), ST_GeomFromText('POINT(0 10)'), 100000.0)"
+    ).unwrap();
+    assert_eq!(get_boolean_value(&result).unwrap(), false);
 }
 
 #[test]

@@ -34,10 +34,17 @@ impl super::Catalog {
     pub fn get_table(&self, name: &str) -> Option<&TableSchema> {
         // Parse qualified name: schema.table or just table
         if let Some((schema_name, table_name)) = name.split_once('.') {
-            self.schemas.get(schema_name).and_then(|schema| schema.get_table(table_name))
+            let normalized_schema = self.normalize_identifier(schema_name);
+            let normalized_table = self.normalize_identifier(table_name);
+            self.schemas
+                .get(&normalized_schema)
+                .and_then(|schema| schema.get_table(&normalized_table, self.case_sensitive_identifiers))
         } else {
             // Use current schema for unqualified names
-            self.schemas.get(&self.current_schema).and_then(|schema| schema.get_table(name))
+            let normalized_table = self.normalize_identifier(name);
+            self.schemas
+                .get(&self.current_schema)
+                .and_then(|schema| schema.get_table(&normalized_table, self.case_sensitive_identifiers))
         }
     }
 

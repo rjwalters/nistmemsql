@@ -35,7 +35,7 @@ impl super::super::Catalog {
 
         for schema in self.schemas.values() {
             for table_name in schema.list_tables() {
-                if let Some(table) = schema.get_table(&table_name) {
+                if let Some(table) = schema.get_table(&table_name, false) {
                     for column in &table.columns {
                         // Check if column type is a UserDefined type that matches this domain
                         // In the future, when domains are properly integrated, we might have
@@ -71,7 +71,7 @@ impl super::super::Catalog {
                 // Convert all columns using this domain to the domain's base type
                 for (table_name, column_name) in columns_using_domain {
                     for schema in self.schemas.values_mut() {
-                        if let Some(table) = schema.get_table(&table_name) {
+                        if let Some(table) = schema.get_table(&table_name, false) {
                             let mut modified_table = table.clone();
                             for col in &mut modified_table.columns {
                                 if col.name == column_name {

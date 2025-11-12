@@ -38,7 +38,7 @@ impl super::super::Catalog {
         let mut columns_using_sequence = Vec::new();
         for schema in self.schemas.values() {
             for table_name in schema.list_tables() {
-                if let Some(table) = schema.get_table(&table_name) {
+                if let Some(table) = schema.get_table(&table_name, false) {
                     for column in &table.columns {
                         if let Some(default_expr) = &column.default_value {
                             if self.expression_uses_sequence(default_expr, name) {
@@ -66,7 +66,7 @@ impl super::super::Catalog {
             for (table_name, column_name) in columns_using_sequence {
                 // Get mutable reference to the schema containing the table
                 for schema in self.schemas.values_mut() {
-                    if let Some(table) = schema.get_table(&table_name) {
+                    if let Some(table) = schema.get_table(&table_name, false) {
                         // Find the column and remove its default value
                         if table.columns.iter().any(|c| c.name == column_name) {
                             // We need to reconstruct the table to modify it
