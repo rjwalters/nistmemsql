@@ -244,6 +244,12 @@ impl ExpressionEvaluator<'_> {
                     sequence_name
                 )))
             }
+
+            vibesql_ast::Expression::MatchAgainst { .. } => {
+                Err(ExecutorError::UnsupportedExpression(
+                    "MATCH...AGAINST full-text search not yet implemented".to_string(),
+                ))
+            }
         }
     }
 

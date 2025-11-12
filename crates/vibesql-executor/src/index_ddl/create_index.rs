@@ -101,7 +101,7 @@ impl CreateIndexExecutor {
         let unique = match &stmt.index_type {
             vibesql_ast::IndexType::BTree { unique } => *unique,
             vibesql_ast::IndexType::Fulltext => {
-                return Err(vibesql_executor::ExecutorError::Unsupported(
+                return Err(ExecutorError::UnsupportedFeature(
                     "FULLTEXT indexes are not yet implemented".to_string(),
                 ))
             }
