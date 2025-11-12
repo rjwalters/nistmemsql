@@ -21,6 +21,7 @@ indexmap = "2.0"
 hex = "0.4"
 geo = "0.28"
 wkt = "0.10"
+rstar = "0.12"
 
 [dev-dependencies]
 vibesql-parser = { version = "0.1.0", path = "../vibesql-parser" }
