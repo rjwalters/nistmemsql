@@ -3,7 +3,11 @@
 use vibesql_ast::TruncateTableStmt;
 use vibesql_storage::Database;
 
-use crate::{errors::ExecutorError, privilege_checker::PrivilegeChecker};
+use crate::{
+    errors::ExecutorError,
+    privilege_checker::PrivilegeChecker,
+    truncate_validation::can_use_truncate,
+};
 
 /// Executor for TRUNCATE TABLE statements
 pub struct TruncateTableExecutor;
@@ -111,60 +115,6 @@ impl TruncateTableExecutor {
 
         Ok(total_rows)
     }
-}
-
-/// Check if TRUNCATE can be used for the table
-///
-/// TRUNCATE cannot be used if:
-/// - Table has DELETE triggers (BEFORE/AFTER DELETE)
-/// - Table is referenced by foreign keys from other tables
-///
-/// # Returns
-/// - `Ok(true)` if TRUNCATE can be safely used
-/// - `Ok(false)` if TRUNCATE cannot be used
-/// - `Err` if table doesn't exist
-fn can_use_truncate(database: &Database, table_name: &str) -> Result<bool, ExecutorError> {
-    // Check for DELETE triggers on this table
-    if has_delete_triggers(database, table_name) {
-        return Ok(false);
-    }
-
-    // Check if this table is referenced by foreign keys from other tables
-    if is_fk_referenced(database, table_name)? {
-        return Ok(false);
-    }
-
-    Ok(true)
-}
-
-/// Check if a table has any DELETE triggers
-fn has_delete_triggers(database: &Database, table_name: &str) -> bool {
-    database
-        .catalog
-        .get_triggers_for_table(table_name, Some(vibesql_ast::TriggerEvent::Delete))
-        .next()
-        .is_some()
-}
-
-/// Check if a table is referenced by foreign keys from other tables
-///
-/// Returns true if any other table has a foreign key constraint referencing this table.
-fn is_fk_referenced(database: &Database, parent_table_name: &str) -> Result<bool, ExecutorError> {
-    // Scan all tables to find foreign keys that reference this table
-    for table_name in database.catalog.list_tables() {
-        let child_schema = database
-            .catalog
-            .get_table(&table_name)
-            .ok_or_else(|| ExecutorError::TableNotFound(table_name.clone()))?;
-
-        for fk in &child_schema.foreign_keys {
-            if fk.parent_table == parent_table_name {
-                return Ok(true); // Found a reference
-            }
-        }
-    }
-
-    Ok(false) // No references found
 }
 
 /// Execute TRUNCATE operation
