@@ -202,6 +202,11 @@ pub struct Function {
     pub parameters: Vec<FunctionParam>,
     pub return_type: vibesql_types::DataType,
     pub body: FunctionBody,
+    // Characteristics (Phase 6)
+    pub deterministic: bool,
+    pub sql_security: SqlSecurity,
+    pub comment: Option<String>,
+    pub language: String,
 }
 
 impl Function {
@@ -212,7 +217,42 @@ impl Function {
         return_type: vibesql_types::DataType,
         body: FunctionBody,
     ) -> Self {
-        Function { name, schema, parameters, return_type, body }
+        Function {
+            name,
+            schema,
+            parameters,
+            return_type,
+            body,
+            // Default characteristics
+            deterministic: false,
+            sql_security: SqlSecurity::Definer,
+            comment: None,
+            language: "SQL".to_string(),
+        }
+    }
+
+    pub fn with_characteristics(
+        name: String,
+        schema: String,
+        parameters: Vec<FunctionParam>,
+        return_type: vibesql_types::DataType,
+        body: FunctionBody,
+        deterministic: bool,
+        sql_security: SqlSecurity,
+        comment: Option<String>,
+        language: String,
+    ) -> Self {
+        Function {
+            name,
+            schema,
+            parameters,
+            return_type,
+            body,
+            deterministic,
+            sql_security,
+            comment,
+            language,
+        }
     }
 }
 
@@ -239,6 +279,10 @@ pub struct Procedure {
     pub schema: String,
     pub parameters: Vec<ProcedureParam>,
     pub body: ProcedureBody,
+    // Characteristics (Phase 6)
+    pub sql_security: SqlSecurity,
+    pub comment: Option<String>,
+    pub language: String,
 }
 
 impl Procedure {
@@ -248,7 +292,36 @@ impl Procedure {
         parameters: Vec<ProcedureParam>,
         body: ProcedureBody,
     ) -> Self {
-        Procedure { name, schema, parameters, body }
+        Procedure {
+            name,
+            schema,
+            parameters,
+            body,
+            // Default characteristics
+            sql_security: SqlSecurity::Definer,
+            comment: None,
+            language: "SQL".to_string(),
+        }
+    }
+
+    pub fn with_characteristics(
+        name: String,
+        schema: String,
+        parameters: Vec<ProcedureParam>,
+        body: ProcedureBody,
+        sql_security: SqlSecurity,
+        comment: Option<String>,
+        language: String,
+    ) -> Self {
+        Procedure {
+            name,
+            schema,
+            parameters,
+            body,
+            sql_security,
+            comment,
+            language,
+        }
     }
 }
 
@@ -266,6 +339,13 @@ pub enum ParameterMode {
     In,
     Out,
     InOut,
+}
+
+/// SQL SECURITY characteristic for procedures and functions (Phase 6)
+#[derive(Debug, Clone, PartialEq)]
+pub enum SqlSecurity {
+    Definer,
+    Invoker,
 }
 
 /// Body of a procedure
