@@ -12,6 +12,7 @@ categories = ["database", "api-bindings"]
 [lib]
 name = "vibesql"
 crate-type = ["cdylib"]
+doc = false  # Exclude from documentation builds to avoid name collision with main vibesql crate
 
 [dependencies]
 pyo3 = { workspace = true }

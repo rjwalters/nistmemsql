@@ -12,6 +12,7 @@ categories = ["database", "command-line-utilities"]
 [[bin]]
 name = "vibesql"
 path = "src/main.rs"
+doc = false  # Binaries don't need documentation
 
 [dependencies]
 # Core VibeSQL crates
