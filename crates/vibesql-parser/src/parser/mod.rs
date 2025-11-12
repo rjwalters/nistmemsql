@@ -82,7 +82,10 @@ impl Parser {
                 Ok(vibesql_ast::Statement::Delete(delete_stmt))
             }
             Token::Keyword(Keyword::Create) => {
-                if self.peek_next_keyword(Keyword::Table) {
+                // Check for CREATE OR REPLACE VIEW
+                if self.peek_next_keyword(Keyword::Or) && matches!(self.peek_at_offset(2), Token::Keyword(Keyword::Replace)) && matches!(self.peek_at_offset(3), Token::Keyword(Keyword::View)) {
+                    Ok(vibesql_ast::Statement::CreateView(self.parse_create_view_statement()?))
+                } else if self.peek_next_keyword(Keyword::Table) {
                     Ok(vibesql_ast::Statement::CreateTable(self.parse_create_table_statement()?))
                 } else if self.peek_next_keyword(Keyword::Schema) {
                     Ok(vibesql_ast::Statement::CreateSchema(self.parse_create_schema_statement()?))
