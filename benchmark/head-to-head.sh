@@ -135,7 +135,7 @@ run_test() {
 
     START_TIME=$(date +%s.%N)
     if [ "$ENGINE" = "vibesql" ]; then
-        if timeout $TIMEOUT "../scripts/sqllogictest" test "$TEST_FILE" >/dev/null 2>&1; then
+        if timeout $TIMEOUT "./scripts/sqllogictest" test "$TEST_FILE" >/dev/null 2>&1; then
             END_TIME=$(date +%s.%N)
             DURATION=$(echo "$END_TIME - $START_TIME" | bc)
             echo "$DURATION:success"
