@@ -49,21 +49,30 @@ impl super::Catalog {
     }
 
     /// Drop a table schema (supports qualified names like "schema.table").
+    /// Respects the `case_sensitive_identifiers` setting.
     pub fn drop_table(&mut self, name: &str) -> Result<(), CatalogError> {
         // Parse qualified name: schema.table or just table
-        let (schema_name, table_name) =
+        let (schema_name, table_name, original_table_name) =
             if let Some((schema_part, table_part)) = name.split_once('.') {
-                (schema_part.to_string(), table_part)
+                let normalized_schema = self.normalize_identifier(schema_part);
+                (normalized_schema, table_part, table_part)
             } else {
-                (self.current_schema.clone(), name)
+                (self.current_schema.clone(), name, name)
             };
+
+        let normalized_table = self.normalize_identifier(table_name);
 
         let schema = self
             .schemas
             .get_mut(&schema_name)
             .ok_or(CatalogError::SchemaNotFound(schema_name.clone()))?;
 
-        schema.drop_table(table_name)
+        // For error messages, we want to use the original input name, not the normalized one
+        schema.drop_table(&normalized_table, self.case_sensitive_identifiers)
+            .map_err(|e| match e {
+                CatalogError::TableNotFound(_) => CatalogError::TableNotFound(original_table_name.to_string()),
+                other => other,
+            })
     }
 
     /// List all table names in the current schema.
