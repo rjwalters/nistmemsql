@@ -340,7 +340,8 @@ pub fn execute_call(
         .ok_or_else(|| ExecutorError::Other(format!("Procedure '{}' not found", stmt.procedure_name)))?;
 
     // 2. Create execution context
-    let mut ctx = ExecutionContext::new();
+    // Note: Unused in Phase 1, but will be used when procedures become executable
+    let _ctx = ExecutionContext::new();
 
     // 3. Bind arguments to parameters
     // TODO: Evaluate arguments and bind to parameters
