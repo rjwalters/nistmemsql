@@ -45,6 +45,7 @@ members = [
     "crates/vibesql-cli",
     "crates/vibesql-wasm-bindings",
     "crates/vibesql-python-bindings",
+    "crates/sqllogictest",
 ]
 default-members = ["crates/vibesql-cli"]
 resolver = "2"

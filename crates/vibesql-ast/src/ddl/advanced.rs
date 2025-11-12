@@ -204,3 +204,116 @@ pub struct DropAssertionStmt {
     pub assertion_name: String,
     pub cascade: bool, // true for CASCADE, false for RESTRICT
 }
+
+// ============================================================================
+// STORED PROCEDURES AND FUNCTIONS
+// ============================================================================
+
+/// CREATE PROCEDURE statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreateProcedureStmt {
+    pub procedure_name: String,
+    pub parameters: Vec<ProcedureParameter>,
+    pub body: ProcedureBody,
+}
+
+/// CREATE FUNCTION statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreateFunctionStmt {
+    pub function_name: String,
+    pub parameters: Vec<FunctionParameter>,
+    pub return_type: vibesql_types::DataType,
+    pub body: ProcedureBody,
+}
+
+/// Parameter in a procedure definition (MySQL-style)
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProcedureParameter {
+    pub mode: ParameterMode,
+    pub name: String,
+    pub data_type: vibesql_types::DataType,
+}
+
+/// Parameter mode: IN, OUT, or INOUT
+#[derive(Debug, Clone, PartialEq)]
+pub enum ParameterMode {
+    In,
+    Out,
+    InOut,
+}
+
+/// Parameter in a function definition (functions typically only have IN parameters)
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionParameter {
+    pub name: String,
+    pub data_type: vibesql_types::DataType,
+}
+
+/// Body of a procedure or function
+#[derive(Debug, Clone, PartialEq)]
+pub enum ProcedureBody {
+    /// SQL procedural block: BEGIN ... END
+    BeginEnd(Vec<ProceduralStatement>),
+    /// Raw SQL for initial implementation
+    RawSql(String),
+}
+
+/// A statement within a procedural block
+#[derive(Debug, Clone, PartialEq)]
+pub enum ProceduralStatement {
+    /// SQL statement (SELECT, INSERT, UPDATE, DELETE, etc.)
+    Sql(Box<crate::Statement>),
+    /// Variable declaration: DECLARE var_name data_type
+    Declare {
+        name: String,
+        data_type: vibesql_types::DataType,
+        default_value: Option<Box<Expression>>,
+    },
+    /// Variable assignment: SET var_name = expr
+    Set { name: String, value: Box<Expression> },
+    /// IF statement: IF condition THEN ... ELSE ... END IF
+    If {
+        condition: Box<Expression>,
+        then_statements: Vec<ProceduralStatement>,
+        else_statements: Option<Vec<ProceduralStatement>>,
+    },
+    /// WHILE loop: WHILE condition DO ... END WHILE
+    While {
+        condition: Box<Expression>,
+        statements: Vec<ProceduralStatement>,
+    },
+    /// LOOP statement: LOOP ... END LOOP (infinite loop with LEAVE to break)
+    Loop { statements: Vec<ProceduralStatement> },
+    /// REPEAT UNTIL: REPEAT ... UNTIL condition END REPEAT
+    Repeat {
+        statements: Vec<ProceduralStatement>,
+        condition: Box<Expression>,
+    },
+    /// RETURN statement (for functions)
+    Return(Box<Expression>),
+    /// LEAVE statement (break out of loops)
+    Leave(String), // Label to leave
+    /// ITERATE statement (continue loop)
+    Iterate(String), // Label to iterate
+}
+
+/// DROP PROCEDURE statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropProcedureStmt {
+    pub procedure_name: String,
+    pub if_exists: bool,
+}
+
+/// DROP FUNCTION statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropFunctionStmt {
+    pub function_name: String,
+    pub if_exists: bool,
+}
+
+/// CALL statement (execute a procedure)
+#[derive(Debug, Clone, PartialEq)]
+pub struct CallStmt {
+    pub procedure_name: String,
+    pub arguments: Vec<Expression>,
+}

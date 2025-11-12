@@ -3,11 +3,12 @@
 //! This module defines the Statement enum that represents all possible SQL statements.
 
 use crate::{
-    AlterSequenceStmt, AlterTableStmt, BeginStmt, CloseCursorStmt, CommitStmt, CreateAssertionStmt,
-    CreateCharacterSetStmt, CreateCollationStmt, CreateDomainStmt, CreateIndexStmt, CreateRoleStmt,
-    CreateSchemaStmt, CreateSequenceStmt, CreateTableStmt, CreateTranslationStmt,
-    CreateTriggerStmt, CreateTypeStmt, CreateViewStmt, DeclareCursorStmt, DeleteStmt,
-    DropAssertionStmt, DropCharacterSetStmt, DropCollationStmt, DropDomainStmt, DropIndexStmt,
+    AlterSequenceStmt, AlterTableStmt, BeginStmt, CallStmt, CloseCursorStmt, CommitStmt,
+    CreateAssertionStmt, CreateCharacterSetStmt, CreateCollationStmt, CreateDomainStmt,
+    CreateFunctionStmt, CreateIndexStmt, CreateProcedureStmt, CreateRoleStmt, CreateSchemaStmt,
+    CreateSequenceStmt, CreateTableStmt, CreateTranslationStmt, CreateTriggerStmt, CreateTypeStmt,
+    CreateViewStmt, DeclareCursorStmt, DeleteStmt, DropAssertionStmt, DropCharacterSetStmt,
+    DropCollationStmt, DropDomainStmt, DropFunctionStmt, DropIndexStmt, DropProcedureStmt,
     DropRoleStmt, DropSchemaStmt, DropSequenceStmt, DropTableStmt, DropTranslationStmt,
     DropTriggerStmt, DropTypeStmt, DropViewStmt, FetchStmt, GrantStmt, InsertStmt, OpenCursorStmt,
     ReindexStmt, ReleaseSavepointStmt, RevokeStmt, RollbackStmt, RollbackToSavepointStmt,
@@ -74,4 +75,10 @@ pub enum Statement {
     OpenCursor(OpenCursorStmt),
     Fetch(FetchStmt),
     CloseCursor(CloseCursorStmt),
+    // Stored procedures and functions (SQL:1999 Feature P001)
+    CreateProcedure(CreateProcedureStmt),
+    DropProcedure(DropProcedureStmt),
+    CreateFunction(CreateFunctionStmt),
+    DropFunction(DropFunctionStmt),
+    Call(CallStmt),
 }

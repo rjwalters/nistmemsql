@@ -30,6 +30,7 @@ mod predicates;
 mod quantified;
 mod revoke;
 mod role;
+mod routines;
 mod schema;
 mod select;
 mod set_operations;
