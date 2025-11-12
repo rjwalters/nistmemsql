@@ -56,6 +56,7 @@ mod operator_edge_cases;
 mod phase3_join_optimization;
 mod predicate_pushdown;
 mod predicate_tests;
+mod procedure_tests;
 mod privilege_checker_tests;
 mod query_timeout_tests;
 mod scalar_subquery_basic_tests;
