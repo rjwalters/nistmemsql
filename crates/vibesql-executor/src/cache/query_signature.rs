@@ -364,7 +364,7 @@ impl QuerySignature {
                 fractional_precision,
             } => {
                 "INTERVAL".hash(hasher);
-                Self::hash_expr(value, hasher, param_counter);
+                Self::hash_expression(value, hasher);
                 format!("{:?}", unit).hash(hasher);
                 leading_precision.hash(hasher);
                 fractional_precision.hash(hasher);

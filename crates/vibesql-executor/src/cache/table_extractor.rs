@@ -167,7 +167,7 @@ fn extract_from_expression(expr: &vibesql_ast::Expression, tables: &mut HashSet<
         | vibesql_ast::Expression::CurrentDate
         | vibesql_ast::Expression::CurrentTime { .. }
         | vibesql_ast::Expression::CurrentTimestamp { .. }
-            | Expression::Interval { .. }
+        | vibesql_ast::Expression::Interval { .. }
         | vibesql_ast::Expression::Default
         | vibesql_ast::Expression::DuplicateKeyValue { .. }
         | vibesql_ast::Expression::WindowFunction { .. }

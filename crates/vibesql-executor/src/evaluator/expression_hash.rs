@@ -112,6 +112,8 @@ impl ExpressionHasher {
 
             vibesql_ast::Expression::Cast { expr, .. } => Self::is_deterministic(expr),
 
+            vibesql_ast::Expression::Interval { value, .. } => Self::is_deterministic(value),
+
             vibesql_ast::Expression::InList { expr, values, .. } => {
                 Self::is_deterministic(expr) && values.iter().all(Self::is_deterministic)
             }
@@ -296,6 +298,19 @@ impl ExpressionHasher {
             vibesql_ast::Expression::CurrentTimestamp { precision } => {
                 "CURRENT_TIMESTAMP".hash(hasher);
                 precision.hash(hasher);
+            }
+
+            vibesql_ast::Expression::Interval {
+                value,
+                unit,
+                leading_precision,
+                fractional_precision,
+            } => {
+                "INTERVAL".hash(hasher);
+                Self::hash_expression(value, hasher);
+                format!("{:?}", unit).hash(hasher);
+                leading_precision.hash(hasher);
+                fractional_precision.hash(hasher);
             }
 
             // For subqueries and complex expressions, we still hash them
