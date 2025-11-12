@@ -457,7 +457,7 @@ For tracking performance across the entire SQLLogicTest suite (all 623 test file
 Run a full benchmark of all SQLLogicTest files:
 
 ```bash
-./scripts/benchmark_suite_rust.sh
+./benchmark/suite.sh
 ```
 
 Results are saved to `target/benchmarks/comparison_YYYYMMDD_HHMMSS.json`
@@ -474,10 +474,10 @@ The benchmark script:
 
 ```bash
 # Run with default output location
-./scripts/benchmark_suite_rust.sh
+./benchmark/suite.sh
 
 # Specify custom output file
-BENCHMARK_OUTPUT="my_benchmark.json" ./scripts/benchmark_suite_rust.sh
+BENCHMARK_OUTPUT="my_benchmark.json" ./benchmark/suite.sh
 ```
 
 ### Output Format
@@ -588,8 +588,8 @@ When investigating performance issues:
 
 The benchmarking system includes SQL schema and Python loader for storing results in a VibeSQL database:
 
-- `scripts/create_benchmark_tables.sql` - Schema with benchmark_runs and benchmark_results tables
-- `scripts/load_benchmarks.py` - Loader script (currently blocked by SQL limitations)
+- `benchmark/schema.sql` - Schema with benchmark_runs and benchmark_results tables
+- `benchmark/analyze.py` - Loader script (currently blocked by SQL limitations)
 
 These will be functional once VibeSQL supports:
 - `CREATE VIEW` with complex queries
@@ -599,7 +599,7 @@ These will be functional once VibeSQL supports:
 
 **Future usage:**
 ```bash
-python3 scripts/load_benchmarks.py target/benchmarks/comparison_20251111_190627.json \
+python3 benchmark/analyze.py target/benchmarks/comparison_20251111_190627.json \
   --notes "Baseline performance run"
 ```
 

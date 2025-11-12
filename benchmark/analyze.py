@@ -31,7 +31,7 @@ def get_repo_root() -> Path:
 def create_tables(db_path: Path):
     """Create benchmark tables if they don't exist."""
     repo_root = get_repo_root()
-    schema_file = repo_root / "scripts" / "create_benchmark_tables_simple.sql"
+    schema_file = repo_root / "benchmark" / "schema.sql"
 
     if not schema_file.exists():
         print(f"Error: Schema file not found: {schema_file}")

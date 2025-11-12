@@ -61,3 +61,4 @@ benchmark_results.json
 conformance-report.html
 target/benchmarks/
 benchmarks.db
+benchmark/results/
