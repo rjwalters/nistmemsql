@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Added `--force` flag to `./scripts/sqllogictest` script to repopulate work queue with all 623 test files
+  - Enables fresh test runs from scratch
+  - Bypasses smart filtering for reproducible results
+  - Usage: `./scripts/sqllogictest run --force --time 300`
+
 ### Fixed
+- Fixed all cargo build warnings (removed unused code, added `#[allow(dead_code)]` to test utilities)
+- Fixed sqllogictest script to use `--package vibesql` flag for proper test execution
+- Fixed test build warnings in multiple test modules
 - Fixed test failures after COUNT(*) return type changed from Numeric to Integer (PR #1206)
   - Updated `parallel_execution_tests.rs`, `predicate_pushdown_tests.rs`, and `test_predicate_pushdown_integration.rs`
   - Fixed `type_display_tests.rs` to expect MySQL-compatible numeric formatting

@@ -111,6 +111,7 @@ We use comprehensive test suites to track SQL:1999 compliance:
 - 🔍 **9 preset queries**: failed-files, by-category, progress, flaky-tests, etc.
 - 📈 **Historical tracking**: Track pass rate over time with git commits
 - 🎯 **Manual testing workflow**: Query your progress as you work through tests
+- 🔄 **--force flag**: Repopulates work queue with all 623 test files for fresh runs
 
 **Documentation**:
 - [Quick Start Guide](docs/sqllogictest/SQLLOGICTEST_QUICKSTART.md) - 30-second introduction
