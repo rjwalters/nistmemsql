@@ -114,10 +114,7 @@ impl<'a> ExpressionEvaluator<'a> {
         op: &vibesql_ast::BinaryOperator,
         right: &vibesql_types::SqlValue,
     ) -> Result<vibesql_types::SqlValue, ExecutorError> {
-        let sql_mode = self.database
-            .map(|db| db.sql_mode())
-            .unwrap_or(vibesql_types::SqlMode::Standard);
-        Self::eval_binary_op_static(left, op, right, sql_mode)
+        Self::eval_binary_op_static(left, op, right, vibesql_types::SqlMode::Standard)
     }
 
     /// Static version of eval_binary_op for shared logic

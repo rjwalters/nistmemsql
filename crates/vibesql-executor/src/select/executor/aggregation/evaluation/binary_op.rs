@@ -38,10 +38,6 @@ pub(super) fn evaluate_unary(
     evaluator: &CombinedExpressionEvaluator,
 ) -> Result<vibesql_types::SqlValue, ExecutorError> {
     let val = executor.evaluate_with_aggregates(inner_expr, group_rows, group_key, evaluator)?;
-    // Get SQL mode from database (via evaluator)
-    let sql_mode = evaluator.database()
-        .map(|db| db.sql_mode())
-        .unwrap_or(vibesql_types::SqlMode::Standard);
     // Use shared eval_unary_op implementation
-    crate::evaluator::eval_unary_op(op, &val, sql_mode)
+    crate::evaluator::eval_unary_op(op, &val, vibesql_types::SqlMode::Standard)
 }
