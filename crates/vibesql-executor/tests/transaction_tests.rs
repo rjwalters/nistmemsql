@@ -33,7 +33,7 @@ fn test_basic_savepoint() {
             vibesql_ast::Expression::Literal(SqlValue::Integer(1)),
             vibesql_ast::Expression::Literal(SqlValue::Integer(1000)),
         ]]),
-        conflict_clause: None,
+            conflict_clause: None,
     };
     vibesql_executor::InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
 
@@ -49,7 +49,7 @@ fn test_basic_savepoint() {
             vibesql_ast::Expression::Literal(SqlValue::Integer(2)),
             vibesql_ast::Expression::Literal(SqlValue::Integer(500)),
         ]]),
-        conflict_clause: None,
+            conflict_clause: None,
     };
     vibesql_executor::InsertExecutor::execute(&mut db, &insert_stmt2).unwrap();
 
@@ -96,7 +96,7 @@ fn test_nested_savepoints() {
             vibesql_ast::Expression::Literal(SqlValue::Integer(1)),
             vibesql_ast::Expression::Literal(SqlValue::Integer(1000)),
         ]]),
-        conflict_clause: None,
+            conflict_clause: None,
     };
     vibesql_executor::InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
 
@@ -112,7 +112,7 @@ fn test_nested_savepoints() {
             vibesql_ast::Expression::Literal(SqlValue::Integer(2)),
             vibesql_ast::Expression::Literal(SqlValue::Integer(500)),
         ]]),
-        conflict_clause: None,
+            conflict_clause: None,
     };
     vibesql_executor::InsertExecutor::execute(&mut db, &insert_stmt2).unwrap();
 
@@ -128,7 +128,7 @@ fn test_nested_savepoints() {
             vibesql_ast::Expression::Literal(SqlValue::Integer(3)),
             vibesql_ast::Expression::Literal(SqlValue::Integer(200)),
         ]]),
-        conflict_clause: None,
+            conflict_clause: None,
     };
     vibesql_executor::InsertExecutor::execute(&mut db, &insert_stmt3).unwrap();
 
