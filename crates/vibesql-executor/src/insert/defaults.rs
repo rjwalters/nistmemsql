@@ -25,12 +25,22 @@ pub fn evaluate_insert_expression(
 }
 
 /// Evaluate a DEFAULT expression to get its value
-/// Supports literals and special functions (CURRENT_DATE, CURRENT_USER, etc.)
+/// Supports literals, special functions (CURRENT_DATE, CURRENT_USER, etc.), and sequences
+/// Note: For NextValue expressions, this function signature needs database access
+/// This will require refactoring to pass db context
 pub fn evaluate_default_expression(
     expr: &vibesql_ast::Expression,
 ) -> Result<vibesql_types::SqlValue, ExecutorError> {
     match expr {
         vibesql_ast::Expression::Literal(lit) => Ok(lit.clone()),
+        vibesql_ast::Expression::NextValue { sequence_name } => {
+            // NEXT VALUE FOR sequence - this should have been handled at a higher level
+            // with access to the database. If we get here, it's an error.
+            Err(ExecutorError::UnsupportedExpression(format!(
+                "Sequence '{}' requires database context - this should have been handled earlier",
+                sequence_name
+            )))
+        }
         vibesql_ast::Expression::Function { name, .. } => {
             // Evaluate special SQL functions that can be used in DEFAULT
             match name.to_uppercase().as_str() {
@@ -88,15 +98,36 @@ pub fn evaluate_default_expression(
 }
 
 /// Apply DEFAULT values for unspecified columns
+/// Now accepts database parameter to handle sequence NextValue expressions
 pub fn apply_default_values(
     schema: &vibesql_catalog::TableSchema,
     row_values: &mut [vibesql_types::SqlValue],
+    database: &mut vibesql_storage::Database,
 ) -> Result<(), ExecutorError> {
     for (col_idx, col) in schema.columns.iter().enumerate() {
         // If column is NULL and has a default value, apply it
         if row_values[col_idx] == vibesql_types::SqlValue::Null {
             if let Some(default_expr) = &col.default_value {
-                let default_value = evaluate_default_expression(default_expr)?;
+                // Handle NextValue expressions specially
+                let default_value = match default_expr {
+                    vibesql_ast::Expression::NextValue { sequence_name } => {
+                        // Get the next value from the sequence
+                        let seq = database
+                            .catalog
+                            .get_sequence_mut(sequence_name)
+                            .map_err(|e| {
+                                ExecutorError::UnsupportedExpression(format!(
+                                    "Sequence error: {:?}",
+                                    e
+                                ))
+                            })?;
+                        let next_val = seq.next_value().map_err(|e| {
+                            ExecutorError::ConstraintViolation(format!("Sequence error: {}", e))
+                        })?;
+                        vibesql_types::SqlValue::Integer(next_val)
+                    }
+                    _ => evaluate_default_expression(default_expr)?,
+                };
                 let coerced_value = super::validation::coerce_value(default_value, &col.data_type)?;
                 row_values[col_idx] = coerced_value;
             }

@@ -92,7 +92,7 @@ pub fn execute_insert(
         }
 
         // Apply DEFAULT values for unspecified columns
-        super::defaults::apply_default_values(&schema, &mut full_row_values)?;
+        super::defaults::apply_default_values(&schema, &mut full_row_values, db)?;
 
         // Validate all constraints in a single pass and extract index keys
         // Skip PK/UNIQUE duplicate checks if using REPLACE conflict clause

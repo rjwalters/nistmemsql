@@ -254,6 +254,8 @@ pub enum Keyword {
     Query,
     // Spatial index keywords
     Spatial,
+    // Auto-increment keywords (MySQL and SQLite)
+    AutoIncrement,
 }
 
 impl Keyword {
@@ -496,6 +498,8 @@ impl fmt::Display for Keyword {
             Keyword::Query => "QUERY",
             // Spatial index keywords
             Keyword::Spatial => "SPATIAL",
+            // Auto-increment keywords
+            Keyword::AutoIncrement => "AUTO_INCREMENT",
         };
         write!(f, "{}", keyword_str)
     }

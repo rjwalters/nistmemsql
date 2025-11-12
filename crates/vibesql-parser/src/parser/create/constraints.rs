@@ -186,6 +186,13 @@ impl Parser {
                         },
                     });
                 }
+                Token::Keyword(Keyword::AutoIncrement) => {
+                    self.advance(); // consume AUTO_INCREMENT or AUTOINCREMENT
+                    constraints.push(vibesql_ast::ColumnConstraint {
+                        name,
+                        kind: vibesql_ast::ColumnConstraintKind::AutoIncrement,
+                    });
+                }
                 _ => {
                     // If we parsed a CONSTRAINT name but no constraint type, error
                     if name.is_some() {
