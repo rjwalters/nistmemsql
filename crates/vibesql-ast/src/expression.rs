@@ -182,6 +182,19 @@ pub enum Expression {
         precision: Option<u32>,
     },
 
+    /// INTERVAL expression
+    /// Example: INTERVAL '5' DAY
+    /// Example: INTERVAL '1-6' YEAR TO MONTH
+    /// Example: INTERVAL '5 12:30:45' DAY TO SECOND
+    /// SQL:1999 Section 6.12: Interval literal
+    Interval {
+        value: Box<Expression>,
+        unit: IntervalUnit,
+        /// For compound intervals: YEAR TO MONTH, DAY TO SECOND, etc.
+        leading_precision: Option<u32>,
+        fractional_precision: Option<u32>,
+    },
+
     /// DEFAULT keyword - represents default value for column
     /// Used in INSERT and UPDATE statements
     Default,
@@ -354,4 +367,45 @@ pub enum CharacterUnit {
     Characters,
     /// USING OCTETS - byte-based measurement
     Octets,
+}
+
+/// Interval unit for INTERVAL expressions
+/// SQL:1999 Section 6.12: Interval literal
+/// Used in INTERVAL '5' DAY, DATE_ADD(), etc.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum IntervalUnit {
+    /// Simple units
+    Microsecond,
+    Second,
+    Minute,
+    Hour,
+    Day,
+    Week,
+    Month,
+    Quarter,
+    Year,
+
+    /// Compound units (for MySQL compatibility)
+    /// SECOND_MICROSECOND
+    SecondMicrosecond,
+    /// MINUTE_MICROSECOND
+    MinuteMicrosecond,
+    /// MINUTE_SECOND
+    MinuteSecond,
+    /// HOUR_MICROSECOND
+    HourMicrosecond,
+    /// HOUR_SECOND
+    HourSecond,
+    /// HOUR_MINUTE
+    HourMinute,
+    /// DAY_MICROSECOND
+    DayMicrosecond,
+    /// DAY_SECOND
+    DaySecond,
+    /// DAY_MINUTE
+    DayMinute,
+    /// DAY_HOUR
+    DayHour,
+    /// YEAR_MONTH
+    YearMonth,
 }
