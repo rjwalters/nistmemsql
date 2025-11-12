@@ -9,6 +9,7 @@ mod cursor;
 mod delete;
 mod domain;
 mod drop;
+mod truncate;
 mod expressions;
 mod grant;
 mod helpers;
@@ -169,6 +170,10 @@ impl Parser {
                                 .to_string(),
                     })
                 }
+            }
+            Token::Keyword(Keyword::Truncate) => {
+                let truncate_stmt = self.parse_truncate_table_statement()?;
+                Ok(vibesql_ast::Statement::TruncateTable(truncate_stmt))
             }
             Token::Keyword(Keyword::Alter) => {
                 if self.peek_next_keyword(Keyword::Table) {

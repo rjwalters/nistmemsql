@@ -137,6 +137,15 @@ impl SqlExecutor {
                     Err(e) => return Err(anyhow::anyhow!("{}", e)),
                 }
             }
+            vibesql_ast::Statement::TruncateTable(truncate_stmt) => {
+                match vibesql_executor::TruncateTableExecutor::execute(&truncate_stmt, &mut self.db)
+                {
+                    Ok(rows_deleted) => {
+                        result.row_count = rows_deleted;
+                    }
+                    Err(e) => return Err(anyhow::anyhow!("{}", e)),
+                }
+            }
             _ => {
                 return Err(anyhow::anyhow!("Statement type not yet supported in CLI"));
             }

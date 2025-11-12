@@ -155,6 +155,13 @@ pub struct DropTableStmt {
     pub if_exists: bool,
 }
 
+/// TRUNCATE TABLE statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct TruncateTableStmt {
+    pub table_name: String,
+    pub if_exists: bool,
+}
+
 /// ALTER TABLE statement
 #[derive(Debug, Clone, PartialEq)]
 pub enum AlterTableStmt {
