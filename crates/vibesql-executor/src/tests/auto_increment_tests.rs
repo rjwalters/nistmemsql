@@ -53,6 +53,7 @@ fn test_auto_increment_basic_inserts() {
         columns: vec!["username".to_string()],
         source: InsertSource::Values(vec![vec![vibesql_ast::Expression::Literal(SqlValue::Varchar("alice".to_string()))]]),
         conflict_clause: None,
+        on_duplicate_key_update: None,
     };
     let result = InsertExecutor::execute(&mut db, &insert1);
     assert!(result.is_ok(), "Failed to insert alice: {:?}", result.err());
@@ -63,6 +64,7 @@ fn test_auto_increment_basic_inserts() {
         columns: vec!["username".to_string()],
         source: InsertSource::Values(vec![vec![vibesql_ast::Expression::Literal(SqlValue::Varchar("bob".to_string()))]]),
         conflict_clause: None,
+        on_duplicate_key_update: None,
     };
     let result = InsertExecutor::execute(&mut db, &insert2);
     assert!(result.is_ok(), "Failed to insert bob: {:?}", result.err());
