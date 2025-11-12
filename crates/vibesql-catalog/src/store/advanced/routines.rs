@@ -25,6 +25,18 @@ impl super::super::Catalog {
         Ok(())
     }
 
+    /// Create a function with characteristics (Phase 6)
+    pub fn create_function_with_characteristics(
+        &mut self,
+        function: crate::advanced_objects::Function,
+    ) -> Result<(), CatalogError> {
+        if self.functions.contains_key(&function.name) {
+            return Err(CatalogError::FunctionAlreadyExists(function.name.clone()));
+        }
+        self.functions.insert(function.name.clone(), function);
+        Ok(())
+    }
+
     /// Check if a function exists
     pub fn function_exists(&self, name: &str) -> bool {
         self.functions.contains_key(name)
@@ -67,6 +79,18 @@ impl super::super::Catalog {
         }
         self.procedures
             .insert(name.clone(), Procedure::new(name, schema, parameters, body));
+        Ok(())
+    }
+
+    /// Create a procedure with characteristics (Phase 6)
+    pub fn create_procedure_with_characteristics(
+        &mut self,
+        procedure: crate::advanced_objects::Procedure,
+    ) -> Result<(), CatalogError> {
+        if self.procedures.contains_key(&procedure.name) {
+            return Err(CatalogError::ProcedureAlreadyExists(procedure.name.clone()));
+        }
+        self.procedures.insert(procedure.name.clone(), procedure);
         Ok(())
     }
 

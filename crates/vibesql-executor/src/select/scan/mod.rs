@@ -14,6 +14,7 @@ use crate::errors::ExecutorError;
 
 // Strategy modules
 mod derived;
+mod index_scan;
 mod join_scan;
 mod predicates;
 mod reorder;

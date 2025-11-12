@@ -29,6 +29,7 @@ pub use ddl::{
     ParameterMode, ProcedureBody, ProcedureParameter, ProceduralStatement, ReferentialAction,
     ReindexStmt, ReleaseSavepointStmt, RenameTableStmt, RollbackStmt, RollbackToSavepointStmt,
     RowFormat, SavepointStmt, SchemaElement, SetCatalogStmt, SetNamesStmt, SetSchemaStmt,
+    SqlSecurity,
     SetTimeZoneStmt, SetTransactionStmt, TableConstraint, TableConstraintKind, TableOption,
     TimeZoneSpec, TransactionAccessMode, TriggerAction, TriggerEvent, TriggerGranularity,
     TriggerTiming, TruncateCascadeOption, TruncateTableStmt, TypeAttribute, TypeDefinition,

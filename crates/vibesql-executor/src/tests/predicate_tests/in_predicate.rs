@@ -251,3 +251,179 @@ fn test_empty_not_in_list() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 2); // Empty NOT IN list always returns true
 }
+
+#[test]
+fn test_null_in_empty_subquery() {
+    let mut db = vibesql_storage::Database::new();
+
+    // Create empty table
+    let schema = vibesql_catalog::TableSchema::new(
+        "empty_table".to_string(),
+        vec![vibesql_catalog::ColumnSchema::new("x".to_string(), vibesql_types::DataType::Integer, false)],
+    );
+    db.create_table(schema).unwrap();
+
+    let executor = SelectExecutor::new(&db);
+
+    // SELECT NULL IN (SELECT * FROM empty_table)
+    // Expected: 0 (FALSE), per SQLite behavior
+    // NULL IN empty set returns FALSE, not NULL
+    let stmt = vibesql_ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![vibesql_ast::SelectItem::Expression {
+            expr: vibesql_ast::Expression::In {
+                expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Null)),
+                subquery: Box::new(vibesql_ast::SelectStmt {
+                    with_clause: None,
+                    set_operation: None,
+                    distinct: false,
+                    select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
+                    from: Some(vibesql_ast::FromClause::Table {
+                        name: "empty_table".to_string(),
+                        alias: None,
+                    }),
+                    where_clause: None,
+                    group_by: None,
+                    having: None,
+                    order_by: None,
+                    limit: None,
+                    offset: None,
+                    into_table: None,
+                }),
+                negated: false,
+            },
+            alias: None,
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+        into_table: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Boolean(false));
+}
+
+#[test]
+fn test_null_not_in_empty_subquery() {
+    let mut db = vibesql_storage::Database::new();
+
+    // Create empty table
+    let schema = vibesql_catalog::TableSchema::new(
+        "empty_table".to_string(),
+        vec![vibesql_catalog::ColumnSchema::new("x".to_string(), vibesql_types::DataType::Integer, false)],
+    );
+    db.create_table(schema).unwrap();
+
+    let executor = SelectExecutor::new(&db);
+
+    // SELECT NULL NOT IN (SELECT * FROM empty_table)
+    // Expected: 1 (TRUE), per SQLite behavior
+    // NULL NOT IN empty set returns TRUE, not NULL
+    let stmt = vibesql_ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![vibesql_ast::SelectItem::Expression {
+            expr: vibesql_ast::Expression::In {
+                expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Null)),
+                subquery: Box::new(vibesql_ast::SelectStmt {
+                    with_clause: None,
+                    set_operation: None,
+                    distinct: false,
+                    select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
+                    from: Some(vibesql_ast::FromClause::Table {
+                        name: "empty_table".to_string(),
+                        alias: None,
+                    }),
+                    where_clause: None,
+                    group_by: None,
+                    having: None,
+                    order_by: None,
+                    limit: None,
+                    offset: None,
+                    into_table: None,
+                }),
+                negated: true,
+            },
+            alias: None,
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+        into_table: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Boolean(true));
+}
+
+#[test]
+fn test_value_in_empty_subquery() {
+    let mut db = vibesql_storage::Database::new();
+
+    // Create empty table
+    let schema = vibesql_catalog::TableSchema::new(
+        "empty_table".to_string(),
+        vec![vibesql_catalog::ColumnSchema::new("x".to_string(), vibesql_types::DataType::Integer, false)],
+    );
+    db.create_table(schema).unwrap();
+
+    let executor = SelectExecutor::new(&db);
+
+    // SELECT 1 IN (SELECT * FROM empty_table)
+    // Expected: 0 (FALSE) - should already work, this is a regression test
+    let stmt = vibesql_ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![vibesql_ast::SelectItem::Expression {
+            expr: vibesql_ast::Expression::In {
+                expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1))),
+                subquery: Box::new(vibesql_ast::SelectStmt {
+                    with_clause: None,
+                    set_operation: None,
+                    distinct: false,
+                    select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
+                    from: Some(vibesql_ast::FromClause::Table {
+                        name: "empty_table".to_string(),
+                        alias: None,
+                    }),
+                    where_clause: None,
+                    group_by: None,
+                    having: None,
+                    order_by: None,
+                    limit: None,
+                    offset: None,
+                    into_table: None,
+                }),
+                negated: false,
+            },
+            alias: None,
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+        into_table: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Boolean(false));
+}

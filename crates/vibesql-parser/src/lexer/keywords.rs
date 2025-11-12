@@ -208,6 +208,13 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "RETURN" => Token::Keyword(Keyword::Return),
         "LEAVE" => Token::Keyword(Keyword::Leave),
         "ITERATE" => Token::Keyword(Keyword::Iterate),
+        // Procedure/Function characteristics (Phase 6)
+        "DETERMINISTIC" => Token::Keyword(Keyword::Deterministic),
+        "LANGUAGE" => Token::Keyword(Keyword::Language),
+        "SQL" => Token::Keyword(Keyword::Sql),
+        "SECURITY" => Token::Keyword(Keyword::Security),
+        "DEFINER" => Token::Keyword(Keyword::Definer),
+        "INVOKER" => Token::Keyword(Keyword::Invoker),
         // Internationalization keywords (SQL:1999)
         "GET" => Token::Keyword(Keyword::Get),
         "PAD" => Token::Keyword(Keyword::Pad),

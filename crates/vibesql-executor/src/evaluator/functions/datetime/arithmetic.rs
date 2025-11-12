@@ -7,10 +7,15 @@ use vibesql_types::SqlValue;
 
 use super::extract::{day, hour, minute, month, second, year};
 use crate::errors::ExecutorError;
+use crate::evaluator::coercion::coerce_to_date;
 
 /// DATEDIFF(date1, date2) - Calculate day difference between two dates
 /// SQL:1999 Core Feature E021-02: Date and time arithmetic
 /// Returns: date1 - date2 in days
+///
+/// Supports automatic type coercion from VARCHAR to DATE:
+/// - `DATEDIFF('2024-01-10', '2024-01-01')` returns 9
+/// - `DATEDIFF(DATE '2024-01-10', DATE '2024-01-01')` returns 9
 pub fn datediff(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 2 {
         return Err(ExecutorError::UnsupportedFeature(format!(
@@ -19,8 +24,12 @@ pub fn datediff(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         )));
     }
 
+    // Coerce arguments to dates first (handles VARCHAR, DATE, TIMESTAMP, NULL)
+    let date1 = coerce_to_date(&args[0])?;
+    let date2 = coerce_to_date(&args[1])?;
+
     // Extract date components
-    let (d1, d2) = match (&args[0], &args[1]) {
+    let (d1, d2) = match (&date1, &date2) {
         (SqlValue::Null, _) | (_, SqlValue::Null) => return Ok(SqlValue::Null),
         (SqlValue::Date(date1), SqlValue::Date(date2)) => (date1, date2),
         (SqlValue::Timestamp(ts1), SqlValue::Date(date2)) => (&ts1.date, date2),
@@ -49,14 +58,48 @@ pub fn datediff(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// Alias: ADDDATE
 /// SQL:1999 Core Feature E021-02: Date and time arithmetic
 /// Units: 'YEAR', 'MONTH', 'DAY', 'HOUR', 'MINUTE', 'SECOND'
+///
+/// Supports two syntaxes:
+/// 1. Legacy: `DATE_ADD(date, amount, unit)` - 3 arguments
+///    Example: `DATE_ADD('2024-01-01', 5, 'DAY')`
+/// 2. Standard: `DATE_ADD(date, INTERVAL)` - 2 arguments
+///    Example: `DATE_ADD('2024-01-01', INTERVAL '5' DAY)`
+///
+/// Supports automatic type coercion from VARCHAR to DATE.
 pub fn date_add(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
+    // Support both syntaxes: 2 args (new) or 3 args (legacy)
+    if args.len() == 2 {
+        // New syntax: DATE_ADD(date, INTERVAL '5' DAY)
+        if matches!(&args[0], SqlValue::Null) || matches!(&args[1], SqlValue::Null) {
+            return Ok(SqlValue::Null);
+        }
+
+        // Coerce first argument to date
+        let date_val = coerce_to_date(&args[0])?;
+
+        match &args[1] {
+            SqlValue::Interval(interval) => {
+                // Parse interval and apply
+                let (amount, unit) = parse_simple_interval(&interval.value)?;
+                let date_str = date_val_to_string(&date_val)?;
+                return date_add_subtract(&date_str, amount, &unit, true);
+            }
+            _ => {
+                return Err(ExecutorError::UnsupportedFeature(
+                    "DATE_ADD with 2 arguments requires INTERVAL as second argument".to_string()
+                ))
+            }
+        }
+    }
+
     if args.len() != 3 {
         return Err(ExecutorError::UnsupportedFeature(format!(
-            "DATE_ADD requires exactly 3 arguments (date, amount, unit), got {}",
+            "DATE_ADD requires 2 or 3 arguments, got {}",
             args.len()
         )));
     }
 
+    // Legacy 3-argument syntax: DATE_ADD(date, amount, unit)
     // Handle NULL inputs
     if matches!(&args[0], SqlValue::Null)
         || matches!(&args[1], SqlValue::Null)
@@ -65,17 +108,9 @@ pub fn date_add(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         return Ok(SqlValue::Null);
     }
 
-    // Extract date string
-    let date_str = match &args[0] {
-        SqlValue::Date(d) => d.to_string(),
-        SqlValue::Timestamp(ts) => ts.to_string(),
-        val => {
-            return Err(ExecutorError::UnsupportedFeature(format!(
-                "DATE_ADD requires date/timestamp as first argument, got {:?}",
-                val
-            )))
-        }
-    };
+    // Coerce first argument to date (handles VARCHAR)
+    let date_val = coerce_to_date(&args[0])?;
+    let date_str = date_val_to_string(&date_val)?;
 
     // Extract amount
     let amount = match &args[1] {
@@ -106,14 +141,48 @@ pub fn date_add(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 /// DATE_SUB(date, amount, unit) - Subtract interval from date
 /// Alias: SUBDATE
 /// SQL:1999 Core Feature E021-02: Date and time arithmetic
+///
+/// Supports two syntaxes:
+/// 1. Legacy: `DATE_SUB(date, amount, unit)` - 3 arguments
+///    Example: `DATE_SUB('2024-01-01', 5, 'DAY')`
+/// 2. Standard: `DATE_SUB(date, INTERVAL)` - 2 arguments
+///    Example: `DATE_SUB('2024-01-01', INTERVAL '5' DAY)`
+///
+/// Supports automatic type coercion from VARCHAR to DATE.
 pub fn date_sub(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
+    // Support both syntaxes: 2 args (new) or 3 args (legacy)
+    if args.len() == 2 {
+        // New syntax: DATE_SUB(date, INTERVAL '5' DAY)
+        if matches!(&args[0], SqlValue::Null) || matches!(&args[1], SqlValue::Null) {
+            return Ok(SqlValue::Null);
+        }
+
+        // Coerce first argument to date
+        let date_val = coerce_to_date(&args[0])?;
+
+        match &args[1] {
+            SqlValue::Interval(interval) => {
+                // Parse interval and apply (negate for subtraction)
+                let (amount, unit) = parse_simple_interval(&interval.value)?;
+                let date_str = date_val_to_string(&date_val)?;
+                return date_add_subtract(&date_str, -amount, &unit, true);
+            }
+            _ => {
+                return Err(ExecutorError::UnsupportedFeature(
+                    "DATE_SUB with 2 arguments requires INTERVAL as second argument".to_string()
+                ))
+            }
+        }
+    }
+
     if args.len() != 3 {
         return Err(ExecutorError::UnsupportedFeature(format!(
-            "DATE_SUB requires exactly 3 arguments (date, amount, unit), got {}",
+            "DATE_SUB requires 2 or 3 arguments, got {}",
             args.len()
         )));
     }
 
+    // Legacy 3-argument syntax: DATE_SUB(date, amount, unit)
     // Handle NULL inputs
     if matches!(&args[0], SqlValue::Null)
         || matches!(&args[1], SqlValue::Null)
@@ -122,17 +191,9 @@ pub fn date_sub(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         return Ok(SqlValue::Null);
     }
 
-    // Extract date string
-    let date_str = match &args[0] {
-        SqlValue::Date(d) => d.to_string(),
-        SqlValue::Timestamp(ts) => ts.to_string(),
-        val => {
-            return Err(ExecutorError::UnsupportedFeature(format!(
-                "DATE_SUB requires date/timestamp as first argument, got {:?}",
-                val
-            )))
-        }
-    };
+    // Coerce first argument to date (handles VARCHAR)
+    let date_val = coerce_to_date(&args[0])?;
+    let date_str = date_val_to_string(&date_val)?;
 
     // Extract amount
     let amount = match &args[1] {
@@ -480,5 +541,52 @@ fn calculate_age_components(date1: NaiveDate, date2: NaiveDate) -> (i32, i32, i3
         (-years, -months, -days)
     } else {
         (years, months, days)
+    }
+}
+
+/// Parse a simple interval string like "5 DAY" or "1 MONTH"
+/// Returns (amount, unit)
+///
+/// Supports formats:
+/// - "5 DAY" -> (5, "DAY")
+/// - "1 MONTH" -> (1, "MONTH")
+/// - "-5 DAY" -> (-5, "DAY")
+///
+/// Note: This is a simplified parser for basic INTERVAL expressions.
+/// Compound intervals (e.g., "1-6 YEAR TO MONTH") are not yet supported.
+fn parse_simple_interval(interval_str: &str) -> Result<(i64, String), ExecutorError> {
+    let parts: Vec<&str> = interval_str.trim().split_whitespace().collect();
+
+    if parts.len() < 2 {
+        return Err(ExecutorError::UnsupportedFeature(format!(
+            "Invalid INTERVAL format: '{}'. Expected format: 'amount unit' (e.g., '5 DAY')",
+            interval_str
+        )));
+    }
+
+    // Parse amount (first part)
+    let amount = parts[0].parse::<i64>().map_err(|_| {
+        ExecutorError::UnsupportedFeature(format!(
+            "Invalid INTERVAL amount: '{}'. Expected integer",
+            parts[0]
+        ))
+    })?;
+
+    // Parse unit (remaining parts joined, in case unit is multi-word)
+    let unit = parts[1..].join(" ").to_uppercase();
+
+    Ok((amount, unit))
+}
+
+/// Convert a SqlValue (Date or Timestamp) to string representation
+fn date_val_to_string(value: &SqlValue) -> Result<String, ExecutorError> {
+    match value {
+        SqlValue::Date(d) => Ok(d.to_string()),
+        SqlValue::Timestamp(ts) => Ok(ts.to_string()),
+        SqlValue::Null => Ok("NULL".to_string()), // Should not reach here due to NULL checks
+        val => Err(ExecutorError::UnsupportedFeature(format!(
+            "Expected DATE or TIMESTAMP, got {:?}",
+            val
+        ))),
     }
 }

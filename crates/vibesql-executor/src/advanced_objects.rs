@@ -217,7 +217,7 @@ pub fn execute_create_procedure(
     stmt: &CreateProcedureStmt,
     db: &mut Database,
 ) -> Result<(), ExecutorError> {
-    use vibesql_catalog::{ProcedureBody, ProcedureParam, ParameterMode};
+    use vibesql_catalog::{Procedure, ProcedureBody, ProcedureParam, ParameterMode, SqlSecurity};
 
     // Convert AST parameters to catalog parameters
     let catalog_params = stmt
@@ -246,12 +246,32 @@ pub fn execute_create_procedure(
         vibesql_ast::ProcedureBody::RawSql(sql) => ProcedureBody::RawSql(sql.clone()),
     };
 
-    db.catalog.create_procedure(
-        stmt.procedure_name.clone(),
-        db.catalog.get_current_schema().to_string(),
-        catalog_params,
-        catalog_body,
-    )?;
+    // Convert characteristics (Phase 6)
+    let sql_security = stmt.sql_security.as_ref().map(|sec| match sec {
+        vibesql_ast::SqlSecurity::Definer => SqlSecurity::Definer,
+        vibesql_ast::SqlSecurity::Invoker => SqlSecurity::Invoker,
+    }).unwrap_or(SqlSecurity::Definer);
+
+    let procedure = if stmt.sql_security.is_some() || stmt.comment.is_some() || stmt.language.is_some() {
+        Procedure::with_characteristics(
+            stmt.procedure_name.clone(),
+            db.catalog.get_current_schema().to_string(),
+            catalog_params,
+            catalog_body,
+            sql_security,
+            stmt.comment.clone(),
+            stmt.language.clone().unwrap_or_else(|| "SQL".to_string()),
+        )
+    } else {
+        Procedure::new(
+            stmt.procedure_name.clone(),
+            db.catalog.get_current_schema().to_string(),
+            catalog_params,
+            catalog_body,
+        )
+    };
+
+    db.catalog.create_procedure_with_characteristics(procedure)?;
     Ok(())
 }
 
@@ -277,7 +297,7 @@ pub fn execute_create_function(
     stmt: &CreateFunctionStmt,
     db: &mut Database,
 ) -> Result<(), ExecutorError> {
-    use vibesql_catalog::{FunctionBody, FunctionParam};
+    use vibesql_catalog::{Function, FunctionBody, FunctionParam, SqlSecurity};
 
     // Convert AST parameters to catalog parameters
     let catalog_params = stmt
@@ -298,13 +318,36 @@ pub fn execute_create_function(
         vibesql_ast::ProcedureBody::RawSql(sql) => FunctionBody::RawSql(sql.clone()),
     };
 
-    db.catalog.create_function(
-        stmt.function_name.clone(),
-        db.catalog.get_current_schema().to_string(),
-        catalog_params,
-        stmt.return_type.clone(),
-        catalog_body,
-    )?;
+    // Convert characteristics (Phase 6)
+    let deterministic = stmt.deterministic.unwrap_or(false);
+    let sql_security = stmt.sql_security.as_ref().map(|sec| match sec {
+        vibesql_ast::SqlSecurity::Definer => SqlSecurity::Definer,
+        vibesql_ast::SqlSecurity::Invoker => SqlSecurity::Invoker,
+    }).unwrap_or(SqlSecurity::Definer);
+
+    let function = if stmt.deterministic.is_some() || stmt.sql_security.is_some() || stmt.comment.is_some() || stmt.language.is_some() {
+        Function::with_characteristics(
+            stmt.function_name.clone(),
+            db.catalog.get_current_schema().to_string(),
+            catalog_params,
+            stmt.return_type.clone(),
+            catalog_body,
+            deterministic,
+            sql_security,
+            stmt.comment.clone(),
+            stmt.language.clone().unwrap_or_else(|| "SQL".to_string()),
+        )
+    } else {
+        Function::new(
+            stmt.function_name.clone(),
+            db.catalog.get_current_schema().to_string(),
+            catalog_params,
+            stmt.return_type.clone(),
+            catalog_body,
+        )
+    };
+
+    db.catalog.create_function_with_characteristics(function)?;
     Ok(())
 }
 
