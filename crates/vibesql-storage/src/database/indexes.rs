@@ -97,11 +97,10 @@ impl IndexData {
             }
         }
 
-        // Sort row indices to ensure deterministic order
-        // BTreeMap iteration is sorted by key, but multiple rows can have
-        // the same key value, so we still sort row indices for consistency
-        matching_row_indices.sort_unstable();
-
+        // Return row indices in the order established by BTreeMap iteration
+        // BTreeMap gives us results sorted by index key value, which is the
+        // expected order for indexed queries. We should NOT sort by row index
+        // as that would destroy the index-based ordering.
         matching_row_indices
     }
 
@@ -122,11 +121,10 @@ impl IndexData {
             }
         }
 
-        // Sort row indices to ensure deterministic order
-        // HashMap iteration order is non-deterministic, but test results
-        // must be consistent. Sorting ensures stable output.
-        matching_row_indices.sort_unstable();
-
+        // Return row indices in the order they were collected from BTreeMap
+        // For IN predicates, we collect results for each value in the order
+        // specified. We should NOT sort by row index as that would destroy
+        // the semantic ordering of the results.
         matching_row_indices
     }
 }
@@ -436,5 +434,65 @@ impl IndexManager {
 impl Default for IndexManager {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vibesql_types::SqlValue;
+
+    #[test]
+    fn test_range_scan_preserves_index_order() {
+        // Create index data with rows that are NOT in order by row index
+        // but ARE in order by indexed value
+        let mut data = BTreeMap::new();
+
+        // col0 values: row 1 has 50, row 2 has 60, row 0 has 70
+        // Index should be sorted by value: 50, 60, 70
+        data.insert(vec![SqlValue::Integer(50)], vec![1]);
+        data.insert(vec![SqlValue::Integer(60)], vec![2]);
+        data.insert(vec![SqlValue::Integer(70)], vec![0]);
+
+        let index_data = IndexData { data };
+
+        // Query: col0 > 55 should return rows in index order: [2, 0] (values 60, 70)
+        let result = index_data.range_scan(
+            Some(&SqlValue::Integer(55)),
+            None,
+            false, // exclusive start
+            false,
+        );
+
+        // Result should be [2, 0] NOT [0, 2]
+        // This preserves the index ordering (60 comes before 70)
+        assert_eq!(result, vec![2, 0],
+            "range_scan should return rows in index order (by value), not row index order");
+    }
+
+    #[test]
+    fn test_range_scan_between_preserves_order() {
+        // Test BETWEEN queries maintain index order
+        let mut data = BTreeMap::new();
+
+        // Values out of row-index order
+        data.insert(vec![SqlValue::Integer(40)], vec![5]);
+        data.insert(vec![SqlValue::Integer(50)], vec![1]);
+        data.insert(vec![SqlValue::Integer(60)], vec![2]);
+        data.insert(vec![SqlValue::Integer(70)], vec![0]);
+
+        let index_data = IndexData { data };
+
+        // Query: col0 BETWEEN 45 AND 65 (i.e., col0 >= 45 AND col0 <= 65)
+        let result = index_data.range_scan(
+            Some(&SqlValue::Integer(45)),
+            Some(&SqlValue::Integer(65)),
+            true,  // inclusive start
+            true,  // inclusive end
+        );
+
+        // Should return [1, 2] (values 50, 60) in that order
+        assert_eq!(result, vec![1, 2],
+            "BETWEEN should return rows in index order");
     }
 }
