@@ -140,6 +140,12 @@ pub enum TableConstraintKind {
     Check {
         expr: Box<Expression>,
     },
+    /// FULLTEXT index constraint
+    /// Example: FULLTEXT INDEX ft_search (title, body)
+    Fulltext {
+        index_name: Option<String>,
+        columns: Vec<String>,
+    },
 }
 
 /// DROP TABLE statement

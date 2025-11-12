@@ -298,6 +298,66 @@ impl Parser {
             self.expect_keyword(Keyword::For)?;
             let sequence_name = self.parse_identifier()?;
             Ok(Some(vibesql_ast::Expression::NextValue { sequence_name }))
+        } else if self.peek_keyword(Keyword::Match) {
+            // MATCH...AGAINST full-text search
+            self.advance(); // consume MATCH
+            self.expect_token(Token::LParen)?;
+
+            // Parse column list
+            let mut columns = Vec::new();
+            loop {
+                let col = self.parse_identifier()?;
+                columns.push(col);
+                if !matches!(self.peek(), Token::Comma) {
+                    break;
+                }
+                self.advance(); // consume comma
+            }
+
+            self.expect_token(Token::RParen)?;
+
+            // Expect AGAINST keyword
+            self.expect_keyword(Keyword::Against)?;
+            self.expect_token(Token::LParen)?;
+
+            // Parse search string (primary expression, not full expression with operators)
+            // This prevents IN keyword from being parsed as an IN operator
+            let search_modifier = Box::new(self.parse_primary_expression()?);
+
+            // Check for search mode modifier
+            let mode = if self.peek_keyword(Keyword::In) {
+                self.advance(); // consume IN
+                if self.peek_keyword(Keyword::Boolean) {
+                    self.advance(); // consume BOOLEAN
+                    // MODE is a required keyword after BOOLEAN in MySQL syntax
+                    // It might be a keyword or identifier depending on lexer
+                    if matches!(self.peek(), Token::Identifier(s) | Token::DelimitedIdentifier(s) if s.eq_ignore_ascii_case("MODE")) {
+                        self.advance(); // consume MODE
+                    } else if self.peek_keyword(Keyword::Mode) {
+                        self.advance(); // consume MODE keyword if it exists
+                    }
+                    vibesql_ast::FulltextMode::Boolean
+                } else {
+                    return Err(ParseError {
+                        message: "Expected BOOLEAN after IN".to_string(),
+                    });
+                }
+            } else if self.peek_keyword(Keyword::With) {
+                self.advance(); // consume WITH
+                self.expect_keyword(Keyword::Query)?;
+                self.expect_keyword(Keyword::Expansion)?;
+                vibesql_ast::FulltextMode::QueryExpansion
+            } else {
+                vibesql_ast::FulltextMode::NaturalLanguage
+            };
+
+            self.expect_token(Token::RParen)?;
+
+            Ok(Some(vibesql_ast::Expression::MatchAgainst {
+                columns,
+                search_modifier,
+                mode,
+            }))
         } else {
             Ok(None)
         }

@@ -228,6 +228,14 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "COMPRESSED" => Token::Keyword(Keyword::Compressed),
         "REDUNDANT" => Token::Keyword(Keyword::Redundant),
         "COMPACT" => Token::Keyword(Keyword::Compact),
+        // Full-text search keywords
+        "FULLTEXT" => Token::Keyword(Keyword::Fulltext),
+        "MATCH" => Token::Keyword(Keyword::Match),
+        "AGAINST" => Token::Keyword(Keyword::Against),
+        "BOOLEAN" => Token::Keyword(Keyword::Boolean),
+        "EXPANSION" => Token::Keyword(Keyword::Expansion),
+        "MODE" => Token::Keyword(Keyword::Mode),
+        "QUERY" => Token::Keyword(Keyword::Query),
         _ => Token::Identifier(upper_text), // Regular identifiers are normalized to uppercase
     }
 }

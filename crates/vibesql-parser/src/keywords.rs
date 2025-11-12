@@ -230,6 +230,14 @@ pub enum Keyword {
     Compressed,
     Redundant,
     Compact,
+    // Full-text search keywords
+    Fulltext,
+    Match,
+    Against,
+    Boolean,
+    Expansion,
+    Mode,
+    Query,
 }
 
 impl Keyword {
@@ -450,6 +458,14 @@ impl fmt::Display for Keyword {
             Keyword::Compressed => "COMPRESSED",
             Keyword::Redundant => "REDUNDANT",
             Keyword::Compact => "COMPACT",
+            // Full-text search keywords
+            Keyword::Fulltext => "FULLTEXT",
+            Keyword::Match => "MATCH",
+            Keyword::Against => "AGAINST",
+            Keyword::Boolean => "BOOLEAN",
+            Keyword::Expansion => "EXPANSION",
+            Keyword::Mode => "MODE",
+            Keyword::Query => "QUERY",
         };
         write!(f, "{}", keyword_str)
     }
