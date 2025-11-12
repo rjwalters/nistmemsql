@@ -38,6 +38,10 @@ pub struct Database {
     current_role: Option<String>,
     /// Whether security checks are enabled (can be disabled for testing)
     security_enabled: bool,
+    /// Session variables (MySQL-style @variables)
+    /// Key: normalized variable name (uppercase)
+    /// Value: variable value
+    session_variables: HashMap<String, vibesql_types::SqlValue>,
 }
 
 impl Database {
@@ -55,6 +59,7 @@ impl Database {
             current_role: None,
             // Disabled by default for backward compatibility
             security_enabled: false,
+            session_variables: HashMap::new(),
         }
     }
 
@@ -70,6 +75,7 @@ impl Database {
         self.transaction_manager = TransactionManager::new();
         self.current_role = None;
         self.security_enabled = false;
+        self.session_variables.clear();
     }
 
     /// Record a change in the current transaction (if any)
@@ -352,6 +358,27 @@ impl Database {
     /// Enable security checks
     pub fn enable_security(&mut self) {
         self.security_enabled = true;
+    }
+
+    // ============================================================================
+    // Session Variables
+    // ============================================================================
+
+    /// Set a session variable (MySQL-style @variable)
+    pub fn set_session_variable(&mut self, name: &str, value: vibesql_types::SqlValue) {
+        let normalized_name = name.to_uppercase();
+        self.session_variables.insert(normalized_name, value);
+    }
+
+    /// Get a session variable value
+    pub fn get_session_variable(&self, name: &str) -> Option<&vibesql_types::SqlValue> {
+        let normalized_name = name.to_uppercase();
+        self.session_variables.get(&normalized_name)
+    }
+
+    /// Clear all session variables
+    pub fn clear_session_variables(&mut self) {
+        self.session_variables.clear();
     }
 
     // ============================================================================

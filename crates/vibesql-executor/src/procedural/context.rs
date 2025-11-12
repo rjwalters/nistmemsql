@@ -41,6 +41,9 @@ pub struct ExecutionContext {
     max_recursion: usize,
     /// Whether this is a function context (read-only, cannot modify data)
     pub(crate) is_function: bool,
+    /// Track which parameters are OUT/INOUT and their target variable names
+    /// Key: parameter name (uppercase), Value: target variable name (as specified in CALL)
+    out_parameters: HashMap<String, String>,
 }
 
 impl ExecutionContext {
@@ -53,6 +56,7 @@ impl ExecutionContext {
             recursion_depth: 0,
             max_recursion: MAX_RECURSION_DEPTH,
             is_function: false,
+            out_parameters: HashMap::new(),
         }
     }
 
@@ -65,6 +69,7 @@ impl ExecutionContext {
             recursion_depth: depth,
             max_recursion: MAX_RECURSION_DEPTH,
             is_function: false,
+            out_parameters: HashMap::new(),
         }
     }
 
@@ -151,6 +156,17 @@ impl ExecutionContext {
     /// Get all parameters (for OUT/INOUT return)
     pub fn get_all_parameters(&self) -> &HashMap<String, SqlValue> {
         &self.parameters
+    }
+
+    /// Register an OUT or INOUT parameter with its target variable name
+    pub fn register_out_parameter(&mut self, param_name: &str, target_var_name: String) {
+        self.out_parameters.insert(param_name.to_uppercase(), target_var_name);
+    }
+
+    /// Get all OUT/INOUT parameters for return
+    /// Returns a HashMap of parameter name -> target variable name
+    pub fn get_out_parameters(&self) -> &HashMap<String, String> {
+        &self.out_parameters
     }
 }
 

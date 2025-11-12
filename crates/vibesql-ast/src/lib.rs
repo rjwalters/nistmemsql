@@ -31,7 +31,7 @@ pub use ddl::{
     RowFormat, SavepointStmt, SchemaElement, SetCatalogStmt, SetNamesStmt, SetSchemaStmt,
     SetTimeZoneStmt, SetTransactionStmt, TableConstraint, TableConstraintKind, TableOption,
     TimeZoneSpec, TransactionAccessMode, TriggerAction, TriggerEvent, TriggerGranularity,
-    TriggerTiming, TruncateTableStmt, TypeAttribute, TypeDefinition,
+    TriggerTiming, TruncateCascadeOption, TruncateTableStmt, TypeAttribute, TypeDefinition,
 };
 pub use dml::{
     Assignment, ConflictClause, DeleteStmt, InsertSource, InsertStmt, UpdateStmt, WhereClause,
