@@ -134,6 +134,23 @@ impl ExpressionEvaluator<'_> {
             _ => {}
         }
 
+        // Check for user-defined functions (Phase 5)
+        // Note: UDF execution requires mutable database access, which we don't have here.
+        // For now, we'll check if the function exists and return a helpful error.
+        // Full UDF support will require refactoring the evaluator to support mutable access.
+        if let Some(db) = self.database {
+            if db.catalog.function_exists(name) {
+                return Err(ExecutorError::UnsupportedFeature(
+                    format!(
+                        "User-defined function '{}' found but cannot be executed in this context. \
+                         UDF execution from SELECT expressions requires mutable database access. \
+                         This is a known limitation that will be addressed in a future phase.",
+                        name
+                    )
+                ));
+            }
+        }
+
         // Standard function call: evaluate all arguments eagerly
         let mut arg_values = Vec::new();
         for arg in args {

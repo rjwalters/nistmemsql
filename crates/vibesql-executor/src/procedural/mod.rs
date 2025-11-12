@@ -14,6 +14,8 @@
 pub mod context;
 pub mod executor;
 pub mod control_flow;
+pub mod function;
 
 pub use context::{ExecutionContext, ControlFlow};
 pub use executor::execute_procedural_statement;
+pub use function::execute_user_function;

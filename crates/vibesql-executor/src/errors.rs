@@ -99,6 +99,23 @@ pub enum ExecutorError {
     LabelNotFound(String),
     /// Type error in expression evaluation
     TypeError(String),
+    /// Function argument count mismatch
+    ArgumentCountMismatch {
+        expected: usize,
+        actual: usize,
+    },
+    /// Recursion limit exceeded in function/procedure calls
+    RecursionLimitExceeded(String),
+    /// Function must return a value but did not
+    FunctionMustReturn,
+    /// Invalid control flow (e.g., LEAVE/ITERATE outside of loop)
+    InvalidControlFlow(String),
+    /// Invalid function body syntax
+    InvalidFunctionBody(String),
+    /// Function attempted to modify data (read-only violation)
+    FunctionReadOnlyViolation(String),
+    /// Parse error
+    ParseError(String),
     Other(String),
 }
 
@@ -245,6 +262,27 @@ impl std::fmt::Display for ExecutorError {
             }
             ExecutorError::TypeError(msg) => {
                 write!(f, "Type error: {}", msg)
+            }
+            ExecutorError::ArgumentCountMismatch { expected, actual } => {
+                write!(f, "Argument count mismatch: expected {}, got {}", expected, actual)
+            }
+            ExecutorError::RecursionLimitExceeded(msg) => {
+                write!(f, "Recursion limit exceeded: {}", msg)
+            }
+            ExecutorError::FunctionMustReturn => {
+                write!(f, "Function must return a value")
+            }
+            ExecutorError::InvalidControlFlow(msg) => {
+                write!(f, "Invalid control flow: {}", msg)
+            }
+            ExecutorError::InvalidFunctionBody(msg) => {
+                write!(f, "Invalid function body: {}", msg)
+            }
+            ExecutorError::FunctionReadOnlyViolation(msg) => {
+                write!(f, "Function read-only violation: {}", msg)
+            }
+            ExecutorError::ParseError(msg) => {
+                write!(f, "Parse error: {}", msg)
             }
             ExecutorError::Other(msg) => write!(f, "{}", msg),
         }
