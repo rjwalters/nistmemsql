@@ -53,7 +53,6 @@ fn test_index_ordering() {
             ],
         ]),
         conflict_clause: None,
-        conflict_clause: None,
     };
 
     vibesql_executor::InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
@@ -63,7 +62,7 @@ fn test_index_ordering() {
         index_name: "idx_users_name".to_string(),
         if_not_exists: false,
         table_name: "users".to_string(),
-        unique: false,
+        index_type: vibesql_ast::IndexType::Btree,
         columns: vec![IndexColumn {
             column_name: "name".to_string(),
             direction: OrderDirection::Asc,

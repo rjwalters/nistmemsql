@@ -156,6 +156,16 @@ pub(super) fn eval_scalar_function(
         "ST_DWITHIN" | "ST_D_WITHIN" => spatial::predicates::st_dwithin(args),
         "ST_RELATE" => spatial::predicates::st_relate(args),
 
+        // Spatial measurement functions
+        "ST_DISTANCE" => spatial::measurements::st_distance(args),
+        "ST_LENGTH" => spatial::measurements::st_length(args),
+        "ST_PERIMETER" => spatial::measurements::st_perimeter(args),
+        "ST_AREA" => spatial::measurements::st_area(args),
+        "ST_CENTROID" => spatial::measurements::st_centroid(args),
+        "ST_ENVELOPE" => spatial::measurements::st_envelope(args),
+        "ST_CONVEXHULL" | "ST_CONVEX_HULL" => spatial::measurements::st_convex_hull(args),
+        "ST_POINTONSURFACE" | "ST_POINT_ON_SURFACE" => spatial::measurements::st_point_on_surface(args),
+
         // Unknown function
         _ => Err(ExecutorError::UnsupportedFeature(format!("Unknown function: {}", name))),
     }
