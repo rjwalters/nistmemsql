@@ -7,6 +7,7 @@
 //! - `numeric`: Mathematical operations (ABS, ROUND, POWER, SIN, etc.)
 //! - `datetime`: Date/time operations (CURRENT_DATE, YEAR, DATE_ADD, etc.)
 //! - `control`: Control flow (IF)
+//! - `spatial`: Spatial/geometric functions (ST_GeomFromText, ST_Contains, ST_Intersects, etc.)
 //!
 //! ## Usage
 //!
@@ -23,6 +24,7 @@ mod null_handling;
 mod numeric;
 pub(crate) mod string;
 mod system;
+mod spatial;
 
 /// Evaluate a scalar function on given argument values
 ///
@@ -113,6 +115,34 @@ pub(super) fn eval_scalar_function(
         "VERSION" => system::version(args),
         "DATABASE" | "SCHEMA" => system::database(args, name),
         "USER" | "CURRENT_USER" => system::user(args, name),
+
+        // Spatial/Geometric functions - Phase 1 (WKT)
+        "ST_GEOMFROMTEXT" => spatial::st_geomfromtext(args),
+        "ST_POINTFROMTEXT" => spatial::st_pointfromtext(args),
+        "ST_LINEFROMTEXT" => spatial::st_linefromtext(args),
+        "ST_POLYGONFROMTEXT" => spatial::st_polygonfromtext(args),
+        "ST_X" => spatial::st_x(args),
+        "ST_Y" => spatial::st_y(args),
+        "ST_GEOMETRYTYPE" => spatial::st_geometrytype(args),
+        "ST_DIMENSION" => spatial::st_dimension(args),
+        "ST_SRID" => spatial::st_srid(args),
+        "ST_ASTEXT" => spatial::st_astext(args),
+        "ST_ASGEOJSON" => spatial::st_asgeojson(args),
+        "ST_ASBINARY" => spatial::st_asbinary(args),
+
+        // Spatial/Geometric functions - Phase 3 (Predicates)
+        "ST_CONTAINS" => spatial::st_contains(args),
+        "ST_WITHIN" => spatial::st_within(args),
+        "ST_INTERSECTS" => spatial::st_intersects(args),
+        "ST_DISJOINT" => spatial::st_disjoint(args),
+        "ST_EQUALS" => spatial::st_equals(args),
+        "ST_TOUCHES" => spatial::st_touches(args),
+        "ST_CROSSES" => spatial::st_crosses(args),
+        "ST_OVERLAPS" => spatial::st_overlaps(args),
+        "ST_COVERS" => spatial::st_covers(args),
+        "ST_COVEREDBY" => spatial::st_coveredby(args),
+        "ST_DWITHIN" => spatial::st_dwithin(args),
+        "ST_RELATE" => spatial::st_relate(args),
 
         // Unknown function
         _ => Err(ExecutorError::UnsupportedFeature(format!("Unknown function: {}", name))),

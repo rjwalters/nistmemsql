@@ -18,6 +18,8 @@ vibesql-parser = { version = "0.1.0", path = "../vibesql-parser" }
 chrono = "0.4"
 rayon = "1.10"
 indexmap = "2.0"
+geo = "0.28"
+wkt = "0.10"
 
 [dev-dependencies]
 vibesql-parser = { version = "0.1.0", path = "../vibesql-parser" }
@@ -54,6 +56,10 @@ path = "tests/string_edge_case_tests.rs"
 [[test]]
 name = "predicate_pushdown_tests"
 path = "tests/predicate_pushdown_tests.rs"
+
+[[test]]
+name = "spatial_function_tests"
+path = "tests/spatial_function_tests.rs"
 
 [[bench]]
 name = "iterator_execution"
