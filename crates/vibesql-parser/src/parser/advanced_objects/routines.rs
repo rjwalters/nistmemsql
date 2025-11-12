@@ -322,6 +322,7 @@ impl Parser {
             None
         };
 
+        self.expect_keyword(Keyword::End)?;
         self.expect_keyword(Keyword::If)?;
         self.expect_token(Token::Semicolon)?;
 
@@ -341,6 +342,7 @@ impl Parser {
 
         let statements = self.parse_procedural_statements_until(&[Keyword::End])?;
 
+        self.expect_keyword(Keyword::End)?;
         self.expect_keyword(Keyword::While)?;
         self.expect_token(Token::Semicolon)?;
 
