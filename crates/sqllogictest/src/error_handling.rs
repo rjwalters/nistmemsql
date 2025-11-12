@@ -302,7 +302,6 @@ pub fn format_diff(
 }
 
 pub fn format_column_diff(expected: &str, actual: &str, colorize: bool) -> String {
-    use itertools::Itertools;
 
     let (expected, actual) = TextDiff::from_chars(expected, actual)
         .iter_all_changes()

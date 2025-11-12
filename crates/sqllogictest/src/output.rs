@@ -1,7 +1,5 @@
 //! Output handling and validation for sqllogictest execution.
 
-use std::sync::Arc;
-
 use itertools::Itertools;
 
 use crate::error_handling::AnyError;

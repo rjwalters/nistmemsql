@@ -33,6 +33,9 @@ fn test_parse_create_table_basic() {
 fn test_parse_create_table_various_types() {
     let result =
         Parser::parse_sql("CREATE TABLE test (id INT, flag BOOLEAN, birth DATE, code CHAR(5));");
+    if let Err(ref e) = result {
+        eprintln!("Parse error: {}", e);
+    }
     assert!(result.is_ok());
     let stmt = result.unwrap();
 

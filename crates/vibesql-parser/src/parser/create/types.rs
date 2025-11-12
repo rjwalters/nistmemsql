@@ -12,6 +12,7 @@ impl Parser {
             Token::Keyword(Keyword::Timestamp) => "TIMESTAMP".to_string(),
             Token::Keyword(Keyword::Interval) => "INTERVAL".to_string(),
             Token::Keyword(Keyword::Character) => "CHARACTER".to_string(),
+            Token::Keyword(Keyword::Boolean) => "BOOLEAN".to_string(),
             // MySQL-specific types that are keywords
             Token::Keyword(Keyword::Set) => "SET".to_string(),
             _ => return Err(ParseError { message: "Expected data type".to_string() }),

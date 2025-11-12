@@ -116,6 +116,7 @@ fn to_geo_geometry(geom: &Geometry) -> Result<geo::Geometry<f64>, ExecutorError>
 }
 
 /// Convert geo::Geometry back to internal Geometry representation
+#[allow(dead_code)]
 fn from_geo_geometry(geom: &geo::Geometry<f64>) -> Result<Geometry, ExecutorError> {
     match geom {
         geo::Geometry::Point(p) => {

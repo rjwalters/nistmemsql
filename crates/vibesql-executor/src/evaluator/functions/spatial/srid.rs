@@ -69,6 +69,7 @@ pub fn st_set_srid(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 }
 
 /// ST_Transform(geom, target_srid) - Transform geometry to different SRID (stub for Phase 4)
+#[allow(dead_code)]
 pub fn st_transform(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 2 {
         return Err(ExecutorError::UnsupportedFeature(format!(

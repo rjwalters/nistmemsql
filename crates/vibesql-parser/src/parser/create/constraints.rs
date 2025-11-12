@@ -125,6 +125,10 @@ impl Parser {
                 }
                 Token::Keyword(Keyword::Unique) => {
                     self.advance(); // consume UNIQUE
+                    // MySQL allows optional KEY keyword after UNIQUE
+                    if self.peek_keyword(Keyword::Key) {
+                        self.advance(); // consume KEY
+                    }
                     constraints.push(vibesql_ast::ColumnConstraint {
                         name,
                         kind: vibesql_ast::ColumnConstraintKind::Unique,

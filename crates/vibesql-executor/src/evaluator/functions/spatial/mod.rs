@@ -44,6 +44,7 @@ pub enum Geometry {
     GeometryCollection { geometries: Vec<Geometry> },
 }
 
+#[allow(dead_code)]
 impl Geometry {
     /// Get the type name
     pub fn geometry_type(&self) -> &'static str {
@@ -175,6 +176,7 @@ impl Geometry {
     }
 }
 
+#[allow(dead_code)]
 impl GeometryWithSRID {
     /// Create new geometry with SRID
     pub fn new(geometry: Geometry, srid: i32) -> Self {
@@ -277,6 +279,7 @@ pub fn sql_value_to_geometry(value: &SqlValue) -> Result<GeometryWithSRID, Execu
 }
 
 /// Binary data value for WKB representation
+#[allow(dead_code)]
 pub fn binary_to_sql_value(data: Vec<u8>) -> SqlValue {
     SqlValue::Varchar(format!("0x{}", hex::encode(data)))
 }

@@ -299,6 +299,7 @@ fn read_f64(cursor: &mut Cursor<&[u8]>, byte_order: ByteOrder) -> Result<f64, Ex
 // WKB Serialization
 
 /// Convert a geometry to WKB (Well-Known Binary) format
+#[allow(dead_code)]
 pub fn geometry_to_wkb(geom: &Geometry) -> Vec<u8> {
     let mut buf = Vec::new();
     buf.push(ByteOrder::LittleEndian as u8); // Use little-endian

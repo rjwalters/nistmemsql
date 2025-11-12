@@ -569,8 +569,15 @@ SELECT - 57 col2 FROM tab0
 async fn run_single_test_file() {
     use std::path::Path;
 
-    let test_file = std::env::var("SQLLOGICTEST_FILE")
-        .expect("SQLLOGICTEST_FILE environment variable must be set");
+    // Skip test if SQLLOGICTEST_FILE environment variable is not set
+    let test_file = match std::env::var("SQLLOGICTEST_FILE") {
+        Ok(file) => file,
+        Err(_) => {
+            eprintln!("Skipping run_single_test_file: SQLLOGICTEST_FILE environment variable not set");
+            eprintln!("Usage: SQLLOGICTEST_FILE=path/to/file.test cargo test -p vibesql --test sqllogictest_runner run_single_test_file");
+            return;
+        }
+    };
 
     let full_path = if Path::new(&test_file).is_absolute() {
         test_file.clone()
