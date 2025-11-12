@@ -82,60 +82,48 @@ impl SqlExecutor {
                 }
             }
             vibesql_ast::Statement::CreateTable(create_stmt) => {
-                let mut db_mut = self.db.clone();
-                match vibesql_executor::CreateTableExecutor::execute(&create_stmt, &mut db_mut) {
+                match vibesql_executor::CreateTableExecutor::execute(&create_stmt, &mut self.db) {
                     Ok(_) => {
-                        self.db = db_mut;
                         result.row_count = 0; // DDL doesn't return rows
                     }
                     Err(e) => return Err(anyhow::anyhow!("{}", e)),
                 }
             }
             vibesql_ast::Statement::Insert(insert_stmt) => {
-                let mut db_mut = self.db.clone();
-                match vibesql_executor::InsertExecutor::execute(&mut db_mut, &insert_stmt) {
+                match vibesql_executor::InsertExecutor::execute(&mut self.db, &insert_stmt) {
                     Ok(affected_rows) => {
-                        self.db = db_mut;
                         result.row_count = affected_rows;
                     }
                     Err(e) => return Err(anyhow::anyhow!("{}", e)),
                 }
             }
             vibesql_ast::Statement::Update(update_stmt) => {
-                let mut db_mut = self.db.clone();
-                match vibesql_executor::UpdateExecutor::execute(&update_stmt, &mut db_mut) {
+                match vibesql_executor::UpdateExecutor::execute(&update_stmt, &mut self.db) {
                     Ok(affected_rows) => {
-                        self.db = db_mut;
                         result.row_count = affected_rows;
                     }
                     Err(e) => return Err(anyhow::anyhow!("{}", e)),
                 }
             }
             vibesql_ast::Statement::Delete(delete_stmt) => {
-                let mut db_mut = self.db.clone();
-                match vibesql_executor::DeleteExecutor::execute(&delete_stmt, &mut db_mut) {
+                match vibesql_executor::DeleteExecutor::execute(&delete_stmt, &mut self.db) {
                     Ok(affected_rows) => {
-                        self.db = db_mut;
                         result.row_count = affected_rows;
                     }
                     Err(e) => return Err(anyhow::anyhow!("{}", e)),
                 }
             }
             vibesql_ast::Statement::CreateView(view_stmt) => {
-                let mut db_mut = self.db.clone();
-                match vibesql_executor::advanced_objects::execute_create_view(&view_stmt, &mut db_mut) {
+                match vibesql_executor::advanced_objects::execute_create_view(&view_stmt, &mut self.db) {
                     Ok(_) => {
-                        self.db = db_mut;
                         result.row_count = 0; // DDL doesn't return rows
                     }
                     Err(e) => return Err(anyhow::anyhow!("{}", e)),
                 }
             }
             vibesql_ast::Statement::DropView(drop_stmt) => {
-                let mut db_mut = self.db.clone();
-                match vibesql_executor::advanced_objects::execute_drop_view(&drop_stmt, &mut db_mut) {
+                match vibesql_executor::advanced_objects::execute_drop_view(&drop_stmt, &mut self.db) {
                     Ok(_) => {
-                        self.db = db_mut;
                         result.row_count = 0; // DDL doesn't return rows
                     }
                     Err(e) => return Err(anyhow::anyhow!("{}", e)),
