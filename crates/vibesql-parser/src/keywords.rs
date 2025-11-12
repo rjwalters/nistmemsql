@@ -146,6 +146,7 @@ pub enum Keyword {
     Translation,
     View,
     Index,
+    Reindex,
     Assertion,
     Specific,
     // Trigger-specific keywords
@@ -372,6 +373,7 @@ impl fmt::Display for Keyword {
             Keyword::Translation => "TRANSLATION",
             Keyword::View => "VIEW",
             Keyword::Index => "INDEX",
+            Keyword::Reindex => "REINDEX",
             Keyword::Assertion => "ASSERTION",
             Keyword::Specific => "SPECIFIC",
             Keyword::Before => "BEFORE",

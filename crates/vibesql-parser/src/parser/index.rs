@@ -1,4 +1,4 @@
-//! Parser for CREATE INDEX and DROP INDEX statements
+//! Parser for CREATE INDEX, DROP INDEX, and REINDEX statements
 
 use super::{ParseError, Parser};
 use crate::{keywords::Keyword, token::Token};
@@ -103,5 +103,25 @@ impl Parser {
         let index_name = self.parse_identifier()?;
 
         Ok(vibesql_ast::DropIndexStmt { if_exists, index_name })
+    }
+
+    /// Parse REINDEX statement
+    ///
+    /// Syntax:
+    ///   REINDEX [database_name | table_name | index_name]
+    pub(super) fn parse_reindex_statement(&mut self) -> Result<vibesql_ast::ReindexStmt, ParseError> {
+        // Expect REINDEX keyword
+        self.expect_keyword(Keyword::Reindex)?;
+
+        // Check for optional target (database, table, or index name)
+        let target = if self.peek() == &Token::Semicolon || self.peek() == &Token::Eof {
+            // No target specified - reindex all
+            None
+        } else {
+            // Parse optional identifier (could be database, table, or index name)
+            Some(self.parse_identifier()?)
+        };
+
+        Ok(vibesql_ast::ReindexStmt { target })
     }
 }
