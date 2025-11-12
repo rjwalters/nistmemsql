@@ -204,3 +204,135 @@ pub fn execute_drop_assertion(
     db.catalog.drop_assertion(&stmt.assertion_name, stmt.cascade)?;
     Ok(())
 }
+
+/// Execute CREATE PROCEDURE statement (SQL:1999 Feature P001)
+pub fn execute_create_procedure(
+    stmt: &CreateProcedureStmt,
+    db: &mut Database,
+) -> Result<(), ExecutorError> {
+    use vibesql_catalog::{ProcedureBody, ProcedureParam, ParameterMode};
+
+    // Convert AST parameters to catalog parameters
+    let catalog_params = stmt
+        .parameters
+        .iter()
+        .map(|param| {
+            let mode = match param.mode {
+                vibesql_ast::ParameterMode::In => ParameterMode::In,
+                vibesql_ast::ParameterMode::Out => ParameterMode::Out,
+                vibesql_ast::ParameterMode::InOut => ParameterMode::InOut,
+            };
+            ProcedureParam {
+                mode,
+                name: param.name.clone(),
+                data_type: param.data_type.clone(),
+            }
+        })
+        .collect();
+
+    // Convert AST body to catalog body
+    let catalog_body = match &stmt.body {
+        vibesql_ast::ProcedureBody::BeginEnd(_) => {
+            // For now, store as RawSql. Full execution support comes later.
+            ProcedureBody::RawSql(format!("{:?}", stmt.body))
+        }
+        vibesql_ast::ProcedureBody::RawSql(sql) => ProcedureBody::RawSql(sql.clone()),
+    };
+
+    db.catalog.create_procedure(
+        stmt.procedure_name.clone(),
+        db.catalog.get_current_schema().to_string(),
+        catalog_params,
+        catalog_body,
+    )?;
+    Ok(())
+}
+
+/// Execute DROP PROCEDURE statement (SQL:1999 Feature P001)
+pub fn execute_drop_procedure(
+    stmt: &DropProcedureStmt,
+    db: &mut Database,
+) -> Result<(), ExecutorError> {
+    // Check if procedure exists
+    let procedure_exists = db.catalog.procedure_exists(&stmt.procedure_name);
+
+    // If IF EXISTS is specified and procedure doesn't exist, succeed silently
+    if stmt.if_exists && !procedure_exists {
+        return Ok(());
+    }
+
+    db.catalog.drop_procedure(&stmt.procedure_name)?;
+    Ok(())
+}
+
+/// Execute CREATE FUNCTION statement (SQL:1999 Feature P001)
+pub fn execute_create_function(
+    stmt: &CreateFunctionStmt,
+    db: &mut Database,
+) -> Result<(), ExecutorError> {
+    use vibesql_catalog::{FunctionBody, FunctionParam};
+
+    // Convert AST parameters to catalog parameters
+    let catalog_params = stmt
+        .parameters
+        .iter()
+        .map(|param| FunctionParam {
+            name: param.name.clone(),
+            data_type: param.data_type.clone(),
+        })
+        .collect();
+
+    // Convert AST body to catalog body
+    let catalog_body = match &stmt.body {
+        vibesql_ast::ProcedureBody::BeginEnd(_) => {
+            // For now, store as RawSql. Full execution support comes later.
+            FunctionBody::RawSql(format!("{:?}", stmt.body))
+        }
+        vibesql_ast::ProcedureBody::RawSql(sql) => FunctionBody::RawSql(sql.clone()),
+    };
+
+    db.catalog.create_function(
+        stmt.function_name.clone(),
+        db.catalog.get_current_schema().to_string(),
+        catalog_params,
+        stmt.return_type.clone(),
+        catalog_body,
+    )?;
+    Ok(())
+}
+
+/// Execute DROP FUNCTION statement (SQL:1999 Feature P001)
+pub fn execute_drop_function(
+    stmt: &DropFunctionStmt,
+    db: &mut Database,
+) -> Result<(), ExecutorError> {
+    // Check if function exists
+    let function_exists = db.catalog.function_exists(&stmt.function_name);
+
+    // If IF EXISTS is specified and function doesn't exist, succeed silently
+    if stmt.if_exists && !function_exists {
+        return Ok(());
+    }
+
+    db.catalog.drop_function(&stmt.function_name)?;
+    Ok(())
+}
+
+/// Execute CALL statement (SQL:1999 Feature P001)
+///
+/// Currently returns success after registering the call.
+/// Full execution of procedure logic will be implemented in a later phase.
+pub fn execute_call(
+    stmt: &CallStmt,
+    _db: &mut Database,
+) -> Result<(), ExecutorError> {
+    // TODO: Phase 4 - Execute procedure body
+    // For now, just succeed. The procedure should exist (checked during parsing/planning).
+    // In the future, this will:
+    // 1. Look up the procedure definition
+    // 2. Bind arguments to parameters
+    // 3. Create execution context (variable scope)
+    // 4. Execute procedural statements
+    // 5. Return output parameter values
+    Ok(())
+}

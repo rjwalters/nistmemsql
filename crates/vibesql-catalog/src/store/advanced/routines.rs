@@ -114,7 +114,7 @@ impl super::super::Catalog {
                 name,
                 schema,
                 Vec::new(), // Empty parameter list
-                vibesql_types::DataType::Unknown,
+                vibesql_types::DataType::Null,
                 FunctionBody::RawSql(String::new()), // Empty body
             ),
         );
