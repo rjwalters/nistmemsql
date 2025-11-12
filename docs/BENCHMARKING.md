@@ -448,6 +448,161 @@ For performance optimizations:
 4. Document performance improvement in PR
 5. Include benchmark results in PR description
 
+## Full Suite Benchmarking
+
+For tracking performance across the entire SQLLogicTest suite (all 623 test files), use the full suite benchmarking script.
+
+### Quick Start
+
+Run a full benchmark of all SQLLogicTest files:
+
+```bash
+./scripts/benchmark_suite_rust.sh
+```
+
+Results are saved to `target/benchmarks/comparison_YYYYMMDD_HHMMSS.json`
+
+### How It Works
+
+The benchmark script:
+- Runs all 623 SQLLogicTest files through VibeSQL
+- Executes each file 3 times to get min/max/avg statistics
+- Outputs results in JSON format for analysis
+- Provides real-time progress and summary
+
+### Usage
+
+```bash
+# Run with default output location
+./scripts/benchmark_suite_rust.sh
+
+# Specify custom output file
+BENCHMARK_OUTPUT="my_benchmark.json" ./scripts/benchmark_suite_rust.sh
+```
+
+### Output Format
+
+```json
+{
+  "timestamp": "2025-11-12T03:06:27Z",
+  "total_files": 623,
+  "results": [
+    {
+      "file": "evidence/slt_lang_aggfunc.test",
+      "category": "evidence",
+      "vibesql": {
+        "success": true,
+        "runs": [0.197825, 0.198664, 0.197615],
+        "min_secs": 0.197615,
+        "max_secs": 0.198664,
+        "avg_secs": 0.198034
+      }
+    }
+  ]
+}
+```
+
+### Analyzing Results
+
+#### Quick Analysis with Python
+
+```python
+import json
+
+with open('target/benchmarks/comparison_20251111_190627.json') as f:
+    data = json.load(f)
+
+# Overall statistics
+times = [r['vibesql']['avg_secs'] for r in data['results']
+         if r['vibesql']['success']]
+print(f"Average: {sum(times)/len(times):.3f}s")
+print(f"Total: {sum(times):.2f}s")
+print(f"Pass rate: {len(times)}/{data['total_files']}")
+
+# Category breakdown
+from collections import defaultdict
+by_category = defaultdict(list)
+for r in data['results']:
+    if r['vibesql']['success']:
+        by_category[r['category']].append(r['vibesql']['avg_secs'])
+
+for cat, times in sorted(by_category.items()):
+    print(f"{cat}: {sum(times)/len(times):.3f}s avg ({len(times)} files)")
+```
+
+#### Comparing Runs
+
+```python
+import json
+
+# Load two benchmark runs
+with open('target/benchmarks/run1.json') as f:
+    run1 = json.load(f)
+with open('target/benchmarks/run2.json') as f:
+    run2 = json.load(f)
+
+# Compare total time
+time1 = sum(r['vibesql']['avg_secs'] for r in run1['results'] if r['vibesql']['success'])
+time2 = sum(r['vibesql']['avg_secs'] for r in run2['results'] if r['vibesql']['success'])
+
+improvement = (1 - time2/time1) * 100
+print(f"Performance change: {improvement:+.1f}%")
+print(f"Time difference: {time2-time1:+.2f}s")
+```
+
+#### Finding Slowest Files
+
+```bash
+python3 << 'EOF'
+import json
+with open('target/benchmarks/comparison_20251111_190627.json') as f:
+    data = json.load(f)
+
+slowest = sorted(data['results'],
+                 key=lambda x: x['vibesql'].get('avg_secs', 0),
+                 reverse=True)[:10]
+
+for r in slowest:
+    print(f"{r['vibesql']['avg_secs']:.3f}s - {r['file']}")
+EOF
+```
+
+### Benchmark History
+
+| Date | Total Time | Avg Time | Pass Rate | Notes |
+|------|-----------|----------|-----------|-------|
+| 2025-11-12 | 87.45s | 0.140s | 623/623 (100%) | After evaluator optimization |
+| 2025-11-12 | 120.48s | 0.193s | 623/623 (100%) | Initial baseline |
+
+### Performance Optimization Workflow
+
+When investigating performance issues:
+
+1. **Run baseline benchmark** before code changes
+2. **Make targeted changes**
+3. **Run comparison benchmark** after changes
+4. **Analyze diff** to quantify improvements
+5. **Identify outliers** - Files that got slower may indicate regressions
+
+### Database Storage (Future)
+
+The benchmarking system includes SQL schema and Python loader for storing results in a VibeSQL database:
+
+- `scripts/create_benchmark_tables.sql` - Schema with benchmark_runs and benchmark_results tables
+- `scripts/load_benchmarks.py` - Loader script (currently blocked by SQL limitations)
+
+These will be functional once VibeSQL supports:
+- `CREATE VIEW` with complex queries
+- `CREATE INDEX`
+- Subqueries in INSERT statements
+- AUTO_INCREMENT for PRIMARY KEY
+
+**Future usage:**
+```bash
+python3 scripts/load_benchmarks.py target/benchmarks/comparison_20251111_190627.json \
+  --notes "Baseline performance run"
+```
+
 ## Future Work
 
 Potential enhancements:
@@ -458,3 +613,6 @@ Potential enhancements:
 - **Comparison with DuckDB/PostgreSQL**: Expand beyond SQLite baseline
 - **Micro-benchmarks**: Use `criterion` for specific operation benchmarks
 - **Profiling integration**: Automatic flamegraph generation for slow queries
+- **SQLite head-to-head comparison**: Add SQLite execution to full suite benchmark
+- **Web dashboard**: Visualize benchmark trends over time
+- **CI integration**: Track performance on every commit
