@@ -81,6 +81,12 @@ if [ -n "$SAMPLE" ] && [ "$SAMPLE" -lt "$TOTAL_FILES" ]; then
     TOTAL_FILES=$SAMPLE
 fi
 
+# Ensure release binary exists
+if [ ! -f "target/release/vibesql" ]; then
+    echo "Building VibeSQL in release mode..."
+    cargo build --release
+fi
+
 # Create output directory
 mkdir -p target/benchmarks
 
