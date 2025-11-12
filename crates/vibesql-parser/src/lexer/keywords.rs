@@ -174,11 +174,25 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         // Callable object keywords (functions, procedures, methods)
         "FUNCTION" => Token::Keyword(Keyword::Function),
         "PROCEDURE" => Token::Keyword(Keyword::Procedure),
+        "CALL" => Token::Keyword(Keyword::Call),
         "ROUTINE" => Token::Keyword(Keyword::Routine),
         "METHOD" => Token::Keyword(Keyword::Method),
         "CONSTRUCTOR" => Token::Keyword(Keyword::Constructor),
         "STATIC" => Token::Keyword(Keyword::Static),
         "INSTANCE" => Token::Keyword(Keyword::Instance),
+        // Procedure/Function parameter modes
+        "OUT" => Token::Keyword(Keyword::Out),
+        "INOUT" => Token::Keyword(Keyword::InOut),
+        // Procedure/Function keywords
+        "RETURNS" => Token::Keyword(Keyword::Returns),
+        "WHILE" => Token::Keyword(Keyword::While),
+        "DO" => Token::Keyword(Keyword::Do),
+        "LOOP" => Token::Keyword(Keyword::Loop),
+        "REPEAT" => Token::Keyword(Keyword::Repeat),
+        "UNTIL" => Token::Keyword(Keyword::Until),
+        "RETURN" => Token::Keyword(Keyword::Return),
+        "LEAVE" => Token::Keyword(Keyword::Leave),
+        "ITERATE" => Token::Keyword(Keyword::Iterate),
         // Internationalization keywords (SQL:1999)
         "GET" => Token::Keyword(Keyword::Get),
         "PAD" => Token::Keyword(Keyword::Pad),

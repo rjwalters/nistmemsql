@@ -339,7 +339,7 @@ impl Parser {
     /// Parse a comma-separated list of expressions
     /// Used for IN (val1, val2, ...) and function arguments
     /// Does NOT consume the opening or closing parentheses
-    pub(super) fn parse_expression_list(&mut self) -> Result<Vec<vibesql_ast::Expression>, ParseError> {
+    pub fn parse_expression_list(&mut self) -> Result<Vec<vibesql_ast::Expression>, ParseError> {
         let mut expressions = Vec::new();
 
         // Check for empty list (SQLite compatibility)

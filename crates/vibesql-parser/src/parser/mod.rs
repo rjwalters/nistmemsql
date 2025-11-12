@@ -114,10 +114,14 @@ impl Parser {
                     Ok(vibesql_ast::Statement::CreateIndex(self.parse_create_index_statement()?))
                 } else if self.peek_next_keyword(Keyword::Assertion) {
                     Ok(vibesql_ast::Statement::CreateAssertion(self.parse_create_assertion_statement()?))
+                } else if self.peek_next_keyword(Keyword::Procedure) {
+                    Ok(vibesql_ast::Statement::CreateProcedure(self.parse_create_procedure_statement()?))
+                } else if self.peek_next_keyword(Keyword::Function) {
+                    Ok(vibesql_ast::Statement::CreateFunction(self.parse_create_function_statement()?))
                 } else {
                     Err(ParseError {
                         message:
-                            "Expected TABLE, SCHEMA, ROLE, DOMAIN, SEQUENCE, TYPE, COLLATION, CHARACTER, TRANSLATION, VIEW, TRIGGER, INDEX, or ASSERTION after CREATE"
+                            "Expected TABLE, SCHEMA, ROLE, DOMAIN, SEQUENCE, TYPE, COLLATION, CHARACTER, TRANSLATION, VIEW, TRIGGER, INDEX, ASSERTION, PROCEDURE, or FUNCTION after CREATE"
                                 .to_string(),
                     })
                 }
@@ -149,10 +153,14 @@ impl Parser {
                     Ok(vibesql_ast::Statement::DropIndex(self.parse_drop_index_statement()?))
                 } else if self.peek_next_keyword(Keyword::Assertion) {
                     Ok(vibesql_ast::Statement::DropAssertion(self.parse_drop_assertion_statement()?))
+                } else if self.peek_next_keyword(Keyword::Procedure) {
+                    Ok(vibesql_ast::Statement::DropProcedure(self.parse_drop_procedure_statement()?))
+                } else if self.peek_next_keyword(Keyword::Function) {
+                    Ok(vibesql_ast::Statement::DropFunction(self.parse_drop_function_statement()?))
                 } else {
                     Err(ParseError {
                         message:
-                            "Expected TABLE, SCHEMA, ROLE, DOMAIN, SEQUENCE, TYPE, COLLATION, CHARACTER, TRANSLATION, VIEW, TRIGGER, INDEX, or ASSERTION after DROP"
+                            "Expected TABLE, SCHEMA, ROLE, DOMAIN, SEQUENCE, TYPE, COLLATION, CHARACTER, TRANSLATION, VIEW, TRIGGER, INDEX, ASSERTION, PROCEDURE, or FUNCTION after DROP"
                                 .to_string(),
                     })
                 }
@@ -254,6 +262,10 @@ impl Parser {
             Token::Keyword(Keyword::Close) => {
                 let close_cursor_stmt = self.parse_close_cursor_statement()?;
                 Ok(vibesql_ast::Statement::CloseCursor(close_cursor_stmt))
+            }
+            Token::Keyword(Keyword::Call) => {
+                let call_stmt = self.parse_call_statement()?;
+                Ok(vibesql_ast::Statement::Call(call_stmt))
             }
             _ => {
                 Err(ParseError { message: format!("Expected statement, found {:?}", self.peek()) })
@@ -478,5 +490,47 @@ impl Parser {
     /// Parse DROP ASSERTION statement
     pub fn parse_drop_assertion_statement(&mut self) -> Result<vibesql_ast::DropAssertionStmt, ParseError> {
         advanced_objects::parse_drop_assertion(self)
+    }
+
+    /// Parse CREATE PROCEDURE statement
+    pub fn parse_create_procedure_statement(
+        &mut self,
+    ) -> Result<vibesql_ast::CreateProcedureStmt, ParseError> {
+        self.advance(); // consume CREATE
+        self.advance(); // consume PROCEDURE
+        self.parse_create_procedure()
+    }
+
+    /// Parse DROP PROCEDURE statement
+    pub fn parse_drop_procedure_statement(
+        &mut self,
+    ) -> Result<vibesql_ast::DropProcedureStmt, ParseError> {
+        self.advance(); // consume DROP
+        self.advance(); // consume PROCEDURE
+        self.parse_drop_procedure()
+    }
+
+    /// Parse CREATE FUNCTION statement
+    pub fn parse_create_function_statement(
+        &mut self,
+    ) -> Result<vibesql_ast::CreateFunctionStmt, ParseError> {
+        self.advance(); // consume CREATE
+        self.advance(); // consume FUNCTION
+        self.parse_create_function()
+    }
+
+    /// Parse DROP FUNCTION statement
+    pub fn parse_drop_function_statement(
+        &mut self,
+    ) -> Result<vibesql_ast::DropFunctionStmt, ParseError> {
+        self.advance(); // consume DROP
+        self.advance(); // consume FUNCTION
+        self.parse_drop_function()
+    }
+
+    /// Parse CALL statement
+    pub fn parse_call_statement(&mut self) -> Result<vibesql_ast::CallStmt, ParseError> {
+        self.advance(); // consume CALL
+        self.parse_call()
     }
 }

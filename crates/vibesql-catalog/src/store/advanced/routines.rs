@@ -93,4 +93,57 @@ impl super::super::Catalog {
             Err(CatalogError::ProcedureNotFound(name.to_string()))
         }
     }
+
+    /// Create a function stub for privilege tracking (no body, minimal definition)
+    ///
+    /// Used for GRANT/REVOKE statements to track privileges on functions
+    /// that may not yet be fully implemented or defined.
+    pub fn create_function_stub(
+        &mut self,
+        name: String,
+        schema: String,
+    ) -> Result<(), CatalogError> {
+        use crate::advanced_objects::{Function, FunctionBody};
+        if self.functions.contains_key(&name) {
+            // Already exists, no need to create stub
+            return Ok(());
+        }
+        self.functions.insert(
+            name.clone(),
+            Function::new(
+                name,
+                schema,
+                Vec::new(), // Empty parameter list
+                vibesql_types::DataType::Unknown,
+                FunctionBody::RawSql(String::new()), // Empty body
+            ),
+        );
+        Ok(())
+    }
+
+    /// Create a procedure stub for privilege tracking (no body, minimal definition)
+    ///
+    /// Used for GRANT/REVOKE statements to track privileges on procedures
+    /// that may not yet be fully implemented or defined.
+    pub fn create_procedure_stub(
+        &mut self,
+        name: String,
+        schema: String,
+    ) -> Result<(), CatalogError> {
+        use crate::advanced_objects::{Procedure, ProcedureBody};
+        if self.procedures.contains_key(&name) {
+            // Already exists, no need to create stub
+            return Ok(());
+        }
+        self.procedures.insert(
+            name.clone(),
+            Procedure::new(
+                name,
+                schema,
+                Vec::new(), // Empty parameter list
+                ProcedureBody::RawSql(String::new()), // Empty body
+            ),
+        );
+        Ok(())
+    }
 }
