@@ -323,7 +323,7 @@ pub fn execute_drop_function(
 /// Currently returns success after registering the call.
 /// Full execution of procedure logic will be implemented in a later phase.
 pub fn execute_call(
-    stmt: &CallStmt,
+    _stmt: &CallStmt,
     _db: &mut Database,
 ) -> Result<(), ExecutorError> {
     // TODO: Phase 4 - Execute procedure body
