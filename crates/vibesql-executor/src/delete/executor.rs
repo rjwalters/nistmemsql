@@ -152,7 +152,18 @@ impl DeleteExecutor {
             )?;
         }
 
-        // Step 3: Handle referential integrity for each row to be deleted
+        // Step 3: Fire BEFORE DELETE triggers
+        for (_, row) in &rows_and_indices_to_delete {
+            crate::TriggerFirer::execute_before_triggers(
+                database,
+                &stmt.table_name,
+                vibesql_ast::TriggerEvent::Delete,
+                Some(row),
+                None,
+            )?;
+        }
+
+        // Step 4: Handle referential integrity for each row to be deleted
         // This may CASCADE deletes, SET NULL, or SET DEFAULT in child tables
         for (_, row) in &rows_and_indices_to_delete {
             check_no_child_references(database, &stmt.table_name, row)?;
@@ -162,7 +173,7 @@ impl DeleteExecutor {
         let indices_to_delete: std::collections::HashSet<usize> =
             rows_and_indices_to_delete.iter().map(|(idx, _)| *idx).collect();
 
-        // Step 4: Actually delete the rows (now we can borrow mutably)
+        // Step 5: Actually delete the rows (now we can borrow mutably)
         let table_mut = database
             .get_table_mut(&stmt.table_name)
             .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
@@ -179,6 +190,17 @@ impl DeleteExecutor {
 
         // Rebuild user-defined indexes since row indices may have changed
         database.rebuild_indexes(&stmt.table_name);
+
+        // Step 6: Fire AFTER DELETE triggers for each deleted row
+        for (_, row) in &rows_and_indices_to_delete {
+            crate::TriggerFirer::execute_after_triggers(
+                database,
+                &stmt.table_name,
+                vibesql_ast::TriggerEvent::Delete,
+                Some(row),
+                None,
+            )?;
+        }
 
         Ok(deleted_count)
     }

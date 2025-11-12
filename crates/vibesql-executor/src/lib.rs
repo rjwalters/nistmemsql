@@ -29,6 +29,7 @@ pub mod select;
 mod select_into;
 mod transaction;
 mod trigger_ddl;
+mod trigger_execution;
 mod type_ddl;
 mod update;
 
@@ -48,6 +49,7 @@ pub use insert::InsertExecutor;
 pub use persistence::load_sql_dump;
 pub use privilege_checker::PrivilegeChecker;
 pub use revoke::RevokeExecutor;
+pub use trigger_execution::TriggerFirer;
 pub use role_ddl::RoleExecutor;
 pub use schema_ddl::SchemaExecutor;
 pub use select::{SelectExecutor, SelectResult};

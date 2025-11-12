@@ -170,7 +170,7 @@ pub enum TruncateCascadeOption {
 /// TRUNCATE TABLE statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct TruncateTableStmt {
-    pub table_name: String,
+    pub table_names: Vec<String>,
     pub if_exists: bool,
     /// CASCADE/RESTRICT option (None = default to RESTRICT)
     pub cascade: Option<TruncateCascadeOption>,
@@ -184,6 +184,9 @@ pub enum AlterTableStmt {
     AlterColumn(AlterColumnStmt),
     AddConstraint(AddConstraintStmt),
     DropConstraint(DropConstraintStmt),
+    RenameTable(RenameTableStmt),
+    ModifyColumn(ModifyColumnStmt),
+    ChangeColumn(ChangeColumnStmt),
 }
 
 /// ADD COLUMN operation
@@ -222,4 +225,27 @@ pub struct AddConstraintStmt {
 pub struct DropConstraintStmt {
     pub table_name: String,
     pub constraint_name: String,
+}
+
+/// RENAME TABLE operation
+#[derive(Debug, Clone, PartialEq)]
+pub struct RenameTableStmt {
+    pub table_name: String,
+    pub new_table_name: String,
+}
+
+/// MODIFY COLUMN operation (MySQL-style)
+#[derive(Debug, Clone, PartialEq)]
+pub struct ModifyColumnStmt {
+    pub table_name: String,
+    pub column_name: String,
+    pub new_column_def: ColumnDef,
+}
+
+/// CHANGE COLUMN operation (MySQL-style - rename and modify)
+#[derive(Debug, Clone, PartialEq)]
+pub struct ChangeColumnStmt {
+    pub table_name: String,
+    pub old_column_name: String,
+    pub new_column_def: ColumnDef,
 }

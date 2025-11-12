@@ -16,29 +16,29 @@ mod statement;
 
 pub use ddl::{
     AddColumnStmt, AddConstraintStmt, AlterColumnStmt, AlterSequenceStmt, AlterTableStmt,
-    BeginStmt, CallStmt, CloseCursorStmt, ColumnConstraint, ColumnConstraintKind, ColumnDef,
-    CommitStmt, CreateAssertionStmt, CreateCharacterSetStmt, CreateCollationStmt, CreateDomainStmt,
-    CreateFunctionStmt, CreateIndexStmt, CreateProcedureStmt, CreateRoleStmt, CreateSchemaStmt,
-    CreateSequenceStmt, CreateTableStmt, CreateTranslationStmt, CreateTriggerStmt, CreateTypeStmt,
-    CreateViewStmt, CursorUpdatability, DeclareCursorStmt, DomainConstraint, DropAssertionStmt,
-    DropBehavior, DropCharacterSetStmt, DropCollationStmt, DropColumnStmt, DropConstraintStmt,
-    DropDomainStmt, DropFunctionStmt, DropIndexStmt, DropProcedureStmt, DropRoleStmt,
-    DropSchemaStmt, DropSequenceStmt, DropTableStmt, DropTranslationStmt, DropTriggerStmt,
-    DropTypeStmt, DropViewStmt, FetchOrientation, FetchStmt, FunctionParameter, IndexColumn,
-    IndexType, InsertMethod, IsolationLevel, OpenCursorStmt, ParameterMode, ProcedureBody,
-    ProcedureParameter, ProceduralStatement, ReferentialAction, ReindexStmt,
-    ReleaseSavepointStmt, RollbackStmt, RollbackToSavepointStmt, RowFormat, SavepointStmt,
-    SchemaElement, SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt,
-    SetTransactionStmt, TableConstraint, TableConstraintKind, TableOption, TimeZoneSpec,
-    TransactionAccessMode, TriggerAction, TriggerEvent, TriggerGranularity, TriggerTiming,
-    TruncateCascadeOption, TruncateTableStmt, TypeAttribute, TypeDefinition,
+    BeginStmt, CallStmt, ChangeColumnStmt, CloseCursorStmt, ColumnConstraint, ColumnConstraintKind,
+    ColumnDef, CommitStmt, CreateAssertionStmt, CreateCharacterSetStmt, CreateCollationStmt,
+    CreateDomainStmt, CreateFunctionStmt, CreateIndexStmt, CreateProcedureStmt, CreateRoleStmt,
+    CreateSchemaStmt, CreateSequenceStmt, CreateTableStmt, CreateTranslationStmt, CreateTriggerStmt,
+    CreateTypeStmt, CreateViewStmt, CursorUpdatability, DeclareCursorStmt, DomainConstraint,
+    DropAssertionStmt, DropBehavior, DropCharacterSetStmt, DropCollationStmt, DropColumnStmt,
+    DropConstraintStmt, DropDomainStmt, DropFunctionStmt, DropIndexStmt, DropProcedureStmt,
+    DropRoleStmt, DropSchemaStmt, DropSequenceStmt, DropTableStmt, DropTranslationStmt,
+    DropTriggerStmt, DropTypeStmt, DropViewStmt, FetchOrientation, FetchStmt, FunctionParameter,
+    IndexColumn, IndexType, InsertMethod, IsolationLevel, ModifyColumnStmt, OpenCursorStmt,
+    ParameterMode, ProcedureBody, ProcedureParameter, ProceduralStatement, ReferentialAction,
+    ReindexStmt, ReleaseSavepointStmt, RenameTableStmt, RollbackStmt, RollbackToSavepointStmt,
+    RowFormat, SavepointStmt, SchemaElement, SetCatalogStmt, SetNamesStmt, SetSchemaStmt,
+    SetTimeZoneStmt, SetTransactionStmt, TableConstraint, TableConstraintKind, TableOption,
+    TimeZoneSpec, TransactionAccessMode, TriggerAction, TriggerEvent, TriggerGranularity,
+    TriggerTiming, TruncateCascadeOption, TruncateTableStmt, TypeAttribute, TypeDefinition,
 };
 pub use dml::{
     Assignment, ConflictClause, DeleteStmt, InsertSource, InsertStmt, UpdateStmt, WhereClause,
 };
 pub use expression::{
-    CaseWhen, CharacterUnit, Expression, FrameBound, FrameUnit, FulltextMode, Quantifier, TrimPosition,
-    WindowFrame, WindowFunctionSpec, WindowSpec,
+    CaseWhen, CharacterUnit, Expression, FrameBound, FrameUnit, FulltextMode, IntervalUnit,
+    Quantifier, TrimPosition, WindowFrame, WindowFunctionSpec, WindowSpec,
 };
 pub use grant::{GrantStmt, ObjectType, PrivilegeType};
 pub use introspection::{

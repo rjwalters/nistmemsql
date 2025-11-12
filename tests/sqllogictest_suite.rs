@@ -16,7 +16,7 @@ use std::{
     env, fs,
     io::Write,
     path::PathBuf,
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 use sqllogictest::{

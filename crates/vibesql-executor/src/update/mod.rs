@@ -190,6 +190,17 @@ impl UpdateExecutor {
             updates.push((row_index, row.clone(), new_row, changed_columns));
         }
 
+        // Fire BEFORE UPDATE triggers for all rows (before database mutation)
+        for (_row_index, old_row, new_row, _changed_columns) in &updates {
+            crate::TriggerFirer::execute_before_triggers(
+                database,
+                &stmt.table_name,
+                vibesql_ast::TriggerEvent::Update(None),
+                Some(old_row),
+                Some(new_row),
+            )?;
+        }
+
         // Step 5: Apply all updates (after evaluation phase completes)
         let update_count = updates.len();
 
@@ -206,6 +217,17 @@ impl UpdateExecutor {
                 .map_err(|e| ExecutorError::StorageError(e.to_string()))?;
 
             index_updates.push((*index, old_row.clone(), new_row.clone()));
+        }
+
+        // Fire AFTER UPDATE triggers for all updated rows
+        for (_index, old_row, new_row) in &index_updates {
+            crate::TriggerFirer::execute_after_triggers(
+                database,
+                &stmt.table_name,
+                vibesql_ast::TriggerEvent::Update(None),
+                Some(old_row),
+                Some(new_row),
+            )?;
         }
 
         // Now update user-defined indexes after releasing table borrow

@@ -159,10 +159,30 @@ pub fn execute_insert(
             )?;
         }
 
+        // Fire BEFORE INSERT triggers
+        let row_to_insert = vibesql_storage::Row::new(full_row_values.clone());
+        crate::TriggerFirer::execute_before_triggers(
+            db,
+            &stmt.table_name,
+            vibesql_ast::TriggerEvent::Insert,
+            None,
+            Some(&row_to_insert),
+        )?;
+
         // Insert the row
         let row = vibesql_storage::Row::new(full_row_values);
-        db.insert_row(&stmt.table_name, row)
+        db.insert_row(&stmt.table_name, row.clone())
             .map_err(|e| ExecutorError::UnsupportedExpression(format!("Storage error: {}", e)))?;
+
+        // Fire AFTER INSERT triggers
+        crate::TriggerFirer::execute_after_triggers(
+            db,
+            &stmt.table_name,
+            vibesql_ast::TriggerEvent::Insert,
+            None,
+            Some(&row),
+        )?;
+
         rows_inserted += 1;
     }
 

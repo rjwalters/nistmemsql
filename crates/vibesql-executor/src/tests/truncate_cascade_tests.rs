@@ -126,7 +126,7 @@ fn test_truncate_restrict_default() {
 
     // Try to truncate without CASCADE (default to RESTRICT)
     let stmt = TruncateTableStmt {
-        table_name: "parent".to_string(),
+        table_names: vec!["parent".to_string()],
         if_exists: false,
         cascade: None, // Default to RESTRICT
     };
@@ -156,7 +156,7 @@ fn test_truncate_restrict_explicit() {
 
     // Try to truncate with explicit RESTRICT
     let stmt = TruncateTableStmt {
-        table_name: "parent".to_string(),
+        table_names: vec!["parent".to_string()],
         if_exists: false,
         cascade: Some(TruncateCascadeOption::Restrict),
     };
@@ -188,7 +188,7 @@ fn test_truncate_cascade_simple_fk() {
 
     // Truncate with CASCADE
     let stmt = TruncateTableStmt {
-        table_name: "parent".to_string(),
+        table_names: vec!["parent".to_string()],
         if_exists: false,
         cascade: Some(TruncateCascadeOption::Cascade),
     };
@@ -222,7 +222,7 @@ fn test_truncate_cascade_multi_level() {
 
     // Truncate parent with CASCADE
     let stmt = TruncateTableStmt {
-        table_name: "parent".to_string(),
+        table_names: vec!["parent".to_string()],
         if_exists: false,
         cascade: Some(TruncateCascadeOption::Cascade),
     };
@@ -253,7 +253,7 @@ fn test_truncate_cascade_multiple_children() {
 
     // Truncate parent with CASCADE
     let stmt = TruncateTableStmt {
-        table_name: "parent".to_string(),
+        table_names: vec!["parent".to_string()],
         if_exists: false,
         cascade: Some(TruncateCascadeOption::Cascade),
     };
@@ -279,7 +279,7 @@ fn test_truncate_cascade_no_children() {
     insert_row(&mut db, "standalone", vec![SqlValue::Integer(2)]);
 
     let stmt = TruncateTableStmt {
-        table_name: "standalone".to_string(),
+        table_names: vec!["standalone".to_string()],
         if_exists: false,
         cascade: Some(TruncateCascadeOption::Cascade),
     };
@@ -301,7 +301,7 @@ fn test_truncate_cascade_empty_tables() {
     create_table_with_fk(&mut db, "child", "id", "parent_id", "parent", "id");
 
     let stmt = TruncateTableStmt {
-        table_name: "parent".to_string(),
+        table_names: vec!["parent".to_string()],
         if_exists: false,
         cascade: Some(TruncateCascadeOption::Cascade),
     };

@@ -502,6 +502,10 @@ impl TableSchema {
             }
             vibesql_ast::Expression::DuplicateKeyValue { column } => column == column_name,
             // These don't reference columns
+            vibesql_ast::Expression::Interval { value, .. } => {
+                // INTERVAL expressions may contain column references in the value
+                Self::expression_references_column(value, column_name)
+            }
             vibesql_ast::Expression::Literal(_)
             | vibesql_ast::Expression::Wildcard
             | vibesql_ast::Expression::CurrentDate

@@ -121,33 +121,24 @@ impl NistMemSqlDB {
     }
 
     /// Format result rows for SQLLogicTest
-    /// Flattens multi-column results: each value becomes its own row (one value per row)
-    /// This matches SQLLogicTest's row-oriented format where each value is on a separate line
+    /// Converts storage rows to the format expected by sqllogictest-rs
     fn format_result_rows(
         &self,
         rows: &[vibesql_storage::Row],
         types: Vec<DefaultColumnType>,
     ) -> Result<DBOutput<DefaultColumnType>, TestError> {
-        let mut flattened_rows: Vec<Vec<String>> = Vec::new();
-        let mut flattened_types: Vec<DefaultColumnType> = Vec::new();
+        let formatted_rows: Vec<Vec<String>> = rows
+            .iter()
+            .map(|row| {
+                row.values
+                    .iter()
+                    .enumerate()
+                    .map(|(col_idx, val)| format_sql_value(val, types.get(col_idx)))
+                    .collect()
+            })
+            .collect();
 
-        // Count total values for potential hashing
-        let total_values: usize = rows.iter().map(|r| r.values.len()).sum();
-
-        // Build flattened output: each value becomes its own row
-        for row in rows {
-            for (col_idx, val) in row.values.iter().enumerate() {
-                let formatted_val = format_sql_value(val, types.get(col_idx));
-                flattened_rows.push(vec![formatted_val]);
-            }
-        }
-
-        // Replicate the first column type for all flattened values
-        if !types.is_empty() {
-            flattened_types = vec![types[0].clone(); total_values];
-        }
-
-        Ok(DBOutput::Rows { types: flattened_types, rows: flattened_rows })
+        Ok(DBOutput::Rows { types, rows: formatted_rows })
     }
 
     fn execute_sql(&mut self, sql: &str) -> Result<DBOutput<DefaultColumnType>, TestError> {
@@ -333,7 +324,14 @@ impl NistMemSqlDB {
             | vibesql_ast::Statement::DropProcedure(_)
             | vibesql_ast::Statement::CreateFunction(_)
             | vibesql_ast::Statement::DropFunction(_)
-            | vibesql_ast::Statement::Call(_) => Ok(DBOutput::StatementComplete(0)),
+            | vibesql_ast::Statement::Call(_)
+            | vibesql_ast::Statement::TruncateTable(_)
+            | vibesql_ast::Statement::ShowTables(_)
+            | vibesql_ast::Statement::ShowDatabases(_)
+            | vibesql_ast::Statement::ShowColumns(_)
+            | vibesql_ast::Statement::ShowIndex(_)
+            | vibesql_ast::Statement::ShowCreateTable(_)
+            | vibesql_ast::Statement::Describe(_) => Ok(DBOutput::StatementComplete(0)),
         }
     }
 

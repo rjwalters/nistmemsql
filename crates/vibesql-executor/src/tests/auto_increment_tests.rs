@@ -4,7 +4,7 @@ use vibesql_ast::{ColumnConstraint, ColumnConstraintKind, ColumnDef, CreateTable
 use vibesql_storage::Database;
 use vibesql_types::{DataType, SqlValue};
 
-use crate::{CreateTableExecutor, InsertExecutor, SelectExecutor};
+use crate::{CreateTableExecutor, InsertExecutor};
 
 #[test]
 fn test_auto_increment_basic_inserts() {

@@ -7,7 +7,7 @@ impl Parser {
     /// Parse TRUNCATE TABLE statement
     ///
     /// Syntax:
-    ///   TRUNCATE [TABLE] [IF EXISTS] table_name [CASCADE | RESTRICT]
+    ///   TRUNCATE [TABLE] [IF EXISTS] table_name [, table_name, ...] [CASCADE | RESTRICT]
     pub(super) fn parse_truncate_table_statement(
         &mut self,
     ) -> Result<vibesql_ast::TruncateTableStmt, ParseError> {
@@ -28,8 +28,14 @@ impl Parser {
             false
         };
 
-        // Parse table name (supports schema.table)
-        let table_name = self.parse_qualified_identifier()?;
+        // Parse first table name (supports schema.table)
+        let mut table_names = vec![self.parse_qualified_identifier()?];
+
+        // Parse additional table names separated by commas
+        while matches!(self.peek(), Token::Comma) {
+            self.advance(); // consume comma
+            table_names.push(self.parse_qualified_identifier()?);
+        }
 
         // Check for optional CASCADE or RESTRICT
         let cascade = if self.peek_keyword(Keyword::Cascade) {
@@ -48,7 +54,7 @@ impl Parser {
         }
 
         Ok(vibesql_ast::TruncateTableStmt {
-            table_name,
+            table_names,
             if_exists,
             cascade,
         })
