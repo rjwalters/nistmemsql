@@ -166,9 +166,9 @@ calculate_reps() {
         # Calculate how many more reps needed
         NEEDED=$(echo "scale=0; ($MIN_TIME / $INITIAL_TIME) + 0.5" | bc)
         # Cap at 100 to avoid excessive runtime on very fast tests
-        if [ "$NEEDED" -gt 100 ]; then
+        if (( $(echo "$NEEDED > 100" | bc -l) )); then
             echo "100"
-        elif [ "$NEEDED" -lt 3 ]; then
+        elif (( $(echo "$NEEDED < 3" | bc -l) )); then
             echo "3"
         else
             echo "$NEEDED"
@@ -212,6 +212,8 @@ EOF
 
     # Calculate adaptive repetitions
     REPS=$(calculate_reps "$VIBESQL_INITIAL_TIME")
+    # Ensure REPS is an integer for the loop
+    REPS=$(printf "%.0f" "$REPS")
 
     # Run interleaved benchmarks
     # Pattern: V S V S V S... alternating to control for system effects
@@ -243,7 +245,8 @@ EOF
         unset IFS
 
         VS_MIN="${SORTED_VS[0]}"
-        VS_MAX="${SORTED_VS[-1]}"
+        # Get last element (max) - compatible with bash 3.x
+        VS_MAX="${SORTED_VS[${#SORTED_VS[@]}-1]}"
 
         # Calculate average
         VS_SUM=0
