@@ -151,8 +151,17 @@ pub struct CreateIndexStmt {
     pub if_not_exists: bool,
     pub index_name: String,
     pub table_name: String,
-    pub unique: bool,
+    pub index_type: IndexType,
     pub columns: Vec<IndexColumn>,
+}
+
+/// Index type specification
+#[derive(Debug, Clone, PartialEq)]
+pub enum IndexType {
+    /// Standard B-tree index (default)
+    BTree { unique: bool },
+    /// FULLTEXT index for full-text search
+    Fulltext,
 }
 
 /// Index column specification

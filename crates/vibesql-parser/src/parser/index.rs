@@ -8,11 +8,22 @@ impl Parser {
     ///
     /// Syntax:
     ///   CREATE [UNIQUE] INDEX [IF NOT EXISTS] index_name ON table_name (column_list)
+    ///   CREATE FULLTEXT INDEX [IF NOT EXISTS] index_name ON table_name (column_list)
     pub(super) fn parse_create_index_statement(
         &mut self,
     ) -> Result<vibesql_ast::CreateIndexStmt, ParseError> {
         // Expect CREATE keyword
         self.expect_keyword(Keyword::Create)?;
+
+        // Check for FULLTEXT keyword
+        if self.peek_keyword(Keyword::Fulltext) {
+            self.advance(); // consume FULLTEXT
+            
+            // Expect INDEX keyword
+            self.expect_keyword(Keyword::Index)?;
+            
+            return self.parse_create_index_columns(vibesql_ast::IndexType::Fulltext);
+        }
 
         // Check for optional UNIQUE keyword
         let unique = if self.peek_keyword(Keyword::Unique) {
@@ -24,7 +35,17 @@ impl Parser {
 
         // Expect INDEX keyword
         self.expect_keyword(Keyword::Index)?;
+        
+        let index_type = vibesql_ast::IndexType::BTree { unique };
 
+        self.parse_create_index_columns(index_type)
+    }
+
+    /// Helper function to parse the common parts of CREATE INDEX after type has been determined
+    fn parse_create_index_columns(
+        &mut self,
+        index_type: vibesql_ast::IndexType,
+    ) -> Result<vibesql_ast::CreateIndexStmt, ParseError> {
         // Check for optional IF NOT EXISTS clause
         let if_not_exists = if self.peek_keyword(Keyword::If) {
             self.advance(); // consume IF
@@ -76,7 +97,7 @@ impl Parser {
         // Expect closing parenthesis
         self.expect_token(Token::RParen)?;
 
-        Ok(vibesql_ast::CreateIndexStmt { if_not_exists, index_name, table_name, unique, columns })
+        Ok(vibesql_ast::CreateIndexStmt { if_not_exists, index_name, table_name, index_type, columns })
     }
 
     /// Parse DROP INDEX statement
