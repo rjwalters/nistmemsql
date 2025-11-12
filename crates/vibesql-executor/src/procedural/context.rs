@@ -39,6 +39,8 @@ pub struct ExecutionContext {
     recursion_depth: usize,
     /// Maximum allowed recursion depth
     max_recursion: usize,
+    /// Whether this is a function context (read-only, cannot modify data)
+    pub(crate) is_function: bool,
 }
 
 impl ExecutionContext {
@@ -50,6 +52,7 @@ impl ExecutionContext {
             labels: HashMap::new(),
             recursion_depth: 0,
             max_recursion: MAX_RECURSION_DEPTH,
+            is_function: false,
         }
     }
 
@@ -61,6 +64,7 @@ impl ExecutionContext {
             labels: HashMap::new(),
             recursion_depth: depth,
             max_recursion: MAX_RECURSION_DEPTH,
+            is_function: false,
         }
     }
 
