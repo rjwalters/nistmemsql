@@ -1,73 +1,150 @@
 {
-  "id": "report-templates",
-  "title": "Report Templates",
-  "description": "Production-ready report queries for common business needs",
-  "queries": [
-    {
-      "id": "rpt-1",
-      "title": "Monthly Sales Summary Report",
-      "database": "northwind",
-      "description": "Complete monthly sales summary with KPIs and growth metrics",
-      "sqlFeatures": ["CTE", "DATE_TRUNC", "Aggregates", "LAG", "Period-over-period"],
-      "difficulty": "intermediate",
-      "useCase": "reports",
-      "relatedExamples": ["bi-1", "window-1"],
-      "tags": ["monthly-report", "kpi", "executive-summary", "sales-metrics"]
-    },
-    {
-      "id": "rpt-2",
-      "title": "Top N Per Group Report",
-      "database": "northwind",
-      "description": "Top performers by category (classic top-N-per-group pattern)",
-      "sqlFeatures": ["CTE", "ROW_NUMBER", "PARTITION BY", "Top-N per group"],
-      "difficulty": "intermediate",
-      "useCase": "reports",
-      "relatedExamples": ["window-2", "cte-1"],
-      "tags": ["top-n-per-group", "ranking", "category-analysis", "product-performance"]
-    },
-    {
-      "id": "rpt-3",
-      "title": "Running Totals and Cumulative Sums",
-      "database": "northwind",
-      "description": "Daily metrics with running totals and moving averages",
-      "sqlFeatures": ["CTE", "Window functions", "Running totals", "Moving averages", "ROWS BETWEEN"],
-      "difficulty": "advanced",
-      "useCase": "reports",
-      "relatedExamples": ["window-1", "window-5"],
-      "tags": ["running-total", "cumulative", "moving-average", "time-series"]
-    },
-    {
-      "id": "rpt-4",
-      "title": "Period-over-Period Comparison",
-      "database": "northwind",
-      "description": "Quarterly sales with quarter-over-quarter and year-over-year comparisons",
-      "sqlFeatures": ["CTE", "EXTRACT", "LAG", "Period comparisons", "Window functions"],
-      "difficulty": "advanced",
-      "useCase": "reports",
-      "relatedExamples": ["bi-1", "window-1"],
-      "tags": ["period-comparison", "qoq", "yoy", "quarterly-report", "trends"]
-    },
-    {
-      "id": "rpt-5",
-      "title": "Pivot Table Simulation",
-      "database": "northwind",
-      "description": "Simulate pivot table using CASE and GROUP BY (categories by quarters)",
-      "sqlFeatures": ["CTE", "CASE", "Conditional aggregation", "Pivot simulation"],
-      "difficulty": "advanced",
-      "useCase": "reports",
-      "relatedExamples": ["aggregate-1", "case-1"],
-      "tags": ["pivot-table", "crosstab", "matrix-report", "conditional-aggregation"]
-    },
-    {
-      "id": "rpt-6",
-      "title": "Executive Dashboard Summary",
-      "database": "northwind",
-      "description": "Executive dashboard with key business metrics and KPIs",
-      "sqlFeatures": ["CTE", "UNION ALL", "Aggregates", "KPI reporting"],
-      "difficulty": "intermediate",
-      "useCase": "reports",
-      "relatedExamples": ["aggregate-1", "union-1"],
-      "tags": ["dashboard", "kpi", "executive-summary", "metrics"]
-    }
-  ]
+  "rpt-1": {
+    "title": "Monthly Sales Summary Report",
+    "database": "northwind",
+    "sql": "-- Monthly sales summary with key metrics\nWITH monthly_data AS (\n  SELECT\n    DATE_TRUNC('month', o.order_date) AS month,\n    COUNT(DISTINCT o.order_id) AS order_count,\n    COUNT(DISTINCT o.customer_id) AS customer_count,\n    SUM(od.quantity) AS units_sold,\n    SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue\n  FROM orders o\n  JOIN order_details od ON o.order_id = od.order_id\n  WHERE o.order_date IS NOT NULL\n  GROUP BY DATE_TRUNC('month', o.order_date)\n)\nSELECT\n  TO_CHAR(month, 'YYYY-MM') AS month,\n  order_count,\n  customer_count,\n  units_sold,\n  ROUND(revenue, 2) AS revenue,\n  ROUND(revenue / order_count, 2) AS avg_order_value,\n  ROUND(revenue / customer_count, 2) AS revenue_per_customer,\n  LAG(revenue) OVER (ORDER BY month) AS prev_month_revenue,\n  ROUND(\n    (revenue - LAG(revenue) OVER (ORDER BY month)) * 100.0 /\n    NULLIF(LAG(revenue) OVER (ORDER BY month), 0),\n    2\n  ) AS mom_growth_pct\nFROM monthly_data\nORDER BY month;",
+    "description": "Complete monthly sales summary with KPIs and growth metrics",
+    "sqlFeatures": [
+      "CTE",
+      "DATE_TRUNC",
+      "Aggregates",
+      "LAG",
+      "Period-over-period"
+    ],
+    "difficulty": "intermediate",
+    "useCase": "reports",
+    "relatedExamples": [
+      "bi-1",
+      "window-1"
+    ],
+    "tags": [
+      "monthly-report",
+      "kpi",
+      "executive-summary",
+      "sales-metrics"
+    ]
+  },
+  "rpt-2": {
+    "title": "Top N Per Group Report",
+    "database": "northwind",
+    "sql": "-- Top 3 products per category by revenue\nWITH product_revenue AS (\n  SELECT\n    p.product_id,\n    p.product_name,\n    p.category_id,\n    c.category_name,\n    SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue,\n    SUM(od.quantity) AS units_sold,\n    COUNT(DISTINCT od.order_id) AS order_count\n  FROM products p\n  JOIN categories c ON p.category_id = c.category_id\n  LEFT JOIN order_details od ON p.product_id = od.product_id\n  GROUP BY p.product_id, p.product_name, p.category_id, c.category_name\n),\nranked_products AS (\n  SELECT\n    category_name,\n    product_name,\n    revenue,\n    units_sold,\n    order_count,\n    ROW_NUMBER() OVER (PARTITION BY category_id ORDER BY revenue DESC) AS rank\n  FROM product_revenue\n  WHERE revenue > 0\n)\nSELECT\n  category_name,\n  rank,\n  product_name,\n  ROUND(revenue, 2) AS revenue,\n  units_sold,\n  order_count,\n  ROUND(revenue / units_sold, 2) AS avg_price_per_unit\nFROM ranked_products\nWHERE rank <= 3\nORDER BY category_name, rank;",
+    "description": "Top performers by category (classic top-N-per-group pattern)",
+    "sqlFeatures": [
+      "CTE",
+      "ROW_NUMBER",
+      "PARTITION BY",
+      "Top-N per group"
+    ],
+    "difficulty": "intermediate",
+    "useCase": "reports",
+    "relatedExamples": [
+      "window-2",
+      "cte-1"
+    ],
+    "tags": [
+      "top-n-per-group",
+      "ranking",
+      "category-analysis",
+      "product-performance"
+    ]
+  },
+  "rpt-3": {
+    "title": "Running Totals and Cumulative Sums",
+    "database": "northwind",
+    "sql": "-- Daily order volume with running totals\nWITH daily_orders AS (\n  SELECT\n    DATE(order_date) AS order_day,\n    COUNT(*) AS daily_order_count,\n    SUM(\n      (SELECT SUM(unit_price * quantity * (1 - discount))\n       FROM order_details od\n       WHERE od.order_id = o.order_id)\n    ) AS daily_revenue\n  FROM orders o\n  WHERE order_date >= '1997-01-01' AND order_date < '1997-02-01'\n  GROUP BY DATE(order_date)\n)\nSELECT\n  order_day,\n  daily_order_count,\n  ROUND(daily_revenue, 2) AS daily_revenue,\n  SUM(daily_order_count) OVER (ORDER BY order_day) AS cumulative_orders,\n  ROUND(SUM(daily_revenue) OVER (ORDER BY order_day), 2) AS cumulative_revenue,\n  ROUND(AVG(daily_revenue) OVER (\n    ORDER BY order_day\n    ROWS BETWEEN 6 PRECEDING AND CURRENT ROW\n  ), 2) AS seven_day_avg_revenue\nFROM daily_orders\nORDER BY order_day;",
+    "description": "Daily metrics with running totals and moving averages",
+    "sqlFeatures": [
+      "CTE",
+      "Window functions",
+      "Running totals",
+      "Moving averages",
+      "ROWS BETWEEN"
+    ],
+    "difficulty": "advanced",
+    "useCase": "reports",
+    "relatedExamples": [
+      "window-1",
+      "window-5"
+    ],
+    "tags": [
+      "running-total",
+      "cumulative",
+      "moving-average",
+      "time-series"
+    ]
+  },
+  "rpt-4": {
+    "title": "Period-over-Period Comparison",
+    "database": "northwind",
+    "sql": "-- Quarter-over-quarter sales comparison\nWITH quarterly_sales AS (\n  SELECT\n    EXTRACT(YEAR FROM o.order_date) AS year,\n    EXTRACT(QUARTER FROM o.order_date) AS quarter,\n    COUNT(DISTINCT o.order_id) AS order_count,\n    SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue\n  FROM orders o\n  JOIN order_details od ON o.order_id = od.order_id\n  WHERE o.order_date IS NOT NULL\n  GROUP BY EXTRACT(YEAR FROM o.order_date), EXTRACT(QUARTER FROM o.order_date)\n)\nSELECT\n  year,\n  quarter,\n  order_count,\n  ROUND(revenue, 2) AS revenue,\n  LAG(revenue) OVER (ORDER BY year, quarter) AS prev_quarter_revenue,\n  ROUND(\n    revenue - LAG(revenue) OVER (ORDER BY year, quarter),\n    2\n  ) AS revenue_change,\n  ROUND(\n    (revenue - LAG(revenue) OVER (ORDER BY year, quarter)) * 100.0 /\n    NULLIF(LAG(revenue) OVER (ORDER BY year, quarter), 0),\n    2\n  ) AS pct_change,\n  LAG(revenue, 4) OVER (ORDER BY year, quarter) AS same_quarter_last_year,\n  ROUND(\n    (revenue - LAG(revenue, 4) OVER (ORDER BY year, quarter)) * 100.0 /\n    NULLIF(LAG(revenue, 4) OVER (ORDER BY year, quarter), 0),\n    2\n  ) AS yoy_pct_change\nFROM quarterly_sales\nORDER BY year, quarter;",
+    "description": "Quarterly sales with quarter-over-quarter and year-over-year comparisons",
+    "sqlFeatures": [
+      "CTE",
+      "EXTRACT",
+      "LAG",
+      "Period comparisons",
+      "Window functions"
+    ],
+    "difficulty": "advanced",
+    "useCase": "reports",
+    "relatedExamples": [
+      "bi-1",
+      "window-1"
+    ],
+    "tags": [
+      "period-comparison",
+      "qoq",
+      "yoy",
+      "quarterly-report",
+      "trends"
+    ]
+  },
+  "rpt-5": {
+    "title": "Pivot Table Simulation",
+    "database": "northwind",
+    "sql": "-- Simulate pivot table: categories × quarters\nWITH quarterly_category_sales AS (\n  SELECT\n    c.category_name,\n    EXTRACT(YEAR FROM o.order_date) AS year,\n    EXTRACT(QUARTER FROM o.order_date) AS quarter,\n    SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue\n  FROM categories c\n  JOIN products p ON c.category_id = p.category_id\n  JOIN order_details od ON p.product_id = od.product_id\n  JOIN orders o ON od.order_id = o.order_id\n  WHERE o.order_date >= '1997-01-01' AND o.order_date < '1998-01-01'\n  GROUP BY c.category_name, EXTRACT(YEAR FROM o.order_date), EXTRACT(QUARTER FROM o.order_date)\n)\nSELECT\n  category_name,\n  ROUND(SUM(CASE WHEN quarter = 1 THEN revenue ELSE 0 END), 2) AS q1_1997,\n  ROUND(SUM(CASE WHEN quarter = 2 THEN revenue ELSE 0 END), 2) AS q2_1997,\n  ROUND(SUM(CASE WHEN quarter = 3 THEN revenue ELSE 0 END), 2) AS q3_1997,\n  ROUND(SUM(CASE WHEN quarter = 4 THEN revenue ELSE 0 END), 2) AS q4_1997,\n  ROUND(SUM(revenue), 2) AS total_1997\nFROM quarterly_category_sales\nGROUP BY category_name\nORDER BY total_1997 DESC;",
+    "description": "Simulate pivot table using CASE and GROUP BY (categories by quarters)",
+    "sqlFeatures": [
+      "CTE",
+      "CASE",
+      "Conditional aggregation",
+      "Pivot simulation"
+    ],
+    "difficulty": "advanced",
+    "useCase": "reports",
+    "relatedExamples": [
+      "aggregate-1",
+      "case-1"
+    ],
+    "tags": [
+      "pivot-table",
+      "crosstab",
+      "matrix-report",
+      "conditional-aggregation"
+    ]
+  },
+  "rpt-6": {
+    "title": "Executive Dashboard Summary",
+    "database": "northwind",
+    "sql": "-- High-level KPI dashboard for executives\nWITH kpis AS (\n  SELECT\n    COUNT(DISTINCT o.order_id) AS total_orders,\n    COUNT(DISTINCT o.customer_id) AS total_customers,\n    COUNT(DISTINCT p.product_id) AS total_products,\n    SUM(od.quantity) AS total_units_sold,\n    SUM(od.unit_price * od.quantity * (1 - od.discount)) AS total_revenue,\n    AVG(od.unit_price * od.quantity * (1 - od.discount)) AS avg_order_line_value\n  FROM orders o\n  JOIN order_details od ON o.order_id = od.order_id\n  JOIN products p ON od.product_id = p.product_id\n  WHERE o.order_date IS NOT NULL\n)\nSELECT\n  'Total Orders' AS metric,\n  total_orders::TEXT AS value\nFROM kpis\nUNION ALL SELECT 'Total Customers', total_customers::TEXT FROM kpis\nUNION ALL SELECT 'Total Products Sold', total_products::TEXT FROM kpis\nUNION ALL SELECT 'Total Units Sold', total_units_sold::TEXT FROM kpis\nUNION ALL SELECT 'Total Revenue', '$' || ROUND(total_revenue, 2)::TEXT FROM kpis\nUNION ALL SELECT 'Avg Order Line Value', '$' || ROUND(avg_order_line_value, 2)::TEXT FROM kpis\nUNION ALL SELECT 'Avg Revenue per Customer', '$' || ROUND(total_revenue / total_customers, 2)::TEXT FROM kpis\nUNION ALL SELECT 'Avg Revenue per Order', '$' || ROUND(total_revenue / total_orders, 2)::TEXT FROM kpis;",
+    "description": "Executive dashboard with key business metrics and KPIs",
+    "sqlFeatures": [
+      "CTE",
+      "UNION ALL",
+      "Aggregates",
+      "KPI reporting"
+    ],
+    "difficulty": "intermediate",
+    "useCase": "reports",
+    "relatedExamples": [
+      "aggregate-1",
+      "union-1"
+    ],
+    "tags": [
+      "dashboard",
+      "kpi",
+      "executive-summary",
+      "metrics"
+    ]
+  }
 }
