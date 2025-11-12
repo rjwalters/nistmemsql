@@ -411,6 +411,15 @@ impl QuerySignature {
                 "NEXT_VALUE".hash(hasher);
                 sequence_name.hash(hasher);
             }
+
+            Expression::MatchAgainst { columns, search_modifier, mode } => {
+                "MATCH_AGAINST".hash(hasher);
+                for col in columns {
+                    col.hash(hasher);
+                }
+                Self::hash_expression(search_modifier, hasher);
+                std::mem::discriminant(mode).hash(hasher);
+            }
         }
     }
 }

@@ -22,18 +22,19 @@ pub use ddl::{
     DeclareCursorStmt, DomainConstraint, DropAssertionStmt, DropBehavior, DropCharacterSetStmt,
     DropCollationStmt, DropColumnStmt, DropConstraintStmt, DropDomainStmt, DropIndexStmt,
     DropRoleStmt, DropSchemaStmt, DropSequenceStmt, DropTableStmt, DropTranslationStmt,
-    DropTriggerStmt, DropTypeStmt, DropViewStmt, FetchOrientation, FetchStmt, IndexColumn,
-    InsertMethod, IsolationLevel, OpenCursorStmt, ReferentialAction, ReleaseSavepointStmt,
-    RollbackStmt, RollbackToSavepointStmt, RowFormat, SavepointStmt, SchemaElement, SetCatalogStmt,
-    SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt, SetTransactionStmt, TableConstraint,
-    TableConstraintKind, TableOption, TimeZoneSpec, TransactionAccessMode, TriggerAction,
-    TriggerEvent, TriggerGranularity, TriggerTiming, TypeAttribute, TypeDefinition,
+    DropTriggerStmt, DropTypeStmt, DropViewStmt, FetchOrientation, FetchStmt, IndexColumn, IndexType,
+    InsertMethod, IsolationLevel, OpenCursorStmt, ReferentialAction, ReindexStmt,
+    ReleaseSavepointStmt, RollbackStmt, RollbackToSavepointStmt, RowFormat, SavepointStmt,
+    SchemaElement, SetCatalogStmt, SetNamesStmt, SetSchemaStmt, SetTimeZoneStmt,
+    SetTransactionStmt, TableConstraint, TableConstraintKind, TableOption, TimeZoneSpec,
+    TransactionAccessMode, TriggerAction, TriggerEvent, TriggerGranularity, TriggerTiming,
+    TypeAttribute, TypeDefinition,
 };
 pub use dml::{
     Assignment, ConflictClause, DeleteStmt, InsertSource, InsertStmt, UpdateStmt, WhereClause,
 };
 pub use expression::{
-    CaseWhen, CharacterUnit, Expression, FrameBound, FrameUnit, Quantifier, TrimPosition,
+    CaseWhen, CharacterUnit, Expression, FrameBound, FrameUnit, FulltextMode, Quantifier, TrimPosition,
     WindowFrame, WindowFunctionSpec, WindowSpec,
 };
 pub use grant::{GrantStmt, ObjectType, PrivilegeType};

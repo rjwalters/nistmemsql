@@ -35,7 +35,7 @@ impl CreateIndexExecutor {
     ///     index_name: "idx_users_email".to_string(),
     ///     if_not_exists: false,
     ///     table_name: "users".to_string(),
-    ///     unique: false,
+    ///     index_type: vibesql_ast::IndexType::BTree { unique: false },
     ///     columns: vec![IndexColumn {
     ///         column_name: "email".to_string(),
     ///         direction: OrderDirection::Asc,
@@ -98,10 +98,19 @@ impl CreateIndexExecutor {
         }
 
         // Create the index
+        let unique = match &stmt.index_type {
+            vibesql_ast::IndexType::BTree { unique } => *unique,
+            vibesql_ast::IndexType::Fulltext => {
+                return Err(ExecutorError::UnsupportedFeature(
+                    "FULLTEXT indexes are not yet implemented".to_string(),
+                ))
+            }
+        };
+        
         database.create_index(
             index_name.clone(),
             qualified_table_name.clone(),
-            stmt.unique,
+            unique,
             stmt.columns.clone(),
         )?;
 
@@ -165,7 +174,7 @@ mod tests {
             index_name: "idx_users_email".to_string(),
             if_not_exists: false,
             table_name: "users".to_string(),
-            unique: false,
+            index_type: vibesql_ast::IndexType::BTree { unique: false },
             columns: vec![IndexColumn {
                 column_name: "email".to_string(),
                 direction: OrderDirection::Asc,
@@ -192,7 +201,7 @@ mod tests {
             index_name: "idx_users_email_unique".to_string(),
             if_not_exists: false,
             table_name: "users".to_string(),
-            unique: true,
+            index_type: vibesql_ast::IndexType::BTree { unique: true },
             columns: vec![IndexColumn {
                 column_name: "email".to_string(),
                 direction: OrderDirection::Asc,
@@ -213,7 +222,7 @@ mod tests {
             index_name: "idx_users_email_name".to_string(),
             if_not_exists: false,
             table_name: "users".to_string(),
-            unique: false,
+            index_type: vibesql_ast::IndexType::BTree { unique: false },
             columns: vec![
                 IndexColumn { column_name: "email".to_string(), direction: OrderDirection::Asc },
                 IndexColumn { column_name: "name".to_string(), direction: OrderDirection::Desc },
@@ -233,7 +242,7 @@ mod tests {
             index_name: "idx_users_email".to_string(),
             if_not_exists: false,
             table_name: "users".to_string(),
-            unique: false,
+            index_type: vibesql_ast::IndexType::BTree { unique: false },
             columns: vec![IndexColumn {
                 column_name: "email".to_string(),
                 direction: OrderDirection::Asc,
@@ -258,7 +267,7 @@ mod tests {
             index_name: "idx_nonexistent".to_string(),
             if_not_exists: false,
             table_name: "nonexistent_table".to_string(),
-            unique: false,
+            index_type: vibesql_ast::IndexType::BTree { unique: false },
             columns: vec![IndexColumn {
                 column_name: "id".to_string(),
                 direction: OrderDirection::Asc,
@@ -279,7 +288,7 @@ mod tests {
             index_name: "idx_users_nonexistent".to_string(),
             if_not_exists: false,
             table_name: "users".to_string(),
-            unique: false,
+            index_type: vibesql_ast::IndexType::BTree { unique: false },
             columns: vec![IndexColumn {
                 column_name: "nonexistent_column".to_string(),
                 direction: OrderDirection::Asc,
@@ -300,7 +309,7 @@ mod tests {
             index_name: "idx_users_email".to_string(),
             if_not_exists: true,
             table_name: "users".to_string(),
-            unique: false,
+            index_type: vibesql_ast::IndexType::BTree { unique: false },
             columns: vec![IndexColumn {
                 column_name: "email".to_string(),
                 direction: OrderDirection::Asc,
@@ -326,7 +335,7 @@ mod tests {
             index_name: "idx_users_email".to_string(),
             if_not_exists: false,
             table_name: "users".to_string(),
-            unique: false,
+            index_type: vibesql_ast::IndexType::BTree { unique: false },
             columns: vec![IndexColumn {
                 column_name: "email".to_string(),
                 direction: OrderDirection::Asc,
@@ -339,7 +348,7 @@ mod tests {
             index_name: "idx_users_email".to_string(),
             if_not_exists: true,
             table_name: "users".to_string(),
-            unique: false,
+            index_type: vibesql_ast::IndexType::BTree { unique: false },
             columns: vec![IndexColumn {
                 column_name: "email".to_string(),
                 direction: OrderDirection::Asc,

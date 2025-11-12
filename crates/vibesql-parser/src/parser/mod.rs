@@ -113,6 +113,7 @@ impl Parser {
                     Ok(vibesql_ast::Statement::CreateTrigger(self.parse_create_trigger_statement()?))
                 } else if self.peek_next_keyword(Keyword::Index)
                     || self.peek_next_keyword(Keyword::Unique)
+                    || self.peek_next_keyword(Keyword::Fulltext)
                 {
                     Ok(vibesql_ast::Statement::CreateIndex(self.parse_create_index_statement()?))
                 } else if self.peek_next_keyword(Keyword::Assertion) {
@@ -172,6 +173,10 @@ impl Parser {
                         message: "Expected TABLE or SEQUENCE after ALTER".to_string(),
                     })
                 }
+            }
+            Token::Keyword(Keyword::Reindex) => {
+                let reindex_stmt = self.parse_reindex_statement()?;
+                Ok(vibesql_ast::Statement::Reindex(reindex_stmt))
             }
             Token::Keyword(Keyword::Begin) | Token::Keyword(Keyword::Start) => {
                 let begin_stmt = self.parse_begin_statement()?;

@@ -252,3 +252,56 @@ fn test_default_before_comment_mysql_standard() {
         _ => panic!("Expected CREATE TABLE statement"),
     }
 }
+
+#[test]
+fn test_int_with_null_constraint() {
+    // Test if NULL constraint works with regular types
+    let result = Parser::parse_sql("CREATE TABLE t (c1 INT NULL);");
+    if let Err(ref e) = result {
+        eprintln!("INT NULL Parse error: {}", e);
+    }
+    assert!(result.is_ok(), "INT NULL should parse");
+}
+
+#[test]
+fn test_set_type_parsing() {
+    // Test MySQL SET type with values
+    let result = Parser::parse_sql("CREATE TABLE t (c2 SET ('a', 'b') UNIQUE);");
+    if let Err(ref e) = result {
+        eprintln!("SET type Parse error: {}", e);
+    }
+    assert!(result.is_ok(), "SET type should parse");
+}
+
+#[test]
+fn test_set_type_with_binary_literals() {
+    // Test MySQL SET type with binary literal values
+    let result = Parser::parse_sql("CREATE TABLE t (c2 SET ('0b10', '0b1001') UNIQUE KEY);");
+    if let Err(ref e) = result {
+        eprintln!("SET type with binary literals Parse error: {}", e);
+    }
+    assert!(result.is_ok(), "SET type with binary literals should parse");
+}
+
+#[test]
+fn test_polygon_with_null_constraint() {
+    // Test spatial type POLYGON with NULL column constraint
+    // Issue #1315: Support MySQL table options in sqllogictest
+    let result = Parser::parse_sql("CREATE TABLE t (c1 POLYGON NULL);");
+
+    if let Err(ref e) = result {
+        eprintln!("Parse error: {}", e);
+    }
+
+    assert!(result.is_ok(), "Should parse POLYGON with NULL constraint");
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.columns.len(), 1);
+            assert_eq!(create.columns[0].name, "C1");
+            assert!(create.columns[0].nullable, "Column should be nullable");
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}

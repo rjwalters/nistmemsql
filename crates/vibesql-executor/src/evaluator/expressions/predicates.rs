@@ -221,6 +221,12 @@ impl ExpressionEvaluator<'_> {
         negated: bool,
         row: &vibesql_storage::Row,
     ) -> Result<vibesql_types::SqlValue, ExecutorError> {
+        // Handle empty IN list: returns false for IN, true for NOT IN
+        // This is per SQLite behavior (SQL:1999 extension, not standard SQL)
+        if values.is_empty() {
+            return Ok(vibesql_types::SqlValue::Boolean(negated));
+        }
+
         let expr_val = self.eval(expr, row)?;
 
         if matches!(expr_val, vibesql_types::SqlValue::Null) {

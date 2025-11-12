@@ -101,6 +101,12 @@ impl Parser {
             };
 
             match self.peek() {
+                Token::Keyword(Keyword::Null) => {
+                    // MySQL allows standalone NULL keyword to explicitly indicate nullable column
+                    // (which is the default anyway), so we just consume it and skip it
+                    self.advance(); // consume NULL
+                    // This is a no-op - nullable is the default
+                }
                 Token::Keyword(Keyword::Not) => {
                     self.advance(); // consume NOT
                     self.expect_keyword(Keyword::Null)?;
@@ -356,9 +362,63 @@ impl Parser {
                 self.expect_token(Token::RParen)?;
                 vibesql_ast::TableConstraintKind::Check { expr: Box::new(expr) }
             }
+            Token::Keyword(Keyword::Fulltext) => {
+                self.advance(); // consume FULLTEXT
+                
+                // Optional INDEX keyword
+                if self.peek_keyword(Keyword::Index) {
+                    self.advance(); // consume INDEX
+                }
+                
+                // Optional index name
+                let index_name = if matches!(self.peek(), Token::Identifier(_)) {
+                    // Look ahead to see if next token is LParen
+                    if self.position + 1 < self.tokens.len() 
+                        && matches!(self.tokens[self.position + 1], Token::LParen) {
+                        let name = match self.peek() {
+                            Token::Identifier(n) => Some(n.clone()),
+                            _ => None,
+                        };
+                        if name.is_some() {
+                            self.advance(); // consume index name
+                        }
+                        name
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                
+                self.expect_token(Token::LParen)?;
+                
+                let mut columns = Vec::new();
+                loop {
+                    match self.peek() {
+                        Token::Identifier(col) => {
+                            columns.push(col.clone());
+                            self.advance();
+                        }
+                        _ => {
+                            return Err(ParseError {
+                                message: "Expected column name in FULLTEXT".to_string(),
+                            })
+                        }
+                    }
+
+                    if matches!(self.peek(), Token::Comma) {
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                }
+
+                self.expect_token(Token::RParen)?;
+                vibesql_ast::TableConstraintKind::Fulltext { index_name, columns }
+            }
             _ => {
                 return Err(ParseError {
-                    message: "Expected table constraint keyword (PRIMARY, FOREIGN, UNIQUE, CHECK)"
+                    message: "Expected table constraint keyword (PRIMARY, FOREIGN, UNIQUE, CHECK, FULLTEXT)"
                         .to_string(),
                 })
             }

@@ -122,6 +122,11 @@ impl ConstraintValidator {
                     // Foreign key constraints are handled separately
                     // during INSERT/UPDATE/DELETE operations
                 }
+                TableConstraintKind::Fulltext { .. } => {
+                    // FULLTEXT index constraints are handled separately
+                    // during table creation/schema updates
+                    // TODO: Implement FULLTEXT index tracking
+                }
             }
         }
 

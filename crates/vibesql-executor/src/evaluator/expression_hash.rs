@@ -143,6 +143,13 @@ impl ExpressionHasher {
 
             // Wildcards and DEFAULT are special cases
             vibesql_ast::Expression::Wildcard | vibesql_ast::Expression::Default => true,
+
+            // MATCH AGAINST is deterministic if the search term is constant
+            vibesql_ast::Expression::MatchAgainst { .. } => {
+                // MATCH AGAINST always operates on columns, which are non-deterministic
+                // Conservative: treat as non-deterministic since results depend on table data
+                false
+            }
         }
     }
 
@@ -333,6 +340,15 @@ impl ExpressionHasher {
 
             vibesql_ast::Expression::NextValue { sequence_name } => {
                 sequence_name.hash(hasher);
+            }
+
+            vibesql_ast::Expression::MatchAgainst { columns, search_modifier, mode } => {
+                columns.len().hash(hasher);
+                for col in columns {
+                    col.hash(hasher);
+                }
+                Self::hash_expression(search_modifier, hasher);
+                std::mem::discriminant(mode).hash(hasher);
             }
         }
     }
