@@ -210,6 +210,7 @@ where
                 table_result,
                 &vibesql_ast::JoinType::Cross, // Use cross join, filtered by conditions
                 &None,
+                false, // Not a NATURAL JOIN
                 database,
                 &join_conditions, // Pass all conditions as equijoin filters
             )?);

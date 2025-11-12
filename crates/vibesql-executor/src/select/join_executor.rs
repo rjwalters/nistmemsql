@@ -238,7 +238,7 @@ where
 
         // nested_loop_join now requires additional_equijoins parameter (empty for reordered joins)
         result =
-            match nested_loop_join(result, next_result, &join_type, &join_condition, database, &[])
+            match nested_loop_join(result, next_result, &join_type, &join_condition, false, database, &[])
             {
                 Ok(r) => r,
                 Err(e) => return Some(Err(e)),

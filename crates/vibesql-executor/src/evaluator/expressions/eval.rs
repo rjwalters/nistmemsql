@@ -54,6 +54,11 @@ impl ExpressionEvaluator<'_> {
                 "DEFAULT keyword is only valid in INSERT VALUES and UPDATE SET clauses".to_string(),
             )),
 
+            // VALUES() function - not allowed in SELECT/WHERE expressions
+            vibesql_ast::Expression::DuplicateKeyValue { .. } => Err(ExecutorError::UnsupportedExpression(
+                "VALUES() function is only valid in ON DUPLICATE KEY UPDATE clauses".to_string(),
+            )),
+
             // Column reference - look up column index and get value from row
             vibesql_ast::Expression::ColumnRef { table, column } => {
                 self.eval_column_ref(table.as_deref(), column, row)

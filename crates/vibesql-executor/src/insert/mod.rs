@@ -1,6 +1,7 @@
 mod bulk_transfer;
 mod constraints;
 mod defaults;
+mod duplicate_key_update;
 mod execution;
 mod foreign_keys;
 mod replace;

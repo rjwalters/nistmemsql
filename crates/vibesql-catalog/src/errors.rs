@@ -2,9 +2,14 @@
 #[derive(Debug, Clone, PartialEq)]
 pub enum CatalogError {
     TableAlreadyExists(String),
-    TableNotFound(String),
+    TableNotFound {
+        table_name: String,
+    },
     ColumnAlreadyExists(String),
-    ColumnNotFound(String),
+    ColumnNotFound {
+        column_name: String,
+        table_name: String,
+    },
     SchemaAlreadyExists(String),
     SchemaNotFound(String),
     SchemaNotEmpty(String),
@@ -48,6 +53,14 @@ pub enum CatalogError {
     ProcedureNotFound(String),
     ConstraintAlreadyExists(String),
     ConstraintNotFound(String),
+    IndexAlreadyExists {
+        index_name: String,
+        table_name: String,
+    },
+    IndexNotFound {
+        index_name: String,
+        table_name: String,
+    },
 }
 
 impl std::fmt::Display for CatalogError {
@@ -56,11 +69,18 @@ impl std::fmt::Display for CatalogError {
             CatalogError::TableAlreadyExists(name) => {
                 write!(f, "Table '{}' already exists", name)
             }
-            CatalogError::TableNotFound(name) => write!(f, "Table '{}' not found", name),
+            CatalogError::TableNotFound { table_name } => {
+                write!(f, "Table '{}' not found", table_name)
+            }
             CatalogError::ColumnAlreadyExists(name) => {
                 write!(f, "Column '{}' already exists", name)
             }
-            CatalogError::ColumnNotFound(name) => write!(f, "Column '{}' not found", name),
+            CatalogError::ColumnNotFound {
+                column_name,
+                table_name,
+            } => {
+                write!(f, "Column '{}' not found in table '{}'", column_name, table_name)
+            }
             CatalogError::SchemaAlreadyExists(name) => {
                 write!(f, "Schema '{}' already exists", name)
             }
@@ -175,6 +195,18 @@ impl std::fmt::Display for CatalogError {
             }
             CatalogError::ConstraintNotFound(name) => {
                 write!(f, "Constraint '{}' not found", name)
+            }
+            CatalogError::IndexAlreadyExists {
+                index_name,
+                table_name,
+            } => {
+                write!(f, "Index '{}' on table '{}' already exists", index_name, table_name)
+            }
+            CatalogError::IndexNotFound {
+                index_name,
+                table_name,
+            } => {
+                write!(f, "Index '{}' on table '{}' not found", index_name, table_name)
             }
         }
     }

@@ -87,6 +87,12 @@ pub enum ExecutorError {
         used_bytes: usize,
         max_bytes: usize,
     },
+    /// Variable not found in procedural context
+    VariableNotFound(String),
+    /// Label not found in procedural context
+    LabelNotFound(String),
+    /// Type error in expression evaluation
+    TypeError(String),
     Other(String),
 }
 
@@ -220,6 +226,15 @@ impl std::fmt::Display for ExecutorError {
                     *max_bytes as f64 / 1024.0 / 1024.0 / 1024.0
                 )
             }
+            ExecutorError::VariableNotFound(name) => {
+                write!(f, "Variable '{}' not found", name)
+            }
+            ExecutorError::LabelNotFound(name) => {
+                write!(f, "Label '{}' not found", name)
+            }
+            ExecutorError::TypeError(msg) => {
+                write!(f, "Type error: {}", msg)
+            }
             ExecutorError::Other(msg) => write!(f, "{}", msg),
         }
     }
@@ -280,13 +295,18 @@ impl From<vibesql_catalog::CatalogError> for ExecutorError {
             vibesql_catalog::CatalogError::TableAlreadyExists(name) => {
                 ExecutorError::TableAlreadyExists(name)
             }
-            vibesql_catalog::CatalogError::TableNotFound(name) => ExecutorError::TableNotFound(name),
+            vibesql_catalog::CatalogError::TableNotFound { table_name } => {
+                ExecutorError::TableNotFound(table_name)
+            }
             vibesql_catalog::CatalogError::ColumnAlreadyExists(name) => {
                 ExecutorError::ColumnAlreadyExists(name)
             }
-            vibesql_catalog::CatalogError::ColumnNotFound(name) => ExecutorError::ColumnNotFound {
-                column_name: name,
-                table_name: "unknown".to_string(),
+            vibesql_catalog::CatalogError::ColumnNotFound {
+                column_name,
+                table_name,
+            } => ExecutorError::ColumnNotFound {
+                column_name,
+                table_name,
                 searched_tables: vec![],
                 available_columns: vec![],
             },
@@ -404,6 +424,14 @@ impl From<vibesql_catalog::CatalogError> for ExecutorError {
                 constraint_name: name,
                 table_name: "unknown".to_string(),
             },
+            vibesql_catalog::CatalogError::IndexAlreadyExists {
+                index_name,
+                table_name,
+            } => ExecutorError::IndexAlreadyExists(format!("{} on table {}", index_name, table_name)),
+            vibesql_catalog::CatalogError::IndexNotFound {
+                index_name,
+                table_name,
+            } => ExecutorError::IndexNotFound(format!("{} on table {}", index_name, table_name)),
         }
     }
 }

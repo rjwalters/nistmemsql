@@ -112,6 +112,9 @@ pub enum ColumnConstraintKind {
         on_delete: Option<ReferentialAction>,
         on_update: Option<ReferentialAction>,
     },
+    /// AUTO_INCREMENT (MySQL) or AUTOINCREMENT (SQLite)
+    /// Automatically generates sequential integer values for new rows
+    AutoIncrement,
 }
 
 /// Table-level constraint
@@ -151,6 +154,13 @@ pub enum TableConstraintKind {
 /// DROP TABLE statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct DropTableStmt {
+    pub table_name: String,
+    pub if_exists: bool,
+}
+
+/// TRUNCATE TABLE statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct TruncateTableStmt {
     pub table_name: String,
     pub if_exists: bool,
 }

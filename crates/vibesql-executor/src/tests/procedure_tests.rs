@@ -6,6 +6,7 @@ use vibesql_storage::Database;
 use vibesql_types::{DataType, SqlValue};
 
 use crate::advanced_objects;
+use crate::errors::ExecutorError;
 
 fn setup_test_table(db: &mut Database) {
     // CREATE TABLE users (id INTEGER NOT NULL, name VARCHAR(50))
@@ -137,20 +138,23 @@ fn test_drop_function_simple() {
 fn test_call_procedure_simple() {
     let mut db = Database::new();
     setup_test_table(&mut db);
-    
+
     let create_proc = CreateProcedureStmt {
         procedure_name: "test_proc".to_string(),
         parameters: vec![],
         body: ProcedureBody::BeginEnd(vec![]),
     };
-    
+
     advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
-    
+
     let call = CallStmt {
         procedure_name: "test_proc".to_string(),
         arguments: vec![],
     };
-    
+
     let result = advanced_objects::execute_call(&call, &mut db);
-    assert!(result.is_ok());
+    // Phase 1: Procedures are stored but not yet executable
+    // They're stored as RawSql debug strings, not executable AST
+    assert!(result.is_err());
+    assert!(matches!(result.unwrap_err(), ExecutorError::UnsupportedFeature(_)));
 }

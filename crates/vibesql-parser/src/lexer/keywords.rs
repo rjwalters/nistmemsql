@@ -14,8 +14,10 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "IGNORE" => Token::Keyword(Keyword::Ignore),
         "UPDATE" => Token::Keyword(Keyword::Update),
         "DELETE" => Token::Keyword(Keyword::Delete),
+        "DUPLICATE" => Token::Keyword(Keyword::Duplicate),
         "CREATE" => Token::Keyword(Keyword::Create),
         "TABLE" => Token::Keyword(Keyword::Table),
+        "TRUNCATE" => Token::Keyword(Keyword::Truncate),
         "DROP" => Token::Keyword(Keyword::Drop),
         "ADD" => Token::Keyword(Keyword::Add),
         "ALTER" => Token::Keyword(Keyword::Alter),
@@ -33,6 +35,7 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "OUTER" => Token::Keyword(Keyword::Outer),
         "CROSS" => Token::Keyword(Keyword::Cross),
         "FULL" => Token::Keyword(Keyword::Full),
+        "NATURAL" => Token::Keyword(Keyword::Natural),
         "ON" => Token::Keyword(Keyword::On),
         "GROUP" => Token::Keyword(Keyword::Group),
         "BY" => Token::Keyword(Keyword::By),
@@ -261,6 +264,9 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "FIELDS" => Token::Keyword(Keyword::Fields),
         "INDEXES" => Token::Keyword(Keyword::Indexes),
         "KEYS" => Token::Keyword(Keyword::Keys),
+        // Auto-increment keywords (MySQL and SQLite)
+        "AUTO_INCREMENT" => Token::Keyword(Keyword::AutoIncrement),
+        "AUTOINCREMENT" => Token::Keyword(Keyword::AutoIncrement),
         _ => Token::Identifier(upper_text), // Regular identifiers are normalized to uppercase
     }
 }

@@ -41,6 +41,7 @@ mod subquery;
 mod transaction;
 mod translation;
 mod trigger;
+mod truncate;
 mod update;
 mod view;
 mod window_functions;
