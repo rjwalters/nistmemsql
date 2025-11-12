@@ -1,119 +1,27 @@
 //! Sqllogictest parser.
 
 use std::fmt;
-use std::iter::Peekable;
 use std::path::Path;
-use std::sync::Arc;
-use std::time::Duration;
 
 use itertools::Itertools;
-use regex::Regex;
+
+pub mod location;
+pub mod error_parser;
+pub mod retry_parser;
+pub mod directive_parser;
+pub mod record_parser;
+
+pub use self::location::Location;
+pub use self::error_parser::ExpectedError;
+pub use self::retry_parser::RetryConfig;
+pub use self::directive_parser::{Control, Condition, Connection, SortMode, ResultMode, ControlItem};
+pub use self::record_parser::{StatementExpect, QueryExpect};
 
 use crate::ColumnType;
+use self::record_parser::{parse_lines, parse_multiple_result, parse_multiline_error};
+use self::retry_parser::parse_retry_config;
 
 const RESULTS_DELIMITER: &str = "----";
-
-/// The location in source file.
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Location {
-    file: Arc<str>,
-    line: u32,
-    upper: Option<Arc<Location>>,
-}
-
-impl fmt::Display for Location {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{}", self.file, self.line)?;
-        if let Some(upper) = &self.upper {
-            write!(f, "\nat {upper}")?;
-        }
-        Ok(())
-    }
-}
-
-impl Location {
-    /// File path.
-    pub fn file(&self) -> &str {
-        &self.file
-    }
-
-    /// Line number.
-    pub fn line(&self) -> u32 {
-        self.line
-    }
-
-    fn new(file: impl Into<Arc<str>>, line: u32) -> Self {
-        Self {
-            file: file.into(),
-            line,
-            upper: None,
-        }
-    }
-
-    /// Returns the location of next line.
-    #[must_use]
-    fn next_line(mut self) -> Self {
-        self.line += 1;
-        self
-    }
-
-    /// Returns the location of next level file.
-    fn include(&self, file: &str) -> Self {
-        Self {
-            file: file.into(),
-            line: 0,
-            upper: Some(Arc::new(self.clone())),
-        }
-    }
-}
-
-/// Configuration for retry behavior
-#[derive(Debug, Clone, PartialEq)]
-pub struct RetryConfig {
-    /// Number of retry attempts
-    pub attempts: usize,
-    /// Duration to wait between retries
-    pub backoff: Duration,
-}
-
-/// Expectation for a statement.
-#[derive(Debug, Clone, PartialEq)]
-pub enum StatementExpect {
-    /// Statement should succeed.
-    Ok,
-    /// Statement should succeed and affect the given number of rows.
-    Count(u64),
-    /// Statement should fail with the given error message.
-    Error(ExpectedError),
-}
-
-/// Expectation for a query.
-#[derive(Debug, Clone, PartialEq)]
-pub enum QueryExpect<T: ColumnType> {
-    /// Query should succeed and return the given results.
-    Results {
-        types: Vec<T>,
-        sort_mode: Option<SortMode>,
-        result_mode: Option<ResultMode>,
-        label: Option<String>,
-        results: Vec<String>,
-    },
-    /// Query should fail with the given error message.
-    Error(ExpectedError),
-}
-
-impl<T: ColumnType> QueryExpect<T> {
-    /// Creates a new [`QueryExpect`] with empty results.
-    fn empty_results() -> Self {
-        Self::Results {
-            types: Vec::new(),
-            sort_mode: None,
-            result_mode: None,
-            label: None,
-            results: Vec::new(),
-        }
-    }
-}
 
 /// A single directive in a sqllogictest file.
 #[derive(Debug, Clone, PartialEq)]
@@ -164,7 +72,7 @@ pub enum Record<T: ColumnType> {
     /// A sleep period.
     Sleep {
         loc: Location,
-        duration: Duration,
+        duration: std::time::Duration,
     },
     /// Subtest.
     Subtest {
@@ -225,28 +133,7 @@ impl<T: ColumnType> std::fmt::Display for Record<T> {
                 expected,
                 retry,
             } => {
-                write!(f, "statement ")?;
-                match expected {
-                    StatementExpect::Ok => write!(f, "ok")?,
-                    StatementExpect::Count(cnt) => write!(f, "count {cnt}")?,
-                    StatementExpect::Error(err) => err.fmt_inline(f)?,
-                }
-                if let Some(retry) = retry {
-                    write!(
-                        f,
-                        " retry {} backoff {}",
-                        retry.attempts,
-                        humantime::format_duration(retry.backoff)
-                    )?;
-                }
-                writeln!(f)?;
-                // statement always end with a blank line
-                writeln!(f, "{sql}")?;
-
-                if let StatementExpect::Error(err) = expected {
-                    err.fmt_multiline(f)?;
-                }
-                Ok(())
+                record_parser::fmt_statement(f, sql, expected, retry)
             }
             Record::Query {
                 loc: _,
@@ -256,48 +143,7 @@ impl<T: ColumnType> std::fmt::Display for Record<T> {
                 expected,
                 retry,
             } => {
-                write!(f, "query ")?;
-                match expected {
-                    QueryExpect::Results {
-                        types,
-                        sort_mode,
-                        label,
-                        ..
-                    } => {
-                        write!(f, "{}", types.iter().map(|c| c.to_char()).join(""))?;
-                        if let Some(sort_mode) = sort_mode {
-                            write!(f, " {}", sort_mode.as_str())?;
-                        }
-                        if let Some(label) = label {
-                            write!(f, " {label}")?;
-                        }
-                    }
-                    QueryExpect::Error(err) => err.fmt_inline(f)?,
-                }
-                if let Some(retry) = retry {
-                    write!(
-                        f,
-                        " retry {} backoff {}",
-                        retry.attempts,
-                        humantime::format_duration(retry.backoff)
-                    )?;
-                }
-                writeln!(f)?;
-                writeln!(f, "{sql}")?;
-
-                match expected {
-                    QueryExpect::Results { results, .. } => {
-                        write!(f, "{}", RESULTS_DELIMITER)?;
-                        for result in results {
-                            write!(f, "\n{result}")?;
-                        }
-
-                        // query always ends with a blank line
-                        writeln!(f)?
-                    }
-                    QueryExpect::Error(err) => err.fmt_multiline(f)?,
-                }
-                Ok(())
+                record_parser::fmt_query(f, sql, expected, retry)
             }
             Record::System {
                 loc: _,
@@ -306,19 +152,7 @@ impl<T: ColumnType> std::fmt::Display for Record<T> {
                 stdout,
                 retry,
             } => {
-                writeln!(f, "system ok\n{command}")?;
-                if let Some(retry) = retry {
-                    write!(
-                        f,
-                        " retry {} backoff {}",
-                        retry.attempts,
-                        humantime::format_duration(retry.backoff)
-                    )?;
-                }
-                if let Some(stdout) = stdout {
-                    writeln!(f, "----\n{}\n", stdout.trim())?;
-                }
-                Ok(())
+                record_parser::fmt_system(f, command, stdout, retry)
             }
             Record::Sleep { loc: _, duration } => {
                 write!(f, "sleep {}", humantime::format_duration(*duration))
@@ -361,158 +195,8 @@ impl<T: ColumnType> std::fmt::Display for Record<T> {
     }
 }
 
-/// Expected error message after `error` or under `----`.
-#[derive(Debug, Clone)]
-pub enum ExpectedError {
-    /// No expected error message.
-    ///
-    /// Any error message is considered as a match.
-    Empty,
-    /// An inline regular expression after `error`.
-    ///
-    /// The actual error message that matches the regex is considered as a match.
-    Inline(Regex),
-    /// A multiline error message under `----`, ends with 2 consecutive empty lines.
-    ///
-    /// The actual error message that's exactly the same as the expected one is considered as a
-    /// match.
-    Multiline(String),
-}
-
-impl ExpectedError {
-    /// Parses an inline regex variant from tokens.
-    fn parse_inline_tokens(tokens: &[&str]) -> Result<Self, ParseErrorKind> {
-        Self::new_inline(tokens.join(" "))
-    }
-
-    /// Creates an inline expected error message from a regex string.
-    ///
-    /// If the regex is empty, it's considered as [`ExpectedError::Empty`].
-    fn new_inline(regex: String) -> Result<Self, ParseErrorKind> {
-        if regex.is_empty() {
-            Ok(Self::Empty)
-        } else {
-            let regex =
-                Regex::new(&regex).map_err(|_| ParseErrorKind::InvalidErrorMessage(regex))?;
-            Ok(Self::Inline(regex))
-        }
-    }
-
-    /// Returns whether it's an empty match.
-    fn is_empty(&self) -> bool {
-        matches!(self, Self::Empty)
-    }
-
-    /// Unparses the expected message after `statement`.
-    fn fmt_inline(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "error")?;
-        if let Self::Inline(regex) = self {
-            write!(f, " {regex}")?;
-        }
-        Ok(())
-    }
-
-    /// Unparses the expected message with `----`, if it's multiline.
-    fn fmt_multiline(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Self::Multiline(results) = self {
-            writeln!(f, "{}", RESULTS_DELIMITER)?;
-            writeln!(f, "{}", results.trim())?;
-            writeln!(f)?; // another empty line to indicate the end of multiline message
-        }
-        Ok(())
-    }
-
-    /// Returns whether the given error message matches the expected one.
-    pub fn is_match(&self, err: &str) -> bool {
-        match self {
-            Self::Empty => true,
-            Self::Inline(regex) => regex.is_match(err),
-            Self::Multiline(results) => results.trim() == err.trim(),
-        }
-    }
-
-    /// Creates an expected error message from the actual error message. Used by the runner
-    /// to update the test cases with `--override`.
-    ///
-    /// A reference might be provided to help decide whether to use inline or multiline.
-    pub fn from_actual_error(reference: Option<&Self>, actual_err: &str) -> Self {
-        let trimmed_err = actual_err.trim();
-        let err_is_multiline = trimmed_err.lines().next_tuple::<(_, _)>().is_some();
-
-        let multiline = match reference {
-            Some(Self::Multiline(_)) => true, // always multiline if the ref is multiline
-            _ => err_is_multiline,            // prefer inline as long as it fits
-        };
-
-        if multiline {
-            // Even if the actual error is empty, we still use `Multiline` to indicate that
-            // an exact empty error is expected, instead of any error by `Empty`.
-            Self::Multiline(trimmed_err.to_string())
-        } else {
-            Self::new_inline(regex::escape(actual_err)).expect("escaped regex should be valid")
-        }
-    }
-}
-
-impl std::fmt::Display for ExpectedError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ExpectedError::Empty => write!(f, "(any)"),
-            ExpectedError::Inline(regex) => write!(f, "(regex) {}", regex),
-            ExpectedError::Multiline(results) => write!(f, "(multiline) {}", results.trim()),
-        }
-    }
-}
-
-impl PartialEq for ExpectedError {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Empty, Self::Empty) => true,
-            (Self::Inline(l0), Self::Inline(r0)) => l0.as_str() == r0.as_str(),
-            (Self::Multiline(l0), Self::Multiline(r0)) => l0 == r0,
-            _ => false,
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[non_exhaustive]
-pub enum Control {
-    /// Control sort mode.
-    SortMode(SortMode),
-    /// control result mode.
-    ResultMode(ResultMode),
-    /// Control whether or not to substitute variables in the SQL.
-    Substitution(bool),
-}
-
-trait ControlItem: Sized {
-    /// Try to parse from string.
-    fn try_from_str(s: &str) -> Result<Self, ParseErrorKind>;
-
-    /// Convert to string.
-    fn as_str(&self) -> &'static str;
-}
-
-impl ControlItem for bool {
-    fn try_from_str(s: &str) -> Result<Self, ParseErrorKind> {
-        match s {
-            "on" => Ok(true),
-            "off" => Ok(false),
-            _ => Err(ParseErrorKind::InvalidControl(s.to_string())),
-        }
-    }
-
-    fn as_str(&self) -> &'static str {
-        if *self {
-            "on"
-        } else {
-            "off"
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Injected {
     /// Pseudo control command to indicate the begin of an include statement. Automatically
     /// injected by sqllogictest parser.
@@ -520,108 +204,6 @@ pub enum Injected {
     /// Pseudo control command to indicate the end of an include statement. Automatically injected
     /// by sqllogictest parser.
     EndInclude(String),
-}
-
-/// The condition to run a query.
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Condition {
-    /// The statement or query is evaluated only if the label is seen.
-    OnlyIf { label: String },
-    /// The statement or query is not evaluated if the label is seen.
-    SkipIf { label: String },
-}
-
-impl Condition {
-    /// Evaluate condition on given `label`, returns whether to skip this record.
-    pub(crate) fn should_skip<'a>(&'a self, labels: impl IntoIterator<Item = &'a str>) -> bool {
-        match self {
-            Condition::OnlyIf { label } => !labels.into_iter().contains(&label.as_str()),
-            Condition::SkipIf { label } => labels.into_iter().contains(&label.as_str()),
-        }
-    }
-}
-
-/// The connection to use for the following statement.
-#[derive(Default, Debug, PartialEq, Eq, Hash, Clone)]
-pub enum Connection {
-    /// The default connection if not specified or if the name is "default".
-    #[default]
-    Default,
-    /// A named connection.
-    Named(String),
-}
-
-impl Connection {
-    fn new(name: impl AsRef<str>) -> Self {
-        match name.as_ref() {
-            "default" => Self::Default,
-            name => Self::Named(name.to_owned()),
-        }
-    }
-}
-
-/// Whether to apply sorting before checking the results of a query.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum SortMode {
-    /// The default option. The results appear in exactly the order in which they were received
-    /// from the database engine.
-    NoSort,
-    /// Gathers all output from the database engine then sorts it by rows.
-    RowSort,
-    /// It works like rowsort except that it does not honor row groupings. Each individual result
-    /// value is sorted on its own.
-    ValueSort,
-}
-
-impl ControlItem for SortMode {
-    fn try_from_str(s: &str) -> Result<Self, ParseErrorKind> {
-        match s {
-            "nosort" => Ok(Self::NoSort),
-            "rowsort" => Ok(Self::RowSort),
-            "valuesort" => Ok(Self::ValueSort),
-            _ => Err(ParseErrorKind::InvalidSortMode(s.to_string())),
-        }
-    }
-
-    fn as_str(&self) -> &'static str {
-        match self {
-            Self::NoSort => "nosort",
-            Self::RowSort => "rowsort",
-            Self::ValueSort => "valuesort",
-        }
-    }
-}
-
-/// Whether the results should be parsed as value-wise or row-wise
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum ResultMode {
-    /// Results are in a single column
-    ValueWise,
-    /// The default option where results are in columns separated by spaces
-    RowWise,
-}
-
-impl ControlItem for ResultMode {
-    fn try_from_str(s: &str) -> Result<Self, ParseErrorKind> {
-        match s {
-            "rowwise" => Ok(Self::RowWise),
-            "valuewise" => Ok(Self::ValueWise),
-            _ => Err(ParseErrorKind::InvalidSortMode(s.to_string())),
-        }
-    }
-
-    fn as_str(&self) -> &'static str {
-        match self {
-            Self::RowWise => "rowwise",
-            Self::ValueWise => "valuewise",
-        }
-    }
-}
-
-impl fmt::Display for ResultMode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{self:?}")
-    }
 }
 
 /// The error type for parsing sqllogictest.
@@ -681,7 +263,7 @@ pub enum ParseErrorKind {
 }
 
 impl ParseErrorKind {
-    fn at(self, loc: Location) -> ParseError {
+    pub(crate) fn at(self, loc: Location) -> ParseError {
         ParseError { kind: self, loc }
     }
 }
@@ -694,7 +276,7 @@ pub fn parse<T: ColumnType>(script: &str) -> Result<Vec<Record<T>>, ParseError> 
 /// Parse a sqllogictest script into a list of records with a given script name.
 pub fn parse_with_name<T: ColumnType>(
     script: &str,
-    name: impl Into<Arc<str>>,
+    name: impl Into<std::sync::Arc<str>>,
 ) -> Result<Vec<Record<T>>, ParseError> {
     parse_inner(&Location::new(name, 0), script)
 }
@@ -1020,132 +602,6 @@ fn parse_file_inner<T: ColumnType>(loc: Location) -> Result<Vec<Record<T>>, Pars
     Ok(records)
 }
 
-/// Parse one or more lines until empty line or a delimiter.
-fn parse_lines<'a>(
-    lines: &mut impl Iterator<Item = (usize, &'a str)>,
-    loc: &Location,
-    delimiter: Option<&str>,
-) -> Result<(String, bool), ParseError> {
-    let mut found_delimiter = false;
-    let mut out = match lines.next() {
-        Some((_, line)) => Ok(line.into()),
-        None => Err(ParseErrorKind::UnexpectedEOF.at(loc.clone().next_line())),
-    }?;
-
-    for (_, line) in lines {
-        if line.is_empty() {
-            break;
-        }
-        if let Some(delimiter) = delimiter {
-            if line == delimiter {
-                found_delimiter = true;
-                break;
-            }
-        }
-        out += "\n";
-        out += line;
-    }
-
-    Ok((out, found_delimiter))
-}
-
-/// Parse multiline output under `----`.
-fn parse_multiple_result<'a>(
-    lines: &mut Peekable<impl Iterator<Item = (usize, &'a str)>>,
-) -> String {
-    let mut results = String::new();
-
-    while let Some((_, line)) = lines.next() {
-        // 2 consecutive empty lines
-        if line.is_empty() && lines.peek().map(|(_, l)| l.is_empty()).unwrap_or(true) {
-            lines.next();
-            break;
-        }
-        results += line;
-        results.push('\n');
-    }
-
-    results.trim().to_string()
-}
-
-/// Parse multiline error message under `----`.
-fn parse_multiline_error<'a>(
-    lines: &mut Peekable<impl Iterator<Item = (usize, &'a str)>>,
-) -> ExpectedError {
-    ExpectedError::Multiline(parse_multiple_result(lines))
-}
-
-/// Parse retry configuration from tokens
-///
-/// The retry configuration is optional and can be specified as:
-///
-/// ```text
-/// ... retry 3 backoff 1s
-/// ```
-fn parse_retry_config(tokens: &[&str]) -> Result<Option<RetryConfig>, ParseErrorKind> {
-    if tokens.is_empty() {
-        return Ok(None);
-    }
-
-    let mut iter = tokens.iter().peekable();
-
-    // Check if we have retry clause
-    match iter.next() {
-        Some(&"retry") => {}
-        Some(token) => return Err(ParseErrorKind::UnexpectedToken(token.to_string())),
-        None => return Ok(None),
-    }
-
-    // Parse number of attempts
-    let attempts = match iter.next() {
-        Some(attempts_str) => attempts_str
-            .parse::<usize>()
-            .map_err(|_| ParseErrorKind::InvalidNumber(attempts_str.to_string()))?,
-        None => {
-            return Err(ParseErrorKind::InvalidRetryConfig(
-                "expected a positive number of attempts".to_string(),
-            ))
-        }
-    };
-
-    if attempts == 0 {
-        return Err(ParseErrorKind::InvalidRetryConfig(
-            "attempt must be greater than 0".to_string(),
-        ));
-    }
-
-    // Expect "backoff" keyword
-    match iter.next() {
-        Some(&"backoff") => {}
-        Some(token) => return Err(ParseErrorKind::UnexpectedToken(token.to_string())),
-        None => {
-            return Err(ParseErrorKind::InvalidRetryConfig(
-                "expected keyword backoff".to_string(),
-            ))
-        }
-    }
-
-    // Parse backoff duration
-    let duration_str = match iter.next() {
-        Some(s) => s,
-        None => {
-            return Err(ParseErrorKind::InvalidRetryConfig(
-                "expected backoff duration".to_string(),
-            ))
-        }
-    };
-
-    let backoff = humantime::parse_duration(duration_str)
-        .map_err(|_| ParseErrorKind::InvalidDuration(duration_str.to_string()))?;
-
-    // No more tokens should be present
-    if iter.next().is_some() {
-        return Err(ParseErrorKind::UnexpectedToken("extra tokens".to_string()));
-    }
-
-    Ok(Some(RetryConfig { attempts, backoff }))
-}
-
 #[cfg(test)]
 mod tests {
     use std::io::Write;
@@ -1326,7 +782,7 @@ select * from foo;
 
     // Normalize a location
     fn normalize_loc(loc: &mut Location) {
-        loc.file = Arc::from("__FILENAME__");
+        loc.file = std::sync::Arc::from("__FILENAME__");
     }
 
     #[derive(Debug, PartialEq, Eq, Clone)]
