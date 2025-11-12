@@ -7,17 +7,21 @@ impl super::super::Catalog {
     // Function Management Methods (SQL:1999 Feature P001)
     // ============================================================================
 
-    /// Create a function stub for privilege tracking
-    pub fn create_function_stub(
+    /// Create a function
+    pub fn create_function(
         &mut self,
         name: String,
         schema: String,
+        parameters: Vec<crate::advanced_objects::FunctionParam>,
+        return_type: vibesql_types::DataType,
+        body: crate::advanced_objects::FunctionBody,
     ) -> Result<(), CatalogError> {
         use crate::advanced_objects::Function;
         if self.functions.contains_key(&name) {
             return Err(CatalogError::FunctionAlreadyExists(name));
         }
-        self.functions.insert(name.clone(), Function::new(name, schema));
+        self.functions
+            .insert(name.clone(), Function::new(name, schema, parameters, return_type, body));
         Ok(())
     }
 
@@ -36,21 +40,33 @@ impl super::super::Catalog {
         self.functions.keys().cloned().collect()
     }
 
+    /// Drop a function
+    pub fn drop_function(&mut self, name: &str) -> Result<(), CatalogError> {
+        if self.functions.remove(name).is_some() {
+            Ok(())
+        } else {
+            Err(CatalogError::FunctionNotFound(name.to_string()))
+        }
+    }
+
     // ============================================================================
     // Procedure Management Methods (SQL:1999 Feature P001)
     // ============================================================================
 
-    /// Create a procedure stub for privilege tracking
-    pub fn create_procedure_stub(
+    /// Create a procedure
+    pub fn create_procedure(
         &mut self,
         name: String,
         schema: String,
+        parameters: Vec<crate::advanced_objects::ProcedureParam>,
+        body: crate::advanced_objects::ProcedureBody,
     ) -> Result<(), CatalogError> {
         use crate::advanced_objects::Procedure;
         if self.procedures.contains_key(&name) {
             return Err(CatalogError::ProcedureAlreadyExists(name));
         }
-        self.procedures.insert(name.clone(), Procedure::new(name, schema));
+        self.procedures
+            .insert(name.clone(), Procedure::new(name, schema, parameters, body));
         Ok(())
     }
 
@@ -67,5 +83,14 @@ impl super::super::Catalog {
     /// List all procedure names
     pub fn list_procedures(&self) -> Vec<String> {
         self.procedures.keys().cloned().collect()
+    }
+
+    /// Drop a procedure
+    pub fn drop_procedure(&mut self, name: &str) -> Result<(), CatalogError> {
+        if self.procedures.remove(name).is_some() {
+            Ok(())
+        } else {
+            Err(CatalogError::ProcedureNotFound(name.to_string()))
+        }
     }
 }
