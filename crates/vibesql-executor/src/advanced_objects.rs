@@ -325,10 +325,47 @@ pub fn execute_drop_function(
     Ok(())
 }
 
+/// Extract variable name from an expression for OUT/INOUT parameter binding
+///
+/// Valid patterns:
+/// - ColumnRef without table qualifier (treated as session variable): @var_name
+/// - Function call to session variable function (if we add one)
+///
+/// Returns the variable name (without @ prefix) or error if expression is not a valid variable reference.
+fn extract_variable_name(expr: &Expression) -> Result<String, ExecutorError> {
+    match expr {
+        Expression::ColumnRef { table: None, column } => {
+            // Column reference without table - treat as session variable
+            // If it starts with @, strip it; otherwise use as-is
+            let var_name = if column.starts_with('@') {
+                column[1..].to_string()
+            } else {
+                column.clone()
+            };
+            Ok(var_name)
+        }
+        Expression::ColumnRef { table: Some(_), column: _ } => {
+            Err(ExecutorError::Other(
+                "OUT/INOUT parameter target must be a session variable (e.g., @var_name), not a table.column reference".to_string()
+            ))
+        }
+        Expression::Literal(_) => {
+            Err(ExecutorError::Other(
+                "OUT/INOUT parameter target cannot be a literal value".to_string()
+            ))
+        }
+        _ => {
+            Err(ExecutorError::Other(
+                "OUT/INOUT parameter target must be a session variable (e.g., @var_name), not a complex expression".to_string()
+            ))
+        }
+    }
+}
+
 /// Execute CALL statement (SQL:1999 Feature P001)
 ///
 /// Executes a stored procedure with parameter binding and procedural statement execution.
-/// Phase 2 implementation: Supports IN parameters and sequential statement execution (no control flow).
+/// Phase 4 implementation: Supports IN, OUT, and INOUT parameters with session variables.
 pub fn execute_call(
     stmt: &CallStmt,
     db: &mut Database,
@@ -358,18 +395,30 @@ pub fn execute_call(
     let mut ctx = ExecutionContext::new();
 
     for (param, arg_expr) in parameters.iter().zip(&stmt.arguments) {
-        // Evaluate the argument expression
-        let value = crate::procedural::executor::evaluate_expression(arg_expr, db, &ctx)?;
+        match param.mode {
+            vibesql_catalog::ParameterMode::In => {
+                // IN parameter: Evaluate and bind the value
+                let value = crate::procedural::executor::evaluate_expression(arg_expr, db, &ctx)?;
+                ctx.set_parameter(&param.name, value);
+            }
+            vibesql_catalog::ParameterMode::Out => {
+                // OUT parameter: Initialize to NULL
+                ctx.set_parameter(&param.name, vibesql_types::SqlValue::Null);
 
-        // Bind to parameter (Phase 2: IN parameters only)
-        if param.mode != vibesql_catalog::ParameterMode::In {
-            return Err(ExecutorError::UnsupportedFeature(format!(
-                "OUT and INOUT parameters not yet supported (parameter '{}')",
-                param.name
-            )));
+                // Extract and register target variable name
+                let var_name = extract_variable_name(arg_expr)?;
+                ctx.register_out_parameter(&param.name, var_name);
+            }
+            vibesql_catalog::ParameterMode::InOut => {
+                // INOUT parameter: Evaluate and bind input value
+                let value = crate::procedural::executor::evaluate_expression(arg_expr, db, &ctx)?;
+                ctx.set_parameter(&param.name, value);
+
+                // Extract and register target variable name
+                let var_name = extract_variable_name(arg_expr)?;
+                ctx.register_out_parameter(&param.name, var_name);
+            }
         }
-
-        ctx.set_parameter(&param.name, value);
     }
 
     // 4. Execute procedure body
@@ -401,10 +450,20 @@ pub fn execute_call(
                 "RawSql procedure bodies require parsing (use BEGIN/END block instead)".to_string()
             ))
         }
+    }?;
+
+    // 5. Return output parameter values to session variables
+    for (param_name, target_var_name) in ctx.get_out_parameters() {
+        // Get the parameter value from the context
+        let value = ctx.get_parameter(param_name)
+            .cloned()
+            .ok_or_else(|| ExecutorError::Other(format!("Parameter '{}' not found", param_name)))?;
+
+        // Store in session variable
+        db.set_session_variable(&target_var_name, value);
     }
 
-    // 5. Return output parameter values
-    // TODO: Handle OUT and INOUT parameters in Phase 4
+    Ok(())
 }
 
 /// Execute CREATE TRIGGER statement
