@@ -22,20 +22,25 @@ impl DropIndexExecutor {
     pub fn execute(stmt: &DropIndexStmt, database: &mut Database) -> Result<String, ExecutorError> {
         let index_name = &stmt.index_name;
 
-        // Check if index exists
-        if !database.index_exists(index_name) {
-            if stmt.if_exists {
-                // IF EXISTS: silently succeed if index doesn't exist
-                return Ok(format!("Index '{}' does not exist (skipped)", index_name));
-            } else {
-                return Err(ExecutorError::IndexNotFound(index_name.clone()));
-            }
+        // Check if it's a spatial index first
+        if database.spatial_index_exists(index_name) {
+            database.drop_spatial_index(index_name)?;
+            return Ok(format!("Spatial index '{}' dropped successfully", index_name));
         }
 
-        // Drop the index
-        database.drop_index(index_name)?;
+        // Otherwise check if it's a B-tree index
+        if database.index_exists(index_name) {
+            database.drop_index(index_name)?;
+            return Ok(format!("Index '{}' dropped successfully", index_name));
+        }
 
-        Ok(format!("Index '{}' dropped successfully", index_name))
+        // Index not found
+        if stmt.if_exists {
+            // IF EXISTS: silently succeed if index doesn't exist
+            return Ok(format!("Index '{}' does not exist (skipped)", index_name));
+        } else {
+            return Err(ExecutorError::IndexNotFound(index_name.clone()));
+        }
     }
 }
 
