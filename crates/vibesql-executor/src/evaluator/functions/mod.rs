@@ -23,6 +23,7 @@ mod null_handling;
 mod numeric;
 pub(crate) mod string;
 mod system;
+mod spatial;
 
 /// Evaluate a scalar function on given argument values
 ///
@@ -113,6 +114,23 @@ pub(super) fn eval_scalar_function(
         "VERSION" => system::version(args),
         "DATABASE" | "SCHEMA" => system::database(args, name),
         "USER" | "CURRENT_USER" => system::user(args, name),
+
+        // Spatial/Geometric functions
+        // Constructor functions
+        "ST_GEOMFROMTEXT" | "ST_GEOM_FROM_TEXT" => spatial::constructors::st_geom_from_text(args),
+        "ST_POINTFROMTEXT" | "ST_POINT_FROM_TEXT" => spatial::constructors::st_point_from_text(args),
+        "ST_LINEFROMTEXT" | "ST_LINE_FROM_TEXT" => spatial::constructors::st_line_from_text(args),
+        "ST_POLYGONFROMTEXT" | "ST_POLYGON_FROM_TEXT" => spatial::constructors::st_polygon_from_text(args),
+        
+        // Accessor functions
+        "ST_X" => spatial::accessors::st_x(args),
+        "ST_Y" => spatial::accessors::st_y(args),
+        "ST_GEOMETRYTYPE" | "ST_GEOMETRY_TYPE" => spatial::accessors::st_geometry_type(args),
+        "ST_DIMENSION" => spatial::accessors::st_dimension(args),
+        "ST_SRID" => spatial::accessors::st_srid(args),
+        "ST_ASTEXT" | "ST_AS_TEXT" => spatial::accessors::st_as_text(args),
+        "ST_ASBINARY" | "ST_AS_BINARY" => spatial::accessors::st_as_binary(args),
+        "ST_ASGEOJSON" | "ST_AS_GEOJSON" => spatial::accessors::st_as_geojson(args),
 
         // Unknown function
         _ => Err(ExecutorError::UnsupportedFeature(format!("Unknown function: {}", name))),
