@@ -13,7 +13,7 @@ use crate::errors::ExecutorError;
 pub(crate) fn eval_unary_op(
     op: &vibesql_ast::UnaryOperator,
     val: &SqlValue,
-    _sql_mode: vibesql_types::SqlMode,
+    
 ) -> Result<SqlValue, ExecutorError> {
     use vibesql_ast::UnaryOperator::*;
 
@@ -97,34 +97,34 @@ mod tests {
     #[test]
     fn test_not_boolean() {
         assert_eq!(
-            eval_unary_op(&UnaryOperator::Not, &SqlValue::Boolean(true), vibesql_types::SqlMode::Standard).unwrap(),
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Boolean(true)).unwrap(),
             SqlValue::Boolean(false)
         );
         assert_eq!(
-            eval_unary_op(&UnaryOperator::Not, &SqlValue::Boolean(false), vibesql_types::SqlMode::Standard).unwrap(),
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Boolean(false)).unwrap(),
             SqlValue::Boolean(true)
         );
     }
 
     #[test]
     fn test_not_null() {
-        assert_eq!(eval_unary_op(&UnaryOperator::Not, &SqlValue::Null, vibesql_types::SqlMode::Standard).unwrap(), SqlValue::Null);
+        assert_eq!(eval_unary_op(&UnaryOperator::Not, &SqlValue::Null).unwrap(), SqlValue::Null);
     }
 
     #[test]
     fn test_not_integer() {
         // Non-zero values are true, so NOT should return false
         assert_eq!(
-            eval_unary_op(&UnaryOperator::Not, &SqlValue::Integer(77), vibesql_types::SqlMode::Standard).unwrap(),
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Integer(77)).unwrap(),
             SqlValue::Boolean(false)
         );
         assert_eq!(
-            eval_unary_op(&UnaryOperator::Not, &SqlValue::Integer(-4931), vibesql_types::SqlMode::Standard).unwrap(),
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Integer(-4931)).unwrap(),
             SqlValue::Boolean(false)
         );
         // Zero is false, so NOT should return true
         assert_eq!(
-            eval_unary_op(&UnaryOperator::Not, &SqlValue::Integer(0), vibesql_types::SqlMode::Standard).unwrap(),
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Integer(0)).unwrap(),
             SqlValue::Boolean(true)
         );
     }
@@ -133,12 +133,12 @@ mod tests {
     fn test_not_float() {
         // Non-zero values are true, so NOT should return false
         assert_eq!(
-            eval_unary_op(&UnaryOperator::Not, &SqlValue::Float(3.14), vibesql_types::SqlMode::Standard).unwrap(),
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Float(3.14)).unwrap(),
             SqlValue::Boolean(false)
         );
         // Zero is false, so NOT should return true
         assert_eq!(
-            eval_unary_op(&UnaryOperator::Not, &SqlValue::Float(0.0), vibesql_types::SqlMode::Standard).unwrap(),
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Float(0.0)).unwrap(),
             SqlValue::Boolean(true)
         );
     }
@@ -147,12 +147,12 @@ mod tests {
     fn test_not_varchar() {
         // Non-empty varchar is truthy, so NOT should return false
         assert_eq!(
-            eval_unary_op(&UnaryOperator::Not, &SqlValue::Varchar("hello".to_string()), vibesql_types::SqlMode::Standard).unwrap(),
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Varchar("hello".to_string())).unwrap(),
             SqlValue::Boolean(false)
         );
         // Empty varchar is also considered truthy in this implementation
         assert_eq!(
-            eval_unary_op(&UnaryOperator::Not, &SqlValue::Varchar("".to_string()), vibesql_types::SqlMode::Standard).unwrap(),
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Varchar("".to_string())).unwrap(),
             SqlValue::Boolean(false)
         );
     }
@@ -161,12 +161,12 @@ mod tests {
     fn test_not_numeric() {
         // Non-zero values are true, so NOT should return false
         assert_eq!(
-            eval_unary_op(&UnaryOperator::Not, &SqlValue::Numeric(3.14), vibesql_types::SqlMode::Standard).unwrap(),
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Numeric(3.14)).unwrap(),
             SqlValue::Boolean(false)
         );
         // Zero is false, so NOT should return true
         assert_eq!(
-            eval_unary_op(&UnaryOperator::Not, &SqlValue::Numeric(0.0), vibesql_types::SqlMode::Standard).unwrap(),
+            eval_unary_op(&UnaryOperator::Not, &SqlValue::Numeric(0.0)).unwrap(),
             SqlValue::Boolean(true)
         );
     }
@@ -175,7 +175,7 @@ mod tests {
     fn test_unary_plus_standard_mode() {
         // Standard mode: Integer stays Integer
         assert_eq!(
-            eval_unary_op(&UnaryOperator::Plus, &SqlValue::Integer(42), vibesql_types::SqlMode::Standard).unwrap(),
+            eval_unary_op(&UnaryOperator::Plus, &SqlValue::Integer(42)).unwrap(),
             SqlValue::Integer(42)
         );
     }
@@ -184,7 +184,7 @@ mod tests {
     fn test_unary_plus_mysql_mode() {
         // MySQL mode: Integer stays Integer (matches actual MySQL behavior)
         assert_eq!(
-            eval_unary_op(&UnaryOperator::Plus, &SqlValue::Integer(42), vibesql_types::SqlMode::MySQL).unwrap(),
+            eval_unary_op(&UnaryOperator::Plus, &SqlValue::Integer(42)).unwrap(),
             SqlValue::Integer(42)
         );
     }
@@ -193,7 +193,7 @@ mod tests {
     fn test_unary_minus_standard_mode() {
         // Standard mode: Integer stays Integer
         assert_eq!(
-            eval_unary_op(&UnaryOperator::Minus, &SqlValue::Integer(42), vibesql_types::SqlMode::Standard).unwrap(),
+            eval_unary_op(&UnaryOperator::Minus, &SqlValue::Integer(42)).unwrap(),
             SqlValue::Integer(-42)
         );
     }
@@ -202,7 +202,7 @@ mod tests {
     fn test_unary_minus_mysql_mode() {
         // MySQL mode: Integer stays Integer (matches actual MySQL behavior)
         assert_eq!(
-            eval_unary_op(&UnaryOperator::Minus, &SqlValue::Integer(42), vibesql_types::SqlMode::MySQL).unwrap(),
+            eval_unary_op(&UnaryOperator::Minus, &SqlValue::Integer(42)).unwrap(),
             SqlValue::Integer(-42)
         );
     }

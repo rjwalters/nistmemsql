@@ -199,7 +199,7 @@ impl ExpressionEvaluator<'_> {
             // Unary operations
             vibesql_ast::Expression::UnaryOp { op, expr } => {
                 let val = self.eval(expr, row)?;
-                super::operators::eval_unary_op(op, &val, vibesql_types::SqlMode::Standard)
+                super::operators::eval_unary_op(op, &val)
             }
 
             vibesql_ast::Expression::IsNull { expr, negated } => {
