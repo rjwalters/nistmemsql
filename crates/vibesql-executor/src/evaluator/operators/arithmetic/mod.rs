@@ -4,6 +4,12 @@
 //! Supports: Integer, Smallint, Bigint, Float, Real, Double, Numeric types
 //! Includes: Type coercion, mixed-type arithmetic, division-by-zero handling
 
+mod addition;
+mod division;
+mod modulo;
+mod multiplication;
+mod subtraction;
+
 use vibesql_types::SqlValue;
 
 use crate::{
@@ -13,15 +19,21 @@ use crate::{
     },
 };
 
+pub use addition::Addition;
+pub use division::Division;
+pub use modulo::Modulo;
+pub use multiplication::Multiplication;
+pub use subtraction::Subtraction;
+
 /// Result of type coercion for arithmetic operations
-enum CoercedValues {
+pub(super) enum CoercedValues {
     ExactNumeric(i64, i64),
     ApproximateNumeric(f64, f64),
     Numeric(f64, f64),
 }
 
 /// Helper function to coerce two values to a common numeric type
-fn coerce_numeric_values(
+pub(super) fn coerce_numeric_values(
     left: &SqlValue,
     right: &SqlValue,
     op: &str,
@@ -98,7 +110,7 @@ fn coerce_numeric_values(
 }
 
 /// Helper function to check for division by zero
-fn check_division_by_zero(value: &CoercedValues) -> Result<(), ExecutorError> {
+pub(super) fn check_division_by_zero(value: &CoercedValues) -> Result<(), ExecutorError> {
     match value {
         CoercedValues::ExactNumeric(_, right) if *right == 0 => Err(ExecutorError::DivisionByZero),
         CoercedValues::ApproximateNumeric(_, right) if *right == 0.0 => {
@@ -115,131 +127,39 @@ impl ArithmeticOps {
     /// Addition operator (+)
     #[inline]
     pub fn add(left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError> {
-        use SqlValue::*;
-
-        // Fast path for integers (both modes)
-        if let (Integer(a), Integer(b)) = (left, right) {
-            return Ok(Integer(a + b));
-        }
-
-        // Use helper for type coercion
-        match coerce_numeric_values(left, right, "+")? {
-            CoercedValues::ExactNumeric(a, b) => Ok(Integer(a + b)),
-            CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a + b) as f32)),
-            CoercedValues::Numeric(a, b) => Ok(Numeric(a + b)),
-        }
+        Addition::add(left, right)
     }
 
     /// Subtraction operator (-)
     #[inline]
     pub fn subtract(left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError> {
-        use SqlValue::*;
-
-        // Fast path for integers (both modes)
-        if let (Integer(a), Integer(b)) = (left, right) {
-            return Ok(Integer(a - b));
-        }
-
-        // Use helper for type coercion
-        match coerce_numeric_values(left, right, "-")? {
-            CoercedValues::ExactNumeric(a, b) => Ok(Integer(a - b)),
-            CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a - b) as f32)),
-            CoercedValues::Numeric(a, b) => Ok(Numeric(a - b)),
-        }
+        Subtraction::subtract(left, right)
     }
 
     /// Multiplication operator (*)
     #[inline]
     pub fn multiply(left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError> {
-        use SqlValue::*;
-
-        // Fast path for integers (both modes)
-        if let (Integer(a), Integer(b)) = (left, right) {
-            return Ok(Integer(a * b));
-        }
-
-        // Use helper for type coercion
-        match coerce_numeric_values(left, right, "*")? {
-            CoercedValues::ExactNumeric(a, b) => Ok(Integer(a * b)),
-            CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a * b) as f32)),
-            CoercedValues::Numeric(a, b) => Ok(Numeric(a * b)),
-        }
+        Multiplication::multiply(left, right)
     }
 
     /// Division operator (/)
     #[inline]
     pub fn divide(left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError> {
-        use SqlValue::*;
-
-        // Fast path for integers (both modes) - division always returns float
-        if let (Integer(a), Integer(b)) = (left, right) {
-            if *b == 0 {
-                return Err(ExecutorError::DivisionByZero);
-            }
-            return Ok(Float((*a as f64 / *b as f64) as f32));
-        }
-
-        // Use helper for type coercion
-        let coerced = coerce_numeric_values(left, right, "/")?;
-        check_division_by_zero(&coerced)?;
-
-        // Division returns Float for exact numerics, but preserves Numeric type
-        match coerced {
-            CoercedValues::ExactNumeric(a, b) => Ok(Float((a as f64 / b as f64) as f32)),
-            CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a / b) as f32)),
-            CoercedValues::Numeric(a, b) => Ok(Numeric(a / b)),
-        }
+        Division::divide(left, right)
     }
 
     /// Integer division operator (DIV) - MySQL-specific
     /// Returns integer result, truncating fractional part (truncates toward zero)
     #[inline]
     pub fn integer_divide(left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError> {
-        use SqlValue::*;
-
-        // Fast path for integers (both modes)
-        if let (Integer(a), Integer(b)) = (left, right) {
-            if *b == 0 {
-                return Err(ExecutorError::DivisionByZero);
-            }
-            return Ok(Integer(a / b));
-        }
-
-        // Use helper for type coercion
-        let coerced = coerce_numeric_values(left, right, "DIV")?;
-        check_division_by_zero(&coerced)?;
-
-        // Integer division truncates toward zero
-        match coerced {
-            CoercedValues::ExactNumeric(a, b) => Ok(Integer(a / b)),
-            CoercedValues::ApproximateNumeric(a, b) => Ok(Integer((a / b) as i64)),
-            CoercedValues::Numeric(a, b) => Ok(Integer((a / b) as i64)),
-        }
+        Division::integer_divide(left, right)
     }
 
     /// Modulo operator (%)
     /// Returns the remainder of division
     #[inline]
     pub fn modulo(left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError> {
-        use SqlValue::*;
-
-        // Fast path for integers (both modes)
-        if let (Integer(a), Integer(b)) = (left, right) {
-            if *b == 0 {
-                return Err(ExecutorError::DivisionByZero);
-            }
-            return Ok(Integer(a % b));
-        }
-
-        // Use helper for type coercion
-        let coerced = coerce_numeric_values(left, right, "%")?;
-        check_division_by_zero(&coerced)?;
-
-        match coerced {
-            CoercedValues::ExactNumeric(a, b) => Ok(Integer(a % b)),
-            CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a % b) as f32)),
-            CoercedValues::Numeric(a, b) => Ok(Numeric(a % b)),
-        }
+        Modulo::modulo(left, right)
     }
 }
 
