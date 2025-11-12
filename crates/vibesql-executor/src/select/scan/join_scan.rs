@@ -17,6 +17,7 @@ pub(crate) fn execute_join<F>(
     right: &vibesql_ast::FromClause,
     join_type: &vibesql_ast::JoinType,
     condition: &Option<vibesql_ast::Expression>,
+    natural: bool,
     cte_results: &HashMap<String, CteResult>,
     database: &vibesql_storage::Database,
     where_clause: Option<&vibesql_ast::Expression>,
@@ -28,6 +29,16 @@ where
     // Execute left and right sides with WHERE clause for predicate pushdown
     let left_result = super::execute_from_clause(left, cte_results, database, where_clause, execute_subquery)?;
     let right_result = super::execute_from_clause(right, cte_results, database, where_clause, execute_subquery)?;
+
+    // For NATURAL JOIN, generate the implicit join condition based on common column names
+    let natural_join_condition = if natural {
+        generate_natural_join_condition(&left_result.schema, &right_result.schema)?
+    } else {
+        None
+    };
+
+    // Use the natural join condition if present, otherwise use the explicit condition
+    let effective_condition = natural_join_condition.or_else(|| condition.clone());
 
     // If we have a WHERE clause, decompose it using the combined schema
     let equijoin_predicates = if let Some(where_expr) = where_clause {
@@ -74,9 +85,86 @@ where
         left_result,
         right_result,
         join_type,
-        condition,
+        &effective_condition,
+        natural,
         database,
         &equijoin_predicates,
     )?;
     Ok(result)
+}
+
+/// Generate the implicit join condition for a NATURAL JOIN
+///
+/// Finds all common column names between the left and right schemas (case-insensitive)
+/// and creates an AND chain of equality conditions.
+///
+/// Returns None if there are no common columns (which means NATURAL JOIN should behave like CROSS JOIN)
+fn generate_natural_join_condition(
+    left_schema: &crate::schema::CombinedSchema,
+    right_schema: &crate::schema::CombinedSchema,
+) -> Result<Option<vibesql_ast::Expression>, ExecutorError> {
+    use std::collections::HashMap;
+
+    // Get all column names from left schema (normalized to lowercase for case-insensitive comparison)
+    let mut left_columns: HashMap<String, Vec<(String, String)>> = HashMap::new(); // lowercase_name -> [(table, actual_name)]
+    for (table_name, (_table_idx, table_schema)) in &left_schema.table_schemas {
+        for col in &table_schema.columns {
+            let lowercase_name = col.name.to_lowercase();
+            left_columns
+                .entry(lowercase_name)
+                .or_insert_with(Vec::new)
+                .push((table_name.clone(), col.name.clone()));
+        }
+    }
+
+    // Find common column names from right schema
+    let mut common_columns: Vec<(String, String, String, String)> = Vec::new(); // (left_table, left_col, right_table, right_col)
+    for (table_name, (_table_idx, table_schema)) in &right_schema.table_schemas {
+        for col in &table_schema.columns {
+            let lowercase_name = col.name.to_lowercase();
+            if let Some(left_occurrences) = left_columns.get(&lowercase_name) {
+                // Found a common column
+                for (left_table, left_col) in left_occurrences {
+                    common_columns.push((
+                        left_table.clone(),
+                        left_col.clone(),
+                        table_name.clone(),
+                        col.name.clone(),
+                    ));
+                }
+            }
+        }
+    }
+
+    // If no common columns, return None (NATURAL JOIN behaves like CROSS JOIN)
+    if common_columns.is_empty() {
+        return Ok(None);
+    }
+
+    // Build the join condition as an AND chain of equalities
+    let mut condition: Option<vibesql_ast::Expression> = None;
+    for (left_table, left_col, right_table, right_col) in common_columns {
+        let equality = vibesql_ast::Expression::BinaryOp {
+            left: Box::new(vibesql_ast::Expression::ColumnRef {
+                table: Some(left_table),
+                column: left_col,
+            }),
+            op: vibesql_ast::BinaryOperator::Equal,
+            right: Box::new(vibesql_ast::Expression::ColumnRef {
+                table: Some(right_table),
+                column: right_col,
+            }),
+        };
+
+        condition = Some(match condition {
+            None => equality,
+            Some(existing) => vibesql_ast::Expression::BinaryOp {
+                left: Box::new(existing),
+                op: vibesql_ast::BinaryOperator::And,
+                right: Box::new(equality),
+            },
+        });
+    }
+
+    Ok(condition)
 }

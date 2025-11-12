@@ -181,7 +181,7 @@ impl QuerySignature {
                 name.hash(hasher);
                 alias.hash(hasher);
             }
-            vibesql_ast::FromClause::Join { left, join_type, right, condition } => {
+            vibesql_ast::FromClause::Join { left, join_type, right, condition, .. } => {
                 "JOIN".hash(hasher);
                 Self::hash_from_clause(left, hasher);
                 std::mem::discriminant(join_type).hash(hasher);

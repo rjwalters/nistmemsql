@@ -172,6 +172,7 @@ fn test_inner_join_with_group_by_count() {
                     column: "dept_id".to_string(),
                 }),
             }),
+            natural: false,
         }),
         where_clause: None,
         group_by: Some(vec![vibesql_ast::Expression::ColumnRef {
@@ -273,6 +274,7 @@ fn test_left_join_with_group_by_avg_salary() {
                     column: "dept_id".to_string(),
                 }),
             }),
+            natural: false,
         }),
         where_clause: None,
         group_by: Some(vec![vibesql_ast::Expression::ColumnRef {
@@ -375,6 +377,7 @@ fn test_join_group_by_with_having() {
                     column: "dept_id".to_string(),
                 }),
             }),
+            natural: false,
         }),
         where_clause: None,
         group_by: Some(vec![vibesql_ast::Expression::ColumnRef {
@@ -489,6 +492,7 @@ fn test_join_group_by_multiple_aggregates() {
                     column: "dept_id".to_string(),
                 }),
             }),
+            natural: false,
         }),
         where_clause: None,
         group_by: Some(vec![vibesql_ast::Expression::ColumnRef {

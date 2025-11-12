@@ -64,11 +64,12 @@ where
         vibesql_ast::FromClause::Table { name, alias } => {
             table::execute_table_scan(name, alias.as_ref(), cte_results, database, where_clause)
         }
-        vibesql_ast::FromClause::Join { left, right, join_type, condition } => join_scan::execute_join(
+        vibesql_ast::FromClause::Join { left, right, join_type, condition, natural } => join_scan::execute_join(
             left,
             right,
             join_type,
             condition,
+            *natural,
             cte_results,
             database,
             where_clause,

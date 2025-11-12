@@ -178,6 +178,7 @@ pub(super) fn nested_loop_join(
     right: FromResult,
     join_type: &vibesql_ast::JoinType,
     condition: &Option<vibesql_ast::Expression>,
+    natural: bool,
     database: &vibesql_storage::Database,
     additional_equijoins: &[vibesql_ast::Expression],
 ) -> Result<FromResult, ExecutorError> {
@@ -266,7 +267,14 @@ pub(super) fn nested_loop_join(
     let combined_condition = combine_with_and(all_join_conditions);
 
     // Fall back to nested loop join for all other cases
-    match join_type {
+    // For NATURAL JOIN, we need to preserve the original schemas for duplicate removal
+    let (left_schema_for_natural, right_schema_for_natural) = if natural {
+        (Some(left.schema.clone()), Some(right.schema.clone()))
+    } else {
+        (None, None)
+    };
+
+    let mut result = match join_type {
         vibesql_ast::JoinType::Inner => nested_loop_inner_join(left, right, &combined_condition, database),
         vibesql_ast::JoinType::LeftOuter => {
             nested_loop_left_outer_join(left, right, &combined_condition, database)
@@ -278,5 +286,108 @@ pub(super) fn nested_loop_join(
             nested_loop_full_outer_join(left, right, &combined_condition, database)
         }
         vibesql_ast::JoinType::Cross => nested_loop_cross_join(left, right, &combined_condition, database),
+    }?;
+
+    // For NATURAL JOIN, remove duplicate columns from the result
+    if natural {
+        if let (Some(left_schema), Some(right_schema)) = (left_schema_for_natural, right_schema_for_natural) {
+            result = remove_duplicate_columns_for_natural_join(result, &left_schema, &right_schema)?;
+        }
     }
+
+    Ok(result)
+}
+
+/// Remove duplicate columns for NATURAL JOIN
+///
+/// NATURAL JOIN should only include common columns once (from the left side).
+/// This function identifies common columns and removes duplicates from the right side.
+fn remove_duplicate_columns_for_natural_join(
+    mut result: FromResult,
+    left_schema: &CombinedSchema,
+    right_schema: &CombinedSchema,
+) -> Result<FromResult, ExecutorError> {
+    use std::collections::{HashMap, HashSet};
+
+    // Find common column names (case-insensitive)
+    let mut left_column_map: HashMap<String, Vec<(String, String, usize)>> = HashMap::new(); // lowercase -> [(table, actual_name, idx)]
+    let mut col_idx = 0;
+    for (table_name, (_table_idx, table_schema)) in &left_schema.table_schemas {
+        for col in &table_schema.columns {
+            let lowercase = col.name.to_lowercase();
+            left_column_map
+                .entry(lowercase)
+                .or_insert_with(Vec::new)
+                .push((table_name.clone(), col.name.clone(), col_idx));
+            col_idx += 1;
+        }
+    }
+
+    // Identify which columns from the right side are duplicates
+    let mut right_duplicate_indices: HashSet<usize> = HashSet::new();
+    let left_col_count = col_idx;
+    col_idx = 0;
+    for (_table_name, (_table_idx, table_schema)) in &right_schema.table_schemas {
+        for col in &table_schema.columns {
+            let lowercase = col.name.to_lowercase();
+            if left_column_map.contains_key(&lowercase) {
+                // This is a common column, mark it as a duplicate to remove
+                right_duplicate_indices.insert(left_col_count + col_idx);
+            }
+            col_idx += 1;
+        }
+    }
+
+    // If no duplicates, return as-is
+    if right_duplicate_indices.is_empty() {
+        return Ok(result);
+    }
+
+    // Project out the duplicate columns from the result
+    let total_cols = left_col_count + col_idx;
+    let keep_indices: Vec<usize> = (0..total_cols)
+        .filter(|i| !right_duplicate_indices.contains(i))
+        .collect();
+
+    // Build new schema without duplicate columns
+    let mut new_schema = CombinedSchema { table_schemas: HashMap::new(), total_columns: 0 };
+    for (table_name, (table_start_idx, table_schema)) in &result.schema.table_schemas {
+        let mut new_cols = Vec::new();
+
+        for (idx, col) in table_schema.columns.iter().enumerate() {
+            // Calculate absolute column index manually
+            let abs_col_idx = table_start_idx + idx;
+
+            if keep_indices.contains(&abs_col_idx) {
+                new_cols.push(col.clone());
+            }
+        }
+
+        if !new_cols.is_empty() {
+            let new_table_schema = vibesql_catalog::TableSchema::new(
+                table_schema.name.clone(),
+                new_cols,
+            );
+            new_schema.table_schemas.insert(
+                table_name.clone(),
+                (new_schema.total_columns, new_table_schema.clone()),
+            );
+            new_schema.total_columns += new_table_schema.columns.len();
+        }
+    }
+
+    // Project the rows - get mutable reference to rows to work with FromResult API
+    let rows = result.rows();
+    let new_rows: Vec<vibesql_storage::Row> = rows
+        .iter()
+        .map(|row| {
+            let new_values: Vec<vibesql_types::SqlValue> = keep_indices
+                .iter()
+                .filter_map(|&i| row.values.get(i).cloned())
+                .collect();
+            vibesql_storage::Row::new(new_values)
+        })
+        .collect();
+
+    Ok(FromResult::from_rows(new_schema, new_rows))
 }

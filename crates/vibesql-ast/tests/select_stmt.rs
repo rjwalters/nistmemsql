@@ -319,6 +319,7 @@ fn test_inner_join() {
                 column: "user_id".to_string(),
             }),
         }),
+        natural: false,
     };
     match from {
         FromClause::Join { join_type: JoinType::Inner, .. } => {} // Success
@@ -333,6 +334,7 @@ fn test_left_outer_join() {
         right: Box::new(FromClause::Table { name: "orders".to_string(), alias: None }),
         join_type: JoinType::LeftOuter,
         condition: None,
+        natural: false,
     };
     match from {
         FromClause::Join { join_type: JoinType::LeftOuter, .. } => {} // Success
@@ -347,6 +349,7 @@ fn test_right_outer_join() {
         right: Box::new(FromClause::Table { name: "categories".to_string(), alias: None }),
         join_type: JoinType::RightOuter,
         condition: None,
+        natural: false,
     };
     match from {
         FromClause::Join { join_type: JoinType::RightOuter, .. } => {} // Success
@@ -361,6 +364,7 @@ fn test_full_outer_join() {
         right: Box::new(FromClause::Table { name: "table2".to_string(), alias: None }),
         join_type: JoinType::FullOuter,
         condition: None,
+        natural: false,
     };
     match from {
         FromClause::Join { join_type: JoinType::FullOuter, .. } => {} // Success
@@ -375,6 +379,7 @@ fn test_cross_join() {
         right: Box::new(FromClause::Table { name: "sizes".to_string(), alias: None }),
         join_type: JoinType::Cross,
         condition: None,
+        natural: false,
     };
     match from {
         FromClause::Join { join_type: JoinType::Cross, .. } => {} // Success
