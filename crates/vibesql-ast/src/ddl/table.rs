@@ -161,7 +161,7 @@ pub struct DropTableStmt {
 /// TRUNCATE TABLE statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct TruncateTableStmt {
-    pub table_name: String,
+    pub table_names: Vec<String>,
     pub if_exists: bool,
 }
 
