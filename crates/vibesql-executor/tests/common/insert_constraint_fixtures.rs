@@ -232,11 +232,7 @@ pub fn build_insert_values(table_name: &str, values: Vec<vibesql_types::SqlValue
             .into_iter()
             .map(vibesql_ast::Expression::Literal)
             .collect()]),
-<<<<<<< HEAD
         conflict_clause: None,
-=======
-            conflict_clause: None,
->>>>>>> d38e2a5e (fix: Add missing conflict_clause field to InsertStmt initializers)
     }
 }
 
@@ -254,11 +250,7 @@ pub fn build_insert_columns(
             .into_iter()
             .map(vibesql_ast::Expression::Literal)
             .collect()]),
-<<<<<<< HEAD
         conflict_clause: None,
-=======
-            conflict_clause: None,
->>>>>>> d38e2a5e (fix: Add missing conflict_clause field to InsertStmt initializers)
     }
 }
 
