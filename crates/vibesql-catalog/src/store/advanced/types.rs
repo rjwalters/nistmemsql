@@ -28,7 +28,7 @@ impl super::super::Catalog {
             // Check if any tables use this type
             for schema in self.schemas.values() {
                 for table_name in schema.list_tables() {
-                    if let Some(table) = schema.get_table(&table_name) {
+                    if let Some(table) = schema.get_table(&table_name, false) {
                         for column in &table.columns {
                             if let vibesql_types::DataType::UserDefined { type_name } = &column.data_type {
                                 if type_name == name {
@@ -48,7 +48,7 @@ impl super::super::Catalog {
             let mut tables_to_drop = Vec::new();
             for (schema_name, schema) in &self.schemas {
                 for table_name in schema.list_tables() {
-                    if let Some(table) = schema.get_table(&table_name) {
+                    if let Some(table) = schema.get_table(&table_name, false) {
                         for column in &table.columns {
                             if let vibesql_types::DataType::UserDefined { type_name } = &column.data_type {
                                 if type_name == name {

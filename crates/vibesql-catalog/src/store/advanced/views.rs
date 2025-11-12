@@ -17,51 +17,35 @@ impl super::super::Catalog {
         Ok(())
     }
 
-    /// Get a VIEW definition by name (supports qualified names like "schema.view").
-    /// Respects the `case_sensitive_identifiers` setting.
+    /// Get a VIEW definition by name with optional case-insensitive lookup
     pub fn get_view(&self, name: &str) -> Option<&ViewDefinition> {
         if self.case_sensitive_identifiers {
             self.views.get(name)
         } else {
-            let normalized = name.to_uppercase();
-            // First try exact match
-            if let Some(view) = self.views.get(&normalized) {
-                return Some(view);
-            }
-            // Fall back to case-insensitive search
-            for (view_name, view) in &self.views {
-                if view_name.to_uppercase() == normalized {
-                    return Some(view);
-                }
-            }
-            None
+            // Case-insensitive lookup
+            let name_upper = name.to_uppercase();
+            self.views
+                .values()
+                .find(|view| view.name.to_uppercase() == name_upper)
         }
     }
 
-    /// Drop a VIEW. Respects the `case_sensitive_identifiers` setting.
+    /// Drop a VIEW
     pub fn drop_view(&mut self, name: &str, cascade: bool) -> Result<(), CatalogError> {
-        // Find the actual view name (case-insensitive if needed)
+        // Find the actual view name (handle case-insensitivity)
         let actual_name = if self.case_sensitive_identifiers {
-            if self.views.contains_key(name) {
-                name.to_string()
-            } else {
+            if !self.views.contains_key(name) {
                 return Err(CatalogError::ViewNotFound(name.to_string()));
             }
+            name.to_string()
         } else {
-            let normalized = name.to_uppercase();
-            if self.views.contains_key(&normalized) {
-                normalized
-            } else {
-                // Case-insensitive search
-                let found = self.views.keys()
-                    .find(|k| k.to_uppercase() == normalized)
-                    .cloned();
-                if let Some(found_name) = found {
-                    found_name
-                } else {
-                    return Err(CatalogError::ViewNotFound(name.to_string()));
-                }
-            }
+            // Case-insensitive lookup
+            let name_upper = name.to_uppercase();
+            self.views
+                .iter()
+                .find(|(_, view)| view.name.to_uppercase() == name_upper)
+                .map(|(key, _)| key.clone())
+                .ok_or_else(|| CatalogError::ViewNotFound(name.to_string()))?
         };
 
         // Find all views that depend on this view or table

@@ -28,50 +28,28 @@ impl Schema {
         Ok(())
     }
 
-    /// Get a table schema by name (exact match)
-    pub fn get_table(&self, name: &str) -> Option<&TableSchema> {
+    /// Get a table schema by name with optional case-insensitive lookup
+    pub fn get_table(&self, name: &str, case_sensitive: bool) -> Option<&TableSchema> {
+        if case_sensitive {
+            self.tables.get(name)
+        } else {
+            // Case-insensitive lookup: normalize both stored and search keys
+            let name_upper = name.to_uppercase();
+            self.tables
+                .values()
+                .find(|table| table.name.to_uppercase() == name_upper)
+        }
+    }
+
+    /// Get a table schema by name (legacy, uses case-sensitive lookup)
+    #[deprecated(since = "0.2.0", note = "Use get_table with case_sensitive parameter")]
+    pub fn get_table_deprecated(&self, name: &str) -> Option<&TableSchema> {
         self.tables.get(name)
     }
 
-    /// Get a table schema by name with case-insensitive lookup
-    pub fn get_table_case_insensitive(&self, name: &str) -> Option<&TableSchema> {
-        let normalized = name.to_uppercase();
-        // First try exact match
-        if let Some(table) = self.tables.get(&normalized) {
-            return Some(table);
-        }
-        // Fall back to case-insensitive search
-        for (table_name, table) in &self.tables {
-            if table_name.to_uppercase() == normalized {
-                return Some(table);
-            }
-        }
-        None
-    }
-
-    /// Drop a table from this schema (exact match)
+    /// Drop a table from this schema
     pub fn drop_table(&mut self, name: &str) -> Result<(), CatalogError> {
         if self.tables.remove(name).is_some() {
-            Ok(())
-        } else {
-            Err(CatalogError::TableNotFound(name.to_string()))
-        }
-    }
-
-    /// Drop a table from this schema with case-insensitive lookup
-    pub fn drop_table_case_insensitive(&mut self, name: &str) -> Result<(), CatalogError> {
-        let normalized = name.to_uppercase();
-        // First try exact match
-        if self.tables.remove(&normalized).is_some() {
-            return Ok(());
-        }
-        // Fall back to case-insensitive search
-        let actual_name = self.tables.keys()
-            .find(|k| k.to_uppercase() == normalized)
-            .cloned();
-
-        if let Some(actual_name) = actual_name {
-            self.tables.remove(&actual_name);
             Ok(())
         } else {
             Err(CatalogError::TableNotFound(name.to_string()))

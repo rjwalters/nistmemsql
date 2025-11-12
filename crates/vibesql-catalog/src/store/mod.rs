@@ -54,7 +54,9 @@ pub struct Catalog {
     pub(crate) current_charset: String,
     pub(crate) current_collation: Option<String>,
     pub(crate) current_timezone: String,
-    // Identifier case sensitivity configuration (MySQL compatibility)
+    // Configuration for case-sensitive identifier lookups
+    /// When true, identifier lookups are case-sensitive (SQL standard).
+    /// When false (default), identifier lookups are case-insensitive (MySQL compatible).
     pub(crate) case_sensitive_identifiers: bool,
 }
 
@@ -82,7 +84,7 @@ impl Catalog {
             current_charset: "UTF8".to_string(),
             current_collation: None,
             current_timezone: "UTC".to_string(),
-            // Default to case-insensitive for MySQL compatibility
+            // Default to case-insensitive identifiers (MySQL compatible)
             case_sensitive_identifiers: false,
         };
 
@@ -91,42 +93,29 @@ impl Catalog {
 
         catalog
     }
-}
 
-impl Default for Catalog {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-// Configuration and identifier normalization
-impl Catalog {
-    /// Get the case sensitivity setting for identifier lookups.
-    ///
-    /// When `false` (default), identifier lookups are case-insensitive (MySQL-compatible).
-    /// When `true`, identifier lookups are case-sensitive (SQL standard for quoted identifiers).
-    pub fn case_sensitive_identifiers(&self) -> bool {
-        self.case_sensitive_identifiers
-    }
-
-    /// Set the case sensitivity for identifier lookups.
-    ///
-    /// # Arguments
-    /// * `case_sensitive` - If `false`, lookups are case-insensitive (MySQL-compatible).
-    ///                       If `true`, lookups are case-sensitive (SQL standard).
+    /// Set whether identifier lookups should be case-sensitive
     pub fn set_case_sensitive_identifiers(&mut self, case_sensitive: bool) {
         self.case_sensitive_identifiers = case_sensitive;
     }
 
-    /// Normalize an identifier based on the case sensitivity setting.
-    ///
-    /// When case_sensitive_identifiers is false, returns uppercase version.
-    /// When case_sensitive_identifiers is true, returns the original identifier.
-    pub(crate) fn normalize_identifier(&self, identifier: &str) -> String {
+    /// Check if identifier lookups are case-sensitive
+    pub fn is_case_sensitive_identifiers(&self) -> bool {
+        self.case_sensitive_identifiers
+    }
+
+    /// Normalize an identifier for lookup (applies case folding if case-insensitive mode)
+    fn normalize_identifier(&self, identifier: &str) -> String {
         if self.case_sensitive_identifiers {
             identifier.to_string()
         } else {
             identifier.to_uppercase()
         }
+    }
+}
+
+impl Default for Catalog {
+    fn default() -> Self {
+        Self::new()
     }
 }

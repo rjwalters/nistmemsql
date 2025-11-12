@@ -10,6 +10,7 @@ use async_trait::async_trait;
 use futures::executor::block_on;
 use futures::{stream, Future, FutureExt, StreamExt};
 use itertools::Itertools;
+use md5::Digest;
 
 use crate::error_handling::{TestError, TestErrorKind, RecordKind, AnyError};
 use crate::output::{RecordOutput, DBOutput, Normalizer, ColumnTypeValidator, Validator};

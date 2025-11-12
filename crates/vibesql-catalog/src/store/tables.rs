@@ -31,47 +31,29 @@ impl super::Catalog {
     }
 
     /// Get a table schema by name (supports qualified names like "schema.table").
-    /// Respects the `case_sensitive_identifiers` setting.
     pub fn get_table(&self, name: &str) -> Option<&TableSchema> {
         // Parse qualified name: schema.table or just table
         if let Some((schema_name, table_name)) = name.split_once('.') {
-            let schema_key = if self.case_sensitive_identifiers {
-                schema_name.to_string()
-            } else {
-                schema_name.to_uppercase()
-            };
-
-            self.schemas.get(&schema_key).and_then(|schema| {
-                if self.case_sensitive_identifiers {
-                    schema.get_table(table_name)
-                } else {
-                    schema.get_table_case_insensitive(table_name)
-                }
-            })
+            let normalized_schema = self.normalize_identifier(schema_name);
+            let normalized_table = self.normalize_identifier(table_name);
+            self.schemas
+                .get(&normalized_schema)
+                .and_then(|schema| schema.get_table(&normalized_table, self.case_sensitive_identifiers))
         } else {
             // Use current schema for unqualified names
-            self.schemas.get(&self.current_schema).and_then(|schema| {
-                if self.case_sensitive_identifiers {
-                    schema.get_table(name)
-                } else {
-                    schema.get_table_case_insensitive(name)
-                }
-            })
+            let normalized_table = self.normalize_identifier(name);
+            self.schemas
+                .get(&self.current_schema)
+                .and_then(|schema| schema.get_table(&normalized_table, self.case_sensitive_identifiers))
         }
     }
 
     /// Drop a table schema (supports qualified names like "schema.table").
-    /// Respects the `case_sensitive_identifiers` setting.
     pub fn drop_table(&mut self, name: &str) -> Result<(), CatalogError> {
         // Parse qualified name: schema.table or just table
         let (schema_name, table_name) =
             if let Some((schema_part, table_part)) = name.split_once('.') {
-                let schema_key = if self.case_sensitive_identifiers {
-                    schema_part.to_string()
-                } else {
-                    schema_part.to_uppercase()
-                };
-                (schema_key, table_part)
+                (schema_part.to_string(), table_part)
             } else {
                 (self.current_schema.clone(), name)
             };
@@ -81,11 +63,7 @@ impl super::Catalog {
             .get_mut(&schema_name)
             .ok_or(CatalogError::SchemaNotFound(schema_name.clone()))?;
 
-        if self.case_sensitive_identifiers {
-            schema.drop_table(table_name)
-        } else {
-            schema.drop_table_case_insensitive(table_name)
-        }
+        schema.drop_table(table_name)
     }
 
     /// List all table names in the current schema.
