@@ -181,10 +181,44 @@ fn is_fk_referenced(database: &Database, parent_table_name: &str) -> Result<bool
     Ok(false) // No references found
 }
 
+/// Reset AUTO_INCREMENT sequences for a table
+///
+/// Finds all AUTO_INCREMENT columns in the table and resets their associated sequences
+/// to the initial value (1).
+fn reset_auto_increment_sequences(database: &mut Database, table_name: &str) -> Result<(), ExecutorError> {
+    // Get table schema to find AUTO_INCREMENT columns
+    let table_schema = database
+        .catalog
+        .get_table(table_name)
+        .ok_or_else(|| ExecutorError::TableNotFound(table_name.to_string()))?;
+
+    // Collect sequence names first to avoid borrow checker issues
+    // (we can't hold an immutable reference to table_schema while mutating sequences)
+    let mut sequence_names = Vec::new();
+    for column in &table_schema.columns {
+        if let Some(vibesql_ast::Expression::NextValue { sequence_name }) = &column.default_value {
+            sequence_names.push(sequence_name.clone());
+        }
+    }
+
+    // Now reset the sequences
+    for sequence_name in sequence_names {
+        if let Ok(sequence) = database.catalog.get_sequence_mut(&sequence_name) {
+            // Reset to start value (None means use the original start_with value)
+            sequence.restart(None);
+        }
+        // Note: If sequence doesn't exist, we silently continue.
+        // This shouldn't happen in normal operation but makes the function more robust.
+    }
+
+    Ok(())
+}
+
 /// Execute TRUNCATE operation
 ///
 /// Clears all rows and indexes in a single operation.
 /// Provides significant performance improvement over row-by-row deletion.
+/// Also resets any AUTO_INCREMENT sequences to their initial values.
 fn execute_truncate(database: &mut Database, table_name: &str) -> Result<usize, ExecutorError> {
     let table = database
         .get_table_mut(table_name)
@@ -194,6 +228,9 @@ fn execute_truncate(database: &mut Database, table_name: &str) -> Result<usize, 
 
     // Clear all data at once (O(1) operation)
     table.clear();
+
+    // Reset AUTO_INCREMENT sequences
+    reset_auto_increment_sequences(database, table_name)?;
 
     Ok(row_count)
 }
