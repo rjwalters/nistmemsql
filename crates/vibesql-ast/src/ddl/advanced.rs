@@ -215,6 +215,10 @@ pub struct CreateProcedureStmt {
     pub procedure_name: String,
     pub parameters: Vec<ProcedureParameter>,
     pub body: ProcedureBody,
+    // Characteristics (Phase 6)
+    pub sql_security: Option<SqlSecurity>,
+    pub comment: Option<String>,
+    pub language: Option<String>,
 }
 
 /// CREATE FUNCTION statement
@@ -224,6 +228,18 @@ pub struct CreateFunctionStmt {
     pub parameters: Vec<FunctionParameter>,
     pub return_type: vibesql_types::DataType,
     pub body: ProcedureBody,
+    // Characteristics (Phase 6)
+    pub deterministic: Option<bool>,
+    pub sql_security: Option<SqlSecurity>,
+    pub comment: Option<String>,
+    pub language: Option<String>,
+}
+
+/// SQL SECURITY characteristic for procedures and functions
+#[derive(Debug, Clone, PartialEq)]
+pub enum SqlSecurity {
+    Definer,
+    Invoker,
 }
 
 /// Parameter in a procedure definition (MySQL-style)
