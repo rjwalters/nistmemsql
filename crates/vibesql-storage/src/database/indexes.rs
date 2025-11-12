@@ -2,7 +2,7 @@
 // Index Manager - User-defined index management (CREATE INDEX statements)
 // ============================================================================
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use vibesql_ast::IndexColumn;
 use vibesql_types::SqlValue;
@@ -27,9 +27,10 @@ pub struct IndexMetadata {
 /// Actual index data structure - maps key values to row indices
 #[derive(Debug, Clone)]
 pub struct IndexData {
-    /// HashMap of (key_values, row_indices) for fast lookups
+    /// BTreeMap of (key_values, row_indices) for fast lookups and efficient range scans
     /// For multi-column indexes, key_values contains multiple SqlValue entries
-    pub data: HashMap<Vec<SqlValue>, Vec<usize>>,
+    /// BTreeMap provides O(log n) lookups and efficient range queries via range()
+    pub data: BTreeMap<Vec<SqlValue>, Vec<usize>>,
 }
 
 impl IndexData {
@@ -44,9 +45,10 @@ impl IndexData {
     /// # Returns
     /// Vector of row indices that match the range predicate
     ///
-    /// # Note
-    /// This currently scans all keys in the HashMap (O(n) complexity).
-    /// For better performance with large datasets, consider upgrading to BTreeMap.
+    /// # Performance
+    /// Uses BTreeMap's efficient range() method for O(log n + k) complexity,
+    /// where n is the number of unique keys and k is the number of matching keys.
+    /// This is significantly faster than the previous O(n) full scan approach.
     pub fn range_scan(
         &self,
         start: Option<&SqlValue>,
@@ -56,45 +58,42 @@ impl IndexData {
     ) -> Vec<usize> {
         let mut matching_row_indices = Vec::new();
 
-        for (key_values, row_indices) in &self.data {
-            // For single-column index, key_values has one element
-            // For multi-column indexes, we only compare the first column
-            let key = &key_values[0];
+        // Build range bounds for BTreeMap::range()
+        // We need to construct Vec<SqlValue> keys for range bounds
+        use std::ops::Bound;
 
-            let matches = match (start, end) {
-                (Some(s), Some(e)) => {
-                    // Both bounds specified: start <= key <= end (or variations)
-                    let gte_start = if inclusive_start { key >= s } else { key > s };
-                    let lte_end = if inclusive_end { key <= e } else { key < e };
-                    gte_start && lte_end
+        let start_bound = match start {
+            Some(s) => {
+                let key = vec![s.clone()];
+                if inclusive_start {
+                    Bound::Included(key)
+                } else {
+                    Bound::Excluded(key)
                 }
-                (Some(s), None) => {
-                    // Only lower bound: key >= start (or >)
-                    if inclusive_start {
-                        key >= s
-                    } else {
-                        key > s
-                    }
-                }
-                (None, Some(e)) => {
-                    // Only upper bound: key <= end (or <)
-                    if inclusive_end {
-                        key <= e
-                    } else {
-                        key < e
-                    }
-                }
-                (None, None) => true, // No bounds - match everything
-            };
-
-            if matches {
-                matching_row_indices.extend(row_indices);
             }
+            None => Bound::Unbounded,
+        };
+
+        let end_bound = match end {
+            Some(e) => {
+                let key = vec![e.clone()];
+                if inclusive_end {
+                    Bound::Included(key)
+                } else {
+                    Bound::Excluded(key)
+                }
+            }
+            None => Bound::Unbounded,
+        };
+
+        // Use BTreeMap's efficient range query - O(log n + k) instead of O(n)
+        for (_key_values, row_indices) in self.data.range((start_bound, end_bound)) {
+            matching_row_indices.extend(row_indices);
         }
 
-        // Sort row indices to ensure deterministic order
-        // HashMap iteration order is non-deterministic, but test results
-        // must be consistent. Sorting ensures stable output.
+        // BTreeMap iteration is already sorted, so row indices will be in
+        // a consistent order (though we still sort for deterministic results
+        // since multiple rows can have the same key value)
         matching_row_indices.sort_unstable();
 
         matching_row_indices
@@ -176,7 +175,7 @@ impl IndexManager {
         }
 
         // Build the index data
-        let mut index_data_map: HashMap<Vec<SqlValue>, Vec<usize>> = HashMap::new();
+        let mut index_data_map: BTreeMap<Vec<SqlValue>, Vec<usize>> = BTreeMap::new();
         for (row_idx, row) in table_rows.iter().enumerate() {
             let key_values: Vec<SqlValue> =
                 column_indices.iter().map(|&idx| row.values[idx].clone()).collect();
