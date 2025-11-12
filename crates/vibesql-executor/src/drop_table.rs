@@ -66,13 +66,24 @@ impl DropTableExecutor {
         // Check DROP privilege on the table
         PrivilegeChecker::check_drop(database, &stmt.table_name)?;
 
+        // Drop all indexes associated with this table first
+        let dropped_indexes = database.catalog.drop_table_indexes(&stmt.table_name);
+        let index_count = dropped_indexes.len();
+
         // Drop the table from storage (this also removes from catalog)
         database
             .drop_table(&stmt.table_name)
             .map_err(|e| ExecutorError::StorageError(e.to_string()))?;
 
         // Return success message
-        Ok(format!("Table '{}' dropped successfully", stmt.table_name))
+        if index_count > 0 {
+            Ok(format!(
+                "Table '{}' and {} associated index(es) dropped successfully",
+                stmt.table_name, index_count
+            ))
+        } else {
+            Ok(format!("Table '{}' dropped successfully", stmt.table_name))
+        }
     }
 }
 

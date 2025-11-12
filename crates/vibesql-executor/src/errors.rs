@@ -280,13 +280,18 @@ impl From<vibesql_catalog::CatalogError> for ExecutorError {
             vibesql_catalog::CatalogError::TableAlreadyExists(name) => {
                 ExecutorError::TableAlreadyExists(name)
             }
-            vibesql_catalog::CatalogError::TableNotFound(name) => ExecutorError::TableNotFound(name),
+            vibesql_catalog::CatalogError::TableNotFound { table_name } => {
+                ExecutorError::TableNotFound(table_name)
+            }
             vibesql_catalog::CatalogError::ColumnAlreadyExists(name) => {
                 ExecutorError::ColumnAlreadyExists(name)
             }
-            vibesql_catalog::CatalogError::ColumnNotFound(name) => ExecutorError::ColumnNotFound {
-                column_name: name,
-                table_name: "unknown".to_string(),
+            vibesql_catalog::CatalogError::ColumnNotFound {
+                column_name,
+                table_name,
+            } => ExecutorError::ColumnNotFound {
+                column_name,
+                table_name,
                 searched_tables: vec![],
                 available_columns: vec![],
             },
@@ -404,6 +409,14 @@ impl From<vibesql_catalog::CatalogError> for ExecutorError {
                 constraint_name: name,
                 table_name: "unknown".to_string(),
             },
+            vibesql_catalog::CatalogError::IndexAlreadyExists {
+                index_name,
+                table_name,
+            } => ExecutorError::IndexAlreadyExists(format!("{} on table {}", index_name, table_name)),
+            vibesql_catalog::CatalogError::IndexNotFound {
+                index_name,
+                table_name,
+            } => ExecutorError::IndexNotFound(format!("{} on table {}", index_name, table_name)),
         }
     }
 }
