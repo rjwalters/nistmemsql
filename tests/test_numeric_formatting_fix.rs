@@ -9,7 +9,7 @@ use vibesql_types::SqlValue;
 
 #[test]
 fn test_integer_arithmetic_returns_integers() {
-    let db = Database::new().with_sql_mode(vibesql_types::SqlMode::MySQL);
+    let db = Database::new();
 
     // Test 1: Simple integer multiplication
     let sql = "SELECT - 61 * + ( + 62 )";

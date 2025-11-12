@@ -39,5 +39,5 @@ pub(super) fn evaluate_unary(
 ) -> Result<vibesql_types::SqlValue, ExecutorError> {
     let val = executor.evaluate_with_aggregates(inner_expr, group_rows, group_key, evaluator)?;
     // Use shared eval_unary_op implementation
-    crate::evaluator::eval_unary_op(op, &val, vibesql_types::SqlMode::Standard)
+    crate::evaluator::eval_unary_op(op, &val)
 }
