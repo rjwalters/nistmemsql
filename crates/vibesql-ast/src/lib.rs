@@ -29,7 +29,9 @@ pub use ddl::{
     TableConstraintKind, TableOption, TimeZoneSpec, TransactionAccessMode, TriggerAction,
     TriggerEvent, TriggerGranularity, TriggerTiming, TypeAttribute, TypeDefinition,
 };
-pub use dml::{Assignment, DeleteStmt, InsertSource, InsertStmt, UpdateStmt, WhereClause};
+pub use dml::{
+    Assignment, ConflictClause, DeleteStmt, InsertSource, InsertStmt, UpdateStmt, WhereClause,
+};
 pub use expression::{
     CaseWhen, CharacterUnit, Expression, FrameBound, FrameUnit, Quantifier, TrimPosition,
     WindowFrame, WindowFunctionSpec, WindowSpec,

@@ -10,6 +10,8 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "WHERE" => Token::Keyword(Keyword::Where),
         "INSERT" => Token::Keyword(Keyword::Insert),
         "INTO" => Token::Keyword(Keyword::Into),
+        "REPLACE" => Token::Keyword(Keyword::Replace),
+        "IGNORE" => Token::Keyword(Keyword::Ignore),
         "UPDATE" => Token::Keyword(Keyword::Update),
         "DELETE" => Token::Keyword(Keyword::Delete),
         "CREATE" => Token::Keyword(Keyword::Create),

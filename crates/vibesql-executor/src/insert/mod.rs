@@ -3,6 +3,7 @@ mod constraints;
 mod defaults;
 mod execution;
 mod foreign_keys;
+mod replace;
 mod row_validator;
 mod validation;
 
