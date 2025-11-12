@@ -49,7 +49,10 @@ impl AggregateAccumulator {
 
                 if *distinct {
                     // Only count if we haven't seen this value before
-                    if seen.as_mut().unwrap().insert(value.clone()) {
+                    // Optimization: Check membership before cloning
+                    let seen_set = seen.as_mut().unwrap();
+                    if !seen_set.contains(value) {
+                        seen_set.insert(value.clone());
                         *count += 1;
                     }
                 } else {
@@ -59,127 +62,93 @@ impl AggregateAccumulator {
 
             // SUM - sums numeric values (all numeric types), ignores NULLs
             AggregateAccumulator::Sum { ref mut sum, distinct, seen } => {
-                match value {
-                    vibesql_types::SqlValue::Null => {} // Skip NULL
-                    vibesql_types::SqlValue::Integer(_)
-                    | vibesql_types::SqlValue::Smallint(_)
-                    | vibesql_types::SqlValue::Bigint(_)
-                    | vibesql_types::SqlValue::Numeric(_)
-                    | vibesql_types::SqlValue::Float(_)
-                    | vibesql_types::SqlValue::Real(_)
-                    | vibesql_types::SqlValue::Double(_) => {
-                        if *distinct {
-                            // Only sum if we haven't seen this value before
-                            if seen.as_mut().unwrap().insert(value.clone()) {
-                                *sum = add_sql_values(sum, value);
-                            }
-                        } else {
-                            *sum = add_sql_values(sum, value);
-                        }
+                // Fast path: Skip non-numeric values early
+                if value.is_null() || !is_numeric_value(value) {
+                    return;
+                }
+
+                if *distinct {
+                    // Only sum if we haven't seen this value before
+                    // Optimization: Check membership before cloning
+                    let seen_set = seen.as_mut().unwrap();
+                    if !seen_set.contains(value) {
+                        seen_set.insert(value.clone());
+                        *sum = add_sql_values(sum, value);
                     }
-                    _ => {} // Type mismatch - ignore
+                } else {
+                    *sum = add_sql_values(sum, value);
                 }
             }
 
             // AVG - computes average of numeric values (all numeric types), ignores NULLs
             AggregateAccumulator::Avg { ref mut sum, ref mut count, distinct, seen } => {
-                match value {
-                    vibesql_types::SqlValue::Null => {} // Skip NULL
-                    vibesql_types::SqlValue::Integer(_)
-                    | vibesql_types::SqlValue::Smallint(_)
-                    | vibesql_types::SqlValue::Bigint(_)
-                    | vibesql_types::SqlValue::Numeric(_)
-                    | vibesql_types::SqlValue::Float(_)
-                    | vibesql_types::SqlValue::Real(_)
-                    | vibesql_types::SqlValue::Double(_) => {
-                        if *distinct {
-                            // Only include if we haven't seen this value before
-                            if seen.as_mut().unwrap().insert(value.clone()) {
-                                *sum = add_sql_values(sum, value);
-                                *count += 1;
-                            }
-                        } else {
-                            *sum = add_sql_values(sum, value);
-                            *count += 1;
-                        }
+                // Fast path: Skip non-numeric values early
+                if value.is_null() || !is_numeric_value(value) {
+                    return;
+                }
+
+                if *distinct {
+                    // Only include if we haven't seen this value before
+                    // Optimization: Check membership before cloning
+                    let seen_set = seen.as_mut().unwrap();
+                    if !seen_set.contains(value) {
+                        seen_set.insert(value.clone());
+                        *sum = add_sql_values(sum, value);
+                        *count += 1;
                     }
-                    _ => {} // Type mismatch - ignore
+                } else {
+                    *sum = add_sql_values(sum, value);
+                    *count += 1;
                 }
             }
 
             // MIN - finds minimum value, ignores NULLs
             AggregateAccumulator::Min { value: ref mut current_min, distinct, seen } => {
-                if value.is_null() {
-                    return; // Skip NULL
+                if value.is_null() || !is_comparable_value(value) {
+                    return; // Skip NULL and unsupported types
                 }
 
-                // For MIN with DISTINCT, we still need to consider all unique values
-                // but the result is the same as without DISTINCT
-                if *distinct && !seen.as_mut().unwrap().insert(value.clone()) {
-                    return; // Already seen this value
-                }
-
-                match value {
-                    vibesql_types::SqlValue::Integer(_)
-                    | vibesql_types::SqlValue::Smallint(_)
-                    | vibesql_types::SqlValue::Bigint(_)
-                    | vibesql_types::SqlValue::Numeric(_)
-                    | vibesql_types::SqlValue::Float(_)
-                    | vibesql_types::SqlValue::Real(_)
-                    | vibesql_types::SqlValue::Double(_)
-                    | vibesql_types::SqlValue::Varchar(_)
-                    | vibesql_types::SqlValue::Character(_)
-                    | vibesql_types::SqlValue::Boolean(_)
-                    | vibesql_types::SqlValue::Date(_)
-                    | vibesql_types::SqlValue::Time(_)
-                    | vibesql_types::SqlValue::Timestamp(_) => {
-                        if let Some(ref current) = current_min {
-                            if compare_sql_values(value, current) == Ordering::Less {
-                                *current_min = Some(value.clone());
-                            }
-                        } else {
-                            *current_min = Some(value.clone());
-                        }
+                // For MIN with DISTINCT, check if we've seen this value
+                if *distinct {
+                    let seen_set = seen.as_mut().unwrap();
+                    if seen_set.contains(value) {
+                        return; // Already seen this value
                     }
-                    _ => {} // Unsupported type
+                    seen_set.insert(value.clone());
+                }
+
+                // Update minimum if needed
+                if let Some(ref current) = current_min {
+                    if compare_sql_values(value, current) == Ordering::Less {
+                        *current_min = Some(value.clone());
+                    }
+                } else {
+                    *current_min = Some(value.clone());
                 }
             }
 
             // MAX - finds maximum value, ignores NULLs
             AggregateAccumulator::Max { value: ref mut current_max, distinct, seen } => {
-                if value.is_null() {
-                    return; // Skip NULL
+                if value.is_null() || !is_comparable_value(value) {
+                    return; // Skip NULL and unsupported types
                 }
 
-                // For MAX with DISTINCT, we still need to consider all unique values
-                // but the result is the same as without DISTINCT
-                if *distinct && !seen.as_mut().unwrap().insert(value.clone()) {
-                    return; // Already seen this value
-                }
-
-                match value {
-                    vibesql_types::SqlValue::Integer(_)
-                    | vibesql_types::SqlValue::Smallint(_)
-                    | vibesql_types::SqlValue::Bigint(_)
-                    | vibesql_types::SqlValue::Numeric(_)
-                    | vibesql_types::SqlValue::Float(_)
-                    | vibesql_types::SqlValue::Real(_)
-                    | vibesql_types::SqlValue::Double(_)
-                    | vibesql_types::SqlValue::Varchar(_)
-                    | vibesql_types::SqlValue::Character(_)
-                    | vibesql_types::SqlValue::Boolean(_)
-                    | vibesql_types::SqlValue::Date(_)
-                    | vibesql_types::SqlValue::Time(_)
-                    | vibesql_types::SqlValue::Timestamp(_) => {
-                        if let Some(ref current) = current_max {
-                            if compare_sql_values(value, current) == Ordering::Greater {
-                                *current_max = Some(value.clone());
-                            }
-                        } else {
-                            *current_max = Some(value.clone());
-                        }
+                // For MAX with DISTINCT, check if we've seen this value
+                if *distinct {
+                    let seen_set = seen.as_mut().unwrap();
+                    if seen_set.contains(value) {
+                        return; // Already seen this value
                     }
-                    _ => {} // Unsupported type
+                    seen_set.insert(value.clone());
+                }
+
+                // Update maximum if needed
+                if let Some(ref current) = current_max {
+                    if compare_sql_values(value, current) == Ordering::Greater {
+                        *current_max = Some(value.clone());
+                    }
+                } else {
+                    *current_max = Some(value.clone());
                 }
             }
         }
@@ -246,6 +215,42 @@ fn sql_value_to_f64(value: &vibesql_types::SqlValue) -> Option<f64> {
         vibesql_types::SqlValue::Double(x) => Some(*x),
         _ => None,
     }
+}
+
+/// Fast check if a value is numeric (optimization to avoid full match)
+#[inline]
+fn is_numeric_value(value: &vibesql_types::SqlValue) -> bool {
+    matches!(
+        value,
+        vibesql_types::SqlValue::Integer(_)
+            | vibesql_types::SqlValue::Smallint(_)
+            | vibesql_types::SqlValue::Bigint(_)
+            | vibesql_types::SqlValue::Numeric(_)
+            | vibesql_types::SqlValue::Float(_)
+            | vibesql_types::SqlValue::Real(_)
+            | vibesql_types::SqlValue::Double(_)
+    )
+}
+
+/// Fast check if a value is comparable for MIN/MAX (optimization to avoid full match)
+#[inline]
+fn is_comparable_value(value: &vibesql_types::SqlValue) -> bool {
+    matches!(
+        value,
+        vibesql_types::SqlValue::Integer(_)
+            | vibesql_types::SqlValue::Smallint(_)
+            | vibesql_types::SqlValue::Bigint(_)
+            | vibesql_types::SqlValue::Numeric(_)
+            | vibesql_types::SqlValue::Float(_)
+            | vibesql_types::SqlValue::Real(_)
+            | vibesql_types::SqlValue::Double(_)
+            | vibesql_types::SqlValue::Varchar(_)
+            | vibesql_types::SqlValue::Character(_)
+            | vibesql_types::SqlValue::Boolean(_)
+            | vibesql_types::SqlValue::Date(_)
+            | vibesql_types::SqlValue::Time(_)
+            | vibesql_types::SqlValue::Timestamp(_)
+    )
 }
 
 /// Divide a SqlValue by an integer count, handling all numeric types
