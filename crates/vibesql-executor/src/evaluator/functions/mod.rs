@@ -166,6 +166,9 @@ pub(super) fn eval_scalar_function(
         "ST_CONVEXHULL" | "ST_CONVEX_HULL" => spatial::measurements::st_convex_hull(args),
         "ST_POINTONSURFACE" | "ST_POINT_ON_SURFACE" => spatial::measurements::st_point_on_surface(args),
 
+        // Spatial operation functions
+        "ST_SIMPLIFY" => spatial::operations::st_simplify(args),
+
         // Unknown function
         _ => Err(ExecutorError::UnsupportedFeature(format!("Unknown function: {}", name))),
     }
