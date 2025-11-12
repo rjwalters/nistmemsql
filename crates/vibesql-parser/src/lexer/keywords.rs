@@ -252,6 +252,9 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "QUERY" => Token::Keyword(Keyword::Query),
         // Spatial index keywords
         "SPATIAL" => Token::Keyword(Keyword::Spatial),
+        // Auto-increment keywords (MySQL and SQLite)
+        "AUTO_INCREMENT" => Token::Keyword(Keyword::AutoIncrement),
+        "AUTOINCREMENT" => Token::Keyword(Keyword::AutoIncrement),
         _ => Token::Identifier(upper_text), // Regular identifiers are normalized to uppercase
     }
 }

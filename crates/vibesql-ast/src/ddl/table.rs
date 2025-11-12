@@ -112,6 +112,9 @@ pub enum ColumnConstraintKind {
         on_delete: Option<ReferentialAction>,
         on_update: Option<ReferentialAction>,
     },
+    /// AUTO_INCREMENT (MySQL) or AUTOINCREMENT (SQLite)
+    /// Automatically generates sequential integer values for new rows
+    AutoIncrement,
 }
 
 /// Table-level constraint

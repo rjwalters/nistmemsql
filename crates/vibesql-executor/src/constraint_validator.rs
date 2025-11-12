@@ -90,6 +90,11 @@ impl ConstraintValidator {
                         // Foreign key constraints are handled separately
                         // during INSERT/UPDATE/DELETE operations
                     }
+                    ColumnConstraintKind::AutoIncrement => {
+                        // AUTO_INCREMENT is handled in create_table.rs by creating
+                        // an internal sequence and setting the default value
+                        // No constraint validation needed here
+                    }
                 }
             }
         }

@@ -1,3 +1,4 @@
+mod auto_increment;
 mod basic;
 mod constraints_column;
 mod constraints_table;
