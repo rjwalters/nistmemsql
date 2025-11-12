@@ -80,7 +80,7 @@ jobs:
         if: inputs.rebuild-web-demo || github.event_name == 'workflow_dispatch'
         uses: pnpm/action-setup@v4
         with:
-          version: 8
+          version: 9
 
       - name: Setup Node.js
         if: inputs.rebuild-web-demo || github.event_name == 'workflow_dispatch'
