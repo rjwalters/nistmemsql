@@ -7,7 +7,7 @@ use vibesql_storage::Database;
 use crate::{
     errors::ExecutorError,
     privilege_checker::PrivilegeChecker,
-    truncate_validation::can_use_truncate,
+    truncate_validation::{can_use_truncate, has_delete_triggers},
 };
 
 /// Executor for TRUNCATE TABLE statements
