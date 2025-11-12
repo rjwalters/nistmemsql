@@ -19,7 +19,7 @@ use crate::errors::ExecutorError;
 // Module declarations
 mod control;
 mod conversion;
-mod datetime;
+pub(crate) mod datetime;
 mod null_handling;
 mod numeric;
 pub(crate) mod string;

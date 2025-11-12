@@ -33,6 +33,7 @@
 //!   types)
 //! - `fulltext_search`: Full-text search integration tests (MATCH...AGAINST natural language, boolean mode)
 //! - `trigger_tests`: Trigger creation and execution tests
+//! - `truncate_cascade_tests`: TRUNCATE TABLE CASCADE/RESTRICT tests (issue #1393)
 //! - `truncate_table_tests`: TRUNCATE TABLE tests (single table, multiple tables, IF EXISTS)
 //! - `view_tests`: VIEW support tests (CREATE/DROP/SELECT, OR REPLACE, CASCADE)
 
@@ -81,5 +82,6 @@ mod select_without_from;
 mod timeout_enforcement;
 mod transaction_tests;
 mod trigger_tests;
+mod truncate_cascade_tests;
 mod truncate_table_tests;
 mod view_tests;

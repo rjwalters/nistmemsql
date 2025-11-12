@@ -374,7 +374,7 @@ fn is_leap_year(year: i32) -> bool {
 /// Helper for DATE_ADD and DATE_SUB functions
 /// Adds or subtracts an interval from a date/timestamp
 /// preserve_time: if true and input is timestamp, preserve time component
-fn date_add_subtract(
+pub(crate) fn date_add_subtract(
     date_str: &str,
     amount: i64,
     unit: &str,

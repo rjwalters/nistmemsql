@@ -23,7 +23,7 @@ fn test_truncate_single_table() {
             },
             ColumnDef {
                 name: "NAME".to_string(),
-                data_type: DataType::Varchar { max_length: 100 },
+                data_type: DataType::Varchar { max_length: Some(100) },
                 nullable: true,
                 constraints: vec![],
                 default_value: None,
@@ -36,11 +36,11 @@ fn test_truncate_single_table() {
     CreateTableExecutor::execute(&create_stmt, &mut db).unwrap();
 
     // Insert some rows
-    db.insert_row("USERS", Row::new(vec![SqlValue::Integer(1), SqlValue::VarChar("Alice".to_string())]))
+    db.insert_row("USERS", Row::new(vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]))
         .unwrap();
-    db.insert_row("USERS", Row::new(vec![SqlValue::Integer(2), SqlValue::VarChar("Bob".to_string())]))
+    db.insert_row("USERS", Row::new(vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())]))
         .unwrap();
-    db.insert_row("USERS", Row::new(vec![SqlValue::Integer(3), SqlValue::VarChar("Carol".to_string())]))
+    db.insert_row("USERS", Row::new(vec![SqlValue::Integer(3), SqlValue::Varchar("Carol".to_string())]))
         .unwrap();
 
     assert_eq!(db.get_table("USERS").unwrap().row_count(), 3);
@@ -49,6 +49,7 @@ fn test_truncate_single_table() {
     let truncate_stmt = TruncateTableStmt {
         table_names: vec!["USERS".to_string()],
         if_exists: false,
+        cascade: None,
     };
 
     let rows_deleted = TruncateTableExecutor::execute(&truncate_stmt, &mut db).unwrap();
@@ -130,6 +131,7 @@ fn test_truncate_multiple_tables() {
             "ORDER_HISTORY".to_string(),
         ],
         if_exists: false,
+        cascade: None,
     };
 
     let rows_deleted = TruncateTableExecutor::execute(&truncate_stmt, &mut db).unwrap();
@@ -147,6 +149,7 @@ fn test_truncate_if_exists_table_not_exists() {
     let truncate_stmt = TruncateTableStmt {
         table_names: vec!["NONEXISTENT".to_string()],
         if_exists: true,
+        cascade: None,
     };
 
     let rows_deleted = TruncateTableExecutor::execute(&truncate_stmt, &mut db).unwrap();
@@ -161,6 +164,7 @@ fn test_truncate_without_if_exists_table_not_exists() {
     let truncate_stmt = TruncateTableStmt {
         table_names: vec!["NONEXISTENT".to_string()],
         if_exists: false,
+        cascade: None,
     };
 
     let result = TruncateTableExecutor::execute(&truncate_stmt, &mut db);
@@ -199,6 +203,7 @@ fn test_truncate_multiple_tables_if_exists_mixed() {
             "NONEXISTENT2".to_string(),
         ],
         if_exists: true,
+        cascade: None,
     };
 
     let rows_deleted = TruncateTableExecutor::execute(&truncate_stmt, &mut db).unwrap();
@@ -234,6 +239,7 @@ fn test_truncate_multiple_tables_all_or_nothing_validation() {
     let truncate_stmt = TruncateTableStmt {
         table_names: vec!["EXISTING".to_string(), "NONEXISTENT".to_string()],
         if_exists: false,
+        cascade: None,
     };
 
     let result = TruncateTableExecutor::execute(&truncate_stmt, &mut db);
@@ -267,6 +273,7 @@ fn test_truncate_empty_table() {
     let truncate_stmt = TruncateTableStmt {
         table_names: vec!["EMPTY".to_string()],
         if_exists: false,
+        cascade: None,
     };
 
     let rows_deleted = TruncateTableExecutor::execute(&truncate_stmt, &mut db).unwrap();
