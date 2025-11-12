@@ -9,42 +9,28 @@
 //! - DELETE trigger validation
 
 use vibesql_ast::{
-    ColumnConstraint, ColumnConstraintKind, ColumnDef, CreateTableStmt, Expression, InsertStmt,
-    InsertSource, TableConstraint, TableConstraintKind, TruncateCascadeOption, TruncateTableStmt,
+    Expression, InsertStmt,
+    InsertSource, TruncateCascadeOption, TruncateTableStmt,
 };
+use vibesql_catalog::{ColumnSchema, ForeignKeyConstraint, ReferentialAction, TableSchema};
 use vibesql_storage::{Database, Row};
 use vibesql_types::{DataType, SqlValue};
 
-use crate::{CreateTableExecutor, InsertExecutor, TruncateTableExecutor};
+use crate::{InsertExecutor, TruncateTableExecutor};
 
 /// Helper to create a simple table with primary key
-/// Uses table-level PK constraint for consistency
+/// Uses catalog API directly to ensure proper constraint registration
 fn create_table_with_pk(db: &mut Database, table_name: &str, pk_column: &str) {
-    let stmt = CreateTableStmt {
-        table_name: table_name.to_string(),
-        columns: vec![ColumnDef {
-            name: pk_column.to_string(),
-            data_type: DataType::Integer,
-            nullable: false,
-            constraints: vec![],  // Use table-level PK instead
-            default_value: None,
-            comment: None,
-        }],
-        table_constraints: vec![
-            TableConstraint {
-                name: None,
-                kind: TableConstraintKind::PrimaryKey {
-                    columns: vec![pk_column.to_string()],
-                },
-            },
-        ],
-        table_options: vec![],
-    };
-    CreateTableExecutor::execute(&stmt, db).unwrap();
+    let schema = TableSchema::with_primary_key(
+        table_name.to_string(),
+        vec![ColumnSchema::new(pk_column.to_string(), DataType::Integer, false)],
+        vec![pk_column.to_string()],
+    );
+    db.create_table(schema).unwrap();
 }
 
 /// Helper to create a table with a foreign key reference
-/// Uses table-level FK constraints to properly populate catalog.foreign_keys
+/// Uses catalog API directly to ensure proper FK constraint registration
 fn create_table_with_fk(
     db: &mut Database,
     table_name: &str,
@@ -53,49 +39,32 @@ fn create_table_with_fk(
     parent_table: &str,
     parent_column: &str,
 ) {
-    let stmt = CreateTableStmt {
-        table_name: table_name.to_string(),
-        columns: vec![
-            ColumnDef {
-                name: pk_column.to_string(),
-                data_type: DataType::Integer,
-                nullable: false,
-                constraints: vec![],  // Use table-level PK instead
-                default_value: None,
-                comment: None,
-            },
-            ColumnDef {
-                name: fk_column.to_string(),
-                data_type: DataType::Integer,
-                nullable: true,
-                constraints: vec![],  // Use table-level FK instead
-                default_value: None,
-                comment: None,
-            },
+    // First get parent column index
+    let parent_schema = db.catalog.get_table(parent_table).expect("Parent table must exist");
+    let parent_col_idx = parent_schema
+        .columns
+        .iter()
+        .position(|c| c.name == parent_column)
+        .expect("Parent column must exist");
+
+    let schema = TableSchema::with_foreign_keys(
+        table_name.to_string(),
+        vec![
+            ColumnSchema::new(pk_column.to_string(), DataType::Integer, false),
+            ColumnSchema::new(fk_column.to_string(), DataType::Integer, true),
         ],
-        table_constraints: vec![
-            // Add PK as table-level constraint
-            TableConstraint {
-                name: None,
-                kind: TableConstraintKind::PrimaryKey {
-                    columns: vec![pk_column.to_string()],
-                },
-            },
-            // Add FK as table-level constraint (ensures catalog.foreign_keys is populated)
-            TableConstraint {
-                name: None,
-                kind: TableConstraintKind::ForeignKey {
-                    columns: vec![fk_column.to_string()],
-                    references_table: parent_table.to_string(),
-                    references_columns: vec![parent_column.to_string()],
-                    on_delete: None,
-                    on_update: None,
-                },
-            },
-        ],
-        table_options: vec![],
-    };
-    CreateTableExecutor::execute(&stmt, db).unwrap();
+        vec![ForeignKeyConstraint {
+            name: None,
+            column_names: vec![fk_column.to_string()],
+            column_indices: vec![1],
+            parent_table: parent_table.to_string(),
+            parent_column_names: vec![parent_column.to_string()],
+            parent_column_indices: vec![parent_col_idx],
+            on_delete: ReferentialAction::NoAction,
+            on_update: ReferentialAction::NoAction,
+        }],
+    );
+    db.create_table(schema).unwrap();
 }
 
 /// Helper to insert a row into a table

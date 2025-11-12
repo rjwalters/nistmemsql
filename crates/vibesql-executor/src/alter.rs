@@ -558,7 +558,7 @@ impl AlterTableExecutor {
         stmt: &ModifyColumnStmt,
         database: &mut Database,
     ) -> Result<String, ExecutorError> {
-        use vibesql_types::DataType;
+        
 
         let table = database
             .get_table_mut(&stmt.table_name)
@@ -612,7 +612,7 @@ impl AlterTableExecutor {
         stmt: &ChangeColumnStmt,
         database: &mut Database,
     ) -> Result<String, ExecutorError> {
-        use vibesql_types::DataType;
+        
 
         let table = database
             .get_table_mut(&stmt.table_name)
