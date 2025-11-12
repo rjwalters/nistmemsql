@@ -95,25 +95,8 @@ impl ExpressionEvaluator<'_> {
         );
         let rows = select_executor.execute(subquery)?;
 
-        if rows.len() > 1 {
-            return Err(ExecutorError::SubqueryReturnedMultipleRows {
-                expected: 1,
-                actual: rows.len(),
-            });
-        }
-
-        if subquery.select_list.len() != 1 {
-            return Err(ExecutorError::SubqueryColumnCountMismatch {
-                expected: 1,
-                actual: subquery.select_list.len(),
-            });
-        }
-
-        if rows.is_empty() {
-            Ok(vibesql_types::SqlValue::Null)
-        } else {
-            rows[0].get(0).cloned().ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })
-        }
+        // Delegate to shared logic
+        super::super::subqueries_shared::eval_scalar_subquery_core(&rows, subquery.select_list.len())
     }
 
     /// Evaluate EXISTS predicate
@@ -141,10 +124,8 @@ impl ExpressionEvaluator<'_> {
         );
         let rows = select_executor.execute(subquery)?;
 
-        let has_rows = !rows.is_empty();
-        let result = if negated { !has_rows } else { has_rows };
-
-        Ok(vibesql_types::SqlValue::Boolean(result))
+        // Delegate to shared logic
+        Ok(super::super::subqueries_shared::eval_exists_core(!rows.is_empty(), negated))
     }
 
     /// Evaluate quantified comparison (ALL/ANY/SOME)
@@ -162,10 +143,6 @@ impl ExpressionEvaluator<'_> {
 
         let left_val = self.eval(expr, row)?;
 
-        if matches!(left_val, vibesql_types::SqlValue::Null) {
-            return Ok(vibesql_types::SqlValue::Null);
-        }
-
         // Convert TableSchema to CombinedSchema for outer context
         let outer_combined = crate::schema::CombinedSchema::from_table(
             self.schema.name.clone(),
@@ -179,80 +156,13 @@ impl ExpressionEvaluator<'_> {
         );
         let rows = select_executor.execute(subquery)?;
 
-        if rows.is_empty() {
-            return Ok(vibesql_types::SqlValue::Boolean(matches!(quantifier, vibesql_ast::Quantifier::All)));
-        }
-
-        let mut has_null = false;
-
-        match quantifier {
-            vibesql_ast::Quantifier::All => {
-                for subquery_row in &rows {
-                    if subquery_row.values.len() != 1 {
-                        return Err(ExecutorError::SubqueryColumnCountMismatch {
-                            expected: 1,
-                            actual: subquery_row.values.len(),
-                        });
-                    }
-
-                    let right_val = &subquery_row.values[0];
-
-                    if matches!(right_val, vibesql_types::SqlValue::Null) {
-                        has_null = true;
-                        continue;
-                    }
-
-                    let cmp_result = self.eval_binary_op(&left_val, op, right_val)?;
-
-                    match cmp_result {
-                        vibesql_types::SqlValue::Boolean(false) => {
-                            return Ok(vibesql_types::SqlValue::Boolean(false))
-                        }
-                        vibesql_types::SqlValue::Null => has_null = true,
-                        _ => {}
-                    }
-                }
-
-                if has_null {
-                    Ok(vibesql_types::SqlValue::Null)
-                } else {
-                    Ok(vibesql_types::SqlValue::Boolean(true))
-                }
-            }
-
-            vibesql_ast::Quantifier::Any | vibesql_ast::Quantifier::Some => {
-                for subquery_row in &rows {
-                    if subquery_row.values.len() != 1 {
-                        return Err(ExecutorError::SubqueryColumnCountMismatch {
-                            expected: 1,
-                            actual: subquery_row.values.len(),
-                        });
-                    }
-
-                    let right_val = &subquery_row.values[0];
-
-                    if matches!(right_val, vibesql_types::SqlValue::Null) {
-                        has_null = true;
-                        continue;
-                    }
-
-                    let cmp_result = self.eval_binary_op(&left_val, op, right_val)?;
-
-                    match cmp_result {
-                        vibesql_types::SqlValue::Boolean(true) => {
-                            return Ok(vibesql_types::SqlValue::Boolean(true))
-                        }
-                        vibesql_types::SqlValue::Null => has_null = true,
-                        _ => {}
-                    }
-                }
-
-                if has_null {
-                    Ok(vibesql_types::SqlValue::Null)
-                } else {
-                    Ok(vibesql_types::SqlValue::Boolean(false))
-                }
-            }
-        }
+        // Delegate to shared logic
+        super::super::subqueries_shared::eval_quantified_core(
+            &left_val,
+            &rows,
+            op,
+            quantifier,
+            |left, op, right| self.eval_binary_op(left, op, right),
+        )
     }
 }
