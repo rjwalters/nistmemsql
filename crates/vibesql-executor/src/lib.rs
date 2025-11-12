@@ -11,6 +11,7 @@ mod delete;
 mod domain_ddl;
 mod drop_table;
 mod truncate_table;
+mod truncate_validation;
 pub mod errors;
 pub mod evaluator;
 mod grant;
