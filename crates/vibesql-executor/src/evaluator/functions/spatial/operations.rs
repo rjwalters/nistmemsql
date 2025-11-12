@@ -6,7 +6,7 @@
 use vibesql_types::SqlValue;
 use crate::errors::ExecutorError;
 use super::{sql_value_to_geometry, geometry_to_sql_value, Geometry};
-use geo::algorithm::Simplify;
+use geo::algorithm::{Simplify, BooleanOps};
 
 /// Helper function to convert WKT string to geo::Geometry
 fn wkt_to_geo(wkt_str: &str) -> Result<geo::Geometry<f64>, ExecutorError> {
@@ -235,6 +235,166 @@ pub fn st_simplify(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         }
         _ => Err(ExecutorError::Other(
             "ST_Simplify requires VARCHAR geometry and DOUBLE tolerance arguments".to_string(),
+        )),
+    }
+}
+
+/// ST_Union(geom1, geom2) - Combine two geometries
+pub fn st_union(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
+    if args.len() != 2 {
+        return Err(ExecutorError::Other(
+            "ST_Union expects exactly 2 arguments".to_string(),
+        ));
+    }
+
+    match (&args[0], &args[1]) {
+        (SqlValue::Null, _) | (_, SqlValue::Null) => Ok(SqlValue::Null),
+        (SqlValue::Varchar(wkt1), SqlValue::Varchar(wkt2))
+        | (SqlValue::Character(wkt1), SqlValue::Character(wkt2))
+        | (SqlValue::Varchar(wkt1), SqlValue::Character(wkt2))
+        | (SqlValue::Character(wkt1), SqlValue::Varchar(wkt2)) => {
+            let geom1 = wkt_to_geo(wkt1)?;
+            let geom2 = wkt_to_geo(wkt2)?;
+
+            let unioned = match (&geom1, &geom2) {
+                (geo::Geometry::Polygon(p1), geo::Geometry::Polygon(p2)) => {
+                    let union_result = p1.union(p2);
+                    union_result.into()
+                }
+                _ => {
+                    // For non-polygon geometries, return a GeometryCollection
+                    geo::Geometry::GeometryCollection(geo::GeometryCollection(vec![geom1, geom2]))
+                }
+            };
+
+            let result_geom = from_geo_geometry(&unioned)?;
+            let result_value = geometry_to_sql_value(result_geom, 0);
+            Ok(result_value)
+        }
+        _ => Err(ExecutorError::Other(
+            "ST_Union requires VARCHAR geometry arguments".to_string(),
+        )),
+    }
+}
+
+/// ST_Intersection(geom1, geom2) - Find intersection of two geometries
+pub fn st_intersection(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
+    if args.len() != 2 {
+        return Err(ExecutorError::Other(
+            "ST_Intersection expects exactly 2 arguments".to_string(),
+        ));
+    }
+
+    match (&args[0], &args[1]) {
+        (SqlValue::Null, _) | (_, SqlValue::Null) => Ok(SqlValue::Null),
+        (SqlValue::Varchar(wkt1), SqlValue::Varchar(wkt2))
+        | (SqlValue::Character(wkt1), SqlValue::Character(wkt2))
+        | (SqlValue::Varchar(wkt1), SqlValue::Character(wkt2))
+        | (SqlValue::Character(wkt1), SqlValue::Varchar(wkt2)) => {
+            let geom1 = wkt_to_geo(wkt1)?;
+            let geom2 = wkt_to_geo(wkt2)?;
+
+            let intersection = match (&geom1, &geom2) {
+                (geo::Geometry::Polygon(p1), geo::Geometry::Polygon(p2)) => {
+                    let int_result = p1.intersection(p2);
+                    int_result.into()
+                }
+                _ => {
+                    return Err(ExecutorError::Other(
+                        "ST_Intersection currently only supports polygon-polygon intersection".to_string(),
+                    ));
+                }
+            };
+
+            let result_geom = from_geo_geometry(&intersection)?;
+            let result_value = geometry_to_sql_value(result_geom, 0);
+            Ok(result_value)
+        }
+        _ => Err(ExecutorError::Other(
+            "ST_Intersection requires VARCHAR geometry arguments".to_string(),
+        )),
+    }
+}
+
+/// ST_Difference(geom1, geom2) - Subtract geom2 from geom1
+pub fn st_difference(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
+    if args.len() != 2 {
+        return Err(ExecutorError::Other(
+            "ST_Difference expects exactly 2 arguments".to_string(),
+        ));
+    }
+
+    match (&args[0], &args[1]) {
+        (SqlValue::Null, _) | (_, SqlValue::Null) => Ok(SqlValue::Null),
+        (SqlValue::Varchar(wkt1), SqlValue::Varchar(wkt2))
+        | (SqlValue::Character(wkt1), SqlValue::Character(wkt2))
+        | (SqlValue::Varchar(wkt1), SqlValue::Character(wkt2))
+        | (SqlValue::Character(wkt1), SqlValue::Varchar(wkt2)) => {
+            let geom1 = wkt_to_geo(wkt1)?;
+            let geom2 = wkt_to_geo(wkt2)?;
+
+            let difference = match (&geom1, &geom2) {
+                (geo::Geometry::Polygon(p1), geo::Geometry::Polygon(p2)) => {
+                    let diff_result = p1.difference(p2);
+                    diff_result.into()
+                }
+                _ => {
+                    return Err(ExecutorError::Other(
+                        "ST_Difference currently only supports polygon-polygon difference".to_string(),
+                    ));
+                }
+            };
+
+            let result_geom = from_geo_geometry(&difference)?;
+            let result_value = geometry_to_sql_value(result_geom, 0);
+            Ok(result_value)
+        }
+        _ => Err(ExecutorError::Other(
+            "ST_Difference requires VARCHAR geometry arguments".to_string(),
+        )),
+    }
+}
+
+/// ST_SymDifference(geom1, geom2) - Parts in either but not both (symmetric difference / XOR)
+pub fn st_sym_difference(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
+    if args.len() != 2 {
+        return Err(ExecutorError::Other(
+            "ST_SymDifference expects exactly 2 arguments".to_string(),
+        ));
+    }
+
+    match (&args[0], &args[1]) {
+        (SqlValue::Null, _) | (_, SqlValue::Null) => Ok(SqlValue::Null),
+        (SqlValue::Varchar(wkt1), SqlValue::Varchar(wkt2))
+        | (SqlValue::Character(wkt1), SqlValue::Character(wkt2))
+        | (SqlValue::Varchar(wkt1), SqlValue::Character(wkt2))
+        | (SqlValue::Character(wkt1), SqlValue::Varchar(wkt2)) => {
+            let geom1 = wkt_to_geo(wkt1)?;
+            let geom2 = wkt_to_geo(wkt2)?;
+
+            let sym_diff = match (&geom1, &geom2) {
+                (geo::Geometry::Polygon(p1), geo::Geometry::Polygon(p2)) => {
+                    // Symmetric difference = (A - B) UNION (B - A)
+                    let diff_1_2 = p1.difference(p2);  // Returns MultiPolygon
+                    let diff_2_1 = p2.difference(p1);  // Returns MultiPolygon
+                    
+                    // Union the two result multipolygons
+                    let union_result = diff_1_2.union(&diff_2_1);
+                    geo::Geometry::MultiPolygon(union_result)
+                }
+                _ => {
+                    return Err(ExecutorError::Other(
+                        "ST_SymDifference currently only supports polygon-polygon symmetric difference".to_string(),
+                    ));
+                }
+            };
+
+            let result_geom = from_geo_geometry(&sym_diff)?;
+            let result_value = geometry_to_sql_value(result_geom, 0);
+            Ok(result_value)
+        }
+        _ => Err(ExecutorError::Other(
+            "ST_SymDifference requires VARCHAR geometry arguments".to_string(),
         )),
     }
 }

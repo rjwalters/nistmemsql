@@ -546,3 +546,181 @@ pub fn st_point_on_surface(args: &[SqlValue]) -> Result<SqlValue, ExecutorError>
         )),
     }
 }
+
+/// ST_Boundary(geom) - Get boundary of geometry (exterior ring for polygons, endpoints for lines)
+pub fn st_boundary(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
+    if args.len() != 1 {
+        return Err(ExecutorError::Other(
+            "ST_Boundary expects exactly 1 argument".to_string(),
+        ));
+    }
+
+    match &args[0] {
+        SqlValue::Null => Ok(SqlValue::Null),
+        SqlValue::Varchar(_) | SqlValue::Character(_) => {
+            let geom_with_srid = sql_value_to_geometry(&args[0])?;
+            let geom = &geom_with_srid.geometry;
+
+            let boundary_geom = match geom {
+                Geometry::Point { .. } => {
+                    // Boundary of a point is empty
+                    return Ok(SqlValue::Varchar("__GEOMETRY__GEOMETRYCOLLECTION()".to_string()));
+                }
+                Geometry::LineString { points } => {
+                    // Boundary of a line is a multi-point of the endpoints
+                    if points.is_empty() {
+                        return Ok(SqlValue::Varchar("__GEOMETRY__GEOMETRYCOLLECTION()".to_string()));
+                    }
+                    if points.len() == 1 {
+                        let (x, y) = points[0];
+                        return Ok(super::geometry_to_sql_value(
+                            Geometry::Point { x, y },
+                            geom_with_srid.srid,
+                        ));
+                    }
+                    let first = points[0];
+                    let last = points[points.len() - 1];
+                    if first == last {
+                        // Closed linestring (ring): boundary is empty
+                        return Ok(SqlValue::Varchar("__GEOMETRY__GEOMETRYCOLLECTION()".to_string()));
+                    }
+                    Geometry::MultiPoint {
+                        points: vec![first, last],
+                    }
+                }
+                Geometry::Polygon { rings } => {
+                    // Boundary of a polygon is all its rings as a MultiLineString
+                    if rings.is_empty() {
+                        return Ok(SqlValue::Varchar("__GEOMETRY__GEOMETRYCOLLECTION()".to_string()));
+                    }
+                    Geometry::MultiLineString {
+                        lines: rings.clone(),
+                    }
+                }
+                Geometry::MultiPoint { .. } | Geometry::MultiLineString { .. } | Geometry::MultiPolygon { .. } => {
+                    // Boundary of multi-geometries: aggregate boundaries
+                    // For simplicity, we'll return empty geometry collection for now
+                    return Ok(SqlValue::Varchar("__GEOMETRY__GEOMETRYCOLLECTION()".to_string()));
+                }
+                Geometry::GeometryCollection { .. } => {
+                    // Boundary of a collection: aggregate boundaries
+                    return Ok(SqlValue::Varchar("__GEOMETRY__GEOMETRYCOLLECTION()".to_string()));
+                }
+            };
+
+            Ok(super::geometry_to_sql_value(boundary_geom, geom_with_srid.srid))
+        }
+        _ => Err(ExecutorError::Other(
+            "ST_Boundary requires a VARCHAR geometry argument".to_string(),
+        )),
+    }
+}
+
+/// ST_HausdorffDistance(geom1, geom2) - Maximum distance between any point in geom1 to nearest point in geom2
+pub fn st_hausdorff_distance(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
+    if args.len() != 2 {
+        return Err(ExecutorError::Other(
+            "ST_HausdorffDistance expects exactly 2 arguments".to_string(),
+        ));
+    }
+
+    match (&args[0], &args[1]) {
+        (SqlValue::Null, _) | (_, SqlValue::Null) => Ok(SqlValue::Null),
+        (SqlValue::Varchar(wkt1), SqlValue::Varchar(wkt2))
+        | (SqlValue::Character(wkt1), SqlValue::Character(wkt2))
+        | (SqlValue::Varchar(wkt1), SqlValue::Character(wkt2))
+        | (SqlValue::Character(wkt1), SqlValue::Varchar(wkt2)) => {
+            let geom1 = wkt_to_geo(wkt1)?;
+            let geom2 = wkt_to_geo(wkt2)?;
+
+            // Calculate Hausdorff distance: max(min_dist(p1 to geom2), min_dist(p2 to geom1))
+            // For simplicity, we use a basic implementation that samples points
+            let distance = calculate_hausdorff_distance(&geom1, &geom2)?;
+            Ok(SqlValue::Double(distance))
+        }
+        _ => Err(ExecutorError::Other(
+            "ST_HausdorffDistance requires VARCHAR geometry arguments".to_string(),
+        )),
+    }
+}
+
+/// Helper function to calculate Hausdorff distance between two geometries
+fn calculate_hausdorff_distance(
+    geom1: &geo::Geometry<f64>,
+    geom2: &geo::Geometry<f64>,
+) -> Result<f64, ExecutorError> {
+    use geo::algorithm::EuclideanDistance;
+
+    let coords1 = extract_coordinates(geom1);
+    let coords2 = extract_coordinates(geom2);
+
+    if coords1.is_empty() || coords2.is_empty() {
+        return Ok(0.0);
+    }
+
+    // Maximum distance from any point in geom1 to nearest point in geom2
+    let max_dist_1_to_2 = coords1
+        .iter()
+        .map(|p1| {
+            coords2
+                .iter()
+                .map(|p2| p1.euclidean_distance(p2))
+                .fold(f64::INFINITY, f64::min)
+        })
+        .fold(f64::NEG_INFINITY, f64::max);
+
+    // Maximum distance from any point in geom2 to nearest point in geom1
+    let max_dist_2_to_1 = coords2
+        .iter()
+        .map(|p2| {
+            coords1
+                .iter()
+                .map(|p1| p2.euclidean_distance(p1))
+                .fold(f64::INFINITY, f64::min)
+        })
+        .fold(f64::NEG_INFINITY, f64::max);
+
+    Ok(f64::max(max_dist_1_to_2, max_dist_2_to_1))
+}
+
+/// Helper function to extract all coordinates from a geometry
+fn extract_coordinates(geom: &geo::Geometry<f64>) -> Vec<geo::Point<f64>> {
+    let mut coords = Vec::new();
+
+    match geom {
+        geo::Geometry::Point(p) => coords.push(*p),
+        geo::Geometry::LineString(ls) => {
+            coords.extend(ls.points());
+        }
+        geo::Geometry::Polygon(poly) => {
+            coords.extend(poly.exterior().points());
+            for interior in poly.interiors() {
+                coords.extend(interior.points());
+            }
+        }
+        geo::Geometry::MultiPoint(mp) => {
+            coords.extend(&mp.0);
+        }
+        geo::Geometry::MultiLineString(mls) => {
+            for ls in &mls.0 {
+                coords.extend(ls.points());
+            }
+        }
+        geo::Geometry::MultiPolygon(mp) => {
+            for poly in &mp.0 {
+                coords.extend(poly.exterior().points());
+                for interior in poly.interiors() {
+                    coords.extend(interior.points());
+                }
+            }
+        }
+        geo::Geometry::GeometryCollection(gc) => {
+            for g in &gc.0 {
+                coords.extend(extract_coordinates(g));
+            }
+        }
+        _ => {}
+    }
+
+    coords
+}
