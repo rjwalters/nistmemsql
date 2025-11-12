@@ -107,10 +107,32 @@ fn test_natural_join_single_common_column() {
     assert_eq!(result[1].values[1], vibesql_types::SqlValue::Varchar("b".to_string())); // name
 }
 
+// Error case tests
+
+#[test]
+fn test_natural_cross_join_error() {
+    // NATURAL CROSS JOIN is not valid SQL
+    let result = vibesql_parser::Parser::parse_sql("SELECT * FROM t1 NATURAL CROSS JOIN t2");
+
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("NATURAL CROSS JOIN"));
+}
+
+#[test]
+fn test_natural_join_with_on_clause_error() {
+    // NATURAL JOIN...ON is not valid SQL (NATURAL implies the join condition)
+    let result = vibesql_parser::Parser::parse_sql("SELECT * FROM t1 NATURAL JOIN t2 ON t1.id = t2.id");
+
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    // Error should mention that ON clause is not allowed with NATURAL JOIN
+    assert!(err.to_string().contains("NATURAL") || err.to_string().contains("ON"));
+}
+
 // TODO: Add more comprehensive tests for:
 // - NATURAL JOIN with no common columns (should behave like CROSS JOIN)
 // - NATURAL LEFT JOIN
 // - NATURAL RIGHT JOIN
 // - NATURAL JOIN with multiple common columns
 // - NATURAL JOIN with case-insensitive column matching
-// - Error cases (NATURAL JOIN with ON clause, NATURAL CROSS JOIN)
