@@ -98,7 +98,60 @@ fn parse_multipoint(wkt: &str) -> Result<Geometry, ExecutorError> {
         ));
     }
     
-    let coords = extract_coordinates(wkt, 1)?;
+    let content = extract_parentheses_content(wkt)?;
+    
+    // Check if this is the parenthesized format: (x1 y1), (x2 y2), ...
+    // by looking for opening paren after potential whitespace
+    let has_inner_parens = content.trim_start().starts_with('(');
+    
+    let coords = if has_inner_parens {
+        // Format: (x1 y1), (x2 y2), ...
+        // Parse each parenthesized group
+        let mut points = Vec::new();
+        let mut current_group = String::new();
+        let mut paren_count = 0;
+        
+        for ch in content.chars() {
+            match ch {
+                '(' => {
+                    paren_count += 1;
+                    if paren_count > 1 {
+                        current_group.push(ch);
+                    }
+                }
+                ')' => {
+                    paren_count -= 1;
+                    if paren_count > 0 {
+                        current_group.push(ch);
+                    } else if !current_group.is_empty() {
+                        let coords = parse_coordinate_pair(current_group.trim())?;
+                        points.push(coords);
+                        current_group.clear();
+                    }
+                }
+                ',' if paren_count == 0 => {
+                    // Skip commas between parenthesized groups
+                }
+                _ => {
+                    if paren_count > 0 {
+                        current_group.push(ch);
+                    }
+                }
+            }
+        }
+        
+        if points.is_empty() {
+            return Err(ExecutorError::UnsupportedFeature(
+                "MultiPoint must have at least one point".to_string(),
+            ));
+        }
+        
+        vec![points]
+    } else {
+        // Format: x1 y1, x2 y2, ...
+        extract_coordinates(wkt, 1)?
+    };
+    
     if coords.is_empty() || coords[0].is_empty() {
         return Err(ExecutorError::UnsupportedFeature(
             "MultiPoint must have at least one point".to_string(),
@@ -136,17 +189,53 @@ fn parse_multipolygon(wkt: &str) -> Result<Geometry, ExecutorError> {
         ));
     }
     
-    let coords = extract_coordinates(wkt, 3)?;
-    if coords.is_empty() {
+    let content = extract_parentheses_content(wkt)?;
+    
+    // Split by top-level commas to get individual polygons
+    let mut polygons = Vec::new();
+    let mut current_polygon = String::new();
+    let mut paren_count = 0;
+    
+    for ch in content.chars() {
+        match ch {
+            '(' => {
+                paren_count += 1;
+                current_polygon.push(ch);
+            }
+            ')' => {
+                paren_count -= 1;
+                current_polygon.push(ch);
+            }
+            ',' if paren_count == 0 => {
+                // Top-level comma separates polygons
+                if !current_polygon.is_empty() {
+                    let poly_wkt = format!("POLYGON{}", current_polygon.trim());
+                    let poly = parse_polygon(&poly_wkt)?;
+                    if let Geometry::Polygon { rings } = poly {
+                        polygons.push(rings);
+                    }
+                    current_polygon.clear();
+                }
+            }
+            _ => {
+                current_polygon.push(ch);
+            }
+        }
+    }
+    
+    // Don't forget the last polygon
+    if !current_polygon.is_empty() {
+        let poly_wkt = format!("POLYGON{}", current_polygon.trim());
+        let poly = parse_polygon(&poly_wkt)?;
+        if let Geometry::Polygon { rings } = poly {
+            polygons.push(rings);
+        }
+    }
+    
+    if polygons.is_empty() {
         return Err(ExecutorError::UnsupportedFeature(
             "MultiPolygon must have at least one polygon".to_string(),
         ));
-    }
-    
-    // Need to restructure from 2D to 3D array
-    let mut polygons = Vec::new();
-    for polygon_coords in coords {
-        polygons.push(vec![polygon_coords]);
     }
     
     Ok(Geometry::MultiPolygon { polygons })

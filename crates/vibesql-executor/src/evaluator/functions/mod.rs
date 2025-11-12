@@ -156,6 +156,25 @@ pub(super) fn eval_scalar_function(
         "ST_DWITHIN" | "ST_D_WITHIN" => spatial::predicates::st_dwithin(args),
         "ST_RELATE" => spatial::predicates::st_relate(args),
 
+        // Spatial measurement functions
+        "ST_DISTANCE" => spatial::measurements::st_distance(args),
+        "ST_LENGTH" => spatial::measurements::st_length(args),
+        "ST_PERIMETER" => spatial::measurements::st_perimeter(args),
+        "ST_AREA" => spatial::measurements::st_area(args),
+        "ST_CENTROID" => spatial::measurements::st_centroid(args),
+        "ST_ENVELOPE" => spatial::measurements::st_envelope(args),
+        "ST_CONVEXHULL" | "ST_CONVEX_HULL" => spatial::measurements::st_convex_hull(args),
+        "ST_POINTONSURFACE" | "ST_POINT_ON_SURFACE" => spatial::measurements::st_point_on_surface(args),
+        "ST_BOUNDARY" => spatial::measurements::st_boundary(args),
+        "ST_HAUSDORFFDISTANCE" | "ST_HAUSDORFF_DISTANCE" => spatial::measurements::st_hausdorff_distance(args),
+
+        // Spatial operation functions
+        "ST_SIMPLIFY" => spatial::operations::st_simplify(args),
+        "ST_UNION" => spatial::operations::st_union(args),
+        "ST_INTERSECTION" => spatial::operations::st_intersection(args),
+        "ST_DIFFERENCE" => spatial::operations::st_difference(args),
+        "ST_SYMDIFFERENCE" | "ST_SYM_DIFFERENCE" => spatial::operations::st_sym_difference(args),
+
         // Unknown function
         _ => Err(ExecutorError::UnsupportedFeature(format!("Unknown function: {}", name))),
     }

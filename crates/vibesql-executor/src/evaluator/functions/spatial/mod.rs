@@ -15,6 +15,8 @@ pub mod constructors;
 pub mod accessors;
 pub mod srid;
 pub mod predicates;
+pub mod measurements;
+pub mod operations;
 pub(crate) mod wkb;
 
 use vibesql_types::SqlValue;
