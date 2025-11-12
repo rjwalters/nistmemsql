@@ -82,6 +82,8 @@ pub enum FromClause {
         right: Box<FromClause>,
         join_type: JoinType,
         condition: Option<Expression>,
+        /// True for NATURAL JOIN (joins on common column names)
+        natural: bool,
     },
     /// Subquery in FROM clause (derived table)
     /// SQL:1999 requires AS alias for derived tables

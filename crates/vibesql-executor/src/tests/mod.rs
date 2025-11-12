@@ -57,6 +57,7 @@ mod issue_938_integer_type_preservation;
 mod join_aggregation;
 mod lazy_evaluation_tests;
 mod limit_offset;
+mod natural_join;
 mod operator_edge_cases;
 mod phase3_join_optimization;
 mod predicate_pushdown;

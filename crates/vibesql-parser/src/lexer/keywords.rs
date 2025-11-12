@@ -35,6 +35,7 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "OUTER" => Token::Keyword(Keyword::Outer),
         "CROSS" => Token::Keyword(Keyword::Cross),
         "FULL" => Token::Keyword(Keyword::Full),
+        "NATURAL" => Token::Keyword(Keyword::Natural),
         "ON" => Token::Keyword(Keyword::On),
         "GROUP" => Token::Keyword(Keyword::Group),
         "BY" => Token::Keyword(Keyword::By),
