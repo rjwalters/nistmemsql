@@ -9,7 +9,7 @@ use crate::{DataType, temporal::{Date, Time, Timestamp, Interval, IntervalField}
 /// SQL Values - runtime representation of data
 ///
 /// Represents actual values in SQL, including NULL.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum SqlValue {
     Integer(i64),
     Smallint(i16),
