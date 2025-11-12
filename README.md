@@ -187,59 +187,98 @@ python3 scripts/generate_punchlist.py
 
 ## 📊 Performance Benchmarking
 
-VibeSQL includes a comprehensive benchmark framework for comparing performance against SQLite3. Track performance metrics, identify regressions, and validate optimizations.
+VibeSQL includes comprehensive benchmarking tools for measuring and tracking performance across the full SQLLogicTest suite (623 files, ~5.9M test cases).
 
 ### Quick Start
 
 ```bash
-# Run simple benchmark test
-cargo test --test sqllogictest_suite -- benchmarks/simple --nocapture
+# Run full suite benchmark (all 623 files with 3 iterations each)
+cd benchmark
+./suite.sh
 
-# Run benchmark suite
-cargo test --test sqllogictest_suite -- benchmarks/ --nocapture
+# Sample 50 random files for quick testing
+./suite.sh --sample 50
+
+# Benchmark specific categories
+./suite.sh --categories "select,random"
+
+# Head-to-head comparison (VibeSQL vs SQLite - in progress)
+./head-to-head.sh
 ```
 
 ### Features
 
-- **Dual-engine comparison**: Run the same tests on VibeSQL and SQLite
-- **Comprehensive metrics**: Time, memory, query counts, pass rates
-- **Multiple output formats**: Console, JSON, Markdown
-- **Statistical analysis**: Percentiles (p50, p95, p99), ratios, aggregates
+- **Full suite benchmarking**: All 623 SQLLogicTest files
+- **Statistical measurements**: 3 runs per file (min/max/avg)
+- **JSON output**: Structured results for analysis and tracking
+- **Category filtering**: Test specific categories or random samples
+- **Graceful interruption**: Clean JSON output even if interrupted
+- **Progress tracking**: Real-time status with pass/fail counts
 
 ### Example Output
 
+```bash
+[  1/623] evidence/slt_lang_aggfunc.test                     ✓ 0.198s (min=0.198 max=0.199)
+[  2/623] evidence/slt_lang_createtrigger.test              ✓ 0.087s (min=0.086 max=0.088)
+[  3/623] random/select/slt_good_0.test                     ✓ 0.142s (min=0.141 max=0.143)
+
+================================
+BENCHMARK SUMMARY
+================================
+Total files:    623
+Passed:         623
+Failed:         0
+Pass rate:      100%
+Total time:     87.45s
+Average time:   0.140s per file
+
+Results saved to: target/benchmarks/comparison_20251112_034521.json
 ```
-┌──────────────────────────────────────────────────────┐
-│         VibeSQL vs SQLite Performance Report         │
-│                   select1.test                       │
-└──────────────────────────────────────────────────────┘
 
-Summary:
-┌────────────────┬───────────┬──────────┬─────────┐
-│ Metric         │ SQLite    │ VibeSQL  │ Ratio   │
-├────────────────┼───────────┼──────────┼─────────┤
-│ Total Time     │ 1.23s     │ 2.45s    │ 1.99x   │
-│ Peak Memory    │ 10.2 MB   │ 25.5 MB  │ 2.50x   │
-│ Queries/Sec    │ 812       │ 408      │ 0.50x   │
-│ Pass Rate      │ 100.0%    │ 100.0%   │ +0.0pp  │
-└────────────────┴───────────┴──────────┴─────────┘
+### Analyzing Results
+
+**Quick Python analysis:**
+```python
+import json
+
+# Load results
+with open('target/benchmarks/comparison_20251112_034521.json') as f:
+    data = json.load(f)
+
+# Overall stats
+times = [r['vibesql']['avg_secs'] for r in data['results'] if r['vibesql']['success']]
+print(f"Average: {sum(times)/len(times):.3f}s")
+print(f"Pass rate: {len(times)}/{data['total_files']}")
+
+# Find slowest files
+slowest = sorted(data['results'],
+                 key=lambda x: x['vibesql'].get('avg_secs', 0),
+                 reverse=True)[:10]
+for r in slowest:
+    print(f"{r['vibesql']['avg_secs']:.3f}s - {r['file']}")
 ```
 
-### Performance Goals
+**Database analysis** (dogfooding VibeSQL for benchmark analysis):
+```bash
+cd benchmark
+./analyze.py ../target/benchmarks/comparison_20251112_034521.json --notes "Baseline"
+```
 
-- **SELECT queries**: Within 2-3x of SQLite
-- **INSERT/UPDATE/DELETE**: Within 2x of SQLite
-- **Joins**: Within 3x of SQLite
-- **100% conformance**: Identical results on supported features
+### Performance Tracking
+
+| Date | Total Time | Avg Time | Pass Rate | Notes |
+|------|-----------|----------|-----------|-------|
+| 2025-11-12 | 87.45s | 0.140s | 623/623 (100%) | After evaluator optimization |
+| 2025-11-12 | 120.48s | 0.193s | 623/623 (100%) | Initial baseline |
 
 ### Documentation
 
-See [docs/BENCHMARKING.md](docs/BENCHMARKING.md) for:
-- Complete API reference
-- Writing benchmark tests
-- Interpreting results
-- CI integration guide
-- Performance optimization tips
+See [benchmark/README.md](benchmark/README.md) for:
+- Complete tool reference
+- Output format details
+- Analysis workflows
+- Benchmark best practices
+- Historical results
 
 ---
 
