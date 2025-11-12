@@ -10,7 +10,7 @@
 
 use vibesql_ast::{
     ColumnConstraint, ColumnConstraintKind, ColumnDef, CreateTableStmt, Expression, InsertStmt,
-    InsertSource, TruncateCascadeOption, TruncateTableStmt,
+    InsertSource, TableConstraint, TableConstraintKind, TruncateCascadeOption, TruncateTableStmt,
 };
 use vibesql_storage::{Database, Row};
 use vibesql_types::{DataType, SqlValue};
@@ -18,6 +18,7 @@ use vibesql_types::{DataType, SqlValue};
 use crate::{CreateTableExecutor, InsertExecutor, TruncateTableExecutor};
 
 /// Helper to create a simple table with primary key
+/// Uses table-level PK constraint for consistency
 fn create_table_with_pk(db: &mut Database, table_name: &str, pk_column: &str) {
     let stmt = CreateTableStmt {
         table_name: table_name.to_string(),
@@ -25,20 +26,25 @@ fn create_table_with_pk(db: &mut Database, table_name: &str, pk_column: &str) {
             name: pk_column.to_string(),
             data_type: DataType::Integer,
             nullable: false,
-            constraints: vec![ColumnConstraint {
-                name: None,
-                kind: ColumnConstraintKind::PrimaryKey,
-            }],
+            constraints: vec![],  // Use table-level PK instead
             default_value: None,
             comment: None,
         }],
-        table_constraints: vec![],
+        table_constraints: vec![
+            TableConstraint {
+                name: None,
+                kind: TableConstraintKind::PrimaryKey {
+                    columns: vec![pk_column.to_string()],
+                },
+            },
+        ],
         table_options: vec![],
     };
     CreateTableExecutor::execute(&stmt, db).unwrap();
 }
 
 /// Helper to create a table with a foreign key reference
+/// Uses table-level FK constraints to properly populate catalog.foreign_keys
 fn create_table_with_fk(
     db: &mut Database,
     table_name: &str,
@@ -54,10 +60,7 @@ fn create_table_with_fk(
                 name: pk_column.to_string(),
                 data_type: DataType::Integer,
                 nullable: false,
-                constraints: vec![ColumnConstraint {
-                    name: None,
-                    kind: ColumnConstraintKind::PrimaryKey,
-                }],
+                constraints: vec![],  // Use table-level PK instead
                 default_value: None,
                 comment: None,
             },
@@ -65,20 +68,31 @@ fn create_table_with_fk(
                 name: fk_column.to_string(),
                 data_type: DataType::Integer,
                 nullable: true,
-                constraints: vec![ColumnConstraint {
-                    name: None,
-                    kind: ColumnConstraintKind::References {
-                        table: parent_table.to_string(),
-                        column: parent_column.to_string(),
-                        on_delete: None,
-                        on_update: None,
-                    },
-                }],
+                constraints: vec![],  // Use table-level FK instead
                 default_value: None,
                 comment: None,
             },
         ],
-        table_constraints: vec![],
+        table_constraints: vec![
+            // Add PK as table-level constraint
+            TableConstraint {
+                name: None,
+                kind: TableConstraintKind::PrimaryKey {
+                    columns: vec![pk_column.to_string()],
+                },
+            },
+            // Add FK as table-level constraint (ensures catalog.foreign_keys is populated)
+            TableConstraint {
+                name: None,
+                kind: TableConstraintKind::ForeignKey {
+                    columns: vec![fk_column.to_string()],
+                    references_table: parent_table.to_string(),
+                    references_columns: vec![parent_column.to_string()],
+                    on_delete: None,
+                    on_update: None,
+                },
+            },
+        ],
         table_options: vec![],
     };
     CreateTableExecutor::execute(&stmt, db).unwrap();
