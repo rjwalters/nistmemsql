@@ -44,7 +44,7 @@ fn test_parse_create_table_with_connection() {
 #[test]
 fn test_parse_create_table_with_insert_method() {
     let result = Parser::parse_sql("CREATE TABLE t1 (c1 INT) INSERT_METHOD = LAST;");
-    assert!(result.is_ok(), "Should parse INSERT_METHOD option");
+    assert!(result.is_ok(), "Should parse INSERT_METHOD option with =");
 
     let stmt = result.unwrap();
     match stmt {
@@ -53,6 +53,66 @@ fn test_parse_create_table_with_insert_method() {
             match &create.table_options[0] {
                 vibesql_ast::TableOption::InsertMethod(method) => {
                     assert_eq!(method, &vibesql_ast::InsertMethod::Last);
+                }
+                _ => panic!("Expected InsertMethod option"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_create_table_with_insert_method_without_equals() {
+    let result = Parser::parse_sql("CREATE TABLE t1 (c1 INT) INSERT_METHOD LAST;");
+    assert!(result.is_ok(), "Should parse INSERT_METHOD option without =");
+
+    let stmt = result.unwrap();
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_options.len(), 1);
+            match &create.table_options[0] {
+                vibesql_ast::TableOption::InsertMethod(method) => {
+                    assert_eq!(method, &vibesql_ast::InsertMethod::Last);
+                }
+                _ => panic!("Expected InsertMethod option"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_create_table_with_insert_method_first() {
+    let result = Parser::parse_sql("CREATE TABLE t1 (c1 INT) INSERT_METHOD FIRST;");
+    assert!(result.is_ok(), "Should parse INSERT_METHOD FIRST without =");
+
+    let stmt = result.unwrap();
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_options.len(), 1);
+            match &create.table_options[0] {
+                vibesql_ast::TableOption::InsertMethod(method) => {
+                    assert_eq!(method, &vibesql_ast::InsertMethod::First);
+                }
+                _ => panic!("Expected InsertMethod option"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_create_table_with_insert_method_no() {
+    let result = Parser::parse_sql("CREATE TABLE t1 (c1 INT) INSERT_METHOD NO;");
+    assert!(result.is_ok(), "Should parse INSERT_METHOD NO without =");
+
+    let stmt = result.unwrap();
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_options.len(), 1);
+            match &create.table_options[0] {
+                vibesql_ast::TableOption::InsertMethod(method) => {
+                    assert_eq!(method, &vibesql_ast::InsertMethod::No);
                 }
                 _ => panic!("Expected InsertMethod option"),
             }
@@ -161,6 +221,41 @@ fn test_parse_create_table_sqllogictest_style() {
                     assert_eq!(*value, Some(4));
                 }
                 _ => panic!("Expected KeyBlockSize option"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_create_table_sqllogictest_with_insert_method() {
+    // Test the exact statement from the SQLLogicTest suite that was failing
+    let result = Parser::parse_sql(
+        "CREATE TABLE `t17126` (`c1` MULTIPOLYGON COMMENT 'text156797', `c2` MULTIPOLYGON COMMENT 'text156799') KEY_BLOCK_SIZE 4.2 INSERT_METHOD LAST;"
+    );
+    assert!(result.is_ok(), "Should parse SQLLogicTest CREATE TABLE with INSERT_METHOD without =");
+
+    let stmt = result.unwrap();
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "t17126");
+            assert_eq!(create.columns.len(), 2);
+            assert_eq!(create.table_options.len(), 2);
+
+            // Check KEY_BLOCK_SIZE option
+            match &create.table_options[0] {
+                vibesql_ast::TableOption::KeyBlockSize(value) => {
+                    assert_eq!(*value, Some(4));
+                }
+                _ => panic!("Expected KeyBlockSize option"),
+            }
+
+            // Check INSERT_METHOD option
+            match &create.table_options[1] {
+                vibesql_ast::TableOption::InsertMethod(method) => {
+                    assert_eq!(method, &vibesql_ast::InsertMethod::Last);
+                }
+                _ => panic!("Expected InsertMethod option"),
             }
         }
         _ => panic!("Expected CREATE TABLE statement"),

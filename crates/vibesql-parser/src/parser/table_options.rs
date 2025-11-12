@@ -79,7 +79,8 @@ impl Parser {
     }
 
     fn parse_insert_method_option(&mut self) -> Result<vibesql_ast::TableOption, ParseError> {
-        self.expect_token(Token::Symbol('='))?;
+        // Optional = sign
+        self.try_consume(&Token::Symbol('='));
         let method = if self.try_consume_keyword(Keyword::First) {
             vibesql_ast::InsertMethod::First
         } else if self.try_consume_keyword(Keyword::Last) {
