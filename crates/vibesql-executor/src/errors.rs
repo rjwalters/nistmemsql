@@ -16,6 +16,7 @@ pub enum ExecutorError {
     ColumnAlreadyExists(String),
     IndexNotFound(String),
     IndexAlreadyExists(String),
+    InvalidIndexDefinition(String),
     SchemaNotFound(String),
     SchemaAlreadyExists(String),
     SchemaNotEmpty(String),
@@ -133,6 +134,7 @@ impl std::fmt::Display for ExecutorError {
             }
             ExecutorError::IndexNotFound(name) => write!(f, "Index '{}' not found", name),
             ExecutorError::IndexAlreadyExists(name) => write!(f, "Index '{}' already exists", name),
+            ExecutorError::InvalidIndexDefinition(msg) => write!(f, "Invalid index definition: {}", msg),
             ExecutorError::SchemaNotFound(name) => write!(f, "Schema '{}' not found", name),
             ExecutorError::SchemaAlreadyExists(name) => {
                 write!(f, "Schema '{}' already exists", name)

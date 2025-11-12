@@ -1,7 +1,10 @@
 //! CREATE INDEX statement execution
 
 use vibesql_ast::CreateIndexStmt;
-use vibesql_storage::Database;
+use vibesql_storage::{
+    index::{extract_mbr_from_sql_value, SpatialIndex, SpatialIndexEntry},
+    Database, SpatialIndexMetadata,
+};
 
 use crate::{errors::ExecutorError, privilege_checker::PrivilegeChecker};
 
@@ -86,9 +89,11 @@ impl CreateIndexExecutor {
             }
         }
 
-        // Check if index already exists
+        // Check if index already exists (either B-tree or spatial)
         let index_name = &stmt.index_name;
-        if database.index_exists(index_name) {
+        let index_exists = database.index_exists(index_name) || database.spatial_index_exists(index_name);
+
+        if index_exists {
             if stmt.if_not_exists {
                 // IF NOT EXISTS: silently succeed if index already exists
                 return Ok(format!("Index '{}' already exists (skipped)", index_name));
@@ -97,32 +102,85 @@ impl CreateIndexExecutor {
             }
         }
 
-        // Create the index
-        let unique = match &stmt.index_type {
-            vibesql_ast::IndexType::BTree { unique } => *unique,
+        // Create the index based on type
+        match &stmt.index_type {
+            vibesql_ast::IndexType::BTree { unique } => {
+                // B-tree index
+                database.create_index(
+                    index_name.clone(),
+                    qualified_table_name.clone(),
+                    *unique,
+                    stmt.columns.clone(),
+                )?;
+
+                Ok(format!(
+                    "Index '{}' created successfully on table '{}'",
+                    index_name, qualified_table_name
+                ))
+            }
             vibesql_ast::IndexType::Fulltext => {
-                return Err(ExecutorError::UnsupportedFeature(
+                Err(ExecutorError::UnsupportedFeature(
                     "FULLTEXT indexes are not yet implemented".to_string(),
                 ))
             }
             vibesql_ast::IndexType::Spatial => {
-                return Err(ExecutorError::UnsupportedFeature(
-                    "SPATIAL indexes are not yet implemented".to_string(),
+                // Spatial index validation: must be exactly 1 column
+                if stmt.columns.len() != 1 {
+                    return Err(ExecutorError::InvalidIndexDefinition(
+                        "SPATIAL indexes must be defined on exactly one column".to_string(),
+                    ));
+                }
+
+                let column_name = &stmt.columns[0].column_name;
+
+                // Get the column index
+                let col_idx = table_schema
+                    .get_column_index(column_name)
+                    .ok_or_else(|| ExecutorError::ColumnNotFound {
+                        column_name: column_name.clone(),
+                        table_name: stmt.table_name.clone(),
+                        searched_tables: vec![qualified_table_name.clone()],
+                        available_columns: table_schema
+                            .columns
+                            .iter()
+                            .map(|c| c.name.clone())
+                            .collect(),
+                    })?;
+
+                // Extract MBRs from all existing rows
+                let table = database
+                    .get_table(&qualified_table_name)
+                    .ok_or_else(|| ExecutorError::TableNotFound(qualified_table_name.clone()))?;
+
+                let mut entries = Vec::new();
+                for (row_idx, row) in table.scan().iter().enumerate() {
+                    let geom_value = &row.values[col_idx];
+
+                    // Extract MBR from geometry value (skip NULLs and invalid geometries)
+                    if let Some(mbr) = extract_mbr_from_sql_value(geom_value) {
+                        entries.push(SpatialIndexEntry { row_id: row_idx, mbr });
+                    }
+                }
+
+                // Build spatial index via bulk_load (more efficient than incremental inserts)
+                let spatial_index = SpatialIndex::bulk_load(column_name.clone(), entries);
+
+                // Store in database
+                let metadata = SpatialIndexMetadata {
+                    index_name: index_name.clone(),
+                    table_name: qualified_table_name.clone(),
+                    column_name: column_name.clone(),
+                    created_at: Some(chrono::Utc::now()),
+                };
+
+                database.create_spatial_index(metadata, spatial_index)?;
+
+                Ok(format!(
+                    "Spatial index '{}' created successfully on table '{}'",
+                    index_name, qualified_table_name
                 ))
             }
-        };
-        
-        database.create_index(
-            index_name.clone(),
-            qualified_table_name.clone(),
-            unique,
-            stmt.columns.clone(),
-        )?;
-
-        Ok(format!(
-            "Index '{}' created successfully on table '{}'",
-            index_name, qualified_table_name
-        ))
+        }
     }
 }
 

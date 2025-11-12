@@ -10,15 +10,28 @@ use super::{
     indexes::IndexManager,
     transactions::{TransactionChange, TransactionManager},
 };
-use crate::{Row, StorageError, Table};
+use crate::{index::SpatialIndex, Row, StorageError, Table};
+
+/// Metadata for a spatial index
+#[derive(Debug, Clone)]
+pub struct SpatialIndexMetadata {
+    pub index_name: String,
+    pub table_name: String,
+    pub column_name: String,
+    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+}
 
 /// In-memory database - manages catalog and tables
 #[derive(Debug, Clone)]
 pub struct Database {
     pub catalog: vibesql_catalog::Catalog,
     tables: HashMap<String, Table>,
-    /// User-defined index manager
+    /// User-defined index manager (B-tree indexes)
     index_manager: IndexManager,
+    /// Spatial indexes (R-tree) - stored separately from B-tree indexes
+    /// Key: normalized index name (uppercase)
+    /// Value: (metadata, spatial index)
+    spatial_indexes: HashMap<String, (SpatialIndexMetadata, SpatialIndex)>,
     /// Transaction manager
     transaction_manager: TransactionManager,
     /// Current session role for privilege checks
@@ -37,6 +50,7 @@ impl Database {
             catalog: vibesql_catalog::Catalog::new(),
             tables: HashMap::new(),
             index_manager: IndexManager::new(),
+            spatial_indexes: HashMap::new(),
             transaction_manager: TransactionManager::new(),
             current_role: None,
             // Disabled by default for backward compatibility
@@ -52,6 +66,7 @@ impl Database {
         self.catalog = vibesql_catalog::Catalog::new();
         self.tables.clear();
         self.index_manager = IndexManager::new();
+        self.spatial_indexes.clear();
         self.transaction_manager = TransactionManager::new();
         self.current_role = None;
         self.security_enabled = false;
@@ -134,6 +149,9 @@ impl Database {
         // This maintains referential integrity - indexes cannot exist without their table
         self.index_manager.drop_indexes_for_table(&qualified_name);
 
+        // Drop associated spatial indexes too
+        self.drop_spatial_indexes_for_table(&qualified_name);
+
         // Remove from catalog
         self.catalog.drop_table(name).map_err(|e| StorageError::CatalogError(e.to_string()))?;
 
@@ -162,6 +180,9 @@ impl Database {
         if let Some(table_schema) = self.catalog.get_table(table_name) {
             self.index_manager.update_indexes_for_insert(table_name, table_schema, &row, row_index);
         }
+
+        // Update spatial indexes
+        self.update_spatial_indexes_for_insert(table_name, &row, row_index);
 
         // Record the change for transaction rollback
         self.record_change(TransactionChange::Insert { table_name: table_name.to_string(), row });
@@ -402,6 +423,9 @@ impl Database {
                 row_index,
             );
         }
+
+        // Update spatial indexes
+        self.update_spatial_indexes_for_update(table_name, old_row, new_row, row_index);
     }
 
     /// Update user-defined indexes for delete operation
@@ -409,6 +433,9 @@ impl Database {
         if let Some(table_schema) = self.catalog.get_table(table_name) {
             self.index_manager.update_indexes_for_delete(table_name, table_schema, row, row_index);
         }
+
+        // Update spatial indexes
+        self.update_spatial_indexes_for_delete(table_name, row, row_index);
     }
 
     /// Rebuild user-defined indexes after bulk operations that change row indices
@@ -437,6 +464,231 @@ impl Database {
     /// List all indexes
     pub fn list_indexes(&self) -> Vec<String> {
         self.index_manager.list_indexes()
+    }
+
+    // ========================================================================
+    // Spatial Index Methods
+    // ========================================================================
+
+    /// Normalize an index name to uppercase for case-insensitive comparison
+    fn normalize_index_name(name: &str) -> String {
+        name.to_uppercase()
+    }
+
+    /// Create a spatial index
+    pub fn create_spatial_index(
+        &mut self,
+        metadata: SpatialIndexMetadata,
+        spatial_index: SpatialIndex,
+    ) -> Result<(), StorageError> {
+        let normalized_name = Self::normalize_index_name(&metadata.index_name);
+
+        // Check if index already exists (either B-tree or spatial)
+        if self.index_manager.index_exists(&metadata.index_name) {
+            return Err(StorageError::IndexAlreadyExists(metadata.index_name.clone()));
+        }
+        if self.spatial_indexes.contains_key(&normalized_name) {
+            return Err(StorageError::IndexAlreadyExists(metadata.index_name.clone()));
+        }
+
+        self.spatial_indexes.insert(normalized_name, (metadata, spatial_index));
+        Ok(())
+    }
+
+    /// Check if a spatial index exists
+    pub fn spatial_index_exists(&self, index_name: &str) -> bool {
+        let normalized = Self::normalize_index_name(index_name);
+        self.spatial_indexes.contains_key(&normalized)
+    }
+
+    /// Get spatial index metadata
+    pub fn get_spatial_index_metadata(&self, index_name: &str) -> Option<&SpatialIndexMetadata> {
+        let normalized = Self::normalize_index_name(index_name);
+        self.spatial_indexes.get(&normalized).map(|(metadata, _)| metadata)
+    }
+
+    /// Get spatial index (immutable)
+    pub fn get_spatial_index(&self, index_name: &str) -> Option<&SpatialIndex> {
+        let normalized = Self::normalize_index_name(index_name);
+        self.spatial_indexes.get(&normalized).map(|(_, index)| index)
+    }
+
+    /// Get spatial index (mutable)
+    pub fn get_spatial_index_mut(&mut self, index_name: &str) -> Option<&mut SpatialIndex> {
+        let normalized = Self::normalize_index_name(index_name);
+        self.spatial_indexes.get_mut(&normalized).map(|(_, index)| index)
+    }
+
+    /// Get all spatial indexes for a specific table
+    pub fn get_spatial_indexes_for_table(&self, table_name: &str) -> Vec<(&SpatialIndexMetadata, &SpatialIndex)> {
+        self.spatial_indexes
+            .values()
+            .filter(|(metadata, _)| metadata.table_name == table_name)
+            .map(|(metadata, index)| (metadata, index))
+            .collect()
+    }
+
+    /// Get all spatial indexes for a specific table (mutable)
+    pub fn get_spatial_indexes_for_table_mut(&mut self, table_name: &str) -> Vec<(&SpatialIndexMetadata, &mut SpatialIndex)> {
+        self.spatial_indexes
+            .iter_mut()
+            .filter(|(_, (metadata, _))| metadata.table_name == table_name)
+            .map(|(_, (metadata, index))| (metadata as &SpatialIndexMetadata, index))
+            .collect()
+    }
+
+    /// Drop a spatial index
+    pub fn drop_spatial_index(&mut self, index_name: &str) -> Result<(), StorageError> {
+        let normalized = Self::normalize_index_name(index_name);
+
+        if self.spatial_indexes.remove(&normalized).is_none() {
+            return Err(StorageError::IndexNotFound(index_name.to_string()));
+        }
+
+        Ok(())
+    }
+
+    /// Drop all spatial indexes associated with a table (CASCADE behavior)
+    pub fn drop_spatial_indexes_for_table(&mut self, table_name: &str) -> Vec<String> {
+        // Collect index names to drop (can't modify while iterating)
+        let indexes_to_drop: Vec<String> = self
+            .spatial_indexes
+            .iter()
+            .filter(|(_, (metadata, _))| metadata.table_name == table_name)
+            .map(|(name, _)| name.clone())
+            .collect();
+
+        // Drop each spatial index
+        for index_name in &indexes_to_drop {
+            self.spatial_indexes.remove(index_name);
+        }
+
+        indexes_to_drop
+    }
+
+    /// List all spatial indexes
+    pub fn list_spatial_indexes(&self) -> Vec<String> {
+        self.spatial_indexes.keys().cloned().collect()
+    }
+
+    /// Update spatial indexes for insert operation
+    fn update_spatial_indexes_for_insert(&mut self, table_name: &str, row: &Row, row_index: usize) {
+        use crate::index::extract_mbr_from_sql_value;
+
+        // Get table schema to find column indices
+        let table_schema = match self.catalog.get_table(table_name) {
+            Some(schema) => schema,
+            None => return,
+        };
+
+        // Collect indexes to update (can't borrow mutably while iterating)
+        let indexes_to_update: Vec<(String, usize)> = self
+            .spatial_indexes
+            .iter()
+            .filter(|(_, (metadata, _))| metadata.table_name == table_name)
+            .filter_map(|(index_name, (metadata, _))| {
+                table_schema
+                    .get_column_index(&metadata.column_name)
+                    .map(|col_idx| (index_name.clone(), col_idx))
+            })
+            .collect();
+
+        // Update each spatial index
+        for (index_name, col_idx) in indexes_to_update {
+            let geom_value = &row.values[col_idx];
+
+            // Extract MBR and insert into spatial index (skip NULLs)
+            if let Some(mbr) = extract_mbr_from_sql_value(geom_value) {
+                if let Some((_, index)) = self.spatial_indexes.get_mut(&index_name) {
+                    index.insert(row_index, mbr);
+                }
+            }
+        }
+    }
+
+    /// Update spatial indexes for update operation
+    fn update_spatial_indexes_for_update(
+        &mut self,
+        table_name: &str,
+        old_row: &Row,
+        new_row: &Row,
+        row_index: usize,
+    ) {
+        use crate::index::extract_mbr_from_sql_value;
+
+        // Get table schema to find column indices
+        let table_schema = match self.catalog.get_table(table_name) {
+            Some(schema) => schema,
+            None => return,
+        };
+
+        // Collect indexes to update
+        let indexes_to_update: Vec<(String, usize)> = self
+            .spatial_indexes
+            .iter()
+            .filter(|(_, (metadata, _))| metadata.table_name == table_name)
+            .filter_map(|(index_name, (metadata, _))| {
+                table_schema
+                    .get_column_index(&metadata.column_name)
+                    .map(|col_idx| (index_name.clone(), col_idx))
+            })
+            .collect();
+
+        // Update each spatial index
+        for (index_name, col_idx) in indexes_to_update {
+            let old_geom = &old_row.values[col_idx];
+            let new_geom = &new_row.values[col_idx];
+
+            // Only update if geometry changed
+            if old_geom != new_geom {
+                if let Some((_, index)) = self.spatial_indexes.get_mut(&index_name) {
+                    // Remove old entry
+                    if let Some(old_mbr) = extract_mbr_from_sql_value(old_geom) {
+                        index.remove(row_index, &old_mbr);
+                    }
+
+                    // Insert new entry
+                    if let Some(new_mbr) = extract_mbr_from_sql_value(new_geom) {
+                        index.insert(row_index, new_mbr);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Update spatial indexes for delete operation
+    fn update_spatial_indexes_for_delete(&mut self, table_name: &str, row: &Row, row_index: usize) {
+        use crate::index::extract_mbr_from_sql_value;
+
+        // Get table schema to find column indices
+        let table_schema = match self.catalog.get_table(table_name) {
+            Some(schema) => schema,
+            None => return,
+        };
+
+        // Collect indexes to update
+        let indexes_to_update: Vec<(String, usize)> = self
+            .spatial_indexes
+            .iter()
+            .filter(|(_, (metadata, _))| metadata.table_name == table_name)
+            .filter_map(|(index_name, (metadata, _))| {
+                table_schema
+                    .get_column_index(&metadata.column_name)
+                    .map(|col_idx| (index_name.clone(), col_idx))
+            })
+            .collect();
+
+        // Update each spatial index
+        for (index_name, col_idx) in indexes_to_update {
+            let geom_value = &row.values[col_idx];
+
+            // Remove from spatial index
+            if let Some(mbr) = extract_mbr_from_sql_value(geom_value) {
+                if let Some((_, index)) = self.spatial_indexes.get_mut(&index_name) {
+                    index.remove(row_index, &mbr);
+                }
+            }
+        }
     }
 }
 
