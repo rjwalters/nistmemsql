@@ -54,12 +54,27 @@
 
 pub mod column_type;
 pub mod connection;
+pub mod error_handling;
+pub mod executor;
 pub mod harness;
+pub mod output;
 pub mod parser;
+pub mod result_updater;
 pub mod runner;
 pub mod substitution;
 
+// Re-export parser sub-modules
+pub use self::parser::location;
+pub use self::parser::error_parser;
+pub use self::parser::retry_parser;
+pub use self::parser::directive_parser;
+pub use self::parser::record_parser;
+
 pub use self::column_type::*;
 pub use self::connection::*;
+pub use self::error_handling::*;
+pub use self::executor::*;
+pub use self::output::*;
 pub use self::parser::*;
+pub use self::result_updater::*;
 pub use self::runner::*;

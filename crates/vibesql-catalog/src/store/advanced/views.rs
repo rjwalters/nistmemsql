@@ -17,25 +17,44 @@ impl super::super::Catalog {
         Ok(())
     }
 
-    /// Get a VIEW definition by name (supports qualified names like "schema.view")
+    /// Get a VIEW definition by name with optional case-insensitive lookup
     pub fn get_view(&self, name: &str) -> Option<&ViewDefinition> {
-        self.views.get(name)
+        if self.case_sensitive_identifiers {
+            self.views.get(name)
+        } else {
+            // Case-insensitive lookup
+            let name_upper = name.to_uppercase();
+            self.views
+                .values()
+                .find(|view| view.name.to_uppercase() == name_upper)
+        }
     }
 
     /// Drop a VIEW
     pub fn drop_view(&mut self, name: &str, cascade: bool) -> Result<(), CatalogError> {
-        // Check if view exists
-        if !self.views.contains_key(name) {
-            return Err(CatalogError::ViewNotFound(name.to_string()));
-        }
+        // Find the actual view name (handle case-insensitivity)
+        let actual_name = if self.case_sensitive_identifiers {
+            if !self.views.contains_key(name) {
+                return Err(CatalogError::ViewNotFound(name.to_string()));
+            }
+            name.to_string()
+        } else {
+            // Case-insensitive lookup
+            let name_upper = name.to_uppercase();
+            self.views
+                .iter()
+                .find(|(_, view)| view.name.to_uppercase() == name_upper)
+                .map(|(key, _)| key.clone())
+                .ok_or_else(|| CatalogError::ViewNotFound(name.to_string()))?
+        };
 
         // Find all views that depend on this view or table
-        let dependent_views = self.find_dependent_views(name);
+        let dependent_views = self.find_dependent_views(&actual_name);
 
         // If RESTRICT and there are dependent views, return error
         if !cascade && !dependent_views.is_empty() {
             return Err(CatalogError::ViewInUse {
-                view_name: name.to_string(),
+                view_name: actual_name,
                 dependent_views,
             });
         }
@@ -50,7 +69,7 @@ impl super::super::Catalog {
         }
 
         // Finally, drop the view itself
-        self.views.remove(name);
+        self.views.remove(&actual_name);
         Ok(())
     }
 

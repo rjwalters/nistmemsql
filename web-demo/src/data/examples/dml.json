@@ -1,122 +1,77 @@
 {
-  "dml-1": {
-    "title": "Simple INSERT",
-    "database": "empty",
-    "sql": "CREATE TABLE products (\n    id INTEGER PRIMARY KEY,\n    name VARCHAR(100),\n    price FLOAT\n);\n\nINSERT INTO products VALUES (1, 'Laptop', 999.99);\nINSERT INTO products VALUES (2, 'Mouse', 25.50);\nINSERT INTO products VALUES (3, 'Keyboard', 75.00);\n\nSELECT * FROM products ORDER BY id;",
-    "description": "Create table and insert individual rows",
-    "sqlFeatures": [
-      "CREATE TABLE",
-      "INSERT",
-      "VALUES",
-      "SELECT"
-    ]
-  },
-  "dml-2": {
-    "title": "INSERT with Column List",
-    "database": "empty",
-    "sql": "CREATE TABLE customers (\n    customer_id INTEGER PRIMARY KEY,\n    name VARCHAR(100),\n    email VARCHAR(100),\n    city VARCHAR(50)\n);\n\nINSERT INTO customers (customer_id, name, email)\nVALUES (1, 'Alice Johnson', 'alice@example.com');\n\nINSERT INTO customers (customer_id, name, city)\nVALUES (2, 'Bob Smith', 'New York');\n\nSELECT * FROM customers ORDER BY customer_id;",
-    "description": "Insert with explicit column specification for partial data",
-    "sqlFeatures": [
-      "INSERT",
-      "Column list",
-      "Partial columns",
-      "NULL handling"
-    ]
-  },
-  "dml-3": {
-    "title": "Multiple Row INSERT",
-    "database": "empty",
-    "sql": "CREATE TABLE employees (\n    emp_id INTEGER PRIMARY KEY,\n    name VARCHAR(100),\n    department VARCHAR(50),\n    salary FLOAT\n);\n\nINSERT INTO employees VALUES\n    (1, 'Alice', 'Engineering', 95000),\n    (2, 'Bob', 'Sales', 75000),\n    (3, 'Carol', 'Engineering', 98000),\n    (4, 'Dave', 'Marketing', 72000);\n\nSELECT * FROM employees ORDER BY emp_id;",
-    "description": "Batch insert multiple rows in a single statement",
-    "sqlFeatures": [
-      "INSERT",
-      "Multi-row VALUES",
-      "Batch insertion"
-    ]
-  },
-  "dml-4": {
-    "title": "Basic UPDATE",
-    "database": "empty",
-    "sql": "CREATE TABLE products (\n    id INTEGER PRIMARY KEY,\n    name VARCHAR(100),\n    price FLOAT,\n    stock INTEGER\n);\n\nINSERT INTO products VALUES\n    (1, 'Laptop', 999.99, 10),\n    (2, 'Mouse', 25.50, 50);\n\nUPDATE products SET stock = stock + 20 WHERE id = 1;\n\nSELECT * FROM products ORDER BY id;",
-    "description": "Update table data with calculated values",
-    "sqlFeatures": [
-      "UPDATE",
-      "SET",
-      "WHERE",
-      "Calculated updates"
-    ]
-  },
-  "dml-5": {
-    "title": "UPDATE Multiple Columns",
-    "database": "empty",
-    "sql": "CREATE TABLE employees (\n    emp_id INTEGER PRIMARY KEY,\n    name VARCHAR(100),\n    salary FLOAT,\n    bonus FLOAT\n);\n\nINSERT INTO employees VALUES\n    (1, 'Alice', 95000, 5000),\n    (2, 'Bob', 75000, 3000);\n\nUPDATE employees\nSET salary = salary * 1.1,\n    bonus = bonus * 1.2\nWHERE emp_id = 1;\n\nSELECT * FROM employees ORDER BY emp_id;",
-    "description": "Update multiple columns simultaneously with calculations",
-    "sqlFeatures": [
-      "UPDATE",
-      "Multiple SET clauses",
-      "Calculations"
-    ]
-  },
-  "dml-6": {
-    "title": "UPDATE with Conditional Logic",
-    "database": "empty",
-    "sql": "CREATE TABLE products (\n    id INTEGER PRIMARY KEY,\n    name VARCHAR(100),\n    price FLOAT,\n    discount FLOAT\n);\n\nINSERT INTO products VALUES\n    (1, 'Laptop', 1000, 0),\n    (2, 'Mouse', 25, 0),\n    (3, 'Monitor', 500, 0);\n\nUPDATE products\nSET discount = CASE\n    WHEN price >= 500 THEN 0.15\n    WHEN price >= 100 THEN 0.10\n    ELSE 0.05\nEND;\n\nSELECT id, name, price, discount,\n       ROUND(price * (1 - discount), 2) AS final_price\nFROM products\nORDER BY id;",
-    "description": "Apply tiered discounts based on price using CASE",
-    "sqlFeatures": [
-      "UPDATE",
-      "CASE",
-      "Business logic",
-      "ROUND"
-    ]
-  },
-  "dml-7": {
-    "title": "Simple DELETE",
-    "database": "empty",
-    "sql": "CREATE TABLE logs (\n    log_id INTEGER PRIMARY KEY,\n    message VARCHAR(100),\n    severity VARCHAR(20)\n);\n\nINSERT INTO logs VALUES\n    (1, 'System started', 'INFO'),\n    (2, 'Disk full', 'ERROR'),\n    (3, 'User login', 'INFO'),\n    (4, 'Connection failed', 'ERROR');\n\nDELETE FROM logs WHERE severity = 'INFO';\n\nSELECT * FROM logs ORDER BY log_id;",
-    "description": "Remove rows matching a simple condition",
-    "sqlFeatures": [
-      "DELETE",
-      "WHERE",
-      "Conditional deletion"
-    ]
-  },
-  "dml-8": {
-    "title": "DELETE with Complex Condition",
-    "database": "empty",
-    "sql": "CREATE TABLE orders (\n    order_id INTEGER PRIMARY KEY,\n    customer_id INTEGER,\n    amount FLOAT,\n    status VARCHAR(20)\n);\n\nINSERT INTO orders VALUES\n    (1, 100, 50.00, 'pending'),\n    (2, 101, 150.00, 'completed'),\n    (3, 100, 25.00, 'cancelled'),\n    (4, 102, 200.00, 'completed');\n\nDELETE FROM orders\nWHERE status = 'cancelled' OR amount < 30;\n\nSELECT * FROM orders ORDER BY order_id;",
-    "description": "Remove rows using compound conditions with OR",
-    "sqlFeatures": [
-      "DELETE",
-      "Complex WHERE",
-      "OR",
-      "Multiple conditions"
-    ]
-  },
-  "dml-9": {
-    "title": "Complete Workflow (CRUD)",
-    "database": "empty",
-    "sql": "CREATE TABLE inventory (\n    item_id INTEGER PRIMARY KEY,\n    name VARCHAR(100),\n    quantity INTEGER,\n    price FLOAT\n);\n\n-- Create\nINSERT INTO inventory VALUES (1, 'Widget', 100, 9.99);\nINSERT INTO inventory VALUES (2, 'Gadget', 50, 19.99);\n\n-- Read\nSELECT * FROM inventory WHERE quantity > 0;\n\n-- Update\nUPDATE inventory SET quantity = quantity - 10 WHERE item_id = 1;\n\n-- Delete (out of stock items)\nDELETE FROM inventory WHERE quantity <= 0;\n\n-- Final state\nSELECT * FROM inventory ORDER BY item_id;",
-    "description": "Demonstrate full CRUD lifecycle in a single workflow",
-    "sqlFeatures": [
-      "CRUD",
-      "INSERT",
-      "SELECT",
-      "UPDATE",
-      "DELETE",
-      "Business workflow"
-    ]
-  },
-  "dml-10": {
-    "title": "Transaction-style Operations",
-    "database": "empty",
-    "sql": "CREATE TABLE accounts (\n    account_id INTEGER PRIMARY KEY,\n    owner VARCHAR(100),\n    balance FLOAT CHECK (balance >= 0)\n);\n\nINSERT INTO accounts VALUES\n    (1, 'Alice', 1000.00),\n    (2, 'Bob', 500.00);\n\n-- Transfer $200 from Alice to Bob\nUPDATE accounts SET balance = balance - 200 WHERE account_id = 1;\nUPDATE accounts SET balance = balance + 200 WHERE account_id = 2;\n\nSELECT account_id, owner, balance,\n       CASE\n           WHEN balance >= 1000 THEN 'Premium'\n           WHEN balance >= 500 THEN 'Standard'\n           ELSE 'Basic'\n       END AS tier\nFROM accounts\nORDER BY account_id;",
-    "description": "Simulate money transfer with multi-step updates and tiering",
-    "sqlFeatures": [
-      "UPDATE",
-      "CHECK constraint",
-      "Multi-step operations",
-      "CASE",
-      "Business logic"
-    ]
-  }
+  "id": "dml",
+  "title": "Data Modification",
+  "description": "INSERT, UPDATE, DELETE operations for modifying table data",
+  "queries": [
+    {
+      "id": "dml-1",
+      "title": "Simple INSERT",
+      "database": "empty",
+      "description": "Create table and insert individual rows",
+      "sqlFeatures": ["CREATE TABLE", "INSERT", "VALUES", "SELECT"]
+    },
+    {
+      "id": "dml-2",
+      "title": "INSERT with Column List",
+      "database": "empty",
+      "description": "Insert with explicit column specification for partial data",
+      "sqlFeatures": ["INSERT", "Column list", "Partial columns", "NULL handling"]
+    },
+    {
+      "id": "dml-3",
+      "title": "Multiple Row INSERT",
+      "database": "empty",
+      "description": "Batch insert multiple rows in a single statement",
+      "sqlFeatures": ["INSERT", "Multi-row VALUES", "Batch insertion"]
+    },
+    {
+      "id": "dml-4",
+      "title": "Basic UPDATE",
+      "database": "empty",
+      "description": "Update table data with calculated values",
+      "sqlFeatures": ["UPDATE", "SET", "WHERE", "Calculated updates"]
+    },
+    {
+      "id": "dml-5",
+      "title": "UPDATE Multiple Columns",
+      "database": "empty",
+      "description": "Update multiple columns simultaneously with calculations",
+      "sqlFeatures": ["UPDATE", "Multiple SET clauses", "Calculations"]
+    },
+    {
+      "id": "dml-6",
+      "title": "UPDATE with Conditional Logic",
+      "database": "empty",
+      "description": "Apply tiered discounts based on price using CASE",
+      "sqlFeatures": ["UPDATE", "CASE", "Business logic", "ROUND"]
+    },
+    {
+      "id": "dml-7",
+      "title": "Simple DELETE",
+      "database": "empty",
+      "description": "Remove rows matching a simple condition",
+      "sqlFeatures": ["DELETE", "WHERE", "Conditional deletion"]
+    },
+    {
+      "id": "dml-8",
+      "title": "DELETE with Complex Condition",
+      "database": "empty",
+      "description": "Remove rows using compound conditions with OR",
+      "sqlFeatures": ["DELETE", "Complex WHERE", "OR", "Multiple conditions"]
+    },
+    {
+      "id": "dml-9",
+      "title": "Complete Workflow (CRUD)",
+      "database": "empty",
+      "description": "Demonstrate full CRUD lifecycle in a single workflow",
+      "sqlFeatures": ["CRUD", "INSERT", "SELECT", "UPDATE", "DELETE", "Business workflow"]
+    },
+    {
+      "id": "dml-10",
+      "title": "Transaction-style Operations",
+      "database": "empty",
+      "description": "Simulate money transfer with multi-step updates and tiering",
+      "sqlFeatures": ["UPDATE", "CHECK constraint", "Multi-step operations", "CASE", "Business logic"]
+    }
+  ]
 }

@@ -17,7 +17,8 @@ mod type_definition;
 mod view;
 
 pub use advanced_objects::{
-    Assertion, CharacterSet, Collation, Domain, Sequence, Translation, UserDefinedType,
+    Assertion, CharacterSet, Collation, Domain, Function, FunctionBody, FunctionParam, ParameterMode,
+    Procedure, ProcedureBody, ProcedureParam, Sequence, Translation, UserDefinedType,
 };
 pub use column::ColumnSchema;
 pub use domain::{DomainConstraintDef, DomainDefinition};
@@ -31,5 +32,7 @@ pub use trigger::TriggerDefinition;
 pub use type_definition::{TypeAttribute, TypeDefinition, TypeDefinitionKind};
 pub use view::ViewDefinition;
 
+#[cfg(test)]
+mod case_sensitivity_tests;
 #[cfg(test)]
 mod tests;

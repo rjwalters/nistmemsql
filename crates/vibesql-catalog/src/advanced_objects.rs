@@ -194,34 +194,85 @@ impl Assertion {
     }
 }
 
-/// Function - Stored function stub (SQL:1999 Feature P001)
-///
-/// Minimal stub implementation for privilege tracking.
-/// Full SQL/PSM implementation (CREATE FUNCTION, execution) is future work.
-#[derive(Debug, Clone, Default)]
+/// Function - Stored function (SQL:1999 Feature P001)
+#[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
     pub schema: String,
+    pub parameters: Vec<FunctionParam>,
+    pub return_type: vibesql_types::DataType,
+    pub body: FunctionBody,
 }
 
 impl Function {
-    pub fn new(name: String, schema: String) -> Self {
-        Function { name, schema }
+    pub fn new(
+        name: String,
+        schema: String,
+        parameters: Vec<FunctionParam>,
+        return_type: vibesql_types::DataType,
+        body: FunctionBody,
+    ) -> Self {
+        Function { name, schema, parameters, return_type, body }
     }
 }
 
-/// Procedure - Stored procedure stub (SQL:1999 Feature P001)
-///
-/// Minimal stub implementation for privilege tracking.
-/// Full SQL/PSM implementation (CREATE PROCEDURE, execution) is future work.
-#[derive(Debug, Clone, Default)]
+/// Parameter in a function definition
+#[derive(Debug, Clone)]
+pub struct FunctionParam {
+    pub name: String,
+    pub data_type: vibesql_types::DataType,
+}
+
+/// Body of a function
+#[derive(Debug, Clone)]
+pub enum FunctionBody {
+    /// SQL procedural block: BEGIN ... END
+    BeginEnd(String), // Stored as raw SQL for now
+    /// Raw SQL for simpler cases
+    RawSql(String),
+}
+
+/// Procedure - Stored procedure (SQL:1999 Feature P001)
+#[derive(Debug, Clone)]
 pub struct Procedure {
     pub name: String,
     pub schema: String,
+    pub parameters: Vec<ProcedureParam>,
+    pub body: ProcedureBody,
 }
 
 impl Procedure {
-    pub fn new(name: String, schema: String) -> Self {
-        Procedure { name, schema }
+    pub fn new(
+        name: String,
+        schema: String,
+        parameters: Vec<ProcedureParam>,
+        body: ProcedureBody,
+    ) -> Self {
+        Procedure { name, schema, parameters, body }
     }
+}
+
+/// Parameter in a procedure definition
+#[derive(Debug, Clone)]
+pub struct ProcedureParam {
+    pub mode: ParameterMode,
+    pub name: String,
+    pub data_type: vibesql_types::DataType,
+}
+
+/// Parameter mode: IN, OUT, or INOUT
+#[derive(Debug, Clone, PartialEq)]
+pub enum ParameterMode {
+    In,
+    Out,
+    InOut,
+}
+
+/// Body of a procedure
+#[derive(Debug, Clone)]
+pub enum ProcedureBody {
+    /// SQL procedural block: BEGIN ... END
+    BeginEnd(String), // Stored as raw SQL for now
+    /// Raw SQL for simpler cases
+    RawSql(String),
 }
