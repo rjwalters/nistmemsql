@@ -9,6 +9,7 @@ mod expressions;
 pub(crate) mod functions;
 pub(crate) mod operators;
 pub(crate) mod pattern;
+mod subqueries_shared;
 pub mod window;
 
 #[cfg(test)]
