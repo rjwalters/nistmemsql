@@ -30,7 +30,6 @@ fn test_basic_insert() {
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("Alice".to_string())),
         ]]),
         conflict_clause: None,
-        conflict_clause: None,
     };
 
     let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -61,7 +60,6 @@ fn test_multi_row_insert() {
             ],
         ]),
         conflict_clause: None,
-        conflict_clause: None,
     };
 
     let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -84,7 +82,6 @@ fn test_insert_with_column_list() {
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("Alice".to_string())),
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1)),
         ]]),
-        conflict_clause: None,
         conflict_clause: None,
     };
 
@@ -123,7 +120,6 @@ fn test_insert_null_value() {
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Null),
         ]]),
         conflict_clause: None,
-        conflict_clause: None,
     };
 
     let rows = InsertExecutor::execute(&mut db, &stmt).unwrap();
@@ -143,7 +139,6 @@ fn test_insert_type_mismatch() {
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("not_a_number".to_string())),
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("Alice".to_string())),
         ]]),
-        conflict_clause: None,
         conflict_clause: None,
     };
 
@@ -165,7 +160,6 @@ fn test_insert_column_count_mismatch() {
             vibesql_types::SqlValue::Integer(1),
         )]]),
         conflict_clause: None,
-        conflict_clause: None,
     };
 
     let result = InsertExecutor::execute(&mut db, &stmt);
@@ -184,7 +178,6 @@ fn test_insert_table_not_found() {
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1)),
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("Alice".to_string())),
         ]]),
-        conflict_clause: None,
         conflict_clause: None,
     };
 
@@ -207,7 +200,6 @@ fn test_insert_column_not_found() {
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("Alice".to_string())),
         ]]),
         conflict_clause: None,
-        conflict_clause: None,
     };
 
     let result = InsertExecutor::execute(&mut db, &stmt);
@@ -229,7 +221,6 @@ fn test_insert_not_null_constraint_violation() {
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Null),
             vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("Alice".to_string())),
         ]]),
-        conflict_clause: None,
         conflict_clause: None,
     };
 

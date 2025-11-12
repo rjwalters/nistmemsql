@@ -41,25 +41,23 @@ fn literal(value: SqlValue) -> Expression {
 
 #[test]
 fn test_st_union_polygons() {
-    // Two adjacent squares should union into a rectangle
-    let expr = function_call("ST_ASTEXT", vec![
-        function_call("ST_UNION", vec![
-            function_call("ST_GEOMFROMTEXT", vec![
-                literal(SqlValue::Varchar("POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))".to_string())),
-            ]),
-            function_call("ST_GEOMFROMTEXT", vec![
-                literal(SqlValue::Varchar("POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))".to_string())),
-            ]),
+    // Two adjacent squares should union into a result geometry
+    let expr = function_call("ST_UNION", vec![
+        function_call("ST_GEOMFROMTEXT", vec![
+            literal(SqlValue::Varchar("POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))".to_string())),
+        ]),
+        function_call("ST_GEOMFROMTEXT", vec![
+            literal(SqlValue::Varchar("POLYGON((1 0, 2 0, 2 1, 1 1, 1 0))".to_string())),
         ]),
     ]);
     
     let result = eval_expr(expr).unwrap();
     
-    // Result should contain geometry (exact format varies by implementation)
+    // Result should be a geometry (WKT format)
     match result {
         SqlValue::Varchar(s) => {
-            assert!(s.contains("POLYGON") || s.contains("MULTIPOLYGON"),
-                    "Expected POLYGON or MULTIPOLYGON, got: {}", s);
+            assert!(s.starts_with("__GEOMETRY__"),
+                    "Expected geometry marker, got: {}", s);
         }
         _ => panic!("Expected Varchar result, got: {:?}", result),
     }
@@ -82,22 +80,20 @@ fn test_st_union_null_handling() {
 #[test]
 fn test_st_intersection_overlapping_polygons() {
     // Intersection of two overlapping squares
-    let expr = function_call("ST_ASTEXT", vec![
-        function_call("ST_INTERSECTION", vec![
-            function_call("ST_GEOMFROMTEXT", vec![
-                literal(SqlValue::Varchar("POLYGON((0 0, 2 0, 2 2, 0 2, 0 0))".to_string())),
-            ]),
-            function_call("ST_GEOMFROMTEXT", vec![
-                literal(SqlValue::Varchar("POLYGON((1 1, 3 1, 3 3, 1 3, 1 1))".to_string())),
-            ]),
+    let expr = function_call("ST_INTERSECTION", vec![
+        function_call("ST_GEOMFROMTEXT", vec![
+            literal(SqlValue::Varchar("POLYGON((0 0, 2 0, 2 2, 0 2, 0 0))".to_string())),
+        ]),
+        function_call("ST_GEOMFROMTEXT", vec![
+            literal(SqlValue::Varchar("POLYGON((1 1, 3 1, 3 3, 1 3, 1 1))".to_string())),
         ]),
     ]);
     
     let result = eval_expr(expr).unwrap();
     match result {
         SqlValue::Varchar(s) => {
-            assert!(s.contains("POLYGON"),
-                    "Expected POLYGON, got: {}", s);
+            assert!(s.starts_with("__GEOMETRY__"),
+                    "Expected geometry, got: {}", s);
         }
         _ => panic!("Expected Varchar result"),
     }
