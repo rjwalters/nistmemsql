@@ -487,6 +487,7 @@ impl TableSchema {
             vibesql_ast::Expression::QuantifiedComparison { expr, .. } => {
                 Self::expression_references_column(expr, column_name)
             }
+            vibesql_ast::Expression::DuplicateKeyValue { column } => column == column_name,
             // These don't reference columns
             vibesql_ast::Expression::Literal(_)
             | vibesql_ast::Expression::Wildcard

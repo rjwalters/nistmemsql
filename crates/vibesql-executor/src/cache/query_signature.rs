@@ -359,6 +359,11 @@ impl QuerySignature {
 
             Expression::Default => "DEFAULT".hash(hasher),
 
+            Expression::DuplicateKeyValue { column } => {
+                "DUPLICATE_KEY_VALUE".hash(hasher);
+                column.hash(hasher);
+            }
+
             Expression::WindowFunction { function, over } => {
                 "WINDOW_FUNCTION".hash(hasher);
                 // Hash function type and arguments

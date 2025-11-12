@@ -186,6 +186,13 @@ pub enum Expression {
     /// Used in INSERT and UPDATE statements
     Default,
 
+    /// VALUES() function - references insert value in ON DUPLICATE KEY UPDATE
+    /// Used in MySQL ON DUPLICATE KEY UPDATE clause
+    /// Example: INSERT INTO t VALUES (1, 2) ON DUPLICATE KEY UPDATE col = VALUES(col)
+    DuplicateKeyValue {
+        column: String,
+    },
+
     /// Window function with OVER clause
     /// Example: ROW_NUMBER() OVER (PARTITION BY dept ORDER BY salary DESC)
     /// Example: SUM(amount) OVER (ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)
