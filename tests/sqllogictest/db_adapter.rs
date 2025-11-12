@@ -333,7 +333,14 @@ impl NistMemSqlDB {
             | vibesql_ast::Statement::DropProcedure(_)
             | vibesql_ast::Statement::CreateFunction(_)
             | vibesql_ast::Statement::DropFunction(_)
-            | vibesql_ast::Statement::Call(_) => Ok(DBOutput::StatementComplete(0)),
+            | vibesql_ast::Statement::Call(_)
+            | vibesql_ast::Statement::TruncateTable(_)
+            | vibesql_ast::Statement::ShowTables(_)
+            | vibesql_ast::Statement::ShowDatabases(_)
+            | vibesql_ast::Statement::ShowColumns(_)
+            | vibesql_ast::Statement::ShowIndex(_)
+            | vibesql_ast::Statement::ShowCreateTable(_)
+            | vibesql_ast::Statement::Describe(_) => Ok(DBOutput::StatementComplete(0)),
         }
     }
 
