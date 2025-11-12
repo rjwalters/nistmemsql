@@ -163,6 +163,8 @@ pub enum IndexType {
     BTree { unique: bool },
     /// FULLTEXT index for full-text search
     Fulltext,
+    /// SPATIAL index for spatial/geometric data (R-tree)
+    Spatial,
 }
 
 /// Index column specification

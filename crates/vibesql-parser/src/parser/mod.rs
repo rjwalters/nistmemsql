@@ -114,6 +114,7 @@ impl Parser {
                 } else if self.peek_next_keyword(Keyword::Index)
                     || self.peek_next_keyword(Keyword::Unique)
                     || self.peek_next_keyword(Keyword::Fulltext)
+                    || self.peek_next_keyword(Keyword::Spatial)
                 {
                     Ok(vibesql_ast::Statement::CreateIndex(self.parse_create_index_statement()?))
                 } else if self.peek_next_keyword(Keyword::Assertion) {

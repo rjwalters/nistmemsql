@@ -250,6 +250,8 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "EXPANSION" => Token::Keyword(Keyword::Expansion),
         "MODE" => Token::Keyword(Keyword::Mode),
         "QUERY" => Token::Keyword(Keyword::Query),
+        // Spatial index keywords
+        "SPATIAL" => Token::Keyword(Keyword::Spatial),
         _ => Token::Identifier(upper_text), // Regular identifiers are normalized to uppercase
     }
 }
