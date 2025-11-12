@@ -12,7 +12,7 @@ use vibesql_ast::{
     ColumnConstraint, ColumnConstraintKind, ColumnDef, CreateTableStmt, Expression, InsertStmt,
     InsertSource, TableConstraint, TableConstraintKind, TruncateCascadeOption, TruncateTableStmt,
 };
-use vibesql_storage::{Database, Row};
+use vibesql_storage::Database;
 use vibesql_types::{DataType, SqlValue};
 
 use crate::{CreateTableExecutor, InsertExecutor, TruncateTableExecutor};
@@ -105,7 +105,7 @@ fn insert_row(db: &mut Database, table_name: &str, values: Vec<SqlValue>) {
         columns: vec![],
         source: InsertSource::Values(vec![values
             .into_iter()
-            .map(|v| Expression::Literal(v))
+            .map(Expression::Literal)
             .collect()]),
         conflict_clause: None,
         on_duplicate_key_update: None,
