@@ -110,6 +110,7 @@ impl Parser {
                     Ok(vibesql_ast::Statement::CreateTrigger(self.parse_create_trigger_statement()?))
                 } else if self.peek_next_keyword(Keyword::Index)
                     || self.peek_next_keyword(Keyword::Unique)
+                    || self.peek_next_keyword(Keyword::Fulltext)
                 {
                     Ok(vibesql_ast::Statement::CreateIndex(self.parse_create_index_statement()?))
                 } else if self.peek_next_keyword(Keyword::Assertion) {

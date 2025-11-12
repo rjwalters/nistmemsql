@@ -320,14 +320,22 @@ impl Parser {
             self.expect_keyword(Keyword::Against)?;
             self.expect_token(Token::LParen)?;
 
-            // Parse search string
-            let search_modifier = Box::new(self.parse_expression()?);
+            // Parse search string (primary expression, not full expression with operators)
+            // This prevents IN keyword from being parsed as an IN operator
+            let search_modifier = Box::new(self.parse_primary_expression()?);
 
             // Check for search mode modifier
             let mode = if self.peek_keyword(Keyword::In) {
                 self.advance(); // consume IN
                 if self.peek_keyword(Keyword::Boolean) {
                     self.advance(); // consume BOOLEAN
+                    // MODE is a required keyword after BOOLEAN in MySQL syntax
+                    // It might be a keyword or identifier depending on lexer
+                    if matches!(self.peek(), Token::Identifier(s) | Token::DelimitedIdentifier(s) if s.eq_ignore_ascii_case("MODE")) {
+                        self.advance(); // consume MODE
+                    } else if self.peek_keyword(Keyword::Mode) {
+                        self.advance(); // consume MODE keyword if it exists
+                    }
                     vibesql_ast::FulltextMode::Boolean
                 } else {
                     return Err(ParseError {
