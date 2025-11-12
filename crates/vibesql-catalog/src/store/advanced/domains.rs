@@ -80,7 +80,7 @@ impl super::super::Catalog {
                                 }
                             }
                             // Drop and recreate table with modified columns
-                            schema.drop_table(&table_name)?;
+                            schema.drop_table(&table_name, true)?;
                             schema.create_table(modified_table)?;
                             break;
                         }

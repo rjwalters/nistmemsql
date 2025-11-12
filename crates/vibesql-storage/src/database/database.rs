@@ -345,10 +345,9 @@ impl Database {
         unique: bool,
         columns: Vec<IndexColumn>,
     ) -> Result<(), StorageError> {
-        // Get the table to build the index
+        // Get the table to build the index (use proper lookup that respects case sensitivity)
         let table = self
-            .tables
-            .get(&table_name)
+            .get_table(&table_name)
             .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
 
         // Get the table schema

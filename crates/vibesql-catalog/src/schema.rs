@@ -47,12 +47,34 @@ impl Schema {
         self.tables.get(name)
     }
 
-    /// Drop a table from this schema
-    pub fn drop_table(&mut self, name: &str) -> Result<(), CatalogError> {
-        if self.tables.remove(name).is_some() {
-            Ok(())
+    /// Drop a table from this schema with optional case-insensitive lookup
+    ///
+    /// When case_sensitive is true, requires exact name match.
+    /// When case_sensitive is false, performs case-insensitive lookup.
+    /// Note: The input `name` parameter is the search key (already normalized by caller),
+    /// not the original user input.
+    pub fn drop_table(&mut self, name: &str, case_sensitive: bool) -> Result<(), CatalogError> {
+        if case_sensitive {
+            // Case-sensitive: exact match required
+            if self.tables.remove(name).is_some() {
+                Ok(())
+            } else {
+                Err(CatalogError::TableNotFound(name.to_string()))
+            }
         } else {
-            Err(CatalogError::TableNotFound(name.to_string()))
+            // Case-insensitive: find the actual name first
+            let name_upper = name.to_uppercase();
+            let actual_name = self.tables
+                .keys()
+                .find(|k| k.to_uppercase() == name_upper)
+                .cloned();
+
+            if let Some(actual_name) = actual_name {
+                self.tables.remove(&actual_name);
+                Ok(())
+            } else {
+                Err(CatalogError::TableNotFound(name.to_string()))
+            }
         }
     }
 
