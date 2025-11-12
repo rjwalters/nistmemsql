@@ -332,7 +332,7 @@ pub fn execute_call(
     stmt: &CallStmt,
     db: &mut Database,
 ) -> Result<(), ExecutorError> {
-    use crate::procedural::{ExecutionContext, execute_procedural_statement};
+    use crate::procedural::ExecutionContext;
 
     // 1. Look up the procedure definition
     let procedure = db.catalog

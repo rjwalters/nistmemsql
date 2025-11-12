@@ -66,3 +66,7 @@ path = "tests/spatial_function_tests.rs"
 [[bench]]
 name = "iterator_execution"
 harness = false
+
+[[bench]]
+name = "spatial_index_benchmark"
+harness = false
