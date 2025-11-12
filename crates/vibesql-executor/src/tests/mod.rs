@@ -36,6 +36,7 @@
 //! - `truncate_cascade_tests`: TRUNCATE TABLE CASCADE/RESTRICT tests (issue #1393)
 //! - `truncate_table_tests`: TRUNCATE TABLE tests (single table, multiple tables, IF EXISTS)
 //! - `view_tests`: VIEW support tests (CREATE/DROP/SELECT, OR REPLACE, CASCADE)
+//! - `index_scan_tests`: Index scan optimization tests (Phase 5a of issue #1387)
 
 mod aggregate_caching;
 mod aggregate_count_sum_avg_tests;
@@ -55,6 +56,7 @@ mod create_table_tests;
 mod error_display;
 mod expression_eval;
 mod fulltext_search;
+mod index_scan_tests;
 mod issue_938_integer_type_preservation;
 mod join_aggregation;
 mod lazy_evaluation_tests;

@@ -117,7 +117,13 @@ pub(crate) fn execute_table_scan(
     // Check SELECT privilege on the table
     PrivilegeChecker::check_select(database, table_name)?;
 
-    // Use database table
+    // Check if we should use an index scan
+    if let Some(index_name) = super::index_scan::should_use_index_scan(table_name, where_clause, database) {
+        // Use index scan for potentially better performance
+        return super::index_scan::execute_index_scan(table_name, &index_name, alias, where_clause, database);
+    }
+
+    // Use database table (fall back to table scan)
     let table = database
         .get_table(table_name)
         .ok_or_else(|| ExecutorError::TableNotFound(table_name.to_string()))?;

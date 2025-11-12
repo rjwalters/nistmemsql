@@ -493,6 +493,20 @@ impl Database {
         self.index_manager.list_indexes()
     }
 
+    /// List all indexes for a specific table
+    pub fn list_indexes_for_table(&self, table_name: &str) -> Vec<String> {
+        self.index_manager
+            .list_indexes()
+            .into_iter()
+            .filter(|index_name| {
+                self.index_manager
+                    .get_index(index_name)
+                    .map(|metadata| metadata.table_name == table_name)
+                    .unwrap_or(false)
+            })
+            .collect()
+    }
+
     // ========================================================================
     // Spatial Index Methods
     // ========================================================================
