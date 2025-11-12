@@ -59,8 +59,20 @@ pub fn parse_alter_table(parser: &mut crate::Parser) -> Result<AlterTableStmt, P
             parser.expect_keyword(Keyword::Column)?;
             parse_alter_column(parser, table_name)
         }
+        Token::Keyword(Keyword::Rename) => {
+            parser.advance();
+            parse_rename_table(parser, table_name)
+        }
+        Token::Keyword(Keyword::Modify) => {
+            parser.advance();
+            parse_modify_column(parser, table_name)
+        }
+        Token::Keyword(Keyword::Change) => {
+            parser.advance();
+            parse_change_column(parser, table_name)
+        }
         _ => {
-            Err(ParseError { message: "Expected ADD, DROP, or ALTER after table name".to_string() })
+            Err(ParseError { message: "Expected ADD, DROP, ALTER, RENAME, MODIFY, or CHANGE after table name".to_string() })
         }
     }
 }
@@ -228,4 +240,174 @@ fn parse_drop_constraint(
     let constraint_name = parser.parse_identifier()?;
 
     Ok(AlterTableStmt::DropConstraint(DropConstraintStmt { table_name, constraint_name }))
+}
+
+/// Parse RENAME TO
+fn parse_rename_table(
+    parser: &mut crate::Parser,
+    table_name: String,
+) -> Result<AlterTableStmt, ParseError> {
+    parser.expect_keyword(Keyword::To)?;
+    let new_table_name = parser.parse_identifier()?;
+
+    Ok(AlterTableStmt::RenameTable(RenameTableStmt { table_name, new_table_name }))
+}
+
+/// Parse MODIFY COLUMN
+fn parse_modify_column(
+    parser: &mut crate::Parser,
+    table_name: String,
+) -> Result<AlterTableStmt, ParseError> {
+    // MODIFY [COLUMN] column_name new_definition
+    if parser.peek_keyword(Keyword::Column) {
+        parser.advance(); // consume optional COLUMN keyword
+    }
+
+    let column_name = parser.parse_identifier()?;
+    let data_type = parser.parse_data_type()?;
+
+    // Parse optional DEFAULT clause
+    let default_value = if parser.peek_keyword(Keyword::Default) {
+        parser.advance();
+        Some(Box::new(parser.parse_expression()?))
+    } else {
+        None
+    };
+
+    // Parse column constraints
+    let mut nullable = true;
+    let mut constraints = Vec::new();
+
+    loop {
+        match parser.peek() {
+            Token::Keyword(Keyword::Not) => {
+                parser.advance();
+                parser.expect_keyword(Keyword::Null)?;
+                nullable = false;
+            }
+            Token::Keyword(Keyword::Primary) => {
+                parser.advance();
+                parser.expect_keyword(Keyword::Key)?;
+                constraints
+                    .push(ColumnConstraint { name: None, kind: ColumnConstraintKind::PrimaryKey });
+            }
+            Token::Keyword(Keyword::Unique) => {
+                parser.advance();
+                constraints
+                    .push(ColumnConstraint { name: None, kind: ColumnConstraintKind::Unique });
+            }
+            Token::Keyword(Keyword::References) => {
+                parser.advance();
+                let ref_table = parser.parse_identifier()?;
+                parser.expect_token(crate::token::Token::LParen)?;
+                let ref_column = parser.parse_identifier()?;
+                parser.expect_token(crate::token::Token::RParen)?;
+                constraints.push(ColumnConstraint {
+                    name: None,
+                    kind: ColumnConstraintKind::References {
+                        table: ref_table,
+                        column: ref_column,
+                        on_delete: None,
+                        on_update: None,
+                    },
+                });
+            }
+            _ => break,
+        }
+    }
+
+    let new_column_def = ColumnDef {
+        name: column_name.clone(),
+        data_type,
+        nullable,
+        constraints,
+        default_value,
+        comment: None,
+    };
+
+    Ok(AlterTableStmt::ModifyColumn(ModifyColumnStmt {
+        table_name,
+        column_name,
+        new_column_def,
+    }))
+}
+
+/// Parse CHANGE COLUMN
+fn parse_change_column(
+    parser: &mut crate::Parser,
+    table_name: String,
+) -> Result<AlterTableStmt, ParseError> {
+    // CHANGE [COLUMN] old_column_name new_column_name new_definition
+    if parser.peek_keyword(Keyword::Column) {
+        parser.advance(); // consume optional COLUMN keyword
+    }
+
+    let old_column_name = parser.parse_identifier()?;
+    let new_column_name = parser.parse_identifier()?;
+    let data_type = parser.parse_data_type()?;
+
+    // Parse optional DEFAULT clause
+    let default_value = if parser.peek_keyword(Keyword::Default) {
+        parser.advance();
+        Some(Box::new(parser.parse_expression()?))
+    } else {
+        None
+    };
+
+    // Parse column constraints
+    let mut nullable = true;
+    let mut constraints = Vec::new();
+
+    loop {
+        match parser.peek() {
+            Token::Keyword(Keyword::Not) => {
+                parser.advance();
+                parser.expect_keyword(Keyword::Null)?;
+                nullable = false;
+            }
+            Token::Keyword(Keyword::Primary) => {
+                parser.advance();
+                parser.expect_keyword(Keyword::Key)?;
+                constraints
+                    .push(ColumnConstraint { name: None, kind: ColumnConstraintKind::PrimaryKey });
+            }
+            Token::Keyword(Keyword::Unique) => {
+                parser.advance();
+                constraints
+                    .push(ColumnConstraint { name: None, kind: ColumnConstraintKind::Unique });
+            }
+            Token::Keyword(Keyword::References) => {
+                parser.advance();
+                let ref_table = parser.parse_identifier()?;
+                parser.expect_token(crate::token::Token::LParen)?;
+                let ref_column = parser.parse_identifier()?;
+                parser.expect_token(crate::token::Token::RParen)?;
+                constraints.push(ColumnConstraint {
+                    name: None,
+                    kind: ColumnConstraintKind::References {
+                        table: ref_table,
+                        column: ref_column,
+                        on_delete: None,
+                        on_update: None,
+                    },
+                });
+            }
+            _ => break,
+        }
+    }
+
+    let new_column_def = ColumnDef {
+        name: new_column_name,
+        data_type,
+        nullable,
+        constraints,
+        default_value,
+        comment: None,
+    };
+
+    Ok(AlterTableStmt::ChangeColumn(ChangeColumnStmt {
+        table_name,
+        old_column_name,
+        new_column_def,
+    }))
 }

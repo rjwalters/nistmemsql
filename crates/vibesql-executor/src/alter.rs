@@ -28,6 +28,9 @@ impl AlterTableExecutor {
             },
             AlterTableStmt::AddConstraint(s) => &s.table_name,
             AlterTableStmt::DropConstraint(s) => &s.table_name,
+            AlterTableStmt::RenameTable(s) => &s.table_name,
+            AlterTableStmt::ModifyColumn(s) => &s.table_name,
+            AlterTableStmt::ChangeColumn(s) => &s.table_name,
         };
         PrivilegeChecker::check_alter(database, table_name)?;
 
@@ -44,6 +47,15 @@ impl AlterTableExecutor {
             }
             AlterTableStmt::DropConstraint(drop_constraint) => {
                 Self::execute_drop_constraint(drop_constraint, database)
+            }
+            AlterTableStmt::RenameTable(rename_table) => {
+                Self::execute_rename_table(rename_table, database)
+            }
+            AlterTableStmt::ModifyColumn(modify_column) => {
+                Self::execute_modify_column(modify_column, database)
+            }
+            AlterTableStmt::ChangeColumn(change_column) => {
+                Self::execute_change_column(change_column, database)
             }
         }
     }
@@ -492,6 +504,278 @@ impl AlterTableExecutor {
             _ => Err(ExecutorError::UnsupportedExpression(
                 "Complex expressions in DEFAULT not yet supported. Use simple literals.".to_string(),
             )),
+        }
+    }
+
+    /// Execute RENAME TABLE
+    fn execute_rename_table(
+        stmt: &RenameTableStmt,
+        database: &mut Database,
+    ) -> Result<String, ExecutorError> {
+        // Check if new table name already exists
+        if database.get_table(&stmt.new_table_name).is_some() {
+            return Err(ExecutorError::TableAlreadyExists(stmt.new_table_name.clone()));
+        }
+
+        // Get the old table to ensure it exists
+        let old_table = database
+            .get_table(&stmt.table_name)
+            .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
+
+        // Clone the table and update its schema name
+        let mut new_table = old_table.clone();
+        new_table.schema_mut().name = stmt.new_table_name.clone();
+
+        // Drop old table and create new one with the renamed schema
+        // This handles indexes and spatial indexes via CASCADE
+        database
+            .drop_table(&stmt.table_name)
+            .map_err(|e| ExecutorError::StorageError(e.to_string()))?;
+
+        database
+            .create_table(new_table.schema.clone())
+            .map_err(|e| ExecutorError::StorageError(e.to_string()))?;
+
+        // Restore the data by getting the new table and setting its rows
+        let restored_table = database
+            .get_table_mut(&stmt.new_table_name)
+            .ok_or_else(|| ExecutorError::TableAlreadyExists(stmt.new_table_name.clone()))?;
+
+        for row in new_table.scan() {
+            restored_table
+                .insert(row.clone())
+                .map_err(|e| ExecutorError::StorageError(e.to_string()))?;
+        }
+
+        Ok(format!(
+            "Table '{}' renamed to '{}'",
+            stmt.table_name, stmt.new_table_name
+        ))
+    }
+
+    /// Execute MODIFY COLUMN
+    fn execute_modify_column(
+        stmt: &ModifyColumnStmt,
+        database: &mut Database,
+    ) -> Result<String, ExecutorError> {
+        use vibesql_types::DataType;
+
+        let table = database
+            .get_table_mut(&stmt.table_name)
+            .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
+
+        // Get column index
+        let col_index = table.schema.get_column_index(&stmt.column_name).ok_or_else(|| {
+            ExecutorError::ColumnNotFound {
+                column_name: stmt.column_name.clone(),
+                table_name: stmt.table_name.clone(),
+                searched_tables: vec![stmt.table_name.clone()],
+                available_columns: table.schema.columns.iter().map(|c| c.name.clone()).collect(),
+            }
+        })?;
+
+        let old_type = &table.schema.columns[col_index].data_type;
+        let new_type = &stmt.new_column_def.data_type;
+
+        // Type conversion validation - be strict about compatibility
+        let is_compatible = Self::is_type_conversion_safe(old_type, new_type);
+
+        if !is_compatible {
+            return Err(ExecutorError::TypeMismatch {
+                left: SqlValue::Null, // Placeholder
+                op: format!("Cannot convert column from {:?} to {:?}", old_type, new_type),
+                right: SqlValue::Null,
+            });
+        }
+
+        // Convert existing data
+        for row in table.rows_mut() {
+            if let Some(value) = row.values.get_mut(col_index) {
+                *value = Self::convert_value(value.clone(), new_type)?;
+            }
+        }
+
+        // Update schema
+        table.schema_mut().columns[col_index].data_type = new_type.clone();
+        table.schema_mut().columns[col_index].nullable = stmt.new_column_def.nullable;
+
+        // Update default value if provided
+        if let Some(ref default_expr) = stmt.new_column_def.default_value {
+            table.schema_mut().set_column_default(col_index, *default_expr.clone())?;
+        }
+
+        Ok(format!("Column '{}' modified in table '{}'", stmt.column_name, stmt.table_name))
+    }
+
+    /// Execute CHANGE COLUMN (rename + modify)
+    fn execute_change_column(
+        stmt: &ChangeColumnStmt,
+        database: &mut Database,
+    ) -> Result<String, ExecutorError> {
+        use vibesql_types::DataType;
+
+        let table = database
+            .get_table_mut(&stmt.table_name)
+            .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
+
+        // Get column index
+        let col_index = table.schema.get_column_index(&stmt.old_column_name).ok_or_else(|| {
+            ExecutorError::ColumnNotFound {
+                column_name: stmt.old_column_name.clone(),
+                table_name: stmt.table_name.clone(),
+                searched_tables: vec![stmt.table_name.clone()],
+                available_columns: table.schema.columns.iter().map(|c| c.name.clone()).collect(),
+            }
+        })?;
+
+        let old_type = &table.schema.columns[col_index].data_type;
+        let new_type = &stmt.new_column_def.data_type;
+
+        // Type conversion validation
+        let is_compatible = Self::is_type_conversion_safe(old_type, new_type);
+
+        if !is_compatible {
+            return Err(ExecutorError::TypeMismatch {
+                left: SqlValue::Null,
+                op: format!("Cannot convert column from {:?} to {:?}", old_type, new_type),
+                right: SqlValue::Null,
+            });
+        }
+
+        // Convert existing data
+        for row in table.rows_mut() {
+            if let Some(value) = row.values.get_mut(col_index) {
+                *value = Self::convert_value(value.clone(), new_type)?;
+            }
+        }
+
+        // Update schema - rename and modify
+        table.schema_mut().columns[col_index].name = stmt.new_column_def.name.clone();
+        table.schema_mut().columns[col_index].data_type = new_type.clone();
+        table.schema_mut().columns[col_index].nullable = stmt.new_column_def.nullable;
+
+        // Update default value if provided
+        if let Some(ref default_expr) = stmt.new_column_def.default_value {
+            table.schema_mut().set_column_default(col_index, *default_expr.clone())?;
+        }
+
+        Ok(format!(
+            "Column '{}' changed to '{}' in table '{}'",
+            stmt.old_column_name, stmt.new_column_def.name, stmt.table_name
+        ))
+    }
+
+    /// Check if type conversion is safe (widening conversions only)
+    fn is_type_conversion_safe(from: &vibesql_types::DataType, to: &vibesql_types::DataType) -> bool {
+        use vibesql_types::DataType;
+
+        match (from, to) {
+            // Same type is always safe
+            (a, b) if a == b => true,
+
+            // Integer widenings
+            (DataType::Integer, DataType::Bigint) => true,
+            (DataType::Smallint, DataType::Integer) => true,
+            (DataType::Smallint, DataType::Bigint) => true,
+
+            // Numeric widenings
+            (DataType::Integer, DataType::Numeric { .. }) => true,
+            (DataType::Smallint, DataType::Numeric { .. }) => true,
+            (DataType::Bigint, DataType::Numeric { .. }) => true,
+            (DataType::Numeric { precision: p1, scale: s1 }, DataType::Numeric { precision: p2, scale: s2 }) => p2 >= p1 && s2 >= s1,
+
+            // String widenings
+            (DataType::Character { length: n1 }, DataType::Character { length: n2 }) => n2 >= n1,
+            (DataType::Varchar { max_length: Some(n1) }, DataType::Varchar { max_length: Some(n2) }) => n2 >= n1,
+            (DataType::Varchar { max_length: Some(_) }, DataType::Varchar { max_length: None }) => true,
+            (DataType::Character { .. }, DataType::Varchar { .. }) => true,
+            (DataType::Character { .. }, DataType::CharacterLargeObject) => true,
+            (DataType::Varchar { .. }, DataType::CharacterLargeObject) => true,
+
+            // Any to CLOB (always safe, just convert to string)
+            (DataType::Integer, DataType::CharacterLargeObject) => true,
+            (DataType::Bigint, DataType::CharacterLargeObject) => true,
+            (DataType::Smallint, DataType::CharacterLargeObject) => true,
+            (DataType::Numeric { .. }, DataType::CharacterLargeObject) => true,
+            (DataType::Boolean, DataType::CharacterLargeObject) => true,
+
+            // Otherwise, reject
+            _ => false,
+        }
+    }
+
+    /// Convert a value to a new type
+    fn convert_value(value: SqlValue, target_type: &vibesql_types::DataType) -> Result<SqlValue, ExecutorError> {
+        use vibesql_types::DataType;
+
+        // NULL stays NULL
+        if matches!(value, SqlValue::Null) {
+            return Ok(SqlValue::Null);
+        }
+
+        match target_type {
+            DataType::Integer => match &value {
+                SqlValue::Integer(i) => Ok(SqlValue::Integer(*i)),
+                SqlValue::Smallint(s) => Ok(SqlValue::Integer(*s as i64)),
+                SqlValue::Bigint(b) => Ok(SqlValue::Integer(*b)), // May truncate
+                SqlValue::Varchar(s) | SqlValue::Character(s) => {
+                    s.parse::<i64>()
+                        .map(SqlValue::Integer)
+                        .map_err(|_| ExecutorError::TypeConversionError {
+                            from: format!("{:?}", value),
+                            to: "INTEGER".to_string(),
+                        })
+                }
+                _ => Err(ExecutorError::TypeConversionError {
+                    from: format!("{:?}", value),
+                    to: "INTEGER".to_string(),
+                }),
+            },
+            DataType::Bigint => match &value {
+                SqlValue::Integer(i) => Ok(SqlValue::Bigint(*i)),
+                SqlValue::Smallint(s) => Ok(SqlValue::Bigint(*s as i64)),
+                SqlValue::Bigint(b) => Ok(SqlValue::Bigint(*b)),
+                _ => Err(ExecutorError::TypeConversionError {
+                    from: format!("{:?}", value),
+                    to: "BIGINT".to_string(),
+                }),
+            },
+            DataType::Smallint => match &value {
+                SqlValue::Smallint(s) => Ok(SqlValue::Smallint(*s)),
+                SqlValue::Integer(i) => Ok(SqlValue::Smallint(*i as i16)), // May truncate
+                _ => Err(ExecutorError::TypeConversionError {
+                    from: format!("{:?}", value),
+                    to: "SMALLINT".to_string(),
+                }),
+            },
+            DataType::Numeric { .. } | DataType::Decimal { .. } => match &value {
+                SqlValue::Numeric(d) => Ok(SqlValue::Numeric(*d)),
+                SqlValue::Integer(i) => Ok(SqlValue::Numeric(*i as f64)),
+                SqlValue::Smallint(s) => Ok(SqlValue::Numeric(*s as f64)),
+                SqlValue::Bigint(b) => Ok(SqlValue::Numeric(*b as f64)),
+                _ => Err(ExecutorError::TypeConversionError {
+                    from: format!("{:?}", value),
+                    to: "NUMERIC".to_string(),
+                }),
+            },
+            DataType::Varchar { .. } | DataType::Character { .. } | DataType::CharacterLargeObject => {
+                // Convert anything to string
+                match value {
+                    SqlValue::Varchar(s) | SqlValue::Character(s) => {
+                        Ok(SqlValue::Varchar(s))
+                    }
+                    SqlValue::Integer(i) => Ok(SqlValue::Varchar(i.to_string())),
+                    SqlValue::Bigint(b) => Ok(SqlValue::Varchar(b.to_string())),
+                    SqlValue::Smallint(s) => Ok(SqlValue::Varchar(s.to_string())),
+                    SqlValue::Numeric(d) => Ok(SqlValue::Varchar(d.to_string())),
+                    SqlValue::Boolean(b) => Ok(SqlValue::Varchar(b.to_string())),
+                    _ => Ok(SqlValue::Varchar(format!("{:?}", value))),
+                }
+            }
+            _ => Err(ExecutorError::TypeConversionError {
+                from: format!("{:?}", value),
+                to: format!("{:?}", target_type),
+            }),
         }
     }
 }
