@@ -100,6 +100,7 @@ pub struct ComparisonStatistics {
     pub p99_query_time_ratio: f64,
 }
 
+#[allow(dead_code)]
 impl ComparisonReport {
     /// Create a new comparison report from two sets of metrics
     pub fn new(

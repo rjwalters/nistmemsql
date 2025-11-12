@@ -169,6 +169,7 @@ pub struct QueryStopwatch {
     start: Instant,
 }
 
+#[allow(dead_code)]
 impl QueryStopwatch {
     /// Start timing a query
     pub fn start() -> Self {
@@ -189,6 +190,7 @@ pub struct MemoryTracker {
     initial_usage: Option<usize>,
 }
 
+#[allow(dead_code)]
 impl MemoryTracker {
     /// Create a new memory tracker
     pub fn new() -> Self {
@@ -283,6 +285,7 @@ mod vec_duration_serde {
 
 #[cfg(test)]
 mod tests {
+    #[allow(unused_imports)]
     use super::*;
 
     #[test]

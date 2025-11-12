@@ -38,6 +38,7 @@ pub fn preprocess_for_mysql(content: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[allow(unused_imports)]
     use super::*;
 
     #[test]

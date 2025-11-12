@@ -298,7 +298,7 @@ EOF
         echo ""
 
         SQLLOGICTEST_TIME_BUDGET="$time_budget" \
-            cargo test --test sqllogictest_suite run_sqllogictest_suite -- --nocapture
+            cargo test --package vibesql --test sqllogictest_suite run_sqllogictest_suite -- --nocapture
 
         print_success "Serial run complete"
         echo "Results database: ~/.vibesql/test_results/sqllogictest_results.sql"

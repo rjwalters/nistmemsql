@@ -122,7 +122,9 @@ pub fn run_test_file_with_details(
 
 #[cfg(test)]
 mod tests {
+    #[allow(unused_imports)]
     use super::*;
+    #[allow(unused_imports)]
     use std::env;
 
     #[test]
