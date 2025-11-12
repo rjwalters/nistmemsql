@@ -87,6 +87,12 @@ pub enum ExecutorError {
         used_bytes: usize,
         max_bytes: usize,
     },
+    /// Variable not found in procedural context
+    VariableNotFound(String),
+    /// Label not found in procedural context
+    LabelNotFound(String),
+    /// Type error in expression evaluation
+    TypeError(String),
     Other(String),
 }
 
@@ -219,6 +225,15 @@ impl std::fmt::Display for ExecutorError {
                     *used_bytes as f64 / 1024.0 / 1024.0 / 1024.0,
                     *max_bytes as f64 / 1024.0 / 1024.0 / 1024.0
                 )
+            }
+            ExecutorError::VariableNotFound(name) => {
+                write!(f, "Variable '{}' not found", name)
+            }
+            ExecutorError::LabelNotFound(name) => {
+                write!(f, "Label '{}' not found", name)
+            }
+            ExecutorError::TypeError(msg) => {
+                write!(f, "Type error: {}", msg)
             }
             ExecutorError::Other(msg) => write!(f, "{}", msg),
         }
