@@ -116,21 +116,30 @@ pub(super) fn eval_scalar_function(
         "USER" | "CURRENT_USER" => system::user(args, name),
 
         // Spatial/Geometric functions
-        // Constructor functions
+        // Constructor functions - WKT (Phase 1)
         "ST_GEOMFROMTEXT" | "ST_GEOM_FROM_TEXT" => spatial::constructors::st_geom_from_text(args),
         "ST_POINTFROMTEXT" | "ST_POINT_FROM_TEXT" => spatial::constructors::st_point_from_text(args),
         "ST_LINEFROMTEXT" | "ST_LINE_FROM_TEXT" => spatial::constructors::st_line_from_text(args),
         "ST_POLYGONFROMTEXT" | "ST_POLYGON_FROM_TEXT" => spatial::constructors::st_polygon_from_text(args),
+        
+        // Constructor functions - WKB (Phase 2)
+        "ST_GEOMFROMWKB" | "ST_GEOM_FROM_WKB" => spatial::constructors::st_geom_from_wkb(args),
+        "ST_POINTFROMWKB" | "ST_POINT_FROM_WKB" => spatial::constructors::st_point_from_wkb(args),
+        "ST_LINEFROMWKB" | "ST_LINE_FROM_WKB" => spatial::constructors::st_line_from_wkb(args),
+        "ST_POLYGONFROMWKB" | "ST_POLYGON_FROM_WKB" => spatial::constructors::st_polygon_from_wkb(args),
         
         // Accessor functions
         "ST_X" => spatial::accessors::st_x(args),
         "ST_Y" => spatial::accessors::st_y(args),
         "ST_GEOMETRYTYPE" | "ST_GEOMETRY_TYPE" => spatial::accessors::st_geometry_type(args),
         "ST_DIMENSION" => spatial::accessors::st_dimension(args),
-        "ST_SRID" => spatial::accessors::st_srid(args),
         "ST_ASTEXT" | "ST_AS_TEXT" => spatial::accessors::st_as_text(args),
         "ST_ASBINARY" | "ST_AS_BINARY" => spatial::accessors::st_as_binary(args),
         "ST_ASGEOJSON" | "ST_AS_GEOJSON" => spatial::accessors::st_as_geojson(args),
+        
+        // SRID functions (Phase 2)
+        "ST_SETSRID" | "ST_SET_SRID" => spatial::srid::st_set_srid(args),
+        "ST_SRID" => spatial::srid::st_srid(args),
 
         // Unknown function
         _ => Err(ExecutorError::UnsupportedFeature(format!("Unknown function: {}", name))),

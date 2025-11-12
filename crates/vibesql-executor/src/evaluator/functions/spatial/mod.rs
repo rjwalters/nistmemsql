@@ -1,23 +1,35 @@
 //! Spatial/Geometric Query Functions
 //!
 //! Implements ST_* operations for working with spatial data types.
-//! Currently supports WKT (Well-Known Text) parsing and basic geometry operations.
+//! Supports WKT (Well-Known Text) parsing, WKB (Well-Known Binary) format, and SRID tracking.
 //!
 //! Functions are organized as:
 //! - Constructor functions: Create geometry from text/binary
 //! - Accessor functions: Extract coordinates and metadata
+//! - SRID functions: Get/set spatial reference system ID
+//! - Output functions: Convert to text/binary formats
 //! - Relationship functions: Spatial predicates
 //! - Measurement functions: Distance and area calculations
-//! - Output functions: Convert to text/binary formats
 
 pub mod constructors;
 pub mod accessors;
+pub mod srid;
+pub(crate) mod wkb;
 
 use vibesql_types::SqlValue;
 use crate::errors::ExecutorError;
+use hex;
 
-/// A simple geometry representation for Phase 1
-/// Stores geometries as WKT strings internally
+/// A geometry representation with SRID support (Phase 2+)
+/// Stores geometries internally for efficient processing
+#[derive(Debug, Clone, PartialEq)]
+pub struct GeometryWithSRID {
+    pub geometry: Geometry,
+    pub srid: i32,  // 0 = undefined, otherwise EPSG code
+}
+
+/// Core geometry enum for Phase 1+
+/// Stores geometries as structured data internally
 #[derive(Debug, Clone, PartialEq)]
 pub enum Geometry {
     Point { x: f64, y: f64 },
@@ -139,24 +151,116 @@ impl Geometry {
             }
         }
     }
+
+    /// Convert to EWKT (Extended WKT) format with SRID
+    pub fn to_ewkt(&self, srid: i32) -> String {
+        if srid > 0 {
+            format!("SRID={};{}", srid, self.to_wkt())
+        } else {
+            self.to_wkt()
+        }
+    }
+
+    /// Convert to WKB (Well-Known Binary) format
+    pub fn to_wkb(&self) -> Vec<u8> {
+        wkb::geometry_to_wkb(self)
+    }
+
+    /// Convert to WKB with SRID (EWKB format)
+    pub fn to_ewkb(&self, srid: i32) -> Vec<u8> {
+        wkb::geometry_to_ewkb(self, srid)
+    }
 }
 
-/// Store geometry as a serialized WKT string in SqlValue
+impl GeometryWithSRID {
+    /// Create new geometry with SRID
+    pub fn new(geometry: Geometry, srid: i32) -> Self {
+        GeometryWithSRID { geometry, srid }
+    }
+
+    /// Get the type name
+    pub fn geometry_type(&self) -> &'static str {
+        self.geometry.geometry_type()
+    }
+
+    /// Get the dimension
+    pub fn dimension(&self) -> i32 {
+        self.geometry.dimension()
+    }
+
+    /// Get SRID
+    pub fn srid(&self) -> i32 {
+        self.srid
+    }
+
+    /// Set SRID
+    pub fn set_srid(&mut self, srid: i32) {
+        self.srid = srid;
+    }
+
+    /// Convert to EWKT format
+    pub fn to_ewkt(&self) -> String {
+        self.geometry.to_ewkt(self.srid)
+    }
+
+    /// Convert to WKT format
+    pub fn to_wkt(&self) -> String {
+        self.geometry.to_wkt()
+    }
+
+    /// Convert to WKB format
+    pub fn to_wkb(&self) -> Vec<u8> {
+        self.geometry.to_wkb()
+    }
+
+    /// Convert to EWKB format (with SRID)
+    pub fn to_ewkb(&self) -> Vec<u8> {
+        wkb::geometry_to_ewkb(&self.geometry, self.srid)
+    }
+}
+
+/// Store geometry as a serialized string in SqlValue
+/// Format: "__GEOMETRY__|SRID|wkt_content" or "__GEOMETRY__|0|wkt_content"
 pub const GEOMETRY_TYPE_MARKER: &str = "__GEOMETRY__";
+const GEOMETRY_SEPARATOR: &str = "|";
 
-pub fn geometry_to_sql_value(geom: Geometry) -> SqlValue {
-    let wkt = geom.to_wkt();
-    SqlValue::Varchar(format!("{}{}", GEOMETRY_TYPE_MARKER, wkt))
+pub fn geometry_to_sql_value(geom: Geometry, srid: i32) -> SqlValue {
+    let wkt = geom.to_ewkt(srid);
+    SqlValue::Varchar(format!("{}{}{}{}", GEOMETRY_TYPE_MARKER, GEOMETRY_SEPARATOR, srid, GEOMETRY_SEPARATOR.to_string() + &wkt))
 }
 
-pub fn sql_value_to_geometry(value: &SqlValue) -> Result<Geometry, ExecutorError> {
+pub fn sql_value_to_geometry(value: &SqlValue) -> Result<GeometryWithSRID, ExecutorError> {
     match value {
         SqlValue::Varchar(s) | SqlValue::Character(s) => {
-            if let Some(wkt) = s.strip_prefix(GEOMETRY_TYPE_MARKER) {
-                constructors::parse_wkt(wkt)
+            if let Some(content) = s.strip_prefix(GEOMETRY_TYPE_MARKER) {
+                let parts: Vec<&str> = content.splitn(3, GEOMETRY_SEPARATOR).collect();
+                if parts.len() >= 3 {
+                    let srid: i32 = parts[0].parse().unwrap_or(0);
+                    let wkt = parts[2];
+                    let geometry = constructors::parse_wkt(wkt)?;
+                    Ok(GeometryWithSRID::new(geometry, srid))
+                } else {
+                    // Old format without SRID
+                    let geometry = constructors::parse_wkt(content)?;
+                    Ok(GeometryWithSRID::new(geometry, 0))
+                }
+            } else if s.starts_with("SRID=") {
+                // Parse EWKT format: SRID=4326;POINT(1 2)
+                if let Some(semicolon_pos) = s.find(';') {
+                    let srid_str = &s[5..semicolon_pos]; // Skip "SRID="
+                    let wkt = &s[semicolon_pos + 1..];
+                    let srid: i32 = srid_str.parse().unwrap_or(0);
+                    let geometry = constructors::parse_wkt(wkt)?;
+                    Ok(GeometryWithSRID::new(geometry, srid))
+                } else {
+                    return Err(ExecutorError::UnsupportedFeature(
+                        "Invalid EWKT format".to_string(),
+                    ));
+                }
             } else {
                 // Try to parse as WKT directly if not marked
-                constructors::parse_wkt(s)
+                let geometry = constructors::parse_wkt(s)?;
+                Ok(GeometryWithSRID::new(geometry, 0))
             }
         }
         SqlValue::Null => Err(ExecutorError::UnsupportedFeature(
@@ -167,4 +271,22 @@ pub fn sql_value_to_geometry(value: &SqlValue) -> Result<Geometry, ExecutorError
             value.type_name()
         ))),
     }
+}
+
+/// Binary data value for WKB representation
+pub fn binary_to_sql_value(data: Vec<u8>) -> SqlValue {
+    SqlValue::Varchar(format!("0x{}", hex::encode(data)))
+}
+
+/// Parse binary data from hex string
+pub fn parse_binary_data(hex_str: &str) -> Result<Vec<u8>, ExecutorError> {
+    let hex_str = if hex_str.starts_with("0x") || hex_str.starts_with("0X") {
+        &hex_str[2..]
+    } else {
+        hex_str
+    };
+
+    hex::decode(hex_str).map_err(|e| {
+        ExecutorError::UnsupportedFeature(format!("Invalid hex data: {}", e))
+    })
 }
