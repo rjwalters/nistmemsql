@@ -22,6 +22,33 @@ impl DropIndexExecutor {
     pub fn execute(stmt: &DropIndexStmt, database: &mut Database) -> Result<String, ExecutorError> {
         let index_name = &stmt.index_name;
 
+        // First check catalog metadata to find which table this index belongs to
+        let all_indexes = database.catalog.list_all_indexes();
+        let index_metadata = all_indexes.iter().find(|idx| idx.name == *index_name);
+
+        if let Some(metadata) = index_metadata {
+            let table_name = metadata.table_name.clone();
+
+            // Drop from catalog
+            database
+                .catalog
+                .drop_index(&table_name, index_name)
+                .map_err(|e| ExecutorError::Other(format!("Catalog error: {}", e)))?;
+
+            // Check if it's a spatial index in storage
+            if database.spatial_index_exists(index_name) {
+                database.drop_spatial_index(index_name)?;
+            }
+
+            // Check if it's a B-tree index in storage
+            if database.index_exists(index_name) {
+                database.drop_index(index_name)?;
+            }
+
+            return Ok(format!("Index '{}' dropped successfully", index_name));
+        }
+
+        // Fallback: check storage without catalog metadata (for legacy indexes)
         // Check if it's a spatial index first
         if database.spatial_index_exists(index_name) {
             database.drop_spatial_index(index_name)?;

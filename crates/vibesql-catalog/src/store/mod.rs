@@ -16,6 +16,7 @@ use crate::{
         Assertion, CharacterSet, Collation, Function, Procedure, Sequence, Translation,
     },
     domain::DomainDefinition,
+    index::IndexMetadata,
     privilege::PrivilegeGrant,
     schema::Schema,
     trigger::TriggerDefinition,
@@ -25,6 +26,7 @@ use crate::{
 
 // Submodules - each handles a specific area of catalog operations
 mod advanced;
+mod indexes;
 mod privileges;
 mod schemas;
 mod session;
@@ -49,6 +51,8 @@ pub struct Catalog {
     pub(crate) assertions: HashMap<String, Assertion>,
     pub(crate) functions: HashMap<String, Function>,
     pub(crate) procedures: HashMap<String, Procedure>,
+    // Index metadata (maps qualified name "table.index" -> IndexMetadata)
+    pub(crate) indexes: HashMap<String, IndexMetadata>,
     // Session state (SQL:1999 session configuration)
     pub(crate) current_catalog: Option<String>,
     pub(crate) current_charset: String,
@@ -79,6 +83,7 @@ impl Catalog {
             assertions: HashMap::new(),
             functions: HashMap::new(),
             procedures: HashMap::new(),
+            indexes: HashMap::new(),
             // Session defaults (SQL:1999)
             current_catalog: None,
             current_charset: "UTF8".to_string(),

@@ -127,7 +127,7 @@ mod catalog_tests {
 
         assert!(result.is_err());
         match result.unwrap_err() {
-            CatalogError::TableNotFound(name) => assert_eq!(name, "missing"),
+            CatalogError::TableNotFound { table_name } => assert_eq!(table_name, "missing"),
             other => panic!("Unexpected error: {:?}", other),
         }
     }
@@ -162,7 +162,9 @@ mod catalog_tests {
 
     #[test]
     fn test_error_display_table_not_found() {
-        let error = CatalogError::TableNotFound("products".to_string());
+        let error = CatalogError::TableNotFound {
+            table_name: "products".to_string(),
+        };
         let error_msg = format!("{}", error);
         assert_eq!(error_msg, "Table 'products' not found");
     }
