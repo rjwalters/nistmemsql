@@ -54,6 +54,8 @@ pub struct Catalog {
     pub(crate) current_charset: String,
     pub(crate) current_collation: Option<String>,
     pub(crate) current_timezone: String,
+    // Identifier case sensitivity configuration (MySQL compatibility)
+    pub(crate) case_sensitive_identifiers: bool,
 }
 
 impl Catalog {
@@ -80,6 +82,8 @@ impl Catalog {
             current_charset: "UTF8".to_string(),
             current_collation: None,
             current_timezone: "UTC".to_string(),
+            // Default to case-insensitive for MySQL compatibility
+            case_sensitive_identifiers: false,
         };
 
         // Create the default "public" schema
@@ -92,5 +96,37 @@ impl Catalog {
 impl Default for Catalog {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// Configuration and identifier normalization
+impl Catalog {
+    /// Get the case sensitivity setting for identifier lookups.
+    ///
+    /// When `false` (default), identifier lookups are case-insensitive (MySQL-compatible).
+    /// When `true`, identifier lookups are case-sensitive (SQL standard for quoted identifiers).
+    pub fn case_sensitive_identifiers(&self) -> bool {
+        self.case_sensitive_identifiers
+    }
+
+    /// Set the case sensitivity for identifier lookups.
+    ///
+    /// # Arguments
+    /// * `case_sensitive` - If `false`, lookups are case-insensitive (MySQL-compatible).
+    ///                       If `true`, lookups are case-sensitive (SQL standard).
+    pub fn set_case_sensitive_identifiers(&mut self, case_sensitive: bool) {
+        self.case_sensitive_identifiers = case_sensitive;
+    }
+
+    /// Normalize an identifier based on the case sensitivity setting.
+    ///
+    /// When case_sensitive_identifiers is false, returns uppercase version.
+    /// When case_sensitive_identifiers is true, returns the original identifier.
+    pub(crate) fn normalize_identifier(&self, identifier: &str) -> String {
+        if self.case_sensitive_identifiers {
+            identifier.to_string()
+        } else {
+            identifier.to_uppercase()
+        }
     }
 }

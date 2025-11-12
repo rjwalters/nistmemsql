@@ -17,25 +17,60 @@ impl super::super::Catalog {
         Ok(())
     }
 
-    /// Get a VIEW definition by name (supports qualified names like "schema.view")
+    /// Get a VIEW definition by name (supports qualified names like "schema.view").
+    /// Respects the `case_sensitive_identifiers` setting.
     pub fn get_view(&self, name: &str) -> Option<&ViewDefinition> {
-        self.views.get(name)
+        if self.case_sensitive_identifiers {
+            self.views.get(name)
+        } else {
+            let normalized = name.to_uppercase();
+            // First try exact match
+            if let Some(view) = self.views.get(&normalized) {
+                return Some(view);
+            }
+            // Fall back to case-insensitive search
+            for (view_name, view) in &self.views {
+                if view_name.to_uppercase() == normalized {
+                    return Some(view);
+                }
+            }
+            None
+        }
     }
 
-    /// Drop a VIEW
+    /// Drop a VIEW. Respects the `case_sensitive_identifiers` setting.
     pub fn drop_view(&mut self, name: &str, cascade: bool) -> Result<(), CatalogError> {
-        // Check if view exists
-        if !self.views.contains_key(name) {
-            return Err(CatalogError::ViewNotFound(name.to_string()));
-        }
+        // Find the actual view name (case-insensitive if needed)
+        let actual_name = if self.case_sensitive_identifiers {
+            if self.views.contains_key(name) {
+                name.to_string()
+            } else {
+                return Err(CatalogError::ViewNotFound(name.to_string()));
+            }
+        } else {
+            let normalized = name.to_uppercase();
+            if self.views.contains_key(&normalized) {
+                normalized
+            } else {
+                // Case-insensitive search
+                let found = self.views.keys()
+                    .find(|k| k.to_uppercase() == normalized)
+                    .cloned();
+                if let Some(found_name) = found {
+                    found_name
+                } else {
+                    return Err(CatalogError::ViewNotFound(name.to_string()));
+                }
+            }
+        };
 
         // Find all views that depend on this view or table
-        let dependent_views = self.find_dependent_views(name);
+        let dependent_views = self.find_dependent_views(&actual_name);
 
         // If RESTRICT and there are dependent views, return error
         if !cascade && !dependent_views.is_empty() {
             return Err(CatalogError::ViewInUse {
-                view_name: name.to_string(),
+                view_name: actual_name,
                 dependent_views,
             });
         }
@@ -50,7 +85,7 @@ impl super::super::Catalog {
         }
 
         // Finally, drop the view itself
-        self.views.remove(name);
+        self.views.remove(&actual_name);
         Ok(())
     }
 
