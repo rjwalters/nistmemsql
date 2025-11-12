@@ -1,43 +1,58 @@
 /// Spatial Function Tests
-/// 
+///
 /// Tests for Phase 1 (WKT) and Phase 3 (Predicates) spatial functions
 
-use vibesql_executor::Database;
+use vibesql_storage::Database;
+
+/// Helper to execute SQL and return the result
+fn execute_sql(db: &mut Database, sql: &str) -> Result<Vec<vibesql_storage::Row>, String> {
+    let stmt = vibesql_parser::Parser::parse_sql(sql).map_err(|e| format!("Parse error: {:?}", e))?;
+
+    match stmt {
+        vibesql_ast::Statement::Select(select_stmt) => {
+            let select_executor = vibesql_executor::SelectExecutor::new(db);
+            select_executor
+                .execute(&select_stmt)
+                .map_err(|e| format!("Select error: {:?}", e))
+        }
+        _ => Err("Expected SELECT statement".to_string()),
+    }
+}
 
 #[test]
 fn test_st_geomfromtext_point() {
-    let db = Database::new_in_memory();
-    
+    let mut db = Database::new();
+
     // Simple point geometry
-    let result = db.execute_sql("SELECT ST_GeomFromText('POINT(10 20)')").unwrap();
+    let result = execute_sql(&mut db, "SELECT ST_GeomFromText('POINT(10 20)')").unwrap();
     assert!(result.len() > 0);
 }
 
 #[test]
 fn test_st_geometrytype() {
-    let db = Database::new_in_memory();
+    let mut db = Database::new();
     
-    let result = db.execute_sql("SELECT ST_GeometryType(ST_GeomFromText('POINT(0 0)'))").unwrap();
+    let result = execute_sql(&mut db, "SELECT ST_GeometryType(ST_GeomFromText('POINT(0 0)'))").unwrap();
     assert!(!result.is_empty());
 }
 
 #[test]
 fn test_st_astext() {
-    let db = Database::new_in_memory();
+    let mut db = Database::new();
     
     let sql = r#"
         SELECT ST_AsText(ST_GeomFromText('POINT(1 2)'))
     "#;
-    let result = db.execute_sql(sql).unwrap();
+    let result = execute_sql(&mut db, sql).unwrap();
     assert!(!result.is_empty());
 }
 
 #[test]
 fn test_st_x_y_coordinates() {
-    let db = Database::new_in_memory();
+    let mut db = Database::new();
     
-    let x_result = db.execute_sql("SELECT ST_X(ST_GeomFromText('POINT(5 10)'))").unwrap();
-    let y_result = db.execute_sql("SELECT ST_Y(ST_GeomFromText('POINT(5 10)'))").unwrap();
+    let x_result = execute_sql(&mut db, "SELECT ST_X(ST_GeomFromText('POINT(5 10)'))").unwrap();
+    let y_result = execute_sql(&mut db, "SELECT ST_Y(ST_GeomFromText('POINT(5 10)'))").unwrap();
     
     assert!(!x_result.is_empty());
     assert!(!y_result.is_empty());
@@ -45,11 +60,11 @@ fn test_st_x_y_coordinates() {
 
 #[test]
 fn test_st_dimension() {
-    let db = Database::new_in_memory();
+    let mut db = Database::new();
     
-    let point_dim = db.execute_sql("SELECT ST_Dimension(ST_GeomFromText('POINT(0 0)'))").unwrap();
-    let line_dim = db.execute_sql("SELECT ST_Dimension(ST_GeomFromText('LINESTRING(0 0, 1 1)'))").unwrap();
-    let poly_dim = db.execute_sql("SELECT ST_Dimension(ST_GeomFromText('POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))'))").unwrap();
+    let point_dim = execute_sql(&mut db, "SELECT ST_Dimension(ST_GeomFromText('POINT(0 0)'))").unwrap();
+    let line_dim = execute_sql(&mut db, "SELECT ST_Dimension(ST_GeomFromText('LINESTRING(0 0, 1 1)'))").unwrap();
+    let poly_dim = execute_sql(&mut db, "SELECT ST_Dimension(ST_GeomFromText('POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))'))").unwrap();
     
     assert!(!point_dim.is_empty());
     assert!(!line_dim.is_empty());
@@ -58,42 +73,42 @@ fn test_st_dimension() {
 
 #[test]
 fn test_st_srid() {
-    let db = Database::new_in_memory();
+    let mut db = Database::new();
     
     // Phase 1: SRID always returns 0
-    let result = db.execute_sql("SELECT ST_SRID(ST_GeomFromText('POINT(0 0)'))").unwrap();
+    let result = execute_sql(&mut db, "SELECT ST_SRID(ST_GeomFromText('POINT(0 0)'))").unwrap();
     assert!(!result.is_empty());
 }
 
 #[test]
 fn test_st_asgeojson_point() {
-    let db = Database::new_in_memory();
+    let mut db = Database::new();
     
-    let result = db.execute_sql("SELECT ST_AsGeoJSON(ST_GeomFromText('POINT(3 4)'))").unwrap();
+    let result = execute_sql(&mut db, "SELECT ST_AsGeoJSON(ST_GeomFromText('POINT(3 4)'))").unwrap();
     assert!(!result.is_empty());
 }
 
 #[test]
 fn test_st_pointfromtext() {
-    let db = Database::new_in_memory();
+    let mut db = Database::new();
     
-    let result = db.execute_sql("SELECT ST_PointFromText('POINT(100 200)')").unwrap();
+    let result = execute_sql(&mut db, "SELECT ST_PointFromText('POINT(100 200)')").unwrap();
     assert!(!result.is_empty());
 }
 
 #[test]
 fn test_st_linefromtext() {
-    let db = Database::new_in_memory();
+    let mut db = Database::new();
     
-    let result = db.execute_sql("SELECT ST_LineFromText('LINESTRING(0 0, 1 1, 2 0)')").unwrap();
+    let result = execute_sql(&mut db, "SELECT ST_LineFromText('LINESTRING(0 0, 1 1, 2 0)')").unwrap();
     assert!(!result.is_empty());
 }
 
 #[test]
 fn test_st_polygonfromtext() {
-    let db = Database::new_in_memory();
+    let mut db = Database::new();
     
-    let result = db.execute_sql("SELECT ST_PolygonFromText('POLYGON((0 0, 4 0, 4 4, 0 4, 0 0))')").unwrap();
+    let result = execute_sql(&mut db, "SELECT ST_PolygonFromText('POLYGON((0 0, 4 0, 4 4, 0 4, 0 0))')").unwrap();
     assert!(!result.is_empty());
 }
 
@@ -101,9 +116,9 @@ fn test_st_polygonfromtext() {
 
 #[test]
 fn test_st_contains() {
-    let db = Database::new_in_memory();
+    let mut db = Database::new();
     
-    let result = db.execute_sql(
+    let result = execute_sql(&mut db, 
         "SELECT ST_Contains(ST_GeomFromText('POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))'), ST_GeomFromText('POINT(5 5)'))"
     ).unwrap();
     assert!(!result.is_empty());
@@ -111,9 +126,9 @@ fn test_st_contains() {
 
 #[test]
 fn test_st_within() {
-    let db = Database::new_in_memory();
+    let mut db = Database::new();
     
-    let result = db.execute_sql(
+    let result = execute_sql(&mut db, 
         "SELECT ST_Within(ST_GeomFromText('POINT(5 5)'), ST_GeomFromText('POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))'))"
     ).unwrap();
     assert!(!result.is_empty());
@@ -121,9 +136,9 @@ fn test_st_within() {
 
 #[test]
 fn test_st_intersects() {
-    let db = Database::new_in_memory();
+    let mut db = Database::new();
     
-    let result = db.execute_sql(
+    let result = execute_sql(&mut db, 
         "SELECT ST_Intersects(ST_GeomFromText('LINESTRING(0 0, 10 10)'), ST_GeomFromText('LINESTRING(0 10, 10 0)'))"
     ).unwrap();
     assert!(!result.is_empty());
@@ -131,9 +146,9 @@ fn test_st_intersects() {
 
 #[test]
 fn test_st_disjoint() {
-    let db = Database::new_in_memory();
+    let mut db = Database::new();
     
-    let result = db.execute_sql(
+    let result = execute_sql(&mut db, 
         "SELECT ST_Disjoint(ST_GeomFromText('POINT(0 0)'), ST_GeomFromText('POINT(10 10)'))"
     ).unwrap();
     assert!(!result.is_empty());
@@ -141,9 +156,9 @@ fn test_st_disjoint() {
 
 #[test]
 fn test_st_equals() {
-    let db = Database::new_in_memory();
+    let mut db = Database::new();
     
-    let result = db.execute_sql(
+    let result = execute_sql(&mut db, 
         "SELECT ST_Equals(ST_GeomFromText('POINT(1 1)'), ST_GeomFromText('POINT(1 1)'))"
     ).unwrap();
     assert!(!result.is_empty());
@@ -151,9 +166,9 @@ fn test_st_equals() {
 
 #[test]
 fn test_st_crosses() {
-    let db = Database::new_in_memory();
+    let mut db = Database::new();
     
-    let result = db.execute_sql(
+    let result = execute_sql(&mut db, 
         "SELECT ST_Crosses(ST_GeomFromText('LINESTRING(0 0, 10 10)'), ST_GeomFromText('LINESTRING(0 10, 10 0)'))"
     ).unwrap();
     assert!(!result.is_empty());
@@ -161,9 +176,9 @@ fn test_st_crosses() {
 
 #[test]
 fn test_st_overlaps() {
-    let db = Database::new_in_memory();
+    let mut db = Database::new();
     
-    let result = db.execute_sql(
+    let result = execute_sql(&mut db, 
         "SELECT ST_Overlaps(ST_GeomFromText('POLYGON((0 0, 5 0, 5 5, 0 5, 0 0))'), ST_GeomFromText('POLYGON((3 3, 8 3, 8 8, 3 8, 3 3))'))"
     ).unwrap();
     assert!(!result.is_empty());
@@ -171,9 +186,9 @@ fn test_st_overlaps() {
 
 #[test]
 fn test_st_covers() {
-    let db = Database::new_in_memory();
+    let mut db = Database::new();
     
-    let result = db.execute_sql(
+    let result = execute_sql(&mut db, 
         "SELECT ST_Covers(ST_GeomFromText('POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))'), ST_GeomFromText('POINT(5 5)'))"
     ).unwrap();
     assert!(!result.is_empty());
@@ -181,9 +196,9 @@ fn test_st_covers() {
 
 #[test]
 fn test_st_coveredby() {
-    let db = Database::new_in_memory();
+    let mut db = Database::new();
     
-    let result = db.execute_sql(
+    let result = execute_sql(&mut db, 
         "SELECT ST_CoveredBy(ST_GeomFromText('POINT(5 5)'), ST_GeomFromText('POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))'))"
     ).unwrap();
     assert!(!result.is_empty());
@@ -191,9 +206,9 @@ fn test_st_coveredby() {
 
 #[test]
 fn test_st_dwithin() {
-    let db = Database::new_in_memory();
+    let mut db = Database::new();
     
-    let result = db.execute_sql(
+    let result = execute_sql(&mut db, 
         "SELECT ST_DWithin(ST_GeomFromText('POINT(0 0)'), ST_GeomFromText('POINT(1 1)'), 2.0)"
     ).unwrap();
     assert!(!result.is_empty());
@@ -201,27 +216,27 @@ fn test_st_dwithin() {
 
 #[test]
 fn test_null_handling() {
-    let db = Database::new_in_memory();
+    let mut db = Database::new();
     
     // Test NULL handling for all functions
-    let result = db.execute_sql("SELECT ST_GeomFromText(NULL)").unwrap();
+    let result = execute_sql(&mut db, "SELECT ST_GeomFromText(NULL)").unwrap();
     assert!(!result.is_empty());
     
-    let result = db.execute_sql("SELECT ST_X(NULL)").unwrap();
+    let result = execute_sql(&mut db, "SELECT ST_X(NULL)").unwrap();
     assert!(!result.is_empty());
     
-    let result = db.execute_sql("SELECT ST_Contains(NULL, ST_GeomFromText('POINT(0 0)'))").unwrap();
+    let result = execute_sql(&mut db, "SELECT ST_Contains(NULL, ST_GeomFromText('POINT(0 0)'))").unwrap();
     assert!(!result.is_empty());
 }
 
 #[test]
 fn test_polygon_with_hole() {
-    let db = Database::new_in_memory();
+    let mut db = Database::new();
     
     // Polygon with hole
     let sql = r#"
         SELECT ST_GeomFromText('POLYGON((0 0, 10 0, 10 10, 0 10, 0 0), (2 2, 2 8, 8 8, 8 2, 2 2))')
     "#;
-    let result = db.execute_sql(sql).unwrap();
+    let result = execute_sql(&mut db, sql).unwrap();
     assert!(!result.is_empty());
 }
