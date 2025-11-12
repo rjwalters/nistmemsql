@@ -46,6 +46,7 @@ members = [
     "crates/vibesql-wasm-bindings",
     "crates/vibesql-python-bindings",
 ]
+default-members = ["crates/vibesql-cli"]
 resolver = "2"
 
 [workspace.package]

@@ -94,7 +94,7 @@ fi
 # Ensure release binary exists
 if [ ! -f "target/release/vibesql" ]; then
     echo "Building VibeSQL in release mode..."
-    cargo build --release -p vibesql-cli
+    cargo build --release
 fi
 
 # Create output directory
