@@ -69,6 +69,10 @@ impl Parser {
                 let insert_stmt = self.parse_insert_statement()?;
                 Ok(vibesql_ast::Statement::Insert(insert_stmt))
             }
+            Token::Keyword(Keyword::Replace) => {
+                let insert_stmt = self.parse_replace_statement()?;
+                Ok(vibesql_ast::Statement::Insert(insert_stmt))
+            }
             Token::Keyword(Keyword::Update) => {
                 let update_stmt = self.parse_update_statement()?;
                 Ok(vibesql_ast::Statement::Update(update_stmt))

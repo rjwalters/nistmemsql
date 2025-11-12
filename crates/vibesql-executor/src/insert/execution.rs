@@ -95,12 +95,16 @@ pub fn execute_insert(
         super::defaults::apply_default_values(&schema, &mut full_row_values)?;
 
         // Validate all constraints in a single pass and extract index keys
+        // Skip PK/UNIQUE duplicate checks if using REPLACE conflict clause
+        let skip_duplicate_checks =
+            matches!(stmt.conflict_clause, Some(vibesql_ast::ConflictClause::Replace));
         let validator = super::row_validator::RowValidator::new(
             db,
             &schema,
             &stmt.table_name,
             &primary_key_values,
             &unique_constraint_values,
+            skip_duplicate_checks,
         );
         let validation_result = validator.validate(&full_row_values)?;
 
@@ -124,6 +128,19 @@ pub fn execute_insert(
     // All rows validated successfully, now insert them
     let mut rows_inserted = 0;
     for full_row_values in validated_rows {
+        // If REPLACE conflict clause, delete conflicting rows first
+        if matches!(
+            stmt.conflict_clause,
+            Some(vibesql_ast::ConflictClause::Replace)
+        ) {
+            super::replace::handle_replace_conflicts(
+                db,
+                &stmt.table_name,
+                &schema,
+                &full_row_values,
+            )?;
+        }
+
         let row = vibesql_storage::Row::new(full_row_values);
         db.insert_row(&stmt.table_name, row)
             .map_err(|e| ExecutorError::UnsupportedExpression(format!("Storage error: {}", e)))?;

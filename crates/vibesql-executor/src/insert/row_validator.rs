@@ -20,6 +20,8 @@ pub struct RowValidator<'a> {
     batch_pk_values: &'a [Vec<vibesql_types::SqlValue>],
     /// Track UNIQUE values from batch for duplicate detection
     batch_unique_values: &'a [Vec<Vec<vibesql_types::SqlValue>>],
+    /// Skip PK/UNIQUE duplicate checks (for REPLACE conflict clause)
+    skip_duplicate_checks: bool,
 }
 
 impl<'a> RowValidator<'a> {
@@ -29,8 +31,16 @@ impl<'a> RowValidator<'a> {
         table_name: &'a str,
         batch_pk_values: &'a [Vec<vibesql_types::SqlValue>],
         batch_unique_values: &'a [Vec<Vec<vibesql_types::SqlValue>>],
+        skip_duplicate_checks: bool,
     ) -> Self {
-        Self { db, schema, table_name, batch_pk_values, batch_unique_values }
+        Self {
+            db,
+            schema,
+            table_name,
+            batch_pk_values,
+            batch_unique_values,
+            skip_duplicate_checks,
+        }
     }
 
     /// Validate all constraints in a single pass through the row
@@ -50,10 +60,16 @@ impl<'a> RowValidator<'a> {
         self.validate_column_constraints(row_values, &mut result)?;
 
         // Phase 2: Validate PK uniqueness (uses pre-extracted keys)
-        self.validate_primary_key_uniqueness(&result.primary_key)?;
+        // Skip if using REPLACE conflict clause
+        if !self.skip_duplicate_checks {
+            self.validate_primary_key_uniqueness(&result.primary_key)?;
+        }
 
         // Phase 3: Validate UNIQUE constraint uniqueness (uses pre-extracted keys)
-        self.validate_unique_constraints(&result.unique_keys, row_values)?;
+        // Skip if using REPLACE conflict clause
+        if !self.skip_duplicate_checks {
+            self.validate_unique_constraints(&result.unique_keys, row_values)?;
+        }
 
         // Phase 4: Evaluate CHECK constraints (after column pass)
         self.validate_check_constraints(row_values)?;

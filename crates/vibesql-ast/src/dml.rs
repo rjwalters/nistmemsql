@@ -17,12 +17,23 @@ pub enum InsertSource {
     Select(Box<SelectStmt>),
 }
 
+/// Conflict resolution strategy for INSERT statements
+#[derive(Debug, Clone, PartialEq)]
+pub enum ConflictClause {
+    /// INSERT OR REPLACE / REPLACE INTO - delete conflicting row and insert new one
+    Replace,
+    /// INSERT OR IGNORE - silently ignore constraint violations (future)
+    Ignore,
+}
+
 /// INSERT statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct InsertStmt {
     pub table_name: String,
     pub columns: Vec<String>,
     pub source: InsertSource,
+    /// Conflict resolution strategy (None = fail on conflict)
+    pub conflict_clause: Option<ConflictClause>,
 }
 
 // ============================================================================
