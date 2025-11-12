@@ -104,12 +104,10 @@ def initialize_work_queue(repo_root: Path, work_queue_dir: Path) -> int:
     #   - Just filename (e.g., "select5.test") - blocks all files with that name
     #   - Relative path (e.g., "index/orderby/1000/slt_good_0.test") - blocks specific file
     #
-    # select5.test: Memory leak issue - grows to excessive memory usage
-    # index/orderby/1000/slt_good_0.test: Infinite loop in ORDER BY with large indexed dataset (issue #1197)
-    blocklist = {
-        "select5.test",
-        "index/orderby/1000/slt_good_0.test",
-    }
+    # Previously blocklisted (now tracked in separate issues):
+    # - select5.test: Memory leak issue - see issue #1279
+    # - index/orderby/1000/slt_good_0.test: Infinite loop in ORDER BY - see issue #1197
+    blocklist = set()
 
     # Find all test files
     test_dir = repo_root / "third_party" / "sqllogictest" / "test"
