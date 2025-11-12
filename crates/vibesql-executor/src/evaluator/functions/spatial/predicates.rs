@@ -1,13 +1,15 @@
 //! Spatial Predicate Functions
 //!
-//! Implements spatial relationship tests between geometries.
-//! Uses geo-types and geo crates for actual geometric calculations.
+//! Implements spatial relationship tests between geometries using the DE-9IM (Dimensionally Extended 9-Intersection Model).
+//! Phase 3: Basic spatial predicates with proper DE-9IM semantics.
+//! Phase 4+: Full DE-9IM support for complex patterns and optimizations.
 
 use vibesql_types::SqlValue;
 use crate::errors::ExecutorError;
 use super::{sql_value_to_geometry, Geometry};
 use geo::Contains;
-use geo::algorithm::{Intersects, HaversineDistance};
+use geo::algorithm::{Intersects, HaversineDistance, EuclideanDistance};
+use geo::algorithm::relate::Relate;
 
 /// Helper function to convert WKT string to geo::Geometry
 fn wkt_to_geo(wkt_str: &str) -> Result<geo::Geometry<f64>, ExecutorError> {
@@ -185,7 +187,10 @@ pub fn st_equals(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     }
 }
 
-/// ST_Touches(geom1, geom2) - Do boundaries touch but interiors don't intersect?
+/// ST_Touches(geom1, geom2) - DE-9IM: Boundaries touch but interiors don't intersect
+/// Pattern: FT******* or F**T***** or F***T****
+/// 
+/// True when: Boundaries intersect, and at least one interior is disjoint from the other
 pub fn st_touches(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 2 {
         return Err(ExecutorError::Other(
@@ -200,15 +205,10 @@ pub fn st_touches(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             let geom1 = wkt_to_geo(wkt1)?;
             let geom2 = wkt_to_geo(wkt2)?;
             
-            // Simplified touches: geometries intersect but neither contains the other
-            // This is a simplified approximation of the DE-9IM model
-            let intersects = geom1.intersects(&geom2);
-            let geom1_contains_geom2 = geom1.contains(&geom2);
-            let geom2_contains_geom1 = geom2.contains(&geom1);
+            // Use DE-9IM Relate for proper Touches predicate
+            let relate_matrix = geom1.relate(&geom2);
+            let result = relate_matrix.is_touches();
             
-            // Touches is similar to crosses/overlaps but stricter:
-            // boundaries must touch but interiors must not overlap
-            let result = intersects && !geom1_contains_geom2 && !geom2_contains_geom1;
             Ok(SqlValue::Boolean(result))
         }
         _ => Err(ExecutorError::Other(
@@ -217,7 +217,12 @@ pub fn st_touches(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     }
 }
 
-/// ST_Crosses(geom1, geom2) - Do geom1 and geom2 cross?
+/// ST_Crosses(geom1, geom2) - DE-9IM: Geometries cross
+/// 
+/// True when:
+/// - For point/line: geometries intersect, and their dimensions don't match (dimension mismatch)
+/// - For line/polygon: geometries share some interior points but not all
+/// - For other combos: topological crossing exists (dimension-dependent)
 pub fn st_crosses(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 2 {
         return Err(ExecutorError::Other(
@@ -229,16 +234,13 @@ pub fn st_crosses(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         (SqlValue::Null, _) | (_, SqlValue::Null) => Ok(SqlValue::Null),
         (SqlValue::Varchar(wkt1) | SqlValue::Character(wkt1),
          SqlValue::Varchar(wkt2) | SqlValue::Character(wkt2)) => {
-            // Simplified implementation
-            // Crosses = geometries intersect but one is not completely contained in the other
             let geom1 = wkt_to_geo(wkt1)?;
             let geom2 = wkt_to_geo(wkt2)?;
             
-            let intersects = geom1.intersects(&geom2);
-            let geom1_contains_geom2 = geom1.contains(&geom2);
-            let geom2_contains_geom1 = geom2.contains(&geom1);
+            // Use DE-9IM Relate for proper Crosses predicate
+            let relate_matrix = geom1.relate(&geom2);
+            let result = relate_matrix.is_crosses();
             
-            let result = intersects && !geom1_contains_geom2 && !geom2_contains_geom1;
             Ok(SqlValue::Boolean(result))
         }
         _ => Err(ExecutorError::Other(
@@ -247,7 +249,13 @@ pub fn st_crosses(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     }
 }
 
-/// ST_Overlaps(geom1, geom2) - Do geom1 and geom2 overlap?
+/// ST_Overlaps(geom1, geom2) - DE-9IM: Same-dimension geometries with overlapping interiors
+/// Pattern: T*T***T** (for same-dimension geometries)
+/// 
+/// True when:
+/// - Geometries have the same dimension
+/// - Their interiors intersect (have points in common)
+/// - Neither geometry is completely contained in the other
 pub fn st_overlaps(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 2 {
         return Err(ExecutorError::Other(
@@ -259,15 +267,13 @@ pub fn st_overlaps(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         (SqlValue::Null, _) | (_, SqlValue::Null) => Ok(SqlValue::Null),
         (SqlValue::Varchar(wkt1) | SqlValue::Character(wkt1),
          SqlValue::Varchar(wkt2) | SqlValue::Character(wkt2)) => {
-            // Simplified: geometries intersect but neither completely contains the other
             let geom1 = wkt_to_geo(wkt1)?;
             let geom2 = wkt_to_geo(wkt2)?;
             
-            let intersects = geom1.intersects(&geom2);
-            let geom1_contains_geom2 = geom1.contains(&geom2);
-            let geom2_contains_geom1 = geom2.contains(&geom1);
+            // Use DE-9IM Relate for proper Overlaps predicate
+            let relate_matrix = geom1.relate(&geom2);
+            let result = relate_matrix.is_overlaps();
             
-            let result = intersects && !geom1_contains_geom2 && !geom2_contains_geom1;
             Ok(SqlValue::Boolean(result))
         }
         _ => Err(ExecutorError::Other(
@@ -327,6 +333,18 @@ pub fn st_coveredby(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 }
 
 /// ST_DWithin(geom1, geom2, distance) - Are geometries within distance of each other?
+/// 
+/// Calculates Euclidean distance for all geometry type combinations.
+/// Returns TRUE if distance(geom1, geom2) <= distance parameter.
+/// 
+/// Supported combinations:
+/// - Point to Point: haversine distance (great-circle distance on sphere)
+/// - Point to LineString: minimum distance to any point on the line
+/// - Point to Polygon: 0 if inside, else distance to nearest boundary
+/// - LineString to LineString: minimum distance between any points
+/// - LineString to Polygon: 0 if intersecting, else distance to boundary
+/// - Polygon to Polygon: 0 if intersecting/touching, else distance to nearest point
+/// - All combinations using EuclideanDistance trait
 pub fn st_dwithin(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 3 {
         return Err(ExecutorError::Other(
@@ -346,6 +364,11 @@ pub fn st_dwithin(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         )),
     };
     
+    // Reject negative distances
+    if distance < 0.0 {
+        return Ok(SqlValue::Boolean(false));
+    }
+    
     match (&args[0], &args[1]) {
         (SqlValue::Null, _) | (_, SqlValue::Null) => Ok(SqlValue::Null),
         (SqlValue::Varchar(wkt1) | SqlValue::Character(wkt1),
@@ -353,15 +376,15 @@ pub fn st_dwithin(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             let geom1 = wkt_to_geo(wkt1)?;
             let geom2 = wkt_to_geo(wkt2)?;
             
-            // Calculate distance using point-to-point haversine when possible
+            // Use EuclideanDistance trait for all geometry combinations
             let dist = match (&geom1, &geom2) {
                 (geo::Geometry::Point(p1), geo::Geometry::Point(p2)) => {
+                    // For points, use haversine distance (great-circle distance on sphere)
                     p1.haversine_distance(p2)
                 }
                 _ => {
-                    // For non-point geometries, simplified handling
-                    // Would need full geometry distance algorithms
-                    0.0
+                    // For all other geometry combinations, use EuclideanDistance
+                    geom1.euclidean_distance(&geom2)
                 }
             };
             
