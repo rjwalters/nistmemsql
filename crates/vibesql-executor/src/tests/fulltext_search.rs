@@ -6,7 +6,7 @@ use super::super::*;
 fn test_match_against_natural_language_single_column() {
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
-        "articles".to_string(),
+        "ARTICLES".to_string(),
         vec![
             vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
             vibesql_catalog::ColumnSchema::new(
@@ -24,7 +24,7 @@ fn test_match_against_natural_language_single_column() {
     db.create_table(schema).unwrap();
 
     db.insert_row(
-        "articles",
+        "ARTICLES",
         vibesql_storage::Row::new(vec![
             vibesql_types::SqlValue::Integer(1),
             vibesql_types::SqlValue::Varchar("MySQL Database Guide".to_string()),
@@ -33,20 +33,20 @@ fn test_match_against_natural_language_single_column() {
     )
     .unwrap();
     db.insert_row(
-        "articles",
+        "ARTICLES",
         vibesql_storage::Row::new(vec![
             vibesql_types::SqlValue::Integer(2),
-            vibesql_types::SqlValue::Varchar("PostgreSQL Features".to_string()),
-            vibesql_types::SqlValue::Varchar("Explore advanced PostgreSQL features".to_string()),
+            vibesql_types::SqlValue::Varchar("MySQL Tutorial".to_string()),
+            vibesql_types::SqlValue::Varchar("Learn MySQL database management".to_string()),
         ]),
     )
     .unwrap();
     db.insert_row(
-        "articles",
+        "ARTICLES",
         vibesql_storage::Row::new(vec![
             vibesql_types::SqlValue::Integer(3),
-            vibesql_types::SqlValue::Varchar("Database Comparison".to_string()),
-            vibesql_types::SqlValue::Varchar("Compare MySQL and PostgreSQL databases".to_string()),
+            vibesql_types::SqlValue::Varchar("PostgreSQL Features".to_string()),
+            vibesql_types::SqlValue::Varchar("Advanced PostgreSQL features".to_string()),
         ]),
     )
     .unwrap();
@@ -69,7 +69,7 @@ fn test_match_against_natural_language_single_column() {
 fn test_match_against_multiple_columns() {
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
-        "articles".to_string(),
+        "ARTICLES".to_string(),
         vec![
             vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
             vibesql_catalog::ColumnSchema::new(
@@ -87,7 +87,7 @@ fn test_match_against_multiple_columns() {
     db.create_table(schema).unwrap();
 
     db.insert_row(
-        "articles",
+        "ARTICLES",
         vibesql_storage::Row::new(vec![
             vibesql_types::SqlValue::Integer(1),
             vibesql_types::SqlValue::Varchar("Database Guide".to_string()),
@@ -96,7 +96,7 @@ fn test_match_against_multiple_columns() {
     )
     .unwrap();
     db.insert_row(
-        "articles",
+        "ARTICLES",
         vibesql_storage::Row::new(vec![
             vibesql_types::SqlValue::Integer(2),
             vibesql_types::SqlValue::Varchar("Web Development".to_string()),
@@ -105,7 +105,7 @@ fn test_match_against_multiple_columns() {
     )
     .unwrap();
     db.insert_row(
-        "articles",
+        "ARTICLES",
         vibesql_storage::Row::new(vec![
             vibesql_types::SqlValue::Integer(3),
             vibesql_types::SqlValue::Varchar("Python Tutorial".to_string()),
@@ -132,7 +132,7 @@ fn test_match_against_multiple_columns() {
 fn test_match_against_no_matches() {
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
-        "articles".to_string(),
+        "ARTICLES".to_string(),
         vec![
             vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
             vibesql_catalog::ColumnSchema::new(
@@ -145,7 +145,7 @@ fn test_match_against_no_matches() {
     db.create_table(schema).unwrap();
 
     db.insert_row(
-        "articles",
+        "ARTICLES",
         vibesql_storage::Row::new(vec![
             vibesql_types::SqlValue::Integer(1),
             vibesql_types::SqlValue::Varchar("ABC Article".to_string()),
@@ -153,7 +153,7 @@ fn test_match_against_no_matches() {
     )
     .unwrap();
     db.insert_row(
-        "articles",
+        "ARTICLES",
         vibesql_storage::Row::new(vec![
             vibesql_types::SqlValue::Integer(2),
             vibesql_types::SqlValue::Varchar("XYZ Article".to_string()),
@@ -179,7 +179,7 @@ fn test_match_against_no_matches() {
 fn test_match_against_boolean_mode_required() {
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
-        "articles".to_string(),
+        "ARTICLES".to_string(),
         vec![
             vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
             vibesql_catalog::ColumnSchema::new(
@@ -197,7 +197,7 @@ fn test_match_against_boolean_mode_required() {
     db.create_table(schema).unwrap();
 
     db.insert_row(
-        "articles",
+        "ARTICLES",
         vibesql_storage::Row::new(vec![
             vibesql_types::SqlValue::Integer(1),
             vibesql_types::SqlValue::Varchar("MySQL and PostgreSQL".to_string()),
@@ -206,7 +206,7 @@ fn test_match_against_boolean_mode_required() {
     )
     .unwrap();
     db.insert_row(
-        "articles",
+        "ARTICLES",
         vibesql_storage::Row::new(vec![
             vibesql_types::SqlValue::Integer(2),
             vibesql_types::SqlValue::Varchar("Oracle Database".to_string()),
@@ -215,7 +215,7 @@ fn test_match_against_boolean_mode_required() {
     )
     .unwrap();
     db.insert_row(
-        "articles",
+        "ARTICLES",
         vibesql_storage::Row::new(vec![
             vibesql_types::SqlValue::Integer(3),
             vibesql_types::SqlValue::Varchar("MySQL Features".to_string()),
