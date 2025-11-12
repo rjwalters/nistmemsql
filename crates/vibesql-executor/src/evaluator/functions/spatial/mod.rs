@@ -41,7 +41,7 @@ pub enum Geometry {
     MultiPoint { points: Vec<(f64, f64)> },
     MultiLineString { lines: Vec<Vec<(f64, f64)>> },
     MultiPolygon { polygons: Vec<Vec<Vec<(f64, f64)>>> },
-    GeometryCollection { geometries: Vec<Geometry> },
+    Collection { geometries: Vec<Geometry> },
 }
 
 #[allow(dead_code)]
@@ -55,7 +55,7 @@ impl Geometry {
             Geometry::MultiPoint { .. } => "MULTIPOINT",
             Geometry::MultiLineString { .. } => "MULTILINESTRING",
             Geometry::MultiPolygon { .. } => "MULTIPOLYGON",
-            Geometry::GeometryCollection { .. } => "GEOMETRYCOLLECTION",
+            Geometry::Collection { .. } => "GEOMETRYCOLLECTION",
         }
     }
 
@@ -65,7 +65,7 @@ impl Geometry {
             Geometry::Point { .. } | Geometry::MultiPoint { .. } => 0,
             Geometry::LineString { .. } | Geometry::MultiLineString { .. } => 1,
             Geometry::Polygon { .. } | Geometry::MultiPolygon { .. } => 2,
-            Geometry::GeometryCollection { geometries } => {
+            Geometry::Collection { geometries } => {
                 geometries.iter().map(|g| g.dimension()).max().unwrap_or(-1)
             }
         }
@@ -145,7 +145,7 @@ impl Geometry {
                     .join(", ");
                 format!("MULTIPOLYGON({})", poly_strs)
             }
-            Geometry::GeometryCollection { geometries } => {
+            Geometry::Collection { geometries } => {
                 let geo_strs = geometries
                     .iter()
                     .map(|g| g.to_wkt())

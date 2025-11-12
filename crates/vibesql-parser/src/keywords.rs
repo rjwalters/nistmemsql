@@ -105,6 +105,9 @@ pub enum Keyword {
     Column,
     Constraint,
     Default,
+    Rename,
+    Modify,
+    Change,
     // SAVEPOINT keywords
     Savepoint,
     Release,
@@ -175,8 +178,16 @@ pub enum Keyword {
     Names,
     Zone,
     Local,
+    // Interval unit keywords
+    Year,
+    Quarter,
+    Month,
+    Week,
+    Day,
     Hour,
     Minute,
+    Second,
+    Microsecond,
     // Callable object keywords (functions, procedures, methods)
     Function,
     Procedure,
@@ -257,6 +268,15 @@ pub enum Keyword {
     Query,
     // Spatial index keywords
     Spatial,
+    // Database introspection keywords
+    Show,
+    Describe,
+    Databases,
+    Tables,
+    Columns,
+    Fields,
+    Indexes,
+    Keys,
     // Auto-increment keywords (MySQL and SQLite)
     AutoIncrement,
 }
@@ -372,6 +392,9 @@ impl fmt::Display for Keyword {
             Keyword::Column => "COLUMN",
             Keyword::Constraint => "CONSTRAINT",
             Keyword::Default => "DEFAULT",
+            Keyword::Rename => "RENAME",
+            Keyword::Modify => "MODIFY",
+            Keyword::Change => "CHANGE",
             Keyword::Savepoint => "SAVEPOINT",
             Keyword::Release => "RELEASE",
             Keyword::To => "TO",
@@ -427,8 +450,15 @@ impl fmt::Display for Keyword {
             Keyword::Names => "NAMES",
             Keyword::Zone => "ZONE",
             Keyword::Local => "LOCAL",
+            Keyword::Year => "YEAR",
+            Keyword::Quarter => "QUARTER",
+            Keyword::Month => "MONTH",
+            Keyword::Week => "WEEK",
+            Keyword::Day => "DAY",
             Keyword::Hour => "HOUR",
             Keyword::Minute => "MINUTE",
+            Keyword::Second => "SECOND",
+            Keyword::Microsecond => "MICROSECOND",
             Keyword::Function => "FUNCTION",
             Keyword::Procedure => "PROCEDURE",
             Keyword::Call => "CALL",
@@ -504,6 +534,15 @@ impl fmt::Display for Keyword {
             Keyword::Query => "QUERY",
             // Spatial index keywords
             Keyword::Spatial => "SPATIAL",
+            // Database introspection keywords
+            Keyword::Show => "SHOW",
+            Keyword::Describe => "DESCRIBE",
+            Keyword::Databases => "DATABASES",
+            Keyword::Tables => "TABLES",
+            Keyword::Columns => "COLUMNS",
+            Keyword::Fields => "FIELDS",
+            Keyword::Indexes => "INDEXES",
+            Keyword::Keys => "KEYS",
             // Auto-increment keywords
             Keyword::AutoIncrement => "AUTO_INCREMENT",
         };

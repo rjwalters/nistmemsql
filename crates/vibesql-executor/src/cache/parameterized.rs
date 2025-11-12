@@ -384,12 +384,8 @@ impl LiteralExtractor {
                     {
                         Self::extract_from_expression(expr, literals);
                     }
-                    if let Some(ref end) = frame.end {
-                        if let vibesql_ast::FrameBound::Preceding(expr) | vibesql_ast::FrameBound::Following(expr) =
-                            end
-                        {
-                            Self::extract_from_expression(expr, literals);
-                        }
+                    if let Some(vibesql_ast::FrameBound::Preceding(expr) | vibesql_ast::FrameBound::Following(expr)) = &frame.end {
+                        Self::extract_from_expression(expr, literals);
                     }
                 }
             }
@@ -400,6 +396,7 @@ impl LiteralExtractor {
             | Expression::CurrentDate
             | Expression::CurrentTime { .. }
             | Expression::CurrentTimestamp { .. }
+            | Expression::Interval { .. }
             | Expression::Default
             | Expression::DuplicateKeyValue { .. }
             | Expression::NextValue { .. }

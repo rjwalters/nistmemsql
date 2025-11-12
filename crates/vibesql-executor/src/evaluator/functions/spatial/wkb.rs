@@ -247,7 +247,7 @@ fn parse_geometrycollection(cursor: &mut Cursor<&[u8]>, byte_order: ByteOrder) -
         ));
     }
 
-    Ok(Geometry::GeometryCollection { geometries })
+    Ok(Geometry::Collection { geometries })
 }
 
 // Helper functions for reading WKB data
@@ -387,7 +387,7 @@ fn serialize_geometry(geom: &Geometry, buf: &mut Vec<u8>) {
                 }
             }
         }
-        Geometry::GeometryCollection { geometries } => {
+        Geometry::Collection { geometries } => {
             write_u32(buf, WKB_GEOMETRYCOLLECTION);
             write_u32(buf, geometries.len() as u32);
             for geom in geometries {
@@ -469,7 +469,7 @@ fn serialize_geometry_with_srid(geom: &Geometry, srid: i32, buf: &mut Vec<u8>) {
                 }
             }
         }
-        Geometry::GeometryCollection { geometries } => {
+        Geometry::Collection { geometries } => {
             write_u32(buf, WKB_GEOMETRYCOLLECTION | EWKB_SRID_FLAG);
             write_i32(buf, srid);
             write_u32(buf, geometries.len() as u32);

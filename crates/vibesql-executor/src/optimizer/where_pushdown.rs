@@ -217,7 +217,7 @@ fn classify_predicate_branch(
 /// Only splits on top-level AND, not on OR or nested AND
 fn flatten_conjuncts(expr: &vibesql_ast::Expression) -> Vec<vibesql_ast::Expression> {
     match expr {
-        vibesql_ast::Expression::BinaryOp { left, op, right } if matches!(op, vibesql_ast::BinaryOperator::And) => {
+        vibesql_ast::Expression::BinaryOp { left, op: vibesql_ast::BinaryOperator::And, right } => {
             let mut conjuncts = flatten_conjuncts(left);
             conjuncts.extend(flatten_conjuncts(right));
             conjuncts
@@ -249,20 +249,19 @@ fn extract_tables_recursive_branch(
     tables: &mut HashSet<String>,
 ) -> bool {
     match expr {
-        vibesql_ast::Expression::ColumnRef { table, .. } => {
-            if let Some(table_name) = table {
-                let normalized = table_name.to_lowercase();
-                if schema.table_schemas.contains_key(&normalized) {
-                    tables.insert(normalized);
-                    true
-                } else {
-                    // Table qualification not in schema - treat as complex predicate
-                    false
-                }
-            } else {
-                // Unqualified column reference - assume it's valid
+        vibesql_ast::Expression::ColumnRef { table: Some(table_name), .. } => {
+            let normalized = table_name.to_lowercase();
+            if schema.table_schemas.contains_key(&normalized) {
+                tables.insert(normalized);
                 true
+            } else {
+                // Table qualification not in schema - treat as complex predicate
+                false
             }
+        }
+        vibesql_ast::Expression::ColumnRef { table: None, .. } => {
+            // Unqualified column reference - assume it's valid
+            true
         }
         vibesql_ast::Expression::BinaryOp { left, op: _, right } => {
             extract_tables_recursive_branch(left, schema, tables)

@@ -35,6 +35,8 @@ fn expression_references_column(expr: &vibesql_ast::Expression) -> bool {
 
         vibesql_ast::Expression::Cast { expr, .. } => expression_references_column(expr),
 
+        vibesql_ast::Expression::Interval { value, .. } => expression_references_column(value),
+
         vibesql_ast::Expression::Position { substring, string, character_unit: _ } => {
             expression_references_column(substring) || expression_references_column(string)
         }

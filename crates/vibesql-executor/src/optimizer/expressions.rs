@@ -205,6 +205,22 @@ pub fn optimize_expression(
         | Expression::CurrentTime { .. }
         | Expression::CurrentTimestamp { .. } => Ok(expr.clone()),
 
+        // INTERVAL - optimize the value expression
+        Expression::Interval {
+            value,
+            unit,
+            leading_precision,
+            fractional_precision,
+        } => {
+            let optimized_value = optimize_expression(value, evaluator)?;
+            Ok(Expression::Interval {
+                value: Box::new(optimized_value),
+                unit: unit.clone(),
+                leading_precision: *leading_precision,
+                fractional_precision: *fractional_precision,
+            })
+        }
+
         // DEFAULT - cannot optimize
         Expression::Default => Ok(expr.clone()),
 

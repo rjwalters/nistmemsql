@@ -107,6 +107,12 @@ pub struct JoinOrderAnalyzer {
     selectivity: HashMap<String, Selectivity>,
 }
 
+impl Default for JoinOrderAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl JoinOrderAnalyzer {
     /// Create a new join order analyzer
     pub fn new() -> Self {

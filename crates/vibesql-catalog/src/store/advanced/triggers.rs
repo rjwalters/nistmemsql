@@ -47,4 +47,9 @@ impl super::super::Catalog {
             trigger.table_name == table_name && event.as_ref().is_none_or(|e| trigger.event == *e)
         })
     }
+
+    /// List all trigger names
+    pub fn list_triggers(&self) -> Vec<String> {
+        self.triggers.keys().cloned().collect()
+    }
 }

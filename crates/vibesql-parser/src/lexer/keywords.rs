@@ -95,6 +95,9 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "COLUMN" => Token::Keyword(Keyword::Column),
         "COMMIT" => Token::Keyword(Keyword::Commit),
         "CONSTRAINT" => Token::Keyword(Keyword::Constraint),
+        "RENAME" => Token::Keyword(Keyword::Rename),
+        "MODIFY" => Token::Keyword(Keyword::Modify),
+        "CHANGE" => Token::Keyword(Keyword::Change),
         "ROLLBACK" => Token::Keyword(Keyword::Rollback),
         "START" => Token::Keyword(Keyword::Start),
         "TRANSACTION" => Token::Keyword(Keyword::Transaction),
@@ -173,8 +176,16 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "NAMES" => Token::Keyword(Keyword::Names),
         "ZONE" => Token::Keyword(Keyword::Zone),
         "LOCAL" => Token::Keyword(Keyword::Local),
+        // Interval unit keywords
+        "YEAR" => Token::Keyword(Keyword::Year),
+        "QUARTER" => Token::Keyword(Keyword::Quarter),
+        "MONTH" => Token::Keyword(Keyword::Month),
+        "WEEK" => Token::Keyword(Keyword::Week),
+        "DAY" => Token::Keyword(Keyword::Day),
         "HOUR" => Token::Keyword(Keyword::Hour),
         "MINUTE" => Token::Keyword(Keyword::Minute),
+        "SECOND" => Token::Keyword(Keyword::Second),
+        "MICROSECOND" => Token::Keyword(Keyword::Microsecond),
         // Callable object keywords (functions, procedures, methods)
         "FUNCTION" => Token::Keyword(Keyword::Function),
         "PROCEDURE" => Token::Keyword(Keyword::Procedure),
@@ -255,6 +266,15 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "QUERY" => Token::Keyword(Keyword::Query),
         // Spatial index keywords
         "SPATIAL" => Token::Keyword(Keyword::Spatial),
+        // Database introspection keywords
+        "SHOW" => Token::Keyword(Keyword::Show),
+        "DESCRIBE" => Token::Keyword(Keyword::Describe),
+        "DATABASES" => Token::Keyword(Keyword::Databases),
+        "TABLES" => Token::Keyword(Keyword::Tables),
+        "COLUMNS" => Token::Keyword(Keyword::Columns),
+        "FIELDS" => Token::Keyword(Keyword::Fields),
+        "INDEXES" => Token::Keyword(Keyword::Indexes),
+        "KEYS" => Token::Keyword(Keyword::Keys),
         // Auto-increment keywords (MySQL and SQLite)
         "AUTO_INCREMENT" => Token::Keyword(Keyword::AutoIncrement),
         "AUTOINCREMENT" => Token::Keyword(Keyword::AutoIncrement),

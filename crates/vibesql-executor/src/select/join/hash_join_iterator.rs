@@ -2,7 +2,6 @@
 ///
 /// This module implements an iterator-based hash join that provides O(N+M)
 /// performance while maintaining lazy evaluation for the left (probe) side.
-
 use std::collections::HashMap;
 
 use super::{combine_rows, FromResult};

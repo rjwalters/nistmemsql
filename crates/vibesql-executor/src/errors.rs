@@ -17,6 +17,8 @@ pub enum ExecutorError {
     IndexNotFound(String),
     IndexAlreadyExists(String),
     InvalidIndexDefinition(String),
+    TriggerNotFound(String),
+    TriggerAlreadyExists(String),
     SchemaNotFound(String),
     SchemaAlreadyExists(String),
     SchemaNotEmpty(String),
@@ -58,6 +60,10 @@ pub enum ExecutorError {
     CastError {
         from_type: String,
         to_type: String,
+    },
+    TypeConversionError {
+        from: String,
+        to: String,
     },
     ConstraintViolation(String),
     MultiplePrimaryKeys,
@@ -141,6 +147,8 @@ impl std::fmt::Display for ExecutorError {
             ExecutorError::IndexNotFound(name) => write!(f, "Index '{}' not found", name),
             ExecutorError::IndexAlreadyExists(name) => write!(f, "Index '{}' already exists", name),
             ExecutorError::InvalidIndexDefinition(msg) => write!(f, "Invalid index definition: {}", msg),
+            ExecutorError::TriggerNotFound(name) => write!(f, "Trigger '{}' not found", name),
+            ExecutorError::TriggerAlreadyExists(name) => write!(f, "Trigger '{}' already exists", name),
             ExecutorError::SchemaNotFound(name) => write!(f, "Schema '{}' not found", name),
             ExecutorError::SchemaAlreadyExists(name) => {
                 write!(f, "Schema '{}' already exists", name)
@@ -192,6 +200,9 @@ impl std::fmt::Display for ExecutorError {
             }
             ExecutorError::CastError { from_type, to_type } => {
                 write!(f, "Cannot cast {} to {}", from_type, to_type)
+            }
+            ExecutorError::TypeConversionError { from, to } => {
+                write!(f, "Cannot convert {} to {}", from, to)
             }
             ExecutorError::ConstraintViolation(msg) => {
                 write!(f, "Constraint violation: {}", msg)
@@ -394,10 +405,10 @@ impl From<vibesql_catalog::CatalogError> for ExecutorError {
                 ))
             }
             vibesql_catalog::CatalogError::TriggerAlreadyExists(name) => {
-                ExecutorError::Other(format!("Trigger '{}' already exists", name))
+                ExecutorError::TriggerAlreadyExists(name)
             }
             vibesql_catalog::CatalogError::TriggerNotFound(name) => {
-                ExecutorError::Other(format!("Trigger '{}' not found", name))
+                ExecutorError::TriggerNotFound(name)
             }
             vibesql_catalog::CatalogError::AssertionAlreadyExists(name) => {
                 ExecutorError::Other(format!("Assertion '{}' already exists", name))

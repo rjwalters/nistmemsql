@@ -42,6 +42,9 @@ fn collect_window_functions_from_expression(
         Expression::UnaryOp { expr, .. } => {
             collect_window_functions_from_expression(expr, window_functions);
         }
+        Expression::Interval { value, .. } => {
+            collect_window_functions_from_expression(value, window_functions);
+        }
         Expression::Function { args, .. } => {
             for arg in args {
                 collect_window_functions_from_expression(arg, window_functions);
