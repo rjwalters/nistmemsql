@@ -129,6 +129,14 @@ impl SqlExecutor {
                     Err(e) => return Err(anyhow::anyhow!("{}", e)),
                 }
             }
+            vibesql_ast::Statement::DropTable(drop_stmt) => {
+                match vibesql_executor::DropTableExecutor::execute(&drop_stmt, &mut self.db) {
+                    Ok(_) => {
+                        result.row_count = 0; // DDL doesn't return rows
+                    }
+                    Err(e) => return Err(anyhow::anyhow!("{}", e)),
+                }
+            }
             _ => {
                 return Err(anyhow::anyhow!("Statement type not yet supported in CLI"));
             }

@@ -84,6 +84,7 @@ pub struct CreateViewStmt {
     pub columns: Option<Vec<String>>,
     pub query: Box<crate::SelectStmt>,
     pub with_check_option: bool,
+    pub or_replace: bool,
 }
 
 /// DROP VIEW statement

@@ -13,10 +13,10 @@ use geo::algorithm::{Intersects, HaversineDistance};
 fn wkt_to_geo(wkt_str: &str) -> Result<geo::Geometry<f64>, ExecutorError> {
     // Parse WKT string into internal Geometry enum
     let sql_value = SqlValue::Varchar(wkt_str.to_string());
-    let geom = sql_value_to_geometry(&sql_value)?;
+    let geom_with_srid = sql_value_to_geometry(&sql_value)?;
 
     // Convert internal Geometry to geo::Geometry
-    to_geo_geometry(&geom)
+    to_geo_geometry(&geom_with_srid.geometry)
 }
 
 /// Convert internal Geometry to geo::Geometry for spatial operations

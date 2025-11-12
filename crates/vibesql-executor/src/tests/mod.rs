@@ -32,6 +32,8 @@
 //! - `create_table_tests`: CREATE TABLE executor tests (basic table creation, data types, spatial
 //!   types)
 //! - `fulltext_search`: Full-text search integration tests (MATCH...AGAINST natural language, boolean mode)
+//! - `trigger_tests`: Trigger creation and execution tests
+//! - `view_tests`: VIEW support tests (CREATE/DROP/SELECT, OR REPLACE, CASCADE)
 
 mod aggregate_caching;
 mod aggregate_count_sum_avg_tests;
@@ -58,6 +60,7 @@ mod operator_edge_cases;
 mod phase3_join_optimization;
 mod predicate_pushdown;
 mod predicate_tests;
+mod procedure_tests;
 mod privilege_checker_tests;
 mod query_timeout_tests;
 mod scalar_subquery_basic_tests;
@@ -75,3 +78,4 @@ mod select_without_from;
 mod timeout_enforcement;
 mod transaction_tests;
 mod trigger_tests;
+mod view_tests;

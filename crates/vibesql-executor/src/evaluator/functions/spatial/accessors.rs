@@ -18,8 +18,8 @@ pub fn st_x(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     match &args[0] {
         SqlValue::Null => Ok(SqlValue::Null),
         _ => {
-            let geom = sql_value_to_geometry(&args[0])?;
-            match geom {
+            let geom_with_srid = sql_value_to_geometry(&args[0])?;
+            match geom_with_srid.geometry {
                 Geometry::Point { x, .. } => Ok(SqlValue::Double(x)),
                 _ => Err(ExecutorError::UnsupportedFeature(
                     "ST_X requires a POINT geometry".to_string(),
@@ -41,8 +41,8 @@ pub fn st_y(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     match &args[0] {
         SqlValue::Null => Ok(SqlValue::Null),
         _ => {
-            let geom = sql_value_to_geometry(&args[0])?;
-            match geom {
+            let geom_with_srid = sql_value_to_geometry(&args[0])?;
+            match geom_with_srid.geometry {
                 Geometry::Point { y, .. } => Ok(SqlValue::Double(y)),
                 _ => Err(ExecutorError::UnsupportedFeature(
                     "ST_Y requires a POINT geometry".to_string(),
@@ -64,8 +64,8 @@ pub fn st_geometry_type(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     match &args[0] {
         SqlValue::Null => Ok(SqlValue::Null),
         _ => {
-            let geom = sql_value_to_geometry(&args[0])?;
-            Ok(SqlValue::Varchar(geom.geometry_type().to_string()))
+            let geom_with_srid = sql_value_to_geometry(&args[0])?;
+            Ok(SqlValue::Varchar(geom_with_srid.geometry_type().to_string()))
         }
     }
 }
@@ -82,33 +82,14 @@ pub fn st_dimension(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     match &args[0] {
         SqlValue::Null => Ok(SqlValue::Null),
         _ => {
-            let geom = sql_value_to_geometry(&args[0])?;
-            Ok(SqlValue::Integer(geom.dimension() as i64))
-        }
-    }
-}
-
-/// ST_SRID(geom) - Get Spatial Reference System ID
-/// Note: Currently always returns 0 as we don't track SRID
-pub fn st_srid(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
-    if args.len() != 1 {
-        return Err(ExecutorError::UnsupportedFeature(format!(
-            "ST_SRID requires exactly 1 argument, got {}",
-            args.len()
-        )));
-    }
-    
-    match &args[0] {
-        SqlValue::Null => Ok(SqlValue::Null),
-        _ => {
-            let _geom = sql_value_to_geometry(&args[0])?;
-            // For now, always return 0 as we don't track SRID
-            Ok(SqlValue::Integer(0))
+            let geom_with_srid = sql_value_to_geometry(&args[0])?;
+            Ok(SqlValue::Integer(geom_with_srid.dimension() as i64))
         }
     }
 }
 
 /// ST_AsText(geom) - Convert geometry to WKT (Well-Known Text)
+/// Returns EWKT format (SRID=xxx;POINT(...)) if SRID is set
 pub fn st_as_text(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
         return Err(ExecutorError::UnsupportedFeature(format!(
@@ -120,14 +101,14 @@ pub fn st_as_text(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     match &args[0] {
         SqlValue::Null => Ok(SqlValue::Null),
         _ => {
-            let geom = sql_value_to_geometry(&args[0])?;
-            Ok(SqlValue::Varchar(geom.to_wkt()))
+            let geom_with_srid = sql_value_to_geometry(&args[0])?;
+            Ok(SqlValue::Varchar(geom_with_srid.to_ewkt()))
         }
     }
 }
 
-/// ST_AsBinary(geom) - Convert geometry to WKB (Well-Known Binary)
-/// Note: Currently returns a placeholder as WKB is complex
+/// ST_AsBinary(geom) - Convert geometry to WKB (Well-Known Binary) - Phase 2
+/// Returns EWKB (Extended WKB with SRID) if SRID is set
 pub fn st_as_binary(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     if args.len() != 1 {
         return Err(ExecutorError::UnsupportedFeature(format!(
@@ -139,12 +120,11 @@ pub fn st_as_binary(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     match &args[0] {
         SqlValue::Null => Ok(SqlValue::Null),
         _ => {
-            let _geom = sql_value_to_geometry(&args[0])?;
-            // For Phase 1, return a placeholder since WKB encoding is complex
-            // This would be implemented in Phase 2 with proper WKB encoding
-            Err(ExecutorError::UnsupportedFeature(
-                "ST_AsBinary is not yet fully implemented".to_string(),
-            ))
+            let geom_with_srid = sql_value_to_geometry(&args[0])?;
+            // Use EWKB format to include SRID
+            let wkb_data = geom_with_srid.to_ewkb();
+            // Return as hex-encoded string for display (0x...)
+            Ok(SqlValue::Varchar(format!("0x{}", hex::encode(wkb_data))))
         }
     }
 }
@@ -161,8 +141,8 @@ pub fn st_as_geojson(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     match &args[0] {
         SqlValue::Null => Ok(SqlValue::Null),
         _ => {
-            let geom = sql_value_to_geometry(&args[0])?;
-            let geojson = geometry_to_geojson(&geom);
+            let geom_with_srid = sql_value_to_geometry(&args[0])?;
+            let geojson = geometry_to_geojson(&geom_with_srid.geometry);
             Ok(SqlValue::Varchar(geojson))
         }
     }
