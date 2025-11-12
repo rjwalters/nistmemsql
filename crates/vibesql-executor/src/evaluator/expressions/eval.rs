@@ -245,12 +245,48 @@ impl ExpressionEvaluator<'_> {
                 )))
             }
 
-            vibesql_ast::Expression::MatchAgainst { .. } => {
-                Err(ExecutorError::UnsupportedExpression(
-                    "MATCH...AGAINST full-text search not yet implemented".to_string(),
-                ))
+            vibesql_ast::Expression::MatchAgainst { columns, search_modifier, mode } => {
+                self.eval_match_against(columns, search_modifier, mode, row)
             }
         }
+    }
+
+    /// Evaluate a MATCH...AGAINST full-text search expression
+    fn eval_match_against(
+        &self,
+        columns: &[String],
+        search_modifier: &vibesql_ast::Expression,
+        mode: &vibesql_ast::FulltextMode,
+        row: &vibesql_storage::Row,
+    ) -> Result<vibesql_types::SqlValue, ExecutorError> {
+        // Evaluate the search string
+        let search_value = self.eval(search_modifier, row)?;
+        let search_string = match search_value {
+            SqlValue::Varchar(s) | SqlValue::Character(s) => s,
+            SqlValue::Null => return Ok(SqlValue::Boolean(false)),
+            other => other.to_string(),
+        };
+
+        // Collect text values from the specified columns
+        let mut text_values = Vec::new();
+        for column_name in columns {
+            match self.eval_column_ref(None, column_name, row) {
+                Ok(SqlValue::Varchar(s)) | Ok(SqlValue::Character(s)) => text_values.push(s),
+                Ok(SqlValue::Null) => {
+                    // NULL values are treated as empty strings in MATCH
+                    text_values.push(String::new());
+                }
+                Ok(other) => text_values.push(other.to_string()),
+                Err(_) => {
+                    // Column not found - return false for this match
+                    return Ok(SqlValue::Boolean(false));
+                }
+            }
+        }
+
+        // Perform full-text search
+        let result = super::fulltext::eval_match_against(&search_string, &text_values, mode)?;
+        Ok(SqlValue::Boolean(result))
     }
 
     /// Evaluate column reference
