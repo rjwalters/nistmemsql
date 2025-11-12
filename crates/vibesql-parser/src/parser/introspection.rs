@@ -31,6 +31,10 @@ impl Parser {
             Token::Keyword(Keyword::Databases) => {
                 Ok(vibesql_ast::Statement::ShowDatabases(self.parse_show_databases()?))
             }
+            Token::Keyword(Keyword::Full) => {
+                // SHOW FULL COLUMNS - handle FULL modifier for SHOW COLUMNS
+                Ok(vibesql_ast::Statement::ShowColumns(self.parse_show_columns()?))
+            }
             Token::Keyword(Keyword::Columns) | Token::Keyword(Keyword::Fields) => {
                 Ok(vibesql_ast::Statement::ShowColumns(self.parse_show_columns()?))
             }

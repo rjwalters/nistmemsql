@@ -99,3 +99,137 @@ fn test_show_create_table() {
         panic!("Expected ShowCreateTable statement");
     }
 }
+
+// ============================================================================
+// Tests for Synonym Keywords
+// ============================================================================
+
+#[test]
+fn test_show_fields_synonym() {
+    let stmt = Parser::parse_sql("SHOW FIELDS FROM users").unwrap();
+    assert!(matches!(stmt, Statement::ShowColumns(_)));
+
+    if let Statement::ShowColumns(show_columns) = stmt {
+        assert_eq!(show_columns.table_name, "USERS");
+    }
+}
+
+#[test]
+fn test_show_indexes_synonym() {
+    let stmt = Parser::parse_sql("SHOW INDEXES FROM users").unwrap();
+    assert!(matches!(stmt, Statement::ShowIndex(_)));
+
+    if let Statement::ShowIndex(show_index) = stmt {
+        assert_eq!(show_index.table_name, "USERS");
+    }
+}
+
+#[test]
+fn test_show_keys_synonym() {
+    let stmt = Parser::parse_sql("SHOW KEYS FROM users").unwrap();
+    assert!(matches!(stmt, Statement::ShowIndex(_)));
+
+    if let Statement::ShowIndex(show_index) = stmt {
+        assert_eq!(show_index.table_name, "USERS");
+    }
+}
+
+// ============================================================================
+// Tests for LIKE Patterns and Modifiers
+// ============================================================================
+
+#[test]
+fn test_show_tables_with_like() {
+    let stmt = Parser::parse_sql("SHOW TABLES LIKE 'user%'").unwrap();
+
+    if let Statement::ShowTables(show_tables) = stmt {
+        assert_eq!(show_tables.like_pattern, Some("user%".to_string()));
+        assert!(show_tables.database.is_none());
+        assert!(show_tables.where_clause.is_none());
+    } else {
+        panic!("Expected ShowTables statement");
+    }
+}
+
+#[test]
+fn test_show_databases_with_like() {
+    let stmt = Parser::parse_sql("SHOW DATABASES LIKE 'test%'").unwrap();
+
+    if let Statement::ShowDatabases(show_databases) = stmt {
+        assert_eq!(show_databases.like_pattern, Some("test%".to_string()));
+        assert!(show_databases.where_clause.is_none());
+    } else {
+        panic!("Expected ShowDatabases statement");
+    }
+}
+
+#[test]
+fn test_show_columns_full() {
+    let stmt = Parser::parse_sql("SHOW FULL COLUMNS FROM users").unwrap();
+
+    if let Statement::ShowColumns(show_columns) = stmt {
+        assert!(show_columns.full);
+        assert_eq!(show_columns.table_name, "USERS");
+    } else {
+        panic!("Expected ShowColumns statement");
+    }
+}
+
+#[test]
+fn test_show_columns_with_like() {
+    let stmt = Parser::parse_sql("SHOW COLUMNS FROM users LIKE 'name%'").unwrap();
+
+    if let Statement::ShowColumns(show_columns) = stmt {
+        assert_eq!(show_columns.table_name, "USERS");
+        assert_eq!(show_columns.like_pattern, Some("name%".to_string()));
+        assert!(!show_columns.full);
+    } else {
+        panic!("Expected ShowColumns statement");
+    }
+}
+
+// ============================================================================
+// Error Case Tests
+// ============================================================================
+
+#[test]
+fn test_show_without_target() {
+    let result = Parser::parse_sql("SHOW");
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_show_invalid_target() {
+    let result = Parser::parse_sql("SHOW INVALID");
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_show_create_without_table() {
+    let result = Parser::parse_sql("SHOW CREATE");
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_show_create_invalid_object() {
+    let result = Parser::parse_sql("SHOW CREATE INDEX");
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_describe_without_table() {
+    let result = Parser::parse_sql("DESCRIBE");
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_show_columns_without_from() {
+    let result = Parser::parse_sql("SHOW COLUMNS");
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_show_index_without_from() {
+    let result = Parser::parse_sql("SHOW INDEX");
+    assert!(result.is_err());
+}
