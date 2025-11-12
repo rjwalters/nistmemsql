@@ -255,6 +255,15 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "QUERY" => Token::Keyword(Keyword::Query),
         // Spatial index keywords
         "SPATIAL" => Token::Keyword(Keyword::Spatial),
+        // Database introspection keywords
+        "SHOW" => Token::Keyword(Keyword::Show),
+        "DESCRIBE" => Token::Keyword(Keyword::Describe),
+        "DATABASES" => Token::Keyword(Keyword::Databases),
+        "TABLES" => Token::Keyword(Keyword::Tables),
+        "COLUMNS" => Token::Keyword(Keyword::Columns),
+        "FIELDS" => Token::Keyword(Keyword::Fields),
+        "INDEXES" => Token::Keyword(Keyword::Indexes),
+        "KEYS" => Token::Keyword(Keyword::Keys),
         // Auto-increment keywords (MySQL and SQLite)
         "AUTO_INCREMENT" => Token::Keyword(Keyword::AutoIncrement),
         "AUTOINCREMENT" => Token::Keyword(Keyword::AutoIncrement),
