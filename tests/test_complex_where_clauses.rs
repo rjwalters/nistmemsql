@@ -28,9 +28,9 @@ fn create_test_table() -> Database {
         vec![
             ColumnSchema::new("PK".to_string(), DataType::Integer, false),
             ColumnSchema::new("COL0".to_string(), DataType::Integer, true),
-            ColumnSchema::new("COL1".to_string(), DataType::Double, true),
+            ColumnSchema::new("COL1".to_string(), DataType::DoublePrecision, true),
             ColumnSchema::new("COL3".to_string(), DataType::Integer, true),
-            ColumnSchema::new("COL4".to_string(), DataType::Double, true),
+            ColumnSchema::new("COL4".to_string(), DataType::DoublePrecision, true),
         ],
     );
 
@@ -112,8 +112,9 @@ fn test_nested_and_or() {
     .expect("Query should succeed");
 
     // row 1: COL0=400, COL3=500 → first condition TRUE
+    // row 2: COL0=300, COL3=600 → first condition TRUE
     // row 3: COL0=100, COL3=250 → second condition TRUE
-    assert_eq!(result.len(), 2);
+    assert_eq!(result.len(), 3);
 }
 
 #[test]
