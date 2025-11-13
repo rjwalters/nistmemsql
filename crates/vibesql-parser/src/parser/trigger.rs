@@ -135,7 +135,6 @@ impl Parser {
 
         let mut sql_parts = vec!["BEGIN".to_string()];
         let mut depth = 1; // Track BEGIN/END nesting
-        let mut has_statements = false; // Track if body contains any statements
 
         // Collect tokens until matching END
         loop {
@@ -143,7 +142,6 @@ impl Parser {
                 Token::Keyword(Keyword::Begin) => {
                     sql_parts.push("BEGIN".to_string());
                     depth += 1;
-                    has_statements = true; // Nested BEGIN counts as content
                     self.advance();
                 }
                 Token::Keyword(Keyword::End) => {
@@ -167,17 +165,9 @@ impl Parser {
                 token => {
                     // Collect other tokens
                     sql_parts.push(format!("{:?}", token));
-                    has_statements = true; // Any token between BEGIN/END counts as statement
                     self.advance();
                 }
             }
-        }
-
-        // Validate that the trigger body is not empty
-        if !has_statements {
-            return Err(ParseError {
-                message: "Trigger body cannot be empty (BEGIN...END with no statements is invalid)".to_string(),
-            });
         }
 
         let raw_sql = sql_parts.join(" ");
