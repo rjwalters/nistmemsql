@@ -26,13 +26,6 @@ impl ExpressionEvaluator<'_> {
 
         let expr_val = self.eval(expr, row)?;
 
-        if subquery.select_list.len() != 1 {
-            return Err(ExecutorError::SubqueryColumnCountMismatch {
-                expected: 1,
-                actual: subquery.select_list.len(),
-            });
-        }
-
         // Convert TableSchema to CombinedSchema for outer context
         let outer_combined = crate::schema::CombinedSchema::from_table(
             self.schema.name.clone(),
@@ -45,6 +38,17 @@ impl ExpressionEvaluator<'_> {
             self.depth,
         );
         let rows = select_executor.execute(subquery)?;
+
+        // SQL standard (R-35033-20570): The subquery must be a scalar subquery
+        // (single column) when the left expression is not a row value expression.
+        // We must validate this AFTER execution because wildcards like SELECT *
+        // expand to multiple columns at runtime.
+        if !rows.is_empty() && rows[0].values.len() != 1 {
+            return Err(ExecutorError::SubqueryColumnCountMismatch {
+                expected: 1,
+                actual: rows[0].values.len(),
+            });
+        }
 
         // SQL standard behavior for NULL IN (subquery):
         // - NULL IN (empty set) → FALSE (special case per R-52275-55503)
