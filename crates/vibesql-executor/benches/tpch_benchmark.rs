@@ -3,15 +3,15 @@
 //!
 //! This benchmark compares pure SQL engine performance across:
 //! - VibeSQL (native Rust API)
-//! - SQLite (via rusqlite)
-//! - DuckDB (via duckdb-rs)
+//! - SQLite (via rusqlite) - requires 'benchmark-comparison' feature
+//! - DuckDB (via duckdb-rs) - requires 'benchmark-comparison' feature
 //!
 //! All measurements are done in-memory with no Python/FFI overhead.
 //!
 //! Usage:
-//!   cargo bench --bench tpch_benchmark
-//!   cargo bench --bench tpch_benchmark -- --baseline=main
-//!   cargo bench --bench tpch_benchmark -- q1  # Run only Q1
+//!   cargo bench --bench tpch_benchmark --features benchmark-comparison
+//!   cargo bench --bench tpch_benchmark --features benchmark-comparison -- --baseline=main
+//!   cargo bench --bench tpch_benchmark --features benchmark-comparison -- q1  # Run only Q1
 //!
 //! Scale factors:
 //!   SF 0.01 (10MB) - Fast iteration
@@ -23,8 +23,12 @@ use vibesql_executor::SelectExecutor;
 use vibesql_parser::Parser;
 use vibesql_storage::Database as VibeDB;
 use vibesql_types::Date;
+
+#[cfg(feature = "benchmark-comparison")]
 use rusqlite::Connection as SqliteConn;
+#[cfg(feature = "benchmark-comparison")]
 use duckdb::Connection as DuckDBConn;
+
 use rand::Rng;
 use std::str::FromStr;
 use std::time::Duration;
