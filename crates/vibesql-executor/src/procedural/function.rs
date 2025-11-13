@@ -49,7 +49,11 @@ pub fn execute_user_function(
 
     // 3. Check recursion depth
     ctx.enter_recursion()
-        .map_err(|e| ExecutorError::RecursionLimitExceeded(e))?;
+        .map_err(|e| ExecutorError::RecursionLimitExceeded {
+            message: e,
+            call_stack: vec![],  // TODO: Track call stack in Phase 7
+            max_depth: 100,
+        })?;
 
     // 4. Bind arguments to parameters
     // Note: All function parameters are IN only (no OUT/INOUT)

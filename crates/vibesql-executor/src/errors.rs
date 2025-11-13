@@ -93,10 +93,40 @@ pub enum ExecutorError {
         used_bytes: usize,
         max_bytes: usize,
     },
-    /// Variable not found in procedural context
-    VariableNotFound(String),
+    /// Variable not found in procedural context (with available variables)
+    VariableNotFound {
+        variable_name: String,
+        available_variables: Vec<String>,
+    },
     /// Label not found in procedural context
     LabelNotFound(String),
+    /// Procedure not found (with suggestions)
+    ProcedureNotFound {
+        procedure_name: String,
+        schema_name: String,
+        available_procedures: Vec<String>,
+    },
+    /// Function not found (with suggestions)
+    FunctionNotFound {
+        function_name: String,
+        schema_name: String,
+        available_functions: Vec<String>,
+    },
+    /// Parameter count mismatch with details
+    ParameterCountMismatch {
+        routine_name: String,
+        routine_type: String, // "Procedure" or "Function"
+        expected: usize,
+        actual: usize,
+        parameter_signature: String,
+    },
+    /// Parameter type mismatch with details
+    ParameterTypeMismatch {
+        parameter_name: String,
+        expected_type: String,
+        actual_type: String,
+        actual_value: String,
+    },
     /// Type error in expression evaluation
     TypeError(String),
     /// Function argument count mismatch
@@ -104,8 +134,12 @@ pub enum ExecutorError {
         expected: usize,
         actual: usize,
     },
-    /// Recursion limit exceeded in function/procedure calls
-    RecursionLimitExceeded(String),
+    /// Recursion limit exceeded in function/procedure calls (with call stack)
+    RecursionLimitExceeded {
+        message: String,
+        call_stack: Vec<String>,
+        max_depth: usize,
+    },
     /// Function must return a value but did not
     FunctionMustReturn,
     /// Invalid control flow (e.g., LEAVE/ITERATE outside of loop)
@@ -117,6 +151,74 @@ pub enum ExecutorError {
     /// Parse error
     ParseError(String),
     Other(String),
+}
+
+/// Find the closest matching string using simple Levenshtein distance
+fn find_closest_match<'a>(target: &str, candidates: &'a [String]) -> Option<&'a String> {
+    if candidates.is_empty() {
+        return None;
+    }
+
+    let target_lower = target.to_lowercase();
+
+    // First check for exact case-insensitive match
+    if let Some(exact) = candidates.iter().find(|c| c.to_lowercase() == target_lower) {
+        return Some(exact);
+    }
+
+    // Calculate Levenshtein distance for each candidate
+    let mut best_match: Option<(&String, usize)> = None;
+
+    for candidate in candidates {
+        let distance = levenshtein_distance(&target_lower, &candidate.to_lowercase());
+
+        // Only suggest if distance is small relative to the target length
+        // (e.g., within 2 edits or 30% of the length)
+        let max_distance = (target.len() / 3).max(2);
+
+        if distance <= max_distance {
+            if let Some((_, best_distance)) = best_match {
+                if distance < best_distance {
+                    best_match = Some((candidate, distance));
+                }
+            } else {
+                best_match = Some((candidate, distance));
+            }
+        }
+    }
+
+    best_match.map(|(s, _)| s)
+}
+
+/// Calculate Levenshtein distance between two strings
+fn levenshtein_distance(s1: &str, s2: &str) -> usize {
+    let len1 = s1.len();
+    let len2 = s2.len();
+
+    if len1 == 0 {
+        return len2;
+    }
+    if len2 == 0 {
+        return len1;
+    }
+
+    let mut prev_row: Vec<usize> = (0..=len2).collect();
+    let mut curr_row = vec![0; len2 + 1];
+
+    for (i, c1) in s1.chars().enumerate() {
+        curr_row[0] = i + 1;
+
+        for (j, c2) in s2.chars().enumerate() {
+            let cost = if c1 == c2 { 0 } else { 1 };
+            curr_row[j + 1] = (curr_row[j] + 1)
+                .min(prev_row[j + 1] + 1)
+                .min(prev_row[j] + cost);
+        }
+
+        std::mem::swap(&mut prev_row, &mut curr_row);
+    }
+
+    prev_row[len2]
 }
 
 impl std::fmt::Display for ExecutorError {
@@ -254,11 +356,94 @@ impl std::fmt::Display for ExecutorError {
                     *max_bytes as f64 / 1024.0 / 1024.0 / 1024.0
                 )
             }
-            ExecutorError::VariableNotFound(name) => {
-                write!(f, "Variable '{}' not found", name)
+            ExecutorError::VariableNotFound { variable_name, available_variables } => {
+                if available_variables.is_empty() {
+                    write!(f, "Variable '{}' not found", variable_name)
+                } else {
+                    write!(
+                        f,
+                        "Variable '{}' not found. Available variables: {}",
+                        variable_name,
+                        available_variables.join(", ")
+                    )
+                }
             }
             ExecutorError::LabelNotFound(name) => {
                 write!(f, "Label '{}' not found", name)
+            }
+            ExecutorError::ProcedureNotFound { procedure_name, schema_name, available_procedures } => {
+                if available_procedures.is_empty() {
+                    write!(f, "Procedure '{}' not found in schema '{}'", procedure_name, schema_name)
+                } else {
+                    // Check for similar names using simple edit distance
+                    let suggestion = find_closest_match(procedure_name, available_procedures);
+                    if let Some(similar) = suggestion {
+                        write!(
+                            f,
+                            "Procedure '{}' not found in schema '{}'\nAvailable procedures: {}\nDid you mean '{}'?",
+                            procedure_name,
+                            schema_name,
+                            available_procedures.join(", "),
+                            similar
+                        )
+                    } else {
+                        write!(
+                            f,
+                            "Procedure '{}' not found in schema '{}'\nAvailable procedures: {}",
+                            procedure_name,
+                            schema_name,
+                            available_procedures.join(", ")
+                        )
+                    }
+                }
+            }
+            ExecutorError::FunctionNotFound { function_name, schema_name, available_functions } => {
+                if available_functions.is_empty() {
+                    write!(f, "Function '{}' not found in schema '{}'", function_name, schema_name)
+                } else {
+                    let suggestion = find_closest_match(function_name, available_functions);
+                    if let Some(similar) = suggestion {
+                        write!(
+                            f,
+                            "Function '{}' not found in schema '{}'\nAvailable functions: {}\nDid you mean '{}'?",
+                            function_name,
+                            schema_name,
+                            available_functions.join(", "),
+                            similar
+                        )
+                    } else {
+                        write!(
+                            f,
+                            "Function '{}' not found in schema '{}'\nAvailable functions: {}",
+                            function_name,
+                            schema_name,
+                            available_functions.join(", ")
+                        )
+                    }
+                }
+            }
+            ExecutorError::ParameterCountMismatch { routine_name, routine_type, expected, actual, parameter_signature } => {
+                write!(
+                    f,
+                    "{} '{}' expects {} parameter{} ({}), got {} argument{}",
+                    routine_type,
+                    routine_name,
+                    expected,
+                    if *expected == 1 { "" } else { "s" },
+                    parameter_signature,
+                    actual,
+                    if *actual == 1 { "" } else { "s" }
+                )
+            }
+            ExecutorError::ParameterTypeMismatch { parameter_name, expected_type, actual_type, actual_value } => {
+                write!(
+                    f,
+                    "Parameter '{}' expects {}, got {} '{}'",
+                    parameter_name,
+                    expected_type,
+                    actual_type,
+                    actual_value
+                )
             }
             ExecutorError::TypeError(msg) => {
                 write!(f, "Type error: {}", msg)
@@ -266,8 +451,15 @@ impl std::fmt::Display for ExecutorError {
             ExecutorError::ArgumentCountMismatch { expected, actual } => {
                 write!(f, "Argument count mismatch: expected {}, got {}", expected, actual)
             }
-            ExecutorError::RecursionLimitExceeded(msg) => {
-                write!(f, "Recursion limit exceeded: {}", msg)
+            ExecutorError::RecursionLimitExceeded { message, call_stack, max_depth } => {
+                write!(f, "Maximum recursion depth ({}) exceeded: {}", max_depth, message)?;
+                if !call_stack.is_empty() {
+                    write!(f, "\nCall stack:")?;
+                    for call in call_stack {
+                        write!(f, "\n  {}", call)?;
+                    }
+                }
+                Ok(())
             }
             ExecutorError::FunctionMustReturn => {
                 write!(f, "Function must return a value")
