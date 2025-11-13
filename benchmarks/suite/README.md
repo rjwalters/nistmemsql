@@ -9,18 +9,18 @@ Performance benchmarking tools for the VibeSQL database engine.
 Benchmark all 623 SQLLogicTest files:
 
 ```bash
-cd benchmark
+cd benchmarks/suite
 ./suite.sh
 ```
 
-Results saved to `../target/benchmarks/comparison_YYYYMMDD_HHMMSS.json`
+Results saved to `../../target/benchmarks/comparison_YYYYMMDD_HHMMSS.json`
 
 ### Run Head-to-Head Comparison (Coming Soon)
 
 Compare VibeSQL vs SQLite with interleaved execution:
 
 ```bash
-cd benchmark
+cd benchmarks/suite
 ./head-to-head.sh
 ```
 

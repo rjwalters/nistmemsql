@@ -476,7 +476,7 @@ VibeSQL includes comprehensive benchmarking tools for measuring and tracking per
 
 ```bash
 # Run full suite benchmark (all 623 files with 3 iterations each)
-cd benchmark
+cd benchmarks/suite
 ./suite.sh
 
 # Sample 50 random files for quick testing
@@ -543,8 +543,8 @@ for r in slowest:
 
 **Database analysis** (dogfooding VibeSQL for benchmark analysis):
 ```bash
-cd benchmark
-./analyze.py ../target/benchmarks/comparison_20251112_034521.json --notes "Baseline"
+cd benchmarks/suite
+./analyze.py ../../target/benchmarks/comparison_20251112_034521.json --notes "Baseline"
 ```
 
 ### Performance Tracking
