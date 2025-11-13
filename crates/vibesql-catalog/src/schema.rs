@@ -19,13 +19,31 @@ impl Schema {
     }
 
     /// Create a table in this schema
-    pub fn create_table(&mut self, schema: TableSchema) -> Result<(), CatalogError> {
-        let table_name = schema.name.clone();
-        if self.tables.contains_key(&table_name) {
-            return Err(CatalogError::TableAlreadyExists(table_name));
+    pub fn create_table_with_case_mode(&mut self, schema: TableSchema, case_sensitive: bool) -> Result<(), CatalogError> {
+        let table_name = if case_sensitive {
+            schema.name.clone()
+        } else {
+            schema.name.to_uppercase()
+        };
+
+        // Check if table already exists (case-insensitive if needed)
+        if case_sensitive {
+            if self.tables.contains_key(&table_name) {
+                return Err(CatalogError::TableAlreadyExists(schema.name.clone()));
+            }
+        } else {
+            if self.tables.values().any(|t| t.name.to_uppercase() == table_name) {
+                return Err(CatalogError::TableAlreadyExists(schema.name.clone()));
+            }
         }
+
         self.tables.insert(table_name, schema);
         Ok(())
+    }
+
+    /// Create a table in this schema (legacy method, assumes case-insensitive)
+    pub fn create_table(&mut self, schema: TableSchema) -> Result<(), CatalogError> {
+        self.create_table_with_case_mode(schema, false)
     }
 
     /// Get a table schema by name with optional case-insensitive lookup

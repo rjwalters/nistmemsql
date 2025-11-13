@@ -148,8 +148,15 @@ impl Database {
         self.operations
             .create_table(&mut self.catalog, schema.clone())?;
 
+        // Normalize table name for storage (matches catalog normalization)
+        let normalized_table_name = if self.catalog.is_case_sensitive_identifiers() {
+            table_name.clone()
+        } else {
+            table_name.to_uppercase()
+        };
+
         let current_schema = &self.catalog.get_current_schema();
-        let qualified_name = format!("{}.{}", current_schema, table_name);
+        let qualified_name = format!("{}.{}", current_schema, normalized_table_name);
 
         let table = Table::new(schema);
         self.tables.insert(qualified_name, table);
@@ -159,13 +166,20 @@ impl Database {
 
     /// Get a table for reading
     pub fn get_table(&self, name: &str) -> Option<&Table> {
-        if let Some(table) = self.tables.get(name) {
+        // Normalize table name for lookup (matches catalog normalization)
+        let normalized_name = if self.catalog.is_case_sensitive_identifiers() {
+            name.to_string()
+        } else {
+            name.to_uppercase()
+        };
+
+        if let Some(table) = self.tables.get(&normalized_name) {
             return Some(table);
         }
 
         if !name.contains('.') {
             let current_schema = &self.catalog.get_current_schema();
-            let qualified_name = format!("{}.{}", current_schema, name);
+            let qualified_name = format!("{}.{}", current_schema, normalized_name);
             return self.tables.get(&qualified_name);
         }
 
@@ -174,13 +188,20 @@ impl Database {
 
     /// Get a table for writing
     pub fn get_table_mut(&mut self, name: &str) -> Option<&mut Table> {
-        if self.tables.contains_key(name) {
-            return self.tables.get_mut(name);
+        // Normalize table name for lookup (matches catalog normalization)
+        let normalized_name = if self.catalog.is_case_sensitive_identifiers() {
+            name.to_string()
+        } else {
+            name.to_uppercase()
+        };
+
+        if self.tables.contains_key(&normalized_name) {
+            return self.tables.get_mut(&normalized_name);
         }
 
         if !name.contains('.') {
             let current_schema = &self.catalog.get_current_schema().to_string();
-            let qualified_name = format!("{}.{}", current_schema, name);
+            let qualified_name = format!("{}.{}", current_schema, normalized_name);
             return self.tables.get_mut(&qualified_name);
         }
 

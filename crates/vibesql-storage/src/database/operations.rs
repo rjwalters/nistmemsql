@@ -99,9 +99,26 @@ impl Operations {
         table_name: &str,
         row: Row,
     ) -> Result<usize, StorageError> {
-        let table = tables
-            .get_mut(table_name)
-            .ok_or_else(|| StorageError::TableNotFound(table_name.to_string()))?;
+        // Normalize table name for lookup (matches catalog normalization)
+        let normalized_name = if catalog.is_case_sensitive_identifiers() {
+            table_name.to_string()
+        } else {
+            table_name.to_uppercase()
+        };
+
+        // First try direct lookup, then try with schema prefix if needed
+        let table = if let Some(tbl) = tables.get_mut(&normalized_name) {
+            tbl
+        } else if !table_name.contains('.') {
+            // Try with schema prefix
+            let current_schema = catalog.get_current_schema();
+            let qualified_name = format!("{}.{}", current_schema, normalized_name);
+            tables
+                .get_mut(&qualified_name)
+                .ok_or_else(|| StorageError::TableNotFound(table_name.to_string()))?
+        } else {
+            return Err(StorageError::TableNotFound(table_name.to_string()));
+        };
 
         let row_index = table.row_count();
         table.insert(row.clone())?;
