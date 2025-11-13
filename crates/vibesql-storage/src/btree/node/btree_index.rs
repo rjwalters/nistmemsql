@@ -17,6 +17,28 @@ use super::structure::{InternalNode, Key, LeafNode, RowId};
 ///
 /// This structure provides a disk-backed B+ tree index that maintains
 /// sorted key-value mappings with efficient range query support.
+///
+/// ## Non-Unique Index Support
+///
+/// This B+ tree fully supports duplicate keys for non-unique indexes. Multiple
+/// rows can have the same key value, and all row IDs are stored efficiently
+/// within the same B+ tree entry.
+///
+/// ## Storage Format
+///
+/// Leaf nodes store entries as `Vec<(Key, Vec<RowId>)>`, allowing multiple
+/// row IDs per key. The serialization format per entry is:
+/// ```text
+/// key_len (2 bytes) → key_values (variable) → num_row_ids (2 bytes) → row_id × num_row_ids (8 bytes each)
+/// ```
+///
+/// ## Performance Characteristics
+///
+/// - **Insert**: O(log n + k) where n = number of unique keys, k = duplicates for existing key
+/// - **Lookup**: O(log n + k) where k = number of duplicates to return
+/// - **Range Scan**: O(log n + m + k) where m = keys in range, k = total duplicates
+/// - **Delete**: O(log n) to find key, removes all associated row IDs
+/// - **Storage Overhead**: 2 bytes per unique key (for row count) + 8 bytes per row ID
 #[derive(Debug)]
 pub struct BTreeIndex {
     /// Page ID of the root node
@@ -38,12 +60,27 @@ pub struct BTreeIndex {
 impl BTreeIndex {
     /// Create a new B+ tree index
     ///
+    /// Creates a new disk-backed B+ tree index that supports both unique and
+    /// non-unique keys. For non-unique indexes, duplicate keys are automatically
+    /// grouped together, with multiple row IDs stored per key.
+    ///
     /// # Arguments
     /// * `page_manager` - Page manager for disk I/O
     /// * `key_schema` - Data types of key columns
     ///
     /// # Returns
     /// A new B+ tree index with an empty root
+    ///
+    /// # Example
+    /// ```ignore
+    /// use std::sync::Arc;
+    /// use vibesql_storage::btree::BTreeIndex;
+    /// use vibesql_storage::page::PageManager;
+    /// use vibesql_types::DataType;
+    ///
+    /// let page_manager = Arc::new(PageManager::new_in_memory(4096)?);
+    /// let index = BTreeIndex::new(page_manager, vec![DataType::Integer])?;
+    /// ```
     pub fn new(
         page_manager: Arc<PageManager>,
         key_schema: Vec<DataType>,
@@ -393,12 +430,35 @@ impl BTreeIndex {
 
     /// Insert a key-value pair into the B+ tree
     ///
+    /// This method fully supports duplicate keys for non-unique indexes. If the key
+    /// already exists, the row_id is appended to the existing Vec of row IDs for
+    /// that key. The operation always succeeds (unless there's an I/O error).
+    ///
     /// # Arguments
     /// * `key` - The key to insert
     /// * `row_id` - The row ID associated with this key
     ///
     /// # Returns
     /// Ok(()) if successful, or StorageError if I/O error occurs
+    ///
+    /// # Performance
+    /// - **New key**: O(log n) to find position + O(degree) for potential split
+    /// - **Duplicate key**: O(log n) to find + O(1) to append to existing Vec
+    ///
+    /// # Example
+    /// ```ignore
+    /// use vibesql_types::SqlValue;
+    ///
+    /// // Insert first occurrence of key 42
+    /// index.insert(vec![SqlValue::Integer(42)], 100)?;
+    ///
+    /// // Insert duplicate key - appends to existing entry
+    /// index.insert(vec![SqlValue::Integer(42)], 200)?;
+    ///
+    /// // Lookup returns both row IDs
+    /// let rows = index.lookup(&vec![SqlValue::Integer(42)])?;
+    /// assert_eq!(rows, vec![100, 200]);
+    /// ```
     ///
     /// # Implementation
     /// This method supports duplicate keys for non-unique indexes:
@@ -543,7 +603,11 @@ impl BTreeIndex {
         Ok(())
     }
 
-    /// Delete all row_ids for a key from the B+ tree
+    /// Delete all row IDs for a key from the B+ tree
+    ///
+    /// For non-unique indexes, this removes the key and **all** associated row IDs
+    /// in a single operation. If you need to remove only specific row IDs while
+    /// keeping others, you must implement that logic at a higher level.
     ///
     /// Implements full multi-level tree deletion with node merging and rebalancing.
     /// When a deletion causes a leaf node to become underfull, it will try to borrow
@@ -553,13 +617,35 @@ impl BTreeIndex {
     /// * `key` - The key to delete (removes all associated row_ids)
     ///
     /// # Returns
-    /// * `Ok(true)` if the key was found and deleted
+    /// * `Ok(true)` if the key was found and deleted (all row IDs removed)
     /// * `Ok(false)` if the key was not found
     /// * `Err(_)` if an I/O error occurred
     ///
+    /// # Performance
+    /// - O(log n) to find key + O(log n) for potential rebalancing
+    /// - All row IDs for the key are removed regardless of count
+    ///
+    /// # Example
+    /// ```ignore
+    /// use vibesql_types::SqlValue;
+    ///
+    /// // Insert duplicate keys
+    /// index.insert(vec![SqlValue::Integer(42)], 1)?;
+    /// index.insert(vec![SqlValue::Integer(42)], 2)?;
+    /// index.insert(vec![SqlValue::Integer(42)], 3)?;
+    ///
+    /// // Delete removes ALL row IDs for key 42
+    /// let deleted = index.delete(&vec![SqlValue::Integer(42)])?;
+    /// assert!(deleted); // true - key was found and removed
+    ///
+    /// // Subsequent lookup returns empty
+    /// let rows = index.lookup(&vec![SqlValue::Integer(42)])?;
+    /// assert!(rows.is_empty());
+    /// ```
+    ///
     /// # Algorithm
     /// 1. Find the leaf node containing the key
-    /// 2. Delete all row_ids for the key from the leaf
+    /// 2. Delete all row_ids for the key from the leaf (single operation)
     /// 3. If leaf becomes underfull, try to borrow from sibling or merge
     /// 4. Propagate rebalancing up the tree if necessary
     /// 5. Collapse the root if it has only one child
@@ -659,18 +745,44 @@ impl BTreeIndex {
         Ok(true)
     }
 
-    /// Lookup a key in the B+ tree
+    /// Look up all row IDs for a given key
+    ///
+    /// For non-unique indexes, this returns all row IDs associated with the key.
+    /// For unique indexes, the Vec will contain at most one element.
     ///
     /// # Arguments
     /// * `key` - The key to search for
     ///
     /// # Returns
-    /// * Vector of row_ids associated with this key (empty if key not found)
+    /// * Vector of row_ids associated with this key (empty Vec if key not found)
+    ///
+    /// # Performance
+    /// - O(log n) to find the key (where n = number of unique keys)
+    /// - O(k) to clone row IDs (where k = number of duplicates)
+    /// - Total: O(log n + k)
+    ///
+    /// # Example
+    /// ```ignore
+    /// use vibesql_types::SqlValue;
+    ///
+    /// // Insert duplicate keys
+    /// index.insert(vec![SqlValue::Integer(42)], 1)?;
+    /// index.insert(vec![SqlValue::Integer(42)], 2)?;
+    /// index.insert(vec![SqlValue::Integer(42)], 3)?;
+    ///
+    /// // Lookup returns all row IDs
+    /// let rows = index.lookup(&vec![SqlValue::Integer(42)])?;
+    /// assert_eq!(rows, vec![1, 2, 3]);
+    ///
+    /// // Nonexistent key returns empty Vec
+    /// let rows = index.lookup(&vec![SqlValue::Integer(99)])?;
+    /// assert!(rows.is_empty());
+    /// ```
     ///
     /// # Algorithm
     /// 1. Navigate to the appropriate leaf node using find_leaf_path
     /// 2. Search for the key in the leaf node
-    /// 3. Return all row_ids associated with the key
+    /// 3. Return all row_ids associated with the key (or empty Vec if not found)
     pub fn lookup(&self, key: &Key) -> Result<Vec<RowId>, StorageError> {
         // Find the leaf that would contain this key
         let (leaf, _) = self.find_leaf_path(key)?;
@@ -684,19 +796,48 @@ impl BTreeIndex {
     /// Returns all row_ids for keys in the specified range [start_key, end_key].
     /// The range can be inclusive or exclusive on either end based on the parameters.
     ///
+    /// For non-unique indexes with duplicate keys, all row IDs for each key in the
+    /// range are included in the result. The row IDs are returned in key order, with
+    /// all duplicates for each key grouped together.
+    ///
     /// # Arguments
-    /// * `start_key` - Optional lower bound key
-    /// * `end_key` - Optional upper bound key
+    /// * `start_key` - Optional lower bound key (None = start from beginning)
+    /// * `end_key` - Optional upper bound key (None = scan to end)
     /// * `inclusive_start` - Whether start_key is inclusive (default: true)
     /// * `inclusive_end` - Whether end_key is inclusive (default: true)
     ///
     /// # Returns
-    /// Vector of row_ids in sorted key order
+    /// Vector of row_ids in sorted key order (includes all duplicates)
+    ///
+    /// # Performance
+    /// - O(log n) to find starting leaf (where n = number of unique keys)
+    /// - O(m + k) to scan through results (where m = keys in range, k = total duplicates)
+    /// - Total: O(log n + m + k)
+    ///
+    /// # Example
+    /// ```ignore
+    /// use vibesql_types::SqlValue;
+    ///
+    /// // Insert some data with duplicates
+    /// index.insert(vec![SqlValue::Integer(10)], 1)?;
+    /// index.insert(vec![SqlValue::Integer(20)], 2)?;
+    /// index.insert(vec![SqlValue::Integer(20)], 3)?; // duplicate
+    /// index.insert(vec![SqlValue::Integer(30)], 4)?;
+    ///
+    /// // Range scan [15, 25] returns both row IDs for key 20
+    /// let rows = index.range_scan(
+    ///     Some(&vec![SqlValue::Integer(15)]),
+    ///     Some(&vec![SqlValue::Integer(25)]),
+    ///     true,
+    ///     true
+    /// )?;
+    /// assert_eq!(rows, vec![2, 3]); // Both duplicates included
+    /// ```
     ///
     /// # Algorithm
     /// 1. Find the starting leaf node
     /// 2. Iterate through leaf nodes using next_leaf pointers
-    /// 3. Collect all row_ids within the range
+    /// 3. Collect all row_ids (including duplicates) within the range
     /// 4. Stop when reaching the end key or end of tree
     pub fn range_scan(
         &self,
