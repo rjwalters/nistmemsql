@@ -37,6 +37,16 @@ impl Operations {
         }
     }
 
+    /// Set the database path for index storage
+    pub fn set_database_path(&mut self, path: std::path::PathBuf) {
+        self.index_manager.set_database_path(path);
+    }
+
+    /// Set the database configuration (memory budgets, spill policy)
+    pub fn set_config(&mut self, config: super::DatabaseConfig) {
+        self.index_manager.set_config(config);
+    }
+
     // ============================================================================
     // Table Operations
     // ============================================================================

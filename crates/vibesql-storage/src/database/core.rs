@@ -6,8 +6,10 @@ use super::lifecycle::Lifecycle;
 use super::metadata::Metadata;
 use super::operations::{Operations, SpatialIndexMetadata};
 use super::transactions::TransactionChange;
+use super::DatabaseConfig;
 use crate::{Row, StorageError, Table};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use vibesql_ast::IndexColumn;
 
 pub use super::operations::SpatialIndexMetadata as ExportedSpatialIndexMetadata;
@@ -36,6 +38,65 @@ impl Database {
             operations: Operations::new(),
             tables: HashMap::new(),
         }
+    }
+
+    /// Create a new database with a specific storage path
+    ///
+    /// The provided path will be used as the root directory for database files.
+    /// Index files will be stored in `<path>/data/indexes/`.
+    ///
+    /// # Example
+    /// ```rust
+    /// use std::path::PathBuf;
+    /// use vibesql_storage::Database;
+    ///
+    /// let db = Database::with_path(PathBuf::from("/var/lib/myapp/db"));
+    /// // Index files will be stored in /var/lib/myapp/db/data/indexes/
+    /// ```
+    pub fn with_path(path: PathBuf) -> Self {
+        let mut db = Self::new();
+        db.operations.set_database_path(path.join("data"));
+        db
+    }
+
+    /// Create a new database with a specific configuration
+    ///
+    /// Allows setting memory budgets, disk budgets, and spill policy for adaptive
+    /// index management.
+    ///
+    /// # Example
+    /// ```rust
+    /// use vibesql_storage::{Database, DatabaseConfig};
+    ///
+    /// // Browser environment with limited memory
+    /// let db = Database::with_config(DatabaseConfig::browser_default());
+    ///
+    /// // Server environment with abundant memory
+    /// let db = Database::with_config(DatabaseConfig::server_default());
+    /// ```
+    pub fn with_config(config: DatabaseConfig) -> Self {
+        let mut db = Self::new();
+        db.operations.set_config(config);
+        db
+    }
+
+    /// Create a new database with both path and configuration
+    ///
+    /// # Example
+    /// ```rust
+    /// use std::path::PathBuf;
+    /// use vibesql_storage::{Database, DatabaseConfig};
+    ///
+    /// let db = Database::with_path_and_config(
+    ///     PathBuf::from("/var/lib/myapp/db"),
+    ///     DatabaseConfig::server_default()
+    /// );
+    /// ```
+    pub fn with_path_and_config(path: PathBuf, config: DatabaseConfig) -> Self {
+        let mut db = Self::new();
+        db.operations.set_database_path(path.join("data"));
+        db.operations.set_config(config);
+        db
     }
 
     /// Reset the database to empty state (more efficient than creating a new instance).
