@@ -88,28 +88,40 @@ for &sf in &[0.01, 0.1, 1.0] {  // Add more scale factors
 
 ## TPC-H Queries Implemented
 
-### Currently Implemented
+### Phase 1: Complete (Q1-Q6)
 
 1. **Q1: Pricing Summary Report**
    - Aggregate pricing summary with GROUP BY
    - Tests: Aggregation, GROUP BY, ORDER BY, filtering
 
-2. **Q6: Forecasting Revenue Change**
+2. **Q2: Minimum Cost Supplier Query**
+   - Find suppliers in a region with max account balance
+   - Tests: Multi-table JOIN, filtering, ORDER BY, LIMIT
+
+3. **Q3: Shipping Priority Query**
+   - Calculate revenue for unshipped orders by priority
+   - Tests: 3-table JOIN, aggregation, GROUP BY, ORDER BY DESC
+
+4. **Q4: Order Priority Checking Query**
+   - Count orders by priority with late line items
+   - Tests: Correlated subquery with EXISTS, date filtering
+
+5. **Q5: Local Supplier Volume Query**
+   - Calculate revenue by nation for local suppliers in a region
+   - Tests: 6-table JOIN, complex filtering, GROUP BY
+
+6. **Q6: Forecasting Revenue Change**
    - Simple aggregation with selective filtering
    - Tests: WHERE filters, BETWEEN, simple SUM
 
-### TODO: Remaining Queries
+### Phase 2: TODO (Q7-Q22)
 
-The benchmark file includes placeholders for all 22 TPC-H queries:
-- Q2: Minimum Cost Supplier (subqueries, joins)
-- Q3: Shipping Priority (3-table join, aggregation)
-- Q4: Order Priority Checking (subquery, aggregation)
-- Q5: Local Supplier Volume (5-table join)
-- Q7: Volume Shipping (complex join, GROUP BY)
-- Q8: National Market Share (complex joins, CASE)
-- Q9: Product Type Profit Measure (complex aggregation)
-- Q10: Returned Item Reporting (joins, TOP-N)
-- ... (Q11-Q22)
+The following queries are planned for future implementation:
+
+- **Q7-Q13**: Advanced joins and subqueries
+- **Q14-Q22**: Complex analytics and edge cases
+
+See issue #1525 for the implementation roadmap.
 
 **To add more queries**: Follow the pattern in `tpch_benchmark.rs`:
 

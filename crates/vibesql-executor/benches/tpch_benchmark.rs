@@ -1228,8 +1228,296 @@ fn benchmark_q6_duckdb(c: &mut Criterion) {
     });
 }
 
-// TODO: Add remaining TPC-H queries (Q2-Q5, Q7-Q22)
-// For initial implementation, Q1 and Q6 demonstrate the pattern
+// =============================================================================
+// TPC-H Q2: Minimum Cost Supplier Query
+// =============================================================================
+
+const TPCH_Q2: &str = r#"
+SELECT
+    s_acctbal,
+    s_name,
+    n_name,
+    s_address,
+    s_phone,
+    s_comment
+FROM supplier, nation, region
+WHERE s_nationkey = n_nationkey
+    AND n_regionkey = r_regionkey
+    AND r_name = 'EUROPE'
+ORDER BY s_acctbal DESC
+LIMIT 100
+"#;
+
+fn benchmark_q2_vibesql(c: &mut Criterion) {
+    let db = load_vibesql(0.01);
+
+    c.bench_function("tpch_q2_vibesql", |b| {
+        b.iter(|| {
+            let stmt = Parser::parse_sql(TPCH_Q2).unwrap();
+            if let vibesql_ast::Statement::Select(select) = stmt {
+                let executor = SelectExecutor::new(&db);
+                let mut result = executor.execute(*select).unwrap();
+                let mut count = 0;
+                while result.next().is_some() {
+                    count += 1;
+                }
+                black_box(count);
+            }
+        });
+    });
+}
+
+fn benchmark_q2_sqlite(c: &mut Criterion) {
+    let conn = load_sqlite(0.01);
+
+    c.bench_function("tpch_q2_sqlite", |b| {
+        b.iter(|| {
+            let mut stmt = conn.prepare(TPCH_Q2).unwrap();
+            let mut rows = stmt.query([]).unwrap();
+            let mut count = 0;
+            while rows.next().unwrap().is_some() {
+                count += 1;
+            }
+            black_box(count);
+        });
+    });
+}
+
+fn benchmark_q2_duckdb(c: &mut Criterion) {
+    let conn = load_duckdb(0.01);
+
+    c.bench_function("tpch_q2_duckdb", |b| {
+        b.iter(|| {
+            let mut stmt = conn.prepare(TPCH_Q2).unwrap();
+            let mut rows = stmt.query([]).unwrap();
+            let mut count = 0;
+            while rows.next().unwrap().is_some() {
+                count += 1;
+            }
+            black_box(count);
+        });
+    });
+}
+
+// =============================================================================
+// TPC-H Q3: Shipping Priority Query
+// =============================================================================
+
+const TPCH_Q3: &str = r#"
+SELECT
+    l_orderkey,
+    SUM(l_extendedprice * (1 - l_discount)) as revenue,
+    o_orderdate,
+    o_shippriority
+FROM customer, orders, lineitem
+WHERE c_mktsegment = 'BUILDING'
+    AND c_custkey = o_custkey
+    AND l_orderkey = o_orderkey
+    AND o_orderdate < '1995-03-15'
+    AND l_shipdate > '1995-03-15'
+GROUP BY l_orderkey, o_orderdate, o_shippriority
+ORDER BY revenue DESC, o_orderdate
+LIMIT 10
+"#;
+
+fn benchmark_q3_vibesql(c: &mut Criterion) {
+    let db = load_vibesql(0.01);
+
+    c.bench_function("tpch_q3_vibesql", |b| {
+        b.iter(|| {
+            let stmt = Parser::parse_sql(TPCH_Q3).unwrap();
+            if let vibesql_ast::Statement::Select(select) = stmt {
+                let executor = SelectExecutor::new(&db);
+                let mut result = executor.execute(*select).unwrap();
+                let mut count = 0;
+                while result.next().is_some() {
+                    count += 1;
+                }
+                black_box(count);
+            }
+        });
+    });
+}
+
+fn benchmark_q3_sqlite(c: &mut Criterion) {
+    let conn = load_sqlite(0.01);
+
+    c.bench_function("tpch_q3_sqlite", |b| {
+        b.iter(|| {
+            let mut stmt = conn.prepare(TPCH_Q3).unwrap();
+            let mut rows = stmt.query([]).unwrap();
+            let mut count = 0;
+            while rows.next().unwrap().is_some() {
+                count += 1;
+            }
+            black_box(count);
+        });
+    });
+}
+
+fn benchmark_q3_duckdb(c: &mut Criterion) {
+    let conn = load_duckdb(0.01);
+
+    c.bench_function("tpch_q3_duckdb", |b| {
+        b.iter(|| {
+            let mut stmt = conn.prepare(TPCH_Q3).unwrap();
+            let mut rows = stmt.query([]).unwrap();
+            let mut count = 0;
+            while rows.next().unwrap().is_some() {
+                count += 1;
+            }
+            black_box(count);
+        });
+    });
+}
+
+// =============================================================================
+// TPC-H Q4: Order Priority Checking Query
+// =============================================================================
+
+const TPCH_Q4: &str = r#"
+SELECT
+    o_orderpriority,
+    COUNT(*) as order_count
+FROM orders
+WHERE o_orderdate >= '1993-07-01'
+    AND o_orderdate < '1993-10-01'
+    AND EXISTS (
+        SELECT *
+        FROM lineitem
+        WHERE l_orderkey = o_orderkey
+            AND l_commitdate < l_receiptdate
+    )
+GROUP BY o_orderpriority
+ORDER BY o_orderpriority
+"#;
+
+fn benchmark_q4_vibesql(c: &mut Criterion) {
+    let db = load_vibesql(0.01);
+
+    c.bench_function("tpch_q4_vibesql", |b| {
+        b.iter(|| {
+            let stmt = Parser::parse_sql(TPCH_Q4).unwrap();
+            if let vibesql_ast::Statement::Select(select) = stmt {
+                let executor = SelectExecutor::new(&db);
+                let mut result = executor.execute(*select).unwrap();
+                let mut count = 0;
+                while result.next().is_some() {
+                    count += 1;
+                }
+                black_box(count);
+            }
+        });
+    });
+}
+
+fn benchmark_q4_sqlite(c: &mut Criterion) {
+    let conn = load_sqlite(0.01);
+
+    c.bench_function("tpch_q4_sqlite", |b| {
+        b.iter(|| {
+            let mut stmt = conn.prepare(TPCH_Q4).unwrap();
+            let mut rows = stmt.query([]).unwrap();
+            let mut count = 0;
+            while rows.next().unwrap().is_some() {
+                count += 1;
+            }
+            black_box(count);
+        });
+    });
+}
+
+fn benchmark_q4_duckdb(c: &mut Criterion) {
+    let conn = load_duckdb(0.01);
+
+    c.bench_function("tpch_q4_duckdb", |b| {
+        b.iter(|| {
+            let mut stmt = conn.prepare(TPCH_Q4).unwrap();
+            let mut rows = stmt.query([]).unwrap();
+            let mut count = 0;
+            while rows.next().unwrap().is_some() {
+                count += 1;
+            }
+            black_box(count);
+        });
+    });
+}
+
+// =============================================================================
+// TPC-H Q5: Local Supplier Volume Query
+// =============================================================================
+
+const TPCH_Q5: &str = r#"
+SELECT
+    n_name,
+    SUM(l_extendedprice * (1 - l_discount)) as revenue
+FROM customer, orders, lineitem, supplier, nation, region
+WHERE c_custkey = o_custkey
+    AND l_orderkey = o_orderkey
+    AND l_suppkey = s_suppkey
+    AND c_nationkey = s_nationkey
+    AND s_nationkey = n_nationkey
+    AND n_regionkey = r_regionkey
+    AND r_name = 'ASIA'
+    AND o_orderdate >= '1994-01-01'
+    AND o_orderdate < '1995-01-01'
+GROUP BY n_name
+ORDER BY revenue DESC
+"#;
+
+fn benchmark_q5_vibesql(c: &mut Criterion) {
+    let db = load_vibesql(0.01);
+
+    c.bench_function("tpch_q5_vibesql", |b| {
+        b.iter(|| {
+            let stmt = Parser::parse_sql(TPCH_Q5).unwrap();
+            if let vibesql_ast::Statement::Select(select) = stmt {
+                let executor = SelectExecutor::new(&db);
+                let mut result = executor.execute(*select).unwrap();
+                let mut count = 0;
+                while result.next().is_some() {
+                    count += 1;
+                }
+                black_box(count);
+            }
+        });
+    });
+}
+
+fn benchmark_q5_sqlite(c: &mut Criterion) {
+    let conn = load_sqlite(0.01);
+
+    c.bench_function("tpch_q5_sqlite", |b| {
+        b.iter(|| {
+            let mut stmt = conn.prepare(TPCH_Q5).unwrap();
+            let mut rows = stmt.query([]).unwrap();
+            let mut count = 0;
+            while rows.next().unwrap().is_some() {
+                count += 1;
+            }
+            black_box(count);
+        });
+    });
+}
+
+fn benchmark_q5_duckdb(c: &mut Criterion) {
+    let conn = load_duckdb(0.01);
+
+    c.bench_function("tpch_q5_duckdb", |b| {
+        b.iter(|| {
+            let mut stmt = conn.prepare(TPCH_Q5).unwrap();
+            let mut rows = stmt.query([]).unwrap();
+            let mut count = 0;
+            while rows.next().unwrap().is_some() {
+                count += 1;
+            }
+            black_box(count);
+        });
+    });
+}
+
+// TODO: Add remaining TPC-H queries (Q7-Q22)
+// Phase 1 (Q1-Q6) complete
 // Additional queries can be added following the same structure
 
 criterion_group!(
@@ -1237,6 +1525,18 @@ criterion_group!(
     benchmark_q1_vibesql,
     benchmark_q1_sqlite,
     benchmark_q1_duckdb,
+    benchmark_q2_vibesql,
+    benchmark_q2_sqlite,
+    benchmark_q2_duckdb,
+    benchmark_q3_vibesql,
+    benchmark_q3_sqlite,
+    benchmark_q3_duckdb,
+    benchmark_q4_vibesql,
+    benchmark_q4_sqlite,
+    benchmark_q4_duckdb,
+    benchmark_q5_vibesql,
+    benchmark_q5_sqlite,
+    benchmark_q5_duckdb,
     benchmark_q6_vibesql,
     benchmark_q6_sqlite,
     benchmark_q6_duckdb,
