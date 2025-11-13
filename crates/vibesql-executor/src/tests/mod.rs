@@ -92,4 +92,5 @@ mod transaction_tests;
 mod trigger_tests;
 mod truncate_cascade_tests;
 mod truncate_table_tests;
+mod unique_index_tests;
 mod view_tests;

@@ -178,6 +178,14 @@ impl UpdateExecutor {
                 &row,
             )?;
 
+            // Validate user-defined UNIQUE indexes (CREATE UNIQUE INDEX)
+            constraint_validator.validate_unique_indexes(
+                database,
+                &stmt.table_name,
+                &new_row,
+                &row,
+            )?;
+
             // Enforce FOREIGN KEY constraints (child table)
             if !schema.foreign_keys.is_empty() {
                 ForeignKeyValidator::validate_constraints(

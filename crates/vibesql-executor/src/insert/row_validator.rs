@@ -74,7 +74,13 @@ impl<'a> RowValidator<'a> {
         // Phase 4: Evaluate CHECK constraints (after column pass)
         self.validate_check_constraints(row_values)?;
 
-        // Phase 5: Validate FOREIGN KEY references (uses pre-extracted keys)
+        // Phase 5: Validate user-defined UNIQUE indexes (CREATE UNIQUE INDEX)
+        // Skip if using REPLACE conflict clause
+        if !self.skip_duplicate_checks {
+            self.validate_unique_indexes(row_values)?;
+        }
+
+        // Phase 6: Validate FOREIGN KEY references (uses pre-extracted keys)
         self.validate_foreign_keys(&result.foreign_keys)?;
 
         Ok(result)
@@ -290,7 +296,15 @@ impl<'a> RowValidator<'a> {
         Ok(())
     }
 
-    /// Phase 5: Validate FOREIGN KEY references using pre-extracted keys
+    /// Phase 5: Validate user-defined UNIQUE indexes
+    fn validate_unique_indexes(
+        &self,
+        row_values: &[vibesql_types::SqlValue],
+    ) -> Result<(), ExecutorError> {
+        super::constraints::enforce_unique_indexes(self.db, self.schema, self.table_name, row_values)
+    }
+
+    /// Phase 6: Validate FOREIGN KEY references using pre-extracted keys
     fn validate_foreign_keys(
         &self,
         fk_keys: &[Option<Vec<vibesql_types::SqlValue>>],
