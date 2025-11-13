@@ -109,7 +109,7 @@ pub(in crate::select::executor) fn try_index_for_binary_op(
         vibesql_ast::BinaryOperator::Equal => {
             // Equality: exact lookup
             let search_key = vec![value];
-            index_data.data.get(&search_key).cloned().unwrap_or_else(Vec::new)
+            index_data.get(&search_key).cloned().unwrap_or_else(Vec::new)
         }
         vibesql_ast::BinaryOperator::GreaterThan => {
             // col > value: use range_scan(Some(value), None, false, false)

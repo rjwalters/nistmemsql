@@ -207,7 +207,7 @@ pub fn enforce_unique_indexes(
 
             // Check if this key already exists in the index
             if let Some(index_data) = db.get_index_data(&index_name) {
-                if index_data.data.contains_key(&key_values) {
+                if index_data.contains_key(&key_values) {
                     // Format column names for error message
                     let column_names: Vec<String> = index_metadata
                         .columns
