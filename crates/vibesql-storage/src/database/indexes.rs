@@ -577,17 +577,19 @@ impl IndexManager {
                             }
                             IndexData::DiskBacked { btree, .. } => {
                                 // Lock and check if key exists in B+tree
-                                if let Ok(Some(_)) = btree.lock().unwrap().lookup(&key_values) {
-                                    let column_names: Vec<String> = metadata
-                                        .columns
-                                        .iter()
-                                        .map(|c| c.column_name.clone())
-                                        .collect();
-                                    return Err(StorageError::UniqueConstraintViolation(format!(
-                                        "UNIQUE constraint '{}' violated: duplicate key value for ({})",
-                                        index_name,
-                                        column_names.join(", ")
-                                    )));
+                                if let Ok(row_ids) = btree.lock().unwrap().lookup(&key_values) {
+                                    if !row_ids.is_empty() {
+                                        let column_names: Vec<String> = metadata
+                                            .columns
+                                            .iter()
+                                            .map(|c| c.column_name.clone())
+                                            .collect();
+                                        return Err(StorageError::UniqueConstraintViolation(format!(
+                                            "UNIQUE constraint '{}' violated: duplicate key value for ({})",
+                                            index_name,
+                                            column_names.join(", ")
+                                        )));
+                                    }
                                 }
                             }
                         }

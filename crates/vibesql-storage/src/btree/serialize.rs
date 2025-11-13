@@ -147,7 +147,7 @@ pub fn write_leaf_node(
         .map_err(|e| StorageError::IoError(format!("Failed to write num_entries: {}", e)))?;
 
     // Write entries
-    for (key, row_id) in &node.entries {
+    for (key, row_ids) in &node.entries {
         // Write key length
         let key_len = key.len() as u16;
         cursor
@@ -159,10 +159,18 @@ pub fn write_leaf_node(
             write_sql_value(&mut cursor, value)?;
         }
 
-        // Write row_id
+        // Write number of row_ids for this key
+        let num_row_ids = row_ids.len() as u16;
         cursor
-            .write_all(&(*row_id as u64).to_le_bytes())
-            .map_err(|e| StorageError::IoError(format!("Failed to write row_id: {}", e)))?;
+            .write_all(&num_row_ids.to_le_bytes())
+            .map_err(|e| StorageError::IoError(format!("Failed to write num_row_ids: {}", e)))?;
+
+        // Write each row_id
+        for &row_id in row_ids {
+            cursor
+                .write_all(&(row_id as u64).to_le_bytes())
+                .map_err(|e| StorageError::IoError(format!("Failed to write row_id: {}", e)))?;
+        }
     }
 
     // Write next_leaf pointer
@@ -228,13 +236,23 @@ pub fn read_leaf_node(
             key.push(value);
         }
 
-        // Read row_id
-        let mut row_id_bytes = [0u8; 8];
-        std::io::Read::read_exact(&mut cursor, &mut row_id_bytes)
-            .map_err(|e| StorageError::IoError(format!("Failed to read row_id: {}", e)))?;
-        let row_id = u64::from_le_bytes(row_id_bytes) as usize;
+        // Read number of row_ids for this key
+        let mut num_row_ids_bytes = [0u8; 2];
+        std::io::Read::read_exact(&mut cursor, &mut num_row_ids_bytes)
+            .map_err(|e| StorageError::IoError(format!("Failed to read num_row_ids: {}", e)))?;
+        let num_row_ids = u16::from_le_bytes(num_row_ids_bytes) as usize;
 
-        node.entries.push((key, row_id));
+        // Read each row_id
+        let mut row_ids = Vec::with_capacity(num_row_ids);
+        for _ in 0..num_row_ids {
+            let mut row_id_bytes = [0u8; 8];
+            std::io::Read::read_exact(&mut cursor, &mut row_id_bytes)
+                .map_err(|e| StorageError::IoError(format!("Failed to read row_id: {}", e)))?;
+            let row_id = u64::from_le_bytes(row_id_bytes) as usize;
+            row_ids.push(row_id);
+        }
+
+        node.entries.push((key, row_ids));
     }
 
     // Read next_leaf pointer
@@ -297,9 +315,9 @@ mod tests {
         // Create leaf node
         let mut node = LeafNode::new(page_id);
         node.entries = vec![
-            (vec![SqlValue::Integer(5)], 100),
-            (vec![SqlValue::Integer(10)], 200),
-            (vec![SqlValue::Integer(15)], 300),
+            (vec![SqlValue::Integer(5)], vec![100]),
+            (vec![SqlValue::Integer(10)], vec![200]),
+            (vec![SqlValue::Integer(15)], vec![300]),
         ];
         node.next_leaf = 42;
 
@@ -312,9 +330,9 @@ mod tests {
         // Verify
         assert_eq!(loaded_node.page_id, page_id);
         assert_eq!(loaded_node.entries.len(), 3);
-        assert_eq!(loaded_node.entries[0], (vec![SqlValue::Integer(5)], 100));
-        assert_eq!(loaded_node.entries[1], (vec![SqlValue::Integer(10)], 200));
-        assert_eq!(loaded_node.entries[2], (vec![SqlValue::Integer(15)], 300));
+        assert_eq!(loaded_node.entries[0], (vec![SqlValue::Integer(5)], vec![100]));
+        assert_eq!(loaded_node.entries[1], (vec![SqlValue::Integer(10)], vec![200]));
+        assert_eq!(loaded_node.entries[2], (vec![SqlValue::Integer(15)], vec![300]));
         assert_eq!(loaded_node.next_leaf, 42);
     }
 
@@ -331,11 +349,11 @@ mod tests {
         node.entries = vec![
             (
                 vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())],
-                100,
+                vec![100],
             ),
             (
                 vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())],
-                200,
+                vec![200],
             ),
         ];
         node.next_leaf = 0;
