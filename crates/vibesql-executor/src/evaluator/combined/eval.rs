@@ -57,6 +57,17 @@ impl CombinedExpressionEvaluator<'_> {
 
             // Column reference - look up column index (with optional table qualifier)
             vibesql_ast::Expression::ColumnRef { table, column } => {
+                // Check procedural context first (variables/parameters take precedence over table columns)
+                // This is only checked when there's no table qualifier, as variables don't have table prefixes
+                if table.is_none() {
+                    if let Some(proc_ctx) = self.procedural_context {
+                        // Try to get value from procedural context (checks variables then parameters)
+                        if let Some(value) = proc_ctx.get_value(column) {
+                            return Ok(value.clone());
+                        }
+                    }
+                }
+
                 // Try to resolve in inner schema first
                 if let Some(col_index) = self.get_column_index_cached(table.as_deref(), column) {
                     return row
