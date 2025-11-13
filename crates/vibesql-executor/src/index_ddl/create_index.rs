@@ -319,6 +319,7 @@ mod tests {
             columns: vec![IndexColumn {
                 column_name: "email".to_string(),
                 direction: OrderDirection::Asc,
+                prefix_length: None,
             }],
         };
 
@@ -346,6 +347,7 @@ mod tests {
             columns: vec![IndexColumn {
                 column_name: "email".to_string(),
                 direction: OrderDirection::Asc,
+                prefix_length: None,
             }],
         };
 
@@ -365,8 +367,8 @@ mod tests {
             table_name: "users".to_string(),
             index_type: vibesql_ast::IndexType::BTree { unique: false },
             columns: vec![
-                IndexColumn { column_name: "email".to_string(), direction: OrderDirection::Asc },
-                IndexColumn { column_name: "name".to_string(), direction: OrderDirection::Desc },
+                IndexColumn { column_name: "email".to_string(), direction: OrderDirection::Asc, prefix_length: None },
+                IndexColumn { column_name: "name".to_string(), direction: OrderDirection::Desc, prefix_length: None },
             ],
         };
 
@@ -387,6 +389,7 @@ mod tests {
             columns: vec![IndexColumn {
                 column_name: "email".to_string(),
                 direction: OrderDirection::Asc,
+                prefix_length: None,
             }],
         };
 
@@ -412,6 +415,7 @@ mod tests {
             columns: vec![IndexColumn {
                 column_name: "id".to_string(),
                 direction: OrderDirection::Asc,
+                prefix_length: None,
             }],
         };
 
@@ -433,6 +437,7 @@ mod tests {
             columns: vec![IndexColumn {
                 column_name: "nonexistent_column".to_string(),
                 direction: OrderDirection::Asc,
+                prefix_length: None,
             }],
         };
 
@@ -454,6 +459,7 @@ mod tests {
             columns: vec![IndexColumn {
                 column_name: "email".to_string(),
                 direction: OrderDirection::Asc,
+                prefix_length: None,
             }],
         };
 
@@ -480,6 +486,7 @@ mod tests {
             columns: vec![IndexColumn {
                 column_name: "email".to_string(),
                 direction: OrderDirection::Asc,
+                prefix_length: None,
             }],
         };
         CreateIndexExecutor::execute(&stmt, &mut db).unwrap();
@@ -493,6 +500,7 @@ mod tests {
             columns: vec![IndexColumn {
                 column_name: "email".to_string(),
                 direction: OrderDirection::Asc,
+                prefix_length: None,
             }],
         };
         let result = CreateIndexExecutor::execute(&stmt_with_if_not_exists, &mut db);
