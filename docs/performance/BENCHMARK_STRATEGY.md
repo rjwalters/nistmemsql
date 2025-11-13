@@ -647,14 +647,19 @@ cd ../..
 
 #### Running Benchmarks
 
-**Run all benchmarks:**
+**Run all micro-benchmarks:**
 ```bash
-./scripts/run_benchmarks.sh
+pytest benchmarks/ --benchmark-only
 ```
 
 **Run specific test file:**
 ```bash
 pytest benchmarks/test_example.py --benchmark-only
+```
+
+**Run full SQLLogicTest suite benchmark:**
+```bash
+cd benchmarks/suite && ./suite.sh
 ```
 
 **Run with detailed output:**
@@ -787,11 +792,11 @@ cd ../..
 Run all benchmarks with default settings:
 
 ```bash
-# Using the helper script (recommended)
-./scripts/run_benchmarks.sh
-
-# Or manually with pytest
+# Micro-benchmarks with pytest
 pytest benchmarks/ --benchmark-only
+
+# Full SQLLogicTest suite benchmark
+cd benchmarks/suite && ./suite.sh
 ```
 
 #### Running Specific Benchmark Tiers

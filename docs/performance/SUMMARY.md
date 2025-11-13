@@ -94,11 +94,11 @@ VibeSQL.disable_profiling()
 
 **Benchmarking**:
 ```bash
-# Run benchmark suite
-./scripts/run_benchmarks.sh
+# Run micro-benchmark suite
+pytest benchmarks/ --benchmark-only
 
-# Compare with MySQL/SQLite
-python benchmarks/compare_databases.py
+# Run full SQLLogicTest suite benchmark
+cd benchmarks/suite && ./suite.sh
 ```
 
 **Rust Profiling**:
