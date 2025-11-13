@@ -206,6 +206,50 @@ CREATE SPATIAL INDEX idx_geom ON locations(geometry_column);
 CREATE FULLTEXT INDEX idx_search ON documents(title, content);
 ```
 
+#### Indexed Column Prefix Syntax (MySQL/SQLite Compatibility)
+
+VibeSQL supports MySQL/SQLite indexed column prefix syntax for compatibility with existing SQL code:
+
+```sql
+-- Index on first N characters of a column
+CREATE TABLE users (
+    email VARCHAR(255),
+    UNIQUE (email(50))  -- Index first 50 characters
+);
+
+-- Works with PRIMARY KEY constraints
+CREATE TABLE products (
+    name VARCHAR(100),
+    PRIMARY KEY (name(50))
+);
+
+-- Works with CREATE INDEX statements
+CREATE INDEX idx_email ON users (email(100));
+
+-- Works with composite indexes
+CREATE INDEX idx_name ON contacts (first_name(20), last_name(20));
+```
+
+**Current Behavior (as of v0.1.0)**:
+- ✅ Syntax is accepted and parsed correctly
+- ✅ Prefix length is stored in the AST (`IndexColumn.prefix_length`)
+- ⚠️  Indexes currently operate on **full column values** (prefix not enforced)
+- ⚠️  No validation on prefix length values yet
+
+**Why This Matters**:
+- **MySQL/SQLite Compatibility**: Allows existing schemas to parse without errors
+- **Forward Compatibility**: Syntax is ready for future optimization work
+- **Test Suite Compatibility**: Enables passing SQLLogicTest cases that use this syntax
+
+**Future Enhancements**:
+- See issue #1623 for actual prefix indexing implementation
+- See issue #1624 for prefix length validation
+
+**MySQL/SQLite Comparison**:
+- **MySQL**: Supports prefix indexes with storage-engine-specific limits (e.g., InnoDB has 767-byte limit)
+- **SQLite**: Accepts similar syntax for compatibility
+- **VibeSQL**: Currently accepts syntax but indexes full column (implementation planned)
+
 ### Non-Unique Indexes and Duplicate Keys (✅ Complete)
 
 VibeSQL fully supports non-unique indexes with duplicate key values in both in-memory and disk-backed implementations:
