@@ -8,23 +8,14 @@ import { ExamplesComponent } from './components/Examples'
 import type { ExampleSelectEvent } from './components/Examples'
 import { DatabaseSelectorComponent } from './components/DatabaseSelector'
 import type { DatabaseOption } from './components/DatabaseSelector'
+import { LoadingProgressComponent } from './components/LoadingProgress'
 import { initShowcase } from './showcase'
 import { sampleDatabases, loadSampleDatabase, getSampleDatabase, loadSqlDump } from './data/sample-databases'
 import { updateConformanceFooter } from './utils/conformance'
+import * as monaco from 'monaco-editor'
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// Monaco types are loaded dynamically from CDN and not available at compile time
-type Monaco = any
-type MonacoEditor = any
-
-declare global {
-  interface Window {
-    require?: any
-    MonacoBasePath?: string
-    monaco?: Monaco
-  }
-}
-/* eslint-enable @typescript-eslint/no-explicit-any */
+type Monaco = typeof monaco
+type MonacoEditor = monaco.editor.IStandaloneCodeEditor
 
 const SQL_KEYWORDS = [
   'SELECT',
@@ -78,34 +69,8 @@ SELECT * FROM employees;
 `
 
 async function loadMonaco(): Promise<Monaco> {
-  const amdRequire = window.require
-
-  if (!amdRequire) {
-    throw new Error('Monaco AMD loader script not found. Did index.html include loader.min.js?')
-  }
-
-  const basePath =
-    window.MonacoBasePath ?? 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min'
-
-  return new Promise((resolve, reject) => {
-    amdRequire.config({
-      paths: {
-        vs: basePath + '/vs',
-      },
-    })
-
-    amdRequire(
-      ['vs/editor/editor.main'],
-      () => {
-        if (window.monaco) {
-          resolve(window.monaco)
-        } else {
-          reject(new Error('Monaco loaded but window.monaco is undefined'))
-        }
-      },
-      (err: unknown) => reject(err instanceof Error ? err : new Error(String(err)))
-    )
-  })
+  // Monaco is now bundled with the app, so just return it
+  return monaco
 }
 
 function getLayoutElements(): {
@@ -184,20 +149,21 @@ function registerCompletions(monaco: Monaco, getTableNames: () => string[]): voi
 }
 
 function registerShortcuts(monaco: Monaco, editor: MonacoEditor, execute: () => void): void {
-  const { KeyMod = {}, KeyCode = {} } = monaco
-  const ctrlEnter = (KeyMod.CtrlCmd ?? 0) | (KeyCode.Enter ?? 3)
-  const ctrlSlash = (KeyMod.CtrlCmd ?? 0) | (KeyCode.US_SLASH ?? 85)
+  const KeyMod = monaco.KeyMod
+  const KeyCode = monaco.KeyCode
+  const ctrlEnter = KeyMod.CtrlCmd | KeyCode.Enter
+  const ctrlSlash = KeyMod.CtrlCmd | KeyCode.Slash
 
   editor.addCommand(ctrlEnter, execute)
   editor.addCommand(ctrlSlash, () => {
-    const action = editor.getAction?.('editor.action.commentLine')
+    const action = editor.getAction('editor.action.commentLine')
     if (action) {
       action.run()
     }
   })
 
-  editor.addCommand(KeyCode.Tab ?? 2, () => {
-    editor.trigger?.('keyboard', 'editor.action.indentLines', null)
+  editor.addCommand(KeyCode.Tab, () => {
+    editor.trigger('keyboard', 'editor.action.indentLines', null)
   })
 }
 
@@ -379,20 +345,75 @@ function createExecutionHandler(
 }
 
 async function bootstrap(): Promise<void> {
-  const layout = getLayoutElements()
+  // Initialize loading progress indicator
+  const progress = new LoadingProgressComponent()
+  progress.addStep('theme', 'Initializing theme')
+  progress.addStep('monaco', 'Loading Monaco Editor')
+  progress.addStep('wasm', 'Loading database engine')
+  progress.addStep('ui', 'Setting up user interface')
 
-  if (!layout.editorContainer) {
-    console.error('Failed to find #editor container')
-    return
-  }
+  // Hide loading indicator when complete
+  progress.onComplete(() => {
+    setTimeout(() => progress.hide(), 500)
+  })
 
-  if (!layout.resultsEditorContainer) {
-    console.error('Failed to find #results container')
-    return
-  }
+  try {
+    // Step 1: Initialize theme
+    progress.updateStep('theme', 50, 'loading')
+    const theme = initTheme()
+    progress.completeStep('theme')
 
-  const monaco = await loadMonaco()
-  const editor = monaco.editor.create(layout.editorContainer, {
+    const layout = getLayoutElements()
+
+    if (!layout.editorContainer) {
+      progress.errorStep('ui', 'Failed to find #editor container')
+      console.error('Failed to find #editor container')
+      return
+    }
+
+    if (!layout.resultsEditorContainer) {
+      progress.errorStep('ui', 'Failed to find #results container')
+      console.error('Failed to find #results container')
+      return
+    }
+
+    // Step 2: Load Monaco Editor (this is the slowest part)
+    progress.updateStep('monaco', 10, 'loading')
+    const monacoStartTime = performance.now()
+
+    // Simulate progress updates for Monaco loading
+    const monacoProgressInterval = setInterval(() => {
+      const elapsed = performance.now() - monacoStartTime
+      // Estimate progress based on time (assume 1 second total)
+      const estimatedProgress = Math.min(90, 10 + (elapsed / 1000) * 80)
+      progress.updateStep('monaco', estimatedProgress, 'loading')
+    }, 100)
+
+    const monaco = await loadMonaco()
+    clearInterval(monacoProgressInterval)
+    progress.completeStep('monaco')
+
+    // Step 3: Load WASM database in parallel with editor creation
+    progress.updateStep('wasm', 20, 'loading')
+    progress.updateStep('ui', 10, 'loading')
+
+    const [database] = await Promise.all([
+      safeInitDatabase().then(db => {
+        progress.updateStep('wasm', 80, 'loading')
+        return db
+      }),
+      // Create editors while WASM loads
+      Promise.resolve().then(() => {
+        progress.updateStep('ui', 30, 'loading')
+        return null
+      }),
+    ])
+
+    progress.completeStep('wasm')
+
+    // Step 4: Create editor instances
+    progress.updateStep('ui', 50, 'loading')
+    const editor = monaco.editor.create(layout.editorContainer, {
     value: DEFAULT_SQL,
     language: 'sql',
     theme: 'vs-dark',
@@ -420,12 +441,11 @@ async function bootstrap(): Promise<void> {
     lineNumbers: 'off',
   })
 
-  const { theme } = setupThemeSync(monaco)
+  setupThemeSync(monaco)
 
   // Initialize Navigation component
+  progress.updateStep('ui', 70, 'loading')
   new NavigationComponent('terminal', theme)
-
-  const database = await safeInitDatabase()
   let tableNames: string[] = []
   let currentDatabaseId = 'employees'
 
@@ -547,6 +567,18 @@ async function bootstrap(): Promise<void> {
 
   // Update conformance pass rate dynamically
   void updateConformanceFooter()
+
+    // Final UI setup complete
+    progress.updateStep('ui', 95, 'loading')
+
+    // Small delay to show completion state
+    await new Promise(resolve => setTimeout(resolve, 200))
+    progress.completeStep('ui')
+  } catch (error) {
+    console.error('Bootstrap error:', error)
+    const message = error instanceof Error ? error.message : String(error)
+    progress.errorStep('ui', `Initialization failed: ${message}`)
+  }
 }
 
 // Start the application when DOM is ready

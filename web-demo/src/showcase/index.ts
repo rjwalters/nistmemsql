@@ -130,9 +130,8 @@ export class ShowcaseController {
         }
       ).monaco
     ) {
-      const editors = (
-        window as { monaco: { editor: { getEditors: () => { setValue: (v: string) => void }[] } } }
-      ).monaco.editor.getEditors()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const editors = (window as any).monaco?.editor?.getEditors?.()
       if (editors && editors.length > 0) {
         editors[0].setValue(query)
       }

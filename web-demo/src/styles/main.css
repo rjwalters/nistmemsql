@@ -117,4 +117,87 @@
            rounded px-2 py-0.5 text-sm font-mono text-gray-800 dark:text-gray-200
            shadow-sm;
   }
+
+  /* Loading Progress Indicator */
+  .loading-progress-overlay {
+    @apply fixed inset-0 bg-background flex items-center justify-center z-[100]
+           transition-opacity duration-300;
+  }
+
+  .loading-progress-card {
+    @apply bg-surface-light dark:bg-surface-dark rounded-xl shadow-2xl
+           border border-border max-w-md w-full mx-4 p-8;
+  }
+
+  .loading-progress-header {
+    @apply flex items-center justify-between mb-6;
+  }
+
+  .loading-progress-title {
+    @apply text-2xl font-bold text-foreground;
+  }
+
+  .loading-progress-percent {
+    @apply text-xl font-semibold text-primary-light dark:text-primary-dark;
+  }
+
+  .loading-progress-bar-container {
+    @apply w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-8;
+  }
+
+  .loading-progress-bar {
+    @apply h-full bg-gradient-to-r from-blue-500 to-blue-600 dark:from-blue-400 dark:to-blue-500
+           transition-all duration-500 ease-out rounded-full;
+  }
+
+  .loading-progress-steps {
+    @apply space-y-4;
+  }
+
+  .loading-progress-step {
+    @apply flex items-center gap-3 text-sm;
+  }
+
+  .loading-progress-step-icon {
+    @apply flex-shrink-0;
+  }
+
+  .loading-progress-step-content {
+    @apply flex-1;
+  }
+
+  .loading-progress-step-label {
+    @apply text-foreground font-medium;
+  }
+
+  .loading-progress-step-error {
+    @apply text-red-500 text-xs mt-1;
+  }
+
+  .loading-progress-step--pending .loading-progress-step-label {
+    @apply text-muted;
+  }
+
+  .loading-progress-step--loading .loading-progress-step-label {
+    @apply text-primary-light dark:text-primary-dark;
+  }
+
+  .loading-progress-step--complete .loading-progress-step-label {
+    @apply text-green-600 dark:text-green-400;
+  }
+
+  .loading-progress-step--error .loading-progress-step-label {
+    @apply text-red-600 dark:text-red-400;
+  }
+
+  .loading-progress-step-spinner {
+    @apply w-4 h-4 border-2 border-primary-light dark:border-primary-dark
+           border-t-transparent rounded-full animate-spin;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 }
