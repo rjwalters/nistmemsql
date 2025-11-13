@@ -11,7 +11,7 @@ use crate::StorageError;
 
 use super::super::calculate_degree;
 use super::datatype_serialization::{deserialize_datatype, serialize_datatype};
-use super::structure::{InternalNode, Key, LeafNode};
+use super::structure::{InternalNode, Key, LeafNode, RowId};
 
 /// B+ Tree Index with disk-backed storage
 ///
@@ -346,6 +346,191 @@ impl BTreeIndex {
         Ok(index)
     }
 
+    /// Navigate to leaf node that should contain the key, returning the path from root
+    ///
+    /// Returns (leaf_node, path) where path is Vec<(PageId, child_index)>
+    /// The path tracks which child was taken at each internal node level
+    fn find_leaf_path(&self, key: &Key) -> Result<(LeafNode, Vec<(PageId, usize)>), StorageError> {
+        let mut path = Vec::new();
+        let mut current_page_id = self.root_page_id;
+
+        // Navigate down the tree
+        for _ in 0..self.height - 1 {
+            // Read internal node
+            let internal = self.read_internal_node(current_page_id)?;
+
+            // Find which child to follow
+            let child_idx = internal.find_child_index(key);
+            path.push((current_page_id, child_idx));
+
+            // Move to child
+            current_page_id = internal.children[child_idx];
+        }
+
+        // Read leaf node
+        let leaf = self.read_leaf_node(current_page_id)?;
+
+        Ok((leaf, path))
+    }
+
+    /// Insert a key-value pair into the B+ tree
+    ///
+    /// # Arguments
+    /// * `key` - The key to insert
+    /// * `row_id` - The row ID associated with this key
+    ///
+    /// # Returns
+    /// Ok(()) if successful, or StorageError if:
+    /// - The key already exists (duplicate key error)
+    /// - I/O error occurs
+    ///
+    /// # Implementation
+    /// This method handles multi-level trees by:
+    /// 1. Finding the appropriate leaf node
+    /// 2. Inserting into the leaf
+    /// 3. Handling splits that may propagate up the tree
+    /// 4. Creating a new root if split reaches the original root
+    pub fn insert(&mut self, key: Key, row_id: RowId) -> Result<(), StorageError> {
+        // Special case: height 1 means root is a leaf
+        if self.height == 1 {
+            // Read root as leaf
+            let mut root_leaf = self.read_leaf_node(self.root_page_id)?;
+
+            // Try to insert
+            if !root_leaf.insert(key.clone(), row_id) {
+                return Err(StorageError::IoError("Duplicate key".to_string()));
+            }
+
+            // Check if leaf is now full and needs splitting
+            if root_leaf.is_full(self.degree) {
+                // Allocate page for right sibling
+                let new_page_id = self.page_manager.allocate_page()?;
+
+                // Split the leaf
+                let (split_key, right_leaf) = root_leaf.split(new_page_id);
+
+                // Write both leaves
+                self.write_leaf_node(&root_leaf)?;
+                self.write_leaf_node(&right_leaf)?;
+
+                // Create new root (special case: first split increases height from 1 to 2)
+                self.create_new_root(split_key, root_leaf.page_id, right_leaf.page_id)?;
+            } else {
+                // No split needed, just write leaf back
+                self.write_leaf_node(&root_leaf)?;
+            }
+
+            return Ok(());
+        }
+
+        // Multi-level tree case
+        // Find the target leaf and path from root
+        let (mut leaf, path) = self.find_leaf_path(&key)?;
+
+        // Insert into leaf
+        if !leaf.insert(key.clone(), row_id) {
+            return Err(StorageError::IoError("Duplicate key".to_string()));
+        }
+
+        // Check if leaf is full and needs splitting
+        if leaf.is_full(self.degree) {
+            // Allocate page for right sibling
+            let new_page_id = self.page_manager.allocate_page()?;
+
+            // Split the leaf
+            let (split_key, right_leaf) = leaf.split(new_page_id);
+
+            // Write both leaves
+            self.write_leaf_node(&leaf)?;
+            self.write_leaf_node(&right_leaf)?;
+
+            // Propagate split upward
+            self.propagate_split(path, split_key, right_leaf.page_id)?;
+        } else {
+            // No split needed, just write leaf back
+            self.write_leaf_node(&leaf)?;
+        }
+
+        Ok(())
+    }
+
+    /// Propagate a split upward through internal nodes
+    ///
+    /// This is called after a child node splits, and needs to insert the split key
+    /// into parent nodes, potentially causing cascading splits up to the root
+    fn propagate_split(
+        &mut self,
+        mut path: Vec<(PageId, usize)>,
+        mut split_key: Key,
+        mut right_page_id: PageId,
+    ) -> Result<(), StorageError> {
+        // Work backwards up the tree
+        while let Some((parent_page_id, _child_idx)) = path.pop() {
+            let mut parent = self.read_internal_node(parent_page_id)?;
+
+            // Insert the split key and right child into parent
+            parent.insert_child(split_key.clone(), right_page_id);
+
+            // Check if parent is now full and needs splitting
+            if parent.is_full(self.degree) {
+                // Allocate new page for right sibling
+                let new_page_id = self.page_manager.allocate_page()?;
+
+                // Split the parent
+                let (middle_key, right_parent) = parent.split(new_page_id);
+
+                // Write both nodes back
+                self.write_internal_node(&parent)?;
+                self.write_internal_node(&right_parent)?;
+
+                // Continue propagating split upward
+                split_key = middle_key;
+                right_page_id = right_parent.page_id;
+            } else {
+                // No more splits needed, write parent and done
+                self.write_internal_node(&parent)?;
+                return Ok(());
+            }
+        }
+
+        // If we get here, split propagated all the way to root
+        // Need to create new root
+        self.create_new_root(split_key, self.root_page_id, right_page_id)?;
+
+        Ok(())
+    }
+
+    /// Create a new root node when a split propagates to the original root
+    ///
+    /// This increases the tree height by 1
+    fn create_new_root(
+        &mut self,
+        split_key: Key,
+        left_child: PageId,
+        right_child: PageId,
+    ) -> Result<(), StorageError> {
+        // Allocate new page for the new root
+        let new_root_page_id = self.page_manager.allocate_page()?;
+
+        // Create new internal node as root
+        let mut new_root = InternalNode::new(new_root_page_id);
+
+        // Add left child, split key, and right child
+        new_root.children.push(left_child);
+        new_root.keys.push(split_key);
+        new_root.children.push(right_child);
+
+        // Write new root to disk
+        self.write_internal_node(&new_root)?;
+
+        // Update index metadata
+        self.root_page_id = new_root_page_id;
+        self.height += 1;
+        self.save_metadata()?;
+
+        Ok(())
+    }
+
     /// Delete a key from the B+ tree
     ///
     /// Implements full multi-level tree deletion with node merging and rebalancing.
@@ -399,30 +584,6 @@ impl BTreeIndex {
         Ok(true)
     }
 
-    /// Find the leaf node that should contain the given key
-    ///
-    /// Returns the leaf node and the path from root to leaf.
-    /// Path is a vector of (parent_page_id, child_index) pairs.
-    fn find_leaf_path(&self, key: &Key) -> Result<(LeafNode, Vec<(PageId, usize)>), StorageError> {
-        let mut path = Vec::new();
-        let mut current_page_id = self.root_page_id;
-        let mut current_height = self.height;
-
-        // Navigate down to leaf level
-        while current_height > 1 {
-            let internal = self.read_internal_node(current_page_id)?;
-            let child_idx = internal.find_child_index(key);
-            let child_page_id = internal.children[child_idx];
-
-            path.push((current_page_id, child_idx));
-            current_page_id = child_page_id;
-            current_height -= 1;
-        }
-
-        let leaf = self.read_leaf_node(current_page_id)?;
-        Ok((leaf, path))
-    }
-
     /// Rebalance a leaf node after deletion
     ///
     /// Tries to borrow from siblings first, then merges if necessary.
@@ -449,7 +610,7 @@ impl BTreeIndex {
         // Check if parent is now underfull
         if parent.children.len() < self.degree / 2 && path.len() > 1 {
             // Propagate rebalancing up
-            self.propagate_rebalance(path)?;
+            self.propagate_rebalance_delete(path)?;
         }
 
         Ok(())
@@ -544,8 +705,8 @@ impl BTreeIndex {
         Ok(())
     }
 
-    /// Propagate rebalancing up the tree
-    fn propagate_rebalance(&mut self, path: Vec<(PageId, usize)>) -> Result<(), StorageError> {
+    /// Propagate rebalancing up the tree after deletion
+    fn propagate_rebalance_delete(&mut self, path: Vec<(PageId, usize)>) -> Result<(), StorageError> {
         // Process from bottom to top (skip the last entry which we already handled)
         for i in (0..path.len() - 1).rev() {
             let (parent_id, child_idx) = path[i];

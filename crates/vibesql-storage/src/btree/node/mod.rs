@@ -32,6 +32,7 @@ mod tests {
     use vibesql_types::{DataType, SqlValue};
     use std::sync::Arc;
     use crate::page::PageManager;
+    use crate::StorageError;
 
     #[test]
     fn test_leaf_node_insert() {
@@ -271,6 +272,267 @@ mod tests {
         let loaded_index = BTreeIndex::load(page_manager).unwrap();
         assert_eq!(loaded_index.height(), index.height());
         assert_eq!(loaded_index.degree(), index.degree());
+    }
+
+    #[test]
+    fn test_insert_single_key() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+        let mut index = BTreeIndex::new(page_manager, key_schema).unwrap();
+
+        // Insert a single key
+        let key = vec![SqlValue::Integer(42)];
+        let row_id = 10;
+        index.insert(key.clone(), row_id).unwrap();
+
+        // Verify height is still 1 (root is leaf)
+        assert_eq!(index.height(), 1);
+
+        // Verify we can read the key back
+        let root_leaf = index.read_leaf_node(index.root_page_id()).unwrap();
+        assert_eq!(root_leaf.entries.len(), 1);
+        assert_eq!(root_leaf.entries[0].0, key);
+        assert_eq!(root_leaf.entries[0].1, row_id);
+    }
+
+    #[test]
+    fn test_insert_duplicate_key() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+        let mut index = BTreeIndex::new(page_manager, key_schema).unwrap();
+
+        // Insert first key
+        let key = vec![SqlValue::Integer(42)];
+        index.insert(key.clone(), 10).unwrap();
+
+        // Try to insert duplicate - should fail
+        let result = index.insert(key.clone(), 20);
+        assert!(result.is_err());
+        assert!(matches!(result, Err(StorageError::IoError(_))));
+    }
+
+    #[test]
+    fn test_insert_causes_leaf_split() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+        let mut index = BTreeIndex::new(page_manager, key_schema).unwrap();
+
+        let degree = index.degree();
+        assert!(degree >= 5, "Degree should be at least 5");
+
+        // Insert keys until we almost fill the root leaf (degree - 1 keys)
+        for i in 0..(degree - 1) {
+            let key = vec![SqlValue::Integer(i as i64 * 10)];
+            index.insert(key, i).unwrap();
+        }
+
+        // Root should still be a leaf (height = 1)
+        assert_eq!(index.height(), 1);
+
+        // Insert one more key to reach capacity
+        let key = vec![SqlValue::Integer((degree - 1) as i64 * 10)];
+        index.insert(key, degree - 1).unwrap();
+
+        // Now at capacity, insert one more to trigger split
+        let key = vec![SqlValue::Integer(degree as i64 * 10)];
+        index.insert(key, degree).unwrap();
+
+        // Height should now be 2 (root is internal, with 2 leaf children)
+        assert_eq!(index.height(), 2);
+
+        // Root should be an internal node with 2 children
+        let root = index.read_internal_node(index.root_page_id()).unwrap();
+        assert_eq!(root.children.len(), 2);
+        assert_eq!(root.keys.len(), 1);
+    }
+
+    #[test]
+    fn test_insert_maintains_order() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+        let mut index = BTreeIndex::new(page_manager, key_schema).unwrap();
+
+        // Insert keys in random order
+        let keys = vec![50, 20, 80, 10, 30, 70, 90, 40, 60];
+        for (i, &k) in keys.iter().enumerate() {
+            let key = vec![SqlValue::Integer(k)];
+            index.insert(key, i).unwrap();
+        }
+
+        // Verify all keys are in the tree by checking the leaf nodes
+        let root_leaf = index.read_leaf_node(index.root_page_id()).unwrap();
+
+        // Verify entries are sorted
+        for i in 1..root_leaf.entries.len() {
+            assert!(
+                root_leaf.entries[i - 1].0 < root_leaf.entries[i].0,
+                "Entries should be sorted"
+            );
+        }
+    }
+
+    #[test]
+    fn test_insert_increases_height() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+        let mut index = BTreeIndex::new(page_manager, key_schema).unwrap();
+
+        let degree = index.degree();
+        let initial_height = index.height();
+        assert_eq!(initial_height, 1);
+
+        // Insert enough keys to cause height increase
+        // We need slightly more than degree keys to get to height 2
+        // (degree keys fill the root, degree+1 causes split to height 2)
+        let num_keys = degree + 1;
+
+        for i in 0..num_keys {
+            let key = vec![SqlValue::Integer(i as i64)];
+            index.insert(key, i).unwrap();
+        }
+
+        // Height should have increased to 2
+        assert_eq!(
+            index.height(),
+            2,
+            "Height should increase to 2 after inserting {} keys",
+            num_keys
+        );
+    }
+
+    #[test]
+    fn test_large_sequential_inserts() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+        let mut index = BTreeIndex::new(page_manager, key_schema).unwrap();
+
+        // Insert 1000 keys sequentially
+        let num_keys = 1000;
+        for i in 0..num_keys {
+            let key = vec![SqlValue::Integer(i * 10)];
+            let result = index.insert(key, i as usize);
+            assert!(result.is_ok(), "Insert {} failed: {:?}", i, result);
+        }
+
+        // Verify tree properties
+        let degree = index.degree();
+        let height = index.height();
+
+        // Height should be logarithmic in number of keys
+        // For 1000 keys with degree ~200, height should be 2-3
+        assert!(height >= 2, "Height should be at least 2 for 1000 keys");
+        assert!(height <= 4, "Height should not exceed 4 for 1000 keys with degree {}", degree);
+
+        // Verify tree structure is valid
+        if height > 1 {
+            let root = index.read_internal_node(index.root_page_id()).unwrap();
+            assert!(
+                root.children.len() >= 2,
+                "Root should have at least 2 children"
+            );
+            assert_eq!(
+                root.keys.len() + 1,
+                root.children.len(),
+                "Internal node invariant: keys.len() + 1 == children.len()"
+            );
+        }
+    }
+
+    #[test]
+    fn test_large_random_inserts() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+        let mut index = BTreeIndex::new(page_manager, key_schema).unwrap();
+
+        // Insert 1000 keys in shuffled order
+        let mut keys: Vec<i64> = (0..1000).map(|i| i * 10).collect();
+
+        // Simple shuffle using the key values themselves
+        for i in (1..keys.len()).rev() {
+            let j = (keys[i] as usize) % (i + 1);
+            keys.swap(i, j);
+        }
+
+        for (i, &k) in keys.iter().enumerate() {
+            let key = vec![SqlValue::Integer(k)];
+            let result = index.insert(key, i);
+            assert!(result.is_ok(), "Insert of key {} failed: {:?}", k, result);
+        }
+
+        // Verify tree properties
+        let height = index.height();
+        assert!(height >= 2, "Height should be at least 2 for 1000 random keys");
+        assert!(height <= 4, "Height should not exceed 4 for 1000 keys");
+    }
+
+    #[test]
+    fn test_insert_multi_column_keys() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![
+            DataType::Integer,
+            DataType::Varchar { max_length: Some(20) },
+        ];
+        let mut index = BTreeIndex::new(page_manager, key_schema).unwrap();
+
+        // Insert multi-column keys
+        let keys = vec![
+            (vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())], 0),
+            (vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())], 1),
+            (vec![SqlValue::Integer(1), SqlValue::Varchar("Zoe".to_string())], 2),
+        ];
+
+        for (key, row_id) in keys {
+            index.insert(key, row_id).unwrap();
+        }
+
+        // Verify entries are in sorted order
+        let root_leaf = index.read_leaf_node(index.root_page_id()).unwrap();
+        assert_eq!(root_leaf.entries.len(), 3);
+
+        // Verify sorted: (1, "Alice"), (1, "Zoe"), (2, "Bob")
+        assert!(root_leaf.entries[0].0[0] == SqlValue::Integer(1));
+        assert!(root_leaf.entries[1].0[0] == SqlValue::Integer(1));
+        assert!(root_leaf.entries[2].0[0] == SqlValue::Integer(2));
     }
 
     #[test]
