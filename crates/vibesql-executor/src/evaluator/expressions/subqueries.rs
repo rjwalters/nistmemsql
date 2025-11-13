@@ -99,6 +99,14 @@ impl ExpressionEvaluator<'_> {
         subquery: &vibesql_ast::SelectStmt,
         row: &vibesql_storage::Row,
     ) -> Result<vibesql_types::SqlValue, ExecutorError> {
+        // Check depth limit to prevent stack overflow
+        if self.depth >= crate::limits::MAX_EXPRESSION_DEPTH {
+            return Err(ExecutorError::ExpressionDepthExceeded {
+                depth: self.depth,
+                max_depth: crate::limits::MAX_EXPRESSION_DEPTH,
+            });
+        }
+
         let database = self.database.ok_or(ExecutorError::UnsupportedFeature(
             "Subquery execution requires database reference".to_string(),
         ))?;
@@ -108,12 +116,18 @@ impl ExpressionEvaluator<'_> {
             self.schema.name.clone(),
             self.schema.clone(),
         );
-        let select_executor = crate::select::SelectExecutor::new_with_outer_context_and_depth(
-            database,
-            row,
-            &outer_combined,
-            self.depth,
-        );
+
+        // Execute the subquery with outer context for correlated subqueries
+        let select_executor = if !outer_combined.table_schemas.is_empty() {
+            crate::select::SelectExecutor::new_with_outer_context_and_depth(
+                database,
+                row,
+                &outer_combined,
+                self.depth,
+            )
+        } else {
+            crate::select::SelectExecutor::new(database)
+        };
         let rows = select_executor.execute(subquery)?;
 
         // Delegate to shared logic
@@ -127,6 +141,14 @@ impl ExpressionEvaluator<'_> {
         negated: bool,
         row: &vibesql_storage::Row,
     ) -> Result<vibesql_types::SqlValue, ExecutorError> {
+        // Check depth limit to prevent stack overflow
+        if self.depth >= crate::limits::MAX_EXPRESSION_DEPTH {
+            return Err(ExecutorError::ExpressionDepthExceeded {
+                depth: self.depth,
+                max_depth: crate::limits::MAX_EXPRESSION_DEPTH,
+            });
+        }
+
         let database = self.database.ok_or(ExecutorError::UnsupportedFeature(
             "EXISTS requires database reference".to_string(),
         ))?;
@@ -137,12 +159,17 @@ impl ExpressionEvaluator<'_> {
             self.schema.clone(),
         );
 
-        let select_executor = crate::select::SelectExecutor::new_with_outer_context_and_depth(
-            database,
-            row,
-            &outer_combined,
-            self.depth,
-        );
+        // Execute the subquery with outer context and propagate depth
+        let select_executor = if !outer_combined.table_schemas.is_empty() {
+            crate::select::SelectExecutor::new_with_outer_context_and_depth(
+                database,
+                row,
+                &outer_combined,
+                self.depth,
+            )
+        } else {
+            crate::select::SelectExecutor::new(database)
+        };
         let rows = select_executor.execute(subquery)?;
 
         // Delegate to shared logic
@@ -158,10 +185,19 @@ impl ExpressionEvaluator<'_> {
         subquery: &vibesql_ast::SelectStmt,
         row: &vibesql_storage::Row,
     ) -> Result<vibesql_types::SqlValue, ExecutorError> {
+        // Check depth limit to prevent stack overflow
+        if self.depth >= crate::limits::MAX_EXPRESSION_DEPTH {
+            return Err(ExecutorError::ExpressionDepthExceeded {
+                depth: self.depth,
+                max_depth: crate::limits::MAX_EXPRESSION_DEPTH,
+            });
+        }
+
         let database = self.database.ok_or(ExecutorError::UnsupportedFeature(
             "Quantified comparison requires database reference".to_string(),
         ))?;
 
+        // Evaluate the left-hand expression
         let left_val = self.eval(expr, row)?;
 
         // Convert TableSchema to CombinedSchema for outer context
@@ -169,12 +205,18 @@ impl ExpressionEvaluator<'_> {
             self.schema.name.clone(),
             self.schema.clone(),
         );
-        let select_executor = crate::select::SelectExecutor::new_with_outer_context_and_depth(
-            database,
-            row,
-            &outer_combined,
-            self.depth,
-        );
+
+        // Execute the subquery with outer context and propagate depth
+        let select_executor = if !outer_combined.table_schemas.is_empty() {
+            crate::select::SelectExecutor::new_with_outer_context_and_depth(
+                database,
+                row,
+                &outer_combined,
+                self.depth,
+            )
+        } else {
+            crate::select::SelectExecutor::new(database)
+        };
         let rows = select_executor.execute(subquery)?;
 
         // Delegate to shared logic
@@ -183,7 +225,7 @@ impl ExpressionEvaluator<'_> {
             &rows,
             op,
             quantifier,
-            |left, op, right| self.eval_binary_op(left, op, right),
+            Self::eval_binary_op_static,
         )
     }
 }
