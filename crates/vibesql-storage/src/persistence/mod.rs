@@ -26,7 +26,7 @@
 
 use std::{fs, io::Read, path::Path};
 
-mod binary;
+pub mod binary;
 pub mod json;
 pub mod load;
 mod save;
