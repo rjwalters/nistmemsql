@@ -61,8 +61,7 @@ mod error_display;
 mod expression_eval;
 mod fulltext_search;
 mod function_tests;
-// Temporarily disabled due to unrelated compilation errors with IndexOrder
-// mod index_scan_tests;
+mod index_scan_tests;
 mod issue_938_integer_type_preservation;
 mod join_aggregation;
 mod lazy_evaluation_tests;
