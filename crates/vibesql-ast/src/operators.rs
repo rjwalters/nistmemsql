@@ -26,7 +26,10 @@ pub enum BinaryOperator {
     // String
     Concat, /* || */
 
-            /* TODO: Add more (LIKE, IN, etc.) */
+    // Note: LIKE and IN are not simple binary operators. They are implemented
+    // as Expression variants in expression.rs due to their complex structure:
+    // - LIKE: Pattern matching with wildcards (%, _)
+    // - IN: Subquery or value list support
 }
 
 /// Unary operators for SQL expressions
