@@ -154,14 +154,6 @@ impl CombinedExpressionEvaluator<'_> {
         // Evaluate the left-hand expression
         let expr_val = self.eval(expr, row)?;
 
-        // Subquery must return exactly one column
-        if subquery.select_list.len() != 1 {
-            return Err(ExecutorError::SubqueryColumnCountMismatch {
-                expected: 1,
-                actual: subquery.select_list.len(),
-            });
-        }
-
         // Execute the subquery with outer context and propagate depth
         let select_executor = if !self.schema.table_schemas.is_empty() {
             crate::select::SelectExecutor::new_with_outer_context_and_depth(
@@ -174,6 +166,17 @@ impl CombinedExpressionEvaluator<'_> {
             crate::select::SelectExecutor::new(database)
         };
         let rows = select_executor.execute(subquery)?;
+
+        // SQL standard (R-35033-20570): The subquery must be a scalar subquery
+        // (single column) when the left expression is not a row value expression.
+        // We must validate this AFTER execution because wildcards like SELECT *
+        // expand to multiple columns at runtime.
+        if !rows.is_empty() && rows[0].values.len() != 1 {
+            return Err(ExecutorError::SubqueryColumnCountMismatch {
+                expected: 1,
+                actual: rows[0].values.len(),
+            });
+        }
 
         // SQL standard behavior for NULL IN (subquery):
         // - NULL IN (empty set) → FALSE (special case per R-52275-55503)
