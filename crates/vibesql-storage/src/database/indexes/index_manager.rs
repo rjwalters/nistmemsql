@@ -110,14 +110,21 @@ impl IndexManager {
         self.database_path = Some(path);
     }
 
-    /// Get the database directory path for index file storage
-    pub fn get_database_path(&self) -> Option<PathBuf> {
-        self.database_path.clone()
-    }
-
     /// Set the resource budget configuration
     pub fn set_config(&mut self, config: DatabaseConfig) {
         self.config = config;
+    }
+
+    /// Reset the index manager to empty state (clears all indexes).
+    ///
+    /// Clears all index metadata and data but preserves configuration
+    /// (database path, storage backend, and resource budgets).
+    /// This is more efficient than creating a new instance and ensures
+    /// disk-backed indexes continue to work after reset.
+    pub fn reset(&mut self) {
+        self.indexes.clear();
+        self.index_data.clear();
+        self.resource_tracker = ResourceTracker::new();
     }
 
     /// Check if an index exists

@@ -103,20 +103,14 @@ impl Database {
     ///
     /// Clears all tables, resets catalog to default state, and clears all indexes and transactions.
     /// Useful for test scenarios where you need to reuse a Database instance.
-    /// Preserves database path to ensure disk-backed indexes continue to work after reset.
+    /// Preserves database configuration (path, storage backend, memory budgets) across resets.
     pub fn reset(&mut self) {
-        // Save database path before reset (fixes issue #1610)
-        let db_path = self.operations.get_database_path();
-
         self.catalog = vibesql_catalog::Catalog::new();
         self.lifecycle.reset();
         self.metadata = Metadata::new();
-        self.operations = Operations::new();
 
-        // Restore database path after reset
-        if let Some(path) = db_path {
-            self.operations.set_database_path(path);
-        }
+        // Reset operations in place to preserve database_path, storage backend, and config
+        self.operations.reset();
 
         self.tables.clear();
     }

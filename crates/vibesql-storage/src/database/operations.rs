@@ -42,11 +42,6 @@ impl Operations {
         self.index_manager.set_database_path(path);
     }
 
-    /// Get the database path for index storage
-    pub fn get_database_path(&self) -> Option<std::path::PathBuf> {
-        self.index_manager.get_database_path()
-    }
-
     /// Set the database configuration (memory budgets, spill policy)
     pub fn set_config(&mut self, config: super::DatabaseConfig) {
         self.index_manager.set_config(config);
@@ -534,6 +529,18 @@ impl Operations {
                 }
             }
         }
+    }
+
+    /// Reset the operations manager to empty state (clears all indexes).
+    ///
+    /// Clears all index data but preserves configuration (database path, storage backend, config).
+    /// This is more efficient than creating a new instance and ensures indexes work after reset.
+    pub fn reset(&mut self) {
+        // Clear all user-defined indexes (preserves database_path, storage, config)
+        self.index_manager.reset();
+
+        // Clear all spatial indexes
+        self.spatial_indexes.clear();
     }
 }
 
