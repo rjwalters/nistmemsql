@@ -1264,9 +1264,9 @@ mod tests {
 
         // idx_2 should have been evicted to disk (coldest)
         // idx_1 and idx_3 should still be in memory (hot)
-        let backend_1 = index_manager.resource_tracker.get_backend("idx_1");
+        let _backend_1 = index_manager.resource_tracker.get_backend("idx_1");
         let backend_2 = index_manager.resource_tracker.get_backend("idx_2");
-        let backend_3 = index_manager.resource_tracker.get_backend("idx_3");
+        let _backend_3 = index_manager.resource_tracker.get_backend("idx_3");
 
         // Note: Exact behavior depends on memory sizes, but idx_2 should be coldest
         assert!(backend_2.is_some());

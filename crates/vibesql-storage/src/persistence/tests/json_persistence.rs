@@ -527,12 +527,12 @@ fn test_json_schemas_and_roles() {
     let mut db = Database::new();
 
     // Create non-default schemas
-    &mut db.catalog.create_schema("analytics".to_string()).unwrap();
-    &mut db.catalog.create_schema("staging".to_string()).unwrap();
+    let _ = &mut db.catalog.create_schema("analytics".to_string()).unwrap();
+    let _ = &mut db.catalog.create_schema("staging".to_string()).unwrap();
 
     // Create roles
-    &mut db.catalog.create_role("admin".to_string()).unwrap();
-    &mut db.catalog.create_role("readonly".to_string()).unwrap();
+    let _ = &mut db.catalog.create_role("admin".to_string()).unwrap();
+    let _ = &mut db.catalog.create_role("readonly".to_string()).unwrap();
 
     // Create table in default schema
     let schema1 = TableSchema::new(
