@@ -486,3 +486,116 @@ fn test_database_config_presets() {
     assert_eq!(test_config.disk_budget, 100 * 1024 * 1024);  // 100MB
     assert_eq!(test_config.spill_policy, SpillPolicy::SpillToDisk);
 }
+
+#[test]
+fn test_index_scan_after_database_reset() {
+    // Reproduces issue #1618: Index scans returning 0 rows after Database::reset()
+    // This simulates the sqllogictest runner's database pooling behavior
+    use crate::Database;
+    use vibesql_catalog::{ColumnSchema, TableSchema};
+    use vibesql_types::DataType;
+    use vibesql_ast::{IndexColumn, OrderDirection};
+    use crate::Row;
+
+    // Create a database and simulate pooling by calling reset()
+    let mut db = Database::new();
+
+    // Simulate sqllogictest pattern: reset database between test files
+    db.reset();
+
+    // Create table schema
+    let columns = vec![
+        ColumnSchema::new("pk".to_string(), DataType::Integer, false),
+        ColumnSchema::new("col0".to_string(), DataType::Integer, false),
+    ];
+    let mut table_schema = TableSchema::new("tab1".to_string(), columns);
+    table_schema.primary_key = Some(vec!["pk".to_string()]);
+
+    // Create table (simulates: CREATE TABLE tab1...)
+    db.create_table(table_schema.clone()).unwrap();
+
+    // Insert rows into table (simulates: INSERT INTO tab1 VALUES...)
+    let rows = vec![
+        Row { values: vec![SqlValue::Integer(1), SqlValue::Integer(100)] },
+        Row { values: vec![SqlValue::Integer(2), SqlValue::Integer(200)] },
+        Row { values: vec![SqlValue::Integer(3), SqlValue::Integer(300)] },
+        Row { values: vec![SqlValue::Integer(4), SqlValue::Integer(400)] },
+        Row { values: vec![SqlValue::Integer(5), SqlValue::Integer(500)] },
+    ];
+
+    // Get the table and insert rows
+    let table = db.get_table_mut("tab1").unwrap();
+    for row in &rows {
+        table.insert(row.clone()).unwrap();
+    }
+
+    // Create index on col0 (simulates: CREATE INDEX idx_col0 ON tab1(col0))
+    db.create_index(
+        "idx_col0".to_string(),
+        "tab1".to_string(),
+        false,
+        vec![IndexColumn {
+            column_name: "col0".to_string(),
+            direction: OrderDirection::Asc,
+        }],
+    ).unwrap();
+
+    // Verify index was created and populated
+    assert!(db.index_exists("idx_col0"));
+    let index_data = db.get_index_data("idx_col0").expect("Index should exist");
+
+    // Check that index contains row indices
+    let all_indices: Vec<usize> = match index_data {
+        crate::database::indexes::IndexData::InMemory { data } => {
+            data.values().flatten().copied().collect()
+        },
+        crate::database::indexes::IndexData::DiskBacked { .. } => {
+            panic!("Expected in-memory index for small table");
+        },
+    };
+
+    assert_eq!(all_indices.len(), 5, "Index should contain 5 row references");
+
+    // Now perform index scan (simulates: SELECT pk FROM tab1 WHERE col0 > 250)
+    // Get table for index scan
+    let table = db.get_table("tab1").expect("Table should exist");
+
+    // Perform range scan on index
+    let matching_row_indices = index_data.range_scan(
+        Some(&SqlValue::Integer(250)),  // col0 > 250
+        None,
+        false,  // exclusive start
+        false,
+    );
+
+    // This should return indices for rows 3, 4, 5 (col0 = 300, 400, 500)
+    assert_eq!(
+        matching_row_indices.len(),
+        3,
+        "Index scan should find 3 rows with col0 > 250, but found {}",
+        matching_row_indices.len()
+    );
+
+    // Fetch actual rows using the indices
+    let all_rows = table.scan();
+    let fetched_rows: Vec<Row> = matching_row_indices
+        .into_iter()
+        .filter_map(|idx| all_rows.get(idx).cloned())
+        .collect();
+
+    // This is the CRITICAL assertion that fails in sqllogictest
+    assert_eq!(
+        fetched_rows.len(),
+        3,
+        "Should fetch 3 rows from table using index scan, but got {} rows. \
+         Table has {} total rows. \
+         This reproduces issue #1618 where index scans return 0 rows after Database::reset()",
+        fetched_rows.len(),
+        all_rows.len()
+    );
+
+    // Verify the correct rows were returned
+    assert_eq!(fetched_rows[0].values[1], SqlValue::Integer(300));
+    assert_eq!(fetched_rows[1].values[1], SqlValue::Integer(400));
+    assert_eq!(fetched_rows[2].values[1], SqlValue::Integer(500));
+}
