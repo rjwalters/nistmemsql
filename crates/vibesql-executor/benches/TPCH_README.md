@@ -88,40 +88,37 @@ for &sf in &[0.01, 0.1, 1.0] {  // Add more scale factors
 
 ## TPC-H Queries Implemented
 
-### Phase 1: Complete (Q1-Q6)
+### ✅ Complete Coverage: All 22 Queries
 
-1. **Q1: Pricing Summary Report**
-   - Aggregate pricing summary with GROUP BY
-   - Tests: Aggregation, GROUP BY, ORDER BY, filtering
+**Basic Aggregation & Filtering (Q1, Q6)**
+1. **Q1: Pricing Summary Report** - Aggregate with GROUP BY, ORDER BY
+2. **Q6: Forecasting Revenue Change** - WHERE filters, BETWEEN, SUM
 
-2. **Q2: Minimum Cost Supplier Query**
-   - Find suppliers in a region with max account balance
-   - Tests: Multi-table JOIN, filtering, ORDER BY, LIMIT
+**Advanced Joins (Q2-Q5, Q7-Q10)**
+3. **Q2: Minimum Cost Supplier** - 3-table JOIN, ORDER BY, LIMIT
+4. **Q3: Shipping Priority** - 3-table JOIN with aggregation
+5. **Q4: Order Priority Checking** - Correlated EXISTS subquery
+6. **Q5: Local Supplier Volume** - 6-table JOIN, complex filtering
+7. **Q7: Volume Shipping** - 6-table JOIN with SUBSTR and date filtering
+8. **Q8: National Market Share** - 7-table JOIN with CASE expressions
+9. **Q9: Product Type Profit Measure** - 4-table JOIN with aggregation
+10. **Q10: Returned Item Reporting** - 4-table JOIN, TOP-N with LIMIT
 
-3. **Q3: Shipping Priority Query**
-   - Calculate revenue for unshipped orders by priority
-   - Tests: 3-table JOIN, aggregation, GROUP BY, ORDER BY DESC
+**Subqueries & HAVING (Q11-Q13)**
+11. **Q11: Important Stock Identification** - Subquery in HAVING clause
+12. **Q12: Shipping Modes Priority** - CASE aggregation with date logic
+13. **Q13: Customer Distribution** - LEFT OUTER JOIN with subquery
 
-4. **Q4: Order Priority Checking Query**
-   - Count orders by priority with late line items
-   - Tests: Correlated subquery with EXISTS, date filtering
-
-5. **Q5: Local Supplier Volume Query**
-   - Calculate revenue by nation for local suppliers in a region
-   - Tests: 6-table JOIN, complex filtering, GROUP BY
-
-6. **Q6: Forecasting Revenue Change**
-   - Simple aggregation with selective filtering
-   - Tests: WHERE filters, BETWEEN, simple SUM
-
-### Phase 2: TODO (Q7-Q22)
-
-The following queries are planned for future implementation:
-
-- **Q7-Q13**: Advanced joins and subqueries
-- **Q14-Q22**: Complex analytics and edge cases
-
-See issue #1525 for the implementation roadmap.
+**Complex Analytics (Q14-Q22)**
+14. **Q14: Promotion Effect** - Conditional aggregation with CASE
+15. **Q15: Top Supplier** - Nested subqueries with MAX
+16. **Q16: Parts/Supplier Relationship** - NOT IN subquery, DISTINCT
+17. **Q17: Small-Quantity-Order Revenue** - Correlated subquery in WHERE
+18. **Q18: Large Volume Customer** - GROUP BY with HAVING
+19. **Q19: Discounted Revenue** - Complex OR conditions
+20. **Q20: Potential Part Promotion** - IN subquery with GROUP BY/HAVING
+21. **Q21: Suppliers Who Kept Orders Waiting** - Multi-table EXISTS
+22. **Q22: Global Sales Opportunity** - SUBSTR, NOT EXISTS, nested subquery
 
 **To add more queries**: Follow the pattern in `tpch_benchmark.rs`:
 
