@@ -87,6 +87,16 @@ impl UpdateExecutor {
         Self::execute_with_schema(stmt, database, None)
     }
 
+    /// Execute an UPDATE statement with procedural context
+    /// Supports procedural variables in SET and WHERE clauses
+    pub fn execute_with_procedural_context(
+        stmt: &UpdateStmt,
+        database: &mut Database,
+        procedural_context: &crate::procedural::ExecutionContext,
+    ) -> Result<usize, ExecutorError> {
+        Self::execute_internal(stmt, database, None, Some(procedural_context))
+    }
+
     /// Execute an UPDATE statement with optional pre-fetched schema
     ///
     /// This method allows cursor-level schema caching to reduce redundant catalog lookups.
@@ -105,6 +115,16 @@ impl UpdateExecutor {
         stmt: &UpdateStmt,
         database: &mut Database,
         schema: Option<&vibesql_catalog::TableSchema>,
+    ) -> Result<usize, ExecutorError> {
+        Self::execute_internal(stmt, database, schema, None)
+    }
+
+    /// Internal implementation supporting both schema caching and procedural context
+    fn execute_internal(
+        stmt: &UpdateStmt,
+        database: &mut Database,
+        schema: Option<&vibesql_catalog::TableSchema>,
+        procedural_context: Option<&crate::procedural::ExecutionContext>,
     ) -> Result<usize, ExecutorError> {
         // Check UPDATE privilege on the table
         PrivilegeChecker::check_update(database, &stmt.table_name)?;
@@ -129,7 +149,12 @@ impl UpdateExecutor {
             .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
 
         // Step 3: Create expression evaluator with database reference for subquery support
-        let evaluator = ExpressionEvaluator::with_database(schema, database);
+        //         and optional procedural context for variable resolution
+        let evaluator = if let Some(ctx) = procedural_context {
+            ExpressionEvaluator::with_procedural_context(schema, database, ctx)
+        } else {
+            ExpressionEvaluator::with_database(schema, database)
+        };
 
         // Step 4: Select rows to update using RowSelector
         let row_selector = RowSelector::new(schema, &evaluator);

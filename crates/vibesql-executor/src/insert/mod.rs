@@ -22,4 +22,15 @@ impl InsertExecutor {
     ) -> Result<usize, ExecutorError> {
         execution::execute_insert(db, stmt)
     }
+
+    /// Execute an INSERT statement with procedural context
+    /// Supports procedural variables in VALUES clause
+    /// Returns number of rows inserted
+    pub fn execute_with_procedural_context(
+        db: &mut vibesql_storage::Database,
+        stmt: &vibesql_ast::InsertStmt,
+        procedural_context: &crate::procedural::ExecutionContext,
+    ) -> Result<usize, ExecutorError> {
+        execution::execute_insert_with_procedural_context(db, stmt, procedural_context)
+    }
 }
