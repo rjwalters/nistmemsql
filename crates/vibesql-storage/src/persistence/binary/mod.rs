@@ -20,16 +20,16 @@ use std::{
 use crate::{Database, StorageError};
 
 // Public submodules
+pub mod catalog;
+pub mod data;
 pub mod format;
 pub mod io;
 pub mod value;
-pub mod catalog;
-pub mod data;
 
 // Re-export public API
-pub use format::{write_header, read_header};
-pub use catalog::{write_catalog, read_catalog};
-pub use data::{write_data, read_data};
+pub use catalog::{read_catalog, write_catalog};
+pub use data::{read_data, write_data};
+pub use format::{read_header, write_header};
 
 impl Database {
     /// Save database in efficient binary format
@@ -102,7 +102,7 @@ impl Database {
     /// ```no_run
     /// # use vibesql_storage::Database;
     /// let db = Database::new();
-    /// db.save("database.vbsqlz").unwrap();  // Compressed by default
+    /// db.save("database.vbsqlz").unwrap(); // Compressed by default
     /// ```
     pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), StorageError> {
         self.save_compressed(path)
@@ -149,7 +149,8 @@ impl Database {
             // Write data section
             write_data(&mut writer, self)?;
 
-            writer.flush()
+            writer
+                .flush()
                 .map_err(|e| StorageError::NotImplemented(format!("Failed to flush: {}", e)))?;
         }
 
@@ -175,8 +176,9 @@ impl Database {
     /// ```
     pub fn load_compressed<P: AsRef<Path>>(path: P) -> Result<Self, StorageError> {
         // Read compressed file
-        let compressed_data = std::fs::read(path.as_ref())
-            .map_err(|e| StorageError::NotImplemented(format!("Failed to read file {:?}: {}", path.as_ref(), e)))?;
+        let compressed_data = std::fs::read(path.as_ref()).map_err(|e| {
+            StorageError::NotImplemented(format!("Failed to read file {:?}: {}", path.as_ref(), e))
+        })?;
 
         // Decompress using zstd
         let uncompressed_data = zstd::decode_all(&compressed_data[..])
@@ -200,9 +202,11 @@ impl Database {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use super::io::*;
-    use super::format::{MAGIC, VERSION};
+    use super::{
+        format::{MAGIC, VERSION},
+        io::*,
+        *,
+    };
 
     #[test]
     fn test_header_roundtrip() {

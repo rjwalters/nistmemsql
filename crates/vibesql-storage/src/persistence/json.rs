@@ -176,10 +176,7 @@ impl Database {
     /// # use vibesql_storage::Database;
     /// # use vibesql_storage::persistence::json::JsonOptions;
     /// let db = Database::new();
-    /// let options = JsonOptions {
-    ///     pretty: true,
-    ///     include_metadata: true,
-    /// };
+    /// let options = JsonOptions { pretty: true, include_metadata: true };
     /// db.save_json_with_options("database.json", options).unwrap();
     /// ```
     pub fn save_json_with_options<P: AsRef<Path>>(
@@ -208,9 +205,7 @@ impl Database {
             .write_all(json_str.as_bytes())
             .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
 
-        writer
-            .flush()
-            .map_err(|e| StorageError::NotImplemented(format!("Flush error: {}", e)))?;
+        writer.flush().map_err(|e| StorageError::NotImplemented(format!("Flush error: {}", e)))?;
 
         Ok(())
     }
@@ -297,8 +292,9 @@ impl Database {
         let reader = BufReader::new(file);
 
         // Deserialize from JSON
-        let json_db: JsonDatabase = serde_json::from_reader(reader)
-            .map_err(|e| StorageError::NotImplemented(format!("JSON deserialization failed: {}", e)))?;
+        let json_db: JsonDatabase = serde_json::from_reader(reader).map_err(|e| {
+            StorageError::NotImplemented(format!("JSON deserialization failed: {}", e))
+        })?;
 
         // Convert to Database
         json_database_to_db(json_db)
@@ -383,7 +379,14 @@ fn column_to_json(col: &ColumnSchema) -> JsonColumn {
         DataType::Null => ("NULL".to_string(), None, None, None),
     };
 
-    JsonColumn { name: col.name.clone(), data_type: type_name, nullable: col.nullable, max_length, precision, scale }
+    JsonColumn {
+        name: col.name.clone(),
+        data_type: type_name,
+        nullable: col.nullable,
+        max_length,
+        precision,
+        scale,
+    }
 }
 
 /// Convert SqlValue to JSON representation
@@ -420,9 +423,7 @@ fn json_database_to_db(json_db: JsonDatabase) -> Result<Database, StorageError> 
 
     // Create roles
     for role in json_db.roles {
-        db.catalog
-            .create_role(role.name)
-            .map_err(|e| StorageError::CatalogError(e.to_string()))?;
+        db.catalog.create_role(role.name).map_err(|e| StorageError::CatalogError(e.to_string()))?;
     }
 
     // Create tables and insert data
@@ -451,7 +452,10 @@ fn json_database_to_db(json_db: JsonDatabase) -> Result<Database, StorageError> 
     // Skip views for now - requires SQL parsing which we don't want to do during deserialization
     // Views will need to be recreated manually or via SQL execution
     if !json_db.views.is_empty() {
-        eprintln!("Warning: {} views found in JSON but skipped (not yet supported)", json_db.views.len());
+        eprintln!(
+            "Warning: {} views found in JSON but skipped (not yet supported)",
+            json_db.views.len()
+        );
     }
 
     // Create indexes
@@ -498,14 +502,12 @@ fn parse_data_type(
         "SMALLINT" => Ok(DataType::Smallint),
         "BIGINT" => Ok(DataType::Bigint),
         "UNSIGNED" => Ok(DataType::Unsigned),
-        "NUMERIC" => Ok(DataType::Numeric {
-            precision: precision.unwrap_or(38),
-            scale: scale.unwrap_or(0),
-        }),
-        "DECIMAL" => Ok(DataType::Decimal {
-            precision: precision.unwrap_or(38),
-            scale: scale.unwrap_or(0),
-        }),
+        "NUMERIC" => {
+            Ok(DataType::Numeric { precision: precision.unwrap_or(38), scale: scale.unwrap_or(0) })
+        }
+        "DECIMAL" => {
+            Ok(DataType::Decimal { precision: precision.unwrap_or(38), scale: scale.unwrap_or(0) })
+        }
         "FLOAT" => Ok(DataType::Float { precision: precision.unwrap_or(53) }),
         "REAL" => Ok(DataType::Real),
         "DOUBLE PRECISION" | "DOUBLE" => Ok(DataType::DoublePrecision),
@@ -542,75 +544,68 @@ fn json_row_to_row(json_row: &JsonRow, schema: &TableSchema) -> Result<Row, Stor
 }
 
 /// Convert JSON value to SqlValue
-fn json_value_to_sql(json_value: &serde_json::Value, data_type: &DataType) -> Result<SqlValue, StorageError> {
+fn json_value_to_sql(
+    json_value: &serde_json::Value,
+    data_type: &DataType,
+) -> Result<SqlValue, StorageError> {
     match (json_value, data_type) {
         (serde_json::Value::Null, _) => Ok(SqlValue::Null),
-        (serde_json::Value::Number(n), DataType::Integer) => {
-            n.as_i64().map(SqlValue::Integer).ok_or_else(|| {
-                StorageError::NotImplemented(format!("Invalid integer value: {}", n))
-            })
-        }
+        (serde_json::Value::Number(n), DataType::Integer) => n
+            .as_i64()
+            .map(SqlValue::Integer)
+            .ok_or_else(|| StorageError::NotImplemented(format!("Invalid integer value: {}", n))),
         (serde_json::Value::Number(n), DataType::Smallint) => {
-            n.as_i64()
-                .and_then(|v| i16::try_from(v).ok())
-                .map(SqlValue::Smallint)
-                .ok_or_else(|| StorageError::NotImplemented(format!("Invalid smallint value: {}", n)))
+            n.as_i64().and_then(|v| i16::try_from(v).ok()).map(SqlValue::Smallint).ok_or_else(
+                || StorageError::NotImplemented(format!("Invalid smallint value: {}", n)),
+            )
         }
-        (serde_json::Value::Number(n), DataType::Bigint) => {
-            n.as_i64().map(SqlValue::Bigint).ok_or_else(|| {
-                StorageError::NotImplemented(format!("Invalid bigint value: {}", n))
-            })
+        (serde_json::Value::Number(n), DataType::Bigint) => n
+            .as_i64()
+            .map(SqlValue::Bigint)
+            .ok_or_else(|| StorageError::NotImplemented(format!("Invalid bigint value: {}", n))),
+        (serde_json::Value::Number(n), DataType::Unsigned) => n
+            .as_u64()
+            .map(SqlValue::Unsigned)
+            .ok_or_else(|| StorageError::NotImplemented(format!("Invalid unsigned value: {}", n))),
+        (serde_json::Value::Number(n), DataType::Numeric { .. })
+        | (serde_json::Value::Number(n), DataType::Decimal { .. }) => n
+            .as_f64()
+            .map(SqlValue::Numeric)
+            .ok_or_else(|| StorageError::NotImplemented(format!("Invalid numeric value: {}", n))),
+        (serde_json::Value::Number(n), DataType::Float { .. }) => n
+            .as_f64()
+            .map(|v| SqlValue::Float(v as f32))
+            .ok_or_else(|| StorageError::NotImplemented(format!("Invalid float value: {}", n))),
+        (serde_json::Value::Number(n), DataType::Real) => n
+            .as_f64()
+            .map(|v| SqlValue::Real(v as f32))
+            .ok_or_else(|| StorageError::NotImplemented(format!("Invalid real value: {}", n))),
+        (serde_json::Value::Number(n), DataType::DoublePrecision) => n
+            .as_f64()
+            .map(SqlValue::Double)
+            .ok_or_else(|| StorageError::NotImplemented(format!("Invalid double value: {}", n))),
+        (serde_json::Value::String(s), DataType::Character { .. }) => {
+            Ok(SqlValue::Character(s.clone()))
         }
-        (serde_json::Value::Number(n), DataType::Unsigned) => {
-            n.as_u64().map(SqlValue::Unsigned).ok_or_else(|| {
-                StorageError::NotImplemented(format!("Invalid unsigned value: {}", n))
-            })
-        }
-        (serde_json::Value::Number(n), DataType::Numeric { .. }) | (serde_json::Value::Number(n), DataType::Decimal { .. }) => {
-            n.as_f64().map(SqlValue::Numeric).ok_or_else(|| {
-                StorageError::NotImplemented(format!("Invalid numeric value: {}", n))
-            })
-        }
-        (serde_json::Value::Number(n), DataType::Float { .. }) => {
-            n.as_f64().map(|v| SqlValue::Float(v as f32)).ok_or_else(|| {
-                StorageError::NotImplemented(format!("Invalid float value: {}", n))
-            })
-        }
-        (serde_json::Value::Number(n), DataType::Real) => {
-            n.as_f64().map(|v| SqlValue::Real(v as f32)).ok_or_else(|| {
-                StorageError::NotImplemented(format!("Invalid real value: {}", n))
-            })
-        }
-        (serde_json::Value::Number(n), DataType::DoublePrecision) => {
-            n.as_f64().map(SqlValue::Double).ok_or_else(|| {
-                StorageError::NotImplemented(format!("Invalid double value: {}", n))
-            })
-        }
-        (serde_json::Value::String(s), DataType::Character { .. }) => Ok(SqlValue::Character(s.clone())),
-        (serde_json::Value::String(s), DataType::Varchar { .. }) | (serde_json::Value::String(s), DataType::Name) => {
-            Ok(SqlValue::Varchar(s.clone()))
-        }
+        (serde_json::Value::String(s), DataType::Varchar { .. })
+        | (serde_json::Value::String(s), DataType::Name) => Ok(SqlValue::Varchar(s.clone())),
         (serde_json::Value::Bool(b), DataType::Boolean) => Ok(SqlValue::Boolean(*b)),
-        (serde_json::Value::String(s), DataType::Date) => {
-            s.parse()
-                .map(SqlValue::Date)
-                .map_err(|e| StorageError::NotImplemented(format!("Invalid date: {}", e)))
-        }
-        (serde_json::Value::String(s), DataType::Time { .. }) => {
-            s.parse()
-                .map(SqlValue::Time)
-                .map_err(|e| StorageError::NotImplemented(format!("Invalid time: {}", e)))
-        }
-        (serde_json::Value::String(s), DataType::Timestamp { .. }) => {
-            s.parse()
-                .map(SqlValue::Timestamp)
-                .map_err(|e| StorageError::NotImplemented(format!("Invalid timestamp: {}", e)))
-        }
-        (serde_json::Value::String(s), DataType::Interval { .. }) => {
-            s.parse()
-                .map(SqlValue::Interval)
-                .map_err(|e| StorageError::NotImplemented(format!("Invalid interval: {}", e)))
-        }
+        (serde_json::Value::String(s), DataType::Date) => s
+            .parse()
+            .map(SqlValue::Date)
+            .map_err(|e| StorageError::NotImplemented(format!("Invalid date: {}", e))),
+        (serde_json::Value::String(s), DataType::Time { .. }) => s
+            .parse()
+            .map(SqlValue::Time)
+            .map_err(|e| StorageError::NotImplemented(format!("Invalid time: {}", e))),
+        (serde_json::Value::String(s), DataType::Timestamp { .. }) => s
+            .parse()
+            .map(SqlValue::Timestamp)
+            .map_err(|e| StorageError::NotImplemented(format!("Invalid timestamp: {}", e))),
+        (serde_json::Value::String(s), DataType::Interval { .. }) => s
+            .parse()
+            .map(SqlValue::Interval)
+            .map_err(|e| StorageError::NotImplemented(format!("Invalid interval: {}", e))),
         _ => Err(StorageError::NotImplemented(format!(
             "Unsupported JSON value {:?} for type {:?}",
             json_value, data_type

@@ -37,6 +37,7 @@ fn test_create_insert_statement() {
             "Alice".to_string(),
         ))]]),
         conflict_clause: None,
+        on_duplicate_key_update: None,
     });
 
     match stmt {

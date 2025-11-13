@@ -5,9 +5,9 @@
 // Handles serialization of schemas, tables, indexes, and roles.
 
 use std::io::{Read, Write};
-use crate::{Database, StorageError};
+
 use super::io::*;
-use crate::persistence::save;
+use crate::{persistence::save, Database, StorageError};
 
 pub fn write_catalog<W: Write>(writer: &mut W, db: &Database) -> Result<(), StorageError> {
     // Write schemas
@@ -97,15 +97,18 @@ pub fn write_catalog<W: Write>(writer: &mut W, db: &Database) -> Result<(), Stor
             // For Update with columns, write 3 followed by column list
             match &trigger.event {
                 vibesql_ast::TriggerEvent::Insert => {
-                    writer.write_all(&[0u8])
+                    writer
+                        .write_all(&[0u8])
                         .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
                 }
                 vibesql_ast::TriggerEvent::Update(None) => {
-                    writer.write_all(&[1u8])
+                    writer
+                        .write_all(&[1u8])
                         .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
                 }
                 vibesql_ast::TriggerEvent::Update(Some(cols)) => {
-                    writer.write_all(&[3u8])
+                    writer
+                        .write_all(&[3u8])
                         .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
                     write_u32(writer, cols.len() as u32)?;
                     for col in cols {
@@ -113,7 +116,8 @@ pub fn write_catalog<W: Write>(writer: &mut W, db: &Database) -> Result<(), Stor
                     }
                 }
                 vibesql_ast::TriggerEvent::Delete => {
-                    writer.write_all(&[2u8])
+                    writer
+                        .write_all(&[2u8])
                         .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
                 }
             }
@@ -143,7 +147,8 @@ pub fn write_catalog<W: Write>(writer: &mut W, db: &Database) -> Result<(), Stor
             // Write triggered_action
             match &trigger.triggered_action {
                 vibesql_ast::TriggerAction::RawSql(sql) => {
-                    writer.write_all(&[0u8])
+                    writer
+                        .write_all(&[0u8])
                         .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
                     write_string(writer, sql)?;
                 }
@@ -345,9 +350,9 @@ pub fn read_catalog<R: Read>(reader: &mut R) -> Result<Database, StorageError> {
         );
 
         // Add to catalog
-        db.catalog
-            .create_trigger(trigger)
-            .map_err(|e| StorageError::NotImplemented(format!("Failed to create trigger: {}", e)))?;
+        db.catalog.create_trigger(trigger).map_err(|e| {
+            StorageError::NotImplemented(format!("Failed to create trigger: {}", e))
+        })?;
     }
 
     Ok(db)

@@ -3,10 +3,12 @@
 //! This module provides page-based storage management for disk-backed indexes.
 //! Pages are fixed-size blocks (4KB) that form the foundation of persistent storage.
 
-use std::fs::{File, OpenOptions};
-use std::io::{self, Read, Seek, SeekFrom, Write};
-use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::{
+    fs::{File, OpenOptions},
+    io::{self, Read, Seek, SeekFrom, Write},
+    path::Path,
+    sync::{Arc, Mutex},
+};
 
 use crate::StorageError;
 
@@ -39,10 +41,7 @@ impl Page {
     /// Create a page from existing data
     pub fn from_data(id: PageId, data: Vec<u8>) -> Result<Self, StorageError> {
         if data.len() != PAGE_SIZE {
-            return Err(StorageError::InvalidPageSize {
-                expected: PAGE_SIZE,
-                actual: data.len(),
-            });
+            return Err(StorageError::InvalidPageSize { expected: PAGE_SIZE, actual: data.len() });
         }
         Ok(Page { id, data, dirty: false })
     }
@@ -144,8 +143,7 @@ impl PageManager {
             .map_err(|e| StorageError::LockError(format!("Failed to lock file: {}", e)))?;
 
         let offset = (page_id as u64) * (PAGE_SIZE as u64);
-        file.seek(SeekFrom::Start(offset))
-            .map_err(|e| StorageError::IoError(e.to_string()))?;
+        file.seek(SeekFrom::Start(offset)).map_err(|e| StorageError::IoError(e.to_string()))?;
 
         let mut data = vec![0u8; PAGE_SIZE];
         match file.read_exact(&mut data) {
@@ -166,14 +164,11 @@ impl PageManager {
             .map_err(|e| StorageError::LockError(format!("Failed to lock file: {}", e)))?;
 
         let offset = (page.id as u64) * (PAGE_SIZE as u64);
-        file.seek(SeekFrom::Start(offset))
-            .map_err(|e| StorageError::IoError(e.to_string()))?;
+        file.seek(SeekFrom::Start(offset)).map_err(|e| StorageError::IoError(e.to_string()))?;
 
-        file.write_all(&page.data)
-            .map_err(|e| StorageError::IoError(e.to_string()))?;
+        file.write_all(&page.data).map_err(|e| StorageError::IoError(e.to_string()))?;
 
-        file.sync_data()
-            .map_err(|e| StorageError::IoError(e.to_string()))?;
+        file.sync_data().map_err(|e| StorageError::IoError(e.to_string()))?;
 
         page.mark_clean();
         Ok(())
@@ -257,8 +252,7 @@ impl PageManager {
             .file
             .lock()
             .map_err(|e| StorageError::LockError(format!("Failed to lock file: {}", e)))?;
-        file.sync_all()
-            .map_err(|e| StorageError::IoError(e.to_string()))?;
+        file.sync_all().map_err(|e| StorageError::IoError(e.to_string()))?;
         Ok(())
     }
 
@@ -275,8 +269,9 @@ impl PageManager {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::TempDir;
+
+    use super::*;
 
     #[test]
     fn test_page_creation() {

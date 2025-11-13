@@ -5,6 +5,7 @@
 // Handles file format constants, version management, and type tag definitions.
 
 use std::io::{Read, Write};
+
 use crate::StorageError;
 
 /// Magic number for vibesql binary format: "VBSQL" in ASCII

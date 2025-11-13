@@ -10,7 +10,7 @@
 //! - UPDATE constraint validation
 //! - Case sensitivity
 
-use vibesql_ast::{select::OrderDirection, IndexColumn};
+use vibesql_ast::{IndexColumn, OrderDirection};
 use vibesql_catalog::{ColumnSchema, TableSchema};
 use vibesql_parser::Parser;
 use vibesql_storage::{Database, Row};
@@ -342,8 +342,11 @@ fn test_unique_index_update_enforcement() {
     .unwrap();
 
     // Try to UPDATE bob's email to alice's email - should fail
-    let mut parser = Parser::new("UPDATE users SET email = 'alice@example.com' WHERE id = 2");
-    let stmt = parser.parse_update().unwrap();
+    let parsed = Parser::parse_sql("UPDATE users SET email = 'alice@example.com' WHERE id = 2").unwrap();
+    let stmt = match parsed {
+        vibesql_ast::Statement::Update(stmt) => stmt,
+        _ => panic!("Expected UPDATE statement"),
+    };
 
     let result = crate::update::UpdateExecutor::execute(&stmt, &mut db);
 
@@ -387,10 +390,13 @@ fn test_unique_index_update_same_value_allowed() {
     .unwrap();
 
     // UPDATE with same email value should succeed
-    let mut parser = Parser::new(
+    let parsed = Parser::parse_sql(
         "UPDATE users SET email = 'alice@example.com', first_name = 'Alicia' WHERE id = 1",
-    );
-    let stmt = parser.parse_update().unwrap();
+    ).unwrap();
+    let stmt = match parsed {
+        vibesql_ast::Statement::Update(stmt) => stmt,
+        _ => panic!("Expected UPDATE statement"),
+    };
 
     let result = crate::update::UpdateExecutor::execute(&stmt, &mut db);
     assert!(result.is_ok());
@@ -427,8 +433,11 @@ fn test_unique_index_update_to_different_value() {
     .unwrap();
 
     // UPDATE to different email value should succeed
-    let mut parser = Parser::new("UPDATE users SET email = 'newemail@example.com' WHERE id = 1");
-    let stmt = parser.parse_update().unwrap();
+    let parsed = Parser::parse_sql("UPDATE users SET email = 'newemail@example.com' WHERE id = 1").unwrap();
+    let stmt = match parsed {
+        vibesql_ast::Statement::Update(stmt) => stmt,
+        _ => panic!("Expected UPDATE statement"),
+    };
 
     let result = crate::update::UpdateExecutor::execute(&stmt, &mut db);
     assert!(result.is_ok());
@@ -473,8 +482,11 @@ fn test_unique_index_update_to_null() {
     .unwrap();
 
     // UPDATE email to NULL should succeed
-    let mut parser = Parser::new("UPDATE users SET email = NULL WHERE id = 1");
-    let stmt = parser.parse_update().unwrap();
+    let parsed = Parser::parse_sql("UPDATE users SET email = NULL WHERE id = 1").unwrap();
+    let stmt = match parsed {
+        vibesql_ast::Statement::Update(stmt) => stmt,
+        _ => panic!("Expected UPDATE statement"),
+    };
 
     let result = crate::update::UpdateExecutor::execute(&stmt, &mut db);
     assert!(result.is_ok());

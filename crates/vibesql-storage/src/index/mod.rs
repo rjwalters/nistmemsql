@@ -5,4 +5,4 @@
 
 pub mod spatial;
 
-pub use spatial::{SpatialIndex, SpatialIndexEntry, extract_mbr_from_sql_value};
+pub use spatial::{extract_mbr_from_sql_value, SpatialIndex, SpatialIndexEntry};

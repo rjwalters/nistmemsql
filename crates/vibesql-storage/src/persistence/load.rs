@@ -25,9 +25,7 @@ pub fn read_sql_dump<P: AsRef<Path>>(path: P) -> Result<String, StorageError> {
         Ok(content) => Ok(content),
         Err(e) => {
             // Check if this might be a binary database file (like SQLite)
-            if let Ok(bytes) =
-                fs::read(path_ref).map(|b| b.get(0..16).unwrap_or(&[]).to_vec())
-            {
+            if let Ok(bytes) = fs::read(path_ref).map(|b| b.get(0..16).unwrap_or(&[]).to_vec()) {
                 // Check for SQLite file signature
                 if bytes.starts_with(b"SQLite format") {
                     return Err(StorageError::NotImplemented(format!(
