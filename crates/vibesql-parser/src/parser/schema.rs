@@ -168,3 +168,35 @@ pub fn parse_set_time_zone(parser: &mut crate::Parser) -> Result<vibesql_ast::Se
 
     Ok(vibesql_ast::SetTimeZoneStmt { zone })
 }
+
+/// Parse SET variable statement (MySQL/PostgreSQL extension)
+///
+/// Syntax:
+///   SET [GLOBAL | SESSION] variable_name = expression
+///   SET variable_name = expression (defaults to SESSION)
+pub fn parse_set_variable(parser: &mut crate::Parser) -> Result<vibesql_ast::SetVariableStmt, ParseError> {
+    parser.expect_keyword(Keyword::Set)?;
+
+    // Check for optional GLOBAL or SESSION scope
+    let scope = if parser.peek_keyword(Keyword::Global) {
+        parser.advance();
+        vibesql_ast::VariableScope::Global
+    } else if parser.peek_keyword(Keyword::Session) {
+        parser.advance();
+        vibesql_ast::VariableScope::Session
+    } else {
+        // Default to SESSION scope
+        vibesql_ast::VariableScope::Session
+    };
+
+    // Parse variable name (identifier)
+    let variable = parser.parse_identifier()?;
+
+    // Expect '=' sign
+    parser.expect_token(crate::token::Token::Symbol('='))?;
+
+    // Parse the value expression
+    let value = parser.parse_expression()?;
+
+    Ok(vibesql_ast::SetVariableStmt { scope, variable, value })
+}

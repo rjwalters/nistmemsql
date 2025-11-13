@@ -30,9 +30,10 @@ pub use ddl::{
     ReindexStmt, ReleaseSavepointStmt, RenameTableStmt, RollbackStmt, RollbackToSavepointStmt,
     RowFormat, SavepointStmt, SchemaElement, SetCatalogStmt, SetNamesStmt, SetSchemaStmt,
     SqlSecurity,
-    SetTimeZoneStmt, SetTransactionStmt, TableConstraint, TableConstraintKind, TableOption,
-    TimeZoneSpec, TransactionAccessMode, TriggerAction, TriggerEvent, TriggerGranularity,
-    TriggerTiming, TruncateCascadeOption, TruncateTableStmt, TypeAttribute, TypeDefinition,
+    SetTimeZoneStmt, SetTransactionStmt, SetVariableStmt, TableConstraint, TableConstraintKind,
+    TableOption, TimeZoneSpec, TransactionAccessMode, TriggerAction, TriggerEvent,
+    TriggerGranularity, TriggerTiming, TruncateCascadeOption, TruncateTableStmt, TypeAttribute,
+    TypeDefinition, VariableScope,
 };
 pub use dml::{
     Assignment, ConflictClause, DeleteStmt, InsertSource, InsertStmt, UpdateStmt, WhereClause,
