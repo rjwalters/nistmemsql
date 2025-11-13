@@ -67,6 +67,7 @@ fn test_index_ordering() {
         columns: vec![IndexColumn {
             column_name: "name".to_string(),
             direction: OrderDirection::Asc,
+                prefix_length: None,
         }],
     };
 

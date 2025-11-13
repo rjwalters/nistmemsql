@@ -96,6 +96,7 @@ fn test_index_scan_with_email_index() {
         false, // not unique
         vec![IndexColumn {
             column_name: "email".to_string(),
+                prefix_length: None,
             direction: OrderDirection::Asc,
         }],
     )
@@ -130,6 +131,7 @@ fn test_index_scan_with_age_index() {
         false,
         vec![IndexColumn {
             column_name: "age".to_string(),
+                prefix_length: None,
             direction: OrderDirection::Asc,
         }],
     )
@@ -195,6 +197,7 @@ fn test_index_scan_with_comparison_operator() {
         false,
         vec![IndexColumn {
             column_name: "age".to_string(),
+                prefix_length: None,
             direction: OrderDirection::Asc,
         }],
     )
@@ -238,6 +241,7 @@ fn test_index_scan_with_and_condition() {
         false,
         vec![IndexColumn {
             column_name: "age".to_string(),
+                prefix_length: None,
             direction: OrderDirection::Asc,
         }],
     )
@@ -270,6 +274,7 @@ fn test_unique_index_enforcement() {
         true, // unique
         vec![IndexColumn {
             column_name: "email".to_string(),
+                prefix_length: None,
             direction: OrderDirection::Asc,
         }],
     );

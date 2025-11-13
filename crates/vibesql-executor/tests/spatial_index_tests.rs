@@ -45,6 +45,7 @@ fn test_create_spatial_index_basic() {
         columns: vec![IndexColumn {
             column_name: "location".to_string(),
             direction: OrderDirection::Asc,
+                prefix_length: None,
         }],
     };
 
@@ -102,10 +103,12 @@ fn test_spatial_index_multiple_columns_error() {
             IndexColumn {
                 column_name: "location1".to_string(),
                 direction: OrderDirection::Asc,
+                prefix_length: None,
             },
             IndexColumn {
                 column_name: "location2".to_string(),
                 direction: OrderDirection::Asc,
+                prefix_length: None,
             },
         ],
     };
@@ -154,6 +157,7 @@ fn test_drop_spatial_index() {
         columns: vec![IndexColumn {
             column_name: "location".to_string(),
             direction: OrderDirection::Asc,
+                prefix_length: None,
         }],
     };
 
@@ -211,6 +215,7 @@ fn test_spatial_index_if_not_exists() {
         columns: vec![IndexColumn {
             column_name: "location".to_string(),
             direction: OrderDirection::Asc,
+                prefix_length: None,
         }],
     };
 
@@ -225,6 +230,7 @@ fn test_spatial_index_if_not_exists() {
         columns: vec![IndexColumn {
             column_name: "location".to_string(),
             direction: OrderDirection::Asc,
+                prefix_length: None,
         }],
     };
 

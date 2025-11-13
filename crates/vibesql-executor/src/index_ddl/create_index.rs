@@ -92,6 +92,47 @@ impl CreateIndexExecutor {
             }
         }
 
+        // Validate prefix length specifications
+        for index_col in &stmt.columns {
+            if let Some(prefix_len) = index_col.prefix_length {
+                // Prefix length must be positive
+                if prefix_len == 0 {
+                    return Err(ExecutorError::InvalidIndexDefinition(
+                        format!("Prefix length must be greater than 0 for column '{}'", index_col.column_name),
+                    ));
+                }
+
+                // Prefix length should only be used with string columns
+                let column = table_schema.get_column(&index_col.column_name).unwrap(); // Safe: already validated above
+                match column.data_type {
+                    vibesql_types::DataType::Varchar { .. }
+                    | vibesql_types::DataType::Character { .. } => {
+                        // Valid string types for prefix indexing
+                    }
+                    _ => {
+                        return Err(ExecutorError::InvalidIndexDefinition(
+                            format!(
+                                "Prefix length can only be specified for string columns, but column '{}' has type {:?}",
+                                index_col.column_name, column.data_type
+                            ),
+                        ));
+                    }
+                }
+
+                // Reasonable upper limit check (64KB = 65536 characters)
+                // This prevents accidental extremely large prefix specifications
+                const MAX_PREFIX_LENGTH: u64 = 65536;
+                if prefix_len > MAX_PREFIX_LENGTH {
+                    return Err(ExecutorError::InvalidIndexDefinition(
+                        format!(
+                            "Prefix length {} is too large for column '{}' (maximum: {})",
+                            prefix_len, index_col.column_name, MAX_PREFIX_LENGTH
+                        ),
+                    ));
+                }
+            }
+        }
+
         // Check if index already exists (either B-tree or spatial)
         let index_name = &stmt.index_name;
         let index_exists = database.index_exists(index_name) || database.spatial_index_exists(index_name);
@@ -121,6 +162,7 @@ impl CreateIndexExecutor {
                                 vibesql_ast::OrderDirection::Asc => vibesql_catalog::SortOrder::Ascending,
                                 vibesql_ast::OrderDirection::Desc => vibesql_catalog::SortOrder::Descending,
                             },
+                            prefix_length: col.prefix_length,
                         })
                         .collect(),
                     *unique,
@@ -195,6 +237,7 @@ impl CreateIndexExecutor {
                     vec![vibesql_catalog::IndexedColumn {
                         column_name: column_name.clone(),
                         order: vibesql_catalog::SortOrder::Ascending,
+                        prefix_length: None, // Spatial indexes don't support prefix indexing
                     }],
                     false,
                 );
@@ -276,6 +319,7 @@ mod tests {
             columns: vec![IndexColumn {
                 column_name: "email".to_string(),
                 direction: OrderDirection::Asc,
+                prefix_length: None,
             }],
         };
 
@@ -303,6 +347,7 @@ mod tests {
             columns: vec![IndexColumn {
                 column_name: "email".to_string(),
                 direction: OrderDirection::Asc,
+                prefix_length: None,
             }],
         };
 
@@ -322,8 +367,8 @@ mod tests {
             table_name: "users".to_string(),
             index_type: vibesql_ast::IndexType::BTree { unique: false },
             columns: vec![
-                IndexColumn { column_name: "email".to_string(), direction: OrderDirection::Asc },
-                IndexColumn { column_name: "name".to_string(), direction: OrderDirection::Desc },
+                IndexColumn { column_name: "email".to_string(), direction: OrderDirection::Asc, prefix_length: None },
+                IndexColumn { column_name: "name".to_string(), direction: OrderDirection::Desc, prefix_length: None },
             ],
         };
 
@@ -344,6 +389,7 @@ mod tests {
             columns: vec![IndexColumn {
                 column_name: "email".to_string(),
                 direction: OrderDirection::Asc,
+                prefix_length: None,
             }],
         };
 
@@ -369,6 +415,7 @@ mod tests {
             columns: vec![IndexColumn {
                 column_name: "id".to_string(),
                 direction: OrderDirection::Asc,
+                prefix_length: None,
             }],
         };
 
@@ -390,6 +437,7 @@ mod tests {
             columns: vec![IndexColumn {
                 column_name: "nonexistent_column".to_string(),
                 direction: OrderDirection::Asc,
+                prefix_length: None,
             }],
         };
 
@@ -411,6 +459,7 @@ mod tests {
             columns: vec![IndexColumn {
                 column_name: "email".to_string(),
                 direction: OrderDirection::Asc,
+                prefix_length: None,
             }],
         };
 
@@ -437,6 +486,7 @@ mod tests {
             columns: vec![IndexColumn {
                 column_name: "email".to_string(),
                 direction: OrderDirection::Asc,
+                prefix_length: None,
             }],
         };
         CreateIndexExecutor::execute(&stmt, &mut db).unwrap();
@@ -450,6 +500,7 @@ mod tests {
             columns: vec![IndexColumn {
                 column_name: "email".to_string(),
                 direction: OrderDirection::Asc,
+                prefix_length: None,
             }],
         };
         let result = CreateIndexExecutor::execute(&stmt_with_if_not_exists, &mut db);

@@ -222,7 +222,18 @@ mod tests {
         let constraints = vec![TableConstraint {
             name: None,
             kind: TableConstraintKind::PrimaryKey {
-                columns: vec!["id".to_string(), "tenant_id".to_string()],
+                columns: vec![
+                    vibesql_ast::IndexColumn {
+                        column_name: "id".to_string(),
+                        direction: vibesql_ast::OrderDirection::Asc,
+                        prefix_length: None,
+                    },
+                    vibesql_ast::IndexColumn {
+                        column_name: "tenant_id".to_string(),
+                        direction: vibesql_ast::OrderDirection::Asc,
+                        prefix_length: None,
+                    },
+                ],
             },
         }];
 
@@ -238,7 +249,13 @@ mod tests {
         let columns = vec![make_column_def("id", vec![ColumnConstraintKind::PrimaryKey])];
         let constraints = vec![TableConstraint {
             name: None,
-            kind: TableConstraintKind::PrimaryKey { columns: vec!["id".to_string()] },
+            kind: TableConstraintKind::PrimaryKey {
+                columns: vec![vibesql_ast::IndexColumn {
+                    column_name: "id".to_string(),
+                    direction: vibesql_ast::OrderDirection::Asc,
+                    prefix_length: None,
+                }],
+            },
         }];
 
         let result = ConstraintValidator::process_constraints(&columns, &constraints);
@@ -253,7 +270,13 @@ mod tests {
         ];
         let constraints = vec![TableConstraint {
             name: None,
-            kind: TableConstraintKind::Unique { columns: vec!["username".to_string()] },
+            kind: TableConstraintKind::Unique {
+                columns: vec![vibesql_ast::IndexColumn {
+                    column_name: "username".to_string(),
+                    direction: vibesql_ast::OrderDirection::Asc,
+                    prefix_length: None,
+                }],
+            },
         }];
 
         let result = ConstraintValidator::process_constraints(&columns, &constraints).unwrap();
