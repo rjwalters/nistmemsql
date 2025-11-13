@@ -3,12 +3,14 @@
 // ============================================================================
 
 use std::collections::{BTreeMap, HashMap};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use vibesql_ast::IndexColumn;
 use vibesql_types::{DataType, SqlValue};
 
 use crate::btree::{BTreeIndex, Key};
+use crate::database::{DatabaseConfig, ResourceTracker};
 use crate::page::PageManager;
 use crate::{Row, StorageError};
 
@@ -252,18 +254,55 @@ impl IndexData {
 ///
 /// This component encapsulates all user-defined index operations, maintaining
 /// index metadata and data structures for efficient query optimization.
+///
+/// Supports adaptive index management with resource budgets and LRU eviction,
+/// enabling efficient operation in both browser (limited memory) and server
+/// (abundant memory) environments.
 #[derive(Debug, Clone)]
 pub struct IndexManager {
     /// Index metadata storage (normalized_index_name -> metadata)
     indexes: HashMap<String, IndexMetadata>,
     /// Actual index data (normalized_index_name -> data)
     index_data: HashMap<String, IndexData>,
+    /// Resource budget configuration
+    config: DatabaseConfig,
+    /// Resource usage tracker for budget enforcement
+    resource_tracker: ResourceTracker,
+    /// Database directory path for index file storage
+    database_path: Option<PathBuf>,
 }
 
 impl IndexManager {
-    /// Create a new empty IndexManager
+    /// Create a new empty IndexManager with default configuration
     pub fn new() -> Self {
-        IndexManager { indexes: HashMap::new(), index_data: HashMap::new() }
+        IndexManager {
+            indexes: HashMap::new(),
+            index_data: HashMap::new(),
+            config: DatabaseConfig::default(),
+            resource_tracker: ResourceTracker::new(),
+            database_path: None,
+        }
+    }
+
+    /// Create a new IndexManager with custom configuration
+    pub fn with_config(config: DatabaseConfig) -> Self {
+        IndexManager {
+            indexes: HashMap::new(),
+            index_data: HashMap::new(),
+            config,
+            resource_tracker: ResourceTracker::new(),
+            database_path: None,
+        }
+    }
+
+    /// Set the database directory path for index file storage
+    pub fn set_database_path(&mut self, path: PathBuf) {
+        self.database_path = Some(path);
+    }
+
+    /// Set the resource budget configuration
+    pub fn set_config(&mut self, config: DatabaseConfig) {
+        self.config = config;
     }
 
     /// Create an index
@@ -306,13 +345,9 @@ impl IndexManager {
         // Choose backend based on table size
         let use_disk_backed = table_rows.len() >= DISK_BACKED_THRESHOLD;
 
-        let index_data = if use_disk_backed {
-            // Create disk-backed B+ tree index
-            // For Phase 2, we use a temporary file. Production would use configured db path.
-            let temp_dir = std::env::temp_dir();
-            let index_file = temp_dir.join(format!("vibesql_idx_{}_{}.db",
-                table_name.replace('/', "_"),
-                index_name.replace('/', "_")));
+        let (index_data, memory_bytes, disk_bytes, backend) = if use_disk_backed {
+            // Create disk-backed B+ tree index using proper database path
+            let index_file = self.get_index_file_path(&table_name, &index_name)?;
 
             let page_manager = Arc::new(PageManager::new(&index_file)
                 .map_err(|e| StorageError::IoError(format!("Failed to create index file: {}", e)))?);
@@ -353,10 +388,19 @@ impl IndexManager {
             let btree = BTreeIndex::bulk_load(sorted_entries, btree_key_schema, page_manager.clone())
                 .map_err(|e| StorageError::IoError(format!("Failed to bulk load index: {}", e)))?;
 
-            IndexData::DiskBacked {
+            // Calculate disk size
+            let disk_bytes = if let Ok(file_meta) = std::fs::metadata(&index_file) {
+                file_meta.len() as usize
+            } else {
+                0
+            };
+
+            let data = IndexData::DiskBacked {
                 btree: Arc::new(btree),
                 page_manager,
-            }
+            };
+
+            (data, 0, disk_bytes, crate::database::IndexBackend::DiskBacked)
         } else {
             // Build the index data in-memory for small tables
             let mut index_data_map: BTreeMap<Vec<SqlValue>, Vec<usize>> = BTreeMap::new();
@@ -365,11 +409,28 @@ impl IndexManager {
                     column_indices.iter().map(|&idx| row.values[idx].clone()).collect();
                 index_data_map.entry(key_values).or_default().push(row_idx);
             }
-            // Use in-memory backend for small tables
-            IndexData::InMemory { data: index_data_map }
+
+            // Estimate memory usage
+            let key_size = std::mem::size_of::<Vec<SqlValue>>(); // Rough estimate
+            let memory_bytes = self.estimate_index_memory(table_rows.len(), key_size);
+
+            let data = IndexData::InMemory { data: index_data_map };
+
+            (data, memory_bytes, 0, crate::database::IndexBackend::InMemory)
         };
 
-        self.index_data.insert(normalized_name, index_data);
+        // Register the index with resource tracker
+        self.resource_tracker.register_index(
+            normalized_name.clone(),
+            memory_bytes,
+            disk_bytes,
+            backend,
+        );
+
+        self.index_data.insert(normalized_name.clone(), index_data);
+
+        // Enforce memory budget after creating index
+        self.enforce_memory_budget()?;
 
         Ok(())
     }
@@ -389,6 +450,10 @@ impl IndexManager {
     /// Get index data
     pub fn get_index_data(&self, index_name: &str) -> Option<&IndexData> {
         let normalized = normalize_index_name(index_name);
+
+        // Record access for LRU tracking (uses interior mutability)
+        self.resource_tracker.record_access(&normalized);
+
         self.index_data.get(&normalized)
     }
 
@@ -596,6 +661,10 @@ impl IndexManager {
         }
         // Also remove the index data
         self.index_data.remove(&normalized);
+
+        // Unregister from resource tracker
+        self.resource_tracker.unregister_index(&normalized);
+
         Ok(())
     }
 
@@ -625,6 +694,9 @@ impl IndexManager {
         for index_name in &indexes_to_drop {
             self.indexes.remove(index_name);
             self.index_data.remove(index_name);
+
+            // Unregister from resource tracker
+            self.resource_tracker.unregister_index(index_name);
         }
 
         indexes_to_drop
@@ -633,6 +705,150 @@ impl IndexManager {
     /// List all indexes
     pub fn list_indexes(&self) -> Vec<String> {
         self.indexes.keys().cloned().collect()
+    }
+
+    // ========================================================================
+    // Resource Budget and Eviction Methods
+    // ========================================================================
+
+    /// Get the file path for an index file
+    fn get_index_file_path(&self, table_name: &str, index_name: &str) -> Result<PathBuf, StorageError> {
+        let index_dir = self.database_path
+            .as_ref()
+            .map(|p| p.join("indexes"))
+            .unwrap_or_else(|| std::env::temp_dir().join("vibesql_indexes"));
+
+        // Create indexes directory if needed
+        std::fs::create_dir_all(&index_dir)
+            .map_err(|e| StorageError::IoError(format!("Failed to create index directory: {}", e)))?;
+
+        // Sanitize names for filesystem
+        let safe_table = table_name.replace('/', "_");
+        let safe_index = index_name.replace('/', "_");
+        Ok(index_dir.join(format!("{}_{}.idx", safe_table, safe_index)))
+    }
+
+    /// Estimate memory usage for an index
+    fn estimate_index_memory(&self, row_count: usize, key_size: usize) -> usize {
+        // Rough estimate: (key_size + Vec<usize> overhead) * row_count
+        // Add BTreeMap overhead (~32 bytes per entry)
+        (key_size + std::mem::size_of::<Vec<usize>>() + 32) * row_count
+    }
+
+    /// Enforce memory budget by evicting cold indexes if needed
+    pub fn enforce_memory_budget(&mut self) -> Result<(), StorageError> {
+        use crate::database::SpillPolicy;
+
+        while self.resource_tracker.memory_used() > self.config.memory_budget {
+            match self.config.spill_policy {
+                SpillPolicy::Reject => {
+                    return Err(StorageError::MemoryBudgetExceeded {
+                        used: self.resource_tracker.memory_used(),
+                        budget: self.config.memory_budget,
+                    });
+                }
+                SpillPolicy::SpillToDisk => {
+                    // Find coldest index and spill it
+                    let coldest = self.resource_tracker
+                        .find_coldest_in_memory_index()
+                        .ok_or(StorageError::NoIndexToEvict)?;
+
+                    self.spill_index_to_disk(&coldest.0)?;
+                }
+                SpillPolicy::BestEffort => {
+                    // Try to spill, but don't fail if we can't
+                    if let Some((coldest, _)) = self.resource_tracker.find_coldest_in_memory_index() {
+                        let _ = self.spill_index_to_disk(&coldest);
+                    } else {
+                        // No more indexes to evict, give up
+                        break;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Convert an InMemory index to DiskBacked (eviction/spilling)
+    fn spill_index_to_disk(&mut self, index_name: &str) -> Result<(), StorageError> {
+        // Get the index data
+        let index_data = self.index_data.remove(index_name)
+            .ok_or_else(|| StorageError::IndexNotFound(index_name.to_string()))?;
+
+        // Extract InMemory data, or return if already DiskBacked
+        let data = match index_data {
+            IndexData::InMemory { data } => data,
+            IndexData::DiskBacked { .. } => {
+                // Already disk-backed, just put it back
+                self.index_data.insert(index_name.to_string(), index_data);
+                return Ok(());
+            }
+        };
+
+        // Get metadata for this index
+        let metadata = self.indexes.get(index_name)
+            .ok_or_else(|| StorageError::IndexNotFound(index_name.to_string()))?
+            .clone();
+
+        // Create disk-backed version
+        let index_file = self.get_index_file_path(&metadata.table_name, index_name)?;
+        let page_manager = Arc::new(PageManager::new(&index_file)
+            .map_err(|e| StorageError::IoError(format!("Failed to create index file: {}", e)))?);
+
+        // Convert BTreeMap to sorted entries for bulk_load
+        let mut sorted_entries: Vec<(Key, usize)> = Vec::new();
+        for (key, row_indices) in &data {
+            for &row_idx in row_indices {
+                let extended_key = if metadata.unique {
+                    key.clone()
+                } else {
+                    extend_key_with_row_id(key.clone(), row_idx)
+                };
+                sorted_entries.push((extended_key, row_idx));
+            }
+        }
+        sorted_entries.sort_by(|a, b| a.0.cmp(&b.0));
+
+        // Build key schema from metadata
+        // Note: We need access to table schema to get column data types
+        // For now, we'll estimate based on SqlValue types in the data
+        let key_schema: Vec<DataType> = if let Some((first_key, _)) = sorted_entries.first() {
+            first_key.iter().map(|v| match v {
+                SqlValue::Null => DataType::Integer,  // Placeholder
+                SqlValue::Integer(_) | SqlValue::Smallint(_) | SqlValue::Bigint(_) | SqlValue::Unsigned(_) => DataType::Integer,
+                SqlValue::Real(_) | SqlValue::Float(_) | SqlValue::Double(_) | SqlValue::Numeric(_) => DataType::Real,
+                SqlValue::Character(_) | SqlValue::Varchar(_) => DataType::Varchar { max_length: None },
+                _ => DataType::Integer,  // Fallback for other types
+            }).collect()
+        } else {
+            // Empty index, use Integer as placeholder
+            vec![DataType::Integer; metadata.columns.len()]
+        };
+
+        // Bulk load into B+ tree
+        let btree = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager.clone())
+            .map_err(|e| StorageError::IoError(format!("Failed to bulk load index: {}", e)))?;
+
+        // Calculate disk size (approximate)
+        let disk_bytes = if let Ok(file_meta) = std::fs::metadata(&index_file) {
+            file_meta.len() as usize
+        } else {
+            0
+        };
+
+        // Replace with disk-backed version
+        let disk_backed = IndexData::DiskBacked {
+            btree: Arc::new(btree),
+            page_manager,
+        };
+
+        self.index_data.insert(index_name.to_string(), disk_backed);
+
+        // Update resource tracking
+        self.resource_tracker.mark_spilled(index_name, disk_bytes);
+
+        Ok(())
     }
 }
 
