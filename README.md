@@ -208,6 +208,35 @@ CREATE FULLTEXT INDEX idx_search ON documents(title, content);
 
 VibeSQL fully supports non-unique indexes with duplicate key values in both in-memory and disk-backed implementations:
 
+#### Use Cases for Non-Unique Indexes
+
+Non-unique indexes are ideal for columns with many duplicate values:
+- **Department/category columns** - Many employees in same department
+- **Tag or label columns** - Multiple items with same tag
+- **Foreign key columns** - Many-to-one relationships
+- **Status/state columns** - Limited distinct values (active/inactive, pending/complete)
+- **Date columns** - Many events on same date
+- **Boolean flags** - Only two possible values
+
+#### Unique vs Non-Unique Indexes
+
+```sql
+-- Non-unique index (default - allows duplicates)
+CREATE INDEX idx_department ON employees(department);
+
+-- Unique index (prevents duplicates)
+CREATE UNIQUE INDEX idx_email ON users(email);
+```
+
+| Feature | Non-Unique Index | Unique Index |
+|---------|------------------|--------------|
+| Duplicate keys | ✅ Allowed | ❌ Rejected |
+| Storage | Vec<RowId> per key | Single RowId per key |
+| Use case | Categories, tags, foreign keys | Primary keys, email addresses |
+| INSERT behavior | Always succeeds (appends to Vec) | Fails if key exists |
+
+#### Basic Example
+
 ```sql
 -- Create non-unique index (default behavior)
 CREATE INDEX idx_department ON employees(department);
@@ -220,6 +249,34 @@ INSERT INTO employees VALUES (3, 'Engineering', 110000);
 -- Queries return all matching rows
 SELECT * FROM employees WHERE department = 'Engineering';
 -- Returns all 3 rows
+```
+
+#### Multi-Column Non-Unique Indexes
+
+Composite indexes work with duplicate key combinations:
+
+```sql
+-- Create table
+CREATE TABLE employees (
+    id INTEGER PRIMARY KEY,
+    name VARCHAR(100),
+    department VARCHAR(50),
+    salary INTEGER
+);
+
+-- Composite non-unique index
+CREATE INDEX idx_dept_salary ON employees(department, salary);
+
+-- Insert data with duplicate (department, salary) combinations
+INSERT INTO employees VALUES (1, 'Alice', 'Engineering', 100000);
+INSERT INTO employees VALUES (2, 'Bob', 'Engineering', 100000);
+INSERT INTO employees VALUES (3, 'Carol', 'Engineering', 120000);
+
+-- Query efficiently uses composite index
+SELECT * FROM employees
+WHERE department = 'Engineering'
+  AND salary BETWEEN 100000 AND 150000;
+-- Returns all 3 rows efficiently using index
 ```
 
 #### Disk-Backed Index Duplicate Key Support
@@ -267,6 +324,15 @@ Both implementations handle duplicates identically from a user perspective:
 - Maximum lookup performance needed
 - Temporary/session-only data
 - Memory is plentiful
+
+#### For Developers
+
+Implementation details and comprehensive tests:
+- Integration tests: `crates/vibesql-executor/src/tests/non_unique_disk_index_tests.rs`
+- Disk-backed B+ tree: `crates/vibesql-btree/src/lib.rs`
+- Test coverage: 7 integration tests including heavy duplicate scenarios (1,000+ duplicates)
+
+See PR #1571 (implementation) and PR #1591 (tests) for technical details.
 
 ### Triggers (🔄 In Progress)
 Event-driven database actions:
