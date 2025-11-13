@@ -56,16 +56,16 @@ Runs SQLLogicTest files in parallel across multiple worker processes.
 
 ```bash
 # Basic usage - use all available CPUs
-python3 scripts/run_parallel_tests.py
+./scripts/sqllogictest run --parallel
 
 # Specify worker count (default: CPU count)
-python3 scripts/run_parallel_tests.py --workers 64
+./scripts/sqllogictest run --parallel --workers 64
 
 # Set time limit per worker (default: 3600 seconds)
-python3 scripts/run_parallel_tests.py --time-budget 1800
+./scripts/sqllogictest run --parallel --time-budget 1800
 
 # Combined example
-python3 scripts/run_parallel_tests.py --workers 32 --time-budget 7200
+./scripts/sqllogictest run --parallel --workers 32 --time-budget 7200
 ```
 
 **Output files**:
@@ -249,7 +249,7 @@ LIMIT 50;
 
 ```bash
 # Run with parallel workers (1-2 hours depending on machine)
-python3 scripts/run_parallel_tests.py --workers 64
+./scripts/sqllogictest run --parallel --workers 64
 ```
 
 **What happens**:
@@ -461,7 +461,7 @@ After implementing a fix, measure its impact:
 SQLLOGICTEST_TIME_BUDGET=600 cargo test --test sqllogictest_suite
 
 # 2. Run full test suite on remote (if making major changes)
-python3 scripts/run_parallel_tests.py --workers 64
+./scripts/sqllogictest run --parallel --workers 64
 
 # 3. Aggregate and analyze
 python3 scripts/aggregate_worker_results.py /tmp/sqllogictest_results

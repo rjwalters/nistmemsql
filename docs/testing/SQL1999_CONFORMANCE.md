@@ -48,7 +48,7 @@ The SQLLogicTest suite contains tests with MySQL-specific syntax extensions that
 - **Session management**: `SET SESSION` commands
 - **MySQL sql_mode flags**: `ONLY_FULL_GROUP_BY`
 
-**Implementation**: The `cluster_mysql_specific_errors()` function in `scripts/analyze_test_failures.py` identifies MySQL-specific failures for separate metrics reporting.
+**Implementation**: The `./scripts/sqllogictest analyze` command identifies MySQL-specific failures for separate metrics reporting.
 
 **Impact**: Approximately 14 test files in `random/groupby/slt_good_*.test` contain MySQL-specific syntax. These are reported separately to provide:
 - **SQL:1999 pass rate** - Standard compliance (excludes MySQL-specific tests)
