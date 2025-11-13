@@ -128,7 +128,7 @@ pnpm format:check # Check formatting
 - **Frontend**: TypeScript, Vite, Tailwind CSS
 - **Editor**: Monaco Editor (VS Code engine)
 - **Database**: Rust compiled to WebAssembly via wasm-pack
-- **Testing**: Vitest, Playwright
+- **Testing**: Vitest
 - **CI/CD**: GitHub Actions
 
 ### Project Structure

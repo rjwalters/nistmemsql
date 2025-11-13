@@ -6,6 +6,25 @@ pub fn execute_insert(
     db: &mut vibesql_storage::Database,
     stmt: &vibesql_ast::InsertStmt,
 ) -> Result<usize, ExecutorError> {
+    execute_insert_internal(db, stmt, None)
+}
+
+/// Execute an INSERT statement with procedural context
+/// Returns number of rows inserted
+pub fn execute_insert_with_procedural_context(
+    db: &mut vibesql_storage::Database,
+    stmt: &vibesql_ast::InsertStmt,
+    procedural_context: &crate::procedural::ExecutionContext,
+) -> Result<usize, ExecutorError> {
+    execute_insert_internal(db, stmt, Some(procedural_context))
+}
+
+/// Internal implementation of INSERT execution
+fn execute_insert_internal(
+    db: &mut vibesql_storage::Database,
+    stmt: &vibesql_ast::InsertStmt,
+    procedural_context: Option<&crate::procedural::ExecutionContext>,
+) -> Result<usize, ExecutorError> {
     // Check INSERT privilege on the table
     PrivilegeChecker::check_insert(db, &stmt.table_name)?;
 
@@ -81,9 +100,12 @@ pub fn execute_insert(
         let mut full_row_values = vec![vibesql_types::SqlValue::Null; schema.columns.len()];
 
         for (expr, (col_idx, data_type)) in value_exprs.iter().zip(target_column_info.iter()) {
-            // Evaluate expression (literals and DEFAULT)
-            let value =
-                super::defaults::evaluate_insert_expression(expr, &schema.columns[*col_idx])?;
+            // Evaluate expression (literals, DEFAULT, and procedural variables if context provided)
+            let value = super::defaults::evaluate_insert_expression(
+                expr,
+                &schema.columns[*col_idx],
+                procedural_context,
+            )?;
 
             // Type check and coerce: ensure value matches column type
             let coerced_value = super::validation::coerce_value(value, data_type)?;
