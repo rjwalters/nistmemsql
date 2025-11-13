@@ -30,7 +30,7 @@ use vibesql_types::SqlValue;
 ///
 /// ## Parameters
 /// - `rows`: The result set from executing the subquery
-/// - `column_count`: Number of columns in the SELECT list (for validation)
+/// - `_column_count`: Deprecated parameter, kept for API compatibility. Use actual column count from rows instead.
 ///
 /// ## Returns
 /// - `Ok(SqlValue::Null)` if no rows returned
@@ -40,7 +40,7 @@ use vibesql_types::SqlValue;
 /// - `Err(ColumnIndexOutOfBounds)` if row doesn't have a value at index 0
 pub fn eval_scalar_subquery_core(
     rows: &[Row],
-    column_count: usize,
+    _column_count: usize,
 ) -> Result<SqlValue, ExecutorError> {
     // SQL:1999 Section 7.9: Scalar subquery must return exactly 1 row
     if rows.len() > 1 {
@@ -51,10 +51,12 @@ pub fn eval_scalar_subquery_core(
     }
 
     // SQL:1999 Section 7.9: Scalar subquery must return exactly 1 column
-    if column_count != 1 {
+    // SQL standard (R-35033-20570): We must validate the actual column count AFTER
+    // execution because wildcards like SELECT * expand to multiple columns at runtime.
+    if !rows.is_empty() && rows[0].values.len() != 1 {
         return Err(ExecutorError::SubqueryColumnCountMismatch {
             expected: 1,
-            actual: column_count,
+            actual: rows[0].values.len(),
         });
     }
 
