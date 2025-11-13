@@ -54,9 +54,11 @@ mod tests {
         let mut leaf = LeafNode::new(1);
 
         assert!(leaf.insert(vec![SqlValue::Integer(10)], 0));
-        assert!(!leaf.insert(vec![SqlValue::Integer(10)], 1));  // Duplicate
+        assert!(leaf.insert(vec![SqlValue::Integer(10)], 1));  // Duplicate now allowed
 
+        // Should have 1 key with 2 row_ids
         assert_eq!(leaf.entries.len(), 1);
+        assert_eq!(leaf.entries[0].1, vec![0, 1]);
     }
 
     #[test]
@@ -66,8 +68,8 @@ mod tests {
         leaf.insert(vec![SqlValue::Integer(10)], 100);
         leaf.insert(vec![SqlValue::Integer(20)], 200);
 
-        assert_eq!(leaf.search(&vec![SqlValue::Integer(10)]), Some(100));
-        assert_eq!(leaf.search(&vec![SqlValue::Integer(20)]), Some(200));
+        assert_eq!(leaf.search(&vec![SqlValue::Integer(10)]), Some(&vec![100]));
+        assert_eq!(leaf.search(&vec![SqlValue::Integer(20)]), Some(&vec![200]));
         assert_eq!(leaf.search(&vec![SqlValue::Integer(15)]), None);
     }
 
@@ -78,8 +80,8 @@ mod tests {
         leaf.insert(vec![SqlValue::Integer(10)], 0);
         leaf.insert(vec![SqlValue::Integer(20)], 1);
 
-        assert!(leaf.delete(&vec![SqlValue::Integer(10)]));
-        assert!(!leaf.delete(&vec![SqlValue::Integer(10)]));  // Already deleted
+        assert!(leaf.delete_all(&vec![SqlValue::Integer(10)]));
+        assert!(!leaf.delete_all(&vec![SqlValue::Integer(10)]));  // Already deleted
 
         assert_eq!(leaf.entries.len(), 1);
         assert_eq!(leaf.entries[0].0[0], SqlValue::Integer(20));
@@ -297,7 +299,7 @@ mod tests {
         let root_leaf = index.read_leaf_node(index.root_page_id()).unwrap();
         assert_eq!(root_leaf.entries.len(), 1);
         assert_eq!(root_leaf.entries[0].0, key);
-        assert_eq!(root_leaf.entries[0].1, row_id);
+        assert_eq!(root_leaf.entries[0].1, vec![row_id]);
     }
 
     #[test]
@@ -315,10 +317,13 @@ mod tests {
         let key = vec![SqlValue::Integer(42)];
         index.insert(key.clone(), 10).unwrap();
 
-        // Try to insert duplicate - should fail
+        // Insert duplicate - now allowed for non-unique indexes
         let result = index.insert(key.clone(), 20);
-        assert!(result.is_err());
-        assert!(matches!(result, Err(StorageError::IoError(_))));
+        assert!(result.is_ok());
+
+        // Verify both row_ids are stored
+        let row_ids = index.lookup(&key).unwrap();
+        assert_eq!(row_ids, vec![10, 20]);
     }
 
     #[test]

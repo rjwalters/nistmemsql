@@ -40,13 +40,6 @@ const DISK_BACKED_THRESHOLD: usize = 100_000;
 #[cfg(test)]
 const DISK_BACKED_THRESHOLD: usize = usize::MAX;
 
-/// Helper to extend a key with a row_id for non-unique disk-backed indexes
-/// This allows storing multiple rows with the same key value
-fn extend_key_with_row_id(key: Vec<SqlValue>, row_id: usize) -> Vec<SqlValue> {
-    let mut extended = key;
-    extended.push(SqlValue::Integer(row_id as i64));
-    extended
-}
 
 /// Helper function to safely acquire a lock on a BTreeIndex mutex
 ///
@@ -468,31 +461,21 @@ impl IndexManager {
                 .map(|&idx| table_schema.columns[idx].data_type.clone())
                 .collect();
 
-            // Prepare sorted entries for bulk loading directly without intermediate BTreeMap
-            // For non-unique indexes, we extend keys with row_id to make them unique
+            // Prepare sorted entries for bulk loading
+            // The BTreeIndex has native duplicate key support via Vec<RowId> per key,
+            // so we don't need to extend keys with row_id for non-unique indexes
             let mut sorted_entries: Vec<(Key, usize)> = Vec::new();
             for (row_idx, row) in table_rows.iter().enumerate() {
                 let key_values: Vec<SqlValue> =
                     column_indices.iter().map(|&idx| row.values[idx].clone()).collect();
-
-                let extended_key = if unique {
-                    key_values
-                } else {
-                    extend_key_with_row_id(key_values, row_idx)
-                };
-                sorted_entries.push((extended_key, row_idx));
+                sorted_entries.push((key_values, row_idx));
             }
             // Sort by key for bulk_load
             sorted_entries.sort_by(|a, b| a.0.cmp(&b.0));
 
-            // Extend key schema with Integer for non-unique indexes
-            let btree_key_schema = if unique {
-                key_schema
-            } else {
-                let mut schema = key_schema;
-                schema.push(DataType::Integer);  // For row_id suffix
-                schema
-            };
+            // Use the same key schema for both unique and non-unique indexes
+            // The BTreeIndex handles duplicates internally via Vec<RowId>
+            let btree_key_schema = key_schema;
 
             // Use bulk_load for efficient index creation
             let btree = BTreeIndex::bulk_load(sorted_entries, btree_key_schema, page_manager.clone())
@@ -610,17 +593,19 @@ impl IndexManager {
                             IndexData::DiskBacked { btree, .. } => {
                                 // Safely acquire lock and check if key exists in B+tree
                                 let guard = acquire_btree_lock(btree)?;
-                                if let Ok(Some(_)) = guard.lookup(&key_values) {
-                                    let column_names: Vec<String> = metadata
-                                        .columns
-                                        .iter()
-                                        .map(|c| c.column_name.clone())
-                                        .collect();
-                                    return Err(StorageError::UniqueConstraintViolation(format!(
-                                        "UNIQUE constraint '{}' violated: duplicate key value for ({})",
-                                        index_name,
-                                        column_names.join(", ")
-                                    )));
+                                if let Ok(row_ids) = guard.lookup(&key_values) {
+                                    if !row_ids.is_empty() {
+                                        let column_names: Vec<String> = metadata
+                                            .columns
+                                            .iter()
+                                            .map(|c| c.column_name.clone())
+                                            .collect();
+                                        return Err(StorageError::UniqueConstraintViolation(format!(
+                                            "UNIQUE constraint '{}' violated: duplicate key value for ({})",
+                                            index_name,
+                                            column_names.join(", ")
+                                        )));
+                                    }
                                 }
                             }
                         }
@@ -662,14 +647,11 @@ impl IndexManager {
                         }
                         IndexData::DiskBacked { btree, .. } => {
                             // Safely acquire lock and insert into B+tree
-                            // Note: BTreeIndex::insert will return an error for duplicate keys.
-                            // For non-unique indexes, we should allow this, but currently
-                            // the B+tree implementation doesn't support duplicate keys.
-                            // This is a known limitation that will need to be addressed.
+                            // BTreeIndex now supports duplicate keys for non-unique indexes
                             match acquire_btree_lock(btree) {
                                 Ok(mut guard) => {
                                     if let Err(e) = guard.insert(key_values, row_index) {
-                                        // Log error but don't fail - this may happen for non-unique indexes
+                                        // Log error if insert fails for other reasons
                                         log::warn!("Failed to insert into disk-backed index '{}': {:?}", index_name, e);
                                     }
                                 }
@@ -1056,15 +1038,11 @@ impl IndexManager {
             .map_err(|e| StorageError::IoError(format!("Failed to create index file: {}", e)))?);
 
         // Convert BTreeMap to sorted entries for bulk_load
+        // Use native duplicate key support - don't extend keys with row_id
         let mut sorted_entries: Vec<(Key, usize)> = Vec::new();
         for (key, row_indices) in &data {
             for &row_idx in row_indices {
-                let extended_key = if metadata.unique {
-                    key.clone()
-                } else {
-                    extend_key_with_row_id(key.clone(), row_idx)
-                };
-                sorted_entries.push((extended_key, row_idx));
+                sorted_entries.push((key.clone(), row_idx));
             }
         }
         sorted_entries.sort_by(|a, b| a.0.cmp(&b.0));

@@ -217,6 +217,7 @@ impl BTreeIndex {
     ///
     /// # Arguments
     /// * `sorted_entries` - Pre-sorted key-value pairs (must be sorted by key)
+    ///   Duplicate keys are automatically grouped together.
     /// * `key_schema` - Data types of key columns
     /// * `page_manager` - Page manager for disk I/O
     ///
@@ -225,6 +226,7 @@ impl BTreeIndex {
     ///
     /// # Performance
     /// - Sorting: O(n log n) if not already sorted
+    /// - Grouping: O(n)
     /// - Leaf construction: O(n)
     /// - Internal node construction: O(n)
     /// - Total: O(n log n) dominated by sorting
@@ -243,6 +245,22 @@ impl BTreeIndex {
             return Self::new(page_manager, key_schema);
         }
 
+        // Group entries by key to support non-unique indexes
+        // This converts Vec<(Key, RowId)> to Vec<(Key, Vec<RowId>)>
+        let mut grouped_entries: Vec<(Key, Vec<super::structure::RowId>)> = Vec::new();
+
+        for (key, row_id) in sorted_entries {
+            if let Some((last_key, row_ids)) = grouped_entries.last_mut() {
+                if last_key == &key {
+                    // Same key, append row_id
+                    row_ids.push(row_id);
+                    continue;
+                }
+            }
+            // New key, create new entry
+            grouped_entries.push((key, vec![row_id]));
+        }
+
         // Calculate optimal fill factor (75% - balance space vs future inserts)
         let leaf_capacity = (degree * 3) / 4;
         let leaf_capacity = leaf_capacity.max(1); // Ensure at least 1 entry per leaf
@@ -251,7 +269,7 @@ impl BTreeIndex {
         let mut leaf_page_ids = Vec::new();
         let mut prev_leaf_page_id: Option<PageId> = None;
 
-        let mut entries_iter = sorted_entries.into_iter().peekable();
+        let mut entries_iter = grouped_entries.into_iter().peekable();
 
         while entries_iter.peek().is_some() {
             // Allocate page for new leaf
@@ -260,8 +278,8 @@ impl BTreeIndex {
 
             // Fill leaf node to target capacity
             for _ in 0..leaf_capacity {
-                if let Some((key, row_id)) = entries_iter.next() {
-                    leaf.entries.push((key, row_id));
+                if let Some((key, row_ids)) = entries_iter.next() {
+                    leaf.entries.push((key, row_ids));
                 } else {
                     break;
                 }
@@ -380,14 +398,12 @@ impl BTreeIndex {
     /// * `row_id` - The row ID associated with this key
     ///
     /// # Returns
-    /// Ok(()) if successful, or StorageError if:
-    /// - The key already exists (duplicate key error)
-    /// - I/O error occurs
+    /// Ok(()) if successful, or StorageError if I/O error occurs
     ///
     /// # Implementation
-    /// This method handles multi-level trees by:
+    /// This method supports duplicate keys for non-unique indexes:
     /// 1. Finding the appropriate leaf node
-    /// 2. Inserting into the leaf
+    /// 2. Inserting into the leaf (appending if key exists)
     /// 3. Handling splits that may propagate up the tree
     /// 4. Creating a new root if split reaches the original root
     pub fn insert(&mut self, key: Key, row_id: RowId) -> Result<(), StorageError> {
@@ -396,10 +412,8 @@ impl BTreeIndex {
             // Read root as leaf
             let mut root_leaf = self.read_leaf_node(self.root_page_id)?;
 
-            // Try to insert
-            if !root_leaf.insert(key.clone(), row_id) {
-                return Err(StorageError::IoError("Duplicate key".to_string()));
-            }
+            // Insert (always succeeds, supports duplicates)
+            root_leaf.insert(key.clone(), row_id);
 
             // Check if leaf is now full and needs splitting
             if root_leaf.is_full(self.degree) {
@@ -427,10 +441,8 @@ impl BTreeIndex {
         // Find the target leaf and path from root
         let (mut leaf, path) = self.find_leaf_path(&key)?;
 
-        // Insert into leaf
-        if !leaf.insert(key.clone(), row_id) {
-            return Err(StorageError::IoError("Duplicate key".to_string()));
-        }
+        // Insert into leaf (always succeeds, supports duplicates)
+        leaf.insert(key.clone(), row_id);
 
         // Check if leaf is full and needs splitting
         if leaf.is_full(self.degree) {
@@ -531,14 +543,14 @@ impl BTreeIndex {
         Ok(())
     }
 
-    /// Delete a key from the B+ tree
+    /// Delete all row_ids for a key from the B+ tree
     ///
     /// Implements full multi-level tree deletion with node merging and rebalancing.
     /// When a deletion causes a leaf node to become underfull, it will try to borrow
     /// entries from sibling nodes or merge with a sibling if borrowing isn't possible.
     ///
     /// # Arguments
-    /// * `key` - The key to delete
+    /// * `key` - The key to delete (removes all associated row_ids)
     ///
     /// # Returns
     /// * `Ok(true)` if the key was found and deleted
@@ -547,7 +559,7 @@ impl BTreeIndex {
     ///
     /// # Algorithm
     /// 1. Find the leaf node containing the key
-    /// 2. Delete the key from the leaf
+    /// 2. Delete all row_ids for the key from the leaf
     /// 3. If leaf becomes underfull, try to borrow from sibling or merge
     /// 4. Propagate rebalancing up the tree if necessary
     /// 5. Collapse the root if it has only one child
@@ -555,7 +567,7 @@ impl BTreeIndex {
         // Handle single-level tree (root is leaf)
         if self.height == 1 {
             let mut root_leaf = self.read_leaf_node(self.root_page_id)?;
-            let deleted = root_leaf.delete(key);
+            let deleted = root_leaf.delete_all(key);
             if deleted {
                 self.write_leaf_node(&root_leaf)?;
             }
@@ -565,8 +577,8 @@ impl BTreeIndex {
         // Multi-level tree: find leaf and track path
         let (mut leaf, path) = self.find_leaf_path(key)?;
 
-        // Delete from leaf
-        if !leaf.delete(key) {
+        // Delete all row_ids for the key from leaf
+        if !leaf.delete_all(key) {
             return Ok(false);  // Key not found
         }
 
@@ -584,24 +596,24 @@ impl BTreeIndex {
         Ok(true)
     }
 
-    /// Lookup a single key in the B+ tree
+    /// Lookup a key in the B+ tree
     ///
     /// # Arguments
     /// * `key` - The key to search for
     ///
     /// # Returns
-    /// * `Some(row_id)` if the key exists
-    /// * `None` if the key is not found
+    /// * Vector of row_ids associated with this key (empty if key not found)
     ///
     /// # Algorithm
     /// 1. Navigate to the appropriate leaf node using find_leaf_path
     /// 2. Search for the key in the leaf node
-    pub fn lookup(&self, key: &Key) -> Result<Option<RowId>, StorageError> {
+    /// 3. Return all row_ids associated with the key
+    pub fn lookup(&self, key: &Key) -> Result<Vec<RowId>, StorageError> {
         // Find the leaf that would contain this key
         let (leaf, _) = self.find_leaf_path(key)?;
 
-        // Search for the key in the leaf node
-        Ok(leaf.search(key))
+        // Search for the key in the leaf node and return all row_ids
+        Ok(leaf.search(key).map(|row_ids| row_ids.clone()).unwrap_or_default())
     }
 
     /// Perform a range scan on the B+ tree
@@ -645,7 +657,7 @@ impl BTreeIndex {
         // Scan through leaves
         loop {
             // Process entries in current leaf
-            for (key, row_id) in &current_leaf.entries {
+            for (key, row_ids) in &current_leaf.entries {
                 // Check if we're past the end key
                 if let Some(end) = end_key {
                     let cmp = key.cmp(end);
@@ -672,8 +684,8 @@ impl BTreeIndex {
                     }
                 }
 
-                // Key is in range, add row_id
-                result.push(*row_id);
+                // Key is in range, add all row_ids
+                result.extend(row_ids.iter().copied());
             }
 
             // Move to next leaf
@@ -696,16 +708,15 @@ impl BTreeIndex {
     /// Vector of row_ids for all keys that were found
     ///
     /// # Algorithm
-    /// For each key, perform a lookup and collect the row_ids.
+    /// For each key, perform a lookup and collect all row_ids.
     /// This is a simple implementation that performs individual lookups.
     /// A more optimized version could sort keys and batch lookups by leaf node.
     pub fn multi_lookup(&self, keys: &[Key]) -> Result<Vec<RowId>, StorageError> {
         let mut result = Vec::new();
 
         for key in keys {
-            if let Some(row_id) = self.lookup(key)? {
-                result.push(row_id);
-            }
+            let row_ids = self.lookup(key)?;
+            result.extend(row_ids);
         }
 
         Ok(result)
