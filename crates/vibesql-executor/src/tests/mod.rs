@@ -39,6 +39,7 @@
 //! - `index_scan_tests`: Index scan optimization tests (Phase 5a of issue #1387)
 //! - `order_by_index_optimization_tests`: ORDER BY index optimization tests (Phase 5b of issue #1429)
 //! - `alter_table_constraints`: ALTER TABLE ADD/DROP PRIMARY KEY and FOREIGN KEY tests (Phase 6 of issue #1388)
+//! - `non_unique_disk_index_tests`: Non-unique disk-backed index integration tests (issue #1575, PR #1571)
 
 mod aggregate_caching;
 mod alter_table_constraints;
@@ -67,6 +68,7 @@ mod join_aggregation;
 mod lazy_evaluation_tests;
 mod limit_offset;
 mod natural_join;
+mod non_unique_disk_index_tests;
 mod operator_edge_cases;
 mod order_by_index_optimization_tests;
 mod phase3_join_optimization;
