@@ -21,6 +21,7 @@ use crate::select::SelectExecutor;
 /// Helper to create employees table for testing
 fn create_employees_table() -> Database {
     let mut db = Database::new();
+    db.catalog.set_case_sensitive_identifiers(false);
 
     let schema = TableSchema::new(
         "employees".to_string(),
