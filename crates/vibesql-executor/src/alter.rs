@@ -436,6 +436,11 @@ impl AlterTableExecutor {
                     .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
                 table.schema_mut().add_foreign_key(fk)?;
 
+                // Update catalog with modified schema by dropping and recreating
+                let updated_schema = table.schema.clone();
+                database.catalog.drop_table(&stmt.table_name)?;
+                database.catalog.create_table(updated_schema)?;
+
                 Ok(format!(
                     "FOREIGN KEY constraint added to table '{}'",
                     stmt.table_name
@@ -463,6 +468,11 @@ impl AlterTableExecutor {
         // Try to drop from each constraint type
         // First try check constraints
         if table.schema_mut().drop_check_constraint(&stmt.constraint_name).is_ok() {
+            // Update catalog with modified schema
+            let updated_schema = table.schema.clone();
+            database.catalog.drop_table(&stmt.table_name)?;
+            database.catalog.create_table(updated_schema)?;
+
             return Ok(format!(
                 "CHECK constraint '{}' dropped from table '{}'",
                 stmt.constraint_name, stmt.table_name
@@ -471,6 +481,11 @@ impl AlterTableExecutor {
 
         // Try foreign keys
         if table.schema_mut().drop_foreign_key(&stmt.constraint_name).is_ok() {
+            // Update catalog with modified schema
+            let updated_schema = table.schema.clone();
+            database.catalog.drop_table(&stmt.table_name)?;
+            database.catalog.create_table(updated_schema)?;
+
             return Ok(format!(
                 "FOREIGN KEY constraint '{}' dropped from table '{}'",
                 stmt.constraint_name, stmt.table_name

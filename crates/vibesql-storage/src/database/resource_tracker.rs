@@ -2,9 +2,9 @@
 // Resource Tracker - Memory and disk budget tracking for adaptive index management
 // ============================================================================
 
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::RwLock;
 use std::time::Instant;
 
 /// Which backend an index is currently using
@@ -78,8 +78,8 @@ pub struct ResourceTracker {
     /// Total disk space used by all indexes (bytes)
     disk_used: AtomicUsize,
 
-    /// Per-index statistics for LRU tracking (using RefCell for interior mutability)
-    index_stats: RefCell<HashMap<String, IndexStats>>,
+    /// Per-index statistics for LRU tracking (using RwLock for thread-safe interior mutability)
+    index_stats: RwLock<HashMap<String, IndexStats>>,
 }
 
 impl Clone for ResourceTracker {
@@ -87,7 +87,7 @@ impl Clone for ResourceTracker {
         ResourceTracker {
             memory_used: AtomicUsize::new(self.memory_used.load(Ordering::Relaxed)),
             disk_used: AtomicUsize::new(self.disk_used.load(Ordering::Relaxed)),
-            index_stats: RefCell::new(self.index_stats.borrow().clone()),
+            index_stats: RwLock::new(self.index_stats.read().unwrap().clone()),
         }
     }
 }
@@ -98,7 +98,7 @@ impl ResourceTracker {
         ResourceTracker {
             memory_used: AtomicUsize::new(0),
             disk_used: AtomicUsize::new(0),
-            index_stats: RefCell::new(HashMap::new()),
+            index_stats: RwLock::new(HashMap::new()),
         }
     }
 
@@ -126,12 +126,12 @@ impl ResourceTracker {
 
         // Create stats entry
         let stats = IndexStats::new(memory_bytes, disk_bytes, backend);
-        self.index_stats.borrow_mut().insert(index_name, stats);
+        self.index_stats.write().unwrap().insert(index_name, stats);
     }
 
     /// Remove an index from tracking
     pub fn unregister_index(&mut self, index_name: &str) {
-        if let Some(stats) = self.index_stats.borrow_mut().remove(index_name) {
+        if let Some(stats) = self.index_stats.write().unwrap().remove(index_name) {
             // Subtract from totals
             self.memory_used.fetch_sub(stats.memory_bytes, Ordering::Relaxed);
             self.disk_used.fetch_sub(stats.disk_bytes, Ordering::Relaxed);
@@ -141,14 +141,14 @@ impl ResourceTracker {
     /// Record an access to an index
     /// Uses interior mutability to allow recording from immutable references
     pub fn record_access(&self, index_name: &str) {
-        if let Some(stats) = self.index_stats.borrow_mut().get_mut(index_name) {
+        if let Some(stats) = self.index_stats.write().unwrap().get_mut(index_name) {
             stats.record_access();
         }
     }
 
     /// Mark an index as spilled from memory to disk
     pub fn mark_spilled(&mut self, index_name: &str, new_disk_bytes: usize) {
-        if let Some(stats) = self.index_stats.borrow_mut().get_mut(index_name) {
+        if let Some(stats) = self.index_stats.write().unwrap().get_mut(index_name) {
             // Subtract memory usage
             self.memory_used.fetch_sub(stats.memory_bytes, Ordering::Relaxed);
 
@@ -165,14 +165,15 @@ impl ResourceTracker {
 
     /// Get stats for a specific index
     pub fn get_index_stats(&self, index_name: &str) -> Option<IndexStats> {
-        self.index_stats.borrow().get(index_name).cloned()
+        self.index_stats.read().unwrap().get(index_name).cloned()
     }
 
     /// Find the coldest (least recently used) in-memory index
     /// Returns the index name and its last access time
     pub fn find_coldest_in_memory_index(&self) -> Option<(String, Instant)> {
         self.index_stats
-            .borrow()
+            .read()
+            .unwrap()
             .iter()
             .filter(|(_, stats)| stats.backend == IndexBackend::InMemory)
             .min_by_key(|(_, stats)| stats.last_access)
@@ -182,7 +183,8 @@ impl ResourceTracker {
     /// Get all in-memory indexes sorted by last access (oldest first)
     pub fn get_in_memory_indexes_by_lru(&self) -> Vec<String> {
         let mut indexes: Vec<_> = self.index_stats
-            .borrow()
+            .read()
+            .unwrap()
             .iter()
             .filter(|(_, stats)| stats.backend == IndexBackend::InMemory)
             .map(|(name, stats)| (name.clone(), stats.last_access))
@@ -194,7 +196,7 @@ impl ResourceTracker {
 
     /// Get the backend type for an index
     pub fn get_backend(&self, index_name: &str) -> Option<IndexBackend> {
-        self.index_stats.borrow().get(index_name).map(|stats| stats.backend)
+        self.index_stats.read().unwrap().get(index_name).map(|stats| stats.backend)
     }
 }
 
