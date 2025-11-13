@@ -90,14 +90,14 @@ export class NavigationComponent extends Component<NavigationState> {
   private renderNavLink(link: NavigationLink, currentPage: string): string {
     const isActive = link.id === currentPage
     const activeClass = isActive
-      ? 'bg-primary-light/20 dark:bg-primary-dark/20 ring-2 ring-primary-light dark:ring-primary-dark'
-      : 'bg-card hover:bg-card/80'
+      ? 'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-blue-500 dark:ring-blue-400'
+      : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'
 
     return `
       <a
         href="${this.escapeHtml(link.href)}"
         ${link.external ? 'target="_blank" rel="noopener noreferrer"' : ''}
-        class="p-2.5 rounded-full ${activeClass} text-foreground transition-all focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark"
+        class="p-2.5 rounded-full ${activeClass} text-gray-700 dark:text-gray-200 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
         aria-label="${this.escapeHtml(link.label)}"
         title="${this.escapeHtml(link.label)}"
         ${isActive ? 'aria-current="page"' : ''}

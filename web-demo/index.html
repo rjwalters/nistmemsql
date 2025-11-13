@@ -5,22 +5,33 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VibeSQL - AI-Powered SQL:1999 Database</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <!-- Prevent flash of unstyled content by applying theme before page renders -->
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = savedTheme ?? (prefersDark ? 'dark' : 'light');
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+  </script>
 </head>
 <body>
   <!-- Loading Progress Indicator -->
   <div id="loading-progress"></div>
 
-  <div id="app" class="min-h-screen bg-surface-light dark:bg-surface-dark">
+  <div id="app" class="min-h-screen bg-white dark:bg-gray-800">
     <!-- Header -->
-    <header class="bg-background shadow-md border-b border-border">
+    <header class="bg-white dark:bg-gray-800 shadow-md border-b border-gray-300 dark:border-gray-600">
       <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center flex-wrap gap-4">
         <div class="flex items-center gap-4">
-          <h1 class="text-3xl font-bold text-primary-light dark:text-primary-dark">
+          <h1 class="text-3xl font-bold text-blue-600 dark:text-blue-400">
             VibeSQL Demo
           </h1>
           <button
             id="showcase-toggle"
-            class="px-4 py-2 text-sm font-medium text-muted hover:text-primary-light dark:hover:text-primary-dark transition-colors"
+            class="px-4 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
             aria-label="Toggle SQL:1999 Showcase"
           >
             SQL:1999 Showcase
@@ -68,16 +79,16 @@
         <!-- Main Area: Editor and Results -->
         <section class="lg:col-span-3 space-y-6">
           <!-- Editor -->
-          <div class="bg-background rounded-lg shadow-lg p-6 border border-border">
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-300 dark:border-gray-600">
             <div class="flex justify-between items-center mb-4 flex-wrap gap-3">
               <div class="flex items-center gap-3 flex-wrap">
-                <h2 class="text-xl font-semibold text-foreground">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
                   SQL Editor
                 </h2>
                 <div id="database-selector"></div>
-                <div class="flex items-center gap-2 text-sm text-muted">
+                <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                   <span class="font-medium">Storage:</span>
-                  <span id="storage-status" class="px-2 py-1 rounded bg-surface-light dark:bg-surface-dark">Initializing...</span>
+                  <span id="storage-status" class="px-2 py-1 rounded bg-white dark:bg-gray-700">Initializing...</span>
                 </div>
               </div>
               <button id="execute-btn" class="btn-primary" aria-label="Execute query">
@@ -88,8 +99,8 @@
           </div>
 
           <!-- Results -->
-          <div class="bg-background rounded-lg shadow-lg p-6 border border-border">
-            <h2 class="text-xl font-semibold text-foreground mb-4">
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-300 dark:border-gray-600">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
               Results
             </h2>
             <div id="results"></div>
@@ -99,9 +110,9 @@
     </main>
 
     <!-- Footer -->
-    <footer class="mt-12 text-center text-sm text-muted pb-6 space-y-1">
+    <footer class="mt-12 text-center text-sm text-gray-500 dark:text-gray-400 pb-6 space-y-1">
       <p id="footer-conformance">VibeSQL - AI-Powered SQL:1999 Database in WebAssembly (sqltest conformance: loading...)</p>
-      <p id="build-timestamp" class="text-xs text-muted/80"></p>
+      <p id="build-timestamp" class="text-xs text-gray-400 dark:text-gray-500"></p>
     </footer>
   </div>
   <script type="module" src="/src/main.ts"></script>

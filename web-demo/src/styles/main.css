@@ -120,13 +120,13 @@
 
   /* Loading Progress Indicator */
   .loading-progress-overlay {
-    @apply fixed inset-0 bg-background flex items-center justify-center z-[100]
+    @apply fixed inset-0 bg-white dark:bg-gray-800 flex items-center justify-center z-[100]
            transition-opacity duration-300;
   }
 
   .loading-progress-card {
-    @apply bg-surface-light dark:bg-surface-dark rounded-xl shadow-2xl
-           border border-border max-w-md w-full mx-4 p-8;
+    @apply bg-white dark:bg-gray-700 rounded-xl shadow-2xl
+           border border-gray-300 dark:border-gray-600 max-w-md w-full mx-4 p-8;
   }
 
   .loading-progress-header {
@@ -134,7 +134,7 @@
   }
 
   .loading-progress-title {
-    @apply text-2xl font-bold text-foreground;
+    @apply text-2xl font-bold text-gray-900 dark:text-gray-100;
   }
 
   .loading-progress-percent {
@@ -167,7 +167,7 @@
   }
 
   .loading-progress-step-label {
-    @apply text-foreground font-medium;
+    @apply text-gray-900 dark:text-gray-100 font-medium;
   }
 
   .loading-progress-step-error {
@@ -175,7 +175,7 @@
   }
 
   .loading-progress-step--pending .loading-progress-step-label {
-    @apply text-muted;
+    @apply text-gray-500 dark:text-gray-400;
   }
 
   .loading-progress-step--loading .loading-progress-step-label {

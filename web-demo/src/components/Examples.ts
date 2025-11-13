@@ -130,18 +130,18 @@ export class ExamplesComponent extends Component<ExamplesState> {
     }, 0)
 
     this.element.innerHTML = `
-      <div class="bg-background rounded-lg shadow-lg border border-border">
-        <div class="px-4 py-3 border-b border-border">
-          <h2 class="font-semibold text-foreground">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-300 dark:border-gray-600">
+        <div class="px-4 py-3 border-b border-gray-300 dark:border-gray-600">
+          <h2 class="font-semibold text-gray-900 dark:text-gray-100">
             SQL:1999 Examples
           </h2>
-          <p class="text-xs text-muted mt-1">
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
             ${filteredCount} of ${this.getTotalExampleCount()} queries across ${exampleCategories.length} categories
           </p>
         </div>
 
         <!-- Filters -->
-        <div class="px-4 py-3 border-b border-border bg-card/30 space-y-3">
+        <div class="px-4 py-3 border-b border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30 space-y-3">
           <!-- Search -->
           <div>
             <input
@@ -149,7 +149,7 @@ export class ExamplesComponent extends Component<ExamplesState> {
               id="example-search"
               placeholder="Search examples..."
               value="${this.escapeHtml(searchQuery)}"
-              class="w-full px-3 py-2 text-sm border border-border rounded bg-background text-foreground placeholder-muted focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -159,7 +159,7 @@ export class ExamplesComponent extends Component<ExamplesState> {
             <div class="flex-1 min-w-[150px]">
               <select
                 id="difficulty-filter"
-                class="w-full px-3 py-2 text-sm border border-border rounded bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all" ${difficultyFilter === 'all' ? 'selected' : ''}>All Difficulties</option>
                 <option value="beginner" ${difficultyFilter === 'beginner' ? 'selected' : ''}>Beginner</option>
@@ -172,7 +172,7 @@ export class ExamplesComponent extends Component<ExamplesState> {
             <div class="flex-1 min-w-[150px]">
               <select
                 id="usecase-filter"
-                class="w-full px-3 py-2 text-sm border border-border rounded bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all" ${useCaseFilter === 'all' ? 'selected' : ''}>All Use Cases</option>
                 <option value="analytics" ${useCaseFilter === 'analytics' ? 'selected' : ''}>Analytics</option>
@@ -195,7 +195,7 @@ export class ExamplesComponent extends Component<ExamplesState> {
           </div>
         </div>
 
-        <div class="divide-y divide-border overflow-y-auto max-h-[60vh]">
+        <div class="divide-y divide-gray-300 dark:divide-gray-600 overflow-y-auto max-h-[60vh]">
           ${exampleCategories.map(category => this.renderCategory(category, expandedCategories)).join('')}
         </div>
       </div>
@@ -221,29 +221,29 @@ export class ExamplesComponent extends Component<ExamplesState> {
     return `
       <div class="category-section">
         <button
-          class="category-toggle w-full px-4 py-3 text-left hover:bg-card/50 transition-colors flex justify-between items-center"
+          class="category-toggle w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors flex justify-between items-center"
           data-category-id="${this.escapeHtml(category.id)}"
           aria-expanded="${isExpanded}"
           aria-controls="category-${this.escapeHtml(category.id)}"
         >
           <div class="flex-1">
-            <div class="font-medium text-sm text-foreground">
+            <div class="font-medium text-sm text-gray-900 dark:text-gray-100">
               ${this.escapeHtml(category.title)}
             </div>
-            <div class="text-xs text-muted mt-1">
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
               ${this.escapeHtml(category.description)}
             </div>
           </div>
           <div class="ml-2 flex items-center gap-2">
-            <span class="text-xs bg-card px-2 py-1 rounded">
+            <span class="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded">
               ${filteredQueries.length}${filteredQueries.length !== category.queries.length ? `/${category.queries.length}` : ''}
             </span>
-            <span class="text-muted">${isExpanded ? '▼' : '▶'}</span>
+            <span class="text-gray-500 dark:text-gray-400">${isExpanded ? '▼' : '▶'}</span>
           </div>
         </button>
 
         ${isExpanded ? `
-          <div id="category-${this.escapeHtml(category.id)}" class="bg-card/30">
+          <div id="category-${this.escapeHtml(category.id)}" class="bg-gray-50 dark:bg-gray-700/30">
             ${filteredQueries.map(query => this.renderQuery(query)).join('')}
           </div>
         ` : ''}
@@ -254,14 +254,14 @@ export class ExamplesComponent extends Component<ExamplesState> {
   private renderQuery(query: QueryExample): string {
     return `
       <button
-        class="example-item w-full px-4 py-3 text-left border-t border-border hover:bg-background transition-colors"
+        class="example-item w-full px-4 py-3 text-left border-t border-gray-300 dark:border-gray-600 hover:bg-white dark:hover:bg-gray-700 transition-colors"
         data-example-id="${this.escapeHtml(query.id)}"
         aria-label="Load ${this.escapeHtml(query.title)} example"
       >
         <div class="flex items-start justify-between gap-2">
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
-              <div class="font-medium text-sm text-foreground">
+              <div class="font-medium text-sm text-gray-900 dark:text-gray-100">
                 ${this.escapeHtml(query.title)}
               </div>
               ${query.difficulty ? `
@@ -275,7 +275,7 @@ export class ExamplesComponent extends Component<ExamplesState> {
                 </span>
               ` : ''}
             </div>
-            <div class="text-xs text-muted mt-1">
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
               ${this.escapeHtml(query.description)}
             </div>
             ${query.sqlFeatures.length > 0 ? `
@@ -286,7 +286,7 @@ export class ExamplesComponent extends Component<ExamplesState> {
                   </span>
                 `).join('')}
                 ${query.sqlFeatures.length > 3 ? `
-                  <span class="text-xs text-muted">
+                  <span class="text-xs text-gray-500 dark:text-gray-400">
                     +${query.sqlFeatures.length - 3} more
                   </span>
                 ` : ''}

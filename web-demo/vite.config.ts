@@ -1,17 +1,11 @@
 import { defineConfig } from 'vite'
 import wasm from 'vite-plugin-wasm'
-import monacoEditorPlugin from 'vite-plugin-monaco-editor'
 import { resolve } from 'path'
 import { copyFileSync, mkdirSync, existsSync } from 'fs'
 
 export default defineConfig({
   plugins: [
     wasm(),
-    // @ts-ignore - Plugin types may not match exactly
-    monacoEditorPlugin.default({
-      languageWorkers: ['editorWorkerService', 'typescript', 'json'],
-      customWorkers: [],
-    }),
     {
       name: 'copy-benchmark-data',
       closeBundle() {
