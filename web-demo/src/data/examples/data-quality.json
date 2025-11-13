@@ -1,145 +1,152 @@
 {
-  "dq-1": {
-    "title": "Finding Duplicate Records",
-    "database": "northwind",
-    "sql": "-- Find products with duplicate names\nSELECT\n  product_name,\n  COUNT(*) AS occurrence_count,\n  STRING_AGG(CAST(product_id AS TEXT), ', ') AS product_ids\nFROM products\nGROUP BY product_name\nHAVING COUNT(*) > 1\nORDER BY occurrence_count DESC;",
-    "description": "Detect duplicate product names in the database",
-    "sqlFeatures": [
-      "GROUP BY",
-      "HAVING",
-      "COUNT",
-      "STRING_AGG",
-      "Duplicate detection"
-    ],
-    "difficulty": "beginner",
-    "useCase": "data-quality",
-    "relatedExamples": [
-      "aggregate-1"
-    ],
-    "tags": [
-      "duplicates",
-      "validation",
-      "data-cleansing",
-      "integrity"
-    ]
+  "_category": {
+    "id": "data-quality",
+    "title": "Data Quality",
+    "description": "Validation, profiling, and data quality checks"
   },
-  "dq-2": {
-    "title": "Identifying Orphaned Records",
-    "database": "northwind",
-    "sql": "-- Find order details without corresponding orders\nSELECT\n  od.order_id,\n  od.product_id,\n  od.quantity,\n  CASE WHEN o.order_id IS NULL THEN 'ORPHAN' ELSE 'OK' END AS status\nFROM order_details od\nLEFT JOIN orders o ON od.order_id = o.order_id\nWHERE o.order_id IS NULL\nLIMIT 10;",
-    "description": "Detect order details without parent orders (referential integrity check)",
-    "sqlFeatures": [
-      "LEFT JOIN",
-      "IS NULL",
-      "Referential integrity",
-      "Orphan detection"
-    ],
-    "difficulty": "beginner",
-    "useCase": "data-quality",
-    "relatedExamples": [
-      "join-2"
-    ],
-    "tags": [
-      "orphans",
-      "referential-integrity",
-      "foreign-keys",
-      "data-quality"
-    ]
-  },
-  "dq-3": {
-    "title": "NULL Pattern Analysis",
-    "database": "northwind",
-    "sql": "-- Analyze NULL patterns across product columns\nSELECT\n  'unit_price' AS column_name,\n  COUNT(*) AS total_rows,\n  COUNT(unit_price) AS non_null_count,\n  COUNT(*) - COUNT(unit_price) AS null_count,\n  ROUND((COUNT(*) - COUNT(unit_price)) * 100.0 / COUNT(*), 2) AS null_percentage\nFROM products\nUNION ALL\nSELECT\n  'units_in_stock',\n  COUNT(*),\n  COUNT(units_in_stock),\n  COUNT(*) - COUNT(units_in_stock),\n  ROUND((COUNT(*) - COUNT(units_in_stock)) * 100.0 / COUNT(*), 2)\nFROM products\nUNION ALL\nSELECT\n  'units_on_order',\n  COUNT(*),\n  COUNT(units_on_order),\n  COUNT(*) - COUNT(units_on_order),\n  ROUND((COUNT(*) - COUNT(units_on_order)) * 100.0 / COUNT(*), 2)\nFROM products\nORDER BY null_percentage DESC;",
-    "description": "Analyze NULL value patterns across multiple columns",
-    "sqlFeatures": [
-      "UNION ALL",
-      "COUNT",
-      "NULL analysis",
-      "Data profiling"
-    ],
-    "difficulty": "intermediate",
-    "useCase": "data-quality",
-    "relatedExamples": [
-      "aggregate-1",
-      "union-1"
-    ],
-    "tags": [
-      "null-analysis",
-      "data-profiling",
-      "completeness",
-      "quality-metrics"
-    ]
-  },
-  "dq-4": {
-    "title": "Data Consistency Checks",
-    "database": "northwind",
-    "sql": "-- Find products with illogical stock levels\nSELECT\n  product_id,\n  product_name,\n  unit_price,\n  units_in_stock,\n  units_on_order,\n  CASE\n    WHEN unit_price IS NULL THEN 'Missing price'\n    WHEN unit_price < 0 THEN 'Negative price'\n    WHEN unit_price = 0 THEN 'Zero price'\n    WHEN units_in_stock IS NULL THEN 'Missing stock'\n    WHEN units_in_stock < 0 THEN 'Negative stock'\n    WHEN units_on_order IS NULL THEN 'Missing on_order'\n    WHEN units_on_order < 0 THEN 'Negative on_order'\n    ELSE 'OK'\n  END AS data_issue\nFROM products\nWHERE\n  unit_price IS NULL OR unit_price <= 0 OR\n  units_in_stock IS NULL OR units_in_stock < 0 OR\n  units_on_order IS NULL OR units_on_order < 0\nORDER BY product_id;",
-    "description": "Validate business rules for product data consistency",
-    "sqlFeatures": [
-      "CASE",
-      "NULL checks",
-      "Data validation",
-      "Business rules"
-    ],
-    "difficulty": "intermediate",
-    "useCase": "data-quality",
-    "relatedExamples": [
-      "case-1"
-    ],
-    "tags": [
-      "consistency",
-      "validation",
-      "business-rules",
-      "constraints"
-    ]
-  },
-  "dq-5": {
-    "title": "Referential Integrity Validation",
-    "database": "northwind",
-    "sql": "-- Comprehensive referential integrity check\nWITH integrity_checks AS (\n  SELECT 'Products missing category' AS check_name, COUNT(*) AS violation_count\n  FROM products p\n  LEFT JOIN categories c ON p.category_id = c.category_id\n  WHERE p.category_id IS NOT NULL AND c.category_id IS NULL\n  UNION ALL\n  SELECT 'Order details missing product', COUNT(*)\n  FROM order_details od\n  LEFT JOIN products p ON od.product_id = p.product_id\n  WHERE od.product_id IS NOT NULL AND p.product_id IS NULL\n  UNION ALL\n  SELECT 'Order details missing order', COUNT(*)\n  FROM order_details od\n  LEFT JOIN orders o ON od.order_id = o.order_id\n  WHERE od.order_id IS NOT NULL AND o.order_id IS NULL\n)\nSELECT\n  check_name,\n  violation_count,\n  CASE\n    WHEN violation_count = 0 THEN 'PASS'\n    ELSE 'FAIL'\n  END AS status\nFROM integrity_checks\nORDER BY violation_count DESC;",
-    "description": "Comprehensive validation of foreign key relationships",
-    "sqlFeatures": [
-      "CTE",
-      "UNION ALL",
-      "LEFT JOIN",
-      "Referential integrity"
-    ],
-    "difficulty": "intermediate",
-    "useCase": "data-quality",
-    "relatedExamples": [
-      "dq-2",
-      "cte-1"
-    ],
-    "tags": [
-      "referential-integrity",
-      "foreign-keys",
-      "validation",
-      "constraints"
-    ]
-  },
-  "dq-6": {
-    "title": "Outlier Detection",
-    "database": "northwind",
-    "sql": "-- Detect price outliers using statistical methods\nWITH price_stats AS (\n  SELECT\n    AVG(unit_price) AS mean_price,\n    STDDEV(unit_price) AS stddev_price\n  FROM products\n  WHERE unit_price IS NOT NULL\n)\nSELECT\n  p.product_id,\n  p.product_name,\n  p.unit_price,\n  ROUND(ps.mean_price, 2) AS mean_price,\n  ROUND(ps.stddev_price, 2) AS stddev_price,\n  ROUND((p.unit_price - ps.mean_price) / NULLIF(ps.stddev_price, 0), 2) AS z_score,\n  CASE\n    WHEN ABS((p.unit_price - ps.mean_price) / NULLIF(ps.stddev_price, 0)) > 2\n    THEN 'OUTLIER'\n    ELSE 'NORMAL'\n  END AS outlier_status\nFROM products p\nCROSS JOIN price_stats ps\nWHERE p.unit_price IS NOT NULL\n  AND ABS((p.unit_price - ps.mean_price) / NULLIF(ps.stddev_price, 0)) > 2\nORDER BY ABS((p.unit_price - ps.mean_price) / NULLIF(ps.stddev_price, 0)) DESC;",
-    "description": "Identify price outliers using Z-score statistical method",
-    "sqlFeatures": [
-      "CTE",
-      "STDDEV",
-      "AVG",
-      "CROSS JOIN",
-      "Statistical analysis"
-    ],
-    "difficulty": "advanced",
-    "useCase": "data-quality",
-    "relatedExamples": [
-      "aggregate-1",
-      "cte-1"
-    ],
-    "tags": [
-      "outliers",
-      "statistics",
-      "z-score",
-      "anomaly-detection"
-    ]
+  "examples": {
+    "dq-1": {
+      "title": "Finding Duplicate Records",
+      "database": "northwind",
+      "sql": "-- Find products with duplicate names\nSELECT\n  product_name,\n  COUNT(*) AS occurrence_count,\n  STRING_AGG(CAST(product_id AS TEXT), ', ') AS product_ids\nFROM products\nGROUP BY product_name\nHAVING COUNT(*) > 1\nORDER BY occurrence_count DESC;",
+      "description": "Detect duplicate product names in the database",
+      "sqlFeatures": [
+        "GROUP BY",
+        "HAVING",
+        "COUNT",
+        "STRING_AGG",
+        "Duplicate detection"
+      ],
+      "difficulty": "beginner",
+      "useCase": "data-quality",
+      "relatedExamples": [
+        "aggregate-1"
+      ],
+      "tags": [
+        "duplicates",
+        "validation",
+        "data-cleansing",
+        "integrity"
+      ]
+    },
+    "dq-2": {
+      "title": "Identifying Orphaned Records",
+      "database": "northwind",
+      "sql": "-- Find order details without corresponding orders\nSELECT\n  od.order_id,\n  od.product_id,\n  od.quantity,\n  CASE WHEN o.order_id IS NULL THEN 'ORPHAN' ELSE 'OK' END AS status\nFROM order_details od\nLEFT JOIN orders o ON od.order_id = o.order_id\nWHERE o.order_id IS NULL\nLIMIT 10;",
+      "description": "Detect order details without parent orders (referential integrity check)",
+      "sqlFeatures": [
+        "LEFT JOIN",
+        "IS NULL",
+        "Referential integrity",
+        "Orphan detection"
+      ],
+      "difficulty": "beginner",
+      "useCase": "data-quality",
+      "relatedExamples": [
+        "join-2"
+      ],
+      "tags": [
+        "orphans",
+        "referential-integrity",
+        "foreign-keys",
+        "data-quality"
+      ]
+    },
+    "dq-3": {
+      "title": "NULL Pattern Analysis",
+      "database": "northwind",
+      "sql": "-- Analyze NULL patterns across product columns\nSELECT\n  'unit_price' AS column_name,\n  COUNT(*) AS total_rows,\n  COUNT(unit_price) AS non_null_count,\n  COUNT(*) - COUNT(unit_price) AS null_count,\n  ROUND((COUNT(*) - COUNT(unit_price)) * 100.0 / COUNT(*), 2) AS null_percentage\nFROM products\nUNION ALL\nSELECT\n  'units_in_stock',\n  COUNT(*),\n  COUNT(units_in_stock),\n  COUNT(*) - COUNT(units_in_stock),\n  ROUND((COUNT(*) - COUNT(units_in_stock)) * 100.0 / COUNT(*), 2)\nFROM products\nUNION ALL\nSELECT\n  'units_on_order',\n  COUNT(*),\n  COUNT(units_on_order),\n  COUNT(*) - COUNT(units_on_order),\n  ROUND((COUNT(*) - COUNT(units_on_order)) * 100.0 / COUNT(*), 2)\nFROM products\nORDER BY null_percentage DESC;",
+      "description": "Analyze NULL value patterns across multiple columns",
+      "sqlFeatures": [
+        "UNION ALL",
+        "COUNT",
+        "NULL analysis",
+        "Data profiling"
+      ],
+      "difficulty": "intermediate",
+      "useCase": "data-quality",
+      "relatedExamples": [
+        "aggregate-1",
+        "union-1"
+      ],
+      "tags": [
+        "null-analysis",
+        "data-profiling",
+        "completeness",
+        "quality-metrics"
+      ]
+    },
+    "dq-4": {
+      "title": "Data Consistency Checks",
+      "database": "northwind",
+      "sql": "-- Find products with illogical stock levels\nSELECT\n  product_id,\n  product_name,\n  unit_price,\n  units_in_stock,\n  units_on_order,\n  CASE\n    WHEN unit_price IS NULL THEN 'Missing price'\n    WHEN unit_price < 0 THEN 'Negative price'\n    WHEN unit_price = 0 THEN 'Zero price'\n    WHEN units_in_stock IS NULL THEN 'Missing stock'\n    WHEN units_in_stock < 0 THEN 'Negative stock'\n    WHEN units_on_order IS NULL THEN 'Missing on_order'\n    WHEN units_on_order < 0 THEN 'Negative on_order'\n    ELSE 'OK'\n  END AS data_issue\nFROM products\nWHERE\n  unit_price IS NULL OR unit_price <= 0 OR\n  units_in_stock IS NULL OR units_in_stock < 0 OR\n  units_on_order IS NULL OR units_on_order < 0\nORDER BY product_id;",
+      "description": "Validate business rules for product data consistency",
+      "sqlFeatures": [
+        "CASE",
+        "NULL checks",
+        "Data validation",
+        "Business rules"
+      ],
+      "difficulty": "intermediate",
+      "useCase": "data-quality",
+      "relatedExamples": [
+        "case-1"
+      ],
+      "tags": [
+        "consistency",
+        "validation",
+        "business-rules",
+        "constraints"
+      ]
+    },
+    "dq-5": {
+      "title": "Referential Integrity Validation",
+      "database": "northwind",
+      "sql": "-- Comprehensive referential integrity check\nWITH integrity_checks AS (\n  SELECT 'Products missing category' AS check_name, COUNT(*) AS violation_count\n  FROM products p\n  LEFT JOIN categories c ON p.category_id = c.category_id\n  WHERE p.category_id IS NOT NULL AND c.category_id IS NULL\n  UNION ALL\n  SELECT 'Order details missing product', COUNT(*)\n  FROM order_details od\n  LEFT JOIN products p ON od.product_id = p.product_id\n  WHERE od.product_id IS NOT NULL AND p.product_id IS NULL\n  UNION ALL\n  SELECT 'Order details missing order', COUNT(*)\n  FROM order_details od\n  LEFT JOIN orders o ON od.order_id = o.order_id\n  WHERE od.order_id IS NOT NULL AND o.order_id IS NULL\n)\nSELECT\n  check_name,\n  violation_count,\n  CASE\n    WHEN violation_count = 0 THEN 'PASS'\n    ELSE 'FAIL'\n  END AS status\nFROM integrity_checks\nORDER BY violation_count DESC;",
+      "description": "Comprehensive validation of foreign key relationships",
+      "sqlFeatures": [
+        "CTE",
+        "UNION ALL",
+        "LEFT JOIN",
+        "Referential integrity"
+      ],
+      "difficulty": "intermediate",
+      "useCase": "data-quality",
+      "relatedExamples": [
+        "dq-2",
+        "cte-1"
+      ],
+      "tags": [
+        "referential-integrity",
+        "foreign-keys",
+        "validation",
+        "constraints"
+      ]
+    },
+    "dq-6": {
+      "title": "Outlier Detection",
+      "database": "northwind",
+      "sql": "-- Detect price outliers using statistical methods\nWITH price_stats AS (\n  SELECT\n    AVG(unit_price) AS mean_price,\n    STDDEV(unit_price) AS stddev_price\n  FROM products\n  WHERE unit_price IS NOT NULL\n)\nSELECT\n  p.product_id,\n  p.product_name,\n  p.unit_price,\n  ROUND(ps.mean_price, 2) AS mean_price,\n  ROUND(ps.stddev_price, 2) AS stddev_price,\n  ROUND((p.unit_price - ps.mean_price) / NULLIF(ps.stddev_price, 0), 2) AS z_score,\n  CASE\n    WHEN ABS((p.unit_price - ps.mean_price) / NULLIF(ps.stddev_price, 0)) > 2\n    THEN 'OUTLIER'\n    ELSE 'NORMAL'\n  END AS outlier_status\nFROM products p\nCROSS JOIN price_stats ps\nWHERE p.unit_price IS NOT NULL\n  AND ABS((p.unit_price - ps.mean_price) / NULLIF(ps.stddev_price, 0)) > 2\nORDER BY ABS((p.unit_price - ps.mean_price) / NULLIF(ps.stddev_price, 0)) DESC;",
+      "description": "Identify price outliers using Z-score statistical method",
+      "sqlFeatures": [
+        "CTE",
+        "STDDEV",
+        "AVG",
+        "CROSS JOIN",
+        "Statistical analysis"
+      ],
+      "difficulty": "advanced",
+      "useCase": "data-quality",
+      "relatedExamples": [
+        "aggregate-1",
+        "cte-1"
+      ],
+      "tags": [
+        "outliers",
+        "statistics",
+        "z-score",
+        "anomaly-detection"
+      ]
+    }
   }
 }

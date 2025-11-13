@@ -1,66 +1,73 @@
 {
-  "company-1": {
-    "title": "Department headcount and salaries",
-    "database": "company",
-    "sql": "SELECT\n  d.dept_name,\n  COUNT(e.emp_id) AS headcount,\n  AVG(e.salary) AS avg_salary,\n  MIN(e.salary) AS min_salary,\n  MAX(e.salary) AS max_salary\nFROM departments d\nLEFT JOIN employees e ON d.dept_id = e.dept_id\nGROUP BY d.dept_name\nORDER BY avg_salary DESC;",
-    "description": "Show employee count and salary statistics by department",
-    "sqlFeatures": [
-      "LEFT JOIN",
-      "GROUP BY",
-      "COUNT",
-      "AVG",
-      "MIN",
-      "MAX"
-    ]
+  "_category": {
+    "id": "company",
+    "title": "Company Database",
+    "description": "Queries using the company database"
   },
-  "company-2": {
-    "title": "Total project budget by department",
-    "database": "company",
-    "sql": "SELECT\n  d.dept_name,\n  d.location,\n  COUNT(p.project_id) AS project_count,\n  SUM(p.budget) AS total_budget\nFROM departments d\nLEFT JOIN projects p ON d.dept_id = p.dept_id\nGROUP BY d.dept_name, d.location\nHAVING SUM(p.budget) > 0\nORDER BY total_budget DESC;",
-    "description": "Calculate total project budgets and counts per department",
-    "sqlFeatures": [
-      "LEFT JOIN",
-      "GROUP BY",
-      "COUNT",
-      "SUM",
-      "HAVING"
-    ]
-  },
-  "company-3": {
-    "title": "Employee project assignments",
-    "database": "company",
-    "sql": "SELECT\n  e.name AS employee,\n  d.dept_name AS department,\n  p.project_name,\n  p.budget\nFROM employees e\nLEFT JOIN departments d ON e.dept_id = d.dept_id\nLEFT JOIN projects p ON e.dept_id = p.dept_id\nWHERE e.dept_id IS NOT NULL\nORDER BY d.dept_name, e.name\nLIMIT 15;",
-    "description": "Show employees with their departments and assigned projects",
-    "sqlFeatures": [
-      "LEFT JOIN",
-      "Multi-table JOIN",
-      "WHERE",
-      "LIMIT"
-    ]
-  },
-  "company-4": {
-    "title": "Budget efficiency analysis",
-    "database": "company",
-    "sql": "SELECT\n  d.dept_name,\n  COUNT(e.emp_id) AS headcount,\n  SUM(p.budget) AS project_budget,\n  CASE\n    WHEN COUNT(e.emp_id) = 0 THEN 0\n    ELSE SUM(p.budget) / COUNT(e.emp_id)\n  END AS budget_per_employee\nFROM departments d\nLEFT JOIN employees e ON d.dept_id = e.dept_id\nLEFT JOIN projects p ON d.dept_id = p.dept_id\nGROUP BY d.dept_name\nORDER BY budget_per_employee DESC;",
-    "description": "Calculate budget efficiency (budget per employee) by department",
-    "sqlFeatures": [
-      "LEFT JOIN",
-      "Multi-table JOIN",
-      "GROUP BY",
-      "CASE",
-      "Calculated fields"
-    ]
-  },
-  "company-5": {
-    "title": "High-value projects report",
-    "database": "company",
-    "sql": "SELECT\n  p.project_name,\n  p.budget,\n  d.dept_name,\n  d.location,\n  CASE\n    WHEN p.budget >= 400000 THEN 'Critical'\n    WHEN p.budget >= 200000 THEN 'Major'\n    WHEN p.budget >= 100000 THEN 'Standard'\n    ELSE 'Minor'\n  END AS priority\nFROM projects p\nLEFT JOIN departments d ON p.dept_id = d.dept_id\nWHERE p.budget IS NOT NULL\nORDER BY p.budget DESC;",
-    "description": "List projects with budget categorization and department info",
-    "sqlFeatures": [
-      "LEFT JOIN",
-      "WHERE",
-      "CASE",
-      "ORDER BY"
-    ]
+  "examples": {
+    "company-1": {
+      "title": "Department headcount and salaries",
+      "database": "company",
+      "sql": "SELECT\n  d.dept_name,\n  COUNT(e.emp_id) AS headcount,\n  AVG(e.salary) AS avg_salary,\n  MIN(e.salary) AS min_salary,\n  MAX(e.salary) AS max_salary\nFROM departments d\nLEFT JOIN employees e ON d.dept_id = e.dept_id\nGROUP BY d.dept_name\nORDER BY avg_salary DESC;",
+      "description": "Show employee count and salary statistics by department",
+      "sqlFeatures": [
+        "LEFT JOIN",
+        "GROUP BY",
+        "COUNT",
+        "AVG",
+        "MIN",
+        "MAX"
+      ]
+    },
+    "company-2": {
+      "title": "Total project budget by department",
+      "database": "company",
+      "sql": "SELECT\n  d.dept_name,\n  d.location,\n  COUNT(p.project_id) AS project_count,\n  SUM(p.budget) AS total_budget\nFROM departments d\nLEFT JOIN projects p ON d.dept_id = p.dept_id\nGROUP BY d.dept_name, d.location\nHAVING SUM(p.budget) > 0\nORDER BY total_budget DESC;",
+      "description": "Calculate total project budgets and counts per department",
+      "sqlFeatures": [
+        "LEFT JOIN",
+        "GROUP BY",
+        "COUNT",
+        "SUM",
+        "HAVING"
+      ]
+    },
+    "company-3": {
+      "title": "Employee project assignments",
+      "database": "company",
+      "sql": "SELECT\n  e.name AS employee,\n  d.dept_name AS department,\n  p.project_name,\n  p.budget\nFROM employees e\nLEFT JOIN departments d ON e.dept_id = d.dept_id\nLEFT JOIN projects p ON e.dept_id = p.dept_id\nWHERE e.dept_id IS NOT NULL\nORDER BY d.dept_name, e.name\nLIMIT 15;",
+      "description": "Show employees with their departments and assigned projects",
+      "sqlFeatures": [
+        "LEFT JOIN",
+        "Multi-table JOIN",
+        "WHERE",
+        "LIMIT"
+      ]
+    },
+    "company-4": {
+      "title": "Budget efficiency analysis",
+      "database": "company",
+      "sql": "SELECT\n  d.dept_name,\n  COUNT(e.emp_id) AS headcount,\n  SUM(p.budget) AS project_budget,\n  CASE\n    WHEN COUNT(e.emp_id) = 0 THEN 0\n    ELSE SUM(p.budget) / COUNT(e.emp_id)\n  END AS budget_per_employee\nFROM departments d\nLEFT JOIN employees e ON d.dept_id = e.dept_id\nLEFT JOIN projects p ON d.dept_id = p.dept_id\nGROUP BY d.dept_name\nORDER BY budget_per_employee DESC;",
+      "description": "Calculate budget efficiency (budget per employee) by department",
+      "sqlFeatures": [
+        "LEFT JOIN",
+        "Multi-table JOIN",
+        "GROUP BY",
+        "CASE",
+        "Calculated fields"
+      ]
+    },
+    "company-5": {
+      "title": "High-value projects report",
+      "database": "company",
+      "sql": "SELECT\n  p.project_name,\n  p.budget,\n  d.dept_name,\n  d.location,\n  CASE\n    WHEN p.budget >= 400000 THEN 'Critical'\n    WHEN p.budget >= 200000 THEN 'Major'\n    WHEN p.budget >= 100000 THEN 'Standard'\n    ELSE 'Minor'\n  END AS priority\nFROM projects p\nLEFT JOIN departments d ON p.dept_id = d.dept_id\nWHERE p.budget IS NOT NULL\nORDER BY p.budget DESC;",
+      "description": "List projects with budget categorization and department info",
+      "sqlFeatures": [
+        "LEFT JOIN",
+        "WHERE",
+        "CASE",
+        "ORDER BY"
+      ]
+    }
   }
 }

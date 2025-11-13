@@ -1,35 +1,42 @@
 {
-  "set-1": {
-    "title": "UNION",
-    "database": "employees",
-    "sql": "SELECT department FROM employees WHERE salary > 150000\nUNION\nSELECT department FROM employees WHERE title LIKE '%Director%'\nORDER BY department;\n-- ⏭️ SKIP: Requires employees database - not yet implemented in test environment",
-    "description": "Combine unique departments from two criteria",
-    "sqlFeatures": [
-      "UNION",
-      "WHERE",
-      "ORDER BY"
-    ]
+  "_category": {
+    "id": "set",
+    "title": "Set Operations",
+    "description": "UNION, INTERSECT, EXCEPT operations"
   },
-  "set-2": {
-    "title": "UNION ALL",
-    "database": "northwind",
-    "sql": "SELECT 'Expensive' as category, product_name, unit_price\nFROM products\nWHERE unit_price > 50\nUNION ALL\nSELECT 'Cheap' as category, product_name, unit_price\nFROM products\nWHERE unit_price < 10\nORDER BY unit_price DESC;\n-- ⏭️ SKIP: Type coercion issue - Float vs Integer comparison in WHERE clause;",
-    "description": "Combine expensive and cheap products (with duplicates)",
-    "sqlFeatures": [
-      "UNION ALL",
-      "WHERE",
-      "String literals"
-    ]
-  },
-  "set-3": {
-    "title": "Column count in UNION",
-    "database": "northwind",
-    "sql": "SELECT category_name as name, 'category' as type\nFROM categories\nUNION\nSELECT product_name as name, 'product' as type\nFROM products\nLIMIT 15;",
-    "description": "Union different tables with matching column structures",
-    "sqlFeatures": [
-      "UNION",
-      "AS",
-      "LIMIT"
-    ]
+  "examples": {
+    "set-1": {
+      "title": "UNION",
+      "database": "employees",
+      "sql": "SELECT department FROM employees WHERE salary > 150000\nUNION\nSELECT department FROM employees WHERE title LIKE '%Director%'\nORDER BY department;\n-- \u23ed\ufe0f SKIP: Requires employees database - not yet implemented in test environment",
+      "description": "Combine unique departments from two criteria",
+      "sqlFeatures": [
+        "UNION",
+        "WHERE",
+        "ORDER BY"
+      ]
+    },
+    "set-2": {
+      "title": "UNION ALL",
+      "database": "northwind",
+      "sql": "SELECT 'Expensive' as category, product_name, unit_price\nFROM products\nWHERE unit_price > 50\nUNION ALL\nSELECT 'Cheap' as category, product_name, unit_price\nFROM products\nWHERE unit_price < 10\nORDER BY unit_price DESC;\n-- \u23ed\ufe0f SKIP: Type coercion issue - Float vs Integer comparison in WHERE clause;",
+      "description": "Combine expensive and cheap products (with duplicates)",
+      "sqlFeatures": [
+        "UNION ALL",
+        "WHERE",
+        "String literals"
+      ]
+    },
+    "set-3": {
+      "title": "Column count in UNION",
+      "database": "northwind",
+      "sql": "SELECT category_name as name, 'category' as type\nFROM categories\nUNION\nSELECT product_name as name, 'product' as type\nFROM products\nLIMIT 15;",
+      "description": "Union different tables with matching column structures",
+      "sqlFeatures": [
+        "UNION",
+        "AS",
+        "LIMIT"
+      ]
+    }
   }
 }

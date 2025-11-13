@@ -2,7 +2,7 @@
  * SQL:1999 Feature Showcase - Example Queries
  *
  * Comprehensive library of SQL examples organized by feature category.
- * SQL payloads are loaded from separate JSON files for maintainability.
+ * All data loaded from JSON files for easy maintenance.
  */
 
 import type {
@@ -11,6 +11,8 @@ import type {
   ExampleMetadata,
   CategoryMetadata
 } from './examples-metadata'
+
+import { loadAllCategories } from './examples/loader'
 
 // Re-export types and interfaces
 export type {
@@ -30,24 +32,10 @@ export {
   getExampleMetadataForDatabase
 } from './examples-metadata'
 
-// Import loader
-import { loadExamplesForCategory } from './examples/loader'
-import { exampleCategoriesMetadata } from './examples-metadata'
-
 /**
  * Load all example categories with SQL payloads
  */
-export const exampleCategories: ExampleCategory[] = exampleCategoriesMetadata.map(metadata => ({
-  id: metadata.id,
-  title: metadata.title,
-  description: metadata.description,
-  queries: loadExamplesForCategory(
-    metadata.id,
-    metadata.title,
-    metadata.description,
-    metadata.queries
-  )
-}))
+export const exampleCategories: ExampleCategory[] = loadAllCategories()
 
 /**
  * Get all examples flattened from all categories
@@ -67,7 +55,7 @@ export function findExample(id: string): QueryExample | undefined {
  * Get examples for a specific database
  */
 export function getExamplesForDatabase(
-  database: 'northwind' | 'employees' | 'company' | 'university' | 'empty'
+  database: 'northwind' | 'employees' | 'company' | 'university' | 'empty' | 'sqllogictest'
 ): QueryExample[] {
   return getAllExamples().filter(ex => ex.database === database)
 }
