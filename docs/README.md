@@ -18,77 +18,92 @@ As we work through this unprecedented challenge, we maintain detailed documentat
 ```
 docs/
 ├── README.md                    # This file - documentation guide
-├── CLI_GUIDE.md                 # Complete CLI user guide (Phase 5)
-├── WORK_PLAN.md                 # Detailed roadmap and feature tracking
+├── SUMMARY.md                   # Navigation index and quick access guide
+├── CLI_GUIDE.md                 # Complete CLI user guide
+├── PUBLISHING_CHECKLIST.md      # Release process checklist
+├── PYTHON_BINDINGS.md           # Python integration guide
+│
 ├── planning/                    # Strategic planning documents
 │   ├── ROADMAP_CORE_COMPLIANCE.md  # 10-phase plan to Core compliance
 │   ├── PROBLEM_STATEMENT.md     # Original challenge
-│   └── REQUIREMENTS.md          # Project requirements
+│   ├── REQUIREMENTS.md          # Project requirements
+│   ├── PARALLELISM_STRATEGY.md  # Parallelism implementation plan
+│   └── PERSISTENCE_AND_DOGFOODING.md
+│
 ├── roadmaps/                    # Strategic roadmaps
+│   ├── PARALLELISM_ROADMAP.md   # Parallelism roadmap
 │   ├── PREDICATE_PUSHDOWN_ROADMAP.md  # Optimization roadmap
 │   ├── PUNCHLIST_100_CONFORMANCE.md   # SQLLogicTest conformance strategy
-│   └── ...
+│   ├── PUNCHLIST_README.md      # Punchlist system documentation
+│   └── PUNCHLIST_MANIFEST.md    # Complete deliverables manifest
+│
 ├── testing/                     # Testing strategy and guides
 │   ├── TESTING_STRATEGY.md      # Test approach and strategy
+│   ├── TESTING.md               # General testing documentation
 │   ├── SQL1999_CONFORMANCE.md   # SQL:1999 conformance tracking
+│   ├── VALIDATION_RESULTS.md    # Test validation results
+│   ├── conformance.html         # Visual conformance report
+│   └── sqllogictest/            # SQLLogicTest suite documentation
+│       ├── SQLLOGICTEST_QUICKSTART.md   # 30-second introduction
+│       ├── SQLLOGICTEST_DATABASE.md     # Complete documentation
+│       ├── QUICK_START.md       # Quick start guide
+│       └── ...
+│
+├── performance/                 # Performance & optimization
+│   ├── BENCHMARKING.md          # Comprehensive benchmarking guide
+│   ├── OPTIMIZATION.md          # Optimization strategies
+│   ├── BENCHMARK_STRATEGY.md    # Benchmarking approach
+│   ├── PERFORMANCE_ANALYSIS.md  # Profiling results
 │   └── ...
-├── sqllogictest/                # SQLLogicTest documentation
-│   ├── SQLLOGICTEST_QUICKSTART.md   # 30-second introduction
-│   ├── SQLLOGICTEST_DATABASE.md     # Complete documentation
-│   └── ...
+│
+├── reference/                   # Reference materials
+│   ├── README.md                # Reference guide
+│   ├── FEATURE_STATUS.md        # Feature implementation status
+│   ├── PROCEDURES_FUNCTIONS.md  # Stored procedures documentation
+│   ├── TRIGGER_IMPLEMENTATION_STATUS.md
+│   ├── COMPARISONS.md           # Database comparisons
+│   └── sqlite/                  # SQLite reference source
+│
 ├── decisions/                   # Architecture Decision Records (ADRs)
 │   ├── 0001-language-choice.md
 │   ├── 0002-parser-strategy.md
 │   ├── 0003-rebranding.md
 │   └── DECISION_LOG.md
+│
 ├── lessons/                     # Lessons learned
-│   ├── WEEKLY.md               # Weekly progress and insights
-│   ├── CHALLENGES.md           # Major challenges and solutions
-│   ├── TDD_APPROACH.md         # TDD lessons learned
-│   └── GOTCHAS.md              # SQL:1999 edge cases and surprises
-├── archive/                     # Archived/completed documentation
-│   ├── investigations/         # Completed investigations
-│   └── ...
-├── performance/                 # Performance documentation
-│   ├── OPTIMIZATION.md         # Optimization strategies
-│   └── BENCHMARK_STRATEGY.md   # Benchmarking approach
-└── reference/                   # Reference materials
-    ├── README.md               # Reference guide
-    └── sqlite/                 # SQLite reference source
+│   ├── WEEKLY.md                # Weekly progress and insights
+│   ├── CHALLENGES.md            # Major challenges and solutions
+│   ├── TDD_APPROACH.md          # TDD lessons learned
+│   ├── LESSONS_LEARNED.md       # Consolidated lessons
+│   └── GOTCHAS.md               # SQL:1999 edge cases and surprises
+│
+├── analysis/                    # Issue analysis documents
+│   ├── index_test_analysis.md
+│   ├── random-test-failures-analysis.md
+│   └── select_tests_issue_1263.md
+│
+├── templates/                   # Document templates
+│   ├── ADR_TEMPLATE.md
+│   ├── ARCHITECTURE_TEMPLATE.md
+│   ├── IMPLEMENTATION_TEMPLATE.md
+│   └── LESSONS_TEMPLATE.md
+│
+└── archive/                     # Archived/completed documentation
+    ├── WORK_PLAN.md             # Original comprehensive roadmap
+    ├── PHASE4_VALIDATION.md     # Phase 4 validation docs
+    ├── investigations/          # Completed investigations
+    ├── proposals/               # Historical proposals
+    └── ...                      # Historical phase documentation
 ```
 
 ## Document Types
 
-### 1. Architecture Documents
-**Purpose**: Explain system design decisions and component architecture
-
-**Location**: `docs/architecture/`
-
-**Template**: See `ARCHITECTURE_TEMPLATE.md`
-
-**When to create**:
-- Designing a major component
-- Refactoring system architecture
-- Adding new subsystems
-
-### 2. Implementation Guides
-**Purpose**: Practical guides for implementing features
-
-**Location**: `docs/implementation/`
-
-**Template**: See `IMPLEMENTATION_TEMPLATE.md`
-
-**When to create**:
-- Starting implementation of a SQL:1999 feature
-- Documenting complex implementation patterns
-- Creating developer onboarding guides
-
-### 3. Architecture Decision Records (ADRs)
+### 1. Architecture Decision Records (ADRs)
 **Purpose**: Record important decisions with context and rationale
 
 **Location**: `docs/decisions/`
 
-**Template**: See `ADR_TEMPLATE.md`
+**Template**: See `templates/ADR_TEMPLATE.md`
 
 **Format**: Numbered sequentially (0001, 0002, etc.)
 
@@ -97,22 +112,32 @@ docs/
 - Making decisions that are hard to reverse
 - Trade-offs that need explanation
 
-### 4. Research Notes
-**Purpose**: Document research findings on SQL, databases, algorithms
+### 2. Analysis Documents
+**Purpose**: Document analysis of specific issues, test failures, or problems
 
-**Location**: `docs/research/`
+**Location**: `docs/analysis/`
 
 **When to create**:
-- Researching SQL:1999 features
-- Studying competitor implementations
-- Learning about algorithms (query optimization, etc.)
+- Investigating test failures or bugs
+- Analyzing performance issues
+- Researching specific SQL:1999 behaviors
 
-### 5. Lessons Learned
+### 3. Planning Documents
+**Purpose**: Strategic planning, requirements, and roadmaps
+
+**Location**: `docs/planning/` and `docs/roadmaps/`
+
+**When to create**:
+- Defining project requirements
+- Planning major features or phases
+- Creating implementation roadmaps
+
+### 4. Lessons Learned
 **Purpose**: Capture insights, surprises, and hard-won knowledge
 
 **Location**: `docs/lessons/`
 
-**Template**: See `LESSONS_TEMPLATE.md`
+**Template**: See `templates/LESSONS_TEMPLATE.md`
 
 **When to update**:
 - Weekly retrospectives
@@ -186,22 +211,22 @@ Feature-by-feature tracking of SQL:1999 compliance status (in root directory).
 ## Documentation Workflow
 
 ### When Starting New Work
-1. **Research**: Document findings in `docs/research/`
+1. **Plan**: Document requirements in `docs/planning/` or `docs/roadmaps/`
 2. **Decide**: Create ADR if multiple approaches exist
-3. **Design**: Write architecture doc for the component
-4. **Implement**: Create implementation guide as you code
+3. **Analyze**: Document findings and research in `docs/analysis/`
+4. **Implement**: Write clear code comments and update relevant docs
 5. **Reflect**: Update lessons learned with insights
 
 ### During Implementation
 - Add comments to complex code
-- Update implementation guides with discovered details
-- Note edge cases in GOTCHAS.md
-- Track progress in weekly updates
+- Document edge cases in `docs/lessons/GOTCHAS.md`
+- Track progress in `docs/lessons/WEEKLY.md`
+- Create analysis documents for bugs or issues
 
 ### After Completing Feature
-- Mark docs as "Complete"
-- Update COMPLIANCE.md with feature status
-- Create summary in LESSONS_LEARNED.md
+- Mark relevant planning docs as "Complete" or move to archive
+- Update `docs/reference/FEATURE_STATUS.md` with feature status
+- Create summary in `docs/lessons/LESSONS_LEARNED.md`
 - Cross-link related documentation
 
 ## Documentation Tools
@@ -225,10 +250,11 @@ graph TD
 
 ### For New Contributors
 1. Read the main [README.md](../README.md) for project overview
-2. Check [CLI_GUIDE.md](CLI_GUIDE.md) to learn the interactive shell
-3. Review [WORK_PLAN.md](WORK_PLAN.md) for current priorities
-4. See [decisions/DECISION_LOG.md](decisions/DECISION_LOG.md) for context on key choices
-5. Look at [lessons/LESSONS_LEARNED.md](lessons/LESSONS_LEARNED.md) for pitfalls to avoid
+2. Check [SUMMARY.md](SUMMARY.md) for documentation navigation
+3. Review [CLI_GUIDE.md](CLI_GUIDE.md) to learn the interactive shell
+4. See [archive/WORK_PLAN.md](archive/WORK_PLAN.md) for historical development roadmap
+5. Check [decisions/DECISION_LOG.md](decisions/DECISION_LOG.md) for context on key choices
+6. Look at [lessons/LESSONS_LEARNED.md](lessons/LESSONS_LEARNED.md) for pitfalls to avoid
 
 ### For AI Assistants (Claude Code)
 When working on this project:
@@ -238,13 +264,13 @@ When working on this project:
 4. **Cross-reference**: Link related documents together
 5. **Be thorough**: This is a learning journey, capture everything
 
-## Examples
+## Templates
 
-See the `examples/` subdirectory for:
-- Sample ADR
-- Sample architecture document
-- Sample implementation guide
-- Sample lessons learned entry
+See the `templates/` subdirectory for document templates:
+- [ADR_TEMPLATE.md](templates/ADR_TEMPLATE.md) - Architecture Decision Record template
+- [ARCHITECTURE_TEMPLATE.md](templates/ARCHITECTURE_TEMPLATE.md) - Architecture document template
+- [IMPLEMENTATION_TEMPLATE.md](templates/IMPLEMENTATION_TEMPLATE.md) - Implementation guide template
+- [LESSONS_TEMPLATE.md](templates/LESSONS_TEMPLATE.md) - Lessons learned template
 
 ## Questions?
 
