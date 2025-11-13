@@ -131,7 +131,7 @@ pub struct TableConstraint {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TableConstraintKind {
     PrimaryKey {
-        columns: Vec<String>,
+        columns: Vec<crate::IndexColumn>,
     },
     ForeignKey {
         columns: Vec<String>,
@@ -141,7 +141,7 @@ pub enum TableConstraintKind {
         on_update: Option<ReferentialAction>,
     },
     Unique {
-        columns: Vec<String>,
+        columns: Vec<crate::IndexColumn>,
     },
     Check {
         expr: Box<Expression>,
@@ -150,7 +150,7 @@ pub enum TableConstraintKind {
     /// Example: FULLTEXT INDEX ft_search (title, body)
     Fulltext {
         index_name: Option<String>,
-        columns: Vec<String>,
+        columns: Vec<crate::IndexColumn>,
     },
 }
 

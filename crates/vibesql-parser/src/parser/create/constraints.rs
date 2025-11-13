@@ -3,6 +3,43 @@
 use super::super::*;
 
 impl Parser {
+    /// Parse a column name with optional prefix length for index/constraint definitions
+    /// Syntax: column_name [ ( integer ) ]
+    fn parse_index_column_spec(&mut self) -> Result<vibesql_ast::IndexColumn, ParseError> {
+        let column_name = self.parse_identifier()?;
+
+        // Check for optional prefix length: column_name(length)
+        let prefix_length = if self.peek() == &Token::LParen {
+            self.advance(); // consume LParen
+
+            // Parse the integer length
+            let length = match self.peek() {
+                Token::Number(n) => {
+                    let value = n.parse::<i64>().map_err(|_| ParseError {
+                        message: "Invalid integer for column prefix length".to_string(),
+                    })?;
+                    self.advance();
+                    value
+                }
+                _ => {
+                    return Err(ParseError {
+                        message: "Expected integer for column prefix length".to_string(),
+                    })
+                }
+            };
+
+            self.expect_token(Token::RParen)?;
+            Some(length as u64)
+        } else {
+            None
+        };
+
+        Ok(vibesql_ast::IndexColumn {
+            column_name,
+            direction: vibesql_ast::OrderDirection::Asc, // Default for constraints
+            prefix_length,
+        })
+    }
     /// Parse ON DELETE/UPDATE referential actions
     fn parse_referential_actions(
         &mut self,
@@ -246,17 +283,7 @@ impl Parser {
 
                 let mut columns = Vec::new();
                 loop {
-                    match self.peek() {
-                        Token::Identifier(col) => {
-                            columns.push(col.clone());
-                            self.advance();
-                        }
-                        _ => {
-                            return Err(ParseError {
-                                message: "Expected column name in PRIMARY KEY".to_string(),
-                            })
-                        }
-                    }
+                    columns.push(self.parse_index_column_spec()?);
 
                     if matches!(self.peek(), Token::Comma) {
                         self.advance();
@@ -351,17 +378,7 @@ impl Parser {
 
                 let mut columns = Vec::new();
                 loop {
-                    match self.peek() {
-                        Token::Identifier(col) => {
-                            columns.push(col.clone());
-                            self.advance();
-                        }
-                        _ => {
-                            return Err(ParseError {
-                                message: "Expected column name in UNIQUE".to_string(),
-                            })
-                        }
-                    }
+                    columns.push(self.parse_index_column_spec()?);
 
                     if matches!(self.peek(), Token::Comma) {
                         self.advance();
@@ -409,20 +426,10 @@ impl Parser {
                 };
                 
                 self.expect_token(Token::LParen)?;
-                
+
                 let mut columns = Vec::new();
                 loop {
-                    match self.peek() {
-                        Token::Identifier(col) => {
-                            columns.push(col.clone());
-                            self.advance();
-                        }
-                        _ => {
-                            return Err(ParseError {
-                                message: "Expected column name in FULLTEXT".to_string(),
-                            })
-                        }
-                    }
+                    columns.push(self.parse_index_column_spec()?);
 
                     if matches!(self.peek(), Token::Comma) {
                         self.advance();
