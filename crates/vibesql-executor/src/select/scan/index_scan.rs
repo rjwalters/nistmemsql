@@ -280,7 +280,6 @@ pub(crate) fn execute_index_scan(
         // Note: We do NOT sort by row index here - we preserve the order from BTreeMap iteration
         // which gives us results sorted by index key value (the correct semantic ordering)
         index_data
-            .data
             .values()
             .flatten()
             .copied()
