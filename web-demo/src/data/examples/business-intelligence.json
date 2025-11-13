@@ -1,174 +1,181 @@
 {
-  "bi-1": {
-    "title": "Year-over-Year Growth Analysis",
-    "database": "northwind",
-    "sql": "-- Compare order counts by year\nSELECT\n  CAST(EXTRACT(YEAR FROM order_date) AS INTEGER) AS year,\n  COUNT(*) AS order_count,\n  LAG(COUNT(*)) OVER (ORDER BY EXTRACT(YEAR FROM order_date)) AS prev_year_count,\n  CASE\n    WHEN LAG(COUNT(*)) OVER (ORDER BY EXTRACT(YEAR FROM order_date)) IS NOT NULL\n    THEN ROUND(\n      (COUNT(*) - LAG(COUNT(*)) OVER (ORDER BY EXTRACT(YEAR FROM order_date))) * 100.0 /\n      LAG(COUNT(*)) OVER (ORDER BY EXTRACT(YEAR FROM order_date)),\n      2\n    )\n    ELSE NULL\n  END AS yoy_growth_pct\nFROM orders\nWHERE order_date IS NOT NULL\nGROUP BY EXTRACT(YEAR FROM order_date)\nORDER BY year;",
-    "description": "Calculate year-over-year growth in order volume",
-    "sqlFeatures": [
-      "EXTRACT",
-      "LAG",
-      "OVER",
-      "CASE",
-      "Window functions",
-      "Date functions"
-    ],
-    "difficulty": "intermediate",
-    "useCase": "analytics",
-    "relatedExamples": [
-      "aggregate-1",
-      "window-1"
-    ],
-    "tags": [
-      "yoy",
-      "growth",
-      "trends",
-      "business-metrics"
-    ]
+  "_category": {
+    "id": "business-intelligence",
+    "title": "Business Intelligence",
+    "description": "Reports, metrics, and business analytics queries"
   },
-  "bi-2": {
-    "title": "Customer Segmentation (RFM Analysis)",
-    "database": "northwind",
-    "sql": "-- RFM: Recency, Frequency, Monetary analysis\nWITH customer_rfm AS (\n  SELECT\n    customer_id,\n    MAX(order_date) AS last_order_date,\n    COUNT(*) AS order_frequency,\n    SUM(COALESCE(unit_price * quantity * (1 - discount), 0)) AS monetary_value\n  FROM orders o\n  LEFT JOIN order_details od ON o.order_id = od.order_id\n  WHERE o.order_date IS NOT NULL\n  GROUP BY customer_id\n)\nSELECT\n  customer_id,\n  last_order_date,\n  order_frequency,\n  ROUND(monetary_value, 2) AS total_spent,\n  CASE\n    WHEN order_frequency >= 5 AND monetary_value >= 1000 THEN 'VIP'\n    WHEN order_frequency >= 3 AND monetary_value >= 500 THEN 'Loyal'\n    WHEN order_frequency >= 2 THEN 'Regular'\n    ELSE 'Occasional'\n  END AS customer_segment\nFROM customer_rfm\nORDER BY monetary_value DESC\nLIMIT 20;",
-    "description": "Segment customers by purchase behavior (RFM model)",
-    "sqlFeatures": [
-      "CTE",
-      "Aggregates",
-      "CASE",
-      "Segmentation"
-    ],
-    "difficulty": "advanced",
-    "useCase": "analytics",
-    "relatedExamples": [
-      "cte-1",
-      "aggregate-1"
-    ],
-    "tags": [
-      "rfm",
-      "segmentation",
-      "customer-value",
-      "crm"
-    ]
-  },
-  "bi-3": {
-    "title": "Sales Funnel Analysis",
-    "database": "northwind",
-    "sql": "-- Analyze sales by product category with conversion metrics\nWITH category_sales AS (\n  SELECT\n    c.category_name,\n    COUNT(DISTINCT p.product_id) AS total_products,\n    COUNT(DISTINCT od.order_id) AS orders_count,\n    SUM(od.quantity) AS units_sold,\n    SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue\n  FROM categories c\n  LEFT JOIN products p ON c.category_id = p.category_id\n  LEFT JOIN order_details od ON p.product_id = od.product_id\n  GROUP BY c.category_name\n)\nSELECT\n  category_name,\n  total_products,\n  orders_count,\n  units_sold,\n  ROUND(revenue, 2) AS total_revenue,\n  ROUND(revenue / NULLIF(total_products, 0), 2) AS revenue_per_product,\n  ROUND(units_sold::DECIMAL / NULLIF(orders_count, 0), 2) AS avg_units_per_order\nFROM category_sales\nORDER BY total_revenue DESC;",
-    "description": "Analyze sales funnel metrics by product category",
-    "sqlFeatures": [
-      "CTE",
-      "JOINs",
-      "Aggregates",
-      "NULLIF",
-      "Business metrics"
-    ],
-    "difficulty": "intermediate",
-    "useCase": "analytics",
-    "relatedExamples": [
-      "join-1",
-      "aggregate-1"
-    ],
-    "tags": [
-      "funnel",
-      "conversion",
-      "sales-metrics",
-      "category-analysis"
-    ]
-  },
-  "bi-4": {
-    "title": "Cohort Analysis",
-    "database": "northwind",
-    "sql": "-- Analyze customer retention by order cohort\nWITH first_orders AS (\n  SELECT\n    customer_id,\n    MIN(order_date) AS first_order_date,\n    DATE_TRUNC('month', MIN(order_date)) AS cohort_month\n  FROM orders\n  WHERE order_date IS NOT NULL\n  GROUP BY customer_id\n),\ncohort_data AS (\n  SELECT\n    fo.cohort_month,\n    DATE_TRUNC('month', o.order_date) AS order_month,\n    COUNT(DISTINCT o.customer_id) AS customers\n  FROM first_orders fo\n  JOIN orders o ON fo.customer_id = o.customer_id\n  WHERE o.order_date IS NOT NULL\n  GROUP BY fo.cohort_month, DATE_TRUNC('month', o.order_date)\n)\nSELECT\n  cohort_month,\n  order_month,\n  customers,\n  ROUND(\n    customers * 100.0 / FIRST_VALUE(customers) OVER (\n      PARTITION BY cohort_month\n      ORDER BY order_month\n    ),\n    2\n  ) AS retention_pct\nFROM cohort_data\nORDER BY cohort_month, order_month\nLIMIT 25;",
-    "description": "Track customer retention over time using cohort analysis",
-    "sqlFeatures": [
-      "CTE",
-      "DATE_TRUNC",
-      "FIRST_VALUE",
-      "Window functions",
-      "Cohort analysis"
-    ],
-    "difficulty": "advanced",
-    "useCase": "analytics",
-    "relatedExamples": [
-      "cte-1",
-      "window-1"
-    ],
-    "tags": [
-      "cohort",
-      "retention",
-      "customer-lifetime-value",
-      "churn"
-    ]
-  },
-  "bi-5": {
-    "title": "Product Affinity Analysis",
-    "database": "northwind",
-    "sql": "-- Find products frequently purchased together\nWITH product_pairs AS (\n  SELECT\n    od1.product_id AS product_a,\n    od2.product_id AS product_b,\n    COUNT(DISTINCT od1.order_id) AS co_occurrence\n  FROM order_details od1\n  JOIN order_details od2 ON od1.order_id = od2.order_id\n    AND od1.product_id < od2.product_id\n  GROUP BY od1.product_id, od2.product_id\n  HAVING COUNT(DISTINCT od1.order_id) >= 3\n)\nSELECT\n  p1.product_name AS product_a_name,\n  p2.product_name AS product_b_name,\n  pp.co_occurrence AS times_bought_together,\n  ROUND(\n    pp.co_occurrence * 100.0 / (\n      SELECT COUNT(DISTINCT order_id) FROM order_details WHERE product_id = pp.product_a\n    ),\n    2\n  ) AS affinity_pct\nFROM product_pairs pp\nJOIN products p1 ON pp.product_a = p1.product_id\nJOIN products p2 ON pp.product_b = p2.product_id\nORDER BY times_bought_together DESC\nLIMIT 15;",
-    "description": "Identify products frequently purchased together (market basket analysis)",
-    "sqlFeatures": [
-      "Self-join",
-      "CTE",
-      "Subquery",
-      "Market basket analysis"
-    ],
-    "difficulty": "advanced",
-    "useCase": "analytics",
-    "relatedExamples": [
-      "join-5",
-      "subquery-1"
-    ],
-    "tags": [
-      "affinity",
-      "cross-sell",
-      "market-basket",
-      "recommendations"
-    ]
-  },
-  "bi-6": {
-    "title": "ABC Analysis (Inventory Classification)",
-    "database": "northwind",
-    "sql": "-- Classify products by revenue contribution (ABC analysis)\nWITH product_revenue AS (\n  SELECT\n    p.product_id,\n    p.product_name,\n    SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue\n  FROM products p\n  LEFT JOIN order_details od ON p.product_id = od.product_id\n  GROUP BY p.product_id, p.product_name\n),\nrevenue_totals AS (\n  SELECT\n    product_id,\n    product_name,\n    revenue,\n    SUM(revenue) OVER () AS total_revenue,\n    SUM(revenue) OVER (ORDER BY revenue DESC) AS cumulative_revenue\n  FROM product_revenue\n)\nSELECT\n  product_name,\n  ROUND(revenue, 2) AS product_revenue,\n  ROUND(revenue * 100.0 / total_revenue, 2) AS pct_of_total,\n  ROUND(cumulative_revenue * 100.0 / total_revenue, 2) AS cumulative_pct,\n  CASE\n    WHEN cumulative_revenue * 100.0 / total_revenue <= 70 THEN 'A'\n    WHEN cumulative_revenue * 100.0 / total_revenue <= 90 THEN 'B'\n    ELSE 'C'\n  END AS abc_class\nFROM revenue_totals\nWHERE revenue > 0\nORDER BY revenue DESC;",
-    "description": "Classify products by revenue contribution using ABC analysis",
-    "sqlFeatures": [
-      "CTE",
-      "Window functions",
-      "SUM OVER",
-      "Classification"
-    ],
-    "difficulty": "advanced",
-    "useCase": "analytics",
-    "relatedExamples": [
-      "window-1",
-      "cte-1"
-    ],
-    "tags": [
-      "abc-analysis",
-      "pareto",
-      "inventory",
-      "revenue-analysis"
-    ]
-  },
-  "bi-7": {
-    "title": "Pareto Analysis (80/20 Rule)",
-    "database": "northwind",
-    "sql": "-- Find products contributing to 80% of revenue (Pareto principle)\nWITH ranked_products AS (\n  SELECT\n    p.product_name,\n    SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue,\n    SUM(SUM(od.unit_price * od.quantity * (1 - od.discount)))\n      OVER (ORDER BY SUM(od.unit_price * od.quantity * (1 - od.discount)) DESC) AS cumulative_revenue,\n    SUM(SUM(od.unit_price * od.quantity * (1 - od.discount))) OVER () AS total_revenue\n  FROM products p\n  JOIN order_details od ON p.product_id = od.product_id\n  GROUP BY p.product_name\n)\nSELECT\n  product_name,\n  ROUND(revenue, 2) AS revenue,\n  ROUND(cumulative_revenue, 2) AS cumulative_revenue,\n  ROUND(cumulative_revenue * 100.0 / total_revenue, 2) AS cumulative_pct,\n  CASE\n    WHEN cumulative_revenue * 100.0 / total_revenue <= 80 THEN 'Top 80%'\n    ELSE 'Remaining 20%'\n  END AS pareto_group\nFROM ranked_products\nORDER BY revenue DESC;",
-    "description": "Apply Pareto principle to identify top revenue contributors",
-    "sqlFeatures": [
-      "CTE",
-      "Window functions",
-      "Cumulative sums",
-      "Pareto analysis"
-    ],
-    "difficulty": "intermediate",
-    "useCase": "analytics",
-    "relatedExamples": [
-      "bi-6",
-      "window-1"
-    ],
-    "tags": [
-      "pareto",
-      "80-20",
-      "revenue-contribution",
-      "vital-few"
-    ]
+  "examples": {
+    "bi-1": {
+      "title": "Year-over-Year Growth Analysis",
+      "database": "northwind",
+      "sql": "-- Compare order counts by year\nSELECT\n  CAST(EXTRACT(YEAR FROM order_date) AS INTEGER) AS year,\n  COUNT(*) AS order_count,\n  LAG(COUNT(*)) OVER (ORDER BY EXTRACT(YEAR FROM order_date)) AS prev_year_count,\n  CASE\n    WHEN LAG(COUNT(*)) OVER (ORDER BY EXTRACT(YEAR FROM order_date)) IS NOT NULL\n    THEN ROUND(\n      (COUNT(*) - LAG(COUNT(*)) OVER (ORDER BY EXTRACT(YEAR FROM order_date))) * 100.0 /\n      LAG(COUNT(*)) OVER (ORDER BY EXTRACT(YEAR FROM order_date)),\n      2\n    )\n    ELSE NULL\n  END AS yoy_growth_pct\nFROM orders\nWHERE order_date IS NOT NULL\nGROUP BY EXTRACT(YEAR FROM order_date)\nORDER BY year;",
+      "description": "Calculate year-over-year growth in order volume",
+      "sqlFeatures": [
+        "EXTRACT",
+        "LAG",
+        "OVER",
+        "CASE",
+        "Window functions",
+        "Date functions"
+      ],
+      "difficulty": "intermediate",
+      "useCase": "analytics",
+      "relatedExamples": [
+        "aggregate-1",
+        "window-1"
+      ],
+      "tags": [
+        "yoy",
+        "growth",
+        "trends",
+        "business-metrics"
+      ]
+    },
+    "bi-2": {
+      "title": "Customer Segmentation (RFM Analysis)",
+      "database": "northwind",
+      "sql": "-- RFM: Recency, Frequency, Monetary analysis\nWITH customer_rfm AS (\n  SELECT\n    customer_id,\n    MAX(order_date) AS last_order_date,\n    COUNT(*) AS order_frequency,\n    SUM(COALESCE(unit_price * quantity * (1 - discount), 0)) AS monetary_value\n  FROM orders o\n  LEFT JOIN order_details od ON o.order_id = od.order_id\n  WHERE o.order_date IS NOT NULL\n  GROUP BY customer_id\n)\nSELECT\n  customer_id,\n  last_order_date,\n  order_frequency,\n  ROUND(monetary_value, 2) AS total_spent,\n  CASE\n    WHEN order_frequency >= 5 AND monetary_value >= 1000 THEN 'VIP'\n    WHEN order_frequency >= 3 AND monetary_value >= 500 THEN 'Loyal'\n    WHEN order_frequency >= 2 THEN 'Regular'\n    ELSE 'Occasional'\n  END AS customer_segment\nFROM customer_rfm\nORDER BY monetary_value DESC\nLIMIT 20;",
+      "description": "Segment customers by purchase behavior (RFM model)",
+      "sqlFeatures": [
+        "CTE",
+        "Aggregates",
+        "CASE",
+        "Segmentation"
+      ],
+      "difficulty": "advanced",
+      "useCase": "analytics",
+      "relatedExamples": [
+        "cte-1",
+        "aggregate-1"
+      ],
+      "tags": [
+        "rfm",
+        "segmentation",
+        "customer-value",
+        "crm"
+      ]
+    },
+    "bi-3": {
+      "title": "Sales Funnel Analysis",
+      "database": "northwind",
+      "sql": "-- Analyze sales by product category with conversion metrics\nWITH category_sales AS (\n  SELECT\n    c.category_name,\n    COUNT(DISTINCT p.product_id) AS total_products,\n    COUNT(DISTINCT od.order_id) AS orders_count,\n    SUM(od.quantity) AS units_sold,\n    SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue\n  FROM categories c\n  LEFT JOIN products p ON c.category_id = p.category_id\n  LEFT JOIN order_details od ON p.product_id = od.product_id\n  GROUP BY c.category_name\n)\nSELECT\n  category_name,\n  total_products,\n  orders_count,\n  units_sold,\n  ROUND(revenue, 2) AS total_revenue,\n  ROUND(revenue / NULLIF(total_products, 0), 2) AS revenue_per_product,\n  ROUND(units_sold::DECIMAL / NULLIF(orders_count, 0), 2) AS avg_units_per_order\nFROM category_sales\nORDER BY total_revenue DESC;",
+      "description": "Analyze sales funnel metrics by product category",
+      "sqlFeatures": [
+        "CTE",
+        "JOINs",
+        "Aggregates",
+        "NULLIF",
+        "Business metrics"
+      ],
+      "difficulty": "intermediate",
+      "useCase": "analytics",
+      "relatedExamples": [
+        "join-1",
+        "aggregate-1"
+      ],
+      "tags": [
+        "funnel",
+        "conversion",
+        "sales-metrics",
+        "category-analysis"
+      ]
+    },
+    "bi-4": {
+      "title": "Cohort Analysis",
+      "database": "northwind",
+      "sql": "-- Analyze customer retention by order cohort\nWITH first_orders AS (\n  SELECT\n    customer_id,\n    MIN(order_date) AS first_order_date,\n    DATE_TRUNC('month', MIN(order_date)) AS cohort_month\n  FROM orders\n  WHERE order_date IS NOT NULL\n  GROUP BY customer_id\n),\ncohort_data AS (\n  SELECT\n    fo.cohort_month,\n    DATE_TRUNC('month', o.order_date) AS order_month,\n    COUNT(DISTINCT o.customer_id) AS customers\n  FROM first_orders fo\n  JOIN orders o ON fo.customer_id = o.customer_id\n  WHERE o.order_date IS NOT NULL\n  GROUP BY fo.cohort_month, DATE_TRUNC('month', o.order_date)\n)\nSELECT\n  cohort_month,\n  order_month,\n  customers,\n  ROUND(\n    customers * 100.0 / FIRST_VALUE(customers) OVER (\n      PARTITION BY cohort_month\n      ORDER BY order_month\n    ),\n    2\n  ) AS retention_pct\nFROM cohort_data\nORDER BY cohort_month, order_month\nLIMIT 25;",
+      "description": "Track customer retention over time using cohort analysis",
+      "sqlFeatures": [
+        "CTE",
+        "DATE_TRUNC",
+        "FIRST_VALUE",
+        "Window functions",
+        "Cohort analysis"
+      ],
+      "difficulty": "advanced",
+      "useCase": "analytics",
+      "relatedExamples": [
+        "cte-1",
+        "window-1"
+      ],
+      "tags": [
+        "cohort",
+        "retention",
+        "customer-lifetime-value",
+        "churn"
+      ]
+    },
+    "bi-5": {
+      "title": "Product Affinity Analysis",
+      "database": "northwind",
+      "sql": "-- Find products frequently purchased together\nWITH product_pairs AS (\n  SELECT\n    od1.product_id AS product_a,\n    od2.product_id AS product_b,\n    COUNT(DISTINCT od1.order_id) AS co_occurrence\n  FROM order_details od1\n  JOIN order_details od2 ON od1.order_id = od2.order_id\n    AND od1.product_id < od2.product_id\n  GROUP BY od1.product_id, od2.product_id\n  HAVING COUNT(DISTINCT od1.order_id) >= 3\n)\nSELECT\n  p1.product_name AS product_a_name,\n  p2.product_name AS product_b_name,\n  pp.co_occurrence AS times_bought_together,\n  ROUND(\n    pp.co_occurrence * 100.0 / (\n      SELECT COUNT(DISTINCT order_id) FROM order_details WHERE product_id = pp.product_a\n    ),\n    2\n  ) AS affinity_pct\nFROM product_pairs pp\nJOIN products p1 ON pp.product_a = p1.product_id\nJOIN products p2 ON pp.product_b = p2.product_id\nORDER BY times_bought_together DESC\nLIMIT 15;",
+      "description": "Identify products frequently purchased together (market basket analysis)",
+      "sqlFeatures": [
+        "Self-join",
+        "CTE",
+        "Subquery",
+        "Market basket analysis"
+      ],
+      "difficulty": "advanced",
+      "useCase": "analytics",
+      "relatedExamples": [
+        "join-5",
+        "subquery-1"
+      ],
+      "tags": [
+        "affinity",
+        "cross-sell",
+        "market-basket",
+        "recommendations"
+      ]
+    },
+    "bi-6": {
+      "title": "ABC Analysis (Inventory Classification)",
+      "database": "northwind",
+      "sql": "-- Classify products by revenue contribution (ABC analysis)\nWITH product_revenue AS (\n  SELECT\n    p.product_id,\n    p.product_name,\n    SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue\n  FROM products p\n  LEFT JOIN order_details od ON p.product_id = od.product_id\n  GROUP BY p.product_id, p.product_name\n),\nrevenue_totals AS (\n  SELECT\n    product_id,\n    product_name,\n    revenue,\n    SUM(revenue) OVER () AS total_revenue,\n    SUM(revenue) OVER (ORDER BY revenue DESC) AS cumulative_revenue\n  FROM product_revenue\n)\nSELECT\n  product_name,\n  ROUND(revenue, 2) AS product_revenue,\n  ROUND(revenue * 100.0 / total_revenue, 2) AS pct_of_total,\n  ROUND(cumulative_revenue * 100.0 / total_revenue, 2) AS cumulative_pct,\n  CASE\n    WHEN cumulative_revenue * 100.0 / total_revenue <= 70 THEN 'A'\n    WHEN cumulative_revenue * 100.0 / total_revenue <= 90 THEN 'B'\n    ELSE 'C'\n  END AS abc_class\nFROM revenue_totals\nWHERE revenue > 0\nORDER BY revenue DESC;",
+      "description": "Classify products by revenue contribution using ABC analysis",
+      "sqlFeatures": [
+        "CTE",
+        "Window functions",
+        "SUM OVER",
+        "Classification"
+      ],
+      "difficulty": "advanced",
+      "useCase": "analytics",
+      "relatedExamples": [
+        "window-1",
+        "cte-1"
+      ],
+      "tags": [
+        "abc-analysis",
+        "pareto",
+        "inventory",
+        "revenue-analysis"
+      ]
+    },
+    "bi-7": {
+      "title": "Pareto Analysis (80/20 Rule)",
+      "database": "northwind",
+      "sql": "-- Find products contributing to 80% of revenue (Pareto principle)\nWITH ranked_products AS (\n  SELECT\n    p.product_name,\n    SUM(od.unit_price * od.quantity * (1 - od.discount)) AS revenue,\n    SUM(SUM(od.unit_price * od.quantity * (1 - od.discount)))\n      OVER (ORDER BY SUM(od.unit_price * od.quantity * (1 - od.discount)) DESC) AS cumulative_revenue,\n    SUM(SUM(od.unit_price * od.quantity * (1 - od.discount))) OVER () AS total_revenue\n  FROM products p\n  JOIN order_details od ON p.product_id = od.product_id\n  GROUP BY p.product_name\n)\nSELECT\n  product_name,\n  ROUND(revenue, 2) AS revenue,\n  ROUND(cumulative_revenue, 2) AS cumulative_revenue,\n  ROUND(cumulative_revenue * 100.0 / total_revenue, 2) AS cumulative_pct,\n  CASE\n    WHEN cumulative_revenue * 100.0 / total_revenue <= 80 THEN 'Top 80%'\n    ELSE 'Remaining 20%'\n  END AS pareto_group\nFROM ranked_products\nORDER BY revenue DESC;",
+      "description": "Apply Pareto principle to identify top revenue contributors",
+      "sqlFeatures": [
+        "CTE",
+        "Window functions",
+        "Cumulative sums",
+        "Pareto analysis"
+      ],
+      "difficulty": "intermediate",
+      "useCase": "analytics",
+      "relatedExamples": [
+        "bi-6",
+        "window-1"
+      ],
+      "tags": [
+        "pareto",
+        "80-20",
+        "revenue-contribution",
+        "vital-few"
+      ]
+    }
   }
 }

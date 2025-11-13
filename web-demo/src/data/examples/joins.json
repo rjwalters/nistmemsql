@@ -1,46 +1,53 @@
 {
-  "join-1": {
-    "title": "INNER JOIN",
-    "database": "northwind",
-    "sql": "SELECT\n  p.product_name,\n  c.category_name,\n  p.unit_price\nFROM products p\nINNER JOIN categories c ON p.category_id = c.category_id\nORDER BY c.category_name, p.product_name;",
-    "description": "Join products with their categories",
-    "sqlFeatures": [
-      "INNER JOIN",
-      "ON",
-      "ORDER BY"
-    ]
+  "_category": {
+    "id": "joins",
+    "title": "Joins",
+    "description": "INNER, LEFT, RIGHT, FULL, CROSS joins"
   },
-  "join-2": {
-    "title": "LEFT OUTER JOIN",
-    "database": "northwind",
-    "sql": "SELECT\n  c.category_name,\n  COUNT(p.product_id) as product_count\nFROM categories c\nLEFT OUTER JOIN products p ON c.category_id = p.category_id\nGROUP BY c.category_name\nORDER BY product_count DESC;",
-    "description": "Show all categories with product counts (including empty categories)",
-    "sqlFeatures": [
-      "LEFT OUTER JOIN",
-      "GROUP BY",
-      "COUNT"
-    ]
-  },
-  "join-3": {
-    "title": "Multiple JOINs",
-    "database": "employees",
-    "sql": "SELECT\n  e.first_name || ' ' || e.last_name AS employee,\n  e.title,\n  m.first_name || ' ' || m.last_name AS manager\nFROM employees e\nINNER JOIN employees m ON e.manager_id = m.employee_id\nWHERE e.department = 'Engineering'\nORDER BY e.last_name;",
-    "description": "Self-join to show employees and their managers",
-    "sqlFeatures": [
-      "INNER JOIN",
-      "Self-join",
-      "String concatenation"
-    ]
-  },
-  "join-4": {
-    "title": "CROSS JOIN",
-    "database": "northwind",
-    "sql": "SELECT\n  c1.category_name AS category1,\n  c2.category_name AS category2\nFROM categories c1\nCROSS JOIN categories c2\nWHERE c1.category_id < c2.category_id\nLIMIT 10;",
-    "description": "Cartesian product of categories (all pairs)",
-    "sqlFeatures": [
-      "CROSS JOIN",
-      "WHERE",
-      "LIMIT"
-    ]
+  "examples": {
+    "join-1": {
+      "title": "INNER JOIN",
+      "database": "northwind",
+      "sql": "SELECT\n  p.product_name,\n  c.category_name,\n  p.unit_price\nFROM products p\nINNER JOIN categories c ON p.category_id = c.category_id\nORDER BY c.category_name, p.product_name;",
+      "description": "Join products with their categories",
+      "sqlFeatures": [
+        "INNER JOIN",
+        "ON",
+        "ORDER BY"
+      ]
+    },
+    "join-2": {
+      "title": "LEFT OUTER JOIN",
+      "database": "northwind",
+      "sql": "SELECT\n  c.category_name,\n  COUNT(p.product_id) as product_count\nFROM categories c\nLEFT OUTER JOIN products p ON c.category_id = p.category_id\nGROUP BY c.category_name\nORDER BY product_count DESC;",
+      "description": "Show all categories with product counts (including empty categories)",
+      "sqlFeatures": [
+        "LEFT OUTER JOIN",
+        "GROUP BY",
+        "COUNT"
+      ]
+    },
+    "join-3": {
+      "title": "Multiple JOINs",
+      "database": "employees",
+      "sql": "SELECT\n  e.first_name || ' ' || e.last_name AS employee,\n  e.title,\n  m.first_name || ' ' || m.last_name AS manager\nFROM employees e\nINNER JOIN employees m ON e.manager_id = m.employee_id\nWHERE e.department = 'Engineering'\nORDER BY e.last_name;",
+      "description": "Self-join to show employees and their managers",
+      "sqlFeatures": [
+        "INNER JOIN",
+        "Self-join",
+        "String concatenation"
+      ]
+    },
+    "join-4": {
+      "title": "CROSS JOIN",
+      "database": "northwind",
+      "sql": "SELECT\n  c1.category_name AS category1,\n  c2.category_name AS category2\nFROM categories c1\nCROSS JOIN categories c2\nWHERE c1.category_id < c2.category_id\nLIMIT 10;",
+      "description": "Cartesian product of categories (all pairs)",
+      "sqlFeatures": [
+        "CROSS JOIN",
+        "WHERE",
+        "LIMIT"
+      ]
+    }
   }
 }

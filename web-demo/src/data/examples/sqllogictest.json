@@ -1,87 +1,176 @@
 {
-  "id": "sqllogictest",
-  "title": "SQLLogicTest Results",
-  "description": "Real-world dogfooding - query VibeSQL's own conformance test results",
-  "queries": [
-    {
-      "id": "slt-1",
-      "title": "Conformance Summary",
-      "database": "sqllogictest",
-      "description": "Current conformance pass rate by test category",
-      "sqlFeatures": ["SELECT", "GROUP BY", "COUNT", "SUM", "CASE", "ROUND", "Aggregates"],
-      "difficulty": "intermediate",
-      "useCase": "analytics",
-      "tags": ["conformance", "testing", "dogfooding", "real-data"]
-    },
-    {
-      "id": "slt-2",
-      "title": "Recent Test Runs",
-      "database": "sqllogictest",
-      "description": "Show the last 10 test runs with pass rates",
-      "sqlFeatures": ["SELECT", "ORDER BY", "LIMIT", "ROUND"],
-      "difficulty": "beginner",
-      "useCase": "reports",
-      "tags": ["conformance", "history", "ci-cd"]
-    },
-    {
-      "id": "slt-3",
-      "title": "Failing Index Tests",
-      "database": "sqllogictest",
-      "description": "Lists index-related tests that are currently failing",
-      "sqlFeatures": ["SELECT", "WHERE", "ORDER BY", "LIMIT"],
-      "difficulty": "beginner",
-      "useCase": "development",
-      "tags": ["conformance", "failures", "debugging"]
-    },
-    {
-      "id": "slt-4",
-      "title": "Test Progress (JOIN Example)",
-      "database": "sqllogictest",
-      "description": "Shows current status vs last run status for evidence tests",
-      "sqlFeatures": ["LEFT JOIN", "SELECT", "WHERE", "ORDER BY", "Multi-table queries"],
-      "difficulty": "intermediate",
-      "useCase": "analytics",
-      "tags": ["conformance", "joins", "progress-tracking"]
-    },
-    {
-      "id": "slt-5",
-      "title": "Total Conformance",
-      "database": "sqllogictest",
-      "description": "Overall pass rate across all tests",
-      "sqlFeatures": ["SELECT", "COUNT", "SUM", "CASE", "ROUND", "Aggregates"],
-      "difficulty": "beginner",
-      "useCase": "analytics",
-      "tags": ["conformance", "metrics", "kpi"]
-    },
-    {
-      "id": "slt-6",
-      "title": "Slowest Tests",
-      "database": "sqllogictest",
-      "description": "Tests with longest execution times",
-      "sqlFeatures": ["SELECT", "WHERE", "Subquery", "ORDER BY", "LIMIT"],
-      "difficulty": "intermediate",
-      "useCase": "development",
-      "tags": ["performance", "optimization", "slow-queries"]
-    },
-    {
-      "id": "slt-7",
-      "title": "Error Analysis",
-      "database": "sqllogictest",
-      "description": "Group failures by error type",
-      "sqlFeatures": ["SELECT", "WHERE", "GROUP BY", "COUNT", "ORDER BY", "LIMIT"],
-      "difficulty": "intermediate",
-      "useCase": "development",
-      "tags": ["errors", "debugging", "root-cause-analysis"]
-    },
-    {
-      "id": "slt-8",
-      "title": "Never Passed Tests",
-      "database": "sqllogictest",
-      "description": "Find problem areas that need work",
-      "sqlFeatures": ["SELECT", "WHERE", "ORDER BY", "NULL filtering"],
-      "difficulty": "beginner",
-      "useCase": "development",
-      "tags": ["conformance", "failures", "priorities"]
-    }
-  ]
+  "_category": {
+    "id": "sqllogictest",
+    "title": "SQLLogicTest Conformance",
+    "description": "VibeSQL test conformance analytics"
+  },
+  "examples": {
+    "id": "sqllogictest",
+    "title": "SQLLogicTest Results",
+    "description": "Real-world dogfooding - query VibeSQL's own conformance test results",
+    "queries": [
+      {
+        "id": "slt-1",
+        "title": "Conformance Summary",
+        "database": "sqllogictest",
+        "description": "Current conformance pass rate by test category",
+        "sqlFeatures": [
+          "SELECT",
+          "GROUP BY",
+          "COUNT",
+          "SUM",
+          "CASE",
+          "ROUND",
+          "Aggregates"
+        ],
+        "difficulty": "intermediate",
+        "useCase": "analytics",
+        "tags": [
+          "conformance",
+          "testing",
+          "dogfooding",
+          "real-data"
+        ]
+      },
+      {
+        "id": "slt-2",
+        "title": "Recent Test Runs",
+        "database": "sqllogictest",
+        "description": "Show the last 10 test runs with pass rates",
+        "sqlFeatures": [
+          "SELECT",
+          "ORDER BY",
+          "LIMIT",
+          "ROUND"
+        ],
+        "difficulty": "beginner",
+        "useCase": "reports",
+        "tags": [
+          "conformance",
+          "history",
+          "ci-cd"
+        ]
+      },
+      {
+        "id": "slt-3",
+        "title": "Failing Index Tests",
+        "database": "sqllogictest",
+        "description": "Lists index-related tests that are currently failing",
+        "sqlFeatures": [
+          "SELECT",
+          "WHERE",
+          "ORDER BY",
+          "LIMIT"
+        ],
+        "difficulty": "beginner",
+        "useCase": "development",
+        "tags": [
+          "conformance",
+          "failures",
+          "debugging"
+        ]
+      },
+      {
+        "id": "slt-4",
+        "title": "Test Progress (JOIN Example)",
+        "database": "sqllogictest",
+        "description": "Shows current status vs last run status for evidence tests",
+        "sqlFeatures": [
+          "LEFT JOIN",
+          "SELECT",
+          "WHERE",
+          "ORDER BY",
+          "Multi-table queries"
+        ],
+        "difficulty": "intermediate",
+        "useCase": "analytics",
+        "tags": [
+          "conformance",
+          "joins",
+          "progress-tracking"
+        ]
+      },
+      {
+        "id": "slt-5",
+        "title": "Total Conformance",
+        "database": "sqllogictest",
+        "description": "Overall pass rate across all tests",
+        "sqlFeatures": [
+          "SELECT",
+          "COUNT",
+          "SUM",
+          "CASE",
+          "ROUND",
+          "Aggregates"
+        ],
+        "difficulty": "beginner",
+        "useCase": "analytics",
+        "tags": [
+          "conformance",
+          "metrics",
+          "kpi"
+        ]
+      },
+      {
+        "id": "slt-6",
+        "title": "Slowest Tests",
+        "database": "sqllogictest",
+        "description": "Tests with longest execution times",
+        "sqlFeatures": [
+          "SELECT",
+          "WHERE",
+          "Subquery",
+          "ORDER BY",
+          "LIMIT"
+        ],
+        "difficulty": "intermediate",
+        "useCase": "development",
+        "tags": [
+          "performance",
+          "optimization",
+          "slow-queries"
+        ]
+      },
+      {
+        "id": "slt-7",
+        "title": "Error Analysis",
+        "database": "sqllogictest",
+        "description": "Group failures by error type",
+        "sqlFeatures": [
+          "SELECT",
+          "WHERE",
+          "GROUP BY",
+          "COUNT",
+          "ORDER BY",
+          "LIMIT"
+        ],
+        "difficulty": "intermediate",
+        "useCase": "development",
+        "tags": [
+          "errors",
+          "debugging",
+          "root-cause-analysis"
+        ]
+      },
+      {
+        "id": "slt-8",
+        "title": "Never Passed Tests",
+        "database": "sqllogictest",
+        "description": "Find problem areas that need work",
+        "sqlFeatures": [
+          "SELECT",
+          "WHERE",
+          "ORDER BY",
+          "NULL filtering"
+        ],
+        "difficulty": "beginner",
+        "useCase": "development",
+        "tags": [
+          "conformance",
+          "failures",
+          "priorities"
+        ]
+      }
+    ]
+  }
 }

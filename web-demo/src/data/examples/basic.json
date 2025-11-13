@@ -1,45 +1,52 @@
 {
-  "basic-1": {
-    "title": "Simple SELECT",
-    "database": "northwind",
-    "sql": "SELECT * FROM products LIMIT 5;",
-    "description": "Retrieve first 5 products",
-    "sqlFeatures": [
-      "SELECT",
-      "LIMIT"
-    ]
+  "_category": {
+    "id": "basic",
+    "title": "Basic Queries",
+    "description": "SELECT, WHERE, ORDER BY, LIMIT fundamentals"
   },
-  "basic-2": {
-    "title": "WHERE clause filtering",
-    "database": "northwind",
-    "sql": "SELECT product_name, unit_price\nFROM products\nWHERE unit_price > 20\nORDER BY unit_price DESC;",
-    "description": "Filter products by price with sorting",
-    "sqlFeatures": [
-      "SELECT",
-      "WHERE",
-      "ORDER BY"
-    ]
-  },
-  "basic-3": {
-    "title": "Column aliases",
-    "database": "northwind",
-    "sql": "SELECT\n  product_name AS name,\n  unit_price AS price,\n  unit_price * 1.2 AS price_with_tax\nFROM products\nLIMIT 10;",
-    "description": "Use aliases for columns and calculated fields",
-    "sqlFeatures": [
-      "SELECT",
-      "AS",
-      "Expressions"
-    ]
-  },
-  "basic-4": {
-    "title": "DISTINCT values",
-    "database": "northwind",
-    "sql": "SELECT DISTINCT category_id\nFROM products\nORDER BY category_id;",
-    "description": "Get unique category IDs",
-    "sqlFeatures": [
-      "SELECT",
-      "DISTINCT",
-      "ORDER BY"
-    ]
+  "examples": {
+    "basic-1": {
+      "title": "Simple SELECT",
+      "database": "northwind",
+      "sql": "SELECT * FROM products LIMIT 5;",
+      "description": "Retrieve first 5 products",
+      "sqlFeatures": [
+        "SELECT",
+        "LIMIT"
+      ]
+    },
+    "basic-2": {
+      "title": "WHERE clause filtering",
+      "database": "northwind",
+      "sql": "SELECT product_name, unit_price\nFROM products\nWHERE unit_price > 20\nORDER BY unit_price DESC;",
+      "description": "Filter products by price with sorting",
+      "sqlFeatures": [
+        "SELECT",
+        "WHERE",
+        "ORDER BY"
+      ]
+    },
+    "basic-3": {
+      "title": "Column aliases",
+      "database": "northwind",
+      "sql": "SELECT\n  product_name AS name,\n  unit_price AS price,\n  unit_price * 1.2 AS price_with_tax\nFROM products\nLIMIT 10;",
+      "description": "Use aliases for columns and calculated fields",
+      "sqlFeatures": [
+        "SELECT",
+        "AS",
+        "Expressions"
+      ]
+    },
+    "basic-4": {
+      "title": "DISTINCT values",
+      "database": "northwind",
+      "sql": "SELECT DISTINCT category_id\nFROM products\nORDER BY category_id;",
+      "description": "Get unique category IDs",
+      "sqlFeatures": [
+        "SELECT",
+        "DISTINCT",
+        "ORDER BY"
+      ]
+    }
   }
 }

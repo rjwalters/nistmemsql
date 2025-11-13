@@ -1,49 +1,56 @@
 {
-  "agg-1": {
-    "title": "Basic aggregation",
-    "database": "northwind",
-    "sql": "SELECT\n  COUNT(*) as total_products,\n  AVG(unit_price) as avg_price,\n  MIN(unit_price) as min_price,\n  MAX(unit_price) as max_price\nFROM products;",
-    "description": "Aggregate statistics for all products",
-    "sqlFeatures": [
-      "COUNT",
-      "AVG",
-      "MIN",
-      "MAX"
-    ]
+  "_category": {
+    "id": "aggregates",
+    "title": "Aggregates",
+    "description": "COUNT, SUM, AVG, MIN, MAX, GROUP BY, HAVING"
   },
-  "agg-2": {
-    "title": "GROUP BY with COUNT",
-    "database": "northwind",
-    "sql": "SELECT\n  c.category_name,\n  COUNT(p.product_id) as product_count,\n  AVG(p.unit_price) as avg_price\nFROM categories c\nINNER JOIN products p ON c.category_id = p.category_id\nGROUP BY c.category_name\nORDER BY product_count DESC;",
-    "description": "Count and average price of products by category",
-    "sqlFeatures": [
-      "GROUP BY",
-      "COUNT",
-      "AVG",
-      "INNER JOIN"
-    ]
-  },
-  "agg-3": {
-    "title": "HAVING clause",
-    "database": "northwind",
-    "sql": "SELECT\n  c.category_name,\n  COUNT(p.product_id) as product_count\nFROM categories c\nLEFT JOIN products p ON c.category_id = p.category_id\nGROUP BY c.category_name\nHAVING COUNT(p.product_id) >= 2\nORDER BY product_count DESC;",
-    "description": "Filter aggregated results - categories with 2+ products",
-    "sqlFeatures": [
-      "GROUP BY",
-      "HAVING",
-      "COUNT"
-    ]
-  },
-  "agg-4": {
-    "title": "Multiple grouping columns",
-    "database": "employees",
-    "sql": "SELECT\n  department,\n  title,\n  COUNT(*) as employee_count,\n  AVG(salary) as avg_salary\nFROM employees\nGROUP BY department, title\nHAVING COUNT(*) > 1\nORDER BY department, avg_salary DESC;",
-    "description": "Group by department and title with salary aggregates",
-    "sqlFeatures": [
-      "GROUP BY",
-      "HAVING",
-      "AVG",
-      "COUNT"
-    ]
+  "examples": {
+    "agg-1": {
+      "title": "Basic aggregation",
+      "database": "northwind",
+      "sql": "SELECT\n  COUNT(*) as total_products,\n  AVG(unit_price) as avg_price,\n  MIN(unit_price) as min_price,\n  MAX(unit_price) as max_price\nFROM products;",
+      "description": "Aggregate statistics for all products",
+      "sqlFeatures": [
+        "COUNT",
+        "AVG",
+        "MIN",
+        "MAX"
+      ]
+    },
+    "agg-2": {
+      "title": "GROUP BY with COUNT",
+      "database": "northwind",
+      "sql": "SELECT\n  c.category_name,\n  COUNT(p.product_id) as product_count,\n  AVG(p.unit_price) as avg_price\nFROM categories c\nINNER JOIN products p ON c.category_id = p.category_id\nGROUP BY c.category_name\nORDER BY product_count DESC;",
+      "description": "Count and average price of products by category",
+      "sqlFeatures": [
+        "GROUP BY",
+        "COUNT",
+        "AVG",
+        "INNER JOIN"
+      ]
+    },
+    "agg-3": {
+      "title": "HAVING clause",
+      "database": "northwind",
+      "sql": "SELECT\n  c.category_name,\n  COUNT(p.product_id) as product_count\nFROM categories c\nLEFT JOIN products p ON c.category_id = p.category_id\nGROUP BY c.category_name\nHAVING COUNT(p.product_id) >= 2\nORDER BY product_count DESC;",
+      "description": "Filter aggregated results - categories with 2+ products",
+      "sqlFeatures": [
+        "GROUP BY",
+        "HAVING",
+        "COUNT"
+      ]
+    },
+    "agg-4": {
+      "title": "Multiple grouping columns",
+      "database": "employees",
+      "sql": "SELECT\n  department,\n  title,\n  COUNT(*) as employee_count,\n  AVG(salary) as avg_salary\nFROM employees\nGROUP BY department, title\nHAVING COUNT(*) > 1\nORDER BY department, avg_salary DESC;",
+      "description": "Group by department and title with salary aggregates",
+      "sqlFeatures": [
+        "GROUP BY",
+        "HAVING",
+        "AVG",
+        "COUNT"
+      ]
+    }
   }
 }
