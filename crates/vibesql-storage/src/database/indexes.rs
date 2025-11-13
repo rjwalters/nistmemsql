@@ -62,7 +62,7 @@ pub enum IndexData {
     /// Note: The B+ tree stores (key, row_id) pairs. For non-unique indexes,
     /// we serialize Vec<usize> as the row_id value to support multiple rows per key.
     DiskBacked {
-        btree: Arc<BTreeIndex>,
+        btree: Arc<std::sync::Mutex<BTreeIndex>>,
         page_manager: Arc<PageManager>,
     },
 }
@@ -140,10 +140,23 @@ impl IndexData {
                 matching_row_indices
             }
             IndexData::DiskBacked { btree, .. } => {
-                // TODO: Implement range_scan for disk-backed indexes
-                // This requires handling multiple row_ids per key
-                let _ = btree; // Suppress unused variable warning
-                vec![]
+                // Convert SqlValue bounds to Key (Vec<SqlValue>) bounds
+                // For single-column indexes, wrap in vec
+                // For multi-column indexes, only first column is compared (same as InMemory)
+                let start_key = start.map(|v| vec![v.clone()]);
+                let end_key = end.map(|v| vec![v.clone()]);
+
+                // Lock and call BTreeIndex::range_scan
+                btree
+                    .lock()
+                    .unwrap()
+                    .range_scan(
+                        start_key.as_ref(),
+                        end_key.as_ref(),
+                        inclusive_start,
+                        inclusive_end,
+                    )
+                    .unwrap_or_else(|_| vec![])
             }
         }
     }
@@ -174,9 +187,18 @@ impl IndexData {
                 matching_row_indices
             }
             IndexData::DiskBacked { btree, .. } => {
-                // TODO: Implement multi_lookup for disk-backed indexes
-                let _ = btree;
-                vec![]
+                // Convert SqlValue values to Key (Vec<SqlValue>) format
+                let keys: Vec<Vec<SqlValue>> = values
+                    .iter()
+                    .map(|v| vec![v.clone()])
+                    .collect();
+
+                // Lock and call BTreeIndex::multi_lookup
+                btree
+                    .lock()
+                    .unwrap()
+                    .multi_lookup(&keys)
+                    .unwrap_or_else(|_| vec![])
             }
         }
     }
@@ -404,7 +426,7 @@ impl IndexManager {
             };
 
             let data = IndexData::DiskBacked {
-                btree: Arc::new(btree),
+                btree: Arc::new(std::sync::Mutex::new(btree)),
                 page_manager,
             };
 
@@ -505,8 +527,20 @@ impl IndexManager {
                                     )));
                                 }
                             }
-                            IndexData::DiskBacked { .. } => {
-                                // TODO: Implement uniqueness check for disk-backed indexes
+                            IndexData::DiskBacked { btree, .. } => {
+                                // Lock and check if key exists in B+tree
+                                if let Ok(Some(_)) = btree.lock().unwrap().lookup(&key_values) {
+                                    let column_names: Vec<String> = metadata
+                                        .columns
+                                        .iter()
+                                        .map(|c| c.column_name.clone())
+                                        .collect();
+                                    return Err(StorageError::UniqueConstraintViolation(format!(
+                                        "UNIQUE constraint '{}' violated: duplicate key value for ({})",
+                                        index_name,
+                                        column_names.join(", ")
+                                    )));
+                                }
                             }
                         }
                     }
@@ -545,8 +579,16 @@ impl IndexManager {
                         IndexData::InMemory { data } => {
                             data.entry(key_values).or_insert_with(Vec::new).push(row_index);
                         }
-                        IndexData::DiskBacked { .. } => {
-                            // TODO: Implement insert for disk-backed indexes
+                        IndexData::DiskBacked { btree, .. } => {
+                            // Lock and insert into B+tree
+                            // Note: BTreeIndex::insert will return an error for duplicate keys.
+                            // For non-unique indexes, we should allow this, but currently
+                            // the B+tree implementation doesn't support duplicate keys.
+                            // This is a known limitation that will need to be addressed.
+                            if let Err(e) = btree.lock().unwrap().insert(key_values, row_index) {
+                                // Log error but don't fail - this may happen for non-unique indexes
+                                eprintln!("Warning: Failed to insert into disk-backed index '{}': {:?}", index_name, e);
+                            }
                         }
                     }
                 }
@@ -608,8 +650,13 @@ impl IndexManager {
                                     .or_insert_with(Vec::new)
                                     .push(row_index);
                             }
-                            IndexData::DiskBacked { .. } => {
-                                // TODO: Implement update for disk-backed indexes
+                            IndexData::DiskBacked { btree, .. } => {
+                                // Lock and update B+tree: delete old key, insert new key
+                                let mut btree_guard = btree.lock().unwrap();
+                                let _ = btree_guard.delete(&old_key_values);
+                                if let Err(e) = btree_guard.insert(new_key_values, row_index) {
+                                    eprintln!("Warning: Failed to update disk-backed index '{}': {:?}", index_name, e);
+                                }
                             }
                         }
                     }
@@ -653,8 +700,9 @@ impl IndexManager {
                                 }
                             }
                         }
-                        IndexData::DiskBacked { .. } => {
-                            // TODO: Implement delete for disk-backed indexes
+                        IndexData::DiskBacked { btree, .. } => {
+                            // Lock and delete from B+tree
+                            let _ = btree.lock().unwrap().delete(&key_values);
                         }
                     }
                 }
@@ -702,8 +750,48 @@ impl IndexManager {
                                 data.entry(key_values).or_insert_with(Vec::new).push(row_index);
                             }
                         }
-                        IndexData::DiskBacked { .. } => {
-                            // TODO: Implement rebuild for disk-backed indexes
+                        IndexData::DiskBacked { btree, page_manager } => {
+                            // For rebuild, we need to create a new B+tree from scratch
+                            // First, collect all entries
+                            let mut sorted_entries = Vec::new();
+                            for (row_index, row) in table_rows.iter().enumerate() {
+                                let key_values: Vec<SqlValue> = metadata
+                                    .columns
+                                    .iter()
+                                    .map(|col| {
+                                        let col_idx = table_schema
+                                            .get_column_index(&col.column_name)
+                                            .expect("Index column should exist");
+                                        row.values[col_idx].clone()
+                                    })
+                                    .collect();
+                                sorted_entries.push((key_values, row_index));
+                            }
+
+                            // Sort entries by key for bulk_load
+                            sorted_entries.sort_by(|a, b| a.0.cmp(&b.0));
+
+                            // Get key schema from metadata
+                            let key_schema: Vec<vibesql_types::DataType> = metadata
+                                .columns
+                                .iter()
+                                .map(|col| {
+                                    let col_idx = table_schema
+                                        .get_column_index(&col.column_name)
+                                        .expect("Index column should exist");
+                                    table_schema.columns[col_idx].data_type.clone()
+                                })
+                                .collect();
+
+                            // Use bulk_load to create new B+tree
+                            if let Ok(new_btree) = crate::btree::BTreeIndex::bulk_load(
+                                sorted_entries,
+                                key_schema,
+                                page_manager.clone(),
+                            ) {
+                                // Replace old btree with new one
+                                *btree.lock().unwrap() = new_btree;
+                            }
                         }
                     }
                 }
@@ -899,7 +987,7 @@ impl IndexManager {
 
         // Replace with disk-backed version
         let disk_backed = IndexData::DiskBacked {
-            btree: Arc::new(btree),
+            btree: Arc::new(std::sync::Mutex::new(btree)),
             page_manager,
         };
 

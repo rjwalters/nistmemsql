@@ -584,6 +584,156 @@ impl BTreeIndex {
         Ok(true)
     }
 
+    /// Lookup a single key in the B+ tree
+    ///
+    /// # Arguments
+    /// * `key` - The key to search for
+    ///
+    /// # Returns
+    /// * `Some(row_id)` if the key exists
+    /// * `None` if the key is not found
+    ///
+    /// # Algorithm
+    /// 1. Navigate to the appropriate leaf node using find_leaf_path
+    /// 2. Search for the key in the leaf node
+    pub fn lookup(&self, key: &Key) -> Result<Option<RowId>, StorageError> {
+        // Find the leaf that would contain this key
+        let (leaf, _) = self.find_leaf_path(key)?;
+
+        // Search for the key in the leaf node
+        Ok(leaf.search(key))
+    }
+
+    /// Perform a range scan on the B+ tree
+    ///
+    /// Returns all row_ids for keys in the specified range [start_key, end_key].
+    /// The range can be inclusive or exclusive on either end based on the parameters.
+    ///
+    /// # Arguments
+    /// * `start_key` - Optional lower bound key
+    /// * `end_key` - Optional upper bound key
+    /// * `inclusive_start` - Whether start_key is inclusive (default: true)
+    /// * `inclusive_end` - Whether end_key is inclusive (default: true)
+    ///
+    /// # Returns
+    /// Vector of row_ids in sorted key order
+    ///
+    /// # Algorithm
+    /// 1. Find the starting leaf node
+    /// 2. Iterate through leaf nodes using next_leaf pointers
+    /// 3. Collect all row_ids within the range
+    /// 4. Stop when reaching the end key or end of tree
+    pub fn range_scan(
+        &self,
+        start_key: Option<&Key>,
+        end_key: Option<&Key>,
+        inclusive_start: bool,
+        inclusive_end: bool,
+    ) -> Result<Vec<RowId>, StorageError> {
+        let mut result = Vec::new();
+
+        // Find starting point
+        let mut current_leaf = if let Some(start) = start_key {
+            // Find leaf containing start_key
+            let (leaf, _) = self.find_leaf_path(start)?;
+            leaf
+        } else {
+            // Start from leftmost leaf
+            self.find_leftmost_leaf()?
+        };
+
+        // Scan through leaves
+        loop {
+            // Process entries in current leaf
+            for (key, row_id) in &current_leaf.entries {
+                // Check if we're past the end key
+                if let Some(end) = end_key {
+                    let cmp = key.cmp(end);
+                    if cmp > std::cmp::Ordering::Equal {
+                        // Past end key, stop
+                        return Ok(result);
+                    }
+                    if cmp == std::cmp::Ordering::Equal && !inclusive_end {
+                        // At end key but not inclusive, stop
+                        return Ok(result);
+                    }
+                }
+
+                // Check if we're before the start key
+                if let Some(start) = start_key {
+                    let cmp = key.cmp(start);
+                    if cmp < std::cmp::Ordering::Equal {
+                        // Before start key, skip
+                        continue;
+                    }
+                    if cmp == std::cmp::Ordering::Equal && !inclusive_start {
+                        // At start key but not inclusive, skip
+                        continue;
+                    }
+                }
+
+                // Key is in range, add row_id
+                result.push(*row_id);
+            }
+
+            // Move to next leaf
+            if current_leaf.next_leaf == super::super::NULL_PAGE_ID {
+                // No more leaves
+                break;
+            }
+            current_leaf = self.read_leaf_node(current_leaf.next_leaf)?;
+        }
+
+        Ok(result)
+    }
+
+    /// Lookup multiple keys in the B+ tree (for IN predicates)
+    ///
+    /// # Arguments
+    /// * `keys` - List of keys to look up
+    ///
+    /// # Returns
+    /// Vector of row_ids for all keys that were found
+    ///
+    /// # Algorithm
+    /// For each key, perform a lookup and collect the row_ids.
+    /// This is a simple implementation that performs individual lookups.
+    /// A more optimized version could sort keys and batch lookups by leaf node.
+    pub fn multi_lookup(&self, keys: &[Key]) -> Result<Vec<RowId>, StorageError> {
+        let mut result = Vec::new();
+
+        for key in keys {
+            if let Some(row_id) = self.lookup(key)? {
+                result.push(row_id);
+            }
+        }
+
+        Ok(result)
+    }
+
+    /// Find the leftmost (first) leaf node in the tree
+    ///
+    /// # Returns
+    /// The leftmost leaf node
+    fn find_leftmost_leaf(&self) -> Result<LeafNode, StorageError> {
+        let mut current_page_id = self.root_page_id;
+
+        // Navigate down the tree always taking the leftmost child
+        for _ in 0..self.height - 1 {
+            let internal = self.read_internal_node(current_page_id)?;
+            if internal.children.is_empty() {
+                return Err(StorageError::IoError(
+                    "Internal node has no children".to_string(),
+                ));
+            }
+            // Always take first child (leftmost)
+            current_page_id = internal.children[0];
+        }
+
+        // Read the leftmost leaf
+        self.read_leaf_node(current_page_id)
+    }
+
     /// Rebalance a leaf node after deletion
     ///
     /// Tries to borrow from siblings first, then merges if necessary.
