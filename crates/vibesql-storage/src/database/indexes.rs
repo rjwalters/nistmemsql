@@ -32,16 +32,6 @@ fn extend_key_with_row_id(key: Vec<SqlValue>, row_id: usize) -> Vec<SqlValue> {
     extended
 }
 
-/// Helper to extract the original key from an extended key
-/// Removes the row_id suffix added by extend_key_with_row_id
-fn extract_original_key(extended_key: &[SqlValue]) -> &[SqlValue] {
-    if extended_key.is_empty() {
-        extended_key
-    } else {
-        &extended_key[..extended_key.len() - 1]
-    }
-}
-
 /// Index metadata
 #[derive(Debug, Clone)]
 pub struct IndexMetadata {
@@ -307,14 +297,6 @@ impl IndexManager {
             column_indices.push(column_idx);
         }
 
-        // Build the index data
-        let mut index_data_map: BTreeMap<Vec<SqlValue>, Vec<usize>> = BTreeMap::new();
-        for (row_idx, row) in table_rows.iter().enumerate() {
-            let key_values: Vec<SqlValue> =
-                column_indices.iter().map(|&idx| row.values[idx].clone()).collect();
-            index_data_map.entry(key_values).or_default().push(row_idx);
-        }
-
         // Store index metadata (use normalized name as key)
         let metadata =
             IndexMetadata { index_name: index_name.clone(), table_name: table_name.clone(), unique, columns: columns.clone() };
@@ -341,20 +323,21 @@ impl IndexManager {
                 .map(|&idx| table_schema.columns[idx].data_type.clone())
                 .collect();
 
-            // Prepare sorted entries for bulk loading
+            // Prepare sorted entries for bulk loading directly without intermediate BTreeMap
             // For non-unique indexes, we extend keys with row_id to make them unique
             let mut sorted_entries: Vec<(Key, usize)> = Vec::new();
-            for (key_values, row_indices) in &index_data_map {
-                for &row_id in row_indices {
-                    let extended_key = if unique {
-                        key_values.clone()
-                    } else {
-                        extend_key_with_row_id(key_values.clone(), row_id)
-                    };
-                    sorted_entries.push((extended_key, row_id));
-                }
+            for (row_idx, row) in table_rows.iter().enumerate() {
+                let key_values: Vec<SqlValue> =
+                    column_indices.iter().map(|&idx| row.values[idx].clone()).collect();
+
+                let extended_key = if unique {
+                    key_values
+                } else {
+                    extend_key_with_row_id(key_values, row_idx)
+                };
+                sorted_entries.push((extended_key, row_idx));
             }
-            // Sort by key (already sorted from BTreeMap, but bulk_load expects sorted input)
+            // Sort by key for bulk_load
             sorted_entries.sort_by(|a, b| a.0.cmp(&b.0));
 
             // Extend key schema with Integer for non-unique indexes
@@ -375,6 +358,13 @@ impl IndexManager {
                 page_manager,
             }
         } else {
+            // Build the index data in-memory for small tables
+            let mut index_data_map: BTreeMap<Vec<SqlValue>, Vec<usize>> = BTreeMap::new();
+            for (row_idx, row) in table_rows.iter().enumerate() {
+                let key_values: Vec<SqlValue> =
+                    column_indices.iter().map(|&idx| row.values[idx].clone()).collect();
+                index_data_map.entry(key_values).or_default().push(row_idx);
+            }
             // Use in-memory backend for small tables
             IndexData::InMemory { data: index_data_map }
         };
