@@ -25,9 +25,10 @@ Build a **FULL SQL:1999 compliant** database from scratch, designed for NIST con
 - 100% sqltest conformance (739/739 tests passing)
 - Completed in under 2 weeks (Oct 25 - Nov 1, 2025)
 
-**✅ Extended SQL:1999 Compliance - COMPLETE!**
-- 100% SQLLogicTest coverage achieved (623/623 files, ~5.9M tests)
-- Complete coverage of all SQL:1999 optional features
+**🔄 Extended SQL:1999 Compliance - IN PROGRESS**
+- SQLLogicTest coverage: 28/623 files passing (4.5%, ~180K tests)
+- Known issue: Index optimization bug causing query result mismatches (see issue #1610)
+- Target: Complete coverage of all SQL:1999 optional features
 - Inspired by the [posix4e/nistmemsql challenge](https://github.com/posix4e/nistmemsql)
 
 **✅ Advanced Database Features - COMPLETE!**
@@ -46,9 +47,8 @@ Every line of code, every test, and all documentation in this repository has bee
 
 **What was built:**
 - 📊 **171,000+ lines** of production Rust code across 7-crate workspace
-- ✅ **100% test pass rate** across all suites (739 sqltest + 623 SQLLogicTest files + 2,991 unit tests)
-- 🎯 **100% SQL:1999 Core compliance** (739/739 tests)
-- 🎯 **100% SQLLogicTest suite** (623/623 files, ~5.9M test cases)
+- ✅ **100% SQL:1999 Core compliance** (739/739 sqltest + 2,991 unit tests)
+- 🔄 **SQLLogicTest suite in progress** (28/623 files, 4.5% - index bug under investigation)
 - 🚀 **Full WASM compilation** with live browser demo
 - 🏗️ **AI Builder/Judge workflow** with automated PR reviews
 - 🔒 **Complete security model** with privilege enforcement
@@ -76,11 +76,11 @@ We use comprehensive test suites to track SQL:1999 compliance:
 |-------|-------|--------|
 | SQL:1999 sqltest | 739 tests | ✅ **100% (739/739 passing)** |
 | Custom Unit Tests | 2,991 tests | ✅ **100% (2,991/2,991 passing)** |
-| SQLLogicTest | 623 test files (~5.9M tests) | ✅ **100% (623/623 passing)** |
+| SQLLogicTest | 623 test files (~5.9M tests) | 🔄 **4.5% (28/623 passing)** - Index bug under investigation |
 
 **Major Features Implemented:**
 - ✅ **100% SQL:1999 Core Conformance** - All 739 sqltest tests passing
-- ✅ **100% SQLLogicTest Suite** - All 623 test files passing (~5.9M test cases)
+- 🔄 **SQLLogicTest Suite** - 28/623 test files passing (4.5% - index bug fix in progress)
 - ✅ **Full-featured CLI** - Interactive REPL with PostgreSQL-compatible meta-commands
 - ✅ **Import/Export** - CSV and JSON support with \copy command
 - ✅ **Multiple output formats** - Table, JSON, CSV, Markdown, HTML
@@ -460,11 +460,12 @@ python3 scripts/generate_punchlist.py
 **Current Status**:
 | Category | Total | Passing | % | Status |
 |----------|-------|---------|---|--------|
-| index | 214 | 214 | 100% | ✅ Complete |
-| evidence | 12 | 12 | 100% | ✅ Complete |
-| random | 391 | 391 | 100% | ✅ Complete |
-| ddl | 6 | 6 | 100% | ✅ Complete |
-| **TOTAL** | **623** | **623** | **100%** | ✅ **Goal Achieved!** |
+| select | 5 | 0 | 0.0% | ❌ Index bug (see issue #1610) |
+| evidence | 12 | 11 | 91.7% | 🔄 Subquery issues (see issue #1612) |
+| index | 214 | 17 | 7.9% | ❌ Index bug (see issue #1610) |
+| random | 391 | 2 | 0.5% | ❌ Index bug (see issue #1610) |
+| ddl | 1 | 0 | 0.0% | ❌ BLOB type missing (see issue #1611) |
+| **TOTAL** | **623** | **28** | **4.5%** | 🔄 **In Progress** |
 
 ---
 
@@ -601,12 +602,12 @@ See [Working with AI](https://github.com/rjwalters/loom/blob/main/docs/philosoph
 - Full transaction and constraint support
 - Production-grade security model
 
-### ✅ Extended Compliance - COMPLETE!
+### 🔄 Extended Compliance - IN PROGRESS
 
-**SQLLogicTest Coverage - 100% Achieved**
-- ✅ All ~5.9M test cases passing
-- ✅ All 623 test files passing
-- ✅ Complete coverage of index operations, random queries, and edge cases
+**SQLLogicTest Coverage - 4.5% (28/623 files)**
+- 🔄 28 test files passing (~180K test cases)
+- ❌ Index optimization bug affecting 595 files (see issue #1610)
+- 🎯 Target: Complete coverage of index operations, random queries, and edge cases
 
 **Optional SQL:1999 Features - Complete**
 - ✅ Information schema views
