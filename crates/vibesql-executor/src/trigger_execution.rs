@@ -1,10 +1,72 @@
 //! Trigger execution logic for firing triggers on DML operations
 
-use vibesql_ast::{TriggerEvent, TriggerGranularity, TriggerTiming};
-use vibesql_catalog::TriggerDefinition;
+use vibesql_ast::{PseudoTable, TriggerEvent, TriggerGranularity, TriggerTiming};
+use vibesql_catalog::{TableSchema, TriggerDefinition};
 use vibesql_storage::{Database, Row};
+use vibesql_types::SqlValue;
 
 use crate::errors::ExecutorError;
+
+/// Execution context for triggers with OLD/NEW row access
+/// Provides pseudo-variable resolution for trigger bodies
+pub struct TriggerContext<'a> {
+    /// OLD row - available for UPDATE and DELETE triggers
+    pub old_row: Option<&'a Row>,
+    /// NEW row - available for INSERT and UPDATE triggers
+    pub new_row: Option<&'a Row>,
+    /// Table schema for column lookups
+    pub table_schema: &'a TableSchema,
+}
+
+impl<'a> TriggerContext<'a> {
+    /// Resolve a pseudo-variable reference to a SqlValue
+    ///
+    /// # Arguments
+    /// * `pseudo_table` - Which pseudo-table (OLD or NEW)
+    /// * `column` - Column name to retrieve
+    ///
+    /// # Returns
+    /// Ok(SqlValue) with the column value, or Err if invalid
+    ///
+    /// # Errors
+    /// - If OLD/NEW is not available for this trigger type
+    /// - If column doesn't exist in table schema
+    pub fn resolve_pseudo_var(
+        &self,
+        pseudo_table: PseudoTable,
+        column: &str,
+    ) -> Result<SqlValue, ExecutorError> {
+        // Get the appropriate row
+        let row = match pseudo_table {
+            PseudoTable::Old => self.old_row.ok_or_else(|| {
+                ExecutorError::UnsupportedExpression(
+                    "OLD pseudo-variable not available in this trigger context".to_string(),
+                )
+            })?,
+            PseudoTable::New => self.new_row.ok_or_else(|| {
+                ExecutorError::UnsupportedExpression(
+                    "NEW pseudo-variable not available in this trigger context".to_string(),
+                )
+            })?,
+        };
+
+        // Find column index in schema
+        let col_idx = self
+            .table_schema
+            .columns
+            .iter()
+            .position(|c| c.name == column)
+            .ok_or_else(|| ExecutorError::ColumnNotFound {
+                column_name: column.to_string(),
+                table_name: self.table_schema.name.clone(),
+                searched_tables: vec![self.table_schema.name.clone()],
+                available_columns: self.table_schema.columns.iter().map(|c| c.name.clone()).collect(),
+            })?;
+
+        // Return the value
+        Ok(row.values[col_idx].clone())
+    }
+}
 
 /// Helper struct for trigger firing (execution during DML operations)
 pub struct TriggerFirer;
@@ -91,7 +153,7 @@ impl TriggerFirer {
         db: &Database,
         table_name: &str,
         when_expr: &vibesql_ast::Expression,
-        _old_row: Option<&Row>,
+        old_row: Option<&Row>,
         new_row: Option<&Row>,
     ) -> Result<bool, ExecutorError> {
         // Get table schema
@@ -100,14 +162,21 @@ impl TriggerFirer {
             .get_table(table_name)
             .ok_or_else(|| ExecutorError::TableNotFound(table_name.to_string()))?;
 
-        // For now, we'll evaluate the condition with the NEW row context
-        // TODO: Phase 5 will add proper OLD/NEW pseudo-table support
-        let row = new_row.ok_or_else(|| {
-            ExecutorError::UnsupportedExpression("WHEN condition requires NEW row".to_string())
+        // Use NEW row as the base row for evaluation (prefer NEW over OLD)
+        // The trigger context will handle OLD/NEW pseudo-variable references
+        let row = new_row.or(old_row).ok_or_else(|| {
+            ExecutorError::UnsupportedExpression("WHEN condition requires a row context".to_string())
         })?;
 
-        // Create evaluator and evaluate expression
-        let evaluator = crate::ExpressionEvaluator::with_database(schema, db);
+        // Create trigger context for OLD/NEW pseudo-variable resolution
+        let trigger_context = TriggerContext {
+            old_row,
+            new_row,
+            table_schema: schema,
+        };
+
+        // Create evaluator with trigger context
+        let evaluator = crate::ExpressionEvaluator::with_trigger_context(schema, db, &trigger_context);
         let result = evaluator.eval(when_expr, row)?;
 
         // Convert to boolean

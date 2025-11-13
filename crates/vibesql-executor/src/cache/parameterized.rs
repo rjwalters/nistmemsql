@@ -392,6 +392,7 @@ impl LiteralExtractor {
 
             // These expressions don't contain literals
             Expression::ColumnRef { .. }
+            | Expression::PseudoVariable { .. }
             | Expression::Wildcard
             | Expression::CurrentDate
             | Expression::CurrentTime { .. }
