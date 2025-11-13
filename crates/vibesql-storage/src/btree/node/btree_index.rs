@@ -17,6 +17,7 @@ use super::structure::{InternalNode, Key, LeafNode};
 ///
 /// This structure provides a disk-backed B+ tree index that maintains
 /// sorted key-value mappings with efficient range query support.
+#[derive(Debug)]
 pub struct BTreeIndex {
     /// Page ID of the root node
     root_page_id: PageId,
