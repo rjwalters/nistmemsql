@@ -71,7 +71,18 @@ fn test_create_table_with_table_primary_key() {
         table_constraints: vec![TableConstraint {
             name: None,
             kind: TableConstraintKind::PrimaryKey {
-                columns: vec!["id".to_string(), "tenant_id".to_string()],
+                columns: vec![
+                    vibesql_ast::IndexColumn {
+                        column_name: "id".to_string(),
+                        direction: vibesql_ast::OrderDirection::Asc,
+                        prefix_length: None,
+                    },
+                    vibesql_ast::IndexColumn {
+                        column_name: "tenant_id".to_string(),
+                        direction: vibesql_ast::OrderDirection::Asc,
+                        prefix_length: None,
+                    },
+                ],
             },
         }],
         table_options: vec![],
@@ -104,7 +115,13 @@ fn test_create_table_with_multiple_primary_keys_fails() {
         }],
         table_constraints: vec![TableConstraint {
             name: None,
-            kind: TableConstraintKind::PrimaryKey { columns: vec!["id".to_string()] },
+            kind: TableConstraintKind::PrimaryKey {
+                columns: vec![vibesql_ast::IndexColumn {
+                    column_name: "id".to_string(),
+                    direction: vibesql_ast::OrderDirection::Asc,
+                    prefix_length: None,
+                }],
+            },
         }],
         table_options: vec![],
     };
@@ -177,7 +194,18 @@ fn test_create_table_with_table_unique_constraint() {
         table_constraints: vec![TableConstraint {
             name: None,
             kind: TableConstraintKind::Unique {
-                columns: vec!["first_name".to_string(), "last_name".to_string()],
+                columns: vec![
+                    vibesql_ast::IndexColumn {
+                        column_name: "first_name".to_string(),
+                        direction: vibesql_ast::OrderDirection::Asc,
+                        prefix_length: None,
+                    },
+                    vibesql_ast::IndexColumn {
+                        column_name: "last_name".to_string(),
+                        direction: vibesql_ast::OrderDirection::Asc,
+                        prefix_length: None,
+                    },
+                ],
             },
         }],
         table_options: vec![],

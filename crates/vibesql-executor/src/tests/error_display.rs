@@ -21,7 +21,6 @@ fn test_column_not_found_display() {
     // Test basic error without search info
     let error = ExecutorError::ColumnNotFound {
         column_name: "email".to_string(),
-                prefix_length: None,
         table_name: "users".to_string(),
         searched_tables: vec![],
         available_columns: vec![],
@@ -31,7 +30,6 @@ fn test_column_not_found_display() {
     // Test error with search info
     let error_with_info = ExecutorError::ColumnNotFound {
         column_name: "email".to_string(),
-                prefix_length: None,
         table_name: "users".to_string(),
         searched_tables: vec!["users".to_string(), "profiles".to_string()],
         available_columns: vec!["id".to_string(), "name".to_string(), "age".to_string()],
