@@ -181,8 +181,8 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let key_schema = vec![DataType::Integer];
         let sorted_entries = vec![];
@@ -198,8 +198,8 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let key_schema = vec![DataType::Integer];
         let sorted_entries = vec![
@@ -227,8 +227,8 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let key_schema = vec![DataType::Integer, DataType::Varchar { max_length: Some(50) }];
         let sorted_entries = vec![
@@ -253,8 +253,8 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let key_schema = vec![DataType::Integer];
 
@@ -279,8 +279,8 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let key_schema = vec![DataType::Integer];
         let mut index = BTreeIndex::new(page_manager, key_schema).unwrap();
@@ -305,8 +305,8 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let key_schema = vec![DataType::Integer];
         let mut index = BTreeIndex::new(page_manager, key_schema).unwrap();
@@ -326,8 +326,8 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let key_schema = vec![DataType::Integer];
         let mut index = BTreeIndex::new(page_manager, key_schema).unwrap();
@@ -366,8 +366,8 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let key_schema = vec![DataType::Integer];
         let mut index = BTreeIndex::new(page_manager, key_schema).unwrap();
@@ -396,8 +396,8 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let key_schema = vec![DataType::Integer];
         let mut index = BTreeIndex::new(page_manager, key_schema).unwrap();
@@ -430,8 +430,8 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let key_schema = vec![DataType::Integer];
         let mut index = BTreeIndex::new(page_manager, key_schema).unwrap();
@@ -473,8 +473,8 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let key_schema = vec![DataType::Integer];
         let mut index = BTreeIndex::new(page_manager, key_schema).unwrap();
@@ -505,8 +505,8 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let key_schema = vec![
             DataType::Integer,
@@ -540,8 +540,8 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let key_schema = vec![DataType::Integer];
         let sorted_entries = vec![
@@ -570,8 +570,8 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let key_schema = vec![DataType::Integer];
         let sorted_entries = vec![
@@ -595,8 +595,8 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let key_schema = vec![DataType::Integer];
         let sorted_entries = vec![
@@ -620,8 +620,8 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let key_schema = vec![DataType::Integer];
 
@@ -648,8 +648,8 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let key_schema = vec![DataType::Integer];
 
@@ -679,8 +679,8 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let key_schema = vec![DataType::Integer];
 
@@ -709,8 +709,8 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let key_schema = vec![DataType::Integer, DataType::Varchar { max_length: Some(50) }];
         let sorted_entries = vec![

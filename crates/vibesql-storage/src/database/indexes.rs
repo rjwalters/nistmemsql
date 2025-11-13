@@ -12,7 +12,7 @@ use vibesql_types::{DataType, SqlValue};
 use crate::btree::{BTreeIndex, Key};
 use crate::database::{DatabaseConfig, ResourceTracker};
 use crate::page::PageManager;
-use crate::{Row, StorageError};
+use crate::{NativeStorage, Row, StorageBackend, StorageError};
 
 /// Normalize an index name to uppercase for case-insensitive comparison
 /// This follows SQL standard identifier rules
@@ -266,7 +266,7 @@ impl IndexData {
 /// Supports adaptive index management with resource budgets and LRU eviction,
 /// enabling efficient operation in both browser (limited memory) and server
 /// (abundant memory) environments.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct IndexManager {
     /// Index metadata storage (normalized_index_name -> metadata)
     indexes: HashMap<String, IndexMetadata>,
@@ -278,33 +278,56 @@ pub struct IndexManager {
     resource_tracker: ResourceTracker,
     /// Database directory path for index file storage
     database_path: Option<PathBuf>,
+    /// Storage backend for file operations
+    storage: Arc<dyn StorageBackend>,
+}
+
+impl std::fmt::Debug for IndexManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IndexManager")
+            .field("indexes", &self.indexes)
+            .field("index_data", &self.index_data)
+            .field("config", &self.config)
+            .field("resource_tracker", &self.resource_tracker)
+            .field("database_path", &self.database_path)
+            .finish()
+    }
 }
 
 impl IndexManager {
     /// Create a new empty IndexManager with default configuration
     pub fn new() -> Self {
+        // Create a default in-memory storage (will be replaced when database_path is set)
+        let storage = Arc::new(NativeStorage::new(".").unwrap());
         IndexManager {
             indexes: HashMap::new(),
             index_data: HashMap::new(),
             config: DatabaseConfig::default(),
             resource_tracker: ResourceTracker::new(),
             database_path: None,
+            storage,
         }
     }
 
     /// Create a new IndexManager with custom configuration
     pub fn with_config(config: DatabaseConfig) -> Self {
+        let storage = Arc::new(NativeStorage::new(".").unwrap());
         IndexManager {
             indexes: HashMap::new(),
             index_data: HashMap::new(),
             config,
             resource_tracker: ResourceTracker::new(),
             database_path: None,
+            storage,
         }
     }
 
     /// Set the database directory path for index file storage
     pub fn set_database_path(&mut self, path: PathBuf) {
+        // Update storage backend to use the correct path
+        if let Ok(storage) = NativeStorage::new(&path) {
+            self.storage = Arc::new(storage);
+        }
         self.database_path = Some(path);
     }
 
@@ -356,8 +379,10 @@ impl IndexManager {
         let (index_data, memory_bytes, disk_bytes, backend) = if use_disk_backed {
             // Create disk-backed B+ tree index using proper database path
             let index_file = self.get_index_file_path(&table_name, &index_name)?;
+            let index_file_str = index_file.to_str()
+                .ok_or_else(|| StorageError::IoError("Invalid index file path".to_string()))?;
 
-            let page_manager = Arc::new(PageManager::new(&index_file)
+            let page_manager = Arc::new(PageManager::new(index_file_str, self.storage.clone())
                 .map_err(|e| StorageError::IoError(format!("Failed to create index file: {}", e)))?);
 
             // Build key schema from indexed columns
@@ -853,7 +878,10 @@ impl IndexManager {
 
         // Create disk-backed version
         let index_file = self.get_index_file_path(&metadata.table_name, index_name)?;
-        let page_manager = Arc::new(PageManager::new(&index_file)
+        let index_file_str = index_file.to_str()
+            .ok_or_else(|| StorageError::IoError("Invalid index file path".to_string()))?;
+
+        let page_manager = Arc::new(PageManager::new(index_file_str, self.storage.clone())
             .map_err(|e| StorageError::IoError(format!("Failed to create index file: {}", e)))?);
 
         // Convert BTreeMap to sorted entries for bulk_load

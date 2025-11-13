@@ -3,14 +3,9 @@
 //! This module provides page-based storage management for disk-backed indexes.
 //! Pages are fixed-size blocks (4KB) that form the foundation of persistent storage.
 
-use std::{
-    fs::{File, OpenOptions},
-    io::{self, Read, Seek, SeekFrom, Write},
-    path::Path,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
-use crate::StorageError;
+use crate::{StorageBackend, StorageError, StorageFile};
 
 /// Page size in bytes (4KB standard)
 pub const PAGE_SIZE: usize = 4096;
@@ -67,23 +62,30 @@ struct PageManagerState {
 }
 
 /// Page manager handles allocation, deallocation, and I/O of pages
-#[derive(Debug)]
+#[derive(Clone)]
 pub struct PageManager {
     /// File handle for page storage
-    file: Arc<Mutex<File>>,
+    file: Arc<Mutex<Box<dyn StorageFile>>>,
     /// Mutable state (allocation tracking)
     state: Arc<Mutex<PageManagerState>>,
 }
 
+impl std::fmt::Debug for PageManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PageManager")
+            .field("state", &self.state.lock().map(|s| format!("next_page_id: {}, free_pages: {}", s.next_page_id, s.free_pages.len())))
+            .finish()
+    }
+}
+
 impl PageManager {
-    /// Create a new page manager with an existing file
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, StorageError> {
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .open(path)
-            .map_err(|e| StorageError::IoError(e.to_string()))?;
+    /// Create a new page manager with a storage backend
+    ///
+    /// # Arguments
+    /// * `path` - Filename for the page storage
+    /// * `storage` - Storage backend to use for file operations
+    pub fn new(path: &str, storage: Arc<dyn StorageBackend>) -> Result<Self, StorageError> {
+        let file = storage.open_file(path)?;
 
         // Read metadata from first page (page 0 is reserved for metadata)
         let manager = PageManager {
@@ -145,16 +147,18 @@ impl PageManager {
             .map_err(|e| StorageError::LockError(format!("Failed to lock file: {}", e)))?;
 
         let offset = (page_id as u64) * (PAGE_SIZE as u64);
-        file.seek(SeekFrom::Start(offset)).map_err(|e| StorageError::IoError(e.to_string()))?;
-
         let mut data = vec![0u8; PAGE_SIZE];
-        match file.read_exact(&mut data) {
-            Ok(_) => Ok(Page::from_data(page_id, data)?),
-            Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => {
+
+        match file.read_at(offset, &mut data) {
+            Ok(bytes_read) if bytes_read == PAGE_SIZE => Ok(Page::from_data(page_id, data)?),
+            Ok(_) => {
+                // Partial read or EOF - return empty page
+                Ok(Page::new(page_id))
+            }
+            Err(_) => {
                 // File doesn't have this page yet, return empty page
                 Ok(Page::new(page_id))
             }
-            Err(e) => Err(StorageError::IoError(e.to_string())),
         }
     }
 
@@ -166,11 +170,8 @@ impl PageManager {
             .map_err(|e| StorageError::LockError(format!("Failed to lock file: {}", e)))?;
 
         let offset = (page.id as u64) * (PAGE_SIZE as u64);
-        file.seek(SeekFrom::Start(offset)).map_err(|e| StorageError::IoError(e.to_string()))?;
-
-        file.write_all(&page.data).map_err(|e| StorageError::IoError(e.to_string()))?;
-
-        file.sync_data().map_err(|e| StorageError::IoError(e.to_string()))?;
+        file.write_at(offset, &page.data)?;
+        file.sync_data()?;
 
         page.mark_clean();
         Ok(())
@@ -250,11 +251,11 @@ impl PageManager {
     /// Flush all pending writes and metadata
     pub fn flush(&self) -> Result<(), StorageError> {
         self.save_metadata()?;
-        let file = self
+        let mut file = self
             .file
             .lock()
             .map_err(|e| StorageError::LockError(format!("Failed to lock file: {}", e)))?;
-        file.sync_all().map_err(|e| StorageError::IoError(e.to_string()))?;
+        file.sync_all()?;
         Ok(())
     }
 
@@ -271,8 +272,10 @@ impl PageManager {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
     use tempfile::TempDir;
 
+    use crate::NativeStorage;
     use super::*;
 
     #[test]
@@ -286,8 +289,8 @@ mod tests {
     #[test]
     fn test_page_manager_allocation() {
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let manager = PageManager::new(&path).unwrap();
+        let storage = Arc::new(NativeStorage::new(temp_dir.path()).unwrap());
+        let manager = PageManager::new("test.db", storage).unwrap();
 
         let page1 = manager.allocate_page().unwrap();
         let page2 = manager.allocate_page().unwrap();
@@ -301,8 +304,8 @@ mod tests {
     #[test]
     fn test_page_manager_deallocation_reuse() {
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let manager = PageManager::new(&path).unwrap();
+        let storage = Arc::new(NativeStorage::new(temp_dir.path()).unwrap());
+        let manager = PageManager::new("test.db", storage).unwrap();
 
         let page1 = manager.allocate_page().unwrap();
         let _page2 = manager.allocate_page().unwrap();
@@ -318,8 +321,8 @@ mod tests {
     #[test]
     fn test_page_read_write() {
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let manager = PageManager::new(&path).unwrap();
+        let storage = Arc::new(NativeStorage::new(temp_dir.path()).unwrap());
+        let manager = PageManager::new("test.db", storage).unwrap();
 
         let mut page = Page::new(1);
         page.data[0] = 42;
@@ -336,11 +339,11 @@ mod tests {
     #[test]
     fn test_metadata_persistence() {
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
+        let storage = Arc::new(NativeStorage::new(temp_dir.path()).unwrap());
 
         // Create manager, allocate pages, save metadata
         {
-            let manager = PageManager::new(&path).unwrap();
+            let manager = PageManager::new("test.db", storage.clone()).unwrap();
             manager.allocate_page().unwrap(); // 1
             manager.allocate_page().unwrap(); // 2
             manager.allocate_page().unwrap(); // 3
@@ -350,7 +353,7 @@ mod tests {
 
         // Reopen and verify state was preserved
         {
-            let manager = PageManager::new(&path).unwrap();
+            let manager = PageManager::new("test.db", storage).unwrap();
             assert_eq!(manager.next_page_id(), 4);
             assert_eq!(manager.free_page_count(), 1);
 
@@ -363,8 +366,8 @@ mod tests {
     #[test]
     fn test_cannot_deallocate_reserved_page() {
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let manager = PageManager::new(&path).unwrap();
+        let storage = Arc::new(NativeStorage::new(temp_dir.path()).unwrap());
+        let manager = PageManager::new("test.db", storage).unwrap();
 
         let result = manager.deallocate_page(0);
         assert!(result.is_err());

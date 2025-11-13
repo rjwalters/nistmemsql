@@ -242,13 +242,14 @@ impl BufferPool {
 mod tests {
     use tempfile::TempDir;
 
+    use crate::NativeStorage;
     use super::*;
 
     #[test]
     fn test_buffer_pool_creation() {
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
         let buffer_pool = BufferPool::new(page_manager, 10);
 
         assert_eq!(buffer_pool.capacity(), 10);
@@ -258,8 +259,8 @@ mod tests {
     #[test]
     fn test_cache_hit() {
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
         let buffer_pool = BufferPool::new(page_manager.clone(), 10);
 
         // Create and write a page to disk
@@ -284,8 +285,8 @@ mod tests {
     #[test]
     fn test_cache_miss() {
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
         let buffer_pool = BufferPool::new(page_manager.clone(), 10);
 
         // Access a page that doesn't exist yet
@@ -298,8 +299,8 @@ mod tests {
     #[test]
     fn test_eviction() {
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
         let buffer_pool = BufferPool::new(page_manager.clone(), 3);
 
         // Fill cache to capacity
@@ -323,8 +324,8 @@ mod tests {
     #[test]
     fn test_dirty_page_write_on_eviction() {
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
         let buffer_pool = BufferPool::new(page_manager.clone(), 2);
 
         // Add a dirty page
@@ -351,8 +352,8 @@ mod tests {
     #[test]
     fn test_flush_dirty_pages() {
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
         let buffer_pool = BufferPool::new(page_manager.clone(), 10);
 
         // Add multiple dirty pages
@@ -376,8 +377,8 @@ mod tests {
     #[test]
     fn test_cache_statistics() {
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
         let buffer_pool = BufferPool::new(page_manager.clone(), 10);
 
         // Mix of hits and misses
@@ -395,8 +396,8 @@ mod tests {
     #[test]
     fn test_manual_eviction() {
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
         let buffer_pool = BufferPool::new(page_manager.clone(), 10);
 
         // Add a page
@@ -421,8 +422,8 @@ mod tests {
     #[test]
     fn test_zero_capacity_defaults_to_1000() {
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
         let buffer_pool = BufferPool::new(page_manager, 0);
 
         assert_eq!(buffer_pool.capacity(), 1000);
