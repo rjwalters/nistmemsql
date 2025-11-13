@@ -526,6 +526,18 @@ impl From<vibesql_storage::StorageError> for ExecutorError {
             vibesql_storage::StorageError::IoError(msg) => {
                 ExecutorError::StorageError(format!("I/O error: {}", msg))
             }
+            vibesql_storage::StorageError::InvalidPageSize { expected, actual } => {
+                ExecutorError::StorageError(format!(
+                    "Invalid page size: expected {}, got {}",
+                    expected, actual
+                ))
+            }
+            vibesql_storage::StorageError::InvalidPageId(page_id) => {
+                ExecutorError::StorageError(format!("Invalid page ID: {}", page_id))
+            }
+            vibesql_storage::StorageError::LockError(msg) => {
+                ExecutorError::StorageError(format!("Lock error: {}", msg))
+            }
         }
     }
 }
