@@ -271,6 +271,11 @@ pub fn execute_create_procedure(
         )
     };
 
+    // TODO: When CREATE OR REPLACE PROCEDURE is implemented, invalidate cache here:
+    // if stmt.or_replace {
+    //     db.invalidate_procedure_cache(&stmt.procedure_name);
+    // }
+
     db.catalog.create_procedure_with_characteristics(procedure)?;
     Ok(())
 }
@@ -287,6 +292,9 @@ pub fn execute_drop_procedure(
     if stmt.if_exists && !procedure_exists {
         return Ok(());
     }
+
+    // Invalidate cache before dropping (Phase 6 optimization)
+    db.invalidate_procedure_cache(&stmt.procedure_name);
 
     db.catalog.drop_procedure(&stmt.procedure_name)?;
     Ok(())
@@ -415,13 +423,22 @@ pub fn execute_call(
 ) -> Result<(), ExecutorError> {
     use crate::procedural::{ExecutionContext, execute_procedural_statement, ControlFlow};
 
-    // 1. Look up the procedure definition and clone what we need
+    // 1. Look up the procedure definition and get cached body (Phase 6 optimization)
     let (parameters, body) = {
         let procedure = db.catalog
             .get_procedure(&stmt.procedure_name)
             .ok_or_else(|| ExecutorError::Other(format!("Procedure '{}' not found", stmt.procedure_name)))?;
 
-        (procedure.parameters.clone(), procedure.body.clone())
+        let parameters = procedure.parameters.clone();
+
+        // Get cached body and clone it
+        // The cache avoids re-parsing RawSql bodies; cloning the parsed AST is cheap
+        let body = db
+            .get_cached_procedure_body(&stmt.procedure_name)
+            .map_err(|e| ExecutorError::Other(e.to_string()))?
+            .clone();
+
+        (parameters, body)
     };
 
     // 2. Validate parameter count
