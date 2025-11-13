@@ -14,7 +14,7 @@ fn build_hash_table_sequential<'a>(
     build_rows: &'a [vibesql_storage::Row],
     build_col_idx: usize,
 ) -> HashMap<vibesql_types::SqlValue, Vec<&'a vibesql_storage::Row>> {
-    let mut hash_table = HashMap::new();
+    let mut hash_table: HashMap<vibesql_types::SqlValue, Vec<&vibesql_storage::Row>> = HashMap::new();
     for row in build_rows {
         let key = row.values[build_col_idx].clone();
         // Skip NULL values - they never match in equi-joins
