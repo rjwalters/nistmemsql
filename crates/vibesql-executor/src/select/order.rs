@@ -47,9 +47,18 @@ pub(super) fn apply_order_by(
         let keys_b = keys_b.as_ref().unwrap();
 
         for ((val_a, dir), (val_b, _)) in keys_a.iter().zip(keys_b.iter()) {
-            let cmp = match dir {
-                vibesql_ast::OrderDirection::Asc => compare_sql_values(val_a, val_b),
-                vibesql_ast::OrderDirection::Desc => compare_sql_values(val_a, val_b).reverse(),
+            // Handle NULLs: always sort last regardless of ASC/DESC
+            let cmp = match (val_a.is_null(), val_b.is_null()) {
+                (true, true) => Ordering::Equal,
+                (true, false) => return Ordering::Greater, // NULL always sorts last
+                (false, true) => return Ordering::Less,    // non-NULL always sorts first
+                (false, false) => {
+                    // Compare non-NULL values, respecting direction
+                    match dir {
+                        vibesql_ast::OrderDirection::Asc => compare_sql_values(val_a, val_b),
+                        vibesql_ast::OrderDirection::Desc => compare_sql_values(val_a, val_b).reverse(),
+                    }
+                }
             };
 
             if cmp != Ordering::Equal {

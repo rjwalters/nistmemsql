@@ -135,7 +135,7 @@ impl Database {
 
     /// Rollback the current transaction
     pub fn rollback_transaction(&mut self) -> Result<(), StorageError> {
-        self.lifecycle.perform_rollback(&mut self.catalog)
+        self.lifecycle.perform_rollback(&mut self.catalog, &mut self.tables)
     }
 
     /// Check if we're currently in a transaction

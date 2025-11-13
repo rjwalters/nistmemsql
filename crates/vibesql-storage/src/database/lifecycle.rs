@@ -63,8 +63,9 @@ impl Lifecycle {
     pub fn perform_rollback(
         &mut self,
         catalog: &mut vibesql_catalog::Catalog,
+        tables: &mut HashMap<String, Table>,
     ) -> Result<(), crate::StorageError> {
-        self.transaction_manager.rollback_transaction(catalog, &mut self.tables)
+        self.transaction_manager.rollback_transaction(catalog, tables)
     }
 
     pub fn current_role(&self) -> Option<&str> {

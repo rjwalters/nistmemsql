@@ -144,6 +144,92 @@ impl CreateTableExecutor {
         // Apply constraint results to schema (sets PK, unique, and check constraints)
         ConstraintValidator::apply_to_schema(&mut table_schema, &constraint_result);
 
+        // Process foreign key constraints from table_constraints
+        for constraint in &stmt.table_constraints {
+            if let vibesql_ast::TableConstraintKind::ForeignKey {
+                columns: fk_columns,
+                references_table,
+                references_columns,
+                on_delete,
+                on_update,
+            } = &constraint.kind
+            {
+                // Resolve column indices for FK columns
+                let column_indices: Vec<usize> = fk_columns
+                    .iter()
+                    .map(|col_name| {
+                        table_schema.get_column_index(col_name).ok_or_else(|| {
+                            ExecutorError::ColumnNotFound {
+                                column_name: col_name.clone(),
+                                table_name: table_name.clone(),
+                                searched_tables: vec![table_name.clone()],
+                                available_columns: table_schema
+                                    .columns
+                                    .iter()
+                                    .map(|c| c.name.clone())
+                                    .collect(),
+                            }
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                // Lookup parent table to get parent column indices
+                let parent_schema = database
+                    .catalog
+                    .get_table(references_table)
+                    .ok_or_else(|| ExecutorError::TableNotFound(references_table.clone()))?;
+
+                let parent_column_indices: Vec<usize> = references_columns
+                    .iter()
+                    .map(|col_name| {
+                        parent_schema.get_column_index(col_name).ok_or_else(|| {
+                            ExecutorError::ColumnNotFound {
+                                column_name: col_name.clone(),
+                                table_name: references_table.clone(),
+                                searched_tables: vec![references_table.clone()],
+                                available_columns: parent_schema
+                                    .columns
+                                    .iter()
+                                    .map(|c| c.name.clone())
+                                    .collect(),
+                            }
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                // Convert ReferentialAction from AST to catalog type
+                let convert_action = |action: &Option<vibesql_ast::ReferentialAction>| {
+                    match action.as_ref().unwrap_or(&vibesql_ast::ReferentialAction::NoAction) {
+                        vibesql_ast::ReferentialAction::Cascade => {
+                            vibesql_catalog::ReferentialAction::Cascade
+                        }
+                        vibesql_ast::ReferentialAction::SetNull => {
+                            vibesql_catalog::ReferentialAction::SetNull
+                        }
+                        vibesql_ast::ReferentialAction::SetDefault => {
+                            vibesql_catalog::ReferentialAction::SetDefault
+                        }
+                        vibesql_ast::ReferentialAction::NoAction => {
+                            vibesql_catalog::ReferentialAction::NoAction
+                        }
+                    }
+                };
+
+                let fk = vibesql_catalog::ForeignKeyConstraint {
+                    name: constraint.name.clone(),
+                    column_names: fk_columns.clone(),
+                    column_indices,
+                    parent_table: references_table.clone(),
+                    parent_column_names: references_columns.clone(),
+                    parent_column_indices,
+                    on_delete: convert_action(on_delete),
+                    on_update: convert_action(on_update),
+                };
+
+                table_schema.add_foreign_key(fk)?;
+            }
+        }
+
         // If creating in a non-current schema, temporarily switch to it
         let original_schema = database.catalog.get_current_schema().to_string();
         let needs_schema_switch = schema_name != original_schema;

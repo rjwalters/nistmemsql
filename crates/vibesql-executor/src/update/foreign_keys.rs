@@ -60,10 +60,12 @@ impl ForeignKeyValidator {
     /// Check that no child tables reference a row that is about to be deleted or updated.
     ///
     /// This is called before updating a primary key to ensure referential integrity.
+    /// If foreign keys have ON UPDATE CASCADE, this function will propagate the update to child rows.
     pub fn check_no_child_references(
-        db: &Database,
+        db: &mut Database,
         parent_table_name: &str,
         parent_row: &vibesql_storage::Row,
+        new_parent_row: &vibesql_storage::Row,
     ) -> Result<(), ExecutorError> {
         let parent_schema = db
             .catalog
@@ -76,8 +78,11 @@ impl ForeignKeyValidator {
             None => return Ok(()),
         };
 
-        let parent_key_values: Vec<vibesql_types::SqlValue> =
+        let old_parent_key_values: Vec<vibesql_types::SqlValue> =
             pk_indices.iter().map(|&idx| parent_row.values[idx].clone()).collect();
+
+        let new_parent_key_values: Vec<vibesql_types::SqlValue> =
+            pk_indices.iter().map(|&idx| new_parent_row.values[idx].clone()).collect();
 
         // Optimization: Check if any table in the database has foreign keys at all
         // If not, skip the expensive scan of all tables
@@ -91,6 +96,9 @@ impl ForeignKeyValidator {
         if !has_any_fks {
             return Ok(());
         }
+
+        // Collect cascade updates to apply after scanning (to avoid borrow checker issues)
+        let mut cascade_updates: Vec<(String, Vec<(usize, vibesql_storage::Row)>)> = Vec::new();
 
         // Scan all tables in the database to find foreign keys that reference this table.
         for table_name in db.catalog.list_tables() {
@@ -106,24 +114,67 @@ impl ForeignKeyValidator {
                     continue;
                 }
 
-                // Check if any row in the child table references the parent row.
+                // Get the child table and find matching rows
                 let child_table = db.get_table(&table_name).unwrap();
-                let has_references = child_table.scan().iter().any(|child_row| {
-                    let child_fk_values: Vec<vibesql_types::SqlValue> = fk
-                        .column_indices
-                        .iter()
-                        .map(|&idx| child_row.values[idx].clone())
-                        .collect();
-                    child_fk_values == parent_key_values
-                });
+                let matching_rows: Vec<(usize, vibesql_storage::Row)> = child_table
+                    .scan()
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(idx, child_row)| {
+                        let child_fk_values: Vec<vibesql_types::SqlValue> = fk
+                            .column_indices
+                            .iter()
+                            .map(|&col_idx| child_row.values[col_idx].clone())
+                            .collect();
 
-                if has_references {
-                    return Err(ExecutorError::ConstraintViolation(format!(
-                        "FOREIGN KEY constraint violation: cannot delete or update a parent row when a foreign key constraint exists. The conflict occurred in table \'{}\', constraint \'{}\'.",
-                        table_name,
-                        fk.name.as_deref().unwrap_or(""),
-                    )));
+                        if child_fk_values == old_parent_key_values {
+                            Some((idx, child_row.clone()))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                if !matching_rows.is_empty() {
+                    // Check the referential action
+                    match fk.on_update {
+                        vibesql_catalog::ReferentialAction::Cascade => {
+                            // Prepare cascade updates for this table
+                            let updated_rows: Vec<(usize, vibesql_storage::Row)> = matching_rows
+                                .into_iter()
+                                .map(|(row_idx, mut child_row)| {
+                                    // Update the FK columns to match the new parent key
+                                    for (fk_col_idx, new_parent_val) in
+                                        fk.column_indices.iter().zip(&new_parent_key_values)
+                                    {
+                                        child_row.values[*fk_col_idx] = new_parent_val.clone();
+                                    }
+                                    (row_idx, child_row)
+                                })
+                                .collect();
+
+                            cascade_updates.push((table_name.clone(), updated_rows));
+                        }
+                        _ => {
+                            // NoAction, SetNull, SetDefault - block the update
+                            return Err(ExecutorError::ConstraintViolation(format!(
+                                "FOREIGN KEY constraint violation: cannot delete or update a parent row when a foreign key constraint exists. The conflict occurred in table \'{}\', constraint \'{}\'.",
+                                table_name,
+                                fk.name.as_deref().unwrap_or(""),
+                            )));
+                        }
+                    }
                 }
+            }
+        }
+
+        // Apply cascade updates
+        for (table_name, updates) in cascade_updates {
+            let child_table = db.get_table_mut(&table_name).unwrap();
+            for (row_idx, new_row) in updates {
+                child_table
+                    .update_row(row_idx, new_row)
+                    .map_err(|e| ExecutorError::StorageError(e.to_string()))?;
             }
         }
 

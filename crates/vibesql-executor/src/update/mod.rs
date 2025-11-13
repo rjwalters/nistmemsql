@@ -119,6 +119,10 @@ impl UpdateExecutor {
                 .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?
         };
 
+        // Clone schema for PK checking (to avoid borrow checker issues)
+        let schema_clone = schema.clone();
+        let pk_indices_clone = schema_clone.get_primary_key_indices().map(|v| v.clone());
+
         // Step 2: Get table from storage (for reading rows)
         let table = database
             .get_table(&stmt.table_name)
@@ -135,12 +139,13 @@ impl UpdateExecutor {
         let value_updater = ValueUpdater::new(schema, &evaluator, &stmt.table_name);
 
         // Step 6: Build list of updates (two-phase execution for SQL semantics)
-        // Each update consists of: (row_index, old_row, new_row, changed_columns)
+        // Each update consists of: (row_index, old_row, new_row, changed_columns, updates_pk)
         let mut updates: Vec<(
             usize,
             vibesql_storage::Row,
             vibesql_storage::Row,
             std::collections::HashSet<usize>,
+            bool, // whether PK is being updated
         )> = Vec::new();
 
         for (row_index, row) in candidate_rows {
@@ -148,25 +153,19 @@ impl UpdateExecutor {
             // to prevent cached column values from previous rows
             evaluator.clear_cse_cache();
 
-            // If the primary key is being updated, we need to check for child references
-            if let Some(pk_indices) = schema.get_primary_key_indices() {
-                let updates_pk = stmt.assignments.iter().any(|a| {
-                    let col_index = schema.get_column_index(&a.column).unwrap();
-                    pk_indices.contains(&col_index)
-                });
-
-                if updates_pk {
-                    ForeignKeyValidator::check_no_child_references(
-                        database,
-                        &stmt.table_name,
-                        &row,
-                    )?;
-                }
-            }
-
             // Apply assignments to build updated row
             let (new_row, changed_columns) =
                 value_updater.apply_assignments(&row, &stmt.assignments)?;
+
+            // Check if primary key is being updated
+            let updates_pk = if let Some(ref pk_indices) = pk_indices_clone {
+                stmt.assignments.iter().any(|a| {
+                    let col_index = schema.get_column_index(&a.column).unwrap();
+                    pk_indices.contains(&col_index)
+                })
+            } else {
+                false
+            };
 
             // Validate all constraints (NOT NULL, PRIMARY KEY, UNIQUE, CHECK)
             let constraint_validator = ConstraintValidator::new(schema);
@@ -195,7 +194,20 @@ impl UpdateExecutor {
                 )?;
             }
 
-            updates.push((row_index, row.clone(), new_row, changed_columns));
+            updates.push((row_index, row.clone(), new_row, changed_columns, updates_pk));
+        }
+
+        // Step 7: Handle CASCADE updates for primary key changes (before triggers)
+        // This must happen after validation but before applying parent updates
+        for (_row_index, old_row, new_row, _changed_columns, updates_pk) in &updates {
+            if *updates_pk {
+                ForeignKeyValidator::check_no_child_references(
+                    database,
+                    &stmt.table_name,
+                    old_row,
+                    new_row,
+                )?;
+            }
         }
 
         // Fire BEFORE UPDATE triggers for all rows (before database mutation)

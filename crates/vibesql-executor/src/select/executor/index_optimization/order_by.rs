@@ -134,14 +134,43 @@ pub(in crate::select::executor) fn try_index_based_ordering(
     // Sort by key, respecting per-column ASC/DESC directions
     data_vec.sort_by(|(a, _): &(Vec<SqlValue>, Vec<usize>), (b, _): &(Vec<SqlValue>, Vec<usize>)| {
         for (i, (val_a, val_b)) in a.iter().zip(b.iter()).enumerate() {
-            let mut ord = compare_sql_values(val_a, val_b); // ASC comparator with NULLS LAST
+            // Determine if we want NULLs first or last based on direction and reversal
+            // When needs_reverse=true, we'll reverse the whole vector, so we need to pre-reverse NULL handling
+            let want_nulls_first = needs_reverse;
 
-            // Reverse if this column should be DESC
-            if let Some(direction) = order_directions.get(i) {
-                if matches!(direction, vibesql_ast::OrderDirection::Desc) {
-                    ord = ord.reverse();
+            // Handle NULLs: sort first or last based on want_nulls_first
+            let ord = match (val_a.is_null(), val_b.is_null()) {
+                (true, true) => std::cmp::Ordering::Equal,
+                (true, false) => {
+                    if want_nulls_first {
+                        return std::cmp::Ordering::Less;    // NULL sorts first (will be last after reverse)
+                    } else {
+                        return std::cmp::Ordering::Greater; // NULL sorts last
+                    }
                 }
-            }
+                (false, true) => {
+                    if want_nulls_first {
+                        return std::cmp::Ordering::Greater; // non-NULL sorts after (will be first after reverse)
+                    } else {
+                        return std::cmp::Ordering::Less;    // non-NULL sorts first
+                    }
+                }
+                (false, false) => {
+                    // Compare non-NULL values
+                    let mut comparison = compare_sql_values(val_a, val_b);
+
+                    // Reverse if this column should be DESC (but not if we're doing whole-vector reversal)
+                    if !needs_reverse {
+                        if let Some(direction) = order_directions.get(i) {
+                            if matches!(direction, vibesql_ast::OrderDirection::Desc) {
+                                comparison = comparison.reverse();
+                            }
+                        }
+                    }
+
+                    comparison
+                }
+            };
 
             if ord != std::cmp::Ordering::Equal {
                 return ord;
