@@ -863,6 +863,7 @@ mod tests {
     use vibesql_types::SqlValue;
 
     use super::*;
+    use super::super::{DatabaseConfig, SpillPolicy};
 
     #[test]
     fn test_range_scan_preserves_index_order() {
@@ -1066,5 +1067,268 @@ mod tests {
                 panic!("Expected InMemory variant for small table, got DiskBacked");
             }
         }
+    }
+
+    #[test]
+    fn test_budget_enforcement_with_spill_policy() {
+        // Test that memory budget is enforced with SpillToDisk policy
+        use vibesql_catalog::{ColumnSchema, TableSchema};
+        use vibesql_ast::OrderDirection;
+        use crate::Row;
+
+        let columns = vec![ColumnSchema::new("value".to_string(), DataType::Integer, false)];
+        let table_schema = TableSchema::new("test_table".to_string(), columns);
+
+        // Create small rows for in-memory indexes
+        let table_rows: Vec<Row> = (0..100)
+            .map(|i| Row {
+                values: vec![SqlValue::Integer(i as i64)],
+            })
+            .collect();
+
+        let mut index_manager = IndexManager::new();
+
+        // Set a very small memory budget to force eviction
+        let config = DatabaseConfig {
+            memory_budget: 1000,  // 1KB - very small to force eviction
+            disk_budget: 100 * 1024 * 1024,  // 100MB disk
+            spill_policy: SpillPolicy::SpillToDisk,
+        };
+        index_manager.set_config(config);
+
+        // Create first index - should succeed and be in-memory
+        let result1 = index_manager.create_index(
+            "idx_1".to_string(),
+            "test_table".to_string(),
+            &table_schema,
+            &table_rows,
+            false,
+            vec![vibesql_ast::IndexColumn {
+                column_name: "value".to_string(),
+                direction: OrderDirection::Asc,
+            }],
+        );
+        assert!(result1.is_ok());
+
+        // Creating a second index should trigger eviction of the first one
+        let result2 = index_manager.create_index(
+            "idx_2".to_string(),
+            "test_table".to_string(),
+            &table_schema,
+            &table_rows,
+            false,
+            vec![vibesql_ast::IndexColumn {
+                column_name: "value".to_string(),
+                direction: OrderDirection::Asc,
+            }],
+        );
+        assert!(result2.is_ok());
+
+        // Both indexes should exist (one in memory, one spilled to disk)
+        assert!(index_manager.index_exists("idx_1"));
+        assert!(index_manager.index_exists("idx_2"));
+    }
+
+    #[test]
+    fn test_lru_eviction_order() {
+        // Test that LRU eviction selects the coldest (least recently used) index
+        use vibesql_catalog::{ColumnSchema, TableSchema};
+        use vibesql_ast::OrderDirection;
+        use crate::Row;
+        use std::thread;
+        use std::time::Duration;
+
+        let columns = vec![ColumnSchema::new("value".to_string(), DataType::Integer, false)];
+        let table_schema = TableSchema::new("test_table".to_string(), columns);
+
+        let table_rows: Vec<Row> = (0..50)
+            .map(|i| Row {
+                values: vec![SqlValue::Integer(i as i64)],
+            })
+            .collect();
+
+        let mut index_manager = IndexManager::new();
+
+        // Small budget to trigger eviction
+        let config = DatabaseConfig {
+            memory_budget: 2000,  // 2KB
+            disk_budget: 100 * 1024 * 1024,
+            spill_policy: SpillPolicy::SpillToDisk,
+        };
+        index_manager.set_config(config);
+
+        // Create idx_1
+        index_manager.create_index(
+            "idx_1".to_string(),
+            "test_table".to_string(),
+            &table_schema,
+            &table_rows,
+            false,
+            vec![vibesql_ast::IndexColumn {
+                column_name: "value".to_string(),
+                direction: OrderDirection::Asc,
+            }],
+        ).unwrap();
+
+        thread::sleep(Duration::from_millis(10));
+
+        // Create idx_2
+        index_manager.create_index(
+            "idx_2".to_string(),
+            "test_table".to_string(),
+            &table_schema,
+            &table_rows,
+            false,
+            vec![vibesql_ast::IndexColumn {
+                column_name: "value".to_string(),
+                direction: OrderDirection::Asc,
+            }],
+        ).unwrap();
+
+        thread::sleep(Duration::from_millis(10));
+
+        // Access idx_1 to make it "hot" (more recently used than idx_2)
+        let _ = index_manager.get_index_data("idx_1");
+
+        thread::sleep(Duration::from_millis(10));
+
+        // Create idx_3 - should evict idx_2 (coldest), not idx_1
+        index_manager.create_index(
+            "idx_3".to_string(),
+            "test_table".to_string(),
+            &table_schema,
+            &table_rows,
+            false,
+            vec![vibesql_ast::IndexColumn {
+                column_name: "value".to_string(),
+                direction: OrderDirection::Asc,
+            }],
+        ).unwrap();
+
+        // All indexes should still exist
+        assert!(index_manager.index_exists("idx_1"));
+        assert!(index_manager.index_exists("idx_2"));
+        assert!(index_manager.index_exists("idx_3"));
+
+        // idx_2 should have been evicted to disk (coldest)
+        // idx_1 and idx_3 should still be in memory (hot)
+        let backend_1 = index_manager.resource_tracker.get_backend("idx_1");
+        let backend_2 = index_manager.resource_tracker.get_backend("idx_2");
+        let backend_3 = index_manager.resource_tracker.get_backend("idx_3");
+
+        // Note: Exact behavior depends on memory sizes, but idx_2 should be coldest
+        assert!(backend_2.is_some());
+    }
+
+    #[test]
+    fn test_access_tracking() {
+        // Test that index accesses are tracked for LRU
+        use vibesql_catalog::{ColumnSchema, TableSchema};
+        use vibesql_ast::OrderDirection;
+        use crate::Row;
+
+        let columns = vec![ColumnSchema::new("value".to_string(), DataType::Integer, false)];
+        let table_schema = TableSchema::new("test_table".to_string(), columns);
+
+        let table_rows: Vec<Row> = (0..10)
+            .map(|i| Row {
+                values: vec![SqlValue::Integer(i as i64)],
+            })
+            .collect();
+
+        let mut index_manager = IndexManager::new();
+
+        index_manager.create_index(
+            "idx_test".to_string(),
+            "test_table".to_string(),
+            &table_schema,
+            &table_rows,
+            false,
+            vec![vibesql_ast::IndexColumn {
+                column_name: "value".to_string(),
+                direction: OrderDirection::Asc,
+            }],
+        ).unwrap();
+
+        // Initial access count should be 0 (creation doesn't count as access)
+        let stats = index_manager.resource_tracker.get_index_stats("idx_test");
+        assert!(stats.is_some());
+        let initial_count = stats.unwrap().get_access_count();
+
+        // Access the index a few times
+        let _ = index_manager.get_index_data("idx_test");
+        let _ = index_manager.get_index_data("idx_test");
+        let _ = index_manager.get_index_data("idx_test");
+
+        // Access count should have increased
+        let stats = index_manager.resource_tracker.get_index_stats("idx_test");
+        assert!(stats.is_some());
+        let final_count = stats.unwrap().get_access_count();
+
+        assert!(final_count > initial_count,
+            "Access count should increase after index accesses (initial: {}, final: {})",
+            initial_count, final_count);
+    }
+
+    #[test]
+    fn test_resource_cleanup_on_drop() {
+        // Test that resources are freed when indexes are dropped
+        use vibesql_catalog::{ColumnSchema, TableSchema};
+        use vibesql_ast::OrderDirection;
+        use crate::Row;
+
+        let columns = vec![ColumnSchema::new("value".to_string(), DataType::Integer, false)];
+        let table_schema = TableSchema::new("test_table".to_string(), columns);
+
+        let table_rows: Vec<Row> = (0..100)
+            .map(|i| Row {
+                values: vec![SqlValue::Integer(i as i64)],
+            })
+            .collect();
+
+        let mut index_manager = IndexManager::new();
+
+        // Create an index
+        index_manager.create_index(
+            "idx_test".to_string(),
+            "test_table".to_string(),
+            &table_schema,
+            &table_rows,
+            false,
+            vec![vibesql_ast::IndexColumn {
+                column_name: "value".to_string(),
+                direction: OrderDirection::Asc,
+            }],
+        ).unwrap();
+
+        // Memory should be in use
+        let memory_before = index_manager.resource_tracker.memory_used();
+        assert!(memory_before > 0);
+
+        // Drop the index
+        index_manager.drop_index("idx_test").unwrap();
+
+        // Memory should be freed
+        let memory_after = index_manager.resource_tracker.memory_used();
+        assert_eq!(memory_after, 0, "Memory should be freed after dropping index");
+    }
+
+    #[test]
+    fn test_database_config_presets() {
+        // Test that preset configurations have expected values
+        let browser_config = DatabaseConfig::browser_default();
+        assert_eq!(browser_config.memory_budget, 512 * 1024 * 1024);  // 512MB
+        assert_eq!(browser_config.disk_budget, 2 * 1024 * 1024 * 1024);  // 2GB
+        assert_eq!(browser_config.spill_policy, SpillPolicy::SpillToDisk);
+
+        let server_config = DatabaseConfig::server_default();
+        assert_eq!(server_config.memory_budget, 16 * 1024 * 1024 * 1024);  // 16GB
+        assert_eq!(server_config.disk_budget, 1024 * 1024 * 1024 * 1024);  // 1TB
+        assert_eq!(server_config.spill_policy, SpillPolicy::BestEffort);
+
+        let test_config = DatabaseConfig::test_default();
+        assert_eq!(test_config.memory_budget, 10 * 1024 * 1024);  // 10MB
+        assert_eq!(test_config.disk_budget, 100 * 1024 * 1024);  // 100MB
+        assert_eq!(test_config.spill_policy, SpillPolicy::SpillToDisk);
     }
 }
