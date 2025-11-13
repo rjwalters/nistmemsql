@@ -16,6 +16,8 @@ pub struct SelectExecutor<'a> {
     pub(super) database: &'a vibesql_storage::Database,
     pub(super) _outer_row: Option<&'a vibesql_storage::Row>,
     pub(super) _outer_schema: Option<&'a crate::schema::CombinedSchema>,
+    /// Procedural context for stored procedure/function variable resolution
+    pub(super) procedural_context: Option<&'a crate::procedural::ExecutionContext>,
     /// Subquery nesting depth (for preventing stack overflow)
     pub(super) subquery_depth: usize,
     /// Memory used by this query execution (in bytes)
@@ -40,6 +42,7 @@ impl<'a> SelectExecutor<'a> {
             database,
             _outer_row: None,
             _outer_schema: None,
+            procedural_context: None,
             subquery_depth: 0,
             memory_used_bytes: Cell::new(0),
             memory_warning_logged: Cell::new(false),
@@ -59,6 +62,7 @@ impl<'a> SelectExecutor<'a> {
             database,
             _outer_row: Some(outer_row),
             _outer_schema: Some(outer_schema),
+            procedural_context: None,
             subquery_depth: 0,
             memory_used_bytes: Cell::new(0),
             memory_warning_logged: Cell::new(false),
@@ -94,7 +98,27 @@ impl<'a> SelectExecutor<'a> {
             database,
             _outer_row: Some(outer_row),
             _outer_schema: Some(outer_schema),
+            procedural_context: None,
             subquery_depth: parent_depth + 1,
+            memory_used_bytes: Cell::new(0),
+            memory_warning_logged: Cell::new(false),
+            start_time: Instant::now(),
+            timeout_seconds: crate::limits::MAX_QUERY_EXECUTION_SECONDS,
+            aggregate_cache: RefCell::new(HashMap::new()),
+        }
+    }
+
+    /// Create a new SELECT executor with procedural context for stored procedures/functions
+    pub fn new_with_procedural_context(
+        database: &'a vibesql_storage::Database,
+        procedural_context: &'a crate::procedural::ExecutionContext,
+    ) -> Self {
+        SelectExecutor {
+            database,
+            _outer_row: None,
+            _outer_schema: None,
+            procedural_context: Some(procedural_context),
+            subquery_depth: 0,
             memory_used_bytes: Cell::new(0),
             memory_warning_logged: Cell::new(false),
             start_time: Instant::now(),

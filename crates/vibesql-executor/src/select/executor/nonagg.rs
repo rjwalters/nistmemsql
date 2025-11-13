@@ -70,12 +70,19 @@ impl SelectExecutor<'_> {
         let rows = from_result.into_rows();
 
         // Create evaluator for WHERE clause
+        // Priority: 1) outer context (for subqueries) 2) procedural context 3) just database
         let evaluator = if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
             CombinedExpressionEvaluator::with_database_and_outer_context(
                 &schema,
                 self.database,
                 outer_row,
                 outer_schema,
+            )
+        } else if let Some(proc_ctx) = self.procedural_context {
+            CombinedExpressionEvaluator::with_database_and_procedural_context(
+                &schema,
+                self.database,
+                proc_ctx,
             )
         } else {
             CombinedExpressionEvaluator::with_database(&schema, self.database)

@@ -342,6 +342,26 @@ impl<'a> CombinedExpressionEvaluator<'a> {
         }
     }
 
+    /// Create a new combined expression evaluator with database and procedural context
+    pub(crate) fn with_database_and_procedural_context(
+        schema: &'a CombinedSchema,
+        database: &'a vibesql_storage::Database,
+        procedural_context: &'a crate::procedural::ExecutionContext,
+    ) -> Self {
+        CombinedExpressionEvaluator {
+            schema,
+            database: Some(database),
+            outer_row: None,
+            outer_schema: None,
+            window_mapping: None,
+            procedural_context: Some(procedural_context),
+            column_cache: RefCell::new(HashMap::new()),
+            depth: 0,
+            cse_cache: Rc::new(RefCell::new(HashMap::new())),
+            enable_cse: Self::is_cse_enabled(),
+        }
+    }
+
     /// Clear the CSE cache
     /// Should be called before evaluating expressions for a new row in multi-row contexts
     pub(crate) fn clear_cse_cache(&self) {

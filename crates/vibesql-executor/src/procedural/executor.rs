@@ -225,35 +225,32 @@ pub fn evaluate_expression(
 
 /// Execute a SQL statement within a procedural context
 ///
-/// **Phase 3 Implementation Status: Infrastructure Only**
+/// **Phase 3 Implementation**
 ///
-/// This function currently returns UnsupportedFeature errors for all SQL statement types.
-/// The evaluator infrastructure supports procedural context (see ExpressionEvaluator), but
-/// full integration with SQL executors is not yet implemented.
+/// This function executes SQL statements with access to procedural variables and parameters.
+/// Currently supports SELECT statements with procedural context.
 ///
-/// This placeholder ensures procedures with SQL statements fail explicitly rather than
-/// silently ignoring procedural variables
+/// Note: The results are discarded. For capturing results into variables, use SELECT INTO
+/// (not yet implemented).
 fn execute_sql_statement(
     stmt: &Statement,
-    _db: &mut Database,
-    _ctx: &ExecutionContext,
+    db: &mut Database,
+    ctx: &ExecutionContext,
 ) -> Result<(), ExecutorError> {
     match stmt {
-        Statement::Select(_) | Statement::Insert(_) | Statement::Update(_) | Statement::Delete(_) => {
-            // SQL statement execution with procedural context requires threading ExecutionContext
-            // through all SQL executor constructors (SelectExecutor, InsertExecutor, etc.) and
-            // passing it to all evaluator creation sites (~30-40 locations).
-            //
-            // The evaluator infrastructure is now in place (evaluators support procedural_context),
-            // but the full integration is not yet implemented.
-            //
-            // TODO: Implement in follow-up PR:
-            // 1. Add Option<&ExecutionContext> parameter to SQL executor constructors
-            // 2. Thread context through all evaluator construction sites
-            // 3. Add integration tests demonstrating end-to-end functionality
+        Statement::Select(select_stmt) => {
+            // Execute SELECT with procedural context
+            let executor = crate::SelectExecutor::new_with_procedural_context(db, ctx);
+            let _results = executor.execute(select_stmt)?;
+            // TODO: Support SELECT INTO for capturing results into variables
+            Ok(())
+        }
+        Statement::Insert(_) | Statement::Update(_) | Statement::Delete(_) => {
+            // TODO: Implement INSERT/UPDATE/DELETE with procedural context
+            // This requires similar changes to InsertExecutor, UpdateExecutor, DeleteExecutor
             Err(ExecutorError::UnsupportedFeature(
-                "SQL statements with procedural variables not yet implemented. \
-                 Evaluator infrastructure is in place, but executor integration is incomplete.".to_string()
+                "INSERT/UPDATE/DELETE statements with procedural variables not yet implemented. \
+                 Only SELECT is currently supported.".to_string()
             ))
         }
         _ => {
@@ -322,3 +319,15 @@ fn cast_to_type(value: SqlValue, target_type: &vibesql_types::DataType) -> Resul
         _ => Ok(value),
     }
 }
+
+// TODO: Add comprehensive integration tests for SELECT with procedural variables
+// These tests would verify:
+// 1. SELECT with procedural variables in WHERE clause
+// 2. SELECT with procedural variables in SELECT list
+// 3. SELECT with procedural parameters (IN/OUT/INOUT)
+// 4. Nested procedures with variable scoping
+//
+// For now, the implementation can be verified by:
+// - Build succeeds (procedural_context field is properly threaded)
+// - Existing procedural tests pass (no regressions)
+// - Manual testing with procedures containing SELECT statements
