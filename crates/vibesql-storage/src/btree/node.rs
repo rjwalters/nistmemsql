@@ -738,6 +738,342 @@ impl BTreeIndex {
 
         Ok(index)
     }
+
+    /// Delete a key from the B+ tree
+    ///
+    /// Implements full multi-level tree deletion with node merging and rebalancing.
+    /// When a deletion causes a leaf node to become underfull, it will try to borrow
+    /// entries from sibling nodes or merge with a sibling if borrowing isn't possible.
+    ///
+    /// # Arguments
+    /// * `key` - The key to delete
+    ///
+    /// # Returns
+    /// * `Ok(true)` if the key was found and deleted
+    /// * `Ok(false)` if the key was not found
+    /// * `Err(_)` if an I/O error occurred
+    ///
+    /// # Algorithm
+    /// 1. Find the leaf node containing the key
+    /// 2. Delete the key from the leaf
+    /// 3. If leaf becomes underfull, try to borrow from sibling or merge
+    /// 4. Propagate rebalancing up the tree if necessary
+    /// 5. Collapse the root if it has only one child
+    pub fn delete(&mut self, key: &Key) -> Result<bool, StorageError> {
+        // Handle single-level tree (root is leaf)
+        if self.height == 1 {
+            let mut root_leaf = self.read_leaf_node(self.root_page_id)?;
+            let deleted = root_leaf.delete(key);
+            if deleted {
+                self.write_leaf_node(&root_leaf)?;
+            }
+            return Ok(deleted);
+        }
+
+        // Multi-level tree: find leaf and track path
+        let (mut leaf, path) = self.find_leaf_path(key)?;
+
+        // Delete from leaf
+        if !leaf.delete(key) {
+            return Ok(false);  // Key not found
+        }
+
+        // Write leaf back
+        self.write_leaf_node(&leaf)?;
+
+        // Check if rebalancing needed
+        if leaf.is_underfull(self.degree) {
+            self.rebalance_leaf(leaf, path)?;
+        }
+
+        // Check if root should be collapsed
+        self.maybe_collapse_root()?;
+
+        Ok(true)
+    }
+
+    /// Find the leaf node that should contain the given key
+    ///
+    /// Returns the leaf node and the path from root to leaf.
+    /// Path is a vector of (parent_page_id, child_index) pairs.
+    fn find_leaf_path(&self, key: &Key) -> Result<(LeafNode, Vec<(PageId, usize)>), StorageError> {
+        let mut path = Vec::new();
+        let mut current_page_id = self.root_page_id;
+        let mut current_height = self.height;
+
+        // Navigate down to leaf level
+        while current_height > 1 {
+            let internal = self.read_internal_node(current_page_id)?;
+            let child_idx = internal.find_child_index(key);
+            let child_page_id = internal.children[child_idx];
+
+            path.push((current_page_id, child_idx));
+            current_page_id = child_page_id;
+            current_height -= 1;
+        }
+
+        let leaf = self.read_leaf_node(current_page_id)?;
+        Ok((leaf, path))
+    }
+
+    /// Rebalance a leaf node after deletion
+    ///
+    /// Tries to borrow from siblings first, then merges if necessary.
+    fn rebalance_leaf(&mut self, leaf: LeafNode, path: Vec<(PageId, usize)>) -> Result<(), StorageError> {
+        if path.is_empty() {
+            // Leaf is root, no rebalancing needed
+            return Ok(());
+        }
+
+        let (parent_id, child_idx) = *path.last().unwrap();
+        let mut parent = self.read_internal_node(parent_id)?;
+
+        // Try to borrow from sibling
+        if self.try_borrow_leaf(&leaf, &mut parent, child_idx)? {
+            // Successfully borrowed
+            self.write_internal_node(&parent)?;
+            return Ok(());
+        }
+
+        // Must merge with sibling
+        self.merge_leaf(leaf, &mut parent, child_idx)?;
+        self.write_internal_node(&parent)?;
+
+        // Check if parent is now underfull
+        if parent.children.len() < self.degree / 2 && path.len() > 1 {
+            // Propagate rebalancing up
+            self.propagate_rebalance(path)?;
+        }
+
+        Ok(())
+    }
+
+    /// Try to borrow entries from sibling leaf nodes
+    ///
+    /// Returns true if successfully borrowed, false if no sibling has spare entries.
+    fn try_borrow_leaf(&mut self, leaf: &LeafNode, parent: &mut InternalNode, idx: usize) -> Result<bool, StorageError> {
+        // Try left sibling
+        if idx > 0 {
+            let mut left_sibling = self.read_leaf_node(parent.children[idx - 1])?;
+            if left_sibling.entries.len() > self.degree / 2 {
+                // Borrow last entry from left sibling
+                let borrowed = left_sibling.entries.pop().unwrap();
+
+                let mut updated_leaf = leaf.clone();
+                updated_leaf.entries.insert(0, borrowed);
+
+                // Update parent separator key
+                parent.keys[idx - 1] = updated_leaf.entries[0].0.clone();
+
+                // Write nodes back
+                self.write_leaf_node(&left_sibling)?;
+                self.write_leaf_node(&updated_leaf)?;
+
+                return Ok(true);
+            }
+        }
+
+        // Try right sibling
+        if idx < parent.children.len() - 1 {
+            let mut right_sibling = self.read_leaf_node(parent.children[idx + 1])?;
+            if right_sibling.entries.len() > self.degree / 2 {
+                // Borrow first entry from right sibling
+                let borrowed = right_sibling.entries.remove(0);
+
+                let mut updated_leaf = leaf.clone();
+                updated_leaf.entries.push(borrowed);
+
+                // Update parent separator key
+                parent.keys[idx] = right_sibling.entries[0].0.clone();
+
+                // Write nodes back
+                self.write_leaf_node(&right_sibling)?;
+                self.write_leaf_node(&updated_leaf)?;
+
+                return Ok(true);
+            }
+        }
+
+        Ok(false)  // No sibling has enough entries to borrow
+    }
+
+    /// Merge underfull leaf with sibling
+    fn merge_leaf(&mut self, leaf: LeafNode, parent: &mut InternalNode, idx: usize) -> Result<(), StorageError> {
+        // Prefer merging with left sibling
+        if idx > 0 {
+            let mut left_sibling = self.read_leaf_node(parent.children[idx - 1])?;
+
+            // Merge leaf into left sibling
+            left_sibling.entries.extend(leaf.entries);
+            left_sibling.next_leaf = leaf.next_leaf;
+
+            self.write_leaf_node(&left_sibling)?;
+
+            // Remove from parent
+            parent.children.remove(idx);
+            parent.keys.remove(idx - 1);
+
+            // Deallocate merged node
+            self.page_manager.deallocate_page(leaf.page_id)?;
+        } else {
+            // Merge with right sibling
+            let right_sibling = self.read_leaf_node(parent.children[idx + 1])?;
+
+            // Merge right into leaf
+            let mut updated_leaf = leaf.clone();
+            updated_leaf.entries.extend(right_sibling.entries);
+            updated_leaf.next_leaf = right_sibling.next_leaf;
+
+            self.write_leaf_node(&updated_leaf)?;
+
+            // Remove from parent
+            parent.children.remove(idx + 1);
+            parent.keys.remove(idx);
+
+            // Deallocate merged node
+            self.page_manager.deallocate_page(right_sibling.page_id)?;
+        }
+
+        Ok(())
+    }
+
+    /// Propagate rebalancing up the tree
+    fn propagate_rebalance(&mut self, path: Vec<(PageId, usize)>) -> Result<(), StorageError> {
+        // Process from bottom to top (skip the last entry which we already handled)
+        for i in (0..path.len() - 1).rev() {
+            let (parent_id, child_idx) = path[i];
+            let (current_id, _) = path[i + 1];
+
+            let mut parent = self.read_internal_node(parent_id)?;
+            let current = self.read_internal_node(current_id)?;
+
+            // Check if current node is underfull
+            if current.children.len() < self.degree / 2 {
+                // Try to borrow or merge at internal node level
+                if !self.try_borrow_internal(&current, &mut parent, child_idx)? {
+                    self.merge_internal(current, &mut parent, child_idx)?;
+                }
+                self.write_internal_node(&parent)?;
+            } else {
+                // Parent is OK, stop propagating
+                self.write_internal_node(&parent)?;
+                break;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Try to borrow entries from sibling internal nodes
+    fn try_borrow_internal(&mut self, node: &InternalNode, parent: &mut InternalNode, idx: usize) -> Result<bool, StorageError> {
+        // Try left sibling
+        if idx > 0 {
+            let mut left_sibling = self.read_internal_node(parent.children[idx - 1])?;
+            if left_sibling.children.len() > self.degree / 2 {
+                // Borrow last child and key from left sibling
+                let borrowed_child = left_sibling.children.pop().unwrap();
+                let borrowed_key = left_sibling.keys.pop().unwrap();
+
+                let mut updated_node = node.clone();
+                updated_node.children.insert(0, borrowed_child);
+                updated_node.keys.insert(0, parent.keys[idx - 1].clone());
+
+                // Update parent separator key
+                parent.keys[idx - 1] = borrowed_key;
+
+                // Write nodes back
+                self.write_internal_node(&left_sibling)?;
+                self.write_internal_node(&updated_node)?;
+
+                return Ok(true);
+            }
+        }
+
+        // Try right sibling
+        if idx < parent.children.len() - 1 {
+            let mut right_sibling = self.read_internal_node(parent.children[idx + 1])?;
+            if right_sibling.children.len() > self.degree / 2 {
+                // Borrow first child and key from right sibling
+                let borrowed_child = right_sibling.children.remove(0);
+                let borrowed_key = right_sibling.keys.remove(0);
+
+                let mut updated_node = node.clone();
+                updated_node.children.push(borrowed_child);
+                updated_node.keys.push(parent.keys[idx].clone());
+
+                // Update parent separator key
+                parent.keys[idx] = borrowed_key;
+
+                // Write nodes back
+                self.write_internal_node(&right_sibling)?;
+                self.write_internal_node(&updated_node)?;
+
+                return Ok(true);
+            }
+        }
+
+        Ok(false)  // No sibling has enough entries to borrow
+    }
+
+    /// Merge underfull internal node with sibling
+    fn merge_internal(&mut self, node: InternalNode, parent: &mut InternalNode, idx: usize) -> Result<(), StorageError> {
+        // Prefer merging with left sibling
+        if idx > 0 {
+            let mut left_sibling = self.read_internal_node(parent.children[idx - 1])?;
+
+            // Merge node into left sibling
+            // Include the parent's separator key
+            left_sibling.keys.push(parent.keys[idx - 1].clone());
+            left_sibling.keys.extend(node.keys);
+            left_sibling.children.extend(node.children);
+
+            self.write_internal_node(&left_sibling)?;
+
+            // Remove from parent
+            parent.children.remove(idx);
+            parent.keys.remove(idx - 1);
+
+            // Deallocate merged node
+            self.page_manager.deallocate_page(node.page_id)?;
+        } else {
+            // Merge with right sibling
+            let right_sibling = self.read_internal_node(parent.children[idx + 1])?;
+
+            // Merge right into node
+            let mut updated_node = node.clone();
+            updated_node.keys.push(parent.keys[idx].clone());
+            updated_node.keys.extend(right_sibling.keys);
+            updated_node.children.extend(right_sibling.children);
+
+            self.write_internal_node(&updated_node)?;
+
+            // Remove from parent
+            parent.children.remove(idx + 1);
+            parent.keys.remove(idx);
+
+            // Deallocate merged node
+            self.page_manager.deallocate_page(right_sibling.page_id)?;
+        }
+
+        Ok(())
+    }
+
+    /// Check if root should be collapsed (height decrease)
+    fn maybe_collapse_root(&mut self) -> Result<(), StorageError> {
+        if self.height > 1 {
+            let root = self.read_internal_node(self.root_page_id)?;
+            if root.children.len() == 1 {
+                // Collapse root
+                let old_root_id = self.root_page_id;
+                self.root_page_id = root.children[0];
+                self.height -= 1;
+                self.page_manager.deallocate_page(old_root_id)?;
+                self.save_metadata()?;
+            }
+        }
+
+        Ok(())
+    }
 }
 
 /// Helper function to read the first key from a page (either internal or leaf)
@@ -1013,5 +1349,214 @@ mod tests {
         let loaded_index = BTreeIndex::load(page_manager).unwrap();
         assert_eq!(loaded_index.height(), index.height());
         assert_eq!(loaded_index.degree(), index.degree());
+    }
+
+    #[test]
+    fn test_delete_single_level_tree() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+        let sorted_entries = vec![
+            (vec![SqlValue::Integer(10)], 0),
+            (vec![SqlValue::Integer(20)], 1),
+            (vec![SqlValue::Integer(30)], 2),
+        ];
+
+        let mut index = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager).unwrap();
+
+        // Delete middle entry
+        assert!(index.delete(&vec![SqlValue::Integer(20)]).unwrap());
+
+        // Verify it was deleted
+        let root_leaf = index.read_leaf_node(index.root_page_id()).unwrap();
+        assert_eq!(root_leaf.entries.len(), 2);
+        assert_eq!(root_leaf.entries[0].0, vec![SqlValue::Integer(10)]);
+        assert_eq!(root_leaf.entries[1].0, vec![SqlValue::Integer(30)]);
+
+        // Try to delete non-existent key
+        assert!(!index.delete(&vec![SqlValue::Integer(20)]).unwrap());
+    }
+
+    #[test]
+    fn test_delete_nonexistent_key() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+        let sorted_entries = vec![
+            (vec![SqlValue::Integer(10)], 0),
+            (vec![SqlValue::Integer(20)], 1),
+            (vec![SqlValue::Integer(30)], 2),
+        ];
+
+        let mut index = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager).unwrap();
+
+        // Try to delete key that doesn't exist
+        assert!(!index.delete(&vec![SqlValue::Integer(99)]).unwrap());
+
+        // Verify tree unchanged
+        let root_leaf = index.read_leaf_node(index.root_page_id()).unwrap();
+        assert_eq!(root_leaf.entries.len(), 3);
+    }
+
+    #[test]
+    fn test_delete_all_entries_single_level() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+        let sorted_entries = vec![
+            (vec![SqlValue::Integer(10)], 0),
+            (vec![SqlValue::Integer(20)], 1),
+            (vec![SqlValue::Integer(30)], 2),
+        ];
+
+        let mut index = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager).unwrap();
+
+        // Delete all entries
+        assert!(index.delete(&vec![SqlValue::Integer(10)]).unwrap());
+        assert!(index.delete(&vec![SqlValue::Integer(20)]).unwrap());
+        assert!(index.delete(&vec![SqlValue::Integer(30)]).unwrap());
+
+        // Verify tree is empty
+        let root_leaf = index.read_leaf_node(index.root_page_id()).unwrap();
+        assert_eq!(root_leaf.entries.len(), 0);
+    }
+
+    #[test]
+    fn test_delete_multi_level_tree() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+
+        // Create enough entries to ensure multi-level tree
+        let sorted_entries: Vec<(Key, RowId)> = (0..1000)
+            .map(|i| (vec![SqlValue::Integer(i * 10)], i as usize))
+            .collect();
+
+        let mut index = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager).unwrap();
+
+        let original_height = index.height();
+        assert!(original_height > 1, "Tree should be multi-level");
+
+        // Delete some entries
+        assert!(index.delete(&vec![SqlValue::Integer(100)]).unwrap());
+        assert!(index.delete(&vec![SqlValue::Integer(500)]).unwrap());
+        assert!(index.delete(&vec![SqlValue::Integer(900)]).unwrap());
+
+        // Verify deletions
+        assert!(!index.delete(&vec![SqlValue::Integer(100)]).unwrap());
+        assert!(!index.delete(&vec![SqlValue::Integer(500)]).unwrap());
+        assert!(!index.delete(&vec![SqlValue::Integer(900)]).unwrap());
+
+        // Tree should still exist
+        assert!(index.height() >= 1);
+    }
+
+    #[test]
+    fn test_delete_causes_height_decrease() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+
+        // Create a tree with specific size to control height
+        let sorted_entries: Vec<(Key, RowId)> = (0..100)
+            .map(|i| (vec![SqlValue::Integer(i * 10)], i as usize))
+            .collect();
+
+        let mut index = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager).unwrap();
+
+        let original_height = index.height();
+
+        // Delete many entries to potentially cause height decrease
+        for i in 0..90 {
+            let result = index.delete(&vec![SqlValue::Integer(i * 10)]);
+            assert!(result.is_ok(), "Delete should succeed");
+        }
+
+        // Height should have decreased or stayed the same (depending on tree structure)
+        assert!(index.height() <= original_height);
+    }
+
+    #[test]
+    fn test_delete_sequence() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+
+        // Create tree with 500 entries
+        let sorted_entries: Vec<(Key, RowId)> = (0..500)
+            .map(|i| (vec![SqlValue::Integer(i * 10)], i as usize))
+            .collect();
+
+        let mut index = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager).unwrap();
+
+        // Delete every other entry
+        for i in (0..500).step_by(2) {
+            assert!(index.delete(&vec![SqlValue::Integer(i * 10)]).unwrap());
+        }
+
+        // Verify deletions
+        for i in (0..500).step_by(2) {
+            assert!(!index.delete(&vec![SqlValue::Integer(i * 10)]).unwrap());
+        }
+
+        // Tree should still be valid
+        assert!(index.height() >= 1);
+    }
+
+    #[test]
+    fn test_delete_multi_column_keys() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![DataType::Integer, DataType::Varchar { max_length: Some(50) }];
+        let sorted_entries = vec![
+            (vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())], 0),
+            (vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())], 1),
+            (vec![SqlValue::Integer(3), SqlValue::Varchar("Charlie".to_string())], 2),
+        ];
+
+        let mut index = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager).unwrap();
+
+        // Delete entry with multi-column key
+        assert!(index.delete(&vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())]).unwrap());
+
+        // Verify deletion
+        let root_leaf = index.read_leaf_node(index.root_page_id()).unwrap();
+        assert_eq!(root_leaf.entries.len(), 2);
+        assert_eq!(
+            root_leaf.entries[0].0,
+            vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]
+        );
+        assert_eq!(
+            root_leaf.entries[1].0,
+            vec![SqlValue::Integer(3), SqlValue::Varchar("Charlie".to_string())]
+        );
     }
 }
