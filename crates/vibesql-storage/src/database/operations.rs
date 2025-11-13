@@ -282,13 +282,19 @@ impl Operations {
 
     /// List all indexes for a specific table
     pub fn list_indexes_for_table(&self, table_name: &str) -> Vec<String> {
+        // Normalize for case-insensitive comparison
+        let normalized_search = table_name.to_uppercase();
+
         self.index_manager
             .list_indexes()
             .into_iter()
             .filter(|index_name| {
                 self.index_manager
                     .get_index(index_name)
-                    .map(|metadata| metadata.table_name == table_name)
+                    .map(|metadata| {
+                        // Normalize both sides for comparison
+                        metadata.table_name.to_uppercase() == normalized_search
+                    })
                     .unwrap_or(false)
             })
             .collect()

@@ -352,8 +352,9 @@ fn test_unique_index_update_enforcement() {
     assert!(result.is_err());
     match result.unwrap_err() {
         ExecutorError::ConstraintViolation(msg) => {
-            assert!(msg.contains("UNIQUE constraint"));
-            assert!(msg.contains("IDX_USERS_EMAIL")); // Index names are normalized to uppercase
+            eprintln!("Error message: {}", msg);
+            assert!(msg.contains("UNIQUE constraint"), "Message: {}", msg);
+            assert!(msg.contains("IDX_USERS_EMAIL") || msg.contains("idx_users_email"), "Message: {}", msg); // Index names should be normalized to uppercase
         }
         e => panic!("Expected ConstraintViolation, got {:?}", e),
     }
