@@ -32,7 +32,6 @@ mod tests {
     use vibesql_types::{DataType, SqlValue};
     use std::sync::Arc;
     use crate::page::PageManager;
-    use crate::StorageError;
 
     #[test]
     fn test_leaf_node_insert() {
