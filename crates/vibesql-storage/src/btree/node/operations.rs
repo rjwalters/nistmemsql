@@ -71,6 +71,7 @@ impl LeafNode {
     ///
     /// If this was the last row_id for the key, removes the key entirely.
     /// Returns true if the row_id was found and deleted, false otherwise.
+    #[allow(dead_code)]
     pub fn delete(&mut self, key: &Key, row_id: RowId) -> bool {
         match self.entries.binary_search_by_key(&key, |(k, _)| k) {
             Ok(idx) => {

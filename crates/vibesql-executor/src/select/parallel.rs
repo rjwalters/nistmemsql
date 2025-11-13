@@ -173,6 +173,7 @@ use vibesql_storage::Row;
 ///     matches!(row.values[0], SqlValue::Integer(x) if x > 100)
 /// });
 /// ```
+#[allow(dead_code)]
 pub fn parallel_scan_filter<F>(rows: &[Row], predicate: F) -> Vec<Row>
 where
     F: Fn(&Row) -> bool + Sync + Send,
@@ -216,6 +217,7 @@ where
 ///     }
 /// });
 /// ```
+#[allow(dead_code)]
 pub fn parallel_scan_map<F>(rows: &[Row], transform: F) -> Vec<Row>
 where
     F: Fn(&Row) -> Row + Sync + Send,
@@ -258,6 +260,7 @@ where
 ///     }
 /// });
 /// ```
+#[allow(dead_code)]
 pub fn parallel_scan_filter_map<F>(rows: &[Row], filter_map: F) -> Vec<Row>
 where
     F: Fn(&Row) -> Option<Row> + Sync + Send,
