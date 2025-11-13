@@ -168,6 +168,16 @@ impl ExecutionContext {
     pub fn get_out_parameters(&self) -> &HashMap<String, String> {
         &self.out_parameters
     }
+
+    /// Get all available variable and parameter names (for error messages)
+    pub fn get_available_names(&self) -> Vec<String> {
+        let mut names: Vec<String> = self.variables.keys()
+            .chain(self.parameters.keys())
+            .cloned()
+            .collect();
+        names.sort();
+        names
+    }
 }
 
 impl Default for ExecutionContext {

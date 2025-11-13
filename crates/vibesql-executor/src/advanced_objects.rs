@@ -417,21 +417,47 @@ pub fn execute_call(
 
     // 1. Look up the procedure definition and clone what we need
     let (parameters, body) = {
-        let procedure = db.catalog
-            .get_procedure(&stmt.procedure_name)
-            .ok_or_else(|| ExecutorError::Other(format!("Procedure '{}' not found", stmt.procedure_name)))?;
+        let procedure = db.catalog.get_procedure(&stmt.procedure_name);
 
-        (procedure.parameters.clone(), procedure.body.clone())
+        match procedure {
+            Some(proc) => (proc.parameters.clone(), proc.body.clone()),
+            None => {
+                // Procedure not found - provide helpful error with suggestions
+                let schema_name = db.catalog.get_current_schema().to_string();
+                let available_procedures = db.catalog.list_procedures();
+
+                return Err(ExecutorError::ProcedureNotFound {
+                    procedure_name: stmt.procedure_name.clone(),
+                    schema_name,
+                    available_procedures,
+                });
+            }
+        }
     };
 
     // 2. Validate parameter count
     if stmt.arguments.len() != parameters.len() {
-        return Err(ExecutorError::Other(format!(
-            "Procedure '{}' expects {} arguments but got {}",
-            stmt.procedure_name,
-            parameters.len(),
-            stmt.arguments.len()
-        )));
+        // Build parameter signature string
+        let param_sig = parameters
+            .iter()
+            .map(|p| {
+                let mode = match p.mode {
+                    vibesql_catalog::ParameterMode::In => "IN",
+                    vibesql_catalog::ParameterMode::Out => "OUT",
+                    vibesql_catalog::ParameterMode::InOut => "INOUT",
+                };
+                format!("{} {} {:?}", mode, p.name, p.data_type)
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        return Err(ExecutorError::ParameterCountMismatch {
+            routine_name: stmt.procedure_name.clone(),
+            routine_type: "Procedure".to_string(),
+            expected: parameters.len(),
+            actual: stmt.arguments.len(),
+            parameter_signature: param_sig,
+        });
     }
 
     // 3. Create execution context and bind parameters

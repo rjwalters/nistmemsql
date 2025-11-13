@@ -57,7 +57,10 @@ pub fn execute_procedural_statement(
                 // Update local variable
                 ctx.set_variable(name, new_value);
             } else {
-                return Err(ExecutorError::VariableNotFound(name.clone()));
+                return Err(ExecutorError::VariableNotFound {
+                    variable_name: name.clone(),
+                    available_variables: ctx.get_available_names(),
+                });
             }
 
             Ok(ControlFlow::Continue)
@@ -132,12 +135,18 @@ pub fn evaluate_expression(
                 let var_name = &column[1..]; // Strip @ prefix
                 _db.get_session_variable(var_name)
                     .cloned()
-                    .ok_or_else(|| ExecutorError::VariableNotFound(format!("@{}", var_name)))
+                    .ok_or_else(|| ExecutorError::VariableNotFound {
+                        variable_name: format!("@{}", var_name),
+                        available_variables: vec![], // Session variables not listed
+                    })
             } else {
                 // Regular variable or parameter reference
                 ctx.get_value(column)
                     .cloned()
-                    .ok_or_else(|| ExecutorError::VariableNotFound(column.clone()))
+                    .ok_or_else(|| ExecutorError::VariableNotFound {
+                        variable_name: column.clone(),
+                        available_variables: ctx.get_available_names(),
+                    })
             }
         }
 
