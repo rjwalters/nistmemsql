@@ -44,7 +44,7 @@ fn test_in_list_basic() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 2); // 1 and 5 match
@@ -86,7 +86,7 @@ fn test_not_in_list() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1); // Only 2 doesn't match
@@ -128,7 +128,7 @@ fn test_in_list_with_null_value() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1); // NULL doesn't match, only 1 matches
@@ -170,7 +170,7 @@ fn test_in_list_with_null_in_list() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 0); // NULL in list causes unknown result for non-matching value
@@ -208,7 +208,7 @@ fn test_empty_in_list() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 0); // Empty IN list always returns false
@@ -246,7 +246,7 @@ fn test_empty_not_in_list() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 2); // Empty NOT IN list always returns true
@@ -291,7 +291,7 @@ fn test_null_in_empty_subquery() {
                     limit: None,
                     offset: None,
                     into_table: None,
-                }),
+                    into_variables: None,                }),
                 negated: false,
             },
             alias: None,
@@ -304,7 +304,7 @@ fn test_null_in_empty_subquery() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
@@ -350,7 +350,7 @@ fn test_null_not_in_empty_subquery() {
                     limit: None,
                     offset: None,
                     into_table: None,
-                }),
+                    into_variables: None,                }),
                 negated: true,
             },
             alias: None,
@@ -363,7 +363,7 @@ fn test_null_not_in_empty_subquery() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
@@ -408,7 +408,7 @@ fn test_value_in_empty_subquery() {
                     limit: None,
                     offset: None,
                     into_table: None,
-                }),
+                    into_variables: None,                }),
                 negated: false,
             },
             alias: None,
@@ -421,7 +421,7 @@ fn test_value_in_empty_subquery() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);

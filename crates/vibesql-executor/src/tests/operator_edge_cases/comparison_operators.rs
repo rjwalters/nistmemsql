@@ -49,7 +49,7 @@ fn test_nested_comparisons() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);

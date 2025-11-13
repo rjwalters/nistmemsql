@@ -11,7 +11,7 @@ fn test_select_literal_integers() {
 
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![
@@ -52,7 +52,7 @@ fn test_select_literal_mixed_types() {
 
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![
@@ -92,7 +92,7 @@ fn test_select_arithmetic_expression() {
 
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![
@@ -136,7 +136,7 @@ fn test_select_function_call() {
 
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -168,7 +168,7 @@ fn test_select_star_without_from_fails() {
 
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
@@ -198,7 +198,7 @@ fn test_column_reference_without_from_fails() {
 
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -231,7 +231,7 @@ fn test_is_null_with_column_reference_fails() {
 
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -270,7 +270,7 @@ fn test_between_with_column_reference_fails() {
 
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -312,7 +312,7 @@ fn test_cast_with_column_reference_fails() {
 
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -351,7 +351,7 @@ fn test_like_with_column_reference_fails() {
 
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -393,7 +393,7 @@ fn test_in_list_with_column_reference_fails() {
 
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -468,7 +468,7 @@ fn test_hex_literal_in_subquery_without_from() {
                     limit: None,
                     offset: None,
                     into_table: None,
-                }),
+                    into_variables: None,                }),
                 negated: false,
             },
             alias: None,
@@ -481,7 +481,7 @@ fn test_hex_literal_in_subquery_without_from() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
@@ -497,7 +497,7 @@ fn test_hex_literal_simple() {
     // SELECT x'48656C6C6F' (should return "Hello")
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -555,7 +555,7 @@ fn test_binary_literal_in_subquery_without_from() {
                     limit: None,
                     offset: None,
                     into_table: None,
-                }),
+                    into_variables: None,                }),
                 negated: false,
             },
             alias: None,
@@ -568,7 +568,7 @@ fn test_binary_literal_in_subquery_without_from() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);

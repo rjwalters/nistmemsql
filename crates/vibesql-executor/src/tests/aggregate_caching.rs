@@ -77,7 +77,7 @@ fn test_repeated_count_star_cached() {
 
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression { expr: final_expr, alias: None }],
@@ -135,7 +135,7 @@ fn test_repeated_sum_cached() {
 
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression { expr, alias: None }],
@@ -238,7 +238,7 @@ fn test_cache_cleared_between_groups() {
 
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![
@@ -309,7 +309,7 @@ fn test_distinct_aggregates_not_confused() {
 
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![

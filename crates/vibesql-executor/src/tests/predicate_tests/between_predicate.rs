@@ -41,7 +41,7 @@ fn test_between_with_null_expr() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1); // NULL doesn't match, only 5
@@ -82,7 +82,7 @@ fn test_not_between() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 2); // 5 and 25
@@ -122,7 +122,7 @@ fn test_between_boundary_values() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 3); // All values including boundaries

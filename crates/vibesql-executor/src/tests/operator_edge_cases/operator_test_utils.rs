@@ -25,7 +25,7 @@ pub fn create_select_stmt(expr: vibesql_ast::Expression, alias: &str) -> vibesql
         limit: None,
         offset: None,
         into_table: None,
-    }
+        into_variables: None,    }
 }
 
 /// Executes an expression and returns the result

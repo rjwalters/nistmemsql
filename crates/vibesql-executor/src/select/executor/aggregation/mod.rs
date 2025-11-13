@@ -61,8 +61,8 @@ impl SelectExecutor<'_> {
         // Extract schema for evaluator before moving from_result
         let schema = from_result.schema.clone();
 
-        // Create evaluator with outer context if available (outer schema is already a
-        // CombinedSchema)
+        // Create evaluator with procedural context support
+        // Priority: 1) outer context (for subqueries) 2) procedural context 3) just database
         let evaluator =
             if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
                 CombinedExpressionEvaluator::with_database_and_outer_context(
@@ -70,6 +70,12 @@ impl SelectExecutor<'_> {
                     self.database,
                     outer_row,
                     outer_schema,
+                )
+            } else if let Some(proc_ctx) = self.procedural_context {
+                CombinedExpressionEvaluator::with_database_and_procedural_context(
+                    &schema,
+                    self.database,
+                    proc_ctx,
                 )
             } else {
                 CombinedExpressionEvaluator::with_database(&schema, self.database)
