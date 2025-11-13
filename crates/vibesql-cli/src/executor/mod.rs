@@ -146,6 +146,23 @@ impl SqlExecutor {
                     Err(e) => return Err(anyhow::anyhow!("{}", e)),
                 }
             }
+            vibesql_ast::Statement::CreateTrigger(trigger_stmt) => {
+                match vibesql_executor::TriggerExecutor::create_trigger(&mut self.db, &trigger_stmt)
+                {
+                    Ok(_) => {
+                        result.row_count = 0; // DDL doesn't return rows
+                    }
+                    Err(e) => return Err(anyhow::anyhow!("{}", e)),
+                }
+            }
+            vibesql_ast::Statement::DropTrigger(drop_stmt) => {
+                match vibesql_executor::TriggerExecutor::drop_trigger(&mut self.db, &drop_stmt) {
+                    Ok(_) => {
+                        result.row_count = 0; // DDL doesn't return rows
+                    }
+                    Err(e) => return Err(anyhow::anyhow!("{}", e)),
+                }
+            }
             _ => {
                 return Err(anyhow::anyhow!("Statement type not yet supported in CLI"));
             }
