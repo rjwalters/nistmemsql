@@ -128,22 +128,27 @@ for TEST_FILE in "${TEST_FILES[@]}"; do
 
     for RUN in 1 2 3; do
         START_TIME=$(date +%s.%N)
-        if timeout 30 env SQLLOGICTEST_FILE="$REL_PATH" cargo test -p vibesql --test sqllogictest_runner run_single_test_file >/dev/null 2>&1; then
+        if timeout 30 "$REPO_ROOT/scripts/sqllogictest" test "$REL_PATH" >/dev/null 2>&1; then
             END_TIME=$(date +%s.%N)
-            DURATION=$(echo "$END_TIME - $START_TIME" | bc)
+            # Use printf to ensure leading zero for JSON compatibility
+            DURATION=$(printf "%.6f" "$(echo "$END_TIME - $START_TIME" | bc)")
             RUNS+=("$DURATION")
         else
             ALL_PASSED=false
             END_TIME=$(date +%s.%N)
-            DURATION=$(echo "$END_TIME - $START_TIME" | bc)
+            # Use printf to ensure leading zero for JSON compatibility
+            DURATION=$(printf "%.6f" "$(echo "$END_TIME - $START_TIME" | bc)")
             RUNS+=("$DURATION")
         fi
     done
 
     # Calculate statistics from 3 runs
-    MIN_TIME=$(printf '%s\n' "${RUNS[@]}" | sort -n | head -1)
-    MAX_TIME=$(printf '%s\n' "${RUNS[@]}" | sort -n | tail -1)
-    AVG_RUN=$(echo "scale=6; (${RUNS[0]} + ${RUNS[1]} + ${RUNS[2]}) / 3" | bc)
+    # Use printf to ensure leading zeros for JSON compatibility
+    MIN_TIME_RAW=$(printf '%s\n' "${RUNS[@]}" | sort -n | head -1)
+    MAX_TIME_RAW=$(printf '%s\n' "${RUNS[@]}" | sort -n | tail -1)
+    MIN_TIME=$(printf "%.6f" "$MIN_TIME_RAW")
+    MAX_TIME=$(printf "%.6f" "$MAX_TIME_RAW")
+    AVG_RUN=$(printf "%.6f" "$(echo "scale=6; (${RUNS[0]} + ${RUNS[1]} + ${RUNS[2]}) / 3" | bc)")
 
     if $ALL_PASSED; then
         VIBESQL_PASS=$((VIBESQL_PASS + 1))
