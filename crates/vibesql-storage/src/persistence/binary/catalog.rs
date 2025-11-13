@@ -167,7 +167,7 @@ pub fn read_catalog<R: Read>(reader: &mut R) -> Result<Database, StorageError> {
     for _ in 0..schema_count {
         let schema_name = read_string(reader)?;
         // Create schema directly on catalog
-        &mut db.catalog
+        db.catalog
             .create_schema(schema_name)
             .map_err(|e| StorageError::NotImplemented(format!("Failed to create schema: {}", e)))?;
     }
@@ -176,7 +176,7 @@ pub fn read_catalog<R: Read>(reader: &mut R) -> Result<Database, StorageError> {
     let role_count = read_u32(reader)?;
     for _ in 0..role_count {
         let role_name = read_string(reader)?;
-        &mut db.catalog
+        db.catalog
             .create_role(role_name)
             .map_err(|e| StorageError::NotImplemented(format!("Failed to create role: {}", e)))?;
     }
@@ -350,7 +350,7 @@ pub fn read_catalog<R: Read>(reader: &mut R) -> Result<Database, StorageError> {
         );
 
         // Add to catalog
-        &mut db.catalog.create_trigger(trigger).map_err(|e| {
+        db.catalog.create_trigger(trigger).map_err(|e| {
             StorageError::NotImplemented(format!("Failed to create trigger: {}", e))
         })?;
     }

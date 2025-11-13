@@ -416,14 +416,14 @@ fn json_database_to_db(json_db: JsonDatabase) -> Result<Database, StorageError> 
 
     // Create schemas
     for schema in json_db.schemas {
-        &mut db.catalog
+        db.catalog
             .create_schema(schema.name)
             .map_err(|e: vibesql_catalog::CatalogError| StorageError::CatalogError(e.to_string()))?;
     }
 
     // Create roles
     for role in json_db.roles {
-        &mut db.catalog.create_role(role.name).map_err(|e: vibesql_catalog::CatalogError| StorageError::CatalogError(e.to_string()))?;
+        db.catalog.create_role(role.name).map_err(|e: vibesql_catalog::CatalogError| StorageError::CatalogError(e.to_string()))?;
     }
 
     // Create tables and insert data
