@@ -213,6 +213,46 @@ pub fn execute_drop_assertion(
 }
 
 /// Execute CREATE PROCEDURE statement (SQL:1999 Feature P001)
+///
+/// Creates a stored procedure in the database catalog with optional characteristics.
+///
+/// # Parameters
+///
+/// Procedures support three parameter modes:
+/// - **IN**: Input-only parameters (read by procedure)
+/// - **OUT**: Output-only parameters (written by procedure to session variables)
+/// - **INOUT**: Both input and output (read and written)
+///
+/// # Characteristics (Phase 6)
+///
+/// - **SQL SECURITY**: DEFINER (default) or INVOKER
+/// - **COMMENT**: Documentation string
+/// - **LANGUAGE**: SQL (only supported language)
+///
+/// # Example
+///
+/// ```sql
+/// CREATE PROCEDURE calculate_stats(
+///   IN input_value INT,
+///   OUT sum_result INT,
+///   OUT count_result INT
+/// )
+///   SQL SECURITY INVOKER
+///   COMMENT 'Calculate sum and count from data_table'
+/// BEGIN
+///   SELECT SUM(value), COUNT(*)
+///   INTO sum_result, count_result
+///   FROM data_table
+///   WHERE value > input_value;
+/// END;
+/// ```
+///
+/// # Errors
+///
+/// Returns error if:
+/// - Procedure name already exists
+/// - Invalid parameter types
+/// - Body parsing fails
 pub fn execute_create_procedure(
     stmt: &CreateProcedureStmt,
     db: &mut Database,
@@ -293,6 +333,55 @@ pub fn execute_drop_procedure(
 }
 
 /// Execute CREATE FUNCTION statement (SQL:1999 Feature P001)
+///
+/// Creates a user-defined function in the database catalog with optional characteristics.
+///
+/// Functions differ from procedures:
+/// - Functions RETURN a value and can be used in expressions
+/// - Functions are read-only (cannot modify database tables)
+/// - Functions only support IN parameters (no OUT/INOUT)
+/// - Functions have recursion depth limiting (max 100 levels)
+///
+/// # Characteristics (Phase 6)
+///
+/// - **DETERMINISTIC**: Indicates same input always produces same output
+/// - **SQL SECURITY**: DEFINER (default) or INVOKER
+/// - **COMMENT**: Documentation string
+/// - **LANGUAGE**: SQL (only supported language)
+///
+/// # Examples
+///
+/// Simple function with RETURN expression:
+/// ```sql
+/// CREATE FUNCTION add_ten(x INT) RETURNS INT
+///   DETERMINISTIC
+///   RETURN x + 10;
+/// ```
+///
+/// Complex function with BEGIN...END body:
+/// ```sql
+/// CREATE FUNCTION factorial(n INT) RETURNS INT
+///   DETERMINISTIC
+///   COMMENT 'Calculate factorial of n'
+/// BEGIN
+///   DECLARE result INT DEFAULT 1;
+///   DECLARE i INT DEFAULT 2;
+///
+///   WHILE i <= n DO
+///     SET result = result * i;
+///     SET i = i + 1;
+///   END WHILE;
+///
+///   RETURN result;
+/// END;
+/// ```
+///
+/// # Errors
+///
+/// Returns error if:
+/// - Function name already exists
+/// - Invalid parameter types or return type
+/// - Body parsing fails
 pub fn execute_create_function(
     stmt: &CreateFunctionStmt,
     db: &mut Database,
@@ -408,7 +497,54 @@ fn extract_variable_name(expr: &Expression) -> Result<String, ExecutorError> {
 /// Execute CALL statement (SQL:1999 Feature P001)
 ///
 /// Executes a stored procedure with parameter binding and procedural statement execution.
-/// Phase 4 implementation: Supports IN, OUT, and INOUT parameters with session variables.
+///
+/// # Parameter Binding
+///
+/// - **IN parameters**: Values are evaluated and passed to the procedure
+/// - **OUT parameters**: Must be session variables (@var), initialized to NULL,
+///   procedure can assign values that are returned to caller
+/// - **INOUT parameters**: Must be session variables (@var), values are passed in
+///   and can be modified by the procedure
+///
+/// # Example
+///
+/// ```sql
+/// -- Create procedure with mixed parameter modes
+/// CREATE PROCEDURE update_counter(
+///   IN increment INT,
+///   INOUT counter INT,
+///   OUT message VARCHAR(100)
+/// )
+/// BEGIN
+///   SET counter = counter + increment;
+///   SET message = CONCAT('Counter updated to ', counter);
+/// END;
+///
+/// -- Call procedure
+/// SET @count = 10;
+/// CALL update_counter(5, @count, @msg);
+/// SELECT @count, @msg;
+/// -- Output: count=15, msg='Counter updated to 15'
+/// ```
+///
+/// # Control Flow
+///
+/// The procedure body executes sequentially until:
+/// - All statements complete (normal exit)
+/// - RETURN statement is encountered (early exit)
+/// - Error occurs (execution stops)
+///
+/// After execution, OUT and INOUT parameter values are written back to their
+/// corresponding session variables.
+///
+/// # Errors
+///
+/// Returns error if:
+/// - Procedure not found
+/// - Wrong number of arguments
+/// - OUT/INOUT parameter is not a session variable
+/// - Type mismatch in parameter binding
+/// - Execution error in procedure body
 pub fn execute_call(
     stmt: &CallStmt,
     db: &mut Database,
@@ -417,21 +553,47 @@ pub fn execute_call(
 
     // 1. Look up the procedure definition and clone what we need
     let (parameters, body) = {
-        let procedure = db.catalog
-            .get_procedure(&stmt.procedure_name)
-            .ok_or_else(|| ExecutorError::Other(format!("Procedure '{}' not found", stmt.procedure_name)))?;
+        let procedure = db.catalog.get_procedure(&stmt.procedure_name);
 
-        (procedure.parameters.clone(), procedure.body.clone())
+        match procedure {
+            Some(proc) => (proc.parameters.clone(), proc.body.clone()),
+            None => {
+                // Procedure not found - provide helpful error with suggestions
+                let schema_name = db.catalog.get_current_schema().to_string();
+                let available_procedures = db.catalog.list_procedures();
+
+                return Err(ExecutorError::ProcedureNotFound {
+                    procedure_name: stmt.procedure_name.clone(),
+                    schema_name,
+                    available_procedures,
+                });
+            }
+        }
     };
 
     // 2. Validate parameter count
     if stmt.arguments.len() != parameters.len() {
-        return Err(ExecutorError::Other(format!(
-            "Procedure '{}' expects {} arguments but got {}",
-            stmt.procedure_name,
-            parameters.len(),
-            stmt.arguments.len()
-        )));
+        // Build parameter signature string
+        let param_sig = parameters
+            .iter()
+            .map(|p| {
+                let mode = match p.mode {
+                    vibesql_catalog::ParameterMode::In => "IN",
+                    vibesql_catalog::ParameterMode::Out => "OUT",
+                    vibesql_catalog::ParameterMode::InOut => "INOUT",
+                };
+                format!("{} {} {:?}", mode, p.name, p.data_type)
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        return Err(ExecutorError::ParameterCountMismatch {
+            routine_name: stmt.procedure_name.clone(),
+            routine_type: "Procedure".to_string(),
+            expected: parameters.len(),
+            actual: stmt.arguments.len(),
+            parameter_signature: param_sig,
+        });
     }
 
     // 3. Create execution context and bind parameters

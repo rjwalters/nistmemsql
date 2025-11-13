@@ -274,6 +274,27 @@ impl ExpressionEvaluator<'_> {
             vibesql_ast::Expression::MatchAgainst { columns, search_modifier, mode } => {
                 self.eval_match_against(columns, search_modifier, mode, row)
             }
+
+            // Pseudo-variable (OLD.column, NEW.column in triggers)
+            vibesql_ast::Expression::PseudoVariable { pseudo_table, column } => {
+                // Resolve pseudo-variable using trigger context
+                if let Some(ctx) = self.trigger_context {
+                    ctx.resolve_pseudo_var(*pseudo_table, column)
+                } else {
+                    // This expression type is only valid in trigger context
+                    // Return an error if encountered outside triggers
+                    Err(ExecutorError::UnsupportedExpression(
+                        format!(
+                            "Pseudo-variable {}.{} is only valid within trigger bodies",
+                            match pseudo_table {
+                                vibesql_ast::PseudoTable::Old => "OLD",
+                                vibesql_ast::PseudoTable::New => "NEW",
+                            },
+                            column
+                        )
+                    ))
+                }
+            }
         }
     }
 

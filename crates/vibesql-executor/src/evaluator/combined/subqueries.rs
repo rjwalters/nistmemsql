@@ -22,8 +22,22 @@ impl CombinedExpressionEvaluator<'_> {
             "Subquery execution requires database reference".to_string(),
         ))?;
 
-        // Delegate to shared static implementation
-        ExpressionEvaluator::eval_scalar_subquery_static(database, self.schema, row, subquery, self.depth)
+        // Execute the subquery with outer context for correlated subqueries
+        // Pass the entire CombinedSchema to preserve alias information and propagate depth
+        let select_executor = if !self.schema.table_schemas.is_empty() {
+            crate::select::SelectExecutor::new_with_outer_context_and_depth(
+                database,
+                row,
+                self.schema,
+                self.depth,
+            )
+        } else {
+            crate::select::SelectExecutor::new(database)
+        };
+        let rows = select_executor.execute(subquery)?;
+
+        // Delegate to shared logic
+        super::super::subqueries_shared::eval_scalar_subquery_core(&rows, subquery.select_list.len())
     }
 
     /// Evaluate EXISTS predicate: EXISTS (SELECT ...)
@@ -49,8 +63,21 @@ impl CombinedExpressionEvaluator<'_> {
             "EXISTS requires database reference".to_string(),
         ))?;
 
-        // Delegate to shared static implementation
-        ExpressionEvaluator::eval_exists_static(database, self.schema, row, subquery, negated, self.depth)
+        // Execute the subquery with outer context and propagate depth
+        let select_executor = if !self.schema.table_schemas.is_empty() {
+            crate::select::SelectExecutor::new_with_outer_context_and_depth(
+                database,
+                row,
+                self.schema,
+                self.depth,
+            )
+        } else {
+            crate::select::SelectExecutor::new(database)
+        };
+        let rows = select_executor.execute(subquery)?;
+
+        // Delegate to shared logic
+        Ok(super::super::subqueries_shared::eval_exists_core(!rows.is_empty(), negated))
     }
 
     /// Evaluate quantified comparison: expr op ALL/ANY/SOME (SELECT ...)
@@ -80,8 +107,27 @@ impl CombinedExpressionEvaluator<'_> {
         // Evaluate the left-hand expression
         let left_val = self.eval(expr, row)?;
 
-        // Delegate to shared static implementation
-        ExpressionEvaluator::eval_quantified_static(database, self.schema, row, &left_val, op, quantifier, subquery, self.depth)
+        // Execute the subquery with outer context and propagate depth
+        let select_executor = if !self.schema.table_schemas.is_empty() {
+            crate::select::SelectExecutor::new_with_outer_context_and_depth(
+                database,
+                row,
+                self.schema,
+                self.depth,
+            )
+        } else {
+            crate::select::SelectExecutor::new(database)
+        };
+        let rows = select_executor.execute(subquery)?;
+
+        // Delegate to shared logic
+        super::super::subqueries_shared::eval_quantified_core(
+            &left_val,
+            &rows,
+            op,
+            quantifier,
+            ExpressionEvaluator::eval_binary_op_static,
+        )
     }
 
     /// Evaluate IN operator with subquery
@@ -105,6 +151,9 @@ impl CombinedExpressionEvaluator<'_> {
             "IN with subquery requires database reference".to_string(),
         ))?;
 
+        // Evaluate the left-hand expression
+        let expr_val = self.eval(expr, row)?;
+
         // Subquery must return exactly one column
         if subquery.select_list.len() != 1 {
             return Err(ExecutorError::SubqueryColumnCountMismatch {
@@ -126,20 +175,29 @@ impl CombinedExpressionEvaluator<'_> {
         };
         let rows = select_executor.execute(subquery)?;
 
-        // Empty set optimization (SQLite behavior):
-        // If the subquery returns no rows, return FALSE for IN, TRUE for NOT IN
-        // This is true regardless of whether the left expression is NULL
-        // Rationale: No value can match an empty set
-        if rows.is_empty() {
-            return Ok(vibesql_types::SqlValue::Boolean(negated));
-        }
-
-        // Evaluate the left-hand expression
-        let expr_val = self.eval(expr, row)?;
-
-        // If left expression is NULL, result is NULL (per SQL three-valued logic)
+        // SQL standard behavior for NULL IN (subquery):
+        // - NULL IN (empty set) → FALSE
+        // - NULL IN (non-empty set without NULL) → FALSE
+        // - NULL IN (set containing NULL) → NULL
         if matches!(expr_val, vibesql_types::SqlValue::Null) {
-            return Ok(vibesql_types::SqlValue::Null);
+            // Check if subquery is empty
+            if rows.is_empty() {
+                return Ok(vibesql_types::SqlValue::Boolean(negated));
+            }
+
+            // Check if subquery contains NULL
+            for subquery_row in &rows {
+                let subquery_val =
+                    subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
+
+                if matches!(subquery_val, vibesql_types::SqlValue::Null) {
+                    // NULL IN (set with NULL) → NULL
+                    return Ok(vibesql_types::SqlValue::Null);
+                }
+            }
+
+            // NULL IN (non-empty set without NULL) → FALSE
+            return Ok(vibesql_types::SqlValue::Boolean(negated));
         }
 
         let mut found_null = false;

@@ -71,8 +71,8 @@ fn test_sum_window_running_total() {
     let db = create_test_db();
     let executor = SelectExecutor::new(&db);
 
-    // SELECT id, SUM(amount) OVER (ORDER BY day) as running_total FROM sales
-    let query = "SELECT id, SUM(amount) OVER (ORDER BY day) as running_total FROM sales";
+    // SELECT id, SUM(amount) OVER (ORDER BY "day") as running_total FROM sales
+    let query = "SELECT id, SUM(amount) OVER (ORDER BY \"day\") as running_total FROM sales";
     let stmt = Parser::parse_sql(query).unwrap();
 
     if let vibesql_ast::Statement::Select(select_stmt) = stmt {

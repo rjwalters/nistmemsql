@@ -235,6 +235,15 @@ pub enum Expression {
         /// Search mode specification
         mode: FulltextMode,
     },
+
+    /// Pseudo-variable reference (OLD.column or NEW.column in triggers)
+    /// Used in trigger bodies to reference row values before/after DML operations
+    /// Example: OLD.username (before update/delete), NEW.username (after insert/update)
+    /// SQL:1999 Section 13.1: Triggered action
+    PseudoVariable {
+        pseudo_table: PseudoTable,
+        column: String,
+    },
 }
 
 /// Full-text search mode specification
@@ -246,6 +255,16 @@ pub enum FulltextMode {
     Boolean,
     /// Natural language with query expansion
     QueryExpansion,
+}
+
+/// Pseudo-table reference for trigger context
+/// Used in OLD.column and NEW.column expressions
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PseudoTable {
+    /// OLD - references row before UPDATE/DELETE
+    Old,
+    /// NEW - references row after INSERT/UPDATE
+    New,
 }
 
 /// CASE WHEN clause structure

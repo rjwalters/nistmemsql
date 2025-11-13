@@ -159,6 +159,18 @@ impl ExpressionMapper {
                     }
                 }
             }
+            Expression::PseudoVariable { pseudo_table, column } => {
+                // Pseudo-variables (OLD.column, NEW.column) reference table columns
+                // They cannot be resolved in regular SELECTs, only in trigger context
+                let pseudo_name = match pseudo_table {
+                    vibesql_ast::PseudoTable::Old => "OLD",
+                    vibesql_ast::PseudoTable::New => "NEW",
+                };
+                tables.insert(pseudo_name.to_string());
+                columns.push((pseudo_name.to_string(), column.to_lowercase()));
+                // Pseudo-variables are not resolvable in regular context
+                *resolvable = false;
+            }
             Expression::BinaryOp { left, right, .. } => {
                 self.walk_expression(left, tables, columns, resolvable);
                 self.walk_expression(right, tables, columns, resolvable);
