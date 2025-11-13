@@ -21,6 +21,7 @@ use crate::errors::ExecutorError;
 /// Create a test database with users table
 fn create_test_db() -> Database {
     let mut db = Database::new();
+    db.catalog.set_case_sensitive_identifiers(false);
 
     // Create users table with nullable email and phone columns
     let users_schema = TableSchema::new(

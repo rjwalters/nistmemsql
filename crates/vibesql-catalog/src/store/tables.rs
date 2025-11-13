@@ -156,8 +156,9 @@ mod tests {
         // Test that triggers are correctly deleted when table is dropped,
         // even with mixed-case table references (Issue #1481)
 
-        // Create catalog with case-insensitive mode (default)
+        // Create catalog with case-insensitive mode
         let mut catalog = crate::Catalog::new();
+        catalog.set_case_sensitive_identifiers(false);
         assert!(!catalog.case_sensitive_identifiers);
 
         // Create table with lowercase name

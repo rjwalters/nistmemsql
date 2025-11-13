@@ -26,6 +26,7 @@ use crate::select::SelectExecutor;
 /// Create a test database with products table for ORDER BY tests
 fn create_products_db() -> Database {
     let mut db = Database::new();
+    db.catalog.set_case_sensitive_identifiers(false);
 
     // Create products table with columns suitable for ORDER BY testing
     let products_schema = TableSchema::new(
@@ -116,6 +117,7 @@ fn create_products_db() -> Database {
 /// Create a test database with nullable columns for NULL handling tests
 fn create_nullable_db() -> Database {
     let mut db = Database::new();
+    db.catalog.set_case_sensitive_identifiers(false);
 
     let schema = TableSchema::new(
         "items".to_string(),
