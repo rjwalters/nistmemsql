@@ -1,9 +1,10 @@
 {
-  "name": "wasm-bindings",
+  "name": "vibesql-wasm-bindings",
   "type": "module",
   "collaborators": [
     "vibesql contributors"
   ],
+  "description": "WebAssembly bindings for vibesql SQL database",
   "version": "0.1.0",
   "license": "MIT OR Apache-2.0",
   "repository": {
@@ -19,5 +20,11 @@
   "types": "vibesql_wasm.d.ts",
   "sideEffects": [
     "./snippets/*"
+  ],
+  "keywords": [
+    "sql",
+    "database",
+    "wasm",
+    "webassembly"
   ]
 }
