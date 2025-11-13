@@ -2,10 +2,12 @@
 //!
 //! This module is organized into focused submodules:
 //! - `structure`: Core node data structures (InternalNode, LeafNode, Key, RowId)
-//! - `operations`: Basic node operations (insert, delete, search, traversal)
+//! - `operations`: Tree operations organized by concern (insert, delete, rebalance, query)
 //! - `split_merge`: Node restructuring (splitting and merging)
 //! - `datatype_serialization`: DataType persistence utilities
 //! - `btree_index`: Main B+ tree index implementation
+//! - `bulk_load`: Bottom-up bulk loading for efficient initial construction
+//! - `traversal`: Tree traversal helpers
 //!
 //! ## Public API
 //!
@@ -20,6 +22,8 @@ mod operations;
 mod split_merge;
 mod datatype_serialization;
 mod btree_index;
+mod bulk_load;
+mod traversal;
 
 // Re-export public types and structures
 pub use structure::{InternalNode, Key, LeafNode, RowId};

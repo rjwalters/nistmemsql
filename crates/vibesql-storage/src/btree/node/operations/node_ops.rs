@@ -1,13 +1,14 @@
-//! B+ Tree Node Operations
+//! Basic Node Operations
 //!
-//! This module implements basic node operations:
+//! This module implements fundamental node operations that are used by
+//! tree-level operations:
 //! - Key search and traversal
-//! - Insertion and deletion
+//! - Node-level insertion and deletion
 //! - Key/value manipulation
 
 use crate::page::PageId;
 
-use super::structure::{InternalNode, Key, LeafNode, RowId};
+use super::super::structure::{InternalNode, Key, LeafNode, RowId};
 
 impl InternalNode {
     /// Find the child index for a given key
