@@ -51,11 +51,9 @@ impl Schema {
         if case_sensitive {
             self.tables.get(name)
         } else {
-            // Case-insensitive lookup: normalize both stored and search keys
+            // Case-insensitive lookup: the key is already uppercased in the HashMap
             let name_upper = name.to_uppercase();
-            self.tables
-                .values()
-                .find(|table| table.name.to_uppercase() == name_upper)
+            self.tables.get(&name_upper)
         }
     }
 
@@ -102,12 +100,12 @@ impl Schema {
 
     /// List all table names in this schema
     pub fn list_tables(&self) -> Vec<String> {
-        self.tables.keys().cloned().collect()
+        self.tables.values().map(|t| t.name.clone()).collect()
     }
 
-    /// Check if table exists in this schema
+    /// Check if table exists in this schema (case-insensitive by default)
     pub fn table_exists(&self, name: &str) -> bool {
-        self.tables.contains_key(name)
+        self.get_table(name, false).is_some()
     }
 
     /// Check if schema is empty (no tables)
