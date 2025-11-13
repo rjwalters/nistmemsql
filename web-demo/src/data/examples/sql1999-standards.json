@@ -1,73 +1,153 @@
 {
-  "id": "sql1999-standards",
-  "title": "SQL:1999 Standards Showcase",
-  "description": "Demonstrate SQL:1999 specific features and standards compliance",
-  "queries": [
-    {
-      "id": "std-1",
+  "_category": {
+    "id": "sql1999-standards",
+    "title": "SQL:1999 Standards",
+    "description": "ISO SQL:1999 feature demonstrations"
+  },
+  "examples": {
+    "std-1": {
       "title": "CASE Expression (SQL:1999)",
       "database": "northwind",
+      "sql": "-- SQL:1999 simple and searched CASE expressions\nSELECT\n  product_name,\n  unit_price,\n  -- Simple CASE\n  CASE category_id\n    WHEN 1 THEN 'Beverages'\n    WHEN 2 THEN 'Condiments'\n    WHEN 3 THEN 'Confections'\n    ELSE 'Other'\n  END AS category_simple,\n  -- Searched CASE\n  CASE\n    WHEN unit_price >= 50 THEN 'Premium'\n    WHEN unit_price >= 20 THEN 'Standard'\n    WHEN unit_price >= 10 THEN 'Economy'\n    ELSE 'Budget'\n  END AS price_tier,\n  -- CASE in aggregate\n  SUM(CASE WHEN unit_price > 20 THEN 1 ELSE 0 END) OVER () AS premium_count\nFROM products\nLIMIT 15;",
       "description": "Demonstrate SQL:1999 CASE expressions (simple and searched forms)",
-      "sqlFeatures": ["CASE", "Simple CASE", "Searched CASE", "SQL:1999 standard"],
+      "sqlFeatures": [
+        "CASE",
+        "Simple CASE",
+        "Searched CASE",
+        "SQL:1999 standard"
+      ],
       "difficulty": "beginner",
       "useCase": "development",
-      "relatedExamples": ["case-1"],
-      "tags": ["sql1999", "case-expression", "conditional-logic", "standards"]
+      "relatedExamples": [
+        "case-1"
+      ],
+      "tags": [
+        "sql1999",
+        "case-expression",
+        "conditional-logic",
+        "standards"
+      ]
     },
-    {
-      "id": "std-2",
+    "std-2": {
       "title": "Common Table Expressions (SQL:1999)",
       "database": "northwind",
+      "sql": "-- SQL:1999 WITH clause (CTEs)\nWITH expensive_products AS (\n  SELECT * FROM products WHERE unit_price > 30\n),\nproduct_orders AS (\n  SELECT\n    ep.product_id,\n    ep.product_name,\n    ep.unit_price,\n    COUNT(od.order_id) AS order_count\n  FROM expensive_products ep\n  LEFT JOIN order_details od ON ep.product_id = od.product_id\n  GROUP BY ep.product_id, ep.product_name, ep.unit_price\n)\nSELECT\n  product_name,\n  unit_price,\n  order_count,\n  CASE\n    WHEN order_count > 20 THEN 'High Demand'\n    WHEN order_count > 10 THEN 'Medium Demand'\n    WHEN order_count > 0 THEN 'Low Demand'\n    ELSE 'No Orders'\n  END AS demand_level\nFROM product_orders\nORDER BY order_count DESC;",
       "description": "Use SQL:1999 Common Table Expressions (WITH clause)",
-      "sqlFeatures": ["CTE", "WITH", "SQL:1999 standard", "Query modularity"],
+      "sqlFeatures": [
+        "CTE",
+        "WITH",
+        "SQL:1999 standard",
+        "Query modularity"
+      ],
       "difficulty": "intermediate",
       "useCase": "development",
-      "relatedExamples": ["cte-1"],
-      "tags": ["sql1999", "cte", "with-clause", "standards"]
+      "relatedExamples": [
+        "cte-1"
+      ],
+      "tags": [
+        "sql1999",
+        "cte",
+        "with-clause",
+        "standards"
+      ]
     },
-    {
-      "id": "std-3",
+    "std-3": {
       "title": "Window Functions (SQL:1999)",
       "database": "northwind",
+      "sql": "-- SQL:1999 window functions (OVER clause)\nSELECT\n  product_name,\n  category_id,\n  unit_price,\n  -- ROW_NUMBER (SQL:1999)\n  ROW_NUMBER() OVER (PARTITION BY category_id ORDER BY unit_price DESC) AS row_num,\n  -- RANK (SQL:1999)\n  RANK() OVER (PARTITION BY category_id ORDER BY unit_price DESC) AS price_rank,\n  -- DENSE_RANK (SQL:1999)\n  DENSE_RANK() OVER (PARTITION BY category_id ORDER BY unit_price DESC) AS dense_rank,\n  -- Aggregate window function\n  AVG(unit_price) OVER (PARTITION BY category_id) AS category_avg_price,\n  -- Running total\n  SUM(unit_price) OVER (PARTITION BY category_id ORDER BY unit_price DESC) AS running_total\nFROM products\nWHERE unit_price IS NOT NULL\nORDER BY category_id, price_rank\nLIMIT 20;",
       "description": "Demonstrate SQL:1999 window functions (OVER clause)",
-      "sqlFeatures": ["Window functions", "ROW_NUMBER", "RANK", "DENSE_RANK", "OVER", "SQL:1999"],
+      "sqlFeatures": [
+        "Window functions",
+        "ROW_NUMBER",
+        "RANK",
+        "DENSE_RANK",
+        "OVER",
+        "SQL:1999"
+      ],
       "difficulty": "intermediate",
       "useCase": "analytics",
-      "relatedExamples": ["window-1", "window-2"],
-      "tags": ["sql1999", "window-functions", "over-clause", "ranking"]
+      "relatedExamples": [
+        "window-1",
+        "window-2"
+      ],
+      "tags": [
+        "sql1999",
+        "window-functions",
+        "over-clause",
+        "ranking"
+      ]
     },
-    {
-      "id": "std-4",
+    "std-4": {
       "title": "BOOLEAN Data Type (SQL:1999)",
       "database": "empty",
+      "sql": "-- SQL:1999 BOOLEAN type and operations\nCREATE TEMPORARY TABLE features (\n  feature_name TEXT,\n  is_enabled BOOLEAN,\n  is_premium BOOLEAN\n);\n\nINSERT INTO features VALUES\n  ('Dark Mode', TRUE, FALSE),\n  ('Export', TRUE, TRUE),\n  ('Analytics', FALSE, TRUE),\n  ('API Access', TRUE, TRUE);\n\nSELECT\n  feature_name,\n  is_enabled,\n  is_premium,\n  -- Boolean expressions\n  is_enabled AND is_premium AS enabled_premium,\n  is_enabled OR is_premium AS enabled_or_premium,\n  NOT is_enabled AS disabled,\n  -- CASE with BOOLEAN\n  CASE\n    WHEN is_enabled AND is_premium THEN 'Premium Active'\n    WHEN is_enabled THEN 'Basic Active'\n    WHEN is_premium THEN 'Premium Disabled'\n    ELSE 'Basic Disabled'\n  END AS status\nFROM features\nORDER BY feature_name;",
       "description": "Use SQL:1999 BOOLEAN data type and boolean operations",
-      "sqlFeatures": ["BOOLEAN", "Boolean algebra", "AND", "OR", "NOT", "SQL:1999"],
+      "sqlFeatures": [
+        "BOOLEAN",
+        "Boolean algebra",
+        "AND",
+        "OR",
+        "NOT",
+        "SQL:1999"
+      ],
       "difficulty": "beginner",
       "useCase": "development",
-      "relatedExamples": ["datatype-1"],
-      "tags": ["sql1999", "boolean", "data-types", "logic"]
+      "relatedExamples": [
+        "datatype-1"
+      ],
+      "tags": [
+        "sql1999",
+        "boolean",
+        "data-types",
+        "logic"
+      ]
     },
-    {
-      "id": "std-5",
+    "std-5": {
       "title": "Standards-Compliant Date Functions",
       "database": "northwind",
+      "sql": "-- SQL:1999 date/time functions\nSELECT\n  order_id,\n  order_date,\n  -- EXTRACT (SQL:1999)\n  EXTRACT(YEAR FROM order_date) AS order_year,\n  EXTRACT(MONTH FROM order_date) AS order_month,\n  EXTRACT(DAY FROM order_date) AS order_day,\n  -- Date arithmetic\n  order_date + INTERVAL '30 days' AS due_date,\n  CURRENT_DATE - order_date AS days_since_order,\n  -- Date truncation\n  DATE_TRUNC('month', order_date) AS order_month_start,\n  DATE_TRUNC('year', order_date) AS order_year_start\nFROM orders\nWHERE order_date IS NOT NULL\nORDER BY order_date DESC\nLIMIT 15;",
       "description": "Use SQL:1999 standards-compliant date/time functions",
-      "sqlFeatures": ["EXTRACT", "INTERVAL", "DATE_TRUNC", "Date functions", "SQL:1999"],
+      "sqlFeatures": [
+        "EXTRACT",
+        "INTERVAL",
+        "DATE_TRUNC",
+        "Date functions",
+        "SQL:1999"
+      ],
       "difficulty": "intermediate",
       "useCase": "development",
-      "relatedExamples": ["datetime-1"],
-      "tags": ["sql1999", "date-functions", "temporal", "standards"]
+      "relatedExamples": [
+        "datetime-1"
+      ],
+      "tags": [
+        "sql1999",
+        "date-functions",
+        "temporal",
+        "standards"
+      ]
     },
-    {
-      "id": "std-6",
+    "std-6": {
       "title": "NULLIF and COALESCE (SQL:1999)",
       "database": "northwind",
+      "sql": "-- SQL:1999 NULL handling functions\nSELECT\n  product_name,\n  unit_price,\n  units_in_stock,\n  units_on_order,\n  -- COALESCE (SQL:1999)\n  COALESCE(units_in_stock, 0) AS stock_or_zero,\n  COALESCE(units_on_order, 0) AS on_order_or_zero,\n  -- NULLIF (SQL:1999)\n  NULLIF(units_in_stock, 0) AS stock_null_if_zero,\n  -- Practical example: avoid division by zero\n  ROUND(\n    unit_price / NULLIF(COALESCE(units_in_stock, 0), 0),\n    2\n  ) AS price_per_stock_unit,\n  -- Combining both\n  COALESCE(\n    NULLIF(units_in_stock, 0)::TEXT,\n    'Out of Stock'\n  ) AS stock_display\nFROM products\nWHERE unit_price IS NOT NULL\nORDER BY product_id\nLIMIT 15;",
       "description": "Demonstrate SQL:1999 NULLIF and COALESCE functions",
-      "sqlFeatures": ["NULLIF", "COALESCE", "NULL handling", "SQL:1999"],
+      "sqlFeatures": [
+        "NULLIF",
+        "COALESCE",
+        "NULL handling",
+        "SQL:1999"
+      ],
       "difficulty": "intermediate",
       "useCase": "development",
-      "relatedExamples": ["null-1"],
-      "tags": ["sql1999", "null-handling", "coalesce", "nullif"]
+      "relatedExamples": [
+        "null-1"
+      ],
+      "tags": [
+        "sql1999",
+        "null-handling",
+        "coalesce",
+        "nullif"
+      ]
     }
-  ]
+  }
 }

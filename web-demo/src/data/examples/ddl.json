@@ -1,91 +1,141 @@
 {
-  "id": "ddl",
-  "title": "DDL & Constraints",
-  "description": "CREATE TABLE with PRIMARY KEY, UNIQUE, CHECK constraints",
-  "queries": [
-    {
-      "id": "ddl-1",
+  "_category": {
+    "id": "ddl",
+    "title": "DDL (Data Definition)",
+    "description": "CREATE, ALTER, DROP statements"
+  },
+  "examples": {
+    "ddl-1": {
       "title": "Basic CREATE TABLE",
       "database": "empty",
+      "sql": "CREATE TABLE students (\n    student_id INTEGER,\n    name VARCHAR(100),\n    age INTEGER,\n    gpa FLOAT\n);\n\nINSERT INTO students VALUES (1, 'Alice Johnson', 20, 3.8);\nINSERT INTO students VALUES (2, 'Bob Smith', 21, 3.5);\n\nSELECT * FROM students;",
       "description": "Create a simple table with basic column definitions",
-      "sqlFeatures": ["CREATE TABLE", "INTEGER", "VARCHAR", "FLOAT"]
+      "sqlFeatures": [
+        "CREATE TABLE",
+        "INTEGER",
+        "VARCHAR",
+        "FLOAT"
+      ]
     },
-    {
-      "id": "ddl-2",
+    "ddl-2": {
       "title": "PRIMARY KEY Constraint",
       "database": "empty",
+      "sql": "CREATE TABLE users (\n    user_id INTEGER PRIMARY KEY,\n    username VARCHAR(50),\n    email VARCHAR(100)\n);\n\nINSERT INTO users VALUES (1, 'alice', 'alice@example.com');\nINSERT INTO users VALUES (2, 'bob', 'bob@example.com');\n\nSELECT * FROM users ORDER BY user_id;",
       "description": "Create table with PRIMARY KEY to ensure unique identification",
-      "sqlFeatures": ["CREATE TABLE", "PRIMARY KEY", "INSERT"]
+      "sqlFeatures": [
+        "CREATE TABLE",
+        "PRIMARY KEY",
+        "INSERT"
+      ]
     },
-    {
-      "id": "ddl-3",
+    "ddl-3": {
       "title": "PRIMARY KEY Violation",
       "database": "empty",
+      "sql": "CREATE TABLE users (\n    user_id INTEGER PRIMARY KEY,\n    username VARCHAR(50)\n);\n\nINSERT INTO users VALUES (1, 'alice');\nINSERT INTO users VALUES (1, 'bob');",
       "description": "Attempt to insert duplicate PRIMARY KEY value (will fail)",
-      "sqlFeatures": ["PRIMARY KEY", "Constraint Enforcement"]
+      "sqlFeatures": [
+        "PRIMARY KEY",
+        "Constraint Enforcement"
+      ]
     },
-    {
-      "id": "ddl-4",
+    "ddl-4": {
       "title": "UNIQUE Constraint",
       "database": "empty",
+      "sql": "CREATE TABLE accounts (\n    account_id INTEGER PRIMARY KEY,\n    email VARCHAR(100) UNIQUE,\n    balance FLOAT\n);\n\nINSERT INTO accounts VALUES (1, 'alice@example.com', 1000.0);\nINSERT INTO accounts VALUES (2, 'bob@example.com', 500.0);\n\nSELECT * FROM accounts ORDER BY account_id;",
       "description": "Create table with UNIQUE constraint on email column",
-      "sqlFeatures": ["UNIQUE", "PRIMARY KEY", "Constraint Enforcement"]
+      "sqlFeatures": [
+        "UNIQUE",
+        "PRIMARY KEY",
+        "Constraint Enforcement"
+      ]
     },
-    {
-      "id": "ddl-5",
+    "ddl-5": {
       "title": "UNIQUE Constraint Violation",
       "database": "empty",
+      "sql": "CREATE TABLE accounts (\n    account_id INTEGER PRIMARY KEY,\n    email VARCHAR(100) UNIQUE\n);\n\nINSERT INTO accounts VALUES (1, 'alice@example.com');\nINSERT INTO accounts VALUES (2, 'alice@example.com');",
       "description": "Attempt to insert duplicate UNIQUE value (will fail)",
-      "sqlFeatures": ["UNIQUE", "Constraint Enforcement"]
+      "sqlFeatures": [
+        "UNIQUE",
+        "Constraint Enforcement"
+      ]
     },
-    {
-      "id": "ddl-6",
+    "ddl-6": {
       "title": "CHECK Constraint",
       "database": "empty",
+      "sql": "CREATE TABLE products (\n    product_id INTEGER PRIMARY KEY,\n    name VARCHAR(100),\n    price FLOAT CHECK (price > 0.0),\n    quantity INTEGER CHECK (quantity >= 0)\n);\n\nINSERT INTO products VALUES (1, 'Laptop', 999.99, 10);\nINSERT INTO products VALUES (2, 'Mouse', 25.50, 50);\n\nSELECT * FROM products ORDER BY product_id;",
       "description": "Create table with CHECK constraints to validate data ranges",
-      "sqlFeatures": ["CHECK", "Constraint Enforcement", "Expressions"]
+      "sqlFeatures": [
+        "CHECK",
+        "Constraint Enforcement",
+        "Expressions"
+      ]
     },
-    {
-      "id": "ddl-7",
+    "ddl-7": {
       "title": "CHECK Constraint Violation",
       "database": "empty",
+      "sql": "CREATE TABLE products (\n    product_id INTEGER PRIMARY KEY,\n    price FLOAT CHECK (price > 0.0)\n);\n\nINSERT INTO products VALUES (1, -10.0);",
       "description": "Attempt to insert value that violates CHECK constraint (will fail)",
-      "sqlFeatures": ["CHECK", "Constraint Enforcement"]
+      "sqlFeatures": [
+        "CHECK",
+        "Constraint Enforcement"
+      ]
     },
-    {
-      "id": "ddl-8",
+    "ddl-8": {
       "title": "Multiple Constraints",
       "database": "empty",
+      "sql": "CREATE TABLE employees (\n    emp_id INTEGER PRIMARY KEY,\n    email VARCHAR(100) UNIQUE,\n    salary FLOAT CHECK (salary > 0),\n    age INTEGER CHECK (age >= 18 AND age <= 65)\n);\n\nINSERT INTO employees VALUES (1, 'alice@company.com', 75000.0, 28);\nINSERT INTO employees VALUES (2, 'bob@company.com', 82000.0, 35);\n\nSELECT * FROM employees ORDER BY emp_id;",
       "description": "Combine PRIMARY KEY, UNIQUE, and multiple CHECK constraints",
-      "sqlFeatures": ["PRIMARY KEY", "UNIQUE", "CHECK", "Multiple Constraints"]
+      "sqlFeatures": [
+        "PRIMARY KEY",
+        "UNIQUE",
+        "CHECK",
+        "Multiple Constraints"
+      ]
     },
-    {
-      "id": "ddl-9",
+    "ddl-9": {
       "title": "UPDATE with Constraint Checks",
       "database": "empty",
+      "sql": "CREATE TABLE accounts (\n    account_id INTEGER PRIMARY KEY,\n    balance FLOAT CHECK (balance >= 0)\n);\n\nINSERT INTO accounts VALUES (1, 1000.0);\nINSERT INTO accounts VALUES (2, 500.0);\n\nUPDATE accounts SET balance = balance + 100 WHERE account_id = 1;\n\nSELECT * FROM accounts ORDER BY account_id;",
       "description": "Constraints are enforced during UPDATE operations",
-      "sqlFeatures": ["UPDATE", "CHECK", "Constraint Enforcement"]
+      "sqlFeatures": [
+        "UPDATE",
+        "CHECK",
+        "Constraint Enforcement"
+      ]
     },
-    {
-      "id": "ddl-10",
+    "ddl-10": {
       "title": "UPDATE Constraint Violation",
       "database": "empty",
+      "sql": "CREATE TABLE accounts (\n    account_id INTEGER PRIMARY KEY,\n    balance FLOAT CHECK (balance >= 0)\n);\n\nINSERT INTO accounts VALUES (1, 1000.0);\n\nUPDATE accounts SET balance = -500.0 WHERE account_id = 1;",
       "description": "UPDATE that violates CHECK constraint (will fail)",
-      "sqlFeatures": ["UPDATE", "CHECK", "Constraint Enforcement"]
+      "sqlFeatures": [
+        "UPDATE",
+        "CHECK",
+        "Constraint Enforcement"
+      ]
     },
-    {
-      "id": "ddl-11",
+    "ddl-11": {
       "title": "Composite PRIMARY KEY",
       "database": "empty",
+      "sql": "CREATE TABLE enrollments (\n    student_id INTEGER,\n    course_id INTEGER,\n    grade VARCHAR(2),\n    PRIMARY KEY (student_id, course_id)\n);\n\nINSERT INTO enrollments VALUES (1, 101, 'A');\nINSERT INTO enrollments VALUES (1, 102, 'B');\nINSERT INTO enrollments VALUES (2, 101, 'A');\n\nSELECT * FROM enrollments ORDER BY student_id, course_id;",
       "description": "PRIMARY KEY spanning multiple columns for unique combinations",
-      "sqlFeatures": ["PRIMARY KEY", "Composite Key", "Multi-column Constraints"]
+      "sqlFeatures": [
+        "PRIMARY KEY",
+        "Composite Key",
+        "Multi-column Constraints"
+      ]
     },
-    {
-      "id": "ddl-12",
+    "ddl-12": {
       "title": "Real-World: User Registration",
       "database": "empty",
+      "sql": "CREATE TABLE user_registrations (\n    user_id INTEGER PRIMARY KEY,\n    username VARCHAR(50) UNIQUE,\n    email VARCHAR(100) UNIQUE,\n    age INTEGER CHECK (age >= 13),\n    account_balance FLOAT CHECK (account_balance >= 0)\n);\n\nINSERT INTO user_registrations VALUES\n    (1, 'alice_j', 'alice@example.com', 25, 0.0);\nINSERT INTO user_registrations VALUES\n    (2, 'bob_smith', 'bob@example.com', 30, 100.50);\n\nSELECT user_id, username, email, age\nFROM user_registrations\nORDER BY user_id;",
       "description": "Real-world user registration table with multiple constraint types",
-      "sqlFeatures": ["PRIMARY KEY", "UNIQUE", "CHECK", "Business Logic"]
+      "sqlFeatures": [
+        "PRIMARY KEY",
+        "UNIQUE",
+        "CHECK",
+        "Business Logic"
+      ]
     }
-  ]
+  }
 }
