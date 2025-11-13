@@ -42,6 +42,10 @@ pub struct Database {
     /// Key: normalized variable name (uppercase)
     /// Value: variable value
     session_variables: HashMap<String, vibesql_types::SqlValue>,
+    /// Cache for parsed procedure and function bodies (Phase 6 performance)
+    /// Key: routine name (procedure or function)
+    /// Value: cached procedure body
+    routine_body_cache: HashMap<String, vibesql_catalog::ProcedureBody>,
 }
 
 impl Database {
@@ -60,6 +64,7 @@ impl Database {
             // Disabled by default for backward compatibility
             security_enabled: false,
             session_variables: HashMap::new(),
+            routine_body_cache: HashMap::new(),
         }
     }
 
@@ -76,6 +81,7 @@ impl Database {
         self.current_role = None;
         self.security_enabled = false;
         self.session_variables.clear();
+        self.routine_body_cache.clear();
     }
 
     /// Record a change in the current transaction (if any)
@@ -730,6 +736,44 @@ impl Database {
                 }
             }
         }
+    }
+
+    // ============================================================================
+    // Procedure/Function Body Cache Methods (Phase 6 Performance)
+    // ============================================================================
+
+    /// Get cached procedure body or cache it on first access
+    pub fn get_cached_procedure_body(
+        &mut self,
+        name: &str,
+    ) -> Result<&vibesql_catalog::ProcedureBody, StorageError> {
+        // Check if body is already cached
+        if !self.routine_body_cache.contains_key(name) {
+            // Not cached - retrieve from catalog and cache it
+            let procedure = self
+                .catalog
+                .get_procedure(name)
+                .ok_or_else(|| {
+                    StorageError::CatalogError(format!("Procedure '{}' not found", name))
+                })?;
+
+            // Clone the body and store in cache
+            self.routine_body_cache
+                .insert(name.to_string(), procedure.body.clone());
+        }
+
+        // Return reference to cached body
+        Ok(self.routine_body_cache.get(name).unwrap())
+    }
+
+    /// Invalidate cached procedure body (call when procedure is dropped or replaced)
+    pub fn invalidate_procedure_cache(&mut self, name: &str) {
+        self.routine_body_cache.remove(name);
+    }
+
+    /// Clear all cached procedure/function bodies
+    pub fn clear_routine_cache(&mut self) {
+        self.routine_body_cache.clear();
     }
 }
 
