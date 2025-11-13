@@ -279,12 +279,15 @@ pub(crate) fn execute_index_scan(
         // Full index scan - collect all row indices from the index
         // Note: We do NOT sort by row index here - we preserve the order from BTreeMap iteration
         // which gives us results sorted by index key value (the correct semantic ordering)
-        index_data
-            .data
-            .values()
-            .flatten()
-            .copied()
-            .collect()
+        match index_data {
+            vibesql_storage::IndexData::InMemory { data } => {
+                data.values().flatten().copied().collect()
+            }
+            vibesql_storage::IndexData::DiskBacked { .. } => {
+                // TODO: Handle disk-backed indexes
+                Vec::new()
+            }
+        }
     };
 
     // Fetch rows from table

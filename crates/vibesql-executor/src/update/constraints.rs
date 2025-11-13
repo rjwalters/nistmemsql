@@ -93,19 +93,21 @@ impl<'a> ConstraintValidator<'a> {
 
                 // Check if this key already exists in the index
                 if let Some(index_data) = db.get_index_data(&index_name) {
-                    if index_data.data.contains_key(&new_key_values) {
-                        // Format column names for error message
-                        let column_names: Vec<String> = index_metadata
-                            .columns
-                            .iter()
-                            .map(|c| c.column_name.clone())
-                            .collect();
+                    if let vibesql_storage::IndexData::InMemory { data } = index_data {
+                        if data.contains_key(&new_key_values) {
+                            // Format column names for error message
+                            let column_names: Vec<String> = index_metadata
+                                .columns
+                                .iter()
+                                .map(|c| c.column_name.clone())
+                                .collect();
 
-                        return Err(ExecutorError::ConstraintViolation(format!(
-                            "UNIQUE constraint '{}' violated: duplicate key value for ({})",
-                            index_metadata.index_name,
-                            column_names.join(", ")
-                        )));
+                            return Err(ExecutorError::ConstraintViolation(format!(
+                                "UNIQUE constraint '{}' violated: duplicate key value for ({})",
+                                index_metadata.index_name,
+                                column_names.join(", ")
+                            )));
+                        }
                     }
                 }
             }
