@@ -120,19 +120,17 @@ fn test_create_function_simple() {
         parameters: vec![],
         return_type: DataType::Integer,
         body: ProcedureBody::BeginEnd(vec![]),
+        deterministic: None,
         sql_security: None,
         comment: None,
         language: None,
-    
+    };
+
     let result = advanced_objects::execute_create_function(&func, &mut db);
     assert!(result.is_ok());
-    
+
     // Verify function was created
     assert!(db.catalog.function_exists("test_func"));
-    deterministic: None,
-    sql_security: None,
-    comment: None,
-    language: None,
 }
 
 #[test]
@@ -144,20 +142,18 @@ fn test_drop_function_simple() {
         parameters: vec![],
         return_type: DataType::Integer,
         body: ProcedureBody::BeginEnd(vec![]),
-        sql_security: None,
-        comment: None,
-        language: None,
-    
-    advanced_objects::execute_create_function(&create_func, &mut db).unwrap();
-    assert!(db.catalog.function_exists("test_func"));
-    
-    let drop_func = DropFunctionStmt {
-        function_name: "test_func".to_string(),
-        if_exists: false,
         deterministic: None,
         sql_security: None,
         comment: None,
         language: None,
+    };
+
+    advanced_objects::execute_create_function(&create_func, &mut db).unwrap();
+    assert!(db.catalog.function_exists("test_func"));
+
+    let drop_func = DropFunctionStmt {
+        function_name: "test_func".to_string(),
+        if_exists: false,
     };
     
     let result = advanced_objects::execute_drop_function(&drop_func, &mut db);
@@ -177,6 +173,7 @@ fn test_call_procedure_simple() {
         sql_security: None,
         comment: None,
         language: None,
+        };
 
     advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -225,6 +222,7 @@ fn test_call_procedure_with_in_parameter() {
         sql_security: None,
         comment: None,
         language: None,
+        };
 
     advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -285,6 +283,7 @@ fn test_call_procedure_with_multiple_parameters() {
         sql_security: None,
         comment: None,
         language: None,
+        };
 
     advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -328,6 +327,7 @@ fn test_declare_with_default_value() {
         sql_security: None,
         comment: None,
         language: None,
+        };
 
     advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -379,6 +379,7 @@ fn test_variable_in_expression() {
         sql_security: None,
         comment: None,
         language: None,
+        };
 
     advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -442,6 +443,7 @@ fn test_concat_function_in_procedure() {
         sql_security: None,
         comment: None,
         language: None,
+        };
 
     advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -472,6 +474,7 @@ fn test_parameter_count_mismatch() {
         sql_security: None,
         comment: None,
         language: None,
+        };
 
     advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -501,6 +504,7 @@ fn test_out_parameter_not_yet_supported() {
         sql_security: None,
         comment: None,
         language: None,
+        };
 
     advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -1011,6 +1015,7 @@ mod edge_case_tests {
         sql_security: None,
         comment: None,
         language: None,
+        };
 
         advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -1059,6 +1064,7 @@ mod edge_case_tests {
             sql_security: None,
             comment: None,
             language: None,
+        };
 
         advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -1100,6 +1106,7 @@ mod edge_case_tests {
             sql_security: None,
             comment: None,
             language: None,
+        };
 
         advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -1139,6 +1146,7 @@ mod edge_case_tests {
             sql_security: None,
             comment: None,
             language: None,
+        };
 
         advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -1182,6 +1190,7 @@ mod edge_case_tests {
         sql_security: None,
         comment: None,
         language: None,
+        };
 
         advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -1258,6 +1267,7 @@ mod edge_case_tests {
             sql_security: None,
             comment: None,
             language: None,
+        };
 
         advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -1282,6 +1292,7 @@ mod edge_case_tests {
         sql_security: None,
         comment: None,
         language: None,
+        };
 
         advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -1334,6 +1345,7 @@ mod edge_case_tests {
             sql_security: None,
             comment: None,
             language: None,
+        };
 
         advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -1389,6 +1401,7 @@ mod edge_case_tests {
             sql_security: None,
             comment: None,
             language: None,
+        };
 
         advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
