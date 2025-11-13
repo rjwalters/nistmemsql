@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use super::predicates::apply_table_local_predicates;
 use crate::{
     errors::ExecutorError, optimizer::decompose_where_clause, privilege_checker::PrivilegeChecker,
-    schema::CombinedSchema, select::cte::CteResult,
+    schema::CombinedSchema, select::cte::CteResult, select::parallel::parallel_scan_materialize,
 };
 
 /// Execute a table scan (handles CTEs, views, and regular tables)
@@ -130,7 +130,9 @@ pub(crate) fn execute_table_scan(
 
     let effective_name = alias.cloned().unwrap_or_else(|| table_name.to_string());
     let schema = CombinedSchema::from_table(effective_name, table.schema.clone());
-    let rows = table.scan().to_vec();
+
+    // Use parallel scan for materialization when beneficial for large tables
+    let rows = parallel_scan_materialize(table.scan());
 
     // Check if we need to apply table-local predicates
     if let Some(where_expr) = where_clause {
