@@ -21,8 +21,16 @@ pub(crate) fn should_use_index_scan(
     // 1. There's a WHERE clause
     // 2. The table has user-defined indexes
     // 3. The WHERE clause references an indexed column
+    // 4. The WHERE clause is not a top-level OR expression (can't optimize effectively)
 
     let where_expr = where_clause?;
+
+    // Don't use index scan for top-level OR expressions
+    // These are better handled by the sequential WHERE filter
+    // because index scans can only optimize one branch of the OR
+    if matches!(where_expr, Expression::BinaryOp { op: BinaryOperator::Or, .. }) {
+        return None;
+    }
 
     // Get all indexes for this table
     let _table = database.get_table(table_name)?;
@@ -302,9 +310,51 @@ pub(crate) fn execute_index_scan(
     // - Predicates on non-indexed columns
     // - Complex predicates that couldn't be pushed to index
     // - OR predicates (not yet optimized)
+    //
+    // IMPORTANT: We must apply the FULL WHERE clause here, not just table-local predicates.
+    // The table-local predicate decomposition doesn't work correctly for unqualified column
+    // references, causing predicates to be classified as "complex" and not applied at all.
     if let Some(where_expr) = where_clause {
-        use super::predicates::apply_table_local_predicates;
-        rows = apply_table_local_predicates(rows, schema.clone(), where_expr, table_name, database)?;
+        use crate::evaluator::CombinedExpressionEvaluator;
+
+        // Create evaluator for filtering
+        let evaluator = CombinedExpressionEvaluator::with_database(&schema, database);
+
+        // Apply full WHERE clause to each row
+        let mut filtered_rows = Vec::new();
+        for row in rows {
+            // Clear CSE cache before evaluating each row
+            evaluator.clear_cse_cache();
+
+            let include_row = match evaluator.eval(where_expr, &row)? {
+                vibesql_types::SqlValue::Boolean(true) => true,
+                vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
+                // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)
+                vibesql_types::SqlValue::Integer(0) => false,
+                vibesql_types::SqlValue::Integer(_) => true,
+                vibesql_types::SqlValue::Smallint(0) => false,
+                vibesql_types::SqlValue::Smallint(_) => true,
+                vibesql_types::SqlValue::Bigint(0) => false,
+                vibesql_types::SqlValue::Bigint(_) => true,
+                vibesql_types::SqlValue::Float(0.0) => false,
+                vibesql_types::SqlValue::Float(_) => true,
+                vibesql_types::SqlValue::Real(0.0) => false,
+                vibesql_types::SqlValue::Real(_) => true,
+                vibesql_types::SqlValue::Double(0.0) => false,
+                vibesql_types::SqlValue::Double(_) => true,
+                other => {
+                    return Err(ExecutorError::InvalidWhereClause(format!(
+                        "WHERE clause must evaluate to boolean, got: {:?}",
+                        other
+                    )))
+                }
+            };
+
+            if include_row {
+                filtered_rows.push(row);
+            }
+        }
+        rows = filtered_rows;
     }
 
     Ok(super::FromResult::from_rows(schema, rows))
