@@ -81,7 +81,7 @@ pub(in crate::select::executor) fn try_index_based_ordering(
                 // Convert to IndexData format (BTreeMap)
                 let data: BTreeMap<Vec<SqlValue>, Vec<usize>> =
                     pk_index.iter().map(|(key, &row_idx)| (key.clone(), vec![row_idx])).collect();
-                IndexData { data }
+                IndexData::InMemory { data }
             } else {
                 return Ok(None);
             }
@@ -129,7 +129,7 @@ pub(in crate::select::executor) fn try_index_based_ordering(
 
     // Convert index HashMap to Vec and sort for consistent ordering
     let mut data_vec: Vec<(Vec<SqlValue>, Vec<usize>)> =
-        index_data.data.iter().map(|(k, v): (&Vec<SqlValue>, &Vec<usize>)| (k.clone(), v.clone())).collect();
+        index_data.iter().map(|(k, v): (&Vec<SqlValue>, &Vec<usize>)| (k.clone(), v.clone())).collect();
 
     // Sort by key, respecting per-column ASC/DESC directions
     data_vec.sort_by(|(a, _): &(Vec<SqlValue>, Vec<usize>), (b, _): &(Vec<SqlValue>, Vec<usize>)| {
