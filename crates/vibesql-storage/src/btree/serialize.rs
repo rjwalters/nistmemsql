@@ -256,8 +256,8 @@ mod tests {
     #[test]
     fn test_serialize_deserialize_internal_node() {
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let page_id = page_manager.allocate_page().unwrap();
 
@@ -289,8 +289,8 @@ mod tests {
     #[test]
     fn test_serialize_deserialize_leaf_node() {
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let page_id = page_manager.allocate_page().unwrap();
 
@@ -321,8 +321,8 @@ mod tests {
     #[test]
     fn test_serialize_multi_column_key() {
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
 
         let page_id = page_manager.allocate_page().unwrap();
 

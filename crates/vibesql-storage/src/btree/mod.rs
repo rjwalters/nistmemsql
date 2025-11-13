@@ -248,8 +248,8 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let path = temp_dir.path().join("test.db");
-        let page_manager = Arc::new(crate::page::PageManager::new(&path).unwrap());
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(crate::page::PageManager::new("test.db", storage).unwrap());
 
         // Create sorted test data
         let key_schema = vec![DataType::Integer];
