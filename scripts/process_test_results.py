@@ -234,12 +234,25 @@ def sql_escape(value: Optional[str]) -> str:
     """Escape a value for SQL, handling NULL and special characters."""
     if value is None:
         return "NULL"
+
+    # Convert to string in case we receive non-string types
+    value = str(value)
+
+    # Escape backslashes first (must be before single quote escaping)
+    escaped = value.replace('\\', '\\\\')
+
     # Escape single quotes by doubling them (SQL standard)
-    escaped = value.replace("'", "''")
-    # Replace newlines with spaces to keep SQL on single line
-    escaped = escaped.replace('\n', ' ').replace('\r', ' ')
+    escaped = escaped.replace("'", "''")
+
+    # Replace control characters that could break SQL parsing
+    escaped = escaped.replace('\n', ' ')
+    escaped = escaped.replace('\r', ' ')
+    escaped = escaped.replace('\t', ' ')
+    escaped = escaped.replace('\x00', '')  # Remove null bytes
+
     # Collapse multiple spaces into single space
     escaped = ' '.join(escaped.split())
+
     return f"'{escaped}'"
 
 
