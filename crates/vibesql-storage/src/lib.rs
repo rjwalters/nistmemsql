@@ -2,6 +2,7 @@
 //!
 //! This crate provides in-memory storage for database tables and rows.
 
+pub mod backend;
 pub mod btree;
 pub mod buffer;
 pub mod database;
@@ -12,6 +13,7 @@ pub mod persistence;
 pub mod row;
 pub mod table;
 
+pub use backend::{StorageBackend, StorageFile};
 pub use buffer::{BufferPool, BufferPoolStats};
 pub use database::{
     Database, DatabaseConfig, IndexData, IndexManager, IndexMetadata, SpillPolicy,
@@ -22,6 +24,10 @@ pub use index::{extract_mbr_from_sql_value, SpatialIndex, SpatialIndexEntry};
 pub use persistence::load::{parse_sql_statements, read_sql_dump};
 pub use row::Row;
 pub use table::Table;
+
+// Platform-specific exports
+#[cfg(not(target_arch = "wasm32"))]
+pub use backend::{NativeFile, NativeStorage};
 
 #[cfg(test)]
 mod tests {
