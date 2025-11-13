@@ -49,6 +49,8 @@ impl super::Catalog {
 
     /// Drop a table schema (supports qualified names like "schema.table").
     /// Respects the `case_sensitive_identifiers` setting.
+    ///
+    /// Note: Triggers are automatically dropped when the associated table is dropped.
     pub fn drop_table(&mut self, name: &str) -> Result<(), CatalogError> {
         // Parse qualified name: schema.table or just table
         let (schema_name_for_lookup, table_name, original_table_name) =
@@ -82,6 +84,18 @@ impl super::Catalog {
             .schemas
             .get_mut(&schema_key)
             .ok_or(CatalogError::SchemaNotFound(schema_key.clone()))?;
+
+        // Drop all triggers associated with this table
+        // Per SQL standard (R-37808-62273): triggers are automatically dropped when the table is dropped
+        let trigger_names: Vec<String> = self.triggers
+            .values()
+            .filter(|trigger| trigger.table_name == normalized_table)
+            .map(|trigger| trigger.name.clone())
+            .collect();
+
+        for trigger_name in trigger_names {
+            self.triggers.remove(&trigger_name);
+        }
 
         // For error messages, we want to use the original input name, not the normalized one
         schema.drop_table(&normalized_table, self.case_sensitive_identifiers)
