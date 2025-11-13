@@ -3,12 +3,228 @@
 //! This module defines the core node types and the B+ tree index implementation.
 
 use std::sync::Arc;
-use vibesql_types::{DataType, SqlValue};
+use vibesql_types::{DataType, IntervalField, SqlValue};
 
 use crate::page::{PageId, PageManager};
 use crate::StorageError;
 
 use super::{calculate_degree, NULL_PAGE_ID};
+
+/// Serialize a DataType to bytes
+///
+/// Returns the number of bytes written
+fn serialize_datatype(data_type: &DataType, buffer: &mut [u8]) -> Result<usize, StorageError> {
+    let offset = 0;
+
+    let bytes_written = match data_type {
+        DataType::Integer => {
+            buffer[offset] = 1;
+            1
+        }
+        DataType::Smallint => {
+            buffer[offset] = 2;
+            1
+        }
+        DataType::Bigint => {
+            buffer[offset] = 3;
+            1
+        }
+        DataType::Unsigned => {
+            buffer[offset] = 4;
+            1
+        }
+        DataType::Numeric { precision, scale } => {
+            buffer[offset] = 5;
+            buffer[offset + 1] = *precision;
+            buffer[offset + 2] = *scale;
+            3
+        }
+        DataType::Decimal { precision, scale } => {
+            buffer[offset] = 6;
+            buffer[offset + 1] = *precision;
+            buffer[offset + 2] = *scale;
+            3
+        }
+        DataType::Float { precision } => {
+            buffer[offset] = 7;
+            buffer[offset + 1] = *precision;
+            2
+        }
+        DataType::Real => {
+            buffer[offset] = 8;
+            1
+        }
+        DataType::DoublePrecision => {
+            buffer[offset] = 9;
+            1
+        }
+        DataType::Character { length } => {
+            buffer[offset] = 10;
+            buffer[offset + 1..offset + 3].copy_from_slice(&(*length as u16).to_le_bytes());
+            3
+        }
+        DataType::Varchar { max_length } => {
+            buffer[offset] = 11;
+            let len = max_length.unwrap_or(255) as u16;
+            buffer[offset + 1..offset + 3].copy_from_slice(&len.to_le_bytes());
+            3
+        }
+        DataType::CharacterLargeObject => {
+            buffer[offset] = 12;
+            1
+        }
+        DataType::Name => {
+            buffer[offset] = 13;
+            1
+        }
+        DataType::Boolean => {
+            buffer[offset] = 14;
+            1
+        }
+        DataType::Date => {
+            buffer[offset] = 15;
+            1
+        }
+        DataType::Time { with_timezone } => {
+            buffer[offset] = 16;
+            buffer[offset + 1] = if *with_timezone { 1 } else { 0 };
+            2
+        }
+        DataType::Timestamp { with_timezone } => {
+            buffer[offset] = 17;
+            buffer[offset + 1] = if *with_timezone { 1 } else { 0 };
+            2
+        }
+        DataType::Interval { start_field, end_field } => {
+            buffer[offset] = 18;
+            buffer[offset + 1] = interval_field_to_u8(start_field);
+            buffer[offset + 2] = end_field.as_ref().map(interval_field_to_u8).unwrap_or(255);
+            3
+        }
+        DataType::BinaryLargeObject => {
+            buffer[offset] = 19;
+            1
+        }
+        DataType::UserDefined { type_name } => {
+            buffer[offset] = 20;
+            let name_bytes = type_name.as_bytes();
+            let len = name_bytes.len().min(255);
+            buffer[offset + 1] = len as u8;
+            buffer[offset + 2..offset + 2 + len].copy_from_slice(&name_bytes[..len]);
+            2 + len
+        }
+        DataType::Null => {
+            buffer[offset] = 21;
+            1
+        }
+    };
+
+    Ok(bytes_written)
+}
+
+/// Deserialize a DataType from bytes
+///
+/// Returns (DataType, bytes_read)
+fn deserialize_datatype(buffer: &[u8]) -> Result<(DataType, usize), StorageError> {
+    let type_tag = buffer[0];
+    let mut offset = 1;
+
+    let data_type = match type_tag {
+        1 => DataType::Integer,
+        2 => DataType::Smallint,
+        3 => DataType::Bigint,
+        4 => DataType::Unsigned,
+        5 => {
+            let precision = buffer[offset];
+            let scale = buffer[offset + 1];
+            offset += 2;
+            DataType::Numeric { precision, scale }
+        }
+        6 => {
+            let precision = buffer[offset];
+            let scale = buffer[offset + 1];
+            offset += 2;
+            DataType::Decimal { precision, scale }
+        }
+        7 => {
+            let precision = buffer[offset];
+            offset += 1;
+            DataType::Float { precision }
+        }
+        8 => DataType::Real,
+        9 => DataType::DoublePrecision,
+        10 => {
+            let len_bytes: [u8; 2] = buffer[offset..offset + 2].try_into().unwrap();
+            let length = u16::from_le_bytes(len_bytes) as usize;
+            offset += 2;
+            DataType::Character { length }
+        }
+        11 => {
+            let len_bytes: [u8; 2] = buffer[offset..offset + 2].try_into().unwrap();
+            let max_length = u16::from_le_bytes(len_bytes);
+            offset += 2;
+            DataType::Varchar { max_length: Some(max_length as usize) }
+        }
+        12 => DataType::CharacterLargeObject,
+        13 => DataType::Name,
+        14 => DataType::Boolean,
+        15 => DataType::Date,
+        16 => {
+            let with_timezone = buffer[offset] != 0;
+            offset += 1;
+            DataType::Time { with_timezone }
+        }
+        17 => {
+            let with_timezone = buffer[offset] != 0;
+            offset += 1;
+            DataType::Timestamp { with_timezone }
+        }
+        18 => {
+            let start_field = u8_to_interval_field(buffer[offset]);
+            let end_field_u8 = buffer[offset + 1];
+            let end_field = if end_field_u8 == 255 { None } else { Some(u8_to_interval_field(end_field_u8)) };
+            offset += 2;
+            DataType::Interval { start_field, end_field }
+        }
+        19 => DataType::BinaryLargeObject,
+        20 => {
+            let len = buffer[offset] as usize;
+            offset += 1;
+            let type_name = String::from_utf8_lossy(&buffer[offset..offset + len]).to_string();
+            offset += len;
+            DataType::UserDefined { type_name }
+        }
+        21 => DataType::Null,
+        _ => return Err(StorageError::IoError(format!("Invalid DataType tag: {}", type_tag))),
+    };
+
+    Ok((data_type, offset))
+}
+
+/// Convert IntervalField to u8 for serialization
+fn interval_field_to_u8(field: &IntervalField) -> u8 {
+    match field {
+        IntervalField::Year => 0,
+        IntervalField::Month => 1,
+        IntervalField::Day => 2,
+        IntervalField::Hour => 3,
+        IntervalField::Minute => 4,
+        IntervalField::Second => 5,
+    }
+}
+
+/// Convert u8 to IntervalField for deserialization
+fn u8_to_interval_field(value: u8) -> IntervalField {
+    match value {
+        0 => IntervalField::Year,
+        1 => IntervalField::Month,
+        2 => IntervalField::Day,
+        3 => IntervalField::Hour,
+        4 => IntervalField::Minute,
+        5 => IntervalField::Second,
+        _ => IntervalField::Year, // Default fallback
+    }
+}
 
 /// Type alias for multi-column keys (compatible with existing IndexData)
 pub type Key = Vec<SqlValue>;
@@ -41,6 +257,9 @@ impl InternalNode {
     }
 
     /// Check if the node is full (needs splitting)
+    ///
+    /// This method will be used in Part 2b for tree-level insert operations
+    #[allow(dead_code)]
     pub fn is_full(&self, degree: usize) -> bool {
         self.children.len() >= degree
     }
@@ -116,6 +335,9 @@ impl LeafNode {
     }
 
     /// Check if the node is full (needs splitting)
+    ///
+    /// This method will be used in Part 2b for tree-level insert operations
+    #[allow(dead_code)]
     pub fn is_full(&self, degree: usize) -> bool {
         self.entries.len() >= degree
     }
@@ -177,6 +399,9 @@ impl LeafNode {
     }
 
     /// Check if node is underfull (needs merging)
+    ///
+    /// This method will be used in Part 2b for tree-level delete operations
+    #[allow(dead_code)]
     pub fn is_underfull(&self, degree: usize) -> bool {
         self.entries.len() < degree / 2
     }
@@ -198,6 +423,8 @@ pub struct BTreeIndex {
     /// Page manager for disk I/O
     page_manager: Arc<PageManager>,
     /// Metadata page ID (always page 0)
+    /// This field will be used when supporting multiple B+ trees with different metadata pages
+    #[allow(dead_code)]
     metadata_page_id: PageId,
 }
 
@@ -276,20 +503,12 @@ impl BTreeIndex {
         let schema_len = u16::from_le_bytes(schema_len_bytes) as usize;
         offset += 2;
 
-        // Read key_schema (simplified - just store type tags)
+        // Read key_schema using deserialize_datatype
         let mut key_schema = Vec::new();
         for _ in 0..schema_len {
-            let type_tag = metadata_page.data[offset];
-            offset += 1;
-
-            // Reconstruct DataType from tag (simplified mapping)
-            let data_type = match type_tag {
-                1 => DataType::Integer,
-                2 => DataType::Varchar { max_length: Some(255) },
-                // Add more mappings as needed
-                _ => DataType::Integer,
-            };
+            let (data_type, bytes_read) = deserialize_datatype(&metadata_page.data[offset..])?;
             key_schema.push(data_type);
+            offset += bytes_read;
         }
 
         Ok(BTreeIndex {
@@ -327,16 +546,10 @@ impl BTreeIndex {
             .copy_from_slice(&(self.key_schema.len() as u16).to_le_bytes());
         offset += 2;
 
-        // Write key_schema (simplified - just store type tags)
+        // Write key_schema using serialize_datatype
         for data_type in &self.key_schema {
-            let type_tag: u8 = match data_type {
-                DataType::Integer | DataType::Bigint => 1,
-                DataType::Varchar { .. } | DataType::Character { .. } => 2,
-                // Add more mappings as needed
-                _ => 1,
-            };
-            metadata_page.data[offset] = type_tag;
-            offset += 1;
+            let bytes_written = serialize_datatype(data_type, &mut metadata_page.data[offset..])?;
+            offset += bytes_written;
         }
 
         metadata_page.mark_dirty();
@@ -361,23 +574,32 @@ impl BTreeIndex {
     }
 
     // Placeholder methods for serialization (implemented in serialize.rs)
+
+    /// Write an internal node to disk
+    ///
+    /// This method will be used in Part 2b for tree-level operations
+    #[allow(dead_code)]
     pub(crate) fn write_internal_node(&self, node: &InternalNode) -> Result<(), StorageError> {
-        // Will be implemented in serialize.rs
         super::serialize::write_internal_node(&self.page_manager, node, self.degree)
     }
 
     pub(crate) fn write_leaf_node(&self, node: &LeafNode) -> Result<(), StorageError> {
-        // Will be implemented in serialize.rs
         super::serialize::write_leaf_node(&self.page_manager, node, self.degree)
     }
 
+    /// Read an internal node from disk
+    ///
+    /// This method will be used in Part 2b for tree-level operations
+    #[allow(dead_code)]
     pub(crate) fn read_internal_node(&self, page_id: PageId) -> Result<InternalNode, StorageError> {
-        // Will be implemented in serialize.rs
         super::serialize::read_internal_node(&self.page_manager, page_id)
     }
 
+    /// Read a leaf node from disk
+    ///
+    /// This method will be used in Part 2b for tree-level operations
+    #[allow(dead_code)]
     pub(crate) fn read_leaf_node(&self, page_id: PageId) -> Result<LeafNode, StorageError> {
-        // Will be implemented in serialize.rs
         super::serialize::read_leaf_node(&self.page_manager, page_id)
     }
 }

@@ -17,6 +17,16 @@
 //! - ADR-002: Page 0 reserved for B+ tree metadata (root_page_id, degree, height)
 //! - ADR-003: Multi-column keys as Vec<SqlValue> for API compatibility
 //! - ADR-004: Pure disk-backed implementation (buffer pool deferred to Part 3)
+//!
+//! # Page 0 Usage
+//!
+//! Each BTreeIndex instance manages its own database file via PageManager. Within each file:
+//! - Page 0: B+ tree metadata (root_page_id, degree, height, key_schema)
+//! - Page 1+: Internal and leaf nodes
+//!
+//! This design means page 0 is never a valid node page, making it a safe NULL sentinel.
+//! Future work may allow multiple B+ trees to share a PageManager, in which case each
+//! tree would need its own metadata page allocated via allocate_page().
 
 mod node;
 mod serialize;
@@ -27,11 +37,17 @@ use crate::page::{PageId, PAGE_SIZE};
 use vibesql_types::DataType;
 
 // Page type identifiers
+#[allow(dead_code)] // Reserved for future use when implementing BTreeIndex::load()
 const PAGE_TYPE_METADATA: u8 = 0;
 const PAGE_TYPE_INTERNAL: u8 = 1;
 const PAGE_TYPE_LEAF: u8 = 2;
 
 // Null page reference
+//
+// NOTE: We use 0 as NULL_PAGE_ID because page 0 is reserved for metadata in each index file.
+// Each BTreeIndex has its own database file, and within that file, page 0 stores the B+ tree's
+// own metadata (root_page_id, degree, height, key_schema). Therefore, page 0 cannot be a valid
+// child or next_leaf pointer, making it a safe NULL sentinel value.
 const NULL_PAGE_ID: PageId = 0;
 
 /// Calculate the maximum degree for a B+ tree based on key schema
@@ -64,11 +80,13 @@ fn calculate_degree(key_schema: &[DataType]) -> usize {
 
 /// Estimate the maximum size of a serialized key
 ///
+/// This includes the key length prefix (2 bytes) and all SqlValue data.
+///
 /// # Arguments
 /// * `key_schema` - The data types of the key columns
 ///
 /// # Returns
-/// Estimated maximum size in bytes
+/// Estimated maximum size in bytes (including 2-byte length prefix)
 fn estimate_max_key_size(key_schema: &[DataType]) -> usize {
     let mut total_size = 0;
 
@@ -124,8 +142,8 @@ fn estimate_max_key_size(key_schema: &[DataType]) -> usize {
         total_size += size;
     }
 
-    // Add overhead for Vec serialization (count field)
-    total_size + 8
+    // Add overhead for key length field (2 bytes) in serialization
+    total_size + 2
 }
 
 #[cfg(test)]
@@ -137,11 +155,12 @@ mod tests {
         let key_schema = vec![DataType::Integer];
         let degree = calculate_degree(&key_schema);
 
-        // For integer keys: 1 (tag) + 8 (i64) = 9 bytes per key
-        // Entry size: 9 + 8 (row_id) = 17 bytes
-        // Available: 4096 - 3 - 8 = 4085 bytes
-        // Degree: 4085 / 17 = 240
+        // For integer keys: 2 (key_len) + 1 (tag) + 8 (i64) = 11 bytes per key
+        // Entry size: 11 + 8 (row_id) = 19 bytes
+        // Available: 4096 - 3 (header) - 8 (next_leaf) = 4085 bytes
+        // Degree: 4085 / 19 = 215
         assert!(degree >= 200, "Expected degree >= 200, got {}", degree);
+        assert!(degree < 250, "Expected degree < 250, got {}", degree);
     }
 
     #[test]
