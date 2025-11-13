@@ -23,3 +23,8 @@ lru = "0.12"
 [dev-dependencies]
 vibesql-parser = { version = "0.1.0", path = "../vibesql-parser" }
 tempfile = "3.8"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "index_performance"
+harness = false

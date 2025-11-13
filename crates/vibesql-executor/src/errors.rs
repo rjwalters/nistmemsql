@@ -541,6 +541,15 @@ impl From<vibesql_storage::StorageError> for ExecutorError {
             vibesql_storage::StorageError::LockError(msg) => {
                 ExecutorError::StorageError(format!("Lock error: {}", msg))
             }
+            vibesql_storage::StorageError::MemoryBudgetExceeded { used, budget } => {
+                ExecutorError::StorageError(format!(
+                    "Memory budget exceeded: using {} bytes, budget is {} bytes",
+                    used, budget
+                ))
+            }
+            vibesql_storage::StorageError::NoIndexToEvict => {
+                ExecutorError::StorageError("No index available to evict".to_string())
+            }
         }
     }
 }
