@@ -78,6 +78,25 @@ impl DeleteExecutor {
     /// assert_eq!(count, 1);
     /// ```
     pub fn execute(stmt: &DeleteStmt, database: &mut Database) -> Result<usize, ExecutorError> {
+        Self::execute_internal(stmt, database, None)
+    }
+
+    /// Execute a DELETE statement with procedural context
+    /// Supports procedural variables in WHERE clause
+    pub fn execute_with_procedural_context(
+        stmt: &DeleteStmt,
+        database: &mut Database,
+        procedural_context: &crate::procedural::ExecutionContext,
+    ) -> Result<usize, ExecutorError> {
+        Self::execute_internal(stmt, database, Some(procedural_context))
+    }
+
+    /// Internal implementation supporting procedural context
+    fn execute_internal(
+        stmt: &DeleteStmt,
+        database: &mut Database,
+        procedural_context: Option<&crate::procedural::ExecutionContext>,
+    ) -> Result<usize, ExecutorError> {
         // Note: stmt.only is currently ignored (treated as false)
         // ONLY keyword is used in table inheritance to exclude derived tables.
         // Since table inheritance is not yet implemented, we treat all deletes the same.
@@ -110,8 +129,12 @@ impl DeleteExecutor {
             .ok_or_else(|| ExecutorError::TableNotFound(stmt.table_name.clone()))?;
 
         // Create evaluator with database reference for subquery support (EXISTS, NOT EXISTS, IN
-        // with subquery, etc.)
-        let evaluator = ExpressionEvaluator::with_database(&schema, database);
+        // with subquery, etc.) and optional procedural context for variable resolution
+        let evaluator = if let Some(ctx) = procedural_context {
+            ExpressionEvaluator::with_procedural_context(&schema, database, ctx)
+        } else {
+            ExpressionEvaluator::with_database(&schema, database)
+        };
 
         // Find rows to delete and their indices
         // Try to use primary key index for fast lookup

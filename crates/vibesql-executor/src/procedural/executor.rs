@@ -277,13 +277,20 @@ fn execute_sql_statement(
                 Ok(())
             }
         }
-        Statement::Insert(_) | Statement::Update(_) | Statement::Delete(_) => {
-            // TODO: Implement INSERT/UPDATE/DELETE with procedural context
-            // This requires similar changes to InsertExecutor, UpdateExecutor, DeleteExecutor
-            Err(ExecutorError::UnsupportedFeature(
-                "INSERT/UPDATE/DELETE statements with procedural variables not yet implemented. \
-                 Only SELECT is currently supported.".to_string()
-            ))
+        Statement::Insert(insert_stmt) => {
+            // Execute INSERT with procedural context
+            let _count = crate::InsertExecutor::execute_with_procedural_context(db, insert_stmt, ctx)?;
+            Ok(())
+        }
+        Statement::Update(update_stmt) => {
+            // Execute UPDATE with procedural context
+            let _count = crate::UpdateExecutor::execute_with_procedural_context(update_stmt, db, ctx)?;
+            Ok(())
+        }
+        Statement::Delete(delete_stmt) => {
+            // Execute DELETE with procedural context
+            let _count = crate::DeleteExecutor::execute_with_procedural_context(delete_stmt, db, ctx)?;
+            Ok(())
         }
         _ => {
             // Other SQL statements (DDL, transactions, etc.) are not supported in procedures
