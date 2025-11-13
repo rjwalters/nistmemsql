@@ -35,6 +35,31 @@ fn test_parse_create_table_integer_types() {
 }
 
 #[test]
+fn test_parse_create_table_long_type() {
+    // LONG is an alias for BIGINT (MySQL/Oracle compatibility)
+    let result = Parser::parse_sql("CREATE TABLE test (id LONG, value LONG COMMENT 'test');");
+    assert!(result.is_ok(), "Should parse LONG type");
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.columns.len(), 2);
+
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Bigint => {} // LONG maps to Bigint
+                _ => panic!("Expected LONG to map to Bigint, got {:?}", create.columns[0].data_type),
+            }
+
+            match create.columns[1].data_type {
+                vibesql_types::DataType::Bigint => {} // LONG maps to Bigint
+                _ => panic!("Expected LONG to map to Bigint, got {:?}", create.columns[1].data_type),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
 fn test_parse_create_table_float_types() {
     let result = Parser::parse_sql("CREATE TABLE floats (a FLOAT, b REAL, c DOUBLE PRECISION);");
     assert!(result.is_ok(), "Should parse floating point types");
