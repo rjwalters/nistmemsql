@@ -249,6 +249,7 @@ fn test_sql_dump_with_indexes() {
     let idx1 = vibesql_ast::IndexColumn {
         column_name: "name".to_string(),
         direction: vibesql_ast::OrderDirection::Asc,
+        prefix_length: None,
     };
     db.create_index("idx_name".to_string(), "public.test_indexes".to_string(), false, vec![idx1])
         .unwrap();
@@ -256,6 +257,7 @@ fn test_sql_dump_with_indexes() {
     let idx2 = vibesql_ast::IndexColumn {
         column_name: "email".to_string(),
         direction: vibesql_ast::OrderDirection::Asc,
+        prefix_length: None,
     };
     db.create_index(
         "idx_email_unique".to_string(),

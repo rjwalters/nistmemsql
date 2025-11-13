@@ -132,7 +132,14 @@ impl Parser {
             }
             "DATETIME" => {
                 // MySQL/SQLite DATETIME type - treated as alias for TIMESTAMP
-                // Parse optional WITH TIME ZONE or WITHOUT TIME ZONE
+                //
+                // DESIGN NOTE: DATETIME is semantically equivalent to TIMESTAMP and is
+                // internally represented as DataType::Timestamp. This means:
+                // - DATETIME and TIMESTAMP are functionally identical at runtime
+                // - During persistence (save/load), DATETIME becomes TIMESTAMP
+                // - This behavior is intentional for simplicity and consistency
+                //
+                // See issue #1626 for discussion of alternatives.
                 let with_timezone = self.parse_timezone_modifier()?;
                 Ok(vibesql_types::DataType::Timestamp { with_timezone })
             }

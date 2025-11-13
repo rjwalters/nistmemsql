@@ -367,6 +367,9 @@ fn column_to_json(col: &ColumnSchema) -> JsonColumn {
             }
         }
         DataType::Timestamp { with_timezone } => {
+            // NOTE: DATETIME is serialized as TIMESTAMP since they are
+            // internally represented as the same type (DataType::Timestamp).
+            // This is intentional - see issue #1626 for rationale.
             if *with_timezone {
                 ("TIMESTAMP WITH TIME ZONE".to_string(), None, None, None)
             } else {
@@ -520,8 +523,10 @@ fn parse_data_type(
         "DATE" => Ok(DataType::Date),
         "TIME" => Ok(DataType::Time { with_timezone: false }),
         "TIME WITH TIME ZONE" => Ok(DataType::Time { with_timezone: true }),
-        "TIMESTAMP" => Ok(DataType::Timestamp { with_timezone: false }),
-        "TIMESTAMP WITH TIME ZONE" => Ok(DataType::Timestamp { with_timezone: true }),
+        "TIMESTAMP" | "DATETIME" => Ok(DataType::Timestamp { with_timezone: false }),
+        "TIMESTAMP WITH TIME ZONE" | "DATETIME WITH TIME ZONE" => {
+            Ok(DataType::Timestamp { with_timezone: true })
+        }
         "INTERVAL" => Ok(DataType::Interval {
             start_field: vibesql_types::IntervalField::Day,
             end_field: None,
