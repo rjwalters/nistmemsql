@@ -470,6 +470,7 @@ fn json_database_to_db(json_db: JsonDatabase) -> Result<Database, StorageError> 
                 } else {
                     OrderDirection::Asc
                 },
+                prefix_length: None,
             })
             .collect();
 

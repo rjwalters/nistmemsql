@@ -26,8 +26,8 @@ fn test_parse_create_table_with_table_level_primary_key() {
                     ..
                 } => {
                     assert_eq!(columns.len(), 2);
-                    assert_eq!(columns[0], "ORDER_ID");
-                    assert_eq!(columns[1], "PRODUCT_ID");
+                    assert_eq!(columns[0].column_name, "ORDER_ID");
+                    assert_eq!(columns[1].column_name, "PRODUCT_ID");
                 }
                 _ => panic!("Expected PRIMARY KEY constraint"),
             }
@@ -209,8 +209,8 @@ fn test_parse_create_table_with_table_level_unique() {
                     kind: vibesql_ast::TableConstraintKind::Unique { columns }, ..
                 } => {
                     assert_eq!(columns.len(), 2);
-                    assert_eq!(columns[0], "EMAIL");
-                    assert_eq!(columns[1], "USERNAME");
+                    assert_eq!(columns[0].column_name, "EMAIL");
+                    assert_eq!(columns[1].column_name, "USERNAME");
                 }
                 _ => panic!("Expected UNIQUE constraint"),
             }
@@ -240,5 +240,75 @@ fn test_parse_create_table_with_table_level_check() {
             ));
         }
         _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_create_table_with_indexed_column_prefix() {
+    // Test from issue #1620: MySQL indexed column prefix syntax
+    let result = Parser::parse_sql("CREATE TABLE t7(a TEXT, UNIQUE (a(1)))");
+    assert!(result.is_ok(), "Should parse UNIQUE with column prefix: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "T7");
+            assert_eq!(create.table_constraints.len(), 1);
+            match &create.table_constraints[0] {
+                vibesql_ast::TableConstraint {
+                    kind: vibesql_ast::TableConstraintKind::Unique { columns },
+                    ..
+                } => {
+                    assert_eq!(columns.len(), 1);
+                    assert_eq!(columns[0].column_name, "A");
+                    assert_eq!(columns[0].prefix_length, Some(1));
+                }
+                _ => panic!("Expected UNIQUE constraint"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_create_table_with_primary_key_prefix() {
+    let result = Parser::parse_sql("CREATE TABLE t8(name VARCHAR(100), PRIMARY KEY (name(50)))");
+    assert!(result.is_ok(), "Should parse PRIMARY KEY with column prefix: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_constraints.len(), 1);
+            match &create.table_constraints[0] {
+                vibesql_ast::TableConstraint {
+                    kind: vibesql_ast::TableConstraintKind::PrimaryKey { columns },
+                    ..
+                } => {
+                    assert_eq!(columns.len(), 1);
+                    assert_eq!(columns[0].column_name, "NAME");
+                    assert_eq!(columns[0].prefix_length, Some(50));
+                }
+                _ => panic!("Expected PRIMARY KEY constraint"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_create_index_with_column_prefix() {
+    let result = Parser::parse_sql("CREATE INDEX idx1 ON users (email(50))");
+    assert!(result.is_ok(), "Should parse CREATE INDEX with column prefix: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateIndex(create_idx) => {
+            assert_eq!(create_idx.index_name, "IDX1");
+            assert_eq!(create_idx.table_name, "USERS");
+            assert_eq!(create_idx.columns.len(), 1);
+            assert_eq!(create_idx.columns[0].column_name, "EMAIL");
+            assert_eq!(create_idx.columns[0].prefix_length, Some(50));
+        }
+        _ => panic!("Expected CREATE INDEX statement"),
     }
 }

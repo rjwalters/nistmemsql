@@ -278,8 +278,11 @@ impl AlterTableExecutor {
 
         match &stmt.constraint.kind {
             TableConstraintKind::PrimaryKey { columns } => {
+                // Extract column names from IndexColumn structs
+                let column_names: Vec<String> = columns.iter().map(|c| c.column_name.clone()).collect();
+
                 // Verify all columns exist
-                for col_name in columns {
+                for col_name in &column_names {
                     if !table.schema.has_column(col_name) {
                         return Err(ExecutorError::ColumnNotFound {
                             column_name: col_name.clone(),
@@ -303,7 +306,7 @@ impl AlterTableExecutor {
                 }
 
                 // Add primary key to table schema
-                table.schema_mut().primary_key = Some(columns.clone());
+                table.schema_mut().primary_key = Some(column_names);
 
                 // Rebuild table indexes to create the primary key index
                 table.rebuild_indexes();
@@ -319,7 +322,9 @@ impl AlterTableExecutor {
                 ))
             }
             TableConstraintKind::Unique { columns } => {
-                table.schema_mut().add_unique_constraint(columns.clone())?;
+                // Extract column names from IndexColumn structs
+                let column_names: Vec<String> = columns.iter().map(|c| c.column_name.clone()).collect();
+                table.schema_mut().add_unique_constraint(column_names)?;
 
                 // Rebuild table indexes to create the unique constraint index
                 table.rebuild_indexes();

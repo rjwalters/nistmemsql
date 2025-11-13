@@ -172,6 +172,9 @@ pub enum IndexType {
 pub struct IndexColumn {
     pub column_name: String,
     pub direction: crate::select::OrderDirection,
+    /// Optional prefix length for indexed columns (MySQL/SQLite feature)
+    /// Example: UNIQUE (name(10)) creates index on first 10 characters of 'name'
+    pub prefix_length: Option<u64>,
 }
 
 /// DROP INDEX statement

@@ -85,6 +85,32 @@ impl Parser {
             // Parse column name
             let column_name = self.parse_identifier()?;
 
+            // Check for optional prefix length: column_name(length)
+            let prefix_length = if self.peek() == &Token::LParen {
+                self.advance(); // consume LParen
+
+                // Parse the integer length
+                let length = match self.peek() {
+                    Token::Number(n) => {
+                        let value = n.parse::<i64>().map_err(|_| ParseError {
+                            message: "Invalid integer for column prefix length".to_string(),
+                        })?;
+                        self.advance();
+                        value
+                    }
+                    _ => {
+                        return Err(ParseError {
+                            message: "Expected integer for column prefix length".to_string(),
+                        })
+                    }
+                };
+
+                self.expect_token(Token::RParen)?;
+                Some(length as u64)
+            } else {
+                None
+            };
+
             // Check for optional ASC/DESC
             let direction = if self.peek_keyword(crate::keywords::Keyword::Asc) {
                 self.advance(); // consume ASC
@@ -96,7 +122,7 @@ impl Parser {
                 vibesql_ast::OrderDirection::Asc // Default
             };
 
-            columns.push(vibesql_ast::IndexColumn { column_name, direction });
+            columns.push(vibesql_ast::IndexColumn { column_name, direction, prefix_length });
 
             if self.peek() == &Token::Comma {
                 self.advance(); // consume comma

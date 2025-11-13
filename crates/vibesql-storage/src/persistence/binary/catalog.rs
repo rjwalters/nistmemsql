@@ -243,7 +243,7 @@ pub fn read_catalog<R: Read>(reader: &mut R) -> Result<Database, StorageError> {
                 }
             };
 
-            columns.push(vibesql_ast::IndexColumn { column_name, direction });
+            columns.push(vibesql_ast::IndexColumn { column_name, direction, prefix_length: None });
         }
 
         index_specs.push((index_name, table_name, unique, columns));

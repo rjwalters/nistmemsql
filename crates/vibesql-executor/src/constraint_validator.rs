@@ -112,16 +112,20 @@ impl ConstraintValidator {
                     if result.primary_key.is_some() {
                         return Err(ExecutorError::MultiplePrimaryKeys);
                     }
-                    result.primary_key = Some(pk_cols.clone());
+                    // Extract column names from IndexColumn structs
+                    let column_names: Vec<String> = pk_cols.iter().map(|c| c.column_name.clone()).collect();
+                    result.primary_key = Some(column_names.clone());
                     // All PK columns must be NOT NULL
-                    for col_name in pk_cols {
+                    for col_name in &column_names {
                         if !result.not_null_columns.contains(col_name) {
                             result.not_null_columns.push(col_name.clone());
                         }
                     }
                 }
                 TableConstraintKind::Unique { columns } => {
-                    result.unique_constraints.push(columns.clone());
+                    // Extract column names from IndexColumn structs
+                    let column_names: Vec<String> = columns.iter().map(|c| c.column_name.clone()).collect();
+                    result.unique_constraints.push(column_names);
                 }
                 TableConstraintKind::Check { expr } => {
                     let constraint_name = format!("check_{}", constraint_counter);
