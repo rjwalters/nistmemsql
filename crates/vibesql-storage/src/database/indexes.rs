@@ -631,12 +631,9 @@ impl IndexManager {
                         }
                         IndexData::DiskBacked { btree, .. } => {
                             // Lock and insert into B+tree
-                            // Note: BTreeIndex::insert will return an error for duplicate keys.
-                            // For non-unique indexes, we should allow this, but currently
-                            // the B+tree implementation doesn't support duplicate keys.
-                            // This is a known limitation that will need to be addressed.
+                            // BTreeIndex now supports duplicate keys for non-unique indexes
                             if let Err(e) = btree.lock().unwrap().insert(key_values, row_index) {
-                                // Log error but don't fail - this may happen for non-unique indexes
+                                // Log error if insert fails for other reasons
                                 log::warn!("Failed to insert into disk-backed index '{}': {:?}", index_name, e);
                             }
                         }
