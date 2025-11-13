@@ -185,6 +185,7 @@ impl AggregateAccumulator {
     /// - AVG: Combine sums and counts (or merge seen sets for DISTINCT)
     /// - MIN: Take minimum of minimums
     /// - MAX: Take maximum of maximums
+    #[allow(dead_code)]
     pub(super) fn combine(&mut self, other: Self) -> Result<(), crate::errors::ExecutorError> {
         match (self, other) {
             // COUNT: Sum the counts

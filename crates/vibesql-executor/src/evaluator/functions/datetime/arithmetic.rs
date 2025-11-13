@@ -120,7 +120,7 @@ pub fn date_add(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     // Get date/timestamp value (handles VARCHAR, but preserves Timestamp vs Date)
     let date_val = match &args[0] {
         SqlValue::Date(_) | SqlValue::Timestamp(_) => args[0].clone(),
-        SqlValue::Varchar(s) | SqlValue::Character(s) => coerce_to_date(&args[0])?,
+        SqlValue::Varchar(_) | SqlValue::Character(_) => coerce_to_date(&args[0])?,
         SqlValue::Null => SqlValue::Null,
         val => return Err(ExecutorError::TypeMismatch {
             left: val.clone(),
@@ -221,7 +221,7 @@ pub fn date_sub(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
     // Get date/timestamp value (handles VARCHAR, but preserves Timestamp vs Date)
     let date_val = match &args[0] {
         SqlValue::Date(_) | SqlValue::Timestamp(_) => args[0].clone(),
-        SqlValue::Varchar(s) | SqlValue::Character(s) => coerce_to_date(&args[0])?,
+        SqlValue::Varchar(_) | SqlValue::Character(_) => coerce_to_date(&args[0])?,
         SqlValue::Null => SqlValue::Null,
         val => return Err(ExecutorError::TypeMismatch {
             left: val.clone(),
