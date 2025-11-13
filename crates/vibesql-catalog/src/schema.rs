@@ -57,12 +57,6 @@ impl Schema {
         }
     }
 
-    /// Get a table schema by name (legacy, uses case-sensitive lookup)
-    #[deprecated(since = "0.2.0", note = "Use get_table with case_sensitive parameter")]
-    pub fn get_table_deprecated(&self, name: &str) -> Option<&TableSchema> {
-        self.tables.get(name)
-    }
-
     /// Drop a table from this schema with optional case-insensitive lookup
     ///
     /// When case_sensitive is true, requires exact name match.
