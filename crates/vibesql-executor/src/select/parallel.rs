@@ -146,6 +146,161 @@ impl ParallelConfig {
     }
 }
 
+//
+// Parallel Scan Operations
+//
+
+use rayon::prelude::*;
+use vibesql_storage::Row;
+
+/// Parallel scan with filtering predicate.
+///
+/// Applies a predicate function to each row and returns only those rows
+/// where the predicate returns `true`. Automatically uses parallel execution
+/// when beneficial based on hardware capabilities and row count.
+///
+/// # Arguments
+/// * `rows` - Input rows to scan
+/// * `predicate` - Function to test each row (returns true to keep, false to filter out)
+///
+/// # Returns
+/// Vector of rows that satisfy the predicate
+///
+/// # Example
+/// ```ignore
+/// // Filter rows where column 0 > 100
+/// let filtered = parallel_scan_filter(rows, |row| {
+///     matches!(row.values[0], SqlValue::Integer(x) if x > 100)
+/// });
+/// ```
+pub fn parallel_scan_filter<F>(rows: &[Row], predicate: F) -> Vec<Row>
+where
+    F: Fn(&Row) -> bool + Sync + Send,
+{
+    let config = ParallelConfig::global();
+
+    if config.should_parallelize_scan(rows.len()) {
+        // Parallel path: use rayon for efficient parallel filtering
+        rows.par_iter()
+            .filter(|row| predicate(row))
+            .cloned()
+            .collect()
+    } else {
+        // Sequential fallback for small datasets
+        rows.iter()
+            .filter(|row| predicate(row))
+            .cloned()
+            .collect()
+    }
+}
+
+/// Parallel scan with transformation function.
+///
+/// Applies a transformation function to each row. Can be used for projection
+/// (selecting specific columns) or other row transformations. Automatically
+/// uses parallel execution when beneficial.
+///
+/// # Arguments
+/// * `rows` - Input rows to scan
+/// * `transform` - Function to transform each row (must not panic or return Err)
+///
+/// # Returns
+/// Vector of transformed rows
+///
+/// # Example
+/// ```ignore
+/// // Project first two columns only
+/// let projected = parallel_scan_map(rows, |row| {
+///     Row {
+///         values: row.values[..2].to_vec()
+///     }
+/// });
+/// ```
+pub fn parallel_scan_map<F>(rows: &[Row], transform: F) -> Vec<Row>
+where
+    F: Fn(&Row) -> Row + Sync + Send,
+{
+    let config = ParallelConfig::global();
+
+    if config.should_parallelize_scan(rows.len()) {
+        // Parallel path: use rayon for efficient parallel mapping
+        rows.par_iter()
+            .map(|row| transform(row))
+            .collect()
+    } else {
+        // Sequential fallback for small datasets
+        rows.iter()
+            .map(|row| transform(row))
+            .collect()
+    }
+}
+
+/// Parallel scan with filter-map for combined filtering and transformation.
+///
+/// Applies a function that can both filter (return None) and transform (return Some).
+/// This is more efficient than separate filter + map operations.
+///
+/// # Arguments
+/// * `rows` - Input rows to scan
+/// * `filter_map` - Function that returns Some(row) to keep/transform, None to filter out
+///
+/// # Returns
+/// Vector of transformed rows (where function returned Some)
+///
+/// # Example
+/// ```ignore
+/// // Filter AND project in one pass
+/// let result = parallel_scan_filter_map(rows, |row| {
+///     if matches!(row.values[0], SqlValue::Integer(x) if x > 100) {
+///         Some(Row { values: row.values[..2].to_vec() })
+///     } else {
+///         None
+///     }
+/// });
+/// ```
+pub fn parallel_scan_filter_map<F>(rows: &[Row], filter_map: F) -> Vec<Row>
+where
+    F: Fn(&Row) -> Option<Row> + Sync + Send,
+{
+    let config = ParallelConfig::global();
+
+    if config.should_parallelize_scan(rows.len()) {
+        // Parallel path: use rayon for efficient parallel filter-map
+        rows.par_iter()
+            .filter_map(|row| filter_map(row))
+            .collect()
+    } else {
+        // Sequential fallback for small datasets
+        rows.iter()
+            .filter_map(|row| filter_map(row))
+            .collect()
+    }
+}
+
+/// Parallel scan that simply materializes a slice into a Vec.
+///
+/// When row count exceeds threshold, uses parallel copying for better
+/// memory bandwidth utilization on large datasets.
+///
+/// # Arguments
+/// * `rows` - Input row slice to materialize
+///
+/// # Returns
+/// Vector containing clones of all input rows
+pub fn parallel_scan_materialize(rows: &[Row]) -> Vec<Row> {
+    let config = ParallelConfig::global();
+
+    if config.should_parallelize_scan(rows.len()) {
+        // Parallel path: use rayon for efficient parallel cloning
+        rows.par_iter()
+            .cloned()
+            .collect()
+    } else {
+        // Sequential fallback for small datasets
+        rows.to_vec()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -239,5 +394,152 @@ mod tests {
         // Should fall back to auto-detection based on current hardware
         let auto_thresholds = ParallelConfig::thresholds_for_hardware(rayon::current_num_threads());
         assert_eq!(thresholds.scan_filter, auto_thresholds.scan_filter);
+    }
+
+    // Tests for parallel scan functions
+
+    fn create_test_rows(count: usize) -> Vec<Row> {
+        (0..count)
+            .map(|i| Row {
+                values: vec![
+                    vibesql_types::SqlValue::Integer(i as i64),
+                    vibesql_types::SqlValue::Varchar(format!("row{}", i)),
+                ],
+            })
+            .collect()
+    }
+
+    #[test]
+    fn test_parallel_scan_filter() {
+        let rows = create_test_rows(100);
+
+        // Filter for even numbers
+        let filtered = parallel_scan_filter(&rows, |row| {
+            matches!(row.values[0], vibesql_types::SqlValue::Integer(x) if x % 2 == 0)
+        });
+
+        // Should have 50 even numbers (0, 2, 4, ..., 98)
+        assert_eq!(filtered.len(), 50);
+
+        // Verify first few results
+        assert!(matches!(filtered[0].values[0], vibesql_types::SqlValue::Integer(0)));
+        assert!(matches!(filtered[1].values[0], vibesql_types::SqlValue::Integer(2)));
+        assert!(matches!(filtered[2].values[0], vibesql_types::SqlValue::Integer(4)));
+    }
+
+    #[test]
+    fn test_parallel_scan_filter_empty() {
+        let rows = create_test_rows(100);
+
+        // Filter that matches nothing
+        let filtered = parallel_scan_filter(&rows, |_| false);
+
+        assert_eq!(filtered.len(), 0);
+    }
+
+    #[test]
+    fn test_parallel_scan_filter_all() {
+        let rows = create_test_rows(100);
+
+        // Filter that matches everything
+        let filtered = parallel_scan_filter(&rows, |_| true);
+
+        assert_eq!(filtered.len(), 100);
+    }
+
+    #[test]
+    fn test_parallel_scan_map() {
+        let rows = create_test_rows(10);
+
+        // Double all integers
+        let transformed = parallel_scan_map(&rows, |row| {
+            let mut new_row = row.clone();
+            if let vibesql_types::SqlValue::Integer(x) = row.values[0] {
+                new_row.values[0] = vibesql_types::SqlValue::Integer(x * 2);
+            }
+            new_row
+        });
+
+        assert_eq!(transformed.len(), 10);
+        assert!(matches!(transformed[0].values[0], vibesql_types::SqlValue::Integer(0)));
+        assert!(matches!(transformed[1].values[0], vibesql_types::SqlValue::Integer(2)));
+        assert!(matches!(transformed[5].values[0], vibesql_types::SqlValue::Integer(10)));
+    }
+
+    #[test]
+    fn test_parallel_scan_filter_map() {
+        let rows = create_test_rows(100);
+
+        // Filter for even numbers AND double them
+        let result = parallel_scan_filter_map(&rows, |row| {
+            if let vibesql_types::SqlValue::Integer(x) = row.values[0] {
+                if x % 2 == 0 {
+                    let mut new_row = row.clone();
+                    new_row.values[0] = vibesql_types::SqlValue::Integer(x * 2);
+                    return Some(new_row);
+                }
+            }
+            None
+        });
+
+        // Should have 50 even numbers, doubled
+        assert_eq!(result.len(), 50);
+        assert!(matches!(result[0].values[0], vibesql_types::SqlValue::Integer(0)));
+        assert!(matches!(result[1].values[0], vibesql_types::SqlValue::Integer(4)));  // 2*2
+        assert!(matches!(result[2].values[0], vibesql_types::SqlValue::Integer(8)));  // 4*2
+    }
+
+    #[test]
+    fn test_parallel_scan_materialize() {
+        let rows = create_test_rows(50);
+
+        let materialized = parallel_scan_materialize(&rows);
+
+        assert_eq!(materialized.len(), 50);
+        // Verify content is identical
+        for (i, row) in materialized.iter().enumerate() {
+            assert!(matches!(row.values[0], vibesql_types::SqlValue::Integer(x) if x == i as i64));
+        }
+    }
+
+    #[test]
+    fn test_parallel_scan_small_dataset_uses_sequential() {
+        // With small dataset, should use sequential path
+        // (This is implicit in the implementation, but we test correctness)
+        let rows = create_test_rows(10);  // Well below any threshold
+
+        let filtered = parallel_scan_filter(&rows, |row| {
+            matches!(row.values[0], vibesql_types::SqlValue::Integer(x) if x < 5)
+        });
+
+        assert_eq!(filtered.len(), 5);
+    }
+
+    #[test]
+    fn test_parallel_scan_preserves_row_structure() {
+        let rows = vec![
+            Row {
+                values: vec![
+                    vibesql_types::SqlValue::Integer(1),
+                    vibesql_types::SqlValue::Varchar("test".to_string()),
+                    vibesql_types::SqlValue::Null,
+                ],
+            },
+            Row {
+                values: vec![
+                    vibesql_types::SqlValue::Integer(2),
+                    vibesql_types::SqlValue::Varchar("test2".to_string()),
+                    vibesql_types::SqlValue::Double(3.14),
+                ],
+            },
+        ];
+
+        let filtered = parallel_scan_filter(&rows, |_| true);
+
+        assert_eq!(filtered.len(), 2);
+        assert_eq!(filtered[0].values.len(), 3);
+        assert_eq!(filtered[1].values.len(), 3);
+        assert!(matches!(filtered[0].values[2], vibesql_types::SqlValue::Null));
+        assert!(matches!(filtered[1].values[2], vibesql_types::SqlValue::Double(x) if x == 3.14));
     }
 }
