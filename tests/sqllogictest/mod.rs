@@ -7,7 +7,6 @@
 //! - `preprocessing`: MySQL-specific directive handling
 //! - `scheduler`: Test prioritization and worker partitioning
 //! - `stats`: Test statistics and failure tracking
-//! - `work_queue`: Work queue for dynamic file allocation across workers
 //! - `metrics`: Benchmark metrics collection and aggregation
 //! - `report`: Comparison report generator with multiple output formats
 
@@ -19,4 +18,3 @@ pub mod preprocessing;
 pub mod report;
 pub mod scheduler;
 pub mod stats;
-pub mod work_queue;

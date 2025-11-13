@@ -31,11 +31,5 @@ vibesql-catalog = { version = "0.1.0", path = "../vibesql-catalog" }
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
 
-[profile.release]
-opt-level = "z"     # Optimize for size
-lto = true          # Link-time optimization
-codegen-units = 1   # Better optimization
-panic = "abort"     # Smaller binary
-
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-O4", "--enable-mutable-globals"]
