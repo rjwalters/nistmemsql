@@ -120,6 +120,8 @@ pub struct JsonIndexColumn {
     pub name: String,
     #[serde(default = "default_asc")]
     pub direction: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prefix_length: Option<u64>,
 }
 
 fn default_asc() -> String {
@@ -264,6 +266,7 @@ impl Database {
                                 OrderDirection::Desc => "DESC".to_string(),
                                 OrderDirection::Asc => "ASC".to_string(),
                             },
+                            prefix_length: col.prefix_length,
                         })
                         .collect(),
                     unique: metadata.unique,

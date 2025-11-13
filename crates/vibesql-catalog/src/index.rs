@@ -38,6 +38,10 @@ pub struct IndexedColumn {
     pub column_name: String,
     /// Sort order for ordered indexes (B-tree, R-tree)
     pub order: SortOrder,
+    /// Optional prefix length for indexed columns (MySQL/SQLite feature)
+    /// When present, only the first N characters/bytes of the column value are indexed
+    /// Example: UNIQUE (email(50)) indexes only first 50 characters
+    pub prefix_length: Option<u64>,
 }
 
 /// Sort order for indexed columns
@@ -108,6 +112,7 @@ mod tests {
             vec![IndexedColumn {
                 column_name: "name".to_string(),
                 order: SortOrder::Ascending,
+                prefix_length: None,
             }],
             false,
         );
@@ -124,6 +129,7 @@ mod tests {
             vec![IndexedColumn {
                 column_name: "name".to_string(),
                 order: SortOrder::Ascending,
+                prefix_length: None,
             }],
             false,
         );
@@ -142,10 +148,12 @@ mod tests {
                 IndexedColumn {
                     column_name: "name".to_string(),
                     order: SortOrder::Ascending,
+                    prefix_length: None,
                 },
                 IndexedColumn {
                     column_name: "email".to_string(),
                     order: SortOrder::Ascending,
+                    prefix_length: None,
                 },
             ],
             false,

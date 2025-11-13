@@ -161,6 +161,7 @@ mod tests {
             vec![IndexedColumn {
                 column_name: "name".to_string(),
                 order: SortOrder::Ascending,
+                prefix_length: None,
             }],
             false,
         );
@@ -180,6 +181,7 @@ mod tests {
             vec![IndexedColumn {
                 column_name: "name".to_string(),
                 order: SortOrder::Ascending,
+                prefix_length: None,
             }],
             false,
         );
@@ -201,6 +203,7 @@ mod tests {
             vec![IndexedColumn {
                 column_name: "name".to_string(),
                 order: SortOrder::Ascending,
+                prefix_length: None,
             }],
             false,
         );
@@ -220,6 +223,7 @@ mod tests {
             vec![IndexedColumn {
                 column_name: "age".to_string(), // Column doesn't exist
                 order: SortOrder::Ascending,
+                prefix_length: None,
             }],
             false,
         );
@@ -239,6 +243,7 @@ mod tests {
             vec![IndexedColumn {
                 column_name: "name".to_string(),
                 order: SortOrder::Ascending,
+                prefix_length: None,
             }],
             false,
         );
@@ -259,6 +264,7 @@ mod tests {
             vec![IndexedColumn {
                 column_name: "name".to_string(),
                 order: SortOrder::Ascending,
+                prefix_length: None,
             }],
             false,
         );
@@ -270,6 +276,7 @@ mod tests {
             vec![IndexedColumn {
                 column_name: "email".to_string(),
                 order: SortOrder::Ascending,
+                prefix_length: None,
             }],
             true,
         );
@@ -292,6 +299,7 @@ mod tests {
             vec![IndexedColumn {
                 column_name: "name".to_string(),
                 order: SortOrder::Ascending,
+                prefix_length: None,
             }],
             false,
         );
@@ -303,6 +311,7 @@ mod tests {
             vec![IndexedColumn {
                 column_name: "email".to_string(),
                 order: SortOrder::Ascending,
+                prefix_length: None,
             }],
             true,
         );

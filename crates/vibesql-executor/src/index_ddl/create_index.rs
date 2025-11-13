@@ -121,6 +121,7 @@ impl CreateIndexExecutor {
                                 vibesql_ast::OrderDirection::Asc => vibesql_catalog::SortOrder::Ascending,
                                 vibesql_ast::OrderDirection::Desc => vibesql_catalog::SortOrder::Descending,
                             },
+                            prefix_length: col.prefix_length,
                         })
                         .collect(),
                     *unique,
@@ -195,6 +196,7 @@ impl CreateIndexExecutor {
                     vec![vibesql_catalog::IndexedColumn {
                         column_name: column_name.clone(),
                         order: vibesql_catalog::SortOrder::Ascending,
+                        prefix_length: None, // Spatial indexes don't support prefix indexing
                     }],
                     false,
                 );
