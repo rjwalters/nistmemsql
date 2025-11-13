@@ -10,6 +10,76 @@ impl Parser {
                 let first = id.clone();
                 self.advance();
 
+                // Check for hex/binary literal (x'...' or b'...')
+                let first_upper = first.to_uppercase();
+                if (first_upper == "X" || first_upper == "B") && matches!(self.peek(), Token::String(_)) {
+                    if let Token::String(s) = self.peek() {
+                        let string_val = s.clone();
+                        self.advance();
+
+                        if first_upper == "X" {
+                            // Parse hex literal: x'303132' -> "\x30\x31\x32"
+                            // Validate and decode hex string
+                            if string_val.len() % 2 != 0 {
+                                return Err(ParseError {
+                                    message: format!("Hex literal must have even number of digits: x'{}'", string_val),
+                                });
+                            }
+
+                            let mut bytes = Vec::new();
+                            for i in (0..string_val.len()).step_by(2) {
+                                let hex_byte = &string_val[i..i + 2];
+                                match u8::from_str_radix(hex_byte, 16) {
+                                    Ok(byte) => bytes.push(byte),
+                                    Err(_) => {
+                                        return Err(ParseError {
+                                            message: format!("Invalid hex digit in literal: x'{}'", string_val),
+                                        });
+                                    }
+                                }
+                            }
+
+                            // Convert bytes to string (UTF-8 lossy conversion for compatibility)
+                            let result = String::from_utf8_lossy(&bytes).to_string();
+                            return Ok(Some(vibesql_ast::Expression::Literal(
+                                vibesql_types::SqlValue::Varchar(result),
+                            )));
+                        } else {
+                            // Parse binary literal: b'01010101' -> "U"
+                            if !string_val.chars().all(|c| c == '0' || c == '1') {
+                                return Err(ParseError {
+                                    message: format!("Binary literal must contain only 0 and 1: b'{}'", string_val),
+                                });
+                            }
+
+                            if string_val.len() % 8 != 0 {
+                                return Err(ParseError {
+                                    message: format!("Binary literal must have length divisible by 8: b'{}'", string_val),
+                                });
+                            }
+
+                            let mut bytes = Vec::new();
+                            for i in (0..string_val.len()).step_by(8) {
+                                let binary_byte = &string_val[i..i + 8];
+                                match u8::from_str_radix(binary_byte, 2) {
+                                    Ok(byte) => bytes.push(byte),
+                                    Err(_) => {
+                                        return Err(ParseError {
+                                            message: format!("Invalid binary literal: b'{}'", string_val),
+                                        });
+                                    }
+                                }
+                            }
+
+                            // Convert bytes to string
+                            let result = String::from_utf8_lossy(&bytes).to_string();
+                            return Ok(Some(vibesql_ast::Expression::Literal(
+                                vibesql_types::SqlValue::Varchar(result),
+                            )));
+                        }
+                    }
+                }
+
                 // Check for function call (identifier followed by '(')
                 if matches!(self.peek(), Token::LParen) {
                     // This is handled by parse_function_call, return None

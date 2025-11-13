@@ -296,3 +296,150 @@ fn test_parse_date_time_literals_in_comparison() {
     );
     assert!(result.is_ok(), "Date/time literals in comparison should parse: {:?}", result);
 }
+
+// ========================================================================
+// Hex and Binary Literal Tests
+// ========================================================================
+
+#[test]
+fn test_parse_hex_literal_lowercase() {
+    let result = Parser::parse_sql("SELECT x'303132';");
+    assert!(result.is_ok(), "Hex literal x'303132' should parse: {:?}", result);
+
+    let stmt = result.unwrap();
+    match stmt {
+        vibesql_ast::Statement::Select(select) => {
+            assert_eq!(select.select_list.len(), 1);
+            match &select.select_list[0] {
+                vibesql_ast::SelectItem::Expression { expr, alias: _ } => match expr {
+                    vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar(s)) => {
+                        // x'303132' = bytes [0x30, 0x31, 0x32] = "012"
+                        assert_eq!(s, "012");
+                    }
+                    _ => panic!("Expected VARCHAR literal, got {:?}", expr),
+                },
+                _ => panic!("Expected expression"),
+            }
+        }
+        _ => panic!("Expected SELECT statement"),
+    }
+}
+
+#[test]
+fn test_parse_hex_literal_uppercase() {
+    let result = Parser::parse_sql("SELECT X'48656C6C6F';");
+    assert!(result.is_ok(), "Hex literal X'48656C6C6F' should parse: {:?}", result);
+
+    let stmt = result.unwrap();
+    match stmt {
+        vibesql_ast::Statement::Select(select) => match &select.select_list[0] {
+            vibesql_ast::SelectItem::Expression { expr, alias: _ } => match expr {
+                vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar(s)) => {
+                    // X'48656C6C6F' = "Hello"
+                    assert_eq!(s, "Hello");
+                }
+                _ => panic!("Expected VARCHAR literal"),
+            },
+            _ => panic!("Expected expression"),
+        },
+        _ => panic!("Expected SELECT statement"),
+    }
+}
+
+#[test]
+fn test_parse_hex_literal_empty() {
+    let result = Parser::parse_sql("SELECT x'';");
+    assert!(result.is_ok(), "Empty hex literal should parse: {:?}", result);
+
+    let stmt = result.unwrap();
+    match stmt {
+        vibesql_ast::Statement::Select(select) => match &select.select_list[0] {
+            vibesql_ast::SelectItem::Expression { expr, alias: _ } => match expr {
+                vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar(s)) => {
+                    assert_eq!(s, "");
+                }
+                _ => panic!("Expected VARCHAR literal"),
+            },
+            _ => panic!("Expected expression"),
+        },
+        _ => panic!("Expected SELECT statement"),
+    }
+}
+
+#[test]
+fn test_parse_hex_literal_odd_length_fails() {
+    let result = Parser::parse_sql("SELECT x'123';");
+    assert!(result.is_err(), "Hex literal with odd length should fail");
+}
+
+#[test]
+fn test_parse_hex_literal_invalid_digit_fails() {
+    let result = Parser::parse_sql("SELECT x'12GH';");
+    assert!(result.is_err(), "Hex literal with invalid digit should fail");
+}
+
+#[test]
+fn test_parse_binary_literal_lowercase() {
+    let result = Parser::parse_sql("SELECT b'01010101';");
+    assert!(result.is_ok(), "Binary literal b'01010101' should parse: {:?}", result);
+
+    let stmt = result.unwrap();
+    match stmt {
+        vibesql_ast::Statement::Select(select) => match &select.select_list[0] {
+            vibesql_ast::SelectItem::Expression { expr, alias: _ } => match expr {
+                vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar(s)) => {
+                    // b'01010101' = byte 0x55 = "U"
+                    assert_eq!(s, "U");
+                }
+                _ => panic!("Expected VARCHAR literal"),
+            },
+            _ => panic!("Expected expression"),
+        },
+        _ => panic!("Expected SELECT statement"),
+    }
+}
+
+#[test]
+fn test_parse_binary_literal_uppercase() {
+    let result = Parser::parse_sql("SELECT B'01000001';");
+    assert!(result.is_ok(), "Binary literal B'01000001' should parse: {:?}", result);
+
+    let stmt = result.unwrap();
+    match stmt {
+        vibesql_ast::Statement::Select(select) => match &select.select_list[0] {
+            vibesql_ast::SelectItem::Expression { expr, alias: _ } => match expr {
+                vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar(s)) => {
+                    // B'01000001' = byte 0x41 = "A"
+                    assert_eq!(s, "A");
+                }
+                _ => panic!("Expected VARCHAR literal"),
+            },
+            _ => panic!("Expected expression"),
+        },
+        _ => panic!("Expected SELECT statement"),
+    }
+}
+
+#[test]
+fn test_parse_binary_literal_invalid_length_fails() {
+    let result = Parser::parse_sql("SELECT b'0101';");
+    assert!(result.is_err(), "Binary literal not divisible by 8 should fail");
+}
+
+#[test]
+fn test_parse_binary_literal_invalid_digit_fails() {
+    let result = Parser::parse_sql("SELECT b'01012345';");
+    assert!(result.is_err(), "Binary literal with invalid digit should fail");
+}
+
+#[test]
+fn test_parse_hex_literal_in_expression() {
+    let result = Parser::parse_sql("SELECT x'303132' IN (SELECT * FROM t1);");
+    assert!(result.is_ok(), "Hex literal in IN expression should parse: {:?}", result);
+}
+
+#[test]
+fn test_parse_hex_literal_in_comparison() {
+    let result = Parser::parse_sql("SELECT * FROM t WHERE col = x'ABCD';");
+    assert!(result.is_ok(), "Hex literal in comparison should parse: {:?}", result);
+}
