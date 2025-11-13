@@ -436,7 +436,7 @@ mod tests {
                 alias: None,
             }],
             into_table: None,
-            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
+            into_variables: None,            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
             where_clause: Some(Expression::BinaryOp {
                 op: BinaryOperator::And,
                 left: Box::new(Expression::BinaryOp {
@@ -481,7 +481,7 @@ mod tests {
             distinct: false,
             select_list: vec![SelectItem::Wildcard { alias: None }],
             into_table: None,
-            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
+            into_variables: None,            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
             where_clause: Some(Expression::InList {
                 expr: Box::new(Expression::ColumnRef { table: None, column: "id".to_string() }),
                 values: vec![

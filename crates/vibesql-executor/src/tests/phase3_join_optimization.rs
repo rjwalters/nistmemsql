@@ -64,7 +64,7 @@ fn test_hash_join_from_where_equijoin_no_on_clause() {
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
@@ -153,7 +153,7 @@ fn test_hash_join_multiple_equijoins_in_where() {
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
@@ -253,7 +253,7 @@ fn test_cascading_joins_with_where_equijoins() {
     // Build nested join manually
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
@@ -376,7 +376,7 @@ fn test_hash_join_with_on_clause_and_where_equijoins() {
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
@@ -495,7 +495,7 @@ fn test_star_join_select5_pattern() {
 
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],

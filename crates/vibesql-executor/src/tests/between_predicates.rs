@@ -63,7 +63,7 @@ fn test_between_integer() {
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![
@@ -153,7 +153,7 @@ fn test_not_between() {
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -205,7 +205,7 @@ fn test_between_boundary_inclusive() {
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
@@ -281,7 +281,7 @@ fn test_between_with_column_references() {
     let executor = SelectExecutor::new(&db);
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {

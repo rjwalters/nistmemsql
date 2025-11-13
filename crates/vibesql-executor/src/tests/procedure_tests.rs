@@ -2,7 +2,7 @@
 
 use vibesql_ast::*;
 use vibesql_catalog::TableSchema;
-use vibesql_storage::Database;
+use vibesql_storage::{Database, Row};
 use vibesql_types::{DataType, SqlValue};
 
 use crate::advanced_objects;
@@ -1753,7 +1753,7 @@ mod edge_case_tests {
         setup_test_table(&mut db);
 
         // Insert test data
-        db.insert("users", vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]).unwrap();
+        db.insert_row("users", Row { values: vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())] }).unwrap();
 
         // CREATE PROCEDURE get_user_name(IN user_id INT)
         // BEGIN
@@ -1830,7 +1830,7 @@ mod edge_case_tests {
         setup_test_table(&mut db);
 
         // Insert test data
-        db.insert("users", vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]).unwrap();
+        db.insert_row("users", Row { values: vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())] }).unwrap();
 
         // CREATE PROCEDURE get_user_info(IN user_id INT)
         // BEGIN
@@ -1999,8 +1999,8 @@ mod edge_case_tests {
         setup_test_table(&mut db);
 
         // Insert multiple rows
-        db.insert("users", vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]).unwrap();
-        db.insert("users", vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())]).unwrap();
+        db.insert_row("users", Row { values: vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())] }).unwrap();
+        db.insert_row("users", Row { values: vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())] }).unwrap();
 
         // CREATE PROCEDURE get_all_names()
         // BEGIN
@@ -2064,7 +2064,7 @@ mod edge_case_tests {
         setup_test_table(&mut db);
 
         // Insert test data
-        db.insert("users", vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]).unwrap();
+        db.insert_row("users", Row { values: vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())] }).unwrap();
 
         // CREATE PROCEDURE get_user_info()
         // BEGIN
