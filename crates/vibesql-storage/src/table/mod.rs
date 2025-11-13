@@ -313,6 +313,17 @@ impl Table {
     pub fn unique_indexes(&self) -> &[std::collections::HashMap<Vec<SqlValue>, usize>] {
         self.indexes.unique_indexes()
     }
+
+    /// Rebuild all hash indexes from scratch
+    /// Used after schema changes that add constraints (e.g., ALTER TABLE ADD PRIMARY KEY)
+    pub fn rebuild_indexes(&mut self) {
+        // Recreate the IndexManager to match the current schema
+        // (in case constraints were added that didn't exist before)
+        self.indexes = IndexManager::new(&self.schema);
+
+        // Rebuild indexes from existing rows
+        self.indexes.rebuild(&self.schema, &self.rows);
+    }
 }
 
 #[cfg(test)]

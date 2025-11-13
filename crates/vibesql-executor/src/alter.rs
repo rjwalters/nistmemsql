@@ -305,6 +305,9 @@ impl AlterTableExecutor {
                 // Add primary key
                 table.schema_mut().primary_key = Some(columns.clone());
 
+                // Rebuild table indexes to create the primary key index
+                table.rebuild_indexes();
+
                 Ok(format!(
                     "PRIMARY KEY constraint added to table '{}'",
                     stmt.table_name
@@ -312,6 +315,9 @@ impl AlterTableExecutor {
             }
             TableConstraintKind::Unique { columns } => {
                 table.schema_mut().add_unique_constraint(columns.clone())?;
+
+                // Rebuild table indexes to create the unique constraint index
+                table.rebuild_indexes();
 
                 Ok(format!(
                     "UNIQUE constraint added to table '{}'",
