@@ -3,6 +3,7 @@
 //! This crate provides in-memory storage for database tables and rows.
 
 pub mod btree;
+pub mod buffer;
 pub mod database;
 pub mod error;
 pub mod index;
@@ -11,9 +12,12 @@ pub mod persistence;
 pub mod row;
 pub mod table;
 
-pub use database::{Database, IndexData, IndexManager, IndexMetadata, SpatialIndexMetadata, TransactionState};
+pub use buffer::{BufferPool, BufferPoolStats};
+pub use database::{
+    Database, IndexData, IndexManager, IndexMetadata, SpatialIndexMetadata, TransactionState,
+};
 pub use error::StorageError;
-pub use index::{SpatialIndex, SpatialIndexEntry, extract_mbr_from_sql_value};
+pub use index::{extract_mbr_from_sql_value, SpatialIndex, SpatialIndexEntry};
 pub use persistence::load::{parse_sql_statements, read_sql_dump};
 pub use row::Row;
 pub use table::Table;

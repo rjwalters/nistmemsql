@@ -5,9 +5,12 @@
 // Handles reading and writing table row data.
 
 use std::io::{Read, Write};
+
+use super::{
+    io::*,
+    value::{read_sql_value, write_sql_value},
+};
 use crate::{Database, StorageError};
-use super::io::*;
-use super::value::{read_sql_value, write_sql_value};
 
 pub fn write_data<W: Write>(writer: &mut W, db: &Database) -> Result<(), StorageError> {
     let table_names = db.catalog.list_tables();

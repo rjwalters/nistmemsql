@@ -347,6 +347,7 @@ impl SqltestRunner {
             | vibesql_ast::Statement::Commit(_)
             | vibesql_ast::Statement::Rollback(_)
             | vibesql_ast::Statement::Savepoint(_)
+            | vibesql_ast::Statement::TruncateTable(_)
             | vibesql_ast::Statement::RollbackToSavepoint(_)
             | vibesql_ast::Statement::ReleaseSavepoint(_)
             | vibesql_ast::Statement::CreateSequence(_)
@@ -357,6 +358,7 @@ impl SqltestRunner {
             | vibesql_ast::Statement::CreateCharacterSet(_)
             | vibesql_ast::Statement::DropCharacterSet(_)
             | vibesql_ast::Statement::CreateTranslation(_)
+            | vibesql_ast::Statement::DropTranslation(_)
             | vibesql_ast::Statement::SetTransaction(_)
             | vibesql_ast::Statement::CreateTrigger(_)
             | vibesql_ast::Statement::DropTrigger(_)
@@ -370,7 +372,13 @@ impl SqltestRunner {
             | vibesql_ast::Statement::DropProcedure(_)
             | vibesql_ast::Statement::CreateFunction(_)
             | vibesql_ast::Statement::DropFunction(_)
-            | vibesql_ast::Statement::Call(_) => {
+            | vibesql_ast::Statement::Call(_)
+            | vibesql_ast::Statement::ShowTables(_)
+            | vibesql_ast::Statement::ShowDatabases(_)
+            | vibesql_ast::Statement::ShowColumns(_)
+            | vibesql_ast::Statement::ShowIndex(_)
+            | vibesql_ast::Statement::ShowCreateTable(_)
+            | vibesql_ast::Statement::Describe(_) => {
                 // Transactions, cursors, triggers, assertions, procedures, functions, and advanced SQL objects are no-ops
                 // for validation
                 Ok(true)

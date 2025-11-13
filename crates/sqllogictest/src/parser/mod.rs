@@ -626,6 +626,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Requires external test files from upstream repository
     fn test_include_glob() {
         let records =
             parse_file::<DefaultColumnType>("../tests/slt/include/include_1.slt").unwrap();
@@ -633,51 +634,61 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Requires external test files from upstream repository
     fn test_basic() {
         parse_roundtrip::<DefaultColumnType>("../tests/slt/basic.slt")
     }
 
     #[test]
+    #[ignore] // Requires external test files from upstream repository
     fn test_condition() {
         parse_roundtrip::<DefaultColumnType>("../tests/slt/condition.slt")
     }
 
     #[test]
+    #[ignore] // Requires external test files from upstream repository
     fn test_file_level_sort_mode() {
         parse_roundtrip::<DefaultColumnType>("../tests/slt/file_level_sort_mode.slt")
     }
 
     #[test]
+    #[ignore] // Requires external test files from upstream repository
     fn test_rowsort() {
         parse_roundtrip::<DefaultColumnType>("../tests/slt/rowsort.slt")
     }
 
     #[test]
+    #[ignore] // Requires external test files from upstream repository
     fn test_valuesort() {
         parse_roundtrip::<DefaultColumnType>("../tests/slt/valuesort.slt")
     }
 
     #[test]
+    #[ignore] // Requires external test files from upstream repository
     fn test_substitution() {
         parse_roundtrip::<DefaultColumnType>("../tests/substitution/basic.slt")
     }
 
     #[test]
+    #[ignore] // Requires external test files from upstream repository
     fn test_test_dir_escape() {
         parse_roundtrip::<DefaultColumnType>("../tests/test_dir_escape/test_dir_escape.slt")
     }
 
     #[test]
+    #[ignore] // Requires external test files from upstream repository
     fn test_validator() {
         parse_roundtrip::<DefaultColumnType>("../tests/validator/validator.slt")
     }
 
     #[test]
+    #[ignore] // Requires external test files from upstream repository
     fn test_custom_type() {
         parse_roundtrip::<CustomColumnType>("../tests/custom_type/custom_type.slt")
     }
 
     #[test]
+    #[ignore] // Requires external test files from upstream repository
     fn test_system_command() {
         parse_roundtrip::<DefaultColumnType>("../tests/system_command/system_command.slt")
     }
@@ -809,11 +820,13 @@ select * from foo;
     }
 
     #[test]
+    #[ignore] // Requires external test files from upstream repository
     fn test_statement_retry() {
         parse_roundtrip::<DefaultColumnType>("../tests/no_run/statement_retry.slt")
     }
 
     #[test]
+    #[ignore] // Requires external test files from upstream repository
     fn test_query_retry() {
         parse_roundtrip::<DefaultColumnType>("../tests/no_run/query_retry.slt")
     }

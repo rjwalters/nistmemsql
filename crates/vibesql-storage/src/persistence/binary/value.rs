@@ -5,10 +5,11 @@
 // Handles serialization and deserialization of SQL values with type tags.
 
 use std::io::{Read, Write};
+
 use vibesql_types::{Date, Interval, SqlValue, Time, Timestamp};
+
+use super::{format::TypeTag, io::*};
 use crate::StorageError;
-use super::format::TypeTag;
-use super::io::*;
 
 pub fn write_sql_value<W: Write>(writer: &mut W, value: &SqlValue) -> Result<(), StorageError> {
     match value {

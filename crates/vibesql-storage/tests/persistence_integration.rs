@@ -426,7 +426,10 @@ fn test_compression_reduces_file_size() {
     // Verify compression reduces size
     println!("Uncompressed: {} bytes, Compressed: {} bytes", uncompressed_size, compressed_size);
     assert!(compressed_size < uncompressed_size, "Compressed file should be smaller");
-    assert!(compressed_size < uncompressed_size / 2, "Should compress by at least 50% with repetitive data");
+    assert!(
+        compressed_size < uncompressed_size / 2,
+        "Should compress by at least 50% with repetitive data"
+    );
 
     // Clean up
     std::fs::remove_file(compressed_file).unwrap();
