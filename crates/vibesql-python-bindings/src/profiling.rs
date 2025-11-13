@@ -27,12 +27,14 @@ pub fn is_profiling_enabled() -> bool {
 }
 
 /// A profiling timer that logs elapsed time when dropped
+#[allow(dead_code)]
 pub struct ProfileTimer {
     label: &'static str,
     start: Instant,
     enabled: bool,
 }
 
+#[allow(dead_code)]
 impl ProfileTimer {
     /// Create a new profiling timer
     pub fn new(label: &'static str) -> Self {

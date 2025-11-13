@@ -522,6 +522,7 @@ impl Cursor {
     /// Invalidate schema cache for a specific table
     ///
     /// Call this after DDL operations that modify table schema.
+    #[allow(dead_code)]
     fn invalidate_schema_cache(&self, table_name: &str) {
         let mut cache = self.schema_cache.lock();
         cache.pop(table_name);

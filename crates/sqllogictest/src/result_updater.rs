@@ -17,7 +17,7 @@ use crate::{ColumnType, AsyncDB, MakeConnection};
 pub fn update_record_with_output<T: ColumnType>(
     record: &Record<T>,
     record_output: &RecordOutput<T>,
-    col_separator: &str,
+    _col_separator: &str,
     validator: Validator,
     normalizer: Normalizer,
     column_type_validator: ColumnTypeValidator<T>,
