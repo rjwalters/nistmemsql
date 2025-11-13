@@ -139,3 +139,74 @@ fn test_parse_create_table_with_multiple_constraints() {
         _ => panic!("Expected CREATE TABLE statement"),
     }
 }
+
+#[test]
+fn test_parse_create_table_enum_with_key() {
+    // Test for issue #1425: Parser should handle ENUM with KEY constraint
+    let result = Parser::parse_sql(
+        "CREATE TABLE t1c857 (
+            c1 ENUM ('text667805', 'text667806') COMMENT 'text667808',
+            c2 ENUM ('0b10000', 'text667809') KEY
+        );",
+    );
+    assert!(result.is_ok(), "Should parse ENUM with KEY constraint");
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "T1C857");
+            assert_eq!(create.columns.len(), 2);
+
+            // c1 has COMMENT but no KEY
+            assert_eq!(create.columns[0].name, "C1");
+            assert_eq!(create.columns[0].comment, Some("text667808".to_string()));
+            assert_eq!(create.columns[0].constraints.len(), 0);
+
+            // c2 has KEY constraint
+            assert_eq!(create.columns[1].name, "C2");
+            assert_eq!(create.columns[1].constraints.len(), 1);
+            assert!(matches!(
+                create.columns[1].constraints[0],
+                vibesql_ast::ColumnConstraint { kind: vibesql_ast::ColumnConstraintKind::Key, .. }
+            ));
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_create_table_key_constraint() {
+    // Test KEY constraint on various data types
+    let result = Parser::parse_sql(
+        "CREATE TABLE test_key (
+            id INT PRIMARY KEY,
+            value VARCHAR(100) KEY,
+            status ENUM('active', 'inactive') KEY NOT NULL
+        );",
+    );
+    assert!(result.is_ok(), "Should parse KEY constraint on various types");
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.columns.len(), 3);
+
+            // value has KEY
+            assert!(create.columns[1].constraints.iter().any(|c| matches!(
+                c.kind,
+                vibesql_ast::ColumnConstraintKind::Key
+            )));
+
+            // status has KEY and NOT NULL
+            assert!(create.columns[2].constraints.iter().any(|c| matches!(
+                c.kind,
+                vibesql_ast::ColumnConstraintKind::Key
+            )));
+            assert!(create.columns[2].constraints.iter().any(|c| matches!(
+                c.kind,
+                vibesql_ast::ColumnConstraintKind::NotNull
+            )));
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
