@@ -78,9 +78,10 @@ pub fn default_validator(
         // If ignore marker present, perform fragment-based matching on the full snapshot.
         // The actual results might contain \n, and may not be a normal "row", which is not suitable to normalize.
         let expected_results = expected;
-        let actual_rows = actual
+        // Flatten the rows so each column value becomes its own line
+        let actual_rows: Vec<String> = actual
             .iter()
-            .map(|strs| strs.iter().join(" "))
+            .flat_map(|strs| strs.iter().map(|s| s.to_string()))
             .collect_vec();
 
         let expected_snapshot = expected_results.join("\n");
@@ -108,9 +109,10 @@ pub fn default_validator(
 
     let expected_results = expected.iter().map(normalizer).collect_vec();
     // Default, we compare normalized results. Whitespace characters are ignored.
-    let normalized_rows = actual
+    // Flatten the rows so each column value becomes its own line
+    let normalized_rows: Vec<String> = actual
         .iter()
-        .map(|strs| strs.iter().map(normalizer).join(" "))
+        .flat_map(|strs| strs.iter().map(normalizer))
         .collect_vec();
 
     normalized_rows == expected_results
