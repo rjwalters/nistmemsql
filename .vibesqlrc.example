@@ -30,7 +30,7 @@ format = "table"
 
 # Automatically save database when exiting
 # Only works if default_path is set or --database flag was used
-# Default: false
+# Default: true
 auto_save = true
 
 # ============================================================================
@@ -53,7 +53,7 @@ max_entries = 10000
 [query]
 # Query timeout in seconds
 # Set to 0 for no timeout (useful for long-running queries)
-# Default: 30
+# Default: 0
 timeout_seconds = 30
 
 # ============================================================================
