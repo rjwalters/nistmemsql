@@ -2,7 +2,7 @@
 
 use vibesql_ast::*;
 use vibesql_catalog::TableSchema;
-use vibesql_storage::Database;
+use vibesql_storage::{Database, Row};
 use vibesql_types::{DataType, SqlValue};
 
 use crate::advanced_objects;
@@ -1741,5 +1741,400 @@ mod edge_case_tests {
 
         let result = advanced_objects::execute_call(&call, &mut db);
         assert!(result.is_ok());
+    }
+
+    // ============================================================================
+    // Phase 3: Procedural SELECT INTO Tests
+    // ============================================================================
+
+    #[test]
+    fn test_procedural_select_into_single_column() {
+        let mut db = Database::new();
+        setup_test_table(&mut db);
+
+        // Insert test data
+        db.insert_row("users", Row { values: vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())] }).unwrap();
+
+        // CREATE PROCEDURE get_user_name(IN user_id INT)
+        // BEGIN
+        //   DECLARE user_name VARCHAR(50);
+        //   SELECT name INTO user_name FROM users WHERE id = user_id;
+        // END;
+        let create_proc = CreateProcedureStmt {
+            procedure_name: "get_user_name".to_string(),
+            parameters: vec![ProcedureParameter {
+                mode: ParameterMode::In,
+                name: "user_id".to_string(),
+                data_type: DataType::Integer,
+            }],
+            body: ProcedureBody::BeginEnd(vec![
+                ProceduralStatement::Declare {
+                    name: "user_name".to_string(),
+                    data_type: DataType::Varchar { max_length: Some(50) },
+                    default_value: None,
+                },
+                ProceduralStatement::Sql(Box::new(Statement::Select(Box::new(SelectStmt {
+                    with_clause: None,
+                    distinct: false,
+                    select_list: vec![SelectItem::Expression {
+                        expr: Expression::ColumnRef {
+                            table: None,
+                            column: "name".to_string(),
+                        },
+                        alias: None,
+                    }],
+                    into_table: None,
+                    into_variables: Some(vec!["user_name".to_string()]),
+                    from: Some(FromClause::Table {
+                        name: "users".to_string(),
+                        alias: None,
+                    }),
+                    where_clause: Some(Expression::BinaryOp {
+                        left: Box::new(Expression::ColumnRef {
+                            table: None,
+                            column: "id".to_string(),
+                        }),
+                        op: BinaryOperator::Equal,
+                        right: Box::new(Expression::ColumnRef {
+                            table: None,
+                            column: "user_id".to_string(),
+                        }),
+                    }),
+                    group_by: None,
+                    having: None,
+                    order_by: None,
+                    limit: None,
+                    offset: None,
+                    set_operation: None,
+                })))),
+            ]),
+            sql_security: None,
+            comment: None,
+            language: None,
+        };
+
+        advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
+
+        let call = CallStmt {
+            procedure_name: "get_user_name".to_string(),
+            arguments: vec![Expression::Literal(SqlValue::Integer(1))],
+        };
+
+        let result = advanced_objects::execute_call(&call, &mut db);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_procedural_select_into_multiple_columns() {
+        let mut db = Database::new();
+        setup_test_table(&mut db);
+
+        // Insert test data
+        db.insert_row("users", Row { values: vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())] }).unwrap();
+
+        // CREATE PROCEDURE get_user_info(IN user_id INT)
+        // BEGIN
+        //   DECLARE user_id_out INT;
+        //   DECLARE user_name VARCHAR(50);
+        //   SELECT id, name INTO user_id_out, user_name FROM users WHERE id = user_id;
+        // END;
+        let create_proc = CreateProcedureStmt {
+            procedure_name: "get_user_info".to_string(),
+            parameters: vec![ProcedureParameter {
+                mode: ParameterMode::In,
+                name: "user_id".to_string(),
+                data_type: DataType::Integer,
+            }],
+            body: ProcedureBody::BeginEnd(vec![
+                ProceduralStatement::Declare {
+                    name: "user_id_out".to_string(),
+                    data_type: DataType::Integer,
+                    default_value: None,
+                },
+                ProceduralStatement::Declare {
+                    name: "user_name".to_string(),
+                    data_type: DataType::Varchar { max_length: Some(50) },
+                    default_value: None,
+                },
+                ProceduralStatement::Sql(Box::new(Statement::Select(Box::new(SelectStmt {
+                    with_clause: None,
+                    distinct: false,
+                    select_list: vec![
+                        SelectItem::Expression {
+                            expr: Expression::ColumnRef {
+                                table: None,
+                                column: "id".to_string(),
+                            },
+                            alias: None,
+                        },
+                        SelectItem::Expression {
+                            expr: Expression::ColumnRef {
+                                table: None,
+                                column: "name".to_string(),
+                            },
+                            alias: None,
+                        },
+                    ],
+                    into_table: None,
+                    into_variables: Some(vec!["user_id_out".to_string(), "user_name".to_string()]),
+                    from: Some(FromClause::Table {
+                        name: "users".to_string(),
+                        alias: None,
+                    }),
+                    where_clause: Some(Expression::BinaryOp {
+                        left: Box::new(Expression::ColumnRef {
+                            table: None,
+                            column: "id".to_string(),
+                        }),
+                        op: BinaryOperator::Equal,
+                        right: Box::new(Expression::ColumnRef {
+                            table: None,
+                            column: "user_id".to_string(),
+                        }),
+                    }),
+                    group_by: None,
+                    having: None,
+                    order_by: None,
+                    limit: None,
+                    offset: None,
+                    set_operation: None,
+                })))),
+            ]),
+            sql_security: None,
+            comment: None,
+            language: None,
+        };
+
+        advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
+
+        let call = CallStmt {
+            procedure_name: "get_user_info".to_string(),
+            arguments: vec![Expression::Literal(SqlValue::Integer(1))],
+        };
+
+        let result = advanced_objects::execute_call(&call, &mut db);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_procedural_select_into_error_no_rows() {
+        let mut db = Database::new();
+        setup_test_table(&mut db);
+
+        // No data inserted - SELECT INTO will fail
+
+        // CREATE PROCEDURE get_user_name(IN user_id INT)
+        // BEGIN
+        //   DECLARE user_name VARCHAR(50);
+        //   SELECT name INTO user_name FROM users WHERE id = user_id;  -- Should fail: no rows
+        // END;
+        let create_proc = CreateProcedureStmt {
+            procedure_name: "get_user_name".to_string(),
+            parameters: vec![ProcedureParameter {
+                mode: ParameterMode::In,
+                name: "user_id".to_string(),
+                data_type: DataType::Integer,
+            }],
+            body: ProcedureBody::BeginEnd(vec![
+                ProceduralStatement::Declare {
+                    name: "user_name".to_string(),
+                    data_type: DataType::Varchar { max_length: Some(50) },
+                    default_value: None,
+                },
+                ProceduralStatement::Sql(Box::new(Statement::Select(Box::new(SelectStmt {
+                    with_clause: None,
+                    distinct: false,
+                    select_list: vec![SelectItem::Expression {
+                        expr: Expression::ColumnRef {
+                            table: None,
+                            column: "name".to_string(),
+                        },
+                        alias: None,
+                    }],
+                    into_table: None,
+                    into_variables: Some(vec!["user_name".to_string()]),
+                    from: Some(FromClause::Table {
+                        name: "users".to_string(),
+                        alias: None,
+                    }),
+                    where_clause: Some(Expression::BinaryOp {
+                        left: Box::new(Expression::ColumnRef {
+                            table: None,
+                            column: "id".to_string(),
+                        }),
+                        op: BinaryOperator::Equal,
+                        right: Box::new(Expression::ColumnRef {
+                            table: None,
+                            column: "user_id".to_string(),
+                        }),
+                    }),
+                    group_by: None,
+                    having: None,
+                    order_by: None,
+                    limit: None,
+                    offset: None,
+                    set_operation: None,
+                })))),
+            ]),
+            sql_security: None,
+            comment: None,
+            language: None,
+        };
+
+        advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
+
+        let call = CallStmt {
+            procedure_name: "get_user_name".to_string(),
+            arguments: vec![Expression::Literal(SqlValue::Integer(1))],
+        };
+
+        let result = advanced_objects::execute_call(&call, &mut db);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), ExecutorError::SelectIntoRowCount { expected: 1, actual: 0 }));
+    }
+
+    #[test]
+    fn test_procedural_select_into_error_multiple_rows() {
+        let mut db = Database::new();
+        setup_test_table(&mut db);
+
+        // Insert multiple rows
+        db.insert_row("users", Row { values: vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())] }).unwrap();
+        db.insert_row("users", Row { values: vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())] }).unwrap();
+
+        // CREATE PROCEDURE get_all_names()
+        // BEGIN
+        //   DECLARE user_name VARCHAR(50);
+        //   SELECT name INTO user_name FROM users;  -- Should fail: multiple rows
+        // END;
+        let create_proc = CreateProcedureStmt {
+            procedure_name: "get_all_names".to_string(),
+            parameters: vec![],
+            body: ProcedureBody::BeginEnd(vec![
+                ProceduralStatement::Declare {
+                    name: "user_name".to_string(),
+                    data_type: DataType::Varchar { max_length: Some(50) },
+                    default_value: None,
+                },
+                ProceduralStatement::Sql(Box::new(Statement::Select(Box::new(SelectStmt {
+                    with_clause: None,
+                    distinct: false,
+                    select_list: vec![SelectItem::Expression {
+                        expr: Expression::ColumnRef {
+                            table: None,
+                            column: "name".to_string(),
+                        },
+                        alias: None,
+                    }],
+                    into_table: None,
+                    into_variables: Some(vec!["user_name".to_string()]),
+                    from: Some(FromClause::Table {
+                        name: "users".to_string(),
+                        alias: None,
+                    }),
+                    where_clause: None,
+                    group_by: None,
+                    having: None,
+                    order_by: None,
+                    limit: None,
+                    offset: None,
+                    set_operation: None,
+                })))),
+            ]),
+            sql_security: None,
+            comment: None,
+            language: None,
+        };
+
+        advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
+
+        let call = CallStmt {
+            procedure_name: "get_all_names".to_string(),
+            arguments: vec![],
+        };
+
+        let result = advanced_objects::execute_call(&call, &mut db);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), ExecutorError::SelectIntoRowCount { expected: 1, actual: 2 }));
+    }
+
+    #[test]
+    fn test_procedural_select_into_error_column_count_mismatch() {
+        let mut db = Database::new();
+        setup_test_table(&mut db);
+
+        // Insert test data
+        db.insert_row("users", Row { values: vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())] }).unwrap();
+
+        // CREATE PROCEDURE get_user_info()
+        // BEGIN
+        //   DECLARE user_name VARCHAR(50);
+        //   SELECT id, name INTO user_name FROM users WHERE id = 1;  -- Should fail: 2 columns, 1 variable
+        // END;
+        let create_proc = CreateProcedureStmt {
+            procedure_name: "get_user_info".to_string(),
+            parameters: vec![],
+            body: ProcedureBody::BeginEnd(vec![
+                ProceduralStatement::Declare {
+                    name: "user_name".to_string(),
+                    data_type: DataType::Varchar { max_length: Some(50) },
+                    default_value: None,
+                },
+                ProceduralStatement::Sql(Box::new(Statement::Select(Box::new(SelectStmt {
+                    with_clause: None,
+                    distinct: false,
+                    select_list: vec![
+                        SelectItem::Expression {
+                            expr: Expression::ColumnRef {
+                                table: None,
+                                column: "id".to_string(),
+                            },
+                            alias: None,
+                        },
+                        SelectItem::Expression {
+                            expr: Expression::ColumnRef {
+                                table: None,
+                                column: "name".to_string(),
+                            },
+                            alias: None,
+                        },
+                    ],
+                    into_table: None,
+                    into_variables: Some(vec!["user_name".to_string()]),
+                    from: Some(FromClause::Table {
+                        name: "users".to_string(),
+                        alias: None,
+                    }),
+                    where_clause: Some(Expression::BinaryOp {
+                        left: Box::new(Expression::ColumnRef {
+                            table: None,
+                            column: "id".to_string(),
+                        }),
+                        op: BinaryOperator::Equal,
+                        right: Box::new(Expression::Literal(SqlValue::Integer(1))),
+                    }),
+                    group_by: None,
+                    having: None,
+                    order_by: None,
+                    limit: None,
+                    offset: None,
+                    set_operation: None,
+                })))),
+            ]),
+            sql_security: None,
+            comment: None,
+            language: None,
+        };
+
+        advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
+
+        let call = CallStmt {
+            procedure_name: "get_user_info".to_string(),
+            arguments: vec![],
+        };
+
+        let result = advanced_objects::execute_call(&call, &mut db);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), ExecutorError::SelectIntoColumnCount { expected: 1, actual: 2 }));
     }
 }

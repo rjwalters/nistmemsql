@@ -38,7 +38,7 @@ fn test_position_found() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
@@ -75,7 +75,7 @@ fn test_position_not_found() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
@@ -110,7 +110,7 @@ fn test_position_null_substring() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
@@ -145,7 +145,7 @@ fn test_position_null_string() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);

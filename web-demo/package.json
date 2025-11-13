@@ -15,14 +15,7 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "prepare": "husky",
-    "debug:site": "npx tsx debug-credentials-error.ts",
-    "inspect:site": "npx tsx inspect-site.ts",
-    "inspect:firefox": "npx tsx inspect-firefox.ts",
-    "find:credentials": "npx tsx find-credentials-usage.ts",
-    "test:execution": "npx tsx test-execution.ts",
-    "diagnose:data": "npx tsx diagnose-data-format.ts",
-    "test:local": "npx tsx test-local.ts"
+    "prepare": "husky"
   },
   "lint-staged": {
     "*.ts": [

@@ -199,6 +199,8 @@ impl SelectExecutor<'_> {
             + rows.iter().map(|r| std::mem::size_of_val(r.values.as_slice())).sum::<usize>();
         self.track_memory_allocation(from_memory_bytes)?;
 
+        // Create evaluator with procedural context support
+        // Priority: 1) outer context (for subqueries) 2) procedural context 3) just database
         let evaluator =
             if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
                 CombinedExpressionEvaluator::with_database_and_outer_context(
@@ -206,6 +208,12 @@ impl SelectExecutor<'_> {
                     self.database,
                     outer_row,
                     outer_schema,
+                )
+            } else if let Some(proc_ctx) = self.procedural_context {
+                CombinedExpressionEvaluator::with_database_and_procedural_context(
+                    &schema,
+                    self.database,
+                    proc_ctx,
                 )
             } else {
                 CombinedExpressionEvaluator::with_database(&schema, self.database)
@@ -314,13 +322,26 @@ impl SelectExecutor<'_> {
                 result_rows = ordered_rows;
             } else {
                 // Fall back to sorting
-                // Create evaluator with window mapping for ORDER BY (if window functions are
-                // present)
+                // Create evaluator for ORDER BY with procedural context support
+                // Priority: 1) window mapping 2) outer context 3) procedural context 4) database only
                 let order_by_evaluator = if let Some(ref mapping) = window_mapping {
                     CombinedExpressionEvaluator::with_database_and_windows(
                         &schema,
                         self.database,
                         mapping,
+                    )
+                } else if let (Some(outer_row), Some(outer_schema)) = (self._outer_row, self._outer_schema) {
+                    CombinedExpressionEvaluator::with_database_and_outer_context(
+                        &schema,
+                        self.database,
+                        outer_row,
+                        outer_schema,
+                    )
+                } else if let Some(proc_ctx) = self.procedural_context {
+                    CombinedExpressionEvaluator::with_database_and_procedural_context(
+                        &schema,
+                        self.database,
+                        proc_ctx,
                     )
                 } else {
                     CombinedExpressionEvaluator::with_database(&schema, self.database)

@@ -228,30 +228,69 @@ pub fn evaluate_expression(
 /// **Phase 3 Implementation**
 ///
 /// This function executes SQL statements with access to procedural variables and parameters.
-/// Currently supports SELECT statements with procedural context.
-///
-/// Note: The results are discarded. For capturing results into variables, use SELECT INTO
-/// (not yet implemented).
+/// Supports:
+/// - SELECT with procedural context (results discarded)
+/// - Procedural SELECT INTO (results stored in variables)
+/// - INSERT/UPDATE/DELETE with procedural variables (requires PR #1565)
 fn execute_sql_statement(
     stmt: &Statement,
     db: &mut Database,
-    ctx: &ExecutionContext,
+    ctx: &mut ExecutionContext,
 ) -> Result<(), ExecutorError> {
     match stmt {
         Statement::Select(select_stmt) => {
-            // Execute SELECT with procedural context
-            let executor = crate::SelectExecutor::new_with_procedural_context(db, ctx);
-            let _results = executor.execute(select_stmt)?;
-            // TODO: Support SELECT INTO for capturing results into variables
+            // Check if this is procedural SELECT INTO (storing results in variables)
+            if let Some(into_vars) = &select_stmt.into_variables {
+                // Execute SELECT with procedural context
+                let executor = crate::SelectExecutor::new_with_procedural_context(db, ctx);
+                let results = executor.execute(select_stmt)?;
+
+                // Validate exactly one row returned
+                if results.len() != 1 {
+                    return Err(ExecutorError::SelectIntoRowCount {
+                        expected: 1,
+                        actual: results.len(),
+                    });
+                }
+
+                // Get the single row
+                let row = &results[0];
+
+                // Validate column count matches variable count
+                if row.values.len() != into_vars.len() {
+                    return Err(ExecutorError::SelectIntoColumnCount {
+                        expected: into_vars.len(),
+                        actual: row.values.len(),
+                    });
+                }
+
+                // Store results in procedural variables
+                for (var_name, value) in into_vars.iter().zip(row.values.iter()) {
+                    ctx.set_variable(var_name, value.clone());
+                }
+
+                Ok(())
+            } else {
+                // Regular SELECT (discard results)
+                let executor = crate::SelectExecutor::new_with_procedural_context(db, ctx);
+                let _results = executor.execute(select_stmt)?;
+                Ok(())
+            }
+        }
+        Statement::Insert(insert_stmt) => {
+            // Execute INSERT with procedural context
+            let _count = crate::InsertExecutor::execute_with_procedural_context(db, insert_stmt, ctx)?;
             Ok(())
         }
-        Statement::Insert(_) | Statement::Update(_) | Statement::Delete(_) => {
-            // TODO: Implement INSERT/UPDATE/DELETE with procedural context
-            // This requires similar changes to InsertExecutor, UpdateExecutor, DeleteExecutor
-            Err(ExecutorError::UnsupportedFeature(
-                "INSERT/UPDATE/DELETE statements with procedural variables not yet implemented. \
-                 Only SELECT is currently supported.".to_string()
-            ))
+        Statement::Update(update_stmt) => {
+            // Execute UPDATE with procedural context
+            let _count = crate::UpdateExecutor::execute_with_procedural_context(update_stmt, db, ctx)?;
+            Ok(())
+        }
+        Statement::Delete(delete_stmt) => {
+            // Execute DELETE with procedural context
+            let _count = crate::DeleteExecutor::execute_with_procedural_context(delete_stmt, db, ctx)?;
+            Ok(())
         }
         _ => {
             // Other SQL statements (DDL, transactions, etc.) are not supported in procedures

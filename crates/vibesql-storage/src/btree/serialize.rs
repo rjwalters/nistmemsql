@@ -13,6 +13,59 @@ use crate::StorageError;
 use super::node::{InternalNode, LeafNode};
 use super::{PAGE_TYPE_INTERNAL, PAGE_TYPE_LEAF};
 
+/// Write a variable-length encoded unsigned integer
+/// Uses MSB-based encoding: 0xxxxxxx = single byte, 1xxxxxxx = more bytes follow
+/// This reduces storage for small values (≤127) from 2 bytes to 1 byte
+fn write_varint(cursor: &mut Cursor<&mut [u8]>, mut value: usize) -> Result<(), StorageError> {
+    loop {
+        let mut byte = (value & 0x7F) as u8;
+        value >>= 7;
+
+        if value != 0 {
+            byte |= 0x80; // Set MSB to indicate more bytes follow
+        }
+
+        cursor
+            .write_all(&[byte])
+            .map_err(|e| StorageError::IoError(format!("Failed to write varint: {}", e)))?;
+
+        if value == 0 {
+            break;
+        }
+    }
+    Ok(())
+}
+
+/// Read a variable-length encoded unsigned integer
+fn read_varint(cursor: &mut Cursor<&[u8]>) -> Result<usize, StorageError> {
+    let mut value = 0usize;
+    let mut shift = 0;
+
+    loop {
+        let mut byte = [0u8; 1];
+        std::io::Read::read_exact(cursor, &mut byte)
+            .map_err(|e| StorageError::IoError(format!("Failed to read varint: {}", e)))?;
+
+        let byte = byte[0];
+        value |= ((byte & 0x7F) as usize) << shift;
+
+        if byte & 0x80 == 0 {
+            break; // MSB not set, this is the last byte
+        }
+
+        shift += 7;
+
+        // Prevent overflow - usize can hold at most 9 bytes (for 64-bit) or 5 bytes (for 32-bit)
+        if shift >= std::mem::size_of::<usize>() * 8 {
+            return Err(StorageError::IoError(
+                "Varint overflow: value too large".to_string(),
+            ));
+        }
+    }
+
+    Ok(value)
+}
+
 /// Write an internal node to disk
 pub fn write_internal_node(
     page_manager: &Arc<PageManager>,
@@ -147,7 +200,7 @@ pub fn write_leaf_node(
         .map_err(|e| StorageError::IoError(format!("Failed to write num_entries: {}", e)))?;
 
     // Write entries
-    for (key, row_id) in &node.entries {
+    for (key, row_ids) in &node.entries {
         // Write key length
         let key_len = key.len() as u16;
         cursor
@@ -159,10 +212,15 @@ pub fn write_leaf_node(
             write_sql_value(&mut cursor, value)?;
         }
 
-        // Write row_id
-        cursor
-            .write_all(&(*row_id as u64).to_le_bytes())
-            .map_err(|e| StorageError::IoError(format!("Failed to write row_id: {}", e)))?;
+        // Write number of row_ids for this key using varint encoding
+        write_varint(&mut cursor, row_ids.len())?;
+
+        // Write each row_id
+        for &row_id in row_ids {
+            cursor
+                .write_all(&(row_id as u64).to_le_bytes())
+                .map_err(|e| StorageError::IoError(format!("Failed to write row_id: {}", e)))?;
+        }
     }
 
     // Write next_leaf pointer
@@ -228,13 +286,20 @@ pub fn read_leaf_node(
             key.push(value);
         }
 
-        // Read row_id
-        let mut row_id_bytes = [0u8; 8];
-        std::io::Read::read_exact(&mut cursor, &mut row_id_bytes)
-            .map_err(|e| StorageError::IoError(format!("Failed to read row_id: {}", e)))?;
-        let row_id = u64::from_le_bytes(row_id_bytes) as usize;
+        // Read number of row_ids for this key using varint decoding
+        let num_row_ids = read_varint(&mut cursor)?;
 
-        node.entries.push((key, row_id));
+        // Read each row_id
+        let mut row_ids = Vec::with_capacity(num_row_ids);
+        for _ in 0..num_row_ids {
+            let mut row_id_bytes = [0u8; 8];
+            std::io::Read::read_exact(&mut cursor, &mut row_id_bytes)
+                .map_err(|e| StorageError::IoError(format!("Failed to read row_id: {}", e)))?;
+            let row_id = u64::from_le_bytes(row_id_bytes) as usize;
+            row_ids.push(row_id);
+        }
+
+        node.entries.push((key, row_ids));
     }
 
     // Read next_leaf pointer
@@ -297,9 +362,9 @@ mod tests {
         // Create leaf node
         let mut node = LeafNode::new(page_id);
         node.entries = vec![
-            (vec![SqlValue::Integer(5)], 100),
-            (vec![SqlValue::Integer(10)], 200),
-            (vec![SqlValue::Integer(15)], 300),
+            (vec![SqlValue::Integer(5)], vec![100]),
+            (vec![SqlValue::Integer(10)], vec![200]),
+            (vec![SqlValue::Integer(15)], vec![300]),
         ];
         node.next_leaf = 42;
 
@@ -312,9 +377,9 @@ mod tests {
         // Verify
         assert_eq!(loaded_node.page_id, page_id);
         assert_eq!(loaded_node.entries.len(), 3);
-        assert_eq!(loaded_node.entries[0], (vec![SqlValue::Integer(5)], 100));
-        assert_eq!(loaded_node.entries[1], (vec![SqlValue::Integer(10)], 200));
-        assert_eq!(loaded_node.entries[2], (vec![SqlValue::Integer(15)], 300));
+        assert_eq!(loaded_node.entries[0], (vec![SqlValue::Integer(5)], vec![100]));
+        assert_eq!(loaded_node.entries[1], (vec![SqlValue::Integer(10)], vec![200]));
+        assert_eq!(loaded_node.entries[2], (vec![SqlValue::Integer(15)], vec![300]));
         assert_eq!(loaded_node.next_leaf, 42);
     }
 
@@ -331,11 +396,11 @@ mod tests {
         node.entries = vec![
             (
                 vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())],
-                100,
+                vec![100],
             ),
             (
                 vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())],
-                200,
+                vec![200],
             ),
         ];
         node.next_leaf = 0;
@@ -355,6 +420,100 @@ mod tests {
         assert_eq!(
             loaded_node.entries[1].0,
             vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())]
+        );
+    }
+
+    #[test]
+    fn test_varint_encoding_edge_cases() {
+        // Test varint encoding for edge case values
+        let test_cases = vec![
+            (0, vec![0x00]),              // Minimum value
+            (1, vec![0x01]),              // Small value
+            (127, vec![0x7F]),            // Maximum single-byte value (0xxxxxxx)
+            (128, vec![0x80, 0x01]),      // Minimum two-byte value
+            (255, vec![0xFF, 0x01]),      // Two-byte value
+            (16383, vec![0xFF, 0x7F]),    // Maximum two-byte value
+            (16384, vec![0x80, 0x80, 0x01]), // Minimum three-byte value
+        ];
+
+        for (value, expected_bytes) in test_cases {
+            // Test encoding
+            let mut buffer = vec![0u8; 10];
+            let mut cursor = Cursor::new(&mut buffer[..]);
+            write_varint(&mut cursor, value).unwrap();
+
+            let bytes_written = cursor.position() as usize;
+            assert_eq!(
+                &buffer[..bytes_written],
+                &expected_bytes[..],
+                "Encoding failed for value {}",
+                value
+            );
+
+            // Test decoding
+            let mut cursor = Cursor::new(&buffer[..]);
+            let decoded = read_varint(&mut cursor).unwrap();
+            assert_eq!(decoded, value, "Decoding failed for value {}", value);
+        }
+    }
+
+    #[test]
+    fn test_leaf_node_with_duplicate_keys() {
+        let temp_dir = TempDir::new().unwrap();
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
+
+        let page_id = page_manager.allocate_page().unwrap();
+
+        // Create leaf node with duplicate keys (multiple row_ids per key)
+        let mut node = LeafNode::new(page_id);
+        node.entries = vec![
+            (vec![SqlValue::Integer(5)], vec![100, 101, 102]),  // 3 duplicates
+            (vec![SqlValue::Integer(10)], vec![200]),            // 1 row_id
+            (vec![SqlValue::Integer(15)], vec![300, 301]),       // 2 duplicates
+        ];
+        node.next_leaf = 0;
+
+        // Write node
+        write_leaf_node(&page_manager, &node, 100).unwrap();
+
+        // Read node back
+        let loaded_node = read_leaf_node(&page_manager, page_id).unwrap();
+
+        // Verify
+        assert_eq!(loaded_node.entries.len(), 3);
+        assert_eq!(
+            loaded_node.entries[0],
+            (vec![SqlValue::Integer(5)], vec![100, 101, 102])
+        );
+        assert_eq!(
+            loaded_node.entries[1],
+            (vec![SqlValue::Integer(10)], vec![200])
+        );
+        assert_eq!(
+            loaded_node.entries[2],
+            (vec![SqlValue::Integer(15)], vec![300, 301])
+        );
+    }
+
+    #[test]
+    fn test_varint_reduces_storage_overhead() {
+        let temp_dir = TempDir::new().unwrap();
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
+
+        // Create a node with many single row_id entries (common case)
+        let mut node = LeafNode::new(page_manager.allocate_page().unwrap());
+        for i in 0..100 {
+            node.entries.push((vec![SqlValue::Integer(i)], vec![i as usize]));
+        }
+        node.next_leaf = 0;
+
+        // Write and verify it doesn't exceed page size
+        let result = write_leaf_node(&page_manager, &node, 100);
+        assert!(
+            result.is_ok(),
+            "Node with 100 single-row_id entries should fit in a page with varint encoding"
         );
     }
 }

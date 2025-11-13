@@ -51,14 +51,15 @@ impl InternalNode {
 
 /// Leaf node in the B+ tree
 ///
-/// Leaf nodes store the actual key-value pairs (key -> row_id).
+/// Leaf nodes store the actual key-value pairs (key -> Vec<row_id>).
+/// Each key can map to multiple row IDs to support non-unique indexes.
 /// They also maintain a linked list structure via next_leaf for range scans.
 #[derive(Debug, Clone)]
 pub struct LeafNode {
     /// Page ID of this node
     pub page_id: PageId,
-    /// Key-value entries (sorted by key)
-    pub entries: Vec<(Key, RowId)>,
+    /// Key-value entries (sorted by key), supporting multiple row_ids per key for non-unique indexes
+    pub entries: Vec<(Key, Vec<RowId>)>,
     /// Page ID of next leaf node (for range scans), or NULL_PAGE_ID
     pub next_leaf: PageId,
 }

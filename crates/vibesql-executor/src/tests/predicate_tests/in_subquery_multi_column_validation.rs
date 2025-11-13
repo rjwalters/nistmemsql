@@ -51,7 +51,7 @@ fn test_in_subquery_wildcard_multi_column_rejected() {
                 limit: None,
                 offset: None,
                 into_table: None,
-            }),
+                into_variables: None,            }),
             negated: false,
         }),
         group_by: None,
@@ -60,7 +60,7 @@ fn test_in_subquery_wildcard_multi_column_rejected() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt);
     assert!(result.is_err());
@@ -127,7 +127,7 @@ fn test_in_subquery_explicit_multi_column_rejected() {
                 limit: None,
                 offset: None,
                 into_table: None,
-            }),
+                into_variables: None,            }),
             negated: false,
         }),
         group_by: None,
@@ -136,7 +136,7 @@ fn test_in_subquery_explicit_multi_column_rejected() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt);
     assert!(result.is_err());
@@ -199,7 +199,7 @@ fn test_in_subquery_single_column_accepted() {
                 limit: None,
                 offset: None,
                 into_table: None,
-            }),
+                into_variables: None,            }),
             negated: false,
         }),
         group_by: None,
@@ -208,7 +208,7 @@ fn test_in_subquery_single_column_accepted() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt);
     assert!(result.is_ok());
@@ -256,7 +256,7 @@ fn test_scalar_subquery_wildcard_multi_column_rejected() {
                 limit: None,
                 offset: None,
                 into_table: None,
-            })),
+                into_variables: None,            })),
             alias: None,
         }],
         from: Some(vibesql_ast::FromClause::Table { name: "t1".to_string(), alias: None }),
@@ -267,7 +267,7 @@ fn test_scalar_subquery_wildcard_multi_column_rejected() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt);
     assert!(result.is_err());

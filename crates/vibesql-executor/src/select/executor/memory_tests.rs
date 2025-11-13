@@ -115,7 +115,7 @@ mod integration_tests {
         let executor = SelectExecutor::new(&db);
         let stmt = vibesql_ast::SelectStmt {
             into_table: None,
-            with_clause: None,
+            into_variables: None,            with_clause: None,
             set_operation: None,
             distinct: false,
             select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
@@ -166,7 +166,7 @@ mod integration_tests {
         // Test CROSS JOIN
         let cross_join_stmt = vibesql_ast::SelectStmt {
             into_table: None,
-            with_clause: None,
+            into_variables: None,            with_clause: None,
             set_operation: None,
             distinct: false,
             select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
@@ -196,7 +196,7 @@ mod integration_tests {
         // Test INNER JOIN without selective condition (also cartesian-like)
         let inner_join_stmt = vibesql_ast::SelectStmt {
             into_table: None,
-            with_clause: None,
+            into_variables: None,            with_clause: None,
             set_operation: None,
             distinct: false,
             select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],

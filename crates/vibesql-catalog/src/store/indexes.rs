@@ -113,6 +113,8 @@ mod tests {
 
     fn create_test_catalog() -> Catalog {
         let mut catalog = Catalog::new();
+        // Use case-insensitive identifiers to match create_table() behavior
+        catalog.set_case_sensitive_identifiers(false);
 
         use vibesql_types::DataType;
 

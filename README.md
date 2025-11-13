@@ -204,6 +204,70 @@ CREATE SPATIAL INDEX idx_geom ON locations(geometry_column);
 CREATE FULLTEXT INDEX idx_search ON documents(title, content);
 ```
 
+### Non-Unique Indexes and Duplicate Keys (✅ Complete)
+
+VibeSQL fully supports non-unique indexes with duplicate key values in both in-memory and disk-backed implementations:
+
+```sql
+-- Create non-unique index (default behavior)
+CREATE INDEX idx_department ON employees(department);
+
+-- Insert duplicate key values
+INSERT INTO employees VALUES (1, 'Engineering', 100000);
+INSERT INTO employees VALUES (2, 'Engineering', 120000);
+INSERT INTO employees VALUES (3, 'Engineering', 110000);
+
+-- Queries return all matching rows
+SELECT * FROM employees WHERE department = 'Engineering';
+-- Returns all 3 rows
+```
+
+#### Disk-Backed Index Duplicate Key Support
+
+Disk-backed B+ tree indexes efficiently store duplicate keys by grouping multiple row IDs per key:
+
+**Storage Format** (per entry):
+```
+key_len (2 bytes) → key_values (variable) → num_row_ids (2 bytes) → row_id × num_row_ids (8 bytes each)
+```
+
+**Storage Overhead**:
+- **Per unique key**: 2 bytes (for row count)
+- **Per row ID**: 8 bytes
+- **Example**: 1 key with 100 duplicates = 2 + (8 × 100) = 802 bytes (~0.25% overhead)
+
+**Performance Characteristics**:
+- **Insert with new key**: O(log n) where n = number of unique keys
+- **Insert with duplicate key**: O(log n) + O(1) to append to existing Vec
+- **Lookup**: O(log n + k) where k = number of duplicates to return
+- **Range scan**: O(log n + m + k) where m = keys in range, k = total duplicates
+- **Delete**: O(log n) - removes all row IDs for a key
+
+#### Comparison: In-Memory vs Disk-Backed
+
+Both implementations handle duplicates identically from a user perspective:
+
+| Feature | In-Memory | Disk-Backed |
+|---------|-----------|-------------|
+| Duplicate keys | ✅ HashMap<Key, Vec<RowId>> | ✅ B+ tree with Vec<RowId> per key |
+| Insert duplicate | O(1) append | O(log n) + O(1) append |
+| Lookup | O(1) hash lookup | O(log n) tree traversal |
+| Range scan | O(n) full scan | O(log n + m) leaf traversal |
+| Memory usage | All in RAM | Paged to disk |
+| Persistence | Volatile | Durable |
+
+**When to use disk-backed indexes**:
+- Large datasets that don't fit in memory
+- Need for persistence across restarts
+- Range query performance is critical
+- Memory-constrained environments
+
+**When to use in-memory indexes**:
+- Small to medium datasets (< 1M rows)
+- Maximum lookup performance needed
+- Temporary/session-only data
+- Memory is plentiful
+
 ### Triggers (🔄 In Progress)
 Event-driven database actions:
 ```sql
