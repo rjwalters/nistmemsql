@@ -71,17 +71,7 @@ impl Parser {
             self.expect_keyword(Keyword::By)?;
 
             // Parse comma-separated list of expressions
-            let mut group_exprs = Vec::new();
-            loop {
-                let expr = self.parse_expression()?;
-                group_exprs.push(expr);
-
-                if matches!(self.peek(), Token::Comma) {
-                    self.advance();
-                } else {
-                    break;
-                }
-            }
+            let group_exprs = self.parse_comma_separated_list(|p| p.parse_expression())?;
 
             Some(group_exprs)
         } else {
@@ -143,29 +133,22 @@ impl Parser {
             self.expect_keyword(Keyword::By)?;
 
             // Parse comma-separated list of order items
-            let mut order_items = Vec::new();
-            loop {
-                let expr = self.parse_expression()?;
+            let order_items = self.parse_comma_separated_list(|p| {
+                let expr = p.parse_expression()?;
 
                 // Check for optional ASC/DESC
-                let direction = if self.peek_keyword(Keyword::Asc) {
-                    self.consume_keyword(Keyword::Asc)?;
+                let direction = if p.peek_keyword(Keyword::Asc) {
+                    p.consume_keyword(Keyword::Asc)?;
                     vibesql_ast::OrderDirection::Asc
-                } else if self.peek_keyword(Keyword::Desc) {
-                    self.consume_keyword(Keyword::Desc)?;
+                } else if p.peek_keyword(Keyword::Desc) {
+                    p.consume_keyword(Keyword::Desc)?;
                     vibesql_ast::OrderDirection::Desc
                 } else {
                     vibesql_ast::OrderDirection::Asc // Default
                 };
 
-                order_items.push(vibesql_ast::OrderByItem { expr, direction });
-
-                if matches!(self.peek(), Token::Comma) {
-                    self.advance();
-                } else {
-                    break;
-                }
-            }
+                Ok(vibesql_ast::OrderByItem { expr, direction })
+            })?;
 
             Some(order_items)
         } else {
@@ -234,20 +217,7 @@ impl Parser {
     ///
     /// Syntax: cte_name [(col1, col2, ...)] AS (SELECT ...) [, ...]
     fn parse_cte_list(&mut self) -> Result<Vec<vibesql_ast::CommonTableExpr>, ParseError> {
-        let mut ctes = Vec::new();
-
-        loop {
-            ctes.push(self.parse_cte()?);
-
-            // Check for more CTEs
-            if matches!(self.peek(), Token::Comma) {
-                self.advance(); // consume comma
-            } else {
-                break;
-            }
-        }
-
-        Ok(ctes)
+        self.parse_comma_separated_list(|p| p.parse_cte())
     }
 
     /// Parse a single CTE definition
@@ -273,26 +243,17 @@ impl Parser {
                 return Err(ParseError { message: "CTE column list cannot be empty".to_string() });
             }
 
-            let mut cols = Vec::new();
-            loop {
-                match self.peek() {
-                    Token::Identifier(col) => {
-                        cols.push(col.clone());
-                        self.advance();
-                    }
-                    _ => {
-                        return Err(ParseError {
-                            message: "Expected column name in CTE column list".to_string(),
-                        })
-                    }
+            // Parse comma-separated list of column identifiers
+            let cols = self.parse_comma_separated_list(|p| match p.peek() {
+                Token::Identifier(col) => {
+                    let name = col.clone();
+                    p.advance();
+                    Ok(name)
                 }
-
-                if matches!(self.peek(), Token::Comma) {
-                    self.advance(); // consume comma
-                } else {
-                    break;
-                }
-            }
+                _ => Err(ParseError {
+                    message: "Expected column name in CTE column list".to_string(),
+                }),
+            })?;
 
             // Expect closing paren
             if !matches!(self.peek(), Token::RParen) {
