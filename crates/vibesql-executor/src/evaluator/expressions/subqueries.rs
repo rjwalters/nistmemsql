@@ -26,10 +26,6 @@ impl ExpressionEvaluator<'_> {
 
         let expr_val = self.eval(expr, row)?;
 
-        if matches!(expr_val, vibesql_types::SqlValue::Null) {
-            return Ok(vibesql_types::SqlValue::Null);
-        }
-
         if subquery.select_list.len() != 1 {
             return Err(ExecutorError::SubqueryColumnCountMismatch {
                 expected: 1,
@@ -49,6 +45,31 @@ impl ExpressionEvaluator<'_> {
             self.depth,
         );
         let rows = select_executor.execute(subquery)?;
+
+        // SQL standard behavior for NULL IN (subquery):
+        // - NULL IN (empty set) → FALSE
+        // - NULL IN (non-empty set without NULL) → FALSE
+        // - NULL IN (set containing NULL) → NULL
+        if matches!(expr_val, vibesql_types::SqlValue::Null) {
+            // Check if subquery is empty
+            if rows.is_empty() {
+                return Ok(vibesql_types::SqlValue::Boolean(negated));
+            }
+
+            // Check if subquery contains NULL
+            for subquery_row in &rows {
+                let subquery_val =
+                    subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
+
+                if matches!(subquery_val, vibesql_types::SqlValue::Null) {
+                    // NULL IN (set with NULL) → NULL
+                    return Ok(vibesql_types::SqlValue::Null);
+                }
+            }
+
+            // NULL IN (non-empty set without NULL) → FALSE
+            return Ok(vibesql_types::SqlValue::Boolean(negated));
+        }
 
         let mut found_null = false;
         for subquery_row in &rows {

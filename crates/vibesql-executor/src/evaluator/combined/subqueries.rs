@@ -151,6 +151,9 @@ impl CombinedExpressionEvaluator<'_> {
             "IN with subquery requires database reference".to_string(),
         ))?;
 
+        // Evaluate the left-hand expression
+        let expr_val = self.eval(expr, row)?;
+
         // Subquery must return exactly one column
         if subquery.select_list.len() != 1 {
             return Err(ExecutorError::SubqueryColumnCountMismatch {
@@ -172,20 +175,29 @@ impl CombinedExpressionEvaluator<'_> {
         };
         let rows = select_executor.execute(subquery)?;
 
-        // Empty set optimization (SQLite behavior):
-        // If the subquery returns no rows, return FALSE for IN, TRUE for NOT IN
-        // This is true regardless of whether the left expression is NULL
-        // Rationale: No value can match an empty set
-        if rows.is_empty() {
-            return Ok(vibesql_types::SqlValue::Boolean(negated));
-        }
-
-        // Evaluate the left-hand expression
-        let expr_val = self.eval(expr, row)?;
-
-        // If left expression is NULL, result is NULL (per SQL three-valued logic)
+        // SQL standard behavior for NULL IN (subquery):
+        // - NULL IN (empty set) → FALSE
+        // - NULL IN (non-empty set without NULL) → FALSE
+        // - NULL IN (set containing NULL) → NULL
         if matches!(expr_val, vibesql_types::SqlValue::Null) {
-            return Ok(vibesql_types::SqlValue::Null);
+            // Check if subquery is empty
+            if rows.is_empty() {
+                return Ok(vibesql_types::SqlValue::Boolean(negated));
+            }
+
+            // Check if subquery contains NULL
+            for subquery_row in &rows {
+                let subquery_val =
+                    subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
+
+                if matches!(subquery_val, vibesql_types::SqlValue::Null) {
+                    // NULL IN (set with NULL) → NULL
+                    return Ok(vibesql_types::SqlValue::Null);
+                }
+            }
+
+            // NULL IN (non-empty set without NULL) → FALSE
+            return Ok(vibesql_types::SqlValue::Boolean(negated));
         }
 
         let mut found_null = false;
