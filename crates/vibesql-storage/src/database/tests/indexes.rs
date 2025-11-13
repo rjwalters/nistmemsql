@@ -405,17 +405,17 @@ fn test_access_tracking() {
     ).unwrap();
 
     // Initial access count should be 0 (creation doesn't count as access)
-    let stats = index_manager.resource_tracker.get_index_stats("idx_test");
+    let stats = index_manager.resource_tracker.get_index_stats("IDX_TEST");
     assert!(stats.is_some());
     let initial_count = stats.unwrap().get_access_count();
 
     // Access the index a few times
-    let _ = index_manager.get_index_data("idx_test");
-    let _ = index_manager.get_index_data("idx_test");
-    let _ = index_manager.get_index_data("idx_test");
+    let _ = index_manager.get_index_data("IDX_TEST");
+    let _ = index_manager.get_index_data("IDX_TEST");
+    let _ = index_manager.get_index_data("IDX_TEST");
 
     // Access count should have increased
-    let stats = index_manager.resource_tracker.get_index_stats("idx_test");
+    let stats = index_manager.resource_tracker.get_index_stats("IDX_TEST");
     assert!(stats.is_some());
     let final_count = stats.unwrap().get_access_count();
 
