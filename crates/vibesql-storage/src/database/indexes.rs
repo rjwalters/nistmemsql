@@ -379,11 +379,10 @@ impl IndexManager {
         let (index_data, memory_bytes, disk_bytes, backend) = if use_disk_backed {
             // Create disk-backed B+ tree index using proper database path
             let index_file = self.get_index_file_path(&table_name, &index_name)?;
-            let filename = index_file.file_name()
-                .and_then(|n| n.to_str())
-                .ok_or_else(|| StorageError::IoError("Invalid index file name".to_string()))?;
+            let index_file_str = index_file.to_str()
+                .ok_or_else(|| StorageError::IoError("Invalid index file path".to_string()))?;
 
-            let page_manager = Arc::new(PageManager::new(filename, self.storage.clone())
+            let page_manager = Arc::new(PageManager::new(index_file_str, self.storage.clone())
                 .map_err(|e| StorageError::IoError(format!("Failed to create index file: {}", e)))?);
 
             // Build key schema from indexed columns
@@ -879,11 +878,10 @@ impl IndexManager {
 
         // Create disk-backed version
         let index_file = self.get_index_file_path(&metadata.table_name, index_name)?;
-        let filename = index_file.file_name()
-            .and_then(|n| n.to_str())
-            .ok_or_else(|| StorageError::IoError("Invalid index file name".to_string()))?;
+        let index_file_str = index_file.to_str()
+            .ok_or_else(|| StorageError::IoError("Invalid index file path".to_string()))?;
 
-        let page_manager = Arc::new(PageManager::new(filename, self.storage.clone())
+        let page_manager = Arc::new(PageManager::new(index_file_str, self.storage.clone())
             .map_err(|e| StorageError::IoError(format!("Failed to create index file: {}", e)))?);
 
         // Convert BTreeMap to sorted entries for bulk_load
