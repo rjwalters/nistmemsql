@@ -567,7 +567,10 @@ impl Database {
     }
 
     /// Get all spatial indexes for a specific table
-    pub fn get_spatial_indexes_for_table(&self, table_name: &str) -> Vec<(&SpatialIndexMetadata, &SpatialIndex)> {
+    pub fn get_spatial_indexes_for_table(
+        &self,
+        table_name: &str,
+    ) -> Vec<(&SpatialIndexMetadata, &SpatialIndex)> {
         self.spatial_indexes
             .values()
             .filter(|(metadata, _)| metadata.table_name == table_name)
@@ -576,7 +579,10 @@ impl Database {
     }
 
     /// Get all spatial indexes for a specific table (mutable)
-    pub fn get_spatial_indexes_for_table_mut(&mut self, table_name: &str) -> Vec<(&SpatialIndexMetadata, &mut SpatialIndex)> {
+    pub fn get_spatial_indexes_for_table_mut(
+        &mut self,
+        table_name: &str,
+    ) -> Vec<(&SpatialIndexMetadata, &mut SpatialIndex)> {
         self.spatial_indexes
             .iter_mut()
             .filter(|(_, (metadata, _))| metadata.table_name == table_name)
@@ -750,16 +756,12 @@ impl Database {
         // Check if body is already cached
         if !self.routine_body_cache.contains_key(name) {
             // Not cached - retrieve from catalog and cache it
-            let procedure = self
-                .catalog
-                .get_procedure(name)
-                .ok_or_else(|| {
-                    StorageError::CatalogError(format!("Procedure '{}' not found", name))
-                })?;
+            let procedure = self.catalog.get_procedure(name).ok_or_else(|| {
+                StorageError::CatalogError(format!("Procedure '{}' not found", name))
+            })?;
 
             // Clone the body and store in cache
-            self.routine_body_cache
-                .insert(name.to_string(), procedure.body.clone());
+            self.routine_body_cache.insert(name.to_string(), procedure.body.clone());
         }
 
         // Return reference to cached body

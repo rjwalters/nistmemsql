@@ -101,7 +101,11 @@ fn test_json_roundtrip_all_types() {
             ColumnSchema::new("col_int".to_string(), DataType::Integer, true),
             ColumnSchema::new("col_bigint".to_string(), DataType::Bigint, true),
             ColumnSchema::new("col_float".to_string(), DataType::Float { precision: 24 }, true),
-            ColumnSchema::new("col_varchar".to_string(), DataType::Varchar { max_length: Some(100) }, true),
+            ColumnSchema::new(
+                "col_varchar".to_string(),
+                DataType::Varchar { max_length: Some(100) },
+                true,
+            ),
             ColumnSchema::new("col_bool".to_string(), DataType::Boolean, true),
             ColumnSchema::new(
                 "col_numeric".to_string(),
@@ -201,8 +205,16 @@ fn test_json_roundtrip_temporal_types() {
         vec![
             ColumnSchema::new("id".to_string(), DataType::Integer, false),
             ColumnSchema::new("col_date".to_string(), DataType::Date, true),
-            ColumnSchema::new("col_time".to_string(), DataType::Time { with_timezone: false }, true),
-            ColumnSchema::new("col_timestamp".to_string(), DataType::Timestamp { with_timezone: false }, true),
+            ColumnSchema::new(
+                "col_time".to_string(),
+                DataType::Time { with_timezone: false },
+                true,
+            ),
+            ColumnSchema::new(
+                "col_timestamp".to_string(),
+                DataType::Timestamp { with_timezone: false },
+                true,
+            ),
             ColumnSchema::new(
                 "col_timestamp_tz".to_string(),
                 DataType::Timestamp { with_timezone: true },
@@ -351,8 +363,14 @@ fn test_json_numeric_precision() {
     assert_eq!(rows[2].values[1], SqlValue::Null);
 
     // Verify schema preserved precision/scale
-    assert_eq!(loaded_table.schema.columns[1].data_type, DataType::Numeric { precision: 10, scale: 2 });
-    assert_eq!(loaded_table.schema.columns[2].data_type, DataType::Decimal { precision: 5, scale: 0 });
+    assert_eq!(
+        loaded_table.schema.columns[1].data_type,
+        DataType::Numeric { precision: 10, scale: 2 }
+    );
+    assert_eq!(
+        loaded_table.schema.columns[2].data_type,
+        DataType::Decimal { precision: 5, scale: 0 }
+    );
 
     // Cleanup
     std::fs::remove_file(path).ok();

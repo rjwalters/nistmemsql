@@ -39,7 +39,8 @@ impl crate::Database {
     /// Load database from file with automatic format detection
     ///
     /// Detects format based on:
-    /// 1. File extension (.vbsql for binary, .vbsqlz for compressed, .json for JSON, .sql for SQL dump)
+    /// 1. File extension (.vbsql for binary, .vbsqlz for compressed, .json for JSON, .sql for SQL
+    ///    dump)
     /// 2. Magic number in file header (if extension is ambiguous)
     ///
     /// # Example
