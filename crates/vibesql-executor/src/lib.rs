@@ -10,6 +10,7 @@ mod create_table;
 mod delete;
 mod domain_ddl;
 mod drop_table;
+pub mod truncate;
 mod truncate_table;
 mod truncate_validation;
 pub mod errors;

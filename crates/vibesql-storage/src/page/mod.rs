@@ -58,6 +58,7 @@ impl Page {
 }
 
 /// Mutable state for page manager
+#[derive(Debug)]
 struct PageManagerState {
     /// List of free page IDs that can be reused
     free_pages: Vec<PageId>,
@@ -66,6 +67,7 @@ struct PageManagerState {
 }
 
 /// Page manager handles allocation, deallocation, and I/O of pages
+#[derive(Debug)]
 pub struct PageManager {
     /// File handle for page storage
     file: Arc<Mutex<File>>,

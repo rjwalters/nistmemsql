@@ -411,6 +411,7 @@ impl LeafNode {
 ///
 /// This structure provides a disk-backed B+ tree index that maintains
 /// sorted key-value mappings with efficient range query support.
+#[derive(Debug)]
 pub struct BTreeIndex {
     /// Page ID of the root node
     root_page_id: PageId,
@@ -601,6 +602,184 @@ impl BTreeIndex {
     #[allow(dead_code)]
     pub(crate) fn read_leaf_node(&self, page_id: PageId) -> Result<LeafNode, StorageError> {
         super::serialize::read_leaf_node(&self.page_manager, page_id)
+    }
+
+    /// Insert a key-value pair into the B+ tree
+    ///
+    /// # Arguments
+    /// * `key` - The key to insert
+    /// * `row_id` - The row ID to associate with the key
+    ///
+    /// # Returns
+    /// Ok(()) if inserted successfully, Err if insertion fails
+    ///
+    /// Note: Currently rebuilds the index - incremental insert will be added later
+    pub fn insert(&mut self, key: Key, row_id: RowId) -> Result<(), StorageError> {
+        // For now, read the root leaf, insert, and write back
+        // This is inefficient but works for MVP
+        // TODO: Implement proper tree-level insert with splitting
+
+        if self.height == 1 {
+            // Simple case: root is a leaf
+            let mut root_leaf = self.read_leaf_node(self.root_page_id)?;
+            root_leaf.insert(key, row_id);
+            self.write_leaf_node(&root_leaf)?;
+            Ok(())
+        } else {
+            // Complex case: need to navigate tree
+            // For MVP, return error - caller should rebuild
+            Err(StorageError::IoError(
+                "Incremental insert not yet implemented for multi-level trees".to_string(),
+            ))
+        }
+    }
+
+    /// Search for a key in the B+ tree
+    ///
+    /// # Arguments
+    /// * `key` - The key to search for
+    ///
+    /// # Returns
+    /// The row ID if found, None otherwise
+    pub fn search(&self, key: &Key) -> Result<Option<RowId>, StorageError> {
+        let mut current_page_id = self.root_page_id;
+        let mut current_height = self.height;
+
+        // Navigate down to leaf level
+        while current_height > 1 {
+            let internal = self.read_internal_node(current_page_id)?;
+            let child_index = internal.find_child_index(key);
+            current_page_id = internal.children[child_index];
+            current_height -= 1;
+        }
+
+        // Search in leaf
+        let leaf = self.read_leaf_node(current_page_id)?;
+        Ok(leaf.search(key))
+    }
+
+    /// Delete a key from the B+ tree
+    ///
+    /// # Arguments
+    /// * `key` - The key to delete
+    ///
+    /// # Returns
+    /// Ok(true) if deleted, Ok(false) if not found
+    ///
+    /// Note: Currently rebuilds the index - incremental delete will be added later
+    pub fn delete(&mut self, key: &Key) -> Result<bool, StorageError> {
+        // For now, only support delete from single-level tree (root is leaf)
+        // TODO: Implement proper tree-level delete with merging
+
+        if self.height == 1 {
+            let mut root_leaf = self.read_leaf_node(self.root_page_id)?;
+            let deleted = root_leaf.delete(key);
+            if deleted {
+                self.write_leaf_node(&root_leaf)?;
+            }
+            Ok(deleted)
+        } else {
+            // Complex case: need to navigate tree and potentially merge
+            // For MVP, return error - caller should rebuild
+            Err(StorageError::IoError(
+                "Incremental delete not yet implemented for multi-level trees".to_string(),
+            ))
+        }
+    }
+
+    /// Perform a range scan on the B+ tree
+    ///
+    /// # Arguments
+    /// * `start` - Lower bound (None = unbounded)
+    /// * `end` - Upper bound (None = unbounded)
+    /// * `inclusive_start` - Include entries equal to start
+    /// * `inclusive_end` - Include entries equal to end
+    ///
+    /// # Returns
+    /// Vector of (key, row_id) pairs matching the range
+    pub fn range_scan(
+        &self,
+        start: Option<&Key>,
+        end: Option<&Key>,
+        inclusive_start: bool,
+        inclusive_end: bool,
+    ) -> Result<Vec<(Key, RowId)>, StorageError> {
+        let mut results = Vec::new();
+
+        // Find the starting leaf
+        let start_leaf_id = if let Some(start_key) = start {
+            // Navigate to leaf containing start key
+            let mut current_page_id = self.root_page_id;
+            let mut current_height = self.height;
+
+            while current_height > 1 {
+                let internal = self.read_internal_node(current_page_id)?;
+                let child_index = internal.find_child_index(start_key);
+                current_page_id = internal.children[child_index];
+                current_height -= 1;
+            }
+            current_page_id
+        } else {
+            // No start bound - start from leftmost leaf
+            let mut current_page_id = self.root_page_id;
+            let mut current_height = self.height;
+
+            while current_height > 1 {
+                let internal = self.read_internal_node(current_page_id)?;
+                current_page_id = internal.children[0]; // Leftmost child
+                current_height -= 1;
+            }
+            current_page_id
+        };
+
+        // Scan leaves using next_leaf pointers
+        let mut current_leaf_id = Some(start_leaf_id);
+
+        while let Some(leaf_id) = current_leaf_id {
+            let leaf = self.read_leaf_node(leaf_id)?;
+
+            // Check each entry in the leaf
+            for (key, row_id) in &leaf.entries {
+                // Check if entry matches range
+                let matches_start = match start {
+                    Some(s) => {
+                        if inclusive_start {
+                            key >= s
+                        } else {
+                            key > s
+                        }
+                    }
+                    None => true,
+                };
+
+                let matches_end = match end {
+                    Some(e) => {
+                        if inclusive_end {
+                            key <= e
+                        } else {
+                            key < e
+                        }
+                    }
+                    None => true,
+                };
+
+                if matches_start && matches_end {
+                    results.push((key.clone(), *row_id));
+                } else if !matches_end {
+                    // We've passed the end bound, stop scanning
+                    return Ok(results);
+                }
+            }
+
+            // Move to next leaf
+            current_leaf_id = if leaf.next_leaf != NULL_PAGE_ID {
+                Some(leaf.next_leaf)
+            } else {
+                None
+            };
+        }
+
+        Ok(results)
     }
 
     /// Build B+ tree from pre-sorted data using bottom-up construction

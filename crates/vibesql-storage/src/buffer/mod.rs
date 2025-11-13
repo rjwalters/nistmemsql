@@ -79,6 +79,7 @@ impl BufferPoolStats {
 }
 
 /// LRU buffer pool for caching pages in memory
+#[derive(Debug)]
 pub struct BufferPool {
     /// LRU cache mapping page IDs to pages
     cache: Arc<Mutex<LruCache<PageId, Page>>>,
