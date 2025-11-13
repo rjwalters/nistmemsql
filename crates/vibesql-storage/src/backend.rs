@@ -3,6 +3,7 @@
 //! This module provides a trait-based abstraction over filesystem operations,
 //! enabling vibesql to run on different platforms including WebAssembly with OPFS.
 
+#[cfg(not(target_arch = "wasm32"))]
 use std::io;
 
 use crate::StorageError;
@@ -354,3 +355,14 @@ pub mod native {
 /// Re-export native storage for convenience
 #[cfg(not(target_arch = "wasm32"))]
 pub use native::{NativeFile, NativeStorage};
+
+/// OPFS storage implementation for WebAssembly browsers
+///
+/// This backend provides storage using the Origin Private File System API,
+/// enabling persistent storage in web browsers.
+#[cfg(target_arch = "wasm32")]
+pub mod opfs;
+
+/// Re-export OPFS storage for convenience
+#[cfg(target_arch = "wasm32")]
+pub use opfs::{OpfsFile, OpfsStorage};

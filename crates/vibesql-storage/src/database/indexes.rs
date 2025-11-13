@@ -12,7 +12,13 @@ use vibesql_types::{DataType, SqlValue};
 use crate::btree::{BTreeIndex, Key};
 use crate::database::{DatabaseConfig, ResourceTracker};
 use crate::page::PageManager;
-use crate::{NativeStorage, Row, StorageBackend, StorageError};
+use crate::{Row, StorageBackend, StorageError};
+
+#[cfg(not(target_arch = "wasm32"))]
+use crate::NativeStorage;
+
+#[cfg(target_arch = "wasm32")]
+use crate::OpfsStorage;
 
 /// Normalize an index name to uppercase for case-insensitive comparison
 /// This follows SQL standard identifier rules
@@ -298,7 +304,11 @@ impl IndexManager {
     /// Create a new empty IndexManager with default configuration
     pub fn new() -> Self {
         // Create a default in-memory storage (will be replaced when database_path is set)
+        #[cfg(not(target_arch = "wasm32"))]
         let storage = Arc::new(NativeStorage::new(".").unwrap());
+        #[cfg(target_arch = "wasm32")]
+        let storage = Arc::new(OpfsStorage::new().unwrap());
+
         IndexManager {
             indexes: HashMap::new(),
             index_data: HashMap::new(),
@@ -311,7 +321,11 @@ impl IndexManager {
 
     /// Create a new IndexManager with custom configuration
     pub fn with_config(config: DatabaseConfig) -> Self {
+        #[cfg(not(target_arch = "wasm32"))]
         let storage = Arc::new(NativeStorage::new(".").unwrap());
+        #[cfg(target_arch = "wasm32")]
+        let storage = Arc::new(OpfsStorage::new().unwrap());
+
         IndexManager {
             indexes: HashMap::new(),
             index_data: HashMap::new(),
@@ -325,8 +339,17 @@ impl IndexManager {
     /// Set the database directory path for index file storage
     pub fn set_database_path(&mut self, path: PathBuf) {
         // Update storage backend to use the correct path
-        if let Ok(storage) = NativeStorage::new(&path) {
-            self.storage = Arc::new(storage);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            if let Ok(storage) = NativeStorage::new(&path) {
+                self.storage = Arc::new(storage);
+            }
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            // OPFS doesn't use directory paths the same way
+            // Keep the existing OPFS storage
+            let _ = path; // Suppress unused variable warning
         }
         self.database_path = Some(path);
     }
