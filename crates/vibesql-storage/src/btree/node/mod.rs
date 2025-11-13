@@ -741,4 +741,216 @@ mod tests {
             vec![SqlValue::Integer(3), SqlValue::Varchar("Charlie".to_string())]
         );
     }
+
+    // ========================================================================
+    // Tests for delete_specific() - removes individual row_ids
+    // ========================================================================
+
+    #[test]
+    fn test_delete_specific_one_of_many_row_ids() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+        // Create entries with duplicate keys (multiple row_ids per key)
+        let sorted_entries = vec![
+            (vec![SqlValue::Integer(10)], 100),
+            (vec![SqlValue::Integer(10)], 200),
+            (vec![SqlValue::Integer(10)], 300),
+        ];
+
+        let mut index = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager).unwrap();
+
+        // Delete one specific row_id, others should remain
+        assert!(index.delete_specific(&vec![SqlValue::Integer(10)], 200).unwrap());
+
+        // Verify the key still exists with remaining row_ids
+        let remaining_row_ids = index.lookup(&vec![SqlValue::Integer(10)]).unwrap();
+        assert_eq!(remaining_row_ids.len(), 2);
+        assert!(remaining_row_ids.contains(&100));
+        assert!(remaining_row_ids.contains(&300));
+        assert!(!remaining_row_ids.contains(&200));  // Deleted row_id should not exist
+    }
+
+    #[test]
+    fn test_delete_specific_last_row_id_removes_key() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+        let sorted_entries = vec![
+            (vec![SqlValue::Integer(10)], 100),
+            (vec![SqlValue::Integer(20)], 200),
+        ];
+
+        let mut index = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager).unwrap();
+
+        // Delete the only row_id for key 10
+        assert!(index.delete_specific(&vec![SqlValue::Integer(10)], 100).unwrap());
+
+        // Verify key 10 is completely removed
+        let row_ids = index.lookup(&vec![SqlValue::Integer(10)]).unwrap();
+        assert!(row_ids.is_empty(), "Key should be removed when last row_id is deleted");
+
+        // Verify key 20 still exists
+        let row_ids_20 = index.lookup(&vec![SqlValue::Integer(20)]).unwrap();
+        assert_eq!(row_ids_20, vec![200]);
+    }
+
+    #[test]
+    fn test_delete_specific_nonexistent_row_id() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+        let sorted_entries = vec![
+            (vec![SqlValue::Integer(10)], 100),
+            (vec![SqlValue::Integer(10)], 200),
+        ];
+
+        let mut index = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager).unwrap();
+
+        // Try to delete row_id that doesn't exist for this key
+        assert!(!index.delete_specific(&vec![SqlValue::Integer(10)], 999).unwrap());
+
+        // Verify nothing was changed
+        let row_ids = index.lookup(&vec![SqlValue::Integer(10)]).unwrap();
+        assert_eq!(row_ids.len(), 2);
+        assert!(row_ids.contains(&100));
+        assert!(row_ids.contains(&200));
+    }
+
+    #[test]
+    fn test_delete_specific_nonexistent_key() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+        let sorted_entries = vec![
+            (vec![SqlValue::Integer(10)], 100),
+        ];
+
+        let mut index = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager).unwrap();
+
+        // Try to delete from key that doesn't exist
+        assert!(!index.delete_specific(&vec![SqlValue::Integer(99)], 100).unwrap());
+
+        // Verify existing key unchanged
+        let row_ids = index.lookup(&vec![SqlValue::Integer(10)]).unwrap();
+        assert_eq!(row_ids, vec![100]);
+    }
+
+    #[test]
+    fn test_delete_specific_multi_level_tree() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+
+        // Create enough entries to force multi-level tree, with some duplicates
+        let mut sorted_entries: Vec<(Key, RowId)> = Vec::new();
+        for i in 0..500 {
+            sorted_entries.push((vec![SqlValue::Integer(i * 10)], (i * 2) as usize));
+            // Add duplicate for every 10th key
+            if i % 10 == 0 {
+                sorted_entries.push((vec![SqlValue::Integer(i * 10)], (i * 2 + 1) as usize));
+            }
+        }
+
+        let mut index = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager).unwrap();
+        assert!(index.height() > 1, "Test requires multi-level tree");
+
+        // Delete specific row_id from a key with duplicates
+        // i=0: key=0, row_ids=[0, 1] (because 0 % 10 == 0)
+        assert!(index.delete_specific(&vec![SqlValue::Integer(0)], 1).unwrap());
+
+        // Verify the other row_id still exists for this key
+        let row_ids = index.lookup(&vec![SqlValue::Integer(0)]).unwrap();
+        assert_eq!(row_ids, vec![0]);
+
+        // Delete from a key with only one row_id
+        // i=5: key=50, row_ids=[10] (because 5 % 10 != 0, no duplicate)
+        assert!(index.delete_specific(&vec![SqlValue::Integer(50)], 10).unwrap());
+
+        // Verify key is removed
+        let row_ids_50 = index.lookup(&vec![SqlValue::Integer(50)]).unwrap();
+        assert!(row_ids_50.is_empty());
+    }
+
+    #[test]
+    fn test_delete_specific_vs_delete_all() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+        let sorted_entries = vec![
+            (vec![SqlValue::Integer(10)], 100),
+            (vec![SqlValue::Integer(10)], 200),
+            (vec![SqlValue::Integer(10)], 300),
+            (vec![SqlValue::Integer(20)], 400),
+            (vec![SqlValue::Integer(20)], 500),
+        ];
+
+        let mut index = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager).unwrap();
+
+        // Use delete_specific on key 10 - should only remove one row_id
+        assert!(index.delete_specific(&vec![SqlValue::Integer(10)], 200).unwrap());
+        let row_ids_10 = index.lookup(&vec![SqlValue::Integer(10)]).unwrap();
+        assert_eq!(row_ids_10.len(), 2, "delete_specific should remove only one row_id");
+
+        // Use delete on key 20 - should remove all row_ids
+        assert!(index.delete(&vec![SqlValue::Integer(20)]).unwrap());
+        let row_ids_20 = index.lookup(&vec![SqlValue::Integer(20)]).unwrap();
+        assert!(row_ids_20.is_empty(), "delete should remove all row_ids");
+    }
+
+    #[test]
+    fn test_delete_specific_with_rebalancing() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let storage = Arc::new(crate::NativeStorage::new(temp_dir.path()).unwrap());
+        let page_manager = Arc::new(PageManager::new("test.db", storage).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+
+        // Create enough entries to trigger rebalancing
+        let sorted_entries: Vec<(Key, RowId)> = (0..500)
+            .map(|i| (vec![SqlValue::Integer(i * 10)], i as usize))
+            .collect();
+
+        let mut index = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager).unwrap();
+        let original_height = index.height();
+
+        // Delete specific row_ids sequentially (these are single row_id keys)
+        for i in (0..450).step_by(3) {
+            assert!(index.delete_specific(&vec![SqlValue::Integer(i * 10)], i as usize).unwrap());
+        }
+
+        // Tree should still be valid, height may have decreased
+        assert!(index.height() > 0);
+        assert!(index.height() <= original_height);
+
+        // Verify remaining entries are accessible
+        let row_ids = index.lookup(&vec![SqlValue::Integer(10)]).unwrap();
+        assert_eq!(row_ids, vec![1], "Non-deleted entries should still be accessible");
+    }
 }
