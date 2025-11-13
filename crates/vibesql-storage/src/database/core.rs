@@ -1,51 +1,26 @@
 // ============================================================================
-// Database
+// Database - Coordinates between focused modules
 // ============================================================================
 
+use super::lifecycle::Lifecycle;
+use super::metadata::Metadata;
+use super::operations::{Operations, SpatialIndexMetadata};
+use super::transactions::TransactionChange;
+use crate::{Row, StorageError, Table};
 use std::collections::HashMap;
-
 use vibesql_ast::IndexColumn;
 
-use super::{
-    indexes::IndexManager,
-    transactions::{TransactionChange, TransactionManager},
-};
-use crate::{index::SpatialIndex, Row, StorageError, Table};
+pub use super::operations::SpatialIndexMetadata as ExportedSpatialIndexMetadata;
 
-/// Metadata for a spatial index
-#[derive(Debug, Clone)]
-pub struct SpatialIndexMetadata {
-    pub index_name: String,
-    pub table_name: String,
-    pub column_name: String,
-    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
-}
-
-/// In-memory database - manages catalog and tables
+/// In-memory database - manages catalog and tables through focused modules
 #[derive(Debug, Clone)]
 pub struct Database {
+    /// Public catalog access for backward compatibility
     pub catalog: vibesql_catalog::Catalog,
-    tables: HashMap<String, Table>,
-    /// User-defined index manager (B-tree indexes)
-    index_manager: IndexManager,
-    /// Spatial indexes (R-tree) - stored separately from B-tree indexes
-    /// Key: normalized index name (uppercase)
-    /// Value: (metadata, spatial index)
-    spatial_indexes: HashMap<String, (SpatialIndexMetadata, SpatialIndex)>,
-    /// Transaction manager
-    transaction_manager: TransactionManager,
-    /// Current session role for privilege checks
-    current_role: Option<String>,
-    /// Whether security checks are enabled (can be disabled for testing)
-    security_enabled: bool,
-    /// Session variables (MySQL-style @variables)
-    /// Key: normalized variable name (uppercase)
-    /// Value: variable value
-    session_variables: HashMap<String, vibesql_types::SqlValue>,
-    /// Cache for parsed procedure and function bodies (Phase 6 performance)
-    /// Key: routine name (procedure or function)
-    /// Value: cached procedure body
-    routine_body_cache: HashMap<String, vibesql_catalog::ProcedureBody>,
+    lifecycle: Lifecycle,
+    metadata: Metadata,
+    operations: Operations,
+    pub tables: HashMap<String, Table>,
 }
 
 impl Database {
@@ -56,15 +31,10 @@ impl Database {
     pub fn new() -> Self {
         Database {
             catalog: vibesql_catalog::Catalog::new(),
+            lifecycle: Lifecycle::new(),
+            metadata: Metadata::new(),
+            operations: Operations::new(),
             tables: HashMap::new(),
-            index_manager: IndexManager::new(),
-            spatial_indexes: HashMap::new(),
-            transaction_manager: TransactionManager::new(),
-            current_role: None,
-            // Disabled by default for backward compatibility
-            security_enabled: false,
-            session_variables: HashMap::new(),
-            routine_body_cache: HashMap::new(),
         }
     }
 
@@ -74,20 +44,99 @@ impl Database {
     /// Useful for test scenarios where you need to reuse a Database instance.
     pub fn reset(&mut self) {
         self.catalog = vibesql_catalog::Catalog::new();
+        self.lifecycle.reset();
+        self.metadata = Metadata::new();
+        self.operations = Operations::new();
         self.tables.clear();
-        self.index_manager = IndexManager::new();
-        self.spatial_indexes.clear();
-        self.transaction_manager = TransactionManager::new();
-        self.current_role = None;
-        self.security_enabled = false;
-        self.session_variables.clear();
-        self.routine_body_cache.clear();
     }
+
+    // ============================================================================
+    // Transaction Management
+    // ============================================================================
 
     /// Record a change in the current transaction (if any)
     pub fn record_change(&mut self, change: TransactionChange) {
-        self.transaction_manager.record_change(change);
+        self.lifecycle.transaction_manager_mut().record_change(change);
     }
+
+    /// Begin a new transaction
+    pub fn begin_transaction(&mut self) -> Result<(), StorageError> {
+        let catalog = &self.catalog.clone();
+        self.lifecycle
+            .transaction_manager_mut()
+            .begin_transaction(&catalog, &self.tables)
+    }
+
+    /// Commit the current transaction
+    pub fn commit_transaction(&mut self) -> Result<(), StorageError> {
+        self.lifecycle.transaction_manager_mut().commit_transaction()
+    }
+
+    /// Rollback the current transaction
+    pub fn rollback_transaction(&mut self) -> Result<(), StorageError> {
+        self.lifecycle.perform_rollback(&mut self.catalog)
+    }
+
+    /// Check if we're currently in a transaction
+    pub fn in_transaction(&self) -> bool {
+        self.lifecycle.transaction_manager().in_transaction()
+    }
+
+    /// Get current transaction ID (for debugging)
+    pub fn transaction_id(&self) -> Option<u64> {
+        self.lifecycle.transaction_manager().transaction_id()
+    }
+
+    /// Create a savepoint within the current transaction
+    pub fn create_savepoint(&mut self, name: String) -> Result<(), StorageError> {
+        self.lifecycle.transaction_manager_mut().create_savepoint(name)
+    }
+
+    /// Rollback to a named savepoint
+    pub fn rollback_to_savepoint(&mut self, name: String) -> Result<(), StorageError> {
+        let changes_to_undo = self.lifecycle.transaction_manager_mut().rollback_to_savepoint(name)?;
+
+        for change in changes_to_undo.into_iter().rev() {
+            self.undo_change(change)?;
+        }
+
+        Ok(())
+    }
+
+    /// Undo a single transaction change
+    fn undo_change(&mut self, change: TransactionChange) -> Result<(), StorageError> {
+        match change {
+            TransactionChange::Insert { table_name, row } => {
+                let table = self
+                    .get_table_mut(&table_name)
+                    .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
+                table.remove_row(&row)?;
+            }
+            TransactionChange::Update { table_name, old_row, new_row: _ } => {
+                let table = self
+                    .get_table_mut(&table_name)
+                    .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
+                table.remove_row(&old_row)?;
+                table.insert(old_row)?;
+            }
+            TransactionChange::Delete { table_name, row } => {
+                let table = self
+                    .get_table_mut(&table_name)
+                    .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
+                table.insert(row)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Release (destroy) a named savepoint
+    pub fn release_savepoint(&mut self, name: String) -> Result<(), StorageError> {
+        self.lifecycle.transaction_manager_mut().release_savepoint(name)
+    }
+
+    // ============================================================================
+    // Table Operations
+    // ============================================================================
 
     /// Create a table
     pub fn create_table(
@@ -96,16 +145,12 @@ impl Database {
     ) -> Result<(), StorageError> {
         let table_name = schema.name.clone();
 
-        // Add to catalog
-        self.catalog
-            .create_table(schema.clone())
-            .map_err(|e| StorageError::CatalogError(e.to_string()))?;
+        self.operations
+            .create_table(&mut self.catalog, schema.clone())?;
 
-        // Store with fully qualified name (schema.table)
-        let current_schema = self.catalog.get_current_schema();
+        let current_schema = &self.catalog.get_current_schema();
         let qualified_name = format!("{}.{}", current_schema, table_name);
 
-        // Create empty table
         let table = Table::new(schema);
         self.tables.insert(qualified_name, table);
 
@@ -114,14 +159,12 @@ impl Database {
 
     /// Get a table for reading
     pub fn get_table(&self, name: &str) -> Option<&Table> {
-        // Try as fully qualified name first
         if let Some(table) = self.tables.get(name) {
             return Some(table);
         }
 
-        // If not found and name is unqualified, try with current schema prefix
         if !name.contains('.') {
-            let current_schema = self.catalog.get_current_schema();
+            let current_schema = &self.catalog.get_current_schema();
             let qualified_name = format!("{}.{}", current_schema, name);
             return self.tables.get(&qualified_name);
         }
@@ -131,14 +174,12 @@ impl Database {
 
     /// Get a table for writing
     pub fn get_table_mut(&mut self, name: &str) -> Option<&mut Table> {
-        // Try as fully qualified name first
         if self.tables.contains_key(name) {
             return self.tables.get_mut(name);
         }
 
-        // If not found and name is unqualified, try with current schema prefix
         if !name.contains('.') {
-            let current_schema = self.catalog.get_current_schema().to_string();
+            let current_schema = &self.catalog.get_current_schema().to_string();
             let qualified_name = format!("{}.{}", current_schema, name);
             return self.tables.get_mut(&qualified_name);
         }
@@ -148,56 +189,22 @@ impl Database {
 
     /// Drop a table
     pub fn drop_table(&mut self, name: &str) -> Result<(), StorageError> {
-        // Get qualified table name for index cleanup
-        // We need to do this BEFORE dropping from catalog
-        let qualified_name = if name.contains('.') {
-            name.to_string()
-        } else {
-            let current_schema = self.catalog.get_current_schema();
-            format!("{}.{}", current_schema, name)
-        };
-
-        // Drop associated indexes BEFORE dropping table (CASCADE behavior)
-        // This maintains referential integrity - indexes cannot exist without their table
-        self.index_manager.drop_indexes_for_table(&qualified_name);
-
-        // Drop associated spatial indexes too
-        self.drop_spatial_indexes_for_table(&qualified_name);
-
-        // Remove from catalog
-        self.catalog.drop_table(name).map_err(|e| StorageError::CatalogError(e.to_string()))?;
-
-        // Remove table data - try exact name first, then try with schema prefix
-        if self.tables.remove(name).is_none() {
-            // If not found and name is unqualified, try with current schema prefix
-            if !name.contains('.') {
-                self.tables.remove(&qualified_name);
-            }
-        }
-
-        Ok(())
+        self.operations.drop_table(&mut self.catalog, &mut self.tables, name)
     }
 
     /// Insert a row into a table
     pub fn insert_row(&mut self, table_name: &str, row: Row) -> Result<(), StorageError> {
-        let table = self
-            .get_table_mut(table_name)
-            .ok_or_else(|| StorageError::TableNotFound(table_name.to_string()))?;
+        let _row_index = self.operations.insert_row(
+            &self.catalog,
+            &mut self.tables,
+            table_name,
+            row.clone(),
+        )?;
 
-        // Get row index before insertion
-        let row_index = table.row_count();
-        table.insert(row.clone())?;
-
-        // Update user-defined indexes
-        if let Some(table_schema) = self.catalog.get_table(table_name) {
-            self.index_manager.update_indexes_for_insert(table_name, table_schema, &row, row_index);
-        }
-
-        // Update spatial indexes
-        self.update_spatial_indexes_for_insert(table_name, &row, row_index);
-
-        // Record the change for transaction rollback
-        self.record_change(TransactionChange::Insert { table_name: table_name.to_string(), row });
+        self.record_change(TransactionChange::Insert {
+            table_name: table_name.to_string(),
+            row,
+        });
 
         Ok(())
     }
@@ -206,6 +213,10 @@ impl Database {
     pub fn list_tables(&self) -> Vec<String> {
         self.catalog.list_tables()
     }
+
+    // ============================================================================
+    // Debug and Utilities
+    // ============================================================================
 
     /// Get debug information about database state
     pub fn debug_info(&self) -> String {
@@ -245,12 +256,10 @@ impl Database {
         let mut output = String::new();
         output.push_str(&format!("=== Table: {} ===\n", name));
 
-        // Column headers
         let col_names: Vec<String> = table.schema.columns.iter().map(|c| c.name.clone()).collect();
         output.push_str(&format!("{}\n", col_names.join(" | ")));
         output.push_str(&format!("{}\n", "-".repeat(col_names.join(" | ").len())));
 
-        // Rows
         for row in table.scan() {
             let values: Vec<String> = row.values.iter().map(|v| format!("{}", v)).collect();
             output.push_str(&format!("{}\n", values.join(" | ")));
@@ -260,110 +269,36 @@ impl Database {
         Ok(output)
     }
 
-    /// Begin a new transaction
-    pub fn begin_transaction(&mut self) -> Result<(), StorageError> {
-        self.transaction_manager.begin_transaction(&self.catalog, &self.tables)
-    }
-
-    /// Commit the current transaction
-    pub fn commit_transaction(&mut self) -> Result<(), StorageError> {
-        self.transaction_manager.commit_transaction()
-    }
-
-    /// Rollback the current transaction
-    pub fn rollback_transaction(&mut self) -> Result<(), StorageError> {
-        self.transaction_manager.rollback_transaction(&mut self.catalog, &mut self.tables)
-    }
-
-    /// Check if we're currently in a transaction
-    pub fn in_transaction(&self) -> bool {
-        self.transaction_manager.in_transaction()
-    }
-
-    /// Get current transaction ID (for debugging)
-    pub fn transaction_id(&self) -> Option<u64> {
-        self.transaction_manager.transaction_id()
-    }
-
-    /// Create a savepoint within the current transaction
-    pub fn create_savepoint(&mut self, name: String) -> Result<(), StorageError> {
-        self.transaction_manager.create_savepoint(name)
-    }
-
-    /// Rollback to a named savepoint
-    pub fn rollback_to_savepoint(&mut self, name: String) -> Result<(), StorageError> {
-        let changes_to_undo = self.transaction_manager.rollback_to_savepoint(name)?;
-
-        // Undo the changes in reverse order
-        for change in changes_to_undo.into_iter().rev() {
-            self.undo_change(change)?;
-        }
-
-        Ok(())
-    }
-
-    /// Undo a single transaction change
-    fn undo_change(&mut self, change: TransactionChange) -> Result<(), StorageError> {
-        match change {
-            TransactionChange::Insert { table_name, row } => {
-                // Remove the inserted row
-                let table = self
-                    .get_table_mut(&table_name)
-                    .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
-                table.remove_row(&row)?;
-            }
-            TransactionChange::Update { table_name, old_row, new_row: _ } => {
-                // Restore the old row (this is simplified - real implementation would need row IDs)
-                let table = self
-                    .get_table_mut(&table_name)
-                    .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
-                // For now, just remove the new row and re-insert old (simplified)
-                table.remove_row(&old_row)?;
-                table.insert(old_row)?;
-            }
-            TransactionChange::Delete { table_name, row } => {
-                // Re-insert the deleted row
-                let table = self
-                    .get_table_mut(&table_name)
-                    .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
-                table.insert(row)?;
-            }
-        }
-        Ok(())
-    }
-
-    /// Release (destroy) a named savepoint
-    pub fn release_savepoint(&mut self, name: String) -> Result<(), StorageError> {
-        self.transaction_manager.release_savepoint(name)
-    }
-
     // ============================================================================
     // Security and Role Management
     // ============================================================================
 
     /// Set the current session role for privilege checks
     pub fn set_role(&mut self, role: Option<String>) {
-        self.current_role = role;
+        self.lifecycle.set_role(role);
     }
 
     /// Get the current session role (defaults to "PUBLIC" if not set)
     pub fn get_current_role(&self) -> String {
-        self.current_role.clone().unwrap_or_else(|| "PUBLIC".to_string())
+        self.lifecycle
+            .current_role()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "PUBLIC".to_string())
     }
 
     /// Check if security enforcement is enabled
     pub fn is_security_enabled(&self) -> bool {
-        self.security_enabled
+        self.lifecycle.is_security_enabled()
     }
 
     /// Disable security checks (for testing)
     pub fn disable_security(&mut self) {
-        self.security_enabled = false;
+        self.lifecycle.disable_security();
     }
 
     /// Enable security checks
     pub fn enable_security(&mut self) {
-        self.security_enabled = true;
+        self.lifecycle.enable_security();
     }
 
     // ============================================================================
@@ -372,23 +307,21 @@ impl Database {
 
     /// Set a session variable (MySQL-style @variable)
     pub fn set_session_variable(&mut self, name: &str, value: vibesql_types::SqlValue) {
-        let normalized_name = name.to_uppercase();
-        self.session_variables.insert(normalized_name, value);
+        self.metadata.set_session_variable(name, value);
     }
 
     /// Get a session variable value
     pub fn get_session_variable(&self, name: &str) -> Option<&vibesql_types::SqlValue> {
-        let normalized_name = name.to_uppercase();
-        self.session_variables.get(&normalized_name)
+        self.metadata.get_session_variable(name)
     }
 
     /// Clear all session variables
     pub fn clear_session_variables(&mut self) {
-        self.session_variables.clear();
+        self.metadata.clear_session_variables();
     }
 
     // ============================================================================
-    // Index Management - Delegates to IndexManager
+    // Index Management
     // ============================================================================
 
     /// Create an index
@@ -399,26 +332,11 @@ impl Database {
         unique: bool,
         columns: Vec<IndexColumn>,
     ) -> Result<(), StorageError> {
-        // Get the table to build the index (use proper lookup that respects case sensitivity)
-        let table = self
-            .get_table(&table_name)
-            .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
-
-        // Get the table schema
-        let table_schema = self
-            .catalog
-            .get_table(&table_name)
-            .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
-
-        // Collect table rows
-        let table_rows: Vec<Row> = table.scan().to_vec();
-
-        // Delegate to index manager
-        self.index_manager.create_index(
+        self.operations.create_index(
+            &self.catalog,
+            &self.tables,
             index_name,
             table_name,
-            table_schema,
-            &table_rows,
             unique,
             columns,
         )
@@ -426,17 +344,17 @@ impl Database {
 
     /// Check if an index exists
     pub fn index_exists(&self, index_name: &str) -> bool {
-        self.index_manager.index_exists(index_name)
+        self.operations.index_exists(index_name)
     }
 
     /// Get index metadata
     pub fn get_index(&self, index_name: &str) -> Option<&super::indexes::IndexMetadata> {
-        self.index_manager.get_index(index_name)
+        self.operations.get_index(index_name)
     }
 
     /// Get index data
     pub fn get_index_data(&self, index_name: &str) -> Option<&super::indexes::IndexData> {
-        self.index_manager.get_index_data(index_name)
+        self.operations.get_index_data(index_name)
     }
 
     /// Update user-defined indexes for update operation
@@ -447,301 +365,104 @@ impl Database {
         new_row: &Row,
         row_index: usize,
     ) {
-        if let Some(table_schema) = self.catalog.get_table(table_name) {
-            self.index_manager.update_indexes_for_update(
-                table_name,
-                table_schema,
-                old_row,
-                new_row,
-                row_index,
-            );
-        }
-
-        // Update spatial indexes
-        self.update_spatial_indexes_for_update(table_name, old_row, new_row, row_index);
+        self.operations.update_indexes_for_update(
+            &self.catalog,
+            table_name,
+            old_row,
+            new_row,
+            row_index,
+        );
     }
 
     /// Update user-defined indexes for delete operation
     pub fn update_indexes_for_delete(&mut self, table_name: &str, row: &Row, row_index: usize) {
-        if let Some(table_schema) = self.catalog.get_table(table_name) {
-            self.index_manager.update_indexes_for_delete(table_name, table_schema, row, row_index);
-        }
-
-        // Update spatial indexes
-        self.update_spatial_indexes_for_delete(table_name, row, row_index);
+        self.operations
+            .update_indexes_for_delete(&self.catalog, table_name, row, row_index);
     }
 
     /// Rebuild user-defined indexes after bulk operations that change row indices
     pub fn rebuild_indexes(&mut self, table_name: &str) {
-        // Get table and schema first to avoid borrow checker issues
-        let table_rows: Vec<Row> = if let Some(table) = self.get_table(table_name) {
-            table.scan().to_vec()
-        } else {
-            return;
-        };
-
-        let table_schema = match self.catalog.get_table(table_name) {
-            Some(schema) => schema,
-            None => return,
-        };
-
-        // Delegate to index manager
-        self.index_manager.rebuild_indexes(table_name, table_schema, &table_rows);
+        self.operations
+            .rebuild_indexes(&self.catalog, &self.tables, table_name);
     }
 
     /// Drop an index
     pub fn drop_index(&mut self, index_name: &str) -> Result<(), StorageError> {
-        self.index_manager.drop_index(index_name)
+        self.operations.drop_index(index_name)
     }
 
     /// List all indexes
     pub fn list_indexes(&self) -> Vec<String> {
-        self.index_manager.list_indexes()
+        self.operations.list_indexes()
     }
 
     /// List all indexes for a specific table
     pub fn list_indexes_for_table(&self, table_name: &str) -> Vec<String> {
-        self.index_manager
-            .list_indexes()
-            .into_iter()
-            .filter(|index_name| {
-                self.index_manager
-                    .get_index(index_name)
-                    .map(|metadata| metadata.table_name == table_name)
-                    .unwrap_or(false)
-            })
-            .collect()
+        self.operations.list_indexes_for_table(table_name)
     }
 
-    // ========================================================================
+    // ============================================================================
     // Spatial Index Methods
-    // ========================================================================
-
-    /// Normalize an index name to uppercase for case-insensitive comparison
-    fn normalize_index_name(name: &str) -> String {
-        name.to_uppercase()
-    }
+    // ============================================================================
 
     /// Create a spatial index
     pub fn create_spatial_index(
         &mut self,
         metadata: SpatialIndexMetadata,
-        spatial_index: SpatialIndex,
+        spatial_index: crate::index::SpatialIndex,
     ) -> Result<(), StorageError> {
-        let normalized_name = Self::normalize_index_name(&metadata.index_name);
-
-        // Check if index already exists (either B-tree or spatial)
-        if self.index_manager.index_exists(&metadata.index_name) {
-            return Err(StorageError::IndexAlreadyExists(metadata.index_name.clone()));
-        }
-        if self.spatial_indexes.contains_key(&normalized_name) {
-            return Err(StorageError::IndexAlreadyExists(metadata.index_name.clone()));
-        }
-
-        self.spatial_indexes.insert(normalized_name, (metadata, spatial_index));
-        Ok(())
+        self.operations.create_spatial_index(metadata, spatial_index)
     }
 
     /// Check if a spatial index exists
     pub fn spatial_index_exists(&self, index_name: &str) -> bool {
-        let normalized = Self::normalize_index_name(index_name);
-        self.spatial_indexes.contains_key(&normalized)
+        self.operations.spatial_index_exists(index_name)
     }
 
     /// Get spatial index metadata
     pub fn get_spatial_index_metadata(&self, index_name: &str) -> Option<&SpatialIndexMetadata> {
-        let normalized = Self::normalize_index_name(index_name);
-        self.spatial_indexes.get(&normalized).map(|(metadata, _)| metadata)
+        self.operations.get_spatial_index_metadata(index_name)
     }
 
     /// Get spatial index (immutable)
-    pub fn get_spatial_index(&self, index_name: &str) -> Option<&SpatialIndex> {
-        let normalized = Self::normalize_index_name(index_name);
-        self.spatial_indexes.get(&normalized).map(|(_, index)| index)
+    pub fn get_spatial_index(&self, index_name: &str) -> Option<&crate::index::SpatialIndex> {
+        self.operations.get_spatial_index(index_name)
     }
 
     /// Get spatial index (mutable)
-    pub fn get_spatial_index_mut(&mut self, index_name: &str) -> Option<&mut SpatialIndex> {
-        let normalized = Self::normalize_index_name(index_name);
-        self.spatial_indexes.get_mut(&normalized).map(|(_, index)| index)
+    pub fn get_spatial_index_mut(&mut self, index_name: &str) -> Option<&mut crate::index::SpatialIndex> {
+        self.operations.get_spatial_index_mut(index_name)
     }
 
     /// Get all spatial indexes for a specific table
     pub fn get_spatial_indexes_for_table(
         &self,
         table_name: &str,
-    ) -> Vec<(&SpatialIndexMetadata, &SpatialIndex)> {
-        self.spatial_indexes
-            .values()
-            .filter(|(metadata, _)| metadata.table_name == table_name)
-            .map(|(metadata, index)| (metadata, index))
-            .collect()
+    ) -> Vec<(&SpatialIndexMetadata, &crate::index::SpatialIndex)> {
+        self.operations.get_spatial_indexes_for_table(table_name)
     }
 
     /// Get all spatial indexes for a specific table (mutable)
     pub fn get_spatial_indexes_for_table_mut(
         &mut self,
         table_name: &str,
-    ) -> Vec<(&SpatialIndexMetadata, &mut SpatialIndex)> {
-        self.spatial_indexes
-            .iter_mut()
-            .filter(|(_, (metadata, _))| metadata.table_name == table_name)
-            .map(|(_, (metadata, index))| (metadata as &SpatialIndexMetadata, index))
-            .collect()
+    ) -> Vec<(&SpatialIndexMetadata, &mut crate::index::SpatialIndex)> {
+        self.operations.get_spatial_indexes_for_table_mut(table_name)
     }
 
     /// Drop a spatial index
     pub fn drop_spatial_index(&mut self, index_name: &str) -> Result<(), StorageError> {
-        let normalized = Self::normalize_index_name(index_name);
-
-        if self.spatial_indexes.remove(&normalized).is_none() {
-            return Err(StorageError::IndexNotFound(index_name.to_string()));
-        }
-
-        Ok(())
+        self.operations.drop_spatial_index(index_name)
     }
 
     /// Drop all spatial indexes associated with a table (CASCADE behavior)
     pub fn drop_spatial_indexes_for_table(&mut self, table_name: &str) -> Vec<String> {
-        // Collect index names to drop (can't modify while iterating)
-        let indexes_to_drop: Vec<String> = self
-            .spatial_indexes
-            .iter()
-            .filter(|(_, (metadata, _))| metadata.table_name == table_name)
-            .map(|(name, _)| name.clone())
-            .collect();
-
-        // Drop each spatial index
-        for index_name in &indexes_to_drop {
-            self.spatial_indexes.remove(index_name);
-        }
-
-        indexes_to_drop
+        self.operations.drop_spatial_indexes_for_table(table_name)
     }
 
     /// List all spatial indexes
     pub fn list_spatial_indexes(&self) -> Vec<String> {
-        self.spatial_indexes.keys().cloned().collect()
-    }
-
-    /// Update spatial indexes for insert operation
-    fn update_spatial_indexes_for_insert(&mut self, table_name: &str, row: &Row, row_index: usize) {
-        use crate::index::extract_mbr_from_sql_value;
-
-        // Get table schema to find column indices
-        let table_schema = match self.catalog.get_table(table_name) {
-            Some(schema) => schema,
-            None => return,
-        };
-
-        // Collect indexes to update (can't borrow mutably while iterating)
-        let indexes_to_update: Vec<(String, usize)> = self
-            .spatial_indexes
-            .iter()
-            .filter(|(_, (metadata, _))| metadata.table_name == table_name)
-            .filter_map(|(index_name, (metadata, _))| {
-                table_schema
-                    .get_column_index(&metadata.column_name)
-                    .map(|col_idx| (index_name.clone(), col_idx))
-            })
-            .collect();
-
-        // Update each spatial index
-        for (index_name, col_idx) in indexes_to_update {
-            let geom_value = &row.values[col_idx];
-
-            // Extract MBR and insert into spatial index (skip NULLs)
-            if let Some(mbr) = extract_mbr_from_sql_value(geom_value) {
-                if let Some((_, index)) = self.spatial_indexes.get_mut(&index_name) {
-                    index.insert(row_index, mbr);
-                }
-            }
-        }
-    }
-
-    /// Update spatial indexes for update operation
-    fn update_spatial_indexes_for_update(
-        &mut self,
-        table_name: &str,
-        old_row: &Row,
-        new_row: &Row,
-        row_index: usize,
-    ) {
-        use crate::index::extract_mbr_from_sql_value;
-
-        // Get table schema to find column indices
-        let table_schema = match self.catalog.get_table(table_name) {
-            Some(schema) => schema,
-            None => return,
-        };
-
-        // Collect indexes to update
-        let indexes_to_update: Vec<(String, usize)> = self
-            .spatial_indexes
-            .iter()
-            .filter(|(_, (metadata, _))| metadata.table_name == table_name)
-            .filter_map(|(index_name, (metadata, _))| {
-                table_schema
-                    .get_column_index(&metadata.column_name)
-                    .map(|col_idx| (index_name.clone(), col_idx))
-            })
-            .collect();
-
-        // Update each spatial index
-        for (index_name, col_idx) in indexes_to_update {
-            let old_geom = &old_row.values[col_idx];
-            let new_geom = &new_row.values[col_idx];
-
-            // Only update if geometry changed
-            if old_geom != new_geom {
-                if let Some((_, index)) = self.spatial_indexes.get_mut(&index_name) {
-                    // Remove old entry
-                    if let Some(old_mbr) = extract_mbr_from_sql_value(old_geom) {
-                        index.remove(row_index, &old_mbr);
-                    }
-
-                    // Insert new entry
-                    if let Some(new_mbr) = extract_mbr_from_sql_value(new_geom) {
-                        index.insert(row_index, new_mbr);
-                    }
-                }
-            }
-        }
-    }
-
-    /// Update spatial indexes for delete operation
-    fn update_spatial_indexes_for_delete(&mut self, table_name: &str, row: &Row, row_index: usize) {
-        use crate::index::extract_mbr_from_sql_value;
-
-        // Get table schema to find column indices
-        let table_schema = match self.catalog.get_table(table_name) {
-            Some(schema) => schema,
-            None => return,
-        };
-
-        // Collect indexes to update
-        let indexes_to_update: Vec<(String, usize)> = self
-            .spatial_indexes
-            .iter()
-            .filter(|(_, (metadata, _))| metadata.table_name == table_name)
-            .filter_map(|(index_name, (metadata, _))| {
-                table_schema
-                    .get_column_index(&metadata.column_name)
-                    .map(|col_idx| (index_name.clone(), col_idx))
-            })
-            .collect();
-
-        // Update each spatial index
-        for (index_name, col_idx) in indexes_to_update {
-            let geom_value = &row.values[col_idx];
-
-            // Remove from spatial index
-            if let Some(mbr) = extract_mbr_from_sql_value(geom_value) {
-                if let Some((_, index)) = self.spatial_indexes.get_mut(&index_name) {
-                    index.remove(row_index, &mbr);
-                }
-            }
-        }
+        self.operations.list_spatial_indexes()
     }
 
     // ============================================================================
@@ -753,29 +474,25 @@ impl Database {
         &mut self,
         name: &str,
     ) -> Result<&vibesql_catalog::ProcedureBody, StorageError> {
-        // Check if body is already cached
-        if !self.routine_body_cache.contains_key(name) {
-            // Not cached - retrieve from catalog and cache it
-            let procedure = self.catalog.get_procedure(name).ok_or_else(|| {
+        if !self.metadata.get_cached_procedure_body(name).is_some() {
+            let procedure = &self.catalog.get_procedure(name).ok_or_else(|| {
                 StorageError::CatalogError(format!("Procedure '{}' not found", name))
             })?;
 
-            // Clone the body and store in cache
-            self.routine_body_cache.insert(name.to_string(), procedure.body.clone());
+            self.metadata.cache_procedure_body(name.to_string(), procedure.body.clone());
         }
 
-        // Return reference to cached body
-        Ok(self.routine_body_cache.get(name).unwrap())
+        Ok(self.metadata.get_cached_procedure_body(name).unwrap())
     }
 
     /// Invalidate cached procedure body (call when procedure is dropped or replaced)
     pub fn invalidate_procedure_cache(&mut self, name: &str) {
-        self.routine_body_cache.remove(name);
+        self.metadata.invalidate_procedure_cache(name);
     }
 
     /// Clear all cached procedure/function bodies
     pub fn clear_routine_cache(&mut self) {
-        self.routine_body_cache.clear();
+        self.metadata.clear_routine_cache();
     }
 }
 

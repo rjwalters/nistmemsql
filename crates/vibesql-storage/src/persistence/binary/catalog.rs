@@ -11,7 +11,7 @@ use crate::{persistence::save, Database, StorageError};
 
 pub fn write_catalog<W: Write>(writer: &mut W, db: &Database) -> Result<(), StorageError> {
     // Write schemas
-    let schemas: Vec<_> = db.catalog.list_schemas()
+    let schemas: Vec<String> = db.catalog.list_schemas()
         .into_iter()
         .filter(|s| s != "public") // Skip default public schema
         .collect();
@@ -112,7 +112,7 @@ pub fn write_catalog<W: Write>(writer: &mut W, db: &Database) -> Result<(), Stor
                         .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
                     write_u32(writer, cols.len() as u32)?;
                     for col in cols {
-                        write_string(writer, col)?;
+                        write_string(writer, &col)?;
                     }
                 }
                 vibesql_ast::TriggerEvent::Delete => {
@@ -150,7 +150,7 @@ pub fn write_catalog<W: Write>(writer: &mut W, db: &Database) -> Result<(), Stor
                     writer
                         .write_all(&[0u8])
                         .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
-                    write_string(writer, sql)?;
+                    write_string(writer, &sql)?;
                 }
             }
         }
@@ -167,7 +167,7 @@ pub fn read_catalog<R: Read>(reader: &mut R) -> Result<Database, StorageError> {
     for _ in 0..schema_count {
         let schema_name = read_string(reader)?;
         // Create schema directly on catalog
-        db.catalog
+        &mut db.catalog
             .create_schema(schema_name)
             .map_err(|e| StorageError::NotImplemented(format!("Failed to create schema: {}", e)))?;
     }
@@ -176,7 +176,7 @@ pub fn read_catalog<R: Read>(reader: &mut R) -> Result<Database, StorageError> {
     let role_count = read_u32(reader)?;
     for _ in 0..role_count {
         let role_name = read_string(reader)?;
-        db.catalog
+        &mut db.catalog
             .create_role(role_name)
             .map_err(|e| StorageError::NotImplemented(format!("Failed to create role: {}", e)))?;
     }
@@ -350,7 +350,7 @@ pub fn read_catalog<R: Read>(reader: &mut R) -> Result<Database, StorageError> {
         );
 
         // Add to catalog
-        db.catalog.create_trigger(trigger).map_err(|e| {
+        &mut db.catalog.create_trigger(trigger).map_err(|e| {
             StorageError::NotImplemented(format!("Failed to create trigger: {}", e))
         })?;
     }
