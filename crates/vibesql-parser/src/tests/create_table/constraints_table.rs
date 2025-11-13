@@ -312,3 +312,90 @@ fn test_parse_create_index_with_column_prefix() {
         _ => panic!("Expected CREATE INDEX statement"),
     }
 }
+
+// ========================================================================
+// Prefix Length Validation Tests
+// ========================================================================
+
+#[test]
+fn test_parse_unique_constraint_prefix_zero_fails() {
+    let result = Parser::parse_sql("CREATE TABLE t1(a TEXT, UNIQUE (a(0)))");
+    assert!(result.is_err(), "Should reject prefix length of 0");
+    let err = result.unwrap_err();
+    assert!(
+        err.message.contains("Prefix length must be at least 1"),
+        "Expected minimum validation error, got: {}",
+        err.message
+    );
+}
+
+#[test]
+fn test_parse_unique_constraint_prefix_too_large_fails() {
+    let result = Parser::parse_sql("CREATE TABLE t1(a TEXT, UNIQUE (a(10001)))");
+    assert!(result.is_err(), "Should reject prefix length > 10000");
+    let err = result.unwrap_err();
+    assert!(
+        err.message.contains("Prefix length must not exceed 10000"),
+        "Expected maximum validation error, got: {}",
+        err.message
+    );
+}
+
+#[test]
+fn test_parse_primary_key_prefix_zero_fails() {
+    let result = Parser::parse_sql("CREATE TABLE t1(a TEXT, PRIMARY KEY (a(0)))");
+    assert!(result.is_err(), "Should reject prefix length of 0");
+    let err = result.unwrap_err();
+    assert!(
+        err.message.contains("Prefix length must be at least 1"),
+        "Expected minimum validation error, got: {}",
+        err.message
+    );
+}
+
+#[test]
+fn test_parse_primary_key_prefix_too_large_fails() {
+    let result = Parser::parse_sql("CREATE TABLE t1(a TEXT, PRIMARY KEY (a(99999999)))");
+    assert!(result.is_err(), "Should reject prefix length > 10000");
+    let err = result.unwrap_err();
+    assert!(
+        err.message.contains("Prefix length must not exceed 10000"),
+        "Expected maximum validation error, got: {}",
+        err.message
+    );
+}
+
+#[test]
+fn test_parse_create_index_prefix_zero_fails() {
+    let result = Parser::parse_sql("CREATE INDEX idx1 ON users (email(0))");
+    assert!(result.is_err(), "Should reject prefix length of 0");
+    let err = result.unwrap_err();
+    assert!(
+        err.message.contains("Prefix length must be at least 1"),
+        "Expected minimum validation error, got: {}",
+        err.message
+    );
+}
+
+#[test]
+fn test_parse_create_index_prefix_too_large_fails() {
+    let result = Parser::parse_sql("CREATE INDEX idx1 ON users (email(10001))");
+    assert!(result.is_err(), "Should reject prefix length > 10000");
+    let err = result.unwrap_err();
+    assert!(
+        err.message.contains("Prefix length must not exceed 10000"),
+        "Expected maximum validation error, got: {}",
+        err.message
+    );
+}
+
+#[test]
+fn test_parse_unique_constraint_prefix_boundary_values() {
+    // Test minimum valid value: 1
+    let result = Parser::parse_sql("CREATE TABLE t1(a TEXT, UNIQUE (a(1)))");
+    assert!(result.is_ok(), "Should accept prefix length of 1: {:?}", result.err());
+
+    // Test maximum valid value: 10000
+    let result = Parser::parse_sql("CREATE TABLE t2(a TEXT, UNIQUE (a(10000)))");
+    assert!(result.is_ok(), "Should accept prefix length of 10000: {:?}", result.err());
+}

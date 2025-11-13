@@ -19,6 +19,19 @@ impl Parser {
                         message: "Invalid integer for column prefix length".to_string(),
                     })?;
                     self.advance();
+
+                    // Validate prefix length range
+                    if value < 1 {
+                        return Err(ParseError {
+                            message: "Prefix length must be at least 1".to_string(),
+                        });
+                    }
+                    if value > 10000 {
+                        return Err(ParseError {
+                            message: "Prefix length must not exceed 10000".to_string(),
+                        });
+                    }
+
                     value
                 }
                 _ => {
