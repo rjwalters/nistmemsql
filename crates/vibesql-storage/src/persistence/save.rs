@@ -52,7 +52,7 @@ impl Database {
         // Export schemas (except default 'public' which always exists)
         writeln!(writer, "-- Schemas")
             .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
-        for schema_name in self.catalog.list_schemas() {
+        for schema_name in &self.catalog.list_schemas() {
             if schema_name != "public" {
                 writeln!(writer, "CREATE SCHEMA {};", schema_name)
                     .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
@@ -64,7 +64,7 @@ impl Database {
         // Export roles
         writeln!(writer, "-- Roles")
             .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
-        for role_name in self.catalog.list_roles() {
+        for role_name in &self.catalog.list_roles() {
             writeln!(writer, "CREATE ROLE {};", role_name)
                 .map_err(|e| StorageError::NotImplemented(format!("Write error: {}", e)))?;
         }

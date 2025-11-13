@@ -8,12 +8,13 @@ use crate::{errors::CatalogError, table::TableSchema};
 impl super::Catalog {
     /// Create a table schema in the current schema.
     pub fn create_table(&mut self, schema: TableSchema) -> Result<(), CatalogError> {
+        let case_sensitive = self.case_sensitive_identifiers;
         let current_schema = self
             .schemas
             .get_mut(&self.current_schema)
             .ok_or_else(|| CatalogError::SchemaNotFound(self.current_schema.clone()))?;
 
-        current_schema.create_table(schema)
+        current_schema.create_table_with_case_mode(schema, case_sensitive)
     }
 
     /// Create a table schema in a specific schema.
@@ -22,12 +23,13 @@ impl super::Catalog {
         schema_name: &str,
         schema: TableSchema,
     ) -> Result<(), CatalogError> {
+        let case_sensitive = self.case_sensitive_identifiers;
         let target_schema = self
             .schemas
             .get_mut(schema_name)
             .ok_or_else(|| CatalogError::SchemaNotFound(schema_name.to_string()))?;
 
-        target_schema.create_table(schema)
+        target_schema.create_table_with_case_mode(schema, case_sensitive)
     }
 
     /// Get a table schema by name (supports qualified names like "schema.table").

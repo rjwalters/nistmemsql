@@ -527,12 +527,12 @@ fn test_json_schemas_and_roles() {
     let mut db = Database::new();
 
     // Create non-default schemas
-    db.catalog.create_schema("analytics".to_string()).unwrap();
-    db.catalog.create_schema("staging".to_string()).unwrap();
+    &mut db.catalog.create_schema("analytics".to_string()).unwrap();
+    &mut db.catalog.create_schema("staging".to_string()).unwrap();
 
     // Create roles
-    db.catalog.create_role("admin".to_string()).unwrap();
-    db.catalog.create_role("readonly".to_string()).unwrap();
+    &mut db.catalog.create_role("admin".to_string()).unwrap();
+    &mut db.catalog.create_role("readonly".to_string()).unwrap();
 
     // Create table in default schema
     let schema1 = TableSchema::new(
@@ -556,12 +556,12 @@ fn test_json_schemas_and_roles() {
     let loaded_db = Database::load_json(path).unwrap();
 
     // Verify schemas recreated (excluding public)
-    let schemas = loaded_db.catalog.list_schemas();
+    let schemas = &loaded_db.catalog.list_schemas();
     assert!(schemas.contains(&"analytics".to_string()));
     assert!(schemas.contains(&"staging".to_string()));
 
     // Verify roles recreated
-    let roles = loaded_db.catalog.list_roles();
+    let roles = &loaded_db.catalog.list_roles();
     assert!(roles.contains(&"admin".to_string()));
     assert!(roles.contains(&"readonly".to_string()));
 
@@ -721,7 +721,7 @@ fn test_json_index_roundtrip() {
     let loaded_db = Database::load_json(path).unwrap();
 
     // Debug: Check what tables are available
-    let tables = loaded_db.catalog.list_tables();
+    let tables = &loaded_db.catalog.list_tables();
     eprintln!("Available tables after load: {:?}", tables);
 
     // Verify index exists
