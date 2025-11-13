@@ -6,7 +6,7 @@ use vibesql_types::SqlValue;
 use crate::SelectExecutor;
 
 #[test]
-#[ignore] // TODO: Enable after #241 (CASE expression parsing) is fixed
+#[ignore] // TODO(#241): Enable after CASE expression parsing is implemented
 fn test_case_expression_with_from_clause() {
     let mut db = Database::new();
 

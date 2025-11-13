@@ -53,6 +53,7 @@ impl LeafNode {
     /// Search for a key in this leaf node
     ///
     /// Returns the row_id if found
+    #[allow(dead_code)]
     pub fn search(&self, key: &Key) -> Option<RowId> {
         self.entries
             .binary_search_by_key(&key, |(k, _)| k)

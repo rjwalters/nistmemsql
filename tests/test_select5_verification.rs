@@ -78,7 +78,7 @@ async fn test_select5_sampled_regression() {
 ///
 /// **Why disabled**: Too slow for PR CI, but valuable for comprehensive verification
 #[tokio::test]
-#[ignore]
+#[ignore] // Performance test: Run manually with `cargo test test_select5_full_suite -- --ignored`
 async fn test_select5_full_suite() {
     // Timeout protection: Kill test after 10 minutes to prevent CI hangs
     const TEST_TIMEOUT: Duration = Duration::from_secs(10 * 60);

@@ -302,11 +302,16 @@ impl AlterTableExecutor {
                     ));
                 }
 
-                // Add primary key
+                // Add primary key to table schema
                 table.schema_mut().primary_key = Some(columns.clone());
 
                 // Rebuild table indexes to create the primary key index
                 table.rebuild_indexes();
+
+                // Update catalog with modified schema by dropping and recreating
+                let updated_schema = table.schema.clone();
+                database.catalog.drop_table(&stmt.table_name)?;
+                database.catalog.create_table(updated_schema)?;
 
                 Ok(format!(
                     "PRIMARY KEY constraint added to table '{}'",
@@ -318,6 +323,11 @@ impl AlterTableExecutor {
 
                 // Rebuild table indexes to create the unique constraint index
                 table.rebuild_indexes();
+
+                // Update catalog with modified schema by dropping and recreating
+                let updated_schema = table.schema.clone();
+                database.catalog.drop_table(&stmt.table_name)?;
+                database.catalog.create_table(updated_schema)?;
 
                 Ok(format!(
                     "UNIQUE constraint added to table '{}'",

@@ -520,6 +520,9 @@ impl From<vibesql_storage::StorageError> for ExecutorError {
                     column_name, table_name
                 ))
             }
+            vibesql_storage::StorageError::UniqueConstraintViolation(msg) => {
+                ExecutorError::ConstraintViolation(msg)
+            }
             vibesql_storage::StorageError::NotImplemented(msg) => {
                 ExecutorError::StorageError(format!("Not implemented: {}", msg))
             }

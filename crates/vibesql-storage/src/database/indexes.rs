@@ -457,8 +457,60 @@ impl IndexManager {
         self.index_data.get(&normalized)
     }
 
-    /// Update user-defined indexes for insert operation
-    pub fn update_indexes_for_insert(
+    /// Check unique constraints for user-defined indexes before insert
+    /// This should be called BEFORE adding the row to the table
+    pub fn check_unique_constraints_for_insert(
+        &self,
+        table_name: &str,
+        table_schema: &vibesql_catalog::TableSchema,
+        row: &Row,
+    ) -> Result<(), StorageError> {
+        for (index_name, metadata) in &self.indexes {
+            if metadata.table_name == table_name && metadata.unique {
+                if let Some(index_data) = self.index_data.get(index_name) {
+                    // Build composite key from the indexed columns
+                    let key_values: Vec<SqlValue> = metadata
+                        .columns
+                        .iter()
+                        .map(|col| {
+                            let col_idx = table_schema
+                                .get_column_index(&col.column_name)
+                                .expect("Index column should exist");
+                            row.values[col_idx].clone()
+                        })
+                        .collect();
+
+                    // Check if key already exists (skip NULLs)
+                    if !key_values.contains(&SqlValue::Null) {
+                        match index_data {
+                            IndexData::InMemory { data } => {
+                                if data.contains_key(&key_values) {
+                                    let column_names: Vec<String> = metadata
+                                        .columns
+                                        .iter()
+                                        .map(|c| c.column_name.clone())
+                                        .collect();
+                                    return Err(StorageError::UniqueConstraintViolation(format!(
+                                        "UNIQUE constraint '{}' violated: duplicate key value for ({})",
+                                        index_name,
+                                        column_names.join(", ")
+                                    )));
+                                }
+                            }
+                            IndexData::DiskBacked { .. } => {
+                                // TODO: Implement uniqueness check for disk-backed indexes
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Add row to user-defined indexes after insert
+    /// This should be called AFTER the row has been added to the table
+    pub fn add_to_indexes_for_insert(
         &mut self,
         table_name: &str,
         table_schema: &vibesql_catalog::TableSchema,
