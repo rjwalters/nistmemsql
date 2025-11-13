@@ -74,12 +74,19 @@ impl Operations {
         tables: &mut HashMap<String, Table>,
         name: &str,
     ) -> Result<(), StorageError> {
-        // Get qualified table name for index cleanup
-        let qualified_name = if name.contains('.') {
+        // Normalize table name for lookup (matches catalog normalization)
+        let normalized_name = if catalog.is_case_sensitive_identifiers() {
             name.to_string()
         } else {
+            name.to_uppercase()
+        };
+
+        // Get qualified table name for index cleanup
+        let qualified_name = if normalized_name.contains('.') {
+            normalized_name.clone()
+        } else {
             let current_schema = catalog.get_current_schema();
-            format!("{}.{}", current_schema, name)
+            format!("{}.{}", current_schema, normalized_name)
         };
 
         // Drop associated indexes BEFORE dropping table (CASCADE behavior)
@@ -91,11 +98,9 @@ impl Operations {
         // Remove from catalog
         catalog.drop_table(name).map_err(|e| StorageError::CatalogError(e.to_string()))?;
 
-        // Remove table data - try exact name first, then try with schema prefix
-        if tables.remove(name).is_none() {
-            if !name.contains('.') {
-                tables.remove(&qualified_name);
-            }
+        // Remove table data - try normalized name first, then try with schema prefix
+        if tables.remove(&normalized_name).is_none() {
+            tables.remove(&qualified_name);
         }
 
         Ok(())
@@ -158,9 +163,26 @@ impl Operations {
         unique: bool,
         columns: Vec<IndexColumn>,
     ) -> Result<(), StorageError> {
-        let table = tables
-            .get(&table_name)
-            .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?;
+        // Normalize table name for lookup (matches catalog normalization)
+        let normalized_name = if catalog.is_case_sensitive_identifiers() {
+            table_name.clone()
+        } else {
+            table_name.to_uppercase()
+        };
+
+        // Try to find the table with normalized name or qualified name
+        let table = if let Some(tbl) = tables.get(&normalized_name) {
+            tbl
+        } else if !table_name.contains('.') {
+            // Try with schema prefix
+            let current_schema = catalog.get_current_schema();
+            let qualified_name = format!("{}.{}", current_schema, normalized_name);
+            tables
+                .get(&qualified_name)
+                .ok_or_else(|| StorageError::TableNotFound(table_name.clone()))?
+        } else {
+            return Err(StorageError::TableNotFound(table_name.clone()));
+        };
 
         let table_schema = catalog
             .get_table(&table_name)
