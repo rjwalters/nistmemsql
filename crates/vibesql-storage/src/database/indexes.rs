@@ -495,4 +495,52 @@ mod tests {
         assert_eq!(result, vec![1, 2],
             "BETWEEN should return rows in index order");
     }
+
+    #[test]
+    fn test_range_scan_with_duplicate_values() {
+        // Test case: multiple rows with the same indexed value
+        let mut data = BTreeMap::new();
+
+        // Multiple rows with value 60: rows 3, 7, 2 (in insertion order)
+        data.insert(vec![SqlValue::Integer(50)], vec![1]);
+        data.insert(vec![SqlValue::Integer(60)], vec![3, 7, 2]); // duplicates
+        data.insert(vec![SqlValue::Integer(70)], vec![0]);
+
+        let index_data = IndexData { data };
+
+        // Query: col0 >= 60 should return [3, 7, 2, 0]
+        // Rows with value 60 maintain insertion order, then row 0 with value 70
+        let result = index_data.range_scan(
+            Some(&SqlValue::Integer(60)),
+            None,
+            true,  // inclusive start
+            false,
+        );
+
+        assert_eq!(result, vec![3, 7, 2, 0],
+            "Duplicate values should maintain insertion order within the same key");
+    }
+
+    #[test]
+    fn test_multi_lookup_with_duplicate_values() {
+        // Test case: multi_lookup with duplicate indexed values
+        let mut data = BTreeMap::new();
+
+        // Multiple rows with value 60: rows 3, 7, 2 (in insertion order)
+        data.insert(vec![SqlValue::Integer(50)], vec![1]);
+        data.insert(vec![SqlValue::Integer(60)], vec![3, 7, 2]); // duplicates
+        data.insert(vec![SqlValue::Integer(70)], vec![0]);
+
+        let index_data = IndexData { data };
+
+        // Query: col0 IN (60, 70) should return [3, 7, 2, 0]
+        // Rows with value 60 maintain insertion order, then row 0 with value 70
+        let result = index_data.multi_lookup(&[
+            SqlValue::Integer(60),
+            SqlValue::Integer(70),
+        ]);
+
+        assert_eq!(result, vec![3, 7, 2, 0],
+            "multi_lookup with duplicate values should maintain insertion order within the same key");
+    }
 }
