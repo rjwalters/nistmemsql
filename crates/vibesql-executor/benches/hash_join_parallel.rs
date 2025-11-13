@@ -26,16 +26,16 @@ fn parse_select(sql: &str) -> vibesql_ast::SelectStmt {
 fn setup_join_tables(db: &mut Database, left_rows: usize, right_rows: usize) {
     // Create left table (customers)
     let left_schema = vibesql_catalog::TableSchema::new(
-        "CUSTOMERS".to_string(),
+        "customers".to_string(),
         vec![
             vibesql_catalog::ColumnSchema {
-                name: "ID".to_string(),
+                name: "id".to_string(),
                 data_type: vibesql_types::DataType::Integer,
                 nullable: false,
                 default_value: None,
             },
             vibesql_catalog::ColumnSchema {
-                name: "NAME".to_string(),
+                name: "name".to_string(),
                 data_type: vibesql_types::DataType::Varchar { max_length: Some(50) },
                 nullable: true,
                 default_value: None,
@@ -46,22 +46,22 @@ fn setup_join_tables(db: &mut Database, left_rows: usize, right_rows: usize) {
 
     // Create right table (orders)
     let right_schema = vibesql_catalog::TableSchema::new(
-        "ORDERS".to_string(),
+        "orders".to_string(),
         vec![
             vibesql_catalog::ColumnSchema {
-                name: "ID".to_string(),
+                name: "id".to_string(),
                 data_type: vibesql_types::DataType::Integer,
                 nullable: false,
                 default_value: None,
             },
             vibesql_catalog::ColumnSchema {
-                name: "CUSTOMER_ID".to_string(),
+                name: "customer_id".to_string(),
                 data_type: vibesql_types::DataType::Integer,
                 nullable: false,
                 default_value: None,
             },
             vibesql_catalog::ColumnSchema {
-                name: "AMOUNT".to_string(),
+                name: "amount".to_string(),
                 data_type: vibesql_types::DataType::Integer,
                 nullable: true,
                 default_value: None,
@@ -76,7 +76,7 @@ fn setup_join_tables(db: &mut Database, left_rows: usize, right_rows: usize) {
             SqlValue::Integer(i as i64),
             SqlValue::Varchar(format!("customer_{}", i)),
         ]);
-        db.insert_row("CUSTOMERS", row).unwrap();
+        db.insert_row("customers", row).unwrap();
     }
 
     // Insert into right table (orders) - each customer has multiple orders
@@ -87,7 +87,7 @@ fn setup_join_tables(db: &mut Database, left_rows: usize, right_rows: usize) {
             SqlValue::Integer(customer_id),
             SqlValue::Integer((i % 1000) as i64),
         ]);
-        db.insert_row("ORDERS", row).unwrap();
+        db.insert_row("orders", row).unwrap();
     }
 }
 
