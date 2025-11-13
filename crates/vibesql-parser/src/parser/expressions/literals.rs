@@ -110,8 +110,12 @@ impl Parser {
                         // Parse interval field (YEAR, MONTH, DAY, etc.)
                         let start_field = match self.peek() {
                             Token::Identifier(field) => field.to_uppercase(),
+                            Token::Keyword(Keyword::Year) => "YEAR".to_string(),
+                            Token::Keyword(Keyword::Month) => "MONTH".to_string(),
+                            Token::Keyword(Keyword::Day) => "DAY".to_string(),
                             Token::Keyword(Keyword::Hour) => "HOUR".to_string(),
                             Token::Keyword(Keyword::Minute) => "MINUTE".to_string(),
+                            Token::Keyword(Keyword::Second) => "SECOND".to_string(),
                             _ => {
                                 return Err(ParseError {
                                     message: "Expected interval field after INTERVAL value"
@@ -127,8 +131,12 @@ impl Parser {
                                 self.advance(); // consume TO keyword
                                 let end_field = match self.peek() {
                                     Token::Identifier(field) => field.to_uppercase(),
+                                    Token::Keyword(Keyword::Year) => "YEAR".to_string(),
+                                    Token::Keyword(Keyword::Month) => "MONTH".to_string(),
+                                    Token::Keyword(Keyword::Day) => "DAY".to_string(),
                                     Token::Keyword(Keyword::Hour) => "HOUR".to_string(),
                                     Token::Keyword(Keyword::Minute) => "MINUTE".to_string(),
+                                    Token::Keyword(Keyword::Second) => "SECOND".to_string(),
                                     _ => {
                                         return Err(ParseError {
                                             message: "Expected interval field after TO".to_string(),
@@ -142,8 +150,12 @@ impl Parser {
                                 self.advance(); // consume TO identifier (backward compat)
                                 let end_field = match self.peek() {
                                     Token::Identifier(field) => field.to_uppercase(),
+                                    Token::Keyword(Keyword::Year) => "YEAR".to_string(),
+                                    Token::Keyword(Keyword::Month) => "MONTH".to_string(),
+                                    Token::Keyword(Keyword::Day) => "DAY".to_string(),
                                     Token::Keyword(Keyword::Hour) => "HOUR".to_string(),
                                     Token::Keyword(Keyword::Minute) => "MINUTE".to_string(),
+                                    Token::Keyword(Keyword::Second) => "SECOND".to_string(),
                                     _ => {
                                         return Err(ParseError {
                                             message: "Expected interval field after TO".to_string(),
