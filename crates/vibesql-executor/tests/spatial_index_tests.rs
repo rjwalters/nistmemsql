@@ -1,9 +1,9 @@
 //! Integration tests for spatial indexes
 
 use vibesql_ast::{ColumnDef, CreateIndexStmt, CreateTableStmt, IndexColumn, OrderDirection};
-use vibesql_executor::{CreateIndexExecutor, CreateTableExecutor, DropIndexExecutor, InsertExecutor};
+use vibesql_executor::{CreateIndexExecutor, CreateTableExecutor, DropIndexExecutor};
 use vibesql_storage::Database;
-use vibesql_types::{DataType, SqlValue};
+use vibesql_types::DataType;
 
 #[test]
 fn test_create_spatial_index_basic() {

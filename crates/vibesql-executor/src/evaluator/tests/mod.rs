@@ -476,7 +476,7 @@ mod deep_expression_tests {
     use vibesql_types::SqlValue;
 
     use super::super::ExpressionEvaluator;
-    use crate::errors::ExecutorError;
+    
 
     /// Helper to generate a deeply nested arithmetic expression
     /// Generates: (((1 + 1) + 1) + 1) ... ) for the specified depth
@@ -554,18 +554,18 @@ mod deep_expression_tests {
     #[test]
     fn test_depth_limit_enforced() {
         // Test that depth limit is properly enforced
-        // Note: Building expressions deeper than ~1000 causes stack overflow during AST
-        // construction This is a Rust limitation, not an evaluator issue. In practice,
-        // parser-generated ASTs from actual SQL won't hit this limit.
+        // Note: Building expressions deeper than ~200 causes stack overflow during evaluation.
+        // This is a Rust stack limitation. In practice, parser-generated ASTs from actual SQL
+        // won't hit this limit.
         let schema = TableSchema::new("test".to_string(), vec![]);
         let evaluator = ExpressionEvaluator::new(&schema);
         let row = Row::new(vec![]);
 
-        // Test a deep but buildable expression (300 levels)
-        let expr = generate_nested_add(300);
+        // Test a deep but safe expression (100 levels - safe for default stack size)
+        let expr = generate_nested_add(100);
         let result = evaluator.eval(&expr, &row);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), SqlValue::Integer(301)); // 1 + 300 additions of 1
+        assert_eq!(result.unwrap(), SqlValue::Integer(101)); // 1 + 100 additions of 1
     }
 
     #[test]

@@ -380,7 +380,7 @@ fn test_order_by_without_index_uses_sort() {
 
 #[test]
 fn test_order_by_primary_key_implicit_index() {
-    let mut db = create_products_db();
+    let db = create_products_db();
 
     let executor = SelectExecutor::new(&db);
 

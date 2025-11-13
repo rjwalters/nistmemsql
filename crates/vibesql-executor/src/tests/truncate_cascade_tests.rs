@@ -9,7 +9,7 @@
 //! - DELETE trigger validation
 
 use vibesql_ast::{
-    ColumnConstraint, ColumnConstraintKind, ColumnDef, CreateTableStmt, Expression, InsertStmt,
+    ColumnDef, CreateTableStmt, Expression, InsertStmt,
     InsertSource, TableConstraint, TableConstraintKind, TruncateCascadeOption, TruncateTableStmt,
 };
 use vibesql_storage::Database;

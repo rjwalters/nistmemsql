@@ -8,8 +8,8 @@ fn test_table_scan_iterator_empty() {
     let rows = vec![];
     let mut iter = TableScanIterator::new(schema.clone(), rows);
 
-    // Can't use assert_eq! on schema (no PartialEq), just verify it's not null
-    assert!(iter.schema().table_schemas.len() >= 0);
+    // Verify schema is accessible (len() is always >= 0, so just access it)
+    let _ = iter.schema().table_schemas.len();
     assert_eq!(iter.next(), None);
     assert_eq!(iter.size_hint(), (0, Some(0)));
 }
@@ -24,8 +24,8 @@ fn test_table_scan_iterator_with_rows() {
     ];
     let mut iter = TableScanIterator::new(schema.clone(), rows);
 
-    // Can't use assert_eq! on schema (no PartialEq), just verify it's not null
-    assert!(iter.schema().table_schemas.len() >= 0);
+    // Verify schema is accessible (len() is always >= 0, so just access it)
+    let _ = iter.schema().table_schemas.len();
     assert_eq!(iter.size_hint(), (3, Some(3)));
 
     assert_eq!(iter.next().unwrap().unwrap().values, vec![SqlValue::Integer(1)]);
@@ -49,8 +49,8 @@ fn test_filter_iterator_all_pass() {
     let evaluator = CombinedExpressionEvaluator::new(&schema);
     let mut filter = FilterIterator::new(scan, predicate, evaluator);
 
-    // Can't use assert_eq! on schema (no PartialEq), just verify it's not null
-    assert!(filter.schema().table_schemas.len() >= 0);
+    // Verify schema is accessible (len() is always >= 0, so just access it)
+    let _ = filter.schema().table_schemas.len();
     assert_eq!(filter.next().unwrap().unwrap().values, vec![SqlValue::Integer(1)]);
     assert_eq!(filter.next().unwrap().unwrap().values, vec![SqlValue::Integer(2)]);
     assert_eq!(filter.next().unwrap().unwrap().values, vec![SqlValue::Integer(3)]);
@@ -72,8 +72,8 @@ fn test_filter_iterator_none_pass() {
     let evaluator = CombinedExpressionEvaluator::new(&schema);
     let mut filter = FilterIterator::new(scan, predicate, evaluator);
 
-    // Can't use assert_eq! on schema (no PartialEq), just verify it's not null
-    assert!(filter.schema().table_schemas.len() >= 0);
+    // Verify schema is accessible (len() is always >= 0, so just access it)
+    let _ = filter.schema().table_schemas.len();
     assert_eq!(filter.next(), None);
 }
 
@@ -225,8 +225,8 @@ fn test_projection_iterator_identity() {
     let project_fn = |row: Row| Ok(row);
     let mut project = ProjectionIterator::new(scan, schema.clone(), project_fn);
 
-    // Can't use assert_eq! on schema (no PartialEq), just verify it's not null
-    assert!(project.schema().table_schemas.len() >= 0);
+    // Verify schema is accessible (len() is always >= 0, so just access it)
+    let _ = project.schema().table_schemas.len();
     assert_eq!(project.next().unwrap().unwrap().values, vec![SqlValue::Integer(1)]);
     assert_eq!(project.next().unwrap().unwrap().values, vec![SqlValue::Integer(2)]);
     assert_eq!(project.next(), None);

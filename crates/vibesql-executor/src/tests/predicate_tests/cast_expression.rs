@@ -10,7 +10,7 @@ use super::super::super::*;
 
 #[test]
 fn test_cast_integer_to_varchar() {
-    let mut db = vibesql_storage::Database::new();
+    let db = vibesql_storage::Database::new();
     let executor = SelectExecutor::new(&db);
 
     // SELECT CAST(123 AS VARCHAR(10))
@@ -42,7 +42,7 @@ fn test_cast_integer_to_varchar() {
 
 #[test]
 fn test_cast_varchar_to_integer() {
-    let mut db = vibesql_storage::Database::new();
+    let db = vibesql_storage::Database::new();
     let executor = SelectExecutor::new(&db);
 
     // SELECT CAST('456' AS INTEGER)
@@ -76,7 +76,7 @@ fn test_cast_varchar_to_integer() {
 
 #[test]
 fn test_cast_null() {
-    let mut db = vibesql_storage::Database::new();
+    let db = vibesql_storage::Database::new();
     let executor = SelectExecutor::new(&db);
 
     // SELECT CAST(NULL AS INTEGER)
@@ -108,7 +108,7 @@ fn test_cast_null() {
 
 #[test]
 fn test_cast_integer_to_unsigned() {
-    let mut db = vibesql_storage::Database::new();
+    let db = vibesql_storage::Database::new();
     let executor = SelectExecutor::new(&db);
 
     // SELECT CAST(42 AS UNSIGNED)
@@ -140,7 +140,7 @@ fn test_cast_integer_to_unsigned() {
 
 #[test]
 fn test_cast_negative_integer_to_unsigned() {
-    let mut db = vibesql_storage::Database::new();
+    let db = vibesql_storage::Database::new();
     let executor = SelectExecutor::new(&db);
 
     // SELECT CAST(-1 AS UNSIGNED) - should wrap around (MySQL behavior)
@@ -173,7 +173,7 @@ fn test_cast_negative_integer_to_unsigned() {
 
 #[test]
 fn test_cast_varchar_to_unsigned() {
-    let mut db = vibesql_storage::Database::new();
+    let db = vibesql_storage::Database::new();
     let executor = SelectExecutor::new(&db);
 
     // SELECT CAST('123' AS UNSIGNED)
@@ -207,7 +207,7 @@ fn test_cast_varchar_to_unsigned() {
 
 #[test]
 fn test_cast_float_to_unsigned() {
-    let mut db = vibesql_storage::Database::new();
+    let db = vibesql_storage::Database::new();
     let executor = SelectExecutor::new(&db);
 
     // SELECT CAST(5.7 AS UNSIGNED) - should truncate

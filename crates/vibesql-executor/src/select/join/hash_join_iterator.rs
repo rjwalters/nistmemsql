@@ -242,7 +242,7 @@ mod tests {
         );
 
         // Join on users.id = orders.user_id (column 0 from both sides)
-        let mut join_iter = HashJoinIterator::new(left_iter, right, 0, 0).unwrap();
+        let join_iter = HashJoinIterator::new(left_iter, right, 0, 0).unwrap();
 
         // Collect results
         let results: Result<Vec<_>, _> = join_iter.collect();
@@ -297,7 +297,7 @@ mod tests {
             ],
         );
 
-        let mut join_iter = HashJoinIterator::new(left_iter, right, 0, 0).unwrap();
+        let join_iter = HashJoinIterator::new(left_iter, right, 0, 0).unwrap();
 
         let results: Result<Vec<_>, _> = join_iter.collect();
         let results = results.unwrap();
@@ -329,7 +329,7 @@ mod tests {
             vec![vec![SqlValue::Integer(3)], vec![SqlValue::Integer(4)]],
         );
 
-        let mut join_iter = HashJoinIterator::new(left_iter, right, 0, 0).unwrap();
+        let join_iter = HashJoinIterator::new(left_iter, right, 0, 0).unwrap();
 
         let results: Result<Vec<_>, _> = join_iter.collect();
         let results = results.unwrap();
@@ -348,7 +348,7 @@ mod tests {
         // Right table (empty)
         let right = create_test_from_result("orders", vec![("user_id", DataType::Integer)], vec![]);
 
-        let mut join_iter = HashJoinIterator::new(left_iter, right, 0, 0).unwrap();
+        let join_iter = HashJoinIterator::new(left_iter, right, 0, 0).unwrap();
 
         let results: Result<Vec<_>, _> = join_iter.collect();
         let results = results.unwrap();
@@ -381,7 +381,7 @@ mod tests {
             ],
         );
 
-        let mut join_iter = HashJoinIterator::new(left_iter, right, 0, 0).unwrap();
+        let join_iter = HashJoinIterator::new(left_iter, right, 0, 0).unwrap();
 
         let results: Result<Vec<_>, _> = join_iter.collect();
         let results = results.unwrap();
@@ -455,7 +455,7 @@ mod tests {
             vec![vec![SqlValue::Integer(1)], vec![SqlValue::Integer(2)]],
         );
 
-        let mut join_iter = HashJoinIterator::new(counting_iter, right, 0, 0).unwrap();
+        let join_iter = HashJoinIterator::new(counting_iter, right, 0, 0).unwrap();
 
         // Take only first 2 results
         let results: Vec<_> = join_iter.take(2).collect::<Result<Vec<_>, _>>().unwrap();

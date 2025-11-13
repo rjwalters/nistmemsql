@@ -9,6 +9,7 @@ use crate::advanced_objects;
 use crate::errors::ExecutorError;
 
 // Helper function to create a simple procedure with defaults for Phase 6 fields
+#[allow(dead_code)]
 fn create_simple_procedure(
     name: &str,
     parameters: Vec<ProcedureParameter>,
@@ -1541,7 +1542,7 @@ mod edge_case_tests {
         ctx.set_variable("result", SqlValue::Integer(0));
 
         // Create 10 levels of nested IF statements
-        let mut innermost = vec![
+        let innermost = vec![
             ProceduralStatement::Set {
                 name: "result".to_string(),
                 value: Box::new(Expression::Literal(SqlValue::Integer(10))),

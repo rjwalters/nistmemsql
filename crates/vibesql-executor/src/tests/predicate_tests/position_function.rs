@@ -10,7 +10,7 @@ use super::super::super::*;
 
 #[test]
 fn test_position_found() {
-    let mut db = vibesql_storage::Database::new();
+    let db = vibesql_storage::Database::new();
     let executor = SelectExecutor::new(&db);
 
     // SELECT POSITION('world' IN 'hello world')
@@ -47,7 +47,7 @@ fn test_position_found() {
 
 #[test]
 fn test_position_not_found() {
-    let mut db = vibesql_storage::Database::new();
+    let db = vibesql_storage::Database::new();
     let executor = SelectExecutor::new(&db);
 
     // SELECT POSITION('xyz' IN 'hello world')
@@ -84,7 +84,7 @@ fn test_position_not_found() {
 
 #[test]
 fn test_position_null_substring() {
-    let mut db = vibesql_storage::Database::new();
+    let db = vibesql_storage::Database::new();
     let executor = SelectExecutor::new(&db);
 
     // SELECT POSITION(NULL IN 'hello world')
@@ -119,7 +119,7 @@ fn test_position_null_substring() {
 
 #[test]
 fn test_position_null_string() {
-    let mut db = vibesql_storage::Database::new();
+    let db = vibesql_storage::Database::new();
     let executor = SelectExecutor::new(&db);
 
     // SELECT POSITION('world' IN NULL)

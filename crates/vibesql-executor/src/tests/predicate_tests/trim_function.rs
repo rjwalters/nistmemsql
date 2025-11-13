@@ -11,7 +11,7 @@ use super::super::super::*;
 
 #[test]
 fn test_trim_both_default() {
-    let mut db = vibesql_storage::Database::new();
+    let db = vibesql_storage::Database::new();
     let executor = SelectExecutor::new(&db);
 
     // SELECT TRIM('  hello  ')
@@ -46,7 +46,7 @@ fn test_trim_both_default() {
 
 #[test]
 fn test_trim_leading() {
-    let mut db = vibesql_storage::Database::new();
+    let db = vibesql_storage::Database::new();
     let executor = SelectExecutor::new(&db);
 
     // SELECT TRIM(LEADING FROM '  hello  ')
@@ -81,7 +81,7 @@ fn test_trim_leading() {
 
 #[test]
 fn test_trim_trailing() {
-    let mut db = vibesql_storage::Database::new();
+    let db = vibesql_storage::Database::new();
     let executor = SelectExecutor::new(&db);
 
     // SELECT TRIM(TRAILING FROM '  hello  ')
@@ -116,7 +116,7 @@ fn test_trim_trailing() {
 
 #[test]
 fn test_trim_custom_char() {
-    let mut db = vibesql_storage::Database::new();
+    let db = vibesql_storage::Database::new();
     let executor = SelectExecutor::new(&db);
 
     // SELECT TRIM('x' FROM 'xxxhelloxxx')
@@ -153,7 +153,7 @@ fn test_trim_custom_char() {
 
 #[test]
 fn test_trim_null_string() {
-    let mut db = vibesql_storage::Database::new();
+    let db = vibesql_storage::Database::new();
     let executor = SelectExecutor::new(&db);
 
     // SELECT TRIM(NULL)
@@ -186,7 +186,7 @@ fn test_trim_null_string() {
 
 #[test]
 fn test_trim_null_removal_char() {
-    let mut db = vibesql_storage::Database::new();
+    let db = vibesql_storage::Database::new();
     let executor = SelectExecutor::new(&db);
 
     // SELECT TRIM(NULL FROM 'hello')
