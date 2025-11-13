@@ -61,7 +61,7 @@ fn test_count_distinct_basic() {
     // SELECT COUNT(DISTINCT amount) FROM sales
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -98,7 +98,7 @@ fn test_count_distinct_vs_count_all() {
     // SELECT COUNT(amount), COUNT(DISTINCT amount) FROM sales
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![
@@ -149,7 +149,7 @@ fn test_sum_distinct() {
     // SELECT SUM(DISTINCT amount) FROM sales
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -186,7 +186,7 @@ fn test_sum_distinct_vs_sum_all() {
     // SELECT SUM(amount), SUM(DISTINCT amount) FROM sales
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![
@@ -238,7 +238,7 @@ fn test_avg_distinct() {
     // SELECT AVG(DISTINCT amount) FROM sales
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -275,7 +275,7 @@ fn test_min_distinct() {
     // SELECT MIN(DISTINCT amount) FROM sales
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -312,7 +312,7 @@ fn test_max_distinct() {
     // SELECT MAX(DISTINCT amount) FROM sales
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -366,7 +366,7 @@ fn test_count_distinct_with_nulls() {
     // SELECT COUNT(DISTINCT val) FROM test
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Expression {
@@ -411,7 +411,7 @@ fn test_distinct_all_same_value() {
     // SELECT COUNT(DISTINCT val), SUM(DISTINCT val) FROM test
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![
@@ -469,7 +469,7 @@ fn test_distinct_empty_table() {
     // SELECT COUNT(DISTINCT val), SUM(DISTINCT val) FROM empty_test
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![

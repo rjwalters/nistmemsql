@@ -44,7 +44,7 @@ fn test_table_local_predicate_applied_at_scan() {
     // Should return only 1 row
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
@@ -112,7 +112,7 @@ fn test_multi_table_with_local_predicates() {
     // With pushdown: 1 × 1 × 10 = 10 rows (much better!)
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
@@ -230,7 +230,7 @@ fn test_table_local_predicate_with_explicit_join() {
     // WHERE orders.amount > 110
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
@@ -320,7 +320,7 @@ fn test_table_local_predicate_with_multiple_conditions() {
     // Query: SELECT * FROM products WHERE price > 50 AND stock > 5
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
-        with_clause: None,
+        into_variables: None,        with_clause: None,
         set_operation: None,
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],

@@ -100,6 +100,16 @@ pub enum ExecutorError {
     },
     /// Label not found in procedural context
     LabelNotFound(String),
+    /// Procedural SELECT INTO returned wrong number of rows (must be exactly 1)
+    SelectIntoRowCount {
+        expected: usize,
+        actual: usize,
+    },
+    /// Procedural SELECT INTO column count doesn't match variable count
+    SelectIntoColumnCount {
+        expected: usize,
+        actual: usize,
+    },
     /// Procedure not found (with suggestions)
     ProcedureNotFound {
         procedure_name: String,
@@ -370,6 +380,25 @@ impl std::fmt::Display for ExecutorError {
             }
             ExecutorError::LabelNotFound(name) => {
                 write!(f, "Label '{}' not found", name)
+            }
+            ExecutorError::SelectIntoRowCount { expected, actual } => {
+                write!(
+                    f,
+                    "Procedural SELECT INTO must return exactly {} row, got {} row{}",
+                    expected,
+                    actual,
+                    if *actual == 1 { "" } else { "s" }
+                )
+            }
+            ExecutorError::SelectIntoColumnCount { expected, actual } => {
+                write!(
+                    f,
+                    "Procedural SELECT INTO column count mismatch: {} variable{} but query returned {} column{}",
+                    expected,
+                    if *expected == 1 { "" } else { "s" },
+                    actual,
+                    if *actual == 1 { "" } else { "s" }
+                )
             }
             ExecutorError::ProcedureNotFound { procedure_name, schema_name, available_procedures } => {
                 if available_procedures.is_empty() {

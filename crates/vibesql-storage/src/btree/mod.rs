@@ -107,12 +107,13 @@ fn calculate_degree(key_schema: &[DataType]) -> usize {
     let key_size = estimate_max_key_size(key_schema);
 
     // Internal node format: [header: 3 bytes][keys: N * key_size][children: (N+1) * 8 bytes]
-    // Leaf node format: [header: 3 bytes][entries: N * (key_size + 8)][next_leaf: 8 bytes]
+    // Leaf node format: [header: 3 bytes][entries: N * (key_size + num_row_ids_varint + row_ids)][next_leaf: 8 bytes]
 
     // Use leaf node calculation as it's more restrictive
     let header_size = 3; // page_type(1) + num_entries(2)
     let next_leaf_size = 8;
-    let entry_size = key_size + 8; // key + row_id
+    // For single row_id entries (common case): key + num_row_ids(1 byte varint) + row_id(8 bytes)
+    let entry_size = key_size + 1 + 8; // key + varint num_row_ids + row_id
 
     let available = PAGE_SIZE - header_size - next_leaf_size;
     let degree = available / entry_size;

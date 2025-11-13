@@ -183,7 +183,7 @@ mod in_subquery {
         // Subquery: SELECT dept_id FROM inactive_depts
         let subquery = Box::new(vibesql_ast::SelectStmt {
             into_table: None,
-            with_clause: None,
+            into_variables: None,            with_clause: None,
             distinct: false,
             select_list: vec![vibesql_ast::SelectItem::Expression {
                 expr: Expression::ColumnRef { table: None, column: "dept_id".to_string() },
@@ -238,7 +238,7 @@ mod in_subquery {
         // Subquery
         let subquery = Box::new(vibesql_ast::SelectStmt {
             into_table: None,
-            with_clause: None,
+            into_variables: None,            with_clause: None,
             distinct: false,
             select_list: vec![vibesql_ast::SelectItem::Expression {
                 expr: Expression::ColumnRef { table: None, column: "dept_id".to_string() },
@@ -300,7 +300,7 @@ mod scalar_subquery {
         // Subquery: SELECT AVG(salary) FROM employees
         let subquery = Box::new(vibesql_ast::SelectStmt {
             into_table: None,
-            with_clause: None,
+            into_variables: None,            with_clause: None,
             distinct: false,
             select_list: vec![vibesql_ast::SelectItem::Expression {
                 expr: Expression::Function {
@@ -365,7 +365,7 @@ mod scalar_subquery {
         // Subquery: SELECT MAX(price) FROM items
         let subquery = Box::new(vibesql_ast::SelectStmt {
             into_table: None,
-            with_clause: None,
+            into_variables: None,            with_clause: None,
             distinct: false,
             select_list: vec![vibesql_ast::SelectItem::Expression {
                 expr: Expression::Function {
@@ -424,7 +424,7 @@ mod scalar_subquery {
         // Subquery returns NULL (empty result)
         let subquery = Box::new(vibesql_ast::SelectStmt {
             into_table: None,
-            with_clause: None,
+            into_variables: None,            with_clause: None,
             distinct: false,
             select_list: vec![vibesql_ast::SelectItem::Expression {
                 expr: Expression::ColumnRef { table: None, column: "threshold".to_string() },
@@ -479,7 +479,7 @@ mod empty_subquery {
         // Subquery returns empty result
         let subquery = Box::new(vibesql_ast::SelectStmt {
             into_table: None,
-            with_clause: None,
+            into_variables: None,            with_clause: None,
             distinct: false,
             select_list: vec![vibesql_ast::SelectItem::Expression {
                 expr: Expression::ColumnRef { table: None, column: "dept_id".to_string() },
@@ -543,7 +543,7 @@ mod complex_subquery {
         // Subquery: SELECT customer_id FROM inactive_customers WHERE status = 'inactive'
         let subquery = Box::new(vibesql_ast::SelectStmt {
             into_table: None,
-            with_clause: None,
+            into_variables: None,            with_clause: None,
             distinct: false,
             select_list: vec![vibesql_ast::SelectItem::Expression {
                 expr: Expression::ColumnRef { table: None, column: "customer_id".to_string() },

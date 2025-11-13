@@ -41,12 +41,35 @@ impl Parser {
         // Parse SELECT list
         let select_list = self.parse_select_list()?;
 
-        // Parse optional INTO clause (SQL:1999 Feature E111)
-        let into_table = if self.peek_keyword(Keyword::Into) {
+        // Parse optional INTO clause
+        // Two forms:
+        // 1. DDL SELECT INTO: SELECT * INTO new_table FROM source (SQL:1999 Feature E111)
+        // 2. Procedural SELECT INTO: SELECT col1, col2 INTO @var1, @var2 FROM table
+        let (into_table, into_variables) = if self.peek_keyword(Keyword::Into) {
             self.consume_keyword(Keyword::Into)?;
-            Some(self.parse_identifier()?)
+
+            // Check if this is procedural SELECT INTO (variables) or DDL SELECT INTO (table)
+            if matches!(self.peek(), Token::UserVariable(_)) {
+                // Procedural SELECT INTO: parse comma-separated list of user variables
+                let variables = self.parse_comma_separated_list(|p| {
+                    match p.peek() {
+                        Token::UserVariable(var_name) => {
+                            let name = var_name.clone();
+                            p.advance();
+                            Ok(name)
+                        }
+                        _ => Err(ParseError {
+                            message: "Expected user variable (@var) in procedural SELECT INTO".to_string(),
+                        })
+                    }
+                })?;
+                (None, Some(variables))
+            } else {
+                // DDL SELECT INTO: parse table name
+                (Some(self.parse_identifier()?), None)
+            }
         } else {
-            None
+            (None, None)
         };
 
         // Parse optional FROM clause
@@ -202,6 +225,7 @@ impl Parser {
             distinct,
             select_list,
             into_table,
+            into_variables,
             from,
             where_clause,
             group_by,

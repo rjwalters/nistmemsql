@@ -36,8 +36,12 @@ pub struct SelectStmt {
     pub with_clause: Option<Vec<CommonTableExpr>>,
     pub distinct: bool,
     pub select_list: Vec<SelectItem>,
-    /// Optional INTO clause for SELECT INTO statements (SQL:1999 Feature E111)
+    /// Optional INTO clause for DDL SELECT INTO statements (SQL:1999 Feature E111)
+    /// Creates a new table from the query results
     pub into_table: Option<String>,
+    /// Optional INTO clause for procedural SELECT INTO statements
+    /// Stores query results into procedural variables (e.g., SELECT col INTO @var)
+    pub into_variables: Option<Vec<String>>,
     pub from: Option<FromClause>,
     pub where_clause: Option<Expression>,
     pub group_by: Option<Vec<Expression>>,

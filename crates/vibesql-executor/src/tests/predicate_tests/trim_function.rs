@@ -37,7 +37,7 @@ fn test_trim_both_default() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
@@ -72,7 +72,7 @@ fn test_trim_leading() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
@@ -107,7 +107,7 @@ fn test_trim_trailing() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
@@ -144,7 +144,7 @@ fn test_trim_custom_char() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
@@ -177,7 +177,7 @@ fn test_trim_null_string() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
@@ -212,7 +212,7 @@ fn test_trim_null_removal_char() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);

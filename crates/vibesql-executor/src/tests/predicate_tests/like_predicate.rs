@@ -49,7 +49,7 @@ fn test_like_wildcard_percent() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 2); // Alice and Alex
@@ -96,7 +96,7 @@ fn test_like_wildcard_underscore() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 2); // cat and bat (cart is 4 chars)
@@ -143,7 +143,7 @@ fn test_not_like() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1); // Only Bob
@@ -185,7 +185,7 @@ fn test_like_null_pattern() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 0); // NULL pattern matches nothing
@@ -229,7 +229,7 @@ fn test_like_null_value() {
         limit: None,
         offset: None,
         into_table: None,
-    };
+        into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1); // NULL value doesn't match, only Alice

@@ -229,7 +229,7 @@ fn count_audit_rows(db: &Database) -> usize {
         distinct: false,
         select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
         into_table: None,
-        from: Some(vibesql_ast::FromClause::Table {
+        into_variables: None,        from: Some(vibesql_ast::FromClause::Table {
             name: "AUDIT_LOG".to_string(),
             alias: None,
         }),

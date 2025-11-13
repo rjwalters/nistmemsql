@@ -503,7 +503,7 @@ mod tests {
                 alias: None,
             }],
             into_table: None,
-            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
+            into_variables: None,            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
             where_clause: Some(Expression::BinaryOp {
                 op: BinaryOperator::GreaterThan,
                 left: Box::new(Expression::ColumnRef { table: None, column: "col1".to_string() }),
@@ -526,7 +526,7 @@ mod tests {
                 alias: None,
             }],
             into_table: None,
-            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
+            into_variables: None,            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
             where_clause: Some(Expression::BinaryOp {
                 op: BinaryOperator::GreaterThan,
                 left: Box::new(Expression::ColumnRef { table: None, column: "col1".to_string() }),
@@ -561,7 +561,7 @@ mod tests {
                 alias: None,
             }],
             into_table: None,
-            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
+            into_variables: None,            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
             where_clause: Some(Expression::BinaryOp {
                 op: BinaryOperator::GreaterThan,
                 left: Box::new(Expression::ColumnRef { table: None, column: "col1".to_string() }),
@@ -584,7 +584,7 @@ mod tests {
                 alias: None,
             }],
             into_table: None,
-            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
+            into_variables: None,            from: Some(FromClause::Table { name: "tab".to_string(), alias: None }),
             where_clause: Some(Expression::BinaryOp {
                 op: BinaryOperator::LessThan, // Different operator!
                 left: Box::new(Expression::ColumnRef { table: None, column: "col1".to_string() }),
