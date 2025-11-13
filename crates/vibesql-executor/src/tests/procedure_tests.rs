@@ -489,7 +489,7 @@ fn test_parameter_count_mismatch() {
 
     let result = advanced_objects::execute_call(&call, &mut db);
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), ExecutorError::Other(_)));
+    assert!(matches!(result.unwrap_err(), ExecutorError::ParameterCountMismatch { .. }));
 }
 
 #[test]
@@ -517,9 +517,9 @@ fn test_out_parameter_not_yet_supported() {
     };
 
     let result = advanced_objects::execute_call(&call, &mut db);
-    // Phase 2: OUT parameters not yet supported
+    // OUT parameters require a variable target, not a literal
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), ExecutorError::UnsupportedFeature(_)));
+    assert!(matches!(result.unwrap_err(), ExecutorError::Other(msg) if msg.contains("OUT/INOUT")));
 }
 
 #[test]
@@ -533,7 +533,7 @@ fn test_procedure_not_found() {
 
     let result = advanced_objects::execute_call(&call, &mut db);
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), ExecutorError::Other(_)));
+    assert!(matches!(result.unwrap_err(), ExecutorError::ProcedureNotFound { .. }));
 }
 
 // ============================================================================
