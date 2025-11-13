@@ -2,6 +2,7 @@
 //!
 //! This crate provides in-memory storage for database tables and rows.
 
+pub mod btree;
 pub mod buffer;
 pub mod database;
 pub mod error;
