@@ -35,6 +35,7 @@
 mod between_predicate;
 mod cast_expression;
 mod in_predicate;
+mod in_subquery_multi_column_validation;
 mod like_predicate;
 mod position_function;
 mod trim_function;

@@ -8,12 +8,17 @@
 use crate::{
     errors::ExecutorError, evaluator::CombinedExpressionEvaluator,
     optimizer::decompose_where_clause, schema::CombinedSchema,
+    select::parallel::ParallelConfig,
 };
+use rayon::prelude::*;
+use std::sync::Arc;
 
 /// Apply table-local predicates from WHERE clause during table scan
 ///
 /// This function implements predicate pushdown by filtering rows early,
 /// before they contribute to larger Cartesian products in JOINs.
+///
+/// Uses parallel filtering when beneficial based on row count and hardware.
 pub(crate) fn apply_table_local_predicates(
     rows: Vec<vibesql_storage::Row>,
     schema: CombinedSchema,
@@ -38,9 +43,17 @@ pub(crate) fn apply_table_local_predicates(
             // Create evaluator for filtering
             let evaluator = CombinedExpressionEvaluator::with_database(&schema, database);
 
-            // Apply filtering to rows directly (without executor for timeout checking)
+            // Check if we should use parallel filtering
+            let config = ParallelConfig::global();
+            if config.should_parallelize_scan(rows.len()) {
+                return apply_predicates_parallel(rows, combined_where, evaluator);
+            }
+
+            // Sequential path for small datasets
             let mut filtered_rows = Vec::new();
             for row in rows {
+                evaluator.clear_cse_cache();
+
                 let include_row = match evaluator.eval(&combined_where, &row)? {
                     vibesql_types::SqlValue::Boolean(true) => true,
                     vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
@@ -75,6 +88,70 @@ pub(crate) fn apply_table_local_predicates(
 
     // No table-local predicates - return rows as-is
     Ok(rows)
+}
+
+/// Apply predicates using parallel execution
+fn apply_predicates_parallel(
+    rows: Vec<vibesql_storage::Row>,
+    combined_where: vibesql_ast::Expression,
+    evaluator: CombinedExpressionEvaluator,
+) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
+    // Clone expression for thread-safe sharing
+    let where_expr_arc = Arc::new(combined_where);
+
+    // Extract evaluator components for parallel execution
+    let (schema, database, outer_row, outer_schema, window_mapping, enable_cse) =
+        evaluator.get_parallel_components();
+
+    // Use rayon's parallel iterator for filtering
+    let result: Result<Vec<_>, ExecutorError> = rows
+        .into_par_iter()
+        .map(|row| {
+            // Create thread-local evaluator with independent caches
+            let thread_evaluator = CombinedExpressionEvaluator::from_parallel_components(
+                schema,
+                database,
+                outer_row,
+                outer_schema,
+                window_mapping,
+                enable_cse,
+            );
+
+            // Evaluate predicate for this row
+            let include_row = match thread_evaluator.eval(&where_expr_arc, &row)? {
+                vibesql_types::SqlValue::Boolean(true) => true,
+                vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
+                // SQLLogicTest compatibility: treat integers as truthy/falsy
+                vibesql_types::SqlValue::Integer(0) => false,
+                vibesql_types::SqlValue::Integer(_) => true,
+                vibesql_types::SqlValue::Smallint(0) => false,
+                vibesql_types::SqlValue::Smallint(_) => true,
+                vibesql_types::SqlValue::Bigint(0) => false,
+                vibesql_types::SqlValue::Bigint(_) => true,
+                vibesql_types::SqlValue::Float(0.0) => false,
+                vibesql_types::SqlValue::Float(_) => true,
+                vibesql_types::SqlValue::Real(0.0) => false,
+                vibesql_types::SqlValue::Real(_) => true,
+                vibesql_types::SqlValue::Double(0.0) => false,
+                vibesql_types::SqlValue::Double(_) => true,
+                other => {
+                    return Err(ExecutorError::InvalidWhereClause(format!(
+                        "WHERE clause must evaluate to boolean, got: {:?}",
+                        other
+                    )))
+                }
+            };
+
+            if include_row {
+                Ok(Some(row))
+            } else {
+                Ok(None)
+            }
+        })
+        .collect();
+
+    // Filter out None values and extract Ok rows
+    result.map(|v| v.into_iter().flatten().collect())
 }
 
 /// Helper function to combine predicates with AND operator

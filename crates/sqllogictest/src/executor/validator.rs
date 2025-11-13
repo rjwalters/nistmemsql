@@ -185,8 +185,9 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                         };
 
                         if !(self.validator)(self.normalizer, &actual_results, &expected_results) {
-                            let output_rows =
-                                rows.iter().map(|strs| strs.iter().join(" ")).collect_vec();
+                            // Flatten the rows so each column value is on its own line for error reporting
+                            let output_rows: Vec<String> =
+                                rows.iter().flat_map(|strs| strs.iter().cloned()).collect_vec();
                             return Err(TestErrorKind::QueryResultMismatch {
                                 sql,
                                 expected: expected_results.join("\n"),

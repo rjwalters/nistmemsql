@@ -39,12 +39,13 @@ mod tests {
         let record = "query   I?\n\
                     select * from foo;\n\
                     ----\n\
-                    3      4";
+                    3\n\
+                    4";
         TestCase {
             // keep the input values
             input: record,
 
-            // Model a run that produced a 3,4 as output
+            // Model a run that produced a 3,4 as output (one row with two columns)
             record_output: query_output(
                 &[&["3", "4"]],
                 vec![DefaultColumnType::Integer, DefaultColumnType::Any],
@@ -64,7 +65,7 @@ mod tests {
                     ----\n\
                     1 2",
 
-            // Model a run that produced a 3,4 as output
+            // Model a run that produced a 3,4 as output (one row with two columns)
             record_output: query_output(
                 &[&["3", "4"]],
                 vec![DefaultColumnType::Integer, DefaultColumnType::Any],
@@ -74,7 +75,8 @@ mod tests {
                 "query I?\n\
                  select * from foo;\n\
                  ----\n\
-                 3 4",
+                 3\n\
+                 4",
             ),
         }
         .run()
@@ -88,7 +90,7 @@ mod tests {
                     select * from foo;\n\
                     ----",
 
-            // Model a run that produced a 3,4 as output
+            // Model a run that produced a 3,4 as output (one row with two columns)
             record_output: query_output(
                 &[&["3", "4"]],
                 vec![DefaultColumnType::Integer, DefaultColumnType::Any],
@@ -98,7 +100,8 @@ mod tests {
                 "query I?\n\
                  select * from foo;\n\
                  ----\n\
-                 3 4",
+                 3\n\
+                 4",
             ),
         }
         .run()
