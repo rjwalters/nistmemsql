@@ -128,15 +128,8 @@ pub(in crate::select::executor) fn try_index_based_ordering(
     }
 
     // Convert index HashMap to Vec and sort for consistent ordering
-    let mut data_vec: Vec<(Vec<SqlValue>, Vec<usize>)> = match &index_data {
-        IndexData::InMemory { data } => {
-            data.iter().map(|(k, v): (&Vec<SqlValue>, &Vec<usize>)| (k.clone(), v.clone())).collect()
-        }
-        IndexData::DiskBacked { .. } => {
-            // TODO: Handle disk-backed indexes
-            Vec::new()
-        }
-    };
+    let mut data_vec: Vec<(Vec<SqlValue>, Vec<usize>)> =
+        index_data.iter().map(|(k, v): (&Vec<SqlValue>, &Vec<usize>)| (k.clone(), v.clone())).collect();
 
     // Sort by key, respecting per-column ASC/DESC directions
     data_vec.sort_by(|(a, _): &(Vec<SqlValue>, Vec<usize>), (b, _): &(Vec<SqlValue>, Vec<usize>)| {
