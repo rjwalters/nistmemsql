@@ -176,16 +176,17 @@ impl CombinedExpressionEvaluator<'_> {
         let rows = select_executor.execute(subquery)?;
 
         // SQL standard behavior for NULL IN (subquery):
-        // - NULL IN (empty set) → FALSE
-        // - NULL IN (non-empty set without NULL) → FALSE
+        // - NULL IN (empty set) → FALSE (special case per R-52275-55503)
+        // - NULL IN (non-empty set without NULL) → NULL (three-valued logic)
         // - NULL IN (set containing NULL) → NULL
         if matches!(expr_val, vibesql_types::SqlValue::Null) {
-            // Check if subquery is empty
+            // Special case: empty set always returns FALSE for IN, TRUE for NOT IN
+            // This overrides the usual NULL behavior (R-52275-55503)
             if rows.is_empty() {
                 return Ok(vibesql_types::SqlValue::Boolean(negated));
             }
 
-            // Check if subquery contains NULL
+            // For non-empty sets, check if subquery contains NULL
             for subquery_row in &rows {
                 let subquery_val =
                     subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
@@ -196,8 +197,9 @@ impl CombinedExpressionEvaluator<'_> {
                 }
             }
 
-            // NULL IN (non-empty set without NULL) → FALSE
-            return Ok(vibesql_types::SqlValue::Boolean(negated));
+            // NULL IN (non-empty set without NULL) → NULL (not FALSE!)
+            // This follows three-valued logic: NULL compared to any value is NULL
+            return Ok(vibesql_types::SqlValue::Null);
         }
 
         let mut found_null = false;
