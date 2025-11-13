@@ -83,3 +83,7 @@ harness = false
 [[bench]]
 name = "tpch_benchmark"
 harness = false
+
+[[bench]]
+name = "hash_join_parallel"
+harness = false
