@@ -48,6 +48,30 @@ fn extend_key_with_row_id(key: Vec<SqlValue>, row_id: usize) -> Vec<SqlValue> {
     extended
 }
 
+/// Helper function to safely acquire a lock on a BTreeIndex mutex
+///
+/// # Arguments
+/// * `btree` - Arc<Mutex<BTreeIndex>> to lock
+///
+/// # Returns
+/// * `Ok(MutexGuard)` - Successfully acquired lock
+/// * `Err(StorageError::LockError)` - Mutex was poisoned (thread panicked while holding lock)
+///
+/// # Poisoned Mutex Handling
+/// When a thread panics while holding a mutex, the mutex becomes "poisoned" to indicate
+/// potential data corruption. This function returns an error rather than attempting recovery,
+/// forcing callers to handle the exceptional condition explicitly.
+fn acquire_btree_lock(
+    btree: &Arc<std::sync::Mutex<BTreeIndex>>,
+) -> Result<std::sync::MutexGuard<'_, BTreeIndex>, StorageError> {
+    btree.lock().map_err(|e| {
+        StorageError::LockError(format!(
+            "Failed to acquire BTreeIndex lock: mutex poisoned ({})",
+            e
+        ))
+    })
+}
+
 /// Index metadata
 #[derive(Debug, Clone)]
 pub struct IndexMetadata {
@@ -152,17 +176,22 @@ impl IndexData {
                 let start_key = start.map(|v| vec![v.clone()]);
                 let end_key = end.map(|v| vec![v.clone()]);
 
-                // Lock and call BTreeIndex::range_scan
-                btree
-                    .lock()
-                    .unwrap()
-                    .range_scan(
-                        start_key.as_ref(),
-                        end_key.as_ref(),
-                        inclusive_start,
-                        inclusive_end,
-                    )
-                    .unwrap_or_else(|_| vec![])
+                // Safely acquire lock and call BTreeIndex::range_scan
+                match acquire_btree_lock(btree) {
+                    Ok(guard) => guard
+                        .range_scan(
+                            start_key.as_ref(),
+                            end_key.as_ref(),
+                            inclusive_start,
+                            inclusive_end,
+                        )
+                        .unwrap_or_else(|_| vec![]),
+                    Err(e) => {
+                        // Log error and return empty result set
+                        eprintln!("Warning: BTreeIndex lock acquisition failed in range_scan: {}", e);
+                        vec![]
+                    }
+                }
             }
         }
     }
@@ -199,12 +228,15 @@ impl IndexData {
                     .map(|v| vec![v.clone()])
                     .collect();
 
-                // Lock and call BTreeIndex::multi_lookup
-                btree
-                    .lock()
-                    .unwrap()
-                    .multi_lookup(&keys)
-                    .unwrap_or_else(|_| vec![])
+                // Safely acquire lock and call BTreeIndex::multi_lookup
+                match acquire_btree_lock(btree) {
+                    Ok(guard) => guard.multi_lookup(&keys).unwrap_or_else(|_| vec![]),
+                    Err(e) => {
+                        // Log error and return empty result set
+                        eprintln!("Warning: BTreeIndex lock acquisition failed in multi_lookup: {}", e);
+                        vec![]
+                    }
+                }
             }
         }
     }
@@ -576,8 +608,9 @@ impl IndexManager {
                                 }
                             }
                             IndexData::DiskBacked { btree, .. } => {
-                                // Lock and check if key exists in B+tree
-                                if let Ok(Some(_)) = btree.lock().unwrap().lookup(&key_values) {
+                                // Safely acquire lock and check if key exists in B+tree
+                                let guard = acquire_btree_lock(btree)?;
+                                if let Ok(Some(_)) = guard.lookup(&key_values) {
                                     let column_names: Vec<String> = metadata
                                         .columns
                                         .iter()
@@ -628,14 +661,21 @@ impl IndexManager {
                             data.entry(key_values).or_insert_with(Vec::new).push(row_index);
                         }
                         IndexData::DiskBacked { btree, .. } => {
-                            // Lock and insert into B+tree
+                            // Safely acquire lock and insert into B+tree
                             // Note: BTreeIndex::insert will return an error for duplicate keys.
                             // For non-unique indexes, we should allow this, but currently
                             // the B+tree implementation doesn't support duplicate keys.
                             // This is a known limitation that will need to be addressed.
-                            if let Err(e) = btree.lock().unwrap().insert(key_values, row_index) {
-                                // Log error but don't fail - this may happen for non-unique indexes
-                                eprintln!("Warning: Failed to insert into disk-backed index '{}': {:?}", index_name, e);
+                            match acquire_btree_lock(btree) {
+                                Ok(mut guard) => {
+                                    if let Err(e) = guard.insert(key_values, row_index) {
+                                        // Log error but don't fail - this may happen for non-unique indexes
+                                        eprintln!("Warning: Failed to insert into disk-backed index '{}': {:?}", index_name, e);
+                                    }
+                                }
+                                Err(e) => {
+                                    eprintln!("Warning: BTreeIndex lock acquisition failed in add_to_indexes_for_insert: {}", e);
+                                }
                             }
                         }
                     }
@@ -699,11 +739,17 @@ impl IndexManager {
                                     .push(row_index);
                             }
                             IndexData::DiskBacked { btree, .. } => {
-                                // Lock and update B+tree: delete old key, insert new key
-                                let mut btree_guard = btree.lock().unwrap();
-                                let _ = btree_guard.delete(&old_key_values);
-                                if let Err(e) = btree_guard.insert(new_key_values, row_index) {
-                                    eprintln!("Warning: Failed to update disk-backed index '{}': {:?}", index_name, e);
+                                // Safely acquire lock and update B+tree: delete old key, insert new key
+                                match acquire_btree_lock(btree) {
+                                    Ok(mut guard) => {
+                                        let _ = guard.delete(&old_key_values);
+                                        if let Err(e) = guard.insert(new_key_values, row_index) {
+                                            eprintln!("Warning: Failed to update disk-backed index '{}': {:?}", index_name, e);
+                                        }
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Warning: BTreeIndex lock acquisition failed in update_indexes_for_update: {}", e);
+                                    }
                                 }
                             }
                         }
@@ -749,8 +795,15 @@ impl IndexManager {
                             }
                         }
                         IndexData::DiskBacked { btree, .. } => {
-                            // Lock and delete from B+tree
-                            let _ = btree.lock().unwrap().delete(&key_values);
+                            // Safely acquire lock and delete from B+tree
+                            match acquire_btree_lock(btree) {
+                                Ok(mut guard) => {
+                                    let _ = guard.delete(&key_values);
+                                }
+                                Err(e) => {
+                                    eprintln!("Warning: BTreeIndex lock acquisition failed in update_indexes_for_delete: {}", e);
+                                }
+                            }
                         }
                     }
                 }
@@ -837,8 +890,15 @@ impl IndexManager {
                                 key_schema,
                                 page_manager.clone(),
                             ) {
-                                // Replace old btree with new one
-                                *btree.lock().unwrap() = new_btree;
+                                // Safely acquire lock and replace old btree with new one
+                                match acquire_btree_lock(btree) {
+                                    Ok(mut guard) => {
+                                        *guard = new_btree;
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Warning: BTreeIndex lock acquisition failed in rebuild_indexes: {}", e);
+                                    }
+                                }
                             }
                         }
                     }
