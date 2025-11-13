@@ -246,12 +246,10 @@ fn execute_bulk_transfer(
 
         // Insert row directly without re-validation of type and NOT NULL
         // (already validated by schema compatibility check)
-        let dest_table_mut = db
-            .get_table_mut(dest_table)
-            .ok_or_else(|| ExecutorError::TableNotFound(dest_table.to_string()))?;
-
+        // IMPORTANT: Use db.insert_row() to ensure indexes are updated!
         let row = vibesql_storage::Row::new(row_values);
-        dest_table_mut.insert(row)?;
+        db.insert_row(dest_table, row)
+            .map_err(|e| ExecutorError::UnsupportedExpression(format!("Storage error: {}", e)))?;
         inserted_count += 1;
     }
 
