@@ -20,6 +20,7 @@ zstd = "0.13"
 rstar = "0.12"
 lru = "0.12"
 parking_lot = "0.12"
+log = "0.4"
 
 # WASM-specific dependencies for browser storage
 [target.'cfg(target_arch = "wasm32")'.dependencies]
