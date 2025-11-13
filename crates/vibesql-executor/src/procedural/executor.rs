@@ -225,33 +225,35 @@ pub fn evaluate_expression(
 
 /// Execute a SQL statement within a procedural context
 ///
-/// Phase 3 Implementation: Basic SQL statement execution with procedural context support.
-/// This implementation currently supports SELECT statements with procedural variable references.
+/// **Phase 3 Implementation Status: Infrastructure Only**
 ///
-/// Limitations:
-/// - Only SELECT is currently supported
-/// - INSERT/UPDATE/DELETE require deeper integration with expression evaluators throughout executors
-/// - Complex queries may not fully support procedural context in all clauses
+/// This function currently returns UnsupportedFeature errors for all SQL statement types.
+/// The evaluator infrastructure supports procedural context (see ExpressionEvaluator), but
+/// full integration with SQL executors is not yet implemented.
+///
+/// This placeholder ensures procedures with SQL statements fail explicitly rather than
+/// silently ignoring procedural variables
 fn execute_sql_statement(
     stmt: &Statement,
-    db: &mut Database,
-    ctx: &ExecutionContext,
+    _db: &mut Database,
+    _ctx: &ExecutionContext,
 ) -> Result<(), ExecutorError> {
     match stmt {
-        Statement::Select(select_stmt) => {
-            // Execute SELECT with procedural context
-            // Note: This is a basic implementation that executes the query but doesn't
-            // capture results yet. Full support requires implementing SELECT INTO or
-            // returning result sets from functions.
-            let _result = execute_select_with_context(db, select_stmt, ctx)?;
-            Ok(())
-        }
-        Statement::Insert(_) | Statement::Update(_) | Statement::Delete(_) => {
-            // INSERT, UPDATE, DELETE require threading context through evaluators
-            // in multiple locations within their respective executors
+        Statement::Select(_) | Statement::Insert(_) | Statement::Update(_) | Statement::Delete(_) => {
+            // SQL statement execution with procedural context requires threading ExecutionContext
+            // through all SQL executor constructors (SelectExecutor, InsertExecutor, etc.) and
+            // passing it to all evaluator creation sites (~30-40 locations).
+            //
+            // The evaluator infrastructure is now in place (evaluators support procedural_context),
+            // but the full integration is not yet implemented.
+            //
+            // TODO: Implement in follow-up PR:
+            // 1. Add Option<&ExecutionContext> parameter to SQL executor constructors
+            // 2. Thread context through all evaluator construction sites
+            // 3. Add integration tests demonstrating end-to-end functionality
             Err(ExecutorError::UnsupportedFeature(
-                "INSERT/UPDATE/DELETE with procedural variables not yet implemented. \
-                 Only SELECT statements currently support procedural context.".to_string()
+                "SQL statements with procedural variables not yet implemented. \
+                 Evaluator infrastructure is in place, but executor integration is incomplete.".to_string()
             ))
         }
         _ => {
@@ -262,29 +264,6 @@ fn execute_sql_statement(
             )))
         }
     }
-}
-
-/// Helper function to execute SELECT with procedural context
-///
-/// This demonstrates how procedural context can be threaded through SQL execution.
-/// The evaluators we created will check procedural variables before table columns.
-fn execute_select_with_context(
-    db: &Database,
-    select_stmt: &vibesql_ast::SelectStmt,
-    _ctx: &ExecutionContext,
-) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
-    // For now, use the standard SelectExecutor
-    // The procedural context threading needs to be added throughout SelectExecutor's
-    // internal evaluator construction, which is a larger refactoring.
-    //
-    // The architecture is in place (evaluators support procedural_context), but
-    // SelectExecutor needs to be modified to:
-    // 1. Accept optional procedural context in constructor
-    // 2. Pass it to all evaluators it creates internally
-    //
-    // For now, this placeholder shows the intended usage pattern.
-    let executor = crate::SelectExecutor::new(db);
-    executor.execute(select_stmt)
 }
 
 /// Cast a value to a specific data type
