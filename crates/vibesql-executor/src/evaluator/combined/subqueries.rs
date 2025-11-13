@@ -36,29 +36,8 @@ impl CombinedExpressionEvaluator<'_> {
         };
         let rows = select_executor.execute(subquery)?;
 
-        // SQL:1999 Section 7.9: Scalar subquery must return exactly 1 row
-        if rows.len() > 1 {
-            return Err(ExecutorError::SubqueryReturnedMultipleRows {
-                expected: 1,
-                actual: rows.len(),
-            });
-        }
-
-        // SQL:1999 Section 7.9: Scalar subquery must return exactly 1 column
-        // Check column count from SELECT list
-        if subquery.select_list.len() != 1 {
-            return Err(ExecutorError::SubqueryColumnCountMismatch {
-                expected: 1,
-                actual: subquery.select_list.len(),
-            });
-        }
-
-        // Return the single value, or NULL if no rows
-        if rows.is_empty() {
-            Ok(vibesql_types::SqlValue::Null)
-        } else {
-            rows[0].get(0).cloned().ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })
-        }
+        // Delegate to shared logic
+        super::super::subqueries_shared::eval_scalar_subquery_core(&rows, subquery.select_list.len())
     }
 
     /// Evaluate EXISTS predicate: EXISTS (SELECT ...)
@@ -97,13 +76,8 @@ impl CombinedExpressionEvaluator<'_> {
         };
         let rows = select_executor.execute(subquery)?;
 
-        // Check if subquery returned any rows
-        let has_rows = !rows.is_empty();
-
-        // Apply negation if needed
-        let result = if negated { !has_rows } else { has_rows };
-
-        Ok(vibesql_types::SqlValue::Boolean(result))
+        // Delegate to shared logic
+        Ok(super::super::subqueries_shared::eval_exists_core(!rows.is_empty(), negated))
     }
 
     /// Evaluate quantified comparison: expr op ALL/ANY/SOME (SELECT ...)
@@ -146,108 +120,14 @@ impl CombinedExpressionEvaluator<'_> {
         };
         let rows = select_executor.execute(subquery)?;
 
-        // Empty subquery special cases:
-        // - ALL: returns TRUE (vacuously true - all zero rows satisfy the condition)
-        // - ANY/SOME: returns FALSE (no rows to satisfy the condition)
-        if rows.is_empty() {
-            return Ok(vibesql_types::SqlValue::Boolean(matches!(quantifier, vibesql_ast::Quantifier::All)));
-        }
-
-        // If left value is NULL, result depends on quantifier and subquery results
-        if matches!(left_val, vibesql_types::SqlValue::Null) {
-            return Ok(vibesql_types::SqlValue::Null);
-        }
-
-        match quantifier {
-            vibesql_ast::Quantifier::All => {
-                // ALL: comparison must be TRUE for all rows
-                // If any comparison is FALSE, return FALSE
-                // If any comparison is NULL (and none FALSE), return NULL
-                let mut has_null = false;
-
-                for subquery_row in &rows {
-                    if subquery_row.values.len() != 1 {
-                        return Err(ExecutorError::SubqueryColumnCountMismatch {
-                            expected: 1,
-                            actual: subquery_row.values.len(),
-                        });
-                    }
-
-                    let right_val = &subquery_row.values[0];
-
-                    // Handle NULL in subquery result
-                    if matches!(right_val, vibesql_types::SqlValue::Null) {
-                        has_null = true;
-                        continue;
-                    }
-
-                    // Evaluate comparison
-                    let cmp_result =
-                        ExpressionEvaluator::eval_binary_op_static(&left_val, op, right_val)?;
-
-                    match cmp_result {
-                        vibesql_types::SqlValue::Boolean(false) => {
-                            return Ok(vibesql_types::SqlValue::Boolean(false))
-                        }
-                        vibesql_types::SqlValue::Null => has_null = true,
-                        _ => {} // TRUE, continue checking
-                    }
-                }
-
-                // If we saw any NULLs (and no FALSEs), return NULL
-                // Otherwise return TRUE (all comparisons were TRUE)
-                if has_null {
-                    Ok(vibesql_types::SqlValue::Null)
-                } else {
-                    Ok(vibesql_types::SqlValue::Boolean(true))
-                }
-            }
-
-            vibesql_ast::Quantifier::Any | vibesql_ast::Quantifier::Some => {
-                // ANY/SOME: comparison must be TRUE for at least one row
-                // If any comparison is TRUE, return TRUE
-                // If all comparisons are FALSE, return FALSE
-                // If any comparison is NULL (and none TRUE), return NULL
-                let mut has_null = false;
-
-                for subquery_row in &rows {
-                    if subquery_row.values.len() != 1 {
-                        return Err(ExecutorError::SubqueryColumnCountMismatch {
-                            expected: 1,
-                            actual: subquery_row.values.len(),
-                        });
-                    }
-
-                    let right_val = &subquery_row.values[0];
-
-                    // Handle NULL in subquery result
-                    if matches!(right_val, vibesql_types::SqlValue::Null) {
-                        has_null = true;
-                        continue;
-                    }
-
-                    // Evaluate comparison
-                    let cmp_result =
-                        ExpressionEvaluator::eval_binary_op_static(&left_val, op, right_val)?;
-
-                    match cmp_result {
-                        vibesql_types::SqlValue::Boolean(true) => {
-                            return Ok(vibesql_types::SqlValue::Boolean(true))
-                        }
-                        vibesql_types::SqlValue::Null => has_null = true,
-                        _ => {} // FALSE, continue checking
-                    }
-                }
-
-                // If we saw any NULLs (and no TRUEs), return NULL
-                // Otherwise return FALSE (no comparisons were TRUE)
-                if has_null {
-                    Ok(vibesql_types::SqlValue::Null)
-                } else {
-                    Ok(vibesql_types::SqlValue::Boolean(false))
-                }
-            }
-        }
+        // Delegate to shared logic
+        super::super::subqueries_shared::eval_quantified_core(
+            &left_val,
+            &rows,
+            op,
+            quantifier,
+            ExpressionEvaluator::eval_binary_op_static,
+        )
     }
 
     /// Evaluate IN operator with subquery
@@ -271,6 +151,9 @@ impl CombinedExpressionEvaluator<'_> {
             "IN with subquery requires database reference".to_string(),
         ))?;
 
+        // Evaluate the left-hand expression
+        let expr_val = self.eval(expr, row)?;
+
         // Subquery must return exactly one column
         if subquery.select_list.len() != 1 {
             return Err(ExecutorError::SubqueryColumnCountMismatch {
@@ -292,20 +175,29 @@ impl CombinedExpressionEvaluator<'_> {
         };
         let rows = select_executor.execute(subquery)?;
 
-        // Empty set optimization (SQLite behavior):
-        // If the subquery returns no rows, return FALSE for IN, TRUE for NOT IN
-        // This is true regardless of whether the left expression is NULL
-        // Rationale: No value can match an empty set
-        if rows.is_empty() {
-            return Ok(vibesql_types::SqlValue::Boolean(negated));
-        }
-
-        // Evaluate the left-hand expression
-        let expr_val = self.eval(expr, row)?;
-
-        // If left expression is NULL, result is NULL (per SQL three-valued logic)
+        // SQL standard behavior for NULL IN (subquery):
+        // - NULL IN (empty set) → FALSE
+        // - NULL IN (non-empty set without NULL) → FALSE
+        // - NULL IN (set containing NULL) → NULL
         if matches!(expr_val, vibesql_types::SqlValue::Null) {
-            return Ok(vibesql_types::SqlValue::Null);
+            // Check if subquery is empty
+            if rows.is_empty() {
+                return Ok(vibesql_types::SqlValue::Boolean(negated));
+            }
+
+            // Check if subquery contains NULL
+            for subquery_row in &rows {
+                let subquery_val =
+                    subquery_row.get(0).ok_or(ExecutorError::ColumnIndexOutOfBounds { index: 0 })?;
+
+                if matches!(subquery_val, vibesql_types::SqlValue::Null) {
+                    // NULL IN (set with NULL) → NULL
+                    return Ok(vibesql_types::SqlValue::Null);
+                }
+            }
+
+            // NULL IN (non-empty set without NULL) → FALSE
+            return Ok(vibesql_types::SqlValue::Boolean(negated));
         }
 
         let mut found_null = false;

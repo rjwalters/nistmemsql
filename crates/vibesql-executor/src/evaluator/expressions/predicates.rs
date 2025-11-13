@@ -237,6 +237,10 @@ impl ExpressionEvaluator<'_> {
 
         let expr_val = self.eval(expr, row)?;
 
+        // SQL standard behavior for NULL IN (list):
+        // - NULL IN (empty list) → FALSE (already handled above)
+        // - NULL IN (non-empty list) → NULL (three-valued logic)
+        // The IN operator returns NULL when comparing NULL to any value
         if matches!(expr_val, vibesql_types::SqlValue::Null) {
             return Ok(vibesql_types::SqlValue::Null);
         }

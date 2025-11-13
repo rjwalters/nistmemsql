@@ -37,8 +37,10 @@
 //! - `truncate_table_tests`: TRUNCATE TABLE tests (single table, multiple tables, IF EXISTS)
 //! - `view_tests`: VIEW support tests (CREATE/DROP/SELECT, OR REPLACE, CASCADE)
 //! - `index_scan_tests`: Index scan optimization tests (Phase 5a of issue #1387)
+//! - `alter_table_constraints`: ALTER TABLE ADD/DROP PRIMARY KEY and FOREIGN KEY tests (Phase 6 of issue #1388)
 
 mod aggregate_caching;
+mod alter_table_constraints;
 mod aggregate_count_sum_avg_tests;
 mod aggregate_distinct;
 mod aggregate_edge_case_tests;

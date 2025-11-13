@@ -95,6 +95,11 @@ impl ConstraintValidator {
                         // an internal sequence and setting the default value
                         // No constraint validation needed here
                     }
+                    ColumnConstraintKind::Key => {
+                        // KEY is a MySQL-specific index marker
+                        // For MVP, we parse it but don't enforce indexing behavior
+                        // No constraint validation needed here
+                    }
                 }
             }
         }

@@ -115,6 +115,9 @@ pub enum ColumnConstraintKind {
     /// AUTO_INCREMENT (MySQL) or AUTOINCREMENT (SQLite)
     /// Automatically generates sequential integer values for new rows
     AutoIncrement,
+    /// KEY (MySQL-specific)
+    /// Creates an index on the column
+    Key,
 }
 
 /// Table-level constraint
