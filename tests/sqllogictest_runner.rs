@@ -574,6 +574,78 @@ SELECT - 57 col2 FROM tab0
     tester.run_script(script).expect("3-value query should not be hashed");
 }
 
+// Issue #1479: Test that database state persists across statements (trigger duplicate detection)
+#[tokio::test]
+async fn test_issue_1479_trigger_duplicate_detection() {
+    let mut tester = sqllogictest::Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+
+    // Test 1: Basic trigger duplicate detection
+    let script = r#"
+statement ok
+CREATE TABLE t1(x INTEGER, y VARCHAR(8))
+
+statement ok
+CREATE TRIGGER t1r1 AFTER UPDATE ON t1 FOR EACH ROW BEGIN END
+
+statement error
+CREATE TRIGGER t1r1 AFTER UPDATE ON t1 FOR EACH ROW BEGIN END
+
+statement ok
+DROP TRIGGER t1r1
+
+statement error
+DROP TRIGGER t1r1
+"#;
+
+    tester.run_script(script).expect("Trigger duplicate detection test should pass");
+}
+
+// Issue #1479: Extended test for state persistence across multiple DDL operations
+#[tokio::test]
+async fn test_issue_1479_state_persistence() {
+    let mut tester = sqllogictest::Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+
+    let script = r#"
+statement ok
+CREATE TABLE test_table(id INTEGER, name VARCHAR(50))
+
+statement ok
+INSERT INTO test_table VALUES (1, 'Alice')
+
+statement ok
+INSERT INTO test_table VALUES (2, 'Bob')
+
+query I
+SELECT COUNT(*) FROM test_table
+----
+2
+
+statement ok
+CREATE TRIGGER test_trigger AFTER UPDATE ON test_table FOR EACH ROW BEGIN END
+
+statement error
+CREATE TRIGGER test_trigger AFTER INSERT ON test_table FOR EACH ROW BEGIN END
+
+query I
+SELECT COUNT(*) FROM test_table
+----
+2
+
+statement ok
+DROP TRIGGER test_trigger
+
+statement error
+DROP TRIGGER test_trigger
+
+query I
+SELECT COUNT(*) FROM test_table
+----
+2
+"#;
+
+    tester.run_script(script).expect("State persistence test should pass");
+}
+
 // Test for benchmarking: Run a test file from environment variable
 // Usage: SQLLOGICTEST_FILE=path/to/file.test cargo test -p vibesql --test sqllogictest_runner run_single_test_file
 #[tokio::test]
