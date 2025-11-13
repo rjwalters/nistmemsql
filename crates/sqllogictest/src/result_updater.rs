@@ -169,7 +169,8 @@ pub fn update_record_with_output<T: ColumnType>(
                         results: expected_results,
                         ..
                     } if validator(normalizer, rows, expected_results) => expected_results.clone(),
-                    _ => rows.iter().map(|cols| cols.join(col_separator)).collect(),
+                    // Flatten the rows so each column value becomes its own line (SQLLogicTest format)
+                    _ => rows.iter().flat_map(|cols| cols.iter().cloned()).collect(),
                 };
                 let types = match &expected {
                     // If validation is successful, we respect the original file's expected types.
