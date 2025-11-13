@@ -364,3 +364,54 @@ fn test_parse_create_table_datetime_with_constraints() {
         _ => panic!("Expected CREATE TABLE statement"),
     }
 }
+
+// ========================================================================
+// YEAR Type Tests (MySQL compatibility)
+// ========================================================================
+
+#[test]
+fn test_parse_create_table_year() {
+    let result = Parser::parse_sql("CREATE TABLE events (year_column YEAR);");
+    assert!(result.is_ok(), "Should parse YEAR");
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            match &create.columns[0].data_type {
+                vibesql_types::DataType::UserDefined { type_name } if type_name == "YEAR" => {} // Success
+                _ => panic!("Expected YEAR to map to UserDefined type, got {:?}", create.columns[0].data_type),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_create_table_year_with_constraints() {
+    // Test from issue #1627 - example statement from createtable1.test
+    let result = Parser::parse_sql("CREATE TABLE `t20b4e` (`c1` YEAR KEY, c2 YEAR NULL);");
+    assert!(result.is_ok(), "Should parse YEAR with constraints");
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "t20b4e");
+            assert_eq!(create.columns.len(), 2);
+
+            // Verify first column: c1 YEAR KEY
+            assert_eq!(create.columns[0].name, "c1");
+            match &create.columns[0].data_type {
+                vibesql_types::DataType::UserDefined { type_name } if type_name == "YEAR" => {} // Success
+                _ => panic!("Expected c1 to be YEAR (UserDefined), got {:?}", create.columns[0].data_type),
+            }
+
+            // Verify second column: c2 YEAR NULL (uppercased because not in backticks)
+            assert_eq!(create.columns[1].name, "C2");
+            match &create.columns[1].data_type {
+                vibesql_types::DataType::UserDefined { type_name } if type_name == "YEAR" => {} // Success
+                _ => panic!("Expected c2 to be YEAR (UserDefined), got {:?}", create.columns[1].data_type),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
