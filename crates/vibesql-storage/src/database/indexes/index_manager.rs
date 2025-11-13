@@ -110,6 +110,11 @@ impl IndexManager {
         self.database_path = Some(path);
     }
 
+    /// Get the database directory path for index file storage
+    pub fn get_database_path(&self) -> Option<PathBuf> {
+        self.database_path.clone()
+    }
+
     /// Set the resource budget configuration
     pub fn set_config(&mut self, config: DatabaseConfig) {
         self.config = config;
