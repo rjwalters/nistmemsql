@@ -1742,4 +1742,399 @@ mod edge_case_tests {
         let result = advanced_objects::execute_call(&call, &mut db);
         assert!(result.is_ok());
     }
+
+    // ===== Phase 3: Procedural SQL Statement Tests =====
+
+    /// Test SELECT with procedural variable in WHERE clause
+    /// Validates PR #1546 infrastructure
+    #[test]
+    fn test_select_with_procedural_variable_in_where() {
+        let mut db = Database::new();
+
+        // Create table and insert test data
+        let schema = TableSchema::new(
+            "users".to_string(),
+            vec![
+                vibesql_catalog::ColumnSchema::new("id".to_string(), DataType::Integer, false),
+                vibesql_catalog::ColumnSchema::new("age".to_string(), DataType::Integer, true),
+                vibesql_catalog::ColumnSchema::new(
+                    "name".to_string(),
+                    DataType::Varchar { max_length: Some(50) },
+                    true,
+                ),
+            ],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert test data
+        let insert_stmt = InsertStmt {
+            table_name: "users".to_string(),
+            columns: vec![],
+            source: InsertSource::Values(vec![
+                vec![
+                    Expression::Literal(SqlValue::Integer(1)),
+                    Expression::Literal(SqlValue::Integer(25)),
+                    Expression::Literal(SqlValue::Varchar("Alice".to_string())),
+                ],
+                vec![
+                    Expression::Literal(SqlValue::Integer(2)),
+                    Expression::Literal(SqlValue::Integer(30)),
+                    Expression::Literal(SqlValue::Varchar("Bob".to_string())),
+                ],
+                vec![
+                    Expression::Literal(SqlValue::Integer(3)),
+                    Expression::Literal(SqlValue::Integer(35)),
+                    Expression::Literal(SqlValue::Varchar("Charlie".to_string())),
+                ],
+            ]),
+            conflict_clause: None,
+            on_duplicate_key_update: None,
+        };
+        crate::InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
+
+        // CREATE PROCEDURE get_users_older_than(IN min_age INT)
+        // BEGIN
+        //   SELECT * FROM users WHERE age > min_age;
+        // END;
+        let create_proc = CreateProcedureStmt {
+            procedure_name: "get_users_older_than".to_string(),
+            parameters: vec![ProcedureParameter {
+                mode: ParameterMode::In,
+                name: "min_age".to_string(),
+                data_type: DataType::Integer,
+            }],
+            body: ProcedureBody::BeginEnd(vec![
+                ProceduralStatement::Sql(Box::new(Statement::Select(Box::new(SelectStmt {
+                    with_clause: None,
+                    distinct: false,
+                    select_list: vec![SelectItem::Wildcard { alias: None }],
+                    into_table: None,
+                    from: Some(FromClause::Table {
+                        name: "users".to_string(),
+                        alias: None,
+                    }),
+                    where_clause: Some(Expression::BinaryOp {
+                        left: Box::new(Expression::ColumnRef {
+                            table: None,
+                            column: "age".to_string(),
+                        }),
+                        op: BinaryOperator::GreaterThan,
+                        right: Box::new(Expression::ColumnRef {
+                            table: None,
+                            column: "min_age".to_string(), // Procedural variable reference
+                        }),
+                    }),
+                    group_by: None,
+                    having: None,
+                    order_by: None,
+                    limit: None,
+                    offset: None,
+                    set_operation: None,
+                })))),
+            ]),
+            sql_security: None,
+            comment: None,
+            language: None,
+        };
+
+        advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
+
+        // CALL get_users_older_than(28);
+        // Should return Bob (30) and Charlie (35), not Alice (25)
+        let call = CallStmt {
+            procedure_name: "get_users_older_than".to_string(),
+            arguments: vec![Expression::Literal(SqlValue::Integer(28))],
+        };
+
+        let result = advanced_objects::execute_call(&call, &mut db);
+        assert!(result.is_ok(), "SELECT with procedural variable should work (PR #1546 infrastructure)");
+    }
+
+    #[test]
+    fn test_insert_with_procedural_variables() {
+        let mut db = Database::new();
+
+        // CREATE TABLE users (id INTEGER, age INTEGER, name VARCHAR(50))
+        let schema = TableSchema::new(
+            "users".to_string(),
+            vec![
+                vibesql_catalog::ColumnSchema::new("id".to_string(), DataType::Integer, false),
+                vibesql_catalog::ColumnSchema::new("age".to_string(), DataType::Integer, true),
+                vibesql_catalog::ColumnSchema::new(
+                    "name".to_string(),
+                    DataType::Varchar { max_length: Some(50) },
+                    true,
+                ),
+            ],
+        );
+        db.create_table(schema).unwrap();
+
+        // CREATE PROCEDURE add_user(IN user_id INT, IN user_age INT, IN user_name VARCHAR(50))
+        // BEGIN
+        //   INSERT INTO users (id, age, name) VALUES (user_id, user_age, user_name);
+        // END;
+        let create_proc = CreateProcedureStmt {
+            procedure_name: "add_user".to_string(),
+            parameters: vec![
+                ProcedureParameter {
+                    mode: ParameterMode::In,
+                    name: "user_id".to_string(),
+                    data_type: DataType::Integer,
+                },
+                ProcedureParameter {
+                    mode: ParameterMode::In,
+                    name: "user_age".to_string(),
+                    data_type: DataType::Integer,
+                },
+                ProcedureParameter {
+                    mode: ParameterMode::In,
+                    name: "user_name".to_string(),
+                    data_type: DataType::Varchar { max_length: Some(50) },
+                },
+            ],
+            body: ProcedureBody::BeginEnd(vec![
+                ProceduralStatement::Sql(Box::new(Statement::Insert(InsertStmt {
+                    table_name: "users".to_string(),
+                    columns: vec!["id".to_string(), "age".to_string(), "name".to_string()],
+                    source: InsertSource::Values(vec![vec![
+                        Expression::ColumnRef {
+                            table: None,
+                            column: "user_id".to_string(), // Procedural variable
+                        },
+                        Expression::ColumnRef {
+                            table: None,
+                            column: "user_age".to_string(), // Procedural variable
+                        },
+                        Expression::ColumnRef {
+                            table: None,
+                            column: "user_name".to_string(), // Procedural variable
+                        },
+                    ]]),
+                    conflict_clause: None,
+                    on_duplicate_key_update: None,
+                }))),
+            ]),
+            sql_security: None,
+            comment: None,
+            language: None,
+        };
+
+        advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
+
+        // CALL add_user(1, 25, 'Alice');
+        let call = CallStmt {
+            procedure_name: "add_user".to_string(),
+            arguments: vec![
+                Expression::Literal(SqlValue::Integer(1)),
+                Expression::Literal(SqlValue::Integer(25)),
+                Expression::Literal(SqlValue::Varchar("Alice".to_string())),
+            ],
+        };
+
+        let result = advanced_objects::execute_call(&call, &mut db);
+        assert!(result.is_ok(), "INSERT with procedural variables should work: {:?}", result.err());
+
+        // Verify the row was inserted
+        let table = db.get_table("users").unwrap();
+        assert_eq!(table.row_count(), 1, "Should have inserted 1 row");
+    }
+
+    #[test]
+    fn test_update_with_procedural_variables() {
+        let mut db = Database::new();
+
+        // CREATE TABLE users (id INTEGER, age INTEGER, name VARCHAR(50))
+        let schema = TableSchema::new(
+            "users".to_string(),
+            vec![
+                vibesql_catalog::ColumnSchema::new("id".to_string(), DataType::Integer, false),
+                vibesql_catalog::ColumnSchema::new("age".to_string(), DataType::Integer, true),
+                vibesql_catalog::ColumnSchema::new(
+                    "name".to_string(),
+                    DataType::Varchar { max_length: Some(50) },
+                    true,
+                ),
+            ],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert initial data
+        let insert_stmt = InsertStmt {
+            table_name: "users".to_string(),
+            columns: vec![],
+            source: InsertSource::Values(vec![
+                vec![
+                    Expression::Literal(SqlValue::Integer(1)),
+                    Expression::Literal(SqlValue::Integer(25)),
+                    Expression::Literal(SqlValue::Varchar("Alice".to_string())),
+                ],
+                vec![
+                    Expression::Literal(SqlValue::Integer(2)),
+                    Expression::Literal(SqlValue::Integer(30)),
+                    Expression::Literal(SqlValue::Varchar("Bob".to_string())),
+                ],
+            ]),
+            conflict_clause: None,
+            on_duplicate_key_update: None,
+        };
+        crate::InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
+
+        // CREATE PROCEDURE update_user_age(IN target_id INT, IN new_age INT)
+        // BEGIN
+        //   UPDATE users SET age = new_age WHERE id = target_id;
+        // END;
+        let create_proc = CreateProcedureStmt {
+            procedure_name: "update_user_age".to_string(),
+            parameters: vec![
+                ProcedureParameter {
+                    mode: ParameterMode::In,
+                    name: "target_id".to_string(),
+                    data_type: DataType::Integer,
+                },
+                ProcedureParameter {
+                    mode: ParameterMode::In,
+                    name: "new_age".to_string(),
+                    data_type: DataType::Integer,
+                },
+            ],
+            body: ProcedureBody::BeginEnd(vec![
+                ProceduralStatement::Sql(Box::new(Statement::Update(UpdateStmt {
+                    table_name: "users".to_string(),
+                    assignments: vec![Assignment {
+                        column: "age".to_string(),
+                        value: Expression::ColumnRef {
+                            table: None,
+                            column: "new_age".to_string(), // Procedural variable
+                        },
+                    }],
+                    where_clause: Some(WhereClause::Condition(Expression::BinaryOp {
+                        left: Box::new(Expression::ColumnRef {
+                            table: None,
+                            column: "id".to_string(),
+                        }),
+                        op: BinaryOperator::Equal,
+                        right: Box::new(Expression::ColumnRef {
+                            table: None,
+                            column: "target_id".to_string(), // Procedural variable
+                        }),
+                    })),
+                }))),
+            ]),
+            sql_security: None,
+            comment: None,
+            language: None,
+        };
+
+        advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
+
+        // CALL update_user_age(1, 26);
+        let call = CallStmt {
+            procedure_name: "update_user_age".to_string(),
+            arguments: vec![
+                Expression::Literal(SqlValue::Integer(1)),
+                Expression::Literal(SqlValue::Integer(26)),
+            ],
+        };
+
+        let result = advanced_objects::execute_call(&call, &mut db);
+        assert!(result.is_ok(), "UPDATE with procedural variables should work: {:?}", result.err());
+    }
+
+    #[test]
+    fn test_delete_with_procedural_variables() {
+        let mut db = Database::new();
+
+        // CREATE TABLE users (id INTEGER, age INTEGER, name VARCHAR(50))
+        let schema = TableSchema::new(
+            "users".to_string(),
+            vec![
+                vibesql_catalog::ColumnSchema::new("id".to_string(), DataType::Integer, false),
+                vibesql_catalog::ColumnSchema::new("age".to_string(), DataType::Integer, true),
+                vibesql_catalog::ColumnSchema::new(
+                    "name".to_string(),
+                    DataType::Varchar { max_length: Some(50) },
+                    true,
+                ),
+            ],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert initial data
+        let insert_stmt = InsertStmt {
+            table_name: "users".to_string(),
+            columns: vec![],
+            source: InsertSource::Values(vec![
+                vec![
+                    Expression::Literal(SqlValue::Integer(1)),
+                    Expression::Literal(SqlValue::Integer(25)),
+                    Expression::Literal(SqlValue::Varchar("Alice".to_string())),
+                ],
+                vec![
+                    Expression::Literal(SqlValue::Integer(2)),
+                    Expression::Literal(SqlValue::Integer(30)),
+                    Expression::Literal(SqlValue::Varchar("Bob".to_string())),
+                ],
+                vec![
+                    Expression::Literal(SqlValue::Integer(3)),
+                    Expression::Literal(SqlValue::Integer(35)),
+                    Expression::Literal(SqlValue::Varchar("Charlie".to_string())),
+                ],
+            ]),
+            conflict_clause: None,
+            on_duplicate_key_update: None,
+        };
+        crate::InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
+
+        // CREATE PROCEDURE delete_user(IN target_id INT)
+        // BEGIN
+        //   DELETE FROM users WHERE id = target_id;
+        // END;
+        let create_proc = CreateProcedureStmt {
+            procedure_name: "delete_user".to_string(),
+            parameters: vec![
+                ProcedureParameter {
+                    mode: ParameterMode::In,
+                    name: "target_id".to_string(),
+                    data_type: DataType::Integer,
+                },
+            ],
+            body: ProcedureBody::BeginEnd(vec![
+                ProceduralStatement::Sql(Box::new(Statement::Delete(DeleteStmt {
+                    only: false,
+                    table_name: "users".to_string(),
+                    where_clause: Some(WhereClause::Condition(Expression::BinaryOp {
+                        left: Box::new(Expression::ColumnRef {
+                            table: None,
+                            column: "id".to_string(),
+                        }),
+                        op: BinaryOperator::Equal,
+                        right: Box::new(Expression::ColumnRef {
+                            table: None,
+                            column: "target_id".to_string(), // Procedural variable
+                        }),
+                    })),
+                }))),
+            ]),
+            sql_security: None,
+            comment: None,
+            language: None,
+        };
+
+        advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
+
+        // CALL delete_user(2);
+        let call = CallStmt {
+            procedure_name: "delete_user".to_string(),
+            arguments: vec![
+                Expression::Literal(SqlValue::Integer(2)),
+            ],
+        };
+
+        let result = advanced_objects::execute_call(&call, &mut db);
+        assert!(result.is_ok(), "DELETE with procedural variables should work: {:?}", result.err());
+
+        // Verify the row was deleted
+        let table = db.get_table("users").unwrap();
+        assert_eq!(table.row_count(), 2, "Should have 2 rows remaining after delete");
+    }
 }

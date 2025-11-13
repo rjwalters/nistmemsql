@@ -1,10 +1,11 @@
 use crate::errors::ExecutorError;
 
 /// Evaluate an INSERT expression to SqlValue
-/// Supports literals and DEFAULT keyword
+/// Supports literals, DEFAULT keyword, and procedural variables (when context provided)
 pub fn evaluate_insert_expression(
     expr: &vibesql_ast::Expression,
     column: &vibesql_catalog::ColumnSchema,
+    procedural_context: Option<&crate::procedural::ExecutionContext>,
 ) -> Result<vibesql_types::SqlValue, ExecutorError> {
     match expr {
         vibesql_ast::Expression::Literal(lit) => Ok(lit.clone()),
@@ -18,8 +19,22 @@ pub fn evaluate_insert_expression(
                 Ok(vibesql_types::SqlValue::Null)
             }
         }
+        vibesql_ast::Expression::ColumnRef { table: None, column: col_name } => {
+            // Check if this is a procedural variable reference
+            if let Some(ctx) = procedural_context {
+                // Try to resolve as procedural variable
+                if let Some(value) = ctx.get_value(col_name) {
+                    return Ok(value.clone());
+                }
+            }
+            // Not a procedural variable, or no context provided
+            Err(ExecutorError::UnsupportedExpression(format!(
+                "Column reference '{}' not supported in INSERT VALUES. Did you mean to use a procedural variable?",
+                col_name
+            )))
+        }
         _ => Err(ExecutorError::UnsupportedExpression(
-            "INSERT only supports literal values and DEFAULT".to_string(),
+            "INSERT only supports literal values, DEFAULT, and procedural variables".to_string(),
         )),
     }
 }
