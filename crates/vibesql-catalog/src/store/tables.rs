@@ -80,16 +80,20 @@ impl super::Catalog {
                 .ok_or_else(|| CatalogError::SchemaNotFound(schema_name_for_lookup.to_string()))?
         };
 
-        let schema = self
-            .schemas
-            .get_mut(&schema_key)
-            .ok_or(CatalogError::SchemaNotFound(schema_key.clone()))?;
-
         // Drop all triggers associated with this table
         // Per SQL standard (R-37808-62273): triggers are automatically dropped when the table is dropped
+        // Note: We need to normalize trigger table_name for comparison in case-insensitive mode
+        let case_sensitive = self.case_sensitive_identifiers;
         let trigger_names: Vec<String> = self.triggers
             .values()
-            .filter(|trigger| trigger.table_name == normalized_table)
+            .filter(|trigger| {
+                let trigger_table = if case_sensitive {
+                    trigger.table_name.clone()
+                } else {
+                    trigger.table_name.to_uppercase()
+                };
+                trigger_table == normalized_table
+            })
             .map(|trigger| trigger.name.clone())
             .collect();
 
@@ -97,8 +101,13 @@ impl super::Catalog {
             self.triggers.remove(&trigger_name);
         }
 
+        let schema = self
+            .schemas
+            .get_mut(&schema_key)
+            .ok_or(CatalogError::SchemaNotFound(schema_key.clone()))?;
+
         // For error messages, we want to use the original input name, not the normalized one
-        schema.drop_table(&normalized_table, self.case_sensitive_identifiers)
+        schema.drop_table(&normalized_table, case_sensitive)
             .map_err(|e| match e {
                 CatalogError::TableNotFound { .. } => CatalogError::TableNotFound {
                     table_name: original_table_name.to_string(),
@@ -129,5 +138,84 @@ impl super::Catalog {
     /// Check if table exists (supports qualified names).
     pub fn table_exists(&self, name: &str) -> bool {
         self.get_table(name).is_some()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::column::ColumnSchema;
+    use crate::trigger::TriggerDefinition;
+    use vibesql_ast::{TriggerAction, TriggerEvent, TriggerGranularity, TriggerTiming};
+    use vibesql_types::DataType;
+
+    #[test]
+    fn test_drop_table_deletes_triggers_case_insensitive() {
+        // Test that triggers are correctly deleted when table is dropped,
+        // even with mixed-case table references (Issue #1481)
+
+        // Create catalog with case-insensitive mode (default)
+        let mut catalog = crate::Catalog::new();
+        assert!(!catalog.case_sensitive_identifiers);
+
+        // Create table with lowercase name
+        let column = ColumnSchema::new("x".to_string(), DataType::Integer, true);
+        let table_schema = TableSchema::new("t1".to_string(), vec![column]);
+        catalog.create_table(table_schema).unwrap();
+
+        // Create trigger with UPPERCASE table reference
+        let trigger = TriggerDefinition {
+            name: "Tr1".to_string(),
+            timing: TriggerTiming::After,
+            event: TriggerEvent::Update(None), // None = no column list
+            table_name: "T1".to_string(), // Different case than table creation
+            granularity: TriggerGranularity::Row,
+            when_condition: None,
+            triggered_action: TriggerAction::RawSql("".to_string()),
+        };
+        catalog.create_trigger(trigger).unwrap();
+
+        // Verify trigger exists
+        assert!(catalog.get_trigger("Tr1").is_some());
+
+        // Drop table with lowercase name
+        catalog.drop_table("t1").unwrap();
+
+        // Verify trigger was automatically deleted despite case mismatch
+        assert!(catalog.get_trigger("Tr1").is_none(),
+                "Trigger should be automatically deleted when table is dropped, \
+                 regardless of case used in CREATE TRIGGER vs DROP TABLE");
+    }
+
+    #[test]
+    fn test_drop_table_deletes_triggers_case_sensitive() {
+        // Test that triggers work correctly in case-sensitive mode
+
+        // Create catalog with case-sensitive mode
+        let mut catalog = crate::Catalog::new();
+        catalog.case_sensitive_identifiers = true;
+
+        // Create table with lowercase name
+        let column = ColumnSchema::new("x".to_string(), DataType::Integer, true);
+        let table_schema = TableSchema::new("t1".to_string(), vec![column]);
+        catalog.create_table(table_schema).unwrap();
+
+        // Create trigger with exact case match
+        let trigger = TriggerDefinition {
+            name: "Tr1".to_string(),
+            timing: TriggerTiming::After,
+            event: TriggerEvent::Update(None),
+            table_name: "t1".to_string(), // Exact match required in case-sensitive mode
+            granularity: TriggerGranularity::Row,
+            when_condition: None,
+            triggered_action: TriggerAction::RawSql("".to_string()),
+        };
+        catalog.create_trigger(trigger).unwrap();
+
+        // Drop table
+        catalog.drop_table("t1").unwrap();
+
+        // Verify trigger was deleted
+        assert!(catalog.get_trigger("Tr1").is_none());
     }
 }

@@ -21,3 +21,4 @@ rstar = "0.12"
 
 [dev-dependencies]
 vibesql-parser = { version = "0.1.0", path = "../vibesql-parser" }
+tempfile = "3.8"
