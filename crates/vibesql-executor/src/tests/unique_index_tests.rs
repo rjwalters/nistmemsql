@@ -97,12 +97,11 @@ fn test_unique_index_basic_insert_enforcement() {
 
     assert!(result.is_err());
     match result.unwrap_err() {
-        vibesql_storage::StorageError::CatalogError(msg) => {
-            // The error gets wrapped through storage layer
+        vibesql_storage::StorageError::UniqueConstraintViolation(msg) => {
             assert!(msg.contains("UNIQUE constraint"));
-            assert!(msg.contains("idx_users_email"));
+            assert!(msg.contains("IDX_USERS_EMAIL")); // Index names are normalized to uppercase
         }
-        e => panic!("Expected ConstraintViolation, got {:?}", e),
+        e => panic!("Expected UniqueConstraintViolation, got {:?}", e),
     }
 }
 
@@ -239,11 +238,11 @@ fn test_unique_index_composite_key() {
 
     assert!(result.is_err());
     match result.unwrap_err() {
-        vibesql_storage::StorageError::CatalogError(msg) => {
+        vibesql_storage::StorageError::UniqueConstraintViolation(msg) => {
             assert!(msg.contains("UNIQUE constraint"));
-            assert!(msg.contains("idx_users_name"));
+            assert!(msg.contains("IDX_USERS_NAME")); // Index names are normalized to uppercase
         }
-        e => panic!("Expected ConstraintViolation, got {:?}", e),
+        e => panic!("Expected UniqueConstraintViolation, got {:?}", e),
     }
 }
 
@@ -354,7 +353,7 @@ fn test_unique_index_update_enforcement() {
     match result.unwrap_err() {
         ExecutorError::ConstraintViolation(msg) => {
             assert!(msg.contains("UNIQUE constraint"));
-            assert!(msg.contains("idx_users_email"));
+            assert!(msg.contains("IDX_USERS_EMAIL")); // Index names are normalized to uppercase
         }
         e => panic!("Expected ConstraintViolation, got {:?}", e),
     }

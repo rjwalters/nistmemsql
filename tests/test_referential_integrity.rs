@@ -252,32 +252,32 @@ fn test_on_delete_restrict_with_references() {
 // ========================================================================
 
 #[test]
-#[ignore] // TODO: ON UPDATE enforcement not yet implemented
+#[ignore] // TODO: Implement ON UPDATE CASCADE for foreign key constraints
 fn test_on_update_cascade() {
     // Test that updating parent primary key cascades to child foreign keys
     // This would require UPDATE statement execution support
 }
 
 #[test]
-#[ignore] // TODO: ON UPDATE enforcement not yet implemented
+#[ignore] // TODO: Implement ON UPDATE SET NULL for foreign key constraints
 fn test_on_update_set_null() {
     // Test that updating parent primary key sets child foreign keys to NULL
 }
 
 #[test]
-#[ignore] // TODO: ON UPDATE enforcement not yet implemented
+#[ignore] // TODO: Implement ON UPDATE SET DEFAULT for foreign key constraints
 fn test_on_update_set_default() {
     // Test that updating parent primary key sets child foreign keys to default
 }
 
 #[test]
-#[ignore] // TODO: ON UPDATE enforcement not yet implemented
+#[ignore] // TODO: Implement ON UPDATE NO ACTION for foreign key constraints
 fn test_on_update_no_action() {
     // Test that updating parent primary key fails when children exist
 }
 
 #[test]
-#[ignore] // TODO: ON UPDATE enforcement not yet implemented
+#[ignore] // TODO: Implement ON UPDATE RESTRICT for foreign key constraints
 fn test_on_update_restrict() {
     // Test that updating parent primary key fails when children exist (similar to NO ACTION)
 }
@@ -287,7 +287,7 @@ fn test_on_update_restrict() {
 // ========================================================================
 
 #[test]
-#[ignore] // TODO: Circular FK detection not yet implemented
+#[ignore] // TODO: Implement circular foreign key detection and handling
 fn test_circular_foreign_keys() {
     let mut db = Database::new();
 
@@ -364,7 +364,7 @@ fn test_self_referential_table() {
 }
 
 #[test]
-#[ignore] // TODO: Multi-column FK support needs verification
+#[ignore] // TODO: Verify and test multi-column foreign key constraint enforcement
 fn test_multi_column_foreign_key() {
     let mut db = Database::new();
 
@@ -422,7 +422,7 @@ fn test_null_foreign_key_values() {
 }
 
 #[test]
-#[ignore] // TODO: Deferred constraint checking not yet implemented
+#[ignore] // TODO: Implement deferred constraint checking (SET CONSTRAINTS ... DEFERRED)
 fn test_deferred_constraint_checking() {
     // Test that constraints can be deferred to end of transaction
     // Allows temporary constraint violations during transaction

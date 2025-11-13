@@ -126,11 +126,18 @@ impl Operations {
         };
 
         let row_index = table.row_count();
+
+        // Check user-defined unique indexes BEFORE inserting
+        if let Some(table_schema) = catalog.get_table(table_name) {
+            self.index_manager.check_unique_constraints_for_insert(table_name, table_schema, &row)?;
+        }
+
+        // Insert the row (this validates table-level constraints like PK, UNIQUE)
         table.insert(row.clone())?;
 
         // Update user-defined indexes
         if let Some(table_schema) = catalog.get_table(table_name) {
-            self.index_manager.update_indexes_for_insert(table_name, table_schema, &row, row_index);
+            self.index_manager.add_to_indexes_for_insert(table_name, table_schema, &row, row_index);
         }
 
         // Update spatial indexes
