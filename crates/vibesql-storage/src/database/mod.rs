@@ -11,6 +11,9 @@ mod resource_tracker;
 pub mod indexes;
 pub mod transactions;
 
+#[cfg(test)]
+mod tests;
+
 pub use core::{Database, ExportedSpatialIndexMetadata as SpatialIndexMetadata};
 pub use operations::SpatialIndexMetadata as OperationsSpatialIndexMetadata;
 
