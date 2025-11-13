@@ -94,6 +94,8 @@ We use comprehensive test suites to track SQL:1999 compliance:
 
 **See [SQL:1999 Conformance Report](https://rjwalters.github.io/vibesql/conformance.html) for detailed test results and remaining work.**
 
+**See [Development Roadmap](docs/ROADMAP.md) for project status, upcoming milestones, and contribution priorities.**
+
 ---
 
 ## 🚀 Advanced Database Features
