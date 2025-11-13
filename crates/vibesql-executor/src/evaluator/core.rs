@@ -18,6 +18,8 @@ pub struct ExpressionEvaluator<'a> {
     pub(super) outer_row: Option<&'a vibesql_storage::Row>,
     pub(super) outer_schema: Option<&'a vibesql_catalog::TableSchema>,
     pub(super) database: Option<&'a vibesql_storage::Database>,
+    /// Trigger context for OLD/NEW pseudo-variable resolution
+    pub(super) trigger_context: Option<&'a crate::trigger_execution::TriggerContext<'a>>,
     /// Current depth in expression tree (for preventing stack overflow)
     pub(super) depth: usize,
     /// CSE cache for common sub-expression elimination (shared via Rc across depth levels)
@@ -51,6 +53,7 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_row: None,
             outer_schema: None,
             database: None,
+            trigger_context: None,
             depth: 0,
             cse_cache: Rc::new(RefCell::new(HashMap::new())),
             enable_cse: Self::is_cse_enabled(),
@@ -76,6 +79,7 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_row: Some(outer_row),
             outer_schema: Some(outer_schema),
             database: None,
+            trigger_context: None,
             depth: 0,
             cse_cache: Rc::new(RefCell::new(HashMap::new())),
             enable_cse: Self::is_cse_enabled(),
@@ -92,6 +96,25 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_row: None,
             outer_schema: None,
             database: Some(database),
+            trigger_context: None,
+            depth: 0,
+            cse_cache: Rc::new(RefCell::new(HashMap::new())),
+            enable_cse: Self::is_cse_enabled(),
+        }
+    }
+
+    /// Create a new expression evaluator with trigger context for OLD/NEW pseudo-variables
+    pub fn with_trigger_context(
+        schema: &'a vibesql_catalog::TableSchema,
+        database: &'a vibesql_storage::Database,
+        trigger_context: &'a crate::trigger_execution::TriggerContext<'a>,
+    ) -> Self {
+        ExpressionEvaluator {
+            schema,
+            outer_row: None,
+            outer_schema: None,
+            database: Some(database),
+            trigger_context: Some(trigger_context),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(HashMap::new())),
             enable_cse: Self::is_cse_enabled(),
@@ -111,6 +134,7 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_row: Some(outer_row),
             outer_schema: Some(outer_schema),
             database: Some(database),
+            trigger_context: None,
             depth: 0,
             cse_cache: Rc::new(RefCell::new(HashMap::new())),
             enable_cse: Self::is_cse_enabled(),
@@ -192,6 +216,7 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_row: self.outer_row,
             outer_schema: self.outer_schema,
             database: self.database,
+            trigger_context: self.trigger_context,
             depth: self.depth + 1,
             cse_cache: self.cse_cache.clone(),
             enable_cse: self.enable_cse,

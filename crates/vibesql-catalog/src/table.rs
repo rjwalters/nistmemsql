@@ -501,6 +501,7 @@ impl TableSchema {
                 Self::expression_references_column(expr, column_name)
             }
             vibesql_ast::Expression::DuplicateKeyValue { column } => column == column_name,
+            vibesql_ast::Expression::PseudoVariable { column, .. } => column == column_name,
             // These don't reference columns
             vibesql_ast::Expression::Interval { value, .. } => {
                 // INTERVAL expressions may contain column references in the value

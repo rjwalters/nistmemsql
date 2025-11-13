@@ -210,6 +210,12 @@ impl QuerySignature {
                 column.hash(hasher);
             }
 
+            Expression::PseudoVariable { pseudo_table, column } => {
+                "PSEUDO_VARIABLE".hash(hasher);
+                std::mem::discriminant(pseudo_table).hash(hasher);
+                column.hash(hasher);
+            }
+
             Expression::BinaryOp { op, left, right } => {
                 "BINARY_OP".hash(hasher);
                 std::mem::discriminant(op).hash(hasher);

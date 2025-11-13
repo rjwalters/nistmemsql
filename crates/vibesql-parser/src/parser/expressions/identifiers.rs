@@ -24,7 +24,22 @@ impl Parser {
                         Token::Identifier(col) | Token::DelimitedIdentifier(col) => {
                             let column = col.clone();
                             self.advance();
-                            Ok(Some(vibesql_ast::Expression::ColumnRef { table: Some(first), column }))
+
+                            // Check for pseudo-variable (OLD.column or NEW.column)
+                            let first_upper = first.to_uppercase();
+                            if first_upper == "OLD" || first_upper == "NEW" {
+                                let pseudo_table = if first_upper == "OLD" {
+                                    vibesql_ast::PseudoTable::Old
+                                } else {
+                                    vibesql_ast::PseudoTable::New
+                                };
+                                Ok(Some(vibesql_ast::Expression::PseudoVariable {
+                                    pseudo_table,
+                                    column,
+                                }))
+                            } else {
+                                Ok(Some(vibesql_ast::Expression::ColumnRef { table: Some(first), column }))
+                            }
                         }
                         _ => Err(ParseError {
                             message: "Expected column name after '.'".to_string(),
