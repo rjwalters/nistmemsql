@@ -343,8 +343,8 @@ impl<'a> RowNormalizer<'a> {
                 // Log a debug message for development
                 #[cfg(debug_assertions)]
                 {
-                    eprintln!(
-                        "Warning: Skipping validation for user-defined type '{}' in column '{}'",
+                    log::warn!(
+                        "Skipping validation for user-defined type '{}' in column '{}'",
                         type_name, column_name
                     );
                 }

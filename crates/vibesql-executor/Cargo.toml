@@ -68,6 +68,10 @@ path = "tests/predicate_pushdown_tests.rs"
 name = "spatial_function_tests"
 path = "tests/spatial_function_tests.rs"
 
+[[test]]
+name = "truncate_tests"
+path = "tests/truncate_tests.rs"
+
 [[bench]]
 name = "iterator_execution"
 harness = false
