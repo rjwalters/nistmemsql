@@ -359,8 +359,12 @@ impl Parser {
     ) -> Result<vibesql_types::IntervalField, ParseError> {
         let field_upper = match self.peek() {
             Token::Identifier(field) => field.to_uppercase(),
+            Token::Keyword(Keyword::Year) => "YEAR".to_string(),
+            Token::Keyword(Keyword::Month) => "MONTH".to_string(),
+            Token::Keyword(Keyword::Day) => "DAY".to_string(),
             Token::Keyword(Keyword::Hour) => "HOUR".to_string(),
             Token::Keyword(Keyword::Minute) => "MINUTE".to_string(),
+            Token::Keyword(Keyword::Second) => "SECOND".to_string(),
             _ => {
                 return Err(ParseError {
                     message: "Expected interval field (YEAR, MONTH, DAY, HOUR, MINUTE, SECOND)"
