@@ -225,27 +225,42 @@ pub fn evaluate_expression(
 
 /// Execute a SQL statement within a procedural context
 ///
-/// Phase 2 Limitation: SQL statements in procedures are not yet fully supported.
-/// Variables work in DECLARE/SET statements and can be passed as procedure parameters,
-/// but SQL statement execution (INSERT/UPDATE/DELETE/SELECT) with variable substitution
-/// requires threading the procedural context through the entire SQL execution pipeline.
+/// **Phase 3 Implementation**
 ///
-/// This will be implemented in Phase 3 when we add control flow support.
+/// This function executes SQL statements with access to procedural variables and parameters.
+/// Currently supports SELECT statements with procedural context.
+///
+/// Note: The results are discarded. For capturing results into variables, use SELECT INTO
+/// (not yet implemented).
 fn execute_sql_statement(
-    _stmt: &Statement,
-    _db: &mut Database,
-    _ctx: &ExecutionContext,
+    stmt: &Statement,
+    db: &mut Database,
+    ctx: &ExecutionContext,
 ) -> Result<(), ExecutorError> {
-    // TODO Phase 3: Implement SQL statement execution with procedural context threading
-    // This requires:
-    // 1. Modifying all SQL executors to accept optional ExecutionContext
-    // 2. Updating expression evaluator to check procedural variables
-    // 3. Ensuring variable substitution works in WHERE, VALUES, SET clauses
-
-    Err(ExecutorError::UnsupportedFeature(
-        "SQL statements in procedure bodies not yet supported in Phase 2. \
-         Use DECLARE, SET, and RETURN statements.".to_string()
-    ))
+    match stmt {
+        Statement::Select(select_stmt) => {
+            // Execute SELECT with procedural context
+            let executor = crate::SelectExecutor::new_with_procedural_context(db, ctx);
+            let _results = executor.execute(select_stmt)?;
+            // TODO: Support SELECT INTO for capturing results into variables
+            Ok(())
+        }
+        Statement::Insert(_) | Statement::Update(_) | Statement::Delete(_) => {
+            // TODO: Implement INSERT/UPDATE/DELETE with procedural context
+            // This requires similar changes to InsertExecutor, UpdateExecutor, DeleteExecutor
+            Err(ExecutorError::UnsupportedFeature(
+                "INSERT/UPDATE/DELETE statements with procedural variables not yet implemented. \
+                 Only SELECT is currently supported.".to_string()
+            ))
+        }
+        _ => {
+            // Other SQL statements (DDL, transactions, etc.) are not supported in procedures
+            Err(ExecutorError::UnsupportedFeature(format!(
+                "SQL statement type not supported in procedure bodies: {:?}",
+                stmt
+            )))
+        }
+    }
 }
 
 /// Cast a value to a specific data type
@@ -304,3 +319,15 @@ fn cast_to_type(value: SqlValue, target_type: &vibesql_types::DataType) -> Resul
         _ => Ok(value),
     }
 }
+
+// TODO: Add comprehensive integration tests for SELECT with procedural variables
+// These tests would verify:
+// 1. SELECT with procedural variables in WHERE clause
+// 2. SELECT with procedural variables in SELECT list
+// 3. SELECT with procedural parameters (IN/OUT/INOUT)
+// 4. Nested procedures with variable scoping
+//
+// For now, the implementation can be verified by:
+// - Build succeeds (procedural_context field is properly threaded)
+// - Existing procedural tests pass (no regressions)
+// - Manual testing with procedures containing SELECT statements

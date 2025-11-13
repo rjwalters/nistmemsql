@@ -20,6 +20,8 @@ pub struct ExpressionEvaluator<'a> {
     pub(super) database: Option<&'a vibesql_storage::Database>,
     /// Trigger context for OLD/NEW pseudo-variable resolution
     pub(super) trigger_context: Option<&'a crate::trigger_execution::TriggerContext<'a>>,
+    /// Procedural context for stored procedure/function variable resolution
+    pub(super) procedural_context: Option<&'a crate::procedural::ExecutionContext>,
     /// Current depth in expression tree (for preventing stack overflow)
     pub(super) depth: usize,
     /// CSE cache for common sub-expression elimination (shared via Rc across depth levels)
@@ -35,6 +37,8 @@ pub struct CombinedExpressionEvaluator<'a> {
     pub(super) outer_row: Option<&'a vibesql_storage::Row>,
     pub(super) outer_schema: Option<&'a CombinedSchema>,
     pub(super) window_mapping: Option<&'a std::collections::HashMap<WindowFunctionKey, usize>>,
+    /// Procedural context for stored procedure/function variable resolution
+    pub(super) procedural_context: Option<&'a crate::procedural::ExecutionContext>,
     /// Cache for column lookups to avoid repeated schema traversals
     column_cache: RefCell<HashMap<(Option<String>, String), usize>>,
     /// Current depth in expression tree (for preventing stack overflow)
@@ -54,6 +58,7 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_schema: None,
             database: None,
             trigger_context: None,
+            procedural_context: None,
             depth: 0,
             cse_cache: Rc::new(RefCell::new(HashMap::new())),
             enable_cse: Self::is_cse_enabled(),
@@ -80,6 +85,7 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_schema: Some(outer_schema),
             database: None,
             trigger_context: None,
+            procedural_context: None,
             depth: 0,
             cse_cache: Rc::new(RefCell::new(HashMap::new())),
             enable_cse: Self::is_cse_enabled(),
@@ -97,6 +103,7 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_schema: None,
             database: Some(database),
             trigger_context: None,
+            procedural_context: None,
             depth: 0,
             cse_cache: Rc::new(RefCell::new(HashMap::new())),
             enable_cse: Self::is_cse_enabled(),
@@ -115,6 +122,7 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_schema: None,
             database: Some(database),
             trigger_context: Some(trigger_context),
+            procedural_context: None,
             depth: 0,
             cse_cache: Rc::new(RefCell::new(HashMap::new())),
             enable_cse: Self::is_cse_enabled(),
@@ -135,6 +143,26 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_schema: Some(outer_schema),
             database: Some(database),
             trigger_context: None,
+            procedural_context: None,
+            depth: 0,
+            cse_cache: Rc::new(RefCell::new(HashMap::new())),
+            enable_cse: Self::is_cse_enabled(),
+        }
+    }
+
+    /// Create a new expression evaluator with procedural context for stored procedure/function execution
+    pub fn with_procedural_context(
+        schema: &'a vibesql_catalog::TableSchema,
+        database: &'a vibesql_storage::Database,
+        procedural_context: &'a crate::procedural::ExecutionContext,
+    ) -> Self {
+        ExpressionEvaluator {
+            schema,
+            outer_row: None,
+            outer_schema: None,
+            database: Some(database),
+            trigger_context: None,
+            procedural_context: Some(procedural_context),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(HashMap::new())),
             enable_cse: Self::is_cse_enabled(),
@@ -217,6 +245,7 @@ impl<'a> ExpressionEvaluator<'a> {
             outer_schema: self.outer_schema,
             database: self.database,
             trigger_context: self.trigger_context,
+            procedural_context: self.procedural_context,
             depth: self.depth + 1,
             cse_cache: self.cse_cache.clone(),
             enable_cse: self.enable_cse,
@@ -244,6 +273,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             outer_row: None,
             outer_schema: None,
             window_mapping: None,
+            procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(HashMap::new())),
@@ -262,6 +292,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             outer_row: None,
             outer_schema: None,
             window_mapping: None,
+            procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(HashMap::new())),
@@ -283,6 +314,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             outer_row: Some(outer_row),
             outer_schema: Some(outer_schema),
             window_mapping: None,
+            procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(HashMap::new())),
@@ -302,6 +334,27 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             outer_row: None,
             outer_schema: None,
             window_mapping: Some(window_mapping),
+            procedural_context: None,
+            column_cache: RefCell::new(HashMap::new()),
+            depth: 0,
+            cse_cache: Rc::new(RefCell::new(HashMap::new())),
+            enable_cse: Self::is_cse_enabled(),
+        }
+    }
+
+    /// Create a new combined expression evaluator with database and procedural context
+    pub(crate) fn with_database_and_procedural_context(
+        schema: &'a CombinedSchema,
+        database: &'a vibesql_storage::Database,
+        procedural_context: &'a crate::procedural::ExecutionContext,
+    ) -> Self {
+        CombinedExpressionEvaluator {
+            schema,
+            database: Some(database),
+            outer_row: None,
+            outer_schema: None,
+            window_mapping: None,
+            procedural_context: Some(procedural_context),
             column_cache: RefCell::new(HashMap::new()),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(HashMap::new())),
@@ -350,6 +403,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             outer_row: self.outer_row,
             outer_schema: self.outer_schema,
             window_mapping: self.window_mapping,
+            procedural_context: self.procedural_context,
             // Share the column cache between parent and child evaluators
             column_cache: RefCell::new(self.column_cache.borrow().clone()),
             depth: self.depth + 1,
@@ -368,6 +422,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             outer_row: self.outer_row,
             outer_schema: self.outer_schema,
             window_mapping: self.window_mapping,
+            procedural_context: self.procedural_context,
             column_cache: RefCell::new(HashMap::new()),
             depth: self.depth,
             cse_cache: Rc::new(RefCell::new(HashMap::new())),
@@ -404,6 +459,7 @@ impl<'a> CombinedExpressionEvaluator<'a> {
             outer_row,
             outer_schema,
             window_mapping,
+            procedural_context: None,
             column_cache: RefCell::new(HashMap::new()),
             depth: 0,
             cse_cache: Rc::new(RefCell::new(HashMap::new())),

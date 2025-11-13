@@ -343,6 +343,17 @@ impl ExpressionEvaluator<'_> {
         column: &str,
         row: &vibesql_storage::Row,
     ) -> Result<vibesql_types::SqlValue, ExecutorError> {
+        // Check procedural context first (variables/parameters take precedence over table columns)
+        // This is only checked when there's no table qualifier, as variables don't have table prefixes
+        if table_qualifier.is_none() {
+            if let Some(proc_ctx) = self.procedural_context {
+                // Try to get value from procedural context (checks variables then parameters)
+                if let Some(value) = proc_ctx.get_value(column) {
+                    return Ok(value.clone());
+                }
+            }
+        }
+
         // Track which tables we searched for better error messages
         let mut searched_tables = Vec::new();
         let mut available_columns = Vec::new();
