@@ -444,14 +444,14 @@ With work queue parallelization, the full test suite now runs in **~2 minutes on
 cat target/sqllogictest_punchlist.csv
 
 # Test a single file to understand the current failures
-./scripts/test_one_file.sh index/delete/10/slt_good_0.test
+./scripts/sqllogictest test index/delete/10/slt_good_0.test
 
 # Refresh the punchlist after fixes
 python3 scripts/generate_punchlist.py
 ```
 
 **Documentation**:
-- **[docs/sqllogictest/QUICK_START.md](docs/sqllogictest/QUICK_START.md)** - 2-minute overview with key commands
+- **[docs/testing/sqllogictest/QUICK_START.md](docs/testing/sqllogictest/QUICK_START.md)** - 2-minute overview with key commands
 - **[docs/roadmaps/PUNCHLIST_100_CONFORMANCE.md](docs/roadmaps/PUNCHLIST_100_CONFORMANCE.md)** - Full strategic guide with workflow and phase breakdown
 - **[docs/roadmaps/PUNCHLIST_README.md](docs/roadmaps/PUNCHLIST_README.md)** - Complete setup documentation and detailed instructions
 - **[docs/roadmaps/PUNCHLIST_MANIFEST.md](docs/roadmaps/PUNCHLIST_MANIFEST.md)** - Manifest of all deliverables and their purposes
@@ -697,7 +697,7 @@ git submodule update --init --recursive
 cargo test --workspace
 
 # Run the interactive SQL shell (CLI)
-cargo run -p cli
+cargo run -p vibesql-cli
 
 # Or run the web demo
 cd web-demo
@@ -710,7 +710,7 @@ npm run dev
 **Quick CLI Example**:
 ```bash
 # Start the interactive shell
-cargo run -p cli
+cargo run -p vibesql-cli
 
 # Run a quick query
 vibesql> CREATE TABLE test (id INTEGER, name VARCHAR(50));
@@ -804,25 +804,25 @@ VibeSQL includes a full-featured command-line interface with multiple execution 
 
 ```bash
 # Build the CLI
-cargo build --release -p cli
+cargo build --release -p vibesql-cli
 
 # Run in interactive mode (REPL)
-cargo run -p cli
+cargo run -p vibesql-cli
 
 # Load existing database
-cargo run -p cli -- --database mydb.sql
+cargo run -p vibesql-cli -- --database mydb.sql
 
 # Execute SQL from command line
-cargo run -p cli -- --command "SELECT * FROM users"
+cargo run -p vibesql-cli -- --command "SELECT * FROM users"
 
 # Execute SQL from file
-cargo run -p cli -- --file queries.sql
+cargo run -p vibesql-cli -- --file queries.sql
 
 # Execute SQL from stdin (pipe support)
-echo "SELECT 1 + 1" | cargo run -p cli --
+echo "SELECT 1 + 1" | cargo run -p vibesql-cli --
 
 # Set output format
-cargo run -p cli -- --format json --command "SELECT * FROM users"
+cargo run -p vibesql-cli -- --format json --command "SELECT * FROM users"
 ```
 
 #### Execution Modes
@@ -1028,13 +1028,13 @@ vibesql -c "\save production.sql"
 
 **User Guides**:
 - **[docs/CLI_GUIDE.md](docs/CLI_GUIDE.md)** - Complete CLI user guide (meta-commands, import/export, configuration)
-- **[docs/FEATURE_STATUS.md](docs/FEATURE_STATUS.md)** - Detailed feature breakdown
+- **[docs/reference/FEATURE_STATUS.md](docs/reference/FEATURE_STATUS.md)** - Detailed feature breakdown
 - **[.vibesqlrc.example](.vibesqlrc.example)** - Example configuration file
 
 **Testing & Conformance**:
 - **[SQL:1999 Conformance Report](https://rjwalters.github.io/vibesql/conformance.html)** - Live conformance test results
 - [docs/testing/TESTING_STRATEGY.md](docs/testing/TESTING_STRATEGY.md) - Test approach and strategy
-- [docs/sqllogictest/SQLLOGICTEST_QUICKSTART.md](docs/sqllogictest/SQLLOGICTEST_QUICKSTART.md) - SQLLogicTest quick start
+- [docs/testing/sqllogictest/SQLLOGICTEST_QUICKSTART.md](docs/testing/sqllogictest/SQLLOGICTEST_QUICKSTART.md) - SQLLogicTest quick start
 - [docs/roadmaps/PUNCHLIST_100_CONFORMANCE.md](docs/roadmaps/PUNCHLIST_100_CONFORMANCE.md) - Conformance strategy
 
 **Architecture & Design**:
@@ -1083,7 +1083,7 @@ This project uses [Loom](https://github.com/loomhq/loom) for AI-powered developm
 - 🌐 Enhance the web demo
 - 🚀 Improve performance
 
-See [docs/WORK_PLAN.md](docs/WORK_PLAN.md) for current priorities.
+See the [roadmap](#-roadmap) section above for current priorities and completed milestones.
 
 ---
 
