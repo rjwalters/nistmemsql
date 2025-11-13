@@ -21,6 +21,7 @@ fn create_simple_procedure(
         sql_security: None,
         comment: None,
         language: None,
+    }
 }
 
 fn setup_test_table(db: &mut Database) {
@@ -50,6 +51,7 @@ fn test_create_procedure_simple() {
         sql_security: None,
         comment: None,
         language: None,
+    };
     
     let result = advanced_objects::execute_create_procedure(&proc, &mut db);
     assert!(result.is_ok());
@@ -69,6 +71,7 @@ fn test_drop_procedure_simple() {
         sql_security: None,
         comment: None,
         language: None,
+    };
     
     advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
     assert!(db.catalog.procedure_exists("test_proc"));
