@@ -158,6 +158,82 @@ impl IndexData {
             }
         }
     }
+
+    /// Get an iterator over all key-value pairs in the index
+    ///
+    /// # Returns
+    /// Iterator yielding references to (key, row_indices) pairs
+    ///
+    /// # Note
+    /// For in-memory indexes, iteration is in sorted key order (BTreeMap ordering).
+    /// This method enables index scanning operations without exposing internal data structures.
+    pub fn iter(&self) -> Box<dyn Iterator<Item = (&Vec<SqlValue>, &Vec<usize>)> + '_> {
+        match self {
+            IndexData::InMemory { data } => Box::new(data.iter()),
+            IndexData::DiskBacked { .. } => {
+                // TODO: Implement when DiskBacked is active
+                unimplemented!("DiskBacked iteration not yet implemented")
+            }
+        }
+    }
+
+    /// Lookup exact key in the index
+    ///
+    /// # Arguments
+    /// * `key` - Key to look up
+    ///
+    /// # Returns
+    /// Reference to vector of row indices if key exists, None otherwise
+    ///
+    /// # Note
+    /// This is the primary point-lookup API for index queries.
+    pub fn get(&self, key: &[SqlValue]) -> Option<&Vec<usize>> {
+        match self {
+            IndexData::InMemory { data } => data.get(key),
+            IndexData::DiskBacked { .. } => {
+                // TODO: Implement when DiskBacked is active
+                unimplemented!("DiskBacked lookup not yet implemented")
+            }
+        }
+    }
+
+    /// Check if a key exists in the index
+    ///
+    /// # Arguments
+    /// * `key` - Key to check
+    ///
+    /// # Returns
+    /// true if key exists, false otherwise
+    ///
+    /// # Note
+    /// Used primarily for UNIQUE constraint validation.
+    pub fn contains_key(&self, key: &[SqlValue]) -> bool {
+        match self {
+            IndexData::InMemory { data } => data.contains_key(key),
+            IndexData::DiskBacked { .. } => {
+                // TODO: Implement when DiskBacked is active
+                unimplemented!("DiskBacked contains_key not yet implemented")
+            }
+        }
+    }
+
+    /// Get an iterator over all row index vectors in the index
+    ///
+    /// # Returns
+    /// Iterator yielding references to row index vectors
+    ///
+    /// # Note
+    /// This method is used for full index scans where we need all row indices
+    /// regardless of the key values.
+    pub fn values(&self) -> Box<dyn Iterator<Item = &Vec<usize>> + '_> {
+        match self {
+            IndexData::InMemory { data } => Box::new(data.values()),
+            IndexData::DiskBacked { .. } => {
+                // TODO: Implement when DiskBacked is active
+                unimplemented!("DiskBacked values iteration not yet implemented")
+            }
+        }
+    }
 }
 
 /// Manages user-defined indexes (CREATE INDEX statements)
