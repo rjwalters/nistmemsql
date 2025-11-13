@@ -13,6 +13,40 @@ use crate::btree::{BTreeIndex, Key};
 use crate::page::PageManager;
 use crate::{Row, StorageError};
 
+/// Apply prefix truncation to a SqlValue if prefix_length is specified
+///
+/// For string types (Varchar, Char, Text), truncates to first N characters.
+/// For other types, returns the value unchanged (prefix indexing only applies to strings).
+///
+/// # Arguments
+/// * `value` - The value to potentially truncate
+/// * `prefix_length` - Optional prefix length in characters
+///
+/// # Returns
+/// Truncated value if applicable, otherwise the original value
+fn apply_prefix_truncation(value: &SqlValue, prefix_length: Option<u64>) -> SqlValue {
+    // If no prefix length specified, return value as-is
+    let Some(prefix_len) = prefix_length else {
+        return value.clone();
+    };
+
+    // Only apply truncation to string types
+    match value {
+        SqlValue::Varchar(s) | SqlValue::Character(s) => {
+            // Take first N characters (UTF-8 aware)
+            let truncated: String = s.chars().take(prefix_len as usize).collect();
+            // Return same type as input
+            match value {
+                SqlValue::Varchar(_) => SqlValue::Varchar(truncated),
+                SqlValue::Character(_) => SqlValue::Character(truncated),
+                _ => unreachable!(),
+            }
+        }
+        // For non-string types, prefix indexing doesn't apply
+        _ => value.clone(),
+    }
+}
+
 impl IndexManager {
     /// Create an index
     pub fn create_index(
@@ -74,8 +108,14 @@ impl IndexManager {
             // so we don't need to extend keys with row_id for non-unique indexes
             let mut sorted_entries: Vec<(Key, usize)> = Vec::new();
             for (row_idx, row) in table_rows.iter().enumerate() {
-                let key_values: Vec<SqlValue> =
-                    column_indices.iter().map(|&idx| row.values[idx].clone()).collect();
+                let key_values: Vec<SqlValue> = column_indices
+                    .iter()
+                    .zip(columns.iter())
+                    .map(|(&idx, col)| {
+                        let value = &row.values[idx];
+                        apply_prefix_truncation(value, col.prefix_length)
+                    })
+                    .collect();
                 sorted_entries.push((key_values, row_idx));
             }
             // Sort by key for bulk_load
@@ -106,8 +146,14 @@ impl IndexManager {
             // Build the index data in-memory for small tables
             let mut index_data_map: BTreeMap<Vec<SqlValue>, Vec<usize>> = BTreeMap::new();
             for (row_idx, row) in table_rows.iter().enumerate() {
-                let key_values: Vec<SqlValue> =
-                    column_indices.iter().map(|&idx| row.values[idx].clone()).collect();
+                let key_values: Vec<SqlValue> = column_indices
+                    .iter()
+                    .zip(columns.iter())
+                    .map(|(&idx, col)| {
+                        let value = &row.values[idx];
+                        apply_prefix_truncation(value, col.prefix_length)
+                    })
+                    .collect();
                 index_data_map.entry(key_values).or_default().push(row_idx);
             }
 
@@ -156,7 +202,8 @@ impl IndexManager {
                             let col_idx = table_schema
                                 .get_column_index(&col.column_name)
                                 .expect("Index column should exist");
-                            row.values[col_idx].clone()
+                            let value = &row.values[col_idx];
+                            apply_prefix_truncation(value, col.prefix_length)
                         })
                         .collect();
 
@@ -206,7 +253,8 @@ impl IndexManager {
                             let col_idx = table_schema
                                 .get_column_index(&col.column_name)
                                 .expect("Index column should exist");
-                            old_row.values[col_idx].clone()
+                            let value = &old_row.values[col_idx];
+                            apply_prefix_truncation(value, col.prefix_length)
                         })
                         .collect();
 
@@ -217,7 +265,8 @@ impl IndexManager {
                             let col_idx = table_schema
                                 .get_column_index(&col.column_name)
                                 .expect("Index column should exist");
-                            new_row.values[col_idx].clone()
+                            let value = &new_row.values[col_idx];
+                            apply_prefix_truncation(value, col.prefix_length)
                         })
                         .collect();
 
@@ -281,7 +330,8 @@ impl IndexManager {
                             let col_idx = table_schema
                                 .get_column_index(&col.column_name)
                                 .expect("Index column should exist");
-                            row.values[col_idx].clone()
+                            let value = &row.values[col_idx];
+                            apply_prefix_truncation(value, col.prefix_length)
                         })
                         .collect();
 
@@ -346,7 +396,8 @@ impl IndexManager {
                                         let col_idx = table_schema
                                             .get_column_index(&col.column_name)
                                             .expect("Index column should exist");
-                                        row.values[col_idx].clone()
+                                        let value = &row.values[col_idx];
+                                        apply_prefix_truncation(value, col.prefix_length)
                                     })
                                     .collect();
 
@@ -365,7 +416,8 @@ impl IndexManager {
                                         let col_idx = table_schema
                                             .get_column_index(&col.column_name)
                                             .expect("Index column should exist");
-                                        row.values[col_idx].clone()
+                                        let value = &row.values[col_idx];
+                                        apply_prefix_truncation(value, col.prefix_length)
                                     })
                                     .collect();
                                 sorted_entries.push((key_values, row_index));
