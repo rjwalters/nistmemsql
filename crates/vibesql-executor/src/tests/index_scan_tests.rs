@@ -14,6 +14,7 @@ use crate::select::SelectExecutor;
 /// Create a test database with users table
 fn create_test_db() -> Database {
     let mut db = Database::new();
+    db.catalog.set_case_sensitive_identifiers(false);
 
     // Create users table
     let users_schema = TableSchema::new(
@@ -277,8 +278,7 @@ fn test_unique_index_enforcement() {
     assert!(result.is_ok());
 
     // Now try to insert a duplicate email
-    // Note: The current implementation doesn't enforce uniqueness on user-defined indexes
-    // This test documents current behavior and should be updated when enforcement is added
+    // The implementation now enforces uniqueness on user-defined indexes
     let duplicate_result = db.insert_row(
         "users",
         Row::new(vec![
@@ -289,7 +289,6 @@ fn test_unique_index_enforcement() {
         ]),
     );
 
-    // Currently allows duplicates (TODO: enforce unique constraints)
-    // When enforcement is added, this should be Err
-    assert!(duplicate_result.is_ok(), "Current implementation allows duplicates in user-defined indexes");
+    // Should reject duplicates in unique indexes
+    assert!(duplicate_result.is_err(), "Unique indexes should prevent duplicate values");
 }
