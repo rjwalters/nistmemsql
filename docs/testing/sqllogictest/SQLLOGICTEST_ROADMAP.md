@@ -87,7 +87,7 @@ Top failure categories:
    ./scripts/run_remote_sqllogictest.sh
 
    # Analyze new results
-   python3 scripts/run_parallel_tests.py --analyze
+   ./scripts/sqllogictest run --parallel --analyze
    ```
 
 ### Phase 2: Medium-Impact Fixes (Target: Week 2-3)
@@ -213,9 +213,12 @@ Schedule after implementing #956 and #957 (Quick Wins).
 ### Scripts
 
 - `scripts/run_remote_sqllogictest.sh` - Run full test suite remotely
-- `scripts/run_parallel_tests.py` - Run tests with parallel workers
-- `scripts/aggregate_worker_results.py` - Combine worker results
-- `scripts/analyze_test_failures.py` - Analyze failures with clustering and pattern detection
+- `scripts/sqllogictest` - Unified CLI tool for all SQLLogicTest operations
+  - Test individual files: `./scripts/sqllogictest test <file>`
+  - Run full suite with parallel workers: `./scripts/sqllogictest run --parallel`
+  - Analyze failures with clustering: `./scripts/sqllogictest analyze`
+  - Generate punchlist: `./scripts/sqllogictest punchlist`
+  - Show quick summary: `./scripts/sqllogictest status`
 
 ### Data Files
 

@@ -144,7 +144,7 @@ Examples:
 
 ### Analyze Results
 ```bash
-python3 scripts/analyze_test_failures.py
+./scripts/sqllogictest analyze
 ```
 
 Identifies high-impact fix opportunities through failure clustering and pattern analysis.

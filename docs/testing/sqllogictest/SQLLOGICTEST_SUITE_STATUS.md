@@ -25,7 +25,7 @@ cargo test --test sqllogictest_suite -- random/select
 
 ```bash
 # Run full suite with parallel workers (requires 64-core machine)
-python3 scripts/run_parallel_tests.py --workers 64 --time-budget 3600
+./scripts/sqllogictest run --parallel --workers 64 --time 3600
 
 # Aggregate results from all workers
 python3 scripts/aggregate_worker_results.py /tmp/sqllogictest_results
@@ -428,7 +428,7 @@ For comprehensive testing on high-core-count machines:
 cargo build --release --test sqllogictest_suite
 
 # Run with 64 workers (best for high-core machines)
-python3 scripts/run_parallel_tests.py --workers 64 --time-budget 3600
+./scripts/sqllogictest run --parallel --workers 64 --time 3600
 
 # Monitor progress
 watch -n 5 'ls /tmp/sqllogictest_results/worker_*.log | wc -l'

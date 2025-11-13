@@ -556,7 +556,7 @@ cd benchmark
 
 ### Documentation
 
-See [benchmark/README.md](benchmark/README.md) for:
+See [benchmarks/suite/README.md](benchmarks/suite/README.md) for:
 - Complete tool reference
 - Output format details
 - Analysis workflows

@@ -78,15 +78,23 @@ python3 scripts/generate_punchlist.py
 - To understand what feature is missing
 - To verify a fix works
 
-### 3. `scripts/test_file_direct.sh`
-**Purpose**: Direct testing without cargo test framework
+### 3. `scripts/sqllogictest`
+**Purpose**: Unified SQLLogicTest tool for all testing operations
 
 **Usage**:
 ```bash
-./scripts/test_file_direct.sh index/delete/10/slt_good_0.test
+# Test a single file
+./scripts/sqllogictest test index/delete/10/slt_good_0.test
+
+# Run full suite with parallel workers
+./scripts/sqllogictest run --parallel --workers 64
+
+# Generate reports and analysis
+./scripts/sqllogictest punchlist
+./scripts/sqllogictest analyze
 ```
 
-**Note**: Requires `sqllogictest` CLI tool installed. Falls back to showing file contents if not available.
+**Note**: This replaces the previous separate scripts with a unified interface.
 
 ## Quick Start Workflow
 

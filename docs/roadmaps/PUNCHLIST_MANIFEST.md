@@ -65,10 +65,10 @@
 - **When to use**: After running full test suite
 - **Status**: ✓ Ready to use
 
-#### scripts/test_file_direct.sh (optional)
-- **Purpose**: Direct CLI testing without cargo framework
-- **Requires**: sqllogictest CLI tool
-- **Status**: Optional (fallback if sqllogictest installed)
+#### scripts/sqllogictest (unified CLI)
+- **Purpose**: Unified tool for all SQLLogicTest operations
+- **Commands**: test, run, punchlist, analyze, status
+- **Status**: ✓ Ready to use
 
 ### 4. Reference Guides
 

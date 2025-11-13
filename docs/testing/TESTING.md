@@ -104,10 +104,10 @@ Instead of creating issues for individual test failures, analyze failure categor
 
 ```bash
 # Analyze test failures with clustering and pattern analysis
-python3 scripts/analyze_test_failures.py
+./scripts/sqllogictest analyze
 
 # Or run via the test runner
-python3 scripts/run_parallel_tests.py --analyze
+./scripts/sqllogictest run --parallel --analyze
 ```
 
 **Output includes:**
