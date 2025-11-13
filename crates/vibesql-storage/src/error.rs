@@ -17,6 +17,9 @@ pub enum StorageError {
     TypeMismatch { column: String, expected: String, actual: String },
     NotImplemented(String),
     IoError(String),
+    InvalidPageSize { expected: usize, actual: usize },
+    InvalidPageId(u64),
+    LockError(String),
 }
 
 impl std::fmt::Display for StorageError {
@@ -49,6 +52,11 @@ impl std::fmt::Display for StorageError {
             }
             StorageError::NotImplemented(msg) => write!(f, "Not implemented: {}", msg),
             StorageError::IoError(msg) => write!(f, "I/O error: {}", msg),
+            StorageError::InvalidPageSize { expected, actual } => {
+                write!(f, "Invalid page size: expected {}, got {}", expected, actual)
+            }
+            StorageError::InvalidPageId(page_id) => write!(f, "Invalid page ID: {}", page_id),
+            StorageError::LockError(msg) => write!(f, "Lock error: {}", msg),
         }
     }
 }
