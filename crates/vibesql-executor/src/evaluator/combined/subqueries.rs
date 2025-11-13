@@ -355,5 +355,4 @@ impl CombinedExpressionEvaluator<'_> {
             Ok(vibesql_types::SqlValue::Boolean(negated))
         }
     }
-    }
 }
