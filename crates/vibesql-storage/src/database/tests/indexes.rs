@@ -149,6 +149,7 @@ fn test_disk_backed_index_creation_with_bulk_load() {
         vec![vibesql_ast::IndexColumn {
             column_name: "id".to_string(),
             direction: OrderDirection::Asc,
+            prefix_length: None,
         }],
     );
 
@@ -199,6 +200,7 @@ fn test_in_memory_index_for_small_tables() {
         vec![vibesql_ast::IndexColumn {
             column_name: "value".to_string(),
             direction: OrderDirection::Asc,
+            prefix_length: None,
         }],
     );
 
@@ -257,6 +259,7 @@ fn test_budget_enforcement_with_spill_policy() {
         vec![vibesql_ast::IndexColumn {
             column_name: "value".to_string(),
             direction: OrderDirection::Asc,
+            prefix_length: None,
         }],
     );
     assert!(result1.is_ok());
@@ -271,6 +274,7 @@ fn test_budget_enforcement_with_spill_policy() {
         vec![vibesql_ast::IndexColumn {
             column_name: "value".to_string(),
             direction: OrderDirection::Asc,
+            prefix_length: None,
         }],
     );
     assert!(result2.is_ok());
@@ -320,6 +324,7 @@ fn test_lru_eviction_order() {
         vec![vibesql_ast::IndexColumn {
             column_name: "value".to_string(),
             direction: OrderDirection::Asc,
+            prefix_length: None,
         }],
     ).unwrap();
 
@@ -335,6 +340,7 @@ fn test_lru_eviction_order() {
         vec![vibesql_ast::IndexColumn {
             column_name: "value".to_string(),
             direction: OrderDirection::Asc,
+            prefix_length: None,
         }],
     ).unwrap();
 
@@ -355,6 +361,7 @@ fn test_lru_eviction_order() {
         vec![vibesql_ast::IndexColumn {
             column_name: "value".to_string(),
             direction: OrderDirection::Asc,
+            prefix_length: None,
         }],
     ).unwrap();
 
@@ -401,6 +408,7 @@ fn test_access_tracking() {
         vec![vibesql_ast::IndexColumn {
             column_name: "value".to_string(),
             direction: OrderDirection::Asc,
+            prefix_length: None,
         }],
     ).unwrap();
 
@@ -453,6 +461,7 @@ fn test_resource_cleanup_on_drop() {
         vec![vibesql_ast::IndexColumn {
             column_name: "value".to_string(),
             direction: OrderDirection::Asc,
+            prefix_length: None,
         }],
     ).unwrap();
 

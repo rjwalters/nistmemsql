@@ -374,8 +374,10 @@ fn parse_data_type(type_str: &str) -> Result<vibesql_types::DataType, StorageErr
         "BOOLEAN" => Ok(DataType::Boolean),
         "DATE" => Ok(DataType::Date),
         "TIME" => Ok(DataType::Time { with_timezone: false }),
-        "TIMESTAMP" => Ok(DataType::Timestamp { with_timezone: false }),
-        "TIMESTAMP WITH TIME ZONE" => Ok(DataType::Timestamp { with_timezone: true }),
+        "TIMESTAMP" | "DATETIME" => Ok(DataType::Timestamp { with_timezone: false }),
+        "TIMESTAMP WITH TIME ZONE" | "DATETIME WITH TIME ZONE" => {
+            Ok(DataType::Timestamp { with_timezone: true })
+        }
         s if s.starts_with("VARCHAR(") => {
             let len_str = s.trim_start_matches("VARCHAR(").trim_end_matches(')');
             let max_length = len_str.parse().ok();
