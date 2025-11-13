@@ -227,21 +227,34 @@ impl Database {
 
     /// Get a table for reading
     pub fn get_table(&self, name: &str) -> Option<&Table> {
-        // Normalize table name for lookup (matches catalog normalization)
-        let normalized_name = if self.catalog.is_case_sensitive_identifiers() {
-            name.to_string()
-        } else {
-            name.to_uppercase()
-        };
-
-        if let Some(table) = self.tables.get(&normalized_name) {
+        // Try the name as-is first (for delimited identifiers)
+        if let Some(table) = self.tables.get(name) {
             return Some(table);
         }
 
+        // Try uppercase normalization (for unquoted identifiers from the parser)
+        let normalized_name = name.to_uppercase();
+        if normalized_name != name {
+            if let Some(table) = self.tables.get(&normalized_name) {
+                return Some(table);
+            }
+        }
+
+        // Try with schema qualification
         if !name.contains('.') {
             let current_schema = &self.catalog.get_current_schema();
-            let qualified_name = format!("{}.{}", current_schema, normalized_name);
-            return self.tables.get(&qualified_name);
+
+            // Try as-is with schema prefix
+            let qualified_name_original = format!("{}.{}", current_schema, name);
+            if let Some(table) = self.tables.get(&qualified_name_original) {
+                return Some(table);
+            }
+
+            // Try uppercase with schema prefix
+            let qualified_name_normalized = format!("{}.{}", current_schema, normalized_name);
+            if qualified_name_normalized != qualified_name_original {
+                return self.tables.get(&qualified_name_normalized);
+            }
         }
 
         None
@@ -249,21 +262,32 @@ impl Database {
 
     /// Get a table for writing
     pub fn get_table_mut(&mut self, name: &str) -> Option<&mut Table> {
-        // Normalize table name for lookup (matches catalog normalization)
-        let normalized_name = if self.catalog.is_case_sensitive_identifiers() {
-            name.to_string()
-        } else {
-            name.to_uppercase()
-        };
+        // Try the name as-is first (for delimited identifiers)
+        if self.tables.contains_key(name) {
+            return self.tables.get_mut(name);
+        }
 
-        if self.tables.contains_key(&normalized_name) {
+        // Try uppercase normalization (for unquoted identifiers from the parser)
+        let normalized_name = name.to_uppercase();
+        if normalized_name != name && self.tables.contains_key(&normalized_name) {
             return self.tables.get_mut(&normalized_name);
         }
 
+        // Try with schema qualification
         if !name.contains('.') {
             let current_schema = &self.catalog.get_current_schema().to_string();
-            let qualified_name = format!("{}.{}", current_schema, normalized_name);
-            return self.tables.get_mut(&qualified_name);
+
+            // Try as-is with schema prefix
+            let qualified_name_original = format!("{}.{}", current_schema, name);
+            if self.tables.contains_key(&qualified_name_original) {
+                return self.tables.get_mut(&qualified_name_original);
+            }
+
+            // Try uppercase with schema prefix
+            let qualified_name_normalized = format!("{}.{}", current_schema, normalized_name);
+            if qualified_name_normalized != qualified_name_original {
+                return self.tables.get_mut(&qualified_name_normalized);
+            }
         }
 
         None
