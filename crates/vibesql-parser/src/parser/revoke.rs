@@ -141,7 +141,7 @@ pub fn parse_revoke(parser: &mut crate::Parser) -> Result<RevokeStmt, ParseError
     parser.expect_keyword(Keyword::From)?;
 
     // Parse comma-separated grantee list
-    let grantees = parse_identifier_list(parser)?;
+    let grantees = parser.parse_identifier_list()?;
 
     // Parse optional GRANTED BY clause
     let granted_by = if parser.peek() == &Token::Keyword(Keyword::Granted) {
@@ -276,7 +276,7 @@ fn parse_optional_column_list(
         parser.advance(); // consume '('
 
         // Parse comma-separated column list
-        let columns = parse_identifier_list(parser)?;
+        let columns = parser.parse_identifier_list()?;
 
         // Expect closing ')'
         if parser.peek() != &Token::RParen {
@@ -293,20 +293,3 @@ fn parse_optional_column_list(
     }
 }
 
-/// Parse a comma-separated list of identifiers
-fn parse_identifier_list(parser: &mut crate::Parser) -> Result<Vec<String>, ParseError> {
-    let mut identifiers = vec![];
-
-    loop {
-        identifiers.push(parser.parse_identifier()?);
-
-        // Check for comma indicating more identifiers
-        if parser.peek() == &Token::Comma {
-            parser.advance(); // consume comma
-        } else {
-            break;
-        }
-    }
-
-    Ok(identifiers)
-}

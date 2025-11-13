@@ -50,6 +50,45 @@ impl Parser {
         Parser { tokens, position: 0 }
     }
 
+    /// Parse a comma-separated list of items using a provided parser function
+    ///
+    /// This is a generic helper that consolidates the common pattern of parsing
+    /// comma-separated lists throughout the parser (e.g., GROUP BY expressions,
+    /// ORDER BY items, identifier lists, etc.)
+    ///
+    /// # Arguments
+    /// * `parse_item` - Closure that parses a single item of type T
+    ///
+    /// # Returns
+    /// * `Ok(Vec<T>)` - Successfully parsed list of items
+    /// * `Err(ParseError)` - Error parsing an item
+    ///
+    /// # Example
+    /// ```ignore
+    /// // Parse comma-separated expressions (for GROUP BY)
+    /// let exprs = self.parse_comma_separated_list(|p| p.parse_expression())?;
+    ///
+    /// // Parse comma-separated identifiers
+    /// let ids = self.parse_comma_separated_list(|p| p.parse_identifier())?;
+    /// ```
+    pub fn parse_comma_separated_list<T, F>(&mut self, parse_item: F) -> Result<Vec<T>, ParseError>
+    where
+        F: Fn(&mut Self) -> Result<T, ParseError>,
+    {
+        let mut items = Vec::new();
+
+        // Parse first item
+        items.push(parse_item(self)?);
+
+        // Parse remaining items (preceded by commas)
+        while matches!(self.peek(), Token::Comma) {
+            self.advance(); // consume comma
+            items.push(parse_item(self)?);
+        }
+
+        Ok(items)
+    }
+
     /// Parse SQL input string into a Statement
     pub fn parse_sql(input: &str) -> Result<vibesql_ast::Statement, ParseError> {
         let mut lexer = Lexer::new(input);

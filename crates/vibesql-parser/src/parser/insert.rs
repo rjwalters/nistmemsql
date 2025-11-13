@@ -42,22 +42,14 @@ impl Parser {
         // Parse column list (optional in SQL, but we'll require it for now)
         let columns = if matches!(self.peek(), Token::LParen) {
             self.advance(); // consume (
-            let mut cols = Vec::new();
-            loop {
-                match self.peek() {
-                    Token::Identifier(col) => {
-                        cols.push(col.clone());
-                        self.advance();
-                    }
-                    _ => return Err(ParseError { message: "Expected column name".to_string() }),
+            let cols = self.parse_comma_separated_list(|p| match p.peek() {
+                Token::Identifier(col) => {
+                    let name = col.clone();
+                    p.advance();
+                    Ok(name)
                 }
-
-                if matches!(self.peek(), Token::Comma) {
-                    self.advance();
-                } else {
-                    break;
-                }
-            }
+                _ => Err(ParseError { message: "Expected column name".to_string() }),
+            })?;
             self.expect_token(Token::RParen)?;
             cols
         } else {
@@ -73,17 +65,7 @@ impl Parser {
             let mut values = Vec::new();
             loop {
                 self.expect_token(Token::LParen)?;
-                let mut row = Vec::new();
-                loop {
-                    let expr = self.parse_expression()?;
-                    row.push(expr);
-
-                    if matches!(self.peek(), Token::Comma) {
-                        self.advance();
-                    } else {
-                        break;
-                    }
-                }
+                let row = self.parse_comma_separated_list(|p| p.parse_expression())?;
                 self.expect_token(Token::RParen)?;
                 values.push(row);
 
@@ -209,17 +191,7 @@ impl Parser {
             let mut values = Vec::new();
             loop {
                 self.expect_token(Token::LParen)?;
-                let mut row = Vec::new();
-                loop {
-                    let expr = self.parse_expression()?;
-                    row.push(expr);
-
-                    if matches!(self.peek(), Token::Comma) {
-                        self.advance();
-                    } else {
-                        break;
-                    }
-                }
+                let row = self.parse_comma_separated_list(|p| p.parse_expression())?;
                 self.expect_token(Token::RParen)?;
                 values.push(row);
 

@@ -199,4 +199,12 @@ impl Parser {
             self.advance();
         }
     }
+
+    /// Parse a comma-separated list of identifiers
+    ///
+    /// This is a common pattern used in GRANT, REVOKE, and other statements
+    /// that need to parse lists of user names, role names, or column names.
+    pub(super) fn parse_identifier_list(&mut self) -> Result<Vec<String>, ParseError> {
+        self.parse_comma_separated_list(|p| p.parse_identifier())
+    }
 }
