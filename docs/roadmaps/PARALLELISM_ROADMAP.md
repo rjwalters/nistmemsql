@@ -1,7 +1,7 @@
 # VibeSQL Parallelism Roadmap
 
 **Version**: 1.1
-**Date**: 2025-01-13
+**Date**: 2025-11-13
 **Status**: Phase 1 COMPLETE ✅ | Phase 2 Planning
 
 ---
@@ -157,7 +157,7 @@ Parallel execution shifts bottleneck from CPU to memory bandwidth:
 
 **Goal**: Introduce parallel execution for compute-intensive operations with minimal architectural changes.
 
-**Status**: **100% COMPLETE** (January 2025)
+**Status**: **100% COMPLETE** (October-November 2025)
 **PRs**: #1516, #1535, #1580, #1589, #1594, #1598, #1601
 
 #### 1.1 Implement Query-Based Heuristics ✅ COMPLETE (PR #1516)
@@ -1724,7 +1724,7 @@ Based on Amdahl's Law with 90% parallelizable work:
 - [x] No regression on small queries (<10k rows) ✅
 - [x] Memory usage <2x sequential for parallel execution ✅
 
-**Status**: Phase 1 100% COMPLETE (January 2025)
+**Status**: Phase 1 100% COMPLETE (October-November 2025)
 
 ### Phase 2 Success Criteria
 
@@ -1829,7 +1829,7 @@ PARALLEL_THRESHOLD=max cargo test
 
 | Version | Date | Changes | Author |
 |---------|------|---------|--------|
-| 1.0 | 2025-01-12 | Initial roadmap | Claude Code |
+| 1.0 | 2025-11-12 | Initial roadmap | Claude Code |
 
 ---
 

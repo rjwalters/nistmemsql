@@ -1,6 +1,6 @@
 # VibeSQL Parallelism Strategy: Heuristic-Based Automatic Execution
 
-**Status**: ✅ **IMPLEMENTED** (Phase 1 Complete - January 2025)
+**Status**: ✅ **IMPLEMENTED** (Phase 1 Complete - October-November 2025)
 
 **TL;DR**: Modern computers have 8+ cores. We use them automatically with zero configuration.
 
@@ -464,7 +464,7 @@ SET max_parallel_workers_per_gather = 4;
 - [x] **Override**: `PARALLEL_THRESHOLD` for power users ✅
 - [x] **Tested**: All SQLLogicTest pass with automatic parallelism ✅
 
-**Status**: All success criteria achieved in Phase 1 (January 2025)
+**Status**: All success criteria achieved in Phase 1 (October-November 2025)
 
 ---
 
@@ -498,4 +498,4 @@ SET max_parallel_workers_per_gather = 4;
 - `docs/roadmaps/PARALLELISM_ROADMAP.md` - Detailed roadmap with completion status
 - `crates/vibesql-executor/src/select/parallel.rs` - Actual implementation
 
-**Implementation**: Phase 1 completed January 2025 (PRs #1516, #1535, #1580, #1589, #1594)
+**Implementation**: Phase 1 completed October-November 2025 (PRs #1516, #1535, #1580, #1589, #1594)
