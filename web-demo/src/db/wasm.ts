@@ -11,6 +11,7 @@ const WASM_MODULE_PATH = isProdBuild
 
 let wasmModule: WasmModule | null = null
 let db: Database | null = null
+let usingOpfs: boolean = false
 
 async function loadWasmModule(): Promise<WasmModule> {
   if (wasmModule) return wasmModule
@@ -41,16 +42,32 @@ async function loadWasmModule(): Promise<WasmModule> {
  * Initialize the WASM database module.
  * Must be called before any database operations.
  *
+ * @param useOpfs - Whether to use OPFS persistence (default: true)
  * @returns Promise that resolves to Database instance
  * @throws Error if WASM fails to load
  */
-export async function initDatabase(): Promise<Database> {
+export async function initDatabase(useOpfs: boolean = true): Promise<Database> {
   if (db) return db
 
   try {
     const module = await loadWasmModule()
     await module.default()
-    db = new module.Database()
+
+    // Use OPFS-backed persistent storage if requested and available
+    if (useOpfs && isOpfsSupported()) {
+      db = module.Database.newWithPersistence()
+      usingOpfs = true
+      console.log('Database initialized with OPFS persistent storage')
+    } else {
+      db = new module.Database()
+      usingOpfs = false
+      if (useOpfs && !isOpfsSupported()) {
+        console.warn('OPFS requested but not supported in this browser, falling back to in-memory storage')
+      } else {
+        console.log('Database initialized with in-memory storage')
+      }
+    }
+
     return db
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -78,4 +95,41 @@ export function getDatabase(): Database {
  */
 export function isDatabaseReady(): boolean {
   return db !== null
+}
+
+/**
+ * Check if OPFS (Origin Private File System) is supported in this browser
+ *
+ * @returns True if OPFS is available, false otherwise
+ */
+export function isOpfsSupported(): boolean {
+  // Check if we're in a browser environment and OPFS is available
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return false
+  }
+
+  // Check for the File System Access API (includes OPFS)
+  return (
+    'storage' in navigator &&
+    'getDirectory' in navigator.storage &&
+    typeof navigator.storage.getDirectory === 'function'
+  )
+}
+
+/**
+ * Check if the database is using OPFS persistent storage
+ *
+ * @returns True if using OPFS, false if using in-memory storage
+ */
+export function isUsingOpfs(): boolean {
+  return usingOpfs
+}
+
+/**
+ * Get storage mode as a human-readable string
+ *
+ * @returns "OPFS (Persistent)" or "Memory (Temporary)"
+ */
+export function getStorageMode(): string {
+  return usingOpfs ? 'OPFS (Persistent)' : 'Memory (Temporary)'
 }

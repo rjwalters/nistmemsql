@@ -1,6 +1,6 @@
 import './styles/main.css'
 import { initTheme } from './theme'
-import { initDatabase } from './db/wasm'
+import { initDatabase, getStorageMode, isOpfsSupported } from './db/wasm'
 import type { Database, QueryResult, ExecuteResult } from './db/types'
 import { validateSql } from './editor/validation'
 import { NavigationComponent } from './components/Navigation'
@@ -428,6 +428,22 @@ async function bootstrap(): Promise<void> {
   const database = await safeInitDatabase()
   let tableNames: string[] = []
   let currentDatabaseId = 'employees'
+
+  // Update storage status display
+  const storageStatusEl = document.getElementById('storage-status')
+  if (storageStatusEl) {
+    const storageMode = getStorageMode()
+    storageStatusEl.textContent = storageMode
+
+    // Add visual indicator for OPFS vs in-memory
+    if (isOpfsSupported() && storageMode.includes('OPFS')) {
+      storageStatusEl.classList.add('text-green-600', 'dark:text-green-400')
+      storageStatusEl.title = 'Data persists across browser sessions using Origin Private File System'
+    } else {
+      storageStatusEl.classList.add('text-yellow-600', 'dark:text-yellow-400')
+      storageStatusEl.title = 'Data is temporary and will be lost when the page reloads'
+    }
+  }
 
   // Function to load a database by ID
   const loadDatabase = async (dbId: string): Promise<void> => {

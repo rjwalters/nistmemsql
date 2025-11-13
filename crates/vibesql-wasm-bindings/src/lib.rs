@@ -68,10 +68,35 @@ pub struct Database {
 
 #[wasm_bindgen]
 impl Database {
-    /// Creates a new empty database instance
+    /// Creates a new empty database instance with in-memory storage
     #[wasm_bindgen(constructor)]
     pub fn new() -> Database {
         Database { db: vibesql_storage::Database::new() }
+    }
+
+    /// Creates a new database instance configured for browser environment
+    ///
+    /// This uses browser-appropriate defaults:
+    /// - 512MB memory budget for indexes
+    /// - 2GB disk budget (OPFS)
+    /// - SpillToDisk policy for automatic memory management
+    /// - OPFS-backed persistent storage for indexes
+    ///
+    /// Data persists across browser sessions using Origin Private File System (OPFS).
+    ///
+    /// # Browser Compatibility
+    /// - Chrome 86+
+    /// - Firefox 111+
+    /// - Safari 15.2+
+    #[wasm_bindgen(js_name = newWithPersistence)]
+    pub fn new_with_persistence() -> Database {
+        // Use browser-default configuration with OPFS persistence
+        let config = vibesql_storage::DatabaseConfig::browser_default();
+        let path = std::path::PathBuf::from("/vibesql-data");
+
+        Database {
+            db: vibesql_storage::Database::with_path_and_config(path, config)
+        }
     }
 
     /// Returns the version string
