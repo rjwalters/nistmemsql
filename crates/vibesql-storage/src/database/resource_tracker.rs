@@ -120,18 +120,23 @@ impl ResourceTracker {
         disk_bytes: usize,
         backend: IndexBackend,
     ) {
+        // Normalize index name to uppercase (consistent with SQL identifier normalization)
+        let normalized = index_name.to_uppercase();
+
         // Update totals
         self.memory_used.fetch_add(memory_bytes, Ordering::Relaxed);
         self.disk_used.fetch_add(disk_bytes, Ordering::Relaxed);
 
         // Create stats entry
         let stats = IndexStats::new(memory_bytes, disk_bytes, backend);
-        self.index_stats.write().unwrap().insert(index_name, stats);
+        self.index_stats.write().unwrap().insert(normalized, stats);
     }
 
     /// Remove an index from tracking
     pub fn unregister_index(&mut self, index_name: &str) {
-        if let Some(stats) = self.index_stats.write().unwrap().remove(index_name) {
+        // Normalize index name to uppercase for lookup
+        let normalized = index_name.to_uppercase();
+        if let Some(stats) = self.index_stats.write().unwrap().remove(&normalized) {
             // Subtract from totals
             self.memory_used.fetch_sub(stats.memory_bytes, Ordering::Relaxed);
             self.disk_used.fetch_sub(stats.disk_bytes, Ordering::Relaxed);
@@ -141,14 +146,18 @@ impl ResourceTracker {
     /// Record an access to an index
     /// Uses interior mutability to allow recording from immutable references
     pub fn record_access(&self, index_name: &str) {
-        if let Some(stats) = self.index_stats.write().unwrap().get_mut(index_name) {
+        // Normalize index name to uppercase for lookup
+        let normalized = index_name.to_uppercase();
+        if let Some(stats) = self.index_stats.write().unwrap().get_mut(&normalized) {
             stats.record_access();
         }
     }
 
     /// Mark an index as spilled from memory to disk
     pub fn mark_spilled(&mut self, index_name: &str, new_disk_bytes: usize) {
-        if let Some(stats) = self.index_stats.write().unwrap().get_mut(index_name) {
+        // Normalize index name to uppercase for lookup
+        let normalized = index_name.to_uppercase();
+        if let Some(stats) = self.index_stats.write().unwrap().get_mut(&normalized) {
             // Subtract memory usage
             self.memory_used.fetch_sub(stats.memory_bytes, Ordering::Relaxed);
 
@@ -165,7 +174,9 @@ impl ResourceTracker {
 
     /// Get stats for a specific index
     pub fn get_index_stats(&self, index_name: &str) -> Option<IndexStats> {
-        self.index_stats.read().unwrap().get(index_name).cloned()
+        // Normalize index name to uppercase for lookup (consistent with create_index)
+        let normalized = index_name.to_uppercase();
+        self.index_stats.read().unwrap().get(&normalized).cloned()
     }
 
     /// Find the coldest (least recently used) in-memory index
@@ -196,7 +207,9 @@ impl ResourceTracker {
 
     /// Get the backend type for an index
     pub fn get_backend(&self, index_name: &str) -> Option<IndexBackend> {
-        self.index_stats.read().unwrap().get(index_name).map(|stats| stats.backend)
+        // Normalize index name to uppercase for lookup
+        let normalized = index_name.to_uppercase();
+        self.index_stats.read().unwrap().get(&normalized).map(|stats| stats.backend)
     }
 }
 
@@ -287,8 +300,9 @@ mod tests {
         tracker.register_index("idx3".to_string(), 3000, 0, IndexBackend::InMemory);
 
         // idx1 should be coldest (created first)
+        // Note: Index names are normalized to uppercase
         let (coldest, _) = tracker.find_coldest_in_memory_index().unwrap();
-        assert_eq!(coldest, "idx1");
+        assert_eq!(coldest, "IDX1");
 
         // Access idx1 to make it hot
         tracker.record_access("idx1");
@@ -296,7 +310,7 @@ mod tests {
 
         // Now idx2 should be coldest
         let (coldest, _) = tracker.find_coldest_in_memory_index().unwrap();
-        assert_eq!(coldest, "idx2");
+        assert_eq!(coldest, "IDX2");
     }
 
     #[test]
@@ -332,6 +346,7 @@ mod tests {
         let lru_order = tracker.get_in_memory_indexes_by_lru();
 
         // Should return only in-memory indexes in LRU order
-        assert_eq!(lru_order, vec!["idx1", "idx2", "idx4"]);
+        // Note: Index names are normalized to uppercase
+        assert_eq!(lru_order, vec!["IDX1", "IDX2", "IDX4"]);
     }
 }
