@@ -1742,4 +1742,106 @@ mod edge_case_tests {
         let result = advanced_objects::execute_call(&call, &mut db);
         assert!(result.is_ok());
     }
+
+    // ===== Phase 3: Procedural SQL Statement Tests =====
+
+    /// Test SELECT with procedural variable in WHERE clause
+    /// Validates PR #1546 infrastructure
+    #[test]
+    fn test_select_with_procedural_variable_in_where() {
+        let mut db = Database::new();
+
+        // Create table and insert test data
+        let schema = TableSchema::new(
+            "users".to_string(),
+            vec![
+                vibesql_catalog::ColumnSchema::new("id".to_string(), DataType::Integer, false),
+                vibesql_catalog::ColumnSchema::new("age".to_string(), DataType::Integer, true),
+                vibesql_catalog::ColumnSchema::new(
+                    "name".to_string(),
+                    DataType::Varchar { max_length: Some(50) },
+                    true,
+                ),
+            ],
+        );
+        db.create_table(schema).unwrap();
+
+        // Insert test data
+        let insert_stmt = InsertStmt {
+            table_name: "users".to_string(),
+            columns: None,
+            values: InsertValues::Values(vec![
+                vec![
+                    Expression::Literal(SqlValue::Integer(1)),
+                    Expression::Literal(SqlValue::Integer(25)),
+                    Expression::Literal(SqlValue::Varchar("Alice".to_string())),
+                ],
+                vec![
+                    Expression::Literal(SqlValue::Integer(2)),
+                    Expression::Literal(SqlValue::Integer(30)),
+                    Expression::Literal(SqlValue::Varchar("Bob".to_string())),
+                ],
+                vec![
+                    Expression::Literal(SqlValue::Integer(3)),
+                    Expression::Literal(SqlValue::Integer(35)),
+                    Expression::Literal(SqlValue::Varchar("Charlie".to_string())),
+                ],
+            ]),
+            on_duplicate_key_update: None,
+        };
+        crate::InsertExecutor::execute(&mut db, &insert_stmt).unwrap();
+
+        // CREATE PROCEDURE get_users_older_than(IN min_age INT)
+        // BEGIN
+        //   SELECT * FROM users WHERE age > min_age;
+        // END;
+        let create_proc = CreateProcedureStmt {
+            procedure_name: "get_users_older_than".to_string(),
+            parameters: vec![ProcedureParameter {
+                mode: ParameterMode::In,
+                name: "min_age".to_string(),
+                data_type: DataType::Integer,
+            }],
+            body: ProcedureBody::BeginEnd(vec![
+                ProceduralStatement::Sql(Statement::Select(Box::new(SelectStmt {
+                    projection: vec![SelectItem::Wildcard],
+                    from: Some(vec![TableRef::Table {
+                        name: "users".to_string(),
+                        alias: None,
+                    }]),
+                    where_clause: Some(Box::new(Expression::BinaryOp {
+                        left: Box::new(Expression::ColumnRef {
+                            table: None,
+                            column: "age".to_string(),
+                        }),
+                        op: BinaryOperator::GreaterThan,
+                        right: Box::new(Expression::ColumnRef {
+                            table: None,
+                            column: "min_age".to_string(), // Procedural variable reference
+                        }),
+                    })),
+                    group_by: None,
+                    having: None,
+                    order_by: None,
+                    limit: None,
+                    offset: None,
+                }))),
+            ]),
+            sql_security: None,
+            comment: None,
+            language: None,
+        };
+
+        advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
+
+        // CALL get_users_older_than(28);
+        // Should return Bob (30) and Charlie (35), not Alice (25)
+        let call = CallStmt {
+            procedure_name: "get_users_older_than".to_string(),
+            arguments: vec![Expression::Literal(SqlValue::Integer(28))],
+        };
+
+        let result = advanced_objects::execute_call(&call, &mut db);
+        assert!(result.is_ok(), "SELECT with procedural variable should work (PR #1546 infrastructure)");
+    }
 }
