@@ -65,6 +65,22 @@ pub enum TimeZoneSpec {
     Interval(String), // e.g., "+05:00"
 }
 
+/// SET variable statement (MySQL/PostgreSQL extension)
+/// Handles: SET [GLOBAL | SESSION] variable_name = value
+#[derive(Debug, Clone, PartialEq)]
+pub struct SetVariableStmt {
+    pub scope: VariableScope,
+    pub variable: String,
+    pub value: Expression,
+}
+
+/// Variable scope for SET statements
+#[derive(Debug, Clone, PartialEq)]
+pub enum VariableScope {
+    Session, // Default or explicit SESSION
+    Global,  // GLOBAL keyword
+}
+
 /// CREATE ROLE statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct CreateRoleStmt {

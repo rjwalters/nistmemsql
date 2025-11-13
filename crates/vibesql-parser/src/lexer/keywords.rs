@@ -176,6 +176,8 @@ pub(super) fn map_keyword(upper_text: String) -> Token {
         "NAMES" => Token::Keyword(Keyword::Names),
         "ZONE" => Token::Keyword(Keyword::Zone),
         "LOCAL" => Token::Keyword(Keyword::Local),
+        "SESSION" => Token::Keyword(Keyword::Session),
+        "GLOBAL" => Token::Keyword(Keyword::Global),
         // Interval unit keywords
         "YEAR" => Token::Keyword(Keyword::Year),
         "QUARTER" => Token::Keyword(Keyword::Quarter),
