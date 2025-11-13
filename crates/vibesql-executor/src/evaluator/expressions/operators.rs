@@ -39,6 +39,11 @@ pub(crate) fn eval_unary_op(
         // NULL propagation - unary operations on NULL return NULL
         (Plus | Minus, SqlValue::Null) => Ok(SqlValue::Null),
 
+        // Unary plus on text types - identity operation (SQLite behavior)
+        // In SQLite, unary + on text returns the text unchanged
+        (Plus, SqlValue::Character(s)) => Ok(SqlValue::Character(s.clone())),
+        (Plus, SqlValue::Varchar(s)) => Ok(SqlValue::Varchar(s.clone())),
+
         // Unary NOT - logical negation
         // Per SQL standard three-valued logic:
         // - NOT NULL returns NULL
@@ -204,6 +209,24 @@ mod tests {
         assert_eq!(
             eval_unary_op(&UnaryOperator::Minus, &SqlValue::Integer(42)).unwrap(),
             SqlValue::Integer(-42)
+        );
+    }
+
+    #[test]
+    fn test_unary_plus_on_text() {
+        // SQLite behavior: unary + on text returns text unchanged (identity operation)
+        assert_eq!(
+            eval_unary_op(&UnaryOperator::Plus, &SqlValue::Varchar("hello".to_string())).unwrap(),
+            SqlValue::Varchar("hello".to_string())
+        );
+        assert_eq!(
+            eval_unary_op(&UnaryOperator::Plus, &SqlValue::Character("world".to_string())).unwrap(),
+            SqlValue::Character("world".to_string())
+        );
+        // Empty strings
+        assert_eq!(
+            eval_unary_op(&UnaryOperator::Plus, &SqlValue::Varchar("".to_string())).unwrap(),
+            SqlValue::Varchar("".to_string())
         );
     }
 }
