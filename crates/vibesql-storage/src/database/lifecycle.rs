@@ -41,10 +41,12 @@ impl Lifecycle {
     }
 
     // Getters for internal access
+    #[allow(dead_code)]
     pub fn tables(&self) -> &HashMap<String, Table> {
         &self.tables
     }
 
+    #[allow(dead_code)]
     pub fn tables_mut(&mut self) -> &mut HashMap<String, Table> {
         &mut self.tables
     }
