@@ -41,19 +41,13 @@ pub struct SpatialIndex {
 impl SpatialIndex {
     /// Create a new empty spatial index
     pub fn new(column_name: String) -> Self {
-        SpatialIndex {
-            rtree: RTree::new(),
-            column_name,
-        }
+        SpatialIndex { rtree: RTree::new(), column_name }
     }
 
     /// Create a spatial index from a bulk load of entries
     /// This is more efficient than inserting entries one by one
     pub fn bulk_load(column_name: String, entries: Vec<SpatialIndexEntry>) -> Self {
-        SpatialIndex {
-            rtree: RTree::bulk_load(entries),
-            column_name,
-        }
+        SpatialIndex { rtree: RTree::bulk_load(entries), column_name }
     }
 
     /// Insert a geometry into the spatial index
@@ -64,20 +58,14 @@ impl SpatialIndex {
 
     /// Remove a geometry from the spatial index
     pub fn remove(&mut self, row_id: usize, mbr: &AABB<[f64; 2]>) -> bool {
-        let entry = SpatialIndexEntry {
-            row_id,
-            mbr: *mbr
-        };
+        let entry = SpatialIndexEntry { row_id, mbr: *mbr };
         self.rtree.remove(&entry).is_some()
     }
 
     /// Query the spatial index for geometries intersecting the given MBR
     /// Returns a vector of row IDs that potentially match
     pub fn locate_in_envelope(&self, mbr: &AABB<[f64; 2]>) -> Vec<usize> {
-        self.rtree
-            .locate_in_envelope(mbr)
-            .map(|entry| entry.row_id)
-            .collect()
+        self.rtree.locate_in_envelope(mbr).map(|entry| entry.row_id).collect()
     }
 
     /// Query the spatial index for geometries containing the given point
@@ -89,10 +77,7 @@ impl SpatialIndex {
 
     /// Get all row IDs in the index (for testing/debugging)
     pub fn all_row_ids(&self) -> Vec<usize> {
-        self.rtree
-            .iter()
-            .map(|entry| entry.row_id)
-            .collect()
+        self.rtree.iter().map(|entry| entry.row_id).collect()
     }
 
     /// Get the number of entries in the index
@@ -368,7 +353,7 @@ mod tests {
     #[test]
     fn test_extract_mbr_from_polygon() {
         let sql_value = SqlValue::Varchar(
-            "__GEOMETRY__|0|POLYGON((0 0, 100 0, 100 100, 0 100, 0 0))".to_string()
+            "__GEOMETRY__|0|POLYGON((0 0, 100 0, 100 100, 0 100, 0 0))".to_string(),
         );
         let mbr = extract_mbr_from_sql_value(&sql_value);
 
@@ -399,18 +384,9 @@ mod tests {
     #[test]
     fn test_spatial_index_bulk_load() {
         let entries = vec![
-            SpatialIndexEntry {
-                row_id: 0,
-                mbr: AABB::from_point([0.0, 0.0]),
-            },
-            SpatialIndexEntry {
-                row_id: 1,
-                mbr: AABB::from_point([10.0, 10.0]),
-            },
-            SpatialIndexEntry {
-                row_id: 2,
-                mbr: AABB::from_point([20.0, 20.0]),
-            },
+            SpatialIndexEntry { row_id: 0, mbr: AABB::from_point([0.0, 0.0]) },
+            SpatialIndexEntry { row_id: 1, mbr: AABB::from_point([10.0, 10.0]) },
+            SpatialIndexEntry { row_id: 2, mbr: AABB::from_point([20.0, 20.0]) },
         ];
 
         let index = SpatialIndex::bulk_load("location".to_string(), entries);
@@ -431,9 +407,7 @@ mod tests {
 
     #[test]
     fn test_extract_mbr_with_srid() {
-        let sql_value = SqlValue::Varchar(
-            "__GEOMETRY__|4326|SRID=4326;POINT(10 20)".to_string()
-        );
+        let sql_value = SqlValue::Varchar("__GEOMETRY__|4326|SRID=4326;POINT(10 20)".to_string());
         let mbr = extract_mbr_from_sql_value(&sql_value);
 
         assert!(mbr.is_some());

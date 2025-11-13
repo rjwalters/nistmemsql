@@ -439,8 +439,9 @@ impl Default for IndexManager {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use vibesql_types::SqlValue;
+
+    use super::*;
 
     #[test]
     fn test_range_scan_preserves_index_order() {
@@ -466,8 +467,11 @@ mod tests {
 
         // Result should be [2, 0] NOT [0, 2]
         // This preserves the index ordering (60 comes before 70)
-        assert_eq!(result, vec![2, 0],
-            "range_scan should return rows in index order (by value), not row index order");
+        assert_eq!(
+            result,
+            vec![2, 0],
+            "range_scan should return rows in index order (by value), not row index order"
+        );
     }
 
     #[test]
@@ -487,13 +491,12 @@ mod tests {
         let result = index_data.range_scan(
             Some(&SqlValue::Integer(45)),
             Some(&SqlValue::Integer(65)),
-            true,  // inclusive start
-            true,  // inclusive end
+            true, // inclusive start
+            true, // inclusive end
         );
 
         // Should return [1, 2] (values 50, 60) in that order
-        assert_eq!(result, vec![1, 2],
-            "BETWEEN should return rows in index order");
+        assert_eq!(result, vec![1, 2], "BETWEEN should return rows in index order");
     }
 
     #[test]
@@ -513,12 +516,15 @@ mod tests {
         let result = index_data.range_scan(
             Some(&SqlValue::Integer(60)),
             None,
-            true,  // inclusive start
+            true, // inclusive start
             false,
         );
 
-        assert_eq!(result, vec![3, 7, 2, 0],
-            "Duplicate values should maintain insertion order within the same key");
+        assert_eq!(
+            result,
+            vec![3, 7, 2, 0],
+            "Duplicate values should maintain insertion order within the same key"
+        );
     }
 
     #[test]
@@ -535,10 +541,7 @@ mod tests {
 
         // Query: col0 IN (60, 70) should return [3, 7, 2, 0]
         // Rows with value 60 maintain insertion order, then row 0 with value 70
-        let result = index_data.multi_lookup(&[
-            SqlValue::Integer(60),
-            SqlValue::Integer(70),
-        ]);
+        let result = index_data.multi_lookup(&[SqlValue::Integer(60), SqlValue::Integer(70)]);
 
         assert_eq!(result, vec![3, 7, 2, 0],
             "multi_lookup with duplicate values should maintain insertion order within the same key");

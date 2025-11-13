@@ -5,6 +5,7 @@
 // Handles reading and writing primitive types with proper endianness.
 
 use std::io::{Read, Write};
+
 use crate::StorageError;
 
 pub fn read_u8<R: Read>(reader: &mut R) -> Result<u8, StorageError> {

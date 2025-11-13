@@ -3,14 +3,20 @@
 //! This module provides an LRU (Least Recently Used) buffer pool that caches
 //! hot pages in memory, improving disk-backed B+ tree performance.
 
-use std::num::NonZeroUsize;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::{
+    num::NonZeroUsize,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc, Mutex,
+    },
+};
 
 use lru::LruCache;
 
-use crate::page::{Page, PageId, PageManager};
-use crate::StorageError;
+use crate::{
+    page::{Page, PageId, PageManager},
+    StorageError,
+};
 
 /// Statistics for buffer pool performance monitoring
 #[derive(Debug, Default)]
@@ -92,16 +98,9 @@ impl BufferPool {
     /// * `capacity` - Maximum number of pages to cache (default: 1000 = ~4MB)
     pub fn new(page_manager: Arc<PageManager>, capacity: usize) -> Self {
         let capacity = if capacity == 0 { 1000 } else { capacity };
-        let cache = Arc::new(Mutex::new(
-            LruCache::new(NonZeroUsize::new(capacity).unwrap()),
-        ));
+        let cache = Arc::new(Mutex::new(LruCache::new(NonZeroUsize::new(capacity).unwrap())));
 
-        BufferPool {
-            cache,
-            page_manager,
-            capacity,
-            stats: BufferPoolStats::new(),
-        }
+        BufferPool { cache, page_manager, capacity, stats: BufferPoolStats::new() }
     }
 
     /// Get a page from the cache or load from disk
@@ -165,7 +164,7 @@ impl BufferPool {
 
     /// Flush all dirty pages to disk
     pub fn flush_dirty(&self) -> Result<(), StorageError> {
-        let mut cache = self
+        let cache = self
             .cache
             .lock()
             .map_err(|e| StorageError::LockError(format!("Failed to lock cache: {}", e)))?;
@@ -184,9 +183,10 @@ impl BufferPool {
             self.page_manager.write_page(&mut page)?;
 
             // Update the page in cache to mark it clean
-            let mut cache = self.cache.lock().map_err(|e| {
-                StorageError::LockError(format!("Failed to lock cache: {}", e))
-            })?;
+            let mut cache = self
+                .cache
+                .lock()
+                .map_err(|e| StorageError::LockError(format!("Failed to lock cache: {}", e)))?;
             if let Some(cached_page) = cache.get_mut(&page.id) {
                 cached_page.mark_clean();
             }
@@ -239,8 +239,9 @@ impl BufferPool {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::TempDir;
+
+    use super::*;
 
     #[test]
     fn test_buffer_pool_creation() {
