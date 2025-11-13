@@ -37,6 +37,7 @@
 //! - `truncate_table_tests`: TRUNCATE TABLE tests (single table, multiple tables, IF EXISTS)
 //! - `view_tests`: VIEW support tests (CREATE/DROP/SELECT, OR REPLACE, CASCADE)
 //! - `index_scan_tests`: Index scan optimization tests (Phase 5a of issue #1387)
+//! - `order_by_index_optimization_tests`: ORDER BY index optimization tests (Phase 5b of issue #1429)
 //! - `alter_table_constraints`: ALTER TABLE ADD/DROP PRIMARY KEY and FOREIGN KEY tests (Phase 6 of issue #1388)
 
 mod aggregate_caching;
@@ -67,6 +68,7 @@ mod lazy_evaluation_tests;
 mod limit_offset;
 mod natural_join;
 mod operator_edge_cases;
+mod order_by_index_optimization_tests;
 mod phase3_join_optimization;
 mod predicate_pushdown;
 mod predicate_tests;

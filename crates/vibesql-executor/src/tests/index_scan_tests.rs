@@ -3,10 +3,10 @@
 //! These tests verify that the executor correctly uses indexes for query optimization
 //! when appropriate indexes exist and WHERE clauses can benefit from them.
 
-use vibesql_ast::{IndexColumn, IndexOrder};
+use vibesql_ast::{IndexColumn, OrderDirection};
 use vibesql_catalog::{ColumnSchema, TableSchema};
 use vibesql_parser::Parser;
-use vibesql_storage::Database;
+use vibesql_storage::{Database, Row};
 use vibesql_types::{DataType, SqlValue};
 
 use crate::select::SelectExecutor;
@@ -39,45 +39,45 @@ fn create_test_db() -> Database {
     // Insert test data
     db.insert_row(
         "users",
-        vec![
+        Row::new(vec![
             SqlValue::Integer(1),
             SqlValue::Varchar("alice@example.com".to_string()),
             SqlValue::Integer(25),
             SqlValue::Varchar("Boston".to_string()),
-        ],
+        ]),
     )
     .unwrap();
 
     db.insert_row(
         "users",
-        vec![
+        Row::new(vec![
             SqlValue::Integer(2),
             SqlValue::Varchar("bob@example.com".to_string()),
             SqlValue::Integer(30),
             SqlValue::Varchar("New York".to_string()),
-        ],
+        ]),
     )
     .unwrap();
 
     db.insert_row(
         "users",
-        vec![
+        Row::new(vec![
             SqlValue::Integer(3),
             SqlValue::Varchar("charlie@example.com".to_string()),
             SqlValue::Integer(25),
             SqlValue::Varchar("Boston".to_string()),
-        ],
+        ]),
     )
     .unwrap();
 
     db.insert_row(
         "users",
-        vec![
+        Row::new(vec![
             SqlValue::Integer(4),
             SqlValue::Varchar("diana@example.com".to_string()),
             SqlValue::Integer(35),
             SqlValue::Varchar("Chicago".to_string()),
-        ],
+        ]),
     )
     .unwrap();
 
@@ -95,7 +95,7 @@ fn test_index_scan_with_email_index() {
         false, // not unique
         vec![IndexColumn {
             column_name: "email".to_string(),
-            order: IndexOrder::Asc,
+            direction: OrderDirection::Asc,
         }],
     )
     .unwrap();
@@ -129,7 +129,7 @@ fn test_index_scan_with_age_index() {
         false,
         vec![IndexColumn {
             column_name: "age".to_string(),
-            order: IndexOrder::Asc,
+            direction: OrderDirection::Asc,
         }],
     )
     .unwrap();
@@ -194,7 +194,7 @@ fn test_index_scan_with_comparison_operator() {
         false,
         vec![IndexColumn {
             column_name: "age".to_string(),
-            order: IndexOrder::Asc,
+            direction: OrderDirection::Asc,
         }],
     )
     .unwrap();
@@ -237,7 +237,7 @@ fn test_index_scan_with_and_condition() {
         false,
         vec![IndexColumn {
             column_name: "age".to_string(),
-            order: IndexOrder::Asc,
+            direction: OrderDirection::Asc,
         }],
     )
     .unwrap();
@@ -269,7 +269,7 @@ fn test_unique_index_enforcement() {
         true, // unique
         vec![IndexColumn {
             column_name: "email".to_string(),
-            order: IndexOrder::Asc,
+            direction: OrderDirection::Asc,
         }],
     );
 
@@ -281,12 +281,12 @@ fn test_unique_index_enforcement() {
     // This test documents current behavior and should be updated when enforcement is added
     let duplicate_result = db.insert_row(
         "users",
-        vec![
+        Row::new(vec![
             SqlValue::Integer(5),
             SqlValue::Varchar("alice@example.com".to_string()), // duplicate
             SqlValue::Integer(40),
             SqlValue::Varchar("Seattle".to_string()),
-        ],
+        ]),
     );
 
     // Currently allows duplicates (TODO: enforce unique constraints)
