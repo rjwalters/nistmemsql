@@ -26,7 +26,7 @@ impl Parser {
             "UNSIGNED" => Ok(vibesql_types::DataType::Unsigned), /* MySQL-specific: UNSIGNED is 64-bit */
             // unsigned integer
             "SMALLINT" => Ok(vibesql_types::DataType::Smallint),
-            "BIGINT" => Ok(vibesql_types::DataType::Bigint),
+            "BIGINT" | "LONG" => Ok(vibesql_types::DataType::Bigint),
             "BOOLEAN" | "BOOL" => Ok(vibesql_types::DataType::Boolean),
             "FLOAT" => {
                 // Parse FLOAT(precision) or FLOAT

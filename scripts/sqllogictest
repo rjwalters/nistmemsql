@@ -93,8 +93,9 @@ Examples:
   cd repo && ./scripts/sqllogictest run --parallel --workers 320 --time 3600
 
   # Analysis and tracking
+  ./scripts/sqllogictest analyze
+  ./scripts/sqllogictest analyze --top-fixes
   ./scripts/sqllogictest query --preset failed-files
-  ./scripts/sqllogictest query --preset by-category
   ./scripts/sqllogictest punchlist
   ./scripts/sqllogictest status
 
@@ -498,6 +499,224 @@ cmd_status() {
     fi
 }
 
+# Analyze command: failure pattern analysis
+cmd_analyze() {
+    local db_path="$HOME/.vibesql/test_results/sqllogictest_results.sql"
+    local show_summary=true
+    local show_opportunities=false
+    local show_patterns=false
+    local show_examples=false
+    local show_trend=false
+    local generate_report=false
+    local output_file="target/sqllogictest_analysis.md"
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --help)
+                cat << 'EOF'
+Analyze SQLLogicTest failure patterns
+
+Usage:
+  ./scripts/sqllogictest analyze [options]
+
+Options:
+  --top-fixes             Show prioritized list of fix opportunities
+  --patterns              Show failure patterns grouped by error type
+  --examples              Show example failures for each pattern
+  --trend                 Compare recent runs to show progress/regressions
+  --report                Generate markdown report to file
+  --output FILE           Output file for report (default: target/sqllogictest_analysis.md)
+
+Examples:
+  # Show summary with top fix opportunities
+  ./scripts/sqllogictest analyze
+
+  # Show detailed failure patterns
+  ./scripts/sqllogictest analyze --patterns
+
+  # Generate full markdown report
+  ./scripts/sqllogictest analyze --report
+
+  # Show trend analysis
+  ./scripts/sqllogictest analyze --trend
+
+Analysis Views:
+  The analyze command uses database views to provide insights:
+  - failure_patterns: Groups failures by error type
+  - fix_opportunities: Prioritizes fixes by impact ratio
+  - failure_examples: Shows sample failures for each pattern
+
+Requirements:
+  - Test results database at ~/.vibesql/test_results/sqllogictest_results.sql
+  - Run tests first with: ./scripts/sqllogictest run
+EOF
+                exit 0
+                ;;
+            --top-fixes)
+                show_opportunities=true
+                show_summary=false
+                shift
+                ;;
+            --patterns)
+                show_patterns=true
+                show_summary=false
+                shift
+                ;;
+            --examples)
+                show_examples=true
+                show_summary=false
+                shift
+                ;;
+            --trend)
+                show_trend=true
+                show_summary=false
+                shift
+                ;;
+            --report)
+                generate_report=true
+                shift
+                ;;
+            --output)
+                output_file="$2"
+                shift 2
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                echo "Run with --help for usage information"
+                exit 1
+                ;;
+        esac
+    done
+
+    # Check database exists
+    if [ ! -f "$db_path" ]; then
+        print_error "Test results database not found: $db_path"
+        echo ""
+        echo "Run tests first to generate database:"
+        echo "  ./scripts/sqllogictest run"
+        exit 1
+    fi
+
+    # If no specific option, show summary with opportunities
+    if $show_summary; then
+        show_opportunities=true
+    fi
+
+    print_info "SQLLogicTest Failure Analysis"
+    echo ""
+
+    # Show summary
+    if $show_summary || $generate_report; then
+        echo "=== Latest Run Summary ==="
+        echo ""
+        python3 scripts/query_test_results.py --preset analyze-summary --database "$db_path"
+        echo ""
+    fi
+
+    # Show fix opportunities
+    if $show_opportunities || $generate_report; then
+        echo "=== Top Fix Opportunities (by impact ratio) ==="
+        echo ""
+        python3 scripts/query_test_results.py --preset analyze-opportunities --database "$db_path"
+        echo ""
+        echo "Impact ratio = tests_affected / effort_score"
+        echo "Higher ratio = better bang for your buck"
+        echo ""
+    fi
+
+    # Show patterns
+    if $show_patterns || $generate_report; then
+        echo "=== Failure Patterns ==="
+        echo ""
+        python3 scripts/query_test_results.py --preset analyze-patterns --database "$db_path"
+        echo ""
+    fi
+
+    # Show examples
+    if $show_examples || $generate_report; then
+        echo "=== Example Failures ==="
+        echo ""
+        python3 scripts/query_test_results.py --preset analyze-examples --database "$db_path"
+        echo ""
+    fi
+
+    # Show trend
+    if $show_trend || $generate_report; then
+        echo "=== Recent Runs (trend analysis) ==="
+        echo ""
+        python3 scripts/query_test_results.py --preset progress --database "$db_path"
+        echo ""
+    fi
+
+    # Generate report
+    if $generate_report; then
+        print_info "Generating markdown report..."
+
+        {
+            echo "# SQLLogicTest Failure Analysis"
+            echo ""
+            echo "Generated: $(date '+%Y-%m-%d %H:%M:%S')"
+            echo ""
+
+            echo "## Latest Run Summary"
+            echo ""
+            echo '```'
+            python3 scripts/query_test_results.py --preset analyze-summary --database "$db_path" 2>/dev/null
+            echo '```'
+            echo ""
+
+            echo "## Top Fix Opportunities"
+            echo ""
+            echo "Prioritized by impact ratio (tests_affected / effort_score):"
+            echo ""
+            echo '```'
+            python3 scripts/query_test_results.py --preset analyze-opportunities --database "$db_path" 2>/dev/null
+            echo '```'
+            echo ""
+
+            echo "## Failure Patterns"
+            echo ""
+            echo '```'
+            python3 scripts/query_test_results.py --preset analyze-patterns --database "$db_path" 2>/dev/null
+            echo '```'
+            echo ""
+
+            echo "## Example Failures"
+            echo ""
+            echo '```'
+            python3 scripts/query_test_results.py --preset analyze-examples --database "$db_path" 2>/dev/null
+            echo '```'
+            echo ""
+
+            echo "## Trend Analysis"
+            echo ""
+            echo '```'
+            python3 scripts/query_test_results.py --preset progress --database "$db_path" 2>/dev/null
+            echo '```'
+            echo ""
+
+            echo "---"
+            echo ""
+            echo "For detailed queries, use:"
+            echo "  ./scripts/sqllogictest query --preset <preset-name>"
+            echo "  ./scripts/sqllogictest analyze --<option>"
+        } > "$output_file"
+
+        print_success "Report generated: $output_file"
+        echo ""
+        echo "View it:"
+        echo "  cat $output_file"
+        echo "  open $output_file  # macOS"
+        echo ""
+    fi
+
+    # Show helpful next steps
+    if ! $generate_report; then
+        echo "Run './scripts/sqllogictest analyze --help' for more options"
+    fi
+}
+
 # Main command router
 main() {
     if [ $# -eq 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
@@ -525,9 +744,14 @@ main() {
             # Pass through to query script
             python3 scripts/query_test_results.py "$@"
             ;;
-        analyze|report)
-            print_warning "Command '$command' not yet implemented"
+        analyze)
+            cmd_analyze "$@"
+            ;;
+        report)
+            print_warning "Command 'report' not yet implemented"
             echo "Coming soon! Track progress at: https://github.com/rjwalters/vibesql/issues/973"
+            echo ""
+            echo "For now, use: ./scripts/sqllogictest analyze --report"
             exit 1
             ;;
         *)

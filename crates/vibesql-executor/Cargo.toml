@@ -26,6 +26,11 @@ rstar = "0.12"
 [dev-dependencies]
 vibesql-parser = { version = "0.1.0", path = "../vibesql-parser" }
 criterion = { version = "0.5", features = ["html_reports"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+duckdb = { version = "1.1", features = ["bundled"] }
+rand = "0.8"
+rand_chacha = "0.3"
+rust_decimal = "1.33"
 
 [[test]]
 name = "foreign_key_tests"
@@ -69,4 +74,8 @@ harness = false
 
 [[bench]]
 name = "spatial_index_benchmark"
+harness = false
+
+[[bench]]
+name = "tpch_benchmark"
 harness = false
