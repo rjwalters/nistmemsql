@@ -130,6 +130,12 @@ impl Parser {
                 let with_timezone = self.parse_timezone_modifier()?;
                 Ok(vibesql_types::DataType::Timestamp { with_timezone })
             }
+            "DATETIME" => {
+                // MySQL/SQLite DATETIME type - treated as alias for TIMESTAMP
+                // Parse optional WITH TIME ZONE or WITHOUT TIME ZONE
+                let with_timezone = self.parse_timezone_modifier()?;
+                Ok(vibesql_types::DataType::Timestamp { with_timezone })
+            }
             "INTERVAL" => {
                 // Parse INTERVAL start_field [TO end_field]
                 let start_field = self.parse_interval_field()?;

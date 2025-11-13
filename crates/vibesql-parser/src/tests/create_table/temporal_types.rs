@@ -313,3 +313,54 @@ fn test_interval_as_column_name() {
         _ => panic!("Expected CREATE TABLE statement"),
     }
 }
+
+// ========================================================================
+// DATETIME Type Tests (MySQL/SQLite compatibility)
+// ========================================================================
+
+#[test]
+fn test_parse_create_table_datetime() {
+    let result = Parser::parse_sql("CREATE TABLE events (created_at DATETIME);");
+    assert!(result.is_ok(), "Should parse DATETIME");
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Timestamp { with_timezone: false } => {} // Success - DATETIME maps to TIMESTAMP
+                _ => panic!("Expected DATETIME to map to TIMESTAMP, got {:?}", create.columns[0].data_type),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_create_table_datetime_with_constraints() {
+    // Test from issue #1619 - the exact statement that was failing
+    let result = Parser::parse_sql("CREATE TABLE `t1f69e` (`c1` DATETIME KEY, c2 DATETIME NULL);");
+    assert!(result.is_ok(), "Should parse DATETIME with constraints");
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "t1f69e");
+            assert_eq!(create.columns.len(), 2);
+
+            // Verify first column: c1 DATETIME KEY
+            assert_eq!(create.columns[0].name, "c1");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Timestamp { with_timezone: false } => {} // Success
+                _ => panic!("Expected c1 to be DATETIME (TIMESTAMP), got {:?}", create.columns[0].data_type),
+            }
+
+            // Verify second column: c2 DATETIME NULL (uppercased because not in backticks)
+            assert_eq!(create.columns[1].name, "C2");
+            match create.columns[1].data_type {
+                vibesql_types::DataType::Timestamp { with_timezone: false } => {} // Success
+                _ => panic!("Expected c2 to be DATETIME (TIMESTAMP), got {:?}", create.columns[1].data_type),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
