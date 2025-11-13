@@ -69,11 +69,15 @@
           <!-- Editor -->
           <div class="bg-background rounded-lg shadow-lg p-6 border border-border">
             <div class="flex justify-between items-center mb-4 flex-wrap gap-3">
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-3 flex-wrap">
                 <h2 class="text-xl font-semibold text-foreground">
                   SQL Editor
                 </h2>
                 <div id="database-selector"></div>
+                <div class="flex items-center gap-2 text-sm text-muted">
+                  <span class="font-medium">Storage:</span>
+                  <span id="storage-status" class="px-2 py-1 rounded bg-surface-light dark:bg-surface-dark">Initializing...</span>
+                </div>
               </div>
               <button id="execute-btn" class="btn-primary" aria-label="Execute query">
                 Execute Query
