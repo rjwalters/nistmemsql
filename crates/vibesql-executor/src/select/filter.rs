@@ -7,6 +7,8 @@ use crate::{
 use rayon::prelude::*;
 use std::sync::Arc;
 
+use super::parallel::ParallelConfig;
+
 /// Apply WHERE clause filter to rows (Combined evaluator version)
 ///
 /// Same as apply_where_filter but specifically for CombinedExpressionEvaluator.
@@ -138,17 +140,6 @@ pub(super) fn apply_where_filter_basic<'a>(
     Ok(filtered_rows)
 }
 
-/// Check if parallel execution is enabled via environment variable
-/// Defaults to false, can be enabled by setting PARALLEL_EXECUTION=true
-fn is_parallel_execution_enabled() -> bool {
-    std::env::var("PARALLEL_EXECUTION")
-        .map(|v| v.to_lowercase() == "true" || v == "1")
-        .unwrap_or(false) // Default: disabled
-}
-
-/// Minimum number of rows to consider parallel execution
-/// Below this threshold, sequential execution is used to avoid overhead
-const PARALLEL_THRESHOLD: usize = 10_000;
 
 /// Parallel version of apply_where_filter_combined
 /// Uses rayon to evaluate WHERE predicates across multiple threads
@@ -163,8 +154,9 @@ pub(super) fn apply_where_filter_combined_parallel<'a>(
         return Ok(rows);
     }
 
-    // Don't use parallel execution if below threshold
-    if rows.len() < PARALLEL_THRESHOLD {
+    // Check if we should parallelize based on hardware-aware heuristics
+    let config = ParallelConfig::global();
+    if !config.should_parallelize_scan(rows.len()) {
         return apply_where_filter_combined(rows, where_expr, evaluator, _executor);
     }
 
@@ -228,17 +220,21 @@ pub(super) fn apply_where_filter_combined_parallel<'a>(
     result.map(|v| v.into_iter().flatten().collect())
 }
 
-/// Auto-selecting WHERE filter that chooses between sequential and parallel execution
-/// Uses parallel execution if enabled and row count exceeds threshold
+/// Auto-selecting WHERE filter that uses hardware-aware heuristics
+/// to choose between sequential and parallel execution.
+///
+/// The decision is based on:
+/// - Number of CPU cores available
+/// - Row count
+/// - Operation type (scan/filter)
+/// - User override via PARALLEL_THRESHOLD environment variable
 pub(super) fn apply_where_filter_combined_auto<'a>(
     rows: Vec<vibesql_storage::Row>,
     where_expr: Option<&vibesql_ast::Expression>,
     evaluator: &CombinedExpressionEvaluator,
     executor: &crate::SelectExecutor<'a>,
 ) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
-    if is_parallel_execution_enabled() && rows.len() >= PARALLEL_THRESHOLD {
-        apply_where_filter_combined_parallel(rows, where_expr, evaluator, executor)
-    } else {
-        apply_where_filter_combined(rows, where_expr, evaluator, executor)
-    }
+    // The parallel version now contains the heuristics and will
+    // automatically fall back to sequential if needed
+    apply_where_filter_combined_parallel(rows, where_expr, evaluator, executor)
 }
