@@ -2,7 +2,9 @@
 
 use std::cmp::Ordering;
 
-use super::grouping::compare_sql_values;
+use rayon::slice::ParallelSliceMut;
+
+use super::{grouping::compare_sql_values, parallel::ParallelConfig};
 use crate::{errors::ExecutorError, evaluator::CombinedExpressionEvaluator};
 
 /// Row with optional sort keys for ORDER BY
@@ -41,8 +43,9 @@ pub(super) fn apply_order_by(
         *sort_keys = Some(keys);
     }
 
-    // Sort by the evaluated keys
-    rows.sort_by(|(_, keys_a), (_, keys_b)| {
+    // Sort by the evaluated keys (with automatic parallelism based on row count)
+    let config = ParallelConfig::global();
+    let comparison_fn = |(_, keys_a): &RowWithSortKeys, (_, keys_b): &RowWithSortKeys| {
         let keys_a = keys_a.as_ref().unwrap();
         let keys_b = keys_b.as_ref().unwrap();
 
@@ -66,7 +69,15 @@ pub(super) fn apply_order_by(
             }
         }
         Ordering::Equal
-    });
+    };
+
+    if config.should_parallelize_sort(rows.len()) {
+        // Parallel sort for large datasets
+        rows.par_sort_by(comparison_fn);
+    } else {
+        // Sequential sort for small datasets
+        rows.sort_by(comparison_fn);
+    }
 
     Ok(rows)
 }
@@ -107,4 +118,258 @@ fn resolve_order_by_alias<'a>(
 
     // Not an alias or column position, use the original expression
     order_expr
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cmp::Ordering;
+    use vibesql_storage::Row;
+    use vibesql_types::SqlValue;
+
+    /// Test the comparison function logic with pre-evaluated sort keys
+    /// This tests the parallel/sequential sorting logic without needing full evaluator setup
+    #[test]
+    fn test_sort_with_keys_small_dataset() {
+        // Small dataset with pre-populated sort keys
+        let mut rows: Vec<RowWithSortKeys> = vec![
+            (
+                Row {
+                    values: vec![SqlValue::Integer(3)],
+                },
+                Some(vec![(SqlValue::Integer(3), vibesql_ast::OrderDirection::Asc)]),
+            ),
+            (
+                Row {
+                    values: vec![SqlValue::Integer(1)],
+                },
+                Some(vec![(SqlValue::Integer(1), vibesql_ast::OrderDirection::Asc)]),
+            ),
+            (
+                Row {
+                    values: vec![SqlValue::Integer(2)],
+                },
+                Some(vec![(SqlValue::Integer(2), vibesql_ast::OrderDirection::Asc)]),
+            ),
+        ];
+
+        // Apply sorting logic (mimics what apply_order_by does after key evaluation)
+        let config = ParallelConfig::global();
+        let comparison_fn = |(_, keys_a): &RowWithSortKeys, (_, keys_b): &RowWithSortKeys| {
+            let keys_a = keys_a.as_ref().unwrap();
+            let keys_b = keys_b.as_ref().unwrap();
+
+            for ((val_a, dir), (val_b, _)) in keys_a.iter().zip(keys_b.iter()) {
+                let cmp = match (val_a.is_null(), val_b.is_null()) {
+                    (true, true) => Ordering::Equal,
+                    (true, false) => return Ordering::Greater,
+                    (false, true) => return Ordering::Less,
+                    (false, false) => match dir {
+                        vibesql_ast::OrderDirection::Asc => compare_sql_values(val_a, val_b),
+                        vibesql_ast::OrderDirection::Desc => compare_sql_values(val_a, val_b).reverse(),
+                    },
+                };
+
+                if cmp != Ordering::Equal {
+                    return cmp;
+                }
+            }
+            Ordering::Equal
+        };
+
+        if config.should_parallelize_sort(rows.len()) {
+            rows.par_sort_by(comparison_fn);
+        } else {
+            rows.sort_by(comparison_fn);
+        }
+
+        // Verify sorted order
+        assert_eq!(rows[0].0.values[0], SqlValue::Integer(1));
+        assert_eq!(rows[1].0.values[0], SqlValue::Integer(2));
+        assert_eq!(rows[2].0.values[0], SqlValue::Integer(3));
+    }
+
+    #[test]
+    fn test_sort_with_keys_large_dataset() {
+        // Create large dataset that will trigger parallel path
+        let mut rows: Vec<RowWithSortKeys> = Vec::new();
+        for i in (0..15000).rev() {
+            rows.push((
+                Row {
+                    values: vec![SqlValue::Integer(i)],
+                },
+                Some(vec![(SqlValue::Integer(i), vibesql_ast::OrderDirection::Asc)]),
+            ));
+        }
+
+        let config = ParallelConfig::global();
+        let comparison_fn = |(_, keys_a): &RowWithSortKeys, (_, keys_b): &RowWithSortKeys| {
+            let keys_a = keys_a.as_ref().unwrap();
+            let keys_b = keys_b.as_ref().unwrap();
+
+            for ((val_a, dir), (val_b, _)) in keys_a.iter().zip(keys_b.iter()) {
+                let cmp = match (val_a.is_null(), val_b.is_null()) {
+                    (true, true) => Ordering::Equal,
+                    (true, false) => return Ordering::Greater,
+                    (false, true) => return Ordering::Less,
+                    (false, false) => match dir {
+                        vibesql_ast::OrderDirection::Asc => compare_sql_values(val_a, val_b),
+                        vibesql_ast::OrderDirection::Desc => compare_sql_values(val_a, val_b).reverse(),
+                    },
+                };
+
+                if cmp != Ordering::Equal {
+                    return cmp;
+                }
+            }
+            Ordering::Equal
+        };
+
+        if config.should_parallelize_sort(rows.len()) {
+            rows.par_sort_by(comparison_fn);
+        } else {
+            rows.sort_by(comparison_fn);
+        }
+
+        // Verify first few and last few are correctly sorted
+        assert_eq!(rows[0].0.values[0], SqlValue::Integer(0));
+        assert_eq!(rows[1].0.values[0], SqlValue::Integer(1));
+        assert_eq!(rows[2].0.values[0], SqlValue::Integer(2));
+        assert_eq!(rows[14997].0.values[0], SqlValue::Integer(14997));
+        assert_eq!(rows[14998].0.values[0], SqlValue::Integer(14998));
+        assert_eq!(rows[14999].0.values[0], SqlValue::Integer(14999));
+    }
+
+    #[test]
+    fn test_sort_descending_with_keys() {
+        let mut rows: Vec<RowWithSortKeys> = vec![
+            (
+                Row {
+                    values: vec![SqlValue::Integer(1)],
+                },
+                Some(vec![(SqlValue::Integer(1), vibesql_ast::OrderDirection::Desc)]),
+            ),
+            (
+                Row {
+                    values: vec![SqlValue::Integer(3)],
+                },
+                Some(vec![(SqlValue::Integer(3), vibesql_ast::OrderDirection::Desc)]),
+            ),
+            (
+                Row {
+                    values: vec![SqlValue::Integer(2)],
+                },
+                Some(vec![(SqlValue::Integer(2), vibesql_ast::OrderDirection::Desc)]),
+            ),
+        ];
+
+        let config = ParallelConfig::global();
+        let comparison_fn = |(_, keys_a): &RowWithSortKeys, (_, keys_b): &RowWithSortKeys| {
+            let keys_a = keys_a.as_ref().unwrap();
+            let keys_b = keys_b.as_ref().unwrap();
+
+            for ((val_a, dir), (val_b, _)) in keys_a.iter().zip(keys_b.iter()) {
+                let cmp = match (val_a.is_null(), val_b.is_null()) {
+                    (true, true) => Ordering::Equal,
+                    (true, false) => return Ordering::Greater,
+                    (false, true) => return Ordering::Less,
+                    (false, false) => match dir {
+                        vibesql_ast::OrderDirection::Asc => compare_sql_values(val_a, val_b),
+                        vibesql_ast::OrderDirection::Desc => compare_sql_values(val_a, val_b).reverse(),
+                    },
+                };
+
+                if cmp != Ordering::Equal {
+                    return cmp;
+                }
+            }
+            Ordering::Equal
+        };
+
+        if config.should_parallelize_sort(rows.len()) {
+            rows.par_sort_by(comparison_fn);
+        } else {
+            rows.sort_by(comparison_fn);
+        }
+
+        assert_eq!(rows[0].0.values[0], SqlValue::Integer(3));
+        assert_eq!(rows[1].0.values[0], SqlValue::Integer(2));
+        assert_eq!(rows[2].0.values[0], SqlValue::Integer(1));
+    }
+
+    #[test]
+    fn test_sort_with_nulls() {
+        // NULLs should always sort last regardless of ASC/DESC
+        let mut rows_asc: Vec<RowWithSortKeys> = vec![
+            (
+                Row {
+                    values: vec![SqlValue::Integer(2)],
+                },
+                Some(vec![(SqlValue::Integer(2), vibesql_ast::OrderDirection::Asc)]),
+            ),
+            (
+                Row {
+                    values: vec![SqlValue::Null],
+                },
+                Some(vec![(SqlValue::Null, vibesql_ast::OrderDirection::Asc)]),
+            ),
+            (
+                Row {
+                    values: vec![SqlValue::Integer(1)],
+                },
+                Some(vec![(SqlValue::Integer(1), vibesql_ast::OrderDirection::Asc)]),
+            ),
+        ];
+
+        let config = ParallelConfig::global();
+        let comparison_fn = |(_, keys_a): &RowWithSortKeys, (_, keys_b): &RowWithSortKeys| {
+            let keys_a = keys_a.as_ref().unwrap();
+            let keys_b = keys_b.as_ref().unwrap();
+
+            for ((val_a, dir), (val_b, _)) in keys_a.iter().zip(keys_b.iter()) {
+                let cmp = match (val_a.is_null(), val_b.is_null()) {
+                    (true, true) => Ordering::Equal,
+                    (true, false) => return Ordering::Greater,
+                    (false, true) => return Ordering::Less,
+                    (false, false) => match dir {
+                        vibesql_ast::OrderDirection::Asc => compare_sql_values(val_a, val_b),
+                        vibesql_ast::OrderDirection::Desc => compare_sql_values(val_a, val_b).reverse(),
+                    },
+                };
+
+                if cmp != Ordering::Equal {
+                    return cmp;
+                }
+            }
+            Ordering::Equal
+        };
+
+        rows_asc.sort_by(&comparison_fn);
+
+        // ASC: 1, 2, NULL (NULLs last)
+        assert_eq!(rows_asc[0].0.values[0], SqlValue::Integer(1));
+        assert_eq!(rows_asc[1].0.values[0], SqlValue::Integer(2));
+        assert_eq!(rows_asc[2].0.values[0], SqlValue::Null);
+    }
+
+    #[test]
+    fn test_parallel_config_threshold() {
+        let config = ParallelConfig::global();
+
+        // Verify that parallel sorting is disabled for small datasets
+        // (actual threshold depends on hardware, but should be > 100)
+        assert!(!config.should_parallelize_sort(100));
+
+        // Verify that parallel sorting is enabled for large datasets
+        // (15000 rows should trigger parallel path on any reasonable hardware)
+        // Note: On single-core systems this might still be false
+        let large_dataset_size = 15000;
+        let uses_parallel = config.should_parallelize_sort(large_dataset_size);
+
+        // Just verify the threshold logic is working (result depends on hardware)
+        if config.num_threads > 1 {
+            // On multi-core, large datasets should use parallel
+            assert!(uses_parallel || config.thresholds.sort > large_dataset_size);
+        }
+    }
 }
