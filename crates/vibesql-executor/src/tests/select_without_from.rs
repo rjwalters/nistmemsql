@@ -429,3 +429,149 @@ fn test_in_list_with_column_reference_fails() {
         _ => panic!("Expected UnsupportedFeature error"),
     }
 }
+
+#[test]
+fn test_hex_literal_in_subquery_without_from() {
+    let mut db = vibesql_storage::Database::new();
+
+    // Create empty table
+    let schema = vibesql_catalog::TableSchema::new(
+        "t1".to_string(),
+        vec![vibesql_catalog::ColumnSchema::new("x".to_string(), vibesql_types::DataType::Integer, false)],
+    );
+    db.create_table(schema).unwrap();
+
+    let executor = SelectExecutor::new(&db);
+
+    // SELECT x'303132' IN (SELECT * FROM t1)
+    // This should work now that hex literals are properly parsed as literals, not column references
+    let stmt = vibesql_ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![vibesql_ast::SelectItem::Expression {
+            expr: vibesql_ast::Expression::In {
+                expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("012".to_string()))),
+                subquery: Box::new(vibesql_ast::SelectStmt {
+                    with_clause: None,
+                    set_operation: None,
+                    distinct: false,
+                    select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
+                    from: Some(vibesql_ast::FromClause::Table {
+                        name: "t1".to_string(),
+                        alias: None,
+                    }),
+                    where_clause: None,
+                    group_by: None,
+                    having: None,
+                    order_by: None,
+                    limit: None,
+                    offset: None,
+                    into_table: None,
+                }),
+                negated: false,
+            },
+            alias: None,
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+        into_table: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1);
+    // Empty subquery returns FALSE for IN
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Boolean(false));
+}
+
+#[test]
+fn test_hex_literal_simple() {
+    let db = vibesql_storage::Database::new();
+    let executor = SelectExecutor::new(&db);
+
+    // SELECT x'48656C6C6F' (should return "Hello")
+    let stmt = vibesql_ast::SelectStmt {
+        into_table: None,
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![vibesql_ast::SelectItem::Expression {
+            expr: vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("Hello".to_string())),
+            alias: Some("hex_value".to_string()),
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Varchar("Hello".to_string()));
+}
+
+#[test]
+fn test_binary_literal_in_subquery_without_from() {
+    let mut db = vibesql_storage::Database::new();
+
+    // Create empty table
+    let schema = vibesql_catalog::TableSchema::new(
+        "t1".to_string(),
+        vec![vibesql_catalog::ColumnSchema::new("x".to_string(), vibesql_types::DataType::Varchar { max_length: None }, false)],
+    );
+    db.create_table(schema).unwrap();
+
+    let executor = SelectExecutor::new(&db);
+
+    // SELECT b'01010101' IN (SELECT * FROM t1)
+    let stmt = vibesql_ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![vibesql_ast::SelectItem::Expression {
+            expr: vibesql_ast::Expression::In {
+                expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("U".to_string()))),
+                subquery: Box::new(vibesql_ast::SelectStmt {
+                    with_clause: None,
+                    set_operation: None,
+                    distinct: false,
+                    select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
+                    from: Some(vibesql_ast::FromClause::Table {
+                        name: "t1".to_string(),
+                        alias: None,
+                    }),
+                    where_clause: None,
+                    group_by: None,
+                    having: None,
+                    order_by: None,
+                    limit: None,
+                    offset: None,
+                    into_table: None,
+                }),
+                negated: false,
+            },
+            alias: None,
+        }],
+        from: None,
+        where_clause: None,
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+        into_table: None,
+    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1);
+    // Empty subquery returns FALSE for IN
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Boolean(false));
+}
