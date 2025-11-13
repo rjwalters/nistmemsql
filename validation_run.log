@@ -1,0 +1,1402 @@
+[0;34mℹ Running serial test suite[0m
+Time budget: 300s
+
+warning: associated items `new`, `from_env`, `claim_next_file`, `decode_work_item`, `pending_count`, and `completed_count` are never used
+  --> tests/sqllogictest/work_queue.rs:23:12
+   |
+21 | impl WorkQueue {
+   | -------------- associated items in this implementation
+22 |     /// Create or connect to a work queue at the specified directory
+23 |     pub fn new(queue_root: &Path) -> std::io::Result<Self> {
+   |            ^^^
+...
+37 |     pub fn from_env() -> std::io::Result<Self> {
+   |            ^^^^^^^^
+...
+45 |     pub fn claim_next_file(&self) -> Option<PathBuf> {
+   |            ^^^^^^^^^^^^^^^
+...
+78 |     fn decode_work_item(&self, work_item_name: &str) -> Option<PathBuf> {
+   |        ^^^^^^^^^^^^^^^^
+...
+91 |     pub fn pending_count(&self) -> usize {
+   |            ^^^^^^^^^^^^^
+...
+98 |     pub fn completed_count(&self) -> usize {
+   |            ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `vibesql` (test "sqllogictest_suite") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+     Running tests/sqllogictest_suite.rs (target/debug/deps/sqllogictest_suite-86b869cff898c034)
+
+=== SQLLogicTest Suite (Full Run) ===
+Total test files: 623
+Starting test run...
+
+[Worker] Starting: ddl/createtable/createtable1.test
+✗ ddl/createtable/createtable1.test - statement failed: Parse error: ParseError { message: "Unknown data type: LONG" }
+[SQL] CREATE TABLE `t1d828` (`c1` LONG COMMENT 'text809178', c2 LONG COMMENT 'text809180');
+at <unknown>:4846
+
+[Worker] Starting: evidence/in1.test
+✗ evidence/in1.test - query failed: Execution error: UnsupportedFeature("Column reference requires FROM clause")
+[SQL] SELECT x'303132' IN (SELECT * FROM t1)
+at <unknown>:175
+
+[Worker] Starting: evidence/in2.test
+✗ evidence/in2.test - query is expected to fail, but actually succeed:
+[SQL] SELECT 1 FROM t1 WHERE 1 IN (SELECT * FROM t1)
+at <unknown>:281
+
+[Worker] Starting: evidence/slt_lang_aggfunc.test
+[Worker] Starting: evidence/slt_lang_createtrigger.test
+[Worker] Starting: evidence/slt_lang_createview.test
+[Worker] Starting: evidence/slt_lang_dropindex.test
+[Worker] Starting: evidence/slt_lang_droptable.test
+[Worker] Starting: evidence/slt_lang_droptrigger.test
+✗ evidence/slt_lang_droptrigger.test - statement is expected to fail, but actually succeed:
+[SQL] DROP TRIGGER t1r1
+at <unknown>:49
+
+[Worker] Starting: evidence/slt_lang_dropview.test
+[Worker] Starting: evidence/slt_lang_reindex.test
+[Worker] Starting: evidence/slt_lang_replace.test
+✗ evidence/slt_lang_replace.test - query result mismatch:
+[SQL] SELECT x, y FROM t1 WHERE x=2
+[Diff] (-expected|+actual)
+-   2
+-   insert
++   2 insert
+at <unknown>:27
+
+[Worker] Starting: evidence/slt_lang_update.test
+[Worker] Starting: index/between/1/slt_good_0.test
+✗ index/between/1/slt_good_0.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col4 BETWEEN 6.51 AND 4.36) AND ((((col4 > 1.61)))) OR (col0 > 5) AND col0 > 9 OR col1 > 4.37 OR (col3 <= 4 AND col3 < 3 AND col0 >= 6) AND col1 = 3.2
+[Diff] (-expected|+actual)
+-   0
+at <unknown>:119
+
+[Worker] Starting: index/between/10/slt_good_0.test
+✗ index/between/10/slt_good_0.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col3 > 23 AND ((col0 <= 96)) OR (col3 >= 39) OR col1 < 11.32 AND col1 BETWEEN 5.32 AND 81.71 OR col0 <= 45 OR col4 >= 76.74 OR (col1 <= 49.6)
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:112
+
+[Worker] Starting: index/between/10/slt_good_1.test
+✗ index/between/10/slt_good_1.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col4 BETWEEN 57.93 AND 43.23 OR ((col3 > 27) AND (col3 >= 59))
+[Diff] (-expected|+actual)
+-   0
+-   3
+-   5
+-   7
+-   9
+at <unknown>:108
+
+[Worker] Starting: index/between/10/slt_good_2.test
+✗ index/between/10/slt_good_2.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((col3 < 42 AND ((col1 <= 42.72)) OR col3 BETWEEN 35 AND 41 AND col4 >= 38.48))
+[Diff] (-expected|+actual)
+-   0
+-   7
+at <unknown>:151
+
+[Worker] Starting: index/between/10/slt_good_3.test
+✗ index/between/10/slt_good_3.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col0 <= 57 OR col1 IN (SELECT col4 FROM tab1 WHERE col3 = 43 AND col1 BETWEEN 62.29 AND 69.68 AND ((col0 >= 69 AND col0 IS NULL)) AND (col1 > 67.93 AND col3 > 99 OR col3 > 30 AND (col3 < 80) AND (col0 >= 88))) AND col3 < 78) OR col3 < 43
+[Diff] (-expected|+actual)
+-   0
+-   1
+-   2
+-   5
+-   6
+-   8
+-   9
+at <unknown>:121
+
+[Worker] Starting: index/between/10/slt_good_4.test
+✗ index/between/10/slt_good_4.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((col1 > 7.83)) AND (((col0 BETWEEN 41 AND 20 AND col1 < 97.72 OR col0 >= 25 OR (col0 > 59)))) OR col3 >= 35
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:109
+
+[Worker] Starting: index/between/10/slt_good_5.test
+✗ index/between/10/slt_good_5.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((col1 > 93.39)) AND col0 <= 43 OR col0 BETWEEN 55 AND 59 OR (((col3 < 6 OR col4 > 71.3)) AND col0 < 24 OR col1 > 74.36 OR col1 >= 19.10 AND col4 <= 52.51 OR (((col0 < 69) AND col1 IS NULL OR (col3 > 27) AND col1 < 51.86)) OR col0 IN (89) OR col3 = 80 OR col0 < 30 OR ((col1 = 70.19 OR ((col3 > 6 OR col3 < 97 OR ((col1 < 16.69)))) AND (col1 > 64.72 AND col0 >= 63))) OR (col3 <= 82) AND col4 = 37.0 AND col0 >= 65 AND (((col3 > 91) AND col0 < 95 OR col3 < 59 OR col3 BETWEEN 53 AND 99 AND col0 <= 80 OR (col1 < 89.34 OR col1 >= 15.4 OR (col3 <= 53 OR (col0 < 62))) OR col3 > 11 OR col0 > 12)) AND (col3 IS NULL))
+[Diff] (-expected|+actual)
+-   9 values hashing to a09f741e1007d9cc99c658732e945c31
+at <unknown>:146
+
+[Worker] Starting: index/between/100/slt_good_0.test
+✗ index/between/100/slt_good_0.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col0 IS NULL OR col0 >= 153 AND (col3 < 128) OR (col3 IN (207,967) AND col3 < 355 AND (col0 <= 803 OR col4 > 268.72 OR ((col4 < 247.61)) AND (col1 >= 39.8 AND col3 < 788 AND ((col1 > 764.2))))) AND col0 < 794 AND (col3 > 708 OR ((col0 > 236))) AND ((col4 >= 171.69) AND (((col3 > 892 OR col3 IS NULL OR col1 < 444.24 OR col0 IS NULL OR (col0 >= 570) OR ((col3 = 850)) AND ((col1 >= 427.84)) AND (col0 < 310) AND col0 <= 857 OR ((col3 = 176)) OR col3 = 357 OR col0 IS NULL OR col1 > 98.73 OR col1 < 409.72 AND (col3 IN (145)) AND col0 < 574 AND col3 < 795 OR ((col3 > 177 AND col3 > 906 OR col4 > 488.8) AND (col0 < 533)) AND col0 >= 647 OR col3 >= 674 AND (col0 < 319) AND col0 = 671 AND col1 < 875.97 OR col0 > 141 OR (col0 IN (806,586,212)) OR col0 > 60)) AND (col1 > 674.18)) AND (col1 < 347.51)) AND (col0 <= 15) AND (col0 IN (465,75,80)) AND col3 >= 796 AND col3 < 38 OR ((col3 >= 76)) OR (col3 = 489) OR col4 < 854.45 AND ((col0 > 726 OR col3 >= 201 OR (((((((col0 <= 417))))))) AND col3 > 524 AND (col3 < 180 OR (col3 <= 374)) AND col3 = 866 AND col4 IN (17.26,538.17,294.98,34.51,972.77,345.55) OR col0 < 728 OR (((col3 = 58) OR col1 BETWEEN 727.45 AND 618.70 OR ((((((col0 = 649 AND (((col1 >= 421.21 AND col4 >= 234.63 OR col3 = 640 AND ((col3 >= 488 AND (col0 < 675 AND col3 = 662) OR col0 > 811 AND ((((col0 < 649)))))) OR (col3 < 45 OR (col0 <= 1 OR col0 > 593 AND col3 < 854 AND col0 <= 986)) AND col1 <= 38.54 OR (col3 > 424 OR col0 <= 170) AND col3 > 594 OR col0 >= 156 OR (col3 = 157) AND col4 > 704.56)))) AND col3 <= 528 OR (col1 IS NULL OR col0 > 409)) AND col3 > 317 AND col0 > 24 OR (col4 > 961.93)))))) AND col4 < 418.48 OR col1 > 450.24 OR (col4 IN (654.43)) OR col1 >= 443.79 OR ((col3 <= 721 AND ((((col3 <= 833 AND col0 < 471) AND col4 IN (104.36,191.90,692.20)))) OR col3 IN (447) AND col3 > 226 AND col1 < 315.61))) OR (col0 >= 982))) AND col0 >= 939 OR (col3 < 108) AND col1 IN (943.34,471.93,394.44,148.25) OR col3 >= 414 AND col4 IN (894.5,200.92,594.66,876.85,767.24) AND col3 > 664 AND col3 = 216)
+[Diff] (-expected|+actual)
+-   100 values hashing to d7fd31c3916c207fd3117332326c3f37
+at <unknown>:382
+
+[Worker] Starting: index/between/100/slt_good_1.test
+✗ index/between/100/slt_good_1.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col1 < 821.98 AND (col0 > 279)) AND (col3 BETWEEN 2 AND 684 AND col3 > 503 AND (col4 = 980.13) AND (col4 > 871.57) AND col0 <= 865 AND (col0 IS NULL) OR (col0 >= 202 OR ((col0 IN (68,623,401,991,186)) OR (((col0 = 179 OR col4 > 939.11))))) OR ((col0 IS NULL)) OR (col3 = 756) AND col0 < 324) AND ((((col3 <= 899) OR col3 > 843) OR (((col3 < 408))) OR (col1 > 583.26)) OR col3 < 473 AND (col3 >= 646) AND col1 IS NULL AND col4 > 723.87 AND ((col1 > 601.50 OR col4 = 980.27 OR (col0 <= 145) OR (col1 < 798.74) OR ((col0 = 436 OR (col3 >= 108 AND col4 <= 216.75 AND col3 >= 192) AND col0 >= 18 AND (((((((col0 IN (SELECT col3 FROM tab1 WHERE col4 < 471.53) OR ((col1 <= 737.60 AND col3 IS NULL AND col3 < 492 AND col1 IN (301.44,675.53,965.74) AND col0 <= 908 OR col0 = 399 OR ((col0 IN (991,125,684,483)))) OR (((col3 <= 613) AND col0 = 754)) AND col3 < 494 AND col1 > 525.44 AND col1 >= 107.76 AND (col3 > 195)))))))))) OR (col3 IS NULL) AND col3 > 917 AND col3 < 716 OR col1 BETWEEN 97.31 AND 72.45 AND ((((col1 >= 236.60) AND col3 < 875 AND col0 IS NULL OR (col3 <= 971)))) AND col3 >= 63)))) OR (col0 < 226 AND col0 > 989 AND (col3 < 635 OR col1 > 734.89) AND col3 <= 61 AND col4 >= 103.23 OR col0 IS NULL OR col3 > 770) AND col3 > 286
+[Diff] (-expected|+actual)
+-   70 values hashing to 23550a5a8b92dcbfccb237941cf9f0ed
+at <unknown>:388
+
+[Worker] Starting: index/between/100/slt_good_2.test
+✗ index/between/100/slt_good_2.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((((col1 = 118.65 AND (col3 IS NULL) OR col1 IS NULL OR (((col0 IS NULL)))) OR col3 BETWEEN 228 AND 238 AND col0 > 466 AND (col3 < 723) OR col3 < 165 AND ((col3 < 218) OR col1 IS NULL) OR col0 > 75 AND col3 = 842 OR col0 >= 188 AND col3 IS NULL OR col0 >= 241 OR col4 > 820.75 AND (col1 >= 662.44)))) OR (col3 = 711) OR col1 >= 57.85 OR col3 IN (104,735)
+[Diff] (-expected|+actual)
+-   100 values hashing to d7fd31c3916c207fd3117332326c3f37
+at <unknown>:376
+
+[Worker] Starting: index/between/100/slt_good_3.test
+✗ index/between/100/slt_good_3.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((col0 BETWEEN 189 AND 398) AND col3 > 386 AND ((((col1 >= 265.54)) AND ((col0 <= 152)) AND col0 <= 809 OR col3 >= 598 OR (col1 > 970.1)) AND ((col3 < 498 OR col1 IN (873.25,650.43,917.34) AND col0 = 12 OR ((col1 >= 438.54)))) AND ((col4 = 820.0))) OR col1 < 348.95 AND (col0 <= 769 OR col0 > 802 AND ((col4 = 657.95 AND col1 = 381.24 AND (((col3 < 975))) AND (col0 IS NULL)) OR (((col0 < 141))) AND ((((col3 >= 224)) AND col3 BETWEEN 47 AND 885 AND ((col3 < 375 OR (col0 > 217 AND col4 <= 434.67 OR (col4 = 568.57 AND col3 < 908) AND ((col1 > 186.90)) AND col1 > 520.49 AND col1 = 626.37) AND (col3 BETWEEN 934 AND 357 OR col0 < 420 OR (col3 > 505) AND col1 <= 193.44 AND (col3 >= 168 AND col0 <= 412 AND col3 <= 544 OR col4 >= 847.5 AND (col0 = 337 OR col1 <= 973.40)) AND col4 IN (881.2,764.93,937.46) AND (col4 = 382.70 AND ((col1 < 199.9) AND col3 <= 257 OR col4 > 690.45)) AND (col1 > 824.7)) AND col1 > 515.48 OR ((((col0 > 140 AND (col4 = 561.0) OR col4 < 510.27 AND col1 = 167.51) OR col4 IS NULL OR ((col3 < 19 AND (((col1 < 784.81 OR col0 = 449))) AND col0 < 212)) AND col1 < 844.92)) AND col4 > 691.92 AND col3 >= 81))) AND (col3 >= 741) OR col1 IN (844.41,511.47,743.49,254.22,878.17) AND (col1 = 71.53) OR col0 >= 258 AND (col3 > 384 AND col0 <= 69) OR (col3 < 184) OR (col3 > 96)) OR col3 < 704 AND col3 <= 210 AND (col4 >= 709.24) OR (((col3 >= 561 AND (col3 >= 299) AND (col4 <= 972.79) AND col0 > 30) AND (col3 IN (SELECT col0 FROM tab1 WHERE ((col0 = 218)))) OR (col0 < 66) OR col1 < 695.90 OR col3 >= 271 AND col1 < 183.37 OR (((col0 >= 312))) OR col4 >= 386.69)))))) AND col3 >= 920 AND col4 > 862.18 OR (col3 BETWEEN 18 AND 50)
+[Diff] (-expected|+actual)
+-   42
+-   59
+at <unknown>:378
+
+[Worker] Starting: index/between/100/slt_good_4.test
+✗ index/between/100/slt_good_4.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((col1 IS NULL) AND (col4 < 857.88 AND col0 > 883 AND (((((col0 = 498) AND col4 <= 768.11) AND (col4 BETWEEN 882.94 AND 903.4) OR col3 < 176 OR col3 < 594 AND col4 BETWEEN 667.99 AND 654.69 AND ((col0 > 886))))))) OR col0 <= 974
+[Diff] (-expected|+actual)
+-   99 values hashing to 780211ce6ce324767d7d9521700ff608
+at <unknown>:428
+
+[Worker] Starting: index/between/1000/slt_good_0.test
+✗ index/between/1000/slt_good_0.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col1 BETWEEN 9128.11 AND 4747.32 OR col0 < 8802)
+[Diff] (-expected|+actual)
+-   906 values hashing to fced6aede790f59fa88c6c4805045a5a
+at <unknown>:3076
+
+[Worker] Starting: index/commute/10/slt_good_0.test
+✗ index/commute/10/slt_good_0.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((col1 < 71.25)) OR (col3 IN (53,42,27,44) OR (col3 IS NULL)) AND (col0 >= 42)
+[Diff] (-expected|+actual)
+-   9 values hashing to 22e400a2ddbb013acf2a5852d6ab69fc
+at <unknown>:115
+
+[Worker] Starting: index/commute/10/slt_good_1.test
+✗ index/commute/10/slt_good_1.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col0 <= 12 AND (col3 IS NULL)) OR col0 < 68
+[Diff] (-expected|+actual)
+-   0
+-   1
+-   2
+-   4
+-   5
+-   6
+-   8
+-   9
+at <unknown>:157
+
+[Worker] Starting: index/commute/10/slt_good_10.test
+✗ index/commute/10/slt_good_10.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col1 IN (SELECT col4 FROM tab1 WHERE ((col0 > 57) AND (((col3 >= 46) OR col0 = 19)) OR col3 < 42)) OR col4 <= 49.74 OR col3 = 26 AND col4 < 5.90
+[Diff] (-expected|+actual)
+-   6
+-   7
+-   8
+at <unknown>:113
+
+[Worker] Starting: index/commute/10/slt_good_11.test
+✗ index/commute/10/slt_good_11.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col3 > 41 OR col0 <= 50
+[Diff] (-expected|+actual)
+-   9 values hashing to 7c052a6f22ec636843783dd115badb9d
+at <unknown>:109
+
+[Worker] Starting: index/commute/10/slt_good_12.test
+✗ index/commute/10/slt_good_12.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col0 <= 57 OR ((col4 IS NULL)) AND col1 >= 85.46 AND (col3 > 53)
+[Diff] (-expected|+actual)
+-   3
+-   4
+-   5
+-   6
+-   7
+-   8
+-   9
+at <unknown>:118
+
+[Worker] Starting: index/commute/10/slt_good_13.test
+✗ index/commute/10/slt_good_13.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (((col0 IN (99,22)))) OR col3 < 48 OR ((col3 > 53 AND col3 > 33))
+[Diff] (-expected|+actual)
+-   9 values hashing to a09f741e1007d9cc99c658732e945c31
+at <unknown>:109
+
+[Worker] Starting: index/commute/10/slt_good_14.test
+✗ index/commute/10/slt_good_14.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col1 > 63.92
+[Diff] (-expected|+actual)
+-   1
+-   4
+-   6
+at <unknown>:113
+
+[Worker] Starting: index/commute/10/slt_good_15.test
+✗ index/commute/10/slt_good_15.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col1 <= 85.33 AND col3 <= 4 AND col4 <= 47.86 AND col1 > 43.71 OR (col3 IS NULL)) OR ((col1 < 48.60 OR (col4 > 88.98) OR (col3 IN (2,72,77,33)) OR col0 = 95 OR col3 >= 63 AND (col0 < 3) OR ((col3 > 38) AND col3 > 3 OR ((col0 >= 5) AND col0 < 76 AND col1 >= 37.2) AND (((col0 >= 8))))) OR col1 < 70.19) AND (col0 < 10)
+[Diff] (-expected|+actual)
+-   3
+at <unknown>:143
+
+[Worker] Starting: index/commute/10/slt_good_16.test
+✗ index/commute/10/slt_good_16.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((col4 <= 40.87))
+[Diff] (-expected|+actual)
+-   2
+-   3
+-   4
+-   9
+at <unknown>:115
+
+[Worker] Starting: index/commute/10/slt_good_17.test
+✗ index/commute/10/slt_good_17.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col0 <= 33 AND ((col0 BETWEEN 64 AND 85) OR (col1 IN (3.38,94.59,16.13,71.12)) OR col1 > 22.5 OR (col3 > 12))
+[Diff] (-expected|+actual)
+-   0
+-   1
+-   2
+-   6
+at <unknown>:152
+
+[Worker] Starting: index/commute/10/slt_good_18.test
+✗ index/commute/10/slt_good_18.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col4 >= 44.90) OR (((((col0 > 87)))) AND col3 > 15) OR (col0 <= 52) AND (col0 <= 9) AND col0 > 72 AND (col0 > 54 AND ((col3 > 66 AND col0 <= 20) OR col3 < 22 OR col0 IS NULL OR col4 = 52.69 AND col1 > 87.70 OR ((col3 >= 90 OR col3 <= 22 OR (col3 <= 90 AND (col0 < 65)))) AND ((col0 < 90 AND col0 > 50)) AND ((((col0 < 83)))) OR ((col0 >= 88)) AND col3 > 68 AND ((col0 < 5)) AND (((col0 IN (70,62,77,16,30))))) AND (col3 BETWEEN 20 AND 30)) AND col1 <= 28.82
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:115
+
+[Worker] Starting: index/commute/10/slt_good_19.test
+✗ index/commute/10/slt_good_19.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((col1 < 34.43))
+[Diff] (-expected|+actual)
+-   8
+at <unknown>:106
+
+[Worker] Starting: index/commute/10/slt_good_2.test
+✗ index/commute/10/slt_good_2.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col4 > 94.74
+[Diff] (-expected|+actual)
+-   7
+at <unknown>:112
+
+[Worker] Starting: index/commute/10/slt_good_20.test
+✗ index/commute/10/slt_good_20.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((col1 IN (89.81,41.51,53.17,28.18) AND col3 < 8)) OR col3 IN (90,30) AND col4 BETWEEN 58.95 AND 57.98 AND (col0 <= 12) AND col3 IS NULL AND col3 <= 40 AND ((col1 <= 31.76 AND ((col1 < 16.51) OR ((col1 < 44.87)) AND col3 >= 86) OR col3 <= 55 AND col0 >= 5 AND col0 > 52 AND (col3 = 1) OR col0 <= 49 AND (col4 = 98.31) OR col0 >= 7)) OR (col0 IS NULL) OR col4 >= 39.96 OR col3 >= 10 AND col0 >= 47
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:149
+
+[Worker] Starting: index/commute/10/slt_good_21.test
+✗ index/commute/10/slt_good_21.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col4 > 31.26
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:143
+
+[Worker] Starting: index/commute/10/slt_good_22.test
+✗ index/commute/10/slt_good_22.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col0 = 18) OR col0 IS NULL AND col3 > 65 AND col3 < 66 AND (col3 > 19) OR col4 >= 67.55 OR col1 >= 63.25 OR col0 >= 29 AND (((col3 = 52)))
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:112
+
+[Worker] Starting: index/commute/10/slt_good_23.test
+✗ index/commute/10/slt_good_23.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col4 > 87.75
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:112
+
+[Worker] Starting: index/commute/10/slt_good_24.test
+✗ index/commute/10/slt_good_24.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col1 > 41.27)
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:232
+
+[Worker] Starting: index/commute/10/slt_good_25.test
+✗ index/commute/10/slt_good_25.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col1 >= 65.92
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:183
+
+[Worker] Starting: index/commute/10/slt_good_26.test
+✗ index/commute/10/slt_good_26.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col3 IS NULL AND (col4 BETWEEN 96.96 AND 7.16 AND col4 < 6.62) OR col4 <= 23.35 OR col3 > 33 OR (col0 > 32)
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:186
+
+[Worker] Starting: index/commute/10/slt_good_27.test
+✗ index/commute/10/slt_good_27.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col0 > 95 AND col3 >= 60)
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:192
+
+[Worker] Starting: index/commute/10/slt_good_28.test
+✗ index/commute/10/slt_good_28.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((((col1 <= 76.16))) OR col0 > 28)
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:152
+
+[Worker] Starting: index/commute/10/slt_good_29.test
+✗ index/commute/10/slt_good_29.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((col4 = 97.96 OR col0 >= 89))
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:109
+
+[Worker] Starting: index/commute/10/slt_good_3.test
+✗ index/commute/10/slt_good_3.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col1 >= 93.90 OR (col0 > 5) OR col4 > 57.41 AND (col1 < 1.49) OR col0 < 59 OR col4 < 33.12 AND (col3 < 90 AND col3 >= 68) AND col3 >= 35
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:109
+
+[Worker] Starting: index/commute/10/slt_good_30.test
+✗ index/commute/10/slt_good_30.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col1 > 88.8)
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:109
+
+[Worker] Starting: index/commute/10/slt_good_31.test
+✗ index/commute/10/slt_good_31.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col0 < 8 OR ((col4 > 90.99))
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:152
+
+[Worker] Starting: index/commute/10/slt_good_32.test
+✗ index/commute/10/slt_good_32.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col4 > 62.33
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:109
+
+[Worker] Starting: index/commute/10/slt_good_33.test
+✗ index/commute/10/slt_good_33.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col4 > 71.63
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:155
+
+[Worker] Starting: index/commute/10/slt_good_34.test
+✗ index/commute/10/slt_good_34.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col4 > 44.28
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:309
+
+[Worker] Starting: index/commute/10/slt_good_4.test
+✗ index/commute/10/slt_good_4.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col3 >= 5)
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:103
+
+[Worker] Starting: index/commute/10/slt_good_5.test
+✗ index/commute/10/slt_good_5.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col1 > 17.98) OR ((col0 >= 40))
+[Diff] (-expected|+actual)
+-   9 values hashing to a09f741e1007d9cc99c658732e945c31
+at <unknown>:109
+
+[Worker] Starting: index/commute/10/slt_good_6.test
+✗ index/commute/10/slt_good_6.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((col0 IS NULL) OR (col1 >= 7.87))
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:121
+
+[Worker] Starting: index/commute/10/slt_good_7.test
+✗ index/commute/10/slt_good_7.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col1 >= 73.70 AND col0 >= 49 OR col4 < 43.15 OR ((col3 = 20 OR col0 < 48))
+[Diff] (-expected|+actual)
+-   0
+-   1
+-   2
+-   3
+-   4
+-   5
+-   9
+at <unknown>:127
+
+[Worker] Starting: index/commute/10/slt_good_8.test
+✗ index/commute/10/slt_good_8.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col1 > 17.65
+[Diff] (-expected|+actual)
+-   0
+-   2
+-   3
+-   4
+-   5
+-   6
+-   8
+-   9
+at <unknown>:123
+
+[Worker] Starting: index/commute/10/slt_good_9.test
+✗ index/commute/10/slt_good_9.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col3 > 29 AND (col3 <= 76) AND col3 <= 11 AND col1 > 15.46 OR col4 < 21.97 OR col4 IS NULL OR col3 > 18 OR (col3 IN (40,81,67)) OR col4 > 79.39
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:115
+
+[Worker] Starting: index/commute/100/slt_good_0.test
+✗ index/commute/100/slt_good_0.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col0 > 283 AND col1 > 969.7
+[Diff] (-expected|+actual)
+-   54
+-   74
+-   76
+-   92
+at <unknown>:425
+
+[Worker] Starting: index/commute/100/slt_good_1.test
+✗ index/commute/100/slt_good_1.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col0 > 718
+[Diff] (-expected|+actual)
+-   32 values hashing to c5e84dd4a0409fa370e63812ae64ffa4
+at <unknown>:373
+
+[Worker] Starting: index/commute/100/slt_good_10.test
+✗ index/commute/100/slt_good_10.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col3 = 267 AND col4 < 335.21 AND col3 > 153
+[Diff] (-expected|+actual)
+-   2
+at <unknown>:385
+
+[Worker] Starting: index/commute/100/slt_good_11.test
+✗ index/commute/100/slt_good_11.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col4 <= 815.50
+[Diff] (-expected|+actual)
+-   84 values hashing to a3d9ff68cd270c378b2e7319c2bd242f
+at <unknown>:382
+
+[Worker] Starting: index/commute/100/slt_good_12.test
+✗ index/commute/100/slt_good_12.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col0 > 962
+[Diff] (-expected|+actual)
+-   49 values hashing to fa74b9c0a4e19a4673883ba5fcec1883
+at <unknown>:422
+
+[Worker] Starting: index/commute/100/slt_good_2.test
+✗ index/commute/100/slt_good_2.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col4 > 506.75 AND (((col4 >= 526.91 AND col1 > 153.12 AND col0 > 450 OR col0 > 786)) AND col4 < 687.62) OR (col1 = 858.69) AND col4 < 640.27
+[Diff] (-expected|+actual)
+-   1
+-   19
+-   35
+-   75
+-   8
+at <unknown>:430
+
+[Worker] Starting: index/commute/100/slt_good_3.test
+✗ index/commute/100/slt_good_3.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col3 < 263
+[Diff] (-expected|+actual)
+-   34 values hashing to 0519726061d61c8c898963b02c82feee
+at <unknown>:376
+
+[Worker] Starting: index/commute/100/slt_good_4.test
+✗ index/commute/100/slt_good_4.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col3 > 180
+[Diff] (-expected|+actual)
+-   81 values hashing to 2a9a0a27d2d11d8b93079d6aa84a3f19
+at <unknown>:385
+
+[Worker] Starting: index/commute/100/slt_good_5.test
+✗ index/commute/100/slt_good_5.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col3 < 168 AND (col0 < 274)) AND (((col0 BETWEEN 572 AND 26) OR col1 > 938.13 AND (col0 = 123) AND col3 = 916 OR col1 < 843.0) OR col0 > 475) AND col1 < 793.81 OR ((((col0 IN (79,869,492,266,641))) OR (col0 > 774))) AND col0 IS NULL
+[Diff] (-expected|+actual)
+-   39
+-   41
+-   55
+at <unknown>:380
+
+[Worker] Starting: index/commute/100/slt_good_6.test
+✗ index/commute/100/slt_good_6.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col3 > 89
+[Diff] (-expected|+actual)
+-   92 values hashing to dbb3537bd5dbf491234413cdb17cb0cf
+at <unknown>:419
+
+[Worker] Starting: index/commute/100/slt_good_7.test
+✗ index/commute/100/slt_good_7.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (((col0 = 711 OR col0 < 103 AND col1 < 796.30 AND col0 >= 90 OR (col4 > 740.47 AND col0 < 66 AND col0 >= 705) OR (col4 >= 457.37)) OR (col4 > 956.11 AND col0 = 431) OR (col4 >= 696.82) AND col1 < 718.65)) AND ((col4 IN (714.27,200.53,66.53,343.99,75.15,298.49) AND col0 > 105 OR (col0 > 269)) AND (col1 < 621.38 OR col3 > 147 OR (col0 > 630 AND col3 IN (611,181,281,352) AND (((col1 < 384.8 AND col4 > 425.50)))) OR (col3 IS NULL AND ((col3 < 768 OR (((col1 > 421.63)))) AND col4 >= 903.53) AND col0 < 866 AND col1 < 305.30) OR ((col3 > 344) AND col3 < 759 AND ((col3 <= 973 OR (col1 > 588.41)))) AND col0 > 855 OR (col1 <= 365.18 AND ((col4 <= 277.81) AND col0 = 347 OR col3 >= 357 OR col3 >= 618))))
+[Diff] (-expected|+actual)
+-   37 values hashing to 06c99af1123985d90f68f2510256522c
+at <unknown>:382
+
+[Worker] Starting: index/commute/100/slt_good_8.test
+✗ index/commute/100/slt_good_8.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col3 > 795
+[Diff] (-expected|+actual)
+-   23 values hashing to d0b454c58703f3ad91051c0cf79b1047
+at <unknown>:379
+
+[Worker] Starting: index/commute/100/slt_good_9.test
+✗ index/commute/100/slt_good_9.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col0 > 739)
+[Diff] (-expected|+actual)
+-   28 values hashing to ea583a9f25d063b7af48fda87413609c
+at <unknown>:382
+
+[Worker] Starting: index/commute/1000/slt_good_0.test
+✗ index/commute/1000/slt_good_0.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col3 > 2829)
+[Diff] (-expected|+actual)
+-   692 values hashing to 89adffc01f00efd3a5732341a1a078d9
+at <unknown>:3076
+
+[Worker] Starting: index/commute/1000/slt_good_1.test
+✗ index/commute/1000/slt_good_1.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col0 > 5727
+[Diff] (-expected|+actual)
+-   415 values hashing to 928462d18eaa952a95e6668bf2a05c10
+at <unknown>:3076
+
+[Worker] Starting: index/commute/1000/slt_good_2.test
+✗ index/commute/1000/slt_good_2.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((col0 <= 9933 OR (col3 = 5515) AND (((col3 <= 6605) OR col3 < 1989)))) AND (col0 >= 8524)
+[Diff] (-expected|+actual)
+-   152 values hashing to 401800ebf0d50b96a7ecda98e6a4888d
+at <unknown>:3076
+
+[Worker] Starting: index/commute/1000/slt_good_3.test
+✗ index/commute/1000/slt_good_3.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col3 > 845)
+[Diff] (-expected|+actual)
+-   909 values hashing to b25abe726697259fb86325f8ad47b895
+at <unknown>:3088
+
+[Worker] Starting: index/delete/1/slt_good_0.test
+[Worker] Starting: index/delete/10/slt_good_0.test
+[Worker] Starting: index/delete/10/slt_good_1.test
+[Worker] Starting: index/delete/10/slt_good_2.test
+[Worker] Starting: index/delete/10/slt_good_3.test
+[Worker] Starting: index/delete/10/slt_good_4.test
+[Worker] Starting: index/delete/10/slt_good_5.test
+[Worker] Starting: index/delete/100/slt_good_0.test
+[Worker] Starting: index/delete/100/slt_good_1.test
+[Worker] Starting: index/delete/100/slt_good_2.test
+[Worker] Starting: index/delete/100/slt_good_3.test
+[Worker] Starting: index/delete/1000/slt_good_0.test
+[Worker] Starting: index/delete/1000/slt_good_1.test
+[Worker] Starting: index/delete/10000/slt_good_0.test
+[Worker] Starting: index/in/10/slt_good_0.test
+✗ index/in/10/slt_good_0.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col4 > 12.48 OR (col1 IN (63.52,29.7,91.86,30.25,44.75,61.15) OR col4 >= 40.21 OR (col4 < 97.92)) AND col3 > 64
+[Diff] (-expected|+actual)
+-   9 values hashing to 4290bd41ca7ca69dc280e33882d8e9de
+at <unknown>:348
+
+[Worker] Starting: index/in/10/slt_good_1.test
+✗ index/in/10/slt_good_1.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col3 >= 80 AND col4 IN (61.72,91.69,75.89,68.74) OR (((((col4 >= 34.44 OR col0 IN (18,43,46,71,41) AND (col3 > 22)))) AND (col0 >= 55 OR (col3 > 10))) OR col3 IN (29,14,2,22,10,54) AND col1 > 40.1) AND (col4 > 38.77)
+[Diff] (-expected|+actual)
+-   0
+-   1
+-   2
+-   4
+-   6
+-   7
+-   8
+at <unknown>:129
+
+[Worker] Starting: index/in/10/slt_good_2.test
+✗ index/in/10/slt_good_2.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((((col3 IS NULL OR col3 > 23)) OR col3 IN (79,61,90,93) AND (col1 > 2.48) AND col3 > 98 OR (col1 >= 15.24)))
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:108
+
+[Worker] Starting: index/in/10/slt_good_3.test
+✗ index/in/10/slt_good_3.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col0 < 12 OR (col1 > 73.76 AND col4 > 27.56 AND col4 > 78.54) AND col0 > 17 AND (col4 <= 84.75 OR col0 >= 62 AND col0 < 85 AND col0 < 0 AND col0 > 20 OR col0 IS NULL AND (col4 >= 92.35 AND col3 < 85 OR col3 < 29) OR col0 < 70 AND ((col4 IN (63.71,22.52,17.76,39.58,18.13,96.18)))) OR (col0 > 83 AND col0 <= 47 OR col0 < 63 AND col0 > 79 OR ((col0 IN (SELECT col3 FROM tab1 WHERE (col3 < 7)) AND col1 > 29.3))) AND col4 < 81.57)
+[Diff] (-expected|+actual)
+-   0
+-   1
+-   5
+at <unknown>:240
+
+[Worker] Starting: index/in/10/slt_good_4.test
+✗ index/in/10/slt_good_4.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col0 <= 20 OR col0 IN (SELECT col3 FROM tab1 WHERE col3 IS NULL AND ((col3 > 58)) AND ((col0 < 69)) OR ((((col3 < 73) OR col4 < 36.62) OR col3 >= 60)) OR ((col1 IN (36.28,52.39,78.56) OR (col4 <= 86.71))) AND col1 >= 27.26 AND col1 <= 96.67 OR col3 > 31 OR ((col3 > 8) AND ((col1 >= 2.94 AND (col0 >= 11) AND col3 < 44)))) OR col4 > 91.91 OR (col0 IS NULL) AND (col1 > 5.2))
+[Diff] (-expected|+actual)
+-   4
+-   6
+at <unknown>:120
+
+[Worker] Starting: index/in/10/slt_good_5.test
+✗ index/in/10/slt_good_5.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((col0 = 55 OR col0 = 20 OR col0 = 12 OR col0 = 17))
+[Diff] (-expected|+actual)
+-   5
+at <unknown>:187
+
+[Worker] Starting: index/in/100/slt_good_0.test
+✗ index/in/100/slt_good_0.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col3 >= 241 OR (col3 < 197) AND col3 <= 118 OR (col0 >= 341) AND col0 IN (940,917,989,216,349,585) AND ((col3 > 862 AND col0 IN (151,921,522,622,193,628) OR ((col3 >= 883 OR (((col0 <= 810 AND (col0 < 295 AND col1 IS NULL))))) OR (col1 < 998.99) OR col1 IS NULL OR (col1 > 894.71)) AND col3 >= 45)) OR (col4 = 677.28) AND col0 > 668 OR ((col3 < 802)) OR col3 >= 802 AND (col3 > 544 OR col3 IN (SELECT col0 FROM tab1 WHERE col0 <= 185 OR col4 > 433.46) OR ((col1 >= 242.9) AND (col0 < 69 AND (col1 > 410.45) AND (col4 >= 901.88) AND (col4 = 701.97) OR (col3 > 952))) OR col0 < 3)
+[Diff] (-expected|+actual)
+-   100 values hashing to d7fd31c3916c207fd3117332326c3f37
+at <unknown>:447
+
+[Worker] Starting: index/in/100/slt_good_1.test
+✗ index/in/100/slt_good_1.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col4 >= 634.78 OR col3 IN (916,790,613,190,680) OR (((col3 = 278)))
+[Diff] (-expected|+actual)
+-   40 values hashing to a4cade956c503be1a37ef7ca870fd2d0
+at <unknown>:384
+
+[Worker] Starting: index/in/100/slt_good_2.test
+✗ index/in/100/slt_good_2.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col1 > 39.49 OR col3 IN (558,9,146,142,805) OR col0 IS NULL OR col0 > 287 AND ((((((col0 < 17 OR (col3 = 796))))))) AND col4 < 507.40)
+[Diff] (-expected|+actual)
+-   96 values hashing to da25248866500f4de8cd9048275250e5
+at <unknown>:387
+
+[Worker] Starting: index/in/100/slt_good_3.test
+✗ index/in/100/slt_good_3.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col3 IN (349,651) AND (col0 = 652) OR ((col1 IN (34.63,178.63,553.54) OR (col0 > 429) AND col1 >= 265.7) AND col3 >= 48) AND col3 IN (781,731,375,588) OR (col3 >= 293)
+[Diff] (-expected|+actual)
+-   68 values hashing to 483360fa668b8846a3c80f4393a25a6f
+at <unknown>:381
+
+[Worker] Starting: index/in/100/slt_good_4.test
+✗ index/in/100/slt_good_4.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((((col4 < 4.84)))) OR (col0 > 87 OR col4 <= 159.42 AND col0 > 197 AND ((col0 >= 811 OR col0 IN (47,566))) OR (col4 = 152.11)) OR col3 <= 571
+[Diff] (-expected|+actual)
+-   97 values hashing to a4610fbd1de44d8c91df04e45bbf5f4f
+at <unknown>:504
+
+[Worker] Starting: index/in/1000/slt_good_0.test
+✗ index/in/1000/slt_good_0.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col1 < 7419.48 OR col4 < 5914.38 OR ((col4 <= 8272.22)) OR ((col0 BETWEEN 9610 AND 837 OR ((((col0 IN (615,4227,6578) AND col1 IS NULL))))) OR col3 BETWEEN 3220 AND 8440) OR ((col4 = 8802.85 OR col4 IN (8693.40,3244.26) AND col0 >= 4248)) AND col1 < 6939.48 OR (col3 > 1080)
+[Diff] (-expected|+actual)
+-   996 values hashing to 6efea605f7437b825c3f9346f9d95878
+at <unknown>:3147
+
+[Worker] Starting: index/in/1000/slt_good_1.test
+✗ index/in/1000/slt_good_1.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col0 >= 6994) AND col0 < 7510 OR (col4 > 5206.24 OR col3 IN (6897,7881,9142,6681))
+[Diff] (-expected|+actual)
+-   491 values hashing to 8057ce0aec7dfbc288fecea741499cb0
+at <unknown>:3255
+
+[Worker] Starting: index/orderby/10/slt_good_0.test
+✗ index/orderby/10/slt_good_0.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col3 > 221 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   0
+-   1
+-   2
+-   4
+-   5
+-   6
+-   7
+-   8
+at <unknown>:354
+
+[Worker] Starting: index/orderby/10/slt_good_1.test
+✗ index/orderby/10/slt_good_1.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((col4 > 901.6) AND col0 >= 17 AND (col0 IS NULL) AND col0 < 649) AND (col3 > 960) OR (col3 > 58) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:110
+
+[Worker] Starting: index/orderby/10/slt_good_10.test
+✗ index/orderby/10/slt_good_10.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col3 <= 717 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   9 values hashing to 4290bd41ca7ca69dc280e33882d8e9de
+at <unknown>:341
+
+[Worker] Starting: index/orderby/10/slt_good_11.test
+✗ index/orderby/10/slt_good_11.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (((col4 = 582.27)) AND ((((col4 >= 825.23 OR col1 <= 899.12))))) OR col0 > 345 AND col4 >= 318.92 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   2
+-   6
+at <unknown>:108
+
+[Worker] Starting: index/orderby/10/slt_good_12.test
+✗ index/orderby/10/slt_good_12.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((col3 <= 980)) AND col3 >= 1 OR col0 <= 427 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:107
+
+[Worker] Starting: index/orderby/10/slt_good_13.test
+✗ index/orderby/10/slt_good_13.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col1 < 137.85 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   5
+at <unknown>:101
+
+[Worker] Starting: index/orderby/10/slt_good_14.test
+✗ index/orderby/10/slt_good_14.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col4 > 532.20 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   3
+-   4
+-   5
+-   7
+-   8
+at <unknown>:351
+
+[Worker] Starting: index/orderby/10/slt_good_15.test
+✗ index/orderby/10/slt_good_15.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((col1 > 37.52)) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   9 values hashing to 771a06029c003358acd302c0ec942a73
+at <unknown>:344
+
+[Worker] Starting: index/orderby/10/slt_good_16.test
+✗ index/orderby/10/slt_good_16.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col1 <= 857.86 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   0
+-   1
+-   2
+-   3
+-   4
+-   5
+-   7
+-   8
+at <unknown>:105
+
+[Worker] Starting: index/orderby/10/slt_good_17.test
+✗ index/orderby/10/slt_good_17.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col1 > 705.64) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   4
+-   6
+-   7
+at <unknown>:112
+
+[Worker] Starting: index/orderby/10/slt_good_18.test
+✗ index/orderby/10/slt_good_18.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col3 > 543) OR ((col3 < 615)) AND ((col4 = 801.18) AND col0 <= 942) OR ((col1 >= 946.13) OR col0 = 726) AND ((col3 BETWEEN 232 AND 124)) OR col3 <= 510 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   9 values hashing to 502f27eec143c19418cc601be1d35451
+at <unknown>:347
+
+[Worker] Starting: index/orderby/10/slt_good_19.test
+✗ index/orderby/10/slt_good_19.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col3 > 287) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   1
+-   2
+-   3
+-   4
+-   5
+-   6
+-   8
+-   9
+at <unknown>:111
+
+[Worker] Starting: index/orderby/10/slt_good_2.test
+✗ index/orderby/10/slt_good_2.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col3 > 444) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   0
+-   1
+-   2
+-   3
+-   4
+-   5
+-   6
+-   8
+at <unknown>:108
+
+[Worker] Starting: index/orderby/10/slt_good_20.test
+✗ index/orderby/10/slt_good_20.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col0 > 649) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   1
+-   3
+-   7
+at <unknown>:106
+
+[Worker] Starting: index/orderby/10/slt_good_21.test
+✗ index/orderby/10/slt_good_21.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((col0 >= 368)) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   1
+-   2
+-   3
+-   5
+-   6
+-   7
+-   8
+-   9
+at <unknown>:114
+
+[Worker] Starting: index/orderby/10/slt_good_22.test
+✗ index/orderby/10/slt_good_22.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col0 = 411) OR (col1 >= 880.48) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   1
+-   7
+at <unknown>:105
+
+[Worker] Starting: index/orderby/10/slt_good_23.test
+✗ index/orderby/10/slt_good_23.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col0 >= 214) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   9 values hashing to 771a06029c003358acd302c0ec942a73
+at <unknown>:107
+
+[Worker] Starting: index/orderby/10/slt_good_24.test
+✗ index/orderby/10/slt_good_24.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col3 <= 159 AND (col4 <= 791.36)) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   8
+-   9
+at <unknown>:102
+
+[Worker] Starting: index/orderby/10/slt_good_25.test
+✗ index/orderby/10/slt_good_25.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col0 <= 722) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   9 values hashing to a09f741e1007d9cc99c658732e945c31
+at <unknown>:107
+
+[Worker] Starting: index/orderby/10/slt_good_3.test
+✗ index/orderby/10/slt_good_3.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col3 <= 505) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   1
+-   2
+-   3
+-   4
+-   8
+at <unknown>:105
+
+[Worker] Starting: index/orderby/10/slt_good_4.test
+✗ index/orderby/10/slt_good_4.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col0 > 842 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   4
+-   8
+at <unknown>:345
+
+[Worker] Starting: index/orderby/10/slt_good_5.test
+✗ index/orderby/10/slt_good_5.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col3 >= 264 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   0
+-   1
+-   3
+-   4
+-   6
+-   7
+-   8
+-   9
+at <unknown>:588
+
+[Worker] Starting: index/orderby/10/slt_good_6.test
+✗ index/orderby/10/slt_good_6.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (((((((col0 = 760) OR (col1 IS NULL) OR ((col3 < 689) OR (col0 BETWEEN 904 AND 557 AND col3 > 608 AND (col3 < 683 AND (col1 IS NULL)))) AND col0 > 942 OR (col0 <= 423) OR col3 < 914 AND (col3 > 960) AND col3 >= 620 OR col3 >= 316 OR col0 = 578 AND col0 > 632 OR col3 >= 174 AND col3 > 765 OR col4 < 550.49 OR col0 > 93))) AND col0 > 279) AND col0 < 488 AND (col4 = 299.14) AND col1 < 432.81 OR col0 > 610 OR (((col0 <= 993))))) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:92
+
+[Worker] Starting: index/orderby/10/slt_good_7.test
+✗ index/orderby/10/slt_good_7.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((col4 < 975.28)) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:824
+
+[Worker] Starting: index/orderby/10/slt_good_8.test
+✗ index/orderby/10/slt_good_8.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (((col3 >= 420) OR col3 <= 614 OR col1 <= 720.18)) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:101
+
+[Worker] Starting: index/orderby/10/slt_good_9.test
+✗ index/orderby/10/slt_good_9.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col3 <= 736 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   9 values hashing to 6ba058c53c08bb0173bcc14ce59aeeff
+at <unknown>:98
+
+[Worker] Starting: index/orderby/100/slt_good_0.test
+✗ index/orderby/100/slt_good_0.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col0 <= 605 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   68 values hashing to 9f16f31f42ed3bf4d8fc69fc4ab6f924
+at <unknown>:371
+
+[Worker] Starting: index/orderby/100/slt_good_1.test
+✗ index/orderby/100/slt_good_1.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col1 >= 80.95) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   93 values hashing to 10e7913dcf3f04c9d7800f402339d0a3
+at <unknown>:368
+
+[Worker] Starting: index/orderby/100/slt_good_2.test
+✗ index/orderby/100/slt_good_2.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col0 >= 485) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   52 values hashing to 7010dddcb2e77ba9e643d4d8477a707f
+at <unknown>:374
+
+[Worker] Starting: index/orderby/100/slt_good_3.test
+✗ index/orderby/100/slt_good_3.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE ((col0 > 633) AND col3 > 641 OR (col1 >= 66.13)) AND col0 >= 864 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   14 values hashing to eaa8acb0bf10c9ba35bb030d37186be3
+at <unknown>:368
+
+[Worker] Starting: index/orderby/1000/slt_good_0.test
+✗ index/orderby/1000/slt_good_0.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE (col0 > 4508) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   568 values hashing to fada519fcca6cec10db947a4be0f1b47
+at <unknown>:3077
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_0.test
+✗ index/orderby_nosort/10/slt_good_0.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE col1 > 71.33 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   4
+-   3
++   3
++   4
+at <unknown>:102
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_1.test
+✗ index/orderby_nosort/10/slt_good_1.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE ((col1 > 88.0 AND ((col3 > 52 AND col4 > 15.54 AND col0 <= 8)) AND col0 = 66)) OR ((col4 >= 77.37)) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   8
++   0
++   2
++   4
+    6
+-   4
+-   2
+-   0
++   8
+at <unknown>:816
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_10.test
+✗ index/orderby_nosort/10/slt_good_10.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE col4 > 5.4 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:96
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_11.test
+✗ index/orderby_nosort/10/slt_good_11.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE col0 > 3 OR (col4 > 91.28) AND (col3 > 9) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:339
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_12.test
+✗ index/orderby_nosort/10/slt_good_12.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE (col0 <= 73) OR (col0 > 40) AND (col1 > 46.21) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:1536
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_13.test
+✗ index/orderby_nosort/10/slt_good_13.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE col3 > 12 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:102
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_14.test
+✗ index/orderby_nosort/10/slt_good_14.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE col4 >= 53.57 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:339
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_15.test
+✗ index/orderby_nosort/10/slt_good_15.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE (col0 >= 37) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:105
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_16.test
+✗ index/orderby_nosort/10/slt_good_16.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE (col3 <= 91 AND col3 = 34) OR (col0 < 17 OR col4 IN (69.54,55.45,79.46,62.57) AND (col4 = 95.33 OR col0 > 29 AND ((col4 <= 63.21))) OR (col4 > 43.16)) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:582
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_17.test
+✗ index/orderby_nosort/10/slt_good_17.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE col0 <= 47 OR (((col3 IS NULL OR col4 > 27.41 OR (col3 IN (70))) AND (col3 < 80 AND col1 < 22.37 OR col1 <= 93.90 OR (((col4 > 63.23 OR col1 > 61.59)))))) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:333
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_18.test
+✗ index/orderby_nosort/10/slt_good_18.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE (col1 > 56.79) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:813
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_19.test
+✗ index/orderby_nosort/10/slt_good_19.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE ((col1 < 63.16)) AND col4 <= 29.35 OR col4 >= 22.19 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:102
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_2.test
+✗ index/orderby_nosort/10/slt_good_2.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE col3 < 21 OR col4 < 60.23 AND ((col3 > 55)) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   9
++   0
++   2
++   3
++   6
+    8
+-   6
+-   3
+-   2
+-   0
++   9
+at <unknown>:99
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_20.test
+✗ index/orderby_nosort/10/slt_good_20.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE (col4 >= 75.83) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:102
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_21.test
+✗ index/orderby_nosort/10/slt_good_21.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE (((col0 <= 8 OR (((col4 IN (8.24,11.24,83.49,44.91,4.8)) AND col3 IS NULL OR col1 > 1.10 OR (col0 > 58 AND ((col4 = 43.22 AND (col1 < 13.51 OR col3 = 76) AND col3 IN (29,83,24,6,30,42) AND col0 > 76) AND col4 = 6.94 AND (col0 <= 77) OR col4 < 45.17 OR col3 >= 52 OR ((col0 < 22) OR col0 < 12) AND (col3 > 63) OR col0 <= 34 AND ((col3 >= 49)) AND col1 >= 55.89 OR col4 < 38.33) OR (col3 > 59)) OR col3 > 71))) AND col4 < 97.17 AND col3 >= 76 AND col3 < 7 AND col1 <= 98.27 AND col3 >= 78 AND (col3 > 23) OR (col0 > 5) AND (col3 <= 80) AND col0 > 52 OR ((col4 >= 62.66)) OR (((col1 <= 43.49 OR col4 < 40.54) AND (col1 = 77.27) AND col1 > 68.26 OR col0 < 19 OR (col1 <= 76.66 OR (col0 < 6 AND (col1 > 47.15))))) OR col0 <= 90 AND (col1 < 40.83 AND col3 >= 31 OR (col0 <= 42) AND col3 > 80))) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:579
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_22.test
+✗ index/orderby_nosort/10/slt_good_22.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE ((col3 >= 62)) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:105
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_23.test
+✗ index/orderby_nosort/10/slt_good_23.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE (col3 > 10 AND col0 > 56) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:96
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_24.test
+✗ index/orderby_nosort/10/slt_good_24.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE (((col4 >= 30.1) AND col3 IS NULL OR col0 < 80 AND col3 IN (SELECT col0 FROM tab0 WHERE (((col0 IS NULL))))) OR ((col4 BETWEEN 97.83 AND 47.44))) AND col3 = 84 OR (col0 > 62 OR col4 IS NULL) OR col0 > 60 AND col3 > 18 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:585
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_25.test
+✗ index/orderby_nosort/10/slt_good_25.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE col4 > 73.32 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:1059
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_26.test
+✗ index/orderby_nosort/10/slt_good_26.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE ((col4 >= 54.94) OR col0 < 53 OR col0 < 71 AND col3 > 29 AND col4 > 85.22 AND col0 > 45) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:102
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_27.test
+✗ index/orderby_nosort/10/slt_good_27.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE col0 > 90 OR col3 <= 78 OR col3 < 12 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:96
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_28.test
+✗ index/orderby_nosort/10/slt_good_28.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE (col3 <= 60 OR ((((col0 IS NULL) OR (col1 <= 37.16 OR ((col3 IN (53,65,31) AND col0 < 75 AND col0 > 40 AND ((col3 IS NULL)) OR (((col4 > 47.83 AND col0 <= 72 OR col4 < 42.8) OR col1 < 71.78)) OR col0 = 12)) OR (col0 >= 22)))))) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:99
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_29.test
+✗ index/orderby_nosort/10/slt_good_29.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE ((col1 >= 99.88)) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:93
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_3.test
+✗ index/orderby_nosort/10/slt_good_3.test - query result mismatch:
+[SQL] SELECT pk FROM tab1 WHERE col4 <= 7.70 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   1
+at <unknown>:101
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_30.test
+✗ index/orderby_nosort/10/slt_good_30.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE col3 >= 85 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:1299
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_31.test
+✗ index/orderby_nosort/10/slt_good_31.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE col1 > 34.8 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:339
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_32.test
+✗ index/orderby_nosort/10/slt_good_32.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE (((((col4 >= 45.93))))) OR (col3 >= 97) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:1059
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_33.test
+✗ index/orderby_nosort/10/slt_good_33.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE (col4 > 73.70) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:93
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_34.test
+✗ index/orderby_nosort/10/slt_good_34.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE col1 >= 15.12 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:579
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_35.test
+✗ index/orderby_nosort/10/slt_good_35.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE col0 <= 88 OR col3 >= 69 AND col0 <= 5 OR col3 >= 23 AND col3 >= 0 OR col0 IS NULL OR (col1 > 30.80) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:330
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_36.test
+✗ index/orderby_nosort/10/slt_good_36.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE (col0 >= 3) OR col3 >= 40 AND (((col0 < 19)) AND (col0 <= 21) AND col3 > 41 AND (col3 > 18) OR col3 BETWEEN 80 AND 59 OR ((col0 > 66))) OR (((col3 IN (88,87,39)))) OR col4 >= 53.24 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:1299
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_37.test
+✗ index/orderby_nosort/10/slt_good_37.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE ((col0 >= 80 OR col3 IS NULL) OR ((col3 = 51)) AND col1 < 20.29 OR (col1 < 20.29)) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:339
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_38.test
+✗ index/orderby_nosort/10/slt_good_38.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE (col1 >= 92.57) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:339
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_39.test
+✗ index/orderby_nosort/10/slt_good_39.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE ((((col3 >= 79)) AND (col3 >= 88) AND col0 > 55)) OR col0 = 97 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:339
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_4.test
+✗ index/orderby_nosort/10/slt_good_4.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE col1 BETWEEN 30.27 AND 73.0 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   9
++   1
++   2
+    5
+-   2
+-   1
++   9
+at <unknown>:342
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_5.test
+✗ index/orderby_nosort/10/slt_good_5.test - query result mismatch:
+[SQL] SELECT pk, col0 FROM tab0 WHERE col1 BETWEEN 3.14 AND 7.38 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   3
+-   117
++   3 117
+at <unknown>:149
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_6.test
+✗ index/orderby_nosort/10/slt_good_6.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE (col3 >= 34) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   9 values hashing to 443aa7f53c54f3cd3b450d8dbf6812d2
++   9 values hashing to 22e400a2ddbb013acf2a5852d6ab69fc
+at <unknown>:102
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_7.test
+✗ index/orderby_nosort/10/slt_good_7.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE col4 > 49.52 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   9
++   0
++   2
++   5
++   6
++   7
+    8
+-   7
+-   6
+-   5
+-   2
+-   0
++   9
+at <unknown>:579
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_8.test
+✗ index/orderby_nosort/10/slt_good_8.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE (col3 > 10) OR col1 <= 58.48 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:105
+
+[Worker] Starting: index/orderby_nosort/10/slt_good_9.test
+✗ index/orderby_nosort/10/slt_good_9.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE col3 < 41 AND col1 < 34.22 AND (((((col3 IS NULL AND col4 = 49.2)) OR ((col0 BETWEEN 81 AND 76 AND (col3 < 40) OR col3 >= 27 OR col3 = 17 OR (col0 < 62) OR col0 >= 58 AND col3 < 33 AND (col4 < 62.91) AND col1 > 85.64))) OR (col3 < 87) OR col3 < 83 AND col3 >= 56 AND ((col0 > 40)) AND col3 < 52)) AND col3 > 18 OR (((col3 > 17) OR col0 < 21)) AND (col0 < 31 OR col0 >= 78 OR col3 < 54 AND col3 > 60 OR (col3 > 76)) OR col4 IN (45.27,39.58,74.16) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   10 values hashing to 9d3557642e57f7f03e636d9ae90ea811
++   10 values hashing to e20b902b49a98b1a05ed62804c757f94
+at <unknown>:108
+
+[Worker] Starting: index/orderby_nosort/100/slt_good_0.test
+✗ index/orderby_nosort/100/slt_good_0.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE ((((col1 >= 901.86)))) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   38
++   13
+    36
+-   13
++   38
+at <unknown>:372
+
+[Worker] Starting: index/orderby_nosort/100/slt_good_1.test
+✗ index/orderby_nosort/100/slt_good_1.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE col3 < 942 AND (col0 < 779 AND col0 IS NULL AND (col1 IN (SELECT col4 FROM tab0 WHERE ((((col0 > 663) OR col0 < 928) AND col4 > 377.34)))) AND col0 = 628 AND col1 > 741.18 AND col0 >= 492 AND (col1 = 443.43)) AND col4 IS NULL OR (col3 = 112 AND col4 >= 163.56 AND col0 < 894 OR (((col3 < 393 AND col3 IS NULL AND col1 >= 643.16 AND col0 = 672 OR col3 <= 732))) OR col3 >= 351) OR ((col3 >= 957)) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   100 values hashing to 31bd9b34f854ff58a5d95dc74a4f44ae
++   100 values hashing to 9a10f4f09341c2db76a16b44f841c551
+at <unknown>:846
+
+[Worker] Starting: index/orderby_nosort/100/slt_good_2.test
+✗ index/orderby_nosort/100/slt_good_2.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE (col4 = 912.5 OR (((col1 < 273.74 OR (col3 IS NULL))))) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   28 values hashing to 001f8e7f8d3cf9d483ac3ff6ed7f527c
++   28 values hashing to 89867bb87664569d0a361ac96a6c68ba
+at <unknown>:849
+
+[Worker] Starting: index/orderby_nosort/100/slt_good_3.test
+✗ index/orderby_nosort/100/slt_good_3.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE col3 < 68 AND col1 < 579.95 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   97
++   1
++   26
++   28
++   46
++   47
++   56
+    86
+-   56
+-   47
+-   46
+-   28
+-   26
+-   1
++   97
+at <unknown>:612
+
+[Worker] Starting: index/orderby_nosort/100/slt_good_4.test
+✗ index/orderby_nosort/100/slt_good_4.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE col4 <= 678.4 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   62 values hashing to a2b07029c9a06dafee50f7766a3583c5
++   62 values hashing to 4dd233ac3edbd9e7144b03fbc9f824c8
+at <unknown>:366
+
+[Worker] Starting: index/orderby_nosort/100/slt_good_5.test
+✗ index/orderby_nosort/100/slt_good_5.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE (col0 > 638) ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   100 values hashing to 31bd9b34f854ff58a5d95dc74a4f44ae
++   100 values hashing to 9a10f4f09341c2db76a16b44f841c551
+at <unknown>:1089
+
+[Worker] Starting: index/orderby_nosort/100/slt_good_6.test
+✗ index/orderby_nosort/100/slt_good_6.test - query result mismatch:
+[SQL] SELECT pk FROM tab0 WHERE col3 > 105 OR col3 = 909 ORDER BY 1 DESC
+[Diff] (-expected|+actual)
+-   100 values hashing to 31bd9b34f854ff58a5d95dc74a4f44ae
++   100 values hashing to 9a10f4f09341c2db76a16b44f841c551
+at <unknown>:615
+
+[Worker] Starting: index/orderby_nosort/1000/slt_good_0.test
