@@ -6,16 +6,40 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use vibesql_ast::IndexColumn;
-use vibesql_types::SqlValue;
+use vibesql_types::{DataType, SqlValue};
 
-use crate::btree::BTreeIndex;
-use crate::buffer::BufferPool;
+use crate::btree::{BTreeIndex, Key};
+use crate::page::PageManager;
 use crate::{Row, StorageError};
 
 /// Normalize an index name to uppercase for case-insensitive comparison
 /// This follows SQL standard identifier rules
 fn normalize_index_name(name: &str) -> String {
     name.to_uppercase()
+}
+
+/// Threshold for choosing disk-backed indexes (number of table rows)
+/// Tables with more rows than this will use disk-backed B+ tree indexes
+/// Set to very high value (100K) to keep Phase 2 conservative - disk-backed
+/// indexes are functional but not enabled by default yet
+const DISK_BACKED_THRESHOLD: usize = 100_000;
+
+/// Helper to extend a key with a row_id for non-unique disk-backed indexes
+/// This allows storing multiple rows with the same key value
+fn extend_key_with_row_id(key: Vec<SqlValue>, row_id: usize) -> Vec<SqlValue> {
+    let mut extended = key;
+    extended.push(SqlValue::Integer(row_id as i64));
+    extended
+}
+
+/// Helper to extract the original key from an extended key
+/// Removes the row_id suffix added by extend_key_with_row_id
+fn extract_original_key(extended_key: &[SqlValue]) -> &[SqlValue] {
+    if extended_key.is_empty() {
+        extended_key
+    } else {
+        &extended_key[..extended_key.len() - 1]
+    }
 }
 
 /// Index metadata
@@ -35,13 +59,11 @@ pub enum IndexData {
         data: BTreeMap<Vec<SqlValue>, Vec<usize>>,
     },
     /// Disk-backed B+ tree (for large indexes or persistence)
-    /// Note: Currently the B+ tree stores single row_id per key, but we need to support
-    /// multiple row_ids per key (for non-unique indexes). This limitation will be addressed
-    /// in a future update. For now, we use in-memory for all indexes.
-    #[allow(dead_code)]
+    /// Note: The B+ tree stores (key, row_id) pairs. For non-unique indexes,
+    /// we serialize Vec<usize> as the row_id value to support multiple rows per key.
     DiskBacked {
         btree: Arc<BTreeIndex>,
-        buffer_pool: Arc<BufferPool>,
+        page_manager: Arc<PageManager>,
     },
 }
 
@@ -295,13 +317,67 @@ impl IndexManager {
 
         // Store index metadata (use normalized name as key)
         let metadata =
-            IndexMetadata { index_name: index_name.clone(), table_name, unique, columns };
+            IndexMetadata { index_name: index_name.clone(), table_name: table_name.clone(), unique, columns: columns.clone() };
 
         self.indexes.insert(normalized_name.clone(), metadata);
 
-        // For now, always use in-memory backend
-        // TODO: Add logic to choose between InMemory and DiskBacked based on size
-        let index_data = IndexData::InMemory { data: index_data_map };
+        // Choose backend based on table size
+        let use_disk_backed = table_rows.len() >= DISK_BACKED_THRESHOLD;
+
+        let index_data = if use_disk_backed {
+            // Create disk-backed B+ tree index
+            // For Phase 2, we use a temporary file. Production would use configured db path.
+            let temp_dir = std::env::temp_dir();
+            let index_file = temp_dir.join(format!("vibesql_idx_{}_{}.db",
+                table_name.replace('/', "_"),
+                index_name.replace('/', "_")));
+
+            let page_manager = Arc::new(PageManager::new(&index_file)
+                .map_err(|e| StorageError::IoError(format!("Failed to create index file: {}", e)))?);
+
+            // Build key schema from indexed columns
+            let key_schema: Vec<DataType> = column_indices
+                .iter()
+                .map(|&idx| table_schema.columns[idx].data_type.clone())
+                .collect();
+
+            // Prepare sorted entries for bulk loading
+            // For non-unique indexes, we extend keys with row_id to make them unique
+            let mut sorted_entries: Vec<(Key, usize)> = Vec::new();
+            for (key_values, row_indices) in &index_data_map {
+                for &row_id in row_indices {
+                    let extended_key = if unique {
+                        key_values.clone()
+                    } else {
+                        extend_key_with_row_id(key_values.clone(), row_id)
+                    };
+                    sorted_entries.push((extended_key, row_id));
+                }
+            }
+            // Sort by key (already sorted from BTreeMap, but bulk_load expects sorted input)
+            sorted_entries.sort_by(|a, b| a.0.cmp(&b.0));
+
+            // Extend key schema with Integer for non-unique indexes
+            let btree_key_schema = if unique {
+                key_schema
+            } else {
+                let mut schema = key_schema;
+                schema.push(DataType::Integer);  // For row_id suffix
+                schema
+            };
+
+            // Use bulk_load for efficient index creation
+            let btree = BTreeIndex::bulk_load(sorted_entries, btree_key_schema, page_manager.clone())
+                .map_err(|e| StorageError::IoError(format!("Failed to bulk load index: {}", e)))?;
+
+            IndexData::DiskBacked {
+                btree: Arc::new(btree),
+                page_manager,
+            }
+        } else {
+            // Use in-memory backend for small tables
+            IndexData::InMemory { data: index_data_map }
+        };
 
         self.index_data.insert(normalized_name, index_data);
 
@@ -684,5 +760,105 @@ mod tests {
 
         assert_eq!(result, vec![3, 7, 2, 0],
             "multi_lookup with duplicate values should maintain insertion order within the same key");
+    }
+
+    #[test]
+    fn test_disk_backed_index_creation_with_bulk_load() {
+        // Test that disk-backed indexes can be created when table exceeds threshold
+        use vibesql_catalog::{ColumnSchema, TableSchema};
+        use vibesql_ast::OrderDirection;
+        use crate::Row;
+
+        // Create a table schema with one integer column
+        let columns = vec![ColumnSchema::new("id".to_string(), DataType::Integer, false)];
+        let table_schema = TableSchema::new("test_table".to_string(), columns);
+
+        // Create rows - need at least DISK_BACKED_THRESHOLD to trigger disk backend
+        // For testing, we'll manually set a lower threshold by creating enough rows
+        let num_rows = 100_500; // Exceeds DISK_BACKED_THRESHOLD (100_000)
+        let table_rows: Vec<Row> = (0..num_rows)
+            .map(|i| Row {
+                values: vec![SqlValue::Integer(i as i64)],
+            })
+            .collect();
+
+        let mut index_manager = IndexManager::new();
+
+        // Create index - should use disk-backed backend
+        let result = index_manager.create_index(
+            "idx_id".to_string(),
+            "test_table".to_string(),
+            &table_schema,
+            &table_rows,
+            false,  // non-unique
+            vec![vibesql_ast::IndexColumn {
+                column_name: "id".to_string(),
+                direction: OrderDirection::Asc,
+            }],
+        );
+
+        assert!(result.is_ok(), "Disk-backed index creation should succeed");
+
+        // Verify index was created
+        assert!(index_manager.index_exists("idx_id"));
+
+        // Verify it's using DiskBacked variant
+        let index_data = index_manager.get_index_data("idx_id");
+        assert!(index_data.is_some());
+        match index_data.unwrap() {
+            IndexData::DiskBacked { .. } => {
+                // Success - disk-backed was used
+            }
+            IndexData::InMemory { .. } => {
+                panic!("Expected DiskBacked variant, got InMemory");
+            }
+        }
+    }
+
+    #[test]
+    fn test_in_memory_index_for_small_tables() {
+        // Test that in-memory indexes are still used for small tables
+        use vibesql_catalog::{ColumnSchema, TableSchema};
+        use vibesql_ast::OrderDirection;
+        use crate::Row;
+
+        let columns = vec![ColumnSchema::new("value".to_string(), DataType::Integer, false)];
+        let table_schema = TableSchema::new("small_table".to_string(), columns);
+
+        // Create small number of rows (well below threshold)
+        let table_rows: Vec<Row> = (0..100)
+            .map(|i| Row {
+                values: vec![SqlValue::Integer(i as i64)],
+            })
+            .collect();
+
+        let mut index_manager = IndexManager::new();
+
+        let result = index_manager.create_index(
+            "idx_value".to_string(),
+            "small_table".to_string(),
+            &table_schema,
+            &table_rows,
+            false,
+            vec![vibesql_ast::IndexColumn {
+                column_name: "value".to_string(),
+                direction: OrderDirection::Asc,
+            }],
+        );
+
+        assert!(result.is_ok());
+        assert!(index_manager.index_exists("idx_value"));
+
+        // Verify it's using InMemory variant
+        let index_data = index_manager.get_index_data("idx_value");
+        assert!(index_data.is_some());
+        match index_data.unwrap() {
+            IndexData::InMemory { .. } => {
+                // Success - in-memory was used for small table
+            }
+            IndexData::DiskBacked { .. } => {
+                panic!("Expected InMemory variant for small table, got DiskBacked");
+            }
+        }
     }
 }
