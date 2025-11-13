@@ -18,13 +18,15 @@
 //!   SF 0.1 (100MB) - Realistic testing
 //!   SF 1.0 (1GB) - Full benchmark
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use vibesql_executor::SelectExecutor;
 use vibesql_parser::Parser;
 use vibesql_storage::Database as VibeDB;
+use vibesql_types::Date;
 use rusqlite::Connection as SqliteConn;
 use duckdb::Connection as DuckDBConn;
 use rand::Rng;
+use std::str::FromStr;
 use std::time::Duration;
 
 // =============================================================================
@@ -92,7 +94,7 @@ mod tpch_data {
             )
         }
 
-        pub fn random_date(&mut self, start: &str, end: &str) -> String {
+        pub fn random_date(&mut self, _start: &str, _end: &str) -> String {
             // Simple date generation between start and end
             let year = self.rng.gen_range(1992..1999);
             let month = self.rng.gen_range(1..13);
@@ -713,9 +715,6 @@ fn load_nation_duckdb(conn: &DuckDBConn) {
 fn load_customer_vibesql(db: &mut VibeDB, data: &mut tpch_data::TPCHData) {
     use vibesql_storage::Row;
     use vibesql_types::SqlValue;
-    use rust_decimal::Decimal;
-    use std::str::FromStr;
-
     for i in 0..data.customer_count {
         let nation_key = i % 25;
         let acctbal = (i as f64 * 17.3) % 10000.0 - 999.99;
@@ -725,7 +724,7 @@ fn load_customer_vibesql(db: &mut VibeDB, data: &mut tpch_data::TPCHData) {
             SqlValue::Varchar(data.random_varchar(40)),
             SqlValue::Integer(nation_key as i64),
             SqlValue::Varchar(data.random_phone(nation_key)),
-            SqlValue::Decimal(Decimal::from_str(&format!("{:.2}", acctbal)).unwrap()),
+            SqlValue::Numeric(acctbal as f64),
             SqlValue::Varchar(tpch_data::SEGMENTS[i % tpch_data::SEGMENTS.len()].to_string()),
             SqlValue::Varchar(data.random_varchar(117)),
         ]);
@@ -782,9 +781,6 @@ fn load_customer_duckdb(conn: &DuckDBConn, data: &mut tpch_data::TPCHData) {
 fn load_supplier_vibesql(db: &mut VibeDB, data: &mut tpch_data::TPCHData) {
     use vibesql_storage::Row;
     use vibesql_types::SqlValue;
-    use rust_decimal::Decimal;
-    use std::str::FromStr;
-
     for i in 0..data.supplier_count {
         let nation_key = i % 25;
         let acctbal = (i as f64 * 13.7) % 10000.0 - 999.99;
@@ -794,7 +790,7 @@ fn load_supplier_vibesql(db: &mut VibeDB, data: &mut tpch_data::TPCHData) {
             SqlValue::Varchar(data.random_varchar(40)),
             SqlValue::Integer(nation_key as i64),
             SqlValue::Varchar(data.random_phone(nation_key)),
-            SqlValue::Decimal(Decimal::from_str(&format!("{:.2}", acctbal)).unwrap()),
+            SqlValue::Numeric(acctbal as f64),
             SqlValue::Varchar(data.random_varchar(101)),
         ]);
         db.insert_row("SUPPLIER", row).unwrap();
@@ -848,9 +844,6 @@ fn load_supplier_duckdb(conn: &DuckDBConn, data: &mut tpch_data::TPCHData) {
 fn load_orders_vibesql(db: &mut VibeDB, data: &mut tpch_data::TPCHData) {
     use vibesql_storage::Row;
     use vibesql_types::SqlValue;
-    use rust_decimal::Decimal;
-    use std::str::FromStr;
-
     for i in 0..data.orders_count {
         let cust_key = (i % data.customer_count) + 1;
         let totalprice = (i as f64 * 271.3) % 500000.0 + 1000.0;
@@ -860,8 +853,8 @@ fn load_orders_vibesql(db: &mut VibeDB, data: &mut tpch_data::TPCHData) {
             SqlValue::Integer(i as i64 + 1),
             SqlValue::Integer(cust_key as i64),
             SqlValue::Varchar(["O", "F", "P"][i % 3].to_string()),
-            SqlValue::Decimal(Decimal::from_str(&format!("{:.2}", totalprice)).unwrap()),
-            SqlValue::Date(order_date.clone()),
+            SqlValue::Numeric(totalprice as f64),
+            SqlValue::Date(Date::from_str(&order_date).unwrap()),
             SqlValue::Varchar(tpch_data::PRIORITIES[i % tpch_data::PRIORITIES.len()].to_string()),
             SqlValue::Varchar(format!("Clerk#{:09}", (i * 7) % 1000 + 1)),
             SqlValue::Integer(0),
@@ -926,9 +919,6 @@ fn load_orders_duckdb(conn: &DuckDBConn, data: &mut tpch_data::TPCHData) {
 fn load_lineitem_vibesql(db: &mut VibeDB, data: &mut tpch_data::TPCHData) {
     use vibesql_storage::Row;
     use vibesql_types::SqlValue;
-    use rust_decimal::Decimal;
-    use std::str::FromStr;
-
     let mut line_id = 0;
     for order_num in 1..=data.orders_count {
         let num_lines = (order_num * 3 % 7) + 1; // 1-7 lines per order
@@ -951,15 +941,15 @@ fn load_lineitem_vibesql(db: &mut VibeDB, data: &mut tpch_data::TPCHData) {
                 SqlValue::Integer(((line_id * 13) % 200000 + 1) as i64),
                 SqlValue::Integer(((line_id * 17) % data.supplier_count + 1) as i64),
                 SqlValue::Integer(line_num as i64),
-                SqlValue::Decimal(Decimal::from_str(&format!("{:.2}", quantity)).unwrap()),
-                SqlValue::Decimal(Decimal::from_str(&format!("{:.2}", extendedprice)).unwrap()),
-                SqlValue::Decimal(Decimal::from_str(&format!("{:.2}", discount)).unwrap()),
-                SqlValue::Decimal(Decimal::from_str(&format!("{:.2}", tax)).unwrap()),
+                SqlValue::Numeric(quantity as f64),
+                SqlValue::Numeric(extendedprice as f64),
+                SqlValue::Numeric(discount as f64),
+                SqlValue::Numeric(tax as f64),
                 SqlValue::Varchar(["N", "R", "A"][line_id % 3].to_string()),
                 SqlValue::Varchar(["O", "F"][line_id % 2].to_string()),
-                SqlValue::Date(ship_date.clone()),
-                SqlValue::Date(commit_date.clone()),
-                SqlValue::Date(receipt_date.clone()),
+                SqlValue::Date(Date::from_str(&ship_date).unwrap()),
+                SqlValue::Date(Date::from_str(&commit_date).unwrap()),
+                SqlValue::Date(Date::from_str(&receipt_date).unwrap()),
                 SqlValue::Varchar("DELIVER IN PERSON".to_string()),
                 SqlValue::Varchar(tpch_data::SHIP_MODES[line_id % tpch_data::SHIP_MODES.len()].to_string()),
                 SqlValue::Varchar(data.random_varchar(44)),
@@ -1098,14 +1088,10 @@ fn benchmark_q1_vibesql(c: &mut Criterion) {
                 let stmt = Parser::parse_sql(TPCH_Q1).unwrap();
                 if let vibesql_ast::Statement::Select(select) = stmt {
                     let executor = SelectExecutor::new(&db);
-                    let mut result = executor.execute(*select).unwrap();
+                    let result = executor.execute(&select).unwrap();
 
                     // Consume results (materialize)
-                    let mut count = 0;
-                    while result.next().is_some() {
-                        count += 1;
-                    }
-                    black_box(count);
+                    black_box(result.len());
                 }
             });
         });
@@ -1194,8 +1180,8 @@ fn benchmark_q6_vibesql(c: &mut Criterion) {
             let stmt = Parser::parse_sql(TPCH_Q6).unwrap();
             if let vibesql_ast::Statement::Select(select) = stmt {
                 let executor = SelectExecutor::new(&db);
-                let mut result = executor.execute(*select).unwrap();
-                let row = result.next();
+                let result = executor.execute(&select).unwrap();
+                let row = result.first();
                 black_box(row);
             }
         });
@@ -1256,11 +1242,8 @@ fn benchmark_q2_vibesql(c: &mut Criterion) {
             let stmt = Parser::parse_sql(TPCH_Q2).unwrap();
             if let vibesql_ast::Statement::Select(select) = stmt {
                 let executor = SelectExecutor::new(&db);
-                let mut result = executor.execute(*select).unwrap();
-                let mut count = 0;
-                while result.next().is_some() {
-                    count += 1;
-                }
+                let result = executor.execute(&select).unwrap();
+                let count = result.len();
                 black_box(count);
             }
         });
@@ -1328,11 +1311,8 @@ fn benchmark_q3_vibesql(c: &mut Criterion) {
             let stmt = Parser::parse_sql(TPCH_Q3).unwrap();
             if let vibesql_ast::Statement::Select(select) = stmt {
                 let executor = SelectExecutor::new(&db);
-                let mut result = executor.execute(*select).unwrap();
-                let mut count = 0;
-                while result.next().is_some() {
-                    count += 1;
-                }
+                let result = executor.execute(&select).unwrap();
+                let count = result.len();
                 black_box(count);
             }
         });
@@ -1400,11 +1380,8 @@ fn benchmark_q4_vibesql(c: &mut Criterion) {
             let stmt = Parser::parse_sql(TPCH_Q4).unwrap();
             if let vibesql_ast::Statement::Select(select) = stmt {
                 let executor = SelectExecutor::new(&db);
-                let mut result = executor.execute(*select).unwrap();
-                let mut count = 0;
-                while result.next().is_some() {
-                    count += 1;
-                }
+                let result = executor.execute(&select).unwrap();
+                let count = result.len();
                 black_box(count);
             }
         });
@@ -1473,11 +1450,8 @@ fn benchmark_q5_vibesql(c: &mut Criterion) {
             let stmt = Parser::parse_sql(TPCH_Q5).unwrap();
             if let vibesql_ast::Statement::Select(select) = stmt {
                 let executor = SelectExecutor::new(&db);
-                let mut result = executor.execute(*select).unwrap();
-                let mut count = 0;
-                while result.next().is_some() {
-                    count += 1;
-                }
+                let result = executor.execute(&select).unwrap();
+                let count = result.len();
                 black_box(count);
             }
         });
@@ -1547,11 +1521,8 @@ fn benchmark_q7_vibesql(c: &mut Criterion) {
             let stmt = Parser::parse_sql(TPCH_Q7).unwrap();
             if let vibesql_ast::Statement::Select(select) = stmt {
                 let executor = SelectExecutor::new(&db);
-                let mut result = executor.execute(*select).unwrap();
-                let mut count = 0;
-                while result.next().is_some() {
-                    count += 1;
-                }
+                let result = executor.execute(&select).unwrap();
+                let count = result.len();
                 black_box(count);
             }
         });
@@ -1619,11 +1590,8 @@ fn benchmark_q8_vibesql(c: &mut Criterion) {
             let stmt = Parser::parse_sql(TPCH_Q8).unwrap();
             if let vibesql_ast::Statement::Select(select) = stmt {
                 let executor = SelectExecutor::new(&db);
-                let mut result = executor.execute(*select).unwrap();
-                let mut count = 0;
-                while result.next().is_some() {
-                    count += 1;
-                }
+                let result = executor.execute(&select).unwrap();
+                let count = result.len();
                 black_box(count);
             }
         });
@@ -1684,11 +1652,8 @@ fn benchmark_q9_vibesql(c: &mut Criterion) {
             let stmt = Parser::parse_sql(TPCH_Q9).unwrap();
             if let vibesql_ast::Statement::Select(select) = stmt {
                 let executor = SelectExecutor::new(&db);
-                let mut result = executor.execute(*select).unwrap();
-                let mut count = 0;
-                while result.next().is_some() {
-                    count += 1;
-                }
+                let result = executor.execute(&select).unwrap();
+                let count = result.len();
                 black_box(count);
             }
         });
@@ -1758,11 +1723,8 @@ fn benchmark_q10_vibesql(c: &mut Criterion) {
             let stmt = Parser::parse_sql(TPCH_Q10).unwrap();
             if let vibesql_ast::Statement::Select(select) = stmt {
                 let executor = SelectExecutor::new(&db);
-                let mut result = executor.execute(*select).unwrap();
-                let mut count = 0;
-                while result.next().is_some() {
-                    count += 1;
-                }
+                let result = executor.execute(&select).unwrap();
+                let count = result.len();
                 black_box(count);
             }
         });
@@ -1827,11 +1789,8 @@ fn benchmark_q11_vibesql(c: &mut Criterion) {
             let stmt = Parser::parse_sql(TPCH_Q11).unwrap();
             if let vibesql_ast::Statement::Select(select) = stmt {
                 let executor = SelectExecutor::new(&db);
-                let mut result = executor.execute(*select).unwrap();
-                let mut count = 0;
-                while result.next().is_some() {
-                    count += 1;
-                }
+                let result = executor.execute(&select).unwrap();
+                let count = result.len();
                 black_box(count);
             }
         });
@@ -1897,11 +1856,8 @@ fn benchmark_q12_vibesql(c: &mut Criterion) {
             let stmt = Parser::parse_sql(TPCH_Q12).unwrap();
             if let vibesql_ast::Statement::Select(select) = stmt {
                 let executor = SelectExecutor::new(&db);
-                let mut result = executor.execute(*select).unwrap();
-                let mut count = 0;
-                while result.next().is_some() {
-                    count += 1;
-                }
+                let result = executor.execute(&select).unwrap();
+                let count = result.len();
                 black_box(count);
             }
         });
@@ -1966,11 +1922,8 @@ fn benchmark_q13_vibesql(c: &mut Criterion) {
             let stmt = Parser::parse_sql(TPCH_Q13).unwrap();
             if let vibesql_ast::Statement::Select(select) = stmt {
                 let executor = SelectExecutor::new(&db);
-                let mut result = executor.execute(*select).unwrap();
-                let mut count = 0;
-                while result.next().is_some() {
-                    count += 1;
-                }
+                let result = executor.execute(&select).unwrap();
+                let count = result.len();
                 black_box(count);
             }
         });
@@ -2028,8 +1981,8 @@ fn benchmark_q14_vibesql(c: &mut Criterion) {
             let stmt = Parser::parse_sql(TPCH_Q14).unwrap();
             if let vibesql_ast::Statement::Select(select) = stmt {
                 let executor = SelectExecutor::new(&db);
-                let mut result = executor.execute(*select).unwrap();
-                let row = result.next();
+                let result = executor.execute(&select).unwrap();
+                let row = result.first();
                 black_box(row);
             }
         });
@@ -2101,11 +2054,8 @@ fn benchmark_q15_vibesql(c: &mut Criterion) {
             let stmt = Parser::parse_sql(TPCH_Q15).unwrap();
             if let vibesql_ast::Statement::Select(select) = stmt {
                 let executor = SelectExecutor::new(&db);
-                let mut result = executor.execute(*select).unwrap();
-                let mut count = 0;
-                while result.next().is_some() {
-                    count += 1;
-                }
+                let result = executor.execute(&select).unwrap();
+                let count = result.len();
                 black_box(count);
             }
         });
@@ -2167,8 +2117,8 @@ fn benchmark_q16_vibesql(c: &mut Criterion) {
             let stmt = Parser::parse_sql(TPCH_Q16).unwrap();
             if let vibesql_ast::Statement::Select(select) = stmt {
                 let executor = SelectExecutor::new(&db);
-                let mut result = executor.execute(*select).unwrap();
-                let row = result.next();
+                let result = executor.execute(&select).unwrap();
+                let row = result.first();
                 black_box(row);
             }
         });
@@ -2220,8 +2170,8 @@ fn benchmark_q17_vibesql(c: &mut Criterion) {
             let stmt = Parser::parse_sql(TPCH_Q17).unwrap();
             if let vibesql_ast::Statement::Select(select) = stmt {
                 let executor = SelectExecutor::new(&db);
-                let mut result = executor.execute(*select).unwrap();
-                let row = result.next();
+                let result = executor.execute(&select).unwrap();
+                let row = result.first();
                 black_box(row);
             }
         });
@@ -2280,11 +2230,8 @@ fn benchmark_q18_vibesql(c: &mut Criterion) {
             let stmt = Parser::parse_sql(TPCH_Q18).unwrap();
             if let vibesql_ast::Statement::Select(select) = stmt {
                 let executor = SelectExecutor::new(&db);
-                let mut result = executor.execute(*select).unwrap();
-                let mut count = 0;
-                while result.next().is_some() {
-                    count += 1;
-                }
+                let result = executor.execute(&select).unwrap();
+                let count = result.len();
                 black_box(count);
             }
         });
@@ -2342,8 +2289,8 @@ fn benchmark_q19_vibesql(c: &mut Criterion) {
             let stmt = Parser::parse_sql(TPCH_Q19).unwrap();
             if let vibesql_ast::Statement::Select(select) = stmt {
                 let executor = SelectExecutor::new(&db);
-                let mut result = executor.execute(*select).unwrap();
-                let row = result.next();
+                let result = executor.execute(&select).unwrap();
+                let row = result.first();
                 black_box(row);
             }
         });
@@ -2403,11 +2350,8 @@ fn benchmark_q20_vibesql(c: &mut Criterion) {
             let stmt = Parser::parse_sql(TPCH_Q20).unwrap();
             if let vibesql_ast::Statement::Select(select) = stmt {
                 let executor = SelectExecutor::new(&db);
-                let mut result = executor.execute(*select).unwrap();
-                let mut count = 0;
-                while result.next().is_some() {
-                    count += 1;
-                }
+                let result = executor.execute(&select).unwrap();
+                let count = result.len();
                 black_box(count);
             }
         });
@@ -2477,11 +2421,8 @@ fn benchmark_q21_vibesql(c: &mut Criterion) {
             let stmt = Parser::parse_sql(TPCH_Q21).unwrap();
             if let vibesql_ast::Statement::Select(select) = stmt {
                 let executor = SelectExecutor::new(&db);
-                let mut result = executor.execute(*select).unwrap();
-                let mut count = 0;
-                while result.next().is_some() {
-                    count += 1;
-                }
+                let result = executor.execute(&select).unwrap();
+                let count = result.len();
                 black_box(count);
             }
         });
@@ -2551,11 +2492,8 @@ fn benchmark_q22_vibesql(c: &mut Criterion) {
             let stmt = Parser::parse_sql(TPCH_Q22).unwrap();
             if let vibesql_ast::Statement::Select(select) = stmt {
                 let executor = SelectExecutor::new(&db);
-                let mut result = executor.execute(*select).unwrap();
-                let mut count = 0;
-                while result.next().is_some() {
-                    count += 1;
-                }
+                let result = executor.execute(&select).unwrap();
+                let count = result.len();
                 black_box(count);
             }
         });
