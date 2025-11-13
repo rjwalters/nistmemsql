@@ -575,3 +575,79 @@ fn test_binary_literal_in_subquery_without_from() {
     // Empty subquery returns FALSE for IN
     assert_eq!(result[0].values[0], vibesql_types::SqlValue::Boolean(false));
 }
+
+/// Test for issue #1612: Scalar subquery validation must work even for empty results
+/// SQL standard R-35033-20570: The subquery on the right of an IN or NOT IN operator
+/// must be a scalar subquery (1 column) if the left expression is not a row value expression.
+#[test]
+fn test_in_subquery_multi_column_empty_table_should_error() {
+    let mut db = vibesql_storage::Database::new();
+
+    // Create empty table with TWO columns (x and y)
+    let schema = vibesql_catalog::TableSchema::new(
+        "t1".to_string(),
+        vec![
+            vibesql_catalog::ColumnSchema::new("x".to_string(), vibesql_types::DataType::Integer, false),
+            vibesql_catalog::ColumnSchema::new("y".to_string(), vibesql_types::DataType::Varchar { max_length: None }, false),
+        ],
+    );
+    db.create_table(schema).unwrap();
+
+    let executor = SelectExecutor::new(&db);
+
+    // SELECT 1 FROM t1 WHERE 1 IN (SELECT * FROM t1)
+    // This should ERROR because SELECT * FROM t1 returns 2 columns, not 1
+    // Even though t1 is empty, the column count validation must still run
+    let stmt = vibesql_ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![vibesql_ast::SelectItem::Expression {
+            expr: vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1)),
+            alias: None,
+        }],
+        from: Some(vibesql_ast::FromClause::Table {
+            name: "t1".to_string(),
+            alias: None,
+        }),
+        where_clause: Some(vibesql_ast::Expression::In {
+            expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(1))),
+            subquery: Box::new(vibesql_ast::SelectStmt {
+                with_clause: None,
+                set_operation: None,
+                distinct: false,
+                select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
+                from: Some(vibesql_ast::FromClause::Table {
+                    name: "t1".to_string(),
+                    alias: None,
+                }),
+                where_clause: None,
+                group_by: None,
+                having: None,
+                order_by: None,
+                limit: None,
+                offset: None,
+                into_table: None,
+                into_variables: None,
+            }),
+            negated: false,
+        }),
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+        into_table: None,
+        into_variables: None,
+    };
+
+    let result = executor.execute(&stmt);
+    assert!(result.is_err());
+    match result {
+        Err(ExecutorError::SubqueryColumnCountMismatch { expected, actual }) => {
+            assert_eq!(expected, 1);
+            assert_eq!(actual, 2);
+        }
+        _ => panic!("Expected SubqueryColumnCountMismatch error, got: {:?}", result),
+    }
+}
