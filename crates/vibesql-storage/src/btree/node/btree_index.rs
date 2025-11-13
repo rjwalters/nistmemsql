@@ -373,6 +373,87 @@ impl BTreeIndex {
         Ok((leaf, path))
     }
 
+    /// Insert a key-value pair into the B+ tree
+    ///
+    /// # Arguments
+    /// * `key` - The key to insert
+    /// * `row_id` - The row ID associated with this key
+    ///
+    /// # Returns
+    /// Ok(()) if successful, or StorageError if:
+    /// - The key already exists (duplicate key error)
+    /// - I/O error occurs
+    ///
+    /// # Implementation
+    /// This method handles multi-level trees by:
+    /// 1. Finding the appropriate leaf node
+    /// 2. Inserting into the leaf
+    /// 3. Handling splits that may propagate up the tree
+    /// 4. Creating a new root if split reaches the original root
+    pub fn insert(&mut self, key: Key, row_id: RowId) -> Result<(), StorageError> {
+        // Special case: height 1 means root is a leaf
+        if self.height == 1 {
+            // Read root as leaf
+            let mut root_leaf = self.read_leaf_node(self.root_page_id)?;
+
+            // Try to insert
+            if !root_leaf.insert(key.clone(), row_id) {
+                return Err(StorageError::IoError("Duplicate key".to_string()));
+            }
+
+            // Check if leaf is now full and needs splitting
+            if root_leaf.is_full(self.degree) {
+                // Allocate page for right sibling
+                let new_page_id = self.page_manager.allocate_page()?;
+
+                // Split the leaf
+                let (split_key, right_leaf) = root_leaf.split(new_page_id);
+
+                // Write both leaves
+                self.write_leaf_node(&root_leaf)?;
+                self.write_leaf_node(&right_leaf)?;
+
+                // Create new root (special case: first split increases height from 1 to 2)
+                self.create_new_root(split_key, root_leaf.page_id, right_leaf.page_id)?;
+            } else {
+                // No split needed, just write leaf back
+                self.write_leaf_node(&root_leaf)?;
+            }
+
+            return Ok(());
+        }
+
+        // Multi-level tree case
+        // Find the target leaf and path from root
+        let (mut leaf, path) = self.find_leaf_path(&key)?;
+
+        // Insert into leaf
+        if !leaf.insert(key.clone(), row_id) {
+            return Err(StorageError::IoError("Duplicate key".to_string()));
+        }
+
+        // Check if leaf is full and needs splitting
+        if leaf.is_full(self.degree) {
+            // Allocate page for right sibling
+            let new_page_id = self.page_manager.allocate_page()?;
+
+            // Split the leaf
+            let (split_key, right_leaf) = leaf.split(new_page_id);
+
+            // Write both leaves
+            self.write_leaf_node(&leaf)?;
+            self.write_leaf_node(&right_leaf)?;
+
+            // Propagate split upward
+            self.propagate_split(path, split_key, right_leaf.page_id)?;
+        } else {
+            // No split needed, just write leaf back
+            self.write_leaf_node(&leaf)?;
+        }
+
+        Ok(())
+    }
+
     /// Propagate a split upward through internal nodes
     ///
     /// This is called after a child node splits, and needs to insert the split key
@@ -450,82 +531,313 @@ impl BTreeIndex {
         Ok(())
     }
 
-    /// Insert a key-value pair into the B+ tree
+    /// Delete a key from the B+ tree
+    ///
+    /// Implements full multi-level tree deletion with node merging and rebalancing.
+    /// When a deletion causes a leaf node to become underfull, it will try to borrow
+    /// entries from sibling nodes or merge with a sibling if borrowing isn't possible.
     ///
     /// # Arguments
-    /// * `key` - The key to insert
-    /// * `row_id` - The row ID associated with this key
+    /// * `key` - The key to delete
     ///
     /// # Returns
-    /// Ok(()) if successful, or StorageError if:
-    /// - The key already exists (duplicate key error)
-    /// - I/O error occurs
+    /// * `Ok(true)` if the key was found and deleted
+    /// * `Ok(false)` if the key was not found
+    /// * `Err(_)` if an I/O error occurred
     ///
-    /// # Implementation
-    /// This method handles multi-level trees by:
-    /// 1. Finding the appropriate leaf node
-    /// 2. Inserting into the leaf
-    /// 3. Handling splits that may propagate up the tree
-    /// 4. Creating a new root if split reaches the original root
-    pub fn insert(&mut self, key: Key, row_id: RowId) -> Result<(), StorageError> {
-        // Special case: height 1 means root is a leaf
+    /// # Algorithm
+    /// 1. Find the leaf node containing the key
+    /// 2. Delete the key from the leaf
+    /// 3. If leaf becomes underfull, try to borrow from sibling or merge
+    /// 4. Propagate rebalancing up the tree if necessary
+    /// 5. Collapse the root if it has only one child
+    pub fn delete(&mut self, key: &Key) -> Result<bool, StorageError> {
+        // Handle single-level tree (root is leaf)
         if self.height == 1 {
-            // Read root as leaf
             let mut root_leaf = self.read_leaf_node(self.root_page_id)?;
-
-            // Try to insert
-            if !root_leaf.insert(key.clone(), row_id) {
-                return Err(StorageError::IoError("Duplicate key".to_string()));
-            }
-
-            // Check if leaf is now full and needs splitting
-            if root_leaf.is_full(self.degree) {
-                // Allocate page for right sibling
-                let new_page_id = self.page_manager.allocate_page()?;
-
-                // Split the leaf
-                let (split_key, right_leaf) = root_leaf.split(new_page_id);
-
-                // Write both leaves
-                self.write_leaf_node(&root_leaf)?;
-                self.write_leaf_node(&right_leaf)?;
-
-                // Create new root (special case: first split increases height from 1 to 2)
-                self.create_new_root(split_key, root_leaf.page_id, right_leaf.page_id)?;
-            } else {
-                // No split needed, just write leaf back
+            let deleted = root_leaf.delete(key);
+            if deleted {
                 self.write_leaf_node(&root_leaf)?;
             }
+            return Ok(deleted);
+        }
 
+        // Multi-level tree: find leaf and track path
+        let (mut leaf, path) = self.find_leaf_path(key)?;
+
+        // Delete from leaf
+        if !leaf.delete(key) {
+            return Ok(false);  // Key not found
+        }
+
+        // Write leaf back
+        self.write_leaf_node(&leaf)?;
+
+        // Check if rebalancing needed
+        if leaf.is_underfull(self.degree) {
+            self.rebalance_leaf(leaf, path)?;
+        }
+
+        // Check if root should be collapsed
+        self.maybe_collapse_root()?;
+
+        Ok(true)
+    }
+
+    /// Rebalance a leaf node after deletion
+    ///
+    /// Tries to borrow from siblings first, then merges if necessary.
+    fn rebalance_leaf(&mut self, leaf: LeafNode, path: Vec<(PageId, usize)>) -> Result<(), StorageError> {
+        if path.is_empty() {
+            // Leaf is root, no rebalancing needed
             return Ok(());
         }
 
-        // Multi-level tree case
-        // Find the target leaf and path from root
-        let (mut leaf, path) = self.find_leaf_path(&key)?;
+        let (parent_id, child_idx) = *path.last().unwrap();
+        let mut parent = self.read_internal_node(parent_id)?;
 
-        // Insert into leaf
-        if !leaf.insert(key.clone(), row_id) {
-            return Err(StorageError::IoError("Duplicate key".to_string()));
+        // Try to borrow from sibling
+        if self.try_borrow_leaf(&leaf, &mut parent, child_idx)? {
+            // Successfully borrowed
+            self.write_internal_node(&parent)?;
+            return Ok(());
         }
 
-        // Check if leaf is full and needs splitting
-        if leaf.is_full(self.degree) {
-            // Allocate page for right sibling
-            let new_page_id = self.page_manager.allocate_page()?;
+        // Must merge with sibling
+        self.merge_leaf(leaf, &mut parent, child_idx)?;
+        self.write_internal_node(&parent)?;
 
-            // Split the leaf
-            let (split_key, right_leaf) = leaf.split(new_page_id);
+        // Check if parent is now underfull
+        if parent.children.len() < self.degree / 2 && path.len() > 1 {
+            // Propagate rebalancing up
+            self.propagate_rebalance_delete(path)?;
+        }
 
-            // Write both leaves
-            self.write_leaf_node(&leaf)?;
-            self.write_leaf_node(&right_leaf)?;
+        Ok(())
+    }
 
-            // Propagate split upward
-            self.propagate_split(path, split_key, right_leaf.page_id)?;
+    /// Try to borrow entries from sibling leaf nodes
+    ///
+    /// Returns true if successfully borrowed, false if no sibling has spare entries.
+    fn try_borrow_leaf(&mut self, leaf: &LeafNode, parent: &mut InternalNode, idx: usize) -> Result<bool, StorageError> {
+        // Try left sibling
+        if idx > 0 {
+            let mut left_sibling = self.read_leaf_node(parent.children[idx - 1])?;
+            if left_sibling.entries.len() > self.degree / 2 {
+                // Borrow last entry from left sibling
+                let borrowed = left_sibling.entries.pop().unwrap();
+
+                let mut updated_leaf = leaf.clone();
+                updated_leaf.entries.insert(0, borrowed);
+
+                // Update parent separator key
+                parent.keys[idx - 1] = updated_leaf.entries[0].0.clone();
+
+                // Write nodes back
+                self.write_leaf_node(&left_sibling)?;
+                self.write_leaf_node(&updated_leaf)?;
+
+                return Ok(true);
+            }
+        }
+
+        // Try right sibling
+        if idx < parent.children.len() - 1 {
+            let mut right_sibling = self.read_leaf_node(parent.children[idx + 1])?;
+            if right_sibling.entries.len() > self.degree / 2 {
+                // Borrow first entry from right sibling
+                let borrowed = right_sibling.entries.remove(0);
+
+                let mut updated_leaf = leaf.clone();
+                updated_leaf.entries.push(borrowed);
+
+                // Update parent separator key
+                parent.keys[idx] = right_sibling.entries[0].0.clone();
+
+                // Write nodes back
+                self.write_leaf_node(&right_sibling)?;
+                self.write_leaf_node(&updated_leaf)?;
+
+                return Ok(true);
+            }
+        }
+
+        Ok(false)  // No sibling has enough entries to borrow
+    }
+
+    /// Merge underfull leaf with sibling
+    fn merge_leaf(&mut self, leaf: LeafNode, parent: &mut InternalNode, idx: usize) -> Result<(), StorageError> {
+        // Prefer merging with left sibling
+        if idx > 0 {
+            let mut left_sibling = self.read_leaf_node(parent.children[idx - 1])?;
+
+            // Merge leaf into left sibling
+            left_sibling.entries.extend(leaf.entries);
+            left_sibling.next_leaf = leaf.next_leaf;
+
+            self.write_leaf_node(&left_sibling)?;
+
+            // Remove from parent
+            parent.children.remove(idx);
+            parent.keys.remove(idx - 1);
+
+            // Deallocate merged node
+            self.page_manager.deallocate_page(leaf.page_id)?;
         } else {
-            // No split needed, just write leaf back
-            self.write_leaf_node(&leaf)?;
+            // Merge with right sibling
+            let right_sibling = self.read_leaf_node(parent.children[idx + 1])?;
+
+            // Merge right into leaf
+            let mut updated_leaf = leaf.clone();
+            updated_leaf.entries.extend(right_sibling.entries);
+            updated_leaf.next_leaf = right_sibling.next_leaf;
+
+            self.write_leaf_node(&updated_leaf)?;
+
+            // Remove from parent
+            parent.children.remove(idx + 1);
+            parent.keys.remove(idx);
+
+            // Deallocate merged node
+            self.page_manager.deallocate_page(right_sibling.page_id)?;
+        }
+
+        Ok(())
+    }
+
+    /// Propagate rebalancing up the tree after deletion
+    fn propagate_rebalance_delete(&mut self, path: Vec<(PageId, usize)>) -> Result<(), StorageError> {
+        // Process from bottom to top (skip the last entry which we already handled)
+        for i in (0..path.len() - 1).rev() {
+            let (parent_id, child_idx) = path[i];
+            let (current_id, _) = path[i + 1];
+
+            let mut parent = self.read_internal_node(parent_id)?;
+            let current = self.read_internal_node(current_id)?;
+
+            // Check if current node is underfull
+            if current.children.len() < self.degree / 2 {
+                // Try to borrow or merge at internal node level
+                if !self.try_borrow_internal(&current, &mut parent, child_idx)? {
+                    self.merge_internal(current, &mut parent, child_idx)?;
+                }
+                self.write_internal_node(&parent)?;
+            } else {
+                // Parent is OK, stop propagating
+                self.write_internal_node(&parent)?;
+                break;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Try to borrow entries from sibling internal nodes
+    fn try_borrow_internal(&mut self, node: &InternalNode, parent: &mut InternalNode, idx: usize) -> Result<bool, StorageError> {
+        // Try left sibling
+        if idx > 0 {
+            let mut left_sibling = self.read_internal_node(parent.children[idx - 1])?;
+            if left_sibling.children.len() > self.degree / 2 {
+                // Borrow last child and key from left sibling
+                let borrowed_child = left_sibling.children.pop().unwrap();
+                let borrowed_key = left_sibling.keys.pop().unwrap();
+
+                let mut updated_node = node.clone();
+                updated_node.children.insert(0, borrowed_child);
+                updated_node.keys.insert(0, parent.keys[idx - 1].clone());
+
+                // Update parent separator key
+                parent.keys[idx - 1] = borrowed_key;
+
+                // Write nodes back
+                self.write_internal_node(&left_sibling)?;
+                self.write_internal_node(&updated_node)?;
+
+                return Ok(true);
+            }
+        }
+
+        // Try right sibling
+        if idx < parent.children.len() - 1 {
+            let mut right_sibling = self.read_internal_node(parent.children[idx + 1])?;
+            if right_sibling.children.len() > self.degree / 2 {
+                // Borrow first child and key from right sibling
+                let borrowed_child = right_sibling.children.remove(0);
+                let borrowed_key = right_sibling.keys.remove(0);
+
+                let mut updated_node = node.clone();
+                updated_node.children.push(borrowed_child);
+                updated_node.keys.push(parent.keys[idx].clone());
+
+                // Update parent separator key
+                parent.keys[idx] = borrowed_key;
+
+                // Write nodes back
+                self.write_internal_node(&right_sibling)?;
+                self.write_internal_node(&updated_node)?;
+
+                return Ok(true);
+            }
+        }
+
+        Ok(false)  // No sibling has enough entries to borrow
+    }
+
+    /// Merge underfull internal node with sibling
+    fn merge_internal(&mut self, node: InternalNode, parent: &mut InternalNode, idx: usize) -> Result<(), StorageError> {
+        // Prefer merging with left sibling
+        if idx > 0 {
+            let mut left_sibling = self.read_internal_node(parent.children[idx - 1])?;
+
+            // Merge node into left sibling
+            // Include the parent's separator key
+            left_sibling.keys.push(parent.keys[idx - 1].clone());
+            left_sibling.keys.extend(node.keys);
+            left_sibling.children.extend(node.children);
+
+            self.write_internal_node(&left_sibling)?;
+
+            // Remove from parent
+            parent.children.remove(idx);
+            parent.keys.remove(idx - 1);
+
+            // Deallocate merged node
+            self.page_manager.deallocate_page(node.page_id)?;
+        } else {
+            // Merge with right sibling
+            let right_sibling = self.read_internal_node(parent.children[idx + 1])?;
+
+            // Merge right into node
+            let mut updated_node = node.clone();
+            updated_node.keys.push(parent.keys[idx].clone());
+            updated_node.keys.extend(right_sibling.keys);
+            updated_node.children.extend(right_sibling.children);
+
+            self.write_internal_node(&updated_node)?;
+
+            // Remove from parent
+            parent.children.remove(idx + 1);
+            parent.keys.remove(idx);
+
+            // Deallocate merged node
+            self.page_manager.deallocate_page(right_sibling.page_id)?;
+        }
+
+        Ok(())
+    }
+
+    /// Check if root should be collapsed (height decrease)
+    fn maybe_collapse_root(&mut self) -> Result<(), StorageError> {
+        if self.height > 1 {
+            let root = self.read_internal_node(self.root_page_id)?;
+            if root.children.len() == 1 {
+                // Collapse root
+                let old_root_id = self.root_page_id;
+                self.root_page_id = root.children[0];
+                self.height -= 1;
+                self.page_manager.deallocate_page(old_root_id)?;
+                self.save_metadata()?;
+            }
         }
 
         Ok(())

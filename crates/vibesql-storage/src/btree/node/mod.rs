@@ -534,4 +534,206 @@ mod tests {
         assert!(root_leaf.entries[1].0[0] == SqlValue::Integer(1));
         assert!(root_leaf.entries[2].0[0] == SqlValue::Integer(2));
     }
+
+    #[test]
+    fn test_delete_single_level_tree() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+        let sorted_entries = vec![
+            (vec![SqlValue::Integer(10)], 0),
+            (vec![SqlValue::Integer(20)], 1),
+            (vec![SqlValue::Integer(30)], 2),
+        ];
+
+        let mut index = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager).unwrap();
+
+        // Delete middle entry
+        assert!(index.delete(&vec![SqlValue::Integer(20)]).unwrap());
+
+        // Verify it was deleted
+        let root_leaf = index.read_leaf_node(index.root_page_id()).unwrap();
+        assert_eq!(root_leaf.entries.len(), 2);
+        assert_eq!(root_leaf.entries[0].0, vec![SqlValue::Integer(10)]);
+        assert_eq!(root_leaf.entries[1].0, vec![SqlValue::Integer(30)]);
+
+        // Try to delete non-existent key
+        assert!(!index.delete(&vec![SqlValue::Integer(20)]).unwrap());
+    }
+
+    #[test]
+    fn test_delete_nonexistent_key() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+        let sorted_entries = vec![
+            (vec![SqlValue::Integer(10)], 0),
+            (vec![SqlValue::Integer(20)], 1),
+            (vec![SqlValue::Integer(30)], 2),
+        ];
+
+        let mut index = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager).unwrap();
+
+        // Try to delete key that doesn't exist
+        assert!(!index.delete(&vec![SqlValue::Integer(99)]).unwrap());
+
+        // Verify tree unchanged
+        let root_leaf = index.read_leaf_node(index.root_page_id()).unwrap();
+        assert_eq!(root_leaf.entries.len(), 3);
+    }
+
+    #[test]
+    fn test_delete_all_entries_single_level() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+        let sorted_entries = vec![
+            (vec![SqlValue::Integer(10)], 0),
+            (vec![SqlValue::Integer(20)], 1),
+        ];
+
+        let mut index = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager).unwrap();
+
+        // Delete both entries
+        assert!(index.delete(&vec![SqlValue::Integer(10)]).unwrap());
+        assert!(index.delete(&vec![SqlValue::Integer(20)]).unwrap());
+
+        // Verify tree is empty
+        let root_leaf = index.read_leaf_node(index.root_page_id()).unwrap();
+        assert_eq!(root_leaf.entries.len(), 0);
+    }
+
+    #[test]
+    fn test_delete_multi_level_tree() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+
+        // Create enough entries to force multi-level tree
+        let sorted_entries: Vec<(Key, RowId)> = (0..100)
+            .map(|i| (vec![SqlValue::Integer(i * 10)], i as usize))
+            .collect();
+
+        let mut index = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager).unwrap();
+        let original_height = index.height();
+
+        // Delete some entries
+        assert!(index.delete(&vec![SqlValue::Integer(50)]).unwrap());
+        assert!(index.delete(&vec![SqlValue::Integer(150)]).unwrap());
+        assert!(index.delete(&vec![SqlValue::Integer(250)]).unwrap());
+
+        // Tree should still be valid (height may or may not change)
+        assert!(index.height() > 0);
+        assert!(index.height() <= original_height);
+    }
+
+    #[test]
+    fn test_delete_causes_height_decrease() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+
+        // Create enough entries to force multi-level tree (need more for bulk_load)
+        let sorted_entries: Vec<(Key, RowId)> = (0..1000)
+            .map(|i| (vec![SqlValue::Integer(i * 10)], i as usize))
+            .collect();
+
+        let mut index = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager).unwrap();
+        let original_height = index.height();
+
+        // Ensure we start with a multi-level tree
+        assert!(original_height > 1, "Test requires multi-level tree, got height {}", original_height);
+
+        // Delete most entries to trigger height decrease
+        for i in 0..990 {
+            let result = index.delete(&vec![SqlValue::Integer(i * 10)]);
+            assert!(result.is_ok());
+        }
+
+        // Height should have decreased
+        assert!(index.height() < original_height, "Height should decrease from {} after deleting 990/1000 entries", original_height);
+    }
+
+    #[test]
+    fn test_delete_sequence() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![DataType::Integer];
+
+        // Create 500 entries
+        let sorted_entries: Vec<(Key, RowId)> = (0..500)
+            .map(|i| (vec![SqlValue::Integer(i * 10)], i as usize))
+            .collect();
+
+        let mut index = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager).unwrap();
+
+        // Delete every other entry
+        for i in (0..500).step_by(2) {
+            assert!(index.delete(&vec![SqlValue::Integer(i * 10)]).unwrap());
+        }
+
+        // Verify deletions
+        for i in 0..500 {
+            let should_exist = i % 2 != 0;
+            let exists = index.delete(&vec![SqlValue::Integer(i * 10)]).unwrap();
+            assert_eq!(exists, should_exist);
+        }
+    }
+
+    #[test]
+    fn test_delete_multi_column_keys() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("test.db");
+        let page_manager = Arc::new(PageManager::new(&path).unwrap());
+
+        let key_schema = vec![DataType::Integer, DataType::Varchar { max_length: Some(50) }];
+        let sorted_entries = vec![
+            (vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())], 0),
+            (vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())], 1),
+            (vec![SqlValue::Integer(3), SqlValue::Varchar("Charlie".to_string())], 2),
+        ];
+
+        let mut index = BTreeIndex::bulk_load(sorted_entries, key_schema, page_manager).unwrap();
+
+        // Delete middle entry
+        assert!(index.delete(&vec![SqlValue::Integer(2), SqlValue::Varchar("Bob".to_string())]).unwrap());
+
+        // Verify deletion
+        let root_leaf = index.read_leaf_node(index.root_page_id()).unwrap();
+        assert_eq!(root_leaf.entries.len(), 2);
+        assert_eq!(
+            root_leaf.entries[0].0,
+            vec![SqlValue::Integer(1), SqlValue::Varchar("Alice".to_string())]
+        );
+        assert_eq!(
+            root_leaf.entries[1].0,
+            vec![SqlValue::Integer(3), SqlValue::Varchar("Charlie".to_string())]
+        );
+    }
 }
