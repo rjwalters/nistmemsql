@@ -66,8 +66,8 @@ impl DatabaseConfig {
     /// - BestEffort policy (prefer memory, fall back to disk)
     pub fn server_default() -> Self {
         DatabaseConfig {
-            memory_budget: 16 * 1024 * 1024 * 1024,  // 16GB
-            disk_budget: 1024 * 1024 * 1024 * 1024,  // 1TB
+            memory_budget: (16u64 * 1024 * 1024 * 1024) as usize,  // 16GB
+            disk_budget: (1024u64 * 1024 * 1024 * 1024) as usize,  // 1TB
             spill_policy: SpillPolicy::BestEffort,
         }
     }
