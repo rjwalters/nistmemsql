@@ -452,8 +452,8 @@ fn json_database_to_db(json_db: JsonDatabase) -> Result<Database, StorageError> 
     // Skip views for now - requires SQL parsing which we don't want to do during deserialization
     // Views will need to be recreated manually or via SQL execution
     if !json_db.views.is_empty() {
-        eprintln!(
-            "Warning: {} views found in JSON but skipped (not yet supported)",
+        log::warn!(
+            "{} views found in JSON but skipped (not yet supported)",
             json_db.views.len()
         );
     }
