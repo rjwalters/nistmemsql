@@ -29,6 +29,9 @@ pub use table::Table;
 #[cfg(not(target_arch = "wasm32"))]
 pub use backend::{NativeFile, NativeStorage};
 
+#[cfg(target_arch = "wasm32")]
+pub use backend::{OpfsFile, OpfsStorage};
+
 #[cfg(test)]
 mod tests {
     use vibesql_catalog::{ColumnSchema, TableSchema};

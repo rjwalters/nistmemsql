@@ -74,8 +74,17 @@ pub fn date_add(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             return Ok(SqlValue::Null);
         }
 
-        // Coerce first argument to date
-        let date_val = coerce_to_date(&args[0])?;
+        // Get date/timestamp value (handles VARCHAR, but preserves Timestamp vs Date)
+        let date_val = match &args[0] {
+            SqlValue::Date(_) | SqlValue::Timestamp(_) => args[0].clone(),
+            SqlValue::Varchar(s) | SqlValue::Character(s) => coerce_to_date(&args[0])?,
+            SqlValue::Null => SqlValue::Null,
+            val => return Err(ExecutorError::TypeMismatch {
+                left: val.clone(),
+                op: "DATE_ADD".to_string(),
+                right: SqlValue::Null,
+            }),
+        };
 
         match &args[1] {
             SqlValue::Interval(interval) => {
@@ -108,8 +117,17 @@ pub fn date_add(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         return Ok(SqlValue::Null);
     }
 
-    // Coerce first argument to date (handles VARCHAR)
-    let date_val = coerce_to_date(&args[0])?;
+    // Get date/timestamp value (handles VARCHAR, but preserves Timestamp vs Date)
+    let date_val = match &args[0] {
+        SqlValue::Date(_) | SqlValue::Timestamp(_) => args[0].clone(),
+        SqlValue::Varchar(s) | SqlValue::Character(s) => coerce_to_date(&args[0])?,
+        SqlValue::Null => SqlValue::Null,
+        val => return Err(ExecutorError::TypeMismatch {
+            left: val.clone(),
+            op: "DATE_ADD".to_string(),
+            right: SqlValue::Null,
+        }),
+    };
     let date_str = date_val_to_string(&date_val)?;
 
     // Extract amount
@@ -157,8 +175,17 @@ pub fn date_sub(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             return Ok(SqlValue::Null);
         }
 
-        // Coerce first argument to date
-        let date_val = coerce_to_date(&args[0])?;
+        // Get date/timestamp value (handles VARCHAR, but preserves Timestamp vs Date)
+        let date_val = match &args[0] {
+            SqlValue::Date(_) | SqlValue::Timestamp(_) => args[0].clone(),
+            SqlValue::Varchar(s) | SqlValue::Character(s) => coerce_to_date(&args[0])?,
+            SqlValue::Null => SqlValue::Null,
+            val => return Err(ExecutorError::TypeMismatch {
+                left: val.clone(),
+                op: "DATE_SUB".to_string(),
+                right: SqlValue::Null,
+            }),
+        };
 
         match &args[1] {
             SqlValue::Interval(interval) => {
@@ -191,8 +218,17 @@ pub fn date_sub(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         return Ok(SqlValue::Null);
     }
 
-    // Coerce first argument to date (handles VARCHAR)
-    let date_val = coerce_to_date(&args[0])?;
+    // Get date/timestamp value (handles VARCHAR, but preserves Timestamp vs Date)
+    let date_val = match &args[0] {
+        SqlValue::Date(_) | SqlValue::Timestamp(_) => args[0].clone(),
+        SqlValue::Varchar(s) | SqlValue::Character(s) => coerce_to_date(&args[0])?,
+        SqlValue::Null => SqlValue::Null,
+        val => return Err(ExecutorError::TypeMismatch {
+            left: val.clone(),
+            op: "DATE_SUB".to_string(),
+            right: SqlValue::Null,
+        }),
+    };
     let date_str = date_val_to_string(&date_val)?;
 
     // Extract amount
