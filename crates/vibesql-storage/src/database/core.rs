@@ -103,11 +103,15 @@ impl Database {
     ///
     /// Clears all tables, resets catalog to default state, and clears all indexes and transactions.
     /// Useful for test scenarios where you need to reuse a Database instance.
+    /// Preserves database configuration (path, storage backend, memory budgets) across resets.
     pub fn reset(&mut self) {
         self.catalog = vibesql_catalog::Catalog::new();
         self.lifecycle.reset();
         self.metadata = Metadata::new();
-        self.operations = Operations::new();
+
+        // Reset operations in place to preserve database_path, storage backend, and config
+        self.operations.reset();
+
         self.tables.clear();
     }
 

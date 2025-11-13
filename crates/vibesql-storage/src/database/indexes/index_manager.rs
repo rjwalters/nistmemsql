@@ -115,6 +115,18 @@ impl IndexManager {
         self.config = config;
     }
 
+    /// Reset the index manager to empty state (clears all indexes).
+    ///
+    /// Clears all index metadata and data but preserves configuration
+    /// (database path, storage backend, and resource budgets).
+    /// This is more efficient than creating a new instance and ensures
+    /// disk-backed indexes continue to work after reset.
+    pub fn reset(&mut self) {
+        self.indexes.clear();
+        self.index_data.clear();
+        self.resource_tracker = ResourceTracker::new();
+    }
+
     /// Check if an index exists
     pub fn index_exists(&self, index_name: &str) -> bool {
         let normalized = normalize_index_name(index_name);
