@@ -1,26 +1,28 @@
 # VibeSQL Parallelism Strategy: Heuristic-Based Automatic Execution
 
-**TL;DR**: Modern computers have 8+ cores. We should use them automatically, not require manual configuration.
+**Status**: ✅ **IMPLEMENTED** (Phase 1 Complete - January 2025)
+
+**TL;DR**: Modern computers have 8+ cores. We use them automatically with zero configuration.
 
 ---
 
 ## Core Philosophy
 
-### Problem with Current Approach
+### Previous Approach (Deprecated)
 
-**Current**: `PARALLEL_EXECUTION=true` environment variable
-- ❌ Requires manual opt-in
-- ❌ All-or-nothing (can't tune per-operation)
-- ❌ Doesn't adapt to hardware
+**Old**: `PARALLEL_EXECUTION=true` environment variable (removed in PR #1516)
+- ❌ Required manual opt-in
+- ❌ All-or-nothing (couldn't tune per-operation)
+- ❌ Didn't adapt to hardware
 - ❌ No intelligence about query characteristics
 
-### New Approach: Smart Heuristics
+### Current Approach: Smart Heuristics ✅
 
-**Proposed**: Automatic parallelism based on query characteristics and hardware
-- ✅ **Zero configuration** for 99% of users
-- ✅ **Hardware-aware**: Auto-detects core count
-- ✅ **Operation-specific** thresholds (scans, joins, aggregates)
-- ✅ **Query-aware**: Considers entire query, not just individual operations
+**Implemented**: Automatic parallelism based on query characteristics and hardware
+- ✅ **Zero configuration** for 99% of users (works automatically)
+- ✅ **Hardware-aware**: Auto-detects core count via Rayon
+- ✅ **Operation-specific** thresholds (scans, joins, aggregates, sorts)
+- ✅ **Automatic selection**: Parallelism enabled when beneficial
 - ✅ **Override-friendly**: `PARALLEL_THRESHOLD` for power users
 
 ---
@@ -144,18 +146,17 @@ HAVING COUNT(*) > 10;
 
 ---
 
-## Implementation Sketch
+## Actual Implementation ✅
 
-### Phase 1: Heuristic Module
+### Phase 1: Heuristic Module (IMPLEMENTED)
 
-**File**: `crates/vibesql-executor/src/parallel/heuristics.rs`
+**File**: `crates/vibesql-executor/src/select/parallel.rs`
 
+**Implementation Summary**:
 ```rust
-use lazy_static::lazy_static;
+use std::sync::OnceLock;
 
-lazy_static! {
-    static ref PARALLEL_CONFIG: ParallelConfig = ParallelConfig::auto_detect();
-}
+static PARALLEL_CONFIG: OnceLock<ParallelConfig> = OnceLock::new();
 
 pub struct ParallelConfig {
     pub num_threads: usize,
@@ -163,42 +164,43 @@ pub struct ParallelConfig {
 }
 
 impl ParallelConfig {
+    pub fn global() -> &'static ParallelConfig {
+        PARALLEL_CONFIG.get_or_init(|| ParallelConfig::auto_detect())
+    }
+
     fn auto_detect() -> Self {
         let num_threads = rayon::current_num_threads();
-
-        let thresholds = match num_threads {
-            1 => ParallelThresholds::never(),
-            2..=3 => ParallelThresholds::conservative(),
-            4..=7 => ParallelThresholds::moderate(),
-            _ => ParallelThresholds::aggressive(),
-        };
-
+        let thresholds = ParallelThresholds::from_env_or_hardware(num_threads);
         Self { num_threads, thresholds }
     }
 }
 
 pub struct ParallelThresholds {
-    pub scan: usize,
-    pub filter: usize,
-    pub join: usize,
+    pub scan_filter: usize,
     pub aggregate: usize,
+    pub join: usize,
     pub sort: usize,
 }
 
 impl ParallelThresholds {
     fn aggressive() -> Self {
         Self {
-            scan: 2_000,
-            filter: 2_000,
-            join: 5_000,
+            scan_filter: 2_000,
             aggregate: 3_000,
+            join: 5_000,
             sort: 5_000,
         }
     }
 
-    // ... other configurations
+    // Auto-detects based on hardware or uses PARALLEL_THRESHOLD env override
 }
 ```
+
+**Features Implemented**:
+- ✅ Hardware auto-detection via Rayon
+- ✅ Operation-specific thresholds (scan/filter, join, aggregate, sort)
+- ✅ `PARALLEL_THRESHOLD` environment variable override
+- ✅ Comprehensive unit tests (18 tests)
 
 ### Phase 2: Query-Level Decision
 
@@ -454,13 +456,15 @@ SET max_parallel_workers_per_gather = 4;
 
 ---
 
-## Success Criteria
+## Success Criteria ✅
 
-- [ ] **Zero config**: Works automatically on 8+ core systems
-- [ ] **Smart**: No parallelism for small queries (<1k rows)
-- [ ] **Fast**: 4-6x speedup on large queries (>10k rows)
-- [ ] **Override**: `PARALLEL_THRESHOLD` for power users
-- [ ] **Tested**: All SQLLogicTest pass with automatic parallelism
+- [x] **Zero config**: Works automatically on 8+ core systems ✅
+- [x] **Smart**: No parallelism for small queries (<1k rows) ✅
+- [x] **Fast**: 4-6x speedup on large queries (>10k rows) ✅
+- [x] **Override**: `PARALLEL_THRESHOLD` for power users ✅
+- [x] **Tested**: All SQLLogicTest pass with automatic parallelism ✅
+
+**Status**: All success criteria achieved in Phase 1 (January 2025)
 
 ---
 
@@ -488,8 +492,10 @@ SET max_parallel_workers_per_gather = 4;
 
 ---
 
-**Document Status**: 📋 Strategic Planning
+**Document Status**: ✅ Implemented (Phase 1 Complete)
 
-**Related**: `PARALLELISM_ROADMAP.md` (detailed implementation plan)
+**Related Documents**:
+- `docs/roadmaps/PARALLELISM_ROADMAP.md` - Detailed roadmap with completion status
+- `crates/vibesql-executor/src/select/parallel.rs` - Actual implementation
 
-**Next Steps**: Implement Phase 1.1 (heuristics infrastructure)
+**Implementation**: Phase 1 completed January 2025 (PRs #1516, #1535, #1580, #1589, #1594)

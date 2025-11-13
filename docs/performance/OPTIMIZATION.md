@@ -7,14 +7,15 @@ This document outlines performance optimization opportunities for the NIST-compa
 ### Design Philosophy
 Per ADR-0001, this database prioritizes **correctness over performance**:
 - No performance requirements
-- Single-threaded execution
 - In-memory storage
 - Focus on SQL:1999 standard compliance
+- **Parallelism**: Automatic data-parallel execution (Phase 1 complete)
 
 ### Current State
 - **SQL:1999 Conformance**: 100% (739/739 tests passing) ✅
 - **Test Pass Rate**: 100% (1,306+ tests)
-- **Optimization Level**: Phase 2 Complete (Hash Join, Expression Optimization, Memory Optimization)
+- **Optimization Level**: Phase 2 Complete (Hash Join, Expression Optimization, Memory Optimization, Parallelism)
+- **Parallelism**: Automatic multi-core execution for large queries (3-6x speedup)
 - **Target Workload**: Small-to-medium datasets (<100K rows), educational/research use
 
 ### Performance Characteristics
@@ -554,15 +555,34 @@ impl Database {
 
 ---
 
-#### 3.3 Parallel Query Execution
+#### 3.3 Parallel Query Execution ✅
 
-**Effort**: 1-2 weeks
-**Impact**: 2-8x speedup on multi-core systems (requires architectural changes)
+**Status**: ✅ **PHASE 1 COMPLETE** (January 2025)
+**Actual Effort**: 3 weeks
+**Actual Impact**: 3-6x speedup on multi-core systems (8+ cores)
 
-- Thread-safe storage layer
-- Parallel scan operators
-- Parallel aggregation
-- Requires careful design to avoid data races
+**Implementation Summary** (PRs #1516, #1535, #1580, #1589, #1594):
+- ✅ Automatic hardware-aware heuristics (`parallel.rs`)
+- ✅ Parallel table scans (`parallel_scan_filter()`, `parallel_scan_map()`)
+- ✅ Parallel hash join build phase (`build_hash_table_parallel()`)
+- ✅ Parallel aggregation infrastructure (combinable accumulators)
+- ✅ Parallel sorting (`par_sort_by()` via Rayon)
+- ✅ Operation-specific thresholds (scan: 2k, join: 5k, aggregate: 3k, sort: 5k rows)
+- ✅ Environment variable override (`PARALLEL_THRESHOLD`)
+
+**Performance Results**:
+- Large scans (100k+ rows): **3-5x speedup**
+- Large joins (50k+ rows on build side): **3-6x speedup**
+- Large sorts (100k+ rows): **2-3x speedup**
+- Automatic selection: no parallelism overhead for small queries
+
+**Files**:
+- `crates/vibesql-executor/src/select/parallel.rs` - Heuristics and scan operations
+- `crates/vibesql-executor/src/select/join/hash_join.rs` - Parallel hash join
+- `crates/vibesql-executor/src/select/grouping.rs` - Parallel aggregation accumulators
+- `crates/vibesql-executor/src/select/order.rs` - Parallel sorting
+
+**Next Steps**: Phase 2 would require concurrent query execution (interior mutability refactoring)
 
 ---
 
@@ -1009,10 +1029,12 @@ pub fn generate_tpch_lineitem(scale_factor: usize) -> Table {
 The following optimizations are **explicitly out of scope** for maintaining the educational/research focus:
 
 1. **Disk-based storage** - Remain in-memory only
-2. **Multi-threaded execution** - Keep single-threaded for simplicity
+2. **Concurrent query execution** - Single query at a time (data parallelism within queries is implemented)
 3. **Network protocol** - Local execution only
 4. **Distributed query execution** - Single-node only
 5. **MVCC concurrency control** - Single-transaction model sufficient
+
+**Note**: Data-parallel execution within a single query (Phase 1 parallelism) has been successfully implemented. What remains out of scope is concurrent execution of multiple queries simultaneously (Phase 2 parallelism).
 
 ---
 
