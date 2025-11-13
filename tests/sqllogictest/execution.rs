@@ -143,22 +143,6 @@ mod tests {
         }
     }
 
-    #[test]
-    #[ignore] // Disabled due to race condition with test_timeout_wraps_execution when run in parallel
-    fn test_timeout_default_is_300() {
-        // Save and clear environment variable to test default
-        let original = env::var("SQLLOGICTEST_FILE_TIMEOUT").ok();
-        env::remove_var("SQLLOGICTEST_FILE_TIMEOUT");
-
-        let timeout_secs = get_test_file_timeout();
-        assert_eq!(timeout_secs, 300);
-
-        // Restore original value if it existed
-        if let Some(val) = original {
-            env::set_var("SQLLOGICTEST_FILE_TIMEOUT", val);
-        }
-    }
-
     #[tokio::test]
     async fn test_file_timeout_triggers() {
         // Test a file with a very short timeout that should fail

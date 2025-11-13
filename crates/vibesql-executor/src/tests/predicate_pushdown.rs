@@ -76,7 +76,7 @@ fn test_table_local_predicate_applied_at_scan() {
 }
 
 #[test]
-#[ignore] // TODO: Requires execute_without_aggregation to only apply complex predicates
+#[ignore] // TODO: Implement predicate pushdown optimization in execute_without_aggregation
 fn test_multi_table_with_local_predicates() {
     // Verify that table-local predicates reduce intermediate results
     // before Cartesian product in multi-table FROM
@@ -176,7 +176,7 @@ fn test_multi_table_with_local_predicates() {
 }
 
 #[test]
-#[ignore] // TODO: Requires execute_without_aggregation to only apply complex predicates
+#[ignore] // TODO: Implement predicate pushdown optimization in execute_without_aggregation
 fn test_table_local_predicate_with_explicit_join() {
     // Test that table-local predicates work with explicit JOIN syntax
     let mut db = vibesql_storage::Database::new();
