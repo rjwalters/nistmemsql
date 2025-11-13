@@ -14,7 +14,8 @@ pub mod table;
 
 pub use buffer::{BufferPool, BufferPoolStats};
 pub use database::{
-    Database, IndexData, IndexManager, IndexMetadata, SpatialIndexMetadata, TransactionState,
+    Database, DatabaseConfig, IndexData, IndexManager, IndexMetadata, SpillPolicy,
+    SpatialIndexMetadata, TransactionState,
 };
 pub use error::StorageError;
 pub use index::{extract_mbr_from_sql_value, SpatialIndex, SpatialIndexEntry};
