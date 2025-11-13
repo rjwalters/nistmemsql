@@ -635,7 +635,7 @@ impl IndexManager {
                             // This is a known limitation that will need to be addressed.
                             if let Err(e) = btree.lock().unwrap().insert(key_values, row_index) {
                                 // Log error but don't fail - this may happen for non-unique indexes
-                                eprintln!("Warning: Failed to insert into disk-backed index '{}': {:?}", index_name, e);
+                                log::warn!("Failed to insert into disk-backed index '{}': {:?}", index_name, e);
                             }
                         }
                     }
@@ -703,7 +703,7 @@ impl IndexManager {
                                 let mut btree_guard = btree.lock().unwrap();
                                 let _ = btree_guard.delete(&old_key_values);
                                 if let Err(e) = btree_guard.insert(new_key_values, row_index) {
-                                    eprintln!("Warning: Failed to update disk-backed index '{}': {:?}", index_name, e);
+                                    log::warn!("Failed to update disk-backed index '{}': {:?}", index_name, e);
                                 }
                             }
                         }
