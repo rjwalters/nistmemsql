@@ -22,7 +22,7 @@ impl ExpressionEvaluator<'_> {
 
         // Check if bounds are reversed (low > high)
         let gt_result =
-            self.eval_binary_op(&low_val, &vibesql_ast::BinaryOperator::GreaterThan, &high_val)?;
+            Self::eval_binary_op_static(&low_val, &vibesql_ast::BinaryOperator::GreaterThan, &high_val)?;
 
         if let vibesql_types::SqlValue::Boolean(true) = gt_result {
             if symmetric {
@@ -38,19 +38,19 @@ impl ExpressionEvaluator<'_> {
         }
 
         let ge_low =
-            self.eval_binary_op(&expr_val, &vibesql_ast::BinaryOperator::GreaterThanOrEqual, &low_val)?;
+            Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::GreaterThanOrEqual, &low_val)?;
 
         let le_high =
-            self.eval_binary_op(&expr_val, &vibesql_ast::BinaryOperator::LessThanOrEqual, &high_val)?;
+            Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::LessThanOrEqual, &high_val)?;
 
         if negated {
             let lt_low =
-                self.eval_binary_op(&expr_val, &vibesql_ast::BinaryOperator::LessThan, &low_val)?;
+                Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::LessThan, &low_val)?;
             let gt_high =
-                self.eval_binary_op(&expr_val, &vibesql_ast::BinaryOperator::GreaterThan, &high_val)?;
-            self.eval_binary_op(&lt_low, &vibesql_ast::BinaryOperator::Or, &gt_high)
+                Self::eval_binary_op_static(&expr_val, &vibesql_ast::BinaryOperator::GreaterThan, &high_val)?;
+            Self::eval_binary_op_static(&lt_low, &vibesql_ast::BinaryOperator::Or, &gt_high)
         } else {
-            self.eval_binary_op(&ge_low, &vibesql_ast::BinaryOperator::And, &le_high)
+            Self::eval_binary_op_static(&ge_low, &vibesql_ast::BinaryOperator::And, &le_high)
         }
     }
 

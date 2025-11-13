@@ -8,6 +8,22 @@ use vibesql_types::{DataType, SqlValue};
 use crate::advanced_objects;
 use crate::errors::ExecutorError;
 
+// Helper function to create a simple procedure with defaults for Phase 6 fields
+fn create_simple_procedure(
+    name: &str,
+    parameters: Vec<ProcedureParameter>,
+    body: Vec<ProceduralStatement>,
+) -> CreateProcedureStmt {
+    CreateProcedureStmt {
+        procedure_name: name.to_string(),
+        parameters,
+        body: ProcedureBody::BeginEnd(body),
+        sql_security: None,
+        comment: None,
+        language: None,
+    }
+}
+
 fn setup_test_table(db: &mut Database) {
     // CREATE TABLE users (id INTEGER NOT NULL, name VARCHAR(50))
     let schema = TableSchema::new(
@@ -32,6 +48,9 @@ fn test_create_procedure_simple() {
         procedure_name: "test_proc".to_string(),
         parameters: vec![],
         body: ProcedureBody::BeginEnd(vec![]),
+        sql_security: None,
+        comment: None,
+        language: None,
     };
     
     let result = advanced_objects::execute_create_procedure(&proc, &mut db);
@@ -49,6 +68,9 @@ fn test_drop_procedure_simple() {
         procedure_name: "test_proc".to_string(),
         parameters: vec![],
         body: ProcedureBody::BeginEnd(vec![]),
+        sql_security: None,
+        comment: None,
+        language: None,
     };
     
     advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
@@ -101,11 +123,15 @@ fn test_create_function_simple() {
         parameters: vec![],
         return_type: DataType::Integer,
         body: ProcedureBody::BeginEnd(vec![]),
+        deterministic: None,
+        sql_security: None,
+        comment: None,
+        language: None,
     };
-    
+
     let result = advanced_objects::execute_create_function(&func, &mut db);
     assert!(result.is_ok());
-    
+
     // Verify function was created
     assert!(db.catalog.function_exists("test_func"));
 }
@@ -119,11 +145,15 @@ fn test_drop_function_simple() {
         parameters: vec![],
         return_type: DataType::Integer,
         body: ProcedureBody::BeginEnd(vec![]),
+        deterministic: None,
+        sql_security: None,
+        comment: None,
+        language: None,
     };
-    
+
     advanced_objects::execute_create_function(&create_func, &mut db).unwrap();
     assert!(db.catalog.function_exists("test_func"));
-    
+
     let drop_func = DropFunctionStmt {
         function_name: "test_func".to_string(),
         if_exists: false,
@@ -143,7 +173,10 @@ fn test_call_procedure_simple() {
         procedure_name: "test_proc".to_string(),
         parameters: vec![],
         body: ProcedureBody::BeginEnd(vec![]),
-    };
+        sql_security: None,
+        comment: None,
+        language: None,
+        };
 
     advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -189,7 +222,10 @@ fn test_call_procedure_with_in_parameter() {
                 }),
             },
         ]),
-    };
+        sql_security: None,
+        comment: None,
+        language: None,
+        };
 
     advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -247,7 +283,10 @@ fn test_call_procedure_with_multiple_parameters() {
                 }),
             },
         ]),
-    };
+        sql_security: None,
+        comment: None,
+        language: None,
+        };
 
     advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -288,7 +327,10 @@ fn test_declare_with_default_value() {
                 default_value: Some(Box::new(Expression::Literal(SqlValue::Varchar("Hello".to_string())))),
             },
         ]),
-    };
+        sql_security: None,
+        comment: None,
+        language: None,
+        };
 
     advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -337,7 +379,10 @@ fn test_variable_in_expression() {
                 }),
             },
         ]),
-    };
+        sql_security: None,
+        comment: None,
+        language: None,
+        };
 
     advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -398,7 +443,10 @@ fn test_concat_function_in_procedure() {
                 }),
             },
         ]),
-    };
+        sql_security: None,
+        comment: None,
+        language: None,
+        };
 
     advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -426,7 +474,10 @@ fn test_parameter_count_mismatch() {
             data_type: DataType::Integer,
         }],
         body: ProcedureBody::BeginEnd(vec![]),
-    };
+        sql_security: None,
+        comment: None,
+        language: None,
+        };
 
     advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -453,7 +504,10 @@ fn test_out_parameter_not_yet_supported() {
             data_type: DataType::Integer,
         }],
         body: ProcedureBody::BeginEnd(vec![]),
-    };
+        sql_security: None,
+        comment: None,
+        language: None,
+        };
 
     advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
 
@@ -1264,4 +1318,427 @@ fn test_parameter_type_documentation() {
     // TODO Phase 7: Add parameter type mismatch tests when type checking is implemented
     // Expected error message format:
     // "Parameter 'x' expects INT, got VARCHAR 'hello'"
+}
+
+// ============================================================================
+// Phase 6 Robustness: Edge Case Tests
+// ============================================================================
+
+mod edge_case_tests {
+    use super::*;
+    use crate::procedural::ExecutionContext;
+
+    // Edge Case 1: Empty Procedure Body
+    #[test]
+    fn test_empty_procedure_body() {
+        let mut db = Database::new();
+
+        // CREATE PROCEDURE do_nothing()
+        // BEGIN
+        // END;
+        let create_proc = CreateProcedureStmt {
+            procedure_name: "do_nothing".to_string(),
+            parameters: vec![],
+            body: ProcedureBody::BeginEnd(vec![]),
+        sql_security: None,
+        comment: None,
+        language: None,
+        };
+
+        advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
+
+        // CALL do_nothing();
+        let call = CallStmt {
+            procedure_name: "do_nothing".to_string(),
+            arguments: vec![],
+        };
+
+        // Should succeed with no operations
+        let result = advanced_objects::execute_call(&call, &mut db);
+        assert!(result.is_ok());
+    }
+
+    // Edge Case 2: NULL Parameter Values
+    #[test]
+    fn test_null_parameter_in_procedure() {
+        let mut db = Database::new();
+
+        // CREATE PROCEDURE handle_null(IN x INT)
+        // BEGIN
+        //   DECLARE result INT;
+        //   SET result = x;  -- result becomes NULL
+        // END;
+        let create_proc = CreateProcedureStmt {
+            procedure_name: "handle_null".to_string(),
+            parameters: vec![ProcedureParameter {
+                mode: ParameterMode::In,
+                name: "x".to_string(),
+                data_type: DataType::Integer,
+            }],
+            body: ProcedureBody::BeginEnd(vec![
+                ProceduralStatement::Declare {
+                    name: "result".to_string(),
+                    data_type: DataType::Integer,
+                    default_value: None,
+                },
+                ProceduralStatement::Set {
+                    name: "result".to_string(),
+                    value: Box::new(Expression::ColumnRef {
+                        table: None,
+                        column: "x".to_string(),
+                    }),
+                },
+            ]),
+            sql_security: None,
+            comment: None,
+            language: None,
+        };
+
+        advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
+
+        // CALL handle_null(NULL);
+        let call = CallStmt {
+            procedure_name: "handle_null".to_string(),
+            arguments: vec![Expression::Literal(SqlValue::Null)],
+        };
+
+        // Should handle NULL parameter gracefully
+        let result = advanced_objects::execute_call(&call, &mut db);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_declare_with_null_default() {
+        let mut db = Database::new();
+
+        // CREATE PROCEDURE test_null_default()
+        // BEGIN
+        //   DECLARE x INT;  -- Defaults to NULL
+        //   DECLARE y INT DEFAULT NULL;  -- Explicitly NULL
+        // END;
+        let create_proc = CreateProcedureStmt {
+            procedure_name: "test_null_default".to_string(),
+            parameters: vec![],
+            body: ProcedureBody::BeginEnd(vec![
+                ProceduralStatement::Declare {
+                    name: "x".to_string(),
+                    data_type: DataType::Integer,
+                    default_value: None,  // Implicitly NULL
+                },
+                ProceduralStatement::Declare {
+                    name: "y".to_string(),
+                    data_type: DataType::Integer,
+                    default_value: Some(Box::new(Expression::Literal(SqlValue::Null))),
+                },
+            ]),
+            sql_security: None,
+            comment: None,
+            language: None,
+        };
+
+        advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
+
+        let call = CallStmt {
+            procedure_name: "test_null_default".to_string(),
+            arguments: vec![],
+        };
+
+        let result = advanced_objects::execute_call(&call, &mut db);
+        assert!(result.is_ok());
+    }
+
+    // Edge Case 3: Parameter Name Conflicts with Variables
+    #[test]
+    fn test_parameter_variable_shadowing() {
+        let mut db = Database::new();
+
+        // CREATE PROCEDURE test_shadowing(IN x INT)
+        // BEGIN
+        //   DECLARE x INT DEFAULT 10;  -- Shadows parameter
+        //   -- This is allowed in SQL but inner scope takes precedence
+        // END;
+        let create_proc = CreateProcedureStmt {
+            procedure_name: "test_shadowing".to_string(),
+            parameters: vec![ProcedureParameter {
+                mode: ParameterMode::In,
+                name: "x".to_string(),
+                data_type: DataType::Integer,
+            }],
+            body: ProcedureBody::BeginEnd(vec![
+                ProceduralStatement::Declare {
+                    name: "x".to_string(),
+                    data_type: DataType::Integer,
+                    default_value: Some(Box::new(Expression::Literal(SqlValue::Integer(10)))),
+                },
+            ]),
+            sql_security: None,
+            comment: None,
+            language: None,
+        };
+
+        advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
+
+        let call = CallStmt {
+            procedure_name: "test_shadowing".to_string(),
+            arguments: vec![Expression::Literal(SqlValue::Integer(5))],
+        };
+
+        // Should succeed - local variable shadows parameter
+        let result = advanced_objects::execute_call(&call, &mut db);
+        assert!(result.is_ok());
+    }
+
+    // Edge Case 4: Very Long Procedure Bodies
+    #[test]
+    fn test_very_long_procedure_body() {
+        let mut db = Database::new();
+
+        // Create a procedure with 100 SET statements
+        let mut statements = vec![];
+
+        // Declare initial variable
+        statements.push(ProceduralStatement::Declare {
+            name: "counter".to_string(),
+            data_type: DataType::Integer,
+            default_value: Some(Box::new(Expression::Literal(SqlValue::Integer(0)))),
+        });
+
+        // Add 100 SET statements
+        for i in 1..=100 {
+            statements.push(ProceduralStatement::Set {
+                name: "counter".to_string(),
+                value: Box::new(Expression::Literal(SqlValue::Integer(i))),
+            });
+        }
+
+        let create_proc = CreateProcedureStmt {
+            procedure_name: "long_procedure".to_string(),
+            parameters: vec![],
+            body: ProcedureBody::BeginEnd(statements),
+        sql_security: None,
+        comment: None,
+        language: None,
+        };
+
+        advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
+
+        let call = CallStmt {
+            procedure_name: "long_procedure".to_string(),
+            arguments: vec![],
+        };
+
+        // Should handle long body without issues
+        let result = advanced_objects::execute_call(&call, &mut db);
+        assert!(result.is_ok());
+    }
+
+    // Edge Case 5: Deeply Nested Control Flow
+    #[test]
+    fn test_deeply_nested_control_flow() {
+        let mut db = Database::new();
+        let mut ctx = ExecutionContext::new();
+
+        ctx.set_variable("result", SqlValue::Integer(0));
+
+        // Create 10 levels of nested IF statements
+        let mut innermost = vec![
+            ProceduralStatement::Set {
+                name: "result".to_string(),
+                value: Box::new(Expression::Literal(SqlValue::Integer(10))),
+            }
+        ];
+
+        let mut nested_stmt = ProceduralStatement::If {
+            condition: Box::new(Expression::Literal(SqlValue::Boolean(true))),
+            then_statements: innermost.clone(),
+            else_statements: None,
+        };
+
+        // Nest 9 more levels
+        for _ in 0..9 {
+            nested_stmt = ProceduralStatement::If {
+                condition: Box::new(Expression::Literal(SqlValue::Boolean(true))),
+                then_statements: vec![nested_stmt],
+                else_statements: None,
+            };
+        }
+
+        let result = crate::procedural::executor::execute_procedural_statement(
+            &nested_stmt,
+            &mut ctx,
+            &mut db,
+        );
+
+        assert!(result.is_ok());
+        assert_eq!(ctx.get_variable("result"), Some(&SqlValue::Integer(10)));
+    }
+
+    // Edge Case 6: Special Characters in Names
+    #[test]
+    fn test_procedure_with_special_chars_in_name() {
+        let mut db = Database::new();
+
+        // CREATE PROCEDURE `proc-with-dash`()
+        // BEGIN
+        //   DECLARE result INT DEFAULT 42;
+        // END;
+        let create_proc = CreateProcedureStmt {
+            procedure_name: "proc-with-dash".to_string(),
+            parameters: vec![],
+            body: ProcedureBody::BeginEnd(vec![
+                ProceduralStatement::Declare {
+                    name: "result".to_string(),
+                    data_type: DataType::Integer,
+                    default_value: Some(Box::new(Expression::Literal(SqlValue::Integer(42)))),
+                },
+            ]),
+            sql_security: None,
+            comment: None,
+            language: None,
+        };
+
+        advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
+
+        let call = CallStmt {
+            procedure_name: "proc-with-dash".to_string(),
+            arguments: vec![],
+        };
+
+        let result = advanced_objects::execute_call(&call, &mut db);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_procedure_with_spaces_in_name() {
+        let mut db = Database::new();
+
+        // CREATE PROCEDURE `proc with spaces`()
+        let create_proc = CreateProcedureStmt {
+            procedure_name: "proc with spaces".to_string(),
+            parameters: vec![],
+            body: ProcedureBody::BeginEnd(vec![]),
+        sql_security: None,
+        comment: None,
+        language: None,
+        };
+
+        advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
+
+        let call = CallStmt {
+            procedure_name: "proc with spaces".to_string(),
+            arguments: vec![],
+        };
+
+        let result = advanced_objects::execute_call(&call, &mut db);
+        assert!(result.is_ok());
+    }
+
+    // Edge Case 7: Large Numbers in Arithmetic
+    #[test]
+    fn test_large_number_arithmetic() {
+        let mut db = Database::new();
+
+        // CREATE PROCEDURE test_large_numbers()
+        // BEGIN
+        //   DECLARE large INT DEFAULT 1000000;
+        //   DECLARE result INT;
+        //   SET result = large * 2;
+        // END;
+        let create_proc = CreateProcedureStmt {
+            procedure_name: "test_large_numbers".to_string(),
+            parameters: vec![],
+            body: ProcedureBody::BeginEnd(vec![
+                ProceduralStatement::Declare {
+                    name: "large".to_string(),
+                    data_type: DataType::Integer,
+                    default_value: Some(Box::new(Expression::Literal(SqlValue::Integer(1_000_000)))),
+                },
+                ProceduralStatement::Declare {
+                    name: "result".to_string(),
+                    data_type: DataType::Integer,
+                    default_value: None,
+                },
+                ProceduralStatement::Set {
+                    name: "result".to_string(),
+                    value: Box::new(Expression::BinaryOp {
+                        left: Box::new(Expression::ColumnRef {
+                            table: None,
+                            column: "large".to_string(),
+                        }),
+                        op: BinaryOperator::Multiply,
+                        right: Box::new(Expression::Literal(SqlValue::Integer(2))),
+                    }),
+                },
+            ]),
+            sql_security: None,
+            comment: None,
+            language: None,
+        };
+
+        advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
+
+        let call = CallStmt {
+            procedure_name: "test_large_numbers".to_string(),
+            arguments: vec![],
+        };
+
+        let result = advanced_objects::execute_call(&call, &mut db);
+        assert!(result.is_ok());
+    }
+
+    // Edge Case 8: Multiple Variables with Same Operations
+    #[test]
+    fn test_multiple_variable_operations() {
+        let mut db = Database::new();
+
+        // Test that multiple variables don't interfere with each other
+        let create_proc = CreateProcedureStmt {
+            procedure_name: "test_multi_vars".to_string(),
+            parameters: vec![],
+            body: ProcedureBody::BeginEnd(vec![
+                ProceduralStatement::Declare {
+                    name: "a".to_string(),
+                    data_type: DataType::Integer,
+                    default_value: Some(Box::new(Expression::Literal(SqlValue::Integer(1)))),
+                },
+                ProceduralStatement::Declare {
+                    name: "b".to_string(),
+                    data_type: DataType::Integer,
+                    default_value: Some(Box::new(Expression::Literal(SqlValue::Integer(2)))),
+                },
+                ProceduralStatement::Declare {
+                    name: "c".to_string(),
+                    data_type: DataType::Integer,
+                    default_value: Some(Box::new(Expression::Literal(SqlValue::Integer(3)))),
+                },
+                ProceduralStatement::Set {
+                    name: "a".to_string(),
+                    value: Box::new(Expression::BinaryOp {
+                        left: Box::new(Expression::ColumnRef {
+                            table: None,
+                            column: "b".to_string(),
+                        }),
+                        op: BinaryOperator::Plus,
+                        right: Box::new(Expression::ColumnRef {
+                            table: None,
+                            column: "c".to_string(),
+                        }),
+                    }),
+                },
+            ]),
+            sql_security: None,
+            comment: None,
+            language: None,
+        };
+
+        advanced_objects::execute_create_procedure(&create_proc, &mut db).unwrap();
+
+        let call = CallStmt {
+            procedure_name: "test_multi_vars".to_string(),
+            arguments: vec![],
+        };
+
+        let result = advanced_objects::execute_call(&call, &mut db);
+        assert!(result.is_ok());
+    }
 }

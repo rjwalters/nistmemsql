@@ -166,3 +166,64 @@ pub fn enforce_check_constraints(
 
     Ok(())
 }
+
+/// Enforce UNIQUE constraint for user-defined indexes (CREATE UNIQUE INDEX)
+/// Returns Ok if all unique index constraints are satisfied
+pub fn enforce_unique_indexes(
+    db: &vibesql_storage::Database,
+    schema: &vibesql_catalog::TableSchema,
+    table_name: &str,
+    row_values: &[vibesql_types::SqlValue],
+) -> Result<(), ExecutorError> {
+    // Get all indexes for this table
+    let indexes_for_table = db.list_indexes_for_table(table_name);
+
+    for index_name in indexes_for_table {
+        if let Some(index_metadata) = db.get_index(&index_name) {
+            // Only check unique indexes
+            if !index_metadata.unique {
+                continue;
+            }
+
+            // Build the key values from the row for this index
+            let mut key_values = Vec::new();
+            for index_col in &index_metadata.columns {
+                let col_idx = schema
+                    .get_column_index(&index_col.column_name)
+                    .ok_or_else(|| ExecutorError::ColumnNotFound {
+                        column_name: index_col.column_name.clone(),
+                        table_name: table_name.to_string(),
+                        searched_tables: vec![table_name.to_string()],
+                        available_columns: schema.columns.iter().map(|c| c.name.clone()).collect(),
+                    })?;
+                key_values.push(row_values[col_idx].clone());
+            }
+
+            // Skip if any value in the unique index is NULL
+            // (NULL != NULL in SQL, so multiple NULLs are allowed)
+            if key_values.contains(&vibesql_types::SqlValue::Null) {
+                continue;
+            }
+
+            // Check if this key already exists in the index
+            if let Some(index_data) = db.get_index_data(&index_name) {
+                if index_data.data.contains_key(&key_values) {
+                    // Format column names for error message
+                    let column_names: Vec<String> = index_metadata
+                        .columns
+                        .iter()
+                        .map(|c| c.column_name.clone())
+                        .collect();
+
+                    return Err(ExecutorError::ConstraintViolation(format!(
+                        "UNIQUE constraint '{}' violated: duplicate key value for ({})",
+                        index_metadata.index_name,
+                        column_names.join(", ")
+                    )));
+                }
+            }
+        }
+    }
+
+    Ok(())
+}

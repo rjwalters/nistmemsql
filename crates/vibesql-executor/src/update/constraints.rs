@@ -40,6 +40,80 @@ impl<'a> ConstraintValidator<'a> {
         Ok(())
     }
 
+    /// Validate row against user-defined UNIQUE indexes
+    /// This is separate from validate_row to allow access to db
+    pub fn validate_unique_indexes(
+        &self,
+        db: &vibesql_storage::Database,
+        table_name: &str,
+        new_row: &vibesql_storage::Row,
+        original_row: &vibesql_storage::Row,
+    ) -> Result<(), ExecutorError> {
+        // Get all indexes for this table
+        let indexes_for_table = db.list_indexes_for_table(table_name);
+
+        for index_name in indexes_for_table {
+            if let Some(index_metadata) = db.get_index(&index_name) {
+                // Only check unique indexes
+                if !index_metadata.unique {
+                    continue;
+                }
+
+                // Build the key values from the new row for this index
+                let mut new_key_values = Vec::new();
+                for index_col in &index_metadata.columns {
+                    let col_idx = self.schema
+                        .get_column_index(&index_col.column_name)
+                        .ok_or_else(|| ExecutorError::ColumnNotFound {
+                            column_name: index_col.column_name.clone(),
+                            table_name: table_name.to_string(),
+                            searched_tables: vec![table_name.to_string()],
+                            available_columns: self.schema.columns.iter().map(|c| c.name.clone()).collect(),
+                        })?;
+                    new_key_values.push(new_row.values[col_idx].clone());
+                }
+
+                // Skip if any value in the unique index is NULL
+                // (NULL != NULL in SQL, so multiple NULLs are allowed)
+                if new_key_values.contains(&vibesql_types::SqlValue::Null) {
+                    continue;
+                }
+
+                // Build the original key values to check if they changed
+                let mut original_key_values = Vec::new();
+                for index_col in &index_metadata.columns {
+                    let col_idx = self.schema.get_column_index(&index_col.column_name).unwrap();
+                    original_key_values.push(original_row.values[col_idx].clone());
+                }
+
+                // If the key hasn't changed, skip the check (same row)
+                if new_key_values == original_key_values {
+                    continue;
+                }
+
+                // Check if this key already exists in the index
+                if let Some(index_data) = db.get_index_data(&index_name) {
+                    if index_data.data.contains_key(&new_key_values) {
+                        // Format column names for error message
+                        let column_names: Vec<String> = index_metadata
+                            .columns
+                            .iter()
+                            .map(|c| c.column_name.clone())
+                            .collect();
+
+                        return Err(ExecutorError::ConstraintViolation(format!(
+                            "UNIQUE constraint '{}' violated: duplicate key value for ({})",
+                            index_metadata.index_name,
+                            column_names.join(", ")
+                        )));
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// Validate NOT NULL constraints
     fn validate_not_null(
         &self,
