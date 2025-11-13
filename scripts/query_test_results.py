@@ -38,11 +38,25 @@ from test_results_config import get_default_database_path
 
 
 def get_repo_root() -> Path:
-    """Find the repository root directory."""
+    """Find the repository root directory, handling git worktrees."""
     current = Path(__file__).resolve().parent
     while current != current.parent:
-        if (current / ".git").exists():
-            return current
+        git_path = current / ".git"
+        if git_path.exists():
+            # Check if this is a worktree (where .git is a file, not directory)
+            if git_path.is_file():
+                # Parse .git file to find main worktree
+                git_content = git_path.read_text().strip()
+                # Format: "gitdir: /path/to/main/repo/.git/worktrees/name"
+                if git_content.startswith("gitdir: "):
+                    git_dir = git_content[8:]  # Remove "gitdir: " prefix
+                    # Navigate up from .git/worktrees/name to main repo
+                    main_git_dir = Path(git_dir).parent.parent.parent
+                    if main_git_dir.exists():
+                        return main_git_dir
+            else:
+                # Regular git directory
+                return current
         current = current.parent
     raise RuntimeError("Could not find git repository root")
 
@@ -183,6 +197,58 @@ JOIN test_files tf ON tr.file_path = tf.file_path
 WHERE tr.status = 'FAIL'
 ORDER BY tr.tested_at DESC
 LIMIT 20
+"""
+    },
+
+    'analyze-summary': {
+        'description': 'Show latest test run summary for analysis',
+        'query': """
+SELECT * FROM latest_run_summary
+"""
+    },
+
+    'analyze-patterns': {
+        'description': 'Show failure patterns grouped by error type',
+        'query': """
+SELECT
+    error_pattern,
+    error_type,
+    failure_count,
+    affected_files,
+    pct_of_failures
+FROM failure_patterns
+WHERE error_pattern != 'Other error'
+ORDER BY failure_count DESC
+LIMIT 20
+"""
+    },
+
+    'analyze-opportunities': {
+        'description': 'Show top fix opportunities prioritized by impact',
+        'query': """
+SELECT
+    rank,
+    priority,
+    pattern,
+    tests_affected,
+    printf('%.1f%%', pct_failures) as pct_failures,
+    effort,
+    impact_ratio
+FROM fix_opportunities
+ORDER BY rank
+"""
+    },
+
+    'analyze-examples': {
+        'description': 'Show example failures for each pattern',
+        'query': """
+SELECT
+    error_pattern,
+    file_path,
+    error_type,
+    error_message_preview
+FROM failure_examples
+ORDER BY error_pattern, file_path
 """
     },
 }
