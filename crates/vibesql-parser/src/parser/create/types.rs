@@ -342,7 +342,7 @@ impl Parser {
             "TINYINT" | "MEDIUMINT" | "SERIAL" |
             // MySQL string types
             "TINYTEXT" | "MEDIUMTEXT" | "LONGTEXT" |
-            "TINYBLOB" | "MEDIUMBLOB" | "LONGBLOB" |
+            "BLOB" | "TINYBLOB" | "MEDIUMBLOB" | "LONGBLOB" |
             "BINARY" | "VARBINARY" |
             // MySQL JSON type
             "JSON" |
