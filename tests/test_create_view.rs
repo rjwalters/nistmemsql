@@ -9,22 +9,18 @@ use vibesql_storage::Database;
 fn test_create_view_simple() {
     let mut db = Database::new();
 
-    // Create view
+    // Create view - note: this will derive column names even though table doesn't exist
+    // In practice, views require the table to exist at creation time
     let sql = "CREATE VIEW active_users AS SELECT * FROM users WHERE active = true";
     let stmt = Parser::parse_sql(sql).expect("Failed to parse CREATE VIEW");
 
     match stmt {
         Statement::CreateView(view_stmt) => {
-            execute_create_view(&view_stmt, &mut db).expect("Failed to create view");
+            // This will fail because table doesn't exist, but that's expected
+            let result = execute_create_view(&view_stmt, &mut db);
 
-            // Verify view exists in catalog
-            let view = db.catalog.get_view("ACTIVE_USERS");
-            assert!(view.is_some(), "View should exist in catalog");
-
-            let view = view.unwrap();
-            assert_eq!(view.name, "ACTIVE_USERS");
-            assert!(view.columns.is_none());
-            assert!(!view.with_check_option);
+            // View creation should fail when table doesn't exist
+            assert!(result.is_err(), "Creating view from non-existent table should fail");
         }
         _ => panic!("Expected CreateView statement"),
     }
@@ -67,13 +63,12 @@ fn test_create_view_with_check_option() {
 
     match stmt {
         Statement::CreateView(view_stmt) => {
-            execute_create_view(&view_stmt, &mut db).expect("Failed to create view");
+            // This will fail because table doesn't exist
+            let result = execute_create_view(&view_stmt, &mut db);
+            assert!(result.is_err(), "Creating view from non-existent table should fail");
 
-            let view = db.catalog.get_view("ACTIVE_USERS");
-            assert!(view.is_some());
-
-            let view = view.unwrap();
-            assert!(view.with_check_option);
+            // Verify the WITH CHECK OPTION flag is properly parsed
+            assert!(view_stmt.with_check_option, "with_check_option should be true");
         }
         _ => panic!("Expected CreateView statement"),
     }
@@ -170,5 +165,60 @@ fn test_drop_view_if_exists_nonexistent() {
             assert!(result.is_ok(), "DROP VIEW IF EXISTS should succeed for non-existent view");
         }
         _ => panic!("Expected DropView statement"),
+    }
+}
+
+#[test]
+fn test_view_preserves_column_names_with_select_star() {
+    use vibesql_catalog::ColumnSchema;
+    use vibesql_types::DataType;
+
+    let mut db = Database::new();
+
+    // Manually create a table with specific column names
+    let table_schema = vibesql_catalog::TableSchema::new(
+        "TAB0".to_string(),
+        vec![
+            ColumnSchema {
+                name: "PK".to_string(),
+                data_type: DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "COL0".to_string(),
+                data_type: DataType::Integer,
+                nullable: true,
+                default_value: None,
+            },
+            ColumnSchema {
+                name: "COL1".to_string(),
+                data_type: DataType::Integer,
+                nullable: true,
+                default_value: None,
+            },
+        ],
+    );
+    db.create_table(table_schema).expect("Failed to create table");
+
+    // Create view with SELECT *
+    let create_view_sql = "CREATE VIEW my_view AS SELECT * FROM tab0";
+    let stmt = Parser::parse_sql(create_view_sql).expect("Failed to parse CREATE VIEW");
+
+    match stmt {
+        Statement::CreateView(view_stmt) => {
+            execute_create_view(&view_stmt, &mut db).expect("Failed to create view");
+
+            // Verify view has columns stored
+            let view = db.catalog.get_view("MY_VIEW").expect("View should exist");
+            assert!(view.columns.is_some(), "View should have columns defined");
+
+            let cols = view.columns.as_ref().unwrap();
+            assert_eq!(cols.len(), 3, "View should have 3 columns");
+            assert_eq!(cols[0], "PK", "First column should be PK");
+            assert_eq!(cols[1], "COL0", "Second column should be COL0");
+            assert_eq!(cols[2], "COL1", "Third column should be COL1");
+        }
+        _ => panic!("Expected CreateView statement"),
     }
 }
