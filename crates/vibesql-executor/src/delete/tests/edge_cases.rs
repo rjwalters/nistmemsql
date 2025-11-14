@@ -1,60 +1,12 @@
 //! Edge cases and error handling tests for DELETE operations
 
+use super::common::setup_users_table_with_active as setup_test_table;
 use vibesql_ast::{BinaryOperator, DeleteStmt, Expression, WhereClause};
 use vibesql_catalog::{ColumnSchema, TableSchema};
-use vibesql_storage::{Database, Row};
+use vibesql_storage::Database;
 use vibesql_types::{DataType, SqlValue};
 
 use crate::{errors::ExecutorError, DeleteExecutor};
-
-fn setup_test_table(db: &mut Database) {
-    // Create table schema
-    let schema = TableSchema::new(
-        "users".to_string(),
-        vec![
-            ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            ColumnSchema::new(
-                "name".to_string(),
-                DataType::Varchar { max_length: Some(50) },
-                false,
-            ),
-            ColumnSchema::new("active".to_string(), DataType::Boolean, false),
-        ],
-    );
-
-    db.create_table(schema).unwrap();
-
-    // Insert test data
-    db.insert_row(
-        "users",
-        Row::new(vec![
-            SqlValue::Integer(1),
-            SqlValue::Varchar("Alice".to_string()),
-            SqlValue::Boolean(true),
-        ]),
-    )
-    .unwrap();
-
-    db.insert_row(
-        "users",
-        Row::new(vec![
-            SqlValue::Integer(2),
-            SqlValue::Varchar("Bob".to_string()),
-            SqlValue::Boolean(false),
-        ]),
-    )
-    .unwrap();
-
-    db.insert_row(
-        "users",
-        Row::new(vec![
-            SqlValue::Integer(3),
-            SqlValue::Varchar("Charlie".to_string()),
-            SqlValue::Boolean(true),
-        ]),
-    )
-    .unwrap();
-}
 
 #[test]
 fn test_delete_table_not_found() {

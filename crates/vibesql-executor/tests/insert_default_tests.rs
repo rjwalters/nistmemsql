@@ -1,21 +1,9 @@
+mod common;
+
 use vibesql_executor::InsertExecutor;
 
 #[allow(dead_code)] // Test helper - may be used in future tests
-fn setup_test_table(db: &mut vibesql_storage::Database) {
-    // CREATE TABLE users (id INT, name VARCHAR(50))
-    let schema = vibesql_catalog::TableSchema::new(
-        "users".to_string(),
-        vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new(
-                "name".to_string(),
-                vibesql_types::DataType::Varchar { max_length: Some(50) },
-                false,
-            ),
-        ],
-    );
-    db.create_table(schema).unwrap();
-}
+use common::setup_users_table as setup_test_table;
 
 #[test]
 fn test_character_varying_column_with_length() {
