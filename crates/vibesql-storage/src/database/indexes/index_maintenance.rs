@@ -113,7 +113,9 @@ impl IndexManager {
                     .zip(columns.iter())
                     .map(|(&idx, col)| {
                         let value = &row.values[idx];
-                        apply_prefix_truncation(value, col.prefix_length)
+                        let truncated = apply_prefix_truncation(value, col.prefix_length);
+                        // Normalize numeric types to ensure consistent comparison with query bounds
+                        super::index_operations::normalize_for_comparison(&truncated)
                     })
                     .collect();
                 sorted_entries.push((key_values, row_idx));
@@ -151,7 +153,9 @@ impl IndexManager {
                     .zip(columns.iter())
                     .map(|(&idx, col)| {
                         let value = &row.values[idx];
-                        apply_prefix_truncation(value, col.prefix_length)
+                        let truncated = apply_prefix_truncation(value, col.prefix_length);
+                        // Normalize numeric types to ensure consistent comparison with query bounds
+                        super::index_operations::normalize_for_comparison(&truncated)
                     })
                     .collect();
                 index_data_map.entry(key_values).or_default().push(row_idx);
