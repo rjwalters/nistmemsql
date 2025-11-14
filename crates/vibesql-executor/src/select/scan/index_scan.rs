@@ -21,16 +21,12 @@ pub(crate) fn should_use_index_scan(
     // 1. There's a WHERE clause
     // 2. The table has user-defined indexes
     // 3. The WHERE clause references an indexed column
-    // 4. The WHERE clause is not a top-level OR expression (can't optimize effectively)
+    //
+    // Note: Index scans can provide partial optimization even for complex
+    // predicates (including OR expressions). The full WHERE clause is always
+    // applied as a post-filter in execute_index_scan() to ensure correctness.
 
     let where_expr = where_clause?;
-
-    // Don't use index scan for top-level OR expressions
-    // These are better handled by the sequential WHERE filter
-    // because index scans can only optimize one branch of the OR
-    if matches!(where_expr, Expression::BinaryOp { op: BinaryOperator::Or, .. }) {
-        return None;
-    }
 
     // Get all indexes for this table
     let _table = database.get_table(table_name)?;
@@ -115,6 +111,15 @@ struct RangePredicate {
     end: Option<SqlValue>,
     inclusive_start: bool,
     inclusive_end: bool,
+}
+
+/// Index predicate types that can be pushed down to storage layer
+#[derive(Debug)]
+enum IndexPredicate {
+    /// Range scan with optional bounds (>, <, >=, <=, BETWEEN)
+    Range(RangePredicate),
+    /// Multi-value lookup (IN predicate)
+    In(Vec<SqlValue>),
 }
 
 /// Extract range predicate bounds for an indexed column from WHERE clause
@@ -246,6 +251,56 @@ fn extract_range_predicate(expr: &Expression, column_name: &str) -> Option<Range
     None
 }
 
+/// Extract index predicate (range or IN) for an indexed column from WHERE clause
+///
+/// This extracts predicates that can be pushed down to the storage layer:
+/// - Range predicates: >, <, >=, <=, BETWEEN
+/// - IN predicates: IN (value1, value2, ...)
+///
+/// Returns None if no suitable predicate found for the column.
+fn extract_index_predicate(expr: &Expression, column_name: &str) -> Option<IndexPredicate> {
+    // First try to extract a range predicate
+    if let Some(range) = extract_range_predicate(expr, column_name) {
+        return Some(IndexPredicate::Range(range));
+    }
+
+    // Then try to extract an IN predicate
+    match expr {
+        // Handle IN with value list: col IN (1, 2, 3)
+        Expression::InList { expr: col_expr, values: value_list, negated } => {
+            if !negated && is_column_reference(col_expr, column_name) {
+                // Extract literal values from the IN list
+                let mut values = Vec::new();
+                for item in value_list {
+                    if let Expression::Literal(value) = item {
+                        values.push(value.clone());
+                    } else {
+                        // If any item is not a literal, we can't optimize
+                        return None;
+                    }
+                }
+                if !values.is_empty() {
+                    return Some(IndexPredicate::In(values));
+                }
+            }
+        }
+        // Handle AND: try both sides
+        Expression::BinaryOp { left, op: BinaryOperator::And, right } => {
+            // Try left side first
+            if let Some(pred) = extract_index_predicate(left, column_name) {
+                return Some(pred);
+            }
+            // Then try right side
+            if let Some(pred) = extract_index_predicate(right, column_name) {
+                return Some(pred);
+            }
+        }
+        _ => {}
+    }
+
+    None
+}
+
 /// Execute an index scan
 ///
 /// Uses the specified index to retrieve matching rows, then fetches full rows from the table.
@@ -270,34 +325,41 @@ pub(crate) fn execute_index_scan(
         .get_index_data(index_name)
         .ok_or_else(|| ExecutorError::IndexNotFound(index_name.to_string()))?;
 
-    // Get the first indexed column (for range predicate extraction)
+    // Get the first indexed column (for predicate extraction)
     let indexed_column = index_metadata
         .columns
         .first()
         .map(|col| col.column_name.as_str())
         .unwrap_or("");
 
-    // Try to extract range predicate for the indexed column
-    let range_predicate = where_clause.and_then(|expr| extract_range_predicate(expr, indexed_column));
+    // Try to extract index predicate (range or IN) for the indexed column
+    let index_predicate = where_clause.and_then(|expr| extract_index_predicate(expr, indexed_column));
 
-    // Get row indices using range scan if we have a range predicate, otherwise full scan
-    let matching_row_indices: Vec<usize> = if let Some(range) = range_predicate {
-        // Use storage layer's optimized range_scan
-        index_data.range_scan(
-            range.start.as_ref(),
-            range.end.as_ref(),
-            range.inclusive_start,
-            range.inclusive_end,
-        )
-    } else {
-        // Full index scan - collect all row indices from the index
-        // Note: We do NOT sort by row index here - we preserve the order from BTreeMap iteration
-        // which gives us results sorted by index key value (the correct semantic ordering)
-        index_data
-            .values()
-            .flatten()
-            .copied()
-            .collect()
+    // Get row indices using the appropriate index operation
+    let matching_row_indices: Vec<usize> = match index_predicate {
+        Some(IndexPredicate::Range(range)) => {
+            // Use storage layer's optimized range_scan for >, <, >=, <=, BETWEEN
+            index_data.range_scan(
+                range.start.as_ref(),
+                range.end.as_ref(),
+                range.inclusive_start,
+                range.inclusive_end,
+            )
+        }
+        Some(IndexPredicate::In(values)) => {
+            // Use storage layer's multi_lookup for IN predicates
+            index_data.multi_lookup(&values)
+        }
+        None => {
+            // Full index scan - collect all row indices from the index
+            // Note: We do NOT sort by row index here - we preserve the order from BTreeMap iteration
+            // which gives us results sorted by index key value (the correct semantic ordering)
+            index_data
+                .values()
+                .flatten()
+                .copied()
+                .collect()
+        }
     };
 
     // Fetch rows from table
