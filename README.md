@@ -419,9 +419,8 @@ END;
 # Test a single file (fast iteration during development)
 ./scripts/sqllogictest test select1.test
 
-# Parallel mode (NOT CURRENTLY WORKING - see issue #1700)
-# Requires scripts/run_parallel_tests.py which is missing
-# ./scripts/sqllogictest run --parallel --workers 8
+# Parallel mode (10-15x faster than serial)
+./scripts/sqllogictest run --parallel --workers 8
 
 # Query results with SQL!
 ./scripts/sqllogictest query --preset failed-files
@@ -440,11 +439,7 @@ END;
 - 📈 **Historical tracking**: Track pass rate over time with git commits
 - 🎯 **Manual testing workflow**: Query your progress as you work through tests
 - 🔄 **--force flag**: Repopulates work queue with all 623 test files for fresh runs
-
-**Current Limitations**:
-- ⚠️ **Serial mode only**: Parallel test runner is not implemented (see issue #1700)
-- ⏱️ **Slow full suite**: Serial mode takes 30+ minutes for all 623 files
-- ✅ **Single file testing works well**: Use `./scripts/sqllogictest test <file>` for fast iteration
+- ⚡ **Parallel mode**: Run full suite in ~2 minutes with `--parallel --workers 8` (10-15x speedup)
 
 **Documentation**:
 - [Quick Start Guide](docs/sqllogictest/SQLLOGICTEST_QUICKSTART.md) - 30-second introduction
