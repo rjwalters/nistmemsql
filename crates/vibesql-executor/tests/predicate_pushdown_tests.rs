@@ -463,3 +463,110 @@ fn test_phase3_2_with_high_selectivity_predicates() {
     // Should execute successfully with high selectivity filtering first
     assert_eq!(result.len(), 1);
 }
+
+/// Regression test for issue #1699:
+/// Unqualified columns in complex OR/AND/BETWEEN/IN predicates should be correctly
+/// resolved to their table and pushed down as table-local predicates.
+#[test]
+fn test_unqualified_columns_in_complex_predicates() {
+    // Create table with unqualified column references
+    let mut db = vibesql_storage::Database::new();
+    let schema = vibesql_catalog::TableSchema::new(
+        "TAB4".to_string(),
+        vec![
+            vibesql_catalog::ColumnSchema {
+                name: "pk".to_string(),
+                data_type: vibesql_types::DataType::Integer,
+                nullable: false,
+                default_value: None,
+            },
+            vibesql_catalog::ColumnSchema {
+                name: "col0".to_string(),
+                data_type: vibesql_types::DataType::Integer,
+                nullable: true,
+                default_value: None,
+            },
+            vibesql_catalog::ColumnSchema {
+                name: "col1".to_string(),
+                data_type: vibesql_types::DataType::Real,
+                nullable: true,
+                default_value: None,
+            },
+            vibesql_catalog::ColumnSchema {
+                name: "col3".to_string(),
+                data_type: vibesql_types::DataType::Integer,
+                nullable: true,
+                default_value: None,
+            },
+            vibesql_catalog::ColumnSchema {
+                name: "col4".to_string(),
+                data_type: vibesql_types::DataType::Real,
+                nullable: true,
+                default_value: None,
+            },
+        ],
+    );
+    db.create_table(schema).unwrap();
+
+    // Insert test data
+    db.insert_row(
+        "TAB4",
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(8),   // pk
+            vibesql_types::SqlValue::Integer(77),  // col0 - in IN list
+            vibesql_types::SqlValue::Real(65.5),   // col1 - in BETWEEN range
+            vibesql_types::SqlValue::Integer(50),  // col3
+            vibesql_types::SqlValue::Real(40.0),   // col4
+        ]),
+    )
+    .unwrap();
+
+    db.insert_row(
+        "TAB4",
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(10),  // pk
+            vibesql_types::SqlValue::Integer(31),  // col0 - in IN list
+            vibesql_types::SqlValue::Real(70.0),   // col1 - in BETWEEN range
+            vibesql_types::SqlValue::Integer(50),  // col3
+            vibesql_types::SqlValue::Real(40.0),   // col4
+        ]),
+    )
+    .unwrap();
+
+    db.insert_row(
+        "TAB4",
+        vibesql_storage::Row::new(vec![
+            vibesql_types::SqlValue::Integer(99),   // pk
+            vibesql_types::SqlValue::Integer(100),  // col0 - NOT in IN list
+            vibesql_types::SqlValue::Real(70.0),    // col1
+            vibesql_types::SqlValue::Integer(50),   // col3
+            vibesql_types::SqlValue::Real(40.0),    // col4
+        ]),
+    )
+    .unwrap();
+
+    let executor = SelectExecutor::new(&db);
+
+    // Query with complex OR/AND/BETWEEN/IN predicates using UNQUALIFIED columns
+    // This query should correctly push down predicates despite unqualified column references
+    let sql = "SELECT pk FROM TAB4 WHERE \
+               ((col0 < 54 OR col1 > 60.96 OR col3 > 43) OR col1 BETWEEN 37.96 AND 77.58) \
+               AND col0 IN (77,31,61,93,69,57)";
+
+    let stmt = parse_select(sql);
+    let result = executor.execute(&stmt).unwrap();
+
+    // Should return rows with pk=8 and pk=10 (both match the predicate)
+    assert_eq!(result.len(), 2, "Should return 2 rows");
+
+    let pks: Vec<i64> = result
+        .iter()
+        .map(|row| match row.get(0).unwrap() {
+            vibesql_types::SqlValue::Integer(v) => *v,
+            _ => panic!("Expected integer pk"),
+        })
+        .collect();
+
+    assert!(pks.contains(&8), "Should contain row with pk=8");
+    assert!(pks.contains(&10), "Should contain row with pk=10");
+}
