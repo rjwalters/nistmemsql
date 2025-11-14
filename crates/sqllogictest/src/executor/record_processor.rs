@@ -235,8 +235,12 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                     }
                 };
 
-                // Apply type conversion based on expected types from test directive
-                // If test says "query R", convert Integer types to FloatingPoint (like a CAST)
+                // Apply expected types from test directive for formatting purposes.
+                // This treats the format specifier (e.g., "query R") as a display directive:
+                // when we return Integer(49) but test expects Real/FloatingPoint type,
+                // we relabel the type (not the value) so existing formatting logic
+                // displays it as "49.000" instead of "49". This matches SQLite's behavior
+                // where the test format specifier controls output formatting.
                 if let QueryExpect::Results { types: expected_types, .. } = &expected {
                     if types.len() == expected_types.len() {
                         types = expected_types.clone();
