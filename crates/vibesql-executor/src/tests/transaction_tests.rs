@@ -1,27 +1,11 @@
 //! Tests for transaction functionality (BEGIN, COMMIT, ROLLBACK)
 
+use super::common::setup_users_table as setup_test_table;
 use vibesql_ast::{BeginStmt, CommitStmt, InsertStmt, RollbackStmt};
-use vibesql_catalog::TableSchema;
 use vibesql_storage::Database;
-use vibesql_types::{DataType, SqlValue};
+use vibesql_types::SqlValue;
 
 use crate::{BeginTransactionExecutor, CommitExecutor, InsertExecutor, RollbackExecutor};
-
-fn setup_test_table(db: &mut Database) {
-    // CREATE TABLE users (id INTEGER NOT NULL, name VARCHAR(50))
-    let schema = TableSchema::new(
-        "users".to_string(),
-        vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new(
-                "name".to_string(),
-                DataType::Varchar { max_length: Some(50) },
-                true,
-            ),
-        ],
-    );
-    db.create_table(schema).unwrap();
-}
 
 #[test]
 fn test_begin_transaction_success() {

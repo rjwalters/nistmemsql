@@ -1,20 +1,7 @@
-use vibesql_executor::{ExecutorError, InsertExecutor};
+mod common;
 
-fn setup_test_table(db: &mut vibesql_storage::Database) {
-    // CREATE TABLE users (id INT, name VARCHAR(50))
-    let schema = vibesql_catalog::TableSchema::new(
-        "users".to_string(),
-        vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), vibesql_types::DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new(
-                "name".to_string(),
-                vibesql_types::DataType::Varchar { max_length: Some(50) },
-                false,
-            ),
-        ],
-    );
-    db.create_table(schema).unwrap();
-}
+use vibesql_executor::{ExecutorError, InsertExecutor};
+use common::setup_users_table as setup_test_table;
 
 #[test]
 fn test_basic_insert() {
