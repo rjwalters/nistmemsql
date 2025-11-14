@@ -90,6 +90,12 @@ fn expression_filters_column(expr: &Expression, column_name: &str) -> bool {
             }
             false
         }
+        // IN with value list: col IN (1, 2, 3)
+        Expression::InList { expr, .. } => is_column_reference(expr, column_name),
+        // IN with subquery: col IN (SELECT ...)
+        Expression::In { expr, .. } => is_column_reference(expr, column_name),
+        // BETWEEN: col BETWEEN low AND high
+        Expression::Between { expr, .. } => is_column_reference(expr, column_name),
         _ => false,
     }
 }
