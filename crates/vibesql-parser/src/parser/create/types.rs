@@ -296,13 +296,41 @@ impl Parser {
                 // Maps to VARCHAR without length constraint (unlimited)
                 Ok(vibesql_types::DataType::Varchar { max_length: None })
             }
+            "BINARY" | "VARBINARY" => {
+                // MySQL BINARY and VARBINARY types with optional size
+                // Syntax: BINARY[(n)] or VARBINARY[(n)]
+                // Parse and discard the size - stored as UserDefined type
+                if matches!(self.peek(), Token::LParen) {
+                    self.advance(); // consume (
+
+                    // Parse the size parameter
+                    match self.peek() {
+                        Token::Number(n) => {
+                            // Validate it's a valid number (we don't store it currently)
+                            let _ = n.parse::<usize>().map_err(|_| ParseError {
+                                message: format!("Invalid {} size", type_upper),
+                            })?;
+                            self.advance();
+                        }
+                        _ => {
+                            return Err(ParseError {
+                                message: format!("Expected size after {}(", type_upper),
+                            })
+                        }
+                    }
+
+                    self.expect_token(Token::RParen)?;
+                }
+
+                Ok(vibesql_types::DataType::UserDefined { type_name: type_upper })
+            }
             "ENUM" | "SET" => {
                 // MySQL ENUM and SET types take a list of values in parentheses
                 // For now, we parse and ignore the values - just recognize the type
                 // The syntax is: ENUM('value1','value2',...) or SET('value1','value2',...)
                 if matches!(self.peek(), Token::LParen) {
                     self.expect_token(Token::LParen)?; // consume and validate (
-                    
+
                     // Skip values until we find the closing paren
                     // Values are typically string literals, separated by commas
                     let mut paren_depth = 1;
@@ -328,7 +356,7 @@ impl Parser {
                         }
                     }
                 }
-                
+
                 Ok(vibesql_types::DataType::UserDefined { type_name: type_upper })
             }
             _ => {
