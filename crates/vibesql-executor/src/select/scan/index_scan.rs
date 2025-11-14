@@ -276,13 +276,33 @@ pub(crate) fn execute_index_scan(
 
     // Get row indices using range scan if we have a range predicate, otherwise full scan
     let matching_row_indices: Vec<usize> = if let Some(range) = range_predicate {
+        if std::env::var("VIBESQL_DEBUG_INDEX").ok().as_deref() == Some("1") {
+            eprintln!(
+                "[IndexScan] table={} index={} col={} range=({:?}{} .. {}{:?})",
+                table_name,
+                index_name,
+                indexed_column,
+                range.start,
+                if range.inclusive_start { "]" } else { ")" },
+                if range.inclusive_end { "[" } else { "(" },
+                range.end
+            );
+        }
         // Use storage layer's optimized range_scan
-        index_data.range_scan(
+        let res = index_data.range_scan(
             range.start.as_ref(),
             range.end.as_ref(),
             range.inclusive_start,
             range.inclusive_end,
-        )
+        );
+        if std::env::var("VIBESQL_DEBUG_INDEX").ok().as_deref() == Some("1") {
+            eprintln!(
+                "[IndexScan] matched_row_indices_count={} sample={:?}",
+                res.len(),
+                res.iter().take(8).collect::<Vec<_>>()
+            );
+        }
+        res
     } else {
         // Full index scan - collect all row indices from the index
         // Note: We do NOT sort by row index here - we preserve the order from BTreeMap iteration
@@ -326,7 +346,11 @@ pub(crate) fn execute_index_scan(
             // Clear CSE cache before evaluating each row
             evaluator.clear_cse_cache();
 
-            let include_row = match evaluator.eval(where_expr, &row)? {
+            let eval_val = evaluator.eval(where_expr, &row)?;
+            if std::env::var("VIBESQL_DEBUG_INDEX").ok().as_deref() == Some("1") {
+                eprintln!("[IndexScan] WHERE eval value = {:?}", eval_val);
+            }
+            let include_row = match eval_val {
                 vibesql_types::SqlValue::Boolean(true) => true,
                 vibesql_types::SqlValue::Boolean(false) | vibesql_types::SqlValue::Null => false,
                 // SQLLogicTest compatibility: treat integers as truthy/falsy (C-like behavior)

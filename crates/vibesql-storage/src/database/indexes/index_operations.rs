@@ -7,6 +7,51 @@ use vibesql_types::SqlValue;
 use super::index_metadata::{acquire_btree_lock, IndexData};
 
 impl IndexData {
+    /// Return true if the SqlValue is any numeric type (integer or approximate)
+    fn is_numeric(val: &SqlValue) -> bool {
+        matches!(
+            val,
+            SqlValue::Integer(_)
+                | SqlValue::Smallint(_)
+                | SqlValue::Bigint(_)
+                | SqlValue::Unsigned(_)
+                | SqlValue::Numeric(_)
+                | SqlValue::Float(_)
+                | SqlValue::Real(_)
+                | SqlValue::Double(_)
+        )
+    }
+
+    /// Convert a SqlValue numeric to f64 for cross-type numeric comparisons
+    /// Returns None for non-numeric or NULL values
+    fn to_f64(val: &SqlValue) -> Option<f64> {
+        match val {
+            SqlValue::Integer(i) => Some(*i as f64),
+            SqlValue::Smallint(i) => Some(*i as f64),
+            SqlValue::Bigint(i) => Some(*i as f64),
+            SqlValue::Unsigned(u) => Some(*u as f64),
+            SqlValue::Numeric(f) => Some(*f as f64),
+            SqlValue::Float(f) => Some(*f as f64),
+            SqlValue::Real(f) => Some(*f as f64),
+            SqlValue::Double(f) => Some(*f),
+            _ => None,
+        }
+    }
+
+    /// Compare two SqlValues with numeric-aware semantics for range checks.
+    /// If both values are numeric (any mix of integer/float/numeric), compare as f64.
+    /// Otherwise, fall back to PartialOrd semantics (which may return None for incomparable types).
+    fn cmp_for_range(a: &SqlValue, b: &SqlValue) -> Option<std::cmp::Ordering> {
+        if IndexData::is_numeric(a) && IndexData::is_numeric(b) {
+            match (IndexData::to_f64(a), IndexData::to_f64(b)) {
+                (Some(af), Some(bf)) => af.partial_cmp(&bf),
+                _ => None,
+            }
+        } else {
+            a.partial_cmp(b)
+        }
+    }
+
     /// Scan index for rows matching range predicate
     ///
     /// # Arguments
@@ -36,6 +81,8 @@ impl IndexData {
                 // Iterate through BTreeMap (which gives us sorted iteration)
                 // For multi-column indexes, we only compare the first column
                 // This maintains compatibility with the original HashMap implementation
+                let debug = std::env::var("VIBESQL_DEBUG_INDEX").ok().as_deref() == Some("1");
+                let mut debug_checked = 0usize;
                 for (key_values, row_indices) in data {
                     // For single-column index, key_values has one element
                     // For multi-column indexes, we only compare the first column
@@ -44,31 +91,72 @@ impl IndexData {
                     let matches = match (start, end) {
                         (Some(s), Some(e)) => {
                             // Both bounds specified: start <= key <= end (or variations)
-                            let gte_start = if inclusive_start { key >= s } else { key > s };
-                            let lte_end = if inclusive_end { key <= e } else { key < e };
+                            let gte_start = match IndexData::cmp_for_range(key, s) {
+                                Some(std::cmp::Ordering::Greater) => true,
+                                Some(std::cmp::Ordering::Equal) => inclusive_start,
+                                Some(std::cmp::Ordering::Less) => false,
+                                None => false,
+                            };
+                            let lte_end = match IndexData::cmp_for_range(key, e) {
+                                Some(std::cmp::Ordering::Less) => true,
+                                Some(std::cmp::Ordering::Equal) => inclusive_end,
+                                Some(std::cmp::Ordering::Greater) => false,
+                                None => false,
+                            };
+                            if debug && debug_checked < 8 {
+                                eprintln!(
+                                    "[IndexScan][range_scan] key={:?} cmp_start={:?} cmp_end={:?} -> gte_start={} lte_end={}",
+                                    key,
+                                    IndexData::cmp_for_range(key, s),
+                                    IndexData::cmp_for_range(key, e),
+                                    gte_start,
+                                    lte_end
+                                );
+                            }
                             gte_start && lte_end
                         }
                         (Some(s), None) => {
                             // Only lower bound: key >= start (or >)
-                            if inclusive_start {
-                                key >= s
-                            } else {
-                                key > s
+                            let res = match IndexData::cmp_for_range(key, s) {
+                                Some(std::cmp::Ordering::Greater) => true,
+                                Some(std::cmp::Ordering::Equal) => inclusive_start,
+                                _ => false,
+                            };
+                            if debug && debug_checked < 8 {
+                                eprintln!(
+                                    "[IndexScan][range_scan] key={:?} cmp_start={:?} -> include={}",
+                                    key,
+                                    IndexData::cmp_for_range(key, s),
+                                    res
+                                );
                             }
+                            res
                         }
                         (None, Some(e)) => {
                             // Only upper bound: key <= end (or <)
-                            if inclusive_end {
-                                key <= e
-                            } else {
-                                key < e
+                            let res = match IndexData::cmp_for_range(key, e) {
+                                Some(std::cmp::Ordering::Less) => true,
+                                Some(std::cmp::Ordering::Equal) => inclusive_end,
+                                _ => false,
+                            };
+                            if debug && debug_checked < 8 {
+                                eprintln!(
+                                    "[IndexScan][range_scan] key={:?} cmp_end={:?} -> include={}",
+                                    key,
+                                    IndexData::cmp_for_range(key, e),
+                                    res
+                                );
                             }
+                            res
                         }
                         (None, None) => true, // No bounds - match everything
                     };
 
                     if matches {
                         matching_row_indices.extend(row_indices);
+                    }
+                    if debug {
+                        debug_checked += 1;
                     }
                 }
 

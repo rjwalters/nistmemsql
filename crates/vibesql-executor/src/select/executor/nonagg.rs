@@ -352,44 +352,25 @@ impl SelectExecutor<'_> {
                 CombinedExpressionEvaluator::with_database(&schema, self.database)
             };
 
-        // Try index-based WHERE optimization first
-        // 1. Try spatial index optimization (for ST_Contains, ST_Intersects, etc.)
-        let mut filtered_rows = if let Some(spatial_filtered) = try_spatial_index_optimization(
-            self.database,
-            stmt.where_clause.as_ref(),
-            &rows,
-            &schema,
-        )? {
-            spatial_filtered
-        } else if let Some(index_filtered) = try_index_based_where_filtering(
-            self.database,
-            stmt.where_clause.as_ref(),
-            &rows,
-            &schema,
-        )? {
-            // 2. Try B-tree index optimization (for =, <, >, BETWEEN, IN, etc.)
-            index_filtered
-        } else {
-            // 3. Fall back to full WHERE clause evaluation
-            let where_optimization = optimize_where_clause(stmt.where_clause.as_ref(), &evaluator)?;
+        // Apply WHERE clause evaluation (index pushdown already handled in scan stage)
+        let where_optimization = optimize_where_clause(stmt.where_clause.as_ref(), &evaluator)?;
 
-            match where_optimization {
-                crate::optimizer::WhereOptimization::AlwaysTrue => {
-                    // WHERE TRUE - no filtering needed
-                    rows
-                }
-                crate::optimizer::WhereOptimization::AlwaysFalse => {
-                    // WHERE FALSE - return empty result
-                    Vec::new()
-                }
-                crate::optimizer::WhereOptimization::Optimized(ref expr) => {
-                    // Apply optimized WHERE clause (uses parallel if enabled)
-                    apply_where_filter_combined_auto(rows, Some(expr), &evaluator, self)?
-                }
-                crate::optimizer::WhereOptimization::Unchanged(where_expr) => {
-                    // Apply original WHERE clause (uses parallel if enabled)
-                    apply_where_filter_combined_auto(rows, where_expr.as_ref(), &evaluator, self)?
-                }
+        let mut filtered_rows = match where_optimization {
+            crate::optimizer::WhereOptimization::AlwaysTrue => {
+                // WHERE TRUE - no filtering needed
+                rows
+            }
+            crate::optimizer::WhereOptimization::AlwaysFalse => {
+                // WHERE FALSE - return empty result
+                Vec::new()
+            }
+            crate::optimizer::WhereOptimization::Optimized(ref expr) => {
+                // Apply optimized WHERE clause (uses parallel if enabled)
+                apply_where_filter_combined_auto(rows, Some(expr), &evaluator, self)?
+            }
+            crate::optimizer::WhereOptimization::Unchanged(where_expr) => {
+                // Apply original WHERE clause (uses parallel if enabled)
+                apply_where_filter_combined_auto(rows, where_expr.as_ref(), &evaluator, self)?
             }
         };
 
