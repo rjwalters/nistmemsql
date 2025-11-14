@@ -109,7 +109,7 @@ impl SelectExecutor<'_> {
         cte_results: &HashMap<String, CteResult>,
     ) -> Result<FromResult, ExecutorError> {
         use crate::select::scan::execute_from_clause;
-        execute_from_clause(from, cte_results, self.database, None, |query| self.execute(query))
+        execute_from_clause(from, cte_results, self.database, None, |query| self.execute_with_columns(query))
     }
 
     /// Execute a FROM clause with WHERE clause for predicate pushdown
@@ -121,7 +121,7 @@ impl SelectExecutor<'_> {
     ) -> Result<FromResult, ExecutorError> {
         use crate::select::scan::execute_from_clause;
         execute_from_clause(from, cte_results, self.database, where_clause, |query| {
-            self.execute(query)
+            self.execute_with_columns(query)
         })
     }
 }

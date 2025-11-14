@@ -25,7 +25,7 @@ pub(crate) fn execute_join<F>(
     execute_subquery: F,
 ) -> Result<super::FromResult, ExecutorError>
 where
-    F: Fn(&vibesql_ast::SelectStmt) -> Result<Vec<vibesql_storage::Row>, ExecutorError> + Copy,
+    F: Fn(&vibesql_ast::SelectStmt) -> Result<crate::select::SelectResult, ExecutorError> + Copy,
 {
     // Execute left and right sides with WHERE clause for predicate pushdown
     let left_result = super::execute_from_clause(left, cte_results, database, where_clause, execute_subquery)?;
