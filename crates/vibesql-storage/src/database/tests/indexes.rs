@@ -546,6 +546,7 @@ fn test_index_scan_after_database_reset() {
             vec![IndexColumn {
                 column_name: "col0".to_string(),
                 direction: OrderDirection::Asc,
+                prefix_length: None,
             }],
         ).unwrap();
         eprintln!("  Created index 'idx_col0'");
@@ -722,6 +723,7 @@ fn test_thread_local_pool_pattern() {
             vec![IndexColumn {
                 column_name: "col0".to_string(),
                 direction: OrderDirection::Asc,
+                prefix_length: None,
             }],
         ).unwrap();
         eprintln!("  Created index");
