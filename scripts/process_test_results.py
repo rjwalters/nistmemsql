@@ -179,19 +179,19 @@ VALUES ({run_id}, TIMESTAMP '{timestamp}', TIMESTAMP '{timestamp}', {total}, {pa
     for file_path in tested_files.get('passed', []):
         category, subcategory = categorize_test_file(file_path)
 
-        # Insert into test_results
-        statements.append(f"""
-INSERT INTO test_results (result_id, run_id, file_path, status, tested_at, duration_ms, error_message)
-VALUES ({abs(hash(f'{run_id}_{file_path}'))}, {run_id}, {sql_escape(file_path)}, 'PASS', TIMESTAMP '{timestamp}', NULL, NULL);
-""")
-
-        # Update test_files (upsert)
+        # Update test_files FIRST (upsert) - must come before test_results due to FK constraint
         statements.append(f"""
 DELETE FROM test_files WHERE file_path = {sql_escape(file_path)};
 """)
         statements.append(f"""
 INSERT INTO test_files (file_path, category, subcategory, status, last_tested, last_passed)
 VALUES ({sql_escape(file_path)}, {sql_escape(category)}, {sql_escape(subcategory)}, 'PASS', TIMESTAMP '{timestamp}', TIMESTAMP '{timestamp}');
+""")
+
+        # Insert into test_results (references test_files.file_path FK)
+        statements.append(f"""
+INSERT INTO test_results (result_id, run_id, file_path, status, tested_at, duration_ms, error_message)
+VALUES ({abs(hash(f'{run_id}_{file_path}'))}, {run_id}, {sql_escape(file_path)}, 'PASS', TIMESTAMP '{timestamp}', NULL, NULL);
 """)
 
     # Process failed files
@@ -212,19 +212,19 @@ VALUES ({sql_escape(file_path)}, {sql_escape(category)}, {sql_escape(subcategory
         # Get error message from lookup, or NULL if not available
         error_message = error_lookup.get(file_path, None)
 
-        # Insert into test_results
-        statements.append(f"""
-INSERT INTO test_results (result_id, run_id, file_path, status, tested_at, duration_ms, error_message)
-VALUES ({abs(hash(f'{run_id}_{file_path}'))}, {run_id}, {sql_escape(file_path)}, 'FAIL', TIMESTAMP '{timestamp}', NULL, {sql_escape(error_message)});
-""")
-
-        # Update test_files (upsert)
+        # Update test_files FIRST (upsert) - must come before test_results due to FK constraint
         statements.append(f"""
 DELETE FROM test_files WHERE file_path = {sql_escape(file_path)};
 """)
         statements.append(f"""
 INSERT INTO test_files (file_path, category, subcategory, status, last_tested, last_passed)
 VALUES ({sql_escape(file_path)}, {sql_escape(category)}, {sql_escape(subcategory)}, 'FAIL', TIMESTAMP '{timestamp}', NULL);
+""")
+
+        # Insert into test_results (references test_files.file_path FK)
+        statements.append(f"""
+INSERT INTO test_results (result_id, run_id, file_path, status, tested_at, duration_ms, error_message)
+VALUES ({abs(hash(f'{run_id}_{file_path}'))}, {run_id}, {sql_escape(file_path)}, 'FAIL', TIMESTAMP '{timestamp}', NULL, {sql_escape(error_message)});
 """)
 
     return statements
