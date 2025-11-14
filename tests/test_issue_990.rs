@@ -25,6 +25,7 @@ fn test_issue_990_multiple_unary_plus() {
     // Build the exact expression from the issue: + + 5 + 92 * COUNT(*)
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
+        into_variables: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -93,6 +94,7 @@ fn test_issue_990_simpler_case() {
     // Build: 5 + 92 * COUNT(*)
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
+        into_variables: None,
         with_clause: None,
         set_operation: None,
         distinct: false,

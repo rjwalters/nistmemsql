@@ -13,6 +13,7 @@ fn test_count_star_without_from() {
 
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
+        into_variables: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -57,6 +58,7 @@ fn test_count_star_in_expression_without_from() {
 
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
+        into_variables: None,
         with_clause: None,
         set_operation: None,
         distinct: false,
@@ -145,6 +147,7 @@ fn test_complex_expression_without_from() {
 
     let stmt = vibesql_ast::SelectStmt {
         into_table: None,
+        into_variables: None,
         with_clause: None,
         set_operation: None,
         distinct: false,

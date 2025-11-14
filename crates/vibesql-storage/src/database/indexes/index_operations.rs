@@ -6,6 +6,32 @@ use vibesql_types::SqlValue;
 
 use super::index_metadata::{acquire_btree_lock, IndexData};
 
+/// Normalize a SqlValue to a consistent numeric type for comparison in range scans.
+/// This ensures that Real, Numeric, Float, Double, Integer, Smallint, Bigint, and Unsigned
+/// values can be compared correctly regardless of their underlying type.
+///
+/// IMPORTANT: This function is also used at index insertion time to normalize all numeric values
+/// to a canonical form (Double) before storing in the BTreeMap. This ensures that queries
+/// comparing different numeric types (e.g., Real > Numeric) work correctly.
+///
+/// Uses f64 (Double) instead of f32 (Real) to preserve precision for:
+/// - Large integers (Bigint, Unsigned) beyond f32 precision range (> 2^24 ≈ 16 million)
+/// - High-precision floating point values (Double, Numeric)
+pub fn normalize_for_comparison(value: &SqlValue) -> SqlValue {
+    match value {
+        SqlValue::Integer(i) => SqlValue::Double(*i as f64),
+        SqlValue::Smallint(i) => SqlValue::Double(*i as f64),
+        SqlValue::Bigint(i) => SqlValue::Double(*i as f64),
+        SqlValue::Unsigned(u) => SqlValue::Double(*u as f64),
+        SqlValue::Float(f) => SqlValue::Double(*f as f64),
+        SqlValue::Real(r) => SqlValue::Double(*r as f64),
+        SqlValue::Double(d) => SqlValue::Double(*d),
+        SqlValue::Numeric(n) => SqlValue::Double(*n),
+        // For non-numeric types, return as-is
+        other => other.clone(),
+    }
+}
+
 impl IndexData {
     /// Scan index for rows matching range predicate
     ///
@@ -41,27 +67,33 @@ impl IndexData {
                     // For multi-column indexes, we only compare the first column
                     let key = &key_values[0];
 
-                    let matches = match (start, end) {
+                    // Normalize key and bounds for consistent numeric comparison
+                    // This allows Real, Numeric, Integer, etc. to be compared correctly
+                    let normalized_key = normalize_for_comparison(key);
+                    let normalized_start = start.map(normalize_for_comparison);
+                    let normalized_end = end.map(normalize_for_comparison);
+
+                    let matches = match (normalized_start.as_ref(), normalized_end.as_ref()) {
                         (Some(s), Some(e)) => {
                             // Both bounds specified: start <= key <= end (or variations)
-                            let gte_start = if inclusive_start { key >= s } else { key > s };
-                            let lte_end = if inclusive_end { key <= e } else { key < e };
+                            let gte_start = if inclusive_start { normalized_key >= *s } else { normalized_key > *s };
+                            let lte_end = if inclusive_end { normalized_key <= *e } else { normalized_key < *e };
                             gte_start && lte_end
                         }
                         (Some(s), None) => {
                             // Only lower bound: key >= start (or >)
                             if inclusive_start {
-                                key >= s
+                                normalized_key >= *s
                             } else {
-                                key > s
+                                normalized_key > *s
                             }
                         }
                         (None, Some(e)) => {
                             // Only upper bound: key <= end (or <)
                             if inclusive_end {
-                                key <= e
+                                normalized_key <= *e
                             } else {
-                                key < e
+                                normalized_key < *e
                             }
                         }
                         (None, None) => true, // No bounds - match everything
@@ -79,11 +111,16 @@ impl IndexData {
                 matching_row_indices
             }
             IndexData::DiskBacked { btree, .. } => {
+                // Normalize bounds for consistent numeric comparison (same as InMemory)
+                // This ensures Real, Numeric, Integer, etc. can be compared correctly
+                let normalized_start = start.map(normalize_for_comparison);
+                let normalized_end = end.map(normalize_for_comparison);
+
                 // Convert SqlValue bounds to Key (Vec<SqlValue>) bounds
                 // For single-column indexes, wrap in vec
                 // For multi-column indexes, only first column is compared (same as InMemory)
-                let start_key = start.map(|v| vec![v.clone()]);
-                let end_key = end.map(|v| vec![v.clone()]);
+                let start_key = normalized_start.as_ref().map(|v| vec![v.clone()]);
+                let end_key = normalized_end.as_ref().map(|v| vec![v.clone()]);
 
                 // Safely acquire lock and call BTreeIndex::range_scan
                 match acquire_btree_lock(btree) {
@@ -118,7 +155,9 @@ impl IndexData {
                 let mut matching_row_indices = Vec::new();
 
                 for value in values {
-                    let search_key = vec![value.clone()];
+                    // Normalize value for consistent lookup (matches insertion-time normalization)
+                    let normalized_value = normalize_for_comparison(value);
+                    let search_key = vec![normalized_value];
                     if let Some(row_indices) = data.get(&search_key) {
                         matching_row_indices.extend(row_indices);
                     }
@@ -131,10 +170,11 @@ impl IndexData {
                 matching_row_indices
             }
             IndexData::DiskBacked { btree, .. } => {
+                // Normalize values for consistent lookup (matches insertion-time normalization)
                 // Convert SqlValue values to Key (Vec<SqlValue>) format
                 let keys: Vec<Vec<SqlValue>> = values
                     .iter()
-                    .map(|v| vec![v.clone()])
+                    .map(|v| vec![normalize_for_comparison(v)])
                     .collect();
 
                 // Safely acquire lock and call BTreeIndex::multi_lookup

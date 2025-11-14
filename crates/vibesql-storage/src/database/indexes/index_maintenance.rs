@@ -195,6 +195,7 @@ impl IndexManager {
             if metadata.table_name == table_name {
                 if let Some(index_data) = self.index_data.get_mut(index_name) {
                     // Build composite key from the indexed columns
+                    // Normalize numeric types to ensure consistent comparison
                     let key_values: Vec<SqlValue> = metadata
                         .columns
                         .iter()
@@ -203,7 +204,9 @@ impl IndexManager {
                                 .get_column_index(&col.column_name)
                                 .expect("Index column should exist");
                             let value = &row.values[col_idx];
-                            apply_prefix_truncation(value, col.prefix_length)
+                            let truncated = apply_prefix_truncation(value, col.prefix_length);
+                            // Normalize numeric types for consistent ordering/comparison
+                            crate::database::indexes::index_operations::normalize_for_comparison(&truncated)
                         })
                         .collect();
 
@@ -246,6 +249,7 @@ impl IndexManager {
             if metadata.table_name == table_name {
                 if let Some(index_data) = self.index_data.get_mut(index_name) {
                     // Build keys from old and new rows
+                    // Normalize numeric types to ensure consistent comparison
                     let old_key_values: Vec<SqlValue> = metadata
                         .columns
                         .iter()
@@ -254,7 +258,8 @@ impl IndexManager {
                                 .get_column_index(&col.column_name)
                                 .expect("Index column should exist");
                             let value = &old_row.values[col_idx];
-                            apply_prefix_truncation(value, col.prefix_length)
+                            let truncated = apply_prefix_truncation(value, col.prefix_length);
+                            crate::database::indexes::index_operations::normalize_for_comparison(&truncated)
                         })
                         .collect();
 
@@ -266,7 +271,8 @@ impl IndexManager {
                                 .get_column_index(&col.column_name)
                                 .expect("Index column should exist");
                             let value = &new_row.values[col_idx];
-                            apply_prefix_truncation(value, col.prefix_length)
+                            let truncated = apply_prefix_truncation(value, col.prefix_length);
+                            crate::database::indexes::index_operations::normalize_for_comparison(&truncated)
                         })
                         .collect();
 
