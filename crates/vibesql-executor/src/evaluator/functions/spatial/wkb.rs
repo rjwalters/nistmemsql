@@ -303,7 +303,7 @@ fn read_f64(cursor: &mut Cursor<&[u8]>, byte_order: ByteOrder) -> Result<f64, Ex
 pub fn geometry_to_wkb(geom: &Geometry) -> Vec<u8> {
     let mut buf = Vec::new();
     buf.push(ByteOrder::LittleEndian as u8); // Use little-endian
-    serialize_geometry(geom, &mut buf);
+    serialize_geometry(geom, &mut buf, None);
     buf
 }
 
@@ -311,26 +311,36 @@ pub fn geometry_to_wkb(geom: &Geometry) -> Vec<u8> {
 pub fn geometry_to_ewkb(geom: &Geometry, srid: i32) -> Vec<u8> {
     let mut buf = Vec::new();
     buf.push(ByteOrder::LittleEndian as u8); // Use little-endian
-    
+
     // If SRID is specified, include it
     if srid > 0 {
-        serialize_geometry_with_srid(geom, srid, &mut buf);
+        serialize_geometry(geom, &mut buf, Some(srid));
     } else {
-        serialize_geometry(geom, &mut buf);
+        serialize_geometry(geom, &mut buf, None);
     }
-    
+
     buf
 }
 
-fn serialize_geometry(geom: &Geometry, buf: &mut Vec<u8>) {
+fn serialize_geometry(geom: &Geometry, buf: &mut Vec<u8>, srid: Option<i32>) {
     match geom {
         Geometry::Point { x, y } => {
-            write_u32(buf, WKB_POINT);
+            if let Some(s) = srid {
+                write_u32(buf, WKB_POINT | EWKB_SRID_FLAG);
+                write_i32(buf, s);
+            } else {
+                write_u32(buf, WKB_POINT);
+            }
             write_f64(buf, *x);
             write_f64(buf, *y);
         }
         Geometry::LineString { points } => {
-            write_u32(buf, WKB_LINESTRING);
+            if let Some(s) = srid {
+                write_u32(buf, WKB_LINESTRING | EWKB_SRID_FLAG);
+                write_i32(buf, s);
+            } else {
+                write_u32(buf, WKB_LINESTRING);
+            }
             write_u32(buf, points.len() as u32);
             for (x, y) in points {
                 write_f64(buf, *x);
@@ -338,7 +348,12 @@ fn serialize_geometry(geom: &Geometry, buf: &mut Vec<u8>) {
             }
         }
         Geometry::Polygon { rings } => {
-            write_u32(buf, WKB_POLYGON);
+            if let Some(s) = srid {
+                write_u32(buf, WKB_POLYGON | EWKB_SRID_FLAG);
+                write_i32(buf, s);
+            } else {
+                write_u32(buf, WKB_POLYGON);
+            }
             write_u32(buf, rings.len() as u32);
             for ring in rings {
                 write_u32(buf, ring.len() as u32);
@@ -349,7 +364,12 @@ fn serialize_geometry(geom: &Geometry, buf: &mut Vec<u8>) {
             }
         }
         Geometry::MultiPoint { points } => {
-            write_u32(buf, WKB_MULTIPOINT);
+            if let Some(s) = srid {
+                write_u32(buf, WKB_MULTIPOINT | EWKB_SRID_FLAG);
+                write_i32(buf, s);
+            } else {
+                write_u32(buf, WKB_MULTIPOINT);
+            }
             write_u32(buf, points.len() as u32);
             for (x, y) in points {
                 buf.push(ByteOrder::LittleEndian as u8);
@@ -359,7 +379,12 @@ fn serialize_geometry(geom: &Geometry, buf: &mut Vec<u8>) {
             }
         }
         Geometry::MultiLineString { lines } => {
-            write_u32(buf, WKB_MULTILINESTRING);
+            if let Some(s) = srid {
+                write_u32(buf, WKB_MULTILINESTRING | EWKB_SRID_FLAG);
+                write_i32(buf, s);
+            } else {
+                write_u32(buf, WKB_MULTILINESTRING);
+            }
             write_u32(buf, lines.len() as u32);
             for line in lines {
                 buf.push(ByteOrder::LittleEndian as u8);
@@ -372,7 +397,12 @@ fn serialize_geometry(geom: &Geometry, buf: &mut Vec<u8>) {
             }
         }
         Geometry::MultiPolygon { polygons } => {
-            write_u32(buf, WKB_MULTIPOLYGON);
+            if let Some(s) = srid {
+                write_u32(buf, WKB_MULTIPOLYGON | EWKB_SRID_FLAG);
+                write_i32(buf, s);
+            } else {
+                write_u32(buf, WKB_MULTIPOLYGON);
+            }
             write_u32(buf, polygons.len() as u32);
             for rings_list in polygons {
                 buf.push(ByteOrder::LittleEndian as u8);
@@ -388,94 +418,16 @@ fn serialize_geometry(geom: &Geometry, buf: &mut Vec<u8>) {
             }
         }
         Geometry::Collection { geometries } => {
-            write_u32(buf, WKB_GEOMETRYCOLLECTION);
+            if let Some(s) = srid {
+                write_u32(buf, WKB_GEOMETRYCOLLECTION | EWKB_SRID_FLAG);
+                write_i32(buf, s);
+            } else {
+                write_u32(buf, WKB_GEOMETRYCOLLECTION);
+            }
             write_u32(buf, geometries.len() as u32);
             for geom in geometries {
                 buf.push(ByteOrder::LittleEndian as u8);
-                serialize_geometry(geom, buf);
-            }
-        }
-    }
-}
-
-fn serialize_geometry_with_srid(geom: &Geometry, srid: i32, buf: &mut Vec<u8>) {
-    match geom {
-        Geometry::Point { x, y } => {
-            write_u32(buf, WKB_POINT | EWKB_SRID_FLAG);
-            write_i32(buf, srid);
-            write_f64(buf, *x);
-            write_f64(buf, *y);
-        }
-        Geometry::LineString { points } => {
-            write_u32(buf, WKB_LINESTRING | EWKB_SRID_FLAG);
-            write_i32(buf, srid);
-            write_u32(buf, points.len() as u32);
-            for (x, y) in points {
-                write_f64(buf, *x);
-                write_f64(buf, *y);
-            }
-        }
-        Geometry::Polygon { rings } => {
-            write_u32(buf, WKB_POLYGON | EWKB_SRID_FLAG);
-            write_i32(buf, srid);
-            write_u32(buf, rings.len() as u32);
-            for ring in rings {
-                write_u32(buf, ring.len() as u32);
-                for (x, y) in ring {
-                    write_f64(buf, *x);
-                    write_f64(buf, *y);
-                }
-            }
-        }
-        Geometry::MultiPoint { points } => {
-            write_u32(buf, WKB_MULTIPOINT | EWKB_SRID_FLAG);
-            write_i32(buf, srid);
-            write_u32(buf, points.len() as u32);
-            for (x, y) in points {
-                buf.push(ByteOrder::LittleEndian as u8);
-                write_u32(buf, WKB_POINT);
-                write_f64(buf, *x);
-                write_f64(buf, *y);
-            }
-        }
-        Geometry::MultiLineString { lines } => {
-            write_u32(buf, WKB_MULTILINESTRING | EWKB_SRID_FLAG);
-            write_i32(buf, srid);
-            write_u32(buf, lines.len() as u32);
-            for line in lines {
-                buf.push(ByteOrder::LittleEndian as u8);
-                write_u32(buf, WKB_LINESTRING);
-                write_u32(buf, line.len() as u32);
-                for (x, y) in line {
-                    write_f64(buf, *x);
-                    write_f64(buf, *y);
-                }
-            }
-        }
-        Geometry::MultiPolygon { polygons } => {
-            write_u32(buf, WKB_MULTIPOLYGON | EWKB_SRID_FLAG);
-            write_i32(buf, srid);
-            write_u32(buf, polygons.len() as u32);
-            for rings_list in polygons {
-                buf.push(ByteOrder::LittleEndian as u8);
-                write_u32(buf, WKB_POLYGON);
-                write_u32(buf, rings_list.len() as u32);
-                for ring in rings_list {
-                    write_u32(buf, ring.len() as u32);
-                    for (x, y) in ring {
-                        write_f64(buf, *x);
-                        write_f64(buf, *y);
-                    }
-                }
-            }
-        }
-        Geometry::Collection { geometries } => {
-            write_u32(buf, WKB_GEOMETRYCOLLECTION | EWKB_SRID_FLAG);
-            write_i32(buf, srid);
-            write_u32(buf, geometries.len() as u32);
-            for geom in geometries {
-                buf.push(ByteOrder::LittleEndian as u8);
-                serialize_geometry(geom, buf);
+                serialize_geometry(geom, buf, None);
             }
         }
     }
