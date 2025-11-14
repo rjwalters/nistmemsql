@@ -273,9 +273,9 @@ mod tests {
 
     #[test]
     fn test_boolean_division_by_false() {
-        // 10 / FALSE should return DivisionByZero error
+        // 10 / FALSE should return NULL (SQL standard behavior)
         let result = ArithmeticOps::divide(&SqlValue::Integer(10), &SqlValue::Boolean(false));
-        assert!(matches!(result, Err(ExecutorError::DivisionByZero)));
+        assert_eq!(result.unwrap(), SqlValue::Null);
     }
 
     #[test]
