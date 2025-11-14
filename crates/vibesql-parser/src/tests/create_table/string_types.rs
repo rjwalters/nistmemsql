@@ -624,6 +624,172 @@ fn test_parse_nchar_varying_with_octets_modifier() {
 }
 
 // ========================================================================
+// NVARCHAR Tests (SQL Server/MySQL alias for NCHAR VARYING)
+// ========================================================================
+
+#[test]
+fn test_parse_nvarchar_with_length() {
+    let result = Parser::parse_sql("CREATE TABLE t (x NVARCHAR(13));");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "T");
+            assert_eq!(create.columns.len(), 1);
+            assert_eq!(create.columns[0].name, "X");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Varchar { max_length: Some(13) } => {} // Success
+                _ => panic!("Expected VARCHAR(13) data type"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_nvarchar_with_space_before_paren() {
+    // NVARCHAR (13) with space before parenthesis
+    let result = Parser::parse_sql("CREATE TABLE t (x NVARCHAR (13));");
+    assert!(result.is_ok(), "Failed to parse NVARCHAR with space: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "T");
+            assert_eq!(create.columns.len(), 1);
+            assert_eq!(create.columns[0].name, "X");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Varchar { max_length: Some(13) } => {} // Success
+                _ => panic!("Expected VARCHAR(13) data type"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_nvarchar_without_length() {
+    let result = Parser::parse_sql("CREATE TABLE t (x NVARCHAR);");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "T");
+            assert_eq!(create.columns.len(), 1);
+            assert_eq!(create.columns[0].name, "X");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Varchar { max_length: None } => {} // Success
+                _ => panic!("Expected VARCHAR data type without length"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_nvarchar_with_constraint() {
+    // This is the actual failing test case from SQLLogicTest: NVARCHAR with UNIQUE
+    let result = Parser::parse_sql("CREATE TABLE `t21291` (`c1` NVARCHAR (13) UNIQUE, `c2` NVARCHAR (11) KEY);");
+    assert!(result.is_ok(), "Failed to parse NVARCHAR with constraints: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            // Backtick-quoted identifiers preserve case (lowercase in this case)
+            assert_eq!(create.table_name, "t21291");
+            assert_eq!(create.columns.len(), 2);
+
+            // Check first column (backtick-quoted, preserves case)
+            assert_eq!(create.columns[0].name, "c1");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Varchar { max_length: Some(13) } => {} // Success
+                _ => panic!("Expected VARCHAR(13) for c1"),
+            }
+            // Verify UNIQUE constraint
+            assert!(create.columns[0].constraints.iter().any(|c| matches!(
+                &c.kind,
+                vibesql_ast::ColumnConstraintKind::Unique
+            )));
+
+            // Check second column (backtick-quoted, preserves case)
+            assert_eq!(create.columns[1].name, "c2");
+            match create.columns[1].data_type {
+                vibesql_types::DataType::Varchar { max_length: Some(11) } => {} // Success
+                _ => panic!("Expected VARCHAR(11) for c2"),
+            }
+            // Verify KEY constraint
+            assert!(create.columns[1].constraints.iter().any(|c| matches!(
+                &c.kind,
+                vibesql_ast::ColumnConstraintKind::Key
+            )));
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_nvarchar_equivalence() {
+    // NVARCHAR should be identical to NCHAR VARYING
+    let nvarchar_result = Parser::parse_sql("CREATE TABLE t1 (x NVARCHAR(50));");
+    let nchar_varying_result = Parser::parse_sql("CREATE TABLE t2 (x NCHAR VARYING(50));");
+
+    assert!(nvarchar_result.is_ok());
+    assert!(nchar_varying_result.is_ok());
+
+    let nvarchar_stmt = nvarchar_result.unwrap();
+    let nchar_varying_stmt = nchar_varying_result.unwrap();
+
+    match (nvarchar_stmt, nchar_varying_stmt) {
+        (
+            vibesql_ast::Statement::CreateTable(nvarchar_create),
+            vibesql_ast::Statement::CreateTable(nchar_varying_create),
+        ) => {
+            // Both should produce the same data type
+            assert_eq!(nvarchar_create.columns[0].data_type, nchar_varying_create.columns[0].data_type);
+        }
+        _ => panic!("Expected CREATE TABLE statements"),
+    }
+}
+
+#[test]
+fn test_parse_nvarchar_with_characters_modifier() {
+    let result = Parser::parse_sql("CREATE TABLE t (x NVARCHAR(25 CHARACTERS));");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.columns[0].name, "X");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Varchar { max_length: Some(25) } => {} // Success
+                _ => panic!("Expected VARCHAR(25) data type"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_nvarchar_with_octets_modifier() {
+    let result = Parser::parse_sql("CREATE TABLE t (x NVARCHAR(30 OCTETS));");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.columns[0].name, "X");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Varchar { max_length: Some(30) } => {} // Success
+                _ => panic!("Expected VARCHAR(30) data type"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+// ========================================================================
 // NATIONAL VARCHAR and NATIONAL CHARACTER Tests
 // ========================================================================
 

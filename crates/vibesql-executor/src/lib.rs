@@ -34,6 +34,7 @@ mod trigger_ddl;
 mod trigger_execution;
 mod type_ddl;
 mod update;
+mod view_ddl;
 
 pub use alter::AlterTableExecutor;
 pub use cache::{CacheManager, CacheStats, CachedQueryContext, QueryPlanCache, QuerySignature};
@@ -63,6 +64,7 @@ pub use transaction::{
 pub use trigger_ddl::TriggerExecutor;
 pub use type_ddl::TypeExecutor;
 pub use update::UpdateExecutor;
+pub use view_ddl::ViewExecutor;
 
 #[cfg(test)]
 mod tests;
