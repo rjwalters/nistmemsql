@@ -6,6 +6,23 @@ use vibesql_types::SqlValue;
 
 use super::index_metadata::{acquire_btree_lock, IndexData};
 
+/// Normalize a SqlValue to a consistent numeric type for comparison in range scans.
+/// This ensures that Real, Numeric, Float, Double, Integer, Smallint, Bigint, and Unsigned
+/// values can be compared correctly regardless of their underlying type.
+fn normalize_for_comparison(value: &SqlValue) -> SqlValue {
+    match value {
+        SqlValue::Integer(i) => SqlValue::Real(*i as f32),
+        SqlValue::Smallint(i) => SqlValue::Real(*i as f32),
+        SqlValue::Bigint(i) => SqlValue::Real(*i as f32),
+        SqlValue::Unsigned(u) => SqlValue::Real(*u as f32),
+        SqlValue::Float(f) => SqlValue::Real(*f),
+        SqlValue::Double(d) => SqlValue::Real(*d as f32),
+        SqlValue::Numeric(n) => SqlValue::Real(*n as f32),
+        // For non-numeric types, return as-is
+        other => other.clone(),
+    }
+}
+
 impl IndexData {
     /// Scan index for rows matching range predicate
     ///
@@ -41,27 +58,33 @@ impl IndexData {
                     // For multi-column indexes, we only compare the first column
                     let key = &key_values[0];
 
-                    let matches = match (start, end) {
+                    // Normalize key and bounds for consistent numeric comparison
+                    // This allows Real, Numeric, Integer, etc. to be compared correctly
+                    let normalized_key = normalize_for_comparison(key);
+                    let normalized_start = start.map(normalize_for_comparison);
+                    let normalized_end = end.map(normalize_for_comparison);
+
+                    let matches = match (normalized_start.as_ref(), normalized_end.as_ref()) {
                         (Some(s), Some(e)) => {
                             // Both bounds specified: start <= key <= end (or variations)
-                            let gte_start = if inclusive_start { key >= s } else { key > s };
-                            let lte_end = if inclusive_end { key <= e } else { key < e };
+                            let gte_start = if inclusive_start { normalized_key >= *s } else { normalized_key > *s };
+                            let lte_end = if inclusive_end { normalized_key <= *e } else { normalized_key < *e };
                             gte_start && lte_end
                         }
                         (Some(s), None) => {
                             // Only lower bound: key >= start (or >)
                             if inclusive_start {
-                                key >= s
+                                normalized_key >= *s
                             } else {
-                                key > s
+                                normalized_key > *s
                             }
                         }
                         (None, Some(e)) => {
                             // Only upper bound: key <= end (or <)
                             if inclusive_end {
-                                key <= e
+                                normalized_key <= *e
                             } else {
-                                key < e
+                                normalized_key < *e
                             }
                         }
                         (None, None) => true, // No bounds - match everything
