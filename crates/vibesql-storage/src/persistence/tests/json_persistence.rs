@@ -702,6 +702,7 @@ fn test_json_index_roundtrip() {
     let idx = vibesql_ast::IndexColumn {
         column_name: "name".to_string(),
         direction: vibesql_ast::OrderDirection::Asc,
+        prefix_length: None,
     };
 
     // Use qualified table name for index creation (indexes require qualified names)
