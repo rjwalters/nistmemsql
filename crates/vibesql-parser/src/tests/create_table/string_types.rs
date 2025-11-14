@@ -622,3 +622,255 @@ fn test_parse_nchar_varying_with_octets_modifier() {
         _ => panic!("Expected CREATE TABLE statement"),
     }
 }
+
+// ========================================================================
+// NATIONAL VARCHAR and NATIONAL CHARACTER Tests
+// ========================================================================
+
+#[test]
+fn test_parse_national_varchar_with_length() {
+    let result = Parser::parse_sql("CREATE TABLE t (x NATIONAL VARCHAR(20));");
+    assert!(result.is_ok(), "Failed to parse NATIONAL VARCHAR: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "T");
+            assert_eq!(create.columns.len(), 1);
+            assert_eq!(create.columns[0].name, "X");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Varchar { max_length: Some(20) } => {} // Success
+                _ => panic!("Expected VARCHAR(20) data type"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_national_varchar_with_space_before_paren() {
+    // NATIONAL VARCHAR (4) with space - this is the actual failing test case
+    let result = Parser::parse_sql("CREATE TABLE t (x NATIONAL VARCHAR (4));");
+    assert!(result.is_ok(), "Failed to parse NATIONAL VARCHAR with space: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "T");
+            assert_eq!(create.columns.len(), 1);
+            assert_eq!(create.columns[0].name, "X");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Varchar { max_length: Some(4) } => {} // Success
+                _ => panic!("Expected VARCHAR(4) data type"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_national_varchar_without_length() {
+    let result = Parser::parse_sql("CREATE TABLE t (x NATIONAL VARCHAR);");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "T");
+            assert_eq!(create.columns.len(), 1);
+            assert_eq!(create.columns[0].name, "X");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Varchar { max_length: None } => {} // Success
+                _ => panic!("Expected VARCHAR data type without length"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_national_character_with_length() {
+    let result = Parser::parse_sql("CREATE TABLE t (x NATIONAL CHARACTER(15));");
+    assert!(result.is_ok(), "Failed to parse NATIONAL CHARACTER: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "T");
+            assert_eq!(create.columns.len(), 1);
+            assert_eq!(create.columns[0].name, "X");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Character { length: 15 } => {} // Success
+                _ => panic!("Expected CHAR(15) data type"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_national_character_without_length() {
+    let result = Parser::parse_sql("CREATE TABLE t (x NATIONAL CHARACTER);");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "T");
+            assert_eq!(create.columns.len(), 1);
+            assert_eq!(create.columns[0].name, "X");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Character { length: 1 } => {} // Success - default is 1
+                _ => panic!("Expected CHAR(1) data type (default)"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_national_char_with_length() {
+    let result = Parser::parse_sql("CREATE TABLE t (x NATIONAL CHAR(10));");
+    assert!(result.is_ok(), "Failed to parse NATIONAL CHAR: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "T");
+            assert_eq!(create.columns.len(), 1);
+            assert_eq!(create.columns[0].name, "X");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Character { length: 10 } => {} // Success
+                _ => panic!("Expected CHAR(10) data type"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_national_varchar_with_constraint() {
+    // This matches the actual failing test case from SQLLogicTest
+    let result = Parser::parse_sql(
+        "CREATE TABLE `t21659` (`c1` NATIONAL VARCHAR (4) UNIQUE, c2 NATIONAL VARCHAR (19) UNIQUE);"
+    );
+    assert!(result.is_ok(), "Failed to parse NATIONAL VARCHAR with constraints: {:?}", result.err());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            // Backtick-quoted identifiers preserve case (lowercase in this case)
+            assert_eq!(create.table_name, "t21659");
+            assert_eq!(create.columns.len(), 2);
+
+            // Check first column (backtick-quoted, preserves case)
+            assert_eq!(create.columns[0].name, "c1");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Varchar { max_length: Some(4) } => {} // Success
+                _ => panic!("Expected VARCHAR(4) for c1"),
+            }
+            // Verify UNIQUE constraint
+            assert!(create.columns[0].constraints.iter().any(|c| matches!(
+                &c.kind,
+                vibesql_ast::ColumnConstraintKind::Unique
+            )));
+
+            // Check second column (unquoted, normalized to uppercase)
+            assert_eq!(create.columns[1].name, "C2");
+            match create.columns[1].data_type {
+                vibesql_types::DataType::Varchar { max_length: Some(19) } => {} // Success
+                _ => panic!("Expected VARCHAR(19) for c2"),
+            }
+            // Verify UNIQUE constraint
+            assert!(create.columns[1].constraints.iter().any(|c| matches!(
+                &c.kind,
+                vibesql_ast::ColumnConstraintKind::Unique
+            )));
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_national_varchar_equivalence() {
+    // NATIONAL VARCHAR should be identical to NVARCHAR
+    let national_result = Parser::parse_sql("CREATE TABLE t1 (x NATIONAL VARCHAR(30));");
+    let nvarchar_result = Parser::parse_sql("CREATE TABLE t2 (x NVARCHAR(30));");
+
+    assert!(national_result.is_ok());
+    assert!(nvarchar_result.is_ok());
+
+    let national_stmt = national_result.unwrap();
+    let nvarchar_stmt = nvarchar_result.unwrap();
+
+    match (national_stmt, nvarchar_stmt) {
+        (
+            vibesql_ast::Statement::CreateTable(national_create),
+            vibesql_ast::Statement::CreateTable(nvarchar_create),
+        ) => {
+            // Both should produce the same data type
+            assert_eq!(national_create.columns[0].data_type, nvarchar_create.columns[0].data_type);
+        }
+        _ => panic!("Expected CREATE TABLE statements"),
+    }
+}
+
+#[test]
+fn test_parse_national_character_equivalence() {
+    // NATIONAL CHARACTER should be identical to NCHAR
+    let national_result = Parser::parse_sql("CREATE TABLE t1 (x NATIONAL CHARACTER(10));");
+    let nchar_result = Parser::parse_sql("CREATE TABLE t2 (x NCHAR(10));");
+
+    assert!(national_result.is_ok());
+    assert!(nchar_result.is_ok());
+
+    let national_stmt = national_result.unwrap();
+    let nchar_stmt = nchar_result.unwrap();
+
+    match (national_stmt, nchar_stmt) {
+        (
+            vibesql_ast::Statement::CreateTable(national_create),
+            vibesql_ast::Statement::CreateTable(nchar_create),
+        ) => {
+            // Both should produce the same data type
+            assert_eq!(national_create.columns[0].data_type, nchar_create.columns[0].data_type);
+        }
+        _ => panic!("Expected CREATE TABLE statements"),
+    }
+}
+
+#[test]
+fn test_parse_national_varchar_with_characters_modifier() {
+    let result = Parser::parse_sql("CREATE TABLE t (x NATIONAL VARCHAR(25 CHARACTERS));");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.columns[0].name, "X");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Varchar { max_length: Some(25) } => {} // Success
+                _ => panic!("Expected VARCHAR(25) data type"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_national_character_with_octets_modifier() {
+    let result = Parser::parse_sql("CREATE TABLE t (x NATIONAL CHARACTER(12 OCTETS));");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.columns[0].name, "X");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Character { length: 12 } => {} // Success
+                _ => panic!("Expected CHAR(12) data type"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
