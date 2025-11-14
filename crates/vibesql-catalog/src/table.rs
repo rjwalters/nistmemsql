@@ -514,6 +514,7 @@ impl TableSchema {
             | vibesql_ast::Expression::CurrentTimestamp { .. }
             | vibesql_ast::Expression::Default
             | vibesql_ast::Expression::NextValue { .. }
+            | vibesql_ast::Expression::SessionVariable { .. }
             | vibesql_ast::Expression::MatchAgainst { .. } => false,
         }
     }

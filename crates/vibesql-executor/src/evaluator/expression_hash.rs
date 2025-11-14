@@ -133,11 +133,14 @@ impl ExpressionHasher {
                     && removal_char.as_ref().is_none_or(|c| Self::is_deterministic(c))
             }
 
-            // Literals are deterministic, but column references and pseudo-variables are NOT
+            // Literals are deterministic, but column references, pseudo-variables, and session variables are NOT
             // Column references and pseudo-variables depend on the current row data, so they should not be cached
             // across multiple rows in row-iteration contexts
+            // Session variables can change during execution, so they should not be cached
             vibesql_ast::Expression::Literal(_) => true,
-            vibesql_ast::Expression::ColumnRef { .. } | vibesql_ast::Expression::PseudoVariable { .. } => false,
+            vibesql_ast::Expression::ColumnRef { .. }
+            | vibesql_ast::Expression::PseudoVariable { .. }
+            | vibesql_ast::Expression::SessionVariable { .. } => false,
 
             // Window and aggregate functions should not be cached at this level
             vibesql_ast::Expression::WindowFunction { .. }
@@ -376,6 +379,10 @@ impl ExpressionHasher {
                 }
                 Self::hash_expression(search_modifier, hasher);
                 std::mem::discriminant(mode).hash(hasher);
+            }
+
+            vibesql_ast::Expression::SessionVariable { name } => {
+                name.hash(hasher);
             }
         }
     }

@@ -21,6 +21,13 @@ impl Parser {
             return Ok(expr);
         }
 
+        // Try to parse as a session variable (@@sql_mode, @@session.variable, etc.)
+        if let Token::SessionVariable(name) = self.peek() {
+            let var_name = name.clone();
+            self.advance();
+            return Ok(vibesql_ast::Expression::SessionVariable { name: var_name });
+        }
+
         // Try to parse as a special form (CAST, EXISTS, NOT EXISTS)
         if let Some(expr) = self.parse_special_form()? {
             return Ok(expr);
