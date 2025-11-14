@@ -103,7 +103,10 @@ fn collect_window_functions_from_expression(
         Expression::Wildcard => {
             // Wildcard doesn't contain window functions
         }
-        Expression::Literal(_) | Expression::ColumnRef { .. } | Expression::PseudoVariable { .. } => {
+        Expression::Literal(_)
+        | Expression::ColumnRef { .. }
+        | Expression::PseudoVariable { .. }
+        | Expression::SessionVariable { .. } => {
             // These are leaf nodes
         }
         Expression::CurrentDate

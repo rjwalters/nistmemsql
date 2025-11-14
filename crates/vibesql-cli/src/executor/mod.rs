@@ -163,10 +163,13 @@ impl SqlExecutor {
                     Err(e) => return Err(anyhow::anyhow!("{}", e)),
                 }
             }
-            vibesql_ast::Statement::SetVariable(_set_var_stmt) => {
-                // SET variable statements are treated as no-ops for now
-                // Future: Could store session/global variables in database context
-                result.row_count = 0;
+            vibesql_ast::Statement::SetVariable(set_var_stmt) => {
+                match vibesql_executor::SchemaExecutor::execute_set_variable(&set_var_stmt, &mut self.db) {
+                    Ok(_) => {
+                        result.row_count = 0;
+                    }
+                    Err(e) => return Err(anyhow::anyhow!("{}", e)),
+                }
             }
             _ => {
                 return Err(anyhow::anyhow!("Statement type not yet supported in CLI"));

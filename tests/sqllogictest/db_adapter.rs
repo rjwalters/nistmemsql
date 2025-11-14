@@ -211,6 +211,11 @@ impl NistMemSqlDB {
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
                 Ok(DBOutput::StatementComplete(0))
             }
+            vibesql_ast::Statement::SetVariable(set_var_stmt) => {
+                vibesql_executor::SchemaExecutor::execute_set_variable(&set_var_stmt, &mut self.db)
+                    .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
+                Ok(DBOutput::StatementComplete(0))
+            }
             vibesql_ast::Statement::SetTimeZone(set_stmt) => {
                 vibesql_executor::SchemaExecutor::execute_set_time_zone(&set_stmt, &mut self.db)
                     .map_err(|e| TestError::Execution(format!("Execution error: {:?}", e)))?;
@@ -339,8 +344,7 @@ impl NistMemSqlDB {
             | vibesql_ast::Statement::ShowColumns(_)
             | vibesql_ast::Statement::ShowIndex(_)
             | vibesql_ast::Statement::ShowCreateTable(_)
-            | vibesql_ast::Statement::Describe(_)
-            | vibesql_ast::Statement::SetVariable(_) => Ok(DBOutput::StatementComplete(0)),
+            | vibesql_ast::Statement::Describe(_) => Ok(DBOutput::StatementComplete(0)),
         }
     }
 
