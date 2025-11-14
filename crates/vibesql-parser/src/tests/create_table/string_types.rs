@@ -463,3 +463,162 @@ fn test_parse_varbinary_with_key_constraint() {
         _ => panic!("Expected CREATE TABLE statement"),
     }
 }
+
+// ========================================================================
+// NCHAR and NCHAR VARYING Tests
+// ========================================================================
+
+#[test]
+fn test_parse_nchar_varying_with_length() {
+    let result = Parser::parse_sql("CREATE TABLE t (x NCHAR VARYING (50));");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "T");
+            assert_eq!(create.columns.len(), 1);
+            assert_eq!(create.columns[0].name, "X");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Varchar { max_length: Some(50) } => {} // Success
+                _ => panic!("Expected VARCHAR(50) data type"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_nchar_varying_without_length() {
+    let result = Parser::parse_sql("CREATE TABLE t (x NCHAR VARYING);");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "T");
+            assert_eq!(create.columns.len(), 1);
+            assert_eq!(create.columns[0].name, "X");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Varchar { max_length: None } => {} // Success
+                _ => panic!("Expected VARCHAR data type without length"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_nchar_with_length() {
+    let result = Parser::parse_sql("CREATE TABLE t (x NCHAR(20));");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "T");
+            assert_eq!(create.columns.len(), 1);
+            assert_eq!(create.columns[0].name, "X");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Character { length: 20 } => {} // Success
+                _ => panic!("Expected CHAR(20) data type"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_nchar_without_length() {
+    let result = Parser::parse_sql("CREATE TABLE t (x NCHAR);");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.table_name, "T");
+            assert_eq!(create.columns.len(), 1);
+            assert_eq!(create.columns[0].name, "X");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Character { length: 1 } => {} // Success - default is 1
+                _ => panic!("Expected CHAR(1) data type (default)"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_nchar_varying_with_constraint() {
+    // This is the actual failing test case from the SQLLogicTest suite
+    let result = Parser::parse_sql(
+        "CREATE TABLE `t21006` (`c1` NCHAR VARYING (15) COMMENT 'text1098849', c2 NCHAR VARYING (42) KEY);"
+    );
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            // Backtick-quoted identifiers preserve case (lowercase in this case)
+            assert_eq!(create.table_name, "t21006");
+            assert_eq!(create.columns.len(), 2);
+
+            // Check first column (backtick-quoted, preserves case)
+            assert_eq!(create.columns[0].name, "c1");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Varchar { max_length: Some(15) } => {} // Success
+                _ => panic!("Expected VARCHAR(15) for c1"),
+            }
+            // Note: COMMENT is parsed but not currently stored in the AST
+
+            // Check second column (unquoted, normalized to uppercase)
+            assert_eq!(create.columns[1].name, "C2");
+            match create.columns[1].data_type {
+                vibesql_types::DataType::Varchar { max_length: Some(42) } => {} // Success
+                _ => panic!("Expected VARCHAR(42) for c2"),
+            }
+            // Verify KEY constraint
+            assert!(create.columns[1].constraints.iter().any(|c| matches!(
+                &c.kind,
+                vibesql_ast::ColumnConstraintKind::Key
+            )));
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_nchar_with_characters_modifier() {
+    let result = Parser::parse_sql("CREATE TABLE t (x NCHAR(10 CHARACTERS));");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.columns[0].name, "X");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Character { length: 10 } => {} // Success
+                _ => panic!("Expected CHAR(10) data type"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
+
+#[test]
+fn test_parse_nchar_varying_with_octets_modifier() {
+    let result = Parser::parse_sql("CREATE TABLE t (x NCHAR VARYING(25 OCTETS));");
+    assert!(result.is_ok());
+    let stmt = result.unwrap();
+
+    match stmt {
+        vibesql_ast::Statement::CreateTable(create) => {
+            assert_eq!(create.columns[0].name, "X");
+            match create.columns[0].data_type {
+                vibesql_types::DataType::Varchar { max_length: Some(25) } => {} // Success
+                _ => panic!("Expected VARCHAR(25) data type"),
+            }
+        }
+        _ => panic!("Expected CREATE TABLE statement"),
+    }
+}
