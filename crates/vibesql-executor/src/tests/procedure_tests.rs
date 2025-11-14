@@ -1,7 +1,7 @@
 //! Tests for stored procedure and function functionality
 
+use super::common::setup_users_table as setup_test_table;
 use vibesql_ast::*;
-use vibesql_catalog::TableSchema;
 use vibesql_storage::{Database, Row};
 use vibesql_types::{DataType, SqlValue};
 
@@ -23,22 +23,6 @@ fn create_simple_procedure(
         comment: None,
         language: None,
     }
-}
-
-fn setup_test_table(db: &mut Database) {
-    // CREATE TABLE users (id INTEGER NOT NULL, name VARCHAR(50))
-    let schema = TableSchema::new(
-        "users".to_string(),
-        vec![
-            vibesql_catalog::ColumnSchema::new("id".to_string(), DataType::Integer, false),
-            vibesql_catalog::ColumnSchema::new(
-                "name".to_string(),
-                DataType::Varchar { max_length: Some(50) },
-                true,
-            ),
-        ],
-    );
-    db.create_table(schema).unwrap();
 }
 
 #[test]

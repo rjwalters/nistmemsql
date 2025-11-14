@@ -41,6 +41,7 @@
 //! - `alter_table_constraints`: ALTER TABLE ADD/DROP PRIMARY KEY and FOREIGN KEY tests (Phase 6 of issue #1388)
 //! - `non_unique_disk_index_tests`: Non-unique disk-backed index integration tests (issue #1575, PR #1571)
 
+mod common;
 mod aggregate_caching;
 mod alter_table_constraints;
 mod aggregate_count_sum_avg_tests;
