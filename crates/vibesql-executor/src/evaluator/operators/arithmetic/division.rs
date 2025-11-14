@@ -4,7 +4,7 @@ use vibesql_types::SqlValue;
 
 use crate::errors::ExecutorError;
 
-use super::{check_division_by_zero, coerce_numeric_values};
+use super::coerce_numeric_values;
 
 pub struct Division;
 
@@ -17,14 +17,24 @@ impl Division {
         // Fast path for integers (both modes) - division always returns float
         if let (Integer(a), Integer(b)) = (left, right) {
             if *b == 0 {
-                return Err(ExecutorError::DivisionByZero);
+                return Ok(SqlValue::Null);
             }
             return Ok(Float((*a as f64 / *b as f64) as f32));
         }
 
         // Use helper for type coercion
         let coerced = coerce_numeric_values(left, right, "/")?;
-        check_division_by_zero(&coerced)?;
+
+        // Check for division by zero and return NULL (SQL standard behavior)
+        let is_zero = match &coerced {
+            super::CoercedValues::ExactNumeric(_, right) => *right == 0,
+            super::CoercedValues::ApproximateNumeric(_, right) => *right == 0.0,
+            super::CoercedValues::Numeric(_, right) => *right == 0.0,
+        };
+
+        if is_zero {
+            return Ok(SqlValue::Null);
+        }
 
         // Division returns Float for exact numerics, but preserves Numeric type
         match coerced {
@@ -43,14 +53,24 @@ impl Division {
         // Fast path for integers (both modes)
         if let (Integer(a), Integer(b)) = (left, right) {
             if *b == 0 {
-                return Err(ExecutorError::DivisionByZero);
+                return Ok(SqlValue::Null);
             }
             return Ok(Integer(a / b));
         }
 
         // Use helper for type coercion
         let coerced = coerce_numeric_values(left, right, "DIV")?;
-        check_division_by_zero(&coerced)?;
+
+        // Check for division by zero and return NULL (SQL standard behavior)
+        let is_zero = match &coerced {
+            super::CoercedValues::ExactNumeric(_, right) => *right == 0,
+            super::CoercedValues::ApproximateNumeric(_, right) => *right == 0.0,
+            super::CoercedValues::Numeric(_, right) => *right == 0.0,
+        };
+
+        if is_zero {
+            return Ok(SqlValue::Null);
+        }
 
         // Integer division truncates toward zero
         match coerced {

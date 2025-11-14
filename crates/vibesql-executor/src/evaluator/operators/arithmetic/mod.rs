@@ -109,18 +109,6 @@ pub(super) fn coerce_numeric_values(
     })
 }
 
-/// Helper function to check for division by zero
-pub(super) fn check_division_by_zero(value: &CoercedValues) -> Result<(), ExecutorError> {
-    match value {
-        CoercedValues::ExactNumeric(_, right) if *right == 0 => Err(ExecutorError::DivisionByZero),
-        CoercedValues::ApproximateNumeric(_, right) if *right == 0.0 => {
-            Err(ExecutorError::DivisionByZero)
-        }
-        CoercedValues::Numeric(_, right) if *right == 0.0 => Err(ExecutorError::DivisionByZero),
-        _ => Ok(()),
-    }
-}
-
 pub(crate) struct ArithmeticOps;
 
 impl ArithmeticOps {
@@ -193,8 +181,9 @@ mod tests {
 
     #[test]
     fn test_division_by_zero() {
+        // Division by zero should return NULL (SQL standard behavior)
         let result = ArithmeticOps::divide(&SqlValue::Integer(5), &SqlValue::Integer(0));
-        assert!(matches!(result, Err(ExecutorError::DivisionByZero)));
+        assert_eq!(result.unwrap(), SqlValue::Null);
     }
 
     #[test]
