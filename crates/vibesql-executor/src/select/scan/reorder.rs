@@ -15,6 +15,7 @@ use crate::{
     select::{
         cte::CteResult,
         join::{nested_loop_join, JoinOrderAnalyzer, JoinOrderSearch},
+        SelectResult,
     },
 };
 
@@ -130,7 +131,7 @@ pub(crate) fn execute_with_join_reordering<F>(
     execute_subquery: F,
 ) -> Result<super::FromResult, ExecutorError>
 where
-    F: Fn(&vibesql_ast::SelectStmt) -> Result<Vec<vibesql_storage::Row>, ExecutorError> + Copy,
+    F: Fn(&vibesql_ast::SelectStmt) -> Result<SelectResult, ExecutorError> + Copy,
 {
     // Step 1: Flatten join tree to extract all tables
     let mut table_refs = Vec::new();
