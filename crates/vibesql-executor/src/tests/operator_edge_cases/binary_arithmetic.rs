@@ -86,7 +86,7 @@ fn test_integer_division_basic() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // 81 / 31 = 2.6129..., truncated to 2
-    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(2));
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Numeric(2.0));
 }
 
 #[test]
@@ -100,7 +100,7 @@ fn test_integer_division_with_floats() {
         &vibesql_types::SqlValue::Float(3.2),
     )
     .unwrap();
-    assert_eq!(result, vibesql_types::SqlValue::Integer(3));
+    assert_eq!(result, vibesql_types::SqlValue::Numeric(3.0));
 }
 
 #[test]
@@ -114,7 +114,7 @@ fn test_integer_division_negative_operands() {
         &vibesql_types::SqlValue::Integer(-2),
     )
     .unwrap();
-    assert_eq!(result, vibesql_types::SqlValue::Integer(-48));
+    assert_eq!(result, vibesql_types::SqlValue::Numeric(-48.0));
 
     // -96 DIV 2 should return -48
     let result = OperatorRegistry::eval_binary_op(
@@ -123,7 +123,7 @@ fn test_integer_division_negative_operands() {
         &vibesql_types::SqlValue::Integer(2),
     )
     .unwrap();
-    assert_eq!(result, vibesql_types::SqlValue::Integer(-48));
+    assert_eq!(result, vibesql_types::SqlValue::Numeric(-48.0));
 
     // -96 DIV -2 should return 48
     let result = OperatorRegistry::eval_binary_op(
@@ -132,7 +132,7 @@ fn test_integer_division_negative_operands() {
         &vibesql_types::SqlValue::Integer(-2),
     )
     .unwrap();
-    assert_eq!(result, vibesql_types::SqlValue::Integer(48));
+    assert_eq!(result, vibesql_types::SqlValue::Numeric(48.0));
 }
 
 #[test]
@@ -159,7 +159,7 @@ fn test_integer_division_equal_operands() {
         &vibesql_types::SqlValue::Integer(5),
     )
     .unwrap();
-    assert_eq!(result, vibesql_types::SqlValue::Integer(1));
+    assert_eq!(result, vibesql_types::SqlValue::Numeric(1.0));
 }
 
 #[test]
