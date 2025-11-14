@@ -11,9 +11,10 @@ fn test_range_scan_preserves_index_order() {
 
     // col0 values: row 1 has 50, row 2 has 60, row 0 has 70
     // Index should be sorted by value: 50, 60, 70
-    data.insert(vec![SqlValue::Integer(50)], vec![1]);
-    data.insert(vec![SqlValue::Integer(60)], vec![2]);
-    data.insert(vec![SqlValue::Integer(70)], vec![0]);
+    // Keys are now normalized to Double for consistent comparison
+    data.insert(vec![SqlValue::Double(50.0)], vec![1]);
+    data.insert(vec![SqlValue::Double(60.0)], vec![2]);
+    data.insert(vec![SqlValue::Double(70.0)], vec![0]);
 
     let index_data = IndexData::InMemory { data };
 
@@ -40,10 +41,11 @@ fn test_range_scan_between_preserves_order() {
     let mut data = std::collections::BTreeMap::new();
 
     // Values out of row-index order
-    data.insert(vec![SqlValue::Integer(40)], vec![5]);
-    data.insert(vec![SqlValue::Integer(50)], vec![1]);
-    data.insert(vec![SqlValue::Integer(60)], vec![2]);
-    data.insert(vec![SqlValue::Integer(70)], vec![0]);
+    // Keys are now normalized to Double for consistent comparison
+    data.insert(vec![SqlValue::Double(40.0)], vec![5]);
+    data.insert(vec![SqlValue::Double(50.0)], vec![1]);
+    data.insert(vec![SqlValue::Double(60.0)], vec![2]);
+    data.insert(vec![SqlValue::Double(70.0)], vec![0]);
 
     let index_data = IndexData::InMemory { data };
 
@@ -65,9 +67,10 @@ fn test_range_scan_with_duplicate_values() {
     let mut data = std::collections::BTreeMap::new();
 
     // Multiple rows with value 60: rows 3, 7, 2 (in insertion order)
-    data.insert(vec![SqlValue::Integer(50)], vec![1]);
-    data.insert(vec![SqlValue::Integer(60)], vec![3, 7, 2]); // duplicates
-    data.insert(vec![SqlValue::Integer(70)], vec![0]);
+    // Keys are now normalized to Double for consistent comparison
+    data.insert(vec![SqlValue::Double(50.0)], vec![1]);
+    data.insert(vec![SqlValue::Double(60.0)], vec![3, 7, 2]); // duplicates
+    data.insert(vec![SqlValue::Double(70.0)], vec![0]);
 
     let index_data = IndexData::InMemory { data };
 
@@ -93,9 +96,10 @@ fn test_multi_lookup_with_duplicate_values() {
     let mut data = std::collections::BTreeMap::new();
 
     // Multiple rows with value 60: rows 3, 7, 2 (in insertion order)
-    data.insert(vec![SqlValue::Integer(50)], vec![1]);
-    data.insert(vec![SqlValue::Integer(60)], vec![3, 7, 2]); // duplicates
-    data.insert(vec![SqlValue::Integer(70)], vec![0]);
+    // Keys are now normalized to Double for consistent comparison
+    data.insert(vec![SqlValue::Double(50.0)], vec![1]);
+    data.insert(vec![SqlValue::Double(60.0)], vec![3, 7, 2]); // duplicates
+    data.insert(vec![SqlValue::Double(70.0)], vec![0]);
 
     let index_data = IndexData::InMemory { data };
 
