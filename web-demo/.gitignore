@@ -25,6 +25,7 @@ inspect-*.ts
 test-*.ts
 diagnose-*.ts
 find-*.ts
+perf-*.ts
 debug-screenshot-*.png
 
 # Compiled debug/test scripts (should not be committed)
@@ -34,3 +35,5 @@ test-*.js
 diagnose-*.js
 find-*.js
 check-*.js
+perf-*.js
+perf-*.cjs
