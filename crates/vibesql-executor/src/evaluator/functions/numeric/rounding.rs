@@ -47,6 +47,10 @@ pub fn round(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
             let multiplier = 10_f32.powi(precision);
             Ok(SqlValue::Real((f * multiplier).round() / multiplier))
         }
+        SqlValue::Numeric(n) => {
+            let multiplier = 10_f64.powi(precision);
+            Ok(SqlValue::Numeric((n * multiplier).round() / multiplier))
+        }
         val => Err(ExecutorError::UnsupportedFeature(format!(
             "ROUND requires numeric argument, got {:?}",
             val
@@ -70,6 +74,7 @@ pub fn floor(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         SqlValue::Float(f) => Ok(SqlValue::Float(f.floor())),
         SqlValue::Double(f) => Ok(SqlValue::Double(f.floor())),
         SqlValue::Real(f) => Ok(SqlValue::Real(f.floor())),
+        SqlValue::Numeric(n) => Ok(SqlValue::Numeric(n.floor())),
         val => Err(ExecutorError::UnsupportedFeature(format!(
             "FLOOR requires numeric argument, got {:?}",
             val
@@ -94,6 +99,7 @@ pub fn ceil(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         SqlValue::Float(f) => Ok(SqlValue::Float(f.ceil())),
         SqlValue::Double(f) => Ok(SqlValue::Double(f.ceil())),
         SqlValue::Real(f) => Ok(SqlValue::Real(f.ceil())),
+        SqlValue::Numeric(n) => Ok(SqlValue::Numeric(n.ceil())),
         val => Err(ExecutorError::UnsupportedFeature(format!(
             "CEIL requires numeric argument, got {:?}",
             val
@@ -141,6 +147,10 @@ pub fn truncate(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
         SqlValue::Real(f) => {
             let multiplier = 10_f32.powi(precision);
             Ok(SqlValue::Real((f * multiplier).trunc() / multiplier))
+        }
+        SqlValue::Numeric(n) => {
+            let multiplier = 10_f64.powi(precision);
+            Ok(SqlValue::Numeric((n * multiplier).trunc() / multiplier))
         }
         val => Err(ExecutorError::UnsupportedFeature(format!(
             "TRUNCATE requires numeric argument, got {:?}",
