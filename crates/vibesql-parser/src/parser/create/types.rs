@@ -368,6 +368,41 @@ impl Parser {
 
                 Ok(vibesql_types::DataType::Character { length })
             }
+            "NVARCHAR" => {
+                // NVARCHAR is SQL Server/MySQL alias for NCHAR VARYING
+                // Both map to VARCHAR internally (variable-length national character)
+                // This is a convenience alias that behaves identically to NCHAR VARYING
+                let max_length = if self.peek() == &Token::LParen {
+                    self.advance();
+                    let len = match self.peek() {
+                        Token::Number(n) => {
+                            let parsed = n.parse::<usize>().map_err(|_| ParseError {
+                                message: "Invalid NVARCHAR length".to_string(),
+                            })?;
+                            self.advance();
+                            Some(parsed)
+                        }
+                        _ => {
+                            return Err(ParseError {
+                                message: "Expected number after NVARCHAR(".to_string(),
+                            })
+                        }
+                    };
+
+                    // Check for CHARACTERS or OCTETS modifier
+                    if self.try_consume_keyword(Keyword::Characters)
+                        || self.try_consume_keyword(Keyword::Octets)
+                    {
+                        // Modifier consumed, continue
+                    }
+
+                    self.expect_token(Token::RParen)?;
+                    len
+                } else {
+                    None // No length specified, use default
+                };
+                Ok(vibesql_types::DataType::Varchar { max_length })
+            }
             "TEXT" => {
                 // TEXT is SQLite-style unlimited VARCHAR
                 // Maps to VARCHAR without length constraint (unlimited)
