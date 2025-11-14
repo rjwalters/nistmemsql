@@ -76,9 +76,24 @@ fn test_create_view_with_check_option() {
 
 #[test]
 fn test_drop_view_simple() {
+    use vibesql_catalog::ColumnSchema;
+    use vibesql_types::DataType;
+
     let mut db = Database::new();
 
-    // Create view first
+    // Create underlying table first
+    let users_schema = vibesql_catalog::TableSchema::new(
+        "USERS".to_string(),
+        vec![ColumnSchema {
+            name: "ID".to_string(),
+            data_type: DataType::Integer,
+            nullable: false,
+            default_value: None,
+        }],
+    );
+    db.create_table(users_schema).expect("Failed to create table");
+
+    // Create view
     let sql = "CREATE VIEW my_view AS SELECT * FROM users";
     let stmt = Parser::parse_sql(sql).expect("Failed to parse");
     if let Statement::CreateView(view_stmt) = stmt {
@@ -105,7 +120,33 @@ fn test_drop_view_simple() {
 
 #[test]
 fn test_create_view_duplicate_error() {
+    use vibesql_catalog::ColumnSchema;
+    use vibesql_types::DataType;
+
     let mut db = Database::new();
+
+    // Create underlying tables first
+    let users_schema = vibesql_catalog::TableSchema::new(
+        "USERS".to_string(),
+        vec![ColumnSchema {
+            name: "ID".to_string(),
+            data_type: DataType::Integer,
+            nullable: false,
+            default_value: None,
+        }],
+    );
+    db.create_table(users_schema).expect("Failed to create users table");
+
+    let employees_schema = vibesql_catalog::TableSchema::new(
+        "EMPLOYEES".to_string(),
+        vec![ColumnSchema {
+            name: "ID".to_string(),
+            data_type: DataType::Integer,
+            nullable: false,
+            default_value: None,
+        }],
+    );
+    db.create_table(employees_schema).expect("Failed to create employees table");
 
     // Create first view
     let sql = "CREATE VIEW my_view AS SELECT * FROM users";
