@@ -259,9 +259,18 @@ fn extract_tables_recursive_branch(
                 false
             }
         }
-        vibesql_ast::Expression::ColumnRef { table: None, .. } => {
-            // Unqualified column reference - assume it's valid
-            true
+        vibesql_ast::Expression::ColumnRef { table: None, column } => {
+            // Unqualified column reference - need to resolve it to table(s)
+            // Search all tables in the schema to find which contain this column
+            let column_lower = column.to_lowercase();
+            let mut found = false;
+            for (table_name, (_start_idx, table_schema)) in &schema.table_schemas {
+                if table_schema.columns.iter().any(|col| col.name.to_lowercase() == column_lower) {
+                    tables.insert(table_name.clone());
+                    found = true;
+                }
+            }
+            found  // Return true if column found in at least one table
         }
         vibesql_ast::Expression::BinaryOp { left, op: _, right } => {
             extract_tables_recursive_branch(left, schema, tables)

@@ -273,6 +273,16 @@ impl NistMemSqlDB {
                     .map(|_msg| DBOutput::StatementComplete(0))
                     .map_err(|e| TestError(format!("Execution error: {:?}", e)))
             }
+            vibesql_ast::Statement::CreateView(create_view_stmt) => {
+                vibesql_executor::ViewExecutor::execute_create_view(&create_view_stmt, &mut self.db)
+                    .map(|_msg| DBOutput::StatementComplete(0))
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))
+            }
+            vibesql_ast::Statement::DropView(drop_view_stmt) => {
+                vibesql_executor::ViewExecutor::execute_drop_view(&drop_view_stmt, &mut self.db)
+                    .map(|_msg| DBOutput::StatementComplete(0))
+                    .map_err(|e| TestError(format!("Execution error: {:?}", e)))
+            }
             vibesql_ast::Statement::TruncateTable(_)
             | vibesql_ast::Statement::ShowTables(_)
             | vibesql_ast::Statement::ShowDatabases(_)
@@ -297,8 +307,6 @@ impl NistMemSqlDB {
             | vibesql_ast::Statement::DropCharacterSet(_)
             | vibesql_ast::Statement::CreateTranslation(_)
             | vibesql_ast::Statement::DropTranslation(_)
-            | vibesql_ast::Statement::CreateView(_)
-            | vibesql_ast::Statement::DropView(_)
             | vibesql_ast::Statement::DeclareCursor(_)
             | vibesql_ast::Statement::OpenCursor(_)
             | vibesql_ast::Statement::Fetch(_)

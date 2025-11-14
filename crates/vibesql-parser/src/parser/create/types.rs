@@ -368,6 +368,41 @@ impl Parser {
 
                 Ok(vibesql_types::DataType::Character { length })
             }
+            "NVARCHAR" => {
+                // NVARCHAR is SQL Server/MySQL alias for NCHAR VARYING
+                // Both map to VARCHAR internally (variable-length national character)
+                // This is a convenience alias that behaves identically to NCHAR VARYING
+                let max_length = if self.peek() == &Token::LParen {
+                    self.advance();
+                    let len = match self.peek() {
+                        Token::Number(n) => {
+                            let parsed = n.parse::<usize>().map_err(|_| ParseError {
+                                message: "Invalid NVARCHAR length".to_string(),
+                            })?;
+                            self.advance();
+                            Some(parsed)
+                        }
+                        _ => {
+                            return Err(ParseError {
+                                message: "Expected number after NVARCHAR(".to_string(),
+                            })
+                        }
+                    };
+
+                    // Check for CHARACTERS or OCTETS modifier
+                    if self.try_consume_keyword(Keyword::Characters)
+                        || self.try_consume_keyword(Keyword::Octets)
+                    {
+                        // Modifier consumed, continue
+                    }
+
+                    self.expect_token(Token::RParen)?;
+                    len
+                } else {
+                    None // No length specified, use default
+                };
+                Ok(vibesql_types::DataType::Varchar { max_length })
+            }
             "TEXT" => {
                 // TEXT is SQLite-style unlimited VARCHAR
                 // Maps to VARCHAR without length constraint (unlimited)
@@ -435,6 +470,106 @@ impl Parser {
                 }
 
                 Ok(vibesql_types::DataType::UserDefined { type_name: type_upper })
+            }
+            "NATIONAL" => {
+                // NATIONAL VARCHAR, NATIONAL CHARACTER, NATIONAL CHAR
+                // These are SQL standard national character types for Unicode data
+                // NATIONAL VARCHAR(n) -> maps to NVARCHAR(n) -> VARCHAR(n)
+                // NATIONAL CHARACTER(n) -> maps to NCHAR(n) -> CHAR(n)
+                // NATIONAL CHAR(n) -> maps to NCHAR(n) -> CHAR(n)
+
+                // Look ahead to determine which national type follows
+                let next = match self.peek() {
+                    Token::Identifier(word) => word.to_uppercase(),
+                    Token::Keyword(Keyword::Character) => "CHARACTER".to_string(),
+                    _ => {
+                        return Err(ParseError {
+                            message: "Expected VARCHAR, CHARACTER, or CHAR after NATIONAL".to_string(),
+                        })
+                    }
+                };
+
+                match next.as_str() {
+                    "VARCHAR" => {
+                        self.advance(); // consume VARCHAR
+
+                        // Parse as NVARCHAR - same logic as lines 371-405
+                        let max_length = if self.peek() == &Token::LParen {
+                            self.advance();
+                            let len = match self.peek() {
+                                Token::Number(n) => {
+                                    let parsed = n.parse::<usize>().map_err(|_| ParseError {
+                                        message: "Invalid NATIONAL VARCHAR length".to_string(),
+                                    })?;
+                                    self.advance();
+                                    Some(parsed)
+                                }
+                                _ => {
+                                    return Err(ParseError {
+                                        message: "Expected number after NATIONAL VARCHAR(".to_string(),
+                                    })
+                                }
+                            };
+
+                            // Check for CHARACTERS or OCTETS modifier
+                            if self.try_consume_keyword(Keyword::Characters)
+                                || self.try_consume_keyword(Keyword::Octets)
+                            {
+                                // Modifier consumed, continue
+                            }
+
+                            self.expect_token(Token::RParen)?;
+                            len
+                        } else {
+                            None // No length specified, use default
+                        };
+                        Ok(vibesql_types::DataType::Varchar { max_length })
+                    }
+                    "CHARACTER" | "CHAR" => {
+                        self.advance(); // consume CHARACTER or CHAR
+
+                        // Parse as NCHAR (fixed-length) - same logic as lines 337-370
+                        let length = if matches!(self.peek(), Token::LParen) {
+                            self.advance(); // consume (
+                            let len = match self.peek() {
+                                Token::Number(n) => {
+                                    let parsed = n.parse::<usize>().map_err(|_| ParseError {
+                                        message: "Invalid NATIONAL CHARACTER length".to_string(),
+                                    })?;
+                                    self.advance();
+                                    parsed
+                                }
+                                _ => {
+                                    return Err(ParseError {
+                                        message: "Expected number after NATIONAL CHARACTER(".to_string(),
+                                    })
+                                }
+                            };
+
+                            // Check for CHARACTERS or OCTETS modifier
+                            if self.try_consume_keyword(Keyword::Characters)
+                                || self.try_consume_keyword(Keyword::Octets)
+                            {
+                                // Modifier consumed, continue
+                            }
+
+                            self.expect_token(Token::RParen)?;
+                            len
+                        } else {
+                            1 // Default length is 1 per SQL standard
+                        };
+
+                        Ok(vibesql_types::DataType::Character { length })
+                    }
+                    _ => {
+                        Err(ParseError {
+                            message: format!(
+                                "Expected VARCHAR, CHARACTER, or CHAR after NATIONAL, got: {}",
+                                next
+                            ),
+                        })
+                    }
+                }
             }
             _ => {
                 // Check if this is a known non-standard type that we should support

@@ -111,14 +111,14 @@ pub fn mod_fn(args: &[SqlValue]) -> Result<SqlValue, ExecutorError> {
 
         (SqlValue::Integer(x), SqlValue::Integer(y)) => {
             if *y == 0 {
-                return Err(ExecutorError::DivisionByZero);
+                return Ok(SqlValue::Null);
             }
             Ok(SqlValue::Integer(x % y))
         }
 
         (SqlValue::Float(x), SqlValue::Float(y)) | (SqlValue::Real(x), SqlValue::Real(y)) => {
             if *y == 0.0 {
-                return Err(ExecutorError::DivisionByZero);
+                return Ok(SqlValue::Null);
             }
             Ok(SqlValue::Float(x % y))
         }
