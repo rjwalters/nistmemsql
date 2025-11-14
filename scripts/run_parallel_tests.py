@@ -126,7 +126,7 @@ def partition_test_files(test_files: List[str], num_workers: int) -> List[List[s
     return partitions
 
 
-def run_worker(worker_id: int, test_files: List[str], time_budget: int, repo_root: Path) -> Tuple[int, Optional[Dict]]:
+def run_worker(worker_id: int, test_files: List[str], time_budget: int, repo_root: Path, release_mode: bool = True) -> Tuple[int, Optional[Dict]]:
     """
     Run a single worker process to test its partition of files.
 
@@ -135,6 +135,7 @@ def run_worker(worker_id: int, test_files: List[str], time_budget: int, repo_roo
         test_files: List of test files for this worker
         time_budget: Time budget in seconds
         repo_root: Repository root directory
+        release_mode: Whether to use release binary (default: True for performance)
 
     Returns:
         (worker_id, results_dict) or (worker_id, None) on failure
@@ -153,8 +154,9 @@ def run_worker(worker_id: int, test_files: List[str], time_budget: int, repo_roo
     env["SQLLOGICTEST_TIME_BUDGET"] = str(time_budget)
 
     # Find the test binary (built with --no-run earlier)
-    # It's in target/debug/deps/sqllogictest_suite-<hash>
-    test_binary_pattern = repo_root / "target" / "debug" / "deps" / "sqllogictest_suite-*"
+    # Location depends on build mode (release is 10-15x faster)
+    build_type = "release" if release_mode else "debug"
+    test_binary_pattern = repo_root / "target" / build_type / "deps" / "sqllogictest_suite-*"
     import glob as glob_module
     test_binaries = sorted(glob_module.glob(str(test_binary_pattern)), key=os.path.getmtime, reverse=True)
 
@@ -163,6 +165,8 @@ def run_worker(worker_id: int, test_files: List[str], time_budget: int, repo_roo
 
     if not test_binaries:
         print(f"[Worker {worker_id}] ERROR: Test binary not found at {test_binary_pattern}", flush=True)
+        print(f"[Worker {worker_id}] ERROR: Expected binary in target/{build_type}/deps/", flush=True)
+        print(f"[Worker {worker_id}] ERROR: Build may have failed or binary was not created", flush=True)
         return (worker_id, None)
 
     test_binary = test_binaries[0]
@@ -322,7 +326,7 @@ def merge_worker_results(worker_results: List[Tuple[int, Optional[Dict]]]) -> Di
     return cumulative
 
 
-def run_parallel_tests(num_workers: int, time_budget: int, repo_root: Path) -> bool:
+def run_parallel_tests(num_workers: int, time_budget: int, repo_root: Path, release_mode: bool = True) -> bool:
     """
     Run SQLLogicTest suite in parallel across multiple workers.
 
@@ -330,28 +334,61 @@ def run_parallel_tests(num_workers: int, time_budget: int, repo_root: Path) -> b
         num_workers: Number of worker processes to spawn
         time_budget: Time budget in seconds per worker
         repo_root: Repository root directory
+        release_mode: Whether to build in release mode (default: True for 10-15x speedup)
 
     Returns:
         True if successful, False otherwise
     """
+    build_type = "release" if release_mode else "debug"
+
     print(f"\n=== Parallel SQLLogicTest Runner ===")
     print(f"Workers: {num_workers}")
     print(f"Time budget: {time_budget}s per worker")
+    print(f"Build mode: {build_type}")
     print()
 
     # Build the test binary first to avoid cargo lock contention
-    print("Building test binary...")
+    # IMPORTANT: Use --release for 10-15x performance improvement
+    print(f"Building test binary ({'release mode - this may take 30-60s' if release_mode else 'debug mode - faster build, slower tests'})...")
     build_cmd = [
         "cargo", "test",
         "--package", "vibesql",
         "--test", "sqllogictest_suite",
         "--no-run"
     ]
+    if release_mode:
+        build_cmd.append("--release")
+
     result = subprocess.run(build_cmd, cwd=repo_root, capture_output=True, text=True)
     if result.returncode != 0:
-        print(f"Build failed: {result.stderr}", file=sys.stderr)
+        print(f"❌ Build failed!", file=sys.stderr)
+        print(f"\nBuild command: {' '.join(build_cmd)}", file=sys.stderr)
+        print(f"\nStderr:\n{result.stderr}", file=sys.stderr)
+        print(f"\nStdout:\n{result.stdout}", file=sys.stderr)
         return False
-    print("✓ Test binary built")
+    print(f"✓ Test binary built in {build_type} mode")
+
+    # Verify binary exists
+    binary_pattern = repo_root / "target" / build_type / "deps" / "sqllogictest_suite-*"
+    import glob as glob_module
+    test_binaries = [b for b in glob_module.glob(str(binary_pattern)) if os.access(b, os.X_OK) and not b.endswith('.d')]
+
+    if not test_binaries:
+        print(f"❌ ERROR: Test binary not found after build!", file=sys.stderr)
+        print(f"Expected at: {binary_pattern}", file=sys.stderr)
+        print(f"\nDirectory listing:", file=sys.stderr)
+        deps_dir = repo_root / "target" / build_type / "deps"
+        if deps_dir.exists():
+            sqllogictest_files = list(deps_dir.glob("sqllogictest_suite*"))
+            print(f"Found {len(sqllogictest_files)} sqllogictest_suite files:", file=sys.stderr)
+            for f in sqllogictest_files:
+                executable = "✓" if os.access(f, os.X_OK) else "✗"
+                print(f"  {executable} {f.name}", file=sys.stderr)
+        else:
+            print(f"Directory doesn't exist: {deps_dir}", file=sys.stderr)
+        return False
+
+    print(f"✓ Found test binary: {Path(test_binaries[0]).name}")
     print()
 
     # Discover all test files
@@ -380,7 +417,7 @@ def run_parallel_tests(num_workers: int, time_budget: int, repo_root: Path) -> b
     with ThreadPoolExecutor(max_workers=num_workers) as executor:
         # Submit all workers
         futures = {
-            executor.submit(run_worker, i, partition, time_budget, repo_root): i
+            executor.submit(run_worker, i, partition, time_budget, repo_root, release_mode): i
             for i, partition in enumerate(partitions)
         }
 
@@ -444,6 +481,11 @@ def main():
         required=True,
         help="Time budget in seconds per worker",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Use debug build instead of release (faster build, but 10-15x slower tests)",
+    )
 
     args = parser.parse_args()
 
@@ -463,8 +505,9 @@ def main():
         print(f"Error: {e}", file=sys.stderr)
         return 1
 
-    # Run parallel tests
-    success = run_parallel_tests(args.workers, args.time_budget, repo_root)
+    # Run parallel tests (default to release mode for performance)
+    release_mode = not args.debug
+    success = run_parallel_tests(args.workers, args.time_budget, repo_root, release_mode)
 
     return 0 if success else 1
 
