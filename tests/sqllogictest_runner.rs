@@ -287,6 +287,7 @@ impl NistMemSqlDB {
             | vibesql_ast::Statement::RollbackToSavepoint(_)
             | vibesql_ast::Statement::ReleaseSavepoint(_)
             | vibesql_ast::Statement::SetTransaction(_)
+            | vibesql_ast::Statement::SetVariable(_)
             | vibesql_ast::Statement::CreateSequence(_)
             | vibesql_ast::Statement::DropSequence(_)
             | vibesql_ast::Statement::AlterSequence(_)
