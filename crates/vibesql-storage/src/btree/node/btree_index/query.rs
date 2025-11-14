@@ -129,7 +129,7 @@ impl BTreeIndex {
                 // Check if we're past the end key
                 if let Some(end) = end_key {
                     let cmp = key.cmp(end);
-                    if cmp > std::cmp::Ordering::Equal {
+                    if cmp == std::cmp::Ordering::Greater {
                         // Past end key, stop
                         return Ok(result);
                     }
@@ -142,7 +142,7 @@ impl BTreeIndex {
                 // Check if we're before the start key
                 if let Some(start) = start_key {
                     let cmp = key.cmp(start);
-                    if cmp < std::cmp::Ordering::Equal {
+                    if cmp == std::cmp::Ordering::Less {
                         // Before start key, skip
                         continue;
                     }
