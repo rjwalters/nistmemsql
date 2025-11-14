@@ -22,8 +22,8 @@ impl Parser {
 
         match type_upper.as_str() {
             "INTEGER" | "INT" => Ok(vibesql_types::DataType::Integer),
-            "SIGNED" => Ok(vibesql_types::DataType::Integer), /* MySQL-specific: SIGNED is equivalent to */
-            // INTEGER
+            "SIGNED" => Ok(vibesql_types::DataType::Bigint), /* MySQL-specific: SIGNED is equivalent to */
+            // BIGINT (signed 64-bit integer)
             "UNSIGNED" => Ok(vibesql_types::DataType::Unsigned), /* MySQL-specific: UNSIGNED is 64-bit */
             // unsigned integer
             "SMALLINT" => Ok(vibesql_types::DataType::Smallint),
