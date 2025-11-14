@@ -341,7 +341,9 @@ impl IndexManager {
                                 .get_column_index(&col.column_name)
                                 .expect("Index column should exist");
                             let value = &row.values[col_idx];
-                            apply_prefix_truncation(value, col.prefix_length)
+                            let truncated = apply_prefix_truncation(value, col.prefix_length);
+                            // Normalize numeric types for consistent ordering/comparison
+                            crate::database::indexes::index_operations::normalize_for_comparison(&truncated)
                         })
                         .collect();
 
@@ -407,7 +409,9 @@ impl IndexManager {
                                             .get_column_index(&col.column_name)
                                             .expect("Index column should exist");
                                         let value = &row.values[col_idx];
-                                        apply_prefix_truncation(value, col.prefix_length)
+                                        let truncated = apply_prefix_truncation(value, col.prefix_length);
+                                        // Normalize numeric types for consistent ordering/comparison
+                                        crate::database::indexes::index_operations::normalize_for_comparison(&truncated)
                                     })
                                     .collect();
 
@@ -427,7 +431,9 @@ impl IndexManager {
                                             .get_column_index(&col.column_name)
                                             .expect("Index column should exist");
                                         let value = &row.values[col_idx];
-                                        apply_prefix_truncation(value, col.prefix_length)
+                                        let truncated = apply_prefix_truncation(value, col.prefix_length);
+                                        // Normalize numeric types for consistent ordering/comparison
+                                        crate::database::indexes::index_operations::normalize_for_comparison(&truncated)
                                     })
                                     .collect();
                                 sorted_entries.push((key_values, row_index));
