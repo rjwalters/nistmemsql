@@ -12,6 +12,7 @@ fn test_create_select_statement() {
         distinct: false,
         select_list: vec![SelectItem::Wildcard { alias: None }],
         into_table: None,
+        into_variables: None,
         from: None,
         where_clause: None,
         group_by: None,
