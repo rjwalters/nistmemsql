@@ -5,6 +5,81 @@
 
 use crate::{errors::ExecutorError, schema::CombinedSchema};
 
+/// Derive a column name from an expression (simplified version from columns.rs)
+fn derive_column_name_from_expr(expr: &vibesql_ast::Expression) -> String {
+    match expr {
+        vibesql_ast::Expression::ColumnRef { table: _, column } => column.clone(),
+        vibesql_ast::Expression::Function { name, args, character_unit: _ } => {
+            let args_str = if args.is_empty() {
+                "*".to_string()
+            } else {
+                args.iter()
+                    .map(derive_column_name_from_expr)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            };
+            format!("{}({})", name, args_str)
+        }
+        vibesql_ast::Expression::AggregateFunction { name, distinct, args } => {
+            let distinct_str = if *distinct { "DISTINCT " } else { "" };
+            let args_str = if args.is_empty() {
+                "*".to_string()
+            } else {
+                args.iter()
+                    .map(derive_column_name_from_expr)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            };
+            format!("{}({}{})", name, distinct_str, args_str)
+        }
+        vibesql_ast::Expression::BinaryOp { left, op, right } => {
+            format!(
+                "({} {} {})",
+                derive_column_name_from_expr(left),
+                match op {
+                    vibesql_ast::BinaryOperator::Plus => "+",
+                    vibesql_ast::BinaryOperator::Minus => "-",
+                    vibesql_ast::BinaryOperator::Multiply => "*",
+                    vibesql_ast::BinaryOperator::Divide => "/",
+                    vibesql_ast::BinaryOperator::Equal => "=",
+                    vibesql_ast::BinaryOperator::NotEqual => "!=",
+                    vibesql_ast::BinaryOperator::LessThan => "<",
+                    vibesql_ast::BinaryOperator::LessThanOrEqual => "<=",
+                    vibesql_ast::BinaryOperator::GreaterThan => ">",
+                    vibesql_ast::BinaryOperator::GreaterThanOrEqual => ">=",
+                    vibesql_ast::BinaryOperator::And => "AND",
+                    vibesql_ast::BinaryOperator::Or => "OR",
+                    vibesql_ast::BinaryOperator::Concat => "||",
+                    _ => "?",
+                },
+                derive_column_name_from_expr(right)
+            )
+        }
+        vibesql_ast::Expression::Literal(val) => {
+            match val {
+                vibesql_types::SqlValue::Integer(n) => n.to_string(),
+                vibesql_types::SqlValue::Smallint(n) => n.to_string(),
+                vibesql_types::SqlValue::Bigint(n) => n.to_string(),
+                vibesql_types::SqlValue::Unsigned(n) => n.to_string(),
+                vibesql_types::SqlValue::Double(f) => f.to_string(),
+                vibesql_types::SqlValue::Float(f) => f.to_string(),
+                vibesql_types::SqlValue::Real(f) => f.to_string(),
+                vibesql_types::SqlValue::Numeric(f) => f.to_string(),
+                vibesql_types::SqlValue::Varchar(s) | vibesql_types::SqlValue::Character(s) => {
+                    format!("'{}'", s)
+                }
+                vibesql_types::SqlValue::Boolean(b) => b.to_string(),
+                vibesql_types::SqlValue::Date(d) => format!("'{}'", d),
+                vibesql_types::SqlValue::Time(t) => format!("'{}'", t),
+                vibesql_types::SqlValue::Timestamp(ts) => format!("'{}'", ts),
+                vibesql_types::SqlValue::Interval(i) => format!("INTERVAL '{}'", i),
+                vibesql_types::SqlValue::Null => "NULL".to_string(),
+            }
+        }
+        _ => "?column?".to_string(),
+    }
+}
+
 /// Execute a derived table (subquery with alias)
 pub(crate) fn execute_derived_table<F>(
     query: &vibesql_ast::SelectStmt,
@@ -38,12 +113,12 @@ where
                     // No rows, no columns from wildcard
                 }
             }
-            vibesql_ast::SelectItem::Expression { expr: _, alias: col_alias } => {
-                // Use alias if provided, otherwise generate column name
+            vibesql_ast::SelectItem::Expression { expr, alias: col_alias } => {
+                // Use alias if provided, otherwise derive from expression
                 let col_name = if let Some(a) = col_alias {
                     a.clone()
                 } else {
-                    format!("column{}", col_index + 1)
+                    derive_column_name_from_expr(expr)
                 };
                 column_names.push(col_name);
 

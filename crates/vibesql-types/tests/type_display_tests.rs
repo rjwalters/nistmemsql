@@ -49,18 +49,18 @@ fn test_bigint_display() {
 #[test]
 fn test_numeric_display() {
     let value = SqlValue::Numeric(123.45);
-    assert_eq!(format!("{}", value), "123.45");
+    assert_eq!(format!("{}", value), "123.450");
 }
 
 #[test]
 fn test_numeric_whole_number_display() {
-    // Whole numbers should display without decimals to match MySQL formatting
+    // Whole numbers should display with 3 decimal places for SQLLogicTest compatibility
     let value = SqlValue::Numeric(223.0);
-    assert_eq!(format!("{}", value), "223");
+    assert_eq!(format!("{}", value), "223.000");
 
     // Negative whole numbers
     let value = SqlValue::Numeric(-42.0);
-    assert_eq!(format!("{}", value), "-42");
+    assert_eq!(format!("{}", value), "-42.000");
 }
 
 #[test]

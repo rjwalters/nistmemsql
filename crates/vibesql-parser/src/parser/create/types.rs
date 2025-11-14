@@ -291,6 +291,83 @@ impl Parser {
 
                 Ok(vibesql_types::DataType::Character { length })
             }
+            "NCHAR" => {
+                // NCHAR is SQL standard national character type
+                // NCHAR(n) maps to CHAR(n)
+                // NCHAR VARYING(n) maps to VARCHAR(n)
+                // Both are for Unicode/national character sets
+
+                // Check for VARYING keyword (NCHAR VARYING = VARCHAR)
+                let is_varying = self.try_consume_keyword(Keyword::Varying);
+
+                if is_varying {
+                    // Parse as VARCHAR (NCHAR VARYING)
+                    let max_length = if self.peek() == &Token::LParen {
+                        self.advance();
+                        let len = match self.peek() {
+                            Token::Number(n) => {
+                                let parsed = n.parse::<usize>().map_err(|_| ParseError {
+                                    message: "Invalid NCHAR VARYING length".to_string(),
+                                })?;
+                                self.advance();
+                                Some(parsed)
+                            }
+                            _ => {
+                                return Err(ParseError {
+                                    message: "Expected number after NCHAR VARYING(".to_string(),
+                                })
+                            }
+                        };
+
+                        // Check for CHARACTERS or OCTETS modifier
+                        if self.try_consume_keyword(Keyword::Characters)
+                            || self.try_consume_keyword(Keyword::Octets)
+                        {
+                            // Modifier consumed, continue
+                        }
+
+                        self.expect_token(Token::RParen)?;
+                        len
+                    } else {
+                        None // No length specified, use default
+                    };
+                    return Ok(vibesql_types::DataType::Varchar { max_length });
+                }
+
+                // Otherwise parse as NCHAR (fixed-length)
+                // Length is optional - if not specified, defaults to 1 per SQL standard
+                let length = if matches!(self.peek(), Token::LParen) {
+                    self.advance(); // consume (
+                    let len = match self.peek() {
+                        Token::Number(n) => {
+                            let parsed = n.parse::<usize>().map_err(|_| ParseError {
+                                message: "Invalid NCHAR length".to_string(),
+                            })?;
+                            self.advance();
+                            parsed
+                        }
+                        _ => {
+                            return Err(ParseError {
+                                message: "Expected number after NCHAR(".to_string(),
+                            })
+                        }
+                    };
+
+                    // Check for CHARACTERS or OCTETS modifier
+                    if self.try_consume_keyword(Keyword::Characters)
+                        || self.try_consume_keyword(Keyword::Octets)
+                    {
+                        // Modifier consumed, continue
+                    }
+
+                    self.expect_token(Token::RParen)?;
+                    len
+                } else {
+                    1 // Default length is 1 per SQL standard
+                };
+
+                Ok(vibesql_types::DataType::Character { length })
+            }
             "TEXT" => {
                 // TEXT is SQLite-style unlimited VARCHAR
                 // Maps to VARCHAR without length constraint (unlimited)
