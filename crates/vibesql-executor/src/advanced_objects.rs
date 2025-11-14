@@ -157,9 +157,21 @@ pub fn execute_drop_translation(
 pub fn execute_create_view(stmt: &CreateViewStmt, db: &mut Database) -> Result<(), ExecutorError> {
     use vibesql_catalog::ViewDefinition;
 
+    // If no explicit column list is provided, derive column names from the query
+    // This ensures views with SELECT * preserve original column names
+    let columns = if stmt.columns.is_none() {
+        // Execute the query once to derive column names
+        use crate::select::SelectExecutor;
+        let executor = SelectExecutor::new(db);
+        let result = executor.execute_with_columns(&stmt.query)?;
+        Some(result.columns)
+    } else {
+        stmt.columns.clone()
+    };
+
     let view = ViewDefinition::new(
         stmt.view_name.clone(),
-        stmt.columns.clone(),
+        columns,
         (*stmt.query).clone(),
         stmt.with_check_option,
     );
