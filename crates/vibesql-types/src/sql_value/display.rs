@@ -11,8 +11,8 @@ impl fmt::Display for SqlValue {
             SqlValue::Smallint(i) => write!(f, "{}", i),
             SqlValue::Bigint(i) => write!(f, "{}", i),
             SqlValue::Unsigned(u) => write!(f, "{}", u),
-            // Format Numeric - match MySQL formatting
-            // MySQL displays whole numbers from integer arithmetic without decimal places
+            // Format Numeric - SQLLogicTest compatibility
+            // SQLLogicTest expects numeric results with 3 decimal places for consistency
             SqlValue::Numeric(n) => {
                 if n.is_nan() {
                     write!(f, "NaN")
@@ -22,13 +22,10 @@ impl fmt::Display for SqlValue {
                     } else {
                         write!(f, "-Infinity")
                     }
-                } else if n.fract() == 0.0 && n.abs() < 1e15 {
-                    // Whole number - display as integer (MySQL behavior for integer arithmetic)
-                    // Only for reasonable range to avoid scientific notation
-                    write!(f, "{:.0}", n)
                 } else {
-                    // Has fractional part - use default formatting (no trailing zeros)
-                    write!(f, "{}", n)
+                    // Always show 3 decimal places for SQLLogicTest compatibility
+                    // This ensures results like "48.000" instead of "48"
+                    write!(f, "{:.3}", n)
                 }
             }
             SqlValue::Float(n) => write!(f, "{}", n),
@@ -53,19 +50,19 @@ mod tests {
 
     #[test]
     fn test_numeric_display_whole_numbers() {
-        // MySQL compatibility: whole numbers display without decimals
-        assert_eq!(format!("{}", SqlValue::Numeric(32.0)), "32");
-        assert_eq!(format!("{}", SqlValue::Numeric(-4373.0)), "-4373");
-        assert_eq!(format!("{}", SqlValue::Numeric(0.0)), "0");
-        assert_eq!(format!("{}", SqlValue::Numeric(164.0)), "164");
+        // SQLLogicTest compatibility: whole numbers display with 3 decimal places
+        assert_eq!(format!("{}", SqlValue::Numeric(32.0)), "32.000");
+        assert_eq!(format!("{}", SqlValue::Numeric(-4373.0)), "-4373.000");
+        assert_eq!(format!("{}", SqlValue::Numeric(0.0)), "0.000");
+        assert_eq!(format!("{}", SqlValue::Numeric(164.0)), "164.000");
     }
 
     #[test]
     fn test_numeric_display_fractional() {
-        // Fractional values display with decimals
-        assert_eq!(format!("{}", SqlValue::Numeric(32.5)), "32.5");
+        // Fractional values display with 3 decimal places (rounded if needed)
+        assert_eq!(format!("{}", SqlValue::Numeric(32.5)), "32.500");
         assert_eq!(format!("{}", SqlValue::Numeric(-4373.123)), "-4373.123");
-        assert_eq!(format!("{}", SqlValue::Numeric(0.5)), "0.5");
+        assert_eq!(format!("{}", SqlValue::Numeric(0.5)), "0.500");
     }
 
     #[test]
