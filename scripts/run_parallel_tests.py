@@ -35,7 +35,7 @@ import os
 import subprocess
 import sys
 import time
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -143,7 +143,8 @@ def run_worker(worker_id: int, test_files: List[str], time_budget: int, repo_roo
         print(f"[Worker {worker_id}] No files assigned, skipping")
         return (worker_id, None)
 
-    print(f"[Worker {worker_id}] Starting with {len(test_files)} files")
+    print(f"[Worker {worker_id}] Starting with {len(test_files)} files", flush=True)
+    print(f"[Worker {worker_id}] First file: {test_files[0] if test_files else 'none'}", flush=True)
 
     # Set environment variables for this worker
     env = os.environ.copy()
@@ -151,38 +152,51 @@ def run_worker(worker_id: int, test_files: List[str], time_budget: int, repo_roo
     env["SQLLOGICTEST_FILES"] = ",".join(test_files)
     env["SQLLOGICTEST_TIME_BUDGET"] = str(time_budget)
 
-    # Run cargo test for this worker
-    # The Rust test suite detects SQLLOGICTEST_WORKER_ID and outputs to worker-specific file
-    cmd = [
-        "cargo", "test",
-        "--package", "vibesql",
-        "--test", "sqllogictest_suite",
-        "run_sqllogictest_suite",
-        "--",
-        "--nocapture"
-    ]
+    # Find the test binary (built with --no-run earlier)
+    # It's in target/debug/deps/sqllogictest_suite-<hash>
+    test_binary_pattern = repo_root / "target" / "debug" / "deps" / "sqllogictest_suite-*"
+    import glob as glob_module
+    test_binaries = sorted(glob_module.glob(str(test_binary_pattern)), key=os.path.getmtime, reverse=True)
+
+    # Filter to executables only (no .d files)
+    test_binaries = [b for b in test_binaries if os.access(b, os.X_OK) and not b.endswith('.d')]
+
+    if not test_binaries:
+        print(f"[Worker {worker_id}] ERROR: Test binary not found at {test_binary_pattern}", flush=True)
+        return (worker_id, None)
+
+    test_binary = test_binaries[0]
+
+    # Run the test binary directly (not through cargo test)
+    cmd = [test_binary]
+
+    print(f"[Worker {worker_id}] Running binary: {test_binary}", flush=True)
 
     try:
         start_time = time.time()
 
-        result = subprocess.run(
-            cmd,
-            env=env,
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            timeout=time_budget + 60  # Allow 60s grace period for startup/shutdown
-        )
+        # Redirect stdout/stderr to files to avoid blocking
+        stdout_file = repo_root / "target" / f"worker_{worker_id}_stdout.log"
+        stderr_file = repo_root / "target" / f"worker_{worker_id}_stderr.log"
+
+        with open(stdout_file, 'w') as stdout_f, open(stderr_file, 'w') as stderr_f:
+            result = subprocess.run(
+                cmd,
+                env=env,
+                cwd=repo_root,
+                stdout=stdout_f,
+                stderr=stderr_f,
+                timeout=time_budget + 60  # Allow 60s grace period for startup/shutdown
+            )
 
         elapsed = time.time() - start_time
 
         # Check if test succeeded
         if result.returncode != 0:
-            print(f"[Worker {worker_id}] Failed (exit code {result.returncode})")
-            print(f"[Worker {worker_id}] stderr: {result.stderr[:500]}")
+            print(f"[Worker {worker_id}] Failed (exit code {result.returncode}) after {elapsed:.1f}s", flush=True)
             return (worker_id, None)
 
-        print(f"[Worker {worker_id}] Completed in {elapsed:.1f}s")
+        print(f"[Worker {worker_id}] Completed successfully in {elapsed:.1f}s", flush=True)
 
         # Read worker results from JSON file
         results_file = repo_root / "target" / f"sqllogictest_results_worker_{worker_id}.json"
@@ -196,11 +210,13 @@ def run_worker(worker_id: int, test_files: List[str], time_budget: int, repo_roo
 
         return (worker_id, results)
 
-    except subprocess.TimeoutExpired:
-        print(f"[Worker {worker_id}] Timeout after {time_budget}s")
+    except subprocess.TimeoutExpired as e:
+        print(f"[Worker {worker_id}] TIMEOUT EXPIRED: timeout was {e.timeout}s, cmd was {e.cmd}", flush=True)
         return (worker_id, None)
     except Exception as e:
-        print(f"[Worker {worker_id}] Error: {e}")
+        print(f"[Worker {worker_id}] UNEXPECTED ERROR: {type(e).__name__}: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
         return (worker_id, None)
 
 
@@ -323,6 +339,21 @@ def run_parallel_tests(num_workers: int, time_budget: int, repo_root: Path) -> b
     print(f"Time budget: {time_budget}s per worker")
     print()
 
+    # Build the test binary first to avoid cargo lock contention
+    print("Building test binary...")
+    build_cmd = [
+        "cargo", "test",
+        "--package", "vibesql",
+        "--test", "sqllogictest_suite",
+        "--no-run"
+    ]
+    result = subprocess.run(build_cmd, cwd=repo_root, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"Build failed: {result.stderr}", file=sys.stderr)
+        return False
+    print("✓ Test binary built")
+    print()
+
     # Discover all test files
     print("Discovering test files...")
     try:
@@ -346,7 +377,7 @@ def run_parallel_tests(num_workers: int, time_budget: int, repo_root: Path) -> b
     print("Starting workers...")
     worker_results = []
 
-    with ProcessPoolExecutor(max_workers=num_workers) as executor:
+    with ThreadPoolExecutor(max_workers=num_workers) as executor:
         # Submit all workers
         futures = {
             executor.submit(run_worker, i, partition, time_budget, repo_root): i
