@@ -124,7 +124,14 @@ impl super::super::Catalog {
     fn does_from_clause_reference_table(&self, from: &vibesql_ast::FromClause, table_name: &str) -> bool {
         use vibesql_ast::FromClause;
         match from {
-            FromClause::Table { name, .. } => name == table_name,
+            FromClause::Table { name, .. } => {
+                // Respect case sensitivity setting when comparing table names
+                if self.case_sensitive_identifiers {
+                    name == table_name
+                } else {
+                    name.to_uppercase() == table_name.to_uppercase()
+                }
+            }
             FromClause::Join { left, right, .. } => {
                 self.does_from_clause_reference_table(left, table_name)
                     || self.does_from_clause_reference_table(right, table_name)
