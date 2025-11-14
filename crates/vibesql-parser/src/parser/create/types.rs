@@ -15,6 +15,7 @@ impl Parser {
             Token::Keyword(Keyword::Boolean) => "BOOLEAN".to_string(),
             // MySQL-specific types that are keywords
             Token::Keyword(Keyword::Set) => "SET".to_string(),
+            Token::Keyword(Keyword::Year) => "YEAR".to_string(),
             _ => return Err(ParseError { message: "Expected data type".to_string() }),
         };
         self.advance();
@@ -132,9 +133,21 @@ impl Parser {
             }
             "DATETIME" => {
                 // MySQL/SQLite DATETIME type - treated as alias for TIMESTAMP
-                // Parse optional WITH TIME ZONE or WITHOUT TIME ZONE
+                //
+                // DESIGN NOTE: DATETIME is semantically equivalent to TIMESTAMP and is
+                // internally represented as DataType::Timestamp. This means:
+                // - DATETIME and TIMESTAMP are functionally identical at runtime
+                // - During persistence (save/load), DATETIME becomes TIMESTAMP
+                // - This behavior is intentional for simplicity and consistency
+                //
+                // See issue #1626 for discussion of alternatives.
                 let with_timezone = self.parse_timezone_modifier()?;
                 Ok(vibesql_types::DataType::Timestamp { with_timezone })
+            }
+            "YEAR" => {
+                // MySQL YEAR type - stores years from 1901-2155
+                // Treated as a user-defined type for compatibility
+                Ok(vibesql_types::DataType::UserDefined { type_name: "YEAR".to_string() })
             }
             "INTERVAL" => {
                 // Parse INTERVAL start_field [TO end_field]
@@ -346,6 +359,8 @@ impl Parser {
             "GEOMETRY" | "GEOMETRYCOLLECTION" |
             // MySQL numeric types
             "TINYINT" | "MEDIUMINT" | "SERIAL" |
+            // MySQL temporal types
+            "YEAR" |
             // MySQL string types
             "TINYTEXT" | "MEDIUMTEXT" | "LONGTEXT" |
             "BLOB" | "TINYBLOB" | "MEDIUMBLOB" | "LONGBLOB" |

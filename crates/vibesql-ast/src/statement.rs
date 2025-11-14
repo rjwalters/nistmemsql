@@ -13,8 +13,9 @@ use crate::{
     DropTranslationStmt, DropTriggerStmt, DropTypeStmt, DropViewStmt, FetchStmt, GrantStmt,
     InsertStmt, OpenCursorStmt, ReindexStmt, ReleaseSavepointStmt, RevokeStmt, RollbackStmt,
     RollbackToSavepointStmt, SavepointStmt, SelectStmt, SetCatalogStmt, SetNamesStmt,
-    SetSchemaStmt, SetTimeZoneStmt, SetTransactionStmt, ShowColumnsStmt, ShowCreateTableStmt,
-    ShowDatabasesStmt, ShowIndexStmt, ShowTablesStmt, TruncateTableStmt, UpdateStmt,
+    SetSchemaStmt, SetTimeZoneStmt, SetTransactionStmt, SetVariableStmt, ShowColumnsStmt,
+    ShowCreateTableStmt, ShowDatabasesStmt, ShowIndexStmt, ShowTablesStmt, TruncateTableStmt,
+    UpdateStmt,
 };
 
 // ============================================================================
@@ -39,6 +40,7 @@ pub enum Statement {
     SetNames(SetNamesStmt),
     SetTimeZone(SetTimeZoneStmt),
     SetTransaction(SetTransactionStmt),
+    SetVariable(SetVariableStmt),
     CreateRole(CreateRoleStmt),
     DropRole(DropRoleStmt),
     BeginTransaction(BeginStmt),

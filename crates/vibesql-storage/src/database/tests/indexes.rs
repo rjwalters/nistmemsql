@@ -149,6 +149,7 @@ fn test_disk_backed_index_creation_with_bulk_load() {
         vec![vibesql_ast::IndexColumn {
             column_name: "id".to_string(),
             direction: OrderDirection::Asc,
+            prefix_length: None,
         }],
     );
 
@@ -199,6 +200,7 @@ fn test_in_memory_index_for_small_tables() {
         vec![vibesql_ast::IndexColumn {
             column_name: "value".to_string(),
             direction: OrderDirection::Asc,
+            prefix_length: None,
         }],
     );
 
@@ -257,6 +259,7 @@ fn test_budget_enforcement_with_spill_policy() {
         vec![vibesql_ast::IndexColumn {
             column_name: "value".to_string(),
             direction: OrderDirection::Asc,
+            prefix_length: None,
         }],
     );
     assert!(result1.is_ok());
@@ -271,6 +274,7 @@ fn test_budget_enforcement_with_spill_policy() {
         vec![vibesql_ast::IndexColumn {
             column_name: "value".to_string(),
             direction: OrderDirection::Asc,
+            prefix_length: None,
         }],
     );
     assert!(result2.is_ok());
@@ -320,6 +324,7 @@ fn test_lru_eviction_order() {
         vec![vibesql_ast::IndexColumn {
             column_name: "value".to_string(),
             direction: OrderDirection::Asc,
+            prefix_length: None,
         }],
     ).unwrap();
 
@@ -335,6 +340,7 @@ fn test_lru_eviction_order() {
         vec![vibesql_ast::IndexColumn {
             column_name: "value".to_string(),
             direction: OrderDirection::Asc,
+            prefix_length: None,
         }],
     ).unwrap();
 
@@ -355,6 +361,7 @@ fn test_lru_eviction_order() {
         vec![vibesql_ast::IndexColumn {
             column_name: "value".to_string(),
             direction: OrderDirection::Asc,
+            prefix_length: None,
         }],
     ).unwrap();
 
@@ -401,6 +408,7 @@ fn test_access_tracking() {
         vec![vibesql_ast::IndexColumn {
             column_name: "value".to_string(),
             direction: OrderDirection::Asc,
+            prefix_length: None,
         }],
     ).unwrap();
 
@@ -453,6 +461,7 @@ fn test_resource_cleanup_on_drop() {
         vec![vibesql_ast::IndexColumn {
             column_name: "value".to_string(),
             direction: OrderDirection::Asc,
+            prefix_length: None,
         }],
     ).unwrap();
 
@@ -485,4 +494,265 @@ fn test_database_config_presets() {
     assert_eq!(test_config.memory_budget, 10 * 1024 * 1024);  // 10MB
     assert_eq!(test_config.disk_budget, 100 * 1024 * 1024);  // 100MB
     assert_eq!(test_config.spill_policy, SpillPolicy::SpillToDisk);
+}
+
+#[test]
+fn test_index_scan_after_database_reset() {
+    // Reproduces issue #1618: Index scans returning 0 rows after Database::reset()
+    // This simulates the sqllogictest runner's database pooling behavior
+    use crate::Database;
+    use vibesql_catalog::{ColumnSchema, TableSchema};
+    use vibesql_types::DataType;
+    use vibesql_ast::{IndexColumn, OrderDirection};
+    use crate::Row;
+
+    // Helper function to run a complete test cycle
+    fn run_test_cycle(db: &mut Database, cycle_num: usize) -> Result<(), String> {
+        eprintln!("\n=== Test Cycle {} ===", cycle_num);
+
+        // Create table schema
+        let columns = vec![
+            ColumnSchema::new("pk".to_string(), DataType::Integer, false),
+            ColumnSchema::new("col0".to_string(), DataType::Integer, false),
+        ];
+        let mut table_schema = TableSchema::new("tab1".to_string(), columns);
+        table_schema.primary_key = Some(vec!["pk".to_string()]);
+
+        // Create table (simulates: CREATE TABLE tab1...)
+        db.create_table(table_schema.clone()).unwrap();
+        eprintln!("  Created table 'tab1'");
+
+        // Insert rows into table (simulates: INSERT INTO tab1 VALUES...)
+        let rows = vec![
+            Row { values: vec![SqlValue::Integer(1), SqlValue::Integer(100)] },
+            Row { values: vec![SqlValue::Integer(2), SqlValue::Integer(200)] },
+            Row { values: vec![SqlValue::Integer(3), SqlValue::Integer(300)] },
+            Row { values: vec![SqlValue::Integer(4), SqlValue::Integer(400)] },
+            Row { values: vec![SqlValue::Integer(5), SqlValue::Integer(500)] },
+        ];
+
+        // Get the table and insert rows
+        let table = db.get_table_mut("tab1").unwrap();
+        for row in &rows {
+            table.insert(row.clone()).unwrap();
+        }
+        eprintln!("  Inserted {} rows", rows.len());
+
+        // Create index on col0 (simulates: CREATE INDEX idx_col0 ON tab1(col0))
+        db.create_index(
+            "idx_col0".to_string(),
+            "tab1".to_string(),
+            false,
+            vec![IndexColumn {
+                column_name: "col0".to_string(),
+                direction: OrderDirection::Asc,
+            }],
+        ).unwrap();
+        eprintln!("  Created index 'idx_col0'");
+
+        // Verify index was created and populated
+        assert!(db.index_exists("idx_col0"));
+        let index_data = db.get_index_data("idx_col0").expect("Index should exist");
+
+        // Check that index contains row indices
+        let all_indices: Vec<usize> = match &index_data {
+            crate::database::indexes::IndexData::InMemory { data } => {
+                data.values().flatten().copied().collect()
+            },
+            crate::database::indexes::IndexData::DiskBacked { .. } => {
+                panic!("Expected in-memory index for small table");
+            },
+        };
+        eprintln!("  Index contains {} row references", all_indices.len());
+        assert_eq!(all_indices.len(), 5, "Index should contain 5 row references");
+
+        // Now perform index scan (simulates: SELECT pk FROM tab1 WHERE col0 > 250)
+        // Get table for index scan
+        let table = db.get_table("tab1").expect("Table should exist");
+
+        // Perform range scan on index
+        let matching_row_indices = index_data.range_scan(
+            Some(&SqlValue::Integer(250)),  // col0 > 250
+            None,
+            false,  // exclusive start
+            false,
+        );
+        eprintln!("  Index range scan returned {} row indices", matching_row_indices.len());
+
+        // This should return indices for rows 3, 4, 5 (col0 = 300, 400, 500)
+        if matching_row_indices.len() != 3 {
+            return Err(format!(
+                "Cycle {}: Index scan should find 3 rows with col0 > 250, but found {}",
+                cycle_num,
+                matching_row_indices.len()
+            ));
+        }
+
+        // Fetch actual rows using the indices
+        let all_rows = table.scan();
+        eprintln!("  Table has {} total rows", all_rows.len());
+
+        let fetched_rows: Vec<Row> = matching_row_indices
+            .into_iter()
+            .filter_map(|idx| all_rows.get(idx).cloned())
+            .collect();
+        eprintln!("  Fetched {} rows from table using index", fetched_rows.len());
+
+        // This is the CRITICAL assertion that fails in sqllogictest after reset
+        if fetched_rows.len() != 3 {
+            return Err(format!(
+                "Cycle {}: Should fetch 3 rows from table using index scan, but got {} rows. \
+                 Table has {} total rows. This reproduces issue #1618!",
+                cycle_num,
+                fetched_rows.len(),
+                all_rows.len()
+            ));
+        }
+
+        // Verify the correct rows were returned
+        assert_eq!(fetched_rows[0].values[1], SqlValue::Integer(300));
+        assert_eq!(fetched_rows[1].values[1], SqlValue::Integer(400));
+        assert_eq!(fetched_rows[2].values[1], SqlValue::Integer(500));
+
+        eprintln!("  ✓ Cycle {} PASSED", cycle_num);
+        Ok(())
+    }
+
+    // Simulate sqllogictest thread-local database pooling behavior:
+    // - First test file: uses Database::new()
+    // - Subsequent test files: reuse database after reset()
+
+    let mut db = Database::new();
+
+    // CYCLE 1: First test file (no reset) - this should PASS
+    eprintln!("\n🔄 Running first test file (fresh database)...");
+    run_test_cycle(&mut db, 1).expect("Cycle 1 should pass (fresh database)");
+
+    // CYCLE 2: Second test file (after reset) - this should FAIL and reproduce issue #1618
+    eprintln!("\n🔄 Resetting database (simulating pooling)...");
+    db.reset();
+    eprintln!("🔄 Running second test file (pooled database after reset)...");
+
+    match run_test_cycle(&mut db, 2) {
+        Ok(()) => {
+            eprintln!("\n⚠️  WARNING: Cycle 2 passed! The bug may have been fixed.");
+            eprintln!("    If this test now passes, issue #1618 is resolved.");
+        }
+        Err(e) => {
+            panic!("\n❌ REPRODUCED ISSUE #1618:\n{}\n\nThis demonstrates the database pooling bug where index scans return 0 rows after Database::reset()", e);
+        }
+    }
+}
+
+#[test]
+fn test_thread_local_pool_pattern() {
+    // Test that mimics the EXACT thread-local pooling pattern from db_adapter.rs
+    // This may better reproduce the sqllogictest runner bug
+    use std::cell::RefCell;
+    use crate::Database;
+    use vibesql_catalog::{ColumnSchema, TableSchema};
+    use vibesql_types::{DataType, SqlValue};
+    use vibesql_ast::{IndexColumn, OrderDirection};
+    use crate::Row;
+
+    thread_local! {
+        static TEST_DB_POOL: RefCell<Option<Database>> = RefCell::new(None);
+    }
+
+    fn get_pooled_database() -> Database {
+        TEST_DB_POOL.with(|pool| {
+            let mut pool_ref = pool.borrow_mut();
+            match pool_ref.take() {
+                Some(mut db) => {
+                    eprintln!("  [POOL] Reusing pooled database after reset");
+                    db.reset();
+                    db
+                }
+                None => {
+                    eprintln!("  [POOL] Creating fresh database");
+                    Database::new()
+                }
+            }
+        })
+    }
+
+    fn return_to_pool(db: Database) {
+        TEST_DB_POOL.with(|pool| {
+            let mut pool_ref = pool.borrow_mut();
+            if pool_ref.is_none() {
+                eprintln!("  [POOL] Returning database to pool");
+                *pool_ref = Some(db);
+            }
+        });
+    }
+
+    // Helper to run a test cycle
+    fn run_cycle(cycle_num: usize) {
+        eprintln!("\n=== Cycle {} ===", cycle_num);
+
+        // Get database from pool (mimics NistMemSqlDB::new())
+        let mut db = get_pooled_database();
+
+        // Create table
+        let columns = vec![
+            ColumnSchema::new("pk".to_string(), DataType::Integer, false),
+            ColumnSchema::new("col0".to_string(), DataType::Integer, false),
+        ];
+        let mut table_schema = TableSchema::new("tab1".to_string(), columns);
+        table_schema.primary_key = Some(vec!["pk".to_string()]);
+        db.create_table(table_schema).unwrap();
+
+        // Insert rows
+        let table = db.get_table_mut("tab1").unwrap();
+        for i in 1..=5 {
+            table.insert(Row {
+                values: vec![
+                    SqlValue::Integer(i),
+                    SqlValue::Integer(i * 100),
+                ],
+            }).unwrap();
+        }
+        eprintln!("  Inserted 5 rows");
+
+        // Create index
+        db.create_index(
+            "idx_col0".to_string(),
+            "tab1".to_string(),
+            false,
+            vec![IndexColumn {
+                column_name: "col0".to_string(),
+                direction: OrderDirection::Asc,
+            }],
+        ).unwrap();
+        eprintln!("  Created index");
+
+        // Query using index
+        let index_data = db.get_index_data("idx_col0").unwrap();
+        let matching_indices = index_data.range_scan(
+            Some(&SqlValue::Integer(250)),
+            None,
+            false,
+            false,
+        );
+        eprintln!("  Index scan returned {} indices", matching_indices.len());
+
+        let table = db.get_table("tab1").unwrap();
+        let all_rows = table.scan();
+        let fetched_rows: Vec<Row> = matching_indices
+            .into_iter()
+            .filter_map(|idx| all_rows.get(idx).cloned())
+            .collect();
+
+        eprintln!("  Fetched {} rows from table", fetched_rows.len());
+        assert_eq!(fetched_rows.len(), 3, "Cycle {}: Expected 3 rows, got {}", cycle_num, fetched_rows.len());
+        eprintln!("  ✓ Cycle {} PASSED", cycle_num);
+
+        // Return to pool (mimics Drop trait)
+        return_to_pool(db);
+    }
+
+    // Run multiple cycles using the pool
+    run_cycle(1);
+    run_cycle(2);
+    run_cycle(3);
 }

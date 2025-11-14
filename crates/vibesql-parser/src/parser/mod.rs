@@ -286,11 +286,9 @@ impl Parser {
                     let set_stmt = self.parse_set_transaction_statement()?;
                     Ok(vibesql_ast::Statement::SetTransaction(set_stmt))
                 } else {
-                    Err(ParseError {
-                        message:
-                            "Expected SCHEMA, CATALOG, NAMES, TIME ZONE, TRANSACTION, or LOCAL after SET"
-                                .to_string(),
-                    })
+                    // Try to parse as SET variable statement (SESSION/GLOBAL or direct variable)
+                    let set_stmt = schema::parse_set_variable(self)?;
+                    Ok(vibesql_ast::Statement::SetVariable(set_stmt))
                 }
             }
             Token::Keyword(Keyword::Grant) => {

@@ -34,7 +34,11 @@ fn create_table_with_pk(db: &mut Database, table_name: &str, pk_column: &str) {
             TableConstraint {
                 name: None,
                 kind: TableConstraintKind::PrimaryKey {
-                    columns: vec![pk_column.to_string()],
+                    columns: vec![vibesql_ast::IndexColumn {
+                        column_name: pk_column.to_string(),
+                        direction: vibesql_ast::OrderDirection::Asc,
+                        prefix_length: None,
+                    }],
                 },
             },
         ],
@@ -78,7 +82,11 @@ fn create_table_with_fk(
             TableConstraint {
                 name: None,
                 kind: TableConstraintKind::PrimaryKey {
-                    columns: vec![pk_column.to_string()],
+                    columns: vec![vibesql_ast::IndexColumn {
+                        column_name: pk_column.to_string(),
+                        direction: vibesql_ast::OrderDirection::Asc,
+                        prefix_length: None,
+                    }],
                 },
             },
             // Add FK as table-level constraint (ensures catalog.foreign_keys is populated)

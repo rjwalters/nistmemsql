@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enables fresh test runs from scratch
   - Bypasses smart filtering for reproducible results
   - Usage: `./scripts/sqllogictest run --force --time 300`
+- Added parser support for MySQL/SQLite indexed column prefix syntax (PR #1622)
+  - Syntax: `UNIQUE (column(n))`, `PRIMARY KEY (column(n))`, `CREATE INDEX idx ON table (column(n))`
+  - Prefix length stored in AST (`IndexColumn.prefix_length`)
+  - Current implementation: indexes operate on full column (prefix not enforced yet)
+  - Enables SQLLogicTest compatibility and future prefix index optimization
+  - Documentation: See README.md "Indexed Column Prefix Syntax" section
 
 ### Fixed
 - Fixed all cargo build warnings (removed unused code, added `#[allow(dead_code)]` to test utilities)

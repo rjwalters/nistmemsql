@@ -128,6 +128,7 @@ mod tests {
             index_type: vibesql_ast::IndexType::BTree { unique: false },
             columns: vec![IndexColumn {
                 column_name: "email".to_string(),
+                prefix_length: None,
                 direction: OrderDirection::Asc,
             }],
         };
@@ -168,6 +169,7 @@ mod tests {
             index_type: vibesql_ast::IndexType::BTree { unique: false },
             columns: vec![IndexColumn {
                 column_name: "email".to_string(),
+                prefix_length: None,
                 direction: OrderDirection::Asc,
             }],
         };
@@ -207,6 +209,7 @@ mod tests {
             index_type: vibesql_ast::IndexType::BTree { unique: false },
             columns: vec![IndexColumn {
                 column_name: "email".to_string(),
+                prefix_length: None,
                 direction: OrderDirection::Asc,
             }],
         };

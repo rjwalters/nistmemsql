@@ -66,6 +66,7 @@ fn test_unique_index_basic_insert_enforcement() {
         true, // unique
         vec![IndexColumn {
             column_name: "email".to_string(),
+                prefix_length: None,
             direction: OrderDirection::Asc,
         }],
     )
@@ -117,6 +118,7 @@ fn test_unique_index_null_values_allowed() {
         true, // unique
         vec![IndexColumn {
             column_name: "email".to_string(),
+                prefix_length: None,
             direction: OrderDirection::Asc,
         }],
     )
@@ -176,10 +178,12 @@ fn test_unique_index_composite_key() {
         vec![
             IndexColumn {
                 column_name: "first_name".to_string(),
+                prefix_length: None,
                 direction: OrderDirection::Asc,
             },
             IndexColumn {
                 column_name: "last_name".to_string(),
+                prefix_length: None,
                 direction: OrderDirection::Asc,
             },
         ],
@@ -259,10 +263,12 @@ fn test_unique_index_composite_with_null() {
         vec![
             IndexColumn {
                 column_name: "first_name".to_string(),
+                prefix_length: None,
                 direction: OrderDirection::Asc,
             },
             IndexColumn {
                 column_name: "last_name".to_string(),
+                prefix_length: None,
                 direction: OrderDirection::Asc,
             },
         ],
@@ -311,6 +317,7 @@ fn test_unique_index_update_enforcement() {
         true, // unique
         vec![IndexColumn {
             column_name: "email".to_string(),
+                prefix_length: None,
             direction: OrderDirection::Asc,
         }],
     )
@@ -372,6 +379,7 @@ fn test_unique_index_update_same_value_allowed() {
         true, // unique
         vec![IndexColumn {
             column_name: "email".to_string(),
+                prefix_length: None,
             direction: OrderDirection::Asc,
         }],
     )
@@ -415,6 +423,7 @@ fn test_unique_index_update_to_different_value() {
         true, // unique
         vec![IndexColumn {
             column_name: "email".to_string(),
+                prefix_length: None,
             direction: OrderDirection::Asc,
         }],
     )
@@ -464,6 +473,7 @@ fn test_unique_index_update_to_null() {
         true, // unique
         vec![IndexColumn {
             column_name: "email".to_string(),
+                prefix_length: None,
             direction: OrderDirection::Asc,
         }],
     )
@@ -510,6 +520,7 @@ fn test_unique_index_multiple_indexes_on_table() {
         true, // unique
         vec![IndexColumn {
             column_name: "email".to_string(),
+                prefix_length: None,
             direction: OrderDirection::Asc,
         }],
     )
@@ -521,6 +532,7 @@ fn test_unique_index_multiple_indexes_on_table() {
         true, // unique
         vec![IndexColumn {
             column_name: "phone".to_string(),
+                prefix_length: None,
             direction: OrderDirection::Asc,
         }],
     )

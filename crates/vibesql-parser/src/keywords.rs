@@ -178,6 +178,8 @@ pub enum Keyword {
     Names,
     Zone,
     Local,
+    Session,
+    Global,
     // Interval unit keywords
     Year,
     Quarter,
@@ -457,6 +459,8 @@ impl fmt::Display for Keyword {
             Keyword::Names => "NAMES",
             Keyword::Zone => "ZONE",
             Keyword::Local => "LOCAL",
+            Keyword::Session => "SESSION",
+            Keyword::Global => "GLOBAL",
             Keyword::Year => "YEAR",
             Keyword::Quarter => "QUARTER",
             Keyword::Month => "MONTH",

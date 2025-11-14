@@ -285,6 +285,166 @@ fn test_json_roundtrip_temporal_types() {
 }
 
 #[test]
+fn test_json_datetime_alias_behavior() {
+    // Test for issue #1626: DATETIME type information during save/load
+    //
+    // This test verifies the INTENTIONAL behavior where DATETIME is treated
+    // as an alias for TIMESTAMP. This is a design decision (see issue #1626):
+    // - Parser maps DATETIME → DataType::Timestamp
+    // - Persistence serializes as "TIMESTAMP"
+    // - Both "DATETIME" and "TIMESTAMP" deserialize to DataType::Timestamp
+    //
+    // This test ensures the behavior is correct and consistent.
+
+    use vibesql_types::{Date, Time, Timestamp};
+
+    // Test 1: Create table using DATETIME type directly
+    let mut db = Database::new();
+
+    let schema = TableSchema::new(
+        "datetime_test".to_string(),
+        vec![
+            ColumnSchema::new("id".to_string(), DataType::Integer, false),
+            // Use Timestamp type (same as DATETIME internally)
+            ColumnSchema::new(
+                "created_at".to_string(),
+                DataType::Timestamp { with_timezone: false },
+                true,
+            ),
+            ColumnSchema::new(
+                "updated_at".to_string(),
+                DataType::Timestamp { with_timezone: true },
+                true,
+            ),
+        ],
+    );
+
+    db.create_table(schema).unwrap();
+
+    // Insert test data
+    let table = db.get_table_mut("datetime_test").unwrap();
+    let date = Date::new(2025, 11, 13).unwrap();
+    let time = Time::new(10, 30, 0, 0).unwrap();
+    let timestamp = Timestamp::new(date, time);
+
+    table
+        .insert(crate::Row::new(vec![
+            SqlValue::Integer(1),
+            SqlValue::Timestamp(timestamp.clone()),
+            SqlValue::Timestamp(timestamp),
+        ]))
+        .unwrap();
+
+    // Save to JSON
+    let path = "/tmp/test_datetime_alias.json";
+    db.save_json(path).unwrap();
+
+    // Verify JSON contains "TIMESTAMP" (not "DATETIME")
+    // This is the expected behavior per issue #1626
+    let content = std::fs::read_to_string(path).unwrap();
+    assert!(content.contains("TIMESTAMP"));
+    assert!(content.contains("2025-11-13"));
+
+    // Load from JSON - should work correctly
+    let loaded_db = Database::load_json(path).unwrap();
+    let loaded_table = loaded_db.get_table("datetime_test").unwrap();
+    let rows = loaded_table.scan();
+
+    // Verify data is preserved correctly
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].values[0], SqlValue::Integer(1));
+    assert_eq!(rows[0].values[1], SqlValue::Timestamp(Timestamp::new(date, time)));
+
+    // Verify schema types are correct (Timestamp, not a separate DATETIME type)
+    assert_eq!(
+        loaded_table.schema.columns[1].data_type,
+        DataType::Timestamp { with_timezone: false }
+    );
+    assert_eq!(
+        loaded_table.schema.columns[2].data_type,
+        DataType::Timestamp { with_timezone: true }
+    );
+
+    // Test 2: Manually create JSON with "DATETIME" type strings
+    // This verifies backward compatibility - both DATETIME and TIMESTAMP
+    // should deserialize to the same internal representation
+    std::fs::write(
+        path,
+        r#"{
+  "vibesql": {
+    "version": "1.0",
+    "format": "json",
+    "timestamp": 0
+  },
+  "schemas": [],
+  "roles": [],
+  "tables": [
+    {
+      "name": "datetime_compat",
+      "schema": "public",
+      "columns": [
+        {"name": "id", "type": "INTEGER", "nullable": false},
+        {"name": "dt1", "type": "DATETIME", "nullable": true},
+        {"name": "dt2", "type": "DATETIME WITH TIME ZONE", "nullable": true},
+        {"name": "ts1", "type": "TIMESTAMP", "nullable": true},
+        {"name": "ts2", "type": "TIMESTAMP WITH TIME ZONE", "nullable": true}
+      ],
+      "rows": [
+        {
+          "id": 1,
+          "dt1": "2025-11-13 10:30:00",
+          "dt2": "2025-11-13 10:30:00",
+          "ts1": "2025-11-13 10:30:00",
+          "ts2": "2025-11-13 10:30:00"
+        }
+      ]
+    }
+  ],
+  "indexes": [],
+  "views": []
+}"#,
+    )
+    .unwrap();
+
+    // Load JSON with both DATETIME and TIMESTAMP type strings
+    let compat_db = Database::load_json(path).unwrap();
+    let compat_table = compat_db.get_table("datetime_compat").unwrap();
+
+    // Verify all columns have the same internal type (Timestamp)
+    assert_eq!(
+        compat_table.schema.columns[1].data_type,
+        DataType::Timestamp { with_timezone: false }
+    );
+    assert_eq!(
+        compat_table.schema.columns[2].data_type,
+        DataType::Timestamp { with_timezone: true }
+    );
+    assert_eq!(
+        compat_table.schema.columns[3].data_type,
+        DataType::Timestamp { with_timezone: false }
+    );
+    assert_eq!(
+        compat_table.schema.columns[4].data_type,
+        DataType::Timestamp { with_timezone: true }
+    );
+
+    // Verify data loaded correctly
+    let compat_rows = compat_table.scan();
+    assert_eq!(compat_rows.len(), 1);
+    assert_eq!(compat_rows[0].values[0], SqlValue::Integer(1));
+
+    // All timestamp values should be equal since they were created from the same string
+    let expected_ts = SqlValue::Timestamp(Timestamp::new(date, time));
+    assert_eq!(compat_rows[0].values[1], expected_ts);
+    assert_eq!(compat_rows[0].values[2], expected_ts);
+    assert_eq!(compat_rows[0].values[3], expected_ts);
+    assert_eq!(compat_rows[0].values[4], expected_ts);
+
+    // Cleanup
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
 fn test_json_numeric_precision() {
     let mut db = Database::new();
 
@@ -702,6 +862,7 @@ fn test_json_index_roundtrip() {
     let idx = vibesql_ast::IndexColumn {
         column_name: "name".to_string(),
         direction: vibesql_ast::OrderDirection::Asc,
+        prefix_length: None,
     };
 
     // Use qualified table name for index creation (indexes require qualified names)

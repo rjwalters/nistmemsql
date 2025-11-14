@@ -244,11 +244,12 @@ fn execute_bulk_transfer(
             }
         }
 
-        // Insert via Database API so user-defined indexes are updated
-        // (schema compatibility validation already performed above)
+        // Insert row directly without re-validation of type and NOT NULL
+        // (already validated by schema compatibility check)
+        // IMPORTANT: Use db.insert_row() to ensure indexes are updated!
         let row = vibesql_storage::Row::new(row_values);
         db.insert_row(dest_table, row)
-            .map_err(|e| ExecutorError::StorageError(e.to_string()))?;
+            .map_err(|e| ExecutorError::UnsupportedExpression(format!("Storage error: {}", e)))?;
         inserted_count += 1;
     }
 
