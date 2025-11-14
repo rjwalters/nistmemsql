@@ -4,7 +4,7 @@ use vibesql_types::SqlValue;
 
 use crate::errors::ExecutorError;
 
-use super::{check_division_by_zero, coerce_numeric_values};
+use super::coerce_numeric_values;
 
 pub struct Modulo;
 
@@ -18,14 +18,24 @@ impl Modulo {
         // Fast path for integers (both modes)
         if let (Integer(a), Integer(b)) = (left, right) {
             if *b == 0 {
-                return Err(ExecutorError::DivisionByZero);
+                return Ok(SqlValue::Null);
             }
             return Ok(Integer(a % b));
         }
 
         // Use helper for type coercion
         let coerced = coerce_numeric_values(left, right, "%")?;
-        check_division_by_zero(&coerced)?;
+
+        // Check for modulo by zero and return NULL (SQL standard behavior)
+        let is_zero = match &coerced {
+            super::CoercedValues::ExactNumeric(_, right) => *right == 0,
+            super::CoercedValues::ApproximateNumeric(_, right) => *right == 0.0,
+            super::CoercedValues::Numeric(_, right) => *right == 0.0,
+        };
+
+        if is_zero {
+            return Ok(SqlValue::Null);
+        }
 
         match coerced {
             super::CoercedValues::ExactNumeric(a, b) => Ok(Integer(a % b)),

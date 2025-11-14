@@ -168,14 +168,14 @@ fn test_eval_division_by_zero() {
     let evaluator = ExpressionEvaluator::new(&schema);
     let row = vibesql_storage::Row::new(vec![]);
 
-    // 10 / 0 = Error
+    // 10 / 0 = NULL (SQL standard behavior)
     let expr = vibesql_ast::Expression::BinaryOp {
         left: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(10))),
         op: vibesql_ast::BinaryOperator::Divide,
         right: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(0))),
     };
-    let err = evaluator.eval(&expr, &row).unwrap_err();
-    assert!(matches!(err, ExecutorError::DivisionByZero));
+    let result = evaluator.eval(&expr, &row).unwrap();
+    assert_eq!(result, vibesql_types::SqlValue::Null);
 }
 
 #[test]
