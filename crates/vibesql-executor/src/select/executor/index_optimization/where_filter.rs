@@ -385,14 +385,9 @@ pub(in crate::select::executor) fn try_index_for_and_expr(
     // If right side is a nested AND, optimize it recursively
     if let vibesql_ast::Expression::BinaryOp { left: nested_left, op: vibesql_ast::BinaryOperator::And, right: nested_right } = right {
         // Right is a nested AND expression - try to optimize it recursively
-        eprintln!("[DEBUG] Detected nested AND on right side, recursing...");
         if let Some(nested_rows) = try_index_for_and_expr(database, nested_left, nested_right, all_rows, schema)? {
-            eprintln!("[DEBUG] Nested AND optimization succeeded, got {} rows, applying left predicate filter", nested_rows.len());
             let filtered = apply_predicate_filter(database, &nested_rows, left, schema)?;
-            eprintln!("[DEBUG] After filtering with left predicate: {} rows", filtered.len());
             return Ok(Some(filtered));
-        } else {
-            eprintln!("[DEBUG] Nested AND optimization returned None, falling through");
         }
     }
 
@@ -407,20 +402,14 @@ pub(in crate::select::executor) fn try_index_for_and_expr(
 
     // First, try to handle IN + comparison pattern
     // Pattern: col1 IN (...) AND col2 > value (or any comparison)
-    eprintln!("[DEBUG] Trying IN + comparison (left as IN)");
     if let Some(rows) = try_index_for_in_and_comparison(database, left, right, all_rows, schema)? {
-        eprintln!("[DEBUG] IN + comparison succeeded (left as IN), got {} rows", rows.len());
         return Ok(Some(rows));
     }
 
     // Try the reverse: comparison AND IN
-    eprintln!("[DEBUG] Trying IN + comparison (right as IN)");
     if let Some(rows) = try_index_for_in_and_comparison(database, right, left, all_rows, schema)? {
-        eprintln!("[DEBUG] IN + comparison succeeded (right as IN), got {} rows", rows.len());
         return Ok(Some(rows));
     }
-
-    eprintln!("[DEBUG] Neither IN + comparison pattern matched, falling through to BETWEEN");
 
     // Fall back to BETWEEN pattern detection
     // Try to detect BETWEEN pattern: (col >= start) AND (col <= end)
