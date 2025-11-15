@@ -127,8 +127,8 @@ pub(in crate::select::executor) fn try_index_for_binary_op(
         _ => return Ok(None), // Not a simple column OP literal or literal OP column
     };
 
-    // Find an index on this table and column
-    let index_name = find_index_for_where(database, &table_name, &column_name)?;
+    // Find a single-column index on this table and column
+    let index_name = find_single_column_index_for_where(database, &table_name, &column_name)?;
     if index_name.is_none() {
         return Ok(None);
     }
@@ -471,8 +471,8 @@ pub(in crate::select::executor) fn try_index_for_and_expr(
         None => return Ok(None), // Column not found
     };
 
-    // Find an index on this table and column
-    let index_name = find_index_for_where(database, &table_name, &col_name)?;
+    // Find a single-column index on this table and column (BETWEEN requires single-column)
+    let index_name = find_single_column_index_for_where(database, &table_name, &col_name)?;
     if index_name.is_none() {
         return Ok(None);
     }
@@ -555,8 +555,8 @@ pub(in crate::select::executor) fn try_index_for_in_expr(
         return Ok(None);
     }
 
-    // Find an index on this table and column
-    let index_name = find_index_for_where(database, &table_name, column_name)?;
+    // Find an index on this table and column (supports multi-column for IN)
+    let index_name = find_index_for_in(database, &table_name, column_name)?;
     if index_name.is_none() {
         return Ok(None);
     }
@@ -614,14 +614,14 @@ pub(in crate::select::executor) fn try_index_for_in_expr(
     Ok(Some(result_rows))
 }
 
-/// Find a SINGLE-COLUMN index that can be used for WHERE clause filtering
+/// Find a SINGLE-COLUMN index for simple WHERE clause operations
 ///
 /// For simple binary operations (=, <, >, <=, >=) and BETWEEN patterns,
 /// we only use single-column indexes because multi-column composite indexes
 /// require all columns to be specified for correct index semantics.
 ///
-/// For IN clauses that need multi-column prefix matching, see find_index_with_prefix().
-pub(in crate::select::executor) fn find_index_for_where(
+/// For IN clauses that support multi-column indexes, see find_index_for_in().
+pub(in crate::select::executor) fn find_single_column_index_for_where(
     database: &Database,
     table_name: &str,
     column_name: &str,
@@ -636,6 +636,39 @@ pub(in crate::select::executor) fn find_index_for_where(
                 && metadata.columns[0].column_name == column_name
             {
                 // Found a single-column index
+                return Ok(Some(index_name));
+            }
+        }
+    }
+    Ok(None)
+}
+
+/// Find an index for IN clause optimization (supports multi-column indexes)
+///
+/// For IN clauses like "column IN (val1, val2, ...)", we can use either:
+/// 1. Single-column indexes on the column
+/// 2. Multi-column indexes where the column is the FIRST column (prefix matching)
+///
+/// Multi-column support enables optimization for queries like:
+/// - "col1 IN (1, 2, 3)" with index (col1, col2, col3)
+/// - Uses range scans for prefix matching on the first column
+pub(in crate::select::executor) fn find_index_for_in(
+    database: &Database,
+    table_name: &str,
+    column_name: &str,
+) -> Result<Option<String>, ExecutorError> {
+    // Look through all indexes for one on this table and column
+    // We support both single-column indexes and multi-column indexes
+    // where the target column is the FIRST column (prefix matching)
+    let all_indexes = database.list_indexes();
+    for index_name in all_indexes {
+        if let Some(metadata) = database.get_index(&index_name) {
+            if metadata.table_name == table_name
+                && !metadata.columns.is_empty()
+                && metadata.columns[0].column_name == column_name
+            {
+                // Found an index where our column is the first column
+                // This works for both single-column and multi-column indexes
                 return Ok(Some(index_name));
             }
         }
