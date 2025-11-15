@@ -57,51 +57,39 @@ impl IndexData {
     ) -> Vec<usize> {
         match self {
             IndexData::InMemory { data } => {
+                use std::ops::Bound;
+
                 let mut matching_row_indices = Vec::new();
 
-                // Iterate through BTreeMap (which gives us sorted iteration)
+                // Normalize bounds for consistent numeric comparison
+                // This allows Real, Numeric, Integer, etc. to be compared correctly
+                let normalized_start = start.map(normalize_for_comparison);
+                let normalized_end = end.map(normalize_for_comparison);
+
+                // Convert to single-element keys (for single-column indexes)
                 // For multi-column indexes, we only compare the first column
-                // This maintains compatibility with the original HashMap implementation
-                for (key_values, row_indices) in data {
-                    // For single-column index, key_values has one element
-                    // For multi-column indexes, we only compare the first column
-                    let key = &key_values[0];
+                let start_key = normalized_start.as_ref().map(|v| vec![v.clone()]);
+                let end_key = normalized_end.as_ref().map(|v| vec![v.clone()]);
 
-                    // Normalize key and bounds for consistent numeric comparison
-                    // This allows Real, Numeric, Integer, etc. to be compared correctly
-                    let normalized_key = normalize_for_comparison(key);
-                    let normalized_start = start.map(normalize_for_comparison);
-                    let normalized_end = end.map(normalize_for_comparison);
+                // Build bounds for BTreeMap::range()
+                // Note: BTreeMap<Vec<SqlValue>, _> can range over &[SqlValue] via Borrow trait
+                let start_bound = match start_key.as_ref() {
+                    Some(key) if inclusive_start => Bound::Included(key.as_slice()),
+                    Some(key) => Bound::Excluded(key.as_slice()),
+                    None => Bound::Unbounded,
+                };
 
-                    let matches = match (normalized_start.as_ref(), normalized_end.as_ref()) {
-                        (Some(s), Some(e)) => {
-                            // Both bounds specified: start <= key <= end (or variations)
-                            let gte_start = if inclusive_start { normalized_key >= *s } else { normalized_key > *s };
-                            let lte_end = if inclusive_end { normalized_key <= *e } else { normalized_key < *e };
-                            gte_start && lte_end
-                        }
-                        (Some(s), None) => {
-                            // Only lower bound: key >= start (or >)
-                            if inclusive_start {
-                                normalized_key >= *s
-                            } else {
-                                normalized_key > *s
-                            }
-                        }
-                        (None, Some(e)) => {
-                            // Only upper bound: key <= end (or <)
-                            if inclusive_end {
-                                normalized_key <= *e
-                            } else {
-                                normalized_key < *e
-                            }
-                        }
-                        (None, None) => true, // No bounds - match everything
-                    };
+                let end_bound = match end_key.as_ref() {
+                    Some(key) if inclusive_end => Bound::Included(key.as_slice()),
+                    Some(key) => Bound::Excluded(key.as_slice()),
+                    None => Bound::Unbounded,
+                };
 
-                    if matches {
-                        matching_row_indices.extend(row_indices);
-                    }
+                // Use BTreeMap's efficient range() method instead of full iteration
+                // This is O(log n + k) instead of O(n) where n = total keys, k = matching keys
+                // Explicitly specify [SqlValue] as the borrowed type to disambiguate from Vec<SqlValue>
+                for (_key_values, row_indices) in data.range::<[SqlValue], _>((start_bound, end_bound)) {
+                    matching_row_indices.extend(row_indices);
                 }
 
                 // Return row indices in the order established by BTreeMap iteration
