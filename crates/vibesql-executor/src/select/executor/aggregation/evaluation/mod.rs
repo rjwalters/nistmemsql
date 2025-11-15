@@ -73,19 +73,39 @@ impl SelectExecutor<'_> {
             | vibesql_ast::Expression::Between { .. }
             | vibesql_ast::Expression::InList { .. }
             | vibesql_ast::Expression::Like { .. }
-            | vibesql_ast::Expression::IsNull { .. } => {
+            | vibesql_ast::Expression::IsNull { .. }
+            | vibesql_ast::Expression::Position { .. }
+            | vibesql_ast::Expression::Trim { .. }
+            | vibesql_ast::Expression::Interval { .. } => {
                 simple::evaluate(self, expr, group_rows, group_key, evaluator)
             }
 
             // Truly simple expressions: Literal, ColumnRef (cannot contain aggregates)
-            vibesql_ast::Expression::Literal(_) | vibesql_ast::Expression::ColumnRef { .. } => {
+            vibesql_ast::Expression::Literal(_)
+            | vibesql_ast::Expression::ColumnRef { .. }
+            | vibesql_ast::Expression::Wildcard
+            | vibesql_ast::Expression::CurrentDate
+            | vibesql_ast::Expression::CurrentTime { .. }
+            | vibesql_ast::Expression::CurrentTimestamp { .. }
+            | vibesql_ast::Expression::Default
+            | vibesql_ast::Expression::NextValue { .. }
+            | vibesql_ast::Expression::DuplicateKeyValue { .. }
+            | vibesql_ast::Expression::PseudoVariable { .. }
+            | vibesql_ast::Expression::SessionVariable { .. } => {
                 simple::evaluate_no_aggregates(expr, group_rows, evaluator)
             }
 
-            _ => Err(ExecutorError::UnsupportedExpression(format!(
-                "Unsupported expression in aggregate context: {:?}",
-                expr
-            ))),
+            // Window functions and match against require special handling
+            vibesql_ast::Expression::WindowFunction { .. } => {
+                Err(ExecutorError::UnsupportedExpression(
+                    "Window functions not supported in aggregate context".to_string(),
+                ))
+            }
+            vibesql_ast::Expression::MatchAgainst { .. } => {
+                Err(ExecutorError::UnsupportedExpression(
+                    "MATCH...AGAINST not supported in aggregate context".to_string(),
+                ))
+            }
         }
     }
 

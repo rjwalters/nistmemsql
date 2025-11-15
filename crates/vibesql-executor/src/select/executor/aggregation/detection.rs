@@ -46,6 +46,49 @@ impl SelectExecutor<'_> {
                     })
                     || else_result.as_ref().is_some_and(|e| self.expression_has_aggregate(e))
             }
+            // BETWEEN: check all three sub-expressions
+            vibesql_ast::Expression::Between { expr, low, high, .. } => {
+                self.expression_has_aggregate(expr)
+                    || self.expression_has_aggregate(low)
+                    || self.expression_has_aggregate(high)
+            }
+            // IN list: check test expression and all values
+            vibesql_ast::Expression::InList { expr, values, .. } => {
+                self.expression_has_aggregate(expr)
+                    || values.iter().any(|v| self.expression_has_aggregate(v))
+            }
+            // IN subquery: check test expression
+            vibesql_ast::Expression::In { expr, .. } => self.expression_has_aggregate(expr),
+            // LIKE: check both expression and pattern
+            vibesql_ast::Expression::Like { expr, pattern, .. } => {
+                self.expression_has_aggregate(expr) || self.expression_has_aggregate(pattern)
+            }
+            // IS NULL: check inner expression
+            vibesql_ast::Expression::IsNull { expr, .. } => self.expression_has_aggregate(expr),
+            // Position: check both substring and string
+            vibesql_ast::Expression::Position { substring, string, .. } => {
+                self.expression_has_aggregate(substring) || self.expression_has_aggregate(string)
+            }
+            // Trim: check removal char and string
+            vibesql_ast::Expression::Trim { removal_char, string, .. } => {
+                removal_char.as_ref().is_some_and(|e| self.expression_has_aggregate(e))
+                    || self.expression_has_aggregate(string)
+            }
+            // Interval: check the value expression
+            vibesql_ast::Expression::Interval { value, .. } => self.expression_has_aggregate(value),
+            // Quantified comparison: check left-hand expression
+            vibesql_ast::Expression::QuantifiedComparison { expr, .. } => {
+                self.expression_has_aggregate(expr)
+            }
+            // Scalar subquery and EXISTS: subqueries can contain aggregates, but we don't check inside them
+            // The aggregates inside subqueries are in their own scope
+            vibesql_ast::Expression::ScalarSubquery(_)
+            | vibesql_ast::Expression::Exists { .. } => false,
+            // Window functions already contain aggregate-like logic
+            vibesql_ast::Expression::WindowFunction { .. } => false,
+            // DuplicateKeyValue references a column from INSERT VALUES
+            vibesql_ast::Expression::DuplicateKeyValue { .. } => false,
+            // Literals, column refs, wildcards, current date/time, defaults, sequences, etc. don't contain aggregates
             _ => false,
         }
     }
