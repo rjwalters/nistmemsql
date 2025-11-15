@@ -28,8 +28,9 @@ where
     F: Fn(&vibesql_ast::SelectStmt) -> Result<crate::select::SelectResult, ExecutorError> + Copy,
 {
     // Execute left and right sides with WHERE clause for predicate pushdown
-    let left_result = super::execute_from_clause(left, cte_results, database, where_clause, execute_subquery)?;
-    let right_result = super::execute_from_clause(right, cte_results, database, where_clause, execute_subquery)?;
+    // Note: ORDER BY is not optimized at JOIN level, so we pass None
+    let left_result = super::execute_from_clause(left, cte_results, database, where_clause, None, execute_subquery)?;
+    let right_result = super::execute_from_clause(right, cte_results, database, where_clause, None, execute_subquery)?;
 
     // For NATURAL JOIN, generate the implicit join condition based on common column names
     let natural_join_condition = if natural {
