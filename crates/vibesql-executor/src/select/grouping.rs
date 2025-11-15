@@ -345,13 +345,14 @@ impl AggregateAccumulator {
 ///
 /// See: https://github.com/rjwalters/vibesql/pull/871
 fn add_sql_values(a: &vibesql_types::SqlValue, b: &vibesql_types::SqlValue) -> vibesql_types::SqlValue {
-    // Convert both values to f64 for addition, then return as Numeric
-    let a_f64 = sql_value_to_f64(a);
-    let b_f64 = sql_value_to_f64(b);
+    // Use the proper arithmetic addition operator that preserves types
+    // Integer + Integer → Integer, Float + anything → Float, etc.
+    use crate::evaluator::operators::OperatorRegistry;
+    use vibesql_ast::BinaryOperator;
 
-    match (a_f64, b_f64) {
-        (Some(x), Some(y)) => vibesql_types::SqlValue::Numeric(x + y),
-        _ => vibesql_types::SqlValue::Null, // If either is not numeric, return NULL
+    match OperatorRegistry::eval_binary_op(a, &BinaryOperator::Plus, b) {
+        Ok(result) => result,
+        Err(_) => vibesql_types::SqlValue::Null, // If addition fails, return NULL
     }
 }
 
@@ -575,10 +576,10 @@ mod tests {
 
         match acc1 {
             AggregateAccumulator::Sum { sum, .. } => {
-                // Note: add_sql_values converts to Numeric (f64)
+                // Note: add_sql_values now preserves type (Integer + Integer = Integer)
                 match sum {
-                    SqlValue::Numeric(val) => assert_eq!(val, 15.0),
-                    _ => panic!("Expected Numeric result from sum"),
+                    SqlValue::Integer(val) => assert_eq!(val, 15),
+                    _ => panic!("Expected Integer result from sum"),
                 }
             }
             _ => panic!("Expected Sum accumulator"),
@@ -605,10 +606,10 @@ mod tests {
         match acc1 {
             AggregateAccumulator::Avg { sum, count, .. } => {
                 assert_eq!(count, 15);
-                // Sum should be 150.0 (as Numeric)
+                // Sum should be 150 (as Integer, type-preserving)
                 match sum {
-                    SqlValue::Numeric(val) => assert_eq!(val, 150.0),
-                    _ => panic!("Expected Numeric result"),
+                    SqlValue::Integer(val) => assert_eq!(val, 150),
+                    _ => panic!("Expected Integer result"),
                 }
             }
             _ => panic!("Expected Avg accumulator"),
