@@ -176,6 +176,98 @@ pub(super) fn evaluate(
             Ok(vibesql_types::SqlValue::Boolean(result))
         }
 
+        // POSITION: find position of substring in string
+        vibesql_ast::Expression::Position { substring, string, .. } => {
+            let substring_val = executor.evaluate_with_aggregates(substring, group_rows, group_key, evaluator)?;
+            let string_val = executor.evaluate_with_aggregates(string, group_rows, group_key, evaluator)?;
+
+            // Evaluate position (1-indexed, 0 if not found)
+            match (&substring_val, &string_val) {
+                (vibesql_types::SqlValue::Null, _) | (_, vibesql_types::SqlValue::Null) => {
+                    Ok(vibesql_types::SqlValue::Null)
+                }
+                (
+                    vibesql_types::SqlValue::Varchar(sub) | vibesql_types::SqlValue::Character(sub),
+                    vibesql_types::SqlValue::Varchar(s) | vibesql_types::SqlValue::Character(s),
+                ) => {
+                    // Find position (1-indexed, 0 if not found)
+                    let pos = s.find(sub.as_str()).map(|p| p + 1).unwrap_or(0);
+                    Ok(vibesql_types::SqlValue::Integer(pos as i64))
+                }
+                _ => Err(ExecutorError::TypeMismatch {
+                    left: substring_val,
+                    op: "POSITION".to_string(),
+                    right: string_val,
+                }),
+            }
+        }
+
+        // TRIM: remove characters from string
+        vibesql_ast::Expression::Trim { position, removal_char, string } => {
+            let string_val = executor.evaluate_with_aggregates(string, group_rows, group_key, evaluator)?;
+            let removal_val = if let Some(rc) = removal_char {
+                executor.evaluate_with_aggregates(rc, group_rows, group_key, evaluator)?
+            } else {
+                vibesql_types::SqlValue::Varchar(" ".to_string())
+            };
+
+            // Delegate to standard evaluator logic
+            match (&string_val, &removal_val) {
+                (vibesql_types::SqlValue::Null, _) | (_, vibesql_types::SqlValue::Null) => {
+                    Ok(vibesql_types::SqlValue::Null)
+                }
+                (
+                    vibesql_types::SqlValue::Varchar(s) | vibesql_types::SqlValue::Character(s),
+                    vibesql_types::SqlValue::Varchar(rem) | vibesql_types::SqlValue::Character(rem),
+                ) => {
+                    use vibesql_ast::TrimPosition;
+                    let trimmed = match position {
+                        Some(TrimPosition::Leading) => s.trim_start_matches(rem.as_str()),
+                        Some(TrimPosition::Trailing) => s.trim_end_matches(rem.as_str()),
+                        Some(TrimPosition::Both) | None => {
+                            s.trim_start_matches(rem.as_str()).trim_end_matches(rem.as_str())
+                        }
+                    };
+                    Ok(vibesql_types::SqlValue::Varchar(trimmed.to_string()))
+                }
+                _ => Err(ExecutorError::TypeMismatch {
+                    left: string_val,
+                    op: "TRIM".to_string(),
+                    right: removal_val,
+                }),
+            }
+        }
+
+        // INTERVAL: evaluate the value expression and delegate to evaluator
+        vibesql_ast::Expression::Interval { value, .. } => {
+            let value_result = executor.evaluate_with_aggregates(value, group_rows, group_key, evaluator)?;
+
+            // For now, delegate full interval evaluation to the standard evaluator
+            // This requires creating a new Interval expression with the evaluated value as a literal
+            let evaluated_expr = vibesql_ast::Expression::Interval {
+                value: Box::new(vibesql_ast::Expression::Literal(value_result)),
+                unit: match expr {
+                    vibesql_ast::Expression::Interval { unit, .. } => unit.clone(),
+                    _ => unreachable!(),
+                },
+                leading_precision: match expr {
+                    vibesql_ast::Expression::Interval { leading_precision, .. } => *leading_precision,
+                    _ => unreachable!(),
+                },
+                fractional_precision: match expr {
+                    vibesql_ast::Expression::Interval { fractional_precision, .. } => *fractional_precision,
+                    _ => unreachable!(),
+                },
+            };
+
+            // Use the standard evaluator to process the interval
+            if let Some(first_row) = group_rows.first() {
+                evaluator.eval(&evaluated_expr, first_row)
+            } else {
+                Ok(vibesql_types::SqlValue::Null)
+            }
+        }
+
         _ => Err(ExecutorError::UnsupportedExpression(format!(
             "Unexpected expression in simple evaluator: {:?}",
             expr
@@ -185,9 +277,9 @@ pub(super) fn evaluate(
 
 /// Evaluate expressions that CANNOT contain nested aggregates
 ///
-/// Handles: Literal, ColumnRef
+/// Handles: Literal, ColumnRef, Wildcard, CurrentDate, etc.
 ///
-/// These are truly simple expressions that can be evaluated directly.
+/// These are truly simple expressions that can be evaluated directly using the standard evaluator.
 pub(super) fn evaluate_no_aggregates(
     expr: &vibesql_ast::Expression,
     group_rows: &[vibesql_storage::Row],
@@ -197,18 +289,14 @@ pub(super) fn evaluate_no_aggregates(
         // Literals can be evaluated without row context
         vibesql_ast::Expression::Literal(val) => Ok(val.clone()),
 
-        // Column references: use first row from group as context
-        vibesql_ast::Expression::ColumnRef { .. } => {
+        // All other simple expressions: use first row from group as context and delegate to evaluator
+        // This includes: ColumnRef, Wildcard, CurrentDate, CurrentTime, CurrentTimestamp, Default, etc.
+        _ => {
             if let Some(first_row) = group_rows.first() {
                 evaluator.eval(expr, first_row)
             } else {
                 Ok(vibesql_types::SqlValue::Null)
             }
         }
-
-        _ => Err(ExecutorError::UnsupportedExpression(format!(
-            "Unexpected expression in simple evaluator (no aggregates): {:?}",
-            expr
-        ))),
     }
 }
