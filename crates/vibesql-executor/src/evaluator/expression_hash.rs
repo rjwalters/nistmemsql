@@ -439,6 +439,7 @@ impl ExpressionHasher {
                 }
             }
             vibesql_types::DataType::BinaryLargeObject => {}
+            vibesql_types::DataType::Bit { length } => length.hash(hasher),
             vibesql_types::DataType::UserDefined { type_name } => type_name.hash(hasher),
             vibesql_types::DataType::Null => {}
         }
