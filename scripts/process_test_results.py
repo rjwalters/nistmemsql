@@ -179,13 +179,22 @@ VALUES ({run_id}, TIMESTAMP '{timestamp}', TIMESTAMP '{timestamp}', {total}, {pa
     for file_path in tested_files.get('passed', []):
         category, subcategory = categorize_test_file(file_path)
 
-        # Update test_files FIRST (upsert) - must come before test_results due to FK constraint
+        # Upsert into test_files using UPDATE + INSERT pattern (avoids FK constraint violations)
+        # Try UPDATE first (if row exists)
         statements.append(f"""
-DELETE FROM test_files WHERE file_path = {sql_escape(file_path)};
+UPDATE test_files
+SET category = {sql_escape(category)},
+    subcategory = {sql_escape(subcategory)},
+    status = 'PASS',
+    last_tested = TIMESTAMP '{timestamp}',
+    last_passed = TIMESTAMP '{timestamp}'
+WHERE file_path = {sql_escape(file_path)};
 """)
+        # Then INSERT (only succeeds if row doesn't exist - will fail with PK violation if it does, but UPDATE already handled it)
         statements.append(f"""
 INSERT INTO test_files (file_path, category, subcategory, status, last_tested, last_passed)
-VALUES ({sql_escape(file_path)}, {sql_escape(category)}, {sql_escape(subcategory)}, 'PASS', TIMESTAMP '{timestamp}', TIMESTAMP '{timestamp}');
+SELECT {sql_escape(file_path)}, {sql_escape(category)}, {sql_escape(subcategory)}, 'PASS', TIMESTAMP '{timestamp}', TIMESTAMP '{timestamp}'
+WHERE NOT EXISTS (SELECT 1 FROM test_files WHERE file_path = {sql_escape(file_path)});
 """)
 
         # Insert into test_results (references test_files.file_path FK)
@@ -212,13 +221,22 @@ VALUES ({abs(hash(f'{run_id}_{file_path}'))}, {run_id}, {sql_escape(file_path)},
         # Get error message from lookup, or NULL if not available
         error_message = error_lookup.get(file_path, None)
 
-        # Update test_files FIRST (upsert) - must come before test_results due to FK constraint
+        # Upsert into test_files using UPDATE + INSERT pattern (avoids FK constraint violations)
+        # Try UPDATE first (if row exists)
         statements.append(f"""
-DELETE FROM test_files WHERE file_path = {sql_escape(file_path)};
+UPDATE test_files
+SET category = {sql_escape(category)},
+    subcategory = {sql_escape(subcategory)},
+    status = 'FAIL',
+    last_tested = TIMESTAMP '{timestamp}',
+    last_passed = NULL
+WHERE file_path = {sql_escape(file_path)};
 """)
+        # Then INSERT (only succeeds if row doesn't exist)
         statements.append(f"""
 INSERT INTO test_files (file_path, category, subcategory, status, last_tested, last_passed)
-VALUES ({sql_escape(file_path)}, {sql_escape(category)}, {sql_escape(subcategory)}, 'FAIL', TIMESTAMP '{timestamp}', NULL);
+SELECT {sql_escape(file_path)}, {sql_escape(category)}, {sql_escape(subcategory)}, 'FAIL', TIMESTAMP '{timestamp}', NULL
+WHERE NOT EXISTS (SELECT 1 FROM test_files WHERE file_path = {sql_escape(file_path)});
 """)
 
         # Insert into test_results (references test_files.file_path FK)
