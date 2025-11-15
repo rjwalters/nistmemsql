@@ -117,6 +117,10 @@ impl SelectExecutor<'_> {
             vec![(Vec::new(), filtered_rows)]
         };
 
+        // Expand wildcards in SELECT list to explicit column references
+        // This allows SELECT * and SELECT table.* to work with GROUP BY/aggregates
+        let expanded_select_list = self.expand_wildcards_for_aggregation(&stmt.select_list, &schema)?;
+
         // Compute aggregates for each group and apply HAVING
         let mut result_rows = Vec::new();
         for (group_key, group_rows) in groups {
@@ -131,7 +135,7 @@ impl SelectExecutor<'_> {
 
             // Compute aggregates for this group
             let mut aggregate_results = Vec::new();
-            for item in &stmt.select_list {
+            for item in &expanded_select_list {
                 match item {
                     vibesql_ast::SelectItem::Expression { expr, .. } => {
                         let value = self.evaluate_with_aggregates(
@@ -144,6 +148,7 @@ impl SelectExecutor<'_> {
                     }
                     vibesql_ast::SelectItem::Wildcard { .. }
                     | vibesql_ast::SelectItem::QualifiedWildcard { .. } => {
+                        // This should not happen after expansion, but keep for safety
                         return Err(ExecutorError::UnsupportedFeature(
                             "SELECT * and qualified wildcards not supported with aggregates"
                                 .to_string(),
@@ -201,7 +206,7 @@ impl SelectExecutor<'_> {
 
         // Apply ORDER BY if present
         let result_rows = if let Some(order_by) = &stmt.order_by {
-            self.apply_order_by_to_aggregates(result_rows, stmt, order_by)?
+            self.apply_order_by_to_aggregates(result_rows, stmt, order_by, &expanded_select_list)?
         } else {
             result_rows
         };
@@ -215,5 +220,83 @@ impl SelectExecutor<'_> {
         } else {
             Ok(apply_limit_offset(result_rows, stmt.limit, stmt.offset))
         }
+    }
+
+    /// Expand wildcards in SELECT list to explicit column references for aggregation
+    ///
+    /// This converts `SELECT *` and `SELECT table.*` into explicit column references
+    /// so they can be processed in the aggregation path.
+    fn expand_wildcards_for_aggregation(
+        &self,
+        select_list: &[vibesql_ast::SelectItem],
+        schema: &crate::schema::CombinedSchema,
+    ) -> Result<Vec<vibesql_ast::SelectItem>, ExecutorError> {
+        let mut expanded = Vec::new();
+
+        for item in select_list {
+            match item {
+                vibesql_ast::SelectItem::Wildcard { .. } => {
+                    // Expand SELECT * to all columns from all tables in the schema
+                    for (table_name, (_start_idx, table_schema)) in &schema.table_schemas {
+                        for column in &table_schema.columns {
+                            // Create a column reference expression for each column
+                            let column_expr = vibesql_ast::Expression::ColumnRef {
+                                table: if schema.table_schemas.len() > 1 {
+                                    // Multiple tables: qualify the column
+                                    Some(table_name.clone())
+                                } else {
+                                    // Single table: no need to qualify
+                                    None
+                                },
+                                column: column.name.clone(),
+                            };
+
+                            expanded.push(vibesql_ast::SelectItem::Expression {
+                                expr: column_expr,
+                                alias: None,
+                            });
+                        }
+                    }
+                }
+                vibesql_ast::SelectItem::QualifiedWildcard { qualifier, .. } => {
+                    // Expand SELECT table.* to all columns from that specific table
+                    // Try exact match first
+                    let table_result = schema.table_schemas.get(qualifier).cloned().or_else(|| {
+                        // Fall back to case-insensitive lookup
+                        let qualifier_lower = qualifier.to_lowercase();
+                        schema
+                            .table_schemas
+                            .iter()
+                            .find(|(key, _)| key.to_lowercase() == qualifier_lower)
+                            .map(|(_key, value)| value.clone())
+                    });
+
+                    if let Some((_start_idx, table_schema)) = table_result {
+                        for column in &table_schema.columns {
+                            let column_expr = vibesql_ast::Expression::ColumnRef {
+                                table: Some(qualifier.clone()),
+                                column: column.name.clone(),
+                            };
+
+                            expanded.push(vibesql_ast::SelectItem::Expression {
+                                expr: column_expr,
+                                alias: None,
+                            });
+                        }
+                    } else {
+                        return Err(ExecutorError::TableNotFound(format!(
+                            "Table or alias '{}' not found for qualified wildcard",
+                            qualifier
+                        )));
+                    }
+                }
+                vibesql_ast::SelectItem::Expression { .. } => {
+                    // Regular expression - keep as is
+                    expanded.push(item.clone());
+                }
+            }
+        }
+
+        Ok(expanded)
     }
 }
