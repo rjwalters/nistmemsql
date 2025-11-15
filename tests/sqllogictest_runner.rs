@@ -351,7 +351,7 @@ impl NistMemSqlDB {
     fn format_sql_value(
         &self,
         value: &SqlValue,
-        expected_type: Option<&DefaultColumnType>,
+        _expected_type: Option<&DefaultColumnType>,
     ) -> String {
         match value {
             // Integer types should always be formatted as integers, never with decimal notation
@@ -658,7 +658,8 @@ async fn run_single_test_file() {
         .unwrap_or_else(|e| panic!("Failed to read test file {}: {}", full_path, e));
 
     let mut tester = sqllogictest::Runner::new(|| async { Ok(NistMemSqlDB::new()) });
-    // Enable hash mode with threshold of 8 (standard SQLLogicTest behavior)
+
+    // Set hash threshold to 8 (SQLLogicTest default) - results with more than 8 values will be hashed
     tester.with_hash_threshold(8);
 
     tester.run_script(&contents)
