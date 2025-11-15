@@ -66,8 +66,24 @@ impl IndexData {
                 let normalized_start = start.map(normalize_for_comparison);
                 let normalized_end = end.map(normalize_for_comparison);
 
+                // Special handling for prefix matching (used by multi-column IN clauses)
+                // When start == end with inclusive bounds, we're doing an equality check
+                // on the first column of a multi-column index. We need to match all keys
+                // where the first column equals the target value, regardless of other columns.
+                if let (Some(start_val), Some(end_val)) = (&normalized_start, &normalized_end) {
+                    if start_val == end_val && inclusive_start && inclusive_end {
+                        // Prefix matching: iterate through index and compare only first column
+                        for (key_values, row_indices) in data.iter() {
+                            if !key_values.is_empty() && &key_values[0] == start_val {
+                                matching_row_indices.extend(row_indices);
+                            }
+                        }
+                        return matching_row_indices;
+                    }
+                }
+
+                // Standard range scan for single-column indexes or actual range queries
                 // Convert to single-element keys (for single-column indexes)
-                // For multi-column indexes, we only compare the first column
                 let start_key = normalized_start.as_ref().map(|v| vec![v.clone()]);
                 let end_key = normalized_end.as_ref().map(|v| vec![v.clone()]);
 

@@ -78,9 +78,11 @@ impl SelectExecutor<'_> {
         let mut results = if has_aggregates || has_group_by {
             self.execute_with_aggregation(stmt, cte_results)?
         } else if let Some(from_clause) = &stmt.from {
-            // Pass WHERE clause to execute_from for predicate pushdown optimization
+            // TEMPORARY: Don't pass WHERE clause to execute_from for now (issue #1807)
+            // This ensures all rows are available for IN clause index optimization
+            // TODO: Re-enable predicate pushdown after multi-column IN is fully working
             let from_result =
-                self.execute_from_with_where(from_clause, cte_results, stmt.where_clause.as_ref())?;
+                self.execute_from_with_where(from_clause, cte_results, None)?;
             self.execute_without_aggregation(stmt, from_result)?
         } else {
             // SELECT without FROM - evaluate expressions as a single row
