@@ -42,9 +42,10 @@ impl Division {
             return Ok(SqlValue::Null);
         }
 
-        // Division returns Float for exact numerics, but preserves Numeric type
+        // Division returns Integer for exact numerics (integer division - SQL:1999/SQLite behavior)
+        // Float for approximate numerics, and preserves Numeric type
         match coerced {
-            super::CoercedValues::ExactNumeric(a, b) => Ok(Float((a as f64 / b as f64) as f32)),
+            super::CoercedValues::ExactNumeric(a, b) => Ok(Integer(a / b)),
             super::CoercedValues::ApproximateNumeric(a, b) => Ok(Float((a / b) as f32)),
             super::CoercedValues::Numeric(a, b) => Ok(Numeric(a / b)),
         }
