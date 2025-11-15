@@ -276,13 +276,24 @@ fn try_comparison_then_filter_in(
 
     // Extract literal values from IN list
     let mut literal_values = Vec::new();
+    let mut has_null = false;
     for val_expr in in_values {
         if let vibesql_ast::Expression::Literal(val) = val_expr {
+            // Track if we encounter NULL in the list
+            if matches!(val, vibesql_types::SqlValue::Null) {
+                has_null = true;
+            }
             literal_values.push(val.clone());
         } else {
             // Can't optimize if IN list contains non-literals
             return Ok(None);
         }
+    }
+
+    // If IN list contains NULL, skip index optimization
+    // (same rationale as in try_index_for_in_expr)
+    if has_null {
+        return Ok(None);
     }
 
     // Find which table/column the IN clause references
@@ -549,12 +560,26 @@ pub(in crate::select::executor) fn try_index_for_in_expr(
 
     // Extract literal values
     let mut literal_values = Vec::new();
+    let mut has_null = false;
     for val_expr in values {
         if let vibesql_ast::Expression::Literal(val) = val_expr {
+            // Track if we encounter NULL in the list
+            if matches!(val, vibesql_types::SqlValue::Null) {
+                has_null = true;
+            }
             literal_values.push(val.clone());
         } else {
             return Ok(None); // Not all values are literals
         }
+    }
+
+    // If IN list contains NULL, skip index optimization
+    // Rationale: per SQL three-valued logic, when NULL is in the IN list:
+    // - value IN (..., NULL) when value doesn't match → NULL (not FALSE)
+    // The index lookup can't represent this NULL result, so we must fall back
+    // to regular evaluation which handles three-valued logic correctly
+    if has_null {
+        return Ok(None);
     }
 
     // Find an index on this table and column
