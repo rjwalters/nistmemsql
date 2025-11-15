@@ -509,6 +509,6 @@ fn test_distinct_empty_table() {
     assert_eq!(result.len(), 1);
     // COUNT on empty table should be 0
     assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(0));
-    // SUM on empty table should be 0
-    assert_eq!(result[0].values[1], vibesql_types::SqlValue::Integer(0));
+    // SUM on empty table should be NULL (SQL standard)
+    assert_eq!(result[0].values[1], vibesql_types::SqlValue::Null);
 }
