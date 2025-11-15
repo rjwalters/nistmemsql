@@ -23,6 +23,12 @@
 -- - category/subcategory enable grouping and filtering
 -- - status tracks current state: 'PASS', 'FAIL', 'UNTESTED'
 -- - last_tested and last_passed track temporal state changes
+--
+-- Update semantics:
+-- - Uses INSERT OR REPLACE for idempotent upserts in append-only SQL dumps
+-- - On each test run, existing row is atomically replaced with new status
+-- - This ensures idempotent behavior when loading dumps multiple times
+-- - Historical results are preserved in test_results table
 
 CREATE TABLE test_files (
     file_path VARCHAR(500) PRIMARY KEY,
