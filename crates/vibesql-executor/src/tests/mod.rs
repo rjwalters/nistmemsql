@@ -89,6 +89,7 @@ mod select_order_by;
 mod select_where;
 mod select_window_aggregate;
 mod select_without_from;
+mod set_operations_associativity;
 mod timeout_enforcement;
 mod transaction_tests;
 mod trigger_tests;
