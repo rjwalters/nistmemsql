@@ -13,5 +13,5 @@ mod where_filter;
 mod spatial;
 
 pub(in crate::select::executor) use order_by::try_index_based_ordering;
-pub(in crate::select::executor) use where_filter::try_index_based_where_filtering;
+pub(in crate::select::executor) use where_filter::{try_index_based_where_filtering, try_index_for_in_clause};
 pub(in crate::select::executor) use spatial::try_spatial_index_optimization;

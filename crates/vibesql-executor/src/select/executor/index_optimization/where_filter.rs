@@ -18,6 +18,42 @@ pub(in crate::select::executor) fn try_index_based_where_filtering(
     Ok(None)
 }
 
+/// Try to use indexes specifically for IN clause expressions
+/// This is a focused re-enablement of IN clause optimization (issue #1764)
+/// while keeping other WHERE filtering disabled due to bugs in #1744
+pub(in crate::select::executor) fn try_index_for_in_clause(
+    database: &Database,
+    where_expr: Option<&vibesql_ast::Expression>,
+    all_rows: &[vibesql_storage::Row],
+    schema: &CombinedSchema,
+) -> Result<Option<Vec<vibesql_storage::Row>>, ExecutorError> {
+    let where_expr = match where_expr {
+        Some(expr) => expr,
+        None => return Ok(None),
+    };
+
+    match where_expr {
+        // Simple IN clause: col IN (...)
+        vibesql_ast::Expression::InList { expr, values, negated: false } => {
+            try_index_for_in_expr(database, expr, values, all_rows, schema)
+        }
+        // IN clause combined with AND: col IN (...) AND comparison
+        vibesql_ast::Expression::BinaryOp { left, op: vibesql_ast::BinaryOperator::And, right } => {
+            // Try left as IN, right as comparison
+            if let Some(rows) = try_index_for_in_and_comparison(database, left, right, all_rows, schema)? {
+                return Ok(Some(rows));
+            }
+            // Try right as IN, left as comparison
+            if let Some(rows) = try_index_for_in_and_comparison(database, right, left, all_rows, schema)? {
+                return Ok(Some(rows));
+            }
+            Ok(None)
+        }
+        // Not an IN clause pattern we can optimize
+        _ => Ok(None),
+    }
+}
+
 /// Try to use index for binary operation predicates (=, <, >, <=, >=)
 pub(in crate::select::executor) fn try_index_for_binary_op(
     database: &Database,

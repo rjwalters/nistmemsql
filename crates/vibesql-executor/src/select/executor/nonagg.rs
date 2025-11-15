@@ -2,7 +2,7 @@
 
 use super::{
     builder::SelectExecutor,
-    index_optimization::{try_index_based_ordering, try_index_based_where_filtering, try_spatial_index_optimization},
+    index_optimization::{try_index_based_ordering, try_index_based_where_filtering, try_index_for_in_clause, try_spatial_index_optimization},
 };
 use crate::{
     errors::ExecutorError,
@@ -361,16 +361,25 @@ impl SelectExecutor<'_> {
             &schema,
         )? {
             spatial_filtered
+        } else if let Some(in_filtered) = try_index_for_in_clause(
+            self.database,
+            stmt.where_clause.as_ref(),
+            &rows,
+            &schema,
+        )? {
+            // 2. Try IN clause index optimization (issue #1764)
+            in_filtered
         } else if let Some(index_filtered) = try_index_based_where_filtering(
             self.database,
             stmt.where_clause.as_ref(),
             &rows,
             &schema,
         )? {
-            // 2. Try B-tree index optimization (for =, <, >, BETWEEN, IN, etc.)
+            // 3. Try B-tree index optimization (for =, <, >, BETWEEN, etc.)
+            // Currently disabled due to #1744
             index_filtered
         } else {
-            // 3. Fall back to full WHERE clause evaluation
+            // 4. Fall back to full WHERE clause evaluation
             let where_optimization = optimize_where_clause(stmt.where_clause.as_ref(), &evaluator)?;
 
             match where_optimization {
