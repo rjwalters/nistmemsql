@@ -14,6 +14,11 @@ impl Division {
     pub fn divide(left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError> {
         use SqlValue::*;
 
+        // NULL propagation - SQL standard semantics
+        if matches!(left, Null) || matches!(right, Null) {
+            return Ok(Null);
+        }
+
         // Fast path for integers (both modes) - division always returns float
         if let (Integer(a), Integer(b)) = (left, right) {
             if *b == 0 {
@@ -50,12 +55,17 @@ impl Division {
     pub fn integer_divide(left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError> {
         use SqlValue::*;
 
+        // NULL propagation - SQL standard semantics
+        if matches!(left, Null) || matches!(right, Null) {
+            return Ok(Null);
+        }
+
         // Fast path for integers (both modes)
         if let (Integer(a), Integer(b)) = (left, right) {
             if *b == 0 {
                 return Ok(SqlValue::Null);
             }
-            return Ok(Numeric((a / b) as f64));
+            return Ok(Integer(a / b));
         }
 
         // Use helper for type coercion
@@ -74,9 +84,9 @@ impl Division {
 
         // Integer division truncates toward zero
         match coerced {
-            super::CoercedValues::ExactNumeric(a, b) => Ok(Numeric((a / b) as f64)),
-            super::CoercedValues::ApproximateNumeric(a, b) => Ok(Numeric((a / b).trunc())),
-            super::CoercedValues::Numeric(a, b) => Ok(Numeric((a / b).trunc())),
+            super::CoercedValues::ExactNumeric(a, b) => Ok(Integer(a / b)),
+            super::CoercedValues::ApproximateNumeric(a, b) => Ok(Integer((a / b).trunc() as i64)),
+            super::CoercedValues::Numeric(a, b) => Ok(Integer((a / b).trunc() as i64)),
         }
     }
 }

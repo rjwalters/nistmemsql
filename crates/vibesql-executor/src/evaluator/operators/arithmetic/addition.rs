@@ -16,6 +16,11 @@ impl Addition {
     pub fn add(left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError> {
         use SqlValue::*;
 
+        // NULL propagation - SQL standard semantics
+        if matches!(left, Null) || matches!(right, Null) {
+            return Ok(Null);
+        }
+
         // Fast path for integers (both modes)
         if let (Integer(a), Integer(b)) = (left, right) {
             return Ok(Integer(a + b));

@@ -196,3 +196,175 @@ CREATE TABLE test_results (
 -- Schema evolution:
 --   For now, schema is immutable (recreate from scratch each time)
 --   Future: Add migration support when schema stabilizes
+
+-- ============================================================================
+-- Analysis Views for Failure Pattern Detection
+-- ============================================================================
+--
+-- These views power the `./scripts/sqllogictest analyze` command to help
+-- prioritize which test failures to fix first based on impact and effort.
+--
+-- Views:
+-- - latest_run_summary: Summary of most recent test run
+-- - failure_patterns: Groups failures by error type for pattern analysis
+-- - fix_opportunities: Prioritizes fixes by impact ratio (tests affected / effort)
+-- - failure_examples: Shows example failures for each pattern
+
+-- View: Latest test run summary
+-- Shows summary statistics for the most recent test run
+CREATE VIEW latest_run_summary AS
+SELECT
+    run_id,
+    started_at,
+    completed_at,
+    total_files,
+    passed,
+    failed,
+    untested,
+    ROUND(100.0 * passed / total_files, 1) as pass_rate,
+    git_commit
+FROM test_runs
+ORDER BY run_id DESC
+LIMIT 1;
+
+-- View: Failure patterns grouped by error type
+-- Analyzes error messages to identify common failure patterns
+CREATE VIEW failure_patterns AS
+SELECT
+    -- Extract error type from error message
+    CASE
+        WHEN tr.error_message LIKE '%query result mismatch%' THEN 'Result Mismatch'
+        WHEN tr.error_message LIKE '%ColumnNotFound%' THEN 'Column Not Found'
+        WHEN tr.error_message LIKE '%TypeMismatch%' THEN 'Type Mismatch'
+        WHEN tr.error_message LIKE '%Parse%Error%' THEN 'Parse Error'
+        WHEN tr.error_message LIKE '%UnsupportedExpression%' THEN 'Unsupported Expression'
+        WHEN tr.error_message LIKE '%DivisionByZero%' THEN 'Division By Zero'
+        WHEN tr.error_message LIKE '%Not implemented%' THEN 'Not Implemented'
+        WHEN tr.error_message LIKE '%InvalidLine%' THEN 'Invalid Line'
+        ELSE 'Other'
+    END as error_type,
+    COUNT(*) as failure_count,
+    COUNT(DISTINCT tr.file_path) as affected_files,
+    ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM test_results WHERE run_id = tr.run_id AND status = 'FAIL'), 1) as pct_of_failures,
+    -- Extract specific error patterns
+    CASE
+        WHEN tr.error_message LIKE '%query result mismatch%' AND tr.error_message LIKE '%.000%' THEN 'Decimal formatting (N.000 vs N)'
+        WHEN tr.error_message LIKE '%ColumnNotFound%' AND tr.error_message LIKE '%COL%' THEN 'Case-sensitive column resolution'
+        WHEN tr.error_message LIKE '%TypeMismatch%' AND tr.error_message LIKE '%NOT%' THEN 'NOT NULL type mismatch'
+        WHEN tr.error_message LIKE '%Parse%Error%' THEN 'SQL parse error'
+        WHEN tr.error_message LIKE '%UnsupportedExpression%NULLIF%' THEN 'Missing function: NULLIF'
+        WHEN tr.error_message LIKE '%UnsupportedExpression%COALESCE%' THEN 'Missing function: COALESCE'
+        WHEN tr.error_message LIKE '%DivisionByZero%' THEN 'Division by zero'
+        WHEN tr.error_message LIKE '%Not implemented%' THEN 'Feature not implemented'
+        WHEN tr.error_message LIKE '%InvalidLine%onlyif%' THEN 'onlyif directive'
+        WHEN tr.error_message LIKE '%InvalidLine%skipif%' THEN 'skipif directive'
+        ELSE 'Other error'
+    END as error_pattern,
+    tr.run_id
+FROM test_results tr
+WHERE tr.status = 'FAIL'
+GROUP BY tr.run_id, error_type, error_pattern
+ORDER BY failure_count DESC;
+
+-- View: High-impact fix opportunities
+-- Prioritizes fixes based on impact ratio (failures fixed per unit of effort)
+CREATE VIEW fix_opportunities AS
+SELECT
+    ROW_NUMBER() OVER (ORDER BY (failure_count * 1.0 / effort_score) DESC) as rank,
+    error_pattern as pattern,
+    failure_count as tests_affected,
+    pct_of_failures as pct_failures,
+    effort,
+    ROUND(failure_count * 1.0 / effort_score, 1) as impact_ratio,
+    CASE
+        WHEN ROW_NUMBER() OVER (ORDER BY (failure_count * 1.0 / effort_score) DESC) <= 3 THEN 'P0'
+        WHEN ROW_NUMBER() OVER (ORDER BY (failure_count * 1.0 / effort_score) DESC) <= 7 THEN 'P1'
+        ELSE 'P2'
+    END as priority
+FROM (
+    SELECT
+        error_pattern,
+        SUM(failure_count) as failure_count,
+        ROUND(AVG(pct_of_failures), 1) as pct_of_failures,
+        -- Effort estimation based on pattern
+        CASE
+            WHEN error_pattern LIKE '%formatting%' THEN 'Low'
+            WHEN error_pattern LIKE '%Missing function%' THEN 'Medium'
+            WHEN error_pattern LIKE '%Case-sensitive%' THEN 'Medium'
+            WHEN error_pattern LIKE '%directive%' THEN 'Medium'
+            WHEN error_pattern LIKE '%parse error%' THEN 'High'
+            WHEN error_pattern LIKE '%type mismatch%' THEN 'High'
+            ELSE 'Medium'
+        END as effort,
+        CASE
+            WHEN error_pattern LIKE '%formatting%' THEN 1
+            WHEN error_pattern LIKE '%Missing function%' THEN 2
+            WHEN error_pattern LIKE '%Case-sensitive%' THEN 2
+            WHEN error_pattern LIKE '%directive%' THEN 2
+            WHEN error_pattern LIKE '%parse error%' THEN 3
+            WHEN error_pattern LIKE '%type mismatch%' THEN 3
+            ELSE 2
+        END as effort_score
+    FROM failure_patterns
+    WHERE error_pattern != 'Other error'
+    GROUP BY error_pattern
+) AS grouped
+ORDER BY impact_ratio DESC
+LIMIT 10;
+
+-- View: Example failures for each pattern
+-- Shows sample test files and error messages for each failure pattern
+CREATE VIEW failure_examples AS
+SELECT
+    error_pattern,
+    file_path,
+    error_type,
+    SUBSTR(error_message, 1, 150) as error_message_preview
+FROM (
+    SELECT
+        CASE
+            WHEN tr.error_message LIKE '%query result mismatch%' AND tr.error_message LIKE '%.000%' THEN 'Decimal formatting (N.000 vs N)'
+            WHEN tr.error_message LIKE '%ColumnNotFound%' AND tr.error_message LIKE '%COL%' THEN 'Case-sensitive column resolution'
+            WHEN tr.error_message LIKE '%TypeMismatch%' AND tr.error_message LIKE '%NOT%' THEN 'NOT NULL type mismatch'
+            WHEN tr.error_message LIKE '%Parse%Error%' THEN 'SQL parse error'
+            WHEN tr.error_message LIKE '%UnsupportedExpression%NULLIF%' THEN 'Missing function: NULLIF'
+            WHEN tr.error_message LIKE '%UnsupportedExpression%COALESCE%' THEN 'Missing function: COALESCE'
+            WHEN tr.error_message LIKE '%DivisionByZero%' THEN 'Division by zero'
+            WHEN tr.error_message LIKE '%Not implemented%' THEN 'Feature not implemented'
+            WHEN tr.error_message LIKE '%InvalidLine%onlyif%' THEN 'onlyif directive'
+            WHEN tr.error_message LIKE '%InvalidLine%skipif%' THEN 'skipif directive'
+            ELSE 'Other error'
+        END as error_pattern,
+        CASE
+            WHEN tr.error_message LIKE '%query result mismatch%' THEN 'Result Mismatch'
+            WHEN tr.error_message LIKE '%ColumnNotFound%' THEN 'Column Not Found'
+            WHEN tr.error_message LIKE '%TypeMismatch%' THEN 'Type Mismatch'
+            WHEN tr.error_message LIKE '%Parse%Error%' THEN 'Parse Error'
+            WHEN tr.error_message LIKE '%UnsupportedExpression%' THEN 'Unsupported Expression'
+            WHEN tr.error_message LIKE '%DivisionByZero%' THEN 'Division By Zero'
+            WHEN tr.error_message LIKE '%Not implemented%' THEN 'Not Implemented'
+            WHEN tr.error_message LIKE '%InvalidLine%' THEN 'Invalid Line'
+            ELSE 'Other'
+        END as error_type,
+        tr.file_path,
+        tr.error_message,
+        ROW_NUMBER() OVER (PARTITION BY
+            CASE
+                WHEN tr.error_message LIKE '%query result mismatch%' AND tr.error_message LIKE '%.000%' THEN 'Decimal formatting (N.000 vs N)'
+                WHEN tr.error_message LIKE '%ColumnNotFound%' AND tr.error_message LIKE '%COL%' THEN 'Case-sensitive column resolution'
+                WHEN tr.error_message LIKE '%TypeMismatch%' AND tr.error_message LIKE '%NOT%' THEN 'NOT NULL type mismatch'
+                WHEN tr.error_message LIKE '%Parse%Error%' THEN 'SQL parse error'
+                WHEN tr.error_message LIKE '%UnsupportedExpression%NULLIF%' THEN 'Missing function: NULLIF'
+                WHEN tr.error_message LIKE '%UnsupportedExpression%COALESCE%' THEN 'Missing function: COALESCE'
+                WHEN tr.error_message LIKE '%DivisionByZero%' THEN 'Division by zero'
+                WHEN tr.error_message LIKE '%Not implemented%' THEN 'Feature not implemented'
+                WHEN tr.error_message LIKE '%InvalidLine%onlyif%' THEN 'onlyif directive'
+                WHEN tr.error_message LIKE '%InvalidLine%skipif%' THEN 'skipif directive'
+                ELSE 'Other error'
+            END
+        ORDER BY tr.file_path) as rn
+    FROM test_results tr
+    WHERE tr.status = 'FAIL'
+    AND tr.run_id = (SELECT MAX(run_id) FROM test_runs)
+) AS ranked
+WHERE rn <= 3;
