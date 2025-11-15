@@ -29,6 +29,7 @@
 //! - `predicate_pushdown`: Table-local predicate pushdown optimization tests (Phase 2)
 //! - `privilege_checker_tests`: Privilege enforcement tests
 //! - `query_timeout_tests`: Query timeout enforcement tests (issue #1014)
+//! - `quantified_comparison_tests`: Quantified comparison tests (ALL, ANY, SOME with subqueries)
 //! - `create_table_tests`: CREATE TABLE executor tests (basic table creation, data types, spatial
 //!   types)
 //! - `fulltext_search`: Full-text search integration tests (MATCH...AGAINST natural language, boolean mode)
@@ -51,6 +52,7 @@ mod aggregate_edge_case_tests;
 mod aggregate_group_by_tests;
 mod aggregate_having_tests;
 mod aggregate_min_max_tests;
+mod aggregate_random_patterns;
 mod aggregate_without_from;
 mod auto_increment_tests;
 mod between_predicates;
@@ -78,6 +80,7 @@ mod predicate_pushdown;
 mod predicate_tests;
 mod procedure_tests;
 mod privilege_checker_tests;
+mod quantified_comparison_tests;
 mod query_timeout_tests;
 mod scalar_subquery_basic_tests;
 mod scalar_subquery_correlated_tests;
