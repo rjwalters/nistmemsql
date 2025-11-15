@@ -88,18 +88,56 @@ impl SelectExecutor<'_> {
         };
 
         // Handle set operations (UNION, INTERSECT, EXCEPT)
+        // Process operations left-to-right to ensure correct associativity
         if let Some(set_op) = &stmt.set_operation {
-            // Execute the right-hand side query
-            let right_results = self.execute(&set_op.right)?;
-
-            // Apply the set operation
-            results = apply_set_operation(results, right_results, set_op)?;
-
-            // Apply LIMIT/OFFSET to the final combined result
-            results = apply_limit_offset(results, stmt.limit, stmt.offset);
+            results = self.execute_set_operations(results, set_op, cte_results)?;
         }
 
+        // Apply LIMIT/OFFSET to the final result (after all set operations)
+        // LIMIT/OFFSET should only be applied at the top level, not on intermediate queries
+        results = apply_limit_offset(results, stmt.limit, stmt.offset);
+
         Ok(results)
+    }
+
+    /// Execute a chain of set operations left-to-right
+    ///
+    /// SQL set operations are left-associative, so:
+    /// A EXCEPT B EXCEPT C should evaluate as (A EXCEPT B) EXCEPT C
+    ///
+    /// The parser creates a right-recursive AST structure, but we need to execute left-to-right.
+    fn execute_set_operations(
+        &self,
+        mut left_results: Vec<vibesql_storage::Row>,
+        set_op: &vibesql_ast::SetOperation,
+        cte_results: &HashMap<String, CteResult>,
+    ) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
+        // Execute the immediate right query WITHOUT its set operations
+        // This prevents right-recursive evaluation
+        let right_stmt = &set_op.right;
+        let has_aggregates = self.has_aggregates(&right_stmt.select_list) || right_stmt.having.is_some();
+        let has_group_by = right_stmt.group_by.is_some();
+
+        let right_results = if has_aggregates || has_group_by {
+            self.execute_with_aggregation(right_stmt, cte_results)?
+        } else if let Some(from_clause) = &right_stmt.from {
+            let from_result =
+                self.execute_from_with_where(from_clause, cte_results, right_stmt.where_clause.as_ref())?;
+            self.execute_without_aggregation(right_stmt, from_result)?
+        } else {
+            self.execute_select_without_from(right_stmt)?
+        };
+
+        // Apply the current operation
+        left_results = apply_set_operation(left_results, right_results, set_op)?;
+
+        // If the right side has more set operations, continue processing them
+        // This creates the left-to-right evaluation: ((A op B) op C) op D
+        if let Some(next_set_op) = &right_stmt.set_operation {
+            left_results = self.execute_set_operations(left_results, next_set_op, cte_results)?;
+        }
+
+        Ok(left_results)
     }
 
     /// Execute a FROM clause (table or join) and return combined schema and rows
