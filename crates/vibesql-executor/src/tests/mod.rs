@@ -51,6 +51,7 @@ mod aggregate_edge_case_tests;
 mod aggregate_group_by_tests;
 mod aggregate_having_tests;
 mod aggregate_min_max_tests;
+mod aggregate_random_patterns;
 mod aggregate_without_from;
 mod auto_increment_tests;
 mod between_predicates;
