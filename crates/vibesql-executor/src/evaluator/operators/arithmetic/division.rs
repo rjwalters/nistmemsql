@@ -14,6 +14,11 @@ impl Division {
     pub fn divide(left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError> {
         use SqlValue::*;
 
+        // NULL propagation - SQL standard semantics
+        if matches!(left, Null) || matches!(right, Null) {
+            return Ok(Null);
+        }
+
         // Fast path for integers (both modes) - division always returns float
         if let (Integer(a), Integer(b)) = (left, right) {
             if *b == 0 {
@@ -49,6 +54,11 @@ impl Division {
     #[inline]
     pub fn integer_divide(left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError> {
         use SqlValue::*;
+
+        // NULL propagation - SQL standard semantics
+        if matches!(left, Null) || matches!(right, Null) {
+            return Ok(Null);
+        }
 
         // Fast path for integers (both modes)
         if let (Integer(a), Integer(b)) = (left, right) {
