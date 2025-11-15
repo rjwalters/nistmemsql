@@ -86,13 +86,14 @@ fn test_unary_minus_null() {
 }
 
 #[test]
-fn test_unary_plus_invalid_type() {
+fn test_unary_plus_text() {
+    // SQLite behavior: unary + on text returns text unchanged (identity operation)
     let db = vibesql_storage::Database::new();
     let expr = vibesql_ast::Expression::UnaryOp {
         op: vibesql_ast::UnaryOperator::Plus,
         expr: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Varchar("hello".to_string()))),
     };
-    assert_type_mismatch(&db, expr);
+    assert_expression_result(&db, expr, vibesql_types::SqlValue::Varchar("hello".to_string()));
 }
 
 #[test]
