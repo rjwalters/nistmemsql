@@ -177,6 +177,15 @@ def run_worker(worker_id: int, test_files: List[str], time_budget: int, repo_roo
     files_timed_out = 0
     all_results = []
 
+    # Clean up any stale per-file result files from previous runs
+    import glob as glob_cleanup
+    stale_files = glob_cleanup.glob(str(repo_root / "target" / f"sqllogictest_results_worker_{worker_id}_file_*.json"))
+    for stale_file in stale_files:
+        try:
+            Path(stale_file).unlink()
+        except:
+            pass  # Ignore cleanup failures
+
     # Per-file timeout: adaptive based on historical data, with reasonable bounds
     # Most files complete in <10s, but some slow files need more time
     per_file_timeout = 60  # 60s per file is a reasonable default
@@ -227,23 +236,50 @@ def run_worker(worker_id: int, test_files: List[str], time_budget: int, repo_roo
             else:
                 print(f"[Worker {worker_id}] File {files_tested}/{len(test_files)}: {test_file} completed in {file_elapsed:.1f}s", flush=True)
 
+            # Rename the standard result file to our unique per-file name
+            # The Rust test binary writes to sqllogictest_results_worker_{worker_id}.json
+            # We need to rename it to avoid overwriting results from previous files
+            standard_results_file = repo_root / "target" / f"sqllogictest_results_worker_{worker_id}.json"
+            if standard_results_file.exists():
+                try:
+                    standard_results_file.rename(run_results_file)
+                except Exception as e:
+                    print(f"[Worker {worker_id}] Warning: Failed to rename result file: {e}", flush=True)
+
             # Read results if they exist
             if run_results_file.exists():
                 with open(run_results_file, 'r') as f:
                     file_results = json.load(f)
                     all_results.append(file_results)
-                # Clean up individual result file
+                # Clean up individual result file after reading
                 run_results_file.unlink()
+            else:
+                # Log if results file doesn't exist (test may have crashed or failed to write results)
+                print(f"[Worker {worker_id}] Warning: No results file found for {test_file}", flush=True)
 
         except subprocess.TimeoutExpired:
             files_tested += 1
             files_timed_out += 1
             print(f"[Worker {worker_id}] File {files_tested}/{len(test_files)}: {test_file} TIMEOUT after {per_file_timeout}s", flush=True)
+            # Clean up any partial result file that may have been written
+            standard_results_file = repo_root / "target" / f"sqllogictest_results_worker_{worker_id}.json"
+            if standard_results_file.exists():
+                try:
+                    standard_results_file.unlink()
+                except:
+                    pass  # Ignore cleanup failures
             # Continue to next file instead of failing entire worker
 
         except Exception as e:
             files_tested += 1
             print(f"[Worker {worker_id}] File {files_tested}/{len(test_files)}: {test_file} ERROR: {type(e).__name__}: {e}", flush=True)
+            # Clean up any partial result file that may have been written
+            standard_results_file = repo_root / "target" / f"sqllogictest_results_worker_{worker_id}.json"
+            if standard_results_file.exists():
+                try:
+                    standard_results_file.unlink()
+                except:
+                    pass  # Ignore cleanup failures
             # Continue to next file
 
     total_elapsed = time.time() - worker_start_time
