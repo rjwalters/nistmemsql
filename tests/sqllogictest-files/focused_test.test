@@ -1,0 +1,41 @@
+hash-threshold 8
+
+# Test 1: CREATE TABLE with VARBINARY
+statement ok
+CREATE TABLE test_binary (id INTEGER, data VARBINARY(4));
+
+# Test 2: CREATE VIEW
+statement ok
+CREATE TABLE base_table (x INTEGER, y VARCHAR(10));
+
+statement ok
+INSERT INTO base_table VALUES (1, 'one');
+
+statement ok
+INSERT INTO base_table VALUES (2, 'two');
+
+statement ok
+CREATE VIEW test_view AS SELECT x FROM base_table WHERE x > 0;
+
+# Test 3: SELECT FROM VIEW
+query I nosort
+SELECT x FROM test_view;
+----
+1
+2
+
+# Test 4: DROP VIEW
+statement ok
+DROP VIEW test_view;
+
+# Test 5: Recreate with OR REPLACE
+statement ok
+CREATE OR REPLACE VIEW test_view AS SELECT x, y FROM base_table;
+
+query II nosort
+SELECT * FROM test_view;
+----
+1
+one
+2
+two

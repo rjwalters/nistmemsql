@@ -31,14 +31,40 @@ fn run_test_suite() -> (HashMap<String, TestStats>, usize) {
 
     let start_time = Instant::now();
 
+    // Check if we're filtering to specific files (for parallel workers)
+    let filter_files: Option<HashSet<String>> = env::var("SQLLOGICTEST_FILES")
+        .ok()
+        .map(|files_str| {
+            files_str
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .collect()
+        });
+
     // Find all .test files
     let pattern = format!("{}/**/*.test", test_dir.display());
-    let all_test_files: Vec<PathBuf> =
+    let mut all_test_files: Vec<PathBuf> =
         glob::glob(&pattern).expect("Failed to read test pattern").filter_map(Result::ok).collect();
+
+    // Filter to specific files if SQLLOGICTEST_FILES is set
+    if let Some(ref filter) = filter_files {
+        all_test_files.retain(|test_file| {
+            let relative_path = test_file
+                .strip_prefix(&test_dir)
+                .unwrap_or(test_file)
+                .to_string_lossy()
+                .to_string();
+            filter.contains(&relative_path)
+        });
+    }
 
     let total_available_files = all_test_files.len();
 
-    println!("\n=== SQLLogicTest Suite (Full Run) ===");
+    if let Some(worker_id) = env::var("SQLLOGICTEST_WORKER_ID").ok() {
+        println!("\n=== SQLLogicTest Suite (Worker {}) ===", worker_id);
+    } else {
+        println!("\n=== SQLLogicTest Suite (Full Run) ===");
+    }
     println!("Total test files: {}", total_available_files);
     println!("Starting test run...\n");
 

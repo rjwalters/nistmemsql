@@ -109,18 +109,6 @@ pub(super) fn coerce_numeric_values(
     })
 }
 
-/// Helper function to check for division by zero
-pub(super) fn check_division_by_zero(value: &CoercedValues) -> Result<(), ExecutorError> {
-    match value {
-        CoercedValues::ExactNumeric(_, right) if *right == 0 => Err(ExecutorError::DivisionByZero),
-        CoercedValues::ApproximateNumeric(_, right) if *right == 0.0 => {
-            Err(ExecutorError::DivisionByZero)
-        }
-        CoercedValues::Numeric(_, right) if *right == 0.0 => Err(ExecutorError::DivisionByZero),
-        _ => Ok(()),
-    }
-}
-
 pub(crate) struct ArithmeticOps;
 
 impl ArithmeticOps {
@@ -193,8 +181,9 @@ mod tests {
 
     #[test]
     fn test_division_by_zero() {
+        // Division by zero should return NULL (SQL standard behavior)
         let result = ArithmeticOps::divide(&SqlValue::Integer(5), &SqlValue::Integer(0));
-        assert!(matches!(result, Err(ExecutorError::DivisionByZero)));
+        assert_eq!(result.unwrap(), SqlValue::Null);
     }
 
     #[test]
@@ -284,9 +273,9 @@ mod tests {
 
     #[test]
     fn test_boolean_division_by_false() {
-        // 10 / FALSE should return DivisionByZero error
+        // 10 / FALSE should return NULL (SQL standard behavior)
         let result = ArithmeticOps::divide(&SqlValue::Integer(10), &SqlValue::Boolean(false));
-        assert!(matches!(result, Err(ExecutorError::DivisionByZero)));
+        assert_eq!(result.unwrap(), SqlValue::Null);
     }
 
     #[test]
@@ -449,5 +438,85 @@ mod tests {
         // MySQL mode also returns Integer (matches actual MySQL behavior)
         let mysql_result = ArithmeticOps::add(&int1, &int2).unwrap();
         assert_eq!(mysql_result, SqlValue::Integer(150));
+    }
+
+    // NULL propagation tests for issue #1728
+    #[test]
+    fn test_null_addition() {
+        assert_eq!(
+            ArithmeticOps::add(&SqlValue::Null, &SqlValue::Integer(23)).unwrap(),
+            SqlValue::Null
+        );
+        assert_eq!(
+            ArithmeticOps::add(&SqlValue::Integer(23), &SqlValue::Null).unwrap(),
+            SqlValue::Null
+        );
+        assert_eq!(
+            ArithmeticOps::add(&SqlValue::Null, &SqlValue::Null).unwrap(),
+            SqlValue::Null
+        );
+    }
+
+    #[test]
+    fn test_null_subtraction() {
+        assert_eq!(
+            ArithmeticOps::subtract(&SqlValue::Null, &SqlValue::Integer(23)).unwrap(),
+            SqlValue::Null
+        );
+        assert_eq!(
+            ArithmeticOps::subtract(&SqlValue::Integer(23), &SqlValue::Null).unwrap(),
+            SqlValue::Null
+        );
+    }
+
+    #[test]
+    fn test_null_multiplication() {
+        assert_eq!(
+            ArithmeticOps::multiply(&SqlValue::Null, &SqlValue::Integer(23)).unwrap(),
+            SqlValue::Null
+        );
+        assert_eq!(
+            ArithmeticOps::multiply(&SqlValue::Integer(23), &SqlValue::Null).unwrap(),
+            SqlValue::Null
+        );
+    }
+
+    #[test]
+    fn test_null_division() {
+        assert_eq!(
+            ArithmeticOps::divide(&SqlValue::Null, &SqlValue::Integer(23)).unwrap(),
+            SqlValue::Null
+        );
+        assert_eq!(
+            ArithmeticOps::divide(&SqlValue::Integer(23), &SqlValue::Null).unwrap(),
+            SqlValue::Null
+        );
+    }
+
+    #[test]
+    fn test_null_modulo() {
+        assert_eq!(
+            ArithmeticOps::modulo(&SqlValue::Null, &SqlValue::Integer(23)).unwrap(),
+            SqlValue::Null
+        );
+        assert_eq!(
+            ArithmeticOps::modulo(&SqlValue::Integer(23), &SqlValue::Null).unwrap(),
+            SqlValue::Null
+        );
+    }
+
+    #[test]
+    fn test_cast_null_arithmetic() {
+        // Simulate CAST(NULL AS SIGNED) + 23
+        let null_bigint = SqlValue::Null; // Result of CAST(NULL AS SIGNED)
+        let result = ArithmeticOps::add(&null_bigint, &SqlValue::Integer(23)).unwrap();
+        assert_eq!(result, SqlValue::Null);
+
+        // Test chained operations with NULL
+        let step1 = ArithmeticOps::multiply(&SqlValue::Null, &SqlValue::Integer(100)).unwrap();
+        assert_eq!(step1, SqlValue::Null);
+
+        let step2 = ArithmeticOps::add(&step1, &SqlValue::Integer(-23)).unwrap();
+        assert_eq!(step2, SqlValue::Null);
     }
 }

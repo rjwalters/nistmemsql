@@ -295,6 +295,25 @@ impl ExpressionEvaluator<'_> {
                     ))
                 }
             }
+
+            // Session variable (@@sql_mode, @@version, etc.)
+            vibesql_ast::Expression::SessionVariable { name } => {
+                // Get session variable from database metadata
+                if let Some(db) = self.database {
+                    // Get the session variable value from the database metadata
+                    if let Some(value) = db.get_session_variable(name) {
+                        Ok(value.clone())
+                    } else {
+                        // Variable not found - return NULL (MySQL behavior)
+                        Ok(SqlValue::Null)
+                    }
+                } else {
+                    // No database context available
+                    Err(ExecutorError::UnsupportedExpression(
+                        format!("Session variable @@{} cannot be evaluated without database context", name)
+                    ))
+                }
+            }
         }
     }
 

@@ -3,7 +3,7 @@
 //! Handles execution of subqueries in FROM clauses (derived tables)
 //! by executing the subquery and wrapping it with an alias.
 
-use crate::{errors::ExecutorError, schema::CombinedSchema};
+use crate::{errors::ExecutorError, schema::CombinedSchema, select::SelectResult};
 
 /// Derive a column name from an expression (simplified version from columns.rs)
 fn derive_column_name_from_expr(expr: &vibesql_ast::Expression) -> String {
@@ -87,10 +87,12 @@ pub(crate) fn execute_derived_table<F>(
     execute_subquery: F,
 ) -> Result<super::FromResult, ExecutorError>
 where
-    F: Fn(&vibesql_ast::SelectStmt) -> Result<Vec<vibesql_storage::Row>, ExecutorError>,
+    F: Fn(&vibesql_ast::SelectStmt) -> Result<SelectResult, ExecutorError>,
 {
-    // Execute subquery to get rows
-    let rows = execute_subquery(query)?;
+    // Execute subquery to get rows and column names
+    let subquery_result = execute_subquery(query)?;
+    let rows = subquery_result.rows;
+    let subquery_columns = subquery_result.columns;
 
     // Derive schema from SELECT list
     let mut column_names = Vec::new();
@@ -100,17 +102,23 @@ where
     for item in &query.select_list {
         match item {
             vibesql_ast::SelectItem::Wildcard { .. } | vibesql_ast::SelectItem::QualifiedWildcard { .. } => {
-                // For SELECT * or SELECT table.*, expand to all columns from the result rows
-                // Since we executed the subquery, the rows tell us how many columns there are
+                // For SELECT * or SELECT table.*, use the column names from the subquery result
+                // This preserves the actual column names instead of generating generic ones
                 if let Some(first_row) = rows.first() {
                     for (j, value) in first_row.values.iter().enumerate() {
-                        let col_name = format!("column{}", col_index + j + 1);
+                        // Use actual column name from subquery if available
+                        let col_name = subquery_columns.get(col_index + j).cloned()
+                            .unwrap_or_else(|| format!("column{}", col_index + j + 1));
                         column_names.push(col_name);
                         column_types.push(value.get_type());
                     }
                     col_index += first_row.values.len();
                 } else {
-                    // No rows, no columns from wildcard
+                    // No rows - use column names from subquery metadata
+                    for col_name in &subquery_columns {
+                        column_names.push(col_name.clone());
+                        column_types.push(vibesql_types::DataType::Null);
+                    }
                 }
             }
             vibesql_ast::SelectItem::Expression { expr, alias: col_alias } => {

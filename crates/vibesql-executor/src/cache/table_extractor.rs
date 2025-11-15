@@ -172,8 +172,9 @@ fn extract_from_expression(expr: &vibesql_ast::Expression, tables: &mut HashSet<
         | vibesql_ast::Expression::DuplicateKeyValue { .. }
         | vibesql_ast::Expression::WindowFunction { .. }
         | vibesql_ast::Expression::NextValue { .. }
-        | vibesql_ast::Expression::MatchAgainst { .. } => {}
-            | vibesql_ast::Expression::PseudoVariable { .. } => {}
+        | vibesql_ast::Expression::MatchAgainst { .. }
+        | vibesql_ast::Expression::PseudoVariable { .. }
+        | vibesql_ast::Expression::SessionVariable { .. } => {}
     }
 }
 

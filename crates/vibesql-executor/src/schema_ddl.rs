@@ -152,6 +152,35 @@ impl SchemaExecutor {
         }
     }
 
+    /// Execute SET SESSION/GLOBAL variable
+    pub fn execute_set_variable(
+        stmt: &vibesql_ast::SetVariableStmt,
+        database: &mut Database,
+    ) -> Result<String, ExecutorError> {
+        // Create a dummy empty schema for expression evaluation
+        // Session variables don't need table context
+        let empty_schema = vibesql_catalog::TableSchema::new(String::new(), vec![]);
+
+        // Create an empty row for expression evaluation
+        let empty_row = vibesql_storage::Row::new(vec![]);
+
+        // Create an expression evaluator with database context
+        let evaluator = crate::evaluator::ExpressionEvaluator::with_database(
+            &empty_schema,
+            database,
+        );
+
+        // Evaluate the value expression
+        let value = evaluator.eval(&stmt.value, &empty_row)?;
+
+        // Set the session variable in the database
+        // Note: For now, we ignore the GLOBAL scope and always set session variables
+        // Implementing true GLOBAL variables would require a separate storage mechanism
+        database.set_session_variable(&stmt.variable, value.clone());
+
+        Ok(format!("Variable '{}' set to {:?}", stmt.variable, value))
+    }
+
     /// Execute SET TIME ZONE
     pub fn execute_set_time_zone(
         stmt: &vibesql_ast::SetTimeZoneStmt,

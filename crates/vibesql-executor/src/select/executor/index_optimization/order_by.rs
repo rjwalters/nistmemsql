@@ -134,25 +134,35 @@ pub(in crate::select::executor) fn try_index_based_ordering(
     // Sort by key, respecting per-column ASC/DESC directions
     data_vec.sort_by(|(a, _): &(Vec<SqlValue>, Vec<usize>), (b, _): &(Vec<SqlValue>, Vec<usize>)| {
         for (i, (val_a, val_b)) in a.iter().zip(b.iter()).enumerate() {
-            // Determine if we want NULLs first or last based on direction and reversal
-            // When needs_reverse=true, we'll reverse the whole vector, so we need to pre-reverse NULL handling
-            let want_nulls_first = needs_reverse;
+            // Determine NULL ordering for this specific column based on its direction
+            // SQL standard: ASC → NULLs last, DESC → NULLs first
+            // When needs_reverse=true, we'll reverse the whole vector, so we need to invert the NULL ordering
+            let direction = order_directions.get(i).unwrap_or(&vibesql_ast::OrderDirection::Asc);
+            let is_desc = matches!(direction, vibesql_ast::OrderDirection::Desc);
+
+            // Normal ordering: ASC → NULLs last (false), DESC → NULLs first (true)
+            // When reversing entire vector: invert this
+            let want_nulls_first = if needs_reverse {
+                !is_desc  // Invert for reversal
+            } else {
+                is_desc   // Use normal ordering
+            };
 
             // Handle NULLs: sort first or last based on want_nulls_first
             let ord = match (val_a.is_null(), val_b.is_null()) {
                 (true, true) => std::cmp::Ordering::Equal,
                 (true, false) => {
                     if want_nulls_first {
-                        return std::cmp::Ordering::Less;    // NULL sorts first (will be last after reverse)
+                        return std::cmp::Ordering::Less;    // NULL sorts first
                     } else {
                         return std::cmp::Ordering::Greater; // NULL sorts last
                     }
                 }
                 (false, true) => {
                     if want_nulls_first {
-                        return std::cmp::Ordering::Greater; // non-NULL sorts after (will be first after reverse)
+                        return std::cmp::Ordering::Greater; // non-NULL sorts after NULL
                     } else {
-                        return std::cmp::Ordering::Less;    // non-NULL sorts first
+                        return std::cmp::Ordering::Less;    // non-NULL sorts before NULL
                     }
                 }
                 (false, false) => {
@@ -161,10 +171,8 @@ pub(in crate::select::executor) fn try_index_based_ordering(
 
                     // Reverse if this column should be DESC (but not if we're doing whole-vector reversal)
                     if !needs_reverse {
-                        if let Some(direction) = order_directions.get(i) {
-                            if matches!(direction, vibesql_ast::OrderDirection::Desc) {
-                                comparison = comparison.reverse();
-                            }
+                        if matches!(direction, vibesql_ast::OrderDirection::Desc) {
+                            comparison = comparison.reverse();
                         }
                     }
 

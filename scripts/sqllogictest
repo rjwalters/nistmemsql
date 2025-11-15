@@ -191,6 +191,7 @@ cmd_run() {
     local workers=""
     local time_budget="${SQLLOGICTEST_TIME_BUDGET:-300}"
     local force=false
+    local debug_mode=false
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -206,20 +207,29 @@ Options:
   --parallel              Run tests in parallel across multiple workers
   --workers N             Number of parallel workers (default: CPU count)
   --time N                Time budget in seconds per worker (default: 300)
+  --debug                 Use debug build (faster compile, 10-15x slower tests)
   --force                 Repopulate work queue with all test files (bypasses smart filtering)
 
 Examples:
-  # Serial run (local development, 5 minutes)
+  # Serial run (local development, 5 minutes, release mode)
   ./scripts/sqllogictest run
 
   # Serial with custom time
   ./scripts/sqllogictest run --time 60
 
-  # Parallel on local machine (uses all CPUs)
+  # Debug mode for faster iteration (slow tests!)
+  ./scripts/sqllogictest run --debug --time 10
+
+  # Parallel on local machine (uses all CPUs, release mode)
   ./scripts/sqllogictest run --parallel
 
   # Parallel on remote machine with 320 workers, 1 hour each
   ./scripts/sqllogictest run --parallel --workers 320 --time 3600
+
+Build Modes:
+  - Release (default): 10-15x faster tests, ~60s compile time
+  - Debug (--debug): 10-15x slower tests, ~10s compile time
+  - ALWAYS use release for CI/benchmarks!
 
 Serial Mode:
   - Runs tests sequentially in a single process
@@ -251,6 +261,10 @@ EOF
                 time_budget="$2"
                 shift 2
                 ;;
+            --debug)
+                debug_mode=true
+                shift
+                ;;
             --force)
                 force=true
                 shift
@@ -279,11 +293,19 @@ EOF
         print_info "Running parallel test suite"
         echo "Workers: $workers"
         echo "Time budget: ${time_budget}s per worker"
+        echo "Build mode: $(if $debug_mode; then echo 'debug (slow tests!)'; else echo 'release (optimized)'; fi)"
         echo ""
 
-        python3 scripts/run_parallel_tests.py \
-            --workers "$workers" \
-            --time-budget "$time_budget"
+        # Build command with optional --debug flag
+        local python_args=(
+            "--workers" "$workers"
+            "--time-budget" "$time_budget"
+        )
+        if $debug_mode; then
+            python_args+=("--debug")
+        fi
+
+        python3 scripts/run_parallel_tests.py "${python_args[@]}"
 
         print_success "Parallel run complete"
         echo "Results: target/sqllogictest_cumulative.json"
@@ -302,6 +324,7 @@ EOF
         # Serial execution
         print_info "Running serial test suite"
         echo "Time budget: ${time_budget}s"
+        echo "Build mode: $(if $debug_mode; then echo 'debug (slow tests!)'; else echo 'release (optimized)'; fi)"
         echo ""
 
         # Initialize work queue if --force is specified
@@ -321,8 +344,19 @@ print(f'Work queue initialized with {count} test files')
             echo ""
         fi
 
+        # Build with --release unless --debug is specified
+        local cargo_args=(
+            "test"
+            "--package" "vibesql"
+            "--test" "sqllogictest_suite"
+            "run_sqllogictest_suite"
+        )
+        if ! $debug_mode; then
+            cargo_args=("${cargo_args[@]:0:1}" "--release" "${cargo_args[@]:1}")
+        fi
+
         SQLLOGICTEST_TIME_BUDGET="$time_budget" \
-            cargo test --package vibesql --test sqllogictest_suite run_sqllogictest_suite -- --nocapture
+            cargo "${cargo_args[@]}" -- --nocapture
 
         print_success "Serial run complete"
         echo "Results database: ~/.vibesql/test_results/sqllogictest_results.sql"

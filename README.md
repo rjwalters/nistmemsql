@@ -408,13 +408,18 @@ END;
 
 **Quick Start**:
 ```bash
-# Run full test suite (serial mode, 5 minutes)
+# Run full test suite (serial mode)
+# Note: Serial mode is SLOW - expect ~30+ minutes for all 623 files
+# Recommend using --time limit for quick testing
 ./scripts/sqllogictest run --force --time 300
 
-# Quick test run (10 seconds)
+# Quick test run (10 seconds) - tests a subset of files
 ./scripts/sqllogictest run --force --time 10
 
-# Parallel mode (all 623 files in ~2 minutes, uses all CPUs)
+# Test a single file (fast iteration during development)
+./scripts/sqllogictest test select1.test
+
+# Parallel mode (10-15x faster than serial)
 ./scripts/sqllogictest run --parallel --workers 8
 
 # Query results with SQL!
@@ -434,6 +439,7 @@ END;
 - 📈 **Historical tracking**: Track pass rate over time with git commits
 - 🎯 **Manual testing workflow**: Query your progress as you work through tests
 - 🔄 **--force flag**: Repopulates work queue with all 623 test files for fresh runs
+- ⚡ **Parallel mode**: Run full suite in ~2 minutes with `--parallel --workers 8` (10-15x speedup)
 
 **Documentation**:
 - [Quick Start Guide](docs/sqllogictest/SQLLOGICTEST_QUICKSTART.md) - 30-second introduction

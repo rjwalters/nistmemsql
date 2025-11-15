@@ -66,8 +66,10 @@ pub fn optimize_expression(
         // Literals are already optimized
         Expression::Literal(_) => Ok(expr.clone()),
 
-        // Column references and pseudo-variables cannot be optimized
-        Expression::ColumnRef { .. } | Expression::PseudoVariable { .. } => Ok(expr.clone()),
+        // Column references, pseudo-variables, and session variables cannot be optimized
+        Expression::ColumnRef { .. }
+        | Expression::PseudoVariable { .. }
+        | Expression::SessionVariable { .. } => Ok(expr.clone()),
 
         // Binary operations - try to fold constants
         Expression::BinaryOp { left, op, right } => {

@@ -244,6 +244,14 @@ pub enum Expression {
         pseudo_table: PseudoTable,
         column: String,
     },
+
+    /// Session/system variable reference (@@sql_mode, @@version, etc.)
+    /// MySQL session and system variables using @@ prefix
+    /// Example: @@sql_mode, @@session.sql_mode, @@global.max_connections
+    /// Can be used in expressions: SELECT REPLACE(@@sql_mode, 'STRICT', '')
+    SessionVariable {
+        name: String,
+    },
 }
 
 /// Full-text search mode specification

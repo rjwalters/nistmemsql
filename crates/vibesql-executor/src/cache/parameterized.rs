@@ -401,7 +401,8 @@ impl LiteralExtractor {
             | Expression::Default
             | Expression::DuplicateKeyValue { .. }
             | Expression::NextValue { .. }
-            | Expression::MatchAgainst { .. } => {}
+            | Expression::MatchAgainst { .. }
+            | Expression::SessionVariable { .. } => {}
         }
     }
 }

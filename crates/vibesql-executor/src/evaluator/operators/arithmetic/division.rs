@@ -4,7 +4,7 @@ use vibesql_types::SqlValue;
 
 use crate::errors::ExecutorError;
 
-use super::{check_division_by_zero, coerce_numeric_values};
+use super::coerce_numeric_values;
 
 pub struct Division;
 
@@ -14,17 +14,32 @@ impl Division {
     pub fn divide(left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError> {
         use SqlValue::*;
 
+        // NULL propagation - SQL standard semantics
+        if matches!(left, Null) || matches!(right, Null) {
+            return Ok(Null);
+        }
+
         // Fast path for integers (both modes) - division always returns float
         if let (Integer(a), Integer(b)) = (left, right) {
             if *b == 0 {
-                return Err(ExecutorError::DivisionByZero);
+                return Ok(SqlValue::Null);
             }
             return Ok(Float((*a as f64 / *b as f64) as f32));
         }
 
         // Use helper for type coercion
         let coerced = coerce_numeric_values(left, right, "/")?;
-        check_division_by_zero(&coerced)?;
+
+        // Check for division by zero and return NULL (SQL standard behavior)
+        let is_zero = match &coerced {
+            super::CoercedValues::ExactNumeric(_, right) => *right == 0,
+            super::CoercedValues::ApproximateNumeric(_, right) => *right == 0.0,
+            super::CoercedValues::Numeric(_, right) => *right == 0.0,
+        };
+
+        if is_zero {
+            return Ok(SqlValue::Null);
+        }
 
         // Division returns Float for exact numerics, but preserves Numeric type
         match coerced {
@@ -40,23 +55,38 @@ impl Division {
     pub fn integer_divide(left: &SqlValue, right: &SqlValue) -> Result<SqlValue, ExecutorError> {
         use SqlValue::*;
 
+        // NULL propagation - SQL standard semantics
+        if matches!(left, Null) || matches!(right, Null) {
+            return Ok(Null);
+        }
+
         // Fast path for integers (both modes)
         if let (Integer(a), Integer(b)) = (left, right) {
             if *b == 0 {
-                return Err(ExecutorError::DivisionByZero);
+                return Ok(SqlValue::Null);
             }
             return Ok(Integer(a / b));
         }
 
         // Use helper for type coercion
         let coerced = coerce_numeric_values(left, right, "DIV")?;
-        check_division_by_zero(&coerced)?;
+
+        // Check for division by zero and return NULL (SQL standard behavior)
+        let is_zero = match &coerced {
+            super::CoercedValues::ExactNumeric(_, right) => *right == 0,
+            super::CoercedValues::ApproximateNumeric(_, right) => *right == 0.0,
+            super::CoercedValues::Numeric(_, right) => *right == 0.0,
+        };
+
+        if is_zero {
+            return Ok(SqlValue::Null);
+        }
 
         // Integer division truncates toward zero
         match coerced {
             super::CoercedValues::ExactNumeric(a, b) => Ok(Integer(a / b)),
-            super::CoercedValues::ApproximateNumeric(a, b) => Ok(Integer((a / b) as i64)),
-            super::CoercedValues::Numeric(a, b) => Ok(Integer((a / b) as i64)),
+            super::CoercedValues::ApproximateNumeric(a, b) => Ok(Integer((a / b).trunc() as i64)),
+            super::CoercedValues::Numeric(a, b) => Ok(Integer((a / b).trunc() as i64)),
         }
     }
 }

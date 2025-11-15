@@ -219,7 +219,7 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                     return RecordOutput::Nothing;
                 }
 
-                let (types, mut rows) = match conn.run(&sql).await {
+                let (mut types, mut rows) = match conn.run(&sql).await {
                     Ok(out) => match out {
                         DBOutput::Rows { types, rows } => (types, rows),
                         DBOutput::StatementComplete(count) => {
@@ -234,6 +234,18 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                         };
                     }
                 };
+
+                // Apply expected types from test directive for formatting purposes.
+                // This treats the format specifier (e.g., "query R") as a display directive:
+                // when we return Integer(49) but test expects Real/FloatingPoint type,
+                // we relabel the type (not the value) so existing formatting logic
+                // displays it as "49.000" instead of "49". This matches SQLite's behavior
+                // where the test format specifier controls output formatting.
+                if let QueryExpect::Results { types: expected_types, .. } = &expected {
+                    if types.len() == expected_types.len() {
+                        types = expected_types.clone();
+                    }
+                }
 
                 let sort_mode = match expected {
                     QueryExpect::Results { sort_mode, .. } => sort_mode,

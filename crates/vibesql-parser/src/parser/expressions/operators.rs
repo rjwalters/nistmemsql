@@ -20,11 +20,11 @@ impl Parser {
 
     /// Parse AND expression
     pub(super) fn parse_and_expression(&mut self) -> Result<vibesql_ast::Expression, ParseError> {
-        let mut left = self.parse_comparison_expression()?;
+        let mut left = self.parse_not_expression()?;
 
         while self.peek_keyword(Keyword::And) {
             self.consume_keyword(Keyword::And)?;
-            let right = self.parse_comparison_expression()?;
+            let right = self.parse_not_expression()?;
             left = vibesql_ast::Expression::BinaryOp {
                 op: vibesql_ast::BinaryOperator::And,
                 left: Box::new(left),
@@ -33,6 +33,41 @@ impl Parser {
         }
 
         Ok(left)
+    }
+
+    /// Parse NOT expression
+    /// NOT has precedence between AND and comparison operators
+    /// This ensures "NOT col IS NULL" parses as "NOT (col IS NULL)" not "(NOT col) IS NULL"
+    pub(super) fn parse_not_expression(&mut self) -> Result<vibesql_ast::Expression, ParseError> {
+        // Check for NOT keyword (but not NOT IN, NOT BETWEEN, NOT LIKE, NOT EXISTS)
+        // Those are handled in parse_comparison_expression and parse_primary_expression
+        if self.peek_keyword(Keyword::Not) {
+            // Peek ahead to see if it's a special case
+            let saved_pos = self.position;
+            self.advance(); // consume NOT
+
+            // Check for special cases that are NOT unary NOT
+            if self.peek_keyword(Keyword::In)
+                || self.peek_keyword(Keyword::Between)
+                || self.peek_keyword(Keyword::Like)
+                || self.peek_keyword(Keyword::Exists)
+            {
+                // Restore position and let the other parsers handle it
+                self.position = saved_pos;
+                return self.parse_comparison_expression();
+            }
+
+            // It's a unary NOT - parse the expression it applies to
+            // Recursively call parse_not_expression to handle multiple NOTs
+            let expr = self.parse_not_expression()?;
+
+            Ok(vibesql_ast::Expression::UnaryOp {
+                op: vibesql_ast::UnaryOperator::Not,
+                expr: Box::new(expr),
+            })
+        } else {
+            self.parse_comparison_expression()
+        }
     }
 
     /// Parse additive expression (handles +, -, and ||)

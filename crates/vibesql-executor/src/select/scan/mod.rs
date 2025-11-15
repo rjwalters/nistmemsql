@@ -45,7 +45,7 @@ pub(super) fn execute_from_clause<F>(
     execute_subquery: F,
 ) -> Result<FromResult, ExecutorError>
 where
-    F: Fn(&vibesql_ast::SelectStmt) -> Result<Vec<vibesql_storage::Row>, ExecutorError> + Copy,
+    F: Fn(&vibesql_ast::SelectStmt) -> Result<super::SelectResult, ExecutorError> + Copy,
 {
     // Check if this is a multi-table join that could benefit from reordering
     if matches!(from, vibesql_ast::FromClause::Join { .. }) {

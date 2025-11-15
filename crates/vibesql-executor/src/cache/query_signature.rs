@@ -444,6 +444,11 @@ impl QuerySignature {
                 Self::hash_expression(search_modifier, hasher);
                 std::mem::discriminant(mode).hash(hasher);
             }
+
+            Expression::SessionVariable { name } => {
+                "SESSION_VARIABLE".hash(hasher);
+                name.hash(hasher);
+            }
         }
     }
 }

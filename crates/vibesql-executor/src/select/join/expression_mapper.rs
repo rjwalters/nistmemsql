@@ -258,7 +258,8 @@ impl ExpressionMapper {
             | Expression::Interval { .. }
             | Expression::Default
             | Expression::DuplicateKeyValue { .. }
-            | Expression::NextValue { .. } => {
+            | Expression::NextValue { .. }
+            | Expression::SessionVariable { .. } => {
                 // No column references
             }
             Expression::MatchAgainst { columns: match_columns, search_modifier, .. } => {

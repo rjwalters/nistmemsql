@@ -26,6 +26,7 @@ mod lexer;
 mod like;
 mod limit;
 mod literals;
+mod not_is_null_precedence;
 mod null_functions;
 mod predicates;
 mod quantified;

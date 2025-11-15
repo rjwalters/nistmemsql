@@ -99,6 +99,7 @@ fn expression_references_column(expr: &vibesql_ast::Expression) -> bool {
         vibesql_ast::Expression::CurrentTime { .. } => false,
         vibesql_ast::Expression::CurrentTimestamp { .. } => false,
         vibesql_ast::Expression::NextValue { .. } => false, // Sequence reference, not column
+        vibesql_ast::Expression::SessionVariable { .. } => false, // Session variable, not column
         vibesql_ast::Expression::MatchAgainst { columns, search_modifier, .. } => {
             // MATCH AGAINST references columns and the search term
             !columns.is_empty() || expression_references_column(search_modifier)
