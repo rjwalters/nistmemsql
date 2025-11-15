@@ -250,6 +250,29 @@ pub(crate) fn cast_value(
             }),
         },
 
+        // Cast to REAL
+        Real => match value {
+            SqlValue::Real(n) => Ok(SqlValue::Real(*n)),
+            SqlValue::Float(n) => Ok(SqlValue::Real(*n)),
+            SqlValue::Double(n) => Ok(SqlValue::Real(*n as f32)),
+            SqlValue::Integer(n) => Ok(SqlValue::Real(*n as f32)),
+            SqlValue::Smallint(n) => Ok(SqlValue::Real(*n as f32)),
+            SqlValue::Bigint(n) => Ok(SqlValue::Real(*n as f32)),
+            SqlValue::Unsigned(n) => Ok(SqlValue::Real(*n as f32)),
+            SqlValue::Numeric(f) => Ok(SqlValue::Real(*f as f32)),
+            SqlValue::Boolean(b) => Ok(SqlValue::Real(if *b { 1.0 } else { 0.0 })),
+            SqlValue::Varchar(s) => {
+                s.parse::<f32>().map(SqlValue::Real).map_err(|_| ExecutorError::CastError {
+                    from_type: format!("{:?}", value),
+                    to_type: "REAL".to_string(),
+                })
+            }
+            _ => Err(ExecutorError::CastError {
+                from_type: format!("{:?}", value),
+                to_type: "REAL".to_string(),
+            }),
+        },
+
         // Cast to DOUBLE PRECISION
         DoublePrecision => match value {
             SqlValue::Double(n) => Ok(SqlValue::Double(*n)),
