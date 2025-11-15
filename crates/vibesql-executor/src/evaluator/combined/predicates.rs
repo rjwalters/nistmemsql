@@ -24,6 +24,15 @@ impl CombinedExpressionEvaluator<'_> {
         let mut low_val = self.eval(low, row)?;
         let mut high_val = self.eval(high, row)?;
 
+        // Per SQL:1999 standard: any NULL operand makes entire predicate NULL
+        // NULL is treated as FALSE in WHERE clauses
+        if matches!(expr_val, vibesql_types::SqlValue::Null)
+            || matches!(low_val, vibesql_types::SqlValue::Null)
+            || matches!(high_val, vibesql_types::SqlValue::Null)
+        {
+            return Ok(vibesql_types::SqlValue::Null);
+        }
+
         // Check if bounds are reversed (low > high)
         let gt_result = ExpressionEvaluator::eval_binary_op_static(
             &low_val,
