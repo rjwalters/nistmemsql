@@ -174,6 +174,13 @@ fn estimate_max_key_size(key_schema: &[DataType]) -> usize {
                 // Conservative estimate for BLOB
                 1 + 8 + 1024
             }
+            DataType::Bit { length } => {
+                // BIT type: tag + length + bits (rounded up to bytes)
+                // MySQL BIT can be 1-64 bits
+                let bit_length = length.unwrap_or(1);
+                let byte_length = (bit_length + 7) / 8;  // Round up to nearest byte
+                1 + 8 + byte_length
+            }
             DataType::UserDefined { .. } => {
                 // Unknown type, use conservative estimate
                 1 + 8 + 256

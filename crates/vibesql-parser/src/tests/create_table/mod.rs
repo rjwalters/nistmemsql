@@ -1,5 +1,6 @@
 mod auto_increment;
 mod basic;
+mod bit_type;
 mod constraints_column;
 mod constraints_table;
 mod mysql_table_options;

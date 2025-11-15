@@ -42,6 +42,7 @@ pub enum DataType {
 
     // Binary types
     BinaryLargeObject, // BLOB
+    Bit { length: Option<usize> }, // BIT or BIT(n), MySQL compatibility, default length is 1
 
     // User-defined types (SQL:1999)
     UserDefined { type_name: String },
@@ -72,6 +73,7 @@ impl DataType {
 
             // Binary types
             DataType::BinaryLargeObject => 10,
+            DataType::Bit { .. } => 11, // BIT type, slightly higher than BLOB
 
             // Interval types
             DataType::Interval { .. } => 20,
@@ -130,6 +132,17 @@ impl DataType {
 
             // VARCHAR with different lengths can coerce
             (DataType::Varchar { .. }, DataType::Varchar { .. }) => true,
+
+            // BIT types with different lengths can coerce
+            (DataType::Bit { .. }, DataType::Bit { .. }) => true,
+
+            // BIT can coerce to/from integer types (numeric interpretation)
+            (DataType::Bit { .. }, DataType::Integer | DataType::Bigint | DataType::Unsigned | DataType::Smallint) => true,
+            (DataType::Integer | DataType::Bigint | DataType::Unsigned | DataType::Smallint, DataType::Bit { .. }) => true,
+
+            // BIT can coerce to/from binary types
+            (DataType::Bit { .. }, DataType::BinaryLargeObject) => true,
+            (DataType::BinaryLargeObject, DataType::Bit { .. }) => true,
 
             // Numeric types can coerce among themselves
             (DataType::Smallint, DataType::Integer | DataType::Bigint | DataType::Unsigned) => true,
@@ -221,6 +234,16 @@ impl DataType {
                     (Some(a), Some(b)) => Some((*a).max(*b)),
                 };
                 Some(DataType::Varchar { max_length })
+            }
+
+            // For BIT, use the larger length (or None for unlimited)
+            (DataType::Bit { length: l1 },
+             DataType::Bit { length: l2 }) => {
+                let max_length = match (l1, l2) {
+                    (None, _) | (_, None) => None,
+                    (Some(a), Some(b)) => Some((*a).max(*b)),
+                };
+                Some(DataType::Bit { length: max_length })
             }
 
             // For all other cases, choose the type with higher precedence

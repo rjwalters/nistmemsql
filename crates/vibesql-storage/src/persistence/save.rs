@@ -213,6 +213,13 @@ pub(super) fn format_data_type(data_type: &vibesql_types::DataType) -> String {
         DataType::CharacterLargeObject => "CLOB".to_string(),
         DataType::Name => "VARCHAR(128)".to_string(),
         DataType::BinaryLargeObject => "BLOB".to_string(),
+        DataType::Bit { length } => {
+            if let Some(len) = length {
+                format!("BIT({})", len)
+            } else {
+                "BIT".to_string()
+            }
+        }
         DataType::UserDefined { type_name } => type_name.clone(),
         DataType::Null => "NULL".to_string(),
     }
