@@ -91,11 +91,12 @@ impl SelectExecutor<'_> {
         // Process operations left-to-right to ensure correct associativity
         if let Some(set_op) = &stmt.set_operation {
             results = self.execute_set_operations(results, set_op, cte_results)?;
-        }
 
-        // Apply LIMIT/OFFSET to the final result (after all set operations)
-        // LIMIT/OFFSET should only be applied at the top level, not on intermediate queries
-        results = apply_limit_offset(results, stmt.limit, stmt.offset);
+            // Apply LIMIT/OFFSET to the final result (after all set operations)
+            // For queries WITHOUT set operations, LIMIT/OFFSET is already applied
+            // in execute_without_aggregation() or execute_with_aggregation()
+            results = apply_limit_offset(results, stmt.limit, stmt.offset);
+        }
 
         Ok(results)
     }
