@@ -393,6 +393,29 @@ pub(in crate::select::executor) fn try_index_for_and_expr(
     all_rows: &[vibesql_storage::Row],
     schema: &CombinedSchema,
 ) -> Result<Option<Vec<vibesql_storage::Row>>, ExecutorError> {
+    // Handle nested AND expressions recursively
+    // Pattern: comp AND (comp AND IN(...)) - need to flatten/recurse
+    //
+    // If right side is a nested AND, try to optimize it first and then post-filter with left
+    if let vibesql_ast::Expression::BinaryOp { left: nested_left, op: vibesql_ast::BinaryOperator::And, right: nested_right } = right {
+        // Right is a nested AND expression - try to optimize it
+        if let Some(nested_rows) = try_index_for_and_expr(database, nested_left, nested_right, all_rows, schema)? {
+            // Successfully optimized nested AND, now post-filter with left comparison
+            let result_rows = filter_rows_by_comparison(nested_rows, left, schema)?;
+            return Ok(Some(result_rows));
+        }
+    }
+
+    // If left side is a nested AND, try to optimize it first and then post-filter with right
+    if let vibesql_ast::Expression::BinaryOp { left: nested_left, op: vibesql_ast::BinaryOperator::And, right: nested_right } = left {
+        // Left is a nested AND expression - try to optimize it
+        if let Some(nested_rows) = try_index_for_and_expr(database, nested_left, nested_right, all_rows, schema)? {
+            // Successfully optimized nested AND, now post-filter with right comparison
+            let result_rows = filter_rows_by_comparison(nested_rows, right, schema)?;
+            return Ok(Some(result_rows));
+        }
+    }
+
     // First, try to handle IN + comparison pattern
     // Pattern: col1 IN (...) AND col2 > value (or any comparison)
     if let Some(rows) = try_index_for_in_and_comparison(database, left, right, all_rows, schema)? {
