@@ -344,6 +344,33 @@ fn try_comparison_then_filter_in(
     Ok(Some(result_rows))
 }
 
+/// Apply a single predicate as a post-filter on a set of rows
+/// Used when combining index optimization with additional predicates
+fn apply_predicate_filter(
+    database: &Database,
+    rows: &[vibesql_storage::Row],
+    predicate: &vibesql_ast::Expression,
+    schema: &CombinedSchema,
+) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
+    use crate::evaluator::CombinedExpressionEvaluator;
+
+    let evaluator = CombinedExpressionEvaluator::with_database(schema, database);
+
+    let filtered_rows: Vec<vibesql_storage::Row> = rows
+        .iter()
+        .filter(|row| {
+            match evaluator.eval(predicate, row) {
+                Ok(vibesql_types::SqlValue::Boolean(true)) => true,
+                Ok(vibesql_types::SqlValue::Null) => false, // NULL in WHERE is treated as false
+                _ => false,
+            }
+        })
+        .cloned()
+        .collect();
+
+    Ok(filtered_rows)
+}
+
 /// Try to use index for AND expressions (detecting BETWEEN pattern or IN + comparison)
 pub(in crate::select::executor) fn try_index_for_and_expr(
     database: &Database,
@@ -352,6 +379,27 @@ pub(in crate::select::executor) fn try_index_for_and_expr(
     all_rows: &[vibesql_storage::Row],
     schema: &CombinedSchema,
 ) -> Result<Option<Vec<vibesql_storage::Row>>, ExecutorError> {
+    // Handle nested AND expressions recursively
+    // Pattern: comp AND (comp AND IN(...)) - need to recurse into nested AND
+
+    // If right side is a nested AND, optimize it recursively
+    if let vibesql_ast::Expression::BinaryOp { left: nested_left, op: vibesql_ast::BinaryOperator::And, right: nested_right } = right {
+        // Right is a nested AND expression - try to optimize it recursively
+        if let Some(nested_rows) = try_index_for_and_expr(database, nested_left, nested_right, all_rows, schema)? {
+            let filtered = apply_predicate_filter(database, &nested_rows, left, schema)?;
+            return Ok(Some(filtered));
+        }
+    }
+
+    // If left side is a nested AND, optimize it recursively
+    if let vibesql_ast::Expression::BinaryOp { left: nested_left, op: vibesql_ast::BinaryOperator::And, right: nested_right } = left {
+        // Left is a nested AND expression - try to optimize it recursively
+        if let Some(nested_rows) = try_index_for_and_expr(database, nested_left, nested_right, all_rows, schema)? {
+            // Successfully optimized nested AND, now apply right predicate as post-filter
+            return Ok(Some(apply_predicate_filter(database, &nested_rows, right, schema)?));
+        }
+    }
+
     // First, try to handle IN + comparison pattern
     // Pattern: col1 IN (...) AND col2 > value (or any comparison)
     if let Some(rows) = try_index_for_in_and_comparison(database, left, right, all_rows, schema)? {
@@ -514,14 +562,41 @@ pub(in crate::select::executor) fn try_index_for_in_expr(
     }
     let index_name = index_name.unwrap();
 
+    // Get the index metadata to check if it's a multi-column index
+    let index_metadata = match database.get_index(&index_name) {
+        Some(metadata) => metadata,
+        None => return Ok(None),
+    };
+
     // Get the index data
     let index_data = match database.get_index_data(&index_name) {
         Some(data) => data,
         None => return Ok(None),
     };
 
-    // Use multi_lookup for IN predicate
-    let matching_row_indices = index_data.multi_lookup(&literal_values);
+    // For multi-column indexes, we need to use range scans for each value
+    // because multi_lookup expects exact matches on composite keys
+    let matching_row_indices = if index_metadata.columns.len() > 1 {
+        // Multi-column index: use range scans for prefix matching
+        // For a multi-column index (col0, col1, col3), the index stores composite keys
+        // like [93, 1.5, 42]. To look up col0 IN (93, 63, ...), we use range scans
+        // where both start and end are the same value, relying on range_scan's
+        // implementation to compare only the first column of composite keys.
+        let mut all_indices = Vec::new();
+        for value in &literal_values {
+            let row_indices = index_data.range_scan(
+                Some(value),  // Start: col0 = value
+                Some(value),  // End: col0 = value
+                true,         // Inclusive start
+                true,         // Inclusive end
+            );
+            all_indices.extend(row_indices);
+        }
+        all_indices
+    } else {
+        // Single-column index: use multi_lookup as before
+        index_data.multi_lookup(&literal_values)
+    };
 
     // Convert row indices to actual rows
     let result_rows =
@@ -546,13 +621,17 @@ pub(in crate::select::executor) fn find_index_for_where(
     column_name: &str,
 ) -> Result<Option<String>, ExecutorError> {
     // Look through all indexes for one on this table and column
+    // We support both single-column indexes and multi-column indexes
+    // where the target column is the FIRST column (prefix matching)
     let all_indexes = database.list_indexes();
     for index_name in all_indexes {
         if let Some(metadata) = database.get_index(&index_name) {
             if metadata.table_name == table_name
-                && metadata.columns.len() == 1
+                && !metadata.columns.is_empty()
                 && metadata.columns[0].column_name == column_name
             {
+                // Found an index where our column is the first column
+                // This works for both single-column and multi-column indexes
                 return Ok(Some(index_name));
             }
         }

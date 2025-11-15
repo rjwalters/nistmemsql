@@ -376,7 +376,6 @@ impl SelectExecutor<'_> {
             &schema,
         )? {
             // 3. Try B-tree index optimization (for =, <, >, BETWEEN, etc.)
-            // Currently disabled due to #1744
             index_filtered
         } else {
             // 4. Fall back to full WHERE clause evaluation
