@@ -354,34 +354,11 @@ impl NistMemSqlDB {
         expected_type: Option<&DefaultColumnType>,
     ) -> String {
         match value {
-            SqlValue::Integer(i) => {
-                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
-                    format!("{:.3}", *i as f64)
-                } else {
-                    i.to_string()
-                }
-            }
-            SqlValue::Smallint(i) => {
-                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
-                    format!("{:.3}", *i as f64)
-                } else {
-                    i.to_string()
-                }
-            }
-            SqlValue::Bigint(i) => {
-                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
-                    format!("{:.3}", *i as f64)
-                } else {
-                    i.to_string()
-                }
-            }
-            SqlValue::Unsigned(i) => {
-                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
-                    format!("{:.3}", *i as f64)
-                } else {
-                    i.to_string()
-                }
-            }
+            // Integer types should always be formatted as integers, never with decimal notation
+            SqlValue::Integer(i) => i.to_string(),
+            SqlValue::Smallint(i) => i.to_string(),
+            SqlValue::Bigint(i) => i.to_string(),
+            SqlValue::Unsigned(i) => i.to_string(),
             SqlValue::Numeric(_) => value.to_string(), /* Use Display trait for consistent */
             // formatting
             SqlValue::Float(f) | SqlValue::Real(f) => {
@@ -681,6 +658,8 @@ async fn run_single_test_file() {
         .unwrap_or_else(|e| panic!("Failed to read test file {}: {}", full_path, e));
 
     let mut tester = sqllogictest::Runner::new(|| async { Ok(NistMemSqlDB::new()) });
+    // Enable hash mode with threshold of 8 (standard SQLLogicTest behavior)
+    tester.with_hash_threshold(8);
 
     tester.run_script(&contents)
         .unwrap_or_else(|e| panic!("Test failed for {}: {}", test_file, e));
