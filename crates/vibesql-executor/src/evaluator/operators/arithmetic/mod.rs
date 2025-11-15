@@ -261,15 +261,15 @@ mod tests {
 
     #[test]
     fn test_boolean_division() {
-        // 10 / TRUE = 10.0
+        // 10 / TRUE = 10
         let result =
             ArithmeticOps::divide(&SqlValue::Integer(10), &SqlValue::Boolean(true)).unwrap();
-        assert_eq!(result, SqlValue::Float(10.0));
+        assert_eq!(result, SqlValue::Integer(10));
 
-        // TRUE / TRUE = 1.0
+        // TRUE / TRUE = 1
         let result =
             ArithmeticOps::divide(&SqlValue::Boolean(true), &SqlValue::Boolean(true)).unwrap();
-        assert_eq!(result, SqlValue::Float(1.0));
+        assert_eq!(result, SqlValue::Integer(1));
     }
 
     #[test]
