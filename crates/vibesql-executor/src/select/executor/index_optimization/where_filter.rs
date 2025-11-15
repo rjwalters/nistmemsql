@@ -146,7 +146,210 @@ pub(in crate::select::executor) fn try_index_for_binary_op(
     Ok(Some(result_rows))
 }
 
-/// Try to use index for AND expressions (detecting BETWEEN pattern)
+/// Try to handle IN clause combined with a comparison (e.g., col1 IN (...) AND col2 > value)
+/// Returns Some(rows) if optimization was applied, None if not applicable
+pub(in crate::select::executor) fn try_index_for_in_and_comparison(
+    database: &Database,
+    in_expr: &vibesql_ast::Expression,
+    comparison_expr: &vibesql_ast::Expression,
+    all_rows: &[vibesql_storage::Row],
+    schema: &CombinedSchema,
+) -> Result<Option<Vec<vibesql_storage::Row>>, ExecutorError> {
+    // Check if first expression is an IN list
+    let (in_column, in_values) = match in_expr {
+        vibesql_ast::Expression::InList { expr, values, negated: false } => {
+            match expr.as_ref() {
+                vibesql_ast::Expression::ColumnRef { table: None, column } => (column, values),
+                _ => return Ok(None), // Not a simple column reference
+            }
+        }
+        _ => return Ok(None), // Not an IN list
+    };
+
+    // Check if second expression is a binary comparison
+    let comparison_can_use_index = match comparison_expr {
+        vibesql_ast::Expression::BinaryOp { left, op, right } => {
+            // Check if this is a simple column comparison that could use an index
+            matches!(
+                op,
+                vibesql_ast::BinaryOperator::Equal
+                    | vibesql_ast::BinaryOperator::GreaterThan
+                    | vibesql_ast::BinaryOperator::GreaterThanOrEqual
+                    | vibesql_ast::BinaryOperator::LessThan
+                    | vibesql_ast::BinaryOperator::LessThanOrEqual
+            ) && (matches!(left.as_ref(), vibesql_ast::Expression::ColumnRef { .. })
+                || matches!(right.as_ref(), vibesql_ast::Expression::ColumnRef { .. }))
+        }
+        _ => false,
+    };
+
+    if !comparison_can_use_index {
+        return Ok(None);
+    }
+
+    // Strategy: Use index for IN clause to get candidate rows, then post-filter with comparison
+    // This is correct and often faster than a full table scan
+
+    // Try to get rows using the IN clause index
+    let candidate_rows = try_index_for_in_expr(database, in_expr, in_values, all_rows, schema)?;
+
+    let candidate_rows = match candidate_rows {
+        Some(rows) => rows,
+        None => {
+            // IN clause couldn't use index, try the comparison instead
+            // and post-filter with IN clause (slower but correct)
+            return try_comparison_then_filter_in(
+                database,
+                comparison_expr,
+                in_column,
+                in_values,
+                all_rows,
+                schema,
+            );
+        }
+    };
+
+    // Now filter the candidate rows by the comparison expression
+    // For simple comparisons, we can evaluate them directly
+    let result_rows = filter_rows_by_comparison(candidate_rows, comparison_expr, schema)?;
+
+    Ok(Some(result_rows))
+}
+
+/// Try using index for comparison, then filter by IN clause
+fn try_comparison_then_filter_in(
+    database: &Database,
+    comparison_expr: &vibesql_ast::Expression,
+    in_column: &str,
+    in_values: &[vibesql_ast::Expression],
+    all_rows: &[vibesql_storage::Row],
+    schema: &CombinedSchema,
+) -> Result<Option<Vec<vibesql_storage::Row>>, ExecutorError> {
+    // Try to use index for the comparison
+    let (left, op, right) = match comparison_expr {
+        vibesql_ast::Expression::BinaryOp { left, op, right } => (left.as_ref(), op, right.as_ref()),
+        _ => return Ok(None),
+    };
+
+    let candidate_rows = try_index_for_binary_op(database, left, op, right, all_rows, schema)?;
+
+    let candidate_rows = match candidate_rows {
+        Some(rows) => rows,
+        None => return Ok(None), // Can't optimize either side
+    };
+
+    // Extract literal values from IN list
+    let mut literal_values = Vec::new();
+    for val_expr in in_values {
+        if let vibesql_ast::Expression::Literal(val) = val_expr {
+            literal_values.push(val.clone());
+        } else {
+            // Can't optimize if IN list contains non-literals
+            return Ok(None);
+        }
+    }
+
+    // Find which table/column the IN clause references
+    let mut in_column_schema_idx = None;
+    for (_table_name, (start_idx, table_schema)) in &schema.table_schemas {
+        if let Some(col_idx) = table_schema.get_column_index(in_column) {
+            in_column_schema_idx = Some(start_idx + col_idx);
+            break;
+        }
+    }
+
+    let in_column_idx = match in_column_schema_idx {
+        Some(idx) => idx,
+        None => return Ok(None), // Column not found
+    };
+
+    // Filter candidate rows by IN clause
+    use std::collections::HashSet;
+    let value_set: HashSet<_> = literal_values.into_iter().collect();
+
+    let result_rows = candidate_rows
+        .into_iter()
+        .filter(|row| {
+            if let Some(col_value) = row.get(in_column_idx) {
+                value_set.contains(col_value)
+            } else {
+                false
+            }
+        })
+        .collect();
+
+    Ok(Some(result_rows))
+}
+
+/// Filter rows by a simple binary comparison
+/// For simple cases like col > value, we can evaluate without a full evaluator
+fn filter_rows_by_comparison(
+    rows: Vec<vibesql_storage::Row>,
+    comparison_expr: &vibesql_ast::Expression,
+    schema: &CombinedSchema,
+) -> Result<Vec<vibesql_storage::Row>, ExecutorError> {
+    // Extract comparison details
+    let (column_name, op, literal_value) = match comparison_expr {
+        vibesql_ast::Expression::BinaryOp { left, op, right } => {
+            // Case 1: column OP literal
+            if let (vibesql_ast::Expression::ColumnRef { table: None, column }, vibesql_ast::Expression::Literal(val)) = (left.as_ref(), right.as_ref()) {
+                (column, *op, val.clone())
+            }
+            // Case 2: literal OP column (need to flip operator)
+            else if let (vibesql_ast::Expression::Literal(val), vibesql_ast::Expression::ColumnRef { table: None, column }) = (left.as_ref(), right.as_ref()) {
+                let flipped_op = match op {
+                    vibesql_ast::BinaryOperator::Equal => vibesql_ast::BinaryOperator::Equal,
+                    vibesql_ast::BinaryOperator::LessThan => vibesql_ast::BinaryOperator::GreaterThan,
+                    vibesql_ast::BinaryOperator::GreaterThan => vibesql_ast::BinaryOperator::LessThan,
+                    vibesql_ast::BinaryOperator::LessThanOrEqual => vibesql_ast::BinaryOperator::GreaterThanOrEqual,
+                    vibesql_ast::BinaryOperator::GreaterThanOrEqual => vibesql_ast::BinaryOperator::LessThanOrEqual,
+                    _ => return Err(ExecutorError::UnsupportedExpression("Unsupported operator for index optimization".to_string())),
+                };
+                (column, flipped_op, val.clone())
+            } else {
+                return Err(ExecutorError::UnsupportedExpression("Complex comparison not supported for index optimization".to_string()));
+            }
+        }
+        _ => return Err(ExecutorError::UnsupportedExpression("Not a binary comparison".to_string())),
+    };
+
+    // Find column index in schema
+    let mut column_idx = None;
+    for (_table_name, (start_idx, table_schema)) in &schema.table_schemas {
+        if let Some(col_idx) = table_schema.get_column_index(column_name) {
+            column_idx = Some(start_idx + col_idx);
+            break;
+        }
+    }
+
+    let column_idx = match column_idx {
+        Some(idx) => idx,
+        None => return Err(ExecutorError::UnsupportedExpression(format!("Column {} not found", column_name))),
+    };
+
+    // Filter rows based on the comparison
+    let result_rows = rows
+        .into_iter()
+        .filter(|row| {
+            if let Some(row_value) = row.get(column_idx) {
+                match op {
+                    vibesql_ast::BinaryOperator::Equal => row_value == &literal_value,
+                    vibesql_ast::BinaryOperator::GreaterThan => row_value > &literal_value,
+                    vibesql_ast::BinaryOperator::GreaterThanOrEqual => row_value >= &literal_value,
+                    vibesql_ast::BinaryOperator::LessThan => row_value < &literal_value,
+                    vibesql_ast::BinaryOperator::LessThanOrEqual => row_value <= &literal_value,
+                    _ => false,
+                }
+            } else {
+                false
+            }
+        })
+        .collect();
+
+    Ok(result_rows)
+}
+
+/// Try to use index for AND expressions (detecting BETWEEN pattern or IN + comparison)
 pub(in crate::select::executor) fn try_index_for_and_expr(
     database: &Database,
     left: &vibesql_ast::Expression,
@@ -154,6 +357,18 @@ pub(in crate::select::executor) fn try_index_for_and_expr(
     all_rows: &[vibesql_storage::Row],
     schema: &CombinedSchema,
 ) -> Result<Option<Vec<vibesql_storage::Row>>, ExecutorError> {
+    // First, try to handle IN + comparison pattern
+    // Pattern: col1 IN (...) AND col2 > value (or any comparison)
+    if let Some(rows) = try_index_for_in_and_comparison(database, left, right, all_rows, schema)? {
+        return Ok(Some(rows));
+    }
+
+    // Try the reverse: comparison AND IN
+    if let Some(rows) = try_index_for_in_and_comparison(database, right, left, all_rows, schema)? {
+        return Ok(Some(rows));
+    }
+
+    // Fall back to BETWEEN pattern detection
     // Try to detect BETWEEN pattern: (col >= start) AND (col <= end)
     // or variations like (col > start) AND (col < end)
 
