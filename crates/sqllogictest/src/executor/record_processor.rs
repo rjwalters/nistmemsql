@@ -6,6 +6,7 @@ use std::sync::Arc;
 use md5::Digest;
 
 use crate::MakeConnection;
+use crate::column_type::ColumnType;
 use crate::error_handling::AnyError;
 use crate::output::{RecordOutput, DBOutput};
 use crate::parser::*;
@@ -244,6 +245,20 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
                 if let QueryExpect::Results { types: expected_types, .. } = &expected {
                     if types.len() == expected_types.len() {
                         types = expected_types.clone();
+
+                        // Reformat string values to match expected types (MySQL normalization)
+                        // When test expects Real but we returned Integer, append ".000"
+                        for row in &mut rows {
+                            for (col_idx, value) in row.iter_mut().enumerate() {
+                                let expected_type = &types[col_idx % types.len()];
+                                if expected_type.to_char() == 'R' && !value.contains('.') {
+                                    // Check if it's an integer value
+                                    if value.parse::<i64>().is_ok() {
+                                        *value = format!("{}.000", value);
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -278,13 +293,30 @@ impl<D: AsyncDB, M: MakeConnection<Conn = D>> Runner<D, M> {
 
                 if self.hash_threshold > 0 && num_values > self.hash_threshold {
                     let mut md5 = md5::Md5::new();
-                    for line in &rows {
-                        for value in line {
-                            md5.update(value.as_bytes());
+                    for (row_idx, line) in rows.iter().enumerate() {
+                        for (col_idx, value) in line.iter().enumerate() {
+                            // MySQL normalization: append .000 to integers when type is Real/FloatingPoint
+                            // This matches the behavior of the Go sqllogictest implementation
+                            // See: third_party/sqllogictest/go/logictest/runner.go:438-443
+                            let value_idx = if value_sort { row_idx } else { row_idx * types.len() + col_idx };
+                            let col_type = &types[value_idx % types.len()];
+
+                            let normalized_value = if col_type.to_char() == 'R' && !value.contains('.') {
+                                // Check if it's actually an integer value
+                                if value.parse::<i64>().is_ok() {
+                                    format!("{}.000", value)
+                                } else {
+                                    value.clone()
+                                }
+                            } else {
+                                value.clone()
+                            };
+
+                            md5.update(normalized_value.as_bytes());
                             md5.update(b"\n");
                         }
                     }
-                    let hash = format!("{:2x}", md5.finalize());
+                    let hash = format!("{:x}", md5.finalize());
                     rows = vec![vec![format!(
                         "{} values hashing to {}",
                         rows.len() * rows[0].len(),

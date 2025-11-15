@@ -344,14 +344,39 @@ impl NistMemSqlDB {
     fn format_sql_value(
         &self,
         value: &SqlValue,
-        _expected_type: Option<&DefaultColumnType>,
+        expected_type: Option<&DefaultColumnType>,
     ) -> String {
         match value {
-            // Integer types should always be formatted as integers, never with decimal notation
-            SqlValue::Integer(i) => i.to_string(),
-            SqlValue::Smallint(i) => i.to_string(),
-            SqlValue::Bigint(i) => i.to_string(),
-            SqlValue::Unsigned(i) => i.to_string(),
+            // Integer types - check if expected type is Real for MySQL compatibility
+            // When test expects Real type but we return Integer, format as ".000"
+            SqlValue::Integer(i) => {
+                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
+                    format!("{}.000", i)
+                } else {
+                    i.to_string()
+                }
+            }
+            SqlValue::Smallint(i) => {
+                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
+                    format!("{}.000", i)
+                } else {
+                    i.to_string()
+                }
+            }
+            SqlValue::Bigint(i) => {
+                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
+                    format!("{}.000", i)
+                } else {
+                    i.to_string()
+                }
+            }
+            SqlValue::Unsigned(i) => {
+                if matches!(expected_type, Some(DefaultColumnType::FloatingPoint)) {
+                    format!("{}.000", i)
+                } else {
+                    i.to_string()
+                }
+            }
             SqlValue::Numeric(_) => value.to_string(), /* Use Display trait for consistent */
             // formatting
             SqlValue::Float(f) | SqlValue::Real(f) => {
