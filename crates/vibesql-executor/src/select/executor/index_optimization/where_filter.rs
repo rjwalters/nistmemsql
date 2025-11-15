@@ -484,6 +484,18 @@ pub(in crate::select::executor) fn try_index_for_and_expr(
         None => return Ok(None),
     };
 
+    // Validate bounds: start_val must be <= end_val for a valid range
+    // If start > end, the BETWEEN range is empty (no values can satisfy it)
+    let gt_result = crate::evaluator::ExpressionEvaluator::eval_binary_op_static(
+        &start_val,
+        &vibesql_ast::BinaryOperator::GreaterThan,
+        &end_val,
+    )?;
+    if let vibesql_types::SqlValue::Boolean(true) = gt_result {
+        // start_val > end_val: empty range, return no rows
+        return Ok(Some(Vec::new()));
+    }
+
     // Use range_scan with both bounds
     let matching_row_indices =
         index_data.range_scan(Some(&start_val), Some(&end_val), start_inclusive, end_inclusive);
@@ -615,23 +627,26 @@ pub(in crate::select::executor) fn try_index_for_in_expr(
 }
 
 /// Find an index that can be used for WHERE clause filtering
+///
+/// NOTE: This function is restricted to single-column indexes only because callers
+/// like try_index_for_binary_op() create single-element search keys (vec![value]).
+/// Multi-column indexes would require composite keys and are handled separately
+/// in try_index_for_in_expr() which uses range scans for prefix matching.
 pub(in crate::select::executor) fn find_index_for_where(
     database: &Database,
     table_name: &str,
     column_name: &str,
 ) -> Result<Option<String>, ExecutorError> {
     // Look through all indexes for one on this table and column
-    // We support both single-column indexes and multi-column indexes
-    // where the target column is the FIRST column (prefix matching)
+    // ONLY single-column indexes (multi-column indexes require special handling)
     let all_indexes = database.list_indexes();
     for index_name in all_indexes {
         if let Some(metadata) = database.get_index(&index_name) {
             if metadata.table_name == table_name
-                && !metadata.columns.is_empty()
+                && metadata.columns.len() == 1
                 && metadata.columns[0].column_name == column_name
             {
-                // Found an index where our column is the first column
-                // This works for both single-column and multi-column indexes
+                // Found a single-column index on this column
                 return Ok(Some(index_name));
             }
         }
