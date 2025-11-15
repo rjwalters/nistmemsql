@@ -175,8 +175,9 @@ mod tests {
 
     #[test]
     fn test_integer_division() {
+        // Integer division returns Integer (SQLite/SQL:1999 behavior)
         let result = ArithmeticOps::divide(&SqlValue::Integer(15), &SqlValue::Integer(3)).unwrap();
-        assert_eq!(result, SqlValue::Float(5.0));
+        assert_eq!(result, SqlValue::Integer(5));
     }
 
     #[test]
