@@ -682,6 +682,9 @@ async fn run_single_test_file() {
 
     let mut tester = sqllogictest::Runner::new(|| async { Ok(NistMemSqlDB::new()) });
 
+    // Set hash threshold to 8 (SQLLogicTest default) - results with more than 8 values will be hashed
+    tester.with_hash_threshold(8);
+
     tester.run_script(&contents)
         .unwrap_or_else(|e| panic!("Test failed for {}: {}", test_file, e));
 }
