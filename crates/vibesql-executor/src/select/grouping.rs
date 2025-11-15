@@ -345,13 +345,14 @@ impl AggregateAccumulator {
 ///
 /// See: https://github.com/rjwalters/vibesql/pull/871
 fn add_sql_values(a: &vibesql_types::SqlValue, b: &vibesql_types::SqlValue) -> vibesql_types::SqlValue {
-    // Convert both values to f64 for addition, then return as Numeric
-    let a_f64 = sql_value_to_f64(a);
-    let b_f64 = sql_value_to_f64(b);
+    // Use the proper arithmetic addition operator that preserves types
+    // Integer + Integer → Integer, Float + anything → Float, etc.
+    use crate::evaluator::operators::OperatorRegistry;
+    use vibesql_ast::BinaryOperator;
 
-    match (a_f64, b_f64) {
-        (Some(x), Some(y)) => vibesql_types::SqlValue::Numeric(x + y),
-        _ => vibesql_types::SqlValue::Null, // If either is not numeric, return NULL
+    match OperatorRegistry::eval_binary_op(a, &BinaryOperator::Plus, b) {
+        Ok(result) => result,
+        Err(_) => vibesql_types::SqlValue::Null, // If addition fails, return NULL
     }
 }
 
