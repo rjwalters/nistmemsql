@@ -130,8 +130,8 @@ fn test_between_boundary_values() {
 
 #[test]
 fn test_not_between_with_null_bound() {
-    // Tests issue #1762: NOT BETWEEN with NULL should return NULL (not TRUE)
-    // This causes WHERE clause to exclude the row (NULL is treated as FALSE in WHERE)
+    // Tests issue #1797: NOT BETWEEN with NULL upper bound (SQLite behavior)
+    // SQLite: val NOT BETWEEN low AND NULL → val < low (ignores NULL upper bound)
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
         "test".to_string(),
@@ -144,7 +144,7 @@ fn test_not_between_with_null_bound() {
     let executor = SelectExecutor::new(&db);
 
     // SELECT * FROM test WHERE val NOT BETWEEN 10 AND NULL
-    // Should return 0 rows (NULL predicate excludes all rows)
+    // SQLite behavior: returns rows where val < 10 (i.e., val=5)
     let stmt = vibesql_ast::SelectStmt {
         with_clause: None,
         set_operation: None,
@@ -167,12 +167,13 @@ fn test_not_between_with_null_bound() {
         into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
-    assert_eq!(result.len(), 0); // NULL predicate excludes all rows
+    assert_eq!(result.len(), 1); // Returns val=5 (val < 10)
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(5));
 }
 
 #[test]
 fn test_between_with_null_bound() {
-    // Tests that BETWEEN with NULL bound returns NULL (not FALSE)
+    // Tests that BETWEEN with NULL bound returns FALSE (SQLite behavior)
     // This causes WHERE clause to exclude all rows
     let mut db = vibesql_storage::Database::new();
     let schema = vibesql_catalog::TableSchema::new(
@@ -186,7 +187,7 @@ fn test_between_with_null_bound() {
     let executor = SelectExecutor::new(&db);
 
     // SELECT * FROM test WHERE val BETWEEN NULL AND 20
-    // Should return 0 rows (NULL predicate excludes all rows)
+    // SQLite behavior: returns FALSE (0 rows)
     let stmt = vibesql_ast::SelectStmt {
         with_clause: None,
         set_operation: None,
@@ -209,5 +210,49 @@ fn test_between_with_null_bound() {
         into_variables: None,    };
 
     let result = executor.execute(&stmt).unwrap();
-    assert_eq!(result.len(), 0); // NULL predicate excludes all rows
+    assert_eq!(result.len(), 0); // SQLite: FALSE (excludes all rows)
+}
+
+#[test]
+fn test_not_between_with_null_lower_bound() {
+    // Tests issue #1797: NOT BETWEEN with NULL lower bound (SQLite behavior)
+    // SQLite: val NOT BETWEEN NULL AND high → val > high (ignores NULL lower bound)
+    let mut db = vibesql_storage::Database::new();
+    let schema = vibesql_catalog::TableSchema::new(
+        "test".to_string(),
+        vec![vibesql_catalog::ColumnSchema::new("val".to_string(), vibesql_types::DataType::Integer, false)],
+    );
+    db.create_table(schema).unwrap();
+    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(5)])).unwrap();
+    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(15)])).unwrap();
+    db.insert_row("test", vibesql_storage::Row::new(vec![vibesql_types::SqlValue::Integer(25)])).unwrap();
+
+    let executor = SelectExecutor::new(&db);
+
+    // SELECT * FROM test WHERE val NOT BETWEEN NULL AND 20
+    // SQLite behavior: returns rows where val > 20 (i.e., val=25)
+    let stmt = vibesql_ast::SelectStmt {
+        with_clause: None,
+        set_operation: None,
+        distinct: false,
+        select_list: vec![vibesql_ast::SelectItem::Wildcard { alias: None }],
+        from: Some(vibesql_ast::FromClause::Table { name: "test".to_string(), alias: None }),
+        where_clause: Some(vibesql_ast::Expression::Between {
+            expr: Box::new(vibesql_ast::Expression::ColumnRef { table: None, column: "val".to_string() }),
+            low: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Null)),
+            high: Box::new(vibesql_ast::Expression::Literal(vibesql_types::SqlValue::Integer(20))),
+            negated: true,
+            symmetric: false,
+        }),
+        group_by: None,
+        having: None,
+        order_by: None,
+        limit: None,
+        offset: None,
+        into_table: None,
+        into_variables: None,    };
+
+    let result = executor.execute(&stmt).unwrap();
+    assert_eq!(result.len(), 1); // Returns val=25 (val > 20)
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(25));
 }
