@@ -83,8 +83,15 @@ impl super::super::Catalog {
     fn find_dependent_views(&self, target_name: &str) -> Vec<String> {
         let mut dependent_views = Vec::new();
 
+        // Normalize target for key comparison
+        let target_key = if self.case_sensitive_identifiers {
+            target_name.to_string()
+        } else {
+            target_name.to_uppercase()
+        };
+
         for (view_name, view_def) in &self.views {
-            if view_name == target_name {
+            if view_name == &target_key {
                 // Skip the view itself
                 continue;
             }
