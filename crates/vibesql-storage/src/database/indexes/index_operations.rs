@@ -72,22 +72,24 @@ impl IndexData {
                 let end_key = normalized_end.as_ref().map(|v| vec![v.clone()]);
 
                 // Build bounds for BTreeMap::range()
-                // Note: BTreeMap<Vec<SqlValue>, _> requires &Vec<SqlValue> for range bounds
-                let start_bound = match start_key.as_ref() {
-                    Some(key) if inclusive_start => Bound::Included(key),
-                    Some(key) => Bound::Excluded(key),
+                // Note: BTreeMap<Vec<SqlValue>, _> requires &[SqlValue] (slice) for range bounds
+                // Type annotation is needed to help Rust's type inference
+                let start_bound: Bound<&[SqlValue]> = match start_key.as_ref() {
+                    Some(key) if inclusive_start => Bound::Included(key.as_slice()),
+                    Some(key) => Bound::Excluded(key.as_slice()),
                     None => Bound::Unbounded,
                 };
 
-                let end_bound = match end_key.as_ref() {
-                    Some(key) if inclusive_end => Bound::Included(key),
-                    Some(key) => Bound::Excluded(key),
+                let end_bound: Bound<&[SqlValue]> = match end_key.as_ref() {
+                    Some(key) if inclusive_end => Bound::Included(key.as_slice()),
+                    Some(key) => Bound::Excluded(key.as_slice()),
                     None => Bound::Unbounded,
                 };
 
                 // Use BTreeMap's efficient range() method instead of full iteration
                 // This is O(log n + k) instead of O(n) where n = total keys, k = matching keys
-                for (_key_values, row_indices) in data.range((start_bound, end_bound)) {
+                // Explicit type parameter needed due to Borrow trait ambiguity
+                for (_key_values, row_indices) in data.range::<[SqlValue], _>((start_bound, end_bound)) {
                     matching_row_indices.extend(row_indices);
                 }
 
