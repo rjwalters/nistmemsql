@@ -381,6 +381,7 @@ fn column_to_json(col: &ColumnSchema) -> JsonColumn {
         }
         DataType::Interval { .. } => ("INTERVAL".to_string(), None, None, None),
         DataType::BinaryLargeObject => ("BLOB".to_string(), None, None, None),
+        DataType::Bit { length } => ("BIT".to_string(), *length, None, None),
         DataType::UserDefined { type_name } => (type_name.clone(), None, None, None),
         DataType::Null => ("NULL".to_string(), None, None, None),
     };

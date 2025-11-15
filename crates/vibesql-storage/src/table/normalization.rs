@@ -317,6 +317,17 @@ impl<'a> RowNormalizer<'a> {
                     });
                 }
             }
+            DataType::Bit { .. } => {
+                // BIT type: For now, accept Varchar or Integer as placeholder until proper BIT type is fully implemented
+                // VARCHAR can hold binary literals like b'1010', INTEGER can hold numeric values
+                if !matches!(value, SqlValue::Varchar(_) | SqlValue::Integer(_) | SqlValue::Bigint(_) | SqlValue::Unsigned(_)) {
+                    return Err(StorageError::TypeMismatch {
+                        column: column_name.to_string(),
+                        expected: "BIT".to_string(),
+                        actual: value.type_name().to_string(),
+                    });
+                }
+            }
             // User-defined types
             #[cfg_attr(not(debug_assertions), allow(unused_variables))]
             DataType::UserDefined { type_name } => {
