@@ -114,7 +114,7 @@ fn test_sum_no_group_by() {
 
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Numeric(450.0));
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(450));
 }
 
 #[test]
@@ -226,7 +226,7 @@ fn test_sum_with_nulls() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     // SUM ignores NULL values, so 100 + 200 = 300
-    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Numeric(300.0));
+    assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(300));
 }
 
 #[test]

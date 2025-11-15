@@ -93,5 +93,5 @@ fn test_having_clause() {
     let result = executor.execute(&stmt).unwrap();
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].values[0], vibesql_types::SqlValue::Integer(1));
-    assert_eq!(result[0].values[1], vibesql_types::SqlValue::Numeric(300.0));
+    assert_eq!(result[0].values[1], vibesql_types::SqlValue::Integer(300));
 }
