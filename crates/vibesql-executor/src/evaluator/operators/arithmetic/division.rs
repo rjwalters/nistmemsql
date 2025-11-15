@@ -55,7 +55,7 @@ impl Division {
             if *b == 0 {
                 return Ok(SqlValue::Null);
             }
-            return Ok(Numeric((a / b) as f64));
+            return Ok(Integer(a / b));
         }
 
         // Use helper for type coercion
@@ -74,9 +74,9 @@ impl Division {
 
         // Integer division truncates toward zero
         match coerced {
-            super::CoercedValues::ExactNumeric(a, b) => Ok(Numeric((a / b) as f64)),
-            super::CoercedValues::ApproximateNumeric(a, b) => Ok(Numeric((a / b).trunc())),
-            super::CoercedValues::Numeric(a, b) => Ok(Numeric((a / b).trunc())),
+            super::CoercedValues::ExactNumeric(a, b) => Ok(Integer(a / b)),
+            super::CoercedValues::ApproximateNumeric(a, b) => Ok(Integer((a / b).trunc() as i64)),
+            super::CoercedValues::Numeric(a, b) => Ok(Integer((a / b).trunc() as i64)),
         }
     }
 }
